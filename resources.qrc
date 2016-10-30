@@ -1,0 +1,10 @@
+<RCC>
+  <qresource prefix="images">
+    <file>resources/1472056618_cursor_drag_arrow_2.png</file>
+    <file>resources/rectangle-icone-3783-48.png</file>
+    <file>resources/1465232751_f-zoom-in_128.png</file>
+    <file>resources/document-change-record-a-pen-to-write-text-icone-5220-48.png</file>
+    <file>resources/new-document-file-paper-pen-writing-icone-6977-48.png</file>
+    <file>resources/1465232786_f-zoom-out_128.png</file>
+  </qresource>
+</RCC>
