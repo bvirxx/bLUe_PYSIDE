@@ -187,7 +187,7 @@ def canny(img0, img1) :
    edges[:]=0
    print len(contours)
    cv2.drawContours(edges, contours[0], -1, 255, 2)
-   img1.set_cv2Img(edges)
+   img1.__set_cv2Img(edges)
    window.label_2.repaint()
 
 qp=QtGui.QPainter()
@@ -229,9 +229,9 @@ def showResult(img0, img1, turn):
         current_mask= mask_s
 
     mask2 = np.where((current_mask == cv2.GC_FGD) + (current_mask == cv2.GC_PR_FGD), 1, 0).astype('uint8')
-    img1.set_cv2Img(img0.cv2Img)
+    img1.__set_cv2Img(img0.cv2Img)
     img1.cv2Img[:, :, 3] = img1.cv2Img[:, :, 3] * mask2
-    img1.set_cv2Img(img1.cv2Img)
+    img1.__set_cv2Img(img1.cv2Img)
     window.label_2.img=img1
     window.label_2.repaint()
 

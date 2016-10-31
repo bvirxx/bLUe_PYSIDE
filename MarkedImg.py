@@ -36,9 +36,9 @@ class MImage:
                 self.cv2Img=cv2Img.copy()
             else:
                 self.cv2Img=cv2Img
-        self.set_cv2Img(self.cv2Img)
+        self.__set_cv2Img(self.cv2Img)
 
-    def set_cv2Img (self, cv2Img):
+    def __set_cv2Img (self, cv2Img):
         self.cv2Img = cv2Img
         self.width = self.cv2Img.shape[1]
         self.height = self.cv2Img.shape[0]
