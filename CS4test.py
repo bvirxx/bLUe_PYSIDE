@@ -36,7 +36,7 @@ hist = docObj.histogram
 plt.plot(hist)
 plt.show()
 
-print hist
+
 
 layer.AdjustCurves ( vararr ( [ [0,0] , [255,200] ]))
 
