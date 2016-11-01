@@ -1,12 +1,13 @@
 import sys
 import cv2
 from PyQt4.QtCore import Qt, QString, QRect
+from PyQt4 import QtGui
 import QtGui1
 import PyQt4.Qwt5 as Qwt
 import time
 
 from imgconvert import *
-from MarkedImg import MImage
+from MarkedImg import mImage
 #P_SIZE=6400000
 P_SIZE=24000000
 BLUE = [255,0,0]        # rectangle color
@@ -104,7 +105,7 @@ def do_grabcut(img0, preview=-1, nb_iter=1, mode=cv2.GC_INIT_WITH_RECT, test=Fal
         img0_r.rect = QRect(1000, 800, img0_r.width-1000, img0_r.height-800)
         print "none rect modify"
     tmp[img0_r.rect.top():img0_r.rect.bottom(), img0_r.rect.left():img0_r.rect.right()] = cv2.GC_PR_FGD
-    tmp1=Qimage2array(img0_r.mask)
+    tmp1=QImageToNdarray(img0_r.mask)
     #print Qimage2array(img0_r.mask)[:10,:10,]
     #exit()
 
@@ -155,7 +156,7 @@ def do_grabcut(img0, preview=-1, nb_iter=1, mode=cv2.GC_INIT_WITH_RECT, test=Fal
     #tmp[:, :, 3]=tmp[:,:,3]*mask2
     tmp[:, :, 3] = tmp[:, :, 3] * mask_s
 
-    img1= MImage(cv2Img=tmp, cv2mask=mask_s)
+    img1= mImage(cv2Img=tmp, cv2mask=mask_s)
     #display
     #window.label_2.repaint()
     a = (mask_s * 255).astype('uint8')
@@ -164,7 +165,7 @@ def do_grabcut(img0, preview=-1, nb_iter=1, mode=cv2.GC_INIT_WITH_RECT, test=Fal
     b[:,:]=128
     cv2mask = cv2.resize(np.dstack((a, c, c, b) ), (img0.width, img0.height), interpolation=cv2.INTER_NEAREST)
     img0.layers=[]
-    img0.layers.append(ndarrayToQimage(cv2mask))
+    img0.layers.append(ndarrayToQImage(cv2mask))
     #img0.mask=ndarrayToQimage(cv2mask)
     # change
     return img1
@@ -230,10 +231,10 @@ def showResult(img0, img1, turn):
 
     mask2 = np.where((current_mask == cv2.GC_FGD) + (current_mask == cv2.GC_PR_FGD), 1, 0).astype('uint8')
     #img1.set_cv2Img_(img0.cv2Img)
-    img1=MImage(cv2Img=img0.cv2Img)
+    img1=mImage(cv2Img=img0.cv2Img)
     img1.cv2Img[:, :, 3] = img1.cv2Img[:, :, 3] * mask2
     #img1.set_cv2Img_(img1.cv2Img)
-    img1 = MImage(cv2Img=img0.cv2Img)
+    img1 = mImage(cv2Img=img0.cv2Img)
     window.label_2.img=img1
     window.label_2.repaint()
 
@@ -342,7 +343,7 @@ window = QtGui1.Form1()
 
 window.show()
 
-Mimg = MImage('orch2-2-2.jpg')
+Mimg = mImage('orch2-2-2.jpg')
 #Mimg = MImage('F:\Bernard\epreuves\loiret.jpg')
 
 w, h = Mimg.width, Mimg.height
@@ -351,10 +352,10 @@ rs_coeff = min(float(w1)/float(w), float(h1)/float(h) )
 rs_w, rs_h = int(w * rs_coeff), int(h * rs_coeff)
 
 Mimg_p=Mimg
-Mimg_0=MImage(cv2Img=Mimg_p.cv2Img, copy=True)
+Mimg_0=mImage(cv2Img=Mimg_p.cv2Img, copy=True)
 window.label.img=Mimg_p
 
-Mimg_1=MImage(cv2Img=Mimg_p.cv2Img, copy=True)
+Mimg_1=mImage(cv2Img=Mimg_p.cv2Img, copy=True)
 window.label_2.img= Mimg_1
 #Mimg_2=MImage(cv2Img=Mimg_p.cv2Img)
 
