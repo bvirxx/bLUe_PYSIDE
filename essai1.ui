@@ -6,9 +6,15 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>670</width>
-    <height>740</height>
+    <width>974</width>
+    <height>829</height>
    </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
   </property>
   <property name="windowTitle">
    <string>MainWindow</string>
@@ -17,8 +23,203 @@
    <layout class="QVBoxLayout" name="verticalLayout">
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout_2">
+      <item alignment="Qt::AlignLeft">
+       <widget class="QGroupBox" name="groupbox_btn">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>74</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <property name="title">
+         <string/>
+        </property>
+        <widget class="QToolButton" name="toolButton_6">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>220</y>
+           <width>41</width>
+           <height>41</height>
+          </rect>
+         </property>
+         <property name="accessibleName">
+          <string>drag</string>
+         </property>
+         <property name="text">
+          <string>...</string>
+         </property>
+         <property name="icon">
+          <iconset resource="../CS4/resources.qrc">
+           <normaloff>:/images/resources/1472056618_cursor_drag_arrow_2.png</normaloff>:/images/resources/1472056618_cursor_drag_arrow_2.png</iconset>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <property name="autoExclusive">
+          <bool>true</bool>
+         </property>
+        </widget>
+        <widget class="QToolButton" name="drawBG">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>140</y>
+           <width>41</width>
+           <height>41</height>
+          </rect>
+         </property>
+         <property name="accessibleName">
+          <string>drawBG</string>
+         </property>
+         <property name="text">
+          <string>...</string>
+         </property>
+         <property name="icon">
+          <iconset resource="../CS4/resources.qrc">
+           <normaloff>:/images/resources/document-change-record-a-pen-to-write-text-icone-5220-48.png</normaloff>:/images/resources/document-change-record-a-pen-to-write-text-icone-5220-48.png</iconset>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <property name="autoExclusive">
+          <bool>true</bool>
+         </property>
+        </widget>
+        <widget class="QToolButton" name="rectangle">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>180</y>
+           <width>41</width>
+           <height>41</height>
+          </rect>
+         </property>
+         <property name="accessibleName">
+          <string>rectangle</string>
+         </property>
+         <property name="text">
+          <string>...</string>
+         </property>
+         <property name="icon">
+          <iconset resource="../CS4/resources.qrc">
+           <normaloff>:/images/resources/rectangle-icone-3783-48.png</normaloff>:/images/resources/rectangle-icone-3783-48.png</iconset>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <property name="autoExclusive">
+          <bool>true</bool>
+         </property>
+        </widget>
+        <widget class="QToolButton" name="toolButton_2">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>60</y>
+           <width>41</width>
+           <height>41</height>
+          </rect>
+         </property>
+         <property name="accessibleName">
+          <string>zoomIn</string>
+         </property>
+         <property name="text">
+          <string>...</string>
+         </property>
+         <property name="icon">
+          <iconset>
+           <normaloff>C:/Users/Bernard/Downloads/1465232786_f-zoom-out_128.png</normaloff>C:/Users/Bernard/Downloads/1465232786_f-zoom-out_128.png</iconset>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <property name="autoExclusive">
+          <bool>true</bool>
+         </property>
+        </widget>
+        <widget class="QToolButton" name="toolButton">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>20</y>
+           <width>41</width>
+           <height>41</height>
+          </rect>
+         </property>
+         <property name="accessibleName">
+          <string>zoomOut</string>
+         </property>
+         <property name="text">
+          <string>...</string>
+         </property>
+         <property name="icon">
+          <iconset>
+           <normaloff>C:/Users/Bernard/Downloads/1465232751_f-zoom-in_128.png</normaloff>C:/Users/Bernard/Downloads/1465232751_f-zoom-in_128.png</iconset>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <property name="autoExclusive">
+          <bool>true</bool>
+         </property>
+        </widget>
+        <widget class="QToolButton" name="drawFG">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>100</y>
+           <width>41</width>
+           <height>41</height>
+          </rect>
+         </property>
+         <property name="accessibleName">
+          <string>drawFG</string>
+         </property>
+         <property name="text">
+          <string>...</string>
+         </property>
+         <property name="icon">
+          <iconset resource="../CS4/resources.qrc">
+           <normaloff>:/images/resources/new-document-file-paper-pen-writing-icone-6977-48.png</normaloff>:/images/resources/new-document-file-paper-pen-writing-icone-6977-48.png</iconset>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <property name="autoExclusive">
+          <bool>true</bool>
+         </property>
+        </widget>
+        <widget class="myButton" name="toolButton_3">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>260</y>
+           <width>41</width>
+           <height>41</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>...</string>
+         </property>
+         <property name="icon">
+          <iconset resource="../CS4/resources.qrc">
+           <normaloff>:/images/resources/fgbg_small.jpg</normaloff>:/images/resources/fgbg_small.jpg</iconset>
+         </property>
+        </widget>
+       </widget>
+      </item>
       <item>
        <widget class="QLabel" name="label">
+        <property name="contextMenuPolicy">
+         <enum>Qt::CustomContextMenu</enum>
+        </property>
         <property name="frameShape">
          <enum>QFrame::NoFrame</enum>
         </property>
@@ -55,7 +256,7 @@
     <item>
      <widget class="QGroupBox" name="groupBox">
       <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+       <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
         <horstretch>0</horstretch>
         <verstretch>0</verstretch>
        </sizepolicy>
@@ -63,217 +264,120 @@
       <property name="title">
        <string/>
       </property>
-      <widget class="QToolButton" name="toolButton">
-       <property name="geometry">
-        <rect>
-         <x>30</x>
-         <y>91</y>
-         <width>31</width>
-         <height>31</height>
-        </rect>
-       </property>
-       <property name="accessibleName">
-        <string>zoomOut</string>
-       </property>
-       <property name="text">
-        <string>...</string>
-       </property>
-       <property name="icon">
-        <iconset>
-         <normaloff>C:/Users/Bernard/Downloads/1465232751_f-zoom-in_128.png</normaloff>C:/Users/Bernard/Downloads/1465232751_f-zoom-in_128.png</iconset>
-       </property>
-       <property name="checkable">
-        <bool>true</bool>
-       </property>
-       <property name="autoExclusive">
-        <bool>true</bool>
-       </property>
-      </widget>
-      <widget class="QToolButton" name="toolButton_2">
-       <property name="geometry">
-        <rect>
-         <x>30</x>
-         <y>120</y>
-         <width>31</width>
-         <height>31</height>
-        </rect>
-       </property>
-       <property name="accessibleName">
-        <string>zoomIn</string>
-       </property>
-       <property name="text">
-        <string>...</string>
-       </property>
-       <property name="icon">
-        <iconset>
-         <normaloff>C:/Users/Bernard/Downloads/1465232786_f-zoom-out_128.png</normaloff>C:/Users/Bernard/Downloads/1465232786_f-zoom-out_128.png</iconset>
-       </property>
-       <property name="checkable">
-        <bool>true</bool>
-       </property>
-       <property name="autoExclusive">
-        <bool>true</bool>
-       </property>
-      </widget>
-      <widget class="QLabel" name="label_3">
-       <property name="geometry">
-        <rect>
-         <x>10</x>
-         <y>0</y>
-         <width>291</width>
-         <height>41</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Label_3</string>
-       </property>
-      </widget>
-      <widget class="QPushButton" name="pushButton">
-       <property name="geometry">
-        <rect>
-         <x>450</x>
-         <y>110</y>
-         <width>93</width>
-         <height>28</height>
-        </rect>
-       </property>
-       <property name="accessibleName">
-        <string>Apply</string>
-       </property>
-       <property name="text">
-        <string>Apply</string>
-       </property>
-      </widget>
-      <widget class="QToolButton" name="toolButton_3">
-       <property name="geometry">
-        <rect>
-         <x>30</x>
-         <y>150</y>
-         <width>31</width>
-         <height>31</height>
-        </rect>
-       </property>
-       <property name="accessibleName">
-        <string>drawFG</string>
-       </property>
-       <property name="text">
-        <string>...</string>
-       </property>
-       <property name="icon">
-        <iconset resource="resources.qrc">
-         <normaloff>:/images/resources/new-document-file-paper-pen-writing-icone-6977-48.png</normaloff>:/images/resources/new-document-file-paper-pen-writing-icone-6977-48.png</iconset>
-       </property>
-       <property name="checkable">
-        <bool>true</bool>
-       </property>
-       <property name="autoExclusive">
-        <bool>true</bool>
-       </property>
-      </widget>
-      <widget class="QToolButton" name="toolButton_4">
-       <property name="geometry">
-        <rect>
-         <x>30</x>
-         <y>180</y>
-         <width>31</width>
-         <height>31</height>
-        </rect>
-       </property>
-       <property name="accessibleName">
-        <string>drawBG</string>
-       </property>
-       <property name="text">
-        <string>...</string>
-       </property>
-       <property name="icon">
-        <iconset resource="resources.qrc">
-         <normaloff>:/images/resources/document-change-record-a-pen-to-write-text-icone-5220-48.png</normaloff>:/images/resources/document-change-record-a-pen-to-write-text-icone-5220-48.png</iconset>
-       </property>
-       <property name="checkable">
-        <bool>true</bool>
-       </property>
-       <property name="autoExclusive">
-        <bool>true</bool>
-       </property>
-      </widget>
-      <widget class="QToolButton" name="toolButton_5">
-       <property name="geometry">
-        <rect>
-         <x>30</x>
-         <y>210</y>
-         <width>31</width>
-         <height>31</height>
-        </rect>
-       </property>
-       <property name="accessibleName">
-        <string>rectangle</string>
-       </property>
-       <property name="text">
-        <string>...</string>
-       </property>
-       <property name="icon">
-        <iconset resource="resources.qrc">
-         <normaloff>:/images/resources/rectangle-icone-3783-48.png</normaloff>:/images/resources/rectangle-icone-3783-48.png</iconset>
-       </property>
-       <property name="checkable">
-        <bool>true</bool>
-       </property>
-       <property name="autoExclusive">
-        <bool>true</bool>
-       </property>
-      </widget>
-      <widget class="QToolButton" name="toolButton_6">
-       <property name="geometry">
-        <rect>
-         <x>30</x>
-         <y>240</y>
-         <width>31</width>
-         <height>31</height>
-        </rect>
-       </property>
-       <property name="accessibleName">
-        <string>drag</string>
-       </property>
-       <property name="text">
-        <string>...</string>
-       </property>
-       <property name="icon">
-        <iconset resource="resources.qrc">
-         <normaloff>:/images/resources/1472056618_cursor_drag_arrow_2.png</normaloff>:/images/resources/1472056618_cursor_drag_arrow_2.png</iconset>
-       </property>
-       <property name="checkable">
-        <bool>true</bool>
-       </property>
-       <property name="autoExclusive">
-        <bool>true</bool>
-       </property>
-      </widget>
-      <widget class="QPushButton" name="pushButton_2">
-       <property name="geometry">
-        <rect>
-         <x>450</x>
-         <y>80</y>
-         <width>93</width>
-         <height>28</height>
-        </rect>
-       </property>
-       <property name="focusPolicy">
-        <enum>Qt::WheelFocus</enum>
-       </property>
-       <property name="accessibleName">
-        <string>Preview</string>
-       </property>
-       <property name="text">
-        <string>Preview</string>
-       </property>
-      </widget>
+      <layout class="QHBoxLayout" name="horizontalLayout">
+       <item>
+        <widget class="QPushButton" name="pushButton">
+         <property name="minimumSize">
+          <size>
+           <width>93</width>
+           <height>28</height>
+          </size>
+         </property>
+         <property name="accessibleName">
+          <string>Apply</string>
+         </property>
+         <property name="text">
+          <string>Apply</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="pushButton_2">
+         <property name="minimumSize">
+          <size>
+           <width>93</width>
+           <height>28</height>
+          </size>
+         </property>
+         <property name="focusPolicy">
+          <enum>Qt::WheelFocus</enum>
+         </property>
+         <property name="accessibleName">
+          <string>Preview</string>
+         </property>
+         <property name="text">
+          <string>Preview</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
      </widget>
     </item>
    </layout>
   </widget>
+  <widget class="QMenuBar" name="menuBar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>974</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menu_File">
+    <property name="title">
+     <string>&amp;File</string>
+    </property>
+    <widget class="QMenu" name="menuOpen_recent">
+     <property name="title">
+      <string>Open recent</string>
+     </property>
+     <addaction name="actionSub"/>
+    </widget>
+    <addaction name="actionOpen"/>
+    <addaction name="actionSave"/>
+    <addaction name="menuOpen_recent"/>
+   </widget>
+   <addaction name="menu_File"/>
+  </widget>
+  <widget class="QDockWidget" name="dockWidget">
+   <property name="minimumSize">
+    <size>
+     <width>213</width>
+     <height>135</height>
+    </size>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>2</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents">
+    <layout class="QVBoxLayout" name="verticalLayout_2">
+     <item>
+      <widget class="QLayerView" name="tableView"/>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <action name="actionOpen">
+   <property name="text">
+    <string>Open</string>
+   </property>
+  </action>
+  <action name="actionSave">
+   <property name="text">
+    <string>Save</string>
+   </property>
+  </action>
+  <action name="actionSub">
+   <property name="text">
+    <string>sub</string>
+   </property>
+  </action>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>myButton</class>
+   <extends>QToolButton</extends>
+   <header>QtButton1</header>
+  </customwidget>
+  <customwidget>
+   <class>QLayerView</class>
+   <extends>QTableView</extends>
+   <header location="global">layerView</header>
+  </customwidget>
+ </customwidgets>
  <resources>
-  <include location="resources.qrc"/>
+  <include location="../CS4/resources.qrc"/>
  </resources>
  <connections/>
 </ui>

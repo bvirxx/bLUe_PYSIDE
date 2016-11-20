@@ -1,80 +1,144 @@
 import cv2
 from imgconvert import *
-from PyQt4.QtGui import QPixmap, QImage
+from PyQt4.QtGui import QPixmap, QImage, QColor
 from PyQt4.QtCore import QRect
 
-class mImage:
+class vImage(QImage):
+    """
+    versatile image class.
+    This is the base class for all multi-layered and interactive image classes
+    """
+
+    def fromQImage(cls, qImg):
+        qImg.rect, qImg.mask = None, None
+        qImg.qPixmap = QPixmap.fromImage(qImg)
+        qImg.__class__ = vImage
+        return qImg
+
+    def __init__(self, filename=None, cv2Img=None, QImg=None, cv2mask=None, copy=False, format=QImage.Format_ARGB32):
+        if (filename is None and cv2Img is None and QImg is None):
+            # create a null image
+            super(vImage, self).__init__()
+        if filename is not None:
+            # load file
+            super(vImage, self).__init__(filename)
+        elif QImg is not None:
+            if copy:
+                #d o a deep copy
+                super(vImage, self).__init__(QImg.copy())
+            else:
+                # do a shallow copy
+                super(vImage, self).__init__(QImg)
+        elif cv2Img is not None:
+            if copy:
+                cv2Img = cv2Img.copy()
+            # shallow copy
+            super(vImage, self).__init__(ndarrayToQImage(cv2Img, format=format))
+
+        self.rect, self.mask = None, cv2mask
+        # prevent from garbage collector
+        self.data=self.bits()
+        self.qPixmap = QPixmap.fromImage(self)
+
+        if self.mask is None:
+            self.mask = QImage(self.width(), self.height(), QImage.Format_ARGB32)
+            self.mask.fill(0)
+
+    def cv2Img(self):
+        return QImageToNdarray(self)
+
+    def resize(self, pixels, interpolation=cv2.INTER_CUBIC):
+        """
+        Resize an image while keeping its aspect ratio.
+        The original image is not modified.
+        :param pixels: pixel count for the resized image
+        :return the resized vImage
+        """
+        ratio = self.width() / float(self.height())
+        w, h = int(np.sqrt(pixels * ratio)), int(np.sqrt(pixels / ratio))
+        hom = w / float(self.width())
+        # resize
+        cv2Img = cv2.resize(self.cv2Img(), (w, h), interpolation=interpolation)
+        # create new vImage
+        rszd = vImage(cv2Img=cv2Img)
+
+        #resize rect and mask
+        if self.rect is not None:
+            rszd.rect = QRect(self.rect.left() * hom, self.rect.top() * hom, self.rect.width() * hom, self.rect.height() * hom)
+        if self.mask is not None:
+            # tmp.mask=cv2.resize(self.mask, (w,h), interpolation=cv2.INTER_NEAREST )
+            rszd.mask = self.mask.scaled(w, h)
+        return rszd
+
+class mImage(vImage):
     """
     Multi-layer image
     """
-    def __init__(self, filename=None, cv2Img=None, cv2mask=None, copy=False):
-        self.qImg, self.QPixmap = None, None
-        self.rect, self.mask = None, cv2mask
-        self.Zoom_coeff = 1.0
-        self.xOffset, self.yOffset,self.width, self.height = 0,0,0,0
-        self.QFormat, self.ROI = None, None
-        self.layers = []
+    def __init__(self, *args, **kwargs):
+        super(mImage, self).__init__(*args, **kwargs)
+        self._layers = {}
+        self._layersStack = []
+        # add background layer
+        self.addLayer(QLayer.frommImage(self), 'background')
 
-        if (filename is None and cv2Img is None) or (filename is not None and cv2Img is not None) :
-            return
-
-        if filename is not None:
-            # load image from file
-            self.qimg = QImage(filename)
-            self.qpixmap = QPixmap.fromImage(self.qimg)
-            self.cv2Img = QImageToNdarray(self.qimg)
-            self.cv2Img.astype(np.uint8)
-            if self.cv2Img is None:
-                print 'read error'
-                raise Exception('cv2 read error %s' % filename)
-            #else:
-                #print 'read image format %s' % (self.cv2Img.shape, )
-            if len(self.cv2Img.shape)<=2:               # gray image
-                self.cv2Img = cv2.cvtColor(self.cv2Img, cv2.COLOR_GRAY2BGRA) # convert to BGRA
-            elif self.cv2Img.shape[2]==3:               # BGR image
-                self.cv2Img = cv2.cvtColor(self.cv2Img, cv2.COLOR_BGR2BGRA)  # convert to BGRA
-            else:                                       # already BGRA image
-                pass
-                # self.cv2Img = cv2.cvtColor(self.cv2Img, cv2.COLOR_BGRA2RGBA) # convert to RGBA
-        elif cv2Img is not None:
-            if copy:
-                self.cv2Img=cv2Img.copy()
-            else:
-                self.cv2Img=cv2Img
-        self.__set_cv2Img(self.cv2Img)
-
-    def __set_cv2Img (self, cv2Img):
-        self.cv2Img = cv2Img
-        self.width = self.cv2Img.shape[1]
-        self.height = self.cv2Img.shape[0]
-        if len(self.cv2Img.shape) >= 3:
-            self.qImg = ndarrayToQImage(self.cv2Img)                # ARGB32 QImage
-            self.QFormat = QImage.Format_ARGB32
-        else:
-            self.qImg = gray2qimage(self.cv2Img)
-            self.QFormat = QImage.Format_Indexed8
-        #self.mask = np.zeros(self.cv2Img.shape[:2],dtype = np.uint8)
-        self.mask = QImage(self.cv2Img.shape[1], self.cv2Img.shape[0], QImage.Format_ARGB32)
-        self.mask.fill(0)
-        #self.rect = QtCore.QRect(100,100, self.width - 200,self.height -200)
-        self.ROI= QRect(0,0, self.width, self.height)
-    def setLayers(self, layer_list):
-        self.layers = layer_list
+    def addLayer(self, layer, name):
+        self._layers[name] = layer
+        self._layersStack.append(layer)
 
     def cvtToGray(self):
         self.cv2Img = cv2.cvtColor(self.cv2Img, cv2.COLOR_BGR2GRAY)
-        self.qImg = gray2qimage(self.cv2Img)
-        self.QFormat = QImage.Format_Indexed8
+        #self.qImg = gray2qimage(self.cv2Img)
 
-    def resize(self, pixels):
-        ratio=self.width/float(self.height)
-        w,h=int(np.sqrt(pixels*ratio)), int(np.sqrt(pixels/ratio))
-        hom = w/float(self.width)
-        cv2Img=cv2.resize(self.cv2Img, (w,h), interpolation=cv2.INTER_CUBIC)
-        tmp = mImage(cv2Img=cv2Img)
-        if not (self.rect is None):
-            tmp.rect = QRect(self.rect.left()*hom, self.rect.top()*hom, self.rect.width()*hom, self.rect.height()*hom)
-        if not (self.mask is None):
-            #tmp.mask=cv2.resize(self.mask, (w,h), interpolation=cv2.INTER_NEAREST )
-            tmp.mask = self.mask.scaled(w,h)
-        return tmp
+
+class imImage(mImage) :
+    """
+    Interactive multi layer image
+    """
+    def __init__(self, filename=None, cv2Img=None, QImg=None, cv2mask=None, copy=False, format=QImage.Format_ARGB32) :
+        super(imImage, self).__init__(filename=filename, cv2Img=cv2Img, QImg=QImg, cv2mask=cv2mask, copy=copy, format=format)
+        self.Zoom_coeff = 1.0
+        self.xOffset, self.yOffset = 0, 0
+
+        drawLayer = QLayer(QImage(self.width(), self.height(), QImage.Format_ARGB32))
+        drawLayer.fill(QColor(0,0,0,0))
+        self.addLayer(drawLayer, 'drawlayer')
+
+    def resize_coeff(self, widget):
+        """
+        computes the resizing coefficient
+        to be applied to mimg to display a non distorted view
+        in the widget.
+
+        :param mimg: mImage
+        :param widget: Qwidget object
+        :return: the (multiplicative) resizing coefficient
+        """
+        r_w, r_h = float(widget.width()) / self.width(), float(widget.height()) / self.height()
+        r = max(r_w, r_h)
+        return r * self.Zoom_coeff
+
+    def resize(self, pixels, interpolation=cv2.INTER_CUBIC):
+        rszd0 = super(imImage, self).resize(pixels)
+        rszd = imImage(QImg=rszd0)
+        rszd.rect = rszd0.rect
+        for k in self._layers.keys():
+            if k != "background":
+                rszd._layers[k]=self._layers[k].resize(pixels, interpolation=cv2.INTER_NEAREST)
+        """
+        rszd.drawLayer = QImage(rszd.qImg.width(), rszd.qImg.height(), QImage.Format_ARGB32)
+        rszd.drawLayer.fill(QColor(0, 0, 0, 0))
+        rszd.layers.append(rszd.drawLayer)
+        """
+        return rszd
+
+class QLayer(vImage):
+    @classmethod
+    def frommImage(cls, mImg):
+        mImg.visible = True
+        mImg.alpha = 255
+        return QLayer(QImg=mImg)
+
+    def __init__(self, *args, **kwargs):
+        super(QLayer, self).__init__(*args, **kwargs)
+        self.visible = True
+        self.alpha=255

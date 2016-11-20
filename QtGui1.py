@@ -1,43 +1,50 @@
-from PyQt4 import QtCore, QtGui, uic
-#from PyQt4 import QtGui
+from PyQt4 import QtGui, uic
+from PyQt4.QtCore import QSettings, QSize
 
-# Python wrapper for the PyQt4 Form UI_MainWindow
-# built by Qt Designer.
-#
-# The Class UI_MainWindow is built automatically from
-# essai1.ui : pyuic4 essai1.ui -o essai1.py
-#
-# Here, we mainly set the widget events handlers
 
-#from essai1 import *
-import sys
-import resources_rc  # mandatory!!!
+# Python loader for the UI Form built by Qt Designer.
 
-#class Form1(QtGui.QMainWindow, Ui_MainWindow):
+
+#import sys
+import resources_rc   # don't remove
+
 class Form1(QtGui.QMainWindow):
+
     def __init__(self, parent=None):
-        QtGui.QWidget.__init__(self, parent)
-        uic.loadUi('essai1.ui', self)
-        #self.setupUi(self)                  # inherited from UI_MainWindow
-        self.onChange = lambda : 0          # triggered by button or slider change
+        #QtGui.QMainWindow.__init__(self, parent)
+        super(Form1, self).__init__(parent)
+        # load UI
+        ui=uic.loadUi('essai1.ui', self)
+        """
+        color = QtGui.QColorDialog(ui.window())
+        color.setWindowFlags(Qt.Widget)
+        color.setOption(QtGui.QColorDialog.NoButtons, True)
+        color.show()
+        ui.horizontalLayout.addWidget(color)
+        """
+        self.onWidgetChange = lambda : 0          # triggered by button or slider change
+        self.onShowContextMenu = lambda : 0
+        self.onExecFileMenu = lambda : 0
+        self.onExecFileOpen = lambda : 0
         self.slidersValues = {}
         self.btnValues = {}
+        self._recentFiles = []
 
-        for slider in self.groupBox.findChildren(QtGui.QSlider):
+        for slider in self.findChildren(QtGui.QSlider):
             segment = slider.objectName()
             slider.valueChanged.connect(
                             lambda value, slider=slider : self.handleSliderMoved(value, slider)
                             )
             self.slidersValues [str(slider.accessibleName())] = slider.value()
 
-        for button in self.groupBox.findChildren(QtGui.QPushButton) :
+        for button in self.findChildren(QtGui.QPushButton) :
             segment = button.objectName()
             button.pressed.connect(
                             lambda button=button : self.handleButtonClicked(button)
                             )
-            self.btnValues [str(button.accessibleName())] = button.isChecked()
+            self.btnValues[str(button.accessibleName())] = button.isChecked()
 
-        for button in self.groupBox.findChildren(QtGui.QToolButton) :
+        for button in self.findChildren(QtGui.QToolButton) :
             segment = button.objectName()
             #button.setStyleSheet("QToolButton#DCButton:checked {color:black; background-color: green;}")
             button.pressed.connect(
@@ -45,18 +52,65 @@ class Form1(QtGui.QMainWindow):
                             )
             self.btnValues[str(button.accessibleName())] = button.isChecked()
 
-    def handleButtonClicked(self, button):   # connected to button.toggled
+        for widget in self.findChildren(QtGui.QLabel):
+            widget.customContextMenuRequested.connect(lambda pos, widget=widget : self.showContextMenu(pos,widget))
+
+        for action in self.findChildren(QtGui.QAction) :
+            action.triggered.connect(lambda x, actionName=action.objectName(): self.execFileMenu(x, actionName))
+
+    def updateMenuOpenRecent(self):
+        self.menuOpen_recent.clear()
+        for f in self._recentFiles :
+            self.menuOpen_recent.addAction(f, lambda x=f: self.execFileOpen(x))
+
+    def execFileMenu(self,x, name):
+        self.onExecFileMenu(name)
+
+    def execFileOpen(self, f):
+        self.onExecFileOpen(f)
+
+    def showContextMenu(self, pos, widget):
+        self.onShowContextMenu(widget)
+
+    def handleButtonClicked(self, button):   # connected to button.pressed
         for k in self.btnValues :
             self.btnValues[k]=0
         self.btnValues[str(button.accessibleName())] = 1
-        print "called", self.sender().accessibleName()
-        print '*********', self.btnValues['drawFG']
-        self.onChange(button)
+        self.onWidgetChange(button)
 
     def handleSliderMoved (self, value, slider) :   # connected to slider.valueChanged
         self.slidersValues[str(slider.accessibleName())] = value
-        self.onChange(slider)
+        self.onWidgetChange(slider)
 
+    def readSettings(self):
+        self.settings = QSettings("qsettingsexample.ini", QSettings.IniFormat);
+
+        self.resize(self.settings.value("mainwindow/size", QSize(250, 200)).toSize());
+
+
+    def writeSettings(self):
+        self.settings.sync()
+        return
+        settings = QSettings("qsettingsexample.ini", QSettings.IniFormat);
+
+        print settings.value('paths/dlgdir', 'novalue').toString()
+        return
+        settings = QSettings("qsettingsexample.ini", QSettings.IniFormat);
+
+        settings.beginGroup("mainwindow")
+        settings.setValue("size", self.size())
+        settings.endGroup()
+
+        settings.beginGroup("text")
+        settings.setValue("font", 1 )
+        settings.setValue("size", 2)
+        settings.endGroup()
+
+    def closeEvent(self, event):
+        self.writeSettings()
+        super(Form1, self).closeEvent(event)
+
+"""
 if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)
     window = Form1()
@@ -72,3 +126,4 @@ if __name__ == "__main__":
 
     window.label.setPixmap(myScaledPixmap)
     sys.exit(app.exec_())
+"""

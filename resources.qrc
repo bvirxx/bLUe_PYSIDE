@@ -1,5 +1,7 @@
 <RCC>
   <qresource prefix="images">
+    <file>resources/eye-icon.png</file>
+    <file>resources/fgbg_small.jpg</file>
     <file>resources/1472056618_cursor_drag_arrow_2.png</file>
     <file>resources/rectangle-icone-3783-48.png</file>
     <file>resources/1465232751_f-zoom-in_128.png</file>
