@@ -1,13 +1,14 @@
 import sys
 import cv2
 from PyQt4.QtCore import Qt, QRect, QEvent, QSettings, QSize, QString
-from PyQt4.QtGui import QPixmap, QImage, QColor,QPainter, QApplication, QMenu, QAction, QCursor, QFileDialog, QColorDialog
+from PyQt4.QtGui import QWidget, QPixmap, QImage, QColor,QPainter, QApplication, QMenu, QAction, QCursor, QFileDialog, QColorDialog, QMainWindow, QLabel, QHBoxLayout, QSizePolicy
 import QtGui1
 import PyQt4.Qwt5 as Qwt
 import time
-
+import exiftool
 from imgconvert import *
 from MarkedImg import mImage, imImage, QLayer
+from icc import convert
 
 P_SIZE=4000000
 
@@ -91,7 +92,7 @@ def do_grabcut(img0, preview=-1, nb_iter=1, mode=cv2.GC_INIT_WITH_RECT, again=Fa
         mask_s=cv2.resize(mask_s, (img0_r.width(), img0_r.height()), interpolation=cv2.INTER_NEAREST)
         #a=img0_r.cv2Img()
     #cv2.grabCut_mtd(img0_r.cv2Img()[:,:,:3],
-    cv2.grabCut(img0_r.cv2Img()[:, :, :3],
+    cv2.grabCut_mtd(img0_r.cv2Img()[:, :, :3],
                 mask_s,
                 None,#QRect2tuple(img0_r.rect),
                 bgdmodel, fgdmodel,
@@ -349,7 +350,7 @@ def button_change(widg):
     if str(widg.accessibleName()) == "Apply" :
         print "grabcut"
         #do_grabcut(Mimg_p, mode=cv2.GC_INIT_WITH_MASK, again=(rect_or_mask==0))
-        do_grabcut(window.label.img, mode=cv2.GC_INIT_WITH_MASK, again=(rect_or_mask==0))
+        window.label_2.img=do_grabcut(window.label.img, mode=cv2.GC_INIT_WITH_MASK, again=(rect_or_mask==0))
     elif str(widg.accessibleName()) == "Preview" :
         print "grabcut preview"
         window.label_2.img = do_grabcut(window.label.img, preview=P_SIZE, mode=cv2.GC_INIT_WITH_MASK, again=(rect_or_mask==0))
@@ -369,7 +370,7 @@ def toggleLayer(widget, layer, b):
     layer.visible = b
     widget.repaint()
 
-def fileMenu(name):
+def fileDialog(name):
     window._recentFiles = window.settings.value('paths/recent', [], QString)
     window.updateMenuOpenRecent()
     if name == 'actionOpen' :
@@ -383,25 +384,71 @@ def fileMenu(name):
             filter(lambda a: a != filenames[0], window._recentFiles)
             window._recentFiles.append(filenames[0])
             if len(window._recentFiles) > 5:
-                window._recentFiles.remove(0)
+                window._recentFiles.pop(0)
             window.settings.setValue('paths/recent', window._recentFiles)
             window.updateMenuOpenRecent()
-            window.label.img = imImage(filename=filenames[0])
-            window.label.repaint()
+            openFile(filenames[0])
+            #window.label.img = imImage(filename=filenames[0])
+            #window.label.repaint()
 
 def openFile(f):
-    window.label.img = imImage(filename=f)
-    window.label.repaint()
 
+    # convert QString object to string
+    if isinstance(f, QString):
+        f=str(f.toUtf8())
+
+    #get exif data
+    with exiftool.ExifTool() as e:
+        metadata = e.get_metadata(f)[0]
+    #for k, v in metadata.iteritems():
+        #print k, v
+    colorSpace = metadata.get("EXIF:ColorSpace", -1)
+    orientation = metadata.get("EXIF:Orientation", 0)
+    b=exiftool.decodeExifOrientation(orientation)
+    window.label.img = imImage(filename=f, colorSpace=colorSpace, orientation=b, metadata=metadata)  # imImage(filename=f)
+    #window.label.img=imImage(QImg=convert(f))
+    window.label_2.img = imImage(filename=f, orientation=b, metadata=metadata)
+    #print 'Orientation', metadata['EXIF:Orientation']
+    #print 'ICC', metadata['EXIF:ColorSpace']
+    window.label.repaint()
+    window.label_2.repaint()
+
+
+def menuWindow(x, name):
+
+    if name == 'actionShow_hide_left_window' :
+        if window.label.isHidden() :
+            window.label.show()
+        else:
+            window.label.hide()
+    elif name == 'actionShow_hide_right_window' :
+        if window.label_2.isHidden() :
+            window.label_2.show()
+        else:
+            window.label_2.hide()
+    elif name == 'actionDiaporama':
+        handleNewWindow(window)
+
+def handleNewWindow(self):
+    newwindow = QMainWindow(self)
+    newwindow.setAttribute(Qt.WA_DeleteOnClose)
+    newwindow.setWindowTitle(self.tr('New Window'))
+    label_3=QLabel()
+    newwindow.setCentralWidget(label_3)
+    label_3.img = window.label.img
+    label_3.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding);
+    set_event_handler(label_3)
+    newwindow.show()
 
 
 # set button and slider change handler
 window.onWidgetChange = button_change
 window.onShowContextMenu = contextMenu
-window.onExecFileMenu = fileMenu
+window.onExecFileDialog = fileDialog
 window.onExecFileOpen = openFile
+window.onExecMenuWindow = menuWindow
 
-
+#color dialog
 #color=QColorDialog(window)
 #color.setWindowFlags(Qt.Widget)
 #color.show()
@@ -412,4 +459,5 @@ window._recentFiles = window.settings.value('paths/recent', [], QString)
 window.updateMenuOpenRecent()
 
 window.show()
+
 sys.exit(app.exec_())

@@ -1,5 +1,6 @@
 import numpy as np
 from PyQt4.QtGui import QImage
+from PIL import Image
 
 def ndarrayToQImage(ndimg, format=QImage.Format_ARGB32):
     """
@@ -12,23 +13,26 @@ def ndarrayToQImage(ndimg, format=QImage.Format_ARGB32):
     """
 
     if ndimg.ndim != 3 or ndimg.dtype != 'uint8':
-        print "ndarray2QImage : array must be 3D with dpype=uint8"
-        return None
-    #if not ndimg.flags['C_CONTIGUOUS']:
-        #ndimg = np.ascontiguousarray(ndimg, dtype='uint8')
+        raise ValueError("ndarray2QImage : array must be 3D with dpype=uint8")
+
     bytePerLine = ndimg.shape[1] * ndimg.shape[2]
-    #return QImage(ndimg.tostring(), ndimg.shape[1], ndimg.shape[0], bytePerLine, format)
+    if len(ndimg.data)!=ndimg.shape[0]*bytePerLine :
+        raise ValueError("ndarrayToQImage : wrong conversion")
+
     qimg = QImage(ndimg.data, ndimg.shape[1], ndimg.shape[0], bytePerLine, format)
     if qimg.format() == QImage.Format_Invalid:
-        print "ndarrayToQImage : conversion error"
-    return QImage(ndimg.data, ndimg.shape[1], ndimg.shape[0], bytePerLine, format)
+        raise ValueError("ndarrayToQImage : wrong conversion")
+
+    return qimg #QImage(ndimg.data, ndimg.shape[1], ndimg.shape[0], bytePerLine, format)
 
 def QImageToNdarray(qimg):
     """
-    Convert a QImage to a numpy ndarray.
+    Raw conversion of a QImage to a numpy ndarray. The size of the
+    converted array 3rd axis depends on the image type. Pixel color is
+    in BGRA order (little endian arch.) or ARGB (big  endian arch.)
     Format 1 bit per pixel is not supported
     :param qimg: QImage
-    :return: The converted array, in BGRA order (little endian arch.) or ARGB (big endian arch.)
+    :return: The converted array
     """
     # get pixel depth
     bpp = qimg.depth()
@@ -39,10 +43,52 @@ def QImageToNdarray(qimg):
 
     w,h = qimg.width(), qimg.height()
 
-    # get memory buffer as a sip.array object of uint8
-    data = qimg.bits().asarray(w*h*Bpp)
+    # get memory buffer as a sip.array object of uint8, length unknown
+    data = qimg.bits()
+
+    data = data.asarray(w*h*Bpp)
 
     #convert sip array to ndarray and reshape
     return np.array(data, dtype=np.uint8).reshape(h, w, Bpp)
 
 
+def PilImageToQImage(pilimg) :
+    """
+    Convert a PIL image to a QImage
+    :param pilimg: The PIL image
+    :return: QImage object
+    """
+    w, h = pilimg.width, pilimg.height
+    mode = pilimg.mode
+
+    # get data buffer (type str)
+    data = pilimg.tobytes('raw', mode)
+
+    qimFormat = QImage.Format_ARGB32
+
+    if mode == 'RGB':
+        qimFormat = QImage.Format_RGB888
+        if len(data)!=w * h * 3 :
+            raise ValueError("PilImageToQImage : wrong mode : %s" %mode)
+    else :
+        raise ValueError("PilImageToQImage : unrecognized mode : %s" %mode)
+
+    #a=QImage(data, w, h, qimFormat )
+    return QImage(data, w, h, qimFormat )
+
+def QImageToPilImage(qimg) :
+    """
+    Convert a PIL image to a QImage
+    :param pilimg: The PIL image
+    :return: QImage object
+    """
+    a = QImageToNdarray(qimg)
+
+    if (qimg.format() == QImage.Format_ARGB32) or (qimg.format() == QImage.Format_RGB32):
+        # convert pixels from BGRA or BGRX to RGB
+        a=a[:,:,:3][:,:,::-1]
+        a = np.ascontiguousarray(a)
+
+    w, h = qimg.width(), qimg.height()
+
+    return Image.frombytes('RGB', (w,h), a.data)

@@ -2,7 +2,7 @@ import cv2
 from imgconvert import *
 from PyQt4.QtGui import QPixmap, QImage, QColor
 from PyQt4.QtCore import QRect
-
+from icc import convert, convertQImage
 class vImage(QImage):
     """
     versatile image class.
@@ -15,13 +15,21 @@ class vImage(QImage):
         qImg.__class__ = vImage
         return qImg
 
-    def __init__(self, filename=None, cv2Img=None, QImg=None, cv2mask=None, copy=False, format=QImage.Format_ARGB32):
+    def __init__(self, filename=None, cv2Img=None, QImg=None, cv2mask=None, copy=False, format=QImage.Format_ARGB32, colorSpace=-1, orientation=None, metadata=None):
+        self.rect, self.mask, self.colorSpace, self.metadata = None, cv2mask, colorSpace, metadata
         if (filename is None and cv2Img is None and QImg is None):
             # create a null image
             super(vImage, self).__init__()
         if filename is not None:
             # load file
-            super(vImage, self).__init__(filename)
+            if orientation is not None:
+                tmp =QImage(filename).transformed(orientation)
+            else:
+                tmp = QImage(filename)
+
+            super(vImage, self).__init__(tmp)
+            if orientation is not None:
+                self.transformed(orientation)
         elif QImg is not None:
             if copy:
                 #d o a deep copy
@@ -29,16 +37,21 @@ class vImage(QImage):
             else:
                 # do a shallow copy
                 super(vImage, self).__init__(QImg)
+            if hasattr(QImg, "colorSpace"):
+                self.colorSpace=QImg.colorSpace
         elif cv2Img is not None:
             if copy:
                 cv2Img = cv2Img.copy()
             # shallow copy
             super(vImage, self).__init__(ndarrayToQImage(cv2Img, format=format))
 
-        self.rect, self.mask = None, cv2mask
         # prevent from garbage collector
         self.data=self.bits()
-        self.qPixmap = QPixmap.fromImage(self)
+        if self.colorSpace == 1:
+            cvqim=convertQImage(self)
+            self.qPixmap = QPixmap.fromImage(cvqim)
+        else:
+            self.qPixmap = QPixmap.fromImage(self)
 
         if self.mask is None:
             self.mask = QImage(self.width(), self.height(), QImage.Format_ARGB32)
@@ -94,8 +107,9 @@ class imImage(mImage) :
     """
     Interactive multi layer image
     """
-    def __init__(self, filename=None, cv2Img=None, QImg=None, cv2mask=None, copy=False, format=QImage.Format_ARGB32) :
-        super(imImage, self).__init__(filename=filename, cv2Img=cv2Img, QImg=QImg, cv2mask=cv2mask, copy=copy, format=format)
+    def __init__(self, *args, **kwargs):
+        #__init__(self, filename=None, cv2Img=None, QImg=None, cv2mask=None, copy=False, format=QImage.Format_ARGB32, colorSpace=-1, orientation=None) :
+        super(imImage, self).__init__(*args, **kwargs) #(filename=filename, cv2Img=cv2Img, QImg=QImg, cv2mask=cv2mask, copy=copy, format=format, colorSpace=colorSpace, orientation=orientation)
         self.Zoom_coeff = 1.0
         self.xOffset, self.yOffset = 0, 0
 

@@ -328,7 +328,23 @@
     <addaction name="actionSave"/>
     <addaction name="menuOpen_recent"/>
    </widget>
+   <widget class="QMenu" name="menuWindow">
+    <property name="title">
+     <string>Window</string>
+    </property>
+    <addaction name="actionShow_hide_left_window"/>
+    <addaction name="actionShow_hide_right_window"/>
+    <addaction name="separator"/>
+    <addaction name="actionDiaporama"/>
+   </widget>
+   <widget class="QMenu" name="menuImage">
+    <property name="title">
+     <string>Image</string>
+    </property>
+   </widget>
    <addaction name="menu_File"/>
+   <addaction name="menuImage"/>
+   <addaction name="menuWindow"/>
   </widget>
   <widget class="QDockWidget" name="dockWidget">
    <property name="minimumSize">
@@ -361,6 +377,21 @@
   <action name="actionSub">
    <property name="text">
     <string>sub</string>
+   </property>
+  </action>
+  <action name="actionShow_hide_left_window">
+   <property name="text">
+    <string>show/hide left window</string>
+   </property>
+  </action>
+  <action name="actionShow_hide_right_window">
+   <property name="text">
+    <string>show/hide right window</string>
+   </property>
+  </action>
+  <action name="actionDiaporama">
+   <property name="text">
+    <string>diaporama</string>
    </property>
   </action>
  </widget>

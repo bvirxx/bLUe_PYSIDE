@@ -26,6 +26,8 @@ class Form1(QtGui.QMainWindow):
         self.onShowContextMenu = lambda : 0
         self.onExecFileMenu = lambda : 0
         self.onExecFileOpen = lambda : 0
+        self.onExecMenuWindow = lambda : 0
+
         self.slidersValues = {}
         self.btnValues = {}
         self._recentFiles = []
@@ -55,19 +57,27 @@ class Form1(QtGui.QMainWindow):
         for widget in self.findChildren(QtGui.QLabel):
             widget.customContextMenuRequested.connect(lambda pos, widget=widget : self.showContextMenu(pos,widget))
 
-        for action in self.findChildren(QtGui.QAction) :
-            action.triggered.connect(lambda x, actionName=action.objectName(): self.execFileMenu(x, actionName))
+        #for action in self.findChildren(QtGui.QAction) :
+        for action in enumerateMenuActions(self.menu_File) : # replace by enumerateMenu
+            action.triggered.connect(lambda x, actionName=action.objectName(): self.execFileDialog(x, actionName))
+
+        for action in enumerateMenuActions(self.menuWindow) :
+            action.triggered.connect(lambda x, actionName=action.objectName(): self.execMenuWindow(x, actionName))
 
     def updateMenuOpenRecent(self):
         self.menuOpen_recent.clear()
         for f in self._recentFiles :
             self.menuOpen_recent.addAction(f, lambda x=f: self.execFileOpen(x))
 
-    def execFileMenu(self,x, name):
-        self.onExecFileMenu(name)
+    def execFileDialog(self,x, name):
+        self.onExecFileDialog(name)
 
     def execFileOpen(self, f):
         self.onExecFileOpen(f)
+
+    def execMenuWindow(self, x, name):
+        print 'salut'
+        self.onExecMenuWindow(x, name)
 
     def showContextMenu(self, pos, widget):
         self.onShowContextMenu(widget)
@@ -110,6 +120,21 @@ class Form1(QtGui.QMainWindow):
         self.writeSettings()
         super(Form1, self).closeEvent(event)
 
+def enumerateMenuActions(menu):
+    """
+    Build  recursively the list of actions contained in menu
+    and all submenus.
+    :param menu: Qmenu object
+    :return: The list of actions
+    """
+    actions = []
+    for action in menu.actions():
+        #subMenu
+        if action.menu() :
+            actions.extend(enumerateMenuActions(action.menu()))
+        else:
+            actions.append(action)
+    return actions
 """
 if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)
