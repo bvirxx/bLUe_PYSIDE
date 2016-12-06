@@ -15,8 +15,9 @@ class vImage(QImage):
         qImg.__class__ = vImage
         return qImg
 
-    def __init__(self, filename=None, cv2Img=None, QImg=None, cv2mask=None, copy=False, format=QImage.Format_ARGB32, colorSpace=-1, orientation=None, metadata=None):
-        self.rect, self.mask, self.colorSpace, self.metadata = None, cv2mask, colorSpace, metadata
+    def __init__(self, filename=None, cv2Img=None, QImg=None, cv2mask=None, copy=False, format=QImage.Format_ARGB32,
+                 colorSpace=-1, orientation=None, metadata=None, profile=''):
+        self.rect, self.mask, self.colorSpace, self.metadata, self.profile = None, cv2mask, colorSpace, metadata, profile
         if (filename is None and cv2Img is None and QImg is None):
             # create a null image
             super(vImage, self).__init__()
@@ -47,7 +48,8 @@ class vImage(QImage):
 
         # prevent from garbage collector
         self.data=self.bits()
-        if self.colorSpace == 1:
+        if self.colorSpace == 1 or len(self.profile)> 0:
+            print self.colorSpace
             cvqim=convertQImage(self)
             self.qPixmap = QPixmap.fromImage(cvqim)
         else:
@@ -150,9 +152,11 @@ class QLayer(vImage):
     def frommImage(cls, mImg):
         mImg.visible = True
         mImg.alpha = 255
-        return QLayer(QImg=mImg)
+        mImg.transfer = lambda: mImg.qPixmap
+        return mImg #QLayer(QImg=mImg)
 
     def __init__(self, *args, **kwargs):
         super(QLayer, self).__init__(*args, **kwargs)
         self.visible = True
         self.alpha=255
+        self.transfer = lambda : self.qPixmap

@@ -170,10 +170,10 @@ def paintEvent(widg, e) :
     qp.setPen(QColor(0,255,0))
     qp.fillRect(QRect(0, 0, widg.width() - 10, widg.height() - 10), QColor(255, 128, 0, 50));
 
-    for layer in mimg._layers.values() :
+    for layer in mimg._layersStack : #mimg._layers.values() :
         if layer.visible:
             qp.drawPixmap(QRect(mimg.xOffset,mimg.yOffset, mimg.width()*r-10, mimg.height()*r-10), # target rect
-                          layer.qPixmap
+                           layer.transfer() #layer.qPixmap
                          )
     if mimg.rect is not None :
         qp.drawRect(mimg.rect.left()*r + mimg.xOffset, mimg.rect.top()*r +mimg.yOffset,
@@ -311,13 +311,14 @@ def wheelEvent(widget,img, event):
     img.Zoom_coeff += numSteps
     widget.repaint()
 
-app = QApplication(sys.argv)
-window = QtGui1.Form1()
+#app = QApplication(sys.argv)
+#window = QtGui1.Form1()
 
 
 #window.showMaximized()
 
 #load test image
+"""
 Mimg = imImage(filename='orch2-2-2.jpg')
 
 Mimg_p=Mimg
@@ -329,7 +330,7 @@ Mimg_p=Mimg
 window.label.img=Mimg_p
 window.label_2.img= Mimg_p
 window.tableView.addLayers(Mimg_p)
-
+"""
 def set_event_handler(widg):
     widg.paintEvent = lambda e, wdg=widg : paintEvent(wdg,e)
     widg.mousePressEvent = lambda e, wdg=widg : mouseEvent(wdg, e)
@@ -337,6 +338,8 @@ def set_event_handler(widg):
     widg.mouseReleaseEvent = lambda e, wdg=widg : mouseEvent(wdg, e)
     widg.wheelEvent = lambda e, wdg=widg : wheelEvent(wdg, wdg.img, e)
 
+app = QApplication(sys.argv)
+window = QtGui1.Form1()
 set_event_handler(window.label)
 set_event_handler(window.label_2)
 
@@ -370,9 +373,16 @@ def toggleLayer(widget, layer, b):
     layer.visible = b
     widget.repaint()
 
-def fileDialog(name):
+def menuFile(name):
+    """
+
+    :param name: name of calling action
+    :return:
+    """
+    #get list of recent files and update menu
     window._recentFiles = window.settings.value('paths/recent', [], QString)
     window.updateMenuOpenRecent()
+    print 'updfated'
     if name == 'actionOpen' :
         lastDir = window.settings.value('paths/dlgdir', 'F:/bernard').toString()
         dlg =QFileDialog(window, "select", lastDir)
@@ -396,20 +406,23 @@ def openFile(f):
     # convert QString object to string
     if isinstance(f, QString):
         f=str(f.toUtf8())
-
     #get exif data
     with exiftool.ExifTool() as e:
-        metadata = e.get_metadata(f)[0]
+        profile, metadata = e.get_metadata(f)
+    metadata=metadata[0]
     #for k, v in metadata.iteritems():
         #print k, v
-    colorSpace = metadata.get("EXIF:ColorSpace", -1)
+    colorSpace = metadata.get("EXIF:ColorSpace", -1) # sRGB: 1
     orientation = metadata.get("EXIF:Orientation", 0)
     b=exiftool.decodeExifOrientation(orientation)
-    window.label.img = imImage(filename=f, colorSpace=colorSpace, orientation=b, metadata=metadata)  # imImage(filename=f)
+
+    window.label.img = imImage(filename=f, colorSpace=colorSpace, orientation=b, metadata=metadata, profile=profile)  # imImage(filename=f)
     #window.label.img=imImage(QImg=convert(f))
+    #window.label_2.img = window.label.img
     window.label_2.img = imImage(filename=f, orientation=b, metadata=metadata)
     #print 'Orientation', metadata['EXIF:Orientation']
     #print 'ICC', metadata['EXIF:ColorSpace']
+    window.tableView.addLayers(window.label.img)
     window.label.repaint()
     window.label_2.repaint()
 
@@ -429,6 +442,31 @@ def menuWindow(x, name):
     elif name == 'actionDiaporama':
         handleNewWindow(window)
 
+def menuImage(x, name) :
+
+    if name == 'actionImage_info' :
+        print window.label.img.metadata
+
+def menuLayer(x, name):
+
+    if name == 'actionBrightness_Contrast' :
+        print 'new layer'
+        l=QLayer(QImg=testLUT())
+        #l.transfer=testLUT
+        window.label.img.addLayer(l, 'Brightness/Contrast')
+        window.tableView.addLayers(window.label.img)
+        window.label.repaint()
+
+def testLUT() :
+    img=window.label.img
+    a=  QImageToNdarray(img)
+    r,g,b=a[:,:,0], a[:,:,1], a[:,:,2]
+    LUT=lambda x : x/2
+    r=map(LUT, r)
+    a=np.dstack((r, g,b))
+    print 'shape', a.shape
+    return QPixmap.fromImage(mImage(cv2Img=a, format=QImage.Format_RGB888))
+
 def handleNewWindow(self):
     newwindow = QMainWindow(self)
     newwindow.setAttribute(Qt.WA_DeleteOnClose)
@@ -444,10 +482,11 @@ def handleNewWindow(self):
 # set button and slider change handler
 window.onWidgetChange = button_change
 window.onShowContextMenu = contextMenu
-window.onExecFileDialog = fileDialog
+window.onExecMenuFile = menuFile
 window.onExecFileOpen = openFile
 window.onExecMenuWindow = menuWindow
-
+window.onExecMenuImage = menuImage
+window.onExecMenuLayer = menuLayer
 #color dialog
 #color=QColorDialog(window)
 #color.setWindowFlags(Qt.Widget)
@@ -456,7 +495,8 @@ window.onExecMenuWindow = menuWindow
 window.readSettings()
 
 window._recentFiles = window.settings.value('paths/recent', [], QString)
-window.updateMenuOpenRecent()
+
+openFile('orch2-2-2.jpg')
 
 window.show()
 

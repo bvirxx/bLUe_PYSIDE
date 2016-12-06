@@ -341,9 +341,36 @@
     <property name="title">
      <string>Image</string>
     </property>
+    <widget class="QMenu" name="menuColor_settings">
+     <property name="title">
+      <string>Color settings</string>
+     </property>
+     <widget class="QMenu" name="menuAssign_profile">
+      <property name="title">
+       <string>Assign profile</string>
+      </property>
+      <addaction name="actionProfile_1"/>
+     </widget>
+     <addaction name="menuAssign_profile"/>
+    </widget>
+    <addaction name="menuColor_settings"/>
+    <addaction name="actionImage_info"/>
+   </widget>
+   <widget class="QMenu" name="menuLayer">
+    <property name="title">
+     <string>Layer</string>
+    </property>
+    <widget class="QMenu" name="menuNew_adjustment_layer">
+     <property name="title">
+      <string>New adjustment layer</string>
+     </property>
+     <addaction name="actionBrightness_Contrast"/>
+    </widget>
+    <addaction name="menuNew_adjustment_layer"/>
    </widget>
    <addaction name="menu_File"/>
    <addaction name="menuImage"/>
+   <addaction name="menuLayer"/>
    <addaction name="menuWindow"/>
   </widget>
   <widget class="QDockWidget" name="dockWidget">
@@ -392,6 +419,21 @@
   <action name="actionDiaporama">
    <property name="text">
     <string>diaporama</string>
+   </property>
+  </action>
+  <action name="actionProfile_1">
+   <property name="text">
+    <string>profile_1</string>
+   </property>
+  </action>
+  <action name="actionImage_info">
+   <property name="text">
+    <string>Image info</string>
+   </property>
+  </action>
+  <action name="actionBrightness_Contrast">
+   <property name="text">
+    <string>Brightness Contrast</string>
    </property>
   </action>
  </widget>

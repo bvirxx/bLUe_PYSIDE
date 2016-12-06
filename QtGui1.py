@@ -1,6 +1,6 @@
 from PyQt4 import QtGui, uic
 from PyQt4.QtCore import QSettings, QSize
-
+from PIL.ImageCms import getProfileDescription
 
 # Python loader for the UI Form built by Qt Designer.
 
@@ -24,9 +24,11 @@ class Form1(QtGui.QMainWindow):
         """
         self.onWidgetChange = lambda : 0          # triggered by button or slider change
         self.onShowContextMenu = lambda : 0
-        self.onExecFileMenu = lambda : 0
+        self.onExecMenuFile = lambda : 0
         self.onExecFileOpen = lambda : 0
         self.onExecMenuWindow = lambda : 0
+        self.onExecMenuImage = lambda : 0
+        self.onExecMenuLayer = lambda: 0
 
         self.slidersValues = {}
         self.btnValues = {}
@@ -59,25 +61,57 @@ class Form1(QtGui.QMainWindow):
 
         #for action in self.findChildren(QtGui.QAction) :
         for action in enumerateMenuActions(self.menu_File) : # replace by enumerateMenu
-            action.triggered.connect(lambda x, actionName=action.objectName(): self.execFileDialog(x, actionName))
+            action.triggered.connect(lambda x, actionName=action.objectName(): self.execMenuFile(x, actionName))
 
         for action in enumerateMenuActions(self.menuWindow) :
             action.triggered.connect(lambda x, actionName=action.objectName(): self.execMenuWindow(x, actionName))
 
+        for action in enumerateMenuActions(self.menuImage) :
+            action.triggered.connect(lambda x, actionName=action.objectName(): self.execMenuImage(x, actionName))
+
+        for action in enumerateMenuActions(self.menuLayer) :
+            action.triggered.connect(lambda x, actionName=action.objectName(): self.execMenuLayer(x, actionName))
+
+        self.menuOpen_recent.menuAction().hovered.connect(lambda : self.updateMenuOpenRecent())
+        self.menuColor_settings.menuAction().hovered.connect(lambda : self.updateMenuAssignProfile())
+
+    def getProfiles(self):
+        profileDir = "C:\Windows\System32\spool\drivers\color"
+        from os import listdir
+        from os.path import isfile, join
+        onlyfiles = [f for f in listdir(profileDir) if isfile(join(profileDir, f)) and ( 'icc' in f or 'icm' in f)]
+        desc = [getProfileDescription(join(profileDir, f)) for f in onlyfiles]
+        profileList = zip(onlyfiles, desc)
+        return profileList
+
     def updateMenuOpenRecent(self):
+        print 'update'
         self.menuOpen_recent.clear()
         for f in self._recentFiles :
             self.menuOpen_recent.addAction(f, lambda x=f: self.execFileOpen(x))
 
-    def execFileDialog(self,x, name):
-        self.onExecFileDialog(name)
+    def updateMenuAssignProfile(self):
+        self.menuAssign_profile.clear()
+        for f in self.getProfiles():
+            self.menuAssign_profile.addAction(f[0]+" "+f[1], lambda x=f : self.execAssignProfile(x))
+
+    def execAssignProfile(self, x):
+        self.onExecAssignProfile(x)
+
+    def execMenuFile(self,x, name):
+        self.onExecMenuFile(name)
 
     def execFileOpen(self, f):
         self.onExecFileOpen(f)
 
     def execMenuWindow(self, x, name):
-        print 'salut'
         self.onExecMenuWindow(x, name)
+
+    def execMenuImage(self, x, name):
+        self.onExecMenuImage(x, name)
+
+    def execMenuLayer(self, x, name):
+        self.onExecMenuLayer(x, name)
 
     def showContextMenu(self, pos, widget):
         self.onShowContextMenu(widget)

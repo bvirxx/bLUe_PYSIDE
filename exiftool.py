@@ -15,8 +15,8 @@ class ExifTool(object):
     # -a : extarct duplicate tags
     # -S : very short output format
     # -G0 : print group name for each tag
-    flags = ["-j", "-a", "-n", "-S", "-G0", "-Orientation", "-ColorSpace", "-InteropIndex", "-WhitePoint", "-PrimaryChromaticities", "-Gamma", "-ICC_Profile:all"]
-
+    flags = ["-j", "-a", "-n", "-S", "-G0", "-Orientation", "-ProfileDescription", "-colorSpace", "-InteropIndex", "-WhitePoint", "-PrimaryChromaticities", "-Gamma"]#, "-ICC_Profile:all"]
+    extract_profile_flags = ["-icc_profile", "-b"]
     def __init__(self, executable = "H:\standalone\exiftool\exiftool(-k)"):
         self.executable = executable
 
@@ -43,8 +43,8 @@ class ExifTool(object):
 
     def get_metadata(self, *filenames):
         #return json.loads(self.execute("-G", "-j", "-n", *filenames))
-        print self.flags+list(filenames)
-        return json.loads(self.execute(*(self.flags+list(filenames))))
+        profile=self.execute(*(self.extract_profile_flags + list(filenames)))
+        return profile, json.loads(self.execute(*(self.flags+list(filenames))))
 
 
 def decodeExifOrientation(value):

@@ -1,10 +1,10 @@
 from PIL import Image
-from PIL.ImageCms import profileToProfile
+from PIL.ImageCms import profileToProfile, getOpenProfile
 from PIL.ImageQt import ImageQt
 import numpy as np
 from PyQt4.QtGui import QPixmap, QImage
 from imgconvert import QImageToNdarray, PilImageToQImage, QImageToPilImage
-
+from StringIO import StringIO
 #help(PIL.ImageCms)
 
 ADOBE_RGB_PROFILE = "C:\Windows\System32\spool\drivers\color\AdobeRGB1998.icc"
@@ -20,6 +20,7 @@ def convert(f, fromProfile=SRGB_PROFILE, toProfile=MONITOR_PROFILE):
     """
     image_path = f
     original_image = Image.open(image_path)
+    #icc = Image.open(path).info.get('icc_profile')
     #print original_image.info['exif']
     if True:#'icc_profile' in original_image.info:
 
@@ -42,6 +43,14 @@ def convertQImage(image, fromProfile=SRGB_PROFILE, toProfile=MONITOR_PROFILE):
     :param toProfile: the destination profile
     :return: The converted QImage
     """
-    converted_image = profileToProfile(QImageToPilImage(image), fromProfile, toProfile)
+    if len(image.profile) >0 :
+        # Imbedded profile
+        p=getOpenProfile(StringIO(image.profile))
+    else:
+        # Use color space tag
+        p=fromProfile
+
+    print "converted"
+    converted_image = profileToProfile(QImageToPilImage(image), p, toProfile)
 
     return PilImageToQImage(converted_image)
