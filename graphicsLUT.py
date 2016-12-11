@@ -36,11 +36,11 @@ def buildLUT(lut):
     print LUTXY
     return LUTXY
 
-def updateScene():
+def updateScene(grScene):
     """
     Update all curves in the scene.
     """
-    for item in window.graphicsScene.items():
+    for item in grScene.items():
         item.updatePath()
 
 class myGraphicsPathItem (QGraphicsPathItem):
@@ -71,7 +71,7 @@ class activePoint(myGraphicsPathItem):
 
     def mouseMoveEvent(self, e):
         self.position_ = e.pos()
-        updateScene()
+        updateScene(self.scene())
 
     def mouseReleaseEvent(self, e):
         fixedPoints.sort(key=lambda p : p.position().x())
@@ -83,7 +83,7 @@ class activePoint(myGraphicsPathItem):
                     print "removed"
                     tangents.remove(t)
                     window.graphicsScene.removeItem(t)
-            updateScene()
+            updateScene(self.scene())
 
 class activeTangent(myGraphicsPathItem):
     def __init__(self, controlPoint=QPointF(), contactPoint=QPointF()):
@@ -106,7 +106,7 @@ class activeTangent(myGraphicsPathItem):
 
     def mouseMoveEvent(self, e):
         self.controlPoint = e.pos()
-        updateScene()
+        updateScene(self.scene())
 
     def mouseReleaseEvent(self, e):
         global computeControlPoints
@@ -287,7 +287,7 @@ class Bezier(myGraphicsPathItem) :
 
     def mouseMoveEvent(self, e):
         #self.updatePath()
-        updateScene()
+        updateScene(self.scene())
         return
         """
         lfixedPoints = []
@@ -356,23 +356,22 @@ class Bezier(myGraphicsPathItem) :
             tangents.extend([c,d])
             for x in [a,c,d]:
                 window.graphicsScene.addItem(x)
-            updateScene()
+            updateScene(self.scene())
 
-
-
+#main class
 class graphicsForm(QGraphicsView) :
 
     @classmethod
-    def getNewWindow(cls):
-        newwindow = graphicsForm()
+    def getNewWindow(cls, *args, **kwargs):
+        newwindow = graphicsForm(*args, **kwargs)
         newwindow.setAttribute(Qt.WA_DeleteOnClose)
         newwindow.setWindowTitle('New Window')
         return newwindow
 
-    def __init__(self):
-        super(graphicsForm, self).__init__()
-        self.graphicsScene = QGraphicsScene();
-        self.setScene(self.graphicsScene);
+    def __init__(self, *args, **kwargs):
+        super(graphicsForm, self).__init__(*args, **kwargs)
+        self.graphicsScene = QGraphicsScene()
+        self.setScene(self.graphicsScene)
 
         # draw axes
         item=myGraphicsPathItem()
@@ -388,6 +387,7 @@ class graphicsForm(QGraphicsView) :
         #add axes
         item.setPath(qppath)
         self.graphicsScene.addItem(item)
+
         #self.graphicsScene.addPath(qppath, QPen(Qt.DashLine))  #create and add QGraphicsPathItem
 
         #add curve
@@ -402,6 +402,7 @@ class graphicsForm(QGraphicsView) :
         # add tangents
         for p in tangents:
             self.graphicsScene.addItem(p)
+
 
 
 if __name__ == "__main__":

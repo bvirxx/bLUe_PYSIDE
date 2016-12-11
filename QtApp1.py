@@ -9,6 +9,7 @@ import exiftool
 from imgconvert import *
 from MarkedImg import mImage, imImage, QLayer
 from icc import convert
+from graphicsLUT import graphicsForm
 
 P_SIZE=4000000
 
@@ -451,6 +452,9 @@ def menuLayer(x, name):
 
     if name == 'actionBrightness_Contrast' :
         print 'new layer'
+        grWindow=graphicsForm.getNewWindow(parent=window.tableView)
+        grWindow.show()
+
         l=QLayer(QImg=testLUT())
         #l.transfer=testLUT
         window.label.img.addLayer(l, 'Brightness/Contrast')
@@ -463,14 +467,14 @@ def testLUT() :
     r,g,b=a[:,:,0], a[:,:,1], a[:,:,2]
     LUT=lambda x : x/2
     r=map(LUT, r)
-    a=np.dstack((r, g,b))
+    a=np.dstack((r, g, b))
     print 'shape', a.shape
     return QPixmap.fromImage(mImage(cv2Img=a, format=QImage.Format_RGB888))
 
-def handleNewWindow(self):
-    newwindow = QMainWindow(self)
+def handleNewWindow(parent):
+    newwindow = QMainWindow(parent)
     newwindow.setAttribute(Qt.WA_DeleteOnClose)
-    newwindow.setWindowTitle(self.tr('New Window'))
+    newwindow.setWindowTitle(parent.tr('New Window'))
     label_3=QLabel()
     newwindow.setCentralWidget(label_3)
     label_3.img = window.label.img
@@ -497,7 +501,11 @@ window.readSettings()
 window._recentFiles = window.settings.value('paths/recent', [], QString)
 
 openFile('orch2-2-2.jpg')
-
 window.show()
+
+
+#grWindow=graphicsForm.getNewWindow(parent=window.label)
+#grWindow.show()
+
 
 sys.exit(app.exec_())
