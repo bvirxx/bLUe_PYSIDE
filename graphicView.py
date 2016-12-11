@@ -3,10 +3,38 @@ from PyQt4.QtGui import QApplication, QPainter, QWidget
 from PyQt4.QtGui import QGraphicsView, QGraphicsScene, QGraphicsPathItem , QPainterPath, QPainterPathStroker, QPen, QBrush, QColor, QMainWindow, QLabel, QSizePolicy
 from PyQt4.QtCore import Qt, QPoint, QPointF
 import numpy as np
+from bisect import bisect
 
 strokeWidth = 3
 controlPoints =[]
 computeControlPoints = True
+
+def buildLUT(lut):
+    """
+
+    :param lut:
+    :return:
+    """
+    LUTX = [p.x() for p in lut]
+
+    #build LUT array
+    LUTXY = []
+    for i in range(256):
+        # get smallest index j s.t. LUTX[j] > i (j=len(LUTX) if it exists, j=len(LUTX) otherwise)
+        j = bisect(LUTX, i)
+
+        if j < len(lut):
+            p1 = lut[j-1]
+            p2 = lut[j]
+        else:
+            p1 = lut[j-2]
+            p2 = lut[j-1]
+
+        y=np.interp(i, [p1.x(), p2.x()], [p1.y(), p2.y()])
+
+        LUTXY.append(int(round(-y)))
+    print LUTXY
+    return LUTXY
 
 def updateScene():
     """
@@ -25,7 +53,9 @@ class myGraphicsPathItem (QGraphicsPathItem):
 class activePoint(myGraphicsPathItem):
     def __init__(self, x,y):
         super(QGraphicsPathItem, self).__init__()
+        self.setPen(QPen(QBrush(QColor(0, 0, 255)), 2))
         self.position_ = QPointF(x,y)
+        self.moveStart=QPointF(0,0)
         self.updatePath()
 
     def position(self):
@@ -37,7 +67,7 @@ class activePoint(myGraphicsPathItem):
         self.setPath(qpp)
 
     def mousePressEvent(self, e):
-        pass
+        self.moveStart = e.pos()
 
     def mouseMoveEvent(self, e):
         self.position_ = e.pos()
@@ -45,12 +75,20 @@ class activePoint(myGraphicsPathItem):
 
     def mouseReleaseEvent(self, e):
         fixedPoints.sort(key=lambda p : p.position().x())
-        if e.lastPos() == e.pos():
-            print 'click'
+        if self.moveStart == e.pos():
+            fixedPoints.remove(self)
+            window.graphicsScene.removeItem(self)
+            for t in tangents :
+                if t.contactPoint == self.position() :
+                    print "removed"
+                    tangents.remove(t)
+                    window.graphicsScene.removeItem(t)
+            updateScene()
 
 class activeTangent(myGraphicsPathItem):
     def __init__(self, controlPoint=QPointF(), contactPoint=QPointF()):
         super(QGraphicsPathItem, self).__init__()
+        self.setPen(QPen(QBrush(QColor(255, 0, 0)), 2))
         self.controlPoint = controlPoint
         self.contactPoint = contactPoint
         self.updatePath()
@@ -78,11 +116,53 @@ class activeTangent(myGraphicsPathItem):
         computeControlPoints = True
 
 
-axeSize = 500
+axeSize = 255
 fixedPoints = [activePoint(0, 0), activePoint(axeSize / 2, -axeSize / 2), activePoint(axeSize, -axeSize)]
 tangents = []
 for i in range(2*len(fixedPoints)):
     tangents.append(activeTangent())
+sampleSize = 400
+tSample = [ float(i) / sampleSize for i in range(sampleSize+1) ]
+tSample1 = np.array([(1-t)**2 for t in tSample])
+tSample2=np.array([2*t*(1-t) for t in tSample])
+tSample3=np.array([t**2 for t in tSample])
+LUT = []
+LUTXY=[]
+
+def qBezierLen(p0, p1, p2) :
+    """
+    Compute the length of a quadratic Bezier curve.
+    cf. http://www.malczak.linuxpl.com/blog/quadratic-bezier-curve-length
+    :param p0: QPointF starting point
+    :param p1: QPointF control point
+    :param p2: QpointF end point
+    :return: flaot the curve length
+    """
+
+    a = QPointF(p0 - 2*p1 + p2)
+    b = QPointF(2*(p1 - p0))
+
+    """
+    a.x = p0.x() - 2*p1.x() + p2.x()
+    a.y = p0.y() - 2*p1.y() + p2.y()
+    b.x = 2*p1.x() - 2*p0.x()
+    b.y = 2*p1.y() - 2*p0.y()
+    """
+
+    A = 4*(a.x()*a.x() + a.y()*a.y())
+    B = 4*(a.x()*b.x() + a.y()*b.y())
+    C = b.x()*b.x() + b.y()*b.y()
+
+    Sabc = 2*np.sqrt(A+B+C)
+
+    A_2 = np.sqrt(A)
+    A_32 = 2 * A* A_2
+    C_2 = 2 * np.sqrt(C)
+    BA = B / A_2
+
+    return (
+               A_32 * Sabc + A_2 * B * (Sabc - C_2) + (4*C*A - B*B) * np.log( (2*A_2 + BA + Sabc ) / ( BA + C_2) )
+           ) / (4 * A_32)
 
 class Bezier(myGraphicsPathItem) :
 
@@ -146,10 +226,20 @@ class Bezier(myGraphicsPathItem) :
             cp = tangents[0].controlPoint
 
         qpp.moveTo(lfixedPoints[mvptIndex - 1].position())
-
+        LUT[:]=[]
         for i in range(0, len(lfixedPoints) - mvptIndex):
             #print "initila", initila, lfixedPoints[mvptIndex].position().y()
             qpp.quadTo(cp, lfixedPoints[mvptIndex + i].position())
+
+            #ecart = abs(lfixedPoints[mvptIndex + i].position().x() - lfixedPoints[mvptIndex +i - 1].position().x()) + abs(cp.x())  #take abs and add abs(cp.x())
+
+            lgth = qBezierLen(lfixedPoints[mvptIndex + i - 1].position(), cp, lfixedPoints[mvptIndex + i].position())
+            gap = int(sampleSize/lgth)
+            idx = np.arange(0, len(tSample1), max(1, gap), dtype=int)
+            print 'spread', int(sampleSize/lgth)
+
+
+            LUT.extend(tSample1[idx] * lfixedPoints[mvptIndex +i - 1].position() + tSample2[idx]* cp + tSample3[idx] * lfixedPoints[mvptIndex + i].position())
             # self.qpp.addEllipse(lfixedPoints[mvptIndex + i].position(), 3, 3)
             qpp1.moveTo(lfixedPoints[mvptIndex + i-1].position())
             qpp1.lineTo(cp)
@@ -160,7 +250,7 @@ class Bezier(myGraphicsPathItem) :
             #tangents[i].setPath(qpp1)
             qpp.moveTo(lfixedPoints[mvptIndex + i].position())
             #print 'f', mvptIndex, mvptIndex + i, lfixedPoints[mvptIndex + i].pos(), cp, initila
-            if computeControlPoints:
+            if computeControlPoints and i < len(lfixedPoints) - mvptIndex - 1:
                 cp = 2 * lfixedPoints[mvptIndex + i].position() - cp
                 tangents[2*(i+1)].controlPoint=cp
                 tangents[2*(i+1)].contactPoint=lfixedPoints[mvptIndex+i].position()
@@ -168,9 +258,8 @@ class Bezier(myGraphicsPathItem) :
                 #tangents[2 * (i + 1)+1].contactPoint = lfixedPoints[mvptIndex + i+1].position()
             else:
                 cp = tangents[2*(i+1)].controlPoint
-
-        qpp.moveTo(lfixedPoints[mvptIndex - 1].position())
-        cp = lfixedPoints[mvptIndex - 1].position() - initila
+        #qpp.moveTo(lfixedPoints[mvptIndex - 1].position())
+        #cp = lfixedPoints[mvptIndex - 1].position() - initila
         """
         for i in range(0, 0):  # range(2, mvptIndex+1):
             qpp.quadTo(cp, lfixedPoints[mvptIndex - i].pos())
@@ -188,6 +277,8 @@ class Bezier(myGraphicsPathItem) :
         mboundingPath = stroker.createStroke(qpp);
         # self.setPath(mboundingPath + qpp1)
         self.setPath(mboundingPath)
+        LUTXY[:] = buildLUT(LUT)
+        #print len(LUTX), max([abs(p.x() - q.x()) for p,q in zip(LUT[1:], LUT[:-1])])
 
 
     def mousePressEvent(self, e):
@@ -256,12 +347,15 @@ class Bezier(myGraphicsPathItem) :
     def mouseReleaseEvent(self, e):
         self.selected = False
         if e.lastPos() == e.pos():
-            #add point
+            #add curve point
             p=e.pos()
             a=activePoint(p.x(), p.y())
             fixedPoints.append(a)
             fixedPoints.sort(key=lambda z : z.position().x())
-            window.graphicsScene.addItem(a)
+            c,d=activeTangent(), activeTangent()
+            tangents.extend([c,d])
+            for x in [a,c,d]:
+                window.graphicsScene.addItem(x)
             updateScene()
 
 
@@ -302,12 +396,11 @@ class graphicsForm(QGraphicsView) :
 
         #add fixed points
         for p in fixedPoints :
-            p.setPen(QPen(QBrush(QColor(0, 0, 255)), 2))
+            #p.setPen(QPen(QBrush(QColor(0, 0, 255)), 2))
             self.graphicsScene.addItem(p)
 
         # add tangents
         for p in tangents:
-            p.setPen(QPen(QBrush(QColor(255, 0, 0)), 2))
             self.graphicsScene.addItem(p)
 
 
@@ -317,3 +410,31 @@ if __name__ == "__main__":
     window.show()
 
     sys.exit(app.exec_())
+
+
+
+
+"""
+float blen(v* p0, v* p1, v* p2)
+{
+ v a,b;
+ a.x = p0->x - 2*p1->x + p2->x;
+ a.y = p0->y - 2*p1->y + p2->y;
+ b.x = 2*p1->x - 2*p0->x;
+ b.y = 2*p1->y - 2*p0->y;
+ float A = 4*(a.x*a.x + a.y*a.y);
+ float B = 4*(a.x*b.x + a.y*b.y);
+ float C = b.x*b.x + b.y*b.y;
+
+ float Sabc = 2*sqrt(A+B+C);
+ float A_2 = sqrt(A);
+ float A_32 = 2*A*A_2;
+ float C_2 = 2*sqrt(C);
+ float BA = B/A_2;
+
+ return ( A_32*Sabc +
+          A_2*B*(Sabc-C_2) +
+          (4*C*A-B*B)*log( (2*A_2+BA+Sabc)/(BA+C_2) )
+        )/(4*A_32);
+};
+"""
