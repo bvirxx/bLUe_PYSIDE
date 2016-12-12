@@ -380,13 +380,26 @@
      <height>135</height>
     </size>
    </property>
+   <property name="maximumSize">
+    <size>
+     <width>524287</width>
+     <height>803</height>
+    </size>
+   </property>
    <attribute name="dockWidgetArea">
     <number>2</number>
    </attribute>
    <widget class="QWidget" name="dockWidgetContents">
     <layout class="QVBoxLayout" name="verticalLayout_2">
      <item>
-      <widget class="QLayerView" name="tableView"/>
+      <widget class="QLayerView" name="tableView">
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>755</height>
+        </size>
+       </property>
+      </widget>
      </item>
     </layout>
    </widget>

@@ -13,7 +13,7 @@ def ndarrayToQImage(ndimg, format=QImage.Format_ARGB32):
     """
 
     if ndimg.ndim != 3 or ndimg.dtype != 'uint8':
-        raise ValueError("ndarray2QImage : array must be 3D with dpype=uint8")
+        raise ValueError("ndarray2QImage : array must be 3D with dtype=uint8, found ndim=%d, dtype=%s" %(ndimg.ndim, ndimg.dtype))
 
     bytePerLine = ndimg.shape[1] * ndimg.shape[2]
     if len(ndimg.data)!=ndimg.shape[0]*bytePerLine :

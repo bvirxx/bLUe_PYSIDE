@@ -100,6 +100,15 @@ class mImage(vImage):
         self._layers[name] = layer
         self._layersStack.append(layer)
 
+    def refreshLayer(self, layer1, layer2):
+        if layer1.name != layer2.name:
+            print 'invalid layer refresh'
+            return
+        self._layers[layer1.name]=layer2
+        i=self._layerStack.index(layer1)
+        self._layerStack[i] = layer2
+
+
     def cvtToGray(self):
         self.cv2Img = cv2.cvtColor(self.cv2Img, cv2.COLOR_BGR2GRAY)
         #self.qImg = gray2qimage(self.cv2Img)
@@ -160,3 +169,13 @@ class QLayer(vImage):
         self.visible = True
         self.alpha=255
         self.transfer = lambda : self.qPixmap
+
+    def applyLUT(self,LUT, widget=None):
+        a=self.cv2Img()
+        a = cv2.LUT(a, np.array(LUT))
+        a = cv2.convertScaleAbs(a)
+        a = a[:, :, ::-1]
+        a = np.ascontiguousarray(a[:, :, 1:4])
+        self.qPixmap= QPixmap.fromImage(vImage(cv2Img=a, format=QImage.Format_RGB888))
+        if widget is not None:
+            widget.repaint()

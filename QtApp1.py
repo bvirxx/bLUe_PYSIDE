@@ -1,7 +1,7 @@
 import sys
 import cv2
 from PyQt4.QtCore import Qt, QRect, QEvent, QSettings, QSize, QString
-from PyQt4.QtGui import QWidget, QPixmap, QImage, QColor,QPainter, QApplication, QMenu, QAction, QCursor, QFileDialog, QColorDialog, QMainWindow, QLabel, QHBoxLayout, QSizePolicy
+from PyQt4.QtGui import QWidget, QPixmap, QImage, QColor,QPainter, QApplication, QMenu, QAction, QCursor, QFileDialog, QColorDialog, QMainWindow, QLabel, QDockWidget, QHBoxLayout, QSizePolicy
 import QtGui1
 import PyQt4.Qwt5 as Qwt
 import time
@@ -448,27 +448,41 @@ def menuImage(x, name) :
     if name == 'actionImage_info' :
         print window.label.img.metadata
 
+
 def menuLayer(x, name):
 
     if name == 'actionBrightness_Contrast' :
         print 'new layer'
-        grWindow=graphicsForm.getNewWindow(parent=window.tableView)
-        grWindow.show()
+        grWindow=graphicsForm.getNewWindow()
+        grWindow.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored);
+        grWindow.setGeometry(QRect(100, 40, 156, 102));
 
-        l=QLayer(QImg=testLUT())
+        dock=QDockWidget()
+        dock.setWidget(grWindow)
+        window.addDockWidget(Qt.RightDockWidgetArea, dock);
+        #window.horizontalLayout_2.addWidget(grWindow)
+        #window.verticalLayout_2.addWidget(grWindow)
+
+
+        l=QLayer(QImg=testLUT(grWindow.LUTXY))
         #l.transfer=testLUT
         window.label.img.addLayer(l, 'Brightness/Contrast')
         window.tableView.addLayers(window.label.img)
+        grWindow.graphicsScene.onUpdateScene = lambda : l.applyLUT(grWindow.LUTXY, widget=window.label)
         window.label.repaint()
 
-def testLUT() :
+def testLUT(LUT) :
     img=window.label.img
     a=  QImageToNdarray(img)
     r,g,b=a[:,:,0], a[:,:,1], a[:,:,2]
-    LUT=lambda x : x/2
-    r=map(LUT, r)
-    a=np.dstack((r, g, b))
+    #a=cv2.LUT(a, np.array(LUT))
+    a=cv2.convertScaleAbs(a)
+
+    a=a[:,:,::-1]
+    a = np.ascontiguousarray(a[:, :, 1:4])
+    #a=np.dstack((r, g, b))
     print 'shape', a.shape
+
     return QPixmap.fromImage(mImage(cv2Img=a, format=QImage.Format_RGB888))
 
 def handleNewWindow(parent):

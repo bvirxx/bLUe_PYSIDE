@@ -32,7 +32,7 @@ def buildLUT(lut):
 
         y=np.interp(i, [p1.x(), p2.x()], [p1.y(), p2.y()])
 
-        LUTXY.append(int(round(-y)))
+        LUTXY.append(np.uint8(round(-y)))
     print LUTXY
     return LUTXY
 
@@ -42,6 +42,7 @@ def updateScene(grScene):
     """
     for item in grScene.items():
         item.updatePath()
+    #grScene.onUpdateScene()
 
 class myGraphicsPathItem (QGraphicsPathItem):
     """
@@ -84,6 +85,7 @@ class activePoint(myGraphicsPathItem):
                     tangents.remove(t)
                     window.graphicsScene.removeItem(t)
             updateScene(self.scene())
+        self.scene().onUpdateScene()
 
 class activeTangent(myGraphicsPathItem):
     def __init__(self, controlPoint=QPointF(), contactPoint=QPointF()):
@@ -115,6 +117,8 @@ class activeTangent(myGraphicsPathItem):
 
         computeControlPoints = True
 
+        self.scene().onUpdateScene()
+
 
 axeSize = 255
 fixedPoints = [activePoint(0, 0), activePoint(axeSize / 2, -axeSize / 2), activePoint(axeSize, -axeSize)]
@@ -127,7 +131,7 @@ tSample1 = np.array([(1-t)**2 for t in tSample])
 tSample2=np.array([2*t*(1-t) for t in tSample])
 tSample3=np.array([t**2 for t in tSample])
 LUT = []
-LUTXY=[]
+LUTXY=range(256)
 
 def qBezierLen(p0, p1, p2) :
     """
@@ -355,8 +359,10 @@ class Bezier(myGraphicsPathItem) :
             c,d=activeTangent(), activeTangent()
             tangents.extend([c,d])
             for x in [a,c,d]:
-                window.graphicsScene.addItem(x)
+                #window.graphicsScene.addItem(x)
+                self.scene().addItem(x)
             updateScene(self.scene())
+            self.scene().onUpdateScene()
 
 #main class
 class graphicsForm(QGraphicsView) :
@@ -372,6 +378,8 @@ class graphicsForm(QGraphicsView) :
         super(graphicsForm, self).__init__(*args, **kwargs)
         self.graphicsScene = QGraphicsScene()
         self.setScene(self.graphicsScene)
+        self.LUTXY = LUTXY
+        self.graphicsScene.onUpdateScene = lambda : 0
 
         # draw axes
         item=myGraphicsPathItem()
