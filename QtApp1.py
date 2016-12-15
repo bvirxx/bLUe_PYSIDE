@@ -173,9 +173,15 @@ def paintEvent(widg, e) :
 
     for layer in mimg._layersStack : #mimg._layers.values() :
         if layer.visible:
-            qp.drawPixmap(QRect(mimg.xOffset,mimg.yOffset, mimg.width()*r-10, mimg.height()*r-10), # target rect
+            if layer.qPixmap is not None:
+                qp.drawPixmap(QRect(mimg.xOffset,mimg.yOffset, mimg.width()*r-10, mimg.height()*r-10), # target rect
                            layer.transfer() #layer.qPixmap
                          )
+            else:
+                qp.drawImage(QRect(mimg.xOffset, mimg.yOffset, mimg.width() * r - 10, mimg.height() * r - 10),
+                              # target rect
+                              layer  # layer.qPixmap
+                              )
     if mimg.rect is not None :
         qp.drawRect(mimg.rect.left()*r + mimg.xOffset, mimg.rect.top()*r +mimg.yOffset,
                     mimg.rect.width()*r, mimg.rect.height()*r
@@ -464,22 +470,26 @@ def menuLayer(x, name):
         #window.verticalLayout_2.addWidget(grWindow)
 
 
-        l=QLayer(QImg=testLUT(grWindow.LUTXY))
+        #l=QLayer(QImg=testLUT(grWindow.LUTXY))
+        l=QLayer(QImg=window.label.img)
+        l.applyLUT(grWindow.graphicsScene.LUTXY, widget=window.label)
         #l.transfer=testLUT
         window.label.img.addLayer(l, 'Brightness/Contrast')
         window.tableView.addLayers(window.label.img)
-        grWindow.graphicsScene.onUpdateScene = lambda : l.applyLUT(grWindow.LUTXY, widget=window.label)
+        grWindow.graphicsScene.onUpdateScene = lambda : l.applyLUT(grWindow.graphicsScene.LUTXY, widget=window.label)
         window.label.repaint()
 
 def testLUT(LUT) :
     img=window.label.img
     a=  QImageToNdarray(img)
+    b=np.array(LUT)
+    a=b[a]
     r,g,b=a[:,:,0], a[:,:,1], a[:,:,2]
     #a=cv2.LUT(a, np.array(LUT))
-    a=cv2.convertScaleAbs(a)
+    #a=cv2.convertScaleAbs(a)
 
     a=a[:,:,::-1]
-    a = np.ascontiguousarray(a[:, :, 1:4])
+    a = np.ascontiguousarray(a[:, :, 1:4], dtype=np.uint8)
     #a=np.dstack((r, g, b))
     print 'shape', a.shape
 
@@ -516,10 +526,5 @@ window._recentFiles = window.settings.value('paths/recent', [], QString)
 
 openFile('orch2-2-2.jpg')
 window.show()
-
-
-#grWindow=graphicsForm.getNewWindow(parent=window.label)
-#grWindow.show()
-
 
 sys.exit(app.exec_())

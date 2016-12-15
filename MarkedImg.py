@@ -1,8 +1,10 @@
 import cv2
 from imgconvert import *
 from PyQt4.QtGui import QPixmap, QImage, QColor
-from PyQt4.QtCore import QRect
+from PyQt4.QtCore import QRect, QByteArray
 from icc import convert, convertQImage
+from time import time
+
 class vImage(QImage):
     """
     versatile image class.
@@ -18,6 +20,8 @@ class vImage(QImage):
     def __init__(self, filename=None, cv2Img=None, QImg=None, cv2mask=None, copy=False, format=QImage.Format_ARGB32,
                  colorSpace=-1, orientation=None, metadata=None, profile=''):
         self.rect, self.mask, self.colorSpace, self.metadata, self.profile = None, cv2mask, colorSpace, metadata, profile
+        self.cv2Cache = None
+        self.cv2CacheType=None
         if (filename is None and cv2Img is None and QImg is None):
             # create a null image
             super(vImage, self).__init__()
@@ -59,8 +63,18 @@ class vImage(QImage):
             self.mask = QImage(self.width(), self.height(), QImage.Format_ARGB32)
             self.mask.fill(0)
 
-    def cv2Img(self):
-        return QImageToNdarray(self)
+    def cv2Img(self, cv2Type='BGRA'):
+        if self.cv2Cache is not None and self.cv2CacheType==cv2Type:
+            return self.cv2Cache
+        else:
+            self.cv2Cache = QImageToNdarray(self)
+            self.cv2CacheType = 'BGRA'
+            if cv2Type == 'RGB':
+                self.cv2Cache = self.cv2Cache[:,:,::-1]
+                self.cv2Cache = self.cv2Cache[:,:,1:4]
+                self.cv2Cache = np.ascontiguousarray(self.cv2Cache, dtype=np.uint8)
+                self.cv2CacheType = 'RGB'
+            return self.cv2Cache
 
     def resize(self, pixels, interpolation=cv2.INTER_CUBIC):
         """
@@ -156,6 +170,20 @@ class imImage(mImage) :
         """
         return rszd
 
+class LUTArray(object):
+    def __init__(self, a, LUT):
+        self.buf=a
+        """
+        self.data=a.data
+        self.ndim=a.ndim
+        self.dtype= a.dtype
+        self.shape=a.shape
+        """
+        self.LUT=LUT
+
+    def __getitem__(self, item):
+        return self.LUT[self.buf[item]]
+
 class QLayer(vImage):
     @classmethod
     def frommImage(cls, mImg):
@@ -170,12 +198,14 @@ class QLayer(vImage):
         self.alpha=255
         self.transfer = lambda : self.qPixmap
 
-    def applyLUT(self,LUT, widget=None):
-        a=self.cv2Img()
-        a = cv2.LUT(a, np.array(LUT))
-        a = cv2.convertScaleAbs(a)
-        a = a[:, :, ::-1]
-        a = np.ascontiguousarray(a[:, :, 1:4])
-        self.qPixmap= QPixmap.fromImage(vImage(cv2Img=a, format=QImage.Format_RGB888))
+    def applyLUT(self, LUT, widget=None):
+
+        a=self.cv2Img(cv2Type='RGB')
+
+        a=LUTArray(a,LUT)
+        a =a[:,:,:].astype(np.uint8)
+
+        self.qPixmap = QPixmap.fromImage(ndarrayToQImage(a, QImage.Format_RGB888))
+
         if widget is not None:
             widget.repaint()

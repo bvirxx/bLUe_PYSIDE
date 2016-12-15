@@ -3,37 +3,46 @@ from PyQt4.QtGui import QApplication, QPainter, QWidget
 from PyQt4.QtGui import QGraphicsView, QGraphicsScene, QGraphicsPathItem , QPainterPath, QPainterPathStroker, QPen, QBrush, QColor, QMainWindow, QLabel, QSizePolicy
 from PyQt4.QtCore import Qt, QPoint, QPointF
 import numpy as np
+from time import time
 from bisect import bisect
 
 strokeWidth = 3
 controlPoints =[]
 computeControlPoints = True
 
-def buildLUT(lut):
+def buildLUT(curve):
     """
-
-    :param lut:
-    :return:
+    Build the LUT from a list of QPOINTF objects, representing
+    a curve. The LUT values are interpolated between consecutive curve points.
+    :param curve: list of QPOINTF objects
+    :return: list of 256 integer values, between 0 and 255.
     """
-    LUTX = [p.x() for p in lut]
+    # sentinels S1, S2
+    S1 = QPointF(-1, curve[0].y())
+    S2 = QPointF(256, curve[-1].y())
+    curve = [S1] + curve + [S2]
 
-    #build LUT array
+    LUTX = [p.x() for p in curve]  # LUTX is assumed to be sorted in ascending order
+    LUTY = [p.y() for p in curve]
+    #build LUTXY table
+    """
     LUTXY = []
     for i in range(256):
-        # get smallest index j s.t. LUTX[j] > i (j=len(LUTX) if it exists, j=len(LUTX) otherwise)
+        # get smallest index j s.t. LUTX[j] > i if it exists, j=len(LUTX) otherwise
         j = bisect(LUTX, i)
-
-        if j < len(lut):
-            p1 = lut[j-1]
-            p2 = lut[j]
-        else:
-            p1 = lut[j-2]
-            p2 = lut[j-1]
-
-        y=np.interp(i, [p1.x(), p2.x()], [p1.y(), p2.y()])
-
-        LUTXY.append(np.uint8(round(-y)))
+        # interpolation  p1, p2
+        p1 = curve[j - 1]
+        p2 = curve[j]
+        #interpolate
+        y = -int(round (np.interp(i, [p1.x(), p2.x()], [p1.y(), p2.y()])))
+        #clip and append to table
+        LUTXY.append( 255 if  y>255 else 0  if y < 0 else y )
     print LUTXY
+    """
+    LUTXY = -np.interp(range(256), LUTX, LUTY)
+    LUTXY = np.around(LUTXY)
+    LUTXY=LUTXY.astype(int)
+    LUTXY = np.clip(LUTXY, 0, 255)
     return LUTXY
 
 def updateScene(grScene):
@@ -76,16 +85,17 @@ class activePoint(myGraphicsPathItem):
 
     def mouseReleaseEvent(self, e):
         fixedPoints.sort(key=lambda p : p.position().x())
+        sc = self.scene()
         if self.moveStart == e.pos():
             fixedPoints.remove(self)
-            window.graphicsScene.removeItem(self)
+            sc.removeItem(self)
             for t in tangents :
                 if t.contactPoint == self.position() :
                     print "removed"
                     tangents.remove(t)
                     window.graphicsScene.removeItem(t)
-            updateScene(self.scene())
-        self.scene().onUpdateScene()
+            updateScene(sc)
+        sc.onUpdateScene()
 
 class activeTangent(myGraphicsPathItem):
     def __init__(self, controlPoint=QPointF(), contactPoint=QPointF()):
@@ -130,8 +140,8 @@ tSample = [ float(i) / sampleSize for i in range(sampleSize+1) ]
 tSample1 = np.array([(1-t)**2 for t in tSample])
 tSample2=np.array([2*t*(1-t) for t in tSample])
 tSample3=np.array([t**2 for t in tSample])
-LUT = []
-LUTXY=range(256)
+#LUT = []
+#LUTXY=range(256)
 
 def qBezierLen(p0, p1, p2) :
     """
@@ -230,7 +240,8 @@ class Bezier(myGraphicsPathItem) :
             cp = tangents[0].controlPoint
 
         qpp.moveTo(lfixedPoints[mvptIndex - 1].position())
-        LUT[:]=[]
+        #LUT[:]=[]
+        LUT=[]
         for i in range(0, len(lfixedPoints) - mvptIndex):
             #print "initila", initila, lfixedPoints[mvptIndex].position().y()
             qpp.quadTo(cp, lfixedPoints[mvptIndex + i].position())
@@ -240,7 +251,7 @@ class Bezier(myGraphicsPathItem) :
             lgth = qBezierLen(lfixedPoints[mvptIndex + i - 1].position(), cp, lfixedPoints[mvptIndex + i].position())
             gap = int(sampleSize/lgth)
             idx = np.arange(0, len(tSample1), max(1, gap), dtype=int)
-            print 'spread', int(sampleSize/lgth)
+            #print 'spread', int(sampleSize/lgth)
 
 
             LUT.extend(tSample1[idx] * lfixedPoints[mvptIndex +i - 1].position() + tSample2[idx]* cp + tSample3[idx] * lfixedPoints[mvptIndex + i].position())
@@ -281,7 +292,7 @@ class Bezier(myGraphicsPathItem) :
         mboundingPath = stroker.createStroke(qpp);
         # self.setPath(mboundingPath + qpp1)
         self.setPath(mboundingPath)
-        LUTXY[:] = buildLUT(LUT)
+        self.scene().LUTXY = buildLUT(LUT)
         #print len(LUTX), max([abs(p.x() - q.x()) for p,q in zip(LUT[1:], LUT[:-1])])
 
 
@@ -378,7 +389,8 @@ class graphicsForm(QGraphicsView) :
         super(graphicsForm, self).__init__(*args, **kwargs)
         self.graphicsScene = QGraphicsScene()
         self.setScene(self.graphicsScene)
-        self.LUTXY = LUTXY
+        #self.LUTXY = LUTXY
+        self.graphicsScene.LUTXY=np.array(range(256))
         self.graphicsScene.onUpdateScene = lambda : 0
 
         # draw axes

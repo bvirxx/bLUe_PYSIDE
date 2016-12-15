@@ -23,7 +23,7 @@ def ndarrayToQImage(ndimg, format=QImage.Format_ARGB32):
     if qimg.format() == QImage.Format_Invalid:
         raise ValueError("ndarrayToQImage : wrong conversion")
 
-    return qimg #QImage(ndimg.data, ndimg.shape[1], ndimg.shape[0], bytePerLine, format)
+    return qimg
 
 def QImageToNdarray(qimg):
     """
