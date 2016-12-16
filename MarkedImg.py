@@ -171,14 +171,11 @@ class imImage(mImage) :
         return rszd
 
 class LUTArray(object):
+    """
+    Array wrapper for LUT conversion
+    """
     def __init__(self, a, LUT):
         self.buf=a
-        """
-        self.data=a.data
-        self.ndim=a.ndim
-        self.dtype= a.dtype
-        self.shape=a.shape
-        """
         self.LUT=LUT
 
     def __getitem__(self, item):
@@ -200,12 +197,14 @@ class QLayer(vImage):
 
     def applyLUT(self, LUT, widget=None):
 
-        a=self.cv2Img(cv2Type='RGB')
+        # get image array
+        ndImg=self.cv2Img(cv2Type='RGB')
 
-        a=LUTArray(a,LUT)
-        a =a[:,:,:].astype(np.uint8)
+        # apply LUT
+        convertedNdImg=LUTArray(ndImg,LUT)
+        convertedNdImg =convertedNdImg[:,:,:].astype(np.uint8)
 
-        self.qPixmap = QPixmap.fromImage(ndarrayToQImage(a, QImage.Format_RGB888))
-
+        # update Pixmap ans repaint
+        self.qPixmap = QPixmap.fromImage(ndarrayToQImage(convertedNdImg, QImage.Format_RGB888))
         if widget is not None:
             widget.repaint()
