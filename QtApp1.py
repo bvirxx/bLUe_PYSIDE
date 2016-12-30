@@ -10,6 +10,8 @@ from imgconvert import *
 from MarkedImg import mImage, imImage, QLayer
 from icc import convert
 from graphicsLUT import graphicsForm
+from LUT3D import rgb2hsv,hs2rgbList, hsp2rgb, Pr,Pg,Pb
+from math import floor
 
 P_SIZE=4000000
 
@@ -217,10 +219,11 @@ def showResult(img0, img1, turn):
 
 
 turn = 0
+pressed=False
+clicked = True
 def mouseEvent(widget, event) :
 
-    global rect_or_mask, mask, mask_s, turn,Mimg_1
-
+    global rect_or_mask, mask, mask_s, turn,Mimg_1, pressed, clicked
     img= widget.img
 
     r = img.resize_coeff(widget)
@@ -234,8 +237,9 @@ def mouseEvent(widget, event) :
         return
 
     if event.type() == QEvent.MouseButtonPress :
+        pressed=True
         if event.button() == Qt.LeftButton:
-            pass #State['tool_rect'] = True
+            clicked=True
         """
         elif event.button() == Qt.RightButton:
             #State['drag'] = True
@@ -253,32 +257,44 @@ def mouseEvent(widget, event) :
         State['ix'], State['iy'] = x, y
 
     elif event.type() == QEvent.MouseMove :
-        if window.btnValues['rectangle'] :
-            img.rect = QRect(min(State['ix'], x)/r -img.xOffset/r, min(State['iy'], y)/r - img.yOffset/r, abs(State['ix'] - x)/r, abs(State['iy'] - y)/r)
-            rect_or_mask = 0
-        elif (window.btnValues['drawFG'] or window.btnValues['drawBG']):
-            color= CONST_FG_COLOR if window.btnValues['drawFG'] else CONST_BG_COLOR
-            #qp.begin(img.mask)
-            qp.begin(img._layers['drawlayer'])
-            qp.setPen(color)
-            qp.setBrush(color);
-            qp.setCompositionMode(qp.CompositionMode_Source)  # avoid alpha summation
-            qp.drawEllipse(int(x / r)-img.xOffset/r, int(y / r)- img.yOffset/r, 80, 80)
-            qp.end()
-            rect_or_mask=1
+        clicked=False
+        if pressed :
+            if window.btnValues['rectangle'] :
+                img.rect = QRect(min(State['ix'], x)/r -img.xOffset/r, min(State['iy'], y)/r - img.yOffset/r, abs(State['ix'] - x)/r, abs(State['iy'] - y)/r)
+                rect_or_mask = 0
+            elif (window.btnValues['drawFG'] or window.btnValues['drawBG']):
+                color= CONST_FG_COLOR if window.btnValues['drawFG'] else CONST_BG_COLOR
+                #qp.begin(img.mask)
+                qp.begin(img._layers['drawlayer'])
+                qp.setPen(color)
+                qp.setBrush(color);
+                qp.setCompositionMode(qp.CompositionMode_Source)  # avoid alpha summation
+                qp.drawEllipse(int(x / r)-img.xOffset/r, int(y / r)- img.yOffset/r, 80, 80)
+                qp.end()
+                rect_or_mask=1
 
-            #mask=cv2.bitwise_or(img.resize(40000).mask, mask)
+                #mask=cv2.bitwise_or(img.resize(40000).mask, mask)
 
-            #window.label_2.img=do_grabcut(Mimg_p, preview=P_SIZE)
-            #window.label_2.repaint()
-            window.label.repaint()
-        else:
-            img.xOffset+=(x-State['ix'])
-            img.yOffset+=(y-State['iy'])
-            State['ix'],State['iy']=x,y
-            print x,y,img.xOffset, img.yOffset
+                #window.label_2.img=do_grabcut(Mimg_p, preview=P_SIZE)
+                #window.label_2.repaint()
+                window.label.repaint()
+            else:
+                img.xOffset+=(x-State['ix'])
+                img.yOffset+=(y-State['iy'])
+        #update
+        State['ix'],State['iy']=x,y
+        c = QColor(window.label.img.pixel(State['ix'], State['iy']))
+        r,g,b=c.red(), c.green(), c.blue()
+        h,s,p=rgb2hsv(r,g,b, perceptual=True)
+        print 'picker rgb :', r,g,b, 'hsp :', h,s,p
+        #print hs2rgbList(h,s)
+
     elif event.type() == QEvent.MouseButtonRelease :
+        pressed=False
         if event.button() == Qt.LeftButton:
+            #click event
+            if clicked:
+                print 'click event'
             if window.btnValues['rectangle']:
                 #State['tool_rect'] = False
                 #State['rect_over'] = True
@@ -424,6 +440,8 @@ def openFile(f):
     b=exiftool.decodeExifOrientation(orientation)
 
     window.label.img = imImage(filename=f, colorSpace=colorSpace, orientation=b, metadata=metadata, profile=profile)  # imImage(filename=f)
+
+    window.label.img = colorPicker(500,500)
     #window.label.img=imImage(QImg=convert(f))
     #window.label_2.img = window.label.img
     window.label_2.img = imImage(filename=f, orientation=b, metadata=metadata)
@@ -473,6 +491,7 @@ def menuLayer(x, name):
         #l=QLayer(QImg=testLUT(grWindow.LUTXY))
         l=QLayer(QImg=window.label.img)
         l.applyLUT(grWindow.graphicsScene.LUTXY, widget=window.label)
+        l.apply3DLUT(grWindow.graphicsScene.LUT3D, widget=window.label)
         #l.transfer=testLUT
         window.label.img.addLayer(l, 'Brightness/Contrast')
         window.tableView.addLayers(window.label.img)
@@ -495,6 +514,29 @@ def testLUT(LUT) :
 
     return QPixmap.fromImage(mImage(cv2Img=a, format=QImage.Format_RGB888))
 
+def colorPicker(w,h):
+
+    img = QImage(w,h, QImage.Format_ARGB32)
+    cx=w/2
+    cy=h/2
+    for i in range(w):
+        for j in range(h):
+            i1=i-cx
+            j1=-j+cy
+            m = max(abs(i1), abs(j1))
+            hue = np.arctan2(j1,i1)*180.0/np.pi + 315
+            hue = hue - floor(hue/360.0)*360.0 # i1=sat* cos(hue), j1 =sat * sin(hue)
+            #sat = np.sqrt(i1*i1 + j1*j1)/np.sqrt(w*w/2.0)
+            #sat = float(m) /cx
+            sat = sat = np.sqrt(i1*i1 + j1*j1)/cx
+            sat = min(1.0, sat)
+            c = QColor(*hsp2rgb(hue,sat,0.45))
+            #invert
+            print hue, sat, i1, j1, cx*sat*np.cos((hue-315)*np.pi/180.0), cx*sat*np.sin((hue-315)*np.pi/180.0)
+            img.setPixel(i,j,c.rgb())
+    img = imImage(QImg=img)
+    return img
+
 def handleNewWindow(parent):
     newwindow = QMainWindow(parent)
     newwindow.setAttribute(Qt.WA_DeleteOnClose)
@@ -506,6 +548,9 @@ def handleNewWindow(parent):
     set_event_handler(label_3)
     newwindow.show()
 
+#get mouse hover events
+window.label.setMouseTracking(True)
+window.label_2.setMouseTracking(True)
 
 # set button and slider change handler
 window.onWidgetChange = button_change
@@ -515,6 +560,7 @@ window.onExecFileOpen = openFile
 window.onExecMenuWindow = menuWindow
 window.onExecMenuImage = menuImage
 window.onExecMenuLayer = menuLayer
+
 #color dialog
 #color=QColorDialog(window)
 #color.setWindowFlags(Qt.Widget)

@@ -35,7 +35,8 @@ def convert(f, fromProfile=SRGB_PROFILE, toProfile=MONITOR_PROFILE):
         #a=qim.bits()
         return qim
 
-def convertQImage(image, fromProfile=SRGB_PROFILE, toProfile=MONITOR_PROFILE):
+#def convertQImage(image, fromProfile=SRGB_PROFILE, toProfile=MONITOR_PROFILE):
+def convertQImage(image, fromProfile=SRGB_PROFILE, toProfile=SRGB_PROFILE):
     """
     Convert a QImage from profile fromProfile to profile toProfile.
     :param image: source QImage

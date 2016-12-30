@@ -3,6 +3,7 @@ from imgconvert import *
 from PyQt4.QtGui import QPixmap, QImage, QColor
 from PyQt4.QtCore import QRect, QByteArray
 from icc import convert, convertQImage
+from LUT3D import interp
 from time import time
 
 class vImage(QImage):
@@ -181,6 +182,20 @@ class LUTArray(object):
     def __getitem__(self, item):
         return self.LUT[self.buf[item]]
 
+class LUT3DArray(object):
+    """
+    Array wrapper for 3D LUT conversion
+    """
+    def __init__(self, a, LUT):
+        self.buf=a
+        self.LUT=LUT
+
+    def __getitem__(self, item):
+        if isinstance(item[0], slice):
+            return np.array([[ interp(self.LUT, *self.buf[y,x])  for x in range(self.buf.shape[0])] for y in range(self.buf.shape[1])])
+        else:
+            return interp(self.LUT, self.buf[item])
+
 class QLayer(vImage):
     @classmethod
     def frommImage(cls, mImg):
@@ -203,6 +218,19 @@ class QLayer(vImage):
         # apply LUT
         convertedNdImg=LUTArray(ndImg,LUT)
         convertedNdImg =convertedNdImg[:,:,:].astype(np.uint8)
+
+        # update Pixmap ans repaint
+        self.qPixmap = QPixmap.fromImage(ndarrayToQImage(convertedNdImg, QImage.Format_RGB888))
+        if widget is not None:
+            widget.repaint()
+
+    def apply3DLUT(self, LUT, widget=None):
+        # get image array
+        ndImg = self.cv2Img(cv2Type='RGB')
+
+        # apply LUT
+        convertedNdImg = LUT3DArray(ndImg[:,:], LUT)
+        convertedNdImg = convertedNdImg[:, :].astype(np.uint8)
 
         # update Pixmap ans repaint
         self.qPixmap = QPixmap.fromImage(ndarrayToQImage(convertedNdImg, QImage.Format_RGB888))

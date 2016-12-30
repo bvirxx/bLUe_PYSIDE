@@ -4,7 +4,8 @@ from PyQt4.QtGui import QGraphicsView, QGraphicsScene, QGraphicsPathItem , QPain
 from PyQt4.QtCore import Qt, QPoint, QPointF
 import numpy as np
 from time import time
-from bisect import bisect
+from LUT3D import hs2rgbList
+
 
 strokeWidth = 3
 controlPoints =[]
@@ -391,6 +392,20 @@ class graphicsForm(QGraphicsView) :
         self.setScene(self.graphicsScene)
         #self.LUTXY = LUTXY
         self.graphicsScene.LUTXY=np.array(range(256))
+
+        LUTSIZE = 17
+
+        self.graphicsScene.LUT3D = np.array([[[(i * 16, j * 16, k * 16) for k in range(LUTSIZE)] for j in range(LUTSIZE)] for i in range(LUTSIZE)])
+
+        #for i in range(14):
+            #for j in range(15):
+                #for k in range (10):
+                    #pass
+                    #print i,j,k , self.graphicsScene.LUT3D[i,j,k]
+        l=hs2rgbList(10, 0.5)
+
+        for c in l:
+            self.graphicsScene.LUT3D[c[0]/16,c[1]/16,c[2]/16, ]=(0,0,255)
         self.graphicsScene.onUpdateScene = lambda : 0
 
         # draw axes
