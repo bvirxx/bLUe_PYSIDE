@@ -4,7 +4,7 @@ from PyQt4.QtGui import QGraphicsView, QGraphicsScene, QGraphicsPathItem , QPain
 from PyQt4.QtCore import Qt, QPoint, QPointF
 import numpy as np
 from time import time
-from LUT3D import hs2rgbList
+#from LUT3D import hs2rgbList
 
 
 strokeWidth = 3
@@ -393,9 +393,7 @@ class graphicsForm(QGraphicsView) :
         #self.LUTXY = LUTXY
         self.graphicsScene.LUTXY=np.array(range(256))
 
-        LUTSIZE = 17
-
-        self.graphicsScene.LUT3D = np.array([[[(i * 16, j * 16, k * 16) for k in range(LUTSIZE)] for j in range(LUTSIZE)] for i in range(LUTSIZE)])
+        self.graphicsScene.LUT3D = LUT3D
 
         #for i in range(14):
             #for j in range(15):

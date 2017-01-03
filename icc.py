@@ -3,7 +3,7 @@ from PIL.ImageCms import profileToProfile, getOpenProfile
 from PIL.ImageQt import ImageQt
 import numpy as np
 from PyQt4.QtGui import QPixmap, QImage
-from imgconvert import QImageToNdarray, PilImageToQImage, QImageToPilImage
+from imgconvert import QImageBuffer, PilImageToQImage, QImageToPilImage
 from StringIO import StringIO
 #help(PIL.ImageCms)
 

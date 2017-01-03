@@ -1,27 +1,40 @@
 import numpy as np
 from PyQt4.QtCore import Qt, QPoint, QPointF
 from PyQt4.QtGui import QImage, QColor
+
 #from MarkedImg import mImage, imImage
 
-
-Pr = 0.299
-Pg = 0.587
-Pb = 0.114
+# 3D LUT init.
 """
-Pr=0.2126
-Pg=0.7152
-Pb=0.0722
+Each axis has length LUTSIZE.
+r,g,b values are between 0 and 256.
+"""
+LUTSIZE = 17
+#LUTSIZE = 129
+LUTSTEP = 256 / (LUTSIZE - 1)
+LUT3D = np.array([[[(i * LUTSTEP, j * LUTSTEP, k * LUTSTEP) for k in range(LUTSIZE)] for j in range(LUTSIZE)] for i in range(LUTSIZE)])
+
+# perceptual brightness constants
+
+Perc_R = 0.299
+Perc_G = 0.587
+Perc_B = 0.114
+"""
+Perc_R=0.2126
+Perc_G=0.7152
+Perc_B=0.0722
 """
 # interpolated from 3D lUT Creator
-Pr=0.2338
-Pg=0.6880
-Pb=0.0782
+Perc_R=0.2338
+Perc_G=0.6880
+Perc_B=0.0782
 
 """
-Pr=0.79134178
-Pg=2.31839104
-Pb=0.25510923
+Perc_R=0.79134178
+Perc_G=2.31839104
+Perc_B=0.25510923
 """
+
 class QPoint3D(object):
     def __init__(self, x,y,z):
         self.x_ =x
@@ -48,12 +61,23 @@ class QPoint3D(object):
         return QPoint3D(scalar*self.x_, scalar.self.y_, scalar.self.z_)
 
 def rgb2hsv(r,g,b, perceptual = False):
+    """
+    transform the red, green ,blue r, g, b components of a color
+    into hue, saturation, brightness h, s, v.
+    The r, g, b components are integers in range 0..255. If perceptual is False
+    (default) v = max(r,g,b)/255.0, else v = sqrt(Perc_R*r*r + Perc_G*g*g + Perc_B*b*b)
+    :param r:
+    :param g:
+    :param b:
+    :param perceptual: boolean
+    :return: h, s, v float values : 0<=h<=360, 0<=s<=1, 0<=v<=1
+    """
 
-    cMax = max(r,g,b)
+    cMax = max(r, g, b)
     cMin = min(r, g, b)
     delta = cMax - cMin
 
-    # get hue
+    # hue
     if delta == 0:
         H = 0.0
     elif cMax == r:
@@ -61,29 +85,41 @@ def rgb2hsv(r,g,b, perceptual = False):
     elif cMax == g:
         H = 60.0 * (2.0 + float(b-r)/delta)
     elif cMax == b:
-        H = 60.0 * (4.0 + float(g-b)/delta)
-    #get saturation
+        H = 60.0 * (4.0 + float(r-g)/delta)
+
+    #saturation
     S = 0.0 if cMax == 0 else float(delta)/cMax
 
-    # get brightness
+    # brightness
     if perceptual:
-        V = np.sqrt(0.299*r*r + 0.587*g*g + 0.114*b*b)
+        V = np.sqrt(Perc_R * r * r + Perc_G * g * g + Perc_B * b * b)
         V = V / 255.0
     else:
         V = cMax/255.0
-
+    assert 0<=H and H<=360 and 0<=S and S<=1 and 0<=V and V<=1, "rgb2hsv error"
     return H,S,V
 
 def hsv2rgb(h,s,v):
+    """
+    Transform the hue, saturation, brightness h, s, v components of a color
+    into red, green, blue values.
+    Note : here, v= max(r,g,b)/255.0. For perceptual brightness use
+    hsp2rgb()
 
+    :param h: float value in range 0..360
+    :param s: float value in range 0..1
+    :param v: float value in range 0..1
+    :return: r,g,b integers between 0 and 255
+    """
+    assert h>=0 and h<=360 and s>=0 and s<=1 and v>=0 and v<=1
     c = v * s
 
-    slice = int(h)/60
+    slice = h/60.0
 
-    slice1 = int(slice) % 2
+    slice1 = slice % 2
 
-    #x = c * (1 - abs(slice1 - 1))
-    x = c * slice1
+    x = c * (1 - abs(slice1 - 1))
+    #x = c * slice1
 
     if  h < 60 :
         r1, g1, b1 = c, x , 0
@@ -92,62 +128,63 @@ def hsv2rgb(h,s,v):
     elif h < 180:
         r1, g1, b1 = 0, c, x
     elif h < 240:
-        r1, g1, b1 = 0,x,c
+        r1, g1, b1 = 0, x, c
     elif h < 300:
         r1, g1, b1 = x, 0, c
     else :
         r1, g1, b1 = c, 0, x
 
     m = v - c
-    r = (r1 + m) * 255
-    g = (g1 + m) * 255
-    b = (b1 + m) * 255
+    r = int((r1 + m) * 255)
+    g = int((g1 + m) * 255)
+    b = int((b1 + m) * 255)
 
     return r,g,b
 
-def hsp2rgb(h,s,p):
+def hsp2rgb(h,s,p, trunc=True):
+    """
+    Transform the hue, saturation and perceptual brightness h, s, p components of a color
+    into red, green, blue values.
+    :param h: float value in range 0..360
+    :param s: float value in range 0..1
+    :param p: float value in range 0..1
+    :return: r,g,b integers between 0 and 255
     """
 
-    :param h: hue in range 0..360
-    :param s:
-    :param p:
-    :return:
-    """
-
-    hd, sd, pd = h,s,p
+    #hd, sd, pd = h,s,p
     # m = min(r,g,b) and M = max(r,g,b) s = (M - m) / M, , 1 - s = m/M
-    mM = 1.0 - s
-    h = h /60.0  # 0<=h<=6
+    #mM = 1.0 - s
+    h = h /60.0  # slice 0<=h<=6
 
     if s == 1.0:
         if h < 1.0 :  # r > g > b=0
             h = h#/60.0
-            r = np.sqrt(p * p / (Pr + Pg * h * h))
+            r = np.sqrt(p * p / (Perc_R + Perc_G * h * h))
             g = r * h
             b = 0.0
         elif h < 2.0:  # g>r>b=0
             h = (-h + 2.0)#/60.0
-            g = np.sqrt(p * p / (Pg + Pr * h * h))
+            g = np.sqrt(p * p / (Perc_G + Perc_R * h * h))
             r = g * h
             b = 0.0
         elif h < 3.0: # g>b>r=0
             h = (h - 2.0)#/60.0
-            g = np.sqrt(p * p / (Pg + Pb * h * h))
+            g = np.sqrt(p * p / (Perc_G + Perc_B * h * h))
             b = g * h
             r = 0.0
         elif h < 4.0 : # b>g>r=0
             h = (-h + 4.0)# / 60.0
-            b = np.sqrt(p * p / (Pb + Pg * h * h))
+            b = np.sqrt(p * p / (Perc_B + Perc_G * h * h))
             g = b * h
             r = 0.0
         elif h < 5.0 :  # b>r>g=0
             h = (h - 4.0)#/60.0
-            b = np.sqrt(p * p / (Pb + Pr * h * h))
+            b = np.sqrt(p * p / (Perc_B + Perc_R * h * h))
             r = b * h
             g = 0.0
         else : # r>b>g=0
             h = (-h + 6.0) #/ 60.0
-            r = np.sqrt(p * p / (Pr + Pb * h * h))
+            r = np.sqrt(p * p / (Perc_R + Perc_B * h * h))
             b = r * h
             g = 0.0
     else:  # s !=1
@@ -155,47 +192,49 @@ def hsp2rgb(h,s,p):
         if h < 1.0 :  # r > g > b
             h = h#/60.0
             part = 1.0 + h * (Mm - 1.0)  # part >=1 part = g/b
-            b = p / np.sqrt(Pr*Mm*Mm + Pg*part*part + Pb)  # b<=p
+            b = p / np.sqrt(Perc_R * Mm * Mm + Perc_G * part * part + Perc_B)  # b<=p
             r = b * Mm
             g = b + h * (r - b)
         elif h < 2.0: #g>r>b
             h = (-h + 2.0)# / 60.0
             part = 1.0 + h * (Mm - 1.0) #part = r/b
-            b = p / np.sqrt(Pg*Mm*Mm + Pr*part*part + Pb)
+            b = p / np.sqrt(Perc_G * Mm * Mm + Perc_R * part * part + Perc_B)
             g = b * Mm
             r = b + h * (g - b)
         elif h < 3.0: # g>b>r
             h = (h - 2.0)# / 60.0
             part = 1.0 + h * (Mm - 1.0) # part = b/r
-            r = p / np.sqrt(Pg*Mm*Mm + Pb*part*part + Pr)
+            r = p / np.sqrt(Perc_G * Mm * Mm + Perc_B * part * part + Perc_R)
             g = r * Mm
             b = r + h * (g - r)
         elif h < 4.0: # b>g>r
             h = (-h + 4.0)# / 60.0
             part = 1.0 + h * (Mm - 1.0)
-            r = p / np.sqrt(Pb*Mm*Mm + Pg*part*part + Pr)
+            r = p / np.sqrt(Perc_B * Mm * Mm + Perc_G * part * part + Perc_R)
             b = r * Mm
             g = r  + h * (b - r)
         elif h < 5.0: # b>r>g
             h = (h - 4.0)# / 60.0
             part = 1.0 + h * (Mm - 1.0)
-            g = p / np.sqrt(Pb*Mm*Mm + Pr*part*part + Pg)
+            g = p / np.sqrt(Perc_B * Mm * Mm + Perc_R * part * part + Perc_G)
             b = g * Mm
             r = g + h * (b - g)
         else: # r>b>g
             h = (-h + 6.0) #/ 60.0
             part = 1.0 + h * (Mm - 1.0)
-            g = p / np.sqrt(Pr*Mm*Mm + Pb*part*part + Pg)
+            g = p / np.sqrt(Perc_R * Mm * Mm + Perc_B * part * part + Perc_G)
             r = g * Mm
             b = g + h * (r - g)
 
     if r<0 or g<0 or b<0 :
         print 'neg value found', h,s,p, r,g,b
 
-    pc=Pr*r*r+Pg*g*g+Pb*b*b
-    if abs(p*p - pc)> 0.000001:
-        print 'hsp2rgb error', p, np.sqrt(pc)
-    return min(255,int(round(r*255))), min(255,int(round(g*255))), min(255, int(round(b*255)))
+    pc= Perc_R * r * r + Perc_G * g * g + Perc_B * b * b
+    assert abs(p*p - pc)<= 0.000001, 'hsp2rgb error'
+    if trunc:
+        return min(255,int(round(r*255))), min(255,int(round(g*255))), min(255, int(round(b*255)))
+    else:
+        return int(round(r * 255)), int(round(g * 255)), int(round(b * 255))
 
 """
 def colorPicker(w,h):
@@ -226,18 +265,62 @@ def colorPicker(w,h):
     img = imImage(QImg=img)
     return img
 """
-def hs2rgbList(h,s):
 
-    return [hsp2rgb(h,s,p/100.0) for p in range(100)]
+def interpVec(LUT, ndImg):
+    """
+    Convert an RGB image using a 3D LUT. The output image is interpolated from the LUT.
+    It has the same dimensions and type as the input image.
+    We use a vectorized version of trilinear interpolation.
 
+    :param LUT: 3D LUT array
+    :param ndImg: image array
+    :return: RGB image with same dimensions as the input image
+    """
 
-#LUTSIZE = 17
+    # scale image pixels and get surrounding unit cubes
+    ndImgF = ndImg/float(LUTSTEP)
+    a=np.floor(ndImgF).astype(int)
 
-#LUT=np.array([[[(i*16,j*16,k*16) for k in range(LUTSIZE)] for j in range(LUTSIZE)] for i in range(LUTSIZE)])
+    #apply LUT to cube vertices
+    ndImg00 = LUT[a[:,:,0], a[:,:,1], a[:,:,2]]
+    ndImg01 = LUT[a[:,:,0] +1, a[:,:,1], a[:,:,2]]
+    ndImg02 = LUT[a[:,:,0], a[:,:,1]+1, a[:,:,2]]
+    ndImg03 = LUT[a[:,:,0]+1, a[:,:,1]+1, a[:,:,2]]
+
+    ndImg10 = LUT[a[:,:,0], a[:,:,1], a[:,:,2]+1]
+    ndImg11 = LUT[a[:,:,0]+1, a[:,:,1], a[:,:,2]+1]
+    ndImg12 = LUT[a[:,:,0], a[:,:,1]+1, a[:,:,2]+1]
+    ndImg13 = LUT[a[:,:,0]+1, a[:,:,1]+1, a[:,:,2]+1]
+
+    # interpolate 
+    alpha = ndImgF[:,:,1] - a[:,:,1]
+    alpha=np.dstack((alpha, alpha, alpha))
+    """
+    I11Value= ndImg11[:,:,1] + alpha*(ndImg13[:,:,1]-ndImg11[:,:,1])
+    I12Value = ndImg10[:,:,1] + alpha*(ndImg12[:,:,1]-ndImg10[:,:,1])
+    I21Value = ndImg01[:,:,1] + alpha*(ndImg03[:,:,1]-ndImg01[:,:,1])
+    I22Value = ndImg00[:,:,1] + alpha*(ndImg02[:,:,1]-ndImg00[:,:,1])
+    """
+
+    I11Value = ndImg11 + alpha * (ndImg13 - ndImg11)
+    I12Value = ndImg10 + alpha * (ndImg12 - ndImg10)
+    I21Value = ndImg01 + alpha * (ndImg03 - ndImg01)
+    I22Value = ndImg00 + alpha * (ndImg02 - ndImg00)
+
+    beta = ndImgF[:,:,0] - a[:,:,0]
+    beta = np.dstack((beta, beta, beta))
+    I1Value = I12Value + beta * (I11Value - I12Value)
+    I2Value = I22Value + beta * (I21Value - I22Value)
+
+    gamma = ndImgF[:,:,2] - a[:,:,2]
+    gamma = np.dstack((gamma, gamma, gamma))
+    IValue = I2Value + gamma * (I1Value - I2Value)
+
+    return IValue
 
 def interp(LUT, i,j,k):
     """
-    Trilinear interpolation
+    Trilinear interpolation in a 3D LUT
 
                                               k    I12
                                            F1 |---------- D1
@@ -253,25 +336,24 @@ def interp(LUT, i,j,k):
                                         i
 
 
-    :param i:
-    :param j:
-    :param k:
-    :return:
+    :param LUT 3D LUT array
+    :param i,j,k: coordinates to interpolate
+    :return: interpolated value
     """
     i16, j16, k16 = i/16, j/16, k/16
 
     C0 = (i16 , j16, k16)
-    D0 = (i16 +1 , j16, k16)   #C0 + QPoint3D(1,0,0)
-    E0 = (i16 , j16+1, k16)    #C0 + QPoint3D(0,1,0)
-    F0 = (i16+1, j16+1, k16)   # C0 + QPoint3D(1, 1, 0)
+    D0 = (i16 +1 , j16, k16)    #C0 + QPoint3D(1,0,0)
+    E0 = (i16 , j16+1, k16)     #C0 + QPoint3D(0,1,0)
+    F0 = (i16+1, j16+1, k16)    # C0 + QPoint3D(1, 1, 0)
 
-    C1= (i16 +1 , j16+1, k16+1)    #C0 + QPoint3D(1,1,1)
-    D1 = (i16, j16+1, k16+1)       #C1 - QPoint3D(1, 0, 0)
-    E1 = (i16+1, j16, k16+1)     #C1 -  QPoint3D(0, 1, 0)
+    C1= (i16 +1 , j16+1, k16+1) #C0 + QPoint3D(1,1,1)
+    D1 = (i16, j16+1, k16+1)    #C1 - QPoint3D(1, 0, 0)
+    E1 = (i16+1, j16, k16+1)    #C1 -  QPoint3D(0, 1, 0)
     F1 =  (i16, j16, k16+1)     #C1 - QPoint3D(1, 1, 0)
 
-    iP=float(i)/16
-    jP=float(j)/16
+    iP = float(i)/16
+    jP = float(j)/16
     kP = float(k) / 16
 
     I1 = (iP,jP,C1[2])
@@ -306,23 +388,30 @@ def interp(LUT, i,j,k):
     return IValue
 
 def lutNN(LUT, r,g,b):
+    """
+    Get nearest neighbor vertex of (r,g,b) value in 3D LUT.
+    :param LUT:
+    :param r:
+    :param g:
+    :param b:
+    :return: 3-uple of indices for NN vertex.
+    """
+    """
+    x = 0 if r % 16 < 8 else 1
+    y = 0 if g % 16 < 8 else 1
+    z = 0 if b % 16 < 8 else 1
+    """
+    x = 0 if r % LUTSTEP < LUTSTEP / 2 else 1
+    y = 0 if g % LUTSTEP < LUTSTEP / 2 else 1
+    z = 0 if b % LUTSTEP < LUTSTEP / 2 else 1
 
-    x = 0 if i % 16 < 8 else 1
-    y = 0 if j % 16 < 8 else 1
-    z = 0 if k % 16 < 8 else 1
-
-    NN = (r/16 + x, g / 16 + y , k /16 + z)
+    NN = (r / LUTSTEP + x, g / LUTSTEP + y , b / LUTSTEP + z)
 
     return NN
 
 if __name__=='__main__':
 
-    interp(41,25, 3)
-
-    print 'hsp', rgb2hsv(200,20,20, perceptual=True)
-
-    print hsp2rgb(*rgb2hsv(200,20,20, perceptual=True))
-
+    pass
 
 """
 

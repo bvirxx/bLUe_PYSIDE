@@ -3,8 +3,13 @@ from imgconvert import *
 from PyQt4.QtGui import QPixmap, QImage, QColor
 from PyQt4.QtCore import QRect, QByteArray
 from icc import convert, convertQImage
-from LUT3D import interp
+from LUT3D import interp, LUT3D, interpVec
+from multiprocessing import Pool
 from time import time
+
+
+def fa(*args):
+    return [interp(LUT3D, *x) for x in args]
 
 class vImage(QImage):
     """
@@ -53,6 +58,21 @@ class vImage(QImage):
 
         # prevent from garbage collector
         self.data=self.bits()
+
+        self.updatePixmap()
+        """
+        if self.colorSpace == 1 or len(self.profile)> 0:
+            print self.colorSpace
+            cvqim=convertQImage(self)
+            self.qPixmap = QPixmap.fromImage(cvqim)
+        else:
+            self.qPixmap = QPixmap.fromImage(self)
+        """
+        if self.mask is None:
+            self.mask = QImage(self.width(), self.height(), QImage.Format_ARGB32)
+            self.mask.fill(0)
+
+    def updatePixmap(self):
         if self.colorSpace == 1 or len(self.profile)> 0:
             print self.colorSpace
             cvqim=convertQImage(self)
@@ -60,15 +80,11 @@ class vImage(QImage):
         else:
             self.qPixmap = QPixmap.fromImage(self)
 
-        if self.mask is None:
-            self.mask = QImage(self.width(), self.height(), QImage.Format_ARGB32)
-            self.mask.fill(0)
-
     def cv2Img(self, cv2Type='BGRA'):
         if self.cv2Cache is not None and self.cv2CacheType==cv2Type:
             return self.cv2Cache
         else:
-            self.cv2Cache = QImageToNdarray(self)
+            self.cv2Cache = QImageBuffer(self)
             self.cv2CacheType = 'BGRA'
             if cv2Type == 'RGB':
                 self.cv2Cache = self.cv2Cache[:,:,::-1]
@@ -99,6 +115,54 @@ class vImage(QImage):
             # tmp.mask=cv2.resize(self.mask, (w,h), interpolation=cv2.INTER_NEAREST )
             rszd.mask = self.mask.scaled(w, h)
         return rszd
+
+    def applyLUT(self, LUT, widget=None):
+
+        # get image array
+        ndImg = self.cv2Img(cv2Type='RGB')
+
+        # apply LUT
+        convertedNdImg = LUTArray(ndImg, LUT)
+        convertedNdImg = convertedNdImg[:, :, :].astype(np.uint8)
+
+        # update Pixmap ans repaint
+        self.qPixmap = QPixmap.fromImage(ndarrayToQImage(convertedNdImg, QImage.Format_RGB888))
+        if widget is not None:
+            widget.repaint()
+
+    def apply3DLUT(self, LUT, widget=None):
+
+        # get image buffer (type RGB)
+        ndImg = QImageBuffer(self)[:,:,:3][:,:,::-1]
+        start=time()
+        """
+        f = lambda *args : [interp(LUT, *x) for x in args]
+
+        ndImg[:] = map(f, * [ndImg[:,c] for c in range(ndImg.shape[1])])
+        """
+        ndImg[:,:,:] = interpVec(LUT, ndImg)
+        """
+        for r in range(ndImg.shape[0]):
+            for c in range(ndImg.shape[1]):
+                p=ndImg[r,c]
+                ndImg[r,c]= LUT[(p[0]/2), (p[1]/2),(p[2]/2)]           #ndImg[interp(LUT, *ndImg[r,c])
+        """
+        """
+        p = Pool(2)
+        #f = lambda x : interp(LUT,x)
+        ndImg[:]=p.map(fa, ndImg)
+        """
+        end=time()
+        print 'time %.2f' % (end-start)
+        self.updatePixmap()
+        # apply LUT
+        #convertedNdImg = LUT3DArray(ndImg[:,:], LUT)
+        #convertedNdImg = convertedNdImg[:, :].astype(np.uint8)
+
+        # update Pixmap ans repaint
+        #self.qPixmap = QPixmap.fromImage(ndarrayToQImage(convertedNdImg, QImage.Format_RGB888))
+        if widget is not None:
+            widget.repaint()
 
 class mImage(vImage):
     """
@@ -192,7 +256,7 @@ class LUT3DArray(object):
 
     def __getitem__(self, item):
         if isinstance(item[0], slice):
-            return np.array([[ interp(self.LUT, *self.buf[y,x])  for x in range(self.buf.shape[0])] for y in range(self.buf.shape[1])])
+            return np.array([[ interp(self.LUT, *self.buf[y,x])  for x in range(self.buf.shape[1])] for y in range(self.buf.shape[0])])
         else:
             return interp(self.LUT, self.buf[item])
 
@@ -210,29 +274,5 @@ class QLayer(vImage):
         self.alpha=255
         self.transfer = lambda : self.qPixmap
 
-    def applyLUT(self, LUT, widget=None):
 
-        # get image array
-        ndImg=self.cv2Img(cv2Type='RGB')
 
-        # apply LUT
-        convertedNdImg=LUTArray(ndImg,LUT)
-        convertedNdImg =convertedNdImg[:,:,:].astype(np.uint8)
-
-        # update Pixmap ans repaint
-        self.qPixmap = QPixmap.fromImage(ndarrayToQImage(convertedNdImg, QImage.Format_RGB888))
-        if widget is not None:
-            widget.repaint()
-
-    def apply3DLUT(self, LUT, widget=None):
-        # get image array
-        ndImg = self.cv2Img(cv2Type='RGB')
-
-        # apply LUT
-        convertedNdImg = LUT3DArray(ndImg[:,:], LUT)
-        convertedNdImg = convertedNdImg[:, :].astype(np.uint8)
-
-        # update Pixmap ans repaint
-        self.qPixmap = QPixmap.fromImage(ndarrayToQImage(convertedNdImg, QImage.Format_RGB888))
-        if widget is not None:
-            widget.repaint()

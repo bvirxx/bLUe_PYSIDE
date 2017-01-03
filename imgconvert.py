@@ -25,31 +25,29 @@ def ndarrayToQImage(ndimg, format=QImage.Format_ARGB32):
 
     return qimg
 
-def QImageToNdarray(qimg):
+def QImageBuffer(qimg):
     """
-    Raw conversion of a QImage to a numpy ndarray. The size of the
-    converted array 3rd axis depends on the image type. Pixel color is
+    Get a QImage buffer as a numpy ndarray. The size of the
+    array 3rd axis depends on the image type. Pixel color is
     in BGRA order (little endian arch.) or ARGB (big  endian arch.)
     Format 1 bit per pixel is not supported
     :param qimg: QImage
-    :return: The converted array
+    :return: The buffer array
     """
-    # get pixel depth
+    # pixel depth
     bpp = qimg.depth()
     if bpp == 1:
         print "Qimage2array : unsupported image format 1 bit per pixel"
         return None
     Bpp = bpp / 8
 
-    w,h = qimg.width(), qimg.height()
-
-    # get memory buffer as a sip.array object of uint8, length unknown
-    data = qimg.bits()
-
-    data = data.asarray(w*h*Bpp)
+    # image buffer (sip.array of Bytes)
+    ptr = qimg.bits()
+    ptr.setsize(qimg.byteCount())
 
     #convert sip array to ndarray and reshape
-    return np.array(data, dtype=np.uint8).reshape(h, w, Bpp)
+    h,w = qimg.height(), qimg.width()
+    return np.asarray(ptr).reshape(h, w, Bpp)
 
 
 def PilImageToQImage(pilimg) :
@@ -82,7 +80,7 @@ def QImageToPilImage(qimg) :
     :param pilimg: The PIL image
     :return: QImage object
     """
-    a = QImageToNdarray(qimg)
+    a = QImageBuffer(qimg)
 
     if (qimg.format() == QImage.Format_ARGB32) or (qimg.format() == QImage.Format_RGB32):
         # convert pixels from BGRA or BGRX to RGB

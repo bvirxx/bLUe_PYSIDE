@@ -10,8 +10,9 @@ from imgconvert import *
 from MarkedImg import mImage, imImage, QLayer
 from icc import convert
 from graphicsLUT import graphicsForm
-from LUT3D import rgb2hsv,hs2rgbList, hsp2rgb, Pr,Pg,Pb
+from LUT3D import rgb2hsv,hsp2rgb, LUT3D
 from math import floor
+from colorModels import hueSatModel
 
 P_SIZE=4000000
 
@@ -33,8 +34,6 @@ def waitBtnEvent():
         time.sleep(0.1)
         print 'waiting'
     btn_pressed = False
-
-
 
 
 mask=None
@@ -67,7 +66,7 @@ def do_grabcut(img0, preview=-1, nb_iter=1, mode=cv2.GC_INIT_WITH_RECT, again=Fa
 
     if not again:
         #get painted values in BGRA order
-        paintedMask = QImageToNdarray(img0_r._layers['drawlayer'])
+        paintedMask = QImageBuffer(img0_r._layers['drawlayer'])
 
         paintedMask[paintedMask==255]=cv2.GC_FGD
         paintedMask[paintedMask==0]=cv2.GC_BGD
@@ -283,10 +282,10 @@ def mouseEvent(widget, event) :
                 img.yOffset+=(y-State['iy'])
         #update
         State['ix'],State['iy']=x,y
-        c = QColor(window.label.img.pixel(State['ix'], State['iy']))
-        r,g,b=c.red(), c.green(), c.blue()
-        h,s,p=rgb2hsv(r,g,b, perceptual=True)
-        print 'picker rgb :', r,g,b, 'hsp :', h,s,p
+        #c = QColor(img.pixel(State['ix'] / r -  img.xOffset/r,  State['iy'] / r - img.yOffset/r))
+        #r,g,b=c.red(), c.green(), c.blue()
+        #h,s,p=rgb2hsv(r,g,b, perceptual=True)
+        #print 'picker rgb :', r,g,b, 'hsp :', h,s,p
         #print hs2rgbList(h,s)
 
     elif event.type() == QEvent.MouseButtonRelease :
@@ -294,7 +293,12 @@ def mouseEvent(widget, event) :
         if event.button() == Qt.LeftButton:
             #click event
             if clicked:
-                print 'click event'
+                print '*************** click event', State['ix'] / r - img.xOffset/r, State['iy'] / r - img.yOffset/r
+                c = QColor(img.pixel(State['ix'] / r -  img.xOffset/r, State['iy'] / r - img.yOffset/r))
+                r, g, b = c.red(), c.green(), c.blue()
+                hsModel.colorPickerSetmark(r,g,b, LUT3D)
+                window.label_2.img.apply3DLUT(LUT3D)
+                window.label.repaint()
             if window.btnValues['rectangle']:
                 #State['tool_rect'] = False
                 #State['rect_over'] = True
@@ -424,6 +428,8 @@ def menuFile(name):
             #window.label.img = imImage(filename=filenames[0])
             #window.label.repaint()
 
+hsModel= hueSatModel.colorPicker(500,500)
+
 def openFile(f):
 
     # convert QString object to string
@@ -441,7 +447,7 @@ def openFile(f):
 
     window.label.img = imImage(filename=f, colorSpace=colorSpace, orientation=b, metadata=metadata, profile=profile)  # imImage(filename=f)
 
-    window.label.img = colorPicker(500,500)
+    window.label.img = hsModel
     #window.label.img=imImage(QImg=convert(f))
     #window.label_2.img = window.label.img
     window.label_2.img = imImage(filename=f, orientation=b, metadata=metadata)
@@ -500,7 +506,7 @@ def menuLayer(x, name):
 
 def testLUT(LUT) :
     img=window.label.img
-    a=  QImageToNdarray(img)
+    a=  QImageBuffer(img)
     b=np.array(LUT)
     a=b[a]
     r,g,b=a[:,:,0], a[:,:,1], a[:,:,2]
@@ -514,28 +520,7 @@ def testLUT(LUT) :
 
     return QPixmap.fromImage(mImage(cv2Img=a, format=QImage.Format_RGB888))
 
-def colorPicker(w,h):
 
-    img = QImage(w,h, QImage.Format_ARGB32)
-    cx=w/2
-    cy=h/2
-    for i in range(w):
-        for j in range(h):
-            i1=i-cx
-            j1=-j+cy
-            m = max(abs(i1), abs(j1))
-            hue = np.arctan2(j1,i1)*180.0/np.pi + 315
-            hue = hue - floor(hue/360.0)*360.0 # i1=sat* cos(hue), j1 =sat * sin(hue)
-            #sat = np.sqrt(i1*i1 + j1*j1)/np.sqrt(w*w/2.0)
-            #sat = float(m) /cx
-            sat = sat = np.sqrt(i1*i1 + j1*j1)/cx
-            sat = min(1.0, sat)
-            c = QColor(*hsp2rgb(hue,sat,0.45))
-            #invert
-            print hue, sat, i1, j1, cx*sat*np.cos((hue-315)*np.pi/180.0), cx*sat*np.sin((hue-315)*np.pi/180.0)
-            img.setPixel(i,j,c.rgb())
-    img = imImage(QImg=img)
-    return img
 
 def handleNewWindow(parent):
     newwindow = QMainWindow(parent)
