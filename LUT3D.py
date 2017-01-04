@@ -277,22 +277,34 @@ def interpVec(LUT, ndImg):
     :return: RGB image with same dimensions as the input image
     """
 
-    # scale image pixels and get surrounding unit cubes
+    # scale image pixels and get bounding unit cubes
     ndImgF = ndImg/float(LUTSTEP)
     a=np.floor(ndImgF).astype(int)
+    aplus1 = a + 1
 
     #apply LUT to cube vertices
+    """
+    ndImg00 = LUT[a[:, :, 0], a[:, :, 1], a[:, :, 2]]
+    ndImg01 = LUT[a[:, :, 0] + 1, a[:, :, 1], a[:, :, 2]]
+    ndImg02 = LUT[a[:, :, 0], a[:, :, 1] + 1, a[:, :, 2]]
+    ndImg03 = LUT[a[:, :, 0] + 1, a[:, :, 1] + 1, a[:, :, 2]]
+
+    ndImg10 = LUT[a[:, :, 0], a[:, :, 1], a[:, :, 2] + 1]
+    ndImg11 = LUT[a[:, :, 0] + 1, a[:, :, 1], a[:, :, 2] + 1]
+    ndImg12 = LUT[a[:, :, 0], a[:, :, 1] + 1, a[:, :, 2] + 1]
+    ndImg13 = LUT[a[:, :, 0] + 1, a[:, :, 1] + 1, a[:, :, 2] + 1]
+    """
     ndImg00 = LUT[a[:,:,0], a[:,:,1], a[:,:,2]]
-    ndImg01 = LUT[a[:,:,0] +1, a[:,:,1], a[:,:,2]]
-    ndImg02 = LUT[a[:,:,0], a[:,:,1]+1, a[:,:,2]]
-    ndImg03 = LUT[a[:,:,0]+1, a[:,:,1]+1, a[:,:,2]]
+    ndImg01 = LUT[aplus1[:,:,0], a[:,:,1], a[:,:,2]]
+    ndImg02 = LUT[a[:,:,0], aplus1[:,:,1], a[:,:,2]]
+    ndImg03 = LUT[aplus1[:,:,0], aplus1[:,:,1], a[:,:,2]]
 
-    ndImg10 = LUT[a[:,:,0], a[:,:,1], a[:,:,2]+1]
-    ndImg11 = LUT[a[:,:,0]+1, a[:,:,1], a[:,:,2]+1]
-    ndImg12 = LUT[a[:,:,0], a[:,:,1]+1, a[:,:,2]+1]
-    ndImg13 = LUT[a[:,:,0]+1, a[:,:,1]+1, a[:,:,2]+1]
+    ndImg10 = LUT[a[:,:,0], a[:,:,1], aplus1[:,:,2]]
+    ndImg11 = LUT[aplus1[:,:,0], a[:,:,1], aplus1[:,:,2]]
+    ndImg12 = LUT[a[:,:,0], aplus1[:,:,1], aplus1[:,:,2]]
+    ndImg13 = LUT[aplus1[:,:,0], aplus1[:,:,1], aplus1[:,:,2]]
 
-    # interpolate 
+    # interpolate
     alpha = ndImgF[:,:,1] - a[:,:,1]
     alpha=np.dstack((alpha, alpha, alpha))
     """
