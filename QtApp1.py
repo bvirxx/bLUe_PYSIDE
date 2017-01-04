@@ -10,6 +10,7 @@ from imgconvert import *
 from MarkedImg import mImage, imImage, QLayer
 from icc import convert
 from graphicsLUT import graphicsForm
+from graphicsLUT3D import graphicsForm3DLUT
 from LUT3D import rgb2hsv,hsp2rgb, LUT3D
 from math import floor
 from colorModels import hueSatModel
@@ -482,7 +483,6 @@ def menuImage(x, name) :
 def menuLayer(x, name):
 
     if name == 'actionBrightness_Contrast' :
-        print 'new layer'
         grWindow=graphicsForm.getNewWindow()
         grWindow.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored);
         grWindow.setGeometry(QRect(100, 40, 156, 102));
@@ -496,13 +496,22 @@ def menuLayer(x, name):
 
         #l=QLayer(QImg=testLUT(grWindow.LUTXY))
         l=QLayer(QImg=window.label.img)
+        l.inputImg = window.label.img
         l.applyLUT(grWindow.graphicsScene.LUTXY, widget=window.label)
-        l.apply3DLUT(grWindow.graphicsScene.LUT3D, widget=window.label)
+        #l.apply3DLUT(grWindow.graphicsScene.LUT3D, widget=window.label)
         #l.transfer=testLUT
         window.label.img.addLayer(l, 'Brightness/Contrast')
         window.tableView.addLayers(window.label.img)
         grWindow.graphicsScene.onUpdateScene = lambda : l.applyLUT(grWindow.graphicsScene.LUTXY, widget=window.label)
         window.label.repaint()
+    elif name == 'action3D_LUT':
+        grWindow = graphicsForm3DLUT.getNewWindow()
+        grWindow.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored);
+        #grWindow.setGeometry(QRect(100, 40, 156, 102));
+        dock = QDockWidget()
+        dock.setWidget(grWindow)
+        window.addDockWidget(Qt.RightDockWidgetArea, dock);
+
 
 def testLUT(LUT) :
     img=window.label.img
@@ -546,10 +555,6 @@ window.onExecMenuWindow = menuWindow
 window.onExecMenuImage = menuImage
 window.onExecMenuLayer = menuLayer
 
-#color dialog
-#color=QColorDialog(window)
-#color.setWindowFlags(Qt.Widget)
-#color.show()
 
 window.readSettings()
 

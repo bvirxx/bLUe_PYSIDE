@@ -11,7 +11,6 @@ class hueSatModel (imImage):
     def __init__(self, w, h, picker = None, perceptualBrightness=pb):
         img = QImage(w,h, QImage.Format_ARGB32)
         super(hueSatModel, self).__init__(QImg=img)
-        #self.width, self.height= w, h
         self.pb = perceptualBrightness
         #self.picker = picker
 

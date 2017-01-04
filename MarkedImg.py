@@ -3,13 +3,9 @@ from imgconvert import *
 from PyQt4.QtGui import QPixmap, QImage, QColor
 from PyQt4.QtCore import QRect, QByteArray
 from icc import convert, convertQImage
-from LUT3D import interp, LUT3D, interpVec
+from LUT3D import LUT3D, interpVec
 from multiprocessing import Pool
 from time import time
-
-
-def fa(*args):
-    return [interp(LUT3D, *x) for x in args]
 
 class vImage(QImage):
     """
@@ -46,7 +42,7 @@ class vImage(QImage):
                 #d o a deep copy
                 super(vImage, self).__init__(QImg.copy())
             else:
-                # do a shallow copy
+                # do a shallow copy (implicit data sharing : copy when writing to)
                 super(vImage, self).__init__(QImg)
             if hasattr(QImg, "colorSpace"):
                 self.colorSpace=QImg.colorSpace
@@ -118,15 +114,13 @@ class vImage(QImage):
 
     def applyLUT(self, LUT, widget=None):
 
-        # get image array
-        ndImg = self.cv2Img(cv2Type='RGB')
-
-        # apply LUT
-        convertedNdImg = LUTArray(ndImg, LUT)
-        convertedNdImg = convertedNdImg[:, :, :].astype(np.uint8)
-
-        # update Pixmap ans repaint
-        self.qPixmap = QPixmap.fromImage(ndarrayToQImage(convertedNdImg, QImage.Format_RGB888))
+        # get image buffer (BGR order on intel proc.)
+        ndImg0 = QImageBuffer(self.inputImg)[:, :, :3] #[:, :, ::-1]
+        ndImg1 = QImageBuffer(self)[:, :, :3]
+        # apply LUT to each channel
+        ndImg1[:,:,:]=LUT[ndImg0]
+        #update
+        self.updatePixmap()
         if widget is not None:
             widget.repaint()
 
@@ -235,37 +229,14 @@ class imImage(mImage) :
         """
         return rszd
 
-class LUTArray(object):
-    """
-    Array wrapper for LUT conversion
-    """
-    def __init__(self, a, LUT):
-        self.buf=a
-        self.LUT=LUT
-
-    def __getitem__(self, item):
-        return self.LUT[self.buf[item]]
-
-class LUT3DArray(object):
-    """
-    Array wrapper for 3D LUT conversion
-    """
-    def __init__(self, a, LUT):
-        self.buf=a
-        self.LUT=LUT
-
-    def __getitem__(self, item):
-        if isinstance(item[0], slice):
-            return np.array([[ interp(self.LUT, *self.buf[y,x])  for x in range(self.buf.shape[1])] for y in range(self.buf.shape[0])])
-        else:
-            return interp(self.LUT, self.buf[item])
-
 class QLayer(vImage):
     @classmethod
     def frommImage(cls, mImg):
         mImg.visible = True
         mImg.alpha = 255
+        # for adjustment layer
         mImg.transfer = lambda: mImg.qPixmap
+        mImg.inputImg = None
         return mImg #QLayer(QImg=mImg)
 
     def __init__(self, *args, **kwargs):
