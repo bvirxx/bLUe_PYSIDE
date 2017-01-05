@@ -27,7 +27,7 @@ def ndarrayToQImage(ndimg, format=QImage.Format_ARGB32):
 
 def QImageBuffer(qimg):
     """
-    Get the QImage buffer as a numpy ndarray. The size of the
+    Get the QImage buffer as a numpy ndarray with dtype uint8. The size of the
     3rd axis depends on the image type. Pixel color is
     in BGRA order (little endian arch. (intel)) or ARGB (big  endian arch.)
     Format 1 bit per pixel is not supported

@@ -359,7 +359,14 @@ window.label.img=Mimg_p
 window.label_2.img= Mimg_p
 window.tableView.addLayers(Mimg_p)
 """
+
 def set_event_handler(widg):
+    """
+    Pythonic way for redefining event handlers. In contrast to
+    subclassing and overriding, we can add convenient parameters to
+    our handlers.
+    :param widg:
+    """
     widg.paintEvent = lambda e, wdg=widg : paintEvent(wdg,e)
     widg.mousePressEvent = lambda e, wdg=widg : mouseEvent(wdg, e)
     widg.mouseMoveEvent = lambda e, wdg=widg : mouseEvent(wdg, e)
