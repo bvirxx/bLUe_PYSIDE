@@ -57,7 +57,8 @@ def updateScene(grScene):
 
 class myGraphicsPathItem (QGraphicsPathItem):
     """
-    Base class for GraphicsPathItems
+    Base class for GraphicsPathItems.
+    Add method updatePath
     """
     def updatePath(self):
         pass
@@ -65,18 +66,24 @@ class myGraphicsPathItem (QGraphicsPathItem):
 class activePoint(myGraphicsPathItem):
     def __init__(self, x,y):
         super(QGraphicsPathItem, self).__init__()
-        self.setPen(QPen(QBrush(QColor(0, 0, 255)), 2))
+        #self.setPen(QPen(QBrush(QColor(0, 0, 255)), 2))
+        self.setPen(QPen(QColor(0, 0, 255),2))
         self.position_ = QPointF(x,y)
         self.moveStart=QPointF(0,0)
-        self.updatePath()
+        qpp = QPainterPath()
+        qpp.addEllipse(self.position_, 5, 5)
+        self.setPath(qpp)
+        #self.updatePath()
 
     def position(self):
         return self.position_
 
+    """
     def updatePath(self):
         qpp = QPainterPath()
         qpp.addEllipse(self.position_, 5, 5)
         self.setPath(qpp)
+    """
 
     def mousePressEvent(self, e):
         self.moveStart = e.pos()

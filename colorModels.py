@@ -23,6 +23,7 @@ class hueSatModel (imImage):
         """
 
         img = hueSatModel(w, h, perceptualBrightness=perceptualBrightness)
+
         # image buffer (RGB type)
         imgBuf = QImageBuffer(img)
 
@@ -30,6 +31,9 @@ class hueSatModel (imImage):
         imgBuf[:,:,3] = 255
         #RGB order
         imgBuf=imgBuf[:,:,:3][:,:,::-1]
+
+        # image hue sat , pB data
+        img.hsArray = np.empty(imgBuf.shape)
 
         #center
         cx = w / 2
@@ -45,12 +49,13 @@ class hueSatModel (imImage):
                 hue = hue - floor(hue / 360.0) * 360.0
                 assert hue >= 0 and hue <= 360
                 sat = np.sqrt(i1 * i1 + j1 * j1) / cx
-                sat = min(1.0, sat)
+                #sat = min(1.0, sat)
                 # r,g,b values
-                c = hsp2rgb(hue, sat, perceptualBrightness, trunc=False)
-
-                if sat < 1.0 :
+                #c = hsp2rgb(hue, sat, perceptualBrightness, trunc=False)
+                img.hsArray[j,i,:]=(hue,sat, perceptualBrightness)
+                if sat <= 1.0 :
                     # valid color
+                    c = hsp2rgb(hue, sat, perceptualBrightness, trunc=False)
                     if c[0] <= 255 and c[1] <= 255 and c[2] <= 255:
                         imgBuf[j, i] = c
                     else:
@@ -96,7 +101,6 @@ class hueSatModel (imImage):
         tmp = lutNN(LUT3D, r, g, b)
         print 'NN', tmp, r,g,b, LUT3D[tmp[0], tmp[1], tmp[2]]
         l=[lutNN(LUT3D, *hsp2rgb(h, s, p / 100.0)) for p in range(100)]
-        print l
 
         for t in l:
             LUT3D[t] = [0,0,0]
@@ -123,7 +127,7 @@ class pbModel (imImage):
                 # r,g,b values
                 c = hsp2rgb(hue, sat, p , trunc=False)
 
-                if sat < 1.0 :
+                if sat <=1.0 :
                     # valid color
                     if c[0] <= 255 and c[1] <= 255 and c[2] <= 255:
                         imgBuf[j, i] = c

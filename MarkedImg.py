@@ -1,6 +1,6 @@
 import cv2
 from imgconvert import *
-from PyQt4.QtGui import QPixmap, QImage, QColor
+from PyQt4.QtGui import QPixmap, QImage, QColor, QPainter
 from PyQt4.QtCore import QRect, QByteArray
 from icc import convert, convertQImage
 from LUT3D import LUT3D, interpVec
@@ -14,7 +14,7 @@ class vImage(QImage):
     """
 
     def fromQImage(cls, qImg):
-        qImg.rect, qImg.mask = None, None
+        qImg.rect, qImg.mask, qImg.name = None, None, ''
         qImg.qPixmap = QPixmap.fromImage(qImg)
         qImg.__class__ = vImage
         return qImg
@@ -22,6 +22,7 @@ class vImage(QImage):
     def __init__(self, filename=None, cv2Img=None, QImg=None, cv2mask=None, copy=False, format=QImage.Format_ARGB32,
                  colorSpace=-1, orientation=None, metadata=None, profile=''):
         self.rect, self.mask, self.colorSpace, self.metadata, self.profile = None, cv2mask, colorSpace, metadata, profile
+        self.name=''
         self.cv2Cache = None
         self.cv2CacheType=None
         if (filename is None and cv2Img is None and QImg is None):
@@ -94,7 +95,7 @@ class vImage(QImage):
         Resize an image while keeping its aspect ratio.
         The original image is not modified.
         :param pixels: pixel count for the resized image
-        :return the resized vImage
+        :return : resized vImage
         """
         ratio = self.width() / float(self.height())
         w, h = int(np.sqrt(pixels * ratio)), int(np.sqrt(pixels / ratio))
@@ -127,14 +128,17 @@ class vImage(QImage):
     def apply3DLUT(self, LUT, widget=None):
 
         # get image buffer (type RGB)
-        ndImg = QImageBuffer(self)[:,:,:3][:,:,::-1]
+        #ndImg = QImageBuffer(self)[:,:,:3][:,:,::-1]
+        ndImg0 = QImageBuffer(self.inputImg)[:, :, :3] #[:, :, ::-1]
+        ndImg1 = QImageBuffer(self)[:, :, :3]
         start=time()
         """
         f = lambda *args : [interp(LUT, *x) for x in args]
 
         ndImg[:] = map(f, * [ndImg[:,c] for c in range(ndImg.shape[1])])
         """
-        ndImg[:,:,:] = interpVec(LUT, ndImg)
+        ndImg1[:,:,:] = interpVec(LUT, ndImg0)
+
         """
         for r in range(ndImg.shape[0]):
             for c in range(ndImg.shape[1]):
@@ -167,11 +171,26 @@ class mImage(vImage):
         self._layers = {}
         self._layersStack = []
         # add background layer
-        self.addLayer(QLayer.frommImage(self), 'background')
+        bgLayer = QLayer.fromImage(self)
+        bgLayer.name = 'background'
+        self._layers[bgLayer.name] = bgLayer
+        self._layersStack.append(bgLayer)
 
-    def addLayer(self, layer, name):
-        self._layers[name] = layer
-        self._layersStack.append(layer)
+    def addLayer(self, lay, name):
+        lay.name = name
+        self._layers[name] = lay
+        self._layersStack.append(lay)
+
+
+    def addAdjustmentLayer(self, name):
+        lay = QLayer(QImg=self)
+        lay.inputImg = QImage(self.size(), self.format())
+        self.addLayer(lay, name)
+        # paint inferior layers
+        qp = QPainter(lay.inputImg)
+        for l in self._layersStack:
+            qp.drawImage(QRect(0,0, l.width(), l.height()), l)
+        return lay
 
     def refreshLayer(self, layer1, layer2):
         if layer1.name != layer2.name:
@@ -219,9 +238,11 @@ class imImage(mImage) :
         rszd0 = super(imImage, self).resize(pixels)
         rszd = imImage(QImg=rszd0)
         rszd.rect = rszd0.rect
-        for k in self._layers.keys():
-            if k != "background":
-                rszd._layers[k]=self._layers[k].resize(pixels, interpolation=cv2.INTER_NEAREST)
+        for k, l  in enumerate(self._layersStack):
+            if l.name != "background":
+                img = QLayer.fromImage(self._layers[l.name].resize(pixels, interpolation=cv2.INTER_NEAREST))
+                rszd._layersStack.append (img)
+                rszd._layers[l.name] = img
         """
         rszd.drawLayer = QImage(rszd.qImg.width(), rszd.qImg.height(), QImage.Format_ARGB32)
         rszd.drawLayer.fill(QColor(0, 0, 0, 0))
@@ -231,7 +252,7 @@ class imImage(mImage) :
 
 class QLayer(vImage):
     @classmethod
-    def frommImage(cls, mImg):
+    def fromImage(cls, mImg):
         mImg.visible = True
         mImg.alpha = 255
         # for adjustment layer
@@ -241,6 +262,7 @@ class QLayer(vImage):
 
     def __init__(self, *args, **kwargs):
         super(QLayer, self).__init__(*args, **kwargs)
+        self.name='anonymous'
         self.visible = True
         self.alpha=255
         self.transfer = lambda : self.qPixmap

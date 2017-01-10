@@ -13,6 +13,7 @@ LUTSIZE = 17
 #LUTSIZE = 129
 LUTSTEP = 256 / (LUTSIZE - 1)
 LUT3D = np.array([[[(i * LUTSTEP, j * LUTSTEP, k * LUTSTEP) for k in range(LUTSIZE)] for j in range(LUTSIZE)] for i in range(LUTSIZE)])
+#LUT3D = LUT3D[:,:,:,::-1]
 
 # perceptual brightness constants
 
@@ -283,6 +284,7 @@ def interpVec(LUT, ndImg):
     a=np.floor(ndImgF).astype(int)
     aplus1 = a + 1
 
+    # RGB channels
     r0, g0, b0 = a[:,:,0], a[:,:,1], a[:,:,2]
     r1, g1, b1 = aplus1[:,:,0], aplus1[:,:,1], aplus1[:,:,2]
 
@@ -301,21 +303,33 @@ def interpVec(LUT, ndImg):
     # interpolate
     alpha =  ndImgF[:,:,1] - g0
     alpha=np.dstack((alpha, alpha, alpha))
-    #alpha = alpha[..., np.newaxis]
+    #alpha = alpha[..., np.newaxis]  slower !
+    oneMinusAlpha = 1 - alpha
 
+    I11Value = oneMinusAlpha * ndImg11 + alpha * ndImg13
+    I12Value = oneMinusAlpha * ndImg10 + alpha * ndImg12
+    I21Value = oneMinusAlpha * ndImg01 + alpha * ndImg03
+    I22Value = oneMinusAlpha * ndImg00 + alpha * ndImg02
+    """
     I11Value = ndImg11 + alpha * (ndImg13 - ndImg11)
     I12Value = ndImg10 + alpha * (ndImg12 - ndImg10)
     I21Value = ndImg01 + alpha * (ndImg03 - ndImg01)
     I22Value = ndImg00 + alpha * (ndImg02 - ndImg00)
-
+    """
     beta = ndImgF[:,:,0] - r0
     beta = np.dstack((beta, beta, beta))
-    I1Value = I12Value + beta * (I11Value - I12Value)
-    I2Value = I22Value + beta * (I21Value - I22Value)
+    #beta = beta[..., np.newaxis] slower !
+    oneMinusBeta = 1 - beta
+    I1Value = oneMinusBeta * I12Value + beta * I11Value
+    I2Value = oneMinusBeta * I22Value + beta * I21Value
+
+    #I1Value = oneMinusBeta * oneMinusAlpha * ndImg10 + oneMinusBeta * alpha * ndImg12 + beta * oneMinusAlpha * ndImg11 + beta * alpha * ndImg13
+    #I2Value = oneMinusBeta * oneMinusAlpha * ndImg00 + oneMinusBeta * alpha * ndImg02 + beta * oneMinusAlpha * ndImg01 + beta * alpha * ndImg03
 
     gamma = ndImgF[:,:,2] - b0
     gamma = np.dstack((gamma, gamma, gamma))
-    IValue = I2Value + gamma * (I1Value - I2Value)
+    #gamma = gamma[..., np.newaxis] slower !
+    IValue = (1 - gamma) * I2Value + gamma * I1Value
 
     return IValue
 """
@@ -510,5 +524,17 @@ double *R, double *G, double *B) {
     else               {   //  R>B>G
       H= 6.*(-H+6./6.); *R=sqrt(P*P/(Pr+Pb*H*H)); *B=(*R)*H; *G=0.; }}}
 
+
+"""
+
+"""
+ v = cv2.calcHist([image],     #list of images
+                    [0, 1, 2], # list of channels
+                    None,       # mask
+                    [8, 8, 8], # hist size for each channel
+                    [0, 256, 0, 256, 0, 256]) # bound values
+        v = v.flatten()
+        hist = v / sum(v)
+        histograms[fname] = hist
 
 """
