@@ -217,7 +217,7 @@ def showResult(img0, img1, turn):
     window.label_2.repaint()
 
 
-
+# mouse eventd handler for image widgets (currently label and label_2)
 turn = 0
 pressed=False
 clicked = True
@@ -299,8 +299,9 @@ def mouseEvent(widget, event) :
                 r, g, b = c.red(), c.green(), c.blue()
                 #hsModel.colorPickerSetmark(r,g,b, LUT3D)
                 h, s, p = rgb2hsv(r, g, b, perceptual=True)
-                i,j= hsModel.colorPickerGetPoint(h,s)
-                Wins['3D_LUT'].select(h,s,p)
+                #i,j= hsModel.colorPickerGetPoint(h,s)
+                Wins['3D_LUT'].selectGridNode(h, s)
+                #Wins['3D_LUT'].select(h,s,p)
                 #window.label_2.img.apply3DLUT(LUT3D)
                 window.label.repaint()
             if window.btnValues['rectangle']:
