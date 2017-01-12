@@ -12,7 +12,7 @@ class hueSatModel (imImage):
     pb = 0.45
 
     @classmethod
-    def colorPicker(cls, w, h, perceptualBrightness=pb):
+    def colorWheel(cls, w, h, perceptualBrightness=pb):
         """
         Build a (hue, saturation) color chart imImage. All image pixels have the same
         (perceptual) brightness (default 0.45).
@@ -108,7 +108,7 @@ class hueSatModel (imImage):
 class pbModel (imImage):
 
     @classmethod
-    def colorPicker(cls, w, h, hue, sat ):
+    def colorChart(cls, w, h, hue, sat):
 
         img = pbModel(w, h)
         # image buffer (RGB type)

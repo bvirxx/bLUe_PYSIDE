@@ -396,7 +396,7 @@ class graphicsForm(QGraphicsView) :
 
     def __init__(self, *args, **kwargs):
         super(graphicsForm, self).__init__(*args, **kwargs)
-        self.bgPixmap = QPixmap.fromImage(hueSatModel.colorPicker(200,200))
+        self.bgPixmap = QPixmap.fromImage(hueSatModel.colorWheel(200, 200))
         self.graphicsScene = QGraphicsScene()
         self.setScene(self.graphicsScene)
         #self.LUTXY = LUTXY

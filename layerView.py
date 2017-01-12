@@ -62,8 +62,16 @@ class QLayerView(QTableView) :
     def viewClicked(self, clickedIndex):
         row = clickedIndex.row()
         model = clickedIndex.model()
+        l = len(self.img._layersStack)
         if clickedIndex.column() == 0 :
-            l= len(self.img._layersStack)
             self.img._layersStack[l-1-row].visible = not(self.img._layersStack[l-1-row].visible)
+        elif clickedIndex.column() == 1 :
+            # show/hide window for adjustment layer
+            win = self.img._layersStack[l-1-row].window
+            if win is not None:
+                if win.widget().isVisible():
+                    win.hide()
+                else:
+                    win.show()
         QtGui1.window.label.repaint()
 

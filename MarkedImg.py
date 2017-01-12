@@ -164,7 +164,7 @@ class vImage(QImage):
 
 class mImage(vImage):
     """
-    Multi-layer image
+    Multilayer image
     """
     def __init__(self, *args, **kwargs):
         super(mImage, self).__init__(*args, **kwargs)
@@ -182,7 +182,7 @@ class mImage(vImage):
         self._layersStack.append(lay)
 
 
-    def addAdjustmentLayer(self, name):
+    def addAdjustmentLayer(self, name='', window=None):
         lay = QLayer(QImg=self)
         lay.inputImg = QImage(self.size(), self.format())
         self.addLayer(lay, name)
@@ -190,6 +190,7 @@ class mImage(vImage):
         qp = QPainter(lay.inputImg)
         for l in self._layersStack:
             qp.drawImage(QRect(0,0, l.width(), l.height()), l)
+        lay.window = window
         return lay
 
     def refreshLayer(self, layer1, layer2):
@@ -208,7 +209,7 @@ class mImage(vImage):
 
 class imImage(mImage) :
     """
-    Interactive multi layer image
+    Interactive multilayer image
     """
     def __init__(self, *args, **kwargs):
         #__init__(self, filename=None, cv2Img=None, QImg=None, cv2mask=None, copy=False, format=QImage.Format_ARGB32, colorSpace=-1, orientation=None) :
@@ -239,7 +240,7 @@ class imImage(mImage) :
         rszd = imImage(QImg=rszd0)
         rszd.rect = rszd0.rect
         for k, l  in enumerate(self._layersStack):
-            if l.name != "background":
+            if l.name != "background" and l.name != 'drawlayer':
                 img = QLayer.fromImage(self._layers[l.name].resize(pixels, interpolation=cv2.INTER_NEAREST))
                 rszd._layersStack.append (img)
                 rszd._layers[l.name] = img
@@ -258,7 +259,7 @@ class QLayer(vImage):
         # for adjustment layer
         mImg.transfer = lambda: mImg.qPixmap
         mImg.inputImg = None
-        return mImg #QLayer(QImg=mImg)
+        return mImg #QLayer(QImg=mImg) # TOD0 retype mImg as QLayer
 
     def __init__(self, *args, **kwargs):
         super(QLayer, self).__init__(*args, **kwargs)

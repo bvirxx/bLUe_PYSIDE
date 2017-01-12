@@ -294,12 +294,14 @@ def mouseEvent(widget, event) :
         if event.button() == Qt.LeftButton:
             #click event
             if clicked:
-                #print '*************** click event', State['ix'] / r - img.xOffset/r, State['iy'] / r - img.yOffset/r
+                # Note : for multilayered images we read pixel color from  the background layer
                 c = QColor(img.pixel(State['ix'] / r -  img.xOffset/r, State['iy'] / r - img.yOffset/r))
                 r, g, b = c.red(), c.green(), c.blue()
                 #hsModel.colorPickerSetmark(r,g,b, LUT3D)
                 h, s, p = rgb2hsv(r, g, b, perceptual=True)
                 #i,j= hsModel.colorPickerGetPoint(h,s)
+                # The selected node corresponds to the background layer : it does not take into account
+                # the modifications induced by adjustment layers
                 Wins['3D_LUT'].selectGridNode(h, s)
                 #Wins['3D_LUT'].select(h,s,p)
                 #window.label_2.img.apply3DLUT(LUT3D)
@@ -421,7 +423,7 @@ def menuFile(name):
             #window.label.img = imImage(filename=filenames[0])
             #window.label.repaint()
 
-hsModel= hueSatModel.colorPicker(500,500)
+hsModel= hueSatModel.colorWheel(500, 500)
 
 def openFile(f):
 
@@ -495,17 +497,18 @@ def menuLayer(x, name):
         grWindow.graphicsScene.onUpdateScene = lambda : l.applyLUT(grWindow.graphicsScene.LUTXY, widget=window.label)
         window.label.repaint()
     elif name == 'action3D_LUT':
-        grWindow = graphicsForm3DLUT.getNewWindow(LUT3D=LUT3D)
+        grWindow = graphicsForm3DLUT.getNewWindow(size=500)
         Wins['3D_LUT'] = grWindow
-        grWindow.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored);
+        grWindow.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
         #grWindow.setGeometry(QRect(100, 40, 156, 102));
         dock = QDockWidget()
         dock.setWidget(grWindow)
+        dock.setWindowTitle(grWindow.windowTitle())
         window.addDockWidget(Qt.RightDockWidgetArea, dock);
         #l = QLayer(QImg=window.label_2.img.copy(QRect(1,1,500,500)))#QLayer(QImg=window.label.img)
         #l.inputImg = window.label.img.copy(QRect(1,1,500,500))
         #l.apply3DLUT(grWindow.graphicsScene.LUT3D, widget=window.label)
-        l = window.label.img.addAdjustmentLayer('3D LUT')
+        l = window.label.img.addAdjustmentLayer(name='3D LUT', window=dock)
         window.tableView.addLayers(window.label.img)
         grWindow.graphicsScene.onUpdateScene = lambda: l.apply3DLUT(grWindow.graphicsScene.LUT3D, widget=window.label)
         window.label.repaint()
