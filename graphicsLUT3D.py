@@ -8,19 +8,16 @@ from LUT3D import LUTSTEP, LUT3D, rgb2hsv, hsp2rgb
 from colorModels import hueSatModel, pbModel
 
 
-SCENE = {}
-qpp0=QPainterPath()
-qpp0.addRect(0,0,10,10)
-
-qpp1=QPainterPath()
-qpp1.addEllipse(0,0,5,5)
 class activeNode(QGraphicsPathItem):
 
     def __init__(self, position, parent=None):
         super(activeNode, self).__init__()
         self.setPos(position)
+        #~current scene
+        scene = parent.scene()
         # color from model
-        c = QColor(SCENE['colorWheel'].QImg.pixel(int(position.x()), int(position.y())))
+        #c = QColor(SCENE['colorWheel'].QImg.pixel(int(position.x()), int(position.y())))
+        c = QColor(scene.colorWheel.QImg.pixel(int(position.x()), int(position.y())))
         self.r, self.g, self.b = c.red(), c.green(), c.blue()
         self.rM, self.gM, self.bM = self.r, self.g, self.b
         self.hue, self.sat, self.pB= rgb2hsv(self.r, self.g, self.b, perceptual = True)
@@ -30,8 +27,6 @@ class activeNode(QGraphicsPathItem):
         qpp.addEllipse(0,0, 5,5)
         self.setPath(qpp)
 
-
-
     def mousePressEvent(self, e):
         pass
 
@@ -39,10 +34,9 @@ class activeNode(QGraphicsPathItem):
         self.setPos(e.scenePos())
         self.parentItem().drawGrid()
 
-
     def mouseReleaseEvent(self, e):
         # color from model
-        c = QColor(SCENE['colorWheel'].QImg.pixel(int(self.pos().x()), int(self.pos().y())))
+        c = QColor(self.scene().colorWheel.QImg.pixel(int(self.pos().x()), int(self.pos().y())))
         self.rM, self.gM, self.bM = c.red(), c.green(), c.blue()
         hue, sat,_ = rgb2hsv(self.rM, self.gM, self.bM, perceptual=True)
         #savedLUT = self.scene.LUT3D.copy()
@@ -61,11 +55,9 @@ class activeGrid(QGraphicsPathItem):
         self.setParentItem(parent)
         self.n = 17
         # grid step
-        #self.w = (parent.QImg.width() - 1) / float((self.n - 1))
         self.step = (parent.QImg.width() - 1) / float((self.n - 1))
         self.setPos(0,0)
         self.gridNodes = [[activeNode(QPointF(i*self.step,j*self.step), parent=self) for i in range(self.n) ] for j in range(self.n)]
-
         self.drawGrid()
 
     def drawGrid(self):
@@ -127,7 +119,6 @@ class colorPicker(QGraphicsPixmapItem):
     """
     implements a color picker : a mouse click event reads pixel color from image
     """
-
     def __init__(self, QImg):
         self.QImg = QImg
         super(colorPicker, self).__init__(QPixmap.fromImage(self.QImg))
@@ -145,21 +136,27 @@ class colorPicker(QGraphicsPixmapItem):
         # get color from image
         c = QColor(self.QImg.pixel(i,j))
         r,g,b = c.red(), c.green(), c.blue()
-        self.onMouseRelease(r,g,b)
-        """
-        hue,sat,p = rgb2hsv(r,g,b, perceptual=True)
-        size = self.QImg.width()
-        SCENE['bSlider'].setPixmap(QPixmap.fromImage(pbModel.colorChart(500, 50, hue, sat)))
-        SCENE['statusbar'].setPlainText(('h : %d ' % hue) + ('s : %d ' % (sat * 100)) + ('p : %d ' % (p * 100)))
-        """
+        h, s, p = rgb2hsv(r, g, b, perceptual=True)
+        self.onMouseRelease(h,s)
 
 #main class
 class graphicsForm3DLUT(QGraphicsView) :
     """
     Color wheel for 3D LUT
     """
+    # markers for grid nodes
+    qpp0 = QPainterPath()
+    qpp0.addRect(0, 0, 10, 10)
+    selectBrush = QBrush(QColor(255,255,255))
+
+    qpp1 = QPainterPath()
+    qpp1.addEllipse(0, 0, 5, 5)
+    unselectBrush = QBrush()
+
+    colorWheelPB = 0.45
+
     @classmethod
-    def getNewWindow(cls, size=100):
+    def getNewWindow(cls, size=500):
         newWindow = graphicsForm3DLUT(size)
         newWindow.setAttribute(Qt.WA_DeleteOnClose)
         newWindow.setWindowTitle('3D LUT')
@@ -167,9 +164,13 @@ class graphicsForm3DLUT(QGraphicsView) :
 
     def __init__(self, size):
         super(graphicsForm3DLUT, self).__init__()
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        self.setMinimumSize(size+40, size+170)
+        self.setWindowFlags(Qt.WindowStaysOnTopHint)
+        self.setAttribute(Qt.WA_DeleteOnClose)
         self.setBackgroundBrush(QBrush(Qt.black, Qt.SolidPattern));
         self.currentHue, self.currentSat, self.currentPb = 0, 0, 0.45
-
+        self.size = size
         # currently selected grid node
         self.selected = None
         #self.bgPixmap = QPixmap.fromImage(self.QImg)
@@ -178,109 +179,84 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.graphicsScene.LUT3D = LUT3D
 
         # color wheel
-        QImg = hueSatModel.colorWheel(size, size, perceptualBrightness=self.currentPb)
-        colorWheel = colorPicker(QImg)
+        QImg = hueSatModel.colorWheel(size, size, perceptualBrightness=self.colorWheelPB)
+        self.graphicsScene.colorWheel = colorPicker(QImg)
 
+        """
         # update of bSlider
         def f(r, g, b):
             self.currentHue, self.currentSat, self.currentPb = rgb2hsv(r, g, b, perceptual=True)
             size = QImg.width()
-            SCENE['bSlider'].setPixmap(QPixmap.fromImage(pbModel.colorChart(QImg.width(), QImg.width() / 10, self.currentHue, self.currentSat)))
-            #SCENE['statusbar'].setPlainText(('h : %d ' % self.currentHue) + ('s : %d ' % (self.currentSat * 100)) + ('p : %d ' % (self.currentPb * 100)))
+            self.graphicsScene.bSlider.setPixmap(QPixmap.fromImage(pbModel.colorChart(QImg.width(), QImg.width() / 10, self.currentHue, self.currentSat)))
             self.displayStatus()
-
-        colorWheel.onMouseRelease = f
-
-        SCENE['colorWheel']=colorWheel
-        self.graphicsScene.addItem(colorWheel)
+        self.graphicsScene.colorWheel.onMouseRelease = self.onSelectGridNode
+        """
+        self.graphicsScene.addItem(self.graphicsScene.colorWheel)
 
         # Brightness slider
-        px = QPixmap.fromImage(pbModel.colorChart(size, size/10, self.currentHue, self.currentSat))
-        bSlider = QGraphicsPixmapItem(px)
-        SCENE['bSlider'] = bSlider
-        bSlider.setPixmap(px)
-        bSlider.setPos(QPointF(0, colorWheel.QImg.height()+20))
-        self.graphicsScene.addItem(bSlider)
-        bSliderCursor = activeMarker.fromTriangle(parent=bSlider)
-        bSliderCursor.setPos(bSlider.pixmap().width() / 2, bSlider.pixmap().height())
-        bSliderCursor.onMouseRelease = lambda p,q : colorWheel.setPixmap(QPixmap.fromImage(hueSatModel.colorWheel(size, size, perceptualBrightness=p / float(size))))
+        self.bSliderHeight = 30
+        px = QPixmap.fromImage(pbModel.colorChart(size, self.bSliderHeight, self.currentHue, self.currentSat))
+        self.graphicsScene.bSlider = QGraphicsPixmapItem(px)
+        self.graphicsScene.bSlider.setPixmap(px)
+        self.graphicsScene.bSlider.setPos(QPointF(0, self.graphicsScene.colorWheel.QImg.height()+20))
+        self.graphicsScene.addItem(self.graphicsScene.bSlider)
+        bSliderCursor = activeMarker.fromTriangle(parent=self.graphicsScene.bSlider)
+        bSliderCursor.setPos(self.graphicsScene.bSlider.pixmap().width() / 2, self.graphicsScene.bSlider.pixmap().height())
+        bSliderCursor.onMouseRelease = lambda p,q : self.graphicsScene.colorWheel.setPixmap(QPixmap.fromImage(hueSatModel.colorWheel(size, size, perceptualBrightness=p / float(size))))
 
 
         # status bar
-        statusBar = QGraphicsTextItem()
-        SCENE['statusbar'] = statusBar
-        statusBar.setPos(0, size + 80)
-        statusBar.setDefaultTextColor(QColor(255,255,255))
-        statusBar.setPlainText('')
-        self.graphicsScene.addItem(statusBar)
+        self.graphicsScene.statusBar = QGraphicsTextItem()
+        self.graphicsScene.statusBar.setPos(0, size + 80)
+        self.graphicsScene.statusBar.setDefaultTextColor(QColor(255,255,255))
+        self.graphicsScene.statusBar.setPlainText('')
+        self.graphicsScene.addItem(self.graphicsScene.statusBar)
 
-        SCENE['bSlider'].setPixmap(QPixmap.fromImage(pbModel.colorChart(QImg.width(), QImg.width() / 10, self.currentHue, self.currentSat)))
-        #SCENE['statusbar'].setPlainText(('h : %d ' % self.currentHue) + ('s : %d ' % (self.currentSat * 100)) + ('p : %d ' % (self.currentPb * 100)))
+        #self.graphicsScene.bSlider.setPixmap(QPixmap.fromImage(pbModel.colorChart(QImg.width(), QImg.width() / 10, self.currentHue, self.currentSat)))
         self.displayStatus()
 
-        """
-        # hue sat cursor
-        item4 = activeMarker.fromTriangle(parent=colorWheel)
-        SCENE['item4'] = item4
-        #item4.setParentItem(item1)
-        item4.setPos(0,0)
-        #item4.setMouseMoveHook(lambda h=self.currentHue, s=self.currentSat, p=self.currentPb : self.updatePbModel(h,s,p))
-
-        #self.marker4 = item4
-        """
         self.graphicsScene.onUpdateScene = lambda : 0
         self.setRenderHints(QPainter.Antialiasing | QPainter.SmoothPixmapTransform)
 
-        self.grid = activeGrid(parent=colorWheel)
+        self.grid = activeGrid(parent=self.graphicsScene.colorWheel)
 
-    """
-    def select(self, hue,sat,p):
 
-        self.currentHue, self.currentSat, currentPb = hue, sat, p
-        i,j= self.QImg.colorPickerGetPoint(hue,sat)
-        SCENE['item4'].setPos(i,j)
-
-        self.LUTIndices = [(r/LUTSTEP, g/LUTSTEP, b/LUTSTEP) for (r,g,b) in [hsp2rgb(hue,sat, p/100.0) for p in range(101)] ]
-        self.updatePbModel(hue, sat, p)
-        #SCENE['item2'].setPixmap(QPixmap.fromImage(pbModel.colorPicker(500, 50, hue, sat)))
-        #SCENE['statusbar'].setPlainText(
-        #('h %d' % hue) + '\n\n' + ('s %d' % (sat * 100)) + '\n\n' + ('p %d' % (p * 100)))
-    """
-
-    def selectGridNode(self, h,s):
+    def selectGridNode(self, r, g, b):
         """
-        select the grid node corresponding to the
-        hue and sat parameters
-        :param h: hue
-        :param s: saturation
+        select the nearest grid node corresponding to given
+        values for hue and saturation.
+        :param h: hue between 0 and 360.0
+        :param s: saturation between 0 and 1.0
         """
-        #reset marker
+        #reset previously selected marker
         if self.selected is not None:
-            self.selected.setPath(qpp1)
-            self.selected.setBrush(QBrush())
-        # image coordinates of pixel corresponding to hue=h and sat = s
-        x,y = SCENE['colorWheel'].QImg.colorPickerGetPoint(h,s)
+            self.selected.setPath(self.qpp1)
+            self.selected.setBrush(self.unselectBrush)
+        # image coordinates of the pixel corresponding to hue=h and sat = s
+        h, s, p = rgb2hsv(r, g, b, perceptual=True)
+        self.currentHue, self.currentSat, self.currentPb = h, s, p
+        x,y = self.graphicsScene.colorWheel.QImg.GetPoint(h, s)
 
         w=int(self.grid.step)
-        self.selected = self.grid.gridNodes[int(y)/w][int(x)/w]
-        self.selected.setBrush(QColor(255,255,255))
-        self.selected.setPath(qpp0)
+        x, y = int(round(x/w)), int(round(y/w))
+        self.selected = self.grid.gridNodes[y][x]
+        self.selected.setBrush(self.selectBrush)
+        self.selected.setPath(self.qpp0)
+        self.onSelectGridNode(h,s)
 
     def displayStatus(self):
-        SCENE['statusbar'].setPlainText(('h : %d  ' % self.currentHue) + ('s : %d  ' % (self.currentSat * 100)) + ('p : %d  ' % (self.currentPb * 100)))
+        s1 = ('h : %d  ' % self.currentHue) + ('s : %d  ' % (self.currentSat * 100)) + ('p : %d  ' % (self.currentPb * 100))
+        r, g, b = hsp2rgb(self.currentHue, self.currentSat, self.currentPb)
+        h,s,v = rgb2hsv(r,g,b)
+        s2 = ('r : %d  ' % r) + ('g : %d  ' % g) + ('b : %d  ' % b)
+        s3 = ('h : %d  ' % h) + ('s : %d  ' % (s * 100)) + ('v : %d  ' % (v * 100))
+        self.graphicsScene.statusBar.setPlainText(s1 + '\n\n' + s3 + '\n\n' + s2)
 
-    """
-    def updatePbModel(self, hue,sat, p):
-        marker=SCENE['item4']
-        self.currentHue, self.currentSat, self.currentPb = self.QImg.hsArray[int(marker.pos().y()), int(marker.pos().x())]
-        SCENE['item2'].setPixmap(QPixmap.fromImage(pbModel.colorPicker(500, 50, self.currentHue, self.currentSat)))
-        SCENE['statusbar'].setPlainText(
-            ('h %d' % self.currentHue) + '\n\n' + ('s %d' % (self.currentSat * 100)) + '\n\n' + ('p %d' % (self.currentPb * 100)))
-        #self.graphicsScene.LUT3D[:,:,:,:]=np.zeros(self.graphicsScene.LUT3D.shape)
-        savedLUT = self.graphicsScene.LUT3D.copy()
-        for p, (i,j,k) in enumerate(self.LUTIndices):
-            self.graphicsScene.LUT3D[k,j,i,::-1]= hsp2rgb(self.currentHue, self.currentSat, p/100.0 )
+    def bSliderUpdate(self, h,s):
+        # self.currentHue, self.currentSat = h, s
+        px = QPixmap.fromImage(pbModel.colorChart(self.size, self.bSliderHeight, self.currentHue, self.currentSat))
+        self.graphicsScene.bSlider.setPixmap(px)
 
-        self.graphicsScene.onUpdateScene()
-        self.graphicsScene.LUT3D = savedLUT
-    """
+    def onSelectGridNode(self, h, s):
+        self.bSliderUpdate(h, s)
+        self.displayStatus()

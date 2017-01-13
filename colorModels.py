@@ -79,7 +79,7 @@ class hueSatModel (imImage):
         super(hueSatModel, self).__init__(QImg=img)
         self.pb = perceptualBrightness
 
-    def colorPickerGetPoint(self, h,s):
+    def GetPoint(self, h, s):
         cx = self.width() / 2
         cy = self.height() / 2
         x,y = cx*s*np.cos((h-self.rotation)*np.pi/180.0), cy*s*np.sin((h-self.rotation)*np.pi/180.0)
@@ -92,7 +92,7 @@ class hueSatModel (imImage):
         #r1,g1,b1=hsp2rgb(h,s,self.pb)
         #print r,r1,b,b1,g,g1
         #assert abs(r-r1)<20 and abs(g-g1)<20 and abs(b-b1)<20
-        i,j= self.colorPickerGetPoint(h,s)
+        i,j= self.GetPoint(h, s)
         p =QPainter(self)
         #p.setBrush(QBrush(QColor(255,255,255)))
         p.drawEllipse(int(i),int(j),5,5)
