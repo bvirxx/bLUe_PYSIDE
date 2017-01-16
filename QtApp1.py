@@ -11,7 +11,7 @@ from MarkedImg import mImage, imImage, QLayer
 from icc import convert
 from graphicsLUT import graphicsForm
 from graphicsLUT3D import graphicsForm3DLUT
-from LUT3D import rgb2hsv,hsp2rgb, LUT3D
+from LUT3D import rgb2hsB,hsp2rgb, LUT3D
 from math import floor
 from colorModels import hueSatModel
 
@@ -423,7 +423,7 @@ def menuFile(name):
             #window.label.img = imImage(filename=filenames[0])
             #window.label.repaint()
 
-hsModel= hueSatModel.colorWheel(500, 500)
+# hsModel= hueSatModel.colorWheel(500, 500)
 
 def openFile(f):
 

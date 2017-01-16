@@ -61,17 +61,17 @@ class QPoint3D(object):
     def __rmul__(self, scalar):
         return QPoint3D(scalar*self.x_, scalar.self.y_, scalar.self.z_)
 
-def rgb2hsv(r,g,b, perceptual = False):
+def rgb2hsB(r, g, b, perceptual=False):
     """
     transform the red, green ,blue r, g, b components of a color
-    into hue, saturation, brightness h, s, v.
+    into hue, saturation, brightness h, s, v. (Cf. schema in file colors.docx)
     The r, g, b components are integers in range 0..255. If perceptual is False
     (default) v = max(r,g,b)/255.0, else v = sqrt(Perc_R*r*r + Perc_G*g*g + Perc_B*b*b)
     :param r:
     :param g:
     :param b:
     :param perceptual: boolean
-    :return: h, s, v float values : 0<=h<=360, 0<=s<=1, 0<=v<=1
+    :return: h, s, v float values : 0<=h<360, 0<=s<=1, 0<=v<=1
     """
 
     cMax = max(r, g, b)
@@ -82,14 +82,14 @@ def rgb2hsv(r,g,b, perceptual = False):
     if delta == 0:
         H = 0.0
     elif cMax == r:
-        H = 60.0 * float(g-b)/delta if g - b >=0 else 360 + 60.0 * float(g-b)/delta
+        H = 60.0 * float(g-b)/delta if g >= b else 360 + 60.0 * float(g-b)/delta
     elif cMax == g:
         H = 60.0 * (2.0 + float(b-r)/delta)
     elif cMax == b:
         H = 60.0 * (4.0 + float(r-g)/delta)
 
     #saturation
-    S = 0.0 if cMax == 0 else float(delta)/cMax
+    S = 0.0 if cMax == 0.0 else float(delta)/cMax
 
     # brightness
     if perceptual:
@@ -97,13 +97,13 @@ def rgb2hsv(r,g,b, perceptual = False):
         V = V / 255.0
     else:
         V = cMax/255.0
-    assert 0<=H and H<=360 and 0<=S and S<=1 and 0<=V and V<=1, "rgb2hsv error"
+    assert 0<=H and H<=360 and 0<=S and S<=1 and 0<=V and V<=1, "rgb2hsv conversion error"
     return H,S,V
 
 def hsv2rgb(h,s,v):
     """
     Transform the hue, saturation, brightness h, s, v components of a color
-    into red, green, blue values.
+    into red, green, blue values. (Cf. schema in file colors.docx)
     Note : here, v= max(r,g,b)/255.0. For perceptual brightness use
     hsp2rgb()
 
@@ -113,32 +113,30 @@ def hsv2rgb(h,s,v):
     :return: r,g,b integers between 0 and 255
     """
     assert h>=0 and h<=360 and s>=0 and s<=1 and v>=0 and v<=1
-    c = v * s
 
-    slice = h/60.0
+    h = h/60.0
+    i = np.floor(h)
+    f = h - i
+    p = v * (1 - s)
+    q = v * (1 - s * f)
+    t = v * ( 1 - s * ( 1 - f))
 
-    slice1 = slice % 2
+    if  i == 0 : # r > g > b,  r=v and s=(r-b)/r, thus b = v(1-s)=p, h = (g-b)/(r-b) gives g=v(1-s(1-h))=t
+        r1, g1, b1 = v, t, p
+    elif i == 1: # g > r > b
+        r1, g1, b1 = q, v, p
+    elif i == 2: # g > b > r
+        r1, g1, b1 = p, v, t
+    elif i == 3: # b > g >r
+        r1, g1, b1 = p, q, v
+    elif i == 4: # b > r > g
+        r1, g1, b1 = t, p, v
+    else : # r > b >g
+        r1, g1, b1 = v, p, q
 
-    x = c * (1 - abs(slice1 - 1))
-    #x = c * slice1
-
-    if  h < 60 :
-        r1, g1, b1 = c, x , 0
-    elif h < 120:
-        r1, g1, b1 = x, c , 0
-    elif h < 180:
-        r1, g1, b1 = 0, c, x
-    elif h < 240:
-        r1, g1, b1 = 0, x, c
-    elif h < 300:
-        r1, g1, b1 = x, 0, c
-    else :
-        r1, g1, b1 = c, 0, x
-
-    m = v - c
-    r = int((r1 + m) * 255)
-    g = int((g1 + m) * 255)
-    b = int((b1 + m) * 255)
+    r = int(r1 * 255)
+    g = int(g1 * 255)
+    b = int(b1 * 255)
 
     return r,g,b
 
@@ -152,39 +150,38 @@ def hsp2rgb(h,s,p, trunc=True):
     :return: r,g,b integers between 0 and 255
     """
 
-    #hd, sd, pd = h,s,p
-    # m = min(r,g,b) and M = max(r,g,b) s = (M - m) / M, , 1 - s = m/M
-    #mM = 1.0 - s
-    h = h /60.0  # slice 0<=h<=6
+    h = h /60.0
+    i = np.floor(h) # TODO put into code
+    f = h - i
 
     if s == 1.0:
         if h < 1.0 :  # r > g > b=0
-            h = h#/60.0
+            h = h # f
             r = np.sqrt(p * p / (Perc_R + Perc_G * h * h))
             g = r * h
             b = 0.0
         elif h < 2.0:  # g>r>b=0
-            h = (-h + 2.0)#/60.0
+            h = (-h + 2.0) # 1-f
             g = np.sqrt(p * p / (Perc_G + Perc_R * h * h))
             r = g * h
             b = 0.0
         elif h < 3.0: # g>b>r=0
-            h = (h - 2.0)#/60.0
+            h = (h - 2.0) # f
             g = np.sqrt(p * p / (Perc_G + Perc_B * h * h))
             b = g * h
             r = 0.0
         elif h < 4.0 : # b>g>r=0
-            h = (-h + 4.0)# / 60.0
+            h = (-h + 4.0) #1 - f
             b = np.sqrt(p * p / (Perc_B + Perc_G * h * h))
             g = b * h
             r = 0.0
         elif h < 5.0 :  # b>r>g=0
-            h = (h - 4.0)#/60.0
+            h = (h - 4.0) # f
             b = np.sqrt(p * p / (Perc_B + Perc_R * h * h))
             r = b * h
             g = 0.0
         else : # r>b>g=0
-            h = (-h + 6.0) #/ 60.0
+            h = (-h + 6.0) # 1 -f
             r = np.sqrt(p * p / (Perc_R + Perc_B * h * h))
             b = r * h
             g = 0.0
@@ -197,31 +194,31 @@ def hsp2rgb(h,s,p, trunc=True):
             r = b * Mm
             g = b + h * (r - b)
         elif h < 2.0: #g>r>b
-            h = (-h + 2.0)# / 60.0
+            h = (-h + 2.0)
             part = 1.0 + h * (Mm - 1.0) #part = r/b
             b = p / np.sqrt(Perc_G * Mm * Mm + Perc_R * part * part + Perc_B)
             g = b * Mm
             r = b + h * (g - b)
         elif h < 3.0: # g>b>r
-            h = (h - 2.0)# / 60.0
+            h = (h - 2.0)
             part = 1.0 + h * (Mm - 1.0) # part = b/r
             r = p / np.sqrt(Perc_G * Mm * Mm + Perc_B * part * part + Perc_R)
             g = r * Mm
             b = r + h * (g - r)
         elif h < 4.0: # b>g>r
-            h = (-h + 4.0)# / 60.0
+            h = (-h + 4.0)
             part = 1.0 + h * (Mm - 1.0)
             r = p / np.sqrt(Perc_B * Mm * Mm + Perc_G * part * part + Perc_R)
             b = r * Mm
             g = r  + h * (b - r)
         elif h < 5.0: # b>r>g
-            h = (h - 4.0)# / 60.0
+            h = (h - 4.0)
             part = 1.0 + h * (Mm - 1.0)
             g = p / np.sqrt(Perc_B * Mm * Mm + Perc_R * part * part + Perc_G)
             b = g * Mm
             r = g + h * (b - g)
         else: # r>b>g
-            h = (-h + 6.0) #/ 60.0
+            h = (-h + 6.0)
             part = 1.0 + h * (Mm - 1.0)
             g = p / np.sqrt(Perc_R * Mm * Mm + Perc_B * part * part + Perc_G)
             r = g * Mm
@@ -236,6 +233,195 @@ def hsp2rgb(h,s,p, trunc=True):
         return min(255,int(round(r*255))), min(255,int(round(g*255))), min(255, int(round(b*255)))
     else:
         return int(round(r * 255)), int(round(g * 255)), int(round(b * 255))
+
+
+
+def hsp2rgbNew(h,s,p, trunc=True):
+    """
+    Transform the hue, saturation and perceptual brightness h, s, p components of a color
+    into red, green, blue values.
+    :param h: float value in range 0..360
+    :param s: float value in range 0..1
+    :param p: float value in range 0..1
+    :return: r,g,b integers between 0 and 255
+    """
+
+    h = h /60.0
+    i = np.floor(h)
+    f = h - i
+
+    if s == 1.0:
+        if h < 1.0 :  # r > g > b=0
+            r = np.sqrt(p * p / (Perc_R + Perc_G * f * f))
+            g = r * f
+            b = 0.0
+        elif h < 2.0:  # g>r>b=0
+            g = np.sqrt(p * p / (Perc_G + Perc_R * (1-f) * (1-f)))
+            r = g * (1-f)
+            b = 0.0
+        elif h < 3.0: # g>b>r=0
+            g = np.sqrt(p * p / (Perc_G + Perc_B * f * f))
+            b = g * f
+            r = 0.0
+        elif h < 4.0 : # b>g>r=0
+            b = np.sqrt(p * p / (Perc_B + Perc_G * (1-f) * (1-f)))
+            g = b * (1-f)
+            r = 0.0
+        elif h < 5.0 :  # b>r>g=0
+            b = np.sqrt(p * p / (Perc_B + Perc_R * f * f))
+            r = b * f
+            g = 0.0
+        else : # r>b>g=0
+            r = np.sqrt(p * p / (Perc_R + Perc_B * (1-f) * (1-f)))
+            b = r * (1-f)
+            g = 0.0
+    else:  # s !=1
+        Mm = 1.0 / (1.0 - s)  #Mm >= 1
+        if h < 1.0 :  # r > g > b
+            part = 1.0 + f * (Mm - 1.0)  # part >=1 part = g/b
+            b = p / np.sqrt(Perc_R * Mm * Mm + Perc_G * part * part + Perc_B)  # b<=p
+            r = b * Mm
+            g = b + f * (r - b)
+        elif h < 2.0: #g>r>b
+            part = 1.0 + (1-f) * (Mm - 1.0) #part = r/b
+            b = p / np.sqrt(Perc_G * Mm * Mm + Perc_R * part * part + Perc_B)
+            g = b * Mm
+            r = b + (1-f) * (g - b)
+        elif h < 3.0: # g>b>r
+            part = 1.0 + f * (Mm - 1.0) # part = b/r
+            r = p / np.sqrt(Perc_G * Mm * Mm + Perc_B * part * part + Perc_R)
+            g = r * Mm
+            b = r + f * (g - r)
+        elif h < 4.0: # b>g>r
+            part = 1.0 + (1-f) * (Mm - 1.0)
+            r = p / np.sqrt(Perc_B * Mm * Mm + Perc_G * part * part + Perc_R)
+            b = r * Mm
+            g = r  + (1-f) * (b - r)
+        elif h < 5.0: # b>r>g
+            part = 1.0 + f * (Mm - 1.0)
+            g = p / np.sqrt(Perc_B * Mm * Mm + Perc_R * part * part + Perc_G)
+            b = g * Mm
+            r = g + f * (b - g)
+        else: # r>b>g
+            part = 1.0 + (1-f) * (Mm - 1.0)
+            g = p / np.sqrt(Perc_R * Mm * Mm + Perc_B * part * part + Perc_G)
+            r = g * Mm
+            b = g + (1-f) * (r - g)
+
+    if r<0 or g<0 or b<0 :
+        print 'neg value found', h,s,p, r,g,b
+
+    pc= Perc_R * r * r + Perc_G * g * g + Perc_B * b * b
+    assert abs(p*p - pc)<= 0.000001, 'hsp2rgb error'
+    if trunc:
+        return min(255,int(round(r*255))), min(255,int(round(g*255))), min(255, int(round(b*255)))
+    else:
+        return int(round(r * 255)), int(round(g * 255)), int(round(b * 255))
+
+
+def hsp2rgbVec(hspImg):
+    """
+
+    :param hspImg:
+    :return:
+    """
+    h, s, p = hspImg[:, :, 0], hspImg[:, :, 1], hspImg[:, :, 2]
+
+    shape = h.shape
+
+    h = np.ravel(h)
+    s = np.ravel(s)
+    p=np.ravel(p)
+    h = h / 60.0
+    i = np.floor(h).astype(int)
+    f = h - i
+
+    Mm = 1.0 / (1.0 - s) # where s=1 Mm=inf
+    part1 = 1.0 + f * (Mm - 1.0)
+    part1 = np.where(Mm==np.inf, f, part1 )             # TODO some invalid values remain for s = 1
+    part2 = 1.0 + (1-f) * (Mm - 1.0)
+    part2 = np.where(Mm==np.inf, 1-f, part2 )
+
+    part1 = part1 * part1
+    part2 = part2 * part2
+    Mm2 = Mm * Mm
+
+    X1 = p / np.sqrt(Perc_R * Mm2  + Perc_G * part1  + Perc_B)
+    Y1 = X1 * Mm
+    Z1 = X1 + f * (Y1 - X1)
+    X2 = p / np.sqrt(Perc_G * Mm2  + Perc_R * part2  + Perc_B)
+    Y2 = X2 * Mm
+    Z2 = X2 + (1-f) * (Y2 - X2)
+    X3 = p / np.sqrt(Perc_G * Mm2  + Perc_B * part1  + Perc_R)
+    Y3 = X3 * Mm
+    Z3 = X3 + f * (Y3 - X3)
+    X4 = p / np.sqrt(Perc_B * Mm2  + Perc_G * part2  + Perc_R)
+    Y4 = X4 * Mm
+    Z4 = X4 + (1-f) * (Y4 - X4)
+    X5 = p / np.sqrt(Perc_B * Mm2  + Perc_R * part1  + Perc_G)
+    Y5 = X5 * Mm
+    Z5 = X5 + f * (Y5 - X5)
+    X6 = p / np.sqrt(Perc_R * Mm2  + Perc_B * part2  + Perc_G)
+    Y6 = X6 *Mm
+    Z6 = X6 + (1-f) * (Y6 - X6)
+
+    clist = np.vstack((X1,Y1,Z1,X2,Y2,Z2,X3,Y3,Z3,X4,Y4,Z4, X5,Y5,Z5,X6,Y6,Z6))
+
+    # each 3-uple gives line numbers in clist for hue slice i = 0,..5
+    order = np.array([[1, 2, 0], [5, 4, 3], [6, 7, 8], [9, 11, 10], [14, 12, 13], [16, 15,17]])
+
+    tmp = np.arange(np.prod(shape))[:, None]
+
+    # we use advanced array indexing
+    rgb = clist[order[i], tmp]  # order[i] has shape (w*h, 3), tmp is broadcast to the same shape, thus rgb has (shape w*h, 3)
+
+    # converting invalid values to int gives indeterminate results
+    rgb[np.isnan(rgb)]=0.0
+
+    # for uint8 image buffer, int values > 255 are truncated to lower 8 bits
+    #rgbMask = (rgb > 1)
+    rgb = np.clip(rgb, 0, 1.0)
+
+    rgb = (rgb * 255).astype(int)
+
+    return rgb.reshape(shape + (3,))
+
+
+def hsv2rgbVec(hsvImg, trunc=True):
+    """
+    Transform the hue, saturation and brightness h, s, v components of a color
+    into red, green, blue values.
+    :param hspImg: hsv image array
+    :param trunc : if True, the rgb values of the output image are truncated to range 0..255
+    :return: rgb image array
+    """
+
+    h,s,v = hsvImg[:,:,0], hsvImg[:,:,1], hsvImg[:,:,2]
+
+    shape = h.shape
+    i = (h / 60.0).astype(int)
+    f = h / 60.0 - i
+
+    q = f
+    t = 1.0 - f
+    i = np.ravel(i)
+    f = np.ravel(f)
+    i %= 6
+
+    t = np.ravel(t)
+    q = np.ravel(q)
+
+    clist = (1 - np.ravel(s) * np.vstack([np.zeros_like(f), np.ones_like(f), q, t])) * np.ravel(v)
+
+    # 0:v 1:p=v(1-s) 2:q 3:t
+    order = np.array([[0, 3, 1], [2, 0, 1], [1, 0, 3], [1, 2, 0], [3, 1, 0], [0, 1, 2]])
+    rgb = clist[order[i], np.arange(np.prod(shape))[:, None]]
+    rgb = (rgb * 255).astype(int)
+
+    return rgb.reshape(shape + (3,))
+
+
+
 
 """
 def colorPicker(w,h):

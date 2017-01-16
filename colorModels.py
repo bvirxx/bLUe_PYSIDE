@@ -1,6 +1,6 @@
 import numpy as np
 from MarkedImg import imImage
-from LUT3D import rgb2hsv, hsv2rgb,hsp2rgb, lutNN
+from LUT3D import rgb2hsB, hsv2rgbVec,hsp2rgb, hsp2rgbNew, hsp2rgbVec, lutNN
 from math import floor
 from PyQt4.QtGui import QImage, QColor, QPainter, QBrush
 from imgconvert import QImageBuffer
@@ -21,18 +21,18 @@ class hueSatModel (imImage):
         :param perceptualBrightness: (perceptual) brightness of image pixels
         :return: imImage
         """
-
+        # uninitialized ARGB image
         img = hueSatModel(w, h, perceptualBrightness=perceptualBrightness)
 
-        # image buffer (RGB type)
+        # image buffer (BGRA order) dtype=uint8
         imgBuf = QImageBuffer(img)
 
-        # alpha
+        # set alpha channel
         imgBuf[:,:,3] = 255
-        #RGB order
+        # RGB buffer
         imgBuf=imgBuf[:,:,:3][:,:,::-1]
 
-        # image hue sat , pB data
+        # image buffer
         img.hsArray = np.empty(imgBuf.shape)
 
         #center
@@ -40,22 +40,23 @@ class hueSatModel (imImage):
         cy = h / 2
 
         clipping = np.zeros(imgBuf.shape, dtype=int)
+        radian2degree = 180.0 / np.pi
         for i in range(w):
             for j in range(h):
                 i1 = i - cx
                 j1 = -j + cy
-                m = max(abs(i1), abs(j1))
-                hue = np.arctan2(j1, i1) * 180.0 / np.pi + cls.rotation
+                hue = np.arctan2(j1, i1) * radian2degree + cls.rotation
                 hue = hue - floor(hue / 360.0) * 360.0
-                assert hue >= 0 and hue <= 360
+                #assert hue >= 0 and hue <= 360
                 sat = np.sqrt(i1 * i1 + j1 * j1) / cx
-                #sat = min(1.0, sat)
+                sat = min(1.0, sat)
                 # r,g,b values
                 #c = hsp2rgb(hue, sat, perceptualBrightness, trunc=False)
                 img.hsArray[j,i,:]=(hue,sat, perceptualBrightness)
+                """
                 if sat <= 1.0 :
                     # valid color
-                    c = hsp2rgb(hue, sat, perceptualBrightness, trunc=False)
+                    c = hsp2rgbNew(hue, sat, perceptualBrightness, trunc=False)
                     if c[0] <= 255 and c[1] <= 255 and c[2] <= 255:
                         imgBuf[j, i] = c
                     else:
@@ -64,7 +65,8 @@ class hueSatModel (imImage):
                 # sat>= 1
                 else:
                     imgBuf[j, i] = 0 #np.clip(c, 0, 255)
-
+                """
+        imgBuf[:,:,:] = hsp2rgbVec(img.hsArray)
         # mark center and clipped area
         qp = QPainter(img)
         qp.drawEllipse(cx, cy, 3,3)
@@ -88,7 +90,7 @@ class hueSatModel (imImage):
         return x,y
 
     def colorPickerSetmark(self, r,g,b, LUT3D):
-        h,s,v = rgb2hsv(r,g,b, perceptual=True)
+        h,s,v = rgb2hsB(r, g, b, perceptual=True)
         #r1,g1,b1=hsp2rgb(h,s,self.pb)
         #print r,r1,b,b1,g,g1
         #assert abs(r-r1)<20 and abs(g-g1)<20 and abs(b-b1)<20

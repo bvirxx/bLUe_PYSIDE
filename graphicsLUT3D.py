@@ -4,7 +4,7 @@ from PyQt4.QtGui import QGraphicsView, QGraphicsScene, QGraphicsPathItem , QGrap
 from PyQt4.QtCore import Qt, QPoint, QPointF, QRect, QRectF
 import numpy as np
 from time import time
-from LUT3D import LUTSTEP, LUT3D, rgb2hsv, hsp2rgb
+from LUT3D import LUTSTEP, LUT3D, rgb2hsB, hsp2rgb
 from colorModels import hueSatModel, pbModel
 
 
@@ -20,7 +20,7 @@ class activeNode(QGraphicsPathItem):
         c = QColor(scene.colorWheel.QImg.pixel(int(position.x()), int(position.y())))
         self.r, self.g, self.b = c.red(), c.green(), c.blue()
         self.rM, self.gM, self.bM = self.r, self.g, self.b
-        self.hue, self.sat, self.pB= rgb2hsv(self.r, self.g, self.b, perceptual = True)
+        self.hue, self.sat, self.pB= rgb2hsB(self.r, self.g, self.b, perceptual = True)
         self.LUTIndices = [(r / LUTSTEP, g / LUTSTEP, b / LUTSTEP) for (r, g, b) in [hsp2rgb(self.hue, self.sat, p / 100.0) for p in range(101)]]
         self.setParentItem(parent)
         qpp = QPainterPath()
@@ -38,7 +38,7 @@ class activeNode(QGraphicsPathItem):
         # color from model
         c = QColor(self.scene().colorWheel.QImg.pixel(int(self.pos().x()), int(self.pos().y())))
         self.rM, self.gM, self.bM = c.red(), c.green(), c.blue()
-        hue, sat,_ = rgb2hsv(self.rM, self.gM, self.bM, perceptual=True)
+        hue, sat,_ = rgb2hsB(self.rM, self.gM, self.bM, perceptual=True)
         #savedLUT = self.scene.LUT3D.copy()
         print self.LUTIndices
         for p, (i,j,k) in enumerate(self.LUTIndices):
@@ -122,7 +122,7 @@ class colorPicker(QGraphicsPixmapItem):
     def __init__(self, QImg):
         self.QImg = QImg
         super(colorPicker, self).__init__(QPixmap.fromImage(self.QImg))
-        self.onMouserelease = lambda x, y, z : 0
+        self.onMouseRelease = lambda x, y, z : 0
 
     def mousePressEvent(self, *args, **kwargs):
         pass
@@ -136,8 +136,8 @@ class colorPicker(QGraphicsPixmapItem):
         # get color from image
         c = QColor(self.QImg.pixel(i,j))
         r,g,b = c.red(), c.green(), c.blue()
-        h, s, p = rgb2hsv(r, g, b, perceptual=True)
-        self.onMouseRelease(h,s)
+        h, s, p = rgb2hsB(r, g, b, perceptual=True)
+        self.onMouseRelease(h,s, p)
 
 #main class
 class graphicsForm3DLUT(QGraphicsView) :
@@ -182,15 +182,6 @@ class graphicsForm3DLUT(QGraphicsView) :
         QImg = hueSatModel.colorWheel(size, size, perceptualBrightness=self.colorWheelPB)
         self.graphicsScene.colorWheel = colorPicker(QImg)
 
-        """
-        # update of bSlider
-        def f(r, g, b):
-            self.currentHue, self.currentSat, self.currentPb = rgb2hsv(r, g, b, perceptual=True)
-            size = QImg.width()
-            self.graphicsScene.bSlider.setPixmap(QPixmap.fromImage(pbModel.colorChart(QImg.width(), QImg.width() / 10, self.currentHue, self.currentSat)))
-            self.displayStatus()
-        self.graphicsScene.colorWheel.onMouseRelease = self.onSelectGridNode
-        """
         self.graphicsScene.addItem(self.graphicsScene.colorWheel)
 
         # Brightness slider
@@ -233,7 +224,7 @@ class graphicsForm3DLUT(QGraphicsView) :
             self.selected.setPath(self.qpp1)
             self.selected.setBrush(self.unselectBrush)
         # image coordinates of the pixel corresponding to hue=h and sat = s
-        h, s, p = rgb2hsv(r, g, b, perceptual=True)
+        h, s, p = rgb2hsB(r, g, b, perceptual=True)
         self.currentHue, self.currentSat, self.currentPb = h, s, p
         x,y = self.graphicsScene.colorWheel.QImg.GetPoint(h, s)
 
@@ -247,7 +238,7 @@ class graphicsForm3DLUT(QGraphicsView) :
     def displayStatus(self):
         s1 = ('h : %d  ' % self.currentHue) + ('s : %d  ' % (self.currentSat * 100)) + ('p : %d  ' % (self.currentPb * 100))
         r, g, b = hsp2rgb(self.currentHue, self.currentSat, self.currentPb)
-        h,s,v = rgb2hsv(r,g,b)
+        h,s,v = rgb2hsB(r, g, b)
         s2 = ('r : %d  ' % r) + ('g : %d  ' % g) + ('b : %d  ' % b)
         s3 = ('h : %d  ' % h) + ('s : %d  ' % (s * 100)) + ('v : %d  ' % (v * 100))
         self.graphicsScene.statusBar.setPlainText(s1 + '\n\n' + s3 + '\n\n' + s2)
