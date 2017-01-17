@@ -1,8 +1,8 @@
 import sys
 import cv2
 from PyQt4.QtCore import Qt, QRect, QEvent, QSettings, QSize, QString
-from PyQt4.QtGui import QWidget, QPixmap, QImage, QColor,QPainter, QApplication, QMenu, QAction, QCursor, QFileDialog, QColorDialog, QMainWindow, QLabel, QDockWidget, QHBoxLayout, QSizePolicy
-import QtGui1
+from PyQt4.QtGui import QWidget, QSplitter, QPixmap, QImage, QColor,QPainter, QApplication, QMenu, QAction, QCursor, QFileDialog, QColorDialog, QMainWindow, QLabel, QDockWidget, QHBoxLayout, QSizePolicy
+from QtGui1 import app, window
 import PyQt4.Qwt5 as Qwt
 import time
 import exiftool
@@ -10,7 +10,8 @@ from imgconvert import *
 from MarkedImg import mImage, imImage, QLayer
 from icc import convert
 from graphicsLUT import graphicsForm
-from LUT3D import rgb2hsv,hsp2rgb, LUT3D
+from graphicsLUT3D import graphicsForm3DLUT
+from LUT3D import rgb2hsB,hsp2rgb, LUT3D
 from math import floor
 from colorModels import hueSatModel
 
@@ -21,7 +22,8 @@ CONST_BG_COLOR = QColor(255, 0, 255,128)
 
 thickness = 30*4
 State = {'drag' : False, 'drawing' : False , 'tool_rect' : False, 'rect_over' : False, 'ix' : 0, 'iy' :0, 'rawMask' : None}
-
+# application windows
+Wins = {}
 rect_or_mask = 0
 
 def QRect2tuple(qrect):
@@ -179,8 +181,7 @@ def paintEvent(widg, e) :
                            layer.transfer() #layer.qPixmap
                          )
             else:
-                qp.drawImage(QRect(mimg.xOffset, mimg.yOffset, mimg.width() * r - 10, mimg.height() * r - 10),
-                              # target rect
+                qp.drawImage(QRect(mimg.xOffset, mimg.yOffset, mimg.width() * r - 10, mimg.height() * r - 10), # target rect
                               layer  # layer.qPixmap
                               )
     if mimg.rect is not None :
@@ -216,7 +217,7 @@ def showResult(img0, img1, turn):
     window.label_2.repaint()
 
 
-
+# mouse eventd handler for image widgets (currently label and label_2)
 turn = 0
 pressed=False
 clicked = True
@@ -293,11 +294,17 @@ def mouseEvent(widget, event) :
         if event.button() == Qt.LeftButton:
             #click event
             if clicked:
-                print '*************** click event', State['ix'] / r - img.xOffset/r, State['iy'] / r - img.yOffset/r
+                # Note : for multilayered images we read pixel color from  the background layer
                 c = QColor(img.pixel(State['ix'] / r -  img.xOffset/r, State['iy'] / r - img.yOffset/r))
                 r, g, b = c.red(), c.green(), c.blue()
-                hsModel.colorPickerSetmark(r,g,b, LUT3D)
-                window.label_2.img.apply3DLUT(LUT3D)
+                #hsModel.colorPickerSetmark(r,g,b, LUT3D)
+                #h, s, p = rgb2hsv(r, g, b, perceptual=True)
+                #i,j= hsModel.colorPickerGetPoint(h,s)
+                # The selected node corresponds to the background layer : it does not take into account
+                # the modifications induced by adjustment layers
+                Wins['3D_LUT'].selectGridNode(r, g, b)
+                #Wins['3D_LUT'].select(h,s,p)
+                #window.label_2.img.apply3DLUT(LUT3D)
                 window.label.repaint()
             if window.btnValues['rectangle']:
                 #State['tool_rect'] = False
@@ -338,40 +345,28 @@ def wheelEvent(widget,img, event):
     img.Zoom_coeff += numSteps
     widget.repaint()
 
-#app = QApplication(sys.argv)
-#window = QtGui1.Form1()
 
-
-#window.showMaximized()
-
-#load test image
-"""
-Mimg = imImage(filename='orch2-2-2.jpg')
-
-Mimg_p=Mimg
-
-#Mimg_0 = imImage(QImg=Mimg_p.qImg, copy=True)
-#Mimg_1 = imImage(QImg=Mimg_p.qImg, copy=True)
-
-#set left and right images
-window.label.img=Mimg_p
-window.label_2.img= Mimg_p
-window.tableView.addLayers(Mimg_p)
-"""
 def set_event_handler(widg):
+    """
+    Pythonic way for redefining event handlers. In contrast to
+    subclassing and overriding, we can add convenient parameters to
+    our handlers.
+    :param widg:
+    """
     widg.paintEvent = lambda e, wdg=widg : paintEvent(wdg,e)
     widg.mousePressEvent = lambda e, wdg=widg : mouseEvent(wdg, e)
     widg.mouseMoveEvent = lambda e, wdg=widg : mouseEvent(wdg, e)
     widg.mouseReleaseEvent = lambda e, wdg=widg : mouseEvent(wdg, e)
     widg.wheelEvent = lambda e, wdg=widg : wheelEvent(wdg, wdg.img, e)
 
+"""
 app = QApplication(sys.argv)
 window = QtGui1.Form1()
 set_event_handler(window.label)
 set_event_handler(window.label_2)
 
 window.label.setStyleSheet("background-color: rgb(200, 200, 200);")
-
+"""
 
 #img_0=Mimg_0.cv2Img()
 #Mimg.rect = QRect(500, 400, Mimg.qImg.width()-2000, Mimg.qImg.height()-1000)
@@ -409,7 +404,7 @@ def menuFile(name):
     #get list of recent files and update menu
     window._recentFiles = window.settings.value('paths/recent', [], QString)
     window.updateMenuOpenRecent()
-    print 'updfated'
+    print 'updated'
     if name == 'actionOpen' :
         lastDir = window.settings.value('paths/dlgdir', 'F:/bernard').toString()
         dlg =QFileDialog(window, "select", lastDir)
@@ -428,7 +423,7 @@ def menuFile(name):
             #window.label.img = imImage(filename=filenames[0])
             #window.label.repaint()
 
-hsModel= hueSatModel.colorPicker(500,500)
+# hsModel= hueSatModel.colorWheel(500, 500)
 
 def openFile(f):
 
@@ -445,9 +440,9 @@ def openFile(f):
     orientation = metadata.get("EXIF:Orientation", 0)
     b=exiftool.decodeExifOrientation(orientation)
 
-    window.label.img = imImage(filename=f, colorSpace=colorSpace, orientation=b, metadata=metadata, profile=profile)  # imImage(filename=f)
+    window.label.img = imImage(filename=f, colorSpace=colorSpace, orientation=b, metadata=metadata, profile=profile).resize(250000)
 
-    window.label.img = hsModel
+    #window.label.img = hsModel
     #window.label.img=imImage(QImg=convert(f))
     #window.label_2.img = window.label.img
     window.label_2.img = imImage(filename=f, orientation=b, metadata=metadata)
@@ -482,8 +477,8 @@ def menuImage(x, name) :
 def menuLayer(x, name):
 
     if name == 'actionBrightness_Contrast' :
-        print 'new layer'
         grWindow=graphicsForm.getNewWindow()
+        Wins['Brightness-Contrast'] = grWindow
         grWindow.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored);
         grWindow.setGeometry(QRect(100, 40, 156, 102));
 
@@ -492,18 +487,32 @@ def menuLayer(x, name):
         window.addDockWidget(Qt.RightDockWidgetArea, dock);
         #window.horizontalLayout_2.addWidget(grWindow)
         #window.verticalLayout_2.addWidget(grWindow)
-
-
         #l=QLayer(QImg=testLUT(grWindow.LUTXY))
         l=QLayer(QImg=window.label.img)
+        l.inputImg = window.label.img
         l.applyLUT(grWindow.graphicsScene.LUTXY, widget=window.label)
-        l.apply3DLUT(grWindow.graphicsScene.LUT3D, widget=window.label)
-        #l.transfer=testLUT
+
         window.label.img.addLayer(l, 'Brightness/Contrast')
         window.tableView.addLayers(window.label.img)
         grWindow.graphicsScene.onUpdateScene = lambda : l.applyLUT(grWindow.graphicsScene.LUTXY, widget=window.label)
         window.label.repaint()
-
+    elif name == 'action3D_LUT':
+        grWindow = graphicsForm3DLUT.getNewWindow(size=800)
+        Wins['3D_LUT'] = grWindow
+        dock = QDockWidget(window)
+        dock.setWidget(grWindow)
+        dock.setWindowFlags(Qt.WindowStaysOnTopHint)
+        dock.setAttribute(Qt.WA_DeleteOnClose)
+        dock.setWindowTitle(grWindow.windowTitle())
+        #window.addDockWidget(Qt.RightDockWidgetArea, dock);
+        #l = QLayer(QImg=window.label_2.img.copy(QRect(1,1,500,500)))#QLayer(QImg=window.label.img)
+        #l.inputImg = window.label.img.copy(QRect(1,1,500,500))
+        #l.apply3DLUT(grWindow.graphicsScene.LUT3D, widget=window.label)
+        l = window.label.img.addAdjustmentLayer(name='3D LUT', window=dock)
+        window.tableView.addLayers(window.label.img)
+        grWindow.graphicsScene.onUpdateScene = lambda: l.apply3DLUT(grWindow.graphicsScene.LUT3D, widget=window.label)
+        window.label.repaint()
+"""
 def testLUT(LUT) :
     img=window.label.img
     a=  QImageBuffer(img)
@@ -513,13 +522,14 @@ def testLUT(LUT) :
     #a=cv2.LUT(a, np.array(LUT))
     #a=cv2.convertScaleAbs(a)
 
+
     a=a[:,:,::-1]
     a = np.ascontiguousarray(a[:, :, 1:4], dtype=np.uint8)
     #a=np.dstack((r, g, b))
     print 'shape', a.shape
 
     return QPixmap.fromImage(mImage(cv2Img=a, format=QImage.Format_RGB888))
-
+"""
 
 
 def handleNewWindow(parent):
@@ -533,6 +543,11 @@ def handleNewWindow(parent):
     set_event_handler(label_3)
     newwindow.show()
 
+
+set_event_handler(window.label)
+set_event_handler(window.label_2)
+
+window.label.setStyleSheet("background-color: rgb(200, 200, 200);")
 #get mouse hover events
 window.label.setMouseTracking(True)
 window.label_2.setMouseTracking(True)
@@ -546,16 +561,15 @@ window.onExecMenuWindow = menuWindow
 window.onExecMenuImage = menuImage
 window.onExecMenuLayer = menuLayer
 
-#color dialog
-#color=QColorDialog(window)
-#color.setWindowFlags(Qt.Widget)
-#color.show()
+
+
 
 window.readSettings()
 
 window._recentFiles = window.settings.value('paths/recent', [], QString)
 
 openFile('orch2-2-2.jpg')
+
 window.show()
 
 sys.exit(app.exec_())

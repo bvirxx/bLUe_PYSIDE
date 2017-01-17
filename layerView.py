@@ -1,6 +1,14 @@
 from PyQt4.QtGui import QTableView, QStandardItem, QStandardItemModel, QStyledItemDelegate, QColor, QImage, QPixmap, QIcon, QHeaderView
 from PyQt4.QtCore import Qt
-import resources_rc
+import resources_rc  # DO NOT REMOVE !!!
+import QtGui1
+
+"""
+The class QLayerView inherits from QTableView. It is used
+in the main form built by Qt Designer to display lists
+of image layers.
+"""
+
 """
 class ImageDelegate(QStyledItemDelegate):
 
@@ -29,12 +37,12 @@ class QLayerView(QTableView) :
         model.setColumnCount(3)
         self.horizontalHeader().hide()
         self.verticalHeader().hide()
-        for k in mImg._layers.keys() :
+        for k in reversed(mImg._layersStack) :
             items = []
-            if mImg._layers[k].visible :
+            if k.visible :
                 item_visible = QStandardItem(QIcon(":/images/resources/eye-icon.png"), "")
                 items.append(item_visible)
-            item_name = QStandardItem(QIcon(mImg._layers[k].qPixmap), k)
+            item_name = QStandardItem(QIcon(k.qPixmap), k.name)
             items.append(item_name)
             """
             headerNames = []
@@ -54,6 +62,16 @@ class QLayerView(QTableView) :
     def viewClicked(self, clickedIndex):
         row = clickedIndex.row()
         model = clickedIndex.model()
+        l = len(self.img._layersStack)
         if clickedIndex.column() == 0 :
-            print self.img._layersStack[row]
-        print "got it"
+            self.img._layersStack[l-1-row].visible = not(self.img._layersStack[l-1-row].visible)
+        elif clickedIndex.column() == 1 :
+            # show/hide window for adjustment layer
+            win = self.img._layersStack[l-1-row].window
+            if win is not None:
+                if win.widget().isVisible():
+                    win.hide()
+                else:
+                    win.show()
+        QtGui1.window.label.repaint()
+

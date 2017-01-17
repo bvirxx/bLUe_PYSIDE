@@ -1,10 +1,11 @@
 import sys
 from PyQt4.QtGui import QApplication, QPainter, QWidget
-from PyQt4.QtGui import QGraphicsView, QGraphicsScene, QGraphicsPathItem , QPainterPath, QPainterPathStroker, QPen, QBrush, QColor, QMainWindow, QLabel, QSizePolicy
-from PyQt4.QtCore import Qt, QPoint, QPointF
+from PyQt4.QtGui import QGraphicsView, QGraphicsScene, QGraphicsPathItem , QPainterPath, QPainterPathStroker, QPen, QBrush, QColor, QPixmap, QMainWindow, QLabel, QSizePolicy
+from PyQt4.QtCore import Qt, QPoint, QPointF, QRectF
 import numpy as np
 from time import time
-#from LUT3D import hs2rgbList
+from LUT3D import LUT3D
+from colorModels import hueSatModel
 
 
 strokeWidth = 3
@@ -56,7 +57,8 @@ def updateScene(grScene):
 
 class myGraphicsPathItem (QGraphicsPathItem):
     """
-    Base class for GraphicsPathItems
+    Base class for GraphicsPathItems.
+    Add method updatePath
     """
     def updatePath(self):
         pass
@@ -64,18 +66,24 @@ class myGraphicsPathItem (QGraphicsPathItem):
 class activePoint(myGraphicsPathItem):
     def __init__(self, x,y):
         super(QGraphicsPathItem, self).__init__()
-        self.setPen(QPen(QBrush(QColor(0, 0, 255)), 2))
+        #self.setPen(QPen(QBrush(QColor(0, 0, 255)), 2))
+        self.setPen(QPen(QColor(0, 0, 255),2))
         self.position_ = QPointF(x,y)
         self.moveStart=QPointF(0,0)
-        self.updatePath()
+        qpp = QPainterPath()
+        qpp.addEllipse(self.position_, 5, 5)
+        self.setPath(qpp)
+        #self.updatePath()
 
     def position(self):
         return self.position_
 
+    """
     def updatePath(self):
         qpp = QPainterPath()
         qpp.addEllipse(self.position_, 5, 5)
         self.setPath(qpp)
+    """
 
     def mousePressEvent(self, e):
         self.moveStart = e.pos()
@@ -388,22 +396,12 @@ class graphicsForm(QGraphicsView) :
 
     def __init__(self, *args, **kwargs):
         super(graphicsForm, self).__init__(*args, **kwargs)
+        self.bgPixmap = QPixmap.fromImage(hueSatModel.colorWheel(200, 200))
         self.graphicsScene = QGraphicsScene()
         self.setScene(self.graphicsScene)
         #self.LUTXY = LUTXY
         self.graphicsScene.LUTXY=np.array(range(256))
 
-        self.graphicsScene.LUT3D = LUT3D
-
-        #for i in range(14):
-            #for j in range(15):
-                #for k in range (10):
-                    #pass
-                    #print i,j,k , self.graphicsScene.LUT3D[i,j,k]
-        l=hs2rgbList(10, 0.5)
-
-        for c in l:
-            self.graphicsScene.LUT3D[c[0]/16,c[1]/16,c[2]/16, ]=(0,0,255)
         self.graphicsScene.onUpdateScene = lambda : 0
 
         # draw axes
@@ -435,6 +433,9 @@ class graphicsForm(QGraphicsView) :
         # add tangents
         for p in tangents:
             self.graphicsScene.addItem(p)
+
+    def drawBackground(self, qp, qrF):
+        qp.drawPixmap(QRectF(0,-200, 200, 200), self.bgPixmap, QRectF(0,0, 200, 200)) #layer.qPixmap
 
 
 

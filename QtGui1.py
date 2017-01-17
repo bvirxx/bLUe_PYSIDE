@@ -1,12 +1,12 @@
 from PyQt4 import QtGui, uic
 from PyQt4.QtCore import QSettings, QSize
 from PIL.ImageCms import getProfileDescription
-
+import sys
+from PyQt4.QtGui import QApplication
 # Python loader for the UI Form built by Qt Designer.
 
 
-#import sys
-import resources_rc   # don't remove
+import resources_rc   # DO NOT REMOVE !!!!
 
 class Form1(QtGui.QMainWindow):
 
@@ -169,6 +169,13 @@ def enumerateMenuActions(menu):
         else:
             actions.append(action)
     return actions
+
+app = QApplication(sys.argv)
+window = Form1()
+
+
+
+window.label.setStyleSheet("background-color: rgb(200, 200, 200);")
 """
 if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)

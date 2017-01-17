@@ -1,15 +1,11 @@
 import cv2
 from imgconvert import *
-from PyQt4.QtGui import QPixmap, QImage, QColor
+from PyQt4.QtGui import QPixmap, QImage, QColor, QPainter
 from PyQt4.QtCore import QRect, QByteArray
 from icc import convert, convertQImage
 from LUT3D import LUT3D, interpVec
 from multiprocessing import Pool
 from time import time
-
-
-def fa(*args):
-    return [interp(LUT3D, *x) for x in args]
 
 class vImage(QImage):
     """
@@ -18,7 +14,7 @@ class vImage(QImage):
     """
 
     def fromQImage(cls, qImg):
-        qImg.rect, qImg.mask = None, None
+        qImg.rect, qImg.mask, qImg.name = None, None, ''
         qImg.qPixmap = QPixmap.fromImage(qImg)
         qImg.__class__ = vImage
         return qImg
@@ -26,6 +22,7 @@ class vImage(QImage):
     def __init__(self, filename=None, cv2Img=None, QImg=None, cv2mask=None, copy=False, format=QImage.Format_ARGB32,
                  colorSpace=-1, orientation=None, metadata=None, profile=''):
         self.rect, self.mask, self.colorSpace, self.metadata, self.profile = None, cv2mask, colorSpace, metadata, profile
+        self.name=''
         self.cv2Cache = None
         self.cv2CacheType=None
         if (filename is None and cv2Img is None and QImg is None):
@@ -46,7 +43,7 @@ class vImage(QImage):
                 #d o a deep copy
                 super(vImage, self).__init__(QImg.copy())
             else:
-                # do a shallow copy
+                # do a shallow copy (implicit data sharing : copy when writing to)
                 super(vImage, self).__init__(QImg)
             if hasattr(QImg, "colorSpace"):
                 self.colorSpace=QImg.colorSpace
@@ -98,7 +95,7 @@ class vImage(QImage):
         Resize an image while keeping its aspect ratio.
         The original image is not modified.
         :param pixels: pixel count for the resized image
-        :return the resized vImage
+        :return : resized vImage
         """
         ratio = self.width() / float(self.height())
         w, h = int(np.sqrt(pixels * ratio)), int(np.sqrt(pixels / ratio))
@@ -118,29 +115,30 @@ class vImage(QImage):
 
     def applyLUT(self, LUT, widget=None):
 
-        # get image array
-        ndImg = self.cv2Img(cv2Type='RGB')
-
-        # apply LUT
-        convertedNdImg = LUTArray(ndImg, LUT)
-        convertedNdImg = convertedNdImg[:, :, :].astype(np.uint8)
-
-        # update Pixmap ans repaint
-        self.qPixmap = QPixmap.fromImage(ndarrayToQImage(convertedNdImg, QImage.Format_RGB888))
+        # get image buffer (BGR order on intel proc.)
+        ndImg0 = QImageBuffer(self.inputImg)[:, :, :3] #[:, :, ::-1]
+        ndImg1 = QImageBuffer(self)[:, :, :3]
+        # apply LUT to each channel
+        ndImg1[:,:,:]=LUT[ndImg0]
+        #update
+        self.updatePixmap()
         if widget is not None:
             widget.repaint()
 
     def apply3DLUT(self, LUT, widget=None):
 
         # get image buffer (type RGB)
-        ndImg = QImageBuffer(self)[:,:,:3][:,:,::-1]
+        #ndImg = QImageBuffer(self)[:,:,:3][:,:,::-1]
+        ndImg0 = QImageBuffer(self.inputImg)[:, :, :3] #[:, :, ::-1]
+        ndImg1 = QImageBuffer(self)[:, :, :3]
         start=time()
         """
         f = lambda *args : [interp(LUT, *x) for x in args]
 
         ndImg[:] = map(f, * [ndImg[:,c] for c in range(ndImg.shape[1])])
         """
-        ndImg[:,:,:] = interpVec(LUT, ndImg)
+        ndImg1[:,:,:] = interpVec(LUT, ndImg0)
+
         """
         for r in range(ndImg.shape[0]):
             for c in range(ndImg.shape[1]):
@@ -166,18 +164,34 @@ class vImage(QImage):
 
 class mImage(vImage):
     """
-    Multi-layer image
+    Multilayer image
     """
     def __init__(self, *args, **kwargs):
         super(mImage, self).__init__(*args, **kwargs)
         self._layers = {}
         self._layersStack = []
         # add background layer
-        self.addLayer(QLayer.frommImage(self), 'background')
+        bgLayer = QLayer.fromImage(self)
+        bgLayer.name = 'background'
+        self._layers[bgLayer.name] = bgLayer
+        self._layersStack.append(bgLayer)
 
-    def addLayer(self, layer, name):
-        self._layers[name] = layer
-        self._layersStack.append(layer)
+    def addLayer(self, lay, name):
+        lay.name = name
+        self._layers[name] = lay
+        self._layersStack.append(lay)
+
+
+    def addAdjustmentLayer(self, name='', window=None):
+        lay = QLayer(QImg=self)
+        lay.inputImg = QImage(self.size(), self.format())
+        self.addLayer(lay, name)
+        # paint inferior layers
+        qp = QPainter(lay.inputImg)
+        for l in self._layersStack:
+            qp.drawImage(QRect(0,0, l.width(), l.height()), l)
+        lay.window = window
+        return lay
 
     def refreshLayer(self, layer1, layer2):
         if layer1.name != layer2.name:
@@ -195,7 +209,7 @@ class mImage(vImage):
 
 class imImage(mImage) :
     """
-    Interactive multi layer image
+    Interactive multilayer image
     """
     def __init__(self, *args, **kwargs):
         #__init__(self, filename=None, cv2Img=None, QImg=None, cv2mask=None, copy=False, format=QImage.Format_ARGB32, colorSpace=-1, orientation=None) :
@@ -225,9 +239,11 @@ class imImage(mImage) :
         rszd0 = super(imImage, self).resize(pixels)
         rszd = imImage(QImg=rszd0)
         rszd.rect = rszd0.rect
-        for k in self._layers.keys():
-            if k != "background":
-                rszd._layers[k]=self._layers[k].resize(pixels, interpolation=cv2.INTER_NEAREST)
+        for k, l  in enumerate(self._layersStack):
+            if l.name != "background" and l.name != 'drawlayer':
+                img = QLayer.fromImage(self._layers[l.name].resize(pixels, interpolation=cv2.INTER_NEAREST))
+                rszd._layersStack.append (img)
+                rszd._layers[l.name] = img
         """
         rszd.drawLayer = QImage(rszd.qImg.width(), rszd.qImg.height(), QImage.Format_ARGB32)
         rszd.drawLayer.fill(QColor(0, 0, 0, 0))
@@ -235,41 +251,19 @@ class imImage(mImage) :
         """
         return rszd
 
-class LUTArray(object):
-    """
-    Array wrapper for LUT conversion
-    """
-    def __init__(self, a, LUT):
-        self.buf=a
-        self.LUT=LUT
-
-    def __getitem__(self, item):
-        return self.LUT[self.buf[item]]
-
-class LUT3DArray(object):
-    """
-    Array wrapper for 3D LUT conversion
-    """
-    def __init__(self, a, LUT):
-        self.buf=a
-        self.LUT=LUT
-
-    def __getitem__(self, item):
-        if isinstance(item[0], slice):
-            return np.array([[ interp(self.LUT, *self.buf[y,x])  for x in range(self.buf.shape[1])] for y in range(self.buf.shape[0])])
-        else:
-            return interp(self.LUT, self.buf[item])
-
 class QLayer(vImage):
     @classmethod
-    def frommImage(cls, mImg):
+    def fromImage(cls, mImg):
         mImg.visible = True
         mImg.alpha = 255
+        # for adjustment layer
         mImg.transfer = lambda: mImg.qPixmap
-        return mImg #QLayer(QImg=mImg)
+        mImg.inputImg = None
+        return mImg #QLayer(QImg=mImg) # TOD0 retype mImg as QLayer
 
     def __init__(self, *args, **kwargs):
         super(QLayer, self).__init__(*args, **kwargs)
+        self.name='anonymous'
         self.visible = True
         self.alpha=255
         self.transfer = lambda : self.qPixmap

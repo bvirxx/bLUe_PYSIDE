@@ -44,12 +44,16 @@ def convertQImage(image, fromProfile=SRGB_PROFILE, toProfile=SRGB_PROFILE):
     :param toProfile: the destination profile
     :return: The converted QImage
     """
+    p = fromProfile
     if len(image.profile) >0 :
         # Imbedded profile
-        p=getOpenProfile(StringIO(image.profile))
-    else:
+        try:
+            p=getOpenProfile(StringIO(image.profile))
+        except:
+            pass
+    #else:
         # Use color space tag
-        p=fromProfile
+        #p=fromProfile
 
     print "converted"
     converted_image = profileToProfile(QImageToPilImage(image), p, toProfile)

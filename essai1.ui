@@ -365,6 +365,7 @@
       <string>New adjustment layer</string>
      </property>
      <addaction name="actionBrightness_Contrast"/>
+     <addaction name="action3D_LUT"/>
     </widget>
     <addaction name="menuNew_adjustment_layer"/>
    </widget>
@@ -447,6 +448,11 @@
   <action name="actionBrightness_Contrast">
    <property name="text">
     <string>Brightness Contrast</string>
+   </property>
+  </action>
+  <action name="action3D_LUT">
+   <property name="text">
+    <string>3D LUT</string>
    </property>
   </action>
  </widget>
