@@ -17,8 +17,8 @@ class ExifTool(object):
     # -G0 : print group name for each tag
     flags = ["-j", "-a", "-n", "-S", "-G0", "-Orientation", "-ProfileDescription", "-colorSpace", "-InteropIndex", "-WhitePoint", "-PrimaryChromaticities", "-Gamma"]#, "-ICC_Profile:all"]
     extract_profile_flags = ["-icc_profile", "-b"]
-    def __init__(self, executable = "H:\standalone\exiftool\exiftool(-k)"):
-    #def __init__(self, executable="C:\standalone\exiftool(-k)"):
+    #def __init__(self, executable = "H:\standalone\exiftool\exiftool(-k)"):
+    def __init__(self, executable="C:\standalone\exiftool(-k)"):
         self.executable = executable
 
     def __enter__(self):

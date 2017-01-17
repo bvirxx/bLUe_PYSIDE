@@ -271,55 +271,67 @@ def interpVec(LUT, ndImg):
     Convert an RGB image using a 3D LUT. The output image is interpolated from the LUT.
     It has the same dimensions and type as the input image.
     We use a vectorized version of trilinear interpolation.
+    Cf. file trilinear.docx for details
 
     :param LUT: 3D LUT array
     :param ndImg: image array
     :return: RGB image with same dimensions as the input image
     """
 
-    # scale image pixels and get surrounding unit cubes
+    # bounding unit cube coordinates for (r, g, b)/LUTSTEP
     ndImgF = ndImg/float(LUTSTEP)
     a=np.floor(ndImgF).astype(int)
+    aplus1 = a + 1
+
+    r0, g0, b0 = a[:,:,0], a[:,:,1], a[:,:,2]
+    #r1, g1, b1 = aplus1[:,:,0], aplus1[:,:,1], aplus1[:,:,2]
 
     #apply LUT to cube vertices
-    ndImg00 = LUT[a[:,:,0], a[:,:,1], a[:,:,2]]
-    ndImg01 = LUT[a[:,:,0] +1, a[:,:,1], a[:,:,2]]
-    ndImg02 = LUT[a[:,:,0], a[:,:,1]+1, a[:,:,2]]
-    ndImg03 = LUT[a[:,:,0]+1, a[:,:,1]+1, a[:,:,2]]
+    ndImg00 = LUT[r0, g0, b0]
+    ndImg01 = LUT[r1, g0, b0]
+    ndImg02 = LUT[r0, g1, b0]
+    ndImg03 = LUT[r1, g1, b0]
 
-    ndImg10 = LUT[a[:,:,0], a[:,:,1], a[:,:,2]+1]
-    ndImg11 = LUT[a[:,:,0]+1, a[:,:,1], a[:,:,2]+1]
-    ndImg12 = LUT[a[:,:,0], a[:,:,1]+1, a[:,:,2]+1]
-    ndImg13 = LUT[a[:,:,0]+1, a[:,:,1]+1, a[:,:,2]+1]
+    ndImg10 = LUT[r0, g0, b1]
+    ndImg11 = LUT[r1, g0, b1]
+    ndImg12 = LUT[r0, g1, b1]
+    ndImg13 = LUT[r1, g1, b1]
 
-    # interpolate 
-    alpha = ndImgF[:,:,1] - a[:,:,1]
+
+    # interpolate
+    alpha =  ndImgF[:,:,1] - g0
     alpha=np.dstack((alpha, alpha, alpha))
-    """
-    I11Value= ndImg11[:,:,1] + alpha*(ndImg13[:,:,1]-ndImg11[:,:,1])
-    I12Value = ndImg10[:,:,1] + alpha*(ndImg12[:,:,1]-ndImg10[:,:,1])
-    I21Value = ndImg01[:,:,1] + alpha*(ndImg03[:,:,1]-ndImg01[:,:,1])
-    I22Value = ndImg00[:,:,1] + alpha*(ndImg02[:,:,1]-ndImg00[:,:,1])
-    """
+    #alpha = alpha[..., np.newaxis]  slower !
+    oneMinusAlpha = 1 - alpha
 
+    I11Value = oneMinusAlpha * ndImg11 + alpha * ndImg13
+    I12Value = oneMinusAlpha * ndImg10 + alpha * ndImg12
+    I21Value = oneMinusAlpha * ndImg01 + alpha * ndImg03
+    I22Value = oneMinusAlpha * ndImg00 + alpha * ndImg02
+    """
     I11Value = ndImg11 + alpha * (ndImg13 - ndImg11)
     I12Value = ndImg10 + alpha * (ndImg12 - ndImg10)
     I21Value = ndImg01 + alpha * (ndImg03 - ndImg01)
     I22Value = ndImg00 + alpha * (ndImg02 - ndImg00)
-
-    beta = ndImgF[:,:,0] - a[:,:,0]
+    """
+    beta = ndImgF[:,:,0] - r0
     beta = np.dstack((beta, beta, beta))
-    I1Value = I12Value + beta * (I11Value - I12Value)
-    I2Value = I22Value + beta * (I21Value - I22Value)
+    #beta = beta[..., np.newaxis] slower !
+    oneMinusBeta = 1 - beta
+    I1Value = oneMinusBeta * I12Value + beta * I11Value
+    I2Value = oneMinusBeta * I22Value + beta * I21Value
 
-    gamma = ndImgF[:,:,2] - a[:,:,2]
+    #I1Value = oneMinusBeta * oneMinusAlpha * ndImg10 + oneMinusBeta * alpha * ndImg12 + beta * oneMinusAlpha * ndImg11 + beta * alpha * ndImg13
+    #I2Value = oneMinusBeta * oneMinusAlpha * ndImg00 + oneMinusBeta * alpha * ndImg02 + beta * oneMinusAlpha * ndImg01 + beta * alpha * ndImg03
+
+    gamma = ndImgF[:,:,2] - b0
     gamma = np.dstack((gamma, gamma, gamma))
-    IValue = I2Value + gamma * (I1Value - I2Value)
+    #gamma = gamma[..., np.newaxis] slower !
+    IValue = (1 - gamma) * I2Value + gamma * I1Value
 
     return IValue
-
+"""
 def interp(LUT, i,j,k):
-    """
     Trilinear interpolation in a 3D LUT
 
                                               k    I12
@@ -339,7 +351,7 @@ def interp(LUT, i,j,k):
     :param LUT 3D LUT array
     :param i,j,k: coordinates to interpolate
     :return: interpolated value
-    """
+
     i16, j16, k16 = i/16, j/16, k/16
 
     C0 = (i16 , j16, k16)
@@ -386,21 +398,17 @@ def interp(LUT, i,j,k):
 
     #print "ivalue", IValue, i,j,k
     return IValue
-
+"""
 def lutNN(LUT, r,g,b):
     """
-    Get nearest neighbor vertex of (r,g,b) value in 3D LUT.
-    :param LUT:
+    Get the nearest neighbor vertex of a (r,g,b) value in 3D LUT.
+    :param LUT: 3D LUT array
     :param r:
     :param g:
     :param b:
-    :return: 3-uple of indices for NN vertex.
+    :return: 3-uple index of the NN vertex.
     """
-    """
-    x = 0 if r % 16 < 8 else 1
-    y = 0 if g % 16 < 8 else 1
-    z = 0 if b % 16 < 8 else 1
-    """
+
     x = 0 if r % LUTSTEP < LUTSTEP / 2 else 1
     y = 0 if g % LUTSTEP < LUTSTEP / 2 else 1
     z = 0 if b % LUTSTEP < LUTSTEP / 2 else 1

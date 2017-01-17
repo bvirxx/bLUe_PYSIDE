@@ -3,7 +3,7 @@ from imgconvert import *
 from PyQt4.QtGui import QPixmap, QImage, QColor
 from PyQt4.QtCore import QRect, QByteArray
 from icc import convert, convertQImage
-from LUT3D import interp, LUT3D, interpVec
+from LUT3D import LUT3D, interpVec
 from multiprocessing import Pool
 from time import time
 
