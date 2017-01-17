@@ -32,15 +32,9 @@ class hueSatModel (imImage):
         # RGB buffer
         imgBuf=imgBuf[:,:,:3][:,:,::-1]
 
-        # image buffer
-        img.hsArray = np.empty(imgBuf.shape)
-
-        #center
-        cx = w / 2
-        cy = h / 2
-
         clipping = np.zeros(imgBuf.shape, dtype=int)
-        radian2degree = 180.0 / np.pi
+
+        """
         for i in range(w):
             for j in range(h):
                 i1 = i - cx
@@ -53,19 +47,41 @@ class hueSatModel (imImage):
                 # r,g,b values
                 #c = hsp2rgb(hue, sat, perceptualBrightness, trunc=False)
                 img.hsArray[j,i,:]=(hue,sat, perceptualBrightness)
-                """
-                if sat <= 1.0 :
-                    # valid color
-                    c = hsp2rgbNew(hue, sat, perceptualBrightness, trunc=False)
-                    if c[0] <= 255 and c[1] <= 255 and c[2] <= 255:
-                        imgBuf[j, i] = c
-                    else:
-                        imgBuf[j, i] = np.clip(c, 0, 255)
-                        clipping[j,i] = True
-                # sat>= 1
-                else:
-                    imgBuf[j, i] = 0 #np.clip(c, 0, 255)
-                """
+        """
+        coord = np.array([[[i, -j] for i in range(w)] for j in range(h)])
+        # center  : i1 = i - cx, j1 = -j + cy
+        cx = w / 2
+        cy = h / 2
+        coord = coord + np.array([-cx, cy])
+
+        # set hue, sat from polar coordinates
+        # arctan2 values are in range -pi, pi
+        hue = np.arctan2(coord[:,:,1], coord[:,:,0]) * (180.0 / np.pi) + cls.rotation
+        # range 0..360
+        hue = hue - np.floor(hue / 360.0) * 360
+
+        sat = np.linalg.norm(coord, axis=2 ,ord=2) / cx
+        sat = np.minimum(sat, 1.0)
+
+        # fixed perceptual brightness
+        pb = np.zeros(hue.shape) + perceptualBrightness
+
+        # image buffer using HSP color model
+        img.hsArray = np.dstack((hue, sat, pb))
+
+        """
+        if sat <= 1.0 :
+            # valid color
+            c = hsp2rgbNew(hue, sat, perceptualBrightness, trunc=False)
+            if c[0] <= 255 and c[1] <= 255 and c[2] <= 255:
+                imgBuf[j, i] = c
+            else:
+                imgBuf[j, i] = np.clip(c, 0, 255)
+                clipping[j,i] = True
+        # sat>= 1
+        else:
+            imgBuf[j, i] = 0 #np.clip(c, 0, 255)
+        """
         imgBuf[:,:,:] = hsp2rgbVec(img.hsArray)
         # mark center and clipped area
         qp = QPainter(img)
