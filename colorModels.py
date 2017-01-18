@@ -1,6 +1,6 @@
 import numpy as np
 from MarkedImg import imImage
-from LUT3D import rgb2hsB, hsv2rgbVec,hsp2rgb, hsp2rgbNew, hsp2rgbVec, lutNN
+from LUT3D import rgb2hsB, hsv2rgbVec,hsp2rgb,  hsp2rgbVec, lutNN
 from math import floor
 from PyQt4.QtGui import QImage, QColor, QPainter, QBrush
 from imgconvert import QImageBuffer
@@ -96,6 +96,14 @@ class hueSatModel (imImage):
         img = QImage(w,h, QImage.Format_ARGB32)
         super(hueSatModel, self).__init__(QImg=img)
         self.pb = perceptualBrightness
+        self.hsArray = None
+
+    def setPb(self,pb):
+        self.pb = pb
+        self.hsArray[:,:,2] = pb
+        imgBuf = QImageBuffer(self)[:,:,:3][:,:,::-1]
+        imgBuf[:,:,:] = hsp2rgbVec(self.hsArray)
+
 
     def GetPoint(self, h, s):
         cx = self.width() / 2
@@ -129,22 +137,20 @@ class pbModel (imImage):
     def colorChart(cls, w, h, hue, sat):
 
         img = pbModel(w, h)
-        # image buffer (RGB type)
+        # image buffer (BGRA type)
         imgBuf = QImageBuffer(img)
-
-        # alpha
+        # set alpha
         imgBuf[:,:,3] = 255
         #RGB order
         imgBuf=imgBuf[:,:,:3][:,:,::-1]
 
-
         clipping = np.zeros(imgBuf.shape, dtype=int)
-        for i in range(w):
-            for j in range(h):
-                p= i / float(w)
-                # r,g,b values
-                c = hsp2rgb(hue, sat, p , trunc=False)
+        wF = float(w)
+        hsArray = np.array([[[hue, sat, i/wF] for i in range(w)] for j in range(h)])
 
+        imgBuf[:,:,:] = hsp2rgbVec(hsArray)
+
+        """
                 if sat <=1.0 :
                     # valid color
                     if c[0] <= 255 and c[1] <= 255 and c[2] <= 255:
@@ -155,7 +161,7 @@ class pbModel (imImage):
                 # sat>= 1
                 else:
                     imgBuf[j, i] = 0 #np.clip(c, 0, 255)
-
+        """
         # mark center and clipped area
         #qp = QPainter(img)
         #b=np.logical_xor(clipping , np.roll(clipping, 1,axis=0))

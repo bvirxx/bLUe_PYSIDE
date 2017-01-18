@@ -140,7 +140,7 @@ def hsv2rgb(h,s,v):
 
     return r,g,b
 
-def hsp2rgb(h,s,p, trunc=True):
+def hsp2rgbOld(h,s,p, trunc=True):
     """
     Transform the hue, saturation and perceptual brightness h, s, p components of a color
     into red, green, blue values.
@@ -234,11 +234,12 @@ def hsp2rgb(h,s,p, trunc=True):
     else:
         return int(round(r * 255)), int(round(g * 255)), int(round(b * 255))
 
+def hsp2rgb(h,s,p):
+    return hsp2rgb_ClippingInd(h,s,p)[:3]
 
-
-def hsp2rgbNew(h,s,p, trunc=True):
+def hsp2rgb_ClippingInd(h,s,p, trunc=True):
     """
-    Transform the hue, saturation and perceptual brightness h, s, p components of a color
+    Transform the hue, saturation and perceptual brightness components of a color
     into red, green, blue values.
     :param h: float value in range 0..360
     :param s: float value in range 0..1
@@ -313,10 +314,11 @@ def hsp2rgbNew(h,s,p, trunc=True):
 
     pc= Perc_R * r * r + Perc_G * g * g + Perc_B * b * b
     assert abs(p*p - pc)<= 0.000001, 'hsp2rgb error'
+    clippingInd = max(r,g,b) > 1.0
     if trunc:
-        return min(255,int(round(r*255))), min(255,int(round(g*255))), min(255, int(round(b*255)))
+        return min(255,int(round(r*255))), min(255,int(round(g*255))), min(255, int(round(b*255))), clippingInd
     else:
-        return int(round(r * 255)), int(round(g * 255)), int(round(b * 255))
+        return int(round(r * 255)), int(round(g * 255)), int(round(b * 255)), clippingInd
 
 
 def hsp2rgbVec(hspImg):
