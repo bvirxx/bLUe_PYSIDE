@@ -352,6 +352,7 @@
       <addaction name="actionProfile_1"/>
      </widget>
      <addaction name="menuAssign_profile"/>
+     <addaction name="actionColor_manage"/>
     </widget>
     <addaction name="menuColor_settings"/>
     <addaction name="actionImage_info"/>
@@ -453,6 +454,17 @@
   <action name="action3D_LUT">
    <property name="text">
     <string>3D LUT</string>
+   </property>
+  </action>
+  <action name="actionColor_manage">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Color manage</string>
    </property>
   </action>
  </widget>

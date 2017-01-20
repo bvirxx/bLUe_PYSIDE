@@ -2,11 +2,13 @@ import cv2
 from imgconvert import *
 from PyQt4.QtGui import QPixmap, QImage, QColor, QPainter
 from PyQt4.QtCore import QRect, QByteArray
-from icc import convert, convertQImage
+from icc import convertQImage, MONITOR_PROFILE, COLOR_MANAGE
 from LUT3D import LUT3D, interpVec
 from multiprocessing import Pool
 from time import time
+import re
 
+COLOR_MANAGE = True
 class vImage(QImage):
     """
     versatile image class.
@@ -57,24 +59,23 @@ class vImage(QImage):
         self.data=self.bits()
 
         self.updatePixmap()
-        """
-        if self.colorSpace == 1 or len(self.profile)> 0:
-            print self.colorSpace
-            cvqim=convertQImage(self)
-            self.qPixmap = QPixmap.fromImage(cvqim)
-        else:
-            self.qPixmap = QPixmap.fromImage(self)
-        """
+
         if self.mask is None:
             self.mask = QImage(self.width(), self.height(), QImage.Format_ARGB32)
             self.mask.fill(0)
 
     def updatePixmap(self):
+        # 1=sRGB
         if self.colorSpace == 1 or len(self.profile)> 0:
-            print self.colorSpace
-            cvqim=convertQImage(self)
+            print 'update convert', self.colorSpace
+            if COLOR_MANAGE:
+                cvqim=convertQImage(self, toProfile=MONITOR_PROFILE)
+            else:
+                print 'update', self.colorSpace
+                cvqim = convertQImage(self)
             self.qPixmap = QPixmap.fromImage(cvqim)
         else:
+            print 'no color space', self.colorSpace
             self.qPixmap = QPixmap.fromImage(self)
 
     def cv2Img(self, cv2Type='BGRA'):
@@ -104,6 +105,7 @@ class vImage(QImage):
         cv2Img = cv2.resize(self.cv2Img(), (w, h), interpolation=interpolation)
         # create new vImage
         rszd = vImage(cv2Img=cv2Img)
+        rszd.colorSpace = self.colorSpace
 
         #resize rect and mask
         if self.rect is not None:
@@ -175,11 +177,21 @@ class mImage(vImage):
         bgLayer.name = 'background'
         self._layers[bgLayer.name] = bgLayer
         self._layersStack.append(bgLayer)
+        self.activeLayer = bgLayer
 
     def addLayer(self, lay, name):
-        lay.name = name
-        self._layers[name] = lay
+        # find an unused name
+        usedNames = [l.name for l in self._layersStack]
+        a = 1
+        trialname = name
+        while trialname in usedNames:
+            trialname = name + '_'+ str(a)
+            a = a+1
+        lay.name = trialname
+        #lay.window = None
+        self._layers[lay.name] = lay
         self._layersStack.append(lay)
+        lay.colorSpace = self.colorSpace
 
 
     def addAdjustmentLayer(self, name='', window=None):
@@ -192,6 +204,10 @@ class mImage(vImage):
             qp.drawImage(QRect(0,0, l.width(), l.height()), l)
         lay.window = window
         return lay
+
+    def updatePixmaps(self):
+        for l in self._layersStack:
+            l.updatePixmap()
 
     def refreshLayer(self, layer1, layer2):
         if layer1.name != layer2.name:
@@ -206,6 +222,18 @@ class mImage(vImage):
         self.cv2Img = cv2.cvtColor(self.cv2Img, cv2.COLOR_BGR2GRAY)
         #self.qImg = gray2qimage(self.cv2Img)
 
+    def save(self, filename):
+        img = QImage(self.width(), self.height(), self.format())
+        qpainter = QPainter(img)
+        for layer in self._layersStack:
+            if layer.visible:
+                if layer.qPixmap is not None:
+                    qpainter.drawPixmap(0,0, layer.transfer()
+                                  )
+                else:
+                    qpainter.drawImage(0,0, layer)
+
+        img.save(filename)
 
 class imImage(mImage) :
     """
@@ -256,6 +284,7 @@ class QLayer(vImage):
     def fromImage(cls, mImg):
         mImg.visible = True
         mImg.alpha = 255
+        mImg.window = None
         # for adjustment layer
         mImg.transfer = lambda: mImg.qPixmap
         mImg.inputImg = None
@@ -267,6 +296,7 @@ class QLayer(vImage):
         self.visible = True
         self.alpha=255
         self.transfer = lambda : self.qPixmap
+        self.window = None
 
 
 

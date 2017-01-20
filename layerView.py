@@ -44,12 +44,6 @@ class QLayerView(QTableView) :
                 items.append(item_visible)
             item_name = QStandardItem(QIcon(k.qPixmap), k.name)
             items.append(item_name)
-            """
-            headerNames = []
-            headerNames.append("Last Name")
-            headerNames.append("First Name")
-            model.setHorizontalHeaderLabels(headerNames)
-            """
             model.appendRow(items)
         self.setModel(model)
         header = self.horizontalHeader()
@@ -66,6 +60,8 @@ class QLayerView(QTableView) :
         if clickedIndex.column() == 0 :
             self.img._layersStack[l-1-row].visible = not(self.img._layersStack[l-1-row].visible)
         elif clickedIndex.column() == 1 :
+            # make sected layer the active layer
+            self.img.activeLayer = self.img._layersStack[l-1-row]
             # show/hide window for adjustment layer
             win = self.img._layersStack[l-1-row].window
             if win is not None:

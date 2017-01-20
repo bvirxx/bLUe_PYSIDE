@@ -8,12 +8,13 @@ import time
 import exiftool
 from imgconvert import *
 from MarkedImg import mImage, imImage, QLayer
-from icc import convert
+
 from graphicsLUT import graphicsForm
 from graphicsLUT3D import graphicsForm3DLUT
 from LUT3D import rgb2hsB,hsp2rgb, LUT3D
 from math import floor
 from colorModels import hueSatModel
+from icc import COLOR_MANAGE
 
 P_SIZE=4000000
 
@@ -23,7 +24,7 @@ CONST_BG_COLOR = QColor(255, 0, 255,128)
 thickness = 30*4
 State = {'drag' : False, 'drawing' : False , 'tool_rect' : False, 'rect_over' : False, 'ix' : 0, 'iy' :0, 'rawMask' : None}
 # application windows
-Wins = {}
+Wins = {'3D_LUT': None, 'Brightness-Contrast':None}
 rect_or_mask = 0
 
 def QRect2tuple(qrect):
@@ -159,10 +160,15 @@ def canny(img0, img1) :
    img1.__set_cv2Img(edges)
    window.label_2.repaint()
 
+# painter for images
 qp=QPainter()
 
-
 def paintEvent(widg, e) :
+    """
+    paint event handler for a widget dispaying a mImage
+    :param widg:
+    :param e: paint event
+    """
 
     qp.begin(widg)
     qp.translate(5, 5)
@@ -174,7 +180,7 @@ def paintEvent(widg, e) :
     qp.setPen(QColor(0,255,0))
     qp.fillRect(QRect(0, 0, widg.width() - 10, widg.height() - 10), QColor(255, 128, 0, 50));
 
-    for layer in mimg._layersStack : #mimg._layers.values() :
+    for layer in mimg._layersStack :
         if layer.visible:
             if layer.qPixmap is not None:
                 qp.drawPixmap(QRect(mimg.xOffset,mimg.yOffset, mimg.width()*r-10, mimg.height()*r-10), # target rect
@@ -302,7 +308,11 @@ def mouseEvent(widget, event) :
                 #i,j= hsModel.colorPickerGetPoint(h,s)
                 # The selected node corresponds to the background layer : it does not take into account
                 # the modifications induced by adjustment layers
-                Wins['3D_LUT'].selectGridNode(r, g, b)
+                if hasattr(img.activeLayer.window.widget(), 'selectGridNode'):
+                    #Wins['3D_LUT'].selectGridNode(r, g, b)
+                    img.activeLayer.window.widget().selectGridNode(r, g, b)
+                else:
+                    print type(img.activeLayer.window.widget())
                 #Wins['3D_LUT'].select(h,s,p)
                 #window.label_2.img.apply3DLUT(LUT3D)
                 window.label.repaint()
@@ -420,8 +430,13 @@ def menuFile(name):
             window.settings.setValue('paths/recent', window._recentFiles)
             window.updateMenuOpenRecent()
             openFile(filenames[0])
-            #window.label.img = imImage(filename=filenames[0])
-            #window.label.repaint()
+    elif name == 'actionSave':
+        lastDir = window.settings.value('paths/dlgdir', 'F:/bernard').toString()
+        dlg = QFileDialog(window, "select", lastDir)
+
+        if dlg.exec_():
+            filenames = dlg.selectedFiles()
+            window.label.img.save(filenames[0])
 
 # hsModel= hueSatModel.colorWheel(500, 500)
 
@@ -472,6 +487,11 @@ def menuImage(x, name) :
 
     if name == 'actionImage_info' :
         print window.label.img.metadata
+    elif name == 'actionColor_manage':
+        COLOR_MANAGE = window.actionColor_manage.isChecked()
+        window.label.img.updatePixmaps()
+        window.label_2.img.updatePixmaps()
+
 
 
 def menuLayer(x, name):
@@ -497,19 +517,19 @@ def menuLayer(x, name):
         grWindow.graphicsScene.onUpdateScene = lambda : l.applyLUT(grWindow.graphicsScene.LUTXY, widget=window.label)
         window.label.repaint()
     elif name == 'action3D_LUT':
-        grWindow = graphicsForm3DLUT.getNewWindow(size=800)
-        Wins['3D_LUT'] = grWindow
+        l = window.label.img.addAdjustmentLayer(name='3D LUT')
+        window.tableView.addLayers(window.label.img)
+        grWindow = graphicsForm3DLUT.getNewWindow(size=800, title= l.name, parent=window)
+        Wins[l.name] = grWindow
         dock = QDockWidget(window)
+        l.window = dock
         dock.setWidget(grWindow)
         dock.setWindowFlags(Qt.WindowStaysOnTopHint)
-        dock.setAttribute(Qt.WA_DeleteOnClose)
+        #dock.setAttribute(Qt.WA_DeleteOnClose)
         dock.setWindowTitle(grWindow.windowTitle())
+        dock.move(500, 40)
         #window.addDockWidget(Qt.RightDockWidgetArea, dock);
-        #l = QLayer(QImg=window.label_2.img.copy(QRect(1,1,500,500)))#QLayer(QImg=window.label.img)
-        #l.inputImg = window.label.img.copy(QRect(1,1,500,500))
-        #l.apply3DLUT(grWindow.graphicsScene.LUT3D, widget=window.label)
-        l = window.label.img.addAdjustmentLayer(name='3D LUT', window=dock)
-        window.tableView.addLayers(window.label.img)
+
         grWindow.graphicsScene.onUpdateScene = lambda: l.apply3DLUT(grWindow.graphicsScene.LUT3D, widget=window.label)
         window.label.repaint()
 """

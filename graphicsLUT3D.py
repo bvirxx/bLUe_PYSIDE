@@ -172,7 +172,8 @@ class colorPicker(QGraphicsPixmapItem):
 #main class
 class graphicsForm3DLUT(QGraphicsView) :
     """
-    Color wheel for 3D LUT
+    Interactive color wheel for 3D LUT adjustment.
+    Color model is hsp.
     """
     # markers for grid nodes
     qpp0 = QPainterPath()
@@ -183,17 +184,26 @@ class graphicsForm3DLUT(QGraphicsView) :
     qpp1.addEllipse(0, 0, 5, 5)
     unselectBrush = QBrush()
 
+    # default perceptual brightness
     colorWheelPB = 0.45
 
     @classmethod
-    def getNewWindow(cls, size=500):
-        newWindow = graphicsForm3DLUT(size)
-        newWindow.setAttribute(Qt.WA_DeleteOnClose)
-        newWindow.setWindowTitle('3D LUT')
+    def getNewWindow(cls, size=500, title='', parent=None):
+        """
+        build a graphicsForm3DLUT object. The parameter size gives the size of
+        the color wheel. The total size of the window is adjusted
+        to fit the size of the color wheel.
+        :param size: size of the color wheel
+        :param parent: parent widget
+        :return: graphicsForm3DLUT object
+        """
+        newWindow = graphicsForm3DLUT(size,parent=parent)
+        #newWindow.setAttribute(Qt.WA_DeleteOnClose)
+        newWindow.setWindowTitle(title)
         return newWindow
 
-    def __init__(self, size):
-        super(graphicsForm3DLUT, self).__init__()
+    def __init__(self, size, parent=None):
+        super(graphicsForm3DLUT, self).__init__(parent=parent)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(size+40, size+170)
         self.setWindowFlags(Qt.WindowStaysOnTopHint)
