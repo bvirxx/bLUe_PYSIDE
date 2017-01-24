@@ -85,7 +85,6 @@ class Form1(QtGui.QMainWindow):
         return profileList
 
     def updateMenuOpenRecent(self):
-        print 'update'
         self.menuOpen_recent.clear()
         for f in self._recentFiles :
             self.menuOpen_recent.addAction(f, lambda x=f: self.execFileOpen(x))

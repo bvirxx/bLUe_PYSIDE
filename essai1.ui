@@ -353,6 +353,7 @@
      </widget>
      <addaction name="menuAssign_profile"/>
      <addaction name="actionColor_manage"/>
+     <addaction name="actionWorking_profile"/>
     </widget>
     <addaction name="menuColor_settings"/>
     <addaction name="actionImage_info"/>
@@ -465,6 +466,11 @@
    </property>
    <property name="text">
     <string>Color manage</string>
+   </property>
+  </action>
+  <action name="actionWorking_profile">
+   <property name="text">
+    <string>Working profile</string>
    </property>
   </action>
  </widget>

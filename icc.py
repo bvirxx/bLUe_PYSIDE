@@ -1,5 +1,5 @@
 from PIL import Image
-from PIL.ImageCms import profileToProfile, getOpenProfile
+from PIL.ImageCms import profileToProfile, getOpenProfile, get_display_profile, getProfileDescription, getProfileInfo, buildTransformFromOpenProfiles, applyTransform
 from PIL.ImageQt import ImageQt
 import numpy as np
 from PyQt4.QtGui import QPixmap, QImage
@@ -11,9 +11,14 @@ from os import path
 # global flag
 COLOR_MANAGE = True
 
-ADOBE_RGB_PROFILE = "C:\Windows\System32\spool\drivers\color\AdobeRGB1998.icc"
-SRGB_PROFILE = "C:\Windows\System32\spool\drivers\color\sRGB Color Space Profile.icm"
-MONITOR_PROFILE = "C:\Windows\System32\spool\drivers\color\CS240(34381075)00000002.icc"  #photography CS240 calibration
+ADOBE_RGB_PROFILE_PATH = "C:\Windows\System32\spool\drivers\color\AdobeRGB1998.icc"
+SRGB_PROFILE_PATH = "C:\Windows\System32\spool\drivers\color\sRGB Color Space Profile.icm"
+MONITOR_PROFILE_PATH = "C:\Windows\System32\spool\drivers\color\CS240(34381075)00000002.icc"  #photography CS240 calibration
+
+dp=get_display_profile()
+WORKING_PROFILE_INFO=getProfileInfo(dp)
+ip = getOpenProfile(SRGB_PROFILE_PATH)
+t = buildTransformFromOpenProfiles(ip, dp, "RGB", "RGB")
 
 """
 def convert(f, fromProfile=SRGB_PROFILE, toProfile=MONITOR_PROFILE):
@@ -41,7 +46,7 @@ def convert(f, fromProfile=SRGB_PROFILE, toProfile=MONITOR_PROFILE):
         return qim
 """
 
-def convertQImage(image, fromProfile=SRGB_PROFILE, toProfile=SRGB_PROFILE):
+def convertQImage(image, fromProfile=SRGB_PROFILE_PATH, toProfile=SRGB_PROFILE_PATH):
     """
     Convert a QImage from profile fromProfile to profile toProfile.
     :param image: source QImage
@@ -49,18 +54,18 @@ def convertQImage(image, fromProfile=SRGB_PROFILE, toProfile=SRGB_PROFILE):
     :param toProfile: the destination profile, default sRGB
     :return: The converted QImage
     """
+
     if fromProfile == toProfile:
         return image
 
     p = fromProfile
-    if len(image.profile) >0 :
+    if len(image.meta.profile) >0 :
         # Imbedded profile
         try:
             p=getOpenProfile(StringIO(image.profile))
         except:
             pass
-
-    converted_image = profileToProfile(QImageToPilImage(image), p, toProfile)
-    print "converted from profile %s to profile %s" % (path.split(fromProfile)[1], path.split(toProfile)[1])
-
+    # convert
+    #converted_image = profileToProfile(QImageToPilImage(image), p, toProfile)
+    converted_image = applyTransform(QImageToPilImage(image), t, 0)
     return PilImageToQImage(converted_image)

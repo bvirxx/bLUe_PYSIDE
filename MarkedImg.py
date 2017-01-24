@@ -2,44 +2,57 @@ import cv2
 from imgconvert import *
 from PyQt4.QtGui import QPixmap, QImage, QColor, QPainter
 from PyQt4.QtCore import QRect, QByteArray
-from icc import convertQImage, MONITOR_PROFILE, COLOR_MANAGE
+from icc import convertQImage, MONITOR_PROFILE_PATH, COLOR_MANAGE
 from LUT3D import LUT3D, interpVec
 from multiprocessing import Pool
 from time import time
 import re
+import icc
+from copy import copy
 
-COLOR_MANAGE = True
+class metadata:
+    def __init__(self):
+        self.name, self.colorSpace, self.rawMetadata, self.profile, self.orientation = '', -1, [], '', None
+
 class vImage(QImage):
     """
     versatile image class.
     This is the base class for all multi-layered and interactive image classes
     """
-
+    """
     def fromQImage(cls, qImg):
         qImg.rect, qImg.mask, qImg.name = None, None, ''
         qImg.qPixmap = QPixmap.fromImage(qImg)
         qImg.__class__ = vImage
         return qImg
-
+    """
     def __init__(self, filename=None, cv2Img=None, QImg=None, cv2mask=None, copy=False, format=QImage.Format_ARGB32,
-                 colorSpace=-1, orientation=None, metadata=None, profile=''):
-        self.rect, self.mask, self.colorSpace, self.metadata, self.profile = None, cv2mask, colorSpace, metadata, profile
-        self.name=''
-        self.cv2Cache = None
+                 name='', colorSpace=-1, orientation=None, meta=None, rawMetadata=[], profile=''):
+
+        # metadata
+        if meta is None:
+            self.meta = metadata()
+            self.meta.name, self.meta.colorSpace, self.meta.rawMetadata, self.meta.profile, self.meta.orientation = name, colorSpace, rawMetadata, profile, orientation
+        else:
+            self.meta = meta
+
+        self.rect, self.mask, = None, cv2mask
+
+        self.cv2Cache = None # TODO : remove
         self.cv2CacheType=None
         if (filename is None and cv2Img is None and QImg is None):
             # create a null image
             super(vImage, self).__init__()
         if filename is not None:
             # load file
-            if orientation is not None:
-                tmp =QImage(filename).transformed(orientation)
+            if self.meta.orientation is not None:
+                tmp =QImage(filename).transformed(self.meta.orientation)
             else:
                 tmp = QImage(filename)
 
             super(vImage, self).__init__(tmp)
-            if orientation is not None:
-                self.transformed(orientation)
+            if self.meta.orientation is not None:
+                self.transformed(self.meta.orientation)
         elif QImg is not None:
             if copy:
                 #d o a deep copy
@@ -65,17 +78,16 @@ class vImage(QImage):
             self.mask.fill(0)
 
     def updatePixmap(self):
-        # 1=sRGB
-        if self.colorSpace == 1 or len(self.profile)> 0:
-            print 'update convert', self.colorSpace
-            if COLOR_MANAGE:
-                cvqim=convertQImage(self, toProfile=MONITOR_PROFILE)
+        if icc.COLOR_MANAGE:
+            # 1=sRGB
+            if self.meta.colorSpace == 1 or len(self.meta.profile)> 0:
+                print 'update convert cm', self.meta.colorSpace, self.format(), self.meta.name
+                cvqim=convertQImage(self, toProfile=MONITOR_PROFILE_PATH)
             else:
-                print 'update', self.colorSpace
-                cvqim = convertQImage(self)
+                cvqim = self
             self.qPixmap = QPixmap.fromImage(cvqim)
         else:
-            print 'no color space', self.colorSpace
+            print 'no color space', self.meta.colorSpace, self.format(), self.meta.name
             self.qPixmap = QPixmap.fromImage(self)
 
     def cv2Img(self, cv2Type='BGRA'):
@@ -93,19 +105,21 @@ class vImage(QImage):
 
     def resize(self, pixels, interpolation=cv2.INTER_CUBIC):
         """
-        Resize an image while keeping its aspect ratio.
+        Resize an image while keeping its aspect ratio. We use
+        the opencv finction cv2.resize() to perform the resizing operation, so we
+        can choose the resizing method (default cv2.INTER_CUBIC)
         The original image is not modified.
         :param pixels: pixel count for the resized image
-        :return : resized vImage
+        :param interpolation method (default cv2.INTER_CUBIC)
+        :return : the resized vImage
         """
         ratio = self.width() / float(self.height())
         w, h = int(np.sqrt(pixels * ratio)), int(np.sqrt(pixels / ratio))
         hom = w / float(self.width())
-        # resize
-        cv2Img = cv2.resize(self.cv2Img(), (w, h), interpolation=interpolation)
-        # create new vImage
-        rszd = vImage(cv2Img=cv2Img)
-        rszd.colorSpace = self.colorSpace
+        # resizing
+        cv2Img = cv2.resize(QImageBuffer(self), (w, h), interpolation=interpolation)
+        # creating new vImage
+        rszd = vImage(cv2Img=cv2Img, meta=copy(self.meta), format=self.format())
 
         #resize rect and mask
         if self.rect is not None:
@@ -191,17 +205,24 @@ class mImage(vImage):
         #lay.window = None
         self._layers[lay.name] = lay
         self._layersStack.append(lay)
-        lay.colorSpace = self.colorSpace
-
+        lay.meta = self.meta
+        if lay.name != 'drawlayer':
+            lay.updatePixmap()
 
     def addAdjustmentLayer(self, name='', window=None):
         lay = QLayer(QImg=self)
         lay.inputImg = QImage(self.size(), self.format())
         self.addLayer(lay, name)
-        # paint inferior layers
+        # paint image from lower layers
         qp = QPainter(lay.inputImg)
         for l in self._layersStack:
-            qp.drawImage(QRect(0,0, l.width(), l.height()), l)
+            qp.drawImage(QRect(0, 0, l.width(), l.height()), l)
+            """
+            if l.qPixmap is not None:
+                qp.drawPixmap(QRect(0, 0, l.width(), l.height()), l.qPixmap) # don't use drawPixmap , otherwise color management will be applied twice
+            else:
+                qp.drawImage(QRect(0,0, l.width(), l.height()), l)
+            """
         lay.window = window
         return lay
 
@@ -240,8 +261,7 @@ class imImage(mImage) :
     Interactive multilayer image
     """
     def __init__(self, *args, **kwargs):
-        #__init__(self, filename=None, cv2Img=None, QImg=None, cv2mask=None, copy=False, format=QImage.Format_ARGB32, colorSpace=-1, orientation=None) :
-        super(imImage, self).__init__(*args, **kwargs) #(filename=filename, cv2Img=cv2Img, QImg=QImg, cv2mask=cv2mask, copy=copy, format=format, colorSpace=colorSpace, orientation=orientation)
+        super(imImage, self).__init__(*args, **kwargs)
         self.Zoom_coeff = 1.0
         self.xOffset, self.yOffset = 0, 0
 
@@ -264,19 +284,23 @@ class imImage(mImage) :
         return r * self.Zoom_coeff
 
     def resize(self, pixels, interpolation=cv2.INTER_CUBIC):
-        rszd0 = super(imImage, self).resize(pixels)
-        rszd = imImage(QImg=rszd0)
+        """
+        Resize image and layers
+        :param pixels:
+        :param interpolation:
+        :return:
+        """
+        # resized vImage
+        rszd0 = super(imImage, self).resize(pixels, interpolation=interpolation)
+        # resized imImage
+        rszd = imImage(QImg=rszd0,meta=copy(self.meta))
         rszd.rect = rszd0.rect
         for k, l  in enumerate(self._layersStack):
             if l.name != "background" and l.name != 'drawlayer':
-                img = QLayer.fromImage(self._layers[l.name].resize(pixels, interpolation=cv2.INTER_NEAREST))
+                img = QLayer.fromImage(self._layers[l.name].resize(pixels, interpolation=interpolation))
                 rszd._layersStack.append (img)
                 rszd._layers[l.name] = img
-        """
-        rszd.drawLayer = QImage(rszd.qImg.width(), rszd.qImg.height(), QImage.Format_ARGB32)
-        rszd.drawLayer.fill(QColor(0, 0, 0, 0))
-        rszd.layers.append(rszd.drawLayer)
-        """
+
         return rszd
 
 class QLayer(vImage):

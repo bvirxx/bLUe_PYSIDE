@@ -1,10 +1,10 @@
 import sys
-from PyQt4.QtGui import QApplication, QPainter, QWidget, QPixmap
+from PyQt4.QtGui import QApplication, QPainter, QWidget, QPixmap, QPushButton
 from PyQt4.QtGui import QGraphicsView, QGraphicsScene, QGraphicsPathItem , QGraphicsPixmapItem, QGraphicsTextItem, QPolygonF, QGraphicsPolygonItem , QPainterPath, QPainterPathStroker, QPen, QBrush, QColor, QPixmap, QMainWindow, QLabel, QSizePolicy
-from PyQt4.QtCore import Qt, QPoint, QPointF, QRect, QRectF
+from PyQt4.QtCore import Qt, QPoint, QPointF, QRect, QRectF, QString
 import numpy as np
 from time import time
-from LUT3D import LUTSTEP, LUT3D, rgb2hsB, hsp2rgb, hsp2rgb_ClippingInd
+from LUT3D import LUTSTEP, LUT3D, rgb2hsB, hsp2rgb, hsp2rgb_ClippingInd, reset_LUT3D
 from colorModels import hueSatModel, pbModel
 
 
@@ -261,10 +261,16 @@ class graphicsForm3DLUT(QGraphicsView) :
         #self.graphicsScene.bSlider.setPixmap(QPixmap.fromImage(pbModel.colorChart(QImg.width(), QImg.width() / 10, self.currentHue, self.currentSat)))
         self.displayStatus()
 
-        self.graphicsScene.onUpdateScene = lambda : 0
+        self.graphicsScene.onUpdateScene = lambda : 0  #unsused
         self.setRenderHints(QPainter.Antialiasing | QPainter.SmoothPixmapTransform)
 
         self.grid = activeGrid(parent=self.graphicsScene.colorWheel)
+
+        # reset button
+        pushButton = QPushButton("reset", self)
+        pushButton.setObjectName("btn_reset")
+        pushButton.setGeometry(550, size+80, 115, 32)  # x,y,w,h
+        pushButton.clicked.connect(self.onReset)
 
 
     def selectGridNode(self, r, g, b):
@@ -306,3 +312,12 @@ class graphicsForm3DLUT(QGraphicsView) :
     def onSelectGridNode(self, h, s):
         self.bSliderUpdate()
         self.displayStatus()
+
+    def onReset(self):
+        LUT3D = reset_LUT3D()
+        self.graphicsScene.LUT3D = LUT3D
+        self.selected=None
+        self.graphicsScene.removeItem(self.grid)
+        self.grid=activeGrid(parent=self.graphicsScene.colorWheel)
+        self.scene().onUpdateScene()
+        print "lut reset"

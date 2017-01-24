@@ -14,7 +14,7 @@ from graphicsLUT3D import graphicsForm3DLUT
 from LUT3D import rgb2hsB,hsp2rgb, LUT3D
 from math import floor
 from colorModels import hueSatModel
-from icc import COLOR_MANAGE
+import icc
 
 P_SIZE=4000000
 
@@ -162,14 +162,17 @@ def canny(img0, img1) :
 
 # painter for images
 qp=QPainter()
-
+bgColor=QColor(100,100,100)
 def paintEvent(widg, e) :
     """
     paint event handler for a widget dispaying a mImage
     :param widg:
     :param e: paint event
     """
-
+    if not hasattr(widg, 'img'):
+        return
+    if widg.img is None:
+        return
     qp.begin(widg)
     qp.translate(5, 5)
     qp.setClipRect(QRect(0,0, widg.width()-10, widg.height()-10))
@@ -178,7 +181,8 @@ def paintEvent(widg, e) :
     mimg= widg.img
     r=mimg.resize_coeff(widg)
     qp.setPen(QColor(0,255,0))
-    qp.fillRect(QRect(0, 0, widg.width() - 10, widg.height() - 10), QColor(255, 128, 0, 50));
+    # background
+    qp.fillRect(QRect(0, 0, widg.width() - 10, widg.height() - 10), bgColor)
 
     for layer in mimg._layersStack :
         if layer.visible:
@@ -203,6 +207,7 @@ def paintEvent(widg, e) :
     """
     qp.end()
 
+"""
 def showResult(img0, img1, turn):
     global mask, mask_s
     print 'turn', turn
@@ -221,7 +226,7 @@ def showResult(img0, img1, turn):
     img1 = imImage(cv2Img=img0.cv2Img)
     window.label_2.img=img1
     window.label_2.repaint()
-
+"""
 
 # mouse eventd handler for image widgets (currently label and label_2)
 turn = 0
@@ -238,8 +243,9 @@ def mouseEvent(widget, event) :
 
     if modifier == Qt.ControlModifier:
         if event.type() == QEvent.MouseButtonPress:
-            showResult(Mimg_p, Mimg_1, turn)
-            turn = (turn + 1) % 2
+            pass
+            #showResult(Mimg_p, Mimg_1, turn)
+            #turn = (turn + 1) % 2
         return
 
     if event.type() == QEvent.MouseButtonPress :
@@ -411,8 +417,8 @@ def menuFile(name):
     :param name: name of calling action
     :return:
     """
-    #get list of recent files and update menu
     window._recentFiles = window.settings.value('paths/recent', [], QString)
+    # update menu and actions
     window.updateMenuOpenRecent()
     print 'updated'
     if name == 'actionOpen' :
@@ -428,8 +434,10 @@ def menuFile(name):
             if len(window._recentFiles) > 5:
                 window._recentFiles.pop(0)
             window.settings.setValue('paths/recent', window._recentFiles)
+            # update menu and actions
             window.updateMenuOpenRecent()
             openFile(filenames[0])
+
     elif name == 'actionSave':
         lastDir = window.settings.value('paths/dlgdir', 'F:/bernard').toString()
         dlg = QFileDialog(window, "select", lastDir)
@@ -448,25 +456,24 @@ def openFile(f):
     #get exif data
     with exiftool.ExifTool() as e:
         profile, metadata = e.get_metadata(f)
-    metadata=metadata[0]
-    #for k, v in metadata.iteritems():
-        #print k, v
-    colorSpace = metadata.get("EXIF:ColorSpace", -1) # sRGB: 1
-    orientation = metadata.get("EXIF:Orientation", 0)
+    """
+    print 'dic', len(metadata)
+    for d in metadata:
+        for k, v in d.iteritems():
+             print k, v
+    """
+    colorSpace = metadata[0].get("EXIF:ColorSpace", -1) # sRGB: 1
+    orientation = metadata[0].get("EXIF:Orientation", 0)
     b=exiftool.decodeExifOrientation(orientation)
-
-    window.label.img = imImage(filename=f, colorSpace=colorSpace, orientation=b, metadata=metadata, profile=profile).resize(250000)
-
-    #window.label.img = hsModel
-    #window.label.img=imImage(QImg=convert(f))
-    #window.label_2.img = window.label.img
-    window.label_2.img = imImage(filename=f, orientation=b, metadata=metadata)
-    #print 'Orientation', metadata['EXIF:Orientation']
-    #print 'ICC', metadata['EXIF:ColorSpace']
+    img = imImage(filename=f, colorSpace=colorSpace, orientation=b, rawMetadata=metadata, profile=profile, name='toto')
+    window.label.img = img.resize(800000)
+    window.label.img.meta.name = 'resized'
+    window.label_2.img = img
+    # print 'Orientation', metadata['EXIF:Orientation']
+    # print 'ICC', metadata['EXIF:ColorSpace']
     window.tableView.addLayers(window.label.img)
     window.label.repaint()
     window.label_2.repaint()
-
 
 def menuWindow(x, name):
 
@@ -484,14 +491,21 @@ def menuWindow(x, name):
         handleNewWindow(window)
 
 def menuImage(x, name) :
-
+    #global COLOR_MANAGE
     if name == 'actionImage_info' :
-        print window.label.img.metadata
+        l = window.label.img.meta.rawMetadata
+        s = ''
+        for d in l:
+            s = s + '\n'.join('%s : %s' % (k,v) for k, v in d.iteritems())
+        w, label = handleTextWindow(parent=window, title='Image info')
+        label.setText(QString(s))
     elif name == 'actionColor_manage':
-        COLOR_MANAGE = window.actionColor_manage.isChecked()
+        icc.COLOR_MANAGE = window.actionColor_manage.isChecked()
         window.label.img.updatePixmaps()
         window.label_2.img.updatePixmaps()
-
+    elif name == 'actionWorking_profile':
+        w, label = handleTextWindow(parent=window, title='Working profile info')
+        label.setText(QString(icc.WORKING_PROFILE_INFO))
 
 
 def menuLayer(x, name):
@@ -552,20 +566,31 @@ def testLUT(LUT) :
 """
 
 
-def handleNewWindow(parent):
+def handleNewWindow(parent=None, title='New window', set_event_handler=True):
     newwindow = QMainWindow(parent)
     newwindow.setAttribute(Qt.WA_DeleteOnClose)
-    newwindow.setWindowTitle(parent.tr('New Window'))
+    newwindow.setWindowTitle(parent.tr(title))
     label_3=QLabel()
     newwindow.setCentralWidget(label_3)
     label_3.img = window.label.img
     label_3.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding);
-    set_event_handler(label_3)
+    if set_event_handler:
+        set_event_handler(label_3)
     newwindow.show()
+    return newwindow, label_3
 
+def handleTextWindow(parent=None, title=''):
+    w, label = handleNewWindow(parent=parent, title=title, set_event_handler=False)
+    w.setFixedSize(500,500)
+    #label.setStyleSheet("QLabel { background-color: blue }")
+    label.setAlignment(Qt.AlignTop)
+    w.hide()
+    w.setWindowModality(Qt.WindowModal)
+    w.show()
+    return w, label
 
-set_event_handler(window.label)
-set_event_handler(window.label_2)
+#set_event_handler(window.label)
+#set_event_handler(window.label_2)
 
 window.label.setStyleSheet("background-color: rgb(200, 200, 200);")
 #get mouse hover events
@@ -588,7 +613,17 @@ window.readSettings()
 
 window._recentFiles = window.settings.value('paths/recent', [], QString)
 
-openFile('orch2-2-2.jpg')
+#openFile('orch2-2-2.jpg')
+set_event_handler(window.label)
+set_event_handler(window.label_2)
+
+img=QImage(200, 200, QImage.Format_ARGB32)
+img.fill(Qt.darkGray)
+defaultImImage = imImage(QImg=img)
+
+
+window.label.img = defaultImImage
+window.label_2.img = defaultImImage
 
 window.show()
 

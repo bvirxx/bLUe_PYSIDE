@@ -13,7 +13,7 @@ LUTSIZE = 17
 #LUTSIZE = 129
 LUTSTEP = 256 / (LUTSIZE - 1)
 LUT3D = np.array([[[(i * LUTSTEP, j * LUTSTEP, k * LUTSTEP) for k in range(LUTSIZE)] for j in range(LUTSIZE)] for i in range(LUTSIZE)])
-#LUT3D = LUT3D[:,:,:,::-1]
+
 
 # perceptual brightness constants
 
@@ -35,6 +35,8 @@ Perc_R=0.79134178
 Perc_G=2.31839104
 Perc_B=0.25510923
 """
+def reset_LUT3D():
+    return np.array([[[(i * LUTSTEP, j * LUTSTEP, k * LUTSTEP) for k in range(LUTSIZE)] for j in range(LUTSIZE)] for i in range(LUTSIZE)])
 
 class QPoint3D(object):
     def __init__(self, x,y,z):

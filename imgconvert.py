@@ -18,7 +18,6 @@ def ndarrayToQImage(ndimg, format=QImage.Format_ARGB32):
     bytePerLine = ndimg.shape[1] * ndimg.shape[2]
     if len(ndimg.data)!=ndimg.shape[0]*bytePerLine :
         raise ValueError("ndarrayToQImage : wrong conversion")
-
     qimg = QImage(ndimg.data, ndimg.shape[1], ndimg.shape[0], bytePerLine, format)
     if qimg.format() == QImage.Format_Invalid:
         raise ValueError("ndarrayToQImage : wrong conversion")
@@ -53,32 +52,32 @@ def QImageBuffer(qimg):
 def PilImageToQImage(pilimg) :
     """
     Convert a PIL image to a QImage
-    :param pilimg: The PIL image
-    :return: QImage object
+    :param pilimg: The PIL image, mode RGB
+    :return: QImage object format RGB888
     """
     w, h = pilimg.width, pilimg.height
     mode = pilimg.mode
 
+    if mode != 'RGB':
+        raise ValueError("PilImageToQImage : wrong mode : %s" % mode)
+
     # get data buffer (type str)
     data = pilimg.tobytes('raw', mode)
 
-    qimFormat = QImage.Format_ARGB32
+    if len(data) != w * h * 3:
+        raise ValueError("PilImageToQImage : incorrect buffer length : %d, should be %d" % (len(data), w * h * 3))
 
-    if mode == 'RGB':
-        qimFormat = QImage.Format_RGB888
-        if len(data)!=w * h * 3 :
-            raise ValueError("PilImageToQImage : wrong mode : %s" %mode)
-    else :
-        raise ValueError("PilImageToQImage : unrecognized mode : %s" %mode)
+    BytesPerLine = w * 3
+    qimFormat = QImage.Format_RGB888
 
-    #a=QImage(data, w, h, qimFormat )
-    return QImage(data, w, h, qimFormat )
+    return QImage(data, w, h, BytesPerLine, qimFormat )
+
 
 def QImageToPilImage(qimg) :
     """
-    Convert a PIL image to a QImage
-    :param pilimg: The PIL image
-    :return: QImage object
+    Convert a QImage to a PIL image
+    :param qimg: The Qimage
+    :return: PIL image  object, mode RGB
     """
     a = QImageBuffer(qimg)
 
@@ -86,6 +85,8 @@ def QImageToPilImage(qimg) :
         # convert pixels from BGRA or BGRX to RGB
         a=a[:,:,:3][:,:,::-1]
         a = np.ascontiguousarray(a)
+    else :
+        raise ValueError("QImageToPilImage : unrecognized format : %s" %qimg.Format())
 
     w, h = qimg.width(), qimg.height()
 
