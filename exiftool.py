@@ -49,13 +49,21 @@ class ExifTool(object):
 
 
 def decodeExifOrientation(value):
+    """
+    Returns a QTransform object representing the
+    image transformation corresponding to the orientation tag value
+    :param value: orientation tag
+    :return: Qtransform object
+    """
+    # identity transformation
     tr = QTransform()
+
     if value == 1 :
         pass
     elif value == 6:
         tr.rotate(90)
     else :
-        print "unhandled orientation tag: ", value
+        raise ValueError("decodeExifOrientation : unhandled orientation tag: %d" % value)
     return tr
 
 """

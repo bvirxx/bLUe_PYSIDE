@@ -15,6 +15,7 @@ from LUT3D import rgb2hsB,hsp2rgb, LUT3D
 from math import floor
 from colorModels import hueSatModel
 import icc
+from copy import copy
 
 P_SIZE=4000000
 
@@ -163,9 +164,10 @@ def canny(img0, img1) :
 # painter for images
 qp=QPainter()
 bgColor=QColor(100,100,100)
+
 def paintEvent(widg, e) :
     """
-    paint event handler for a widget dispaying a mImage
+    paint event handler for widgets dispaying a mImage object
     :param widg:
     :param e: paint event
     """
@@ -184,6 +186,7 @@ def paintEvent(widg, e) :
     # background
     qp.fillRect(QRect(0, 0, widg.width() - 10, widg.height() - 10), bgColor)
 
+    # draw layers
     for layer in mimg._layersStack :
         if layer.visible:
             if layer.qPixmap is not None:
@@ -194,6 +197,7 @@ def paintEvent(widg, e) :
                 qp.drawImage(QRect(mimg.xOffset, mimg.yOffset, mimg.width() * r - 10, mimg.height() * r - 10), # target rect
                               layer  # layer.qPixmap
                               )
+    # draw selection rectangle
     if mimg.rect is not None :
         qp.drawRect(mimg.rect.left()*r + mimg.xOffset, mimg.rect.top()*r +mimg.yOffset,
                     mimg.rect.width()*r, mimg.rect.height()*r
@@ -267,29 +271,34 @@ def mouseEvent(widget, event) :
                 # do_grabcut(Mimg_p, Mimg_1, preview=P_SIZE)
         """
         State['ix'], State['iy'] = x, y
-
+        State['ix_begin'], State['iy_begin'] = x, y
     elif event.type() == QEvent.MouseMove :
         clicked=False
         if pressed :
-            if window.btnValues['rectangle'] :
-                img.rect = QRect(min(State['ix'], x)/r -img.xOffset/r, min(State['iy'], y)/r - img.yOffset/r, abs(State['ix'] - x)/r, abs(State['iy'] - y)/r)
-                rect_or_mask = 0
-            elif (window.btnValues['drawFG'] or window.btnValues['drawBG']):
-                color= CONST_FG_COLOR if window.btnValues['drawFG'] else CONST_BG_COLOR
-                #qp.begin(img.mask)
-                qp.begin(img._layers['drawlayer'])
-                qp.setPen(color)
-                qp.setBrush(color);
-                qp.setCompositionMode(qp.CompositionMode_Source)  # avoid alpha summation
-                qp.drawEllipse(int(x / r)-img.xOffset/r, int(y / r)- img.yOffset/r, 80, 80)
-                qp.end()
-                rect_or_mask=1
+            # button pressed
+            if img.mouseChange:
+                if window.btnValues['rectangle']:
+                    img.rect = QRect(min(State['ix_begin'], x)/r -img.xOffset/r, min(State['iy_begin'], y)/r - img.yOffset/r, abs(State['ix_begin'] - x)/r, abs(State['iy_begin'] - y)/r)
+                    rect_or_mask = 0
+                elif (window.btnValues['drawFG'] or window.btnValues['drawBG']):
+                    color= CONST_FG_COLOR if window.btnValues['drawFG'] else CONST_BG_COLOR
+                    #qp.begin(img.mask)
+                    qp.begin(img._layers['drawlayer'])
+                    qp.setPen(color)
+                    qp.setBrush(color);
+                    qp.setCompositionMode(qp.CompositionMode_Source)  # avoid alpha summation
+                    qp.drawEllipse(int(x / r)-img.xOffset/r, int(y / r)- img.yOffset/r, 80, 80)
+                    qp.end()
+                    rect_or_mask=1
 
-                #mask=cv2.bitwise_or(img.resize(40000).mask, mask)
+                    #mask=cv2.bitwise_or(img.resize(40000).mask, mask)
 
-                #window.label_2.img=do_grabcut(Mimg_p, preview=P_SIZE)
-                #window.label_2.repaint()
-                window.label.repaint()
+                    #window.label_2.img=do_grabcut(Mimg_p, preview=P_SIZE)
+                    #window.label_2.repaint()
+                    window.label.repaint()
+                else:
+                    img.xOffset+=(x-State['ix'])
+                    img.yOffset+=(y-State['iy'])
             else:
                 img.xOffset+=(x-State['ix'])
                 img.yOffset+=(y-State['iy'])
@@ -305,7 +314,7 @@ def mouseEvent(widget, event) :
         pressed=False
         if event.button() == Qt.LeftButton:
             #click event
-            if clicked:
+            if clicked and img.mouseChange:
                 # Note : for multilayered images we read pixel color from  the background layer
                 c = QColor(img.pixel(State['ix'] / r -  img.xOffset/r, State['iy'] / r - img.yOffset/r))
                 r, g, b = c.red(), c.green(), c.blue()
@@ -314,19 +323,19 @@ def mouseEvent(widget, event) :
                 #i,j= hsModel.colorPickerGetPoint(h,s)
                 # The selected node corresponds to the background layer : it does not take into account
                 # the modifications induced by adjustment layers
-                if hasattr(img.activeLayer.window.widget(), 'selectGridNode'):
-                    #Wins['3D_LUT'].selectGridNode(r, g, b)
-                    img.activeLayer.window.widget().selectGridNode(r, g, b)
-                else:
-                    print type(img.activeLayer.window.widget())
+                if hasattr(img.activeLayer, "adjustView") and img.activeLayer.adjustView is not None:
+                    if hasattr(img.activeLayer.adjustView.widget(), 'selectGridNode'):
+                        img.activeLayer.adjustView.widget().selectGridNode(r, g, b)
+                    #else:
+                        #print type(img.activeLayer.adjustView.widget())
                 #Wins['3D_LUT'].select(h,s,p)
                 #window.label_2.img.apply3DLUT(LUT3D)
                 window.label.repaint()
-            if window.btnValues['rectangle']:
+            if window.btnValues['rectangle'] and img.mouseChange:
                 #State['tool_rect'] = False
                 #State['rect_over'] = True
                 #cv2.rectangle(img, (State['ix'], State['iy']), (x, y), BLUE, 2)
-                img.rect = QRect(min(State['ix'], x)/r-img.xOffset/r, min(State['iy'], y)/r- img.yOffset/r, abs(State['ix'] - x)/r, abs(State['iy'] - y)/r)
+                img.rect = QRect(min(State['ix_begin'], x)/r-img.xOffset/r, min(State['iy_begin'], y)/r- img.yOffset/r, abs(State['ix_begin'] - x)/r, abs(State['iy_begin'] - y)/r)
                 rect_or_mask = 0 #init_with_rect
                 #tmp=np.zeros((img.height, img.width), dtype=np.uint8)
                 #tmp[img.rect.top():img.rect.bottom(), img.rect.left():img.rect.right()] = cv2.GC_PR_FGD
@@ -366,8 +375,10 @@ def set_event_handler(widg):
     """
     Pythonic way for redefining event handlers. In contrast to
     subclassing and overriding, we can add convenient parameters to
-    our handlers.
+    our handlers. if mouse is True (default) we set handlers for paint
+    and mouse events, otherwise we only set paint event handler.
     :param widg:
+    :param mouse:
     """
     widg.paintEvent = lambda e, wdg=widg : paintEvent(wdg,e)
     widg.mousePressEvent = lambda e, wdg=widg : mouseEvent(wdg, e)
@@ -464,11 +475,13 @@ def openFile(f):
     """
     colorSpace = metadata[0].get("EXIF:ColorSpace", -1) # sRGB: 1
     orientation = metadata[0].get("EXIF:Orientation", 0)
-    b=exiftool.decodeExifOrientation(orientation)
-    img = imImage(filename=f, colorSpace=colorSpace, orientation=b, rawMetadata=metadata, profile=profile, name='toto')
-    window.label.img = img.resize(800000)
-    window.label.img.meta.name = 'resized'
-    window.label_2.img = img
+    transformation = exiftool.decodeExifOrientation(orientation)
+    img = imImage(filename=f, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile, name='toto')
+    window.label.img = img#.resize(800000)
+    #window.label.img.meta.name = 'resized'
+    window.label_2.img = imImage(QImg=img.copy(), meta=img.meta)
+    # no mouse drawing or painting
+    window.label_2.img.mouseChange = False
     # print 'Orientation', metadata['EXIF:Orientation']
     # print 'ICC', metadata['EXIF:ColorSpace']
     window.tableView.addLayers(window.label.img)
@@ -536,7 +549,8 @@ def menuLayer(x, name):
         grWindow = graphicsForm3DLUT.getNewWindow(size=800, title= l.name, parent=window)
         Wins[l.name] = grWindow
         dock = QDockWidget(window)
-        l.window = dock
+        # link to colorwheel
+        l.adjustView = dock
         dock.setWidget(grWindow)
         dock.setWindowFlags(Qt.WindowStaysOnTopHint)
         #dock.setAttribute(Qt.WA_DeleteOnClose)
@@ -589,13 +603,11 @@ def handleTextWindow(parent=None, title=''):
     w.show()
     return w, label
 
-#set_event_handler(window.label)
-#set_event_handler(window.label_2)
 
 window.label.setStyleSheet("background-color: rgb(200, 200, 200);")
 #get mouse hover events
 window.label.setMouseTracking(True)
-window.label_2.setMouseTracking(True)
+#window.label_2.setMouseTracking(True)
 
 # set button and slider change handler
 window.onWidgetChange = button_change
