@@ -1,3 +1,23 @@
+"""
+Copyright (C) 2017  Bernard Virot
+
+PeLUT - Photo editing software using adjustment layers with 1D and 3D Look Up Tables.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>
+"""
+
+
 import sys
 import cv2
 from PyQt4.QtCore import Qt, QRect, QEvent, QSettings, QSize, QString
@@ -113,11 +133,7 @@ def do_grabcut(img0, preview=-1, nb_iter=1, mode=cv2.GC_INIT_WITH_RECT, again=Fa
     State['rawMask'] = mask_s
     # apply mask
     current_mask = mask_s
-    #mask= np.bitwise_and(mask_s , 12)
-    #mask= np.right_shift(mask, 2)
-    #mask[:200,:200]=1
-    #mask_s=np.bitwise_and(mask_s , 3)
-    #current_mask=mask_s
+
     mask_s = np.where((current_mask == cv2.GC_FGD) + (current_mask == cv2.GC_PR_FGD), 1, 0)
     mask_s1 = np.where((current_mask == cv2.GC_FGD) + (current_mask == cv2.GC_PR_FGD), 1, 0.4)
 
@@ -211,27 +227,6 @@ def paintEvent(widg, e) :
     """
     qp.end()
 
-"""
-def showResult(img0, img1, turn):
-    global mask, mask_s
-    print 'turn', turn
-    img0=img0.resize(P_SIZE)
-    #mask = np.zeros(img0.cv2Img.shape[:2], dtype=np.uint8)
-    if turn ==0:
-        current_mask = mask
-    else:
-        current_mask= mask_s
-
-    mask2 = np.where((current_mask == cv2.GC_FGD) + (current_mask == cv2.GC_PR_FGD), 1, 0).astype('uint8')
-    #img1.set_cv2Img_(img0.cv2Img)
-    img1=imImage(cv2Img=img0.cv2Img)
-    img1.cv2Img[:, :, 3] = img1.cv2Img[:, :, 3] * mask2
-    #img1.set_cv2Img_(img1.cv2Img)
-    img1 = imImage(cv2Img=img0.cv2Img)
-    window.label_2.img=img1
-    window.label_2.repaint()
-"""
-
 # mouse eventd handler for image widgets (currently label and label_2)
 turn = 0
 pressed=False
@@ -318,32 +313,15 @@ def mouseEvent(widget, event) :
                 # Note : for multilayered images we read pixel color from  the background layer
                 c = QColor(img.pixel(State['ix'] / r -  img.xOffset/r, State['iy'] / r - img.yOffset/r))
                 r, g, b = c.red(), c.green(), c.blue()
-                #hsModel.colorPickerSetmark(r,g,b, LUT3D)
-                #h, s, p = rgb2hsv(r, g, b, perceptual=True)
-                #i,j= hsModel.colorPickerGetPoint(h,s)
-                # The selected node corresponds to the background layer : it does not take into account
-                # the modifications induced by adjustment layers
                 if hasattr(img.activeLayer, "adjustView") and img.activeLayer.adjustView is not None:
                     if hasattr(img.activeLayer.adjustView.widget(), 'selectGridNode'):
                         img.activeLayer.adjustView.widget().selectGridNode(r, g, b)
-                    #else:
-                        #print type(img.activeLayer.adjustView.widget())
-                #Wins['3D_LUT'].select(h,s,p)
-                #window.label_2.img.apply3DLUT(LUT3D)
                 window.label.repaint()
             if window.btnValues['rectangle'] and img.mouseChange:
-                #State['tool_rect'] = False
-                #State['rect_over'] = True
-                #cv2.rectangle(img, (State['ix'], State['iy']), (x, y), BLUE, 2)
+
                 img.rect = QRect(min(State['ix_begin'], x)/r-img.xOffset/r, min(State['iy_begin'], y)/r- img.yOffset/r, abs(State['ix_begin'] - x)/r, abs(State['iy_begin'] - y)/r)
                 rect_or_mask = 0 #init_with_rect
-                #tmp=np.zeros((img.height, img.width), dtype=np.uint8)
-                #tmp[img.rect.top():img.rect.bottom(), img.rect.left():img.rect.right()] = cv2.GC_PR_FGD
-                #img.mask=ndarrayToQimage(tmp)
-                #mask=tmp
-                #mask_s=tmp
-                #window.label_2.img=do_grabcut(Mimg_p, preview=P_SIZE, mode =cv2.GC_INIT_WITH_MASK)
-                #window.label_2.repaint()
+
                 rect_or_mask=1 # init with mask
                 #print(" Now press the key 'n' a few times until no further change \n")
         """
@@ -477,7 +455,7 @@ def openFile(f):
     orientation = metadata[0].get("EXIF:Orientation", 0)
     transformation = exiftool.decodeExifOrientation(orientation)
     img = imImage(filename=f, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile, name='toto')
-    window.label.img = img#.resize(800000)
+    window.label.img = img
     #window.label.img.meta.name = 'resized'
     window.label_2.img = imImage(QImg=img.copy(), meta=img.meta)
     # no mouse drawing or painting
@@ -491,11 +469,8 @@ def openFile(f):
 def menuWindow(x, name):
 
     if name == 'actionShow_hide_left_window' :
-        if window.label.isHidden() :
-            window.label.show()
-        else:
-            window.label.hide()
-    elif name == 'actionShow_hide_right_window' :
+        pass
+    elif name == 'actionShow_hide_right_window_3' :
         if window.label_2.isHidden() :
             window.label_2.show()
         else:
@@ -504,7 +479,7 @@ def menuWindow(x, name):
         handleNewWindow(window)
 
 def menuImage(x, name) :
-    #global COLOR_MANAGE
+
     if name == 'actionImage_info' :
         l = window.label.img.meta.rawMetadata
         s = ''
@@ -519,6 +494,14 @@ def menuImage(x, name) :
     elif name == 'actionWorking_profile':
         w, label = handleTextWindow(parent=window, title='Working profile info')
         label.setText(QString(icc.WORKING_PROFILE_INFO))
+    elif name == 'actionSnap':
+        img= window.label.img.snapshot()
+        img.setView(*window.label_2.img.view())
+        window.label_2.img = img
+        window.label_2.repaint()
+        print 'snap done'
+
+
 
 
 def menuLayer(x, name):
@@ -527,13 +510,11 @@ def menuLayer(x, name):
         grWindow=graphicsForm.getNewWindow()
         Wins['Brightness-Contrast'] = grWindow
         grWindow.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored);
-        grWindow.setGeometry(QRect(100, 40, 156, 102));
+        grWindow.setGeometry(QRect(100, 40, 156, 102))
 
         dock=QDockWidget()
         dock.setWidget(grWindow)
-        window.addDockWidget(Qt.RightDockWidgetArea, dock);
-        #window.horizontalLayout_2.addWidget(grWindow)
-        #window.verticalLayout_2.addWidget(grWindow)
+        window.addDockWidget(Qt.RightDockWidgetArea, dock)
         #l=QLayer(QImg=testLUT(grWindow.LUTXY))
         l=QLayer(QImg=window.label.img)
         l.inputImg = window.label.img
@@ -553,32 +534,11 @@ def menuLayer(x, name):
         l.adjustView = dock
         dock.setWidget(grWindow)
         dock.setWindowFlags(Qt.WindowStaysOnTopHint)
-        #dock.setAttribute(Qt.WA_DeleteOnClose)
         dock.setWindowTitle(grWindow.windowTitle())
         dock.move(500, 40)
-        #window.addDockWidget(Qt.RightDockWidgetArea, dock);
-
+        #window.addDockWidget(Qt.RightDockWidgetArea, dock)
         grWindow.graphicsScene.onUpdateScene = lambda: l.apply3DLUT(grWindow.graphicsScene.LUT3D, widget=window.label)
         window.label.repaint()
-"""
-def testLUT(LUT) :
-    img=window.label.img
-    a=  QImageBuffer(img)
-    b=np.array(LUT)
-    a=b[a]
-    r,g,b=a[:,:,0], a[:,:,1], a[:,:,2]
-    #a=cv2.LUT(a, np.array(LUT))
-    #a=cv2.convertScaleAbs(a)
-
-
-    a=a[:,:,::-1]
-    a = np.ascontiguousarray(a[:, :, 1:4], dtype=np.uint8)
-    #a=np.dstack((r, g, b))
-    print 'shape', a.shape
-
-    return QPixmap.fromImage(mImage(cv2Img=a, format=QImage.Format_RGB888))
-"""
-
 
 def handleNewWindow(parent=None, title='New window', set_event_handler=True):
     newwindow = QMainWindow(parent)
@@ -603,8 +563,11 @@ def handleTextWindow(parent=None, title=''):
     w.show()
     return w, label
 
+###########
+# app init
+##########
+window.setStyleSheet("background-color: rgb(200, 200, 200);")
 
-window.label.setStyleSheet("background-color: rgb(200, 200, 200);")
 #get mouse hover events
 window.label.setMouseTracking(True)
 #window.label_2.setMouseTracking(True)
@@ -618,14 +581,10 @@ window.onExecMenuWindow = menuWindow
 window.onExecMenuImage = menuImage
 window.onExecMenuLayer = menuLayer
 
-
-
-
 window.readSettings()
 
 window._recentFiles = window.settings.value('paths/recent', [], QString)
 
-#openFile('orch2-2-2.jpg')
 set_event_handler(window.label)
 set_event_handler(window.label_2)
 

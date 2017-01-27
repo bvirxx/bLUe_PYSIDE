@@ -1,3 +1,21 @@
+"""
+Copyright (C) 2017  Bernard Virot
+
+PeLUT - Photo editing software using adjustment layers with 1D and 3D Look Up Tables.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>
+"""
 import sys
 from PyQt4.QtGui import QApplication, QPainter, QWidget, QPixmap, QPushButton
 from PyQt4.QtGui import QGraphicsView, QGraphicsScene, QGraphicsPathItem , QGraphicsPixmapItem, QGraphicsTextItem, QPolygonF, QGraphicsPolygonItem , QPainterPath, QPainterPathStroker, QPen, QBrush, QColor, QPixmap, QMainWindow, QLabel, QSizePolicy
@@ -7,16 +25,14 @@ from time import time
 from LUT3D import LUTSTEP, LUT3D, rgb2hsB, hsp2rgb, hsp2rgb_ClippingInd, reset_LUT3D
 from colorModels import hueSatModel, pbModel
 
-
 class activeNode(QGraphicsPathItem):
     """
-    Grid node
+    Grid node class
     """
-
     def __init__(self, position, parent=None):
         super(activeNode, self).__init__()
         self.setPos(position)
-        #~current scene
+        # current scene
         scene = parent.scene()
         # color from model
         #c = QColor(SCENE['colorWheel'].QImg.pixel(int(position.x()), int(position.y())))
@@ -48,8 +64,6 @@ class activeNode(QGraphicsPathItem):
             scene.LUT3D[k,j,i,::-1] = hsp2rgb(hue,sat, p/100.0)
         self.scene().onUpdateScene()
         #self.graphicsScene.LUT3D = savedLUT
-
-
 
 class activeGrid(QGraphicsPathItem):
 
@@ -198,7 +212,6 @@ class graphicsForm3DLUT(QGraphicsView) :
         :return: graphicsForm3DLUT object
         """
         newWindow = graphicsForm3DLUT(size,parent=parent)
-        #newWindow.setAttribute(Qt.WA_DeleteOnClose)
         newWindow.setWindowTitle(title)
         return newWindow
 

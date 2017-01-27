@@ -1,3 +1,22 @@
+"""
+Copyright (C) 2017  Bernard Virot
+
+PeLUT - Photo editing software using adjustment layers with 1D and 3D Look Up Tables.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>
+"""
+
 import cv2
 from imgconvert import *
 from PyQt4.QtGui import QPixmap, QImage, QColor, QPainter
@@ -270,14 +289,13 @@ class mImage(vImage):
 
 class imImage(mImage) :
     """
-    Interactive multilayer image
+    Interactive multi-layer image
     """
     def __init__(self, *args, **kwargs):
         super(imImage, self).__init__(*args, **kwargs)
         self.Zoom_coeff = 1.0
         self.xOffset, self.yOffset = 0, 0
         self.mouseChange =True
-
         #drawLayer = QLayer(QImage(self.width(), self.height(), QImage.Format_ARGB32))
         #drawLayer.fill(QColor(0,0,0,0))
         #self.addLayer(drawLayer, 'drawlayer')
@@ -313,8 +331,33 @@ class imImage(mImage) :
                 img = QLayer.fromImage(self._layers[l.name].resize(pixels, interpolation=interpolation))
                 rszd._layersStack.append (img)
                 rszd._layers[l.name] = img
-
         return rszd
+
+    def view(self):
+        return self.Zoom_coeff, self.xOffset, self.yOffset
+
+    def setView(self, zoom=1.0, xOffset=0.0, yOffset=0.0):
+        self.Zoom_coeff, self.xOffset, self.yOffset = zoom, xOffset, yOffset
+
+    def snapshot(self):
+        snap = imImage(QImg=self, meta=self.meta)
+        qp = QPainter(snap)
+        for layer in self._layersStack:
+            if layer.visible:
+                """
+                if layer.qPixmap is not None:
+                    qp.drawPixmap(QRect(0, 0, self.width() , self.height()),
+                                  # target rect
+                                  layer.transfer()  # layer.qPixmap
+                                  )
+                else:
+                """
+                qp.drawImage(QRect(0, 0, self.width(), self.height()),
+                                 # target rect
+                                 layer
+                                 )
+        snap.updatePixmaps()
+        return snap
 
 class QLayer(vImage):
     @classmethod

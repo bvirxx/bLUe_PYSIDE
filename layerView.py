@@ -1,13 +1,27 @@
+"""
+Copyright (C) 2017  Bernard Virot
+
+PeLUT - Photo editing software using adjustment layers with 1D and 3D Look Up Tables.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>
+"""
 from PyQt4.QtGui import QTableView, QStandardItem, QStandardItemModel, QItemSelectionModel, QAbstractItemView, QPalette, QStyledItemDelegate, QColor, QImage, QPixmap, QIcon, QHeaderView
 from PyQt4.QtCore import Qt
 import resources_rc  # DO NOT REMOVE !!!
 import QtGui1
 
-"""
-The class QLayerView inherits from QTableView. It is used
-in the main form built by Qt Designer to display lists
-of image layers.
-"""
+
 
 """
 class ImageDelegate(QStyledItemDelegate):
@@ -26,20 +40,27 @@ class ImageDelegate(QStyledItemDelegate):
         painter.drawPixmap(option.rect, pixmap)
 """
 class QLayerView(QTableView) :
+    """
+    The class QLayerView inherits from QTableView. It is used
+    in the main form built by Qt Designer to display lists
+    of image layers.
+    """
 
     def __init__(self, img):
         super(QTableView, self).__init__()
         self.clicked.connect(self.viewClicked)
         # behavior and style for selection
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.setStyleSheet("QTableView {selection-background-color: lightgray}")
+        self.setStyleSheet("QTableView { background-color: lightgray;\
+                                          selection-background-color: gray;}"
+                           )
 
     def addLayers(self, mImg):
         self.img=mImg
         model = QStandardItemModel()
+        # columns : visible | icon and name | unused
         model.setColumnCount(3)
-        self.horizontalHeader().hide()
-        self.verticalHeader().hide()
+
         for lay in reversed(mImg._layersStack) :
             items = []
             # col 0 : visibility icon
@@ -57,37 +78,39 @@ class QLayerView(QTableView) :
         # select background layer
         self.selectRow(0)
 
-        #header = self.horizontalHeader()
+        self.horizontalHeader().hide()
+        self.verticalHeader().hide()
+        header = self.horizontalHeader()
         #header.setResizeMode(0, QHeaderView.Stretch)
-        #header.setResizeMode(0, QHeaderView.ResizeToContents)
-        #header.setResizeMode(1, QHeaderView.ResizeToContents)
-        #header.setResizeMode(2, QHeaderView.ResizeToContents)
-
+        header.setResizeMode(0, QHeaderView.ResizeToContents)
+        header.setResizeMode(1, QHeaderView.ResizeToContents)
+        header.setResizeMode(2, QHeaderView.ResizeToContents)
         #self.setItemDelegateForColumn(1, ImageDelegate(None))
 
     def viewClicked(self, clickedIndex):
         row = clickedIndex.row()
         model = clickedIndex.model()
-        l = len(self.img._layersStack)
         if clickedIndex.column() == 0 :
-            visible = not(self.img._layersStack[l-1-row].visible)
-            self.img._layersStack[l-1-row].visible = visible
+            visible = not(self.img._layersStack[-1-row].visible)
+            self.img._layersStack[-1-row].visible = visible
             if visible:
                 self.model().setData(clickedIndex, QIcon(":/images/resources/eye-icon.png") ,Qt.DecorationRole)
             else:
                 self.model().setData(clickedIndex, QIcon(":/images/resources/eye-icon-strike.png"), Qt.DecorationRole)
         elif clickedIndex.column() == 1 :
             # make sected layer the active layer
-            self.img.activeLayer = self.img._layersStack[l-1-row]
+            self.img.activeLayer = self.img._layersStack[-1-row]
             # show/hide window for adjustment layer
-            if hasattr(self.img._layersStack[l-1-row], "adjustView"):
-                win = self.img._layersStack[l-1-row].adjustView
+            if hasattr(self.img._layersStack[-1-row], "adjustView"):
+                win = self.img._layersStack[-1-row].adjustView
             else:
                 win = None
             if win is not None:
                 if win.widget().isVisible():
                     win.hide()
                 else:
+                    win.setFloating(True)
                     win.show()
+
         QtGui1.window.label.repaint()
 

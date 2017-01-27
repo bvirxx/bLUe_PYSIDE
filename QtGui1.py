@@ -1,28 +1,36 @@
+"""
+Copyright (C) 2017  Bernard Virot
+
+PeLUT - Photo editing software using adjustment layers with 1D and 3D Look Up Tables.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>
+"""
 from PyQt4 import QtGui, uic
 from PyQt4.QtCore import QSettings, QSize
 from PIL.ImageCms import getProfileDescription
 import sys
 from PyQt4.QtGui import QApplication
-# Python loader for the UI Form built by Qt Designer.
-
-
 import resources_rc   # DO NOT REMOVE !!!!
 
 class Form1(QtGui.QMainWindow):
 
     def __init__(self, parent=None):
-        #QtGui.QMainWindow.__init__(self, parent)
         super(Form1, self).__init__(parent)
         # load UI
         ui=uic.loadUi('essai1.ui', self)
-        """
-        color = QtGui.QColorDialog(ui.window())
-        color.setWindowFlags(Qt.Widget)
-        color.setOption(QtGui.QColorDialog.NoButtons, True)
-        color.show()
-        ui.horizontalLayout.addWidget(color)
-        """
-        self.onWidgetChange = lambda : 0          # triggered by button or slider change
+        #  button or slider event handlers
+        self.onWidgetChange = lambda : 0
         self.onShowContextMenu = lambda : 0
         self.onExecMenuFile = lambda : 0
         self.onExecFileOpen = lambda : 0
@@ -49,7 +57,7 @@ class Form1(QtGui.QMainWindow):
             self.btnValues[str(button.accessibleName())] = button.isChecked()
 
         for button in self.findChildren(QtGui.QToolButton) :
-            segment = button.objectName()
+            #segment = button.objectName()
             #button.setStyleSheet("QToolButton#DCButton:checked {color:black; background-color: green;}")
             button.pressed.connect(
                             lambda button=button : self.handleButtonClicked(button)
@@ -59,7 +67,6 @@ class Form1(QtGui.QMainWindow):
         for widget in self.findChildren(QtGui.QLabel):
             widget.customContextMenuRequested.connect(lambda pos, widget=widget : self.showContextMenu(pos,widget))
 
-        #for action in self.findChildren(QtGui.QAction) :
         for action in enumerateMenuActions(self.menu_File) : # replace by enumerateMenu
             action.triggered.connect(lambda x, actionName=action.objectName(): self.execMenuFile(x, actionName))
 
@@ -133,7 +140,7 @@ class Form1(QtGui.QMainWindow):
 
     def writeSettings(self):
         self.settings.sync()
-        return
+        """
         settings = QSettings("qsettingsexample.ini", QSettings.IniFormat);
 
         print settings.value('paths/dlgdir', 'novalue').toString()
@@ -148,6 +155,7 @@ class Form1(QtGui.QMainWindow):
         settings.setValue("font", 1 )
         settings.setValue("size", 2)
         settings.endGroup()
+        """
 
     def closeEvent(self, event):
         self.writeSettings()
@@ -158,7 +166,7 @@ def enumerateMenuActions(menu):
     Build  recursively the list of actions contained in menu
     and all submenus.
     :param menu: Qmenu object
-    :return: The list of actions
+    :return: list of actions
     """
     actions = []
     for action in menu.actions():
@@ -169,12 +177,15 @@ def enumerateMenuActions(menu):
             actions.append(action)
     return actions
 
-app = QApplication(sys.argv)
-window = Form1()
+# QApplication and mainWindow init
+app = None
+window = None
+if app is None:
+    app = QApplication(sys.argv)
+if window is None:
+    window = Form1()
 
 
-
-window.label.setStyleSheet("background-color: rgb(200, 200, 200);")
 """
 if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)

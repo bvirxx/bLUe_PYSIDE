@@ -332,8 +332,7 @@
     <property name="title">
      <string>Window</string>
     </property>
-    <addaction name="actionShow_hide_left_window"/>
-    <addaction name="actionShow_hide_right_window"/>
+    <addaction name="actionShow_hide_right_window_3"/>
     <addaction name="separator"/>
     <addaction name="actionDiaporama"/>
    </widget>
@@ -357,6 +356,7 @@
     </widget>
     <addaction name="menuColor_settings"/>
     <addaction name="actionImage_info"/>
+    <addaction name="actionSnap"/>
    </widget>
    <widget class="QMenu" name="menuLayer">
     <property name="title">
@@ -422,9 +422,9 @@
     <string>sub</string>
    </property>
   </action>
-  <action name="actionShow_hide_left_window">
+  <action name="actionShow_hide_right_window_3">
    <property name="text">
-    <string>show/hide left window</string>
+    <string>show/hide right window</string>
    </property>
   </action>
   <action name="actionShow_hide_right_window">
@@ -471,6 +471,14 @@
   <action name="actionWorking_profile">
    <property name="text">
     <string>Working profile</string>
+   </property>
+  </action>
+  <action name="actionSnap">
+   <property name="text">
+    <string>snap</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+S</string>
    </property>
   </action>
  </widget>
