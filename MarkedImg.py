@@ -19,7 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>
 
 import cv2
 from imgconvert import *
-from PyQt4.QtGui import QPixmap, QImage, QColor, QPainter
+from PyQt4.QtGui import QPixmap, QImage, QColor, QPainter, QMessageBox
 from PyQt4.QtCore import QRect, QByteArray
 from icc import convertQImage, MONITOR_PROFILE_PATH, COLOR_MANAGE
 from LUT3D import LUT3D, interpVec
@@ -161,6 +161,11 @@ class vImage(QImage):
 
     def apply3DLUT(self, LUT, widget=None):
 
+        if self.format() not in [QImage.Format_ARGB32, QImage.Format_RGB32]:
+            msg = QMessageBox()
+            msg.setText("convert image to RGB or ARGB format")
+            msg.exec_()
+            return
         # get image buffer (type RGB)
         w1, w2, h1, h2 = 0, self.inputImg.width(), 0, self.inputImg.height()
         if self.parent.rect is not None:

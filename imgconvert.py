@@ -21,6 +21,10 @@ import numpy as np
 from PyQt4.QtGui import QImage
 from PIL import Image
 
+QImageFormats = {0:'invalid', 1:'mono', 2:'monoLSB', 3:'indexed8', 4:'RGB32', 5:'ARGB32',6:'ARGB32 Premultiplied',
+                 7:'RGB16', 8:'ARGB8565 Premultiplied', 9:'RGB666',10:'ARGB6666 Premultiplied', 11:'RGB555', 12:'ARGB8555 Premultiplied',
+                 13: 'RGB888', 14:'RGB444', 15:'ARGB4444 Premultiplied'}
+
 def ndarrayToQImage(ndimg, format=QImage.Format_ARGB32):
     """
     Convert a 3D numpy ndarray to a QImage. No sanity check is

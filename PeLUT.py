@@ -21,7 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>
 import sys
 import cv2
 from PyQt4.QtCore import Qt, QRect, QEvent, QSettings, QSize, QString
-from PyQt4.QtGui import QWidget, QSplitter, QPixmap, QImage, QColor,QPainter, QApplication, QMenu, QAction, QCursor, QFileDialog, QColorDialog, QMainWindow, QLabel, QDockWidget, QHBoxLayout, QSizePolicy
+from PyQt4.QtGui import QWidget, QSplitter, QPixmap, QImage, QColor,QPainter, QApplication, QMenu, QAction, QCursor, QFileDialog, QMessageBox, QColorDialog, QMainWindow, QLabel, QDockWidget, QHBoxLayout, QSizePolicy
 from QtGui1 import app, window
 import PyQt4.Qwt5 as Qwt
 import time
@@ -388,6 +388,7 @@ def button_change(widg):
     window.label_2.repaint()
 
 def contextMenu(widget):
+
     qmenu = QMenu("Context menu")
     for k in widget.img.layers.keys():
         action1 = QAction(k, qmenu, checkable=True)
@@ -442,26 +443,24 @@ def openFile(f):
     # convert QString object to string
     if isinstance(f, QString):
         f=str(f.toUtf8())
-    #get exif data
+    # extract embedded profile and metadata, if any
+    # metadata is a list of dicts with len(metadata) >=1.
+    # metadata[0] contains at least 'SourceFile' : path
     with exiftool.ExifTool() as e:
         profile, metadata = e.get_metadata(f)
-    """
-    print 'dic', len(metadata)
-    for d in metadata:
-        for k, v in d.iteritems():
-             print k, v
-    """
     colorSpace = metadata[0].get("EXIF:ColorSpace", -1) # sRGB: 1
     orientation = metadata[0].get("EXIF:Orientation", 0)
     transformation = exiftool.decodeExifOrientation(orientation)
-    img = imImage(filename=f, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile, name='toto')
+    img = imImage(filename=f, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile, name='')
+    if img.format() < 4:
+        msg = QMessageBox()
+        msg.setText("Cannot edit indexed formats\nConvert image to a non indexed mode first")
+        msg.exec_()
+        return
     window.label.img = img
-    #window.label.img.meta.name = 'resized'
     window.label_2.img = imImage(QImg=img.copy(), meta=img.meta)
     # no mouse drawing or painting
     window.label_2.img.mouseChange = False
-    # print 'Orientation', metadata['EXIF:Orientation']
-    # print 'ICC', metadata['EXIF:ColorSpace']
     window.tableView.addLayers(window.label.img)
     window.label.repaint()
     window.label_2.repaint()
@@ -480,22 +479,24 @@ def menuWindow(x, name):
 
 def menuImage(x, name) :
 
+    img = window.label.img
     if name == 'actionImage_info' :
-        l = window.label.img.meta.rawMetadata
-        s = ''
+        l = img.meta.rawMetadata
+        s = "Format : %s\n(cf. QImage Formats in the doc for details)" % QImageFormats.get(img.format(), 'unknown')
+        s = s + "\n\nMETADATA :\n"
         for d in l:
             s = s + '\n'.join('%s : %s' % (k,v) for k, v in d.iteritems())
         w, label = handleTextWindow(parent=window, title='Image info')
         label.setText(QString(s))
     elif name == 'actionColor_manage':
         icc.COLOR_MANAGE = window.actionColor_manage.isChecked()
-        window.label.img.updatePixmaps()
+        img.updatePixmaps()
         window.label_2.img.updatePixmaps()
     elif name == 'actionWorking_profile':
         w, label = handleTextWindow(parent=window, title='Working profile info')
         label.setText(QString(icc.WORKING_PROFILE_INFO))
     elif name == 'actionSnap':
-        img= window.label.img.snapshot()
+        img= img.snapshot()
         img.setView(*window.label_2.img.view())
         window.label_2.img = img
         window.label_2.repaint()
@@ -541,6 +542,7 @@ def menuLayer(x, name):
         window.label.repaint()
 
 def handleNewWindow(parent=None, title='New window', set_event_handler=True):
+
     newwindow = QMainWindow(parent)
     newwindow.setAttribute(Qt.WA_DeleteOnClose)
     newwindow.setWindowTitle(parent.tr(title))
@@ -554,6 +556,7 @@ def handleNewWindow(parent=None, title='New window', set_event_handler=True):
     return newwindow, label_3
 
 def handleTextWindow(parent=None, title=''):
+
     w, label = handleNewWindow(parent=parent, title=title, set_event_handler=False)
     w.setFixedSize(500,500)
     #label.setStyleSheet("QLabel { background-color: blue }")

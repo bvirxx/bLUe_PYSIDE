@@ -24,12 +24,15 @@ from PyQt4.QtGui import QApplication
 import resources_rc   # DO NOT REMOVE !!!!
 
 class Form1(QtGui.QMainWindow):
-
+    """
+    Application main window.
+    This is a ui form loader
+    """
     def __init__(self, parent=None):
         super(Form1, self).__init__(parent)
         # load UI
         ui=uic.loadUi('essai1.ui', self)
-        #  button or slider event handlers
+        # SLOT hooks
         self.onWidgetChange = lambda : 0
         self.onShowContextMenu = lambda : 0
         self.onExecMenuFile = lambda : 0
@@ -42,8 +45,9 @@ class Form1(QtGui.QMainWindow):
         self.btnValues = {}
         self._recentFiles = []
 
+        # event connections to SLOTS
         for slider in self.findChildren(QtGui.QSlider):
-            segment = slider.objectName()
+            #segment = slider.objectName()
             slider.valueChanged.connect(
                             lambda value, slider=slider : self.handleSliderMoved(value, slider)
                             )
@@ -163,8 +167,8 @@ class Form1(QtGui.QMainWindow):
 
 def enumerateMenuActions(menu):
     """
-    Build  recursively the list of actions contained in menu
-    and all submenus.
+    Build  recursively the list of actions contained in a menu
+    and all its submenus.
     :param menu: Qmenu object
     :return: list of actions
     """
@@ -177,29 +181,12 @@ def enumerateMenuActions(menu):
             actions.append(action)
     return actions
 
+########
 # QApplication and mainWindow init
-app = None
-window = None
-if app is None:
-    app = QApplication(sys.argv)
-if window is None:
-    window = Form1()
+# A Python module is a singleton : the initialization code below
+# is executed only once, regardless the number of module imports.
+#######
+app = QApplication(sys.argv)
+window = Form1()
 
 
-"""
-if __name__ == "__main__":
-    app = QtGui.QApplication(sys.argv)
-    window = Form1()
-    import cv2
-    img = cv2.imread('E:\orch2-2-2.png')
-    height, width, bpc = img.shape
-    image = QtGui.QImage(img.data, width, height, bpc*width, QtGui.QImage.Format_RGB888)
-    myPixmap=QtGui.QPixmap.fromImage(image)
-
-
-    window.show()
-    myScaledPixmap = myPixmap.scaled(window.label.size(), QtCore.Qt.KeepAspectRatio)
-
-    window.label.setPixmap(myScaledPixmap)
-    sys.exit(app.exec_())
-"""

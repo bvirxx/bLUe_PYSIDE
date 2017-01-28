@@ -493,6 +493,7 @@ def interpVec(LUT, ndImg):
     a=np.floor(ndImgF).astype(int)
     aplus1 = a + 1
 
+
     # RGB channels
     r0, g0, b0 = a[:,:,0], a[:,:,1], a[:,:,2]
     r1, g1, b1 = aplus1[:,:,0], aplus1[:,:,1], aplus1[:,:,2]
