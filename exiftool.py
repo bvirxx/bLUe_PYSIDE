@@ -40,7 +40,8 @@ class ExifTool(object):
     # -S : very short output format
     # -G0 : print group name for each tag
     flags = ["-j", "-a", "-n", "-S", "-G0", "-Orientation", "-ProfileDescription", "-colorSpace", "-InteropIndex", "-WhitePoint", "-PrimaryChromaticities", "-Gamma"]#, "-ICC_Profile:all"]
-    extract_profile_flags = ["-icc_profile", "-b"]
+    extract_meta_flags = ["-b"] #["-icc_profile", "-b"]
+    copy_meta_flags = ["-tagsFromFile", "-all:all"]
 
     def __init__(self, executable = EXIFTOOL_PATH):
         self.executable = executable
@@ -75,8 +76,16 @@ class ExifTool(object):
 
     def get_metadata(self, *filenames):
         #return json.loads(self.execute("-G", "-j", "-n", *filenames))
-        profile=self.execute(*(self.extract_profile_flags + list(filenames)))
+        profile=self.execute(*(self.extract_meta_flags + list(filenames)))
+
+        self.copyMetadata(*filenames)
         return profile, json.loads(self.execute(*(self.flags+list(filenames))))
+
+    def copyMetadata(self, *filenames):
+        for f in list(filenames):
+            print self.copy_meta_flags + [f] + [f+".mie"]
+            self.execute(*(["-tagsFromFile", f, "-all:all", f+".mie"]))
+        #return profile, json.loads(self.execute(*(self.flags+list(filenames))))
 
 
 def decodeExifOrientation(value):

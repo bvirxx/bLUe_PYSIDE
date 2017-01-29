@@ -20,19 +20,21 @@ from PyQt4 import QtGui, uic
 from PyQt4.QtCore import QSettings, QSize
 from PIL.ImageCms import getProfileDescription
 import sys
-from PyQt4.QtGui import QApplication
+from PyQt4.QtGui import QApplication, QMessageBox
 import resources_rc   # DO NOT REMOVE !!!!
 
 class Form1(QtGui.QMainWindow):
     """
-    Application main window.
-    This is a ui form loader
+    Application main window class.
+    We used slot hooks to make its design independent
+    to the underlying application.
+    The layout is loaded from the ui form essai1.ui.
     """
     def __init__(self, parent=None):
         super(Form1, self).__init__(parent)
         # load UI
         ui=uic.loadUi('essai1.ui', self)
-        # SLOT hooks
+        # Slot hooks
         self.onWidgetChange = lambda : 0
         self.onShowContextMenu = lambda : 0
         self.onExecMenuFile = lambda : 0
@@ -40,6 +42,7 @@ class Form1(QtGui.QMainWindow):
         self.onExecMenuWindow = lambda : 0
         self.onExecMenuImage = lambda : 0
         self.onExecMenuLayer = lambda: 0
+        self.onUpdateMenuAssignProfile = lambda : 0
 
         self.slidersValues = {}
         self.btnValues = {}
@@ -83,17 +86,9 @@ class Form1(QtGui.QMainWindow):
         for action in enumerateMenuActions(self.menuLayer) :
             action.triggered.connect(lambda x, actionName=action.objectName(): self.execMenuLayer(x, actionName))
 
+        # mouse hovered event Slots
         self.menuOpen_recent.menuAction().hovered.connect(lambda : self.updateMenuOpenRecent())
         self.menuColor_settings.menuAction().hovered.connect(lambda : self.updateMenuAssignProfile())
-
-    def getProfiles(self):
-        profileDir = "C:\Windows\System32\spool\drivers\color"
-        from os import listdir
-        from os.path import isfile, join
-        onlyfiles = [f for f in listdir(profileDir) if isfile(join(profileDir, f)) and ( 'icc' in f or 'icm' in f)]
-        desc = [getProfileDescription(join(profileDir, f)) for f in onlyfiles]
-        profileList = zip(onlyfiles, desc)
-        return profileList
 
     def updateMenuOpenRecent(self):
         self.menuOpen_recent.clear()
@@ -101,9 +96,7 @@ class Form1(QtGui.QMainWindow):
             self.menuOpen_recent.addAction(f, lambda x=f: self.execFileOpen(x))
 
     def updateMenuAssignProfile(self):
-        self.menuAssign_profile.clear()
-        for f in self.getProfiles():
-            self.menuAssign_profile.addAction(f[0]+" "+f[1], lambda x=f : self.execAssignProfile(x))
+        self.onUpdateMenuAssignProfile()
 
     def execAssignProfile(self, x):
         self.onExecAssignProfile(x)
@@ -141,7 +134,6 @@ class Form1(QtGui.QMainWindow):
 
         self.resize(self.settings.value("mainwindow/size", QSize(250, 200)).toSize());
 
-
     def writeSettings(self):
         self.settings.sync()
         """
@@ -162,6 +154,13 @@ class Form1(QtGui.QMainWindow):
         """
 
     def closeEvent(self, event):
+        quit_msg = "Are you sure you want to exit the program?"
+        reply = QMessageBox.question(self, 'Message', quit_msg, QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+        if reply == QtGui.QMessageBox.Yes:
+            event.accept()
+        else:
+            event.ignore()
+            return
         self.writeSettings()
         super(Form1, self).closeEvent(event)
 

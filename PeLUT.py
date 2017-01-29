@@ -20,7 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>
 
 import sys
 import cv2
-from PyQt4.QtCore import Qt, QRect, QEvent, QSettings, QSize, QString
+from PyQt4.QtCore import Qt, QRect, QEvent, QDir, QSettings, QSize, QString
 from PyQt4.QtGui import QWidget, QSplitter, QPixmap, QImage, QColor,QPainter, QApplication, QMenu, QAction, QCursor, QFileDialog, QMessageBox, QColorDialog, QMainWindow, QLabel, QDockWidget, QHBoxLayout, QSizePolicy
 from QtGui1 import app, window
 import PyQt4.Qwt5 as Qwt
@@ -35,7 +35,7 @@ from LUT3D import rgb2hsB,hsp2rgb, LUT3D
 from math import floor
 from colorModels import hueSatModel
 import icc
-from copy import copy
+from os import path
 
 P_SIZE=4000000
 
@@ -408,10 +408,26 @@ def menuFile(name):
     :return:
     """
     window._recentFiles = window.settings.value('paths/recent', [], QString)
+
     # update menu and actions
     window.updateMenuOpenRecent()
-    print 'updated'
+
+    def save():
+        lastDir = window.settings.value('paths/dlgdir', QDir.currentPath()).toString()
+        dlg = QFileDialog(window, "select", lastDir)
+        if dlg.exec_():
+            filenames = dlg.selectedFiles()
+            window.label.img.save(filenames[0])
+
     if name == 'actionOpen' :
+        if window.label.img.isModified:
+            quit_msg = "%s is modified. Save?" % window.label.img.meta.name
+            reply = QMessageBox.question(window, 'Message', quit_msg, QMessageBox.Yes, QMessageBox.No, QMessageBox.Cancel)
+            if reply == QMessageBox.Yes:
+                save()
+            elif reply == QMessageBox.Cancel:
+                return
+
         lastDir = window.settings.value('paths/dlgdir', 'F:/bernard').toString()
         dlg =QFileDialog(window, "select", lastDir)
 
@@ -427,36 +443,44 @@ def menuFile(name):
             # update menu and actions
             window.updateMenuOpenRecent()
             openFile(filenames[0])
-
     elif name == 'actionSave':
-        lastDir = window.settings.value('paths/dlgdir', 'F:/bernard').toString()
-        dlg = QFileDialog(window, "select", lastDir)
-
-        if dlg.exec_():
-            filenames = dlg.selectedFiles()
-            window.label.img.save(filenames[0])
-
-# hsModel= hueSatModel.colorWheel(500, 500)
+        save()
 
 def openFile(f):
 
     # convert QString object to string
     if isinstance(f, QString):
         f=str(f.toUtf8())
+
     # extract embedded profile and metadata, if any
     # metadata is a list of dicts with len(metadata) >=1.
     # metadata[0] contains at least 'SourceFile' : path
     with exiftool.ExifTool() as e:
         profile, metadata = e.get_metadata(f)
-    colorSpace = metadata[0].get("EXIF:ColorSpace", -1) # sRGB: 1
+
+    # trying to get color space info  1 = sRGB
+    colorSpace = metadata[0].get("EXIF:ColorSpace", -1)
+    if colorSpace <0:
+        colorSpace = metadata[0].get("ICC_Profile:ProfileDescription", -1)
+
     orientation = metadata[0].get("EXIF:Orientation", 0)
     transformation = exiftool.decodeExifOrientation(orientation)
-    img = imImage(filename=f, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile, name='')
+
+    name = path.basename(f)
+    img = imImage(filename=f, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile, name=name)
     if img.format() < 4:
         msg = QMessageBox()
         msg.setText("Cannot edit indexed formats\nConvert image to a non indexed mode first")
         msg.exec_()
         return
+    if colorSpace < 0:
+        print 'colorspace', colorSpace
+        msg = QMessageBox()
+        msg.setText("Color profile missing\nAssigning sRGB profile")
+        msg.exec_()
+        img.meta.colorSpace = 1
+        img.updatePixmaps()
+
     window.label.img = img
     window.label_2.img = imImage(QImg=img.copy(), meta=img.meta)
     # no mouse drawing or painting
@@ -494,15 +518,13 @@ def menuImage(x, name) :
         window.label_2.img.updatePixmaps()
     elif name == 'actionWorking_profile':
         w, label = handleTextWindow(parent=window, title='Working profile info')
-        label.setText(QString(icc.WORKING_PROFILE_INFO))
+        label.setText(QString(icc.MONITOR_PROFILE_INFO))
     elif name == 'actionSnap':
         img= img.snapshot()
         img.setView(*window.label_2.img.view())
         window.label_2.img = img
         window.label_2.repaint()
         print 'snap done'
-
-
 
 
 def menuLayer(x, name):
@@ -566,6 +588,13 @@ def handleTextWindow(parent=None, title=''):
     w.show()
     return w, label
 
+def menuAssignProfile():
+    window.menuAssign_profile.clear()
+    for f in icc.getProfiles():
+        window.menuAssign_profile.addAction(f[0]+" "+f[1], lambda x=f : window.execAssignProfile(x))
+
+
+
 ###########
 # app init
 ##########
@@ -583,6 +612,7 @@ window.onExecFileOpen = openFile
 window.onExecMenuWindow = menuWindow
 window.onExecMenuImage = menuImage
 window.onExecMenuLayer = menuLayer
+window.onUpdateMenuAssignProfile = menuAssignProfile
 
 window.readSettings()
 

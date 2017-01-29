@@ -57,6 +57,7 @@ class vImage(QImage):
         :param rawMetadata: list of dictionaries (default [])
         :param profile: embedded profile (default '')
         """
+        self.isModified = False
         self.rect, self.mask, = None, cv2mask
 
         if meta is None:
@@ -97,29 +98,14 @@ class vImage(QImage):
     def updatePixmap(self):
         if icc.COLOR_MANAGE:
             # 1=sRGB
-            if self.meta.colorSpace == 1 or len(self.meta.profile)> 0:
-                print 'update convert cm', self.meta.colorSpace, self.format(), self.meta.name
-                cvqim=convertQImage(self, toProfile=MONITOR_PROFILE_PATH)
+            if self.meta.colorSpace == 1:  #or len(self.meta.profile)> 0:
+                cvqim=convertQImage(self)
             else:
                 cvqim = self
             self.qPixmap = QPixmap.fromImage(cvqim)
         else:
-            print 'no color space', self.meta.colorSpace, self.format(), self.meta.name
             self.qPixmap = QPixmap.fromImage(self)
-    """
-    def cv2Img(self, cv2Type='BGRA'):
-        if self.cv2Cache is not None and self.cv2CacheType==cv2Type:
-            return self.cv2Cache
-        else:
-            self.cv2Cache = QImageBuffer(self)
-            self.cv2CacheType = 'BGRA'
-            if cv2Type == 'RGB':
-                self.cv2Cache = self.cv2Cache[:,:,::-1]
-                self.cv2Cache = self.cv2Cache[:,:,1:4]
-                self.cv2Cache = np.ascontiguousarray(self.cv2Cache, dtype=np.uint8)
-                self.cv2CacheType = 'RGB'
-            return self.cv2Cache
-    """
+
 
     def resize(self, pixels, interpolation=cv2.INTER_CUBIC):
         """
@@ -145,6 +131,7 @@ class vImage(QImage):
         if self.mask is not None:
             # tmp.mask=cv2.resize(self.mask, (w,h), interpolation=cv2.INTER_NEAREST )
             rszd.mask = self.mask.scaled(w, h)
+        self.isModified = True
         return rszd
 
     def applyLUT(self, LUT, widget=None):
@@ -224,7 +211,7 @@ class mImage(vImage):
         self.activeLayer = bgLayer
 
     def addLayer(self, lay, name):
-        # find an unused name
+        # build a unique name
         usedNames = [l.name for l in self._layersStack]
         a = 1
         trialname = name
@@ -237,6 +224,7 @@ class mImage(vImage):
         lay.meta = self.meta
         if lay.name != 'drawlayer':
             lay.updatePixmap()
+        self.isModified = True
 
     def addAdjustmentLayer(self, name='', window=None):
         lay = QLayer(QImg=self)
@@ -260,6 +248,7 @@ class mImage(vImage):
         """
         #lay.window = window
         lay.parent = self
+        self.isModified = True
         return lay
 
     def updatePixmaps(self):
@@ -336,6 +325,7 @@ class imImage(mImage) :
                 img = QLayer.fromImage(self._layers[l.name].resize(pixels, interpolation=interpolation))
                 rszd._layersStack.append (img)
                 rszd._layers[l.name] = img
+        self.isModified = True
         return rszd
 
     def view(self):

@@ -30,61 +30,38 @@ from os import path
 # global flag
 COLOR_MANAGE = True
 
+###########################
+# Paths to installed profiles
 ADOBE_RGB_PROFILE_PATH = "C:\Windows\System32\spool\drivers\color\AdobeRGB1998.icc"
 SRGB_PROFILE_PATH = "C:\Windows\System32\spool\drivers\color\sRGB Color Space Profile.icm"
 MONITOR_PROFILE_PATH = "C:\Windows\System32\spool\drivers\color\CS240(34381075)00000002.icc"  #photography CS240 calibration
+#############################
 
-dp=get_display_profile()
-WORKING_PROFILE_INFO=getProfileInfo(dp)
-ip = getOpenProfile(SRGB_PROFILE_PATH)
-t = buildTransformFromOpenProfiles(ip, dp, "RGB", "RGB")
+monitorProfile=get_display_profile()
+MONITOR_PROFILE_INFO=getProfileInfo(monitorProfile)
 
-"""
-def convert(f, fromProfile=SRGB_PROFILE, toProfile=MONITOR_PROFILE):
+workingProfile = getOpenProfile(SRGB_PROFILE_PATH)
 
-    Load file f and convert image to new profile.
-    icc profile data will be removed from image.
-    :param f: string path to f
-    :return: ImageQt converted image (ImageQt is a subclass of QImage)
+# ICC transform (type : Cms transform object)
+workToMonTransform = buildTransformFromOpenProfiles(workingProfile, monitorProfile, "RGB", "RGB")
 
-    image_path = f
-    original_image = Image.open(image_path)
-    #icc = Image.open(path).info.get('icc_profile')
-    #print original_image.info['exif']
-    if True:#'icc_profile' in original_image.info:
 
-        # This part is important. If the photo already has an
-        # ICC profile, you should skip this step. If you don't
-        # it can lead to color distortions in the image.
-        # Therefore we always check whether the image
-        # has an ICC profile first.
-        converted_image = profileToProfile(original_image, fromProfile, toProfile)
-        qim = ImageQt(converted_image).copy()#######################"
+def getProfiles():
+    profileDir = "C:\Windows\System32\spool\drivers\color"
+    from os import listdir
+    from os.path import isfile, join
+    onlyfiles = [f for f in listdir(profileDir) if isfile(join(profileDir, f)) and ('icc' in f or 'icm' in f)]
+    desc = [getProfileDescription(join(profileDir, f)) for f in onlyfiles]
+    profileList = zip(onlyfiles, desc)
+    return profileList
 
-        #a=qim.bits()
-        return qim
-"""
-
-def convertQImage(image, fromProfile=SRGB_PROFILE_PATH, toProfile=SRGB_PROFILE_PATH):
+def convertQImage(image, transformation = workToMonTransform):
     """
     Convert a QImage from profile fromProfile to profile toProfile.
     :param image: source QImage
-    :param fromProfile: the source profile, default sRGB
-    :param toProfile: the destination profile, default sRGB
+    :param transformation : a CmsTransform object
     :return: The converted QImage
     """
-
-    if fromProfile == toProfile:
-        return image
-
-    p = fromProfile
-    if len(image.meta.profile) >0 :
-        # Imbedded profile
-        try:
-            p=getOpenProfile(StringIO(image.profile))
-        except:
-            pass
-    # convert
-    #converted_image = profileToProfile(QImageToPilImage(image), p, toProfile)
-    converted_image = applyTransform(QImageToPilImage(image), t, 0)
+    # conversion in the PIL context
+    converted_image = applyTransform(QImageToPilImage(image), transformation, 0)
     return PilImageToQImage(converted_image)
