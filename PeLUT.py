@@ -21,7 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>
 import sys
 import cv2
 from PyQt4.QtCore import Qt, QRect, QEvent, QDir, QSettings, QSize, QString
-from PyQt4.QtGui import QWidget, QSplitter, QPixmap, QImage, QColor,QPainter, QApplication, QMenu, QAction, QCursor, QFileDialog, QMessageBox, QColorDialog, QMainWindow, QLabel, QDockWidget, QHBoxLayout, QSizePolicy
+from PyQt4.QtGui import QWidget, QSplitter, QPixmap, QImage, QAbstractItemView, QColor,QPainter, QApplication, QMenu, QAction, QCursor, QFileDialog, QMessageBox, QColorDialog, QMainWindow, QLabel, QDockWidget, QHBoxLayout, QSizePolicy
 from QtGui1 import app, window
 import PyQt4.Qwt5 as Qwt
 import time
@@ -177,40 +177,41 @@ def canny(img0, img1) :
    img1.__set_cv2Img(edges)
    window.label_2.repaint()
 
-# painter for images
+# paintEvent painter
 qp=QPainter()
 bgColor=QColor(100,100,100)
 
 def paintEvent(widg, e) :
     """
-    paint event handler for widgets dispaying a mImage object
-    :param widg:
+    Paint event handler for widgets that display a mImage object.
+    The widget must have a valid img attribute of type QImage.
+    :param widg: widget object with a img attribute
     :param e: paint event
     """
     if not hasattr(widg, 'img'):
-        return
+        raise ValueError("paintEvent : no image")
     if widg.img is None:
-        return
+        raise ValueError("paintEvent : no image")
     qp.begin(widg)
-    qp.translate(5, 5)
-    qp.setClipRect(QRect(0,0, widg.width()-10, widg.height()-10))
+    #qp.translate(5, 5)
+    #qp.setClipRect(QRect(0,0, widg.width()-10, widg.height()-10))
     #qp.setCompositionMode(qp.CompositionMode_DestinationIn)  # avoid alpha summation
 
     mimg= widg.img
     r=mimg.resize_coeff(widg)
     qp.setPen(QColor(0,255,0))
     # background
-    qp.fillRect(QRect(0, 0, widg.width() - 10, widg.height() - 10), bgColor)
+    qp.fillRect(QRect(0, 0, widg.width() , widg.height() ), bgColor)
 
     # draw layers
     for layer in mimg._layersStack :
         if layer.visible:
             if layer.qPixmap is not None:
-                qp.drawPixmap(QRect(mimg.xOffset,mimg.yOffset, mimg.width()*r-10, mimg.height()*r-10), # target rect
+                qp.drawPixmap(QRect(mimg.xOffset,mimg.yOffset, mimg.width()*r, mimg.height()*r), # target rect
                            layer.transfer() #layer.qPixmap
                          )
             else:
-                qp.drawImage(QRect(mimg.xOffset, mimg.yOffset, mimg.width() * r - 10, mimg.height() * r - 10), # target rect
+                qp.drawImage(QRect(mimg.xOffset, mimg.yOffset, mimg.width() * r , mimg.height() * r ), # target rect
                               layer  # layer.qPixmap
                               )
     # draw selection rectangle
@@ -277,19 +278,14 @@ def mouseEvent(widget, event) :
                     rect_or_mask = 0
                 elif (window.btnValues['drawFG'] or window.btnValues['drawBG']):
                     color= CONST_FG_COLOR if window.btnValues['drawFG'] else CONST_BG_COLOR
-                    #qp.begin(img.mask)
                     qp.begin(img._layers['drawlayer'])
                     qp.setPen(color)
-                    qp.setBrush(color);
-                    qp.setCompositionMode(qp.CompositionMode_Source)  # avoid alpha summation
+                    qp.setBrush(color)
+                    # avoid alpha summation
+                    qp.setCompositionMode(qp.CompositionMode_Source)
                     qp.drawEllipse(int(x / r)-img.xOffset/r, int(y / r)- img.yOffset/r, 80, 80)
                     qp.end()
                     rect_or_mask=1
-
-                    #mask=cv2.bitwise_or(img.resize(40000).mask, mask)
-
-                    #window.label_2.img=do_grabcut(Mimg_p, preview=P_SIZE)
-                    #window.label_2.repaint()
                     window.label.repaint()
                 else:
                     img.xOffset+=(x-State['ix'])
@@ -299,12 +295,6 @@ def mouseEvent(widget, event) :
                 img.yOffset+=(y-State['iy'])
         #update
         State['ix'],State['iy']=x,y
-        #c = QColor(img.pixel(State['ix'] / r -  img.xOffset/r,  State['iy'] / r - img.yOffset/r))
-        #r,g,b=c.red(), c.green(), c.blue()
-        #h,s,p=rgb2hsv(r,g,b, perceptual=True)
-        #print 'picker rgb :', r,g,b, 'hsp :', h,s,p
-        #print hs2rgbList(h,s)
-
     elif event.type() == QEvent.MouseButtonRelease :
         pressed=False
         if event.button() == Qt.LeftButton:
@@ -353,10 +343,8 @@ def set_event_handler(widg):
     """
     Pythonic way for redefining event handlers. In contrast to
     subclassing and overriding, we can add convenient parameters to
-    our handlers. if mouse is True (default) we set handlers for paint
-    and mouse events, otherwise we only set paint event handler.
+    our handlers.
     :param widg:
-    :param mouse:
     """
     widg.paintEvent = lambda e, wdg=widg : paintEvent(wdg,e)
     widg.mousePressEvent = lambda e, wdg=widg : mouseEvent(wdg, e)
@@ -364,17 +352,6 @@ def set_event_handler(widg):
     widg.mouseReleaseEvent = lambda e, wdg=widg : mouseEvent(wdg, e)
     widg.wheelEvent = lambda e, wdg=widg : wheelEvent(wdg, wdg.img, e)
 
-"""
-app = QApplication(sys.argv)
-window = QtGui1.Form1()
-set_event_handler(window.label)
-set_event_handler(window.label_2)
-
-window.label.setStyleSheet("background-color: rgb(200, 200, 200);")
-"""
-
-#img_0=Mimg_0.cv2Img()
-#Mimg.rect = QRect(500, 400, Mimg.qImg.width()-2000, Mimg.qImg.height()-1000)
 
 def button_change(widg):
     if str(widg.accessibleName()) == "Apply" :
@@ -410,7 +387,7 @@ def menuFile(name):
     window._recentFiles = window.settings.value('paths/recent', [], QString)
 
     # update menu and actions
-    window.updateMenuOpenRecent()
+    updateMenuOpenRecent()
 
     def save():
         lastDir = window.settings.value('paths/dlgdir', QDir.currentPath()).toString()
@@ -435,16 +412,18 @@ def menuFile(name):
             filenames = dlg.selectedFiles()
             newDir = dlg.directory().absolutePath()
             window.settings.setValue('paths/dlgdir', newDir)
+            # update list of recent files
             filter(lambda a: a != filenames[0], window._recentFiles)
             window._recentFiles.append(filenames[0])
-            if len(window._recentFiles) > 5:
+            if len(window._recentFiles) > 10:
                 window._recentFiles.pop(0)
             window.settings.setValue('paths/recent', window._recentFiles)
             # update menu and actions
-            window.updateMenuOpenRecent()
+            updateMenuOpenRecent()
             openFile(filenames[0])
     elif name == 'actionSave':
         save()
+    updateEnabledActions()
 
 def openFile(f):
 
@@ -482,12 +461,21 @@ def openFile(f):
         img.updatePixmaps()
 
     window.label.img = img
+    window.label.img.onModify = lambda : updateEnabledActions()
     window.label_2.img = imImage(QImg=img.copy(), meta=img.meta)
     # no mouse drawing or painting
     window.label_2.img.mouseChange = False
     window.tableView.addLayers(window.label.img)
     window.label.repaint()
     window.label_2.repaint()
+
+def updateMenuOpenRecent():
+    window.menuOpen_recent.clear()
+    for f in window._recentFiles :
+        window.menuOpen_recent.addAction(f, lambda x=f: window.execFileOpen(x))
+
+def updateEnabledActions():
+    window.actionSave.setEnabled(window.label.img.isModified)
 
 def menuWindow(x, name):
 
@@ -505,8 +493,12 @@ def menuImage(x, name) :
 
     img = window.label.img
     if name == 'actionImage_info' :
+        # Format
+        s = "Format : %s\n(cf. QImage formats in the doc for more info)" % QImageFormats.get(img.format(), 'unknown')
+        # dimensions
+        s = s + "\n\ndim : %d x %d" % (img.width(), img.height())
+        # raw meta data
         l = img.meta.rawMetadata
-        s = "Format : %s\n(cf. QImage Formats in the doc for details)" % QImageFormats.get(img.format(), 'unknown')
         s = s + "\n\nMETADATA :\n"
         for d in l:
             s = s + '\n'.join('%s : %s' % (k,v) for k, v in d.iteritems())
@@ -545,7 +537,7 @@ def menuLayer(x, name):
 
         window.label.img.addLayer(l, 'Brightness/Contrast')
         window.tableView.addLayers(window.label.img)
-        grWindow.graphicsScene.onUpdateScene = lambda : l.applyLUT(grWindow.graphicsScene.LUTXY, widget=window.label)
+        grWindow.graphicsScene.onUpdateLUT = lambda : l.applyLUT(grWindow.graphicsScene.LUTXY, widget=window.label)
         window.label.repaint()
     elif name == 'action3D_LUT':
         l = window.label.img.addAdjustmentLayer(name='3D LUT')
@@ -560,7 +552,7 @@ def menuLayer(x, name):
         dock.setWindowTitle(grWindow.windowTitle())
         dock.move(500, 40)
         #window.addDockWidget(Qt.RightDockWidgetArea, dock)
-        grWindow.graphicsScene.onUpdateScene = lambda: l.apply3DLUT(grWindow.graphicsScene.LUT3D, widget=window.label)
+        grWindow.graphicsScene.onUpdateLUT = lambda: l.apply3DLUT(grWindow.graphicsScene.LUT3D, widget=window.label)
         window.label.repaint()
 
 def handleNewWindow(parent=None, title='New window', set_event_handler=True):
@@ -588,9 +580,9 @@ def handleTextWindow(parent=None, title=''):
     w.show()
     return w, label
 
-def menuAssignProfile():
+def initMenuAssignProfile():
     window.menuAssign_profile.clear()
-    for f in icc.getProfiles():
+    for f in PROFILES_LIST:
         window.menuAssign_profile.addAction(f[0]+" "+f[1], lambda x=f : window.execAssignProfile(x))
 
 
@@ -604,7 +596,7 @@ window.setStyleSheet("background-color: rgb(200, 200, 200);")
 window.label.setMouseTracking(True)
 #window.label_2.setMouseTracking(True)
 
-# set button and slider change handler
+# set GUI Slot hooks
 window.onWidgetChange = button_change
 window.onShowContextMenu = contextMenu
 window.onExecMenuFile = menuFile
@@ -612,7 +604,7 @@ window.onExecFileOpen = openFile
 window.onExecMenuWindow = menuWindow
 window.onExecMenuImage = menuImage
 window.onExecMenuLayer = menuLayer
-window.onUpdateMenuAssignProfile = menuAssignProfile
+#window.onUpdateMenuAssignProfile = menuAssignProfile
 
 window.readSettings()
 
@@ -625,6 +617,9 @@ img=QImage(200, 200, QImage.Format_ARGB32)
 img.fill(Qt.darkGray)
 defaultImImage = imImage(QImg=img)
 
+PROFILES_LIST = icc.getProfiles()
+initMenuAssignProfile()
+updateMenuOpenRecent()
 
 window.label.img = defaultImImage
 window.label_2.img = defaultImImage

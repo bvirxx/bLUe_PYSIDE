@@ -25,16 +25,15 @@ import resources_rc   # DO NOT REMOVE !!!!
 
 class Form1(QtGui.QMainWindow):
     """
-    Application main window class.
-    We used slot hooks to make its design independent
-    to the underlying application.
+    Main window class.
     The layout is loaded from the ui form essai1.ui.
     """
     def __init__(self, parent=None):
         super(Form1, self).__init__(parent)
         # load UI
         ui=uic.loadUi('essai1.ui', self)
-        # Slot hooks
+        # Slot hooks : they make the GUI independent
+        # to the underlying application.
         self.onWidgetChange = lambda : 0
         self.onShowContextMenu = lambda : 0
         self.onExecMenuFile = lambda : 0
@@ -87,16 +86,9 @@ class Form1(QtGui.QMainWindow):
             action.triggered.connect(lambda x, actionName=action.objectName(): self.execMenuLayer(x, actionName))
 
         # mouse hovered event Slots
-        self.menuOpen_recent.menuAction().hovered.connect(lambda : self.updateMenuOpenRecent())
-        self.menuColor_settings.menuAction().hovered.connect(lambda : self.updateMenuAssignProfile())
+        #self.menuOpen_recent.menuAction().hovered.connect(lambda : self.updateMenuOpenRecent())
+        #self.menuColor_settings.menuAction().hovered.connect(lambda : self.updateMenuAssignProfile())
 
-    def updateMenuOpenRecent(self):
-        self.menuOpen_recent.clear()
-        for f in self._recentFiles :
-            self.menuOpen_recent.addAction(f, lambda x=f: self.execFileOpen(x))
-
-    def updateMenuAssignProfile(self):
-        self.onUpdateMenuAssignProfile()
 
     def execAssignProfile(self, x):
         self.onExecAssignProfile(x)

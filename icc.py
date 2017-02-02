@@ -37,14 +37,15 @@ SRGB_PROFILE_PATH = "C:\Windows\System32\spool\drivers\color\sRGB Color Space Pr
 MONITOR_PROFILE_PATH = "C:\Windows\System32\spool\drivers\color\CS240(34381075)00000002.icc"  #photography CS240 calibration
 #############################
 
-monitorProfile=get_display_profile()
+monitorProfile = get_display_profile()
 MONITOR_PROFILE_INFO=getProfileInfo(monitorProfile)
 
 workingProfile = getOpenProfile(SRGB_PROFILE_PATH)
 
+
+
 # ICC transform (type : Cms transform object)
 workToMonTransform = buildTransformFromOpenProfiles(workingProfile, monitorProfile, "RGB", "RGB")
-
 
 def getProfiles():
     profileDir = "C:\Windows\System32\spool\drivers\color"

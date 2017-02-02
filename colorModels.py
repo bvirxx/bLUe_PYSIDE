@@ -105,6 +105,7 @@ class hueSatModel (imImage):
         # mark center and clipped area
         qp = QPainter(img)
         qp.drawEllipse(cx, cy, 3,3)
+        qp.end()
         b=np.logical_xor(clipping , np.roll(clipping, 1,axis=0))
         imgBuf[b]=0
 
@@ -132,6 +133,7 @@ class hueSatModel (imImage):
         #return cx*s*np.cos((h-315)*np.pi/180.0), cx*s*np.sin((h-315)*np.pi/180.0)
         return x,y
 
+    """
     def colorPickerSetmark(self, r,g,b, LUT3D):
         h,s,v = rgb2hsB(r, g, b, perceptual=True)
         #r1,g1,b1=hsp2rgb(h,s,self.pb)
@@ -149,6 +151,7 @@ class hueSatModel (imImage):
 
         for t in l:
             LUT3D[t] = [0,0,0]
+    """
 
 class pbModel (imImage):
 

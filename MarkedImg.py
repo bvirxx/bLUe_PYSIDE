@@ -58,6 +58,7 @@ class vImage(QImage):
         :param profile: embedded profile (default '')
         """
         self.isModified = False
+        self.onModify = lambda : 0
         self.rect, self.mask, = None, cv2mask
 
         if meta is None:
@@ -95,6 +96,10 @@ class vImage(QImage):
             self.mask = QImage(self.width(), self.height(), QImage.Format_ARGB32)
             self.mask.fill(0)
 
+    def setModified(self, b):
+        self.isModified = b
+        self.onModify()
+
     def updatePixmap(self):
         if icc.COLOR_MANAGE:
             # 1=sRGB
@@ -131,7 +136,7 @@ class vImage(QImage):
         if self.mask is not None:
             # tmp.mask=cv2.resize(self.mask, (w,h), interpolation=cv2.INTER_NEAREST )
             rszd.mask = self.mask.scaled(w, h)
-        self.isModified = True
+        self.setModified(True)
         return rszd
 
     def applyLUT(self, LUT, widget=None):
@@ -148,41 +153,26 @@ class vImage(QImage):
 
     def apply3DLUT(self, LUT, widget=None):
 
+        """
         if self.format() not in [QImage.Format_ARGB32, QImage.Format_RGB32]:
             msg = QMessageBox()
             msg.setText("convert image to RGB or ARGB format")
             msg.exec_()
             return
+        """
         # get image buffer (type RGB)
         w1, w2, h1, h2 = 0, self.inputImg.width(), 0, self.inputImg.height()
         if self.parent.rect is not None:
             w1, w2, h1,h2= self.parent.rect.left(), self.parent.rect.right(), self.parent.rect.top(), self.parent.rect.bottom()
 
-        print w1, w2, h1,h2
-        ndImg0 = QImageBuffer(self.inputImg)[h1:h2, w1:w2, :3] #[:, :, ::-1]
+        ndImg0 = QImageBuffer(self.inputImg)[h1+1:h2+1, w1+1:w2+1, :3] #[:, :, ::-1]
 
         ndImg1 = QImageBuffer(self)[:, :, :3]
 
-        print ndImg0.shape, ndImg1.shape
         start=time()
-        """
-        f = lambda *args : [interp(LUT, *x) for x in args]
 
-        ndImg[:] = map(f, * [ndImg[:,c] for c in range(ndImg.shape[1])])
-        """
-        ndImg1[h1:h2,w1:w2,:] = interpVec(LUT, ndImg0)
+        ndImg1[h1+1:h2+1,w1+1:w2+1,:] = interpVec(LUT, ndImg0)
 
-        """
-        for r in range(ndImg.shape[0]):
-            for c in range(ndImg.shape[1]):
-                p=ndImg[r,c]
-                ndImg[r,c]= LUT[(p[0]/2), (p[1]/2),(p[2]/2)]           #ndImg[interp(LUT, *ndImg[r,c])
-        """
-        """
-        p = Pool(2)
-        #f = lambda x : interp(LUT,x)
-        ndImg[:]=p.map(fa, ndImg)
-        """
         end=time()
         print 'time %.2f' % (end-start)
         self.updatePixmap()
@@ -224,7 +214,7 @@ class mImage(vImage):
         lay.meta = self.meta
         if lay.name != 'drawlayer':
             lay.updatePixmap()
-        self.isModified = True
+        self.setModified(True)
 
     def addAdjustmentLayer(self, name='', window=None):
         lay = QLayer(QImg=self)
@@ -232,9 +222,10 @@ class mImage(vImage):
         self.addLayer(lay, name)
         # paint image from lower layers
         qp = QPainter(lay.inputImg)
-        # draw image from the layer below
+        # draw image from layer immediately below
         l = self._layersStack[-2]
         qp.drawImage(QRect(0, 0, l.width(), l.height()), l)
+        qp.end()
         # selection rectangle from image
         """
         for l in self._layersStack:
@@ -248,7 +239,7 @@ class mImage(vImage):
         """
         #lay.window = window
         lay.parent = self
-        self.isModified = True
+        self.setModified(True)
         return lay
 
     def updatePixmaps(self):
@@ -273,13 +264,20 @@ class mImage(vImage):
         qpainter = QPainter(img)
         for layer in self._layersStack:
             if layer.visible:
+                """
                 if layer.qPixmap is not None:
-                    qpainter.drawPixmap(0,0, layer.transfer()
-                                  )
+                    print '00', layer.name
+                    qpainter.drawPixmap(0,0, layer.transfer())
+                    print '10', layer.name
                 else:
-                    qpainter.drawImage(0,0, layer)
-
+                """
+                qpainter.drawImage(0,0, layer)
+        qpainter.end()
         img.save(filename)
+        print 'saved 1'
+        self.setModified(False)
+        print 'saved 2'
+
 
 class imImage(mImage) :
     """
@@ -351,6 +349,7 @@ class imImage(mImage) :
                                  # target rect
                                  layer
                                  )
+        qp.end()
         snap.updatePixmaps()
         return snap
 

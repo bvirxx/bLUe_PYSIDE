@@ -18,43 +18,206 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>
 """
 import sys
 from PyQt4.QtGui import QApplication, QPainter, QWidget, QPixmap, QPushButton
-from PyQt4.QtGui import QGraphicsView, QGraphicsScene, QGraphicsPathItem , QGraphicsPixmapItem, QGraphicsTextItem, QPolygonF, QGraphicsPolygonItem , QPainterPath, QPainterPathStroker, QPen, QBrush, QColor, QPixmap, QMainWindow, QLabel, QSizePolicy
+from PyQt4.QtGui import QGraphicsView, QGraphicsScene, QAbstractItemView, QGraphicsItem, QGraphicsItemGroup, QGraphicsPathItem , QGraphicsPixmapItem, QGraphicsTextItem, QPolygonF, QGraphicsPolygonItem , QPainterPath, QPainterPathStroker, QPen, QBrush, QColor, QPixmap, QMainWindow, QLabel, QSizePolicy
 from PyQt4.QtCore import Qt, QPoint, QPointF, QRect, QRectF, QString
 import numpy as np
 from time import time
 from LUT3D import LUTSTEP, LUT3D, rgb2hsB, hsp2rgb, hsp2rgb_ClippingInd, reset_LUT3D
 from colorModels import hueSatModel, pbModel
 
+class nodeGroup(QGraphicsItemGroup):
+
+    def __init__(self, grid=None, parent=None):
+        super(nodeGroup, self).__init__(parent=parent)
+        self.grid = grid
+        self.mouseIsPressed = False
+        self.mouseIsMoved = False
+        self.a = QPointF(100,100)
+
+    def mousePressEvent(self,e):
+        print "group press"
+        self.mouseIsPressed = True
+        self.scene().update()
+        return
+        super(nodeGroup, self).mousePressEvent(e)
+        for i in self.childItems():
+            i.mousePressEvent(e)
+
+    def mouseMoveEvent(self,e):
+        print "group move"
+        self.mouseIsMoved = True
+        # move children
+        for i in self.childItems():
+            i.setPos(e.pos() + i.delta)
+        self.a = e.pos()
+        #update grid
+        self.grid.drawGrid()
+
+    def mouseReleaseEvent(self, e):
+        #click event
+        print "group release"
+        if not self.mouseIsMoved:
+            if self.isSelected():
+                self.grid.selectedGroup = None
+                self.setSelected(False)
+            else:
+                self.setSelected(True)
+                if self.grid.selectedGroup is not None:
+                    self.grid.selectedGroup.setSelected(False)
+                self.grid.selectedGroup = self
+                self.grid.selectionList = self.childItems()
+
+            for i in self.childItems():
+                if i.sceneBoundingRect().contains(e.scenePos()):
+                    print "removed"
+                    self.removeFromGroup(i)
+
+        for i in self.childItems():
+            i.setPos(e.pos() + i.delta)
+            i.setState(i.pos())
+
+        self.prepareGeometryChange()
+        #self.a = e.pos()
+        self.mouseIsPressed = False
+        self.mouseIsMoved = False
+        #update grid
+        self.grid.drawGrid()
+        self.scene().update()
+        self.scene().onUpdateLUT()
+        return
+        print "group selet", self.isSelected()
+        super(nodeGroup, self).mouseReleaseEvent(e)
+        print "group select", self.isSelected()
+        return
+        print "group handler"
+
+        self.parentItem().drawGrid()
+        for i in self.childItems():
+            print i.scenePos(), i.pos()
+
+    def paint(self, qpainter, options, widget):
+
+        # painting in local coordinates
+        b = qpainter.brush()
+        if self.isSelected():
+            qpainter.setBrush(QBrush(QColor(255,255,255)))
+        else:
+            qpainter.setBrush(QBrush(QColor(0,0,0)))
+        if self.mouseIsPressed:
+            pen = qpainter.pen()
+            #qpainter.pen().setStyle(Qt.DashDotLine)
+            qpainter.setPen(QPen(Qt.white, 1, Qt.DotLine, Qt.RoundCap));
+            for child in self.childItems():
+                qpainter.drawLine(self.a, child.pos())
+            qpainter.setPen(pen)
+        qpainter.drawEllipse(self.a.x(), self.a.y(), 10,10)
+        qpainter.setBrush(b)
+
+    def boundingRect(self):
+        # local coordinates
+        p=self.a
+        return QRectF(p.x(), p.y(), 10, 10)
+
+
+    """
+    def shape(self):
+        print "shape"
+        path = QPainterPath()
+        path.addEllipse(self.a.x(), self.a.y(), 10,10)
+        return path
+    """
+
+
+
 class activeNode(QGraphicsPathItem):
     """
-    Grid node class
+    Grid node class.
+    Each node holds the r,g,b and h,s,p values  corresponding to its
+    position on the color wheel.
+    The attribute LUTIndices holds the list of LUT indices
+    matching h and s.
     """
-    def __init__(self, position, parent=None):
+    # node drawing
+    qpp = QPainterPath()
+    qpp.addEllipse(0, 0, 7, 7)
+
+    #liste=[]
+    def __init__(self, position, parent=None, grid=None):
+        """
+
+        :param position: QpointF
+        :param parent: parent item
+        :param grid: underlying grid
+        """
         super(activeNode, self).__init__()
         self.setPos(position)
+        self.setFlag(QGraphicsItem.ItemIsSelectable, True)
         # current scene
         scene = parent.scene()
         # color from model
         #c = QColor(SCENE['colorWheel'].QImg.pixel(int(position.x()), int(position.y())))
         c = QColor(scene.colorWheel.QImg.pixel(int(position.x()), int(position.y())))
         self.r, self.g, self.b = c.red(), c.green(), c.blue()
+        # modified colors
         self.rM, self.gM, self.bM = self.r, self.g, self.b
         self.hue, self.sat, self.pB= rgb2hsB(self.r, self.g, self.b, perceptual = True)
         self.LUTIndices = [(r / LUTSTEP, g / LUTSTEP, b / LUTSTEP) for (r, g, b) in [hsp2rgb(self.hue, self.sat, p / 100.0) for p in range(101)]]
         self.setParentItem(parent)
-        qpp = QPainterPath()
-        qpp.addEllipse(0,0, 5,5)
-        self.setPath(qpp)
+        #qpp = QPainterPath()
+        #qpp.addEllipse(0,0, 7,7)
+        self.setPath(self.qpp)
+        self.grid = grid
+        #self.g = None#QGraphicsItemGroup()
+        self.delta=QPointF(0,0)
+
+    def setState(self, position):
+        self.setPos(position)
+        scene = self.scene()
+        c = QColor(scene.colorWheel.QImg.pixel(int(self.pos().x()), int(self.pos().y())))
+        self.rM, self.gM, self.bM = c.red(), c.green(), c.blue()
+        hue, sat, _ = rgb2hsB(self.rM, self.gM, self.bM, perceptual=True)
+        # savedLUT = self.scene.LUT3D.copy()
+        for p, (i, j, k) in enumerate(self.LUTIndices):
+            scene.LUT3D[k, j, i, ::-1] = hsp2rgb(hue, sat, p / 100.0)
 
     def mousePressEvent(self, e):
-        pass
+        # super Press set selected to True
+        super(activeNode, self).mousePressEvent(e)
+        if type(self.parentItem()) is nodeGroup:
+            print "exploding"
+            self.parentItem().setSelected(False)
+            for i in self.parentItem().childItems():
+                i.setSelected(False)
+                i.grid.selectionList = []
+            self.scene().destroyItemGroup(self.parentItem())
+
+        print 'node mouse press'
+        #self.g.setHandlesChildEvents(False)
 
     def mouseMoveEvent(self, e):
+        #super(activeNode, self).mouseMoveEvent(e)
+        #self.g.setPos(e.pos())
+        #for l in self.liste:
+             #l.setPos(e.scenePos())
+        #self.p.drawGrid()
+        #self.scene().grid.drawGrid()
+        print 'node mouse move'
+        #for i in self.parentItem().childItems():
+            #i.setPos(e.pos() + i.delta)
+            #i.setPos(e.scenePos())
         self.setPos(e.scenePos())
-        self.parentItem().drawGrid()
+        self.grid.drawGrid()
+
 
     def mouseReleaseEvent(self, e):
+        print 'node mouse release'
+        self.grid.selectionList.append(self)
+
+        self.setState(self.pos())
+
         scene = self.scene()
+
+        """
         # read color from model
         c = QColor(scene.colorWheel.QImg.pixel(int(self.pos().x()), int(self.pos().y())))
         self.rM, self.gM, self.bM = c.red(), c.green(), c.blue()
@@ -62,10 +225,61 @@ class activeNode(QGraphicsPathItem):
         #savedLUT = self.scene.LUT3D.copy()
         for p, (i,j,k) in enumerate(self.LUTIndices):
             scene.LUT3D[k,j,i,::-1] = hsp2rgb(hue,sat, p/100.0)
-        self.scene().onUpdateScene()
-        #self.graphicsScene.LUT3D = savedLUT
+        """
+        self.scene().onUpdateLUT()
+
+        #print self.scene().selectedItems()
+        print 'selted before', self.isSelected()
+        super(activeNode, self).mouseReleaseEvent(e)
+        print 'selted after', self.isSelected()
+        self.setSelected(False)
+
+        if self.grid.selectedGroup is None:
+            self.grid.selectionList = [self]
+            print "group added"
+            self.grid.selectedGroup = nodeGroup(grid=self.grid)
+            self.grid.selectedGroup.setFlag(QGraphicsItem.ItemIsSelectable, True)
+            self.grid.selectedGroup.setFlag(QGraphicsItem.ItemIsMovable, True)
+
+            self.grid.selectedGroup.setSelected(True)
+
+        tmp = QPointF(0.0, 0.0)
+        for i in self.grid.selectionList:
+            tmp = tmp + i.scenePos()
+        tmp = tmp / len(self.grid.selectionList)
+        # self.g.setPos(a/len(self.liste))
+        self.grid.selectedGroup.a = tmp
+
+        if hasattr(self.parentItem(), 'drawGrid'):
+            self.grid.selectedGroup.setParentItem(self.parentItem())
+
+
+        for i in self.grid.selectionList:
+            i.delta = i.scenePos() - self.grid.selectedGroup.a
+            if i.parentItem() != self.grid.selectedGroup :
+                self.grid.selectedGroup.addToGroup(i)
+            i.setSelected(True)
+            print 'delta', i.delta
+
+        #self.g=self.scene().createItemGroup(self.liste)
+        print self.grid.selectedGroup.childItems()
+
+        #g.setPos(self.scenePos())
+        scene.addItem(self.grid.selectedGroup)
+
+        for i in self.grid.selectionList:
+            i.setSelected(True)
+        return
+        self.grid.selectedGroup.setSelected(True)
+        print scene.selectedItems()
+        print 'group added'
+        print self.isSelected()
+        self.grid.selectedGroup.setHandlesChildEvents(True)
+
+
 
 class activeGrid(QGraphicsPathItem):
+    selectionList =[]
 
     def __init__(self, parent=None):
         super(activeGrid, self).__init__()
@@ -74,8 +288,9 @@ class activeGrid(QGraphicsPathItem):
         # grid step
         self.step = (parent.QImg.width() - 1) / float((self.n - 1))
         self.setPos(0,0)
-        self.gridNodes = [[activeNode(QPointF(i*self.step,j*self.step), parent=self) for i in range(self.n) ] for j in range(self.n)]
+        self.gridNodes = [[activeNode(QPointF(i*self.step,j*self.step), parent=self, grid=self) for i in range(self.n) ] for j in range(self.n)]
         self.drawGrid()
+        self.selectedGroup = None
 
     def drawGrid(self):
         qpp = QPainterPath()
