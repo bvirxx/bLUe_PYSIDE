@@ -25,6 +25,9 @@ from PyQt4.QtGui import QImage, QColor, QPainter, QBrush
 from imgconvert import QImageBuffer
 
 class hueSatModel (imImage):
+    """
+    (hue, sat) color chart
+    """
     # hue rotation
     rotation=315
     # default perceptual brightness
@@ -67,7 +70,9 @@ class hueSatModel (imImage):
                 #c = hsp2rgb(hue, sat, perceptualBrightness, trunc=False)
                 img.hsArray[j,i,:]=(hue,sat, perceptualBrightness)
         """
-        coord = np.array([[[i, -j] for i in range(w)] for j in range(h)])
+        #coord = np.array([[[i, -j] for i in range(w)] for j in range(h)])
+        coord = np.dstack(np.meshgrid(np.arange(w), - np.arange(h)))
+
         # center  : i1 = i - cx, j1 = -j + cy
         cx = w / 2
         cy = h / 2
@@ -77,8 +82,7 @@ class hueSatModel (imImage):
         # arctan2 values are in range -pi, pi
         hue = np.arctan2(coord[:,:,1], coord[:,:,0]) * (180.0 / np.pi) + cls.rotation
         # range 0..360
-        hue = hue - np.floor(hue / 360.0) * 360
-
+        hue = hue - np.floor(hue / 360.0) * 360.0
         sat = np.linalg.norm(coord, axis=2 ,ord=2) / cx
         sat = np.minimum(sat, 1.0)
 
@@ -108,7 +112,6 @@ class hueSatModel (imImage):
         qp.end()
         b=np.logical_xor(clipping , np.roll(clipping, 1,axis=0))
         imgBuf[b]=0
-
         img.updatePixmap()
         return img
 
@@ -124,13 +127,17 @@ class hueSatModel (imImage):
         imgBuf = QImageBuffer(self)[:,:,:3][:,:,::-1]
         imgBuf[:,:,:] = hsp2rgbVec(self.hsArray)
 
-
     def GetPoint(self, h, s):
+        """
+        convert hue, sat values to cartesian coordinates on the color wheel.
+        :param h:
+        :param s:
+        :return: cartesian coordinates
+        """
         cx = self.width() / 2
         cy = self.height() / 2
         x,y = cx*s*np.cos((h-self.rotation)*np.pi/180.0), cy*s*np.sin((h-self.rotation)*np.pi/180.0)
         x,y = x + cx, - y + cy
-        #return cx*s*np.cos((h-315)*np.pi/180.0), cx*s*np.sin((h-315)*np.pi/180.0)
         return x,y
 
     """

@@ -75,8 +75,9 @@ class QLayerView(QTableView) :
             items.append(item_name)
             model.appendRow(items)
         self.setModel(model)
-        # select background layer
+        # select top layer
         self.selectRow(0)
+        self.img.activeLayer = self.img._layersStack[-1]
 
         self.horizontalHeader().hide()
         self.verticalHeader().hide()
@@ -98,7 +99,7 @@ class QLayerView(QTableView) :
             else:
                 self.model().setData(clickedIndex, QIcon(":/images/resources/eye-icon-strike.png"), Qt.DecorationRole)
         elif clickedIndex.column() == 1 :
-            # make sected layer the active layer
+            # make selected layer the active layer
             self.img.activeLayer = self.img._layersStack[-1-row]
             # show/hide window for adjustment layer
             if hasattr(self.img._layersStack[-1-row], "adjustView"):

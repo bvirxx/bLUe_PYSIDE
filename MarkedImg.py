@@ -139,7 +139,7 @@ class vImage(QImage):
         self.setModified(True)
         return rszd
 
-    def applyLUT(self, LUT, widget=None):
+    def applyLUT(self, LUT, widget=None, options={}):
 
         # get image buffer (BGR order on intel proc.)
         ndImg0 = QImageBuffer(self.inputImg)[:, :, :3] #[:, :, ::-1]
@@ -151,37 +151,35 @@ class vImage(QImage):
         if widget is not None:
             widget.repaint()
 
-    def apply3DLUT(self, LUT, widget=None):
+    def apply3DLUT(self, LUT, widget=None, options={}):
 
-        """
-        if self.format() not in [QImage.Format_ARGB32, QImage.Format_RGB32]:
-            msg = QMessageBox()
-            msg.setText("convert image to RGB or ARGB format")
-            msg.exec_()
-            return
-        """
         # get image buffer (type RGB)
-        w1, w2, h1, h2 = 0, self.inputImg.width(), 0, self.inputImg.height()
-        if self.parent.rect is not None:
-            w1, w2, h1,h2= self.parent.rect.left(), self.parent.rect.right(), self.parent.rect.top(), self.parent.rect.bottom()
+        #w1, w2, h1, h2 = 0, self.inputImg.width(), 0, self.inputImg.height()
+        w1, w2, h1, h2 = (0.0,) * 4
+        #if self.parent.rect is not None:
+        if options['use_selection']:
+            if self.rect is not None:
+                w1, w2, h1,h2= self.rect.left(), self.rect.right(), self.rect.top(), self.rect.bottom()
+            if w1>=w2 or h1>=h2:
+                msg = QMessageBox()
+                msg.setText("Empty selection\nSelect a region with marquee tool")
+                msg.exec_()
+                return
+        else:
+            w1, w2, h1, h2 = 0, self.inputImg.width(), 0, self.inputImg.height()
 
         ndImg0 = QImageBuffer(self.inputImg)[h1+1:h2+1, w1+1:w2+1, :3] #[:, :, ::-1]
 
         ndImg1 = QImageBuffer(self)[:, :, :3]
 
+        # apply LUT
         start=time()
-
         ndImg1[h1+1:h2+1,w1+1:w2+1,:] = interpVec(LUT, ndImg0)
-
         end=time()
         print 'time %.2f' % (end-start)
-        self.updatePixmap()
-        # apply LUT
-        #convertedNdImg = LUT3DArray(ndImg[:,:], LUT)
-        #convertedNdImg = convertedNdImg[:, :].astype(np.uint8)
 
-        # update Pixmap ans repaint
-        #self.qPixmap = QPixmap.fromImage(ndarrayToQImage(convertedNdImg, QImage.Format_RGB888))
+        self.updatePixmap()
+
         if widget is not None:
             widget.repaint()
 
@@ -217,15 +215,18 @@ class mImage(vImage):
         self.setModified(True)
 
     def addAdjustmentLayer(self, name='', window=None):
-        lay = QLayer(QImg=self)
-        lay.inputImg = QImage(self.size(), self.format())
+        lay = QLayer(QImg=self._layersStack[-1])
+        #lay.inputImg = QImage(self.size(), self.format())
+        lay.inputImg = QImage(self._layersStack[-1])
         self.addLayer(lay, name)
-        # paint image from lower layers
+        """
+        # draw input image
         qp = QPainter(lay.inputImg)
-        # draw image from layer immediately below
-        l = self._layersStack[-2]
-        qp.drawImage(QRect(0, 0, l.width(), l.height()), l)
+        # draw from layer immediately below
+        underneathLayer = self._layersStack[-2]
+        qp.drawImage(QRect(0, 0, underneathLayer.width(), underneathLayer.height()), underneathLayer)
         qp.end()
+        """
         # selection rectangle from image
         """
         for l in self._layersStack:
@@ -287,7 +288,8 @@ class imImage(mImage) :
         super(imImage, self).__init__(*args, **kwargs)
         self.Zoom_coeff = 1.0
         self.xOffset, self.yOffset = 0, 0
-        self.mouseChange =True
+        #
+        self.isMouseSelectable =True
         #drawLayer = QLayer(QImage(self.width(), self.height(), QImage.Format_ARGB32))
         #drawLayer.fill(QColor(0,0,0,0))
         #self.addLayer(drawLayer, 'drawlayer')

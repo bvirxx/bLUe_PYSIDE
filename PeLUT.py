@@ -31,7 +31,7 @@ from MarkedImg import mImage, imImage, QLayer
 
 from graphicsLUT import graphicsForm
 from graphicsLUT3D import graphicsForm3DLUT
-from LUT3D import rgb2hsB,hsp2rgb, LUT3D
+from LUT3D import LUTSIZE
 from math import floor
 from colorModels import hueSatModel
 import icc
@@ -199,10 +199,10 @@ def paintEvent(widg, e) :
 
     mimg= widg.img
     r=mimg.resize_coeff(widg)
+    # pen for selection rectangle
     qp.setPen(QColor(0,255,0))
     # background
     qp.fillRect(QRect(0, 0, widg.width() , widg.height() ), bgColor)
-
     # draw layers
     for layer in mimg._layersStack :
         if layer.visible:
@@ -215,17 +215,11 @@ def paintEvent(widg, e) :
                               layer  # layer.qPixmap
                               )
     # draw selection rectangle
-    if mimg.rect is not None :
-        qp.drawRect(mimg.rect.left()*r + mimg.xOffset, mimg.rect.top()*r +mimg.yOffset,
-                    mimg.rect.width()*r, mimg.rect.height()*r
-                    )
+    if (mimg.activeLayer.visible) and (mimg.activeLayer.rect is not None ):
+        rct = mimg.activeLayer.rect
+        qp.drawRect(rct.left()*r + mimg.xOffset, rct.top()*r +mimg.yOffset, rct.width()*r, rct.height()*r)
     #if mimg.mask is not None :
         #qp.drawImage(QRect(mimg.xOffset, mimg.yOffset, mimg.width * r-10, mimg.height * r  -10), mimg.mask)
-    """
-    for layer in mimg.layers.values() :
-        if layer.visible:
-            qp.drawImage(QRect(mimg.xOffset, mimg.yOffset, mimg.qImg.width() * r - 10, mimg.qImg.height() * r - 10), layer.qImg)
-    """
     qp.end()
 
 # mouse eventd handler for image widgets (currently label and label_2)
@@ -239,15 +233,17 @@ def mouseEvent(widget, event) :
 
     r = img.resize_coeff(widget)
     x, y = event.x(), event.y()
+    # read keyboard modifiers
     modifier = QApplication.keyboardModifiers()
 
+    """
     if modifier == Qt.ControlModifier:
         if event.type() == QEvent.MouseButtonPress:
             pass
             #showResult(Mimg_p, Mimg_1, turn)
             #turn = (turn + 1) % 2
         return
-
+    """
     if event.type() == QEvent.MouseButtonPress :
         pressed=True
         if event.button() == Qt.LeftButton:
@@ -272,13 +268,14 @@ def mouseEvent(widget, event) :
         clicked=False
         if pressed :
             # button pressed
-            if img.mouseChange:
+            if img.isMouseSelectable:
                 if window.btnValues['rectangle']:
-                    img.rect = QRect(min(State['ix_begin'], x)/r -img.xOffset/r, min(State['iy_begin'], y)/r - img.yOffset/r, abs(State['ix_begin'] - x)/r, abs(State['iy_begin'] - y)/r)
+                    img.activeLayer.rect = QRect(min(State['ix_begin'], x)/r -img.xOffset/r, min(State['iy_begin'], y)/r - img.yOffset/r, abs(State['ix_begin'] - x)/r, abs(State['iy_begin'] - y)/r)
                     rect_or_mask = 0
                 elif (window.btnValues['drawFG'] or window.btnValues['drawBG']):
                     color= CONST_FG_COLOR if window.btnValues['drawFG'] else CONST_BG_COLOR
-                    qp.begin(img._layers['drawlayer'])
+                    #qp.begin(img._layers['drawlayer'])
+                    qp.begin(img.activeLayer)
                     qp.setPen(color)
                     qp.setBrush(color)
                     # avoid alpha summation
@@ -298,18 +295,20 @@ def mouseEvent(widget, event) :
     elif event.type() == QEvent.MouseButtonRelease :
         pressed=False
         if event.button() == Qt.LeftButton:
-            #click event
-            if clicked and img.mouseChange:
+            # click event
+            if img.isMouseSelectable and clicked:
+                # select grid node
                 # Note : for multilayered images we read pixel color from  the background layer
                 c = QColor(img.pixel(State['ix'] / r -  img.xOffset/r, State['iy'] / r - img.yOffset/r))
                 r, g, b = c.red(), c.green(), c.blue()
                 if hasattr(img.activeLayer, "adjustView") and img.activeLayer.adjustView is not None:
                     if hasattr(img.activeLayer.adjustView.widget(), 'selectGridNode'):
-                        img.activeLayer.adjustView.widget().selectGridNode(r, g, b)
+                        mode = 'add' if modifier == Qt.ControlModifier else ''
+                        img.activeLayer.adjustView.widget().selectGridNode(r, g, b, mode=mode)
                 window.label.repaint()
-            if window.btnValues['rectangle'] and img.mouseChange:
+            if window.btnValues['rectangle'] and img.isMouseSelectable:
 
-                img.rect = QRect(min(State['ix_begin'], x)/r-img.xOffset/r, min(State['iy_begin'], y)/r- img.yOffset/r, abs(State['ix_begin'] - x)/r, abs(State['iy_begin'] - y)/r)
+                img.activeLayer.rect = QRect(min(State['ix_begin'], x)/r-img.xOffset/r, min(State['iy_begin'], y)/r- img.yOffset/r, abs(State['ix_begin'] - x)/r, abs(State['iy_begin'] - y)/r)
                 rect_or_mask = 0 #init_with_rect
 
                 rect_or_mask=1 # init with mask
@@ -464,7 +463,7 @@ def openFile(f):
     window.label.img.onModify = lambda : updateEnabledActions()
     window.label_2.img = imImage(QImg=img.copy(), meta=img.meta)
     # no mouse drawing or painting
-    window.label_2.img.mouseChange = False
+    window.label_2.img.isMouseSelectable = False
     window.tableView.addLayers(window.label.img)
     window.label.repaint()
     window.label_2.repaint()
@@ -537,12 +536,12 @@ def menuLayer(x, name):
 
         window.label.img.addLayer(l, 'Brightness/Contrast')
         window.tableView.addLayers(window.label.img)
-        grWindow.graphicsScene.onUpdateLUT = lambda : l.applyLUT(grWindow.graphicsScene.LUTXY, widget=window.label)
+        grWindow.graphicsScene.onUpdateLUT = lambda options={} : l.applyLUT(grWindow.graphicsScene.LUTXY, widget=window.label, options=options)
         window.label.repaint()
     elif name == 'action3D_LUT':
         l = window.label.img.addAdjustmentLayer(name='3D LUT')
         window.tableView.addLayers(window.label.img)
-        grWindow = graphicsForm3DLUT.getNewWindow(size=800, title= l.name, parent=window)
+        grWindow = graphicsForm3DLUT.getNewWindow(size=800, LUTSize=LUTSIZE, title= l.name, parent=window)
         Wins[l.name] = grWindow
         dock = QDockWidget(window)
         # link to colorwheel
@@ -552,7 +551,7 @@ def menuLayer(x, name):
         dock.setWindowTitle(grWindow.windowTitle())
         dock.move(500, 40)
         #window.addDockWidget(Qt.RightDockWidgetArea, dock)
-        grWindow.graphicsScene.onUpdateLUT = lambda: l.apply3DLUT(grWindow.graphicsScene.LUT3D, widget=window.label)
+        grWindow.graphicsScene.onUpdateLUT = lambda options={} : l.apply3DLUT(grWindow.graphicsScene.LUT3D, widget=window.label, options=options)
         window.label.repaint()
 
 def handleNewWindow(parent=None, title='New window', set_event_handler=True):

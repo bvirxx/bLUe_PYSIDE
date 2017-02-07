@@ -101,6 +101,12 @@
            <height>41</height>
           </rect>
          </property>
+         <property name="toolTip">
+          <string>marquee</string>
+         </property>
+         <property name="whatsThis">
+          <string>marquee</string>
+         </property>
          <property name="accessibleName">
           <string>rectangle</string>
          </property>

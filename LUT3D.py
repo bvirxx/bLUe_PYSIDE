@@ -29,7 +29,7 @@ Each axis has length LUTSIZE.
 r,g,b values are between 0 and 256.
 """
 LUTSIZE = 17
-#LUTSIZE = 129
+LUTSIZE = 33
 LUTSTEP = 256 / (LUTSIZE - 1)
 LUT3D = np.array([[[(i * LUTSTEP, j * LUTSTEP, k * LUTSTEP) for k in range(LUTSIZE)] for j in range(LUTSIZE)] for i in range(LUTSIZE)])
 
@@ -54,8 +54,9 @@ Perc_R=0.79134178
 Perc_G=2.31839104
 Perc_B=0.25510923
 """
-def reset_LUT3D():
-    return np.array([[[(i * LUTSTEP, j * LUTSTEP, k * LUTSTEP) for k in range(LUTSIZE)] for j in range(LUTSIZE)] for i in range(LUTSIZE)])
+def LUT3DFromFactory(size=LUTSIZE):
+    step = 256 / (size - 1)
+    return size, step, np.array([[[(i * step, j * step, k * step) for k in range(size)] for j in range(size)] for i in range(size)])
 
 class QPoint3D(object):
     def __init__(self, x,y,z):
