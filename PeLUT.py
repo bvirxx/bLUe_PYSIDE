@@ -300,11 +300,13 @@ def mouseEvent(widget, event) :
                 # select grid node
                 # Note : for multilayered images we read pixel color from  the background layer
                 c = QColor(img.pixel(State['ix'] / r -  img.xOffset/r, State['iy'] / r - img.yOffset/r))
+                cM = QColor(img.activeLayer.pixel(State['ix'] / r - img.xOffset / r, State['iy'] / r - img.yOffset / r))
                 r, g, b = c.red(), c.green(), c.blue()
+                rM,gM,bM= cM.red(), cM.green(), cM.blue()
                 if hasattr(img.activeLayer, "adjustView") and img.activeLayer.adjustView is not None:
                     if hasattr(img.activeLayer.adjustView.widget(), 'selectGridNode'):
                         mode = 'add' if modifier == Qt.ControlModifier else ''
-                        img.activeLayer.adjustView.widget().selectGridNode(r, g, b, mode=mode)
+                        img.activeLayer.adjustView.widget().selectGridNode(r, g, b, rM,gM,bM, mode=mode)
                 window.label.repaint()
             if window.btnValues['rectangle'] and img.isMouseSelectable:
 

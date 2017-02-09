@@ -24,21 +24,24 @@ import numpy as np
 from time import time
 from LUT3D import LUTSIZE, LUTSTEP, rgb2hsB, hsp2rgb, hsp2rgbVec, hsp2rgb_ClippingInd, LUT3DFromFactory
 from colorModels import hueSatModel, pbModel
+from utils import optionsWidget
 
 class nodeGroup(QGraphicsItemGroup):
 
-    def __init__(self, grid=None, parent=None):
+    def __init__(self, grid=None, position=QPointF(), parent=None):
         super(nodeGroup, self).__init__(parent=parent)
         self.grid = grid
         self.mouseIsPressed = False
         self.mouseIsMoved = False
         self.a = QPointF(100,100)
+        self.initialPosition = position
 
     def addToGroup(self, item):
 
         super(nodeGroup, self).addToGroup(item)
         children = self.childItems()
-        item.setPos(item.initialPosition - children[0].initialPosition)
+        # set item position
+        item.setPos(item.initialPosition - self.initialPosition)
 
         return
 
@@ -88,6 +91,7 @@ class nodeGroup(QGraphicsItemGroup):
                     self.grid.selectedGroup.setSelected(False)
                 self.grid.selectedGroup = self
                 self.grid.selectionList = self.childItems()
+            self.setScale(self.scale()-0.2)
             """
             for i in self.childItems():
                 if i.sceneBoundingRect().contains(e.scenePos()):
@@ -96,7 +100,6 @@ class nodeGroup(QGraphicsItemGroup):
             """
 
         for i in self.childItems():
-            #i.setPos(e.pos() + i.delta)
             i.setState(i.pos())
 
         self.prepareGeometryChange()
@@ -134,13 +137,13 @@ class nodeGroup(QGraphicsItemGroup):
             for child in self.childItems():
                 qpainter.drawLine(self.a, child.pos())
             qpainter.setPen(pen)
-        qpainter.drawEllipse(self.a.x(), self.a.y(), 10,10)
+        qpainter.drawEllipse(self.a.x(), self.a.y(), 10.0/self.scale(),10.0/self.scale())
         qpainter.setBrush(b)
 
     def boundingRect(self):
         # local coordinates
         p=self.a
-        return QRectF(p.x(), p.y(), 10, 10)
+        return QRectF(p.x(), p.y(), 10.0/self.scale(), 10.0/self.scale())
 
 
 
@@ -177,6 +180,7 @@ class activeNode(QGraphicsPathItem):
         # modified colors
         self.rM, self.gM, self.bM = self.r, self.g, self.b
         self.hue, self.sat, self.pB= rgb2hsB(self.r, self.g, self.b, perceptual = True)
+        # LUTIndices : list of LUT vertices bound to node
         # vectorize self.LUTIndices = [(r / LUTSTEP, g / LUTSTEP, b / LUTSTEP) for (r, g, b) in [hsp2rgb(self.hue, self.sat, p / 100.0) for p in range(101)]]
         self.LUTIndices = hsp2rgbVec(np.array([(self.hue, self.sat, p / 100.0) for p in range(101)])[:,None])[:,0] / LUTSTEP
         self.setParentItem(parent)
@@ -198,7 +202,7 @@ class activeNode(QGraphicsPathItem):
         c = QColor(scene.colorWheel.QImg.pixel(int(self.gridPos().x()), int(self.gridPos().y())))
         self.rM, self.gM, self.bM = c.red(), c.green(), c.blue()
         hue, sat, _ = rgb2hsB(self.rM, self.gM, self.bM, perceptual=True)
-        # savedLUT = self.scene.LUT3D.copy()
+        # update LUT vertices bound to node
         for p, (i, j, k) in enumerate(self.LUTIndices):
             scene.LUT3D[k, j, i, ::-1] = hsp2rgb(hue, sat, p / 100.0)
 
@@ -254,11 +258,11 @@ class activeNode(QGraphicsPathItem):
         self.scene().onUpdateLUT(options=self.scene().options)
 
         #print self.scene().selectedItems()
-        print 'selted before', self.isSelected()
-        super(activeNode, self).mouseReleaseEvent(e)
-        print 'selted after', self.isSelected()
-        self.setSelected(False)
 
+        super(activeNode, self).mouseReleaseEvent(e)
+
+        self.setSelected(False)
+        return
         if self.grid.selectedGroup is None:
             self.grid.selectionList = [self]
             print "group added"
@@ -391,6 +395,7 @@ class activeMarker(QGraphicsPolygonItem):
         self.moveRange = QPointF(0.0, 0.0)
 
     def mousePressEvent(self, e):
+        print 'marker press'
         pass
 
     def mouseMoveEvent(self, e):
@@ -539,6 +544,14 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.graphicsScene.addWidget(pushButton)
 
         # list of options
+
+        self.listWidget = optionsWidget(options=['use image', 'use selection'], exclusive=True)
+        self.listWidget.select(self.listWidget.items['use selection'])
+        def onSelect(item):
+            self.graphicsScene.options['use_selection'] = item is self.listWidget.items['use selection']
+        self.listWidget.onSelect = onSelect
+
+        """
         self.listWidget = QListWidget()
         def select(it):
             for r in range(self.listWidget.count()):
@@ -558,63 +571,81 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.listWidget.addItem(listItem)
         select(listItem)
         self.listWidget.setMinimumWidth(self.listWidget.sizeHintForColumn(0))
+        """
         self.listWidget.setGeometry(700,size+80, 10,100)
         self.graphicsScene.addWidget(self.listWidget)
         self.listWidget.setStyleSheet("QListWidget{background: black;} QListWidget::item{color: white;}")
 
-        """
-        for index in range(self.listWidgetLabels.count()):
-        if self.listWidgetLabels.item(index).checkState() == Qt.Checked:
-        checked_items.append(self.listWidgetLabels.item(index))
-        """
 
 
-    def selectGridNode(self, r, g, b, mode=''):
+    def selectGridNode(self, r, g, b, rM,gM,bM, mode=''):
         """
         select the nearest grid node corresponding to r,g,b values.
         :param h: hue between 0 and 360.0
         :param s: saturation between 0 and 1.0
         """
+        w = self.grid.size
+
+        LUTNeighborhood = [(i,j,k) for i in [r/w, (r/w)+1] for j in [g/w, (g/w)+1] for k in [b/w, (b/w)+1]]
+
+
         #reset previous selected marker
         if self.selected is not None:
             self.selected.setPath(self.qpp1)
             self.selected.setBrush(self.unselectBrush)
         # x, y : color wheel (cartesian) coordinates of the pixel corresponding to hue=h and sat=s
         h, s, p = rgb2hsB(r, g, b, perceptual=True)
+        hspNeighborhood=[rgb2hsB(i*w,j*w,k*w, perceptual=True) for (i,j,k) in LUTNeighborhood]
+
         self.currentHue, self.currentSat, self.currentPb = h, s, p
         x, y = self.graphicsScene.colorWheel.QImg.GetPoint(h, s)
+        xyNeighborhood=[self.graphicsScene.colorWheel.QImg.GetPoint(h, s) for h,s,_ in hspNeighborhood]
 
-        s = float(self.grid.step)
-        w = self.grid.size
+        step = float(self.grid.step)
 
-        neighbors = [self.grid.gridNodes[j][i] for j in range(int(np.floor(y / s)) - 1, int(np.ceil( y / s)) +2) if j < w for i in range(int(np.floor(x / s))-1, int(np.ceil( x / s))+2) if i < w]
 
+        #neighbors = [self.grid.gridNodes[j][i] for j in range(int(np.floor(y / step)) - 1, int(np.ceil( y / step)) +2) if j < w for i in range(int(np.floor(x / step))-1, int(np.ceil( x / step))+2) if i < w]
+
+        neighbors = [self.grid.gridNodes[int(round(y/step))+c][int(round(x/step))+a] for (x,y) in xyNeighborhood
+                                           for a in [-2,-1,0,1,2,3] if (int(round(x/step))+a >=0 and int(round(x/step))+a < w)
+                                            for c in [-2,-1,0,1,2,3] if (int(round(y/step))+c >=0 and int(round(y/step))+c < w) ]
         neighbors.sort(key=lambda n : (n.gridPos().x() -x) * (n.gridPos().x() -x) + (n.gridPos().y() -y) * (n.gridPos().y() -y))
 
-        # i, j : indices of the nearest grid node
+        boundIndices =[]
+        for n in neighbors:
+            boundIndices.extend([tuple(l) for l in n.LUTIndices.tolist()])
 
-        #i, j = int(round(x/w)), int(round(y/w))
-
-        #NNN = self.grid.gridNodes[j][i]
+        print 'bound', set(LUTNeighborhood).isdisjoint(boundIndices)
 
         NNN = neighbors[0]
 
+        print 'selectgridnode rgb', r,g,b ,rM,gM,bM,NNN.r, NNN.g, NNN.b, NNN.rM, NNN.gM, NNN.bM
+        print 'selectgridNodehs' , h,s, NNN.hue, NNN.sat
+        print 'selectGridNode', NNN.parentItem()
+
+        # mark self.selected
+        if self.selected is not None:
+            self.selected.setSelected(False)
         self.selected = NNN
         self.selected.setSelected(True)
         self.selected.setBrush(self.selectBrush)
         self.selected.setPath(self.qpp0)
+        #self.selected.setZValue(+1)
+
         if mode == '':
-            pass
+            self.selected.setSelected(True)
         elif mode == 'add':
             if self.grid.selectedGroup is None:
                 self.grid.selectionList = [self]
-                self.grid.selectedGroup = nodeGroup(grid=self.grid, parent=self.grid)
+                self.grid.selectedGroup = nodeGroup(grid=self.grid, position=NNN.pos(), parent=self.grid)
                 self.grid.selectedGroup.setFlag(QGraphicsItem.ItemIsSelectable, True)
                 self.grid.selectedGroup.setFlag(QGraphicsItem.ItemIsMovable, True)
                 self.grid.selectedGroup.setSelected(True)
-                self.grid.selectedGroup.setPos(NNN.pos())
+                #self.grid.selectedGroup.setPos(NNN.pos())
             for i in neighbors:
-                self.grid.selectedGroup.addToGroup(i)
+                if i.parentItem() is self.grid:
+                    self.grid.selectedGroup.addToGroup(i)
+        #update status
         self.onSelectGridNode(h,s)
 
     def displayStatus(self):

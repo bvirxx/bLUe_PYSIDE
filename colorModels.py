@@ -84,7 +84,7 @@ class hueSatModel (imImage):
         # range 0..360
         hue = hue - np.floor(hue / 360.0) * 360.0
         sat = np.linalg.norm(coord, axis=2 ,ord=2) / cx
-        sat = np.minimum(sat, 1.0)
+        sat = np.minimum(sat, 0.99)
 
         # fixed perceptual brightness
         pb = np.zeros(hue.shape) + perceptualBrightness
