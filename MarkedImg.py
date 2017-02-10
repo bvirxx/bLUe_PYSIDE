@@ -157,7 +157,7 @@ class vImage(QImage):
         #w1, w2, h1, h2 = 0, self.inputImg.width(), 0, self.inputImg.height()
         w1, w2, h1, h2 = (0.0,) * 4
         #if self.parent.rect is not None:
-        if options['use_selection']:
+        if options['use selection']:
             if self.rect is not None:
                 w1, w2, h1,h2= self.rect.left(), self.rect.right(), self.rect.top(), self.rect.bottom()
             if w1>=w2 or h1>=h2:
