@@ -19,12 +19,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>
 import sys
 
 from PyQt4.QtCore import QSize
+from PyQt4.QtGui import QAction
 from PyQt4.QtGui import QApplication, QPainter, QWidget, QPixmap, QPushButton, QListWidget, QListWidgetItem
 from PyQt4.QtGui import QGraphicsView, QGraphicsScene, QAbstractItemView, QGraphicsItem, QGraphicsItemGroup, QGraphicsPathItem , QGraphicsPixmapItem, QGraphicsTextItem, QPolygonF, QGraphicsPolygonItem , QPainterPath, QPainterPathStroker, QPen, QBrush, QColor, QPixmap, QMainWindow, QLabel, QSizePolicy
 from PyQt4.QtCore import Qt, QPoint, QPointF, QRect, QRectF, QString
 import numpy as np
 from time import time
 
+from PyQt4.QtGui import QMenu
 from PyQt4.QtGui import QRubberBand
 
 from LUT3D import LUTSIZE, LUTSTEP, rgb2hsB, hsp2rgb, hsp2rgbVec, hsp2rgb_ClippingInd, LUT3DFromFactory
@@ -33,6 +35,15 @@ from utils import optionsWidget
 
 class nodeGroup(QGraphicsItemGroup):
 
+    @classmethod
+    def groupFromList(cls, items, grid=None, position=QPointF(), parent=None):
+        if not items:
+            return
+        newGroup = nodeGroup(grid=grid, position=position, parent=parent)
+        for item in items:
+            if type(item) is activeNode:
+                newGroup.addToGroup(item)
+
     def __init__(self, grid=None, position=QPointF(), parent=None):
         super(nodeGroup, self).__init__(parent=parent)
         self.grid = grid
@@ -40,9 +51,9 @@ class nodeGroup(QGraphicsItemGroup):
         self.mouseIsMoved = False
         self.a = QPointF(100,100)
         self.initialPosition = position
+        self.setPos(position)
 
     def addToGroup(self, item):
-
         super(nodeGroup, self).addToGroup(item)
         children = self.childItems()
         # set item position
@@ -80,8 +91,6 @@ class nodeGroup(QGraphicsItemGroup):
         self.setPos(e.scenePos())
         #update grid
         self.grid.drawGrid()
-
-
 
     def mouseReleaseEvent(self, e):
         print "group release"
@@ -143,16 +152,14 @@ class nodeGroup(QGraphicsItemGroup):
             for child in self.childItems():
                 qpainter.drawLine(self.a, child.pos())
             qpainter.setPen(pen)
-        qpainter.drawEllipse(self.a.x(), self.a.y(), 10.0/self.scale(),10.0/self.scale())
+        qpainter.drawEllipse(self.a.x(), self.a.y(), 10.0,10.0)
         qpainter.setBrush(b)
 
     def boundingRect(self):
         # local coordinates
-        p=self.a
-        return QRectF(p.x(), p.y(), 10.0/self.scale(), 10.0/self.scale())
-
-
-
+        #p = self.a
+        p = QPointF(0, 0)
+        return QRectF(p.x(), p.y(), 10.0, 10.0)
 
 class activeNode(QGraphicsPathItem):
     """
@@ -264,7 +271,7 @@ class activeNode(QGraphicsPathItem):
         self.newPos = self.pos() + QPointF(xvel, yvel)
 
     def mousePressEvent(self, e):
-        # super Press set selected to True
+        # super Press select node
         super(activeNode, self).mousePressEvent(e)
         if type(self.parentItem()) is nodeGroup:
             print "exploding"
@@ -319,7 +326,7 @@ class activeNode(QGraphicsPathItem):
 
         super(activeNode, self).mouseReleaseEvent(e)
 
-        self.setSelected(False)
+        #self.setSelected(False)
         return
         if self.grid.selectedGroup is None:
             self.grid.selectionList = [self]
@@ -362,7 +369,14 @@ class activeNode(QGraphicsPathItem):
         print self.isSelected()
         self.grid.selectedGroup.setHandlesChildEvents(True)
 
-
+    def contextMenuEvent(self, event):
+        menu = QMenu()
+        actionGroup = QAction('Group', None)
+        menu.addAction(actionGroup)
+        actionUnGroup = QAction('UnGroup', None)
+        menu.addAction(actionUnGroup)
+        actionGroup.triggered.connect(lambda : nodeGroup.groupFromList(self.scene().selectedItems(), grid=self.grid, position=self.scenePos(), parent=self.parentItem()))
+        menu.exec_(event.screenPos())
 
 class activeGrid(QGraphicsPathItem):
     selectionList =[]
@@ -378,6 +392,12 @@ class activeGrid(QGraphicsPathItem):
         self.drawGrid()
         self.selectedGroup = None
         self.setFlag(QGraphicsItem.ItemIsSelectable, True)
+
+    def reset(self):
+        for i in range(self.size):
+            for j in range(self.size):
+                node = self.gridNodes[i][j]
+                node.setPos(node.initialPosition)
 
     def setElasticPos(self):
         for i in range(self.size) :
@@ -483,7 +503,8 @@ class activeMarker(QGraphicsPolygonItem):
 class colorPicker(QGraphicsPixmapItem):
     """
     implements a color picker : mouse click events read pixel colors
-    from the Qimage self.QImg
+    from self.QImg.
+    implements rubber band selection
     """
     def __init__(self, QImg):
         self.QImg = QImg
@@ -503,21 +524,21 @@ class colorPicker(QGraphicsPixmapItem):
         self.rubberBand.setGeometry(QRect(self.origin, e.screenPos()).normalized())
 
     def mouseReleaseEvent(self, e):
+        # rubberBand selection
         self.rubberBand.hide()
         grid = self.scene().grid
         self.screenOrigin = e.screenPos() - e.pos()
+        rubberRect = QRect(self.origin, e.screenPos()).normalized()
         for i in range(grid.size):
             for j in range(grid.size):
-                print QRect(self.origin, e.screenPos()).normalized()
-                if QRect(self.origin, e.screenPos()).normalized().contains((grid.gridNodes[i][j].pos()+self.screenOrigin).toPoint()):
-                    print "rubber selected"
+                if rubberRect.contains((grid.gridNodes[i][j].pos()+self.screenOrigin).toPoint()):
                     grid.gridNodes[i][j].setSelected(True)
+        # color picking from colorwheel
         point = e.pos().toPoint()
         i, j = point.x(), point.y()
-        # get color from image
         c = QColor(self.QImg.pixel(i,j))
-        r,g,b = c.red(), c.green(), c.blue()
-        #h, s, p = rgb2hsB(r, g, b, perceptual=True)
+        #r,g,b = c.red(), c.green(), c.blue()
+        r, g, b,_ = c.getRgb()
         self.onMouseRelease(i,j,r,g,b)
 
 #main class
@@ -583,7 +604,6 @@ class graphicsForm3DLUT(QGraphicsView) :
             self.bSliderUpdate()
             self.displayStatus()
         self.graphicsScene.colorWheel.onMouseRelease = f
-
         self.graphicsScene.addItem(self.graphicsScene.colorWheel)
 
         # Brightness slider
@@ -753,7 +773,21 @@ class graphicsForm3DLUT(QGraphicsView) :
     def onReset(self):
         _, _ ,LUT3D = LUT3DFromFactory(size=self.LUTSize)
         self.graphicsScene.LUT3D = LUT3D
-        self.graphicsScene.removeItem(self.grid)
-        self.grid = activeGrid(self.LUTSize, parent=self.graphicsScene.colorWheel)
+        #self.graphicsScene.removeItem(self.grid)
+        #self.grid = activeGrid(self.LUTSize, parent=self.graphicsScene.colorWheel)
+        # explode groups of nodes
+        groupList = [item for item in self.grid.childItems() if type(item) is nodeGroup]
+        for item in groupList:
+            for n in item.childItems():
+                item.removeFromGroup(n)
+            # NOTE : call to destroyItemGroup or removeItem
+            # crashes the app. So we call item.hide
+            #item.prepareGeometryChange()
+            #self.scene().destroyItemGroup(item)
+            #self.scene().removeItem(item)
+            item.hide()
+
+        self.grid.reset()
         self.selected = None
+        self.grid.drawGrid()
         self.scene().onUpdateScene()
