@@ -20,10 +20,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>
 import numpy as np
 from PyQt4.QtCore import Qt, QPoint, QPointF
 from PyQt4.QtGui import QImage, QColor
-
+from fractions import gcd
 #from MarkedImg import mImage, imImage
 
 # 3D LUT init.
+from PyQt4.QtGui import QVector3D
+
 """
 Each axis has length LUTSIZE.
 r,g,b values are between 0 and 256.
@@ -33,7 +35,19 @@ LUTSIZE = 33
 LUTSTEP = 256 / (LUTSIZE - 1)
 LUT3D = np.array([[[(i * LUTSTEP, j * LUTSTEP, k * LUTSTEP) for k in range(LUTSIZE)] for j in range(LUTSIZE)] for i in range(LUTSIZE)])
 
+LUT3D_SHADOW = np.array([[[(i * LUTSTEP, j * LUTSTEP, k * LUTSTEP,0) for k in range(LUTSIZE)] for j in range(LUTSIZE)] for i in range(LUTSIZE)])
+"""
+v = QVector3D(1.0,1.0,1.0) * 256.0 / 3.0
+LUTPROJ = [QVector3D(i/(i+j+k),j/(i+j+k),k/(i+j+k))*256 - v  for i in range(LUTSIZE) for j in range(LUTSIZE) for k in range(LUTSIZE) if gcd(i,gcd(j,k))==1]
+# LUTPROJ +v gives r,g,b colors
+orig_theta = QVector3D(0.33 - 1, 0.33,0.33).normalized()
+orth = QVector3D(0, 1.0, -1.0).normalized()
+LUTPROJ_x = [ int(QVector3D.dotProduct(V, orig_theta)) for V in LUTPROJ]
+LUTPROj_y = [ int(QVector3D.dotProduct(V, orth)) for V in LUTPROJ]
 
+LUTPROJTUPLE = [(i*LUTSTEP,j*LUTSTEP,k*LUTSTEP)  for i in range(LUTSIZE) for j in range(LUTSIZE) for k in range(LUTSIZE) if gcd(i,gcd(j,k))==1]
+LUTPROJSET = set(LUTPROJ)
+"""
 # perceptual brightness constants
 
 Perc_R = 0.299
@@ -119,7 +133,7 @@ def rgb2hsB(r, g, b, perceptual=False):
         V = V / 255.0
     else:
         V = cMax/255.0
-    assert 0<=H and H<=360 and 0<=S and S<=1 and 0<=V and V<=1, "rgb2hsv conversion error"
+    assert 0<=H and H<=360 and 0<=S and S<=1 and 0<=V and V<=1, "rgb2hsv conversion error r=%d, g=%d, b=%d" %(r,g,b)
     return H,S,V
 
 def hsv2rgb(h,s,v):
@@ -361,11 +375,14 @@ def hsp2rgbVec(hspImg):
     f = h - i
 
     Mm = 1.0 / (1.0 - s) # where s=1 Mm=inf
+    if np.any(Mm[Mm==np.inf]):
+        dummy=1
     part1 = 1.0 + f * (Mm - 1.0)
     part1 = np.where(Mm==np.inf, f, part1 )             # TODO some invalid values remain for s = 1
     part2 = 1.0 + (1-f) * (Mm - 1.0)
     part2 = np.where(Mm==np.inf, 1-f, part2 )
 
+    Mm = np.where(Mm==np.inf, 10**10, Mm )
     part1 = part1 * part1
     part2 = part2 * part2
     Mm2 = Mm * Mm

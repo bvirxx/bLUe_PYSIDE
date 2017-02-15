@@ -34,15 +34,18 @@ class hueSatModel (imImage):
     pb = 0.45
 
     @classmethod
-    def colorWheel(cls, w, h, perceptualBrightness=pb):
+    def colorWheel(cls, w, h, perceptualBrightness=pb, border=0.0):
         """
-        Build a (hue, saturation) color chart imImage. All image pixels have the same
+        Build a hue, sat color chart imImage. All image pixels have the same
         (perceptual) brightness (default 0.45).
         :param w: image width
         :param h: image height
-        :param perceptualBrightness: (perceptual) brightness of image pixels
+        :param perceptualBrightness: brightness of image pixels
         :return: imImage
         """
+        border = border
+        w+= 2*border
+        h+= 2*border
         # uninitialized ARGB image
         img = hueSatModel(w, h, perceptualBrightness=perceptualBrightness)
 
@@ -83,8 +86,8 @@ class hueSatModel (imImage):
         hue = np.arctan2(coord[:,:,1], coord[:,:,0]) * (180.0 / np.pi) + cls.rotation
         # range 0..360
         hue = hue - np.floor(hue / 360.0) * 360.0
-        sat = np.linalg.norm(coord, axis=2 ,ord=2) / cx
-        sat = np.minimum(sat, 0.99)
+        sat = np.linalg.norm(coord, axis=2 ,ord=2) / (cx - border)
+        sat = np.minimum(sat, 0.999)
 
         # fixed perceptual brightness
         pb = np.zeros(hue.shape) + perceptualBrightness
@@ -106,6 +109,9 @@ class hueSatModel (imImage):
             imgBuf[j, i] = 0 #np.clip(c, 0, 255)
         """
         imgBuf[:,:,:] = hsp2rgbVec(img.hsArray)
+        #As node colors are read from img,
+        # image should not be mangled
+        """
         # mark center and clipped area
         qp = QPainter(img)
         qp.drawEllipse(cx, cy, 3,3)
@@ -113,6 +119,7 @@ class hueSatModel (imImage):
         b=np.logical_xor(clipping , np.roll(clipping, 1,axis=0))
         imgBuf[b]=0
         img.updatePixmap()
+        """
         return img
 
     def __init__(self, w, h, picker = None, perceptualBrightness=pb):

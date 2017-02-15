@@ -29,7 +29,7 @@ from time import time
 from PyQt4.QtGui import QMenu
 from PyQt4.QtGui import QRubberBand
 
-from LUT3D import LUTSIZE, LUTSTEP, rgb2hsB, hsp2rgb, hsp2rgbVec, hsp2rgb_ClippingInd, LUT3DFromFactory
+from LUT3D import LUTSIZE, LUTSTEP, rgb2hsB, hsp2rgb, hsp2rgbVec, hsp2rgb_ClippingInd, LUT3DFromFactory, LUT3D_SHADOW
 from colorModels import hueSatModel, pbModel
 from utils import optionsWidget
 
@@ -64,18 +64,16 @@ class nodeGroup(QGraphicsItemGroup):
         self.setPos(position)
 
     def addToGroup(self, item):
+        item.setSelected(False)
         super(nodeGroup, self).addToGroup(item)
-        children = self.childItems()
         # set item position
         item.setPos(item.initialPosition - self.initialPosition)
 
     def mousePressEvent(self,e):
         print "group press"
-        self.mouseIsPressed = True
-        self.scene().update()
-        #return
         super(nodeGroup, self).mousePressEvent(e)
-
+        self.mouseIsPressed = True
+        #self.scene().update()
 
     def mouseMoveEvent(self,e):
         print "group move"
@@ -137,8 +135,14 @@ class nodeGroup(QGraphicsItemGroup):
         actionScaleUp.triggered.connect(lambda: self.setScale(self.scale()*1.1))
         menu.addAction(actionScaleUp)
         actionScaleDown = QAction('scale down', None)
-        actionScaleDown.triggered.connect(lambda: self.setScale(self.scale() * 0.9))
+        actionScaleDown.triggered.connect(lambda: self.setScale(self.scale() / 1.1))
         menu.addAction(actionScaleDown)
+        actionRotateCW = QAction('rotate CW', None)
+        actionRotateCW.triggered.connect(lambda: self.setRotation(self.rotation() + 10))
+        menu.addAction(actionRotateCW)
+        actionRotateCCW = QAction('rotate CCW', None)
+        actionRotateCCW.triggered.connect(lambda: self.setRotation(self.rotation() - 10))
+        menu.addAction(actionRotateCCW)
         menu.exec_(event.screenPos())
 
 
@@ -182,10 +186,14 @@ class activeNode(QGraphicsPathItem):
 
     def __init__(self, position, gridRow=0, gridCol=0, parent=None, grid=None):
         """
-
-        :param position: QpointF
+        Grid Node class. Each node is bound to a fixed color, depending on its
+        initial position on the color wheel. The node is also bound to a fixed list
+        of LUT vertices, corresponding to its initial color.
+        When a node is moved over the color wheel, calling the method setState synchronizes
+        the values of the LUT vertices with the current node position.
+        :param position: QpointF node position (relative to parent item)
         :param parent: parent item
-        :param grid: underlying grid
+        :param grid: owner grid
         """
         super(activeNode, self).__init__()
         self.setPos(position)
@@ -193,16 +201,32 @@ class activeNode(QGraphicsPathItem):
         self.setFlag(QGraphicsItem.ItemIsSelectable, True)
         # current scene
         scene = parent.scene()
-        # color from model
-        #c = QColor(SCENE['colorWheel'].QImg.pixel(int(position.x()), int(position.y())))
-        c = QColor(scene.colorWheel.QImg.pixel(int(position.x()), int(position.y())))
-        self.r, self.g, self.b = c.red(), c.green(), c.blue()
+
+        # read color from color wheel.
+        # Node parent is the grid and grandfather is the color wheel
+        # grid is at pos (0,0) on the color wheel (colorPicker object)
+        # Color wheel has a non null offset for border.
+        p = position - parent.parentItem().offset()
+        c = QColor(scene.colorWheel.QImg.pixel(p.toPoint()))
+        self.r, self.g, self.b, _ = c.getRgb()
+        self.hue, self.sat, self.pB = rgb2hsB(self.r, self.g, self.b, perceptual=True)
         # modified colors
         self.rM, self.gM, self.bM = self.r, self.g, self.b
-        self.hue, self.sat, self.pB= rgb2hsB(self.r, self.g, self.b, perceptual = True)
-        # LUTIndices : list of LUT vertices bound to node
-        # vectorize self.LUTIndices = [(r / LUTSTEP, g / LUTSTEP, b / LUTSTEP) for (r, g, b) in [hsp2rgb(self.hue, self.sat, p / 100.0) for p in range(101)]]
-        self.LUTIndices = hsp2rgbVec(np.array([(self.hue, self.sat, p / 100.0) for p in range(101)])[:,None])[:,0] / LUTSTEP
+
+
+        # list of LUT vertices bound to node
+        # vectorization of self.LUTIndices = [(r / LUTSTEP, g / LUTSTEP, b / LUTSTEP) for (r, g, b) in [hsp2rgb(self.hue, self.sat, p / 100.0) for p in range(101)]]
+        #self.LUTIndices = hsp2rgbVec(np.array([(self.hue, self.sat, p / 100.0) for p in range(101)])[:,None])[:,0] / LUTSTEP
+        tmp = hsp2rgbVec(np.array([(self.hue, self.sat, p / 100.0) for p in range(101)]) [:, None])[:, 0]
+        self.LUTIndices = tmp / LUTSTEP
+        clipped = [ (i,j,k) for i,j,k in self.LUTIndices if  i < LUTSIZE - 2 and j < LUTSIZE - 2 and k < LUTSIZE - 2]
+        clipped.extend( [tuple(self.LUTIndices[len(clipped)])] if len(clipped) < len(self.LUTIndices) else [] )
+        #self.LUTIndices = set(clipped)
+        self.LUTIndices = clipped    #TODO use ordered set
+        for (i,j,k) in self.LUTIndices:
+            #LUT3D_SHADOW[i,j,k][3]=1
+            LUT3D_SHADOW[i:i+2,j:j+2,k:k+2,3] = 1
+
         self.setParentItem(parent)
         #qpp = QPainterPath()
         #qpp.addEllipse(0,0, 7,7)
@@ -215,21 +239,24 @@ class activeNode(QGraphicsPathItem):
 
     def setState(self, position):
         """
-        move node and synchronize LUT
+        move node to position and synchronize LUT
         :param position: node position
         """
+        # update position
         self.setPos(position)
-
         img = self.scene().colorWheel.QImg
-        w,h = img.width(), img.height()
-        p = self.gridPos()
-        x , y = int(p.x()), int(p.y())
+        w, h = img.width(), img.height()
+        # clipping
+        # As grid.pos() is (0,0), grid and color wheel coordinates are
+        # identical.
+        # self.grid.parentItem() : color wheel, p : img coordinates
+        p = (self.gridPos() - self.grid.parentItem().offset()).toPoint()
+        x , y = p.x(), p.y()
         if x < 0 or  y < 0 or x >= w or y >= h:
-            print "setState", w, h, p
             x, y = min(w-1, max(0,x)), min(h-1, max(0,y))
-
+        # read current color
         c = QColor(img.pixel(x, y))
-        self.rM, self.gM, self.bM = c.red(), c.green(), c.blue()
+        self.rM, self.gM, self.bM, _ = c.getRgb()
         hue, sat, _ = rgb2hsB(self.rM, self.gM, self.bM, perceptual=True)
         # update LUT vertices bound to node
         for p, (i, j, k) in enumerate(self.LUTIndices):
@@ -393,11 +420,17 @@ class activeGrid(QGraphicsPathItem):
     selectionList =[]
 
     def __init__(self, size, parent=None):
+        """
+
+        :param size: number of nodes in each dim.
+        :param parent:
+        """
         super(activeGrid, self).__init__()
         self.setParentItem(parent)
         self.size = size
         # grid step
-        self.step = (parent.QImg.width() - 1) / float((self.size - 1))
+        #self.step = (parent.QImg.width() - 1) / float((self.size - 1))
+        self.step = parent.size / float((self.size -1))
         self.setPos(0,0)
         self.gridNodes = [[activeNode(QPointF(i*self.step,j*self.step), gridRow=i, gridCol=j, parent=self, grid=self) for i in range(self.size)] for j in range(self.size)]
         self.drawGrid()
@@ -520,9 +553,14 @@ class colorPicker(QGraphicsPixmapItem):
     implements rubber band selection and color picking.
     Mouse click events read pixel colors from QImage self.QImg.
     """
-    def __init__(self, QImg):
+    def __init__(self, QImg, size=0, border=0):
         self.QImg = QImg
+        if size == 0:
+            self.size = min(QImg.width(), QImg.heigth())
+        else:
+            self.size = size
         super(colorPicker, self).__init__(QPixmap.fromImage(self.QImg))
+        self.setOffset(QPointF(-border, -border))
         self.onMouseRelease = lambda x, y, z : 0
         self.rubberBand = None
 
@@ -560,9 +598,8 @@ class colorPicker(QGraphicsPixmapItem):
 
         print 'selected items', len(self.scene().selectedItems())
         # color picking
-        point = e.pos().toPoint()
-        i, j = point.x(), point.y()
-        c = QColor(self.QImg.pixel(i,j))
+        p = (e.pos() - self.offset()).toPoint()
+        c = QColor(self.QImg.pixel(p))
         r, g, b, _ = c.getRgb()
         self.onMouseRelease(i,j,r,g,b)
 
@@ -618,8 +655,9 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.graphicsScene.options = {'use selection' : True}
 
         # color wheel
-        QImg = hueSatModel.colorWheel(size, size, perceptualBrightness=self.colorWheelPB)
-        self.graphicsScene.colorWheel = colorPicker(QImg)
+        border= 20
+        QImg = hueSatModel.colorWheel(size, size, perceptualBrightness=self.colorWheelPB, border=border)
+        self.graphicsScene.colorWheel = colorPicker(QImg, size=size, border=border)
         self.graphicsScene.selectMarker = activeMarker.fromCross(parent=self.graphicsScene.colorWheel)
         self.graphicsScene.selectMarker.setPos(size/2, size/2)
         def f(x,y,r,g,b):
@@ -725,7 +763,7 @@ class graphicsForm3DLUT(QGraphicsView) :
 
 
         h, s, p = rgb2hsB(r, g, b, perceptual=True)
-        hspNeighborhood=[rgb2hsB(i*w,j*w,k*w, perceptual=True) for (i,j,k) in LUTNeighborhood]
+        hspNeighborhood=[rgb2hsB(i*w,j*w,k*w, perceptual=True) for (i,j,k) in LUTNeighborhood if (i*w<=255 and j*w<=255 and k*w<=255)]
         # currently selected values in adjust layer
         self.currentHue, self.currentSat, self.currentPb = h, s, p
         # x, y : color wheel (cartesian) coordinates of the pixel corresponding to hue=h and sat=s
@@ -744,7 +782,7 @@ class graphicsForm3DLUT(QGraphicsView) :
 
         boundIndices =[]
         for n in neighbors:
-            boundIndices.extend([tuple(l) for l in n.LUTIndices.tolist()])
+            boundIndices.extend([tuple(l) for l in n.LUTIndices])
 
         print 'bound', set(LUTNeighborhood).isdisjoint(boundIndices)
 
