@@ -22,7 +22,7 @@ from imgconvert import *
 from PyQt4.QtGui import QPixmap, QImage, QColor, QPainter, QMessageBox
 from PyQt4.QtCore import QRect, QByteArray
 from icc import convertQImage, MONITOR_PROFILE_PATH, COLOR_MANAGE
-from LUT3D import LUT3D, interpVec
+from LUT3D import interpVec
 from multiprocessing import Pool
 from time import time
 import re

@@ -111,51 +111,79 @@ class nodeGroup(QGraphicsItemGroup):
                     self.removeFromGroup(i)
         """
         # move child nodes and synchronize LUT
-        for i in self.childItems():
-            i.setState(i.pos())
-
-        self.prepareGeometryChange()
-        #self.a = e.pos()
+        if self.mouseIsMoved:
+            for i in self.childItems():
+                i.setState(i.pos())
+            self.grid.drawGrid()
+            self.scene().onUpdateLUT(options=self.scene().options)
         self.mouseIsPressed = False
         self.mouseIsMoved = False
         #update grid
-        self.grid.drawGrid()
-        self.scene().update()
-        self.scene().onUpdateLUT(options=self.scene().options)
+
         return
 
     def contextMenuEvent(self, event):
         menu = QMenu()
-        #actionGroup = QAction('Group', None)
-        #menu.addAction(actionGroup)
+        # ungroup
         actionUnGroup = QAction('UnGroup', None)
         menu.addAction(actionUnGroup)
-        actionUnGroup.triggered.connect(lambda: nodeGroup.unGroup(self))
+        def f1():
+            nodeGroup.unGroup(self)
+            self.grid.drawGrid()
+            #self.scene().onUpdateLUT(options=self.scene().options)
+        actionUnGroup.triggered.connect(f1)
+        # scale up
         actionScaleUp = QAction('scale up', None)
-        actionScaleUp.triggered.connect(lambda: self.setScale(self.scale()*1.1))
         menu.addAction(actionScaleUp)
+        def f2():
+            self.setScale(self.scale() * 1.1)
+            self.grid.drawGrid()
+            for i in self.childItems():
+                i.setState(i.pos())
+            self.scene().onUpdateLUT(options=self.scene().options)
+        actionScaleUp.triggered.connect(f2)
+        # scale down
         actionScaleDown = QAction('scale down', None)
-        actionScaleDown.triggered.connect(lambda: self.setScale(self.scale() / 1.1))
         menu.addAction(actionScaleDown)
+        def f3():
+            self.setScale(self.scale() / 1.1)
+            self.grid.drawGrid()
+            for i in self.childItems():
+                i.setState(i.pos())
+            self.scene().onUpdateLUT(options=self.scene().options)
+        actionScaleDown.triggered.connect(f3)
+        # rotate cw
         actionRotateCW = QAction('rotate CW', None)
-        actionRotateCW.triggered.connect(lambda: self.setRotation(self.rotation() + 10))
         menu.addAction(actionRotateCW)
+        def f4():
+            self.setRotation(self.rotation() + 10)
+            self.grid.drawGrid()
+            for i in self.childItems():
+                i.setState(i.pos())
+            self.scene().onUpdateLUT(options=self.scene().options)
+        actionRotateCW.triggered.connect(f4)
+        # rotate ccw
         actionRotateCCW = QAction('rotate CCW', None)
-        actionRotateCCW.triggered.connect(lambda: self.setRotation(self.rotation() - 10))
         menu.addAction(actionRotateCCW)
+        def f5():
+            self.setRotation(self.rotation() - 10)
+            self.grid.drawGrid()
+            for i in self.childItems():
+                i.setState(i.pos())
+            self.scene().onUpdateLUT(options=self.scene().options)
+        actionRotateCCW.triggered.connect(f5)
+
         menu.exec_(event.screenPos())
 
 
     def paint(self, qpainter, options, widget):
-
-        # painting in local coordinates
-        #self.a=QPointF(0,0)
+        # local coordinates
         b = qpainter.brush()
         if self.isSelected():
             qpainter.setBrush(QBrush(QColor(255,255,255)))
         else:
             qpainter.setBrush(QBrush(QColor(0,0,0)))
-        if self.mouseIsPressed:
+        if self.isSelected(): #self.mouseIsPressed:
             pen = qpainter.pen()
             #qpainter.pen().setStyle(Qt.DashDotLine)
             qpainter.setPen(QPen(Qt.white, 1, Qt.DotLine, Qt.RoundCap));
@@ -196,9 +224,12 @@ class activeNode(QGraphicsPathItem):
         :param grid: owner grid
         """
         super(activeNode, self).__init__()
+        self.mouseIsPressed = False
+        self.mouseIsMoved = False
         self.setPos(position)
         self.gridRow, self.gridCol = gridRow, gridCol
         self.setFlag(QGraphicsItem.ItemIsSelectable, True)
+        self.setFlag(QGraphicsItem.ItemIgnoresTransformations, True)
         # current scene
         scene = parent.scene()
 
@@ -239,11 +270,11 @@ class activeNode(QGraphicsPathItem):
 
     def setState(self, position):
         """
-        move node to position and synchronize LUT
+        Synchronize LUT
         :param position: node position
         """
         # update position
-        self.setPos(position)
+        #self.setPos(position)
         img = self.scene().colorWheel.QImg
         w, h = img.width(), img.height()
         # clipping
@@ -259,8 +290,9 @@ class activeNode(QGraphicsPathItem):
         self.rM, self.gM, self.bM, _ = c.getRgb()
         hue, sat, _ = rgb2hsB(self.rM, self.gM, self.bM, perceptual=True)
         # update LUT vertices bound to node
+        contrast = self.scene().LUTContrast
         for p, (i, j, k) in enumerate(self.LUTIndices):
-            self.scene().LUT3D[k, j, i, ::-1] = hsp2rgb(hue, sat, p / 100.0)
+            self.scene().LUT3D[k, j, i, ::-1] = hsp2rgb(hue, sat, contrast(p / 100.0))
 
     def gridPos(self):
         return self.scenePos() - self.grid.scenePos()
@@ -305,6 +337,7 @@ class activeNode(QGraphicsPathItem):
 
     def mousePressEvent(self, e):
         # super Press select node
+        self.mouseIsPressed = True
         super(activeNode, self).mousePressEvent(e)
         if type(self.parentItem()) is nodeGroup:
             print "exploding"
@@ -325,6 +358,7 @@ class activeNode(QGraphicsPathItem):
         #self.p.drawGrid()
         #self.scene().grid.drawGrid()
         print 'node mouse move'
+        self.mouseIsMoved = True
         #for i in self.parentItem().childItems():
             #i.setPos(e.pos() + i.delta)
             #i.setPos(e.scenePos())
@@ -353,7 +387,11 @@ class activeNode(QGraphicsPathItem):
         for p, (i,j,k) in enumerate(self.LUTIndices):
             scene.LUT3D[k,j,i,::-1] = hsp2rgb(hue,sat, p/100.0)
         """
-        self.scene().onUpdateLUT(options=self.scene().options)
+        if self.mouseIsMoved:
+            self.scene().onUpdateLUT(options=self.scene().options)
+
+        self.mouseIsPressed = False
+        self.mouseIsMoved = False
 
         #print self.scene().selectedItems()
 
@@ -650,7 +688,8 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.graphicsScene = QGraphicsScene()
         self.setScene(self.graphicsScene)
         # LUT
-        self.LUTSize, self.LUTStep, self.graphicsScene.LUT3D = LUT3DFromFactory(size=LUTSize)
+        LUT3D = LUT3DFromFactory(size=LUTSize)
+        self.LUTSize, self.LUTStep, self.graphicsScene.LUTContrast, self.graphicsScene.LUT3D = LUT3D.size, LUT3D.step, LUT3D.contrast, LUT3D.LUT3DArray
         # options
         self.graphicsScene.options = {'use selection' : True}
 
@@ -839,8 +878,8 @@ class graphicsForm3DLUT(QGraphicsView) :
 
         """
         # get a fresh LUT
-        _, _ ,LUT3D = LUT3DFromFactory(size=self.LUTSize)
-        self.graphicsScene.LUT3D = LUT3D
+        #_, _ ,LUT3D = LUT3DFromFactory(size=self.LUTSize)
+        self.graphicsScene.LUT3D = LUT3DFromFactory(size=self.LUTSize).LUT3DArray
 
         # explode all node groups
         groupList = [item for item in self.grid.childItems() if type(item) is nodeGroup]

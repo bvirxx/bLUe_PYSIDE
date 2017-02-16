@@ -22,7 +22,6 @@ from PyQt4.QtGui import QGraphicsView, QGraphicsScene, QGraphicsPathItem , QPain
 from PyQt4.QtCore import Qt, QPoint, QPointF, QRectF
 import numpy as np
 from time import time
-from LUT3D import LUT3D
 from colorModels import hueSatModel
 
 

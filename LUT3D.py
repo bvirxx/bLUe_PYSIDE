@@ -33,7 +33,7 @@ r,g,b values are between 0 and 256.
 LUTSIZE = 17
 LUTSIZE = 33
 LUTSTEP = 256 / (LUTSIZE - 1)
-LUT3D = np.array([[[(i * LUTSTEP, j * LUTSTEP, k * LUTSTEP) for k in range(LUTSIZE)] for j in range(LUTSIZE)] for i in range(LUTSIZE)])
+#LUT3D = np.array([[[(i * LUTSTEP, j * LUTSTEP, k * LUTSTEP) for k in range(LUTSIZE)] for j in range(LUTSIZE)] for i in range(LUTSIZE)])
 
 LUT3D_SHADOW = np.array([[[(i * LUTSTEP, j * LUTSTEP, k * LUTSTEP,0) for k in range(LUTSIZE)] for j in range(LUTSIZE)] for i in range(LUTSIZE)])
 """
@@ -68,10 +68,28 @@ Perc_R=0.79134178
 Perc_G=2.31839104
 Perc_B=0.25510923
 """
+
+class LUT3D (object):
+    """
+    Implements 3D LUT. Size must be 2**n.
+    """
+    def __init__(self, LUT3DArray, size=LUTSIZE):
+        # consistency check
+        if not (size & (size - 1)):
+            raise ValueError("LUT3D : size must be 2**n, found %d" % size)
+
+        self.LUT3DArray = LUT3DArray
+        self.size = size
+        # for convenience
+        self.step = 256 / (size - 1)
+        #
+        self.contrast = lambda p : p #np.power(p,1.2)
+
+
 def LUT3DFromFactory(size=LUTSIZE):
     step = 256 / (size - 1)
-    return size, step, np.array([[[(i * step, j * step, k * step) for k in range(size)] for j in range(size)] for i in range(size)])
-
+    return LUT3D(np.array([[[(i * step, j * step, k * step) for k in range(size)] for j in range(size)] for i in range(size)]), size=size)
+"""
 class QPoint3D(object):
     def __init__(self, x,y,z):
         self.x_ =x
@@ -95,8 +113,7 @@ class QPoint3D(object):
         return QPoint3D(scalar*self.x_, scalar.self.y_, scalar.self.z_)
 
     def __rmul__(self, scalar):
-        return QPoint3D(scalar*self.x_, scalar.self.y_, scalar.self.z_)
-
+"""
 def rgb2hsB(r, g, b, perceptual=False):
     """
     transform the red, green ,blue r, g, b components of a color
