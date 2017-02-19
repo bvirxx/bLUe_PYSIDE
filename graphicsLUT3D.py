@@ -29,9 +29,12 @@ from time import time
 from PyQt4.QtGui import QMenu
 from PyQt4.QtGui import QRubberBand
 
-from LUT3D import LUTSIZE, LUTSTEP, rgb2hsB, hsp2rgb, hsp2rgbVec, hsp2rgb_ClippingInd, LUT3DFromFactory, LUT3D_SHADOW
+from LUT3D import LUTSIZE, LUTSTEP, rgb2hsB, hsp2rgb, hsp2rgbVec, hsp2rgb_ClippingInd, LUT3DFromFactory, LUT3D_SHADOW, LUT3D_ORI
 from colorModels import hueSatModel, pbModel
 from utils import optionsWidget
+
+# node blocking factor
+spread = 1
 
 class nodeGroup(QGraphicsItemGroup):
 
@@ -247,17 +250,18 @@ class activeNode(QGraphicsPathItem):
 
         # list of LUT vertices bound to node
         # vectorization of self.LUTIndices = [(r / LUTSTEP, g / LUTSTEP, b / LUTSTEP) for (r, g, b) in [hsp2rgb(self.hue, self.sat, p / 100.0) for p in range(101)]]
-        #self.LUTIndices = hsp2rgbVec(np.array([(self.hue, self.sat, p / 100.0) for p in range(101)])[:,None])[:,0] / LUTSTEP
-        tmp = hsp2rgbVec(np.array([(self.hue, self.sat, p / 100.0) for p in range(101)]) [:, None])[:, 0]
-        self.LUTIndices = tmp / LUTSTEP
+        # for convenience, an axis is added before computation and removed after
+        tmp = hsp2rgbVec(np.array([(self.hue, self.sat, p / 100.0) for p in range(101)]) [:, None])
+        #self.LUTIndices = tmp[:, 0] / LUTSTEP
+        self.LUTIndices = np.round(tmp[:,0]/float(LUTSTEP)).astype(int)
         clipped = [ (i,j,k) for i,j,k in self.LUTIndices if  i < LUTSIZE - 2 and j < LUTSIZE - 2 and k < LUTSIZE - 2]
         clipped.extend( [tuple(self.LUTIndices[len(clipped)])] if len(clipped) < len(self.LUTIndices) else [] )
         #self.LUTIndices = set(clipped)
-        self.LUTIndices = clipped    #TODO use ordered set
+        self.LUTIndices = clipped    #TODO should use ordered set
         for (i,j,k) in self.LUTIndices:
             #LUT3D_SHADOW[i,j,k][3]=1
-            LUT3D_SHADOW[i:i+2,j:j+2,k:k+2,3] = 1
-
+            LUT3D_SHADOW[max(i-spread,0):i+spread+1,max(j-spread,0):j+spread+1, max(k-spread,0):k+spread+1,3] = 1
+        #np.where(LUT3D_SHADOW[:,:,:,3]==0)
         self.setParentItem(parent)
         #qpp = QPainterPath()
         #qpp.addEllipse(0,0, 7,7)
@@ -292,7 +296,12 @@ class activeNode(QGraphicsPathItem):
         # update LUT vertices bound to node
         contrast = self.scene().LUTContrast
         for p, (i, j, k) in enumerate(self.LUTIndices):
-            self.scene().LUT3D[k, j, i, ::-1] = hsp2rgb(hue, sat, contrast(p / 100.0))
+            #self.scene().LUT3D[k, j, i, ::-1] = hsp2rgb(hue, sat, contrast(p / 100.0))
+            a= np.array(hsp2rgb(hue, sat, contrast(p / 100.0)))
+            b = self.scene().LUT3D[k, j , i,::-1]
+            c = LUT3D_ORI[k, j, i, ::-1]
+            d = np.clip(a +b-c,0,255)
+            self.scene().LUT3D[max(k-spread,0):k+spread+1, max(j-spread,0):j+spread+1, max(i-spread,0):i+spread+1, ::-1] = np.clip(LUT3D_ORI[max(k-spread,0):k+spread+1, max(j-spread,0):j+spread+1, max(i-spread,0):i+spread+1, ::-1] + (np.array(hsp2rgb(hue, sat, contrast(p / 100.0))) - LUT3D_ORI[k, j , i,::-1]),0,255)
 
     def gridPos(self):
         return self.scenePos() - self.grid.scenePos()
@@ -337,6 +346,7 @@ class activeNode(QGraphicsPathItem):
 
     def mousePressEvent(self, e):
         # super Press select node
+        print [(i,j,k) for i,j,k in zip(np.where(LUT3D_SHADOW[:, :, :, 3] == 0)[0], np.where(LUT3D_SHADOW[:, :, :, 3] == 0)[1], np.where(LUT3D_SHADOW[:, :, :, 3] == 0)[2] )if i >1 and j > 1 and k > 1 and i<31 and j < 31 and k < 31]
         self.mouseIsPressed = True
         super(activeNode, self).mousePressEvent(e)
         if type(self.parentItem()) is nodeGroup:
@@ -599,6 +609,7 @@ class colorPicker(QGraphicsPixmapItem):
             self.size = size
         super(colorPicker, self).__init__(QPixmap.fromImage(self.QImg))
         self.setOffset(QPointF(-border, -border))
+        self.border = border
         self.onMouseRelease = lambda x, y, z : 0
         self.rubberBand = None
 
@@ -805,12 +816,18 @@ class graphicsForm3DLUT(QGraphicsView) :
         hspNeighborhood=[rgb2hsB(i*w,j*w,k*w, perceptual=True) for (i,j,k) in LUTNeighborhood if (i*w<=255 and j*w<=255 and k*w<=255)]
         # currently selected values in adjust layer
         self.currentHue, self.currentSat, self.currentPb = h, s, p
-        # x, y : color wheel (cartesian) coordinates of the pixel corresponding to hue=h and sat=s
+        # x, y : color wheel (cartesian origin top left corner) coordinates of the pixel corresponding to hue=h and sat=s
         xc, yc = self.graphicsScene.colorWheel.QImg.GetPoint(h, s)
+
         xyNeighborhood=[self.graphicsScene.colorWheel.QImg.GetPoint(h, s) for h,s,_ in hspNeighborhood]
 
         step = float(self.grid.step)
-        NNN = self.grid.gridNodes[int(round(yc/step))][int(round(xc/step))]
+        border = self.graphicsScene.colorWheel.border
+        #grid coordinates
+        xcGrid, ycGrid = xc - border, yc -border
+
+        #NNN = self.grid.gridNodes[int(round(ycGrid/step))][int(round(xcGrid/step))]
+        NNN = self.grid.gridNodes[int(np.floor(ycGrid / step))][int(np.floor(xcGrid / step))]
 
         #neighbors = [self.grid.gridNodes[j][i] for j in range(int(np.floor(y / step)) - 1, int(np.ceil( y / step)) +2) if j < w for i in range(int(np.floor(x / step))-1, int(np.ceil( x / step))+2) if i < w]
 

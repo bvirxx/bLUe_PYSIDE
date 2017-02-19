@@ -33,7 +33,7 @@ r,g,b values are between 0 and 256.
 LUTSIZE = 17
 LUTSIZE = 33
 LUTSTEP = 256 / (LUTSIZE - 1)
-#LUT3D = np.array([[[(i * LUTSTEP, j * LUTSTEP, k * LUTSTEP) for k in range(LUTSIZE)] for j in range(LUTSIZE)] for i in range(LUTSIZE)])
+LUT3D_ORI = np.array([[[(i * LUTSTEP, j * LUTSTEP, k * LUTSTEP) for k in range(LUTSIZE)] for j in range(LUTSIZE)] for i in range(LUTSIZE)])
 
 LUT3D_SHADOW = np.array([[[(i * LUTSTEP, j * LUTSTEP, k * LUTSTEP,0) for k in range(LUTSIZE)] for j in range(LUTSIZE)] for i in range(LUTSIZE)])
 """

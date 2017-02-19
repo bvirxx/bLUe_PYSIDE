@@ -43,12 +43,11 @@ class hueSatModel (imImage):
         :param perceptualBrightness: brightness of image pixels
         :return: imImage
         """
-        border = border
         w+= 2*border
         h+= 2*border
         # uninitialized ARGB image
         img = hueSatModel(w, h, perceptualBrightness=perceptualBrightness)
-
+        img.border = border
         # image buffer (BGRA order) dtype=uint8
         imgBuf = QImageBuffer(img)
 
@@ -136,14 +135,16 @@ class hueSatModel (imImage):
 
     def GetPoint(self, h, s):
         """
-        convert hue, sat values to cartesian coordinates on the color wheel.
+        convert hue, sat values to cartesian coordinates
+        on the color wheel (origin top-left corner).
         :param h:
         :param s:
         :return: cartesian coordinates
         """
         cx = self.width() / 2
         cy = self.height() / 2
-        x,y = cx*s*np.cos((h-self.rotation)*np.pi/180.0), cy*s*np.sin((h-self.rotation)*np.pi/180.0)
+        #x,y = cx*s*np.cos((h-self.rotation)*np.pi/180.0), cy*s*np.sin((h-self.rotation)*np.pi/180.0)
+        x, y = (cx-self.border) * s * np.cos((h - self.rotation) * np.pi / 180.0), (cy-self.border) * s * np.sin((h - self.rotation) * np.pi / 180.0)
         x,y = x + cx, - y + cy
         return x,y
 
