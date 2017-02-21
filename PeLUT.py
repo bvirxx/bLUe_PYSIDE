@@ -551,7 +551,7 @@ def menuLayer(x, name):
         dock.setWidget(grWindow)
         dock.setWindowFlags(Qt.WindowStaysOnTopHint)
         dock.setWindowTitle(grWindow.windowTitle())
-        dock.move(500, 40)
+        dock.move(600, 40)
         #window.addDockWidget(Qt.RightDockWidgetArea, dock)
         grWindow.graphicsScene.onUpdateLUT = lambda options={} : l.apply3DLUT(grWindow.graphicsScene.LUT3D, widget=window.label, options=options)
         window.label.repaint()

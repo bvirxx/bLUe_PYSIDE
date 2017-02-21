@@ -373,12 +373,12 @@ def hsp2rgb_ClippingInd(h,s,p, trunc=True):
     else:
         return int(round(r * 255)), int(round(g * 255)), int(round(b * 255)), clippingInd
 
-
 def hsp2rgbVec(hspImg):
     """
+    Vectorized version of hsp2rgb
 
-    :param hspImg:
-    :return:
+    :param hspImg: (n,m,3) array of hsp values
+    :return: identical shape array of rgb values
     """
     h, s, p = hspImg[:, :, 0], hspImg[:, :, 1], hspImg[:, :, 2]
 
@@ -386,58 +386,66 @@ def hsp2rgbVec(hspImg):
 
     h = np.ravel(h)
     s = np.ravel(s)
-    p=np.ravel(p)
+    p = np.ravel(p)
     h = h / 60.0
     i = np.floor(h).astype(int)
     f = h - i
 
-    Mm = 1.0 / (1.0 - s) # where s=1 Mm=inf
-    if np.any(Mm[Mm==np.inf]):
-        dummy=1
-    part1 = 1.0 + f * (Mm - 1.0)
-    part1 = np.where(Mm==np.inf, f, part1 )             # TODO some invalid values remain for s = 1
-    part2 = 1.0 + (1-f) * (Mm - 1.0)
-    part2 = np.where(Mm==np.inf, 1-f, part2 )
-
-    Mm = np.where(Mm==np.inf, 10**10, Mm )
-    part1 = part1 * part1
-    part2 = part2 * part2
+    old_settings = np.seterr(all='ignore')
+    Mm = 1.0 / (1.0 - s)
     Mm2 = Mm * Mm
 
-    X1 = p / np.sqrt(Perc_R * Mm2  + Perc_G * part1  + Perc_B)
-    Y1 = X1 * Mm
-    Z1 = X1 + f * (Y1 - X1)
-    X2 = p / np.sqrt(Perc_G * Mm2  + Perc_R * part2  + Perc_B)
-    Y2 = X2 * Mm
-    Z2 = X2 + (1-f) * (Y2 - X2)
-    X3 = p / np.sqrt(Perc_G * Mm2  + Perc_B * part1  + Perc_R)
-    Y3 = X3 * Mm
-    Z3 = X3 + f * (Y3 - X3)
-    X4 = p / np.sqrt(Perc_B * Mm2  + Perc_G * part2  + Perc_R)
-    Y4 = X4 * Mm
-    Z4 = X4 + (1-f) * (Y4 - X4)
-    X5 = p / np.sqrt(Perc_B * Mm2  + Perc_R * part1  + Perc_G)
-    Y5 = X5 * Mm
-    Z5 = X5 + f * (Y5 - X5)
-    X6 = p / np.sqrt(Perc_R * Mm2  + Perc_B * part2  + Perc_G)
-    Y6 = X6 *Mm
-    Z6 = X6 + (1-f) * (Y6 - X6)
+    part1 = 1.0 + f * (Mm - 1.0)
+    part1 = np.where(Mm == np.inf, f, part1)  # TODO some invalid values remain for s = 1
+    part2 = 1.0 + (1 - f) * (Mm - 1.0)
+    part2 = np.where(Mm == np.inf, 1 - f, part2)
 
-    clist = np.vstack((X1,Y1,Z1,X2,Y2,Z2,X3,Y3,Z3,X4,Y4,Z4, X5,Y5,Z5,X6,Y6,Z6))
+    part1 = part1 * part1
+    part2 = part2 * part2
 
-    # each 3-uple gives line numbers in clist for hue slice i = 0,..5
-    order = np.array([[1, 2, 0], [5, 4, 3], [6, 7, 8], [9, 11, 10], [14, 12, 13], [16, 15,17]])
+
+    X1 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_R * Mm2 + Perc_G * part1 + Perc_B))   # b
+    Y1 = np.where(Mm==np.inf, p / np.sqrt(Perc_R+ Perc_G * f *f), X1 * Mm)              # r
+    Z1 = np.where(Mm==np.inf, Y1 * f, X1 + f * (Y1 - X1))                               # g
+
+    X2 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_G * Mm2 + Perc_R * part2 + Perc_B))   # b
+    Y2 = np.where(Mm==np.inf, p / np.sqrt(Perc_G + Perc_R * (1-f) * (1-f)), X2 * Mm)    # g
+    Z2 = np.where(Mm==np.inf, Y2 * (1-f), X2 + (1 - f) * (Y2 - X2))                     # r
+
+    X3 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_G * Mm2 + Perc_B * part1 + Perc_R))   # r
+    Y3 = np.where(Mm==np.inf, p / np.sqrt(Perc_G + Perc_B * f * f), X3 * Mm)            # g
+    Z3 = np.where(Mm==np.inf, Y3 * f, X3 + f * (Y3 - X3))                               # b
+
+    X4 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_B * Mm2 + Perc_G * part2 + Perc_R))   # r
+    Y4 = np.where(Mm==np.inf, p / np.sqrt(Perc_B + Perc_G * (1-f) * (1-f)), X4 * Mm)    # b
+    Z4 = np.where(Mm==np.inf, Y4 * (1 - f), X4 + (1 - f) * (Y4 - X4))                   # g
+
+    X5 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_B * Mm2 + Perc_R * part1 + Perc_G))   # g
+    Y5 = np.where(Mm==np.inf, p / np.sqrt(Perc_B + Perc_R * f * f), X5 * Mm)            # b
+    Z5 = np.where(Mm==np.inf, Y5 * f, X5 + f * (Y5 - X5))                               # r
+
+    X6 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_R * Mm2 + Perc_B * part2 + Perc_G))   # g
+    Y6 = np.where(Mm==np.inf, p / np.sqrt(Perc_R + Perc_B * (1-f) * (1-f)), X6 * Mm)    # r
+    Z6 = np.where(Mm==np.inf, Y6 * (1 - f), X6 + (1 - f) * (Y6 - X6))                   # b
+
+    np.seterr(**old_settings)
+
+    # stacked as lines
+    clist = np.vstack((X1, Y1, Z1, X2, Y2, Z2, X3, Y3, Z3, X4, Y4, Z4, X5, Y5, Z5, X6, Y6, Z6))
+
+    # for hue slices 0,..,5, the corresponding 3-uple gives the line indices in clist for the r,g,b values
+    order = np.array([[1, 2, 0], [5, 4, 3], [6, 7, 8], [9, 11, 10], [14, 12, 13], [16, 15, 17]])
 
     tmp = np.arange(np.prod(shape))[:, None]
 
-    # we use advanced array indexing
+    # advanced array indexing
     rgb = clist[order[i], tmp]  # order[i] has shape (w*h, 3), tmp is broadcast to the same shape, thus rgb has (shape w*h, 3)
 
     # converting invalid values to int gives indeterminate results
-    rgb[np.isnan(rgb)]=0.0
+    rgb[np.isnan(rgb)] = 0.0
 
     # for uint8 image buffer, int values > 255 are truncated to lower 8 bits
-    #rgbMask = (rgb > 1)
+    # rgbMask = (rgb > 1)
     rgb = np.clip(rgb, 0, 1.0)
 
     rgb = (rgb * 255).astype(int)

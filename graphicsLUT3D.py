@@ -212,8 +212,10 @@ class activeNode(QGraphicsPathItem):
     matching h and s.
     """
     # node drawing
-    qpp = QPainterPath()
-    qpp.addEllipse(0, 0, 7, 7)
+    qppE = QPainterPath()
+    qppE.addEllipse(0, 0, 7, 7)
+    qppR = QPainterPath()
+    qppR.addRect(0, 0, 10, 10)
 
     def __init__(self, position, gridRow=0, gridCol=0, parent=None, grid=None):
         """
@@ -250,7 +252,7 @@ class activeNode(QGraphicsPathItem):
 
         # list of LUT vertices bound to node
         # vectorization of self.LUTIndices = [(r / LUTSTEP, g / LUTSTEP, b / LUTSTEP) for (r, g, b) in [hsp2rgb(self.hue, self.sat, p / 100.0) for p in range(101)]]
-        # for convenience, an axis is added before computation and removed after
+        # to match hsp2rgbVec parameter type, an axis is added before computation and removed after
         tmp = hsp2rgbVec(np.array([(self.hue, self.sat, p / 100.0) for p in range(101)]) [:, None])
         #self.LUTIndices = tmp[:, 0] / LUTSTEP
         self.LUTIndices = np.round(tmp[:,0]/float(LUTSTEP)).astype(int)
@@ -263,9 +265,11 @@ class activeNode(QGraphicsPathItem):
             LUT3D_SHADOW[max(i-spread,0):i+spread+1,max(j-spread,0):j+spread+1, max(k-spread,0):k+spread+1,3] = 1
         #np.where(LUT3D_SHADOW[:,:,:,3]==0)
         self.setParentItem(parent)
-        #qpp = QPainterPath()
-        #qpp.addEllipse(0,0, 7,7)
-        self.setPath(self.qpp)
+        c = grid.size/2
+        if self.gridRow == c and self.gridCol == c:
+            self.setPath(self.qppR)
+        else :
+            self.setPath(self.qppE)
         self.grid = grid
         #self.g = None#QGraphicsItemGroup()
         self.delta=QPointF(0,0)
@@ -300,7 +304,9 @@ class activeNode(QGraphicsPathItem):
             a= np.array(hsp2rgb(hue, sat, contrast(p / 100.0)))
             b = self.scene().LUT3D[k, j , i,::-1]
             c = LUT3D_ORI[k, j, i, ::-1]
-            d = np.clip(a +b-c,0,255)
+
+            c1 = LUT3D_ORI[max(k-spread,0):k+spread+1, max(j-spread,0):j+spread+1, max(i-spread,0):i+spread+1, ::-1]
+            exp = c1 +(a-c)
             self.scene().LUT3D[max(k-spread,0):k+spread+1, max(j-spread,0):j+spread+1, max(i-spread,0):i+spread+1, ::-1] = np.clip(LUT3D_ORI[max(k-spread,0):k+spread+1, max(j-spread,0):j+spread+1, max(i-spread,0):i+spread+1, ::-1] + (np.array(hsp2rgb(hue, sat, contrast(p / 100.0))) - LUT3D_ORI[k, j , i,::-1]),0,255)
 
     def gridPos(self):
@@ -544,7 +550,6 @@ class activeMarker(QGraphicsPolygonItem):
     cross.append(QPointF(size / 2, -size / 2))
     cross.append(QPointF(0, 0))
 
-
     @classmethod
     def fromTriangle(cls, parent=None):
         size = 10
@@ -583,7 +588,7 @@ class activeMarker(QGraphicsPolygonItem):
         pass
 
     def mouseMoveEvent(self, e):
-        pos = e.scenePos()
+        pos = e.scenePos() -self.parentItem().scenePos()
         x, y = pos.x(), pos.y()
         # limit move to (0,0) and moveRange
         xmax, ymax = self.moveRange.x(), self.moveRange.y()
@@ -592,8 +597,11 @@ class activeMarker(QGraphicsPolygonItem):
         self.onMouseMove(x,y)
 
     def mouseReleaseEvent(self, e):
-        pos = e.scenePos()
+        pos = e.scenePos() - self.parentItem().scenePos()
         x, y = pos.x(), pos.y()
+        # limit move to (0,0) and moveRange
+        xmax, ymax = self.moveRange.x(), self.moveRange.y()
+        x, y = 0 if x < 0 else xmax if x > xmax else x, 0 if y < 0 else ymax if y > ymax else y
         self.onMouseRelease(x, y)
 
 class colorPicker(QGraphicsPixmapItem):
@@ -655,8 +663,8 @@ class colorPicker(QGraphicsPixmapItem):
 #main class
 class graphicsForm3DLUT(QGraphicsView) :
     """
-    Interactive color wheel for 3D LUT adjustment.
-    Color model is hsp.
+    Interactive grid for 3D LUT adjustment.
+    Default color model is hsp.
     """
     # markers for grid nodes
     qpp0 = QPainterPath()
@@ -673,10 +681,10 @@ class graphicsForm3DLUT(QGraphicsView) :
     @classmethod
     def getNewWindow(cls, size=500, LUTSize=LUTSIZE, title='', parent=None):
         """
-        build a graphicsForm3DLUT object. The parameter size gives the size of
-        the color wheel. The total size of the window is adjusted
-        to fit the size of the color wheel.
+        build a graphicsForm3DLUT object. The parameter size represents the size of
+        the color wheel, border not included. The size of the window is adjusted.
         :param size: size of the color wheel
+        :param LUTSize: size of the LUT
         :param parent: parent widget
         :return: graphicsForm3DLUT object
         """
@@ -686,8 +694,9 @@ class graphicsForm3DLUT(QGraphicsView) :
 
     def __init__(self, size, LUTSize = LUTSIZE, parent=None):
         super(graphicsForm3DLUT, self).__init__(parent=parent)
+        border = 20
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        self.setMinimumSize(size+40, size+170)
+        self.setMinimumSize(size+80, size+200)
         self.setWindowFlags(Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.setBackgroundBrush(QBrush(Qt.black, Qt.SolidPattern));
@@ -705,11 +714,11 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.graphicsScene.options = {'use selection' : True}
 
         # color wheel
-        border= 20
         QImg = hueSatModel.colorWheel(size, size, perceptualBrightness=self.colorWheelPB, border=border)
         self.graphicsScene.colorWheel = colorPicker(QImg, size=size, border=border)
         self.graphicsScene.selectMarker = activeMarker.fromCross(parent=self.graphicsScene.colorWheel)
         self.graphicsScene.selectMarker.setPos(size/2, size/2)
+        # color wheel event handler
         def f(x,y,r,g,b):
             self.graphicsScene.selectMarker.setPos(x,y)
             h,s,p = rgb2hsB(r,g,b, perceptual = True)
@@ -720,26 +729,25 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.graphicsScene.addItem(self.graphicsScene.colorWheel)
 
         # Brightness slider
-        self.bSliderHeight = 30
-        px = QPixmap.fromImage(pbModel.colorChart(size, self.bSliderHeight, self.currentHue, self.currentSat))
-        self.graphicsScene.bSlider = QGraphicsPixmapItem(px)
-        #self.graphicsScene.bSlider.setPixmap(px)
-        self.graphicsScene.bSlider.setPos(QPointF(0, self.graphicsScene.colorWheel.QImg.height()+20))
+        self.bSliderHeight = 20
+        self.bSliderWidth = self.graphicsScene.colorWheel.QImg.width()
+        px = QPixmap.fromImage(pbModel.colorChart(self.bSliderWidth, self.bSliderHeight, self.currentHue, self.currentSat))
+        self.graphicsScene.bSlider = QGraphicsPixmapItem(px, parent = self.graphicsScene.colorWheel)
+        self.graphicsScene.bSlider.setPos(QPointF(-border, self.graphicsScene.colorWheel.QImg.height()-border))
         self.graphicsScene.addItem(self.graphicsScene.bSlider)
         bSliderCursor = activeMarker.fromTriangle(parent=self.graphicsScene.bSlider)
         bSliderCursor.setPos(self.graphicsScene.bSlider.pixmap().width() / 2, self.graphicsScene.bSlider.pixmap().height())
-        #bSliderCursor.onMouseRelease = lambda p,q : self.graphicsScene.colorWheel.setPixmap(QPixmap.fromImage(hueSatModel.colorWheel(size, size, perceptualBrightness=p / float(size))))
+        # cursor event handler
         def f(p,q):
-            self.currentPb = p / float(size)
+            self.currentPb = p / float(self.bSliderWidth)
             self.graphicsScene.colorWheel.QImg.setPb(self.currentPb)
             self.graphicsScene.colorWheel.setPixmap(QPixmap.fromImage(self.graphicsScene.colorWheel.QImg))
             self.displayStatus()
-
-        #bSliderCursor.onMouseRelease = lambda p, q: self.graphicsScene.colorWheel.setPixmap(QPixmap.fromImage(self.graphicsScene.colorWheel.QImg.setPb(p / float(size))))
         bSliderCursor.onMouseRelease = f
         # status bar
+        offset = 70
         self.graphicsScene.statusBar = QGraphicsTextItem()
-        self.graphicsScene.statusBar.setPos(0, size + 70)
+        self.graphicsScene.statusBar.setPos(0, size+offset)
         self.graphicsScene.statusBar.setDefaultTextColor(QColor(255,255,255))
         self.graphicsScene.statusBar.setPlainText('')
         self.graphicsScene.addItem(self.graphicsScene.statusBar)
@@ -756,12 +764,12 @@ class graphicsForm3DLUT(QGraphicsView) :
         # reset button
         pushButton = QPushButton("reset grid")
         pushButton.setObjectName("btn_reset")
-        pushButton.setGeometry(550, size+80, 100, 25)  # x,y,w,h
+        pushButton.setMinimumSize(1,1)
+        pushButton.setGeometry(550, size+offset, 80, 21)  # x,y,w,h
         pushButton.clicked.connect(self.onReset)
         self.graphicsScene.addWidget(pushButton)
 
         # list of options
-
         self.listWidget = optionsWidget(options=['use image', 'use selection'], exclusive=True)
         self.listWidget.select(self.listWidget.items['use selection'])
         def onSelect(item):
@@ -789,7 +797,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         select(listItem)
         self.listWidget.setMinimumWidth(self.listWidget.sizeHintForColumn(0))
         """
-        self.listWidget.setGeometry(700,size+80, 10,100)
+        self.listWidget.setGeometry(700,size+offset, 10,100)
         self.graphicsScene.addWidget(self.listWidget)
         self.listWidget.setStyleSheet("QListWidget{background: black;} QListWidget::item{color: white;}")
 
@@ -883,7 +891,7 @@ class graphicsForm3DLUT(QGraphicsView) :
 
     def bSliderUpdate(self):
         # self.currentHue, self.currentSat = h, s
-        px = QPixmap.fromImage(pbModel.colorChart(self.size, self.bSliderHeight, self.currentHue, self.currentSat))
+        px = QPixmap.fromImage(pbModel.colorChart(self.bSliderWidth, self.bSliderHeight, self.currentHue, self.currentSat))
         self.graphicsScene.bSlider.setPixmap(px)
 
     def onSelectGridNode(self, h, s):

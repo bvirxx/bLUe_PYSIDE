@@ -180,30 +180,9 @@ class pbModel (imImage):
         imgBuf[:,:,3] = 255
         #RGB order
         imgBuf=imgBuf[:,:,:3][:,:,::-1]
-
-        clipping = np.zeros(imgBuf.shape, dtype=int)
-        wF = float(w)
+        wF = float(w)-1
         hsArray = np.array([[[hue, sat, i/wF] for i in range(w)] for j in range(h)])
-
         imgBuf[:,:,:] = hsp2rgbVec(hsArray)
-
-        """
-                if sat <=1.0 :
-                    # valid color
-                    if c[0] <= 255 and c[1] <= 255 and c[2] <= 255:
-                        imgBuf[j, i] = c
-                    else:
-                        imgBuf[j, i] = np.clip(c, 0, 255)
-                        clipping[j,i] = True
-                # sat>= 1
-                else:
-                    imgBuf[j, i] = 0 #np.clip(c, 0, 255)
-        """
-        # mark center and clipped area
-        #qp = QPainter(img)
-        #b=np.logical_xor(clipping , np.roll(clipping, 1,axis=0))
-        #imgBuf[b]=0
-
         img.updatePixmap()
         return img
 
