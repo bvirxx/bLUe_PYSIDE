@@ -36,6 +36,31 @@ from utils import optionsWidget
 # node blocking factor
 spread = 1
 
+
+class index(object):
+    """
+    An index object represents a 4-uple (p,i,j, k).
+    p is a perceived brightness
+    and i, j, k are indices in the LUT3D
+    table.
+    A set of index objects contains unique (i, j, k) 3-uples
+    """
+    def __init__(self, p, i, j ,k):
+        self.p = p
+        self.ind = (i, j, k)
+    def __repr__(self):
+        return "index(%f, %s)" % (self.p, self.ind)
+    def __eq__(self, other):
+        if isinstance(other, index):
+          return (self.ind == other.ind)
+        return NotImplemented
+    def __ne__(self, other):
+        if isinstance(other, self.__class__):
+            return (not self.__eq__(other))
+        return NotImplemented
+    def __hash__(self):
+          return hash("%d%d%d" % self.ind)
+
 class nodeGroup(QGraphicsItemGroup):
 
     @classmethod
@@ -259,11 +284,15 @@ class activeNode(QGraphicsPathItem):
         clipped = [ (i,j,k) for i,j,k in self.LUTIndices if  i < LUTSIZE - 2 and j < LUTSIZE - 2 and k < LUTSIZE - 2]
         clipped.extend( [tuple(self.LUTIndices[len(clipped)])] if len(clipped) < len(self.LUTIndices) else [] )
         #self.LUTIndices = set(clipped)
-        self.LUTIndices = clipped    #TODO should use ordered set
-        for (i,j,k) in self.LUTIndices:
+        #self.LUTIndices = clipped
+        self.LUTIndices = set([index(p/100.0, i, j, k) for p, (i, j, k) in enumerate(clipped)])
+        for x in self.LUTIndices:
             #LUT3D_SHADOW[i,j,k][3]=1
+            (i, j, k) = x.ind
             LUT3D_SHADOW[max(i-spread,0):i+spread+1,max(j-spread,0):j+spread+1, max(k-spread,0):k+spread+1,3] = 1
         #np.where(LUT3D_SHADOW[:,:,:,3]==0)
+
+        # mark central node
         self.setParentItem(parent)
         c = grid.size/2
         if self.gridRow == c and self.gridCol == c:
@@ -299,15 +328,19 @@ class activeNode(QGraphicsPathItem):
         hue, sat, _ = rgb2hsB(self.rM, self.gM, self.bM, perceptual=True)
         # update LUT vertices bound to node
         contrast = self.scene().LUTContrast
-        for p, (i, j, k) in enumerate(self.LUTIndices):
+        #for p, (i, j, k) in enumerate(self.LUTIndices):
+        for x in self.LUTIndices:
+            (i,j,k) = x.ind
+            p=x.p
             #self.scene().LUT3D[k, j, i, ::-1] = hsp2rgb(hue, sat, contrast(p / 100.0))
-            a= np.array(hsp2rgb(hue, sat, contrast(p / 100.0)))
+            #a= np.array(hsp2rgb(hue, sat, contrast(p / 100.0)))
+            a = np.array(hsp2rgb(hue, sat, contrast(p)))
             b = self.scene().LUT3D[k, j , i,::-1]
             c = LUT3D_ORI[k, j, i, ::-1]
 
             c1 = LUT3D_ORI[max(k-spread,0):k+spread+1, max(j-spread,0):j+spread+1, max(i-spread,0):i+spread+1, ::-1]
             exp = c1 +(a-c)
-            self.scene().LUT3D[max(k-spread,0):k+spread+1, max(j-spread,0):j+spread+1, max(i-spread,0):i+spread+1, ::-1] = np.clip(LUT3D_ORI[max(k-spread,0):k+spread+1, max(j-spread,0):j+spread+1, max(i-spread,0):i+spread+1, ::-1] + (np.array(hsp2rgb(hue, sat, contrast(p / 100.0))) - LUT3D_ORI[k, j , i,::-1]),0,255)
+            self.scene().LUT3D[max(k-spread,0):k+spread+1, max(j-spread,0):j+spread+1, max(i-spread,0):i+spread+1, ::-1] = np.clip(LUT3D_ORI[max(k-spread,0):k+spread+1, max(j-spread,0):j+spread+1, max(i-spread,0):i+spread+1, ::-1] + (np.array(hsp2rgb(hue, sat, contrast(p))) - LUT3D_ORI[k, j , i,::-1]),0,255)
 
     def gridPos(self):
         return self.scenePos() - self.grid.scenePos()
@@ -846,7 +879,7 @@ class graphicsForm3DLUT(QGraphicsView) :
 
         boundIndices =[]
         for n in neighbors:
-            boundIndices.extend([tuple(l) for l in n.LUTIndices])
+            boundIndices.extend([tuple(l.ind) for l in n.LUTIndices])
 
         print 'bound', set(LUTNeighborhood).isdisjoint(boundIndices)
 
