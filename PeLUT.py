@@ -204,7 +204,7 @@ def paintEvent(widg, e) :
     # background
     qp.fillRect(QRect(0, 0, widg.width() , widg.height() ), bgColor)
     # draw layers
-    for layer in mimg._layersStack :
+    for layer in mimg.layersStack :
         if layer.visible:
             if layer.qPixmap is not None:
                 qp.drawPixmap(QRect(mimg.xOffset,mimg.yOffset, mimg.width()*r, mimg.height()*r), # target rect
@@ -438,10 +438,16 @@ def openFile(f):
     with exiftool.ExifTool() as e:
         profile, metadata = e.get_metadata(f)
 
-    # trying to get color space info  1 = sRGB
-    colorSpace = metadata[0].get("EXIF:ColorSpace", -1)
-    if colorSpace <0:
-        colorSpace = metadata[0].get("ICC_Profile:ProfileDescription", -1)
+    # trying to get color space info
+    # 1 = sRGB
+    colorSpace = -1
+    read_colorSpace = metadata[0].get("EXIF:ColorSpace", -1)
+    if read_colorSpace <0:
+        # sRGBIEC61966-2.1
+        read_colorSpace = metadata[0].get("ICC_Profile:ProfileDescription", '')
+        if isinstance(read_colorSpace, unicode) or isinstance(read_colorSpace, str):
+            if 'sRGB' in read_colorSpace:
+                colorSpace = 1
 
     orientation = metadata[0].get("EXIF:Orientation", 0)
     transformation = exiftool.decodeExifOrientation(orientation)
@@ -543,7 +549,7 @@ def menuLayer(x, name):
     elif name == 'action3D_LUT':
         l = window.label.img.addAdjustmentLayer(name='3D LUT')
         window.tableView.addLayers(window.label.img)
-        grWindow = graphicsForm3DLUT.getNewWindow(size=800, LUTSize=LUTSIZE, title= l.name, parent=window)
+        grWindow = graphicsForm3DLUT.getNewWindow(size=800, targetImage=window.label.img, LUTSize=LUTSIZE, title= l.name, parent=window)
         Wins[l.name] = grWindow
         dock = QDockWidget(window)
         # link to colorwheel

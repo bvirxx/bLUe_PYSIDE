@@ -188,19 +188,37 @@ class mImage(vImage):
     Multilayer image
     """
     def __init__(self, *args, **kwargs):
-        super(mImage, self).__init__(*args, **kwargs)
+        # must be before super __init__ because updatePixmap uses layersStack
         self._layers = {}
-        self._layersStack = []
+        self.layersStack = []
+        super(mImage, self).__init__(*args, **kwargs)
+        #self._layers = {}
+        #self.layersStack = []
         # add background layer
         bgLayer = QLayer.fromImage(self)
         bgLayer.name = 'background'
         self._layers[bgLayer.name] = bgLayer
-        self._layersStack.append(bgLayer)
+        self.layersStack.append(bgLayer)
         self.activeLayer = bgLayer
+
+    def updatePixmap(self):
+        super(mImage, self).updatePixmap()
+        qpainter = QPainter(self.qPixmap)
+        for layer in self.layersStack:
+            if layer.visible:
+                """
+                if layer.qPixmap is not None:
+                    print '00', layer.name
+                    qpainter.drawPixmap(0,0, layer.transfer())
+                    print '10', layer.name
+                else:
+                """
+                qpainter.drawImage(0, 0, layer)
+        qpainter.end()
 
     def addLayer(self, lay, name):
         # build a unique name
-        usedNames = [l.name for l in self._layersStack]
+        usedNames = [l.name for l in self.layersStack]
         a = 1
         trialname = name
         while trialname in usedNames:
@@ -208,16 +226,16 @@ class mImage(vImage):
             a = a+1
         lay.name = trialname
         self._layers[lay.name] = lay
-        self._layersStack.append(lay)
+        self.layersStack.append(lay)
         lay.meta = self.meta
-        if lay.name != 'drawlayer':
-            lay.updatePixmap()
+        #if lay.name != 'drawlayer':
+            #lay.updatePixmap()
         self.setModified(True)
 
     def addAdjustmentLayer(self, name='', window=None):
-        lay = QLayer(QImg=self._layersStack[-1])
+        lay = QLayer(QImg=self.layersStack[-1])
         #lay.inputImg = QImage(self.size(), self.format())
-        lay.inputImg = QImage(self._layersStack[-1])
+        lay.inputImg = QImage(self.layersStack[-1])
         self.addLayer(lay, name)
         """
         # draw input image
@@ -244,7 +262,7 @@ class mImage(vImage):
         return lay
 
     def updatePixmaps(self):
-        for l in self._layersStack:
+        for l in self.layersStack:
             l.updatePixmap()
 
     def refreshLayer(self, layer1, layer2):
@@ -263,7 +281,7 @@ class mImage(vImage):
     def save(self, filename):
         img = QImage(self.width(), self.height(), self.format())
         qpainter = QPainter(img)
-        for layer in self._layersStack:
+        for layer in self.layersStack:
             if layer.visible:
                 """
                 if layer.qPixmap is not None:
@@ -320,10 +338,10 @@ class imImage(mImage) :
         # resized imImage
         rszd = imImage(QImg=rszd0,meta=copy(self.meta))
         rszd.rect = rszd0.rect
-        for k, l  in enumerate(self._layersStack):
+        for k, l  in enumerate(self.layersStack):
             if l.name != "background" and l.name != 'drawlayer':
                 img = QLayer.fromImage(self._layers[l.name].resize(pixels, interpolation=interpolation))
-                rszd._layersStack.append (img)
+                rszd.layersStack.append (img)
                 rszd._layers[l.name] = img
         self.isModified = True
         return rszd
@@ -337,7 +355,7 @@ class imImage(mImage) :
     def snapshot(self):
         snap = imImage(QImg=self, meta=self.meta)
         qp = QPainter(snap)
-        for layer in self._layersStack:
+        for layer in self.layersStack:
             if layer.visible:
                 """
                 if layer.qPixmap is not None:

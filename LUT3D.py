@@ -153,6 +153,50 @@ def rgb2hsB(r, g, b, perceptual=False):
     assert 0<=H and H<=360 and 0<=S and S<=1 and 0<=V and V<=1, "rgb2hsv conversion error r=%d, g=%d, b=%d" %(r,g,b)
     return H,S,V
 
+def rgb2hsBVec(rgbImg, perceptual=False):
+    """
+    Vectorized version of rgb2hsB
+    :param rgbImg: (n,m,3) array of rgb values
+    :return: identical shape array of hsB values 0<=h<=360, 0<=s<=1, 0<=v<=1
+    """
+    r, g, b = rgbImg[:, :, 0].astype(float), rgbImg[:, :, 1].astype(float), rgbImg[:, :, 2].astype(float)
+
+    cMax = np.maximum.reduce([r, g, b]) #.astype(float)
+    cMin = np.minimum.reduce([r, g, b]) #.astype(float)
+    delta = cMax - cMin
+
+    H1 = 1.0 / delta
+    H2 = 60.0 * (g - b) * H1
+    H3 = np.where(g>=b, H2, 360 + H2)
+    H4 = 60.0 * (2.0 + (b-r)*H1)
+    H5 = 60.0 * (4.0 + (r-g)*H1)
+
+    H = np.where(delta==0.0, 0.0, np.where(cMax==r, H3, np.where(cMax==g, H4, H5)))
+    """
+    # hue
+    if delta == 0:
+        H = 0.0
+    elif cMax == r:
+        H = 60.0 * float(g-b)/delta if g >= b else 360 + 60.0 * float(g-b)/delta
+    elif cMax == g:
+        H = 60.0 * (2.0 + float(b-r)/delta)
+    elif cMax == b:
+        H = 60.0 * (4.0 + float(r-g)/delta)
+    """
+    #saturation
+    S = np.where(cMax==0.0, 0.0, delta / cMax)
+
+    #S = 0.0 if cMax == 0.0 else float(delta)/cMax
+
+    # brightness
+    if perceptual:
+        V = np.sqrt(Perc_R * r * r + Perc_G * g * g + Perc_B * b * b)
+        V = V / 255.0
+    else:
+        V = cMax/255.0
+    #assert 0<=H and H<=360 and 0<=S and S<=1 and 0<=V and V<=1, "rgb2hsv conversion error r=%d, g=%d, b=%d" %(r,g,b)
+    return np.dstack((H,S,V))
+
 def hsv2rgb(h,s,v):
     """
     Transform the hue, saturation, brightness h, s, v components of a color

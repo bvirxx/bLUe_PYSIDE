@@ -119,6 +119,9 @@ class hueSatModel (imImage):
         imgBuf[b]=0
         img.updatePixmap()
         """
+        # color manage the wheel
+        img.meta.colorSpace = 1
+        img.updatePixmap()
         return img
 
     def __init__(self, w, h, picker = None, perceptualBrightness=pb):
@@ -128,10 +131,15 @@ class hueSatModel (imImage):
         self.hsArray = None
 
     def setPb(self,pb):
+        """
+        Set brightness and update image
+        :param pb: perceptive brightness (range 0,..,1)
+        """
         self.pb = pb
         self.hsArray[:,:,2] = pb
         imgBuf = QImageBuffer(self)[:,:,:3][:,:,::-1]
         imgBuf[:,:,:] = hsp2rgbVec(self.hsArray)
+        self.updatePixmap()
 
     def GetPoint(self, h, s):
         """
@@ -147,6 +155,21 @@ class hueSatModel (imImage):
         x, y = (cx-self.border) * s * np.cos((h - self.rotation) * np.pi / 180.0), (cy-self.border) * s * np.sin((h - self.rotation) * np.pi / 180.0)
         x,y = x + cx, - y + cy
         return x,y
+
+    def GetPointVec(self, hsarray):
+        """
+        convert hue, sat values to cartesian coordinates
+        on the color wheel (origin top-left corner).
+        :param hsarray
+        :return: cartesian coordinates
+        """
+        h, s = hsarray[:,:,0], hsarray[:,:,1]
+        cx = self.width() / 2
+        cy = self.height() / 2
+        #x,y = cx*s*np.cos((h-self.rotation)*np.pi/180.0), cy*s*np.sin((h-self.rotation)*np.pi/180.0)
+        x, y = (cx-self.border) * s * np.cos((h - self.rotation) * np.pi / 180.0), (cy-self.border) * s * np.sin((h - self.rotation) * np.pi / 180.0)
+        x,y = x + cx, - y + cy
+        return np.dstack((x,y))
 
     """
     def colorPickerSetmark(self, r,g,b, LUT3D):
@@ -183,6 +206,8 @@ class pbModel (imImage):
         wF = float(w)-1
         hsArray = np.array([[[hue, sat, i/wF] for i in range(w)] for j in range(h)])
         imgBuf[:,:,:] = hsp2rgbVec(hsArray)
+        # color manage
+        img.meta.colorSpace = 1
         img.updatePixmap()
         return img
 

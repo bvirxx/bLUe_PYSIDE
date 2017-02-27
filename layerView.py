@@ -61,7 +61,7 @@ class QLayerView(QTableView) :
         # columns : visible | icon and name | unused
         model.setColumnCount(3)
 
-        for lay in reversed(mImg._layersStack) :
+        for lay in reversed(mImg.layersStack) :
             items = []
             # col 0 : visibility icon
             if lay.visible :
@@ -77,7 +77,7 @@ class QLayerView(QTableView) :
         self.setModel(model)
         # select top layer
         self.selectRow(0)
-        self.img.activeLayer = self.img._layersStack[-1]
+        self.img.activeLayer = self.img.layersStack[-1]
 
         self.horizontalHeader().hide()
         self.verticalHeader().hide()
@@ -92,18 +92,18 @@ class QLayerView(QTableView) :
         row = clickedIndex.row()
         model = clickedIndex.model()
         if clickedIndex.column() == 0 :
-            visible = not(self.img._layersStack[-1-row].visible)
-            self.img._layersStack[-1-row].visible = visible
+            visible = not(self.img.layersStack[-1-row].visible)
+            self.img.layersStack[-1-row].visible = visible
             if visible:
                 self.model().setData(clickedIndex, QIcon(":/images/resources/eye-icon.png") ,Qt.DecorationRole)
             else:
                 self.model().setData(clickedIndex, QIcon(":/images/resources/eye-icon-strike.png"), Qt.DecorationRole)
         elif clickedIndex.column() == 1 :
             # make selected layer the active layer
-            self.img.activeLayer = self.img._layersStack[-1-row]
+            self.img.activeLayer = self.img.layersStack[-1-row]
             # show/hide window for adjustment layer
-            if hasattr(self.img._layersStack[-1-row], "adjustView"):
-                win = self.img._layersStack[-1-row].adjustView
+            if hasattr(self.img.layersStack[-1-row], "adjustView"):
+                win = self.img.layersStack[-1-row].adjustView
             else:
                 win = None
             if win is not None:
