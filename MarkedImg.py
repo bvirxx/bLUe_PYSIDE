@@ -57,6 +57,7 @@ class vImage(QImage):
         :param rawMetadata: list of dictionaries (default [])
         :param profile: embedded profile (default '')
         """
+        self.transformation = None
         self.isModified = False
         self.onModify = lambda : 0
         self.rect, self.mask, = None, cv2mask
@@ -104,7 +105,8 @@ class vImage(QImage):
         if icc.COLOR_MANAGE:
             # 1=sRGB
             if self.meta.colorSpace == 1:  #or len(self.meta.profile)> 0:
-                cvqim=convertQImage(self)
+                cvqim, transformation = convertQImage(self)
+                self.transformation = transformation
             else:
                 cvqim = self
             self.qPixmap = QPixmap.fromImage(cvqim)

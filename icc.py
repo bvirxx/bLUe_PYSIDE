@@ -38,14 +38,17 @@ MONITOR_PROFILE_PATH = "C:\Windows\System32\spool\drivers\color\CS240(34381075)0
 #############################
 
 monitorProfile = get_display_profile()
-MONITOR_PROFILE_INFO=getProfileInfo(monitorProfile)
-
+MONITOR_PROFILE_INFO = getProfileInfo(monitorProfile)
+monitorProfile.info = MONITOR_PROFILE_INFO
 workingProfile = getOpenProfile(SRGB_PROFILE_PATH)
-
+WORKING_PROFILE_INFO = getProfileInfo(workingProfile)
+workingProfile.info = WORKING_PROFILE_INFO
 
 
 # ICC transform (type : Cms transform object)
 workToMonTransform = buildTransformFromOpenProfiles(workingProfile, monitorProfile, "RGB", "RGB")
+workToMonTransform.fromProfile  = workingProfile
+workToMonTransform.toProfile = monitorProfile
 
 def getProfiles():
     profileDir = "C:\Windows\System32\spool\drivers\color"
@@ -65,4 +68,4 @@ def convertQImage(image, transformation = workToMonTransform):
     """
     # conversion in the PIL context
     converted_image = applyTransform(QImageToPilImage(image), transformation, 0)
-    return PilImageToQImage(converted_image)
+    return PilImageToQImage(converted_image), transformation

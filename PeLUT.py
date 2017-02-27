@@ -432,21 +432,23 @@ def openFile(f):
     if isinstance(f, QString):
         f=str(f.toUtf8())
 
-    # extract embedded profile and metadata, if any
+    # extract embedded profile and metadata, if any.
     # metadata is a list of dicts with len(metadata) >=1.
-    # metadata[0] contains at least 'SourceFile' : path
+    # metadata[0] contains at least 'SourceFile' : path.
+    # profile is a string containing the profile binary data.
+    # Currently, we do not use these data : standard profiles
+    # are loaded from disk, non standard profiles are ignored.
     with exiftool.ExifTool() as e:
         profile, metadata = e.get_metadata(f)
 
     # trying to get color space info
     # 1 = sRGB
-    colorSpace = -1
-    read_colorSpace = metadata[0].get("EXIF:ColorSpace", -1)
-    if read_colorSpace <0:
+    colorSpace = metadata[0].get("EXIF:ColorSpace", -1)
+    if colorSpace <0:
         # sRGBIEC61966-2.1
-        read_colorSpace = metadata[0].get("ICC_Profile:ProfileDescription", '')
-        if isinstance(read_colorSpace, unicode) or isinstance(read_colorSpace, str):
-            if 'sRGB' in read_colorSpace:
+        desc_colorSpace = metadata[0].get("ICC_Profile:ProfileDescription", '')
+        if isinstance(desc_colorSpace, unicode) or isinstance(desc_colorSpace, str):
+            if 'sRGB' in desc_colorSpace:
                 colorSpace = 1
 
     orientation = metadata[0].get("EXIF:Orientation", 0)
@@ -499,17 +501,28 @@ def menuWindow(x, name):
 def menuImage(x, name) :
 
     img = window.label.img
+    # display image info
     if name == 'actionImage_info' :
         # Format
         s = "Format : %s\n(cf. QImage formats in the doc for more info)" % QImageFormats.get(img.format(), 'unknown')
         # dimensions
         s = s + "\n\ndim : %d x %d" % (img.width(), img.height())
+        # working profile
+        if img.transformation is not None:
+            workingProfileInfo = img.transformation.fromProfile.info
+        else:
+            workingProfileInfo = 'None'
+        s = s + "\n\nWorking Profile : %s" % workingProfileInfo
+        # embedded profile
+        if len(img.meta.profile) > 0:
+            s = s +"\n\nEmbedded profile found, length %d" % len(img.meta.profile)
         # raw meta data
         l = img.meta.rawMetadata
         s = s + "\n\nMETADATA :\n"
         for d in l:
             s = s + '\n'.join('%s : %s' % (k,v) for k, v in d.iteritems())
         w, label = handleTextWindow(parent=window, title='Image info')
+        label.setWordWrap(True)
         label.setText(QString(s))
     elif name == 'actionColor_manage':
         icc.COLOR_MANAGE = window.actionColor_manage.isChecked()
