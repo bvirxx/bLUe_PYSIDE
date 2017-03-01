@@ -395,7 +395,8 @@ def menuFile(name):
         dlg = QFileDialog(window, "select", lastDir)
         if dlg.exec_():
             filenames = dlg.selectedFiles()
-            window.label.img.save(filenames[0])
+            # Note : class vImage overrides save()
+            window.label.img.save(filenames[0], quality=100)
 
     if name == 'actionOpen' :
         if window.label.img.isModified:
@@ -467,7 +468,7 @@ def openFile(f):
         msg.setText("Color profile missing\nAssigning sRGB profile")
         msg.exec_()
         img.meta.colorSpace = 1
-        img.updatePixmaps()
+        img.updatePixmap()
 
     window.label.img = img
     window.label.img.onModify = lambda : updateEnabledActions()
@@ -526,8 +527,8 @@ def menuImage(x, name) :
         label.setText(QString(s))
     elif name == 'actionColor_manage':
         icc.COLOR_MANAGE = window.actionColor_manage.isChecked()
-        img.updatePixmaps()
-        window.label_2.img.updatePixmaps()
+        img.updatePixmap()
+        window.label_2.img.updatePixmap()
     elif name == 'actionWorking_profile':
         w, label = handleTextWindow(parent=window, title='Working profile info')
         label.setText(QString(icc.MONITOR_PROFILE_INFO))

@@ -66,6 +66,11 @@ def convertQImage(image, transformation = workToMonTransform):
     :param transformation : a CmsTransform object
     :return: The converted QImage
     """
-    # conversion in the PIL context
-    converted_image = applyTransform(QImageToPilImage(image), transformation, 0)
-    return PilImageToQImage(converted_image), transformation
+    # sRGB
+    if image.meta.colorSpace == 1 :
+        # conversion in the PIL context
+        converted_image = applyTransform(QImageToPilImage(image), transformation, 0)
+        image.transformation = transformation
+        return PilImageToQImage(converted_image)
+    else :
+        return image

@@ -23,7 +23,6 @@ from PyQt4.QtGui import QPixmap, QImage, QColor, QPainter, QMessageBox
 from PyQt4.QtCore import QRect, QByteArray
 from icc import convertQImage, MONITOR_PROFILE_PATH, COLOR_MANAGE
 from LUT3D import interpVec
-from multiprocessing import Pool
 from time import time
 import re
 import icc
@@ -103,15 +102,10 @@ class vImage(QImage):
 
     def updatePixmap(self):
         if icc.COLOR_MANAGE:
-            # 1=sRGB
-            if self.meta.colorSpace == 1:  #or len(self.meta.profile)> 0:
-                cvqim, transformation = convertQImage(self)
-                self.transformation = transformation
-            else:
-                cvqim = self
-            self.qPixmap = QPixmap.fromImage(cvqim)
+            img = convertQImage(self)
         else:
-            self.qPixmap = QPixmap.fromImage(self)
+            img = self
+        self.qPixmap = QPixmap.fromImage(img)
 
 
     def resize(self, pixels, interpolation=cv2.INTER_CUBIC):
@@ -190,12 +184,10 @@ class mImage(vImage):
     Multilayer image
     """
     def __init__(self, *args, **kwargs):
-        # must be before super __init__ because updatePixmap uses layersStack
+        # as updatePixmap uses layersStack, must be before super __init__
         self._layers = {}
         self.layersStack = []
         super(mImage, self).__init__(*args, **kwargs)
-        #self._layers = {}
-        #self.layersStack = []
         # add background layer
         bgLayer = QLayer.fromImage(self)
         bgLayer.name = 'background'
@@ -204,18 +196,18 @@ class mImage(vImage):
         self.activeLayer = bgLayer
 
     def updatePixmap(self):
-        super(mImage, self).updatePixmap()
+        """
+        Override vImage.updatePixmap()
+        """
+        #super(mImage, self).updatePixmap()
+        vImage.updatePixmap(self)
+        for layer in self.layersStack:
+                vImage.updatePixmap(layer)
+        return
         qpainter = QPainter(self.qPixmap)
         for layer in self.layersStack:
             if layer.visible:
-                """
-                if layer.qPixmap is not None:
-                    print '00', layer.name
-                    qpainter.drawPixmap(0,0, layer.transfer())
-                    print '10', layer.name
-                else:
-                """
-                qpainter.drawImage(0, 0, layer)
+                qpainter.drawPixmap(0, 0, layer.qPixmap)
         qpainter.end()
 
     def addLayer(self, lay, name):
@@ -239,65 +231,30 @@ class mImage(vImage):
         #lay.inputImg = QImage(self.size(), self.format())
         lay.inputImg = QImage(self.layersStack[-1])
         self.addLayer(lay, name)
-        """
-        # draw input image
-        qp = QPainter(lay.inputImg)
-        # draw from layer immediately below
-        underneathLayer = self._layersStack[-2]
-        qp.drawImage(QRect(0, 0, underneathLayer.width(), underneathLayer.height()), underneathLayer)
-        qp.end()
-        """
-        # selection rectangle from image
-        """
-        for l in self._layersStack:
-            qp.drawImage(QRect(0, 0, l.width(), l.height()), l)
-        """
-        """
-        if l.qPixmap is not None:
-            qp.drawPixmap(QRect(0, 0, l.width(), l.height()), l.qPixmap) # don't use drawPixmap , otherwise color management will be applied twice
-        else:
-            qp.drawImage(QRect(0,0, l.width(), l.height()), l)
-        """
         #lay.window = window
         lay.parent = self
         self.setModified(True)
         return lay
 
-    def updatePixmaps(self):
-        for l in self.layersStack:
-            l.updatePixmap()
-
-    def refreshLayer(self, layer1, layer2):
-        if layer1.name != layer2.name:
-            print 'invalid layer refresh'
-            return
-        self._layers[layer1.name]=layer2
-        i=self._layerStack.index(layer1)
-        self._layerStack[i] = layer2
-
-
     def cvtToGray(self):
         self.cv2Img = cv2.cvtColor(self.cv2Img, cv2.COLOR_BGR2GRAY)
         #self.qImg = gray2qimage(self.cv2Img)
 
-    def save(self, filename):
+    def save(self, filename, quality=-1):
+        # build resulting image
         img = QImage(self.width(), self.height(), self.format())
         qpainter = QPainter(img)
         for layer in self.layersStack:
             if layer.visible:
-                """
-                if layer.qPixmap is not None:
-                    print '00', layer.name
-                    qpainter.drawPixmap(0,0, layer.transfer())
-                    print '10', layer.name
-                else:
-                """
                 qpainter.drawImage(0,0, layer)
         qpainter.end()
-        img.save(filename)
-        print 'saved 1'
-        self.setModified(False)
-        print 'saved 2'
+        # save to file
+        if not img.save(filename, quality=quality):
+            msg = QMessageBox()
+            msg.setText("unable to save file %s" % filename)
+            msg.exec_()
+        else:
+            self.setModified(False)
 
 
 class imImage(mImage) :
@@ -372,7 +329,7 @@ class imImage(mImage) :
                                  layer
                                  )
         qp.end()
-        snap.updatePixmaps()
+        snap.updatePixmap()
         return snap
 
 class QLayer(vImage):
@@ -384,7 +341,7 @@ class QLayer(vImage):
         # for adjustment layer
         mImg.transfer = lambda: mImg.qPixmap
         mImg.inputImg = None
-        return mImg #QLayer(QImg=mImg) # TOD0 retype mImg as QLayer
+        return QLayer(QImg=mImg) #mImg
 
     def __init__(self, *args, **kwargs):
         super(QLayer, self).__init__(*args, **kwargs)

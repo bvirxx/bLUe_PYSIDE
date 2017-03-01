@@ -21,19 +21,20 @@ import numpy as np
 from PyQt4.QtCore import Qt, QPoint, QPointF
 from PyQt4.QtGui import QImage, QColor
 from fractions import gcd
-#from MarkedImg import mImage, imImage
 
 # 3D LUT init.
-from PyQt4.QtGui import QVector3D
+from cartesian import cartesianProduct
 
 """
-Each axis has length LUTSIZE.
+Each axis of the LUT has length LUTSIZE.
 r,g,b values are between 0 and 256.
 """
 LUTSIZE = 17
 LUTSIZE = 33
 LUTSTEP = 256 / (LUTSIZE - 1)
-LUT3D_ORI = np.array([[[(i * LUTSTEP, j * LUTSTEP, k * LUTSTEP) for k in range(LUTSIZE)] for j in range(LUTSIZE)] for i in range(LUTSIZE)])
+a = np.arange(LUTSIZE)
+LUT3D_ORI = cartesianProduct((a,a,a)) * LUTSTEP
+#LUT3D_ORI = np.array([[[(i * LUTSTEP, j * LUTSTEP, k * LUTSTEP) for k in range(LUTSIZE)] for j in range(LUTSIZE)] for i in range(LUTSIZE)])
 
 LUT3D_SHADOW = np.array([[[(i * LUTSTEP, j * LUTSTEP, k * LUTSTEP,0) for k in range(LUTSIZE)] for j in range(LUTSIZE)] for i in range(LUTSIZE)])
 """

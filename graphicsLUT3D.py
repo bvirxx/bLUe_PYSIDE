@@ -642,36 +642,49 @@ class colorPicker(QGraphicsPixmapItem):
     Mouse click events read pixel colors from the QImage referenced by self.QImg.
     """
     def __init__(self, QImg, target=None, size=0, border=0):
+        """
+
+        :param QImg:
+        :param target:
+        :param size: color wheel diameter
+        :param border: border size
+        """
         self.QImg = QImg
+        self.border = border
         if size == 0:
-            self.size = min(QImg.width(), QImg.heigth())
+            self.size = min(QImg.width(), QImg.heigth()) - 2 * border
         else:
             self.size = size
 
         if target is not None:
             hspImg = rgb2hsBVec(QImageBuffer(target)[:,:,:3][:,:,::-1], perceptual=True)
             xyarray = self.QImg.GetPointVec(hspImg).astype(int)
-            BINS=27
-            BINSARRAY = np.array([[(i/BINS,j/BINS) for i in range(800)] for j in range(800)])  #np.array([[(j/BINS,i/BINS) for i in range(target.width())] for j in range(QImg.height())])
-            H,_ ,_= np.histogram2d(xyarray[:,:,0].ravel(), xyarray[:,:,1].ravel(), bins=[np.arange(0,800, 26), np.arange(0,800,26)], normed=True)
+            maxVal = self.QImg.width()
+            STEP = 25
+
+            #BINSARRAY = np.array([[(i/BINS,j/BINS) for i in range(800)] for j in range(800)])  #np.array([[(j/BINS,i/BINS) for i in range(target.width())] for j in range(QImg.height())])
+            H,_ ,_= np.histogram2d(xyarray[:,:,0].ravel(), xyarray[:,:,1].ravel(), bins=[np.arange(0,maxVal, STEP), np.arange(0,maxVal, STEP)], normed=True)
 
             a = QImage(QImg.copy())
-            buf = QImageBuffer(a)
+            b = QImage(a.width(), a.height(), QImage.Format_ARGB32)
+            b.fill(0)
+            buf = QImageBuffer(b)
             #tmp = (((255 * H[BINSARRAY[:,:,1], BINSARRAY[:,:,0]])[...,None]) / np.amax(H)).astype(np.uint8)
-            u=xyarray[:,:,0]/BINS
-            v=xyarray[:,:,1]/BINS
+            u=xyarray[:,:,0]/STEP
+            v=xyarray[:,:,1]/STEP
             tmp=H[u,v]
-            #tmp=H[BINSARRAY[xyarray[:,:,0]], BINSARRAY[xyarray[:,:,1]]]
             norma = np.amax(H)
             buf[xyarray[:,:,1], xyarray[:,:,0],...] = ((255.0 * tmp)[...,None] / norma).astype(int)
-            buf[xyarray[:, :, 1], xyarray[:, :, 0], 3] = 255
-            QImg.addLayer(QLayer.fromImage(a), name='')
-            QImg.updatePixmap()
+            buf[xyarray[:, :, 1], xyarray[:, :, 0], 3] = 64
+            qp = QPainter(a)
+            qp.drawImage(0, 0, b)
+            QImg.qPixmap = QPixmap.fromImage(a)
+            qp.end()
 
 
         super(colorPicker, self).__init__(self.QImg.qPixmap)
         self.setOffset(QPointF(-border, -border))
-        self.border = border
+
         self.onMouseRelease = lambda x, y, z : 0
         self.rubberBand = None
 
