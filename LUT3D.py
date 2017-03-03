@@ -28,15 +28,16 @@ from cartesian import cartesianProduct
 """
 Each axis of the LUT has length LUTSIZE.
 r,g,b values are between 0 and 256.
-"""
+""";
 LUTSIZE = 17
 LUTSIZE = 33
 LUTSTEP = 256 / (LUTSIZE - 1)
 a = np.arange(LUTSIZE)
 LUT3D_ORI = cartesianProduct((a,a,a)) * LUTSTEP
-#LUT3D_ORI = np.array([[[(i * LUTSTEP, j * LUTSTEP, k * LUTSTEP) for k in range(LUTSIZE)] for j in range(LUTSIZE)] for i in range(LUTSIZE)])
+a,b,c,d = LUT3D_ORI.shape
+LUT3D_SHADOW = np.zeros((a,b,c,d+1))
+LUT3D_SHADOW[:,:,:,:3] = LUT3D_ORI
 
-LUT3D_SHADOW = np.array([[[(i * LUTSTEP, j * LUTSTEP, k * LUTSTEP,0) for k in range(LUTSIZE)] for j in range(LUTSIZE)] for i in range(LUTSIZE)])
 """
 v = QVector3D(1.0,1.0,1.0) * 256.0 / 3.0
 LUTPROJ = [QVector3D(i/(i+j+k),j/(i+j+k),k/(i+j+k))*256 - v  for i in range(LUTSIZE) for j in range(LUTSIZE) for k in range(LUTSIZE) if gcd(i,gcd(j,k))==1]
@@ -88,8 +89,21 @@ class LUT3D (object):
 
 
 def LUT3DFromFactory(size=LUTSIZE):
+    """
+    Init a LUT3D array of shape ( size, size,size, 3).
+    The 4th dim holds 3-uples (r,g,b) of integers evenly
+    distributed in the range 0..256, limits inclusive, so that
+    Tri-linear interpolation boils down to identity : let
+    step = 256 / (size - 1), then for all
+    i,j,k in the range 0..256,
+    trilinear(i/step, j/step, k/step) = (i,j,k)
+    :param size: integer value (should be 2**n+1)
+    :return: 4D-array, dtype=int32
+    """
     step = 256 / (size - 1)
-    return LUT3D(np.array([[[(i * step, j * step, k * step) for k in range(size)] for j in range(size)] for i in range(size)]), size=size)
+    a = np.arange(size)
+    return LUT3D(cartesianProduct((a, a, a)) * step, size)
+
 """
 class QPoint3D(object):
     def __init__(self, x,y,z):
@@ -718,8 +732,14 @@ def lutNN(LUT, r,g,b):
     return NN
 
 if __name__=='__main__':
-
-    pass
+    # random ints in range 0 <= x < 256
+    b = np.random.randint(0,256, size=500*500*3, dtype=np.uint8)
+    testImg = np.reshape(b, (500,500,3))
+    interpImg = LUT3DFromFactory(33)
+    interpImg = interpVec(LUT3D_ORI, testImg)
+    d = testImg - interpImg
+    if (d != 0.0).any():
+        print "interpolation error"
 
 """
 

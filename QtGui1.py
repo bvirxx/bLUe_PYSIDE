@@ -146,6 +146,13 @@ class Form1(QtGui.QMainWindow):
         """
 
     def closeEvent(self, event):
+        if self.onCloseEvent(event):
+            #close
+            event.accept()
+        else:
+            event.ignore()
+            return
+        """
         quit_msg = "Are you sure you want to exit the program?"
         reply = QMessageBox.question(self, 'Message', quit_msg, QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
         if reply == QtGui.QMessageBox.Yes:
@@ -153,6 +160,7 @@ class Form1(QtGui.QMainWindow):
         else:
             event.ignore()
             return
+        """
         self.writeSettings()
         super(Form1, self).closeEvent(event)
 

@@ -206,6 +206,7 @@ def paintEvent(widg, e) :
     # draw layers
     for layer in mimg.layersStack :
         if layer.visible:
+            qp.setOpacity(layer.opacity)
             if layer.qPixmap is not None:
                 qp.drawPixmap(QRect(mimg.xOffset,mimg.yOffset, mimg.width()*r, mimg.height()*r), # target rect
                            layer.transfer() #layer.qPixmap
@@ -386,7 +387,6 @@ def menuFile(name):
     :return:
     """
     window._recentFiles = window.settings.value('paths/recent', [], QString)
-
     # update menu and actions
     updateMenuOpenRecent()
 
@@ -395,8 +395,11 @@ def menuFile(name):
         dlg = QFileDialog(window, "select", lastDir)
         if dlg.exec_():
             filenames = dlg.selectedFiles()
-            # Note : class vImage overrides save()
-            window.label.img.save(filenames[0], quality=100)
+            # Note : class vImage overrides QImage.save()
+            img = window.label.img
+            img.save(filenames[0], quality=100)
+            with exiftool.ExifTool() as e:
+                e.restoreMetadata(img.filename, filenames[0])
 
     if name == 'actionOpen' :
         if window.label.img.isModified:
@@ -563,7 +566,7 @@ def menuLayer(x, name):
     elif name == 'action3D_LUT':
         l = window.label.img.addAdjustmentLayer(name='3D LUT')
         window.tableView.addLayers(window.label.img)
-        grWindow = graphicsForm3DLUT.getNewWindow(size=800, targetImage=window.label.img, LUTSize=LUTSIZE, title= l.name, parent=window)
+        grWindow = graphicsForm3DLUT.getNewWindow(size=800, targetImage=window.label.img, LUTSize=LUTSIZE, layer= l, parent=window)
         Wins[l.name] = grWindow
         dock = QDockWidget(window)
         # link to colorwheel
@@ -612,6 +615,16 @@ def initMenuAssignProfile():
 # app init
 ##########
 window.setStyleSheet("background-color: rgb(200, 200, 200);")
+
+def close(e):
+    if window.label.img.isModified:
+        if (QMessageBox.Yes == QMessageBox.question(window, "Close Confirmation", "Image is modified. Exit without saving?", QMessageBox.Yes | QMessageBox.No)):
+            return True
+        else:
+            return False
+    return True
+
+window.onCloseEvent = close
 
 #get mouse hover events
 window.label.setMouseTracking(True)

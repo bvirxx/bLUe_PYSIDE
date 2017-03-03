@@ -41,7 +41,7 @@ class ExifTool(object):
     # -G0 : print group name for each tag
     flags = ["-j", "-a", "-n", "-S", "-G0", "-Orientation", "-ProfileDescription", "-colorSpace", "-InteropIndex", "-WhitePoint", "-PrimaryChromaticities", "-Gamma"]#, "-ICC_Profile:all"]
     extract_meta_flags = ["-icc_profile", "-b"] #["-b"] #["-icc_profile", "-b"]
-    copy_meta_flags = ["-tagsFromFile", "-all:all"]
+    #copy_meta_flags = ["-tagsFromFile", "-all:all"]
 
     def __init__(self, executable = EXIFTOOL_PATH):
         self.executable = executable
@@ -74,19 +74,32 @@ class ExifTool(object):
             output += os.read(fd, 4096)
         return output[:-len(self.sentinel)-2]
 
-    def get_metadata(self, *filenames):
-        #return json.loads(self.execute("-G", "-j", "-n", *filenames))
-        profile=self.execute(*(self.extract_meta_flags + list(filenames)))
+    def get_metadata(self, f, save=True):
+        profile=self.execute(*(self.extract_meta_flags + [f]))
+        if save:
+            self.saveMetadata(f)
+        return profile, json.loads(self.execute(*(self.flags + [f])))
 
-        self.copyMetadata(*filenames)
-        return profile, json.loads(self.execute(*(self.flags+list(filenames))))
+    def saveMetadata(self, f):
+        """
+        save all metadata and icc profile to sidecar .mie files.
+        :param f: arbitrary number of file names to process
+        """
+        self.execute(*(["-tagsFromFile", f, "-all:all", "-icc_profile", f+".mie"]))
 
-    def copyMetadata(self, *filenames):
-        for f in list(filenames):
-            print self.copy_meta_flags + [f] + [f+".mie"]
-            self.execute(*(["-tagsFromFile", f, "-all:all", f+".mie"]))
-        #return profile, json.loads(self.execute(*(self.flags+list(filenames))))
-
+    def restoreMetadata(self, source, dest, removesidecar=False):
+        """
+        restore all metadata and icc profile from sidecar .mie to image files.
+        if removesidecar is True, the sidecar file is removed after
+        restoration.
+        :param source: file the image was loaded from
+        :param dest: file the image is saved to
+        :param removesidecar: if True (default) remove sidecar file after restoration
+        """
+        sidecar = source + '.mie'
+        self.execute(*(["-tagsFromFile", sidecar, "-all:all", "-icc_profile", dest]))
+        if removesidecar:
+            os.remove(sidecar)
 
 def decodeExifOrientation(value):
     """

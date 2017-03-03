@@ -746,7 +746,7 @@ class graphicsForm3DLUT(QGraphicsView) :
     colorWheelPB = 0.45
 
     @classmethod
-    def getNewWindow(cls, targetImage=None, size=500, LUTSize=LUTSIZE, title='', parent=None):
+    def getNewWindow(cls, targetImage=None, size=500, LUTSize=LUTSIZE, layer='None', parent=None):
         """
         build a graphicsForm3DLUT object. The parameter size represents the size of
         the color wheel, border not included (the size of the window is adjusted).
@@ -755,11 +755,11 @@ class graphicsForm3DLUT(QGraphicsView) :
         :param parent: parent widget
         :return: graphicsForm3DLUT object
         """
-        newWindow = graphicsForm3DLUT(size, targetImage=targetImage, LUTSize=LUTSize, parent=parent)
-        newWindow.setWindowTitle(title)
+        newWindow = graphicsForm3DLUT(size, targetImage=targetImage, LUTSize=LUTSize, layer=layer, parent=parent)
+        newWindow.setWindowTitle(layer.name)
         return newWindow
 
-    def __init__(self, size, targetImage=None, LUTSize = LUTSIZE, parent=None):
+    def __init__(self, size, targetImage=None, LUTSize = LUTSIZE, layer=None, parent=None):
         super(graphicsForm3DLUT, self).__init__(parent=parent)
         border = 20
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
@@ -770,6 +770,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.currentHue, self.currentSat, self.currentPb = 0, 0, 0.45
         self.size = size
         self.targetImage= targetImage
+        self.layer=layer
         # currently selected grid node
         self.selected = None
         #self.bgPixmap = QPixmap.fromImage(self.QImg)
@@ -968,20 +969,19 @@ class graphicsForm3DLUT(QGraphicsView) :
 
     def onReset(self):
         """
+        reset grid and LUT
 
         """
         # get a fresh LUT
-        #_, _ ,LUT3D = LUT3DFromFactory(size=self.LUTSize)
         self.graphicsScene.LUT3D = LUT3DFromFactory(size=self.LUTSize).LUT3DArray
-
         # explode all node groups
         groupList = [item for item in self.grid.childItems() if type(item) is nodeGroup]
         for item in groupList:
             item.prepareGeometryChange()
             self.scene().destroyItemGroup(item)
-
         # reset grid
         self.grid.reset()
         self.selected = None
         self.grid.drawGrid()
         self.scene().onUpdateScene()
+        self.layer.reset()

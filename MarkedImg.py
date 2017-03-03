@@ -17,6 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>
 """
 
+
 import cv2
 from imgconvert import *
 from PyQt4.QtGui import QPixmap, QImage, QColor, QPainter, QMessageBox
@@ -60,6 +61,7 @@ class vImage(QImage):
         self.isModified = False
         self.onModify = lambda : 0
         self.rect, self.mask, = None, cv2mask
+        self.filename = filename
 
         if meta is None:
             self.meta = metadata()
@@ -105,6 +107,7 @@ class vImage(QImage):
             img = convertQImage(self)
         else:
             img = self
+        img.setPixel(0,0, 0)
         self.qPixmap = QPixmap.fromImage(img)
 
 
@@ -181,7 +184,9 @@ class vImage(QImage):
 
 class mImage(vImage):
     """
-    Multilayer image
+    Multi-layer image. A mImage object holds at least a background
+    layer. All layers share the same metadata object. To correctly render a
+    mImage, widgets must override their paint event handler.
     """
     def __init__(self, *args, **kwargs):
         # as updatePixmap uses layersStack, must be before super __init__
@@ -190,9 +195,8 @@ class mImage(vImage):
         super(mImage, self).__init__(*args, **kwargs)
         # add background layer
         bgLayer = QLayer.fromImage(self)
-        bgLayer.name = 'background'
-        self._layers[bgLayer.name] = bgLayer
-        self.layersStack.append(bgLayer)
+        self.addLayer(bgLayer, 'background')
+        self.setModified(False)
         self.activeLayer = bgLayer
 
     def updatePixmap(self):
@@ -228,7 +232,6 @@ class mImage(vImage):
 
     def addAdjustmentLayer(self, name='', window=None):
         lay = QLayer(QImg=self.layersStack[-1])
-        #lay.inputImg = QImage(self.size(), self.format())
         lay.inputImg = QImage(self.layersStack[-1])
         self.addLayer(lay, name)
         #lay.window = window
@@ -347,11 +350,33 @@ class QLayer(vImage):
         super(QLayer, self).__init__(*args, **kwargs)
         self.name='anonymous'
         self.visible = True
-        self.alpha=255
+        self.opacity= 1.0
         self.transfer = lambda : self.qPixmap
         # link to grid or curves view for adjustment layers
         self.adjustView = None
         self.parent = None
+
+    def setImage(self, qimg):
+        """
+        replace layer image with qimg.
+        The layer and qimg must have identical dimensions and type
+        :param qimg: QImage
+        """
+        buf1, buf2 = QImageBuffer(self), QImageBuffer(qimg)
+        if buf1.shape != buf2.shape:
+            raise ValueError("QLayer.setImage : new image and layer must have identical shapes")
+        buf1[...] = buf2
+        self.updatePixmap()
+
+    def reset(self):
+        self.setImage(self.inputImg)
+
+    def setTransparency(self, value):
+        self.opacity = value /100.0
+        return
+        buf = QImageBuffer(self)
+        buf[...,3] = value
+        self.updatePixmap()
 
 
 

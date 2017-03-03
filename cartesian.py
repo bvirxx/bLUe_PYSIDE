@@ -1,5 +1,4 @@
 
-
 import numpy as np
 
 def cartesianProduct(arrayList, out=None):
@@ -51,4 +50,5 @@ def cartesianProduct(arrayList, out=None):
         cartesianProduct(arrayList[1:], out=out[0:m, 1:])
         for j in xrange(1, arrayList[0].size):
             out[j*m:(j+1)*m,1:] = out[0:m,1:]
-    return out
+    dims = tuple([x.size for x in arrayList]+[len(arrayList)])
+    return np.reshape(out, dims)

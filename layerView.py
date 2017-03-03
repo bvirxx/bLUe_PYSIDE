@@ -16,6 +16,9 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>
 """
+from PyQt4.QtGui import QAction
+from PyQt4.QtGui import QMenu
+from PyQt4.QtGui import QSlider
 from PyQt4.QtGui import QTableView, QStandardItem, QStandardItemModel, QItemSelectionModel, QAbstractItemView, QPalette, QStyledItemDelegate, QColor, QImage, QPixmap, QIcon, QHeaderView
 from PyQt4.QtCore import Qt
 import resources_rc  # DO NOT REMOVE !!!
@@ -48,7 +51,9 @@ class QLayerView(QTableView) :
 
     def __init__(self, img):
         super(QTableView, self).__init__()
+        self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.clicked.connect(self.viewClicked)
+        self.customContextMenuRequested.connect(self.contextMenu)
         # behavior and style for selection
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.setStyleSheet("QTableView { background-color: lightgray;\
@@ -89,8 +94,13 @@ class QLayerView(QTableView) :
         #self.setItemDelegateForColumn(1, ImageDelegate(None))
 
     def viewClicked(self, clickedIndex):
+        """
+        click event handler
+        :param clickedIndex:
+        """
         row = clickedIndex.row()
         model = clickedIndex.model()
+        # toggle layer visibility
         if clickedIndex.column() == 0 :
             visible = not(self.img.layersStack[-1-row].visible)
             self.img.layersStack[-1-row].visible = visible
@@ -98,6 +108,7 @@ class QLayerView(QTableView) :
                 self.model().setData(clickedIndex, QIcon(":/images/resources/eye-icon.png") ,Qt.DecorationRole)
             else:
                 self.model().setData(clickedIndex, QIcon(":/images/resources/eye-icon-strike.png"), Qt.DecorationRole)
+        # hide/display adjustment form
         elif clickedIndex.column() == 1 :
             # make selected layer the active layer
             self.img.activeLayer = self.img.layersStack[-1-row]
@@ -112,6 +123,30 @@ class QLayerView(QTableView) :
                 else:
                     win.setFloating(True)
                     win.show()
-
         QtGui1.window.label.repaint()
+
+    def contextMenu(self, pos):
+        """
+        context menu event handler
+        :param pos: event coordinates relative to widget
+        """
+        index = self.indexAt(pos)
+        layer = self.img.layersStack[-1-index.row()]
+        menu = QMenu()
+        actionTransparency = QAction('Transparency', None)
+        menu.addAction(actionTransparency)
+        self.wdgt = QSlider(Qt.Horizontal)
+        self.wdgt.setMinimum(0)
+        self.wdgt.setMaximum(100)
+        self.wdgt.valueChanged.connect
+        def f():
+            self.wdgt.show()
+        def g(value):
+            layer.setTransparency(value)
+        actionTransparency.triggered.connect(f)
+        self.wdgt.valueChanged.connect(g)
+
+
+        menu.exec_(self.mapToGlobal(pos))
+
 
