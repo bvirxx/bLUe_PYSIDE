@@ -350,7 +350,9 @@ class QLayer(vImage):
         super(QLayer, self).__init__(*args, **kwargs)
         self.name='anonymous'
         self.visible = True
-        self.opacity= 1.0
+        # layer opacity is used by QPainter operations.
+        # Its value must be in the range 0.0...1.0
+        self.opacity = 1.0
         self.transfer = lambda : self.qPixmap
         # link to grid or curves view for adjustment layers
         self.adjustView = None
@@ -371,12 +373,14 @@ class QLayer(vImage):
     def reset(self):
         self.setImage(self.inputImg)
 
-    def setTransparency(self, value):
+    def setOpacity(self, value):
+        """
+        set the opacity attribute to value/100.0
+        :param value:
+        """
         self.opacity = value /100.0
         return
-        buf = QImageBuffer(self)
-        buf[...,3] = value
-        self.updatePixmap()
+
 
 
 

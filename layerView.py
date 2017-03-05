@@ -142,7 +142,7 @@ class QLayerView(QTableView) :
         def f():
             self.wdgt.show()
         def g(value):
-            layer.setTransparency(value)
+            layer.setOpacity(value)
         actionTransparency.triggered.connect(f)
         self.wdgt.valueChanged.connect(g)
 
