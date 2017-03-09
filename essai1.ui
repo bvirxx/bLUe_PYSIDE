@@ -101,6 +101,12 @@
            <height>41</height>
           </rect>
          </property>
+         <property name="toolTip">
+          <string>marquee</string>
+         </property>
+         <property name="whatsThis">
+          <string>marquee</string>
+         </property>
          <property name="accessibleName">
           <string>rectangle</string>
          </property>
@@ -332,8 +338,7 @@
     <property name="title">
      <string>Window</string>
     </property>
-    <addaction name="actionShow_hide_left_window"/>
-    <addaction name="actionShow_hide_right_window"/>
+    <addaction name="actionShow_hide_right_window_3"/>
     <addaction name="separator"/>
     <addaction name="actionDiaporama"/>
    </widget>
@@ -352,9 +357,12 @@
       <addaction name="actionProfile_1"/>
      </widget>
      <addaction name="menuAssign_profile"/>
+     <addaction name="actionColor_manage"/>
+     <addaction name="actionWorking_profile"/>
     </widget>
     <addaction name="menuColor_settings"/>
     <addaction name="actionImage_info"/>
+    <addaction name="actionSnap"/>
    </widget>
    <widget class="QMenu" name="menuLayer">
     <property name="title">
@@ -411,6 +419,9 @@
    </property>
   </action>
   <action name="actionSave">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
    <property name="text">
     <string>Save</string>
    </property>
@@ -420,9 +431,9 @@
     <string>sub</string>
    </property>
   </action>
-  <action name="actionShow_hide_left_window">
+  <action name="actionShow_hide_right_window_3">
    <property name="text">
-    <string>show/hide left window</string>
+    <string>show/hide right window</string>
    </property>
   </action>
   <action name="actionShow_hide_right_window">
@@ -453,6 +464,30 @@
   <action name="action3D_LUT">
    <property name="text">
     <string>3D LUT</string>
+   </property>
+  </action>
+  <action name="actionColor_manage">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Color manage</string>
+   </property>
+  </action>
+  <action name="actionWorking_profile">
+   <property name="text">
+    <string>Working profile</string>
+   </property>
+  </action>
+  <action name="actionSnap">
+   <property name="text">
+    <string>snap</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+S</string>
    </property>
   </action>
  </widget>

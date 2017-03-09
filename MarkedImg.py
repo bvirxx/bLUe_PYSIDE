@@ -1,109 +1,133 @@
+"""
+Copyright (C) 2017  Bernard Virot
+
+PeLUT - Photo editing software using adjustment layers with 1D and 3D Look Up Tables.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>
+"""
+
+
 import cv2
 from imgconvert import *
-from PyQt4.QtGui import QPixmap, QImage, QColor, QPainter
+from PyQt4.QtGui import QPixmap, QImage, QColor, QPainter, QMessageBox
 from PyQt4.QtCore import QRect, QByteArray
-from icc import convert, convertQImage
-from LUT3D import LUT3D, interpVec
-from multiprocessing import Pool
+from icc import convertQImage, MONITOR_PROFILE_PATH, COLOR_MANAGE
+from LUT3D import interpVec
 from time import time
+import re
+import icc
+from copy import copy
+
+class metadata:
+    """
+    Image meta data
+    """
+    def __init__(self):
+        self.name, self.colorSpace, self.rawMetadata, self.profile, self.orientation = '', -1, [], '', None
 
 class vImage(QImage):
     """
     versatile image class.
-    This is the base class for all multi-layered and interactive image classes
+    This is the base class for all multi-layered and interactive image classes.
+    When no data is passed as parameter, we build a null image.
     """
+    def __init__(self, filename=None, cv2Img=None, QImg=None, cv2mask=None, format=QImage.Format_ARGB32,
+                                            name='', colorSpace=-1, orientation=None, meta=None, rawMetadata=[], profile=''):
+        """
+        :param filename:
+        :param cv2Img:
+        :param QImg:
+        :param cv2mask:
+        :param format: QImage format (default QImage.Format_ARGB32)
+        :param name:
+        :param colorSpace:
+        :param orientation: Qtransform object (default None)
+        :param meta: metadata object (default None)
+        :param rawMetadata: list of dictionaries (default [])
+        :param profile: embedded profile (default '')
+        """
+        self.transformation = None
+        self.isModified = False
+        self.onModify = lambda : 0
+        self.rect, self.mask, = None, cv2mask
+        self.filename = filename
 
-    def fromQImage(cls, qImg):
-        qImg.rect, qImg.mask, qImg.name = None, None, ''
-        qImg.qPixmap = QPixmap.fromImage(qImg)
-        qImg.__class__ = vImage
-        return qImg
+        if meta is None:
+            self.meta = metadata()
+            self.meta.name, self.meta.colorSpace, self.meta.rawMetadata, self.meta.profile, self.meta.orientation = name, colorSpace, rawMetadata, profile, orientation
+        else:
+            self.meta = meta
 
-    def __init__(self, filename=None, cv2Img=None, QImg=None, cv2mask=None, copy=False, format=QImage.Format_ARGB32,
-                 colorSpace=-1, orientation=None, metadata=None, profile=''):
-        self.rect, self.mask, self.colorSpace, self.metadata, self.profile = None, cv2mask, colorSpace, metadata, profile
-        self.name=''
-        self.cv2Cache = None
-        self.cv2CacheType=None
+        # create a null image when no data given
         if (filename is None and cv2Img is None and QImg is None):
-            # create a null image
-            super(vImage, self).__init__()
+            super(vImage, self).__init__(format=format)
+
+        # load image from file
         if filename is not None:
-            # load file
-            if orientation is not None:
-                tmp =QImage(filename).transformed(orientation)
+            if self.meta.orientation is not None:
+                tmp =QImage(filename).transformed(self.meta.orientation)
             else:
                 tmp = QImage(filename)
-
+            # shallow copy : no harm !
             super(vImage, self).__init__(tmp)
-            if orientation is not None:
-                self.transformed(orientation)
+            #if self.meta.orientation is not None:
+                #self.transformed(self.meta.orientation)
+        # build image from QImage, shallow copy
         elif QImg is not None:
-            if copy:
-                #d o a deep copy
-                super(vImage, self).__init__(QImg.copy())
-            else:
-                # do a shallow copy (implicit data sharing : copy when writing to)
-                super(vImage, self).__init__(QImg)
-            if hasattr(QImg, "colorSpace"):
-                self.colorSpace=QImg.colorSpace
+            super(vImage, self).__init__(QImg)
+            if hasattr(QImg, "meta"):
+                self.meta = copy(QImg.meta)
+        # build image from buffer
         elif cv2Img is not None:
-            if copy:
-                cv2Img = cv2Img.copy()
-            # shallow copy
             super(vImage, self).__init__(ndarrayToQImage(cv2Img, format=format))
 
-        # prevent from garbage collector
-        self.data=self.bits()
-
         self.updatePixmap()
-        """
-        if self.colorSpace == 1 or len(self.profile)> 0:
-            print self.colorSpace
-            cvqim=convertQImage(self)
-            self.qPixmap = QPixmap.fromImage(cvqim)
-        else:
-            self.qPixmap = QPixmap.fromImage(self)
-        """
+
         if self.mask is None:
             self.mask = QImage(self.width(), self.height(), QImage.Format_ARGB32)
             self.mask.fill(0)
 
-    def updatePixmap(self):
-        if self.colorSpace == 1 or len(self.profile)> 0:
-            print self.colorSpace
-            cvqim=convertQImage(self)
-            self.qPixmap = QPixmap.fromImage(cvqim)
-        else:
-            self.qPixmap = QPixmap.fromImage(self)
+    def setModified(self, b):
+        self.isModified = b
+        self.onModify()
 
-    def cv2Img(self, cv2Type='BGRA'):
-        if self.cv2Cache is not None and self.cv2CacheType==cv2Type:
-            return self.cv2Cache
+    def updatePixmap(self):
+        if icc.COLOR_MANAGE:
+            img = convertQImage(self)
         else:
-            self.cv2Cache = QImageBuffer(self)
-            self.cv2CacheType = 'BGRA'
-            if cv2Type == 'RGB':
-                self.cv2Cache = self.cv2Cache[:,:,::-1]
-                self.cv2Cache = self.cv2Cache[:,:,1:4]
-                self.cv2Cache = np.ascontiguousarray(self.cv2Cache, dtype=np.uint8)
-                self.cv2CacheType = 'RGB'
-            return self.cv2Cache
+            img = self
+        img.setPixel(0,0, 0)
+        self.qPixmap = QPixmap.fromImage(img)
+
 
     def resize(self, pixels, interpolation=cv2.INTER_CUBIC):
         """
-        Resize an image while keeping its aspect ratio.
+        Resize an image while keeping its aspect ratio. We use
+        the opencv finction cv2.resize() to perform the resizing operation, so we
+        can choose the resizing method (default cv2.INTER_CUBIC)
         The original image is not modified.
         :param pixels: pixel count for the resized image
-        :return : resized vImage
+        :param interpolation method (default cv2.INTER_CUBIC)
+        :return : the resized vImage
         """
         ratio = self.width() / float(self.height())
         w, h = int(np.sqrt(pixels * ratio)), int(np.sqrt(pixels / ratio))
         hom = w / float(self.width())
-        # resize
-        cv2Img = cv2.resize(self.cv2Img(), (w, h), interpolation=interpolation)
-        # create new vImage
-        rszd = vImage(cv2Img=cv2Img)
+        # resizing
+        cv2Img = cv2.resize(QImageBuffer(self), (w, h), interpolation=interpolation)
+        # creating new vImage
+        rszd = vImage(cv2Img=cv2Img, meta=copy(self.meta), format=self.format())
 
         #resize rect and mask
         if self.rect is not None:
@@ -111,9 +135,10 @@ class vImage(QImage):
         if self.mask is not None:
             # tmp.mask=cv2.resize(self.mask, (w,h), interpolation=cv2.INTER_NEAREST )
             rszd.mask = self.mask.scaled(w, h)
+        self.setModified(True)
         return rszd
 
-    def applyLUT(self, LUT, widget=None):
+    def applyLUT(self, LUT, widget=None, options={}):
 
         # get image buffer (BGR order on intel proc.)
         ndImg0 = QImageBuffer(self.inputImg)[:, :, :3] #[:, :, ::-1]
@@ -125,101 +150,129 @@ class vImage(QImage):
         if widget is not None:
             widget.repaint()
 
-    def apply3DLUT(self, LUT, widget=None):
+    def apply3DLUT(self, LUT, widget=None, options={}):
 
         # get image buffer (type RGB)
-        #ndImg = QImageBuffer(self)[:,:,:3][:,:,::-1]
-        ndImg0 = QImageBuffer(self.inputImg)[:, :, :3] #[:, :, ::-1]
+        #w1, w2, h1, h2 = 0, self.inputImg.width(), 0, self.inputImg.height()
+        w1, w2, h1, h2 = (0.0,) * 4
+        #if self.parent.rect is not None:
+        if options['use selection']:
+            if self.rect is not None:
+                w1, w2, h1,h2= self.rect.left(), self.rect.right(), self.rect.top(), self.rect.bottom()
+            if w1>=w2 or h1>=h2:
+                msg = QMessageBox()
+                msg.setText("Empty selection\nSelect a region with marquee tool")
+                msg.exec_()
+                return
+        else:
+            w1, w2, h1, h2 = 0, self.inputImg.width(), 0, self.inputImg.height()
+
+        ndImg0 = QImageBuffer(self.inputImg)[h1+1:h2+1, w1+1:w2+1, :3] #[:, :, ::-1]
+
         ndImg1 = QImageBuffer(self)[:, :, :3]
+
+        # apply LUT
         start=time()
-        """
-        f = lambda *args : [interp(LUT, *x) for x in args]
-
-        ndImg[:] = map(f, * [ndImg[:,c] for c in range(ndImg.shape[1])])
-        """
-        ndImg1[:,:,:] = interpVec(LUT, ndImg0)
-
-        """
-        for r in range(ndImg.shape[0]):
-            for c in range(ndImg.shape[1]):
-                p=ndImg[r,c]
-                ndImg[r,c]= LUT[(p[0]/2), (p[1]/2),(p[2]/2)]           #ndImg[interp(LUT, *ndImg[r,c])
-        """
-        """
-        p = Pool(2)
-        #f = lambda x : interp(LUT,x)
-        ndImg[:]=p.map(fa, ndImg)
-        """
+        ndImg1[h1+1:h2+1,w1+1:w2+1,:] = interpVec(LUT, ndImg0)
         end=time()
         print 'time %.2f' % (end-start)
-        self.updatePixmap()
-        # apply LUT
-        #convertedNdImg = LUT3DArray(ndImg[:,:], LUT)
-        #convertedNdImg = convertedNdImg[:, :].astype(np.uint8)
 
-        # update Pixmap ans repaint
-        #self.qPixmap = QPixmap.fromImage(ndarrayToQImage(convertedNdImg, QImage.Format_RGB888))
+        self.updatePixmap()
+
         if widget is not None:
             widget.repaint()
 
 class mImage(vImage):
     """
-    Multilayer image
+    Multi-layer image. A mImage object holds at least a background
+    layer. All layers share the same metadata object. To correctly render a
+    mImage, widgets must override their paint event handler.
     """
     def __init__(self, *args, **kwargs):
-        super(mImage, self).__init__(*args, **kwargs)
+        # as updatePixmap uses layersStack, must be before super __init__
         self._layers = {}
-        self._layersStack = []
+        self.layersStack = []
+        super(mImage, self).__init__(*args, **kwargs)
         # add background layer
         bgLayer = QLayer.fromImage(self)
-        bgLayer.name = 'background'
-        self._layers[bgLayer.name] = bgLayer
-        self._layersStack.append(bgLayer)
+        self.addLayer(bgLayer, 'background')
+        self.setModified(False)
+        self.activeLayer = bgLayer
+
+    def updatePixmap(self):
+        """
+        Override vImage.updatePixmap()
+        """
+        #super(mImage, self).updatePixmap()
+        vImage.updatePixmap(self)
+        for layer in self.layersStack:
+                vImage.updatePixmap(layer)
+        return
+        qpainter = QPainter(self.qPixmap)
+        for layer in self.layersStack:
+            if layer.visible:
+                qpainter.drawPixmap(0, 0, layer.qPixmap)
+        qpainter.end()
 
     def addLayer(self, lay, name):
-        lay.name = name
-        self._layers[name] = lay
-        self._layersStack.append(lay)
-
+        # build a unique name
+        usedNames = [l.name for l in self.layersStack]
+        a = 1
+        trialname = name
+        while trialname in usedNames:
+            trialname = name + '_'+ str(a)
+            a = a+1
+        lay.name = trialname
+        self._layers[lay.name] = lay
+        self.layersStack.append(lay)
+        lay.meta = self.meta
+        #if lay.name != 'drawlayer':
+            #lay.updatePixmap()
+        self.setModified(True)
 
     def addAdjustmentLayer(self, name='', window=None):
-        lay = QLayer(QImg=self)
-        lay.inputImg = QImage(self.size(), self.format())
+        lay = QLayer(QImg=self.layersStack[-1])
+        lay.inputImg = QImage(self.layersStack[-1])
         self.addLayer(lay, name)
-        # paint inferior layers
-        qp = QPainter(lay.inputImg)
-        for l in self._layersStack:
-            qp.drawImage(QRect(0,0, l.width(), l.height()), l)
-        lay.window = window
+        #lay.window = window
+        lay.parent = self
+        self.setModified(True)
         return lay
-
-    def refreshLayer(self, layer1, layer2):
-        if layer1.name != layer2.name:
-            print 'invalid layer refresh'
-            return
-        self._layers[layer1.name]=layer2
-        i=self._layerStack.index(layer1)
-        self._layerStack[i] = layer2
-
 
     def cvtToGray(self):
         self.cv2Img = cv2.cvtColor(self.cv2Img, cv2.COLOR_BGR2GRAY)
         #self.qImg = gray2qimage(self.cv2Img)
 
+    def save(self, filename, quality=-1):
+        # build resulting image
+        img = QImage(self.width(), self.height(), self.format())
+        qpainter = QPainter(img)
+        for layer in self.layersStack:
+            if layer.visible:
+                qpainter.drawImage(0,0, layer)
+        qpainter.end()
+        # save to file
+        if not img.save(filename, quality=quality):
+            msg = QMessageBox()
+            msg.setText("unable to save file %s" % filename)
+            msg.exec_()
+        else:
+            self.setModified(False)
+
 
 class imImage(mImage) :
     """
-    Interactive multilayer image
+    Interactive multi-layer image
     """
     def __init__(self, *args, **kwargs):
-        #__init__(self, filename=None, cv2Img=None, QImg=None, cv2mask=None, copy=False, format=QImage.Format_ARGB32, colorSpace=-1, orientation=None) :
-        super(imImage, self).__init__(*args, **kwargs) #(filename=filename, cv2Img=cv2Img, QImg=QImg, cv2mask=cv2mask, copy=copy, format=format, colorSpace=colorSpace, orientation=orientation)
+        super(imImage, self).__init__(*args, **kwargs)
         self.Zoom_coeff = 1.0
         self.xOffset, self.yOffset = 0, 0
-
-        drawLayer = QLayer(QImage(self.width(), self.height(), QImage.Format_ARGB32))
-        drawLayer.fill(QColor(0,0,0,0))
-        self.addLayer(drawLayer, 'drawlayer')
+        #
+        self.isMouseSelectable =True
+        #drawLayer = QLayer(QImage(self.width(), self.height(), QImage.Format_ARGB32))
+        #drawLayer.fill(QColor(0,0,0,0))
+        #self.addLayer(drawLayer, 'drawlayer')
 
     def resize_coeff(self, widget):
         """
@@ -236,37 +289,98 @@ class imImage(mImage) :
         return r * self.Zoom_coeff
 
     def resize(self, pixels, interpolation=cv2.INTER_CUBIC):
-        rszd0 = super(imImage, self).resize(pixels)
-        rszd = imImage(QImg=rszd0)
+        """
+        Resize image and layers
+        :param pixels:
+        :param interpolation:
+        :return:
+        """
+        # resized vImage
+        rszd0 = super(imImage, self).resize(pixels, interpolation=interpolation)
+        # resized imImage
+        rszd = imImage(QImg=rszd0,meta=copy(self.meta))
         rszd.rect = rszd0.rect
-        for k, l  in enumerate(self._layersStack):
+        for k, l  in enumerate(self.layersStack):
             if l.name != "background" and l.name != 'drawlayer':
-                img = QLayer.fromImage(self._layers[l.name].resize(pixels, interpolation=cv2.INTER_NEAREST))
-                rszd._layersStack.append (img)
+                img = QLayer.fromImage(self._layers[l.name].resize(pixels, interpolation=interpolation))
+                rszd.layersStack.append (img)
                 rszd._layers[l.name] = img
-        """
-        rszd.drawLayer = QImage(rszd.qImg.width(), rszd.qImg.height(), QImage.Format_ARGB32)
-        rszd.drawLayer.fill(QColor(0, 0, 0, 0))
-        rszd.layers.append(rszd.drawLayer)
-        """
+        self.isModified = True
         return rszd
+
+    def view(self):
+        return self.Zoom_coeff, self.xOffset, self.yOffset
+
+    def setView(self, zoom=1.0, xOffset=0.0, yOffset=0.0):
+        self.Zoom_coeff, self.xOffset, self.yOffset = zoom, xOffset, yOffset
+
+    def snapshot(self):
+        snap = imImage(QImg=self, meta=self.meta)
+        qp = QPainter(snap)
+        for layer in self.layersStack:
+            if layer.visible:
+                """
+                if layer.qPixmap is not None:
+                    qp.drawPixmap(QRect(0, 0, self.width() , self.height()),
+                                  # target rect
+                                  layer.transfer()  # layer.qPixmap
+                                  )
+                else:
+                """
+                qp.drawImage(QRect(0, 0, self.width(), self.height()),
+                                 # target rect
+                                 layer
+                                 )
+        qp.end()
+        snap.updatePixmap()
+        return snap
 
 class QLayer(vImage):
     @classmethod
     def fromImage(cls, mImg):
         mImg.visible = True
         mImg.alpha = 255
+        mImg.window = None
         # for adjustment layer
         mImg.transfer = lambda: mImg.qPixmap
         mImg.inputImg = None
-        return mImg #QLayer(QImg=mImg) # TOD0 retype mImg as QLayer
+        return QLayer(QImg=mImg) #mImg
 
     def __init__(self, *args, **kwargs):
         super(QLayer, self).__init__(*args, **kwargs)
         self.name='anonymous'
         self.visible = True
-        self.alpha=255
+        # layer opacity is used by QPainter operations.
+        # Its value must be in the range 0.0...1.0
+        self.opacity = 1.0
         self.transfer = lambda : self.qPixmap
+        # link to grid or curves view for adjustment layers
+        self.adjustView = None
+        self.parent = None
+
+    def setImage(self, qimg):
+        """
+        replace layer image with qimg.
+        The layer and qimg must have identical dimensions and type
+        :param qimg: QImage
+        """
+        buf1, buf2 = QImageBuffer(self), QImageBuffer(qimg)
+        if buf1.shape != buf2.shape:
+            raise ValueError("QLayer.setImage : new image and layer must have identical shapes")
+        buf1[...] = buf2
+        self.updatePixmap()
+
+    def reset(self):
+        self.setImage(self.inputImg)
+
+    def setOpacity(self, value):
+        """
+        set the opacity attribute to value/100.0
+        :param value:
+        """
+        self.opacity = value /100.0
+        return
+
 
 
 

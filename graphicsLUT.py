@@ -1,10 +1,27 @@
+"""
+Copyright (C) 2017  Bernard Virot
+
+PeLUT - Photo editing software using adjustment layers with 1D and 3D Look Up Tables.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>
+"""
 import sys
 from PyQt4.QtGui import QApplication, QPainter, QWidget
 from PyQt4.QtGui import QGraphicsView, QGraphicsScene, QGraphicsPathItem , QPainterPath, QPainterPathStroker, QPen, QBrush, QColor, QPixmap, QMainWindow, QLabel, QSizePolicy
 from PyQt4.QtCore import Qt, QPoint, QPointF, QRectF
 import numpy as np
 from time import time
-from LUT3D import LUT3D
 from colorModels import hueSatModel
 
 

@@ -1,31 +1,63 @@
+"""
+Copyright (C) 2017  Bernard Virot
+
+PeLUT - Photo editing software using adjustment layers with 1D and 3D Look Up Tables.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>
+"""
+
 import subprocess
 import os
 import json
-from PyQt4.QtGui import QTransform
+from PyQt4.QtGui import QTransform, QMessageBox
+
+####################################################
+# exiftool path
+EXIFTOOL_PATH = "H:\standalone\exiftool\exiftool(-k)"
+# EXIFTOOL_PATH = "C:\standalone\exiftool(-k)"
+#####################################################
 
 class ExifTool(object):
     """
     exiftool wrapper
     """
-
     sentinel = "{ready}"
     # exiftool flags
     # -n : print numerical values
     # -j : json output
-    # -a : extarct duplicate tags
+    # -a : extract duplicate tags
     # -S : very short output format
     # -G0 : print group name for each tag
     flags = ["-j", "-a", "-n", "-S", "-G0", "-Orientation", "-ProfileDescription", "-colorSpace", "-InteropIndex", "-WhitePoint", "-PrimaryChromaticities", "-Gamma"]#, "-ICC_Profile:all"]
-    extract_profile_flags = ["-icc_profile", "-b"]
-    #def __init__(self, executable = "H:\standalone\exiftool\exiftool(-k)"):
-    def __init__(self, executable="C:\standalone\exiftool(-k)"):
+    extract_meta_flags = ["-icc_profile", "-b"] #["-b"] #["-icc_profile", "-b"]
+    #copy_meta_flags = ["-tagsFromFile", "-all:all"]
+
+    def __init__(self, executable = EXIFTOOL_PATH):
         self.executable = executable
 
+    # enter/exit "with" block
     def __enter__(self):
-        self.process = subprocess.Popen(
+        try:
+            self.process = subprocess.Popen(
                                         [self.executable, "-stay_open", "True",  "-@", "-"],
                                         stdin =subprocess.PIPE, stdout =subprocess.PIPE, stderr =subprocess.STDOUT
                                        )
+        except OSError:
+            msg = QMessageBox()
+            msg.setText("cannot execute exiftool :\nset EXIFTOOL_PATH in file exiftool.py")
+            msg.exec_()
+            exit()
         return self
 
     def  __exit__(self, exc_type, exc_value, traceback):
@@ -42,20 +74,50 @@ class ExifTool(object):
             output += os.read(fd, 4096)
         return output[:-len(self.sentinel)-2]
 
-    def get_metadata(self, *filenames):
-        #return json.loads(self.execute("-G", "-j", "-n", *filenames))
-        profile=self.execute(*(self.extract_profile_flags + list(filenames)))
-        return profile, json.loads(self.execute(*(self.flags+list(filenames))))
+    def get_metadata(self, f, save=True):
+        profile=self.execute(*(self.extract_meta_flags + [f]))
+        if save:
+            self.saveMetadata(f)
+        return profile, json.loads(self.execute(*(self.flags + [f])))
 
+    def saveMetadata(self, f):
+        """
+        save all metadata and icc profile to sidecar .mie files.
+        :param f: arbitrary number of file names to process
+        """
+        self.execute(*(["-tagsFromFile", f, "-all:all", "-icc_profile", f+".mie"]))
+
+    def restoreMetadata(self, source, dest, removesidecar=False):
+        """
+        restore all metadata and icc profile from sidecar .mie to image files.
+        if removesidecar is True, the sidecar file is removed after
+        restoration.
+        :param source: file the image was loaded from
+        :param dest: file the image is saved to
+        :param removesidecar: if True (default) remove sidecar file after restoration
+        """
+        sidecar = source + '.mie'
+        self.execute(*(["-tagsFromFile", sidecar, "-all:all", "-icc_profile", dest]))
+        if removesidecar:
+            os.remove(sidecar)
 
 def decodeExifOrientation(value):
+    """
+    Returns a QTransform object representing the
+    image transformation corresponding to the orientation tag value
+    :param value: orientation tag
+    :return: Qtransform object
+    """
+    # identity transformation
     tr = QTransform()
-    if value == 1 :
+    if value == 0:
         pass
-    elif value == 6:
+    elif value == 1 :
+        pass
+    elif value == 6:   # TODO complete
         tr.rotate(90)
     else :
-        print "unhandled orientation tag: ", value
+        raise ValueError("decodeExifOrientation : unhandled orientation tag: %d" % value)
     return tr
 
 """
