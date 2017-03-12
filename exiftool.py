@@ -24,8 +24,8 @@ from PyQt4.QtGui import QTransform, QMessageBox
 
 ####################################################
 # exiftool path
-EXIFTOOL_PATH = "H:\standalone\exiftool\exiftool(-k)"
-# EXIFTOOL_PATH = "C:\standalone\exiftool(-k)"
+#EXIFTOOL_PATH = "H:\standalone\exiftool\exiftool(-k)"
+EXIFTOOL_PATH = "C:\standalone\exiftool\exiftool(-k)"
 #####################################################
 
 class ExifTool(object):

@@ -32,7 +32,7 @@ from PyQt4.QtGui import QRubberBand
 
 from LUT3D import LUTSIZE, LUTSTEP, rgb2hsB, hsp2rgb, hsp2rgbVec, hsp2rgb_ClippingInd, LUT3DFromFactory, LUT3D_SHADOW, LUT3D_ORI, \
     rgb2hsBVec
-from MarkedImg import QLayer
+from MarkedImg import QLayer, vImage
 from colorModels import hueSatModel, pbModel
 from imgconvert import QImageBuffer
 from utils import optionsWidget
@@ -264,6 +264,7 @@ class activeNode(QGraphicsPathItem):
         self.gridRow, self.gridCol = gridRow, gridCol
         self.setFlag(QGraphicsItem.ItemIsSelectable, True)
         self.setFlag(QGraphicsItem.ItemIgnoresTransformations, True)
+        self.setVisible(False)
         # current scene
         scene = parent.scene()
 
@@ -516,9 +517,11 @@ class activeGrid(QGraphicsPathItem):
         self.size = size
         # grid step
         #self.step = (parent.QImg.width() - 1) / float((self.size - 1))
+        # parent should be the color wheel. step is the unitary coordinate increment
+        # between consecutive nodes in each direction
         self.step = parent.size / float((self.size -1))
         self.setPos(0,0)
-        self.gridNodes = [[activeNode(QPointF(i*self.step,j*self.step), gridRow=i, gridCol=j, parent=self, grid=self) for i in range(self.size)] for j in range(self.size)]
+        self.gridNodes = [[activeNode(QPointF(i*self.step,j*self.step), gridRow=j, gridCol=i, parent=self, grid=self) for i in range(self.size)] for j in range(self.size)]
         self.drawGrid()
         self.selectedGroup = None
         self.setFlag(QGraphicsItem.ItemIsSelectable, True)
@@ -644,8 +647,8 @@ class colorPicker(QGraphicsPixmapItem):
     def __init__(self, QImg, target=None, size=0, border=0):
         """
 
-        :param QImg:
-        :param target:
+        :param QImg: color wheel
+        :param target: image to sample
         :param size: color wheel diameter
         :param border: border size
         """
@@ -656,30 +659,36 @@ class colorPicker(QGraphicsPixmapItem):
         else:
             self.size = size
 
+        # histogram
         if target is not None:
             hspImg = rgb2hsBVec(QImageBuffer(target)[:,:,:3][:,:,::-1], perceptual=True)
             xyarray = self.QImg.GetPointVec(hspImg).astype(int)
             maxVal = self.QImg.width()
-            STEP = 25
+            STEP = 10
 
-            #BINSARRAY = np.array([[(i/BINS,j/BINS) for i in range(800)] for j in range(800)])  #np.array([[(j/BINS,i/BINS) for i in range(target.width())] for j in range(QImg.height())])
-            H,_ ,_= np.histogram2d(xyarray[:,:,0].ravel(), xyarray[:,:,1].ravel(), bins=[np.arange(0,maxVal, STEP), np.arange(0,maxVal, STEP)], normed=True)
+            H, xedges, yedges = np.histogram2d(xyarray[:,:,0].ravel(), xyarray[:,:,1].ravel(), bins=[np.arange(0,maxVal+STEP, STEP), np.arange(0,maxVal+STEP, STEP)], normed=True)
 
-            a = QImage(QImg.copy())
+            a = vImage(QImg.copy())
+            a.meta = QImg.meta
             b = QImage(a.width(), a.height(), QImage.Format_ARGB32)
             b.fill(0)
             buf = QImageBuffer(b)
-            #tmp = (((255 * H[BINSARRAY[:,:,1], BINSARRAY[:,:,0]])[...,None]) / np.amax(H)).astype(np.uint8)
-            u=xyarray[:,:,0]/STEP
-            v=xyarray[:,:,1]/STEP
+            # (u, v) : bins indices
+            u = xyarray[:,:,0] / STEP
+            v = xyarray[:,:,1] / STEP
+
             tmp=H[u,v]
             norma = np.amax(H)
-            buf[xyarray[:,:,1], xyarray[:,:,0],...] = ((255.0 * tmp)[...,None] / norma).astype(int)
-            buf[xyarray[:, :, 1], xyarray[:, :, 0], 3] = 64
+            # the color of each pixel is set proportionally to the weight of its bin
+            buf[xyarray[:,:,1], xyarray[:,:,0],...] = 255 #((255.0 *(1- tmp))[...,None] / norma).astype(int)
+            # alpha channel
+            buf[xyarray[:, :, 1], xyarray[:, :, 0], 3] = 90 + 255.0 *  tmp / norma # 64
+            # paint histogram on the copy of the color wheel
             qp = QPainter(a)
             qp.drawImage(0, 0, b)
-            QImg.qPixmap = QPixmap.fromImage(a)
             qp.end()
+            a.updatePixmap()
+            QImg.qPixmap = a.qPixmap #QPixmap.fromImage(a)
 
 
         super(colorPicker, self).__init__(self.QImg.qPixmap)
@@ -760,6 +769,14 @@ class graphicsForm3DLUT(QGraphicsView) :
         return newWindow
 
     def __init__(self, size, targetImage=None, LUTSize = LUTSIZE, layer=None, parent=None):
+        """
+
+        :param size: size of the color wheel
+        :param targetImage:
+        :param LUTSize:
+        :param layer:
+        :param parent:
+        """
         super(graphicsForm3DLUT, self).__init__(parent=parent)
         border = 20
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
@@ -878,8 +895,10 @@ class graphicsForm3DLUT(QGraphicsView) :
         :param r,g,b : color
         :param rM, gM, bM : color for debugging purpose
         """
-        w = self.grid.size
+        #w = self.grid.size
+        w = self.LUTStep
 
+        # surrounding cube
         LUTNeighborhood = [(i,j,k) for i in [r/w, (r/w)+1] for j in [g/w, (g/w)+1] for k in [b/w, (b/w)+1]]
 
 
@@ -896,16 +915,17 @@ class graphicsForm3DLUT(QGraphicsView) :
         # x, y : color wheel (cartesian origin top left corner) coordinates of the pixel corresponding to hue=h and sat=s
         xc, yc = self.graphicsScene.colorWheel.QImg.GetPoint(h, s)
 
-        xyNeighborhood=[self.graphicsScene.colorWheel.QImg.GetPoint(h, s) for h,s,_ in hspNeighborhood]
+        #xyNeighborhood=[self.graphicsScene.colorWheel.QImg.GetPoint(h, s) for h,s,_ in hspNeighborhood]
 
+        # unitary coordinate increment between consecutive nodes
         step = float(self.grid.step)
         border = self.graphicsScene.colorWheel.border
         #grid coordinates
         xcGrid, ycGrid = xc - border, yc -border
-
         #NNN = self.grid.gridNodes[int(round(ycGrid/step))][int(round(xcGrid/step))]
         NNN = self.grid.gridNodes[int(np.floor(ycGrid / step))][int(np.floor(xcGrid / step))]
 
+        """
         #neighbors = [self.grid.gridNodes[j][i] for j in range(int(np.floor(y / step)) - 1, int(np.ceil( y / step)) +2) if j < w for i in range(int(np.floor(x / step))-1, int(np.ceil( x / step))+2) if i < w]
 
         neighbors = [self.grid.gridNodes[int(round(y/step))+c][int(round(x/step))+a] for (x,y) in xyNeighborhood
@@ -924,6 +944,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         print 'selectgridnode rgb', r,g,b ,rM,gM,bM,NNN.r, NNN.g, NNN.b, NNN.rM, NNN.gM, NNN.bM
         print 'selectgridNodehs' , h,s, NNN.hue, NNN.sat
         print 'selectGridNode', NNN.parentItem()
+        """
 
         # select and mark selected node
         if self.selected is not None:
@@ -932,10 +953,14 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.selected.setSelected(True)
         self.selected.setBrush(self.selectBrush)
         self.selected.setPath(self.qpp0)
+        self.selected.setVisible(True)
+        for n in NNN.neighbors():
+            n.setVisible(True)
         #self.selected.setZValue(+1)
 
         if mode == '':
             self.selected.setSelected(True)
+        """
         elif mode == 'add':
             if self.grid.selectedGroup is None:
                 self.grid.selectionList = [self]
@@ -947,6 +972,7 @@ class graphicsForm3DLUT(QGraphicsView) :
             for i in neighbors:
                 if i.parentItem() is self.grid:
                     self.grid.selectedGroup.addToGroup(i)
+        """
         #update status
         self.onSelectGridNode(h,s)
 

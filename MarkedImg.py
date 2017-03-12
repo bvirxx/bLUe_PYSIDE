@@ -85,7 +85,7 @@ class vImage(QImage):
                 #self.transformed(self.meta.orientation)
         # build image from QImage, shallow copy
         elif QImg is not None:
-            super(vImage, self).__init__(QImg)
+            super(vImage, self).__init__(QImg)  # copy ?
             if hasattr(QImg, "meta"):
                 self.meta = copy(QImg.meta)
         # build image from buffer
@@ -107,7 +107,6 @@ class vImage(QImage):
             img = convertQImage(self)
         else:
             img = self
-        img.setPixel(0,0, 0)
         self.qPixmap = QPixmap.fromImage(img)
 
 
@@ -316,23 +315,19 @@ class imImage(mImage) :
 
     def snapshot(self):
         snap = imImage(QImg=self, meta=self.meta)
+        #snap = QImage(self.width(), self.height(), QImage.Format_ARGB32)
+        snap.fill(0)
         qp = QPainter(snap)
         for layer in self.layersStack:
             if layer.visible:
-                """
+                #qp.setOpacity(layer.opacity)
                 if layer.qPixmap is not None:
-                    qp.drawPixmap(QRect(0, 0, self.width() , self.height()),
-                                  # target rect
-                                  layer.transfer()  # layer.qPixmap
-                                  )
+                    qp.drawPixmap(QRect(0, 0, self.width(), self.height()),  layer.transfer() )
                 else:
-                """
-                qp.drawImage(QRect(0, 0, self.width(), self.height()),
-                                 # target rect
-                                 layer
-                                 )
+                    qp.drawImage(QRect(0, 0, self.width(), self.height()),  layer)
         qp.end()
-        snap.updatePixmap()
+        # update background layer
+        snap.layersStack[0].setImage(snap)
         return snap
 
 class QLayer(vImage):
@@ -360,8 +355,8 @@ class QLayer(vImage):
 
     def setImage(self, qimg):
         """
-        replace layer image with qimg.
-        The layer and qimg must have identical dimensions and type
+        replace layer image with a copy of qimg.
+        The layer and qimg must have identical dimensions and type.
         :param qimg: QImage
         """
         buf1, buf2 = QImageBuffer(self), QImageBuffer(qimg)

@@ -70,7 +70,11 @@ Perc_R=0.79134178
 Perc_G=2.31839104
 Perc_B=0.25510923
 """
-
+"""
+Perc_R=1.0/3.0
+Perc_G=1.0/3.0
+Perc_B=1.0/3.0
+"""
 class LUT3D (object):
     """
     Implements 3D LUT. Size must be 2**n.
@@ -129,6 +133,31 @@ class QPoint3D(object):
 
     def __rmul__(self, scalar):
 """
+
+def redistribute_rgb(r, g, b):
+    """
+     To keep the hue, we want to maintain the ratio of (middle-lowest)/(highest-lowest).
+    :param r:
+    :param g:
+    :param b:
+    :return:
+    """
+
+    threshold = 255.999
+    m = max(r, g, b)
+
+    if m <= threshold:
+        return int(r), int(g), int(b)
+
+    total = r + g + b
+    if total >= 3 * threshold:
+        return int(threshold), int(threshold), int(threshold)
+
+    # 3.0*m > 3.0*treshold > total
+    x = (3.0 * threshold - total) / (3.0 * m - total)
+    gray = threshold - x * m
+    return int(gray + x * r), int(gray + x * g), int(gray + x * b)
+
 def rgb2hsB(r, g, b, perceptual=False):
     """
     transform the red, green ,blue r, g, b components of a color
@@ -216,7 +245,7 @@ def hsv2rgb(h,s,v):
     """
     Transform the hue, saturation, brightness h, s, v components of a color
     into red, green, blue values. (Cf. schema in file colors.docx)
-    Note : here, v= max(r,g,b)/255.0. For perceptual brightness use
+    Note : here, brightness is v= max(r,g,b)/255.0. For perceptual brightness use
     hsp2rgb()
 
     :param h: float value in range 0..360
@@ -229,9 +258,9 @@ def hsv2rgb(h,s,v):
     h = h/60.0
     i = np.floor(h)
     f = h - i
-    p = v * (1 - s)
-    q = v * (1 - s * f)
-    t = v * ( 1 - s * ( 1 - f))
+    p = v * (1.0 - s)
+    q = v * (1.0 - s * f)
+    t = v * ( 1.0 - s * ( 1.0 - f))
 
     if  i == 0 : # r > g > b,  r=v and s=(r-b)/r, thus b = v(1-s)=p, h = (g-b)/(r-b) gives g=v(1-s(1-h))=t
         r1, g1, b1 = v, t, p
@@ -246,11 +275,51 @@ def hsv2rgb(h,s,v):
     else : # r > b >g
         r1, g1, b1 = v, p, q
 
-    r = int(r1 * 255)
-    g = int(g1 * 255)
-    b = int(b1 * 255)
+    r = int(r1 * 255.0)
+    g = int(g1 * 255.0)
+    b = int(b1 * 255.0)
 
     return r,g,b
+
+def hsv2rgbVec(hsvImg):
+    """
+    Vectorized version of hsv2rgb.
+    Transform the hue, saturation and brightness h, s, v components of a color
+    into red, green, blue values.
+    :param hsvImg: hsv image array
+    :return: rgb image array
+    """
+
+    h,s,v = hsvImg[:,:,0], hsvImg[:,:,1], hsvImg[:,:,2]
+
+    shape = h.shape
+    i = (h / 60.0).astype(int)
+    f = h / 60.0 - i
+
+    q = f
+    t = 1.0 - f
+    i = np.ravel(i)
+    f = np.ravel(f)
+    i %= 6
+
+    t = np.ravel(t)
+    q = np.ravel(q)
+
+    clist = (1 - np.ravel(s) * np.vstack([np.zeros_like(f), np.ones_like(f), q, t])) * np.ravel(v)
+
+    # 0:v 1:p=v(1-s) 2:q 3:t
+    order = np.array([[0, 3, 1], [2, 0, 1], [1, 0, 3], [1, 2, 0], [3, 1, 0], [0, 1, 2]])
+    rgb = clist[order[i], np.arange(np.prod(shape))[:, None]]
+
+    """
+    clipped = np.amax(rgb, axis=1)
+    clipped = np.dstack((clipped, clipped, clipped))
+    rgb = np.where(clipped > 1, rgb / clipped, rgb)
+    """
+    rgb = (rgb * 255.0).astype(int)
+
+    return rgb.reshape(shape + (3,))
+
 
 def hsp2rgbOld(h,s,p, trunc=True):
     """
@@ -426,11 +495,15 @@ def hsp2rgb_ClippingInd(h,s,p, trunc=True):
 
     pc= Perc_R * r * r + Perc_G * g * g + Perc_B * b * b
     assert abs(p*p - pc)<= 0.000001, 'hsp2rgb error'
-    clippingInd = max(r,g,b) > 1.0
+    M = max(r, g, b)
+    #clippingInd = (max(r,g,b) > 1.0)
     if trunc:
-        return min(255,int(round(r*255))), min(255,int(round(g*255))), min(255, int(round(b*255))), clippingInd
-    else:
-        return int(round(r * 255)), int(round(g * 255)), int(round(b * 255)), clippingInd
+        if M > 1:
+            r, g, b = r / M, g / M, b / M
+        #return min(255,int(round(r*255.0))), min(255,int(round(g*255.0))), min(255, int(round(b*255.0))), (M > 1)
+    return int(round(r * 255.0)), int(round(g * 255.0)), int(round(b * 255.0)), (M > 1)
+    #else:
+        #return int(round(r * 255)), int(round(g * 255)), int(round(b * 255)), ( M > 1)
 
 def hsp2rgbVec(hspImg):
     """
@@ -505,47 +578,14 @@ def hsp2rgbVec(hspImg):
 
     # for uint8 image buffer, int values > 255 are truncated to lower 8 bits
     # rgbMask = (rgb > 1)
-    rgb = np.clip(rgb, 0, 1.0)
+    clipped = np.amax(rgb, axis=1)
+    clipped = np.dstack((clipped, clipped, clipped))
+    rgb = np.where(clipped > 1, rgb / clipped, rgb)
+    # rgb = np.clip(rgb, 0, 1.0)
 
-    rgb = (rgb * 255).astype(int)
-
-    return rgb.reshape(shape + (3,))
-
-
-def hsv2rgbVec(hsvImg, trunc=True):
-    """
-    Transform the hue, saturation and brightness h, s, v components of a color
-    into red, green, blue values.
-    :param hspImg: hsv image array
-    :param trunc : if True, the rgb values of the output image are truncated to range 0..255
-    :return: rgb image array
-    """
-
-    h,s,v = hsvImg[:,:,0], hsvImg[:,:,1], hsvImg[:,:,2]
-
-    shape = h.shape
-    i = (h / 60.0).astype(int)
-    f = h / 60.0 - i
-
-    q = f
-    t = 1.0 - f
-    i = np.ravel(i)
-    f = np.ravel(f)
-    i %= 6
-
-    t = np.ravel(t)
-    q = np.ravel(q)
-
-    clist = (1 - np.ravel(s) * np.vstack([np.zeros_like(f), np.ones_like(f), q, t])) * np.ravel(v)
-
-    # 0:v 1:p=v(1-s) 2:q 3:t
-    order = np.array([[0, 3, 1], [2, 0, 1], [1, 0, 3], [1, 2, 0], [3, 1, 0], [0, 1, 2]])
-    rgb = clist[order[i], np.arange(np.prod(shape))[:, None]]
-    rgb = (rgb * 255).astype(int)
+    rgb = (rgb * 255.0).astype(int)
 
     return rgb.reshape(shape + (3,))
-
-
 
 
 """

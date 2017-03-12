@@ -37,7 +37,6 @@ from colorModels import hueSatModel
 import icc
 from os import path
 
-P_SIZE=4000000
 
 CONST_FG_COLOR = QColor(255, 255, 255,128)
 CONST_BG_COLOR = QColor(255, 0, 255,128)
@@ -356,6 +355,7 @@ def set_event_handler(widg):
 
 
 def button_change(widg):
+    P_SIZE = 4000000
     if str(widg.accessibleName()) == "Apply" :
         print "grabcut"
         #do_grabcut(Mimg_p, mode=cv2.GC_INIT_WITH_MASK, again=(rect_or_mask==0))
@@ -399,7 +399,7 @@ def menuFile(name):
             img = window.label.img
             img.save(filenames[0], quality=100)
             with exiftool.ExifTool() as e:
-                e.restoreMetadata(img.filename, filenames[0])
+                e.restoreMetadata(img.filename, str(filenames[0]))
 
     if name == 'actionOpen' :
         if window.label.img.isModified:
@@ -534,11 +534,11 @@ def menuImage(x, name) :
         window.label_2.img.updatePixmap()
     elif name == 'actionWorking_profile':
         w, label = handleTextWindow(parent=window, title='Working profile info')
-        label.setText(QString(icc.MONITOR_PROFILE_INFO))
+        label.setText(QString(icc.WORKING_PROFILE_INFO))
     elif name == 'actionSnap':
-        img= img.snapshot()
-        img.setView(*window.label_2.img.view())
-        window.label_2.img = img
+        snap = img.snapshot()
+        snap.setView(*window.label_2.img.view())
+        window.label_2.img = snap
         window.label_2.repaint()
         print 'snap done'
 
@@ -658,6 +658,6 @@ updateMenuOpenRecent()
 window.label.img = defaultImImage
 window.label_2.img = defaultImImage
 
-window.show()
+window.showMaximized()
 
 sys.exit(app.exec_())
