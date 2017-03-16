@@ -33,7 +33,7 @@ from graphicsLUT import graphicsForm
 from graphicsLUT3D import graphicsForm3DLUT
 from LUT3D import LUTSIZE
 from math import floor
-from colorModels import hueSatModel
+from colorModels import hueSatModel, cmHSP, cmHSB
 import icc
 from os import path
 
@@ -301,12 +301,12 @@ def mouseEvent(widget, event) :
                 # Note : for multilayered images we read pixel color from  the background layer
                 c = QColor(img.pixel(State['ix'] / r -  img.xOffset/r, State['iy'] / r - img.yOffset/r))
                 cM = QColor(img.activeLayer.pixel(State['ix'] / r - img.xOffset / r, State['iy'] / r - img.yOffset / r))
-                r, g, b = c.red(), c.green(), c.blue()
+                red, green, blue = c.red(), c.green(), c.blue()
                 rM,gM,bM= cM.red(), cM.green(), cM.blue()
                 if hasattr(img.activeLayer, "adjustView") and img.activeLayer.adjustView is not None:
                     if hasattr(img.activeLayer.adjustView.widget(), 'selectGridNode'):
                         mode = 'add' if modifier == Qt.ControlModifier else ''
-                        img.activeLayer.adjustView.widget().selectGridNode(r, g, b, rM,gM,bM, mode=mode)
+                        img.activeLayer.adjustView.widget().selectGridNode(red, green, blue, rM,gM,bM, mode=mode)
                 window.label.repaint()
             if window.btnValues['rectangle'] and img.isMouseSelectable:
 
@@ -563,10 +563,12 @@ def menuLayer(x, name):
         window.tableView.addLayers(window.label.img)
         grWindow.graphicsScene.onUpdateLUT = lambda options={} : l.applyLUT(grWindow.graphicsScene.LUTXY, widget=window.label, options=options)
         window.label.repaint()
-    elif name == 'action3D_LUT':
-        l = window.label.img.addAdjustmentLayer(name='3D LUT')
+    elif name in ['action3D_LUT', 'action3D_LUT_HSB']:
+        ccm = cmHSP if name == 'action3D_LUT' else cmHSB
+        name = '3D LUT HSpB' if name == 'action3D_LUT' else '3D LUT HSB'
+        l = window.label.img.addAdjustmentLayer(name=name)
         window.tableView.addLayers(window.label.img)
-        grWindow = graphicsForm3DLUT.getNewWindow(size=800, targetImage=window.label.img, LUTSize=LUTSIZE, layer= l, parent=window)
+        grWindow = graphicsForm3DLUT.getNewWindow(ccm, size=800, targetImage=window.label.img, LUTSize=LUTSIZE, layer= l, parent=window)
         Wins[l.name] = grWindow
         dock = QDockWidget(window)
         # link to colorwheel

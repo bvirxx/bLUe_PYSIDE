@@ -158,6 +158,12 @@ def redistribute_rgb(r, g, b):
     gray = threshold - x * m
     return int(gray + x * r), int(gray + x * g), int(gray + x * b)
 
+def rgb2hsp(r, g, b):
+    return rgb2hsB(r,g,b, perceptual=True)
+
+def rgb2hspVec(rgbImg):
+    return rgb2hsBVec(rgbImg, perceptual=True)
+
 def rgb2hsB(r, g, b, perceptual=False):
     """
     transform the red, green ,blue r, g, b components of a color
@@ -185,16 +191,18 @@ def rgb2hsB(r, g, b, perceptual=False):
     elif cMax == b:
         H = 60.0 * (4.0 + float(r-g)/delta)
 
-    #saturation
-    S = 0.0 if cMax == 0.0 else float(delta)/cMax
+    # saturation
+    S = 0.0 if cMax == 0.0 else float(delta) / cMax
 
     # brightness
     if perceptual:
         V = np.sqrt(Perc_R * r * r + Perc_G * g * g + Perc_B * b * b)
-        V = V / 255.0
     else:
-        V = cMax/255.0
-    assert 0<=H and H<=360 and 0<=S and S<=1 and 0<=V and V<=1, "rgb2hsv conversion error r=%d, g=%d, b=%d" %(r,g,b)
+        V = cMax
+
+    V = V / 255.0
+
+    assert 0<=H and H<=360 and 0<=S and S<=1 and 0<=V and V<=1, "rgb2hsv conversion error r=%d, g=%d, b=%d, h=%f, s=%f, v=%f" %(r,g,b,H,S,V)
     return H,S,V
 
 def rgb2hsBVec(rgbImg, perceptual=False):
@@ -210,6 +218,7 @@ def rgb2hsBVec(rgbImg, perceptual=False):
     delta = cMax - cMin
 
     H1 = 1.0 / delta
+    H1 = np.where( delta==0.0, 0.0, H1)
     H2 = 60.0 * (g - b) * H1
     H3 = np.where(g>=b, H2, 360 + H2)
     H4 = 60.0 * (2.0 + (b-r)*H1)
@@ -415,7 +424,7 @@ def hsp2rgbOld(h,s,p, trunc=True):
     else:
         return int(round(r * 255)), int(round(g * 255)), int(round(b * 255))
 
-def hsp2rgb(h,s,p):
+def hsp2rgb(h, s, p):
     return hsp2rgb_ClippingInd(h,s,p)[:3]
 
 def hsp2rgb_ClippingInd(h,s,p, trunc=True):
@@ -684,92 +693,7 @@ def interpVec(LUT, ndImg):
     IValue = (1 - gamma) * I2Value + gamma * I1Value
 
     return IValue
-"""
-def interp(LUT, i,j,k):
-    Trilinear interpolation in a 3D LUT
 
-                                              k    I12
-                                           F1 |---------- D1
-                                              |           |
-                                       E1 |   |   I11    |
-                                          |   |           |
-                                          |C0/--------------j
-                                          | /      /I22    E0
-                                          |/      /
-                                          /      /I2
-                                      D0 /------/-------F0
-                                        /        I21
-                                        i
-
-
-    :param LUT 3D LUT array
-    :param i,j,k: coordinates to interpolate
-    :return: interpolated value
-
-    i16, j16, k16 = i/16, j/16, k/16
-
-    C0 = (i16 , j16, k16)
-    D0 = (i16 +1 , j16, k16)    #C0 + QPoint3D(1,0,0)
-    E0 = (i16 , j16+1, k16)     #C0 + QPoint3D(0,1,0)
-    F0 = (i16+1, j16+1, k16)    # C0 + QPoint3D(1, 1, 0)
-
-    C1= (i16 +1 , j16+1, k16+1) #C0 + QPoint3D(1,1,1)
-    D1 = (i16, j16+1, k16+1)    #C1 - QPoint3D(1, 0, 0)
-    E1 = (i16+1, j16, k16+1)    #C1 -  QPoint3D(0, 1, 0)
-    F1 =  (i16, j16, k16+1)     #C1 - QPoint3D(1, 1, 0)
-
-    iP = float(i)/16
-    jP = float(j)/16
-    kP = float(k) / 16
-
-    I1 = (iP,jP,C1[2])
-    I2= (iP,jP, C0[2])
-    I11 = (C1[0], jP, C1[2])  # C1.x(), C0.y(),  C1.z()  and C1
-    I12 = (C0[0], jP, C1[2])  # C0.x(), C0.y(), C1.z() and C0.x(), C1.y(),C1.z()
-    I21 = (C1[0], jP, C0[2])  # C1.x(), C0.y(),  C0.z()  and C1.x(), C1.y(),  C0.z()
-    I22 = (C0[0], jP, C0[2])  # C0.x(), C0.y(),  C0.z()  and C0.x(), C1.y(),  C0.z()
-
-    alpha = float(jP-E1[1])/(C1[1]-E1[1])
-    I11Value= LUT[E1] + alpha*(LUT[C1]-LUT[E1])
-
-    alpha = float(jP - F1[1]) / (D1[1] - F1[1])
-    I12Value = LUT[F1] + alpha * (LUT[D1] - LUT[F1])
-
-    alpha = float(jP - D0[1]) / (F0[1] - D0[1])
-    I21Value = LUT[D0] + alpha * (LUT[F0] - LUT[D0])
-
-    alpha = float(jP - C0[1]) / (E0[1] - C0[1])
-    I22Value = LUT[C0] + alpha * (LUT[E0] - LUT[C0])
-
-    alpha = float(iP - I11[0]) / (I12[0] - I11[0])
-    I1Value = I11Value + alpha * (I12Value - I11Value)
-
-    alpha = float(iP - I21[0]) / (I22[0] - I21[0])
-    I2Value = I21Value + alpha * (I22Value - I21Value)
-
-    alpha = float(kP - I1[2]) / (I2[2] - I1[2])
-    IValue = I1Value + alpha * (I2Value - I1Value)
-
-    #print "ivalue", IValue, i,j,k
-    return IValue
-"""
-def lutNN(LUT, r,g,b):
-    """
-    Get the nearest neighbor vertex of a (r,g,b) value in 3D LUT.
-    :param LUT: 3D LUT array
-    :param r:
-    :param g:
-    :param b:
-    :return: 3-uple index of the NN vertex.
-    """
-
-    x = 0 if r % LUTSTEP < LUTSTEP / 2 else 1
-    y = 0 if g % LUTSTEP < LUTSTEP / 2 else 1
-    z = 0 if b % LUTSTEP < LUTSTEP / 2 else 1
-
-    NN = (r / LUTSTEP + x, g / LUTSTEP + y , b / LUTSTEP + z)
-
-    return NN
 
 if __name__=='__main__':
     # random ints in range 0 <= x < 256
@@ -781,118 +705,8 @@ if __name__=='__main__':
     if (d != 0.0).any():
         print "interpolation error"
 
-"""
-
-#define  Pr  .299
-#define  Pg  .587
-#define  Pb  .114
 
 
 
-//  public domain function by Darel Rex Finley, 2006
-//
-//  This function expects the passed-in values to be on a scale
-//  of 0 to 1, and uses that same scale for the return values.
-//
-//  See description/examples at alienryderflex.com/hsp.html
-
-void RGBtoHSP(
-double  R, double  G, double  B,
-double *H, double *S, double *P) {
-
-  //  Calculate the Perceived brightness.
-  *P=sqrt(R*R*Pr+G*G*Pg+B*B*Pb);
-
-  //  Calculate the Hue and Saturation.  (This part works
-  //  the same way as in the HSV/B and HSL systems???.)
-  if      (R==G && R==B) {
-    *H=0.; *S=0.; return; }
-  if      (R>=G && R>=B) {   //  R is largest
-    if    (B>=G) {
-      *H=6./6.-1./6.*(B-G)/(R-G); *S=1.-G/R; }
-    else         {
-      *H=0./6.+1./6.*(G-B)/(R-B); *S=1.-B/R; }}
-  else if (G>=R && G>=B) {   //  G is largest
-    if    (R>=B) {
-      *H=2./6.-1./6.*(R-B)/(G-B); *S=1.-B/G; }
-    else         {
-      *H=2./6.+1./6.*(B-R)/(G-R); *S=1.-R/G; }}
-  else                   {   //  B is largest
-    if    (G>=R) {
-      *H=4./6.-1./6.*(G-R)/(B-R); *S=1.-R/B; }
-    else         {
-      *H=4./6.+1./6.*(R-G)/(B-G); *S=1.-G/B; }}}
 
 
-
-//  public domain function by Darel Rex Finley, 2006
-//
-//  This function expects the passed-in values to be on a scale
-//  of 0 to 1, and uses that same scale for the return values.
-//
-//  Note that some combinations of HSP, even if in the scale
-//  0-1, may return RGB values that exceed a value of 1.  For
-//  example, if you pass in the HSP color 0,1,1, the result
-//  will be the RGB color 2.037,0,0.
-//
-//  See description/examples at alienryderflex.com/hsp.html
-
-void HSPtoRGB(
-double  H, double  S, double  P,
-double *R, double *G, double *B) {
-
-  double  part, minOverMax=1.-S ;
-
-  if (minOverMax>0.) {
-    if      ( H<1./6.) {   //  R>G>B
-      H= 6.*( H-0./6.); part=1.+H*(1./minOverMax-1.);
-      *B=P/sqrt(Pr/minOverMax/minOverMax+Pg*part*part+Pb);
-      *R=(*B)/minOverMax; *G=(*B)+H*((*R)-(*B)); }
-    else if ( H<2./6.) {   //  G>R>B
-      H= 6.*(-H+2./6.); part=1.+H*(1./minOverMax-1.);
-      *B=P/sqrt(Pg/minOverMax/minOverMax+Pr*part*part+Pb);
-      *G=(*B)/minOverMax; *R=(*B)+H*((*G)-(*B)); }
-    else if ( H<3./6.) {   //  G>B>R
-      H= 6.*( H-2./6.); part=1.+H*(1./minOverMax-1.);
-      *R=P/sqrt(Pg/minOverMax/minOverMax+Pb*part*part+Pr);
-      *G=(*R)/minOverMax; *B=(*R)+H*((*G)-(*R)); }
-    else if ( H<4./6.) {   //  B>G>R
-      H= 6.*(-H+4./6.); part=1.+H*(1./minOverMax-1.);
-      *R=P/sqrt(Pb/minOverMax/minOverMax+Pg*part*part+Pr);
-      *B=(*R)/minOverMax; *G=(*R)+H*((*B)-(*R)); }
-    else if ( H<5./6.) {   //  B>R>G
-      H= 6.*( H-4./6.); part=1.+H*(1./minOverMax-1.);
-      *G=P/sqrt(Pb/minOverMax/minOverMax+Pr*part*part+Pg);
-      *B=(*G)/minOverMax; *R=(*G)+H*((*B)-(*G)); }
-    else               {   //  R>B>G
-      H= 6.*(-H+6./6.); part=1.+H*(1./minOverMax-1.);
-      *G=P/sqrt(Pr/minOverMax/minOverMax+Pb*part*part+Pg);
-      *R=(*G)/minOverMax; *B=(*G)+H*((*R)-(*G)); }}
-  else {
-    if      ( H<1./6.) {   //  R>G>B
-      H= 6.*( H-0./6.); *R=sqrt(P*P/(Pr+Pg*H*H)); *G=(*R)*H; *B=0.; }
-    else if ( H<2./6.) {   //  G>R>B
-      H= 6.*(-H+2./6.); *G=sqrt(P*P/(Pg+Pr*H*H)); *R=(*G)*H; *B=0.; }
-    else if ( H<3./6.) {   //  G>B>R
-      H= 6.*( H-2./6.); *G=sqrt(P*P/(Pg+Pb*H*H)); *B=(*G)*H; *R=0.; }
-    else if ( H<4./6.) {   //  B>G>R
-      H= 6.*(-H+4./6.); *B=sqrt(P*P/(Pb+Pg*H*H)); *G=(*B)*H; *R=0.; }
-    else if ( H<5./6.) {   //  B>R>G
-      H= 6.*( H-4./6.); *B=sqrt(P*P/(Pb+Pr*H*H)); *R=(*B)*H; *G=0.; }
-    else               {   //  R>B>G
-      H= 6.*(-H+6./6.); *R=sqrt(P*P/(Pr+Pb*H*H)); *B=(*R)*H; *G=0.; }}}
-
-
-"""
-
-"""
- v = cv2.calcHist([image],     #list of images
-                    [0, 1, 2], # list of channels
-                    None,       # mask
-                    [8, 8, 8], # hist size for each channel
-                    [0, 256, 0, 256, 0, 256]) # bound values
-        v = v.flatten()
-        hist = v / sum(v)
-        histograms[fname] = hist
-
-"""

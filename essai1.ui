@@ -56,7 +56,7 @@
           <string>...</string>
          </property>
          <property name="icon">
-          <iconset resource="../CS4/resources.qrc">
+          <iconset resource="resources.qrc">
            <normaloff>:/images/resources/1472056618_cursor_drag_arrow_2.png</normaloff>:/images/resources/1472056618_cursor_drag_arrow_2.png</iconset>
          </property>
          <property name="checkable">
@@ -82,7 +82,7 @@
           <string>...</string>
          </property>
          <property name="icon">
-          <iconset resource="../CS4/resources.qrc">
+          <iconset resource="resources.qrc">
            <normaloff>:/images/resources/document-change-record-a-pen-to-write-text-icone-5220-48.png</normaloff>:/images/resources/document-change-record-a-pen-to-write-text-icone-5220-48.png</iconset>
          </property>
          <property name="checkable">
@@ -114,7 +114,7 @@
           <string>...</string>
          </property>
          <property name="icon">
-          <iconset resource="../CS4/resources.qrc">
+          <iconset resource="resources.qrc">
            <normaloff>:/images/resources/rectangle-icone-3783-48.png</normaloff>:/images/resources/rectangle-icone-3783-48.png</iconset>
          </property>
          <property name="checkable">
@@ -192,7 +192,7 @@
           <string>...</string>
          </property>
          <property name="icon">
-          <iconset resource="../CS4/resources.qrc">
+          <iconset resource="resources.qrc">
            <normaloff>:/images/resources/new-document-file-paper-pen-writing-icone-6977-48.png</normaloff>:/images/resources/new-document-file-paper-pen-writing-icone-6977-48.png</iconset>
          </property>
          <property name="checkable">
@@ -215,7 +215,7 @@
           <string>...</string>
          </property>
          <property name="icon">
-          <iconset resource="../CS4/resources.qrc">
+          <iconset resource="resources.qrc">
            <normaloff>:/images/resources/fgbg_small.jpg</normaloff>:/images/resources/fgbg_small.jpg</iconset>
          </property>
         </widget>
@@ -373,7 +373,9 @@
       <string>New adjustment layer</string>
      </property>
      <addaction name="actionBrightness_Contrast"/>
+     <addaction name="action3D_LUT_HSB"/>
      <addaction name="action3D_LUT"/>
+     <addaction name="action3D_LUT_Lab"/>
     </widget>
     <addaction name="menuNew_adjustment_layer"/>
    </widget>
@@ -463,7 +465,7 @@
   </action>
   <action name="action3D_LUT">
    <property name="text">
-    <string>3D LUT</string>
+    <string>3D LUT HSpB</string>
    </property>
   </action>
   <action name="actionColor_manage">
@@ -490,6 +492,16 @@
     <string>Ctrl+S</string>
    </property>
   </action>
+  <action name="action3D_LUT_HSB">
+   <property name="text">
+    <string>3D LUT HSB</string>
+   </property>
+  </action>
+  <action name="action3D_LUT_Lab">
+   <property name="text">
+    <string>3D LUT Lab</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
@@ -504,7 +516,7 @@
   </customwidget>
  </customwidgets>
  <resources>
-  <include location="../CS4/resources.qrc"/>
+  <include location="resources.qrc"/>
  </resources>
  <connections/>
 </ui>

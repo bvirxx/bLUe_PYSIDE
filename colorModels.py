@@ -19,10 +19,22 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>
 
 import numpy as np
 from MarkedImg import imImage
-from LUT3D import rgb2hsB, hsv2rgbVec,hsp2rgb,  hsp2rgbVec, lutNN
+from LUT3D import hsv2rgbVec,hsp2rgb, hsp2rgbVec, rgb2hsp, rgb2hspVec, hsv2rgb, \
+    rgb2hsB, rgb2hsBVec
 from math import floor
 from PyQt4.QtGui import QImage, QColor, QPainter, QBrush
 from imgconvert import QImageBuffer
+
+class cmConverter ( object):
+
+    def init(self):
+        self.cm2rgb, self.cm2rgbVec, rgb2cm, rgb2cmVec = None, None, None, None
+
+cmHSP = cmConverter()
+cmHSP.cm2rgb, cmHSP.cm2rgbVec, cmHSP.rgb2cm, cmHSP.rgb2cmVec = hsp2rgb, hsp2rgbVec, rgb2hsp, rgb2hspVec
+
+cmHSB = cmConverter()
+cmHSB.cm2rgb, cmHSB.cm2rgbVec, cmHSB.rgb2cm, cmHSB.rgb2cmVec = hsv2rgb, hsv2rgbVec, rgb2hsB, rgb2hsBVec
 
 class hueSatModel (imImage):
     """
@@ -34,19 +46,20 @@ class hueSatModel (imImage):
     pb = 0.45
 
     @classmethod
-    def colorWheel(cls, w, h, perceptualBrightness=pb, border=0.0):
+    def colorWheel(cls, w, h, cModel, perceptualBrightness=pb, border=0.0):
         """
         Build a hue, sat color chart imImage. All image pixels have the same
         (perceptual) brightness (default 0.45).
         :param w: image width
         :param h: image height
+        :param cModel: color model (cmConverter object)
         :param perceptualBrightness: brightness of image pixels
         :return: imImage
         """
         w+= 2*border
         h+= 2*border
         # uninitialized ARGB image
-        img = hueSatModel(w, h, perceptualBrightness=perceptualBrightness)
+        img = hueSatModel(w, h, cModel, perceptualBrightness=perceptualBrightness)
         img.border = border
         # image buffer (BGRA order) dtype=uint8
         imgBuf = QImageBuffer(img)
@@ -86,7 +99,7 @@ class hueSatModel (imImage):
         # range 0..360
         hue = hue - np.floor(hue / 360.0) * 360.0
         sat = np.linalg.norm(coord, axis=2 ,ord=2) / (cx - border)
-        sat = np.minimum(sat, 0.999)
+        sat = np.minimum(sat, 1.0)
 
         # fixed perceptual brightness
         pb = np.zeros(hue.shape) + perceptualBrightness
@@ -107,7 +120,9 @@ class hueSatModel (imImage):
         else:
             imgBuf[j, i] = 0 #np.clip(c, 0, 255)
         """
-        imgBuf[:,:,:] = hsp2rgbVec(img.hsArray)
+        #imgBuf[:,:,:] = ccm2rgbVec(img.hsArray)
+        imgBuf[:, :, :] = cModel.cm2rgbVec(img.hsArray)
+
         #As node colors are read from img,
         # image should not be mangled
         """
@@ -124,11 +139,12 @@ class hueSatModel (imImage):
         img.updatePixmap()
         return img
 
-    def __init__(self, w, h, picker = None, perceptualBrightness=pb):
+    def __init__(self, w, h, cModel, picker = None, perceptualBrightness=pb):
         img = QImage(w,h, QImage.Format_ARGB32)
         super(hueSatModel, self).__init__(QImg=img)
         self.pb = perceptualBrightness
         self.hsArray = None
+        self.cModel = cModel
 
     def setPb(self,pb):
         """
@@ -138,15 +154,16 @@ class hueSatModel (imImage):
         self.pb = pb
         self.hsArray[:,:,2] = pb
         imgBuf = QImageBuffer(self)[:,:,:3][:,:,::-1]
-        imgBuf[:,:,:] = hsp2rgbVec(self.hsArray)
+        #imgBuf[:,:,:] = ccm2rgbVec(self.hsArray)
+        imgBuf[:, :, :] = self.cModel.cm2rgbVec(self.hsArray)
         self.updatePixmap()
 
     def GetPoint(self, h, s):
         """
         convert hue, sat values to cartesian coordinates
         on the color wheel (origin top-left corner).
-        :param h:
-        :param s:
+        :param h: hue in range 0..1
+        :param s: saturation in range 0..1
         :return: cartesian coordinates
         """
         cx = self.width() / 2
@@ -194,9 +211,9 @@ class hueSatModel (imImage):
 class pbModel (imImage):
 
     @classmethod
-    def colorChart(cls, w, h, hue, sat):
+    def colorChart(cls, w, h, cModel, hue, sat):
 
-        img = pbModel(w, h)
+        img = pbModel(w, h, cModel)
         # image buffer (BGRA type)
         imgBuf = QImageBuffer(img)
         # set alpha
@@ -205,16 +222,17 @@ class pbModel (imImage):
         imgBuf=imgBuf[:,:,:3][:,:,::-1]
         wF = float(w)-1
         hsArray = np.array([[[hue, sat, i/wF] for i in range(w)] for j in range(h)])
-        imgBuf[:,:,:] = hsp2rgbVec(hsArray)
+        #imgBuf[:,:,:] = ccm2rgbVec(hsArray)
+        imgBuf[:, :, :] = cModel.cm2rgbVec(hsArray)
         # color manage
         img.meta.colorSpace = 1
         img.updatePixmap()
         return img
 
-    def __init__(self, w, h):
+    def __init__(self, w, h, cModel):
         img = QImage(w,h, QImage.Format_ARGB32)
         super(pbModel, self).__init__(QImg=img)
-
+        self.cModel = cModel
 
 
 """
