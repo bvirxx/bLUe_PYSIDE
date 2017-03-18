@@ -213,7 +213,7 @@ class mImage(vImage):
                 qpainter.drawPixmap(0, 0, layer.qPixmap)
         qpainter.end()
 
-    def addLayer(self, lay, name):
+    def addLayer(self, lay, name, index=None):
         # build a unique name
         usedNames = [l.name for l in self.layersStack]
         a = 1
@@ -223,7 +223,10 @@ class mImage(vImage):
             a = a+1
         lay.name = trialname
         self._layers[lay.name] = lay
-        self.layersStack.append(lay)
+        if index==None:
+            self.layersStack.append(lay)
+        else:
+            self.layersStack.insert(index, lay)
         lay.meta = self.meta
         #if lay.name != 'drawlayer':
             #lay.updatePixmap()
@@ -231,12 +234,18 @@ class mImage(vImage):
 
     def addAdjustmentLayer(self, name='', window=None):
         lay = QLayer(QImg=self.layersStack[-1])
-        lay.inputImg = QImage(self.layersStack[-1])
+        #lay.inputImg = QImage(self.layersStack[-1])
+        lay.inputImg = self.layersStack[-1]
         self.addLayer(lay, name)
         #lay.window = window
         lay.parent = self
         self.setModified(True)
         return lay
+
+    def dup(self, index):
+        lay =QLayer(QImg=self.layersStack[index])
+        self.addLayer(lay, self.layersStack[index].name, index=index+1)
+
 
     def cvtToGray(self):
         self.cv2Img = cv2.cvtColor(self.cv2Img, cv2.COLOR_BGR2GRAY)
