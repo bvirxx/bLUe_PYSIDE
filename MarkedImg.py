@@ -274,21 +274,16 @@ class imImage(mImage) :
     """
     def __init__(self, *args, **kwargs):
         super(imImage, self).__init__(*args, **kwargs)
+        # Zoom_coeff = 1.0 displays an image fitting the
+        # size of the current window ( NOT the actual pixels of the image).
         self.Zoom_coeff = 1.0
         self.xOffset, self.yOffset = 0, 0
-        #
         self.isMouseSelectable =True
-        #drawLayer = QLayer(QImage(self.width(), self.height(), QImage.Format_ARGB32))
-        #drawLayer.fill(QColor(0,0,0,0))
-        #self.addLayer(drawLayer, 'drawlayer')
 
     def resize_coeff(self, widget):
         """
-        computes the resizing coefficient
-        to be applied to mimg to display a non distorted view
-        in the widget.
-
-        :param mimg: mImage
+        return the current resizing coefficient. It is used by
+        the paint event handler to display the image
         :param widget: Qwidget object
         :return: the (multiplicative) resizing coefficient
         """
@@ -321,6 +316,10 @@ class imImage(mImage) :
 
     def setView(self, zoom=1.0, xOffset=0.0, yOffset=0.0):
         self.Zoom_coeff, self.xOffset, self.yOffset = zoom, xOffset, yOffset
+
+    def fit_window(self, win):
+        self.Zoom_coeff = 1.0
+        self.xOffset, self.yOffset = 0.0, 0.0
 
     def snapshot(self):
         snap = imImage(QImg=self, meta=self.meta)

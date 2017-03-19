@@ -176,9 +176,9 @@ def canny(img0, img1) :
    img1.__set_cv2Img(edges)
    window.label_2.repaint()
 
-# paintEvent painter
+# paintEvent painter and background color
 qp=QPainter()
-bgColor=QColor(100,100,100)
+defaultBgColor=QColor(191,191,191)
 
 def paintEvent(widg, e) :
     """
@@ -188,20 +188,16 @@ def paintEvent(widg, e) :
     :param e: paint event
     """
     if not hasattr(widg, 'img'):
-        raise ValueError("paintEvent : no image")
+        raise ValueError("paintEvent : no image defined")
     if widg.img is None:
-        raise ValueError("paintEvent : no image")
+        raise ValueError("paintEvent : no image set")
+    mimg = widg.img
+    r = mimg.resize_coeff(widg)
     qp.begin(widg)
-    #qp.translate(5, 5)
-    #qp.setClipRect(QRect(0,0, widg.width()-10, widg.height()-10))
-    #qp.setCompositionMode(qp.CompositionMode_DestinationIn)  # avoid alpha summation
-
-    mimg= widg.img
-    r=mimg.resize_coeff(widg)
     # pen for selection rectangle
     qp.setPen(QColor(0,255,0))
     # background
-    qp.fillRect(QRect(0, 0, widg.width() , widg.height() ), bgColor)
+    qp.fillRect(QRect(0, 0, widg.width() , widg.height() ), defaultBgColor)
     # draw layers
     for layer in mimg.layersStack :
         if layer.visible:
@@ -334,17 +330,30 @@ def mouseEvent(widget, event) :
     widget.repaint()
 
 def wheelEvent(widget,img, event):
+    """
+    Mouse wheel event handler for zooming
+    imImage objects.
+    :param widget: widget displaying image
+    :param img: imImage object to display
+    :param event: mouse wheel event (type QWheelEvent)
+    """
+    pos = event.pos()
+    # delta unit is 1/8 of degree
+    # Most mice have a resolution of 15 degrees
     numDegrees = event.delta() / 8
     numSteps = numDegrees / 150.0
-    img.Zoom_coeff += numSteps
+    r=img.Zoom_coeff
+    img.Zoom_coeff *= (1.0 + numSteps)
+    # correct image offset to keep unchanged the image point
+    # under the cursor : (pos - offset) / resize_coeff should be invariant
+    img.xOffset = -pos.x() * numSteps + (1.0+numSteps)*img.xOffset
+    img.yOffset = -pos.y() * numSteps + (1.0+numSteps)*img.yOffset
     widget.repaint()
-
 
 def set_event_handler(widg):
     """
-    Pythonic way for redefining event handlers. In contrast to
-    subclassing and overriding, we can add convenient parameters to
-    our handlers.
+    Pythonic way for redefining event handlers, without
+    subclassing or overridding.
     :param widg:
     """
     widg.paintEvent = lambda e, wdg=widg : paintEvent(wdg,e)
@@ -353,18 +362,12 @@ def set_event_handler(widg):
     widg.mouseReleaseEvent = lambda e, wdg=widg : mouseEvent(wdg, e)
     widg.wheelEvent = lambda e, wdg=widg : wheelEvent(wdg, wdg.img, e)
 
-
-def button_change(widg):
-    P_SIZE = 4000000
-    if str(widg.accessibleName()) == "Apply" :
-        print "grabcut"
+def button_change(button):
+    if str(button.accessibleName()) == "Fit_Screen" :
+        window.label.img.fit_window(window.label)
+        window.label.repaint()
         #do_grabcut(Mimg_p, mode=cv2.GC_INIT_WITH_MASK, again=(rect_or_mask==0))
-        window.label_2.img=do_grabcut(window.label.img, mode=cv2.GC_INIT_WITH_MASK, again=(rect_or_mask==0))
-    elif str(widg.accessibleName()) == "Preview" :
-        print "grabcut preview"
-        window.label_2.img = do_grabcut(window.label.img, preview=P_SIZE, mode=cv2.GC_INIT_WITH_MASK, again=(rect_or_mask==0))
-    print "done"
-    window.label_2.repaint()
+        #window.label_2.img=do_grabcut(window.label.img, mode=cv2.GC_INIT_WITH_MASK, again=(rect_or_mask==0))
 
 def contextMenu(widget):
 
@@ -500,7 +503,7 @@ def menuWindow(x, name):
         else:
             window.label_2.hide()
     elif name == 'actionDiaporama':
-        handleNewWindow(window)
+        handleNewWindow(imImg=window.label.img, title='Diaporama', show_maximized=True, parent=window)
 
 def menuImage(x, name) :
 
@@ -581,23 +584,40 @@ def menuLayer(x, name):
         grWindow.graphicsScene.onUpdateLUT = lambda options={} : l.apply3DLUT(grWindow.graphicsScene.LUT3D, widget=window.label, options=options)
         window.label.repaint()
 
-def handleNewWindow(parent=None, title='New window', set_event_handler=True):
+def handleNewWindow(imImg=None, parent=None, title='New window', show_maximized=False, event_handler=True):
+    """
+    Show a floating window with a QLabel object. It can be used
+    to display text or iamge. If the parameter event_handler is True (default)
+    the QLabel object redefines its handlers for paint and mouse events to display
+    the imImage object label.img
+    :param parent:
+    :param title:
+    :param event_handler:
+    """
 
     newwindow = QMainWindow(parent)
     newwindow.setAttribute(Qt.WA_DeleteOnClose)
     newwindow.setWindowTitle(parent.tr(title))
-    label_3=QLabel()
-    newwindow.setCentralWidget(label_3)
-    label_3.img = window.label.img
-    label_3.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding);
-    if set_event_handler:
-        set_event_handler(label_3)
-    newwindow.show()
-    return newwindow, label_3
+    label=QLabel()
+    newwindow.setCentralWidget(label)
+    # The attribute img is used by event handlers
+    label.img = imImg
+    label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+    if event_handler:
+        set_event_handler(label)
+    if show_maximized:
+        newwindow.showMaximized()
+    else:
+        newwindow.show()
+    return newwindow, label
 
 def handleTextWindow(parent=None, title=''):
-
-    w, label = handleNewWindow(parent=parent, title=title, set_event_handler=False)
+    """
+    Display a floating modal text window
+    :param parent:
+    :param title:
+    """
+    w, label = handleNewWindow(parent=parent, title=title, event_handler=False)
     w.setFixedSize(500,500)
     #label.setStyleSheet("QLabel { background-color: blue }")
     label.setAlignment(Qt.AlignTop)

@@ -43,8 +43,10 @@ class Form1(QtGui.QMainWindow):
         self.onExecMenuLayer = lambda: 0
         self.onUpdateMenuAssignProfile = lambda : 0
 
+        # dictionaries for button states.
         self.slidersValues = {}
         self.btnValues = {}
+
         self._recentFiles = []
 
         # event connections to SLOTS
@@ -56,9 +58,9 @@ class Form1(QtGui.QMainWindow):
             self.slidersValues [str(slider.accessibleName())] = slider.value()
 
         for button in self.findChildren(QtGui.QPushButton) :
-            segment = button.objectName()
+            #segment = button.objectName()
             button.pressed.connect(
-                            lambda button=button : self.handleButtonClicked(button)
+                            lambda button=button : self.handlePushButtonClicked(button)
                             )
             self.btnValues[str(button.accessibleName())] = button.isChecked()
 
@@ -66,7 +68,7 @@ class Form1(QtGui.QMainWindow):
             #segment = button.objectName()
             #button.setStyleSheet("QToolButton#DCButton:checked {color:black; background-color: green;}")
             button.pressed.connect(
-                            lambda button=button : self.handleButtonClicked(button)
+                            lambda button=button : self.handleToolButtonClicked(button)
                             )
             self.btnValues[str(button.accessibleName())] = button.isChecked()
 
@@ -111,13 +113,16 @@ class Form1(QtGui.QMainWindow):
     def showContextMenu(self, pos, widget):
         self.onShowContextMenu(widget)
 
-    def handleButtonClicked(self, button):   # connected to button.pressed
+    def handlePushButtonClicked(self, button):
+        self.onWidgetChange(button)
+
+    def handleToolButtonClicked(self, button):   # connected to button.pressed signal
         for k in self.btnValues :
             self.btnValues[k]=0
         self.btnValues[str(button.accessibleName())] = 1
         self.onWidgetChange(button)
 
-    def handleSliderMoved (self, value, slider) :   # connected to slider.valueChanged
+    def handleSliderMoved (self, value, slider) :   # connected to slider.valueChanged signal
         self.slidersValues[str(slider.accessibleName())] = value
         self.onWidgetChange(slider)
 

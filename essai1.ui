@@ -23,7 +23,7 @@
    <layout class="QVBoxLayout" name="verticalLayout">
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout_2">
-      <item alignment="Qt::AlignLeft">
+      <item>
        <widget class="QGroupBox" name="groupbox_btn">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
@@ -202,7 +202,7 @@
           <bool>true</bool>
          </property>
         </widget>
-        <widget class="myButton" name="toolButton_3">
+        <widget class="QToolButton" name="toolButton_3">
          <property name="geometry">
           <rect>
            <x>10</x>
@@ -212,11 +212,28 @@
           </rect>
          </property>
          <property name="text">
-          <string>...</string>
+          <string>fit
+scr</string>
          </property>
-         <property name="icon">
-          <iconset resource="resources.qrc">
-           <normaloff>:/images/resources/fgbg_small.jpg</normaloff>:/images/resources/fgbg_small.jpg</iconset>
+         <property name="checkable">
+          <bool>false</bool>
+         </property>
+        </widget>
+        <widget class="QPushButton" name="pushButton">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>370</y>
+           <width>41</width>
+           <height>41</height>
+          </rect>
+         </property>
+         <property name="accessibleName">
+          <string>Fit_Screen</string>
+         </property>
+         <property name="text">
+          <string>fit
+scr</string>
          </property>
         </widget>
        </widget>
@@ -271,22 +288,6 @@
        <string/>
       </property>
       <layout class="QHBoxLayout" name="horizontalLayout">
-       <item>
-        <widget class="QPushButton" name="pushButton">
-         <property name="minimumSize">
-          <size>
-           <width>93</width>
-           <height>28</height>
-          </size>
-         </property>
-         <property name="accessibleName">
-          <string>Apply</string>
-         </property>
-         <property name="text">
-          <string>Apply</string>
-         </property>
-        </widget>
-       </item>
        <item>
         <widget class="QPushButton" name="pushButton_2">
          <property name="minimumSize">
@@ -504,11 +505,6 @@
   </action>
  </widget>
  <customwidgets>
-  <customwidget>
-   <class>myButton</class>
-   <extends>QToolButton</extends>
-   <header>QtButton1</header>
-  </customwidget>
   <customwidget>
    <class>QLayerView</class>
    <extends>QTableView</extends>
