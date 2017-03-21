@@ -1,7 +1,18 @@
 """
 Copyright (C) 2017  Bernard Virot
 
-PeLUT - Photo editing software using adjustment layers with 1D and 3D Look Up Tables.
+bLUe - Photo editing software.
+
+With Blue you can enhance and correct the colors of your photos in a few clicks.
+No need for complex tools such as lasso, magic wand or masks.
+bLUe interactively constructs 3D LUTs (Look Up Tables), adjusting the exact set
+of colors you want.
+
+3D LUTs are widely used by professional film makers, but the lack of
+interactive tools maked them poorly useful for photo enhancement, as the shooting conditions
+can vary widely from an image to another. With bLUe, in a few clicks, you select the set of
+colors to modify, the corresponding 3D LUT is automatically built and applied to the image.
+You can then fine tune it as you want.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -26,24 +37,17 @@ from imgconvert import QImageBuffer, PilImageToQImage, QImageToPilImage
 from StringIO import StringIO
 from os import path
 #help(PIL.ImageCms)
-
+from settings import ADOBE_RGB_PROFILE_PATH, SRGB_PROFILE_PATH
 # global flag
 COLOR_MANAGE = True
 
-###########################
-# Paths to installed profiles
-ADOBE_RGB_PROFILE_PATH = "C:\Windows\System32\spool\drivers\color\AdobeRGB1998.icc"
-SRGB_PROFILE_PATH = "C:\Windows\System32\spool\drivers\color\sRGB Color Space Profile.icm"
-MONITOR_PROFILE_PATH = "C:\Windows\System32\spool\drivers\color\CS240(34381075)00000002.icc"  #photography CS240 calibration
-#############################
+
 
 monitorProfile = get_display_profile()
-MONITOR_PROFILE_INFO = getProfileInfo(monitorProfile)
-monitorProfile.info = MONITOR_PROFILE_INFO
-workingProfile = getOpenProfile(SRGB_PROFILE_PATH)
-WORKING_PROFILE_INFO = getProfileInfo(workingProfile)
-workingProfile.info = WORKING_PROFILE_INFO
+monitorProfile.info = getProfileInfo(monitorProfile)
 
+workingProfile = getOpenProfile(SRGB_PROFILE_PATH)
+workingProfile.info = getProfileInfo(workingProfile)
 
 # ICC transform (type : Cms transform object)
 workToMonTransform = buildTransformFromOpenProfiles(workingProfile, monitorProfile, "RGB", "RGB")

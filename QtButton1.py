@@ -4,6 +4,7 @@ from PyQt4.QtGui import QToolButton
 """
 override mouse event handlers.
 ev type is QMouseEvent
+unused in project CS4
 """
 class myButton(QToolButton):
     sig = pyqtSignal(QPoint)

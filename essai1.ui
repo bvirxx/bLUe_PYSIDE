@@ -482,7 +482,7 @@ scr</string>
   </action>
   <action name="actionWorking_profile">
    <property name="text">
-    <string>Working profile</string>
+    <string>profile infos</string>
    </property>
   </action>
   <action name="actionSnap">

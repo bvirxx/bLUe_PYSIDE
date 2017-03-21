@@ -1,7 +1,18 @@
 """
 Copyright (C) 2017  Bernard Virot
 
-PeLUT - Photo editing software using adjustment layers with 1D and 3D Look Up Tables.
+bLUe - Photo editing software.
+
+With Blue you can enhance and correct the colors of your photos in a few clicks.
+No need for complex tools such as lasso, magic wand or masks.
+bLUe interactively constructs 3D LUTs (Look Up Tables), adjusting the exact set
+of colors you want.
+
+3D LUTs are widely used by professional film makers, but the lack of
+interactive tools maked them poorly useful for photo enhancement, as the shooting conditions
+can vary widely from an image to another. With bLUe, in a few clicks, you select the set of
+colors to modify, the corresponding 3D LUT is automatically built and applied to the image.
+You can then fine tune it as you want.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -525,7 +536,7 @@ def menuImage(x, name) :
             s = s +"\n\nEmbedded profile found, length %d" % len(img.meta.profile)
         # raw meta data
         l = img.meta.rawMetadata
-        s = s + "\n\nMETADATA :\n"
+        s = s + "\nMETADATA :\n"
         for d in l:
             s = s + '\n'.join('%s : %s' % (k,v) for k, v in d.iteritems())
         w, label = handleTextWindow(parent=window, title='Image info')
@@ -536,8 +547,14 @@ def menuImage(x, name) :
         img.updatePixmap()
         window.label_2.img.updatePixmap()
     elif name == 'actionWorking_profile':
-        w, label = handleTextWindow(parent=window, title='Working profile info')
-        label.setText(QString(icc.WORKING_PROFILE_INFO))
+        w, label = handleTextWindow(parent=window, title='profile info')
+        s = 'Working profile\n' + icc.workingProfile.info
+        s = s + '-------------\n' + 'Monitor profile\n'+ icc.monitorProfile.info
+        s = s + '\nNote : The working profile is the color profile currently associated\n with the opened image.'
+        s = s + '\nThe monitor profile is associated with your monitor'
+        s = s + '\nBoth profles are used in conjunction to display exact colors'
+        s = s + '\n\nIf the monitor profile listed above is not the right profile\nfor your monitor, check the system settings for color management'
+        label.setText(QString(s))
     elif name == 'actionSnap':
         snap = img.snapshot()
         snap.setView(*window.label_2.img.view())

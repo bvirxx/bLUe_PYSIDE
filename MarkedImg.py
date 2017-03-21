@@ -1,7 +1,18 @@
 """
 Copyright (C) 2017  Bernard Virot
 
-PeLUT - Photo editing software using adjustment layers with 1D and 3D Look Up Tables.
+bLUe - Photo editing software.
+
+With Blue you can enhance and correct the colors of your photos in a few clicks.
+No need for complex tools such as lasso, magic wand or masks.
+bLUe interactively constructs 3D LUTs (Look Up Tables), adjusting the exact set
+of colors you want.
+
+3D LUTs are widely used by professional film makers, but the lack of
+interactive tools maked them poorly useful for photo enhancement, as the shooting conditions
+can vary widely from an image to another. With bLUe, in a few clicks, you select the set of
+colors to modify, the corresponding 3D LUT is automatically built and applied to the image.
+You can then fine tune it as you want.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -22,7 +33,7 @@ import cv2
 from imgconvert import *
 from PyQt4.QtGui import QPixmap, QImage, QColor, QPainter, QMessageBox
 from PyQt4.QtCore import QRect, QByteArray
-from icc import convertQImage, MONITOR_PROFILE_PATH, COLOR_MANAGE
+from icc import convertQImage, COLOR_MANAGE
 from LUT3D import interpVec
 from time import time
 import re

@@ -1,7 +1,18 @@
 """
 Copyright (C) 2017  Bernard Virot
 
-PeLUT - Photo editing software using adjustment layers with 1D and 3D Look Up Tables.
+bLUe - Photo editing software.
+
+With Blue you can enhance and correct the colors of your photos in a few clicks.
+No need for complex tools such as lasso, magic wand or masks.
+bLUe interactively constructs 3D LUTs (Look Up Tables), adjusting the exact set
+of colors you want.
+
+3D LUTs are widely used by professional film makers, but the lack of
+interactive tools maked them poorly useful for photo enhancement, as the shooting conditions
+can vary widely from an image to another. With bLUe, in a few clicks, you select the set of
+colors to modify, the corresponding 3D LUT is automatically built and applied to the image.
+You can then fine tune it as you want.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -16,17 +27,14 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>
 """
+# the code of the class ExifTool was taken from the Stackoverflow answer http://stackoverflow.com/questions/10075115/call-exiftool-from-a-python-script
+# We gratefully acknoledge the contribution of the author.
 
 import subprocess
 import os
 import json
 from PyQt4.QtGui import QTransform, QMessageBox
-
-####################################################
-# exiftool path
-#EXIFTOOL_PATH = "H:\standalone\exiftool\exiftool(-k)"
-EXIFTOOL_PATH = "C:\standalone\exiftool\exiftool(-k)"
-#####################################################
+from settings import EXIFTOOL_PATH
 
 class ExifTool(object):
     """
@@ -55,7 +63,7 @@ class ExifTool(object):
                                        )
         except OSError:
             msg = QMessageBox()
-            msg.setText("cannot execute exiftool :\nset EXIFTOOL_PATH in file exiftool.py")
+            msg.setText("cannot execute exiftool :\nset EXIFTOOL_PATH in file settings.py")
             msg.exec_()
             exit()
         return self
