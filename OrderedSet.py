@@ -1,3 +1,5 @@
+# unused in project
+
 """ Creates an ordered set from a list of tuples or other hashable items """
 
 def list2OrderedSet(alist):

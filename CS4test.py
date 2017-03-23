@@ -1,3 +1,5 @@
+# unused in project
+
 from win32com.client import Dispatch, VARIANT
 from pythoncom import VT_VARIANT
 import collections

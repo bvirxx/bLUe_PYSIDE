@@ -28,14 +28,11 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>
 """
 
-
+from settings import *
 import sys
-import cv2
 from PyQt4.QtCore import Qt, QRect, QEvent, QDir, QSettings, QSize, QString
 from PyQt4.QtGui import QWidget, QSplitter, QPixmap, QImage, QAbstractItemView, QColor,QPainter, QApplication, QMenu, QAction, QCursor, QFileDialog, QMessageBox, QColorDialog, QMainWindow, QLabel, QDockWidget, QHBoxLayout, QSizePolicy
 from QtGui1 import app, window
-import PyQt4.Qwt5 as Qwt
-import time
 import exiftool
 from imgconvert import *
 from MarkedImg import mImage, imImage, QLayer
@@ -43,11 +40,9 @@ from MarkedImg import mImage, imImage, QLayer
 from graphicsLUT import graphicsForm
 from graphicsLUT3D import graphicsForm3DLUT
 from LUT3D import LUTSIZE
-from math import floor
 from colorModels import hueSatModel, cmHSP, cmHSB
 import icc
 from os import path
-
 
 CONST_FG_COLOR = QColor(255, 255, 255,128)
 CONST_BG_COLOR = QColor(255, 0, 255,128)
@@ -58,134 +53,10 @@ State = {'drag' : False, 'drawing' : False , 'tool_rect' : False, 'rect_over' : 
 Wins = {'3D_LUT': None, 'Brightness-Contrast':None}
 rect_or_mask = 0
 
-def QRect2tuple(qrect):
-    return (qrect.left(), qrect.top(), qrect.right()-qrect.left(), qrect.bottom()-qrect.top())
-
-def waitBtnEvent():
-    global btn_pressed
-    btn_pressed=False
-    while not btn_pressed:
-        time.sleep(0.1)
-        print 'waiting'
-    btn_pressed = False
-
 
 mask=None
 mask_s=None
 
-def do_grabcut(img0, preview=-1, nb_iter=1, mode=cv2.GC_INIT_WITH_RECT, again=False):
-    """
-    segment source MImage instance.
-
-    :param img0: source Mimage, unmodified.
-    :param preview:
-    :param nb_iter:
-    :param mode
-    :return:
-    """
-    #img0.rect = QRect(500, 400, Mimg.width() - 2000, Mimg.height() - 1000)
-
-    print '********* do_grabCut call'
-    mask_s = State['rawMask']
-    global rect_or_mask
-
-    #if preview>0:
-        #img0_r=img0.resize(preview)
-    #else:
-    img0_r=img0
-
-    # set rect mask
-    rectMask = np.zeros((img0_r.height(), img0_r.width()), dtype=np.uint8)
-    rectMask[img0_r.rect.top():img0_r.rect.bottom(), img0_r.rect.left():img0_r.rect.right()] = cv2.GC_PR_FGD
-
-    if not again:
-        #get painted values in BGRA order
-        paintedMask = QImageBuffer(img0_r._layers['drawlayer'])
-
-        paintedMask[paintedMask==255]=cv2.GC_FGD
-        paintedMask[paintedMask==0]=cv2.GC_BGD
-
-        np.copyto(rectMask, paintedMask[:,:,1], where=(paintedMask[:,:,3]>0)) # copy  painted (A > 0) pixels (G value only)
-
-        if mask_s is not None:
-            np.copyto(rectMask, mask_s, where=(np.logical_and((mask_s==0),(paintedMask[:,:,0]==0))))
-
-        mask_s=rectMask
-        rect_or_mask=0
-    else:
-        if mask_s is None:
-            mask_s=rectMask
-            print "None mask"
-        else:
-            print "reuse mask"
-
-    bgdmodel = np.zeros((1, 13 * 5), np.float64)  # Temporary array for the background model
-    fgdmodel = np.zeros((1, 13 * 5), np.float64)  # Temporary array for the foreground model
-
-    t0 = time.time()
-    if preview >0:
-        img0_r=img0_r.resize(preview)
-        mask_s=cv2.resize(mask_s, (img0_r.width(), img0_r.height()), interpolation=cv2.INTER_NEAREST)
-        #a=img0_r.cv2Img()
-    #cv2.grabCut_mtd(img0_r.cv2Img()[:,:,:3],
-    cv2.grabCut_mtd(img0_r.cv2Img()[:, :, :3],
-                mask_s,
-                None,#QRect2tuple(img0_r.rect),
-                bgdmodel, fgdmodel,
-                nb_iter,
-                mode)
-    print 'grabcut_mtd time :', time.time()-t0
-
-    img0_r = img0
-    if preview >0:
-        mask_s=cv2.resize(mask_s, (img0.width(), img0.height()), interpolation=cv2.INTER_NEAREST)
-
-    State['rawMask'] = mask_s
-    # apply mask
-    current_mask = mask_s
-
-    mask_s = np.where((current_mask == cv2.GC_FGD) + (current_mask == cv2.GC_PR_FGD), 1, 0)
-    mask_s1 = np.where((current_mask == cv2.GC_FGD) + (current_mask == cv2.GC_PR_FGD), 1, 0.4)
-
-    tmp = np.copy(img0_r.cv2Img())
-
-    tmp[:, :, 3] = tmp[:, :, 3] * mask_s1 # cast float to uint8
-
-    img1= imImage(cv2Img=tmp, cv2mask=current_mask)
-    #display
-    #window.label_2.repaint()
-
-    b=np.zeros((img0_r.height(), img0_r.width()), dtype=np.uint8)
-    c=np.zeros((img0_r.height(), img0_r.width()), dtype=np.uint8)
-    b[:,:]=255
-    alpha = ((1 - mask_s) * 255).astype('uint8')
-    #cv2mask = cv2.resize(np.dstack((b, c, c, alpha)), (img0.qImg.width(), img0.qImg.height()), interpolation=cv2.INTER_NEAREST)
-    cv2mask = np.dstack((c, c, b, alpha))
-    img0._layers['masklayer']=QLayer(QImg=ndarrayToQImage(cv2mask))
-    #img0.drawLayer=mImage(QImg=ndarrayToQImage(cv2mask))
-    #img1=imImage(cv2Img=cv2.inpaint(img1.cv2Img[:,:,:3], mask_s, 20, cv2.INPAINT_NS), format=QImage.Format_RGB888)
-    return img1
-
-def canny(img0, img1) :
-   low = window.slidersValues['low']
-   high = window.slidersValues['high']
-
-   l= [k[-1] for k in window.btnValues if window.btnValues[k] == 1]
-   if l :
-       aperture = int(l[0])
-   else :
-       aperture =3
-
-   print 'Canny edges', 'low=%d, high=%d aperture=%d' % (low, high, aperture)
-
-   edges = cv2.Canny(img0.cv2Img, low, high, L2gradient=True, apertureSize=aperture) #values 3,5,7
-
-   contours= cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-   edges[:]=0
-   print len(contours)
-   cv2.drawContours(edges, contours[0], -1, 255, 2)
-   img1.__set_cv2Img(edges)
-   window.label_2.repaint()
 
 # paintEvent painter and background color
 qp=QPainter()
@@ -222,8 +93,8 @@ def paintEvent(widg, e) :
                               layer  # layer.qPixmap
                               )
     # draw selection rectangle
-    if (mimg.activeLayer.visible) and (mimg.activeLayer.rect is not None ):
-        rct = mimg.activeLayer.rect
+    if (mimg.getActiveLayer().visible) and (mimg.getActiveLayer().rect is not None ):
+        rct = mimg.getActiveLayer().rect
         qp.drawRect(rct.left()*r + mimg.xOffset, rct.top()*r +mimg.yOffset, rct.width()*r, rct.height()*r)
     #if mimg.mask is not None :
         #qp.drawImage(QRect(mimg.xOffset, mimg.yOffset, mimg.width * r-10, mimg.height * r  -10), mimg.mask)
@@ -277,12 +148,12 @@ def mouseEvent(widget, event) :
             # button pressed
             if img.isMouseSelectable:
                 if window.btnValues['rectangle']:
-                    img.activeLayer.rect = QRect(min(State['ix_begin'], x)/r -img.xOffset/r, min(State['iy_begin'], y)/r - img.yOffset/r, abs(State['ix_begin'] - x)/r, abs(State['iy_begin'] - y)/r)
+                    img.getActiveLayer().rect = QRect(min(State['ix_begin'], x)/r -img.xOffset/r, min(State['iy_begin'], y)/r - img.yOffset/r, abs(State['ix_begin'] - x)/r, abs(State['iy_begin'] - y)/r)
                     rect_or_mask = 0
                 elif (window.btnValues['drawFG'] or window.btnValues['drawBG']):
                     color= CONST_FG_COLOR if window.btnValues['drawFG'] else CONST_BG_COLOR
                     #qp.begin(img._layers['drawlayer'])
-                    qp.begin(img.activeLayer)
+                    qp.begin(img.getActiveLayer())
                     qp.setPen(color)
                     qp.setBrush(color)
                     # avoid alpha summation
@@ -307,17 +178,17 @@ def mouseEvent(widget, event) :
                 # select grid node
                 # Note : for multilayered images we read pixel color from  the background layer
                 c = QColor(img.pixel(State['ix'] / r -  img.xOffset/r, State['iy'] / r - img.yOffset/r))
-                cM = QColor(img.activeLayer.pixel(State['ix'] / r - img.xOffset / r, State['iy'] / r - img.yOffset / r))
+                cM = QColor(img.getActiveLayer().pixel(State['ix'] / r - img.xOffset / r, State['iy'] / r - img.yOffset / r))
                 red, green, blue = c.red(), c.green(), c.blue()
                 rM,gM,bM= cM.red(), cM.green(), cM.blue()
-                if hasattr(img.activeLayer, "adjustView") and img.activeLayer.adjustView is not None:
-                    if hasattr(img.activeLayer.adjustView.widget(), 'selectGridNode'):
+                if hasattr(img.getActiveLayer(), "adjustView") and img.getActiveLayer().adjustView is not None:
+                    if hasattr(img.getActiveLayer().adjustView.widget(), 'selectGridNode'):
                         mode = 'add' if modifier == Qt.ControlModifier else ''
-                        img.activeLayer.adjustView.widget().selectGridNode(red, green, blue, rM,gM,bM, mode=mode)
+                        img.getActiveLayer().adjustView.widget().selectGridNode(red, green, blue, rM,gM,bM, mode=mode)
                 window.label.repaint()
             if window.btnValues['rectangle'] and img.isMouseSelectable:
 
-                img.activeLayer.rect = QRect(min(State['ix_begin'], x)/r-img.xOffset/r, min(State['iy_begin'], y)/r- img.yOffset/r, abs(State['ix_begin'] - x)/r, abs(State['iy_begin'] - y)/r)
+                img.getActiveLayer().rect = QRect(min(State['ix_begin'], x)/r-img.xOffset/r, min(State['iy_begin'], y)/r- img.yOffset/r, abs(State['ix_begin'] - x)/r, abs(State['iy_begin'] - y)/r)
                 rect_or_mask = 0 #init_with_rect
 
                 rect_or_mask=1 # init with mask
@@ -565,7 +436,7 @@ def menuImage(x, name) :
 
 def menuLayer(x, name):
 
-    if name == 'actionBrightness_Contrast' :
+    if name == 'actionBrightness_Contrast':
         grWindow=graphicsForm.getNewWindow()
         Wins['Brightness-Contrast'] = grWindow
         grWindow.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored);
@@ -579,7 +450,7 @@ def menuLayer(x, name):
         l.inputImg = window.label.img
         l.applyLUT(grWindow.graphicsScene.LUTXY, widget=window.label)
 
-        window.label.img.addLayer(l, 'Brightness/Contrast')
+        window.label.img.addLayer(l, name='Brightness/Contrast')
         window.tableView.addLayers(window.label.img)
         grWindow.graphicsScene.onUpdateLUT = lambda options={} : l.applyLUT(grWindow.graphicsScene.LUTXY, widget=window.label, options=options)
         window.label.repaint()
@@ -588,7 +459,8 @@ def menuLayer(x, name):
         name = '3D LUT HSpB' if name == 'action3D_LUT' else '3D LUT HSB'
         l = window.label.img.addAdjustmentLayer(name=name)
         window.tableView.addLayers(window.label.img)
-        grWindow = graphicsForm3DLUT.getNewWindow(ccm, size=800, targetImage=window.label.img, LUTSize=LUTSIZE, layer= l, parent=window)
+        grWindow = graphicsForm3DLUT.getNewWindow(ccm, size=800, targetImage=window.label.img, LUTSize=LUTSIZE, layer=l, parent=window)
+        #window.tableView.selectRow(len(window.label.img.layersStack) - 1 - window.label.img.activeLayerIndex)
         Wins[l.name] = grWindow
         dock = QDockWidget(window)
         # link to colorwheel
@@ -600,6 +472,8 @@ def menuLayer(x, name):
         #window.addDockWidget(Qt.RightDockWidgetArea, dock)
         grWindow.graphicsScene.onUpdateLUT = lambda options={} : l.apply3DLUT(grWindow.graphicsScene.LUT3D, widget=window.label, options=options)
         window.label.repaint()
+    elif name == 'actionNew_segmentation_layer':
+        window.label.img.addSegmentationLayer(name='Segmentation')
 
 def handleNewWindow(imImg=None, parent=None, title='New window', show_maximized=False, event_handler=True):
     """

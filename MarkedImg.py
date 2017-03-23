@@ -27,8 +27,11 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>
 """
+from PyQt4.QtCore import QObject
+from PyQt4.QtCore import Qt
+from PyQt4.QtCore import pyqtSignal
 
-
+from settings import *
 import cv2
 from imgconvert import *
 from PyQt4.QtGui import QPixmap, QImage, QColor, QPainter, QMessageBox
@@ -136,7 +139,6 @@ class vImage(QImage):
         hom = w / float(self.width())
         # resizing
         cv2Img = cv2.resize(QImageBuffer(self), (w, h), interpolation=interpolation)
-        # creating new vImage
         rszd = vImage(cv2Img=cv2Img, meta=copy(self.meta), format=self.format())
 
         #resize rect and mask
@@ -198,6 +200,7 @@ class mImage(vImage):
     layer. All layers share the same metadata object. To correctly render a
     mImage, widgets must override their paint event handler.
     """
+
     def __init__(self, *args, **kwargs):
         # as updatePixmap uses layersStack, must be before super __init__
         self._layers = {}
@@ -205,9 +208,17 @@ class mImage(vImage):
         super(mImage, self).__init__(*args, **kwargs)
         # add background layer
         bgLayer = QLayer.fromImage(self)
-        self.addLayer(bgLayer, 'background')
         self.setModified(False)
-        self.activeLayer = bgLayer
+        self.addLayer(bgLayer, name='background')
+        self.activeLayerIndex = 0
+
+    def getActiveLayer(self):
+        return self.layersStack[self.activeLayerIndex]
+
+    def setActiveLayer(self, value, signaling=True):
+        self.activeLayerIndex = value
+        if hasattr(self, 'layerView'):
+            self.layerView.selectRow(len(self.layersStack) - 1 - value)
 
     def updatePixmap(self):
         """
@@ -224,7 +235,7 @@ class mImage(vImage):
                 qpainter.drawPixmap(0, 0, layer.qPixmap)
         qpainter.end()
 
-    def addLayer(self, lay, name, index=None):
+    def addLayer(self, layer, name='', index=None):
         # build a unique name
         usedNames = [l.name for l in self.layersStack]
         a = 1
@@ -232,35 +243,40 @@ class mImage(vImage):
         while trialname in usedNames:
             trialname = name + '_'+ str(a)
             a = a+1
-        lay.name = trialname
-        self._layers[lay.name] = lay
+        layer.name = trialname
+        self._layers[layer.name] = layer
         if index==None:
-            self.layersStack.append(lay)
+            self.layersStack.append(layer)
+            self.setActiveLayer(len(self.layersStack) - 1)
         else:
-            self.layersStack.insert(index, lay)
-        lay.meta = self.meta
+            self.layersStack.insert(index, layer)
+            self.setActiveLayer(index)
+        layer.meta = self.meta
         #if lay.name != 'drawlayer':
             #lay.updatePixmap()
         self.setModified(True)
 
-    def addAdjustmentLayer(self, name='', window=None):
-        lay = QLayer(QImg=self.layersStack[-1])
-        #lay.inputImg = QImage(self.layersStack[-1])
-        lay.inputImg = self.layersStack[-1]
-        self.addLayer(lay, name)
-        #lay.window = window
-        lay.parent = self
+    def addAdjustmentLayer(self, name='', index=None):
+        if index == None:
+            #index = len(self.layersStack) - 1
+            index = self.activeLayerIndex
+        layer = QLayer(QImg=self.layersStack[index])
+        layer.inputImg = self.layersStack[index]
+        self.addLayer(layer, name=name, index=index + 1)
+        layer.parent = self
         self.setModified(True)
-        return lay
+        return layer
 
-    def dup(self, index):
-        lay =QLayer(QImg=self.layersStack[index])
-        self.addLayer(lay, self.layersStack[index].name, index=index+1)
+    def addSegmentationLayer(self, name='', index=None):
+        if index == None:
+            #index = len(self.layersStack) - 1
+            index = self.activeLayer
 
-
-    def cvtToGray(self):
-        self.cv2Img = cv2.cvtColor(self.cv2Img, cv2.COLOR_BGR2GRAY)
-        #self.qImg = gray2qimage(self.cv2Img)
+    def dupLayer(self, index=None):
+        if index == None:
+            index = len(self.layersStack) - 1
+        layer =QLayer(QImg=self.layersStack[index])
+        self.addLayer(layer, name=self.layersStack[index].name, index=index+1)
 
     def save(self, filename, quality=-1):
         # build resulting image

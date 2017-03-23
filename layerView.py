@@ -68,7 +68,6 @@ class QLayerView(QTableView) :
     in the main form to display lists
     of image layers.
     """
-
     def __init__(self, img):
         super(QLayerView, self).__init__()
         self.img = img
@@ -92,8 +91,10 @@ class QLayerView(QTableView) :
         self.setAcceptDrops(True)
         self.setDropIndicatorShown(True)
 
+
     def addLayers(self, mImg):
         self.img=mImg
+        mImg.layerView = self
         model = layerModel() #QStandardItemModel()
         # columns : visible | icon and name | current index in layersStack (hidden)
         model.setColumnCount(3)
@@ -119,8 +120,8 @@ class QLayerView(QTableView) :
             model.appendRow(items)
         self.setModel(model)
         # select top layer
-        self.selectRow(0)
-        self.img.activeLayer = self.img.layersStack[-1]
+        #self.selectRow(len(mImg.layersStack) - 1 - mImg.activeLayerIndex)
+        #self.img.setActiveLayer(len(self.img.layersStack) - 1)
 
         self.horizontalHeader().hide()
         self.verticalHeader().hide()
@@ -130,6 +131,8 @@ class QLayerView(QTableView) :
         header.setResizeMode(1, QHeaderView.ResizeToContents)
         header.setResizeMode(2, QHeaderView.ResizeToContents)
         #self.setItemDelegateForColumn(1, ImageDelegate(None))
+        self.selectRow(len(mImg.layersStack) - 1 - mImg.activeLayerIndex)
+
 
     def dropEvent(self, event):
         """
@@ -193,7 +196,7 @@ class QLayerView(QTableView) :
         # hide/display adjustment form
         elif clickedIndex.column() == 1 :
             # make selected layer the active layer
-            self.img.activeLayer = self.img.layersStack[-1-row]
+            self.img.setActiveLayer(len(self.img.layersStack) - 1 - row, signaling=False)
             # show/hide window for adjustment layer
             if hasattr(self.img.layersStack[-1-row], "adjustView"):
                 win = self.img.layersStack[-1-row].adjustView
@@ -228,7 +231,7 @@ class QLayerView(QTableView) :
         def g(value):
             layer.setOpacity(value)
         def dup():
-            self.img.dup(-1-index.row())
+            self.img.dupLayer(index = len(self.img.layersStack) -1 - index.row())
             self.addLayers(self.img)
         actionTransparency.triggered.connect(f)
         actionDup.triggered.connect(dup)

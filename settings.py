@@ -29,11 +29,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>
 """
 from os.path import isfile
 
-####################################################
-# Path to exiftool
-#EXIFTOOL_PATH = "H:\standalone\exiftool\exiftool(-k)"
-EXIFTOOL_PATH = "C:\standalone\exiftool\exiftool(-k)"
-#####################################################
+###########################
+# Path to the exiftool executable
+import sys
+if getattr( sys, 'frozen', False ) :
+    # running in a bundle
+    EXIFTOOL_PATH = 'exiftool(-k)'
+else :
+    # running live
+    EXIFTOOL_PATH = "C:\standalone\exiftool\exiftool(-k)"
+###########################
 
 ###########################
 # Paths to installed profiles
