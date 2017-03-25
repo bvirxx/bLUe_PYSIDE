@@ -81,7 +81,7 @@ def PilImageToQImage(pilimg) :
     """
     Convert a PIL image to a QImage
     :param pilimg: The PIL image, mode RGB
-    :return: QImage object format RGB888
+    :return: QImage object, format QImage.Format_ARGB32
     """
     w, h = pilimg.width, pilimg.height
     mode = pilimg.mode
@@ -97,8 +97,8 @@ def PilImageToQImage(pilimg) :
 
     BytesPerLine = w * 3
     qimFormat = QImage.Format_RGB888
-
-    return QImage(data, w, h, BytesPerLine, qimFormat )
+    img888 = QImage(data, w, h, BytesPerLine, qimFormat)
+    return img888.convertToFormat(QImage.Format_ARGB32)
 
 
 def QImageToPilImage(qimg) :

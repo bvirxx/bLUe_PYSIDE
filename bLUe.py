@@ -27,7 +27,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>
 """
-
+from grabcut import segmentForm
 from settings import *
 import sys
 from PyQt4.QtCore import Qt, QRect, QEvent, QDir, QSettings, QSize, QString
@@ -50,7 +50,7 @@ CONST_BG_COLOR = QColor(255, 0, 255,128)
 thickness = 30*4
 State = {'drag' : False, 'drawing' : False , 'tool_rect' : False, 'rect_over' : False, 'ix' : 0, 'iy' :0, 'rawMask' : None}
 # application windows
-Wins = {'3D_LUT': None, 'Brightness-Contrast':None}
+#Wins = {'3D_LUT': None, 'Brightness-Contrast':None}
 rect_or_mask = 0
 
 
@@ -100,15 +100,14 @@ def paintEvent(widg, e) :
         #qp.drawImage(QRect(mimg.xOffset, mimg.yOffset, mimg.width * r-10, mimg.height * r  -10), mimg.mask)
     qp.end()
 
-# mouse eventd handler for image widgets (currently label and label_2)
-turn = 0
+# mouse event handler for image widgets (dynamically set attribute widget.img, currently label and label_2)
+
 pressed=False
 clicked = True
 def mouseEvent(widget, event) :
 
-    global rect_or_mask, mask, mask_s, turn,Mimg_1, pressed, clicked
+    global rect_or_mask, mask, mask_s, Mimg_1, pressed, clicked
     img= widget.img
-
     r = img.resize_coeff(widget)
     x, y = event.x(), event.y()
     # read keyboard modifiers
@@ -175,19 +174,19 @@ def mouseEvent(widget, event) :
         if event.button() == Qt.LeftButton:
             # click event
             if img.isMouseSelectable and clicked:
-                # select grid node
+                # adding/removing grid nodes
                 # Note : for multilayered images we read pixel color from  the background layer
-                c = QColor(img.pixel(State['ix'] / r -  img.xOffset/r, State['iy'] / r - img.yOffset/r))
+                c = QColor(img.getActivePixel(State['ix'] / r -  img.xOffset/r, State['iy'] / r - img.yOffset/r))
                 cM = QColor(img.getActiveLayer().pixel(State['ix'] / r - img.xOffset / r, State['iy'] / r - img.yOffset / r))
                 red, green, blue = c.red(), c.green(), c.blue()
-                rM,gM,bM= cM.red(), cM.green(), cM.blue()
-                if hasattr(img.getActiveLayer(), "adjustView") and img.getActiveLayer().adjustView is not None:
-                    if hasattr(img.getActiveLayer().adjustView.widget(), 'selectGridNode'):
-                        mode = 'add' if modifier == Qt.ControlModifier else ''
-                        img.getActiveLayer().adjustView.widget().selectGridNode(red, green, blue, rM,gM,bM, mode=mode)
+                rM, gM, bM = cM.red(), cM.green(), cM.blue()
+                layer = img.getActiveLayer()
+                if hasattr(layer, "adjustView") and layer.adjustView is not None:
+                    if hasattr(layer.adjustView.widget(), 'selectGridNode'):
+                        # adding/removing  nodes
+                        layer.adjustView.widget().selectGridNode(red, green, blue, rM,gM,bM)
                 window.label.repaint()
             if window.btnValues['rectangle'] and img.isMouseSelectable:
-
                 img.getActiveLayer().rect = QRect(min(State['ix_begin'], x)/r-img.xOffset/r, min(State['iy_begin'], y)/r- img.yOffset/r, abs(State['ix_begin'] - x)/r, abs(State['iy_begin'] - y)/r)
                 rect_or_mask = 0 #init_with_rect
 
@@ -366,6 +365,9 @@ def openFile(f):
     window.tableView.addLayers(window.label.img)
     window.label.repaint()
     window.label_2.repaint()
+    # used by graphicsForm3DLUT.onReset
+    window.label.img.window = window.label
+    window.label_2.img.window = window.label_2
 
 def updateMenuOpenRecent():
     window.menuOpen_recent.clear()
@@ -388,7 +390,6 @@ def menuWindow(x, name):
         handleNewWindow(imImg=window.label.img, title='Diaporama', show_maximized=True, parent=window)
 
 def menuImage(x, name) :
-
     img = window.label.img
     # display image info
     if name == 'actionImage_info' :
@@ -397,8 +398,8 @@ def menuImage(x, name) :
         # dimensions
         s = s + "\n\ndim : %d x %d" % (img.width(), img.height())
         # working profile
-        if img.transformation is not None:
-            workingProfileInfo = img.transformation.fromProfile.info
+        if img.colorTransformation is not None:
+            workingProfileInfo = img.colorTransformation.fromProfile.info
         else:
             workingProfileInfo = 'None'
         s = s + "\n\nWorking Profile : %s" % workingProfileInfo
@@ -431,14 +432,12 @@ def menuImage(x, name) :
         snap.setView(*window.label_2.img.view())
         window.label_2.img = snap
         window.label_2.repaint()
-        print 'snap done'
 
 
 def menuLayer(x, name):
-
     if name == 'actionBrightness_Contrast':
         grWindow=graphicsForm.getNewWindow()
-        Wins['Brightness-Contrast'] = grWindow
+        #Wins['Brightness-Contrast'] = grWindow
         grWindow.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored);
         grWindow.setGeometry(QRect(100, 40, 156, 102))
 
@@ -446,34 +445,39 @@ def menuLayer(x, name):
         dock.setWidget(grWindow)
         window.addDockWidget(Qt.RightDockWidgetArea, dock)
         #l=QLayer(QImg=testLUT(grWindow.LUTXY))
-        l=QLayer(QImg=window.label.img)
+        layerName='Brightness Contrast'
+        l=window.label.img.addAdjustmentLayer(name=layerName)
         l.inputImg = window.label.img
         l.applyLUT(grWindow.graphicsScene.LUTXY, widget=window.label)
-
-        window.label.img.addLayer(l, name='Brightness/Contrast')
+        #window.label.img.addLayer(l, name='Brightness/Contrast')
         window.tableView.addLayers(window.label.img)
         grWindow.graphicsScene.onUpdateLUT = lambda options={} : l.applyLUT(grWindow.graphicsScene.LUTXY, widget=window.label, options=options)
         window.label.repaint()
     elif name in ['action3D_LUT', 'action3D_LUT_HSB']:
         ccm = cmHSP if name == 'action3D_LUT' else cmHSB
-        name = '3D LUT HSpB' if name == 'action3D_LUT' else '3D LUT HSB'
-        l = window.label.img.addAdjustmentLayer(name=name)
+        layerName = '3D LUT HSpB' if name == 'action3D_LUT' else '3D LUT HSB'
+        l = window.label.img.addAdjustmentLayer(name=layerName)
         window.tableView.addLayers(window.label.img)
         grWindow = graphicsForm3DLUT.getNewWindow(ccm, size=800, targetImage=window.label.img, LUTSize=LUTSIZE, layer=l, parent=window)
-        #window.tableView.selectRow(len(window.label.img.layersStack) - 1 - window.label.img.activeLayerIndex)
-        Wins[l.name] = grWindow
+        # add a dockable widget
         dock = QDockWidget(window)
-        # link to colorwheel
+        # link dock with adjustment layer
         l.adjustView = dock
         dock.setWidget(grWindow)
-        dock.setWindowFlags(Qt.WindowStaysOnTopHint)
+        dock.setWindowFlags(Qt.Window | Qt.WindowMaximizeButtonHint | Qt.WindowStaysOnTopHint)
         dock.setWindowTitle(grWindow.windowTitle())
-        dock.move(600, 40)
+        dock.move(900, 40)
         #window.addDockWidget(Qt.RightDockWidgetArea, dock)
+        window.tableView.update()
         grWindow.graphicsScene.onUpdateLUT = lambda options={} : l.apply3DLUT(grWindow.graphicsScene.LUT3D, widget=window.label, options=options)
         window.label.repaint()
     elif name == 'actionNew_segmentation_layer':
-        window.label.img.addSegmentationLayer(name='Segmentation')
+        l=window.label.img.addSegmentationLayer(name='Segmentation')
+        window.tableView.addLayers(window.label.img)
+        # link to grabcut form
+        l.segmentView = segmentForm.getNewWindow()
+        # TODO continue
+
 
 def handleNewWindow(imImg=None, parent=None, title='New window', show_maximized=False, event_handler=True):
     """

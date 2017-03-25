@@ -27,32 +27,16 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>
 """
-from PyQt4.QtGui import QAction
-from PyQt4.QtGui import QMenu
-from PyQt4.QtGui import QSlider
+from PyQt4.QtCore import QRectF
+from PyQt4.QtCore import QString
+from PyQt4.QtCore import QVariant
+from PyQt4.QtGui import QAction, QMenu, QSlider
+from PyQt4.QtGui import QBrush
 from PyQt4.QtGui import QTableView, QStandardItem, QStandardItemModel, QItemSelectionModel, QAbstractItemView, QPalette, QStyledItemDelegate, QColor, QImage, QPixmap, QIcon, QHeaderView
 from PyQt4.QtCore import Qt
-import resources_rc  # DO NOT REMOVE !!!
+import resources_rc  # mandatory : DO NOT REMOVE !!!
 import QtGui1
 
-
-
-"""
-class ImageDelegate(QStyledItemDelegate):
-
-    def __init__(self, parent):
-        QStyledItemDelegate.__init__(self, parent)
-
-    def paint(self, painter, option, index):
-
-        painter.fillRect(option.rect, QColor(191,222,185))
-
-        # path = "path\to\my\image.jpg"
-
-        pixmap = QPixmap.fromImage(image)
-        pixmap.scaled(50, 40, Qt.KeepAspectRatio)
-        painter.drawPixmap(option.rect, pixmap)
-"""
 class layerModel(QStandardItemModel):
 
     def __init__(self):
@@ -60,6 +44,22 @@ class layerModel(QStandardItemModel):
 
     def flags(self, index):
         return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsDragEnabled | Qt.ItemIsDropEnabled | Qt.ItemIsEditable
+
+
+class itemDelegate(QStyledItemDelegate):
+    """
+    
+    """
+
+    def __init__(self, parent=None):
+        QStyledItemDelegate.__init__(self, parent)
+
+    def paint(self, painter, option, index):
+        rect = QRectF(option.rect)
+        if index.column() == 2:
+            painter.drawText(rect, QString('A'))
+        else:
+            QStyledItemDelegate.paint(self, painter, option, index)
 
 
 class QLayerView(QTableView) :
@@ -71,6 +71,8 @@ class QLayerView(QTableView) :
     def __init__(self, img):
         super(QLayerView, self).__init__()
         self.img = img
+        # form to display
+        self.currentWin = None
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.clicked.connect(self.viewClicked)
         self.customContextMenuRequested.connect(self.contextMenu)
@@ -91,6 +93,8 @@ class QLayerView(QTableView) :
         self.setAcceptDrops(True)
         self.setDropIndicatorShown(True)
 
+        self.setItemDelegate(itemDelegate())
+
 
     def addLayers(self, mImg):
         self.img=mImg
@@ -98,7 +102,7 @@ class QLayerView(QTableView) :
         model = layerModel() #QStandardItemModel()
         # columns : visible | icon and name | current index in layersStack (hidden)
         model.setColumnCount(3)
-        self.setColumnHidden(2, True)
+        #self.setColumnHidden(2, True)
         self.setModel(model)
         l = len(mImg.layersStack)
 
@@ -115,30 +119,49 @@ class QLayerView(QTableView) :
             item_name = QStandardItem(QIcon(lay.qPixmap), lay.name)
             items.append(item_name)
             # index in layersStack
-            item_rank = QStandardItem (l - r)
-            items.append(item_rank)
+            #item_rank = QStandardItem (l - r)
+            #items.append(item_rank)
+            if hasattr(lay, 'mask'):
+                item_mask = QStandardItem('M')
+            else:
+                item_mask = QStandardItem('')
+            items.append(item_mask)
             model.appendRow(items)
+        model.setData(model.index(0, 2), QVariant(QBrush(Qt.red)), Qt.ForegroundRole | Qt.DecorationRole)
+
         self.setModel(model)
-        # select top layer
-        #self.selectRow(len(mImg.layersStack) - 1 - mImg.activeLayerIndex)
-        #self.img.setActiveLayer(len(self.img.layersStack) - 1)
 
         self.horizontalHeader().hide()
         self.verticalHeader().hide()
         header = self.horizontalHeader()
-        #header.setResizeMode(0, QHeaderView.Stretch)
         header.setResizeMode(0, QHeaderView.ResizeToContents)
         header.setResizeMode(1, QHeaderView.ResizeToContents)
         header.setResizeMode(2, QHeaderView.ResizeToContents)
-        #self.setItemDelegateForColumn(1, ImageDelegate(None))
+        # select active layer
         self.selectRow(len(mImg.layersStack) - 1 - mImg.activeLayerIndex)
+        activeLayer = mImg.getActiveLayer()
 
+        if hasattr(activeLayer, 'adjustView'):
+            self.currentWin = activeLayer.adjustView
+        if hasattr(activeLayer, 'segmentView'):
+            self.currentWin = activeLayer.segmentView
+        if self.currentWin is not None:
+            self.currentWin.show()
+
+    def update(self):
+        activeLayer = self.img.getActiveLayer()
+
+        if hasattr(activeLayer, 'adjustView'):
+            self.currentWin = activeLayer.adjustView
+        if hasattr(activeLayer, 'segmentView'):
+            self.currentWin = activeLayer.segmentView
+        if self.currentWin is not None:
+            self.currentWin.show()
 
     def dropEvent(self, event):
         """
-        drop event handler. Move row
+        drop event handler. Moving row
         :param event:
-        :return:
         """
         if event.source() == self:
             rows = set([mi.row() for mi in self.selectedIndexes()])
@@ -180,15 +203,16 @@ class QLayerView(QTableView) :
 
     def viewClicked(self, clickedIndex):
         """
-        Mouse click event handler
+        Mouse click event handler.
         :param clickedIndex:
         """
         row = clickedIndex.row()
-        model = clickedIndex.model()
+        #model = clickedIndex.model()
         # toggle layer visibility
         if clickedIndex.column() == 0 :
             visible = not(self.img.layersStack[-1-row].visible)
             self.img.layersStack[-1-row].visible = visible
+            # update visibility icon
             if visible:
                 self.model().setData(clickedIndex, QIcon(":/images/resources/eye-icon.png") ,Qt.DecorationRole)
             else:
@@ -197,17 +221,15 @@ class QLayerView(QTableView) :
         elif clickedIndex.column() == 1 :
             # make selected layer the active layer
             self.img.setActiveLayer(len(self.img.layersStack) - 1 - row, signaling=False)
-            # show/hide window for adjustment layer
+            # update displayed window
+            if self.currentWin is not None:
+                self.currentWin.hide()
             if hasattr(self.img.layersStack[-1-row], "adjustView"):
-                win = self.img.layersStack[-1-row].adjustView
+                self.currentWin = self.img.layersStack[-1-row].adjustView
             else:
-                win = None
-            if win is not None:
-                if win.widget().isVisible():
-                    win.hide()
-                else:
-                    win.setFloating(True)
-                    win.show()
+                self.currentWin = None
+            if self.currentWin is not None:
+                self.currentWin.show()
         QtGui1.window.label.repaint()
 
     def contextMenu(self, pos):

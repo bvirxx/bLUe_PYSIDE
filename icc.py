@@ -45,11 +45,11 @@ COLOR_MANAGE = True
 
 monitorProfile = get_display_profile()
 monitorProfile.info = getProfileInfo(monitorProfile)
-
 workingProfile = getOpenProfile(SRGB_PROFILE_PATH)
 workingProfile.info = getProfileInfo(workingProfile)
 
-# ICC transform (type : Cms transform object)
+# ICC transform (type : Cms transform object plus 2 dynamic attributes)
+# TODO workToMonTransform should be an image attribute
 workToMonTransform = buildTransformFromOpenProfiles(workingProfile, monitorProfile, "RGB", "RGB")
 workToMonTransform.fromProfile  = workingProfile
 workToMonTransform.toProfile = monitorProfile
@@ -67,14 +67,14 @@ def convertQImage(image, transformation = workToMonTransform):
     """
     Convert a QImage from profile fromProfile to profile toProfile.
     :param image: source QImage
-    :param transformation : a CmsTransform object
+    :param transformation : a CmsTransform object (default workToMonTransform)
     :return: The converted QImage
     """
     # sRGB
-    if image.meta.colorSpace == 1 :
+    if image.meta.colorSpace == 1 or transformation is not None:
         # conversion in the PIL context
         converted_image = applyTransform(QImageToPilImage(image), transformation, 0)
-        image.transformation = transformation
+        image.colorTransformation = transformation
         return PilImageToQImage(converted_image)
     else :
         return image

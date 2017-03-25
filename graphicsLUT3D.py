@@ -785,8 +785,11 @@ class graphicsForm3DLUT(QGraphicsView) :
         """
         build a graphicsForm3DLUT object. The parameter size represents the size of
         the color wheel, border not included (the size of the window is adjusted).
+        :param cModel
+        :param targetImage
         :param size: size of the color wheel
         :param LUTSize: size of the LUT
+        :param layer: layer of targetImage linked to graphics form
         :param parent: parent widget
         :return: graphicsForm3DLUT object
         """
@@ -800,7 +803,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         :param size: size of the color wheel
         :param targetImage:
         :param LUTSize:
-        :param layer:
+        :param layer: layer of targetImage linked to graphics form
         :param parent:
         """
         super(graphicsForm3DLUT, self).__init__(parent=parent)
@@ -825,7 +828,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         LUT3D = LUT3DFromFactory(size=LUTSize)
         self.LUTSize, self.LUTStep, self.graphicsScene.LUTContrast, self.graphicsScene.LUT3D = LUT3D.size, LUT3D.step, LUT3D.contrast, LUT3D.LUT3DArray
         # options
-        self.graphicsScene.options = {'use selection' : True, 'add node': True, 'select neighbors': True, 'reset when removed': True, 'use perceptive brightness':True}
+        self.graphicsScene.options = {'use selection' : True, 'add node': True, 'select neighbors': True, 'reset removed nodes': True, 'use perceptive brightness':True}
 
         # color wheel
         QImg = hueSatModel.colorWheel(size, size, cModel,  perceptualBrightness=self.defaultColorWheelBr, border=border)
@@ -880,7 +883,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         pushButton = QPushButton("reset grid")
         pushButton.setObjectName("btn_reset")
         pushButton.setMinimumSize(1,1)
-        pushButton.setGeometry(550, size+offset, 80, 21)  # x,y,w,h
+        pushButton.setGeometry(160, size+offset, 80, 21)  # x,y,w,h
         pushButton.clicked.connect(self.onReset)
         self.graphicsScene.addWidget(pushButton)
 
@@ -897,17 +900,14 @@ class graphicsForm3DLUT(QGraphicsView) :
             self.graphicsScene.options['add node'] = item is self.listWidget2.items['add node']
         self.listWidget2.onSelect = onSelect2
 
-        self.listWidget3 = optionsWidget(options=['use perceptive brightness', 'select neighbors', 'reset when removed'], exclusive=False)
+        self.listWidget3 = optionsWidget(options=['select neighbors', 'reset removed nodes'], exclusive=False)
         self.listWidget3.select(self.listWidget3.items['select neighbors'])
-        self.listWidget3.select(self.listWidget3.items['use perceptive brightness'])
-        self.listWidget3.select(self.listWidget3.items['reset when removed'])
+        self.listWidget3.select(self.listWidget3.items['reset removed nodes'])
         def onSelect3(item):
-            if item is self.listWidget3.items['use perceptive brightness']:
-                self.graphicsScene.options['use perceptive brightness'] = self.listWidget3.items['use perceptive brightness'].isSelected()
             if item is self.listWidget3.items['select neighbors']:
                 self.graphicsScene.options['select neighbors'] = self.listWidget3.items['select neighbors'].isSelected()
-            if item is self.listWidget3.items['reset when removed']:
-                self.graphicsScene.options['reset when removed'] = self.listWidget3.items['reset when removed'].isSelected()
+            if item is self.listWidget3.items['reset removed nodes']:
+                self.graphicsScene.options['reset removed nodes'] = self.listWidget3.items['reset removed nodes'].isSelected()
         self.listWidget3.onSelect = onSelect3
 
 
@@ -921,7 +921,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.graphicsScene.addWidget(self.listWidget3)
         self.listWidget3.setStyleSheet("QListWidget{background: black;} QListWidget::item{color: white;}")
 
-    def selectGridNode(self, r, g, b, rM,gM,bM, mode=''):
+    def selectGridNode(self, r, g, b, rM,gM,bM):
         """
         select the nearest grid nodes corresponding to r,g,b values.
         :param r,g,b : color
@@ -991,7 +991,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         nodesToSelect = NNN.neighbors() if self.graphicsScene.options['select neighbors'] else [NNN]
         for n in nodesToSelect:
             n.setVisible(mode)
-            if self.graphicsScene.options['reset when removed'] and not mode :
+            if self.graphicsScene.options['reset removed nodes'] and not mode :
                 if isinstance(n.parentItem(), nodeGroup):
                     n.parentItem().removeFromGroup(n)
                 n.setPos(n.initialPos)
@@ -1041,7 +1041,6 @@ class graphicsForm3DLUT(QGraphicsView) :
     def onReset(self):
         """
         reset grid and LUT
-
         """
         # get a fresh LUT
         self.graphicsScene.LUT3D = LUT3DFromFactory(size=self.LUTSize).LUT3DArray
@@ -1056,3 +1055,5 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.grid.drawGrid()
         self.scene().onUpdateScene()
         self.layer.reset()
+        self.layer.parentImage.window.repaint()
+

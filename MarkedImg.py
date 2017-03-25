@@ -71,7 +71,7 @@ class vImage(QImage):
         :param rawMetadata: list of dictionaries (default [])
         :param profile: embedded profile (default '')
         """
-        self.transformation = None
+        self.colorTransformation = None
         self.isModified = False
         self.onModify = lambda : 0
         self.rect, self.mask, = None, cv2mask
@@ -105,12 +105,12 @@ class vImage(QImage):
         # build image from buffer
         elif cv2Img is not None:
             super(vImage, self).__init__(ndarrayToQImage(cv2Img, format=format))
-
-        self.updatePixmap()
-
         if self.mask is None:
             self.mask = QImage(self.width(), self.height(), QImage.Format_ARGB32)
-            self.mask.fill(0)
+            self.mask.fill(QColor(0,0,0, 128))
+        self.updatePixmap()
+
+
 
     def setModified(self, b):
         self.isModified = b
@@ -120,7 +120,10 @@ class vImage(QImage):
         if icc.COLOR_MANAGE:
             img = convertQImage(self)
         else:
-            img = self
+            img = QImage(self)
+        buf = QImageBuffer(img)
+        maskBuf = QImageBuffer(self.mask)
+        #buf[:,:,3] = maskBuf[:,:,3]
         self.qPixmap = QPixmap.fromImage(img)
 
 
@@ -207,7 +210,7 @@ class mImage(vImage):
         self.layersStack = []
         super(mImage, self).__init__(*args, **kwargs)
         # add background layer
-        bgLayer = QLayer.fromImage(self)
+        bgLayer = QLayer.fromImage(self, parentImage=self)
         self.setModified(False)
         self.addLayer(bgLayer, name='background')
         self.activeLayerIndex = 0
@@ -220,20 +223,23 @@ class mImage(vImage):
         if hasattr(self, 'layerView'):
             self.layerView.selectRow(len(self.layersStack) - 1 - value)
 
+    def getActivePixel(self,x, y):
+        activeLayer = self.getActiveLayer()
+        if  hasattr(activeLayer, "inputImg") and activeLayer.inputImg is not None:
+            # layer is adjustment or segmentation : read from input image
+            return activeLayer.inputImg.pixel(x, y)
+        else:
+            # read from image
+            return activeLayer.pixel(x, y)
+
     def updatePixmap(self):
         """
         Override vImage.updatePixmap()
         """
-        #super(mImage, self).updatePixmap()
         vImage.updatePixmap(self)
         for layer in self.layersStack:
                 vImage.updatePixmap(layer)
         return
-        qpainter = QPainter(self.qPixmap)
-        for layer in self.layersStack:
-            if layer.visible:
-                qpainter.drawPixmap(0, 0, layer.qPixmap)
-        qpainter.end()
 
     def addLayer(self, layer, name='', index=None):
         # build a unique name
@@ -252,30 +258,37 @@ class mImage(vImage):
             self.layersStack.insert(index, layer)
             self.setActiveLayer(index)
         layer.meta = self.meta
-        #if lay.name != 'drawlayer':
-            #lay.updatePixmap()
+        layer.parentImage = self
         self.setModified(True)
 
     def addAdjustmentLayer(self, name='', index=None):
         if index == None:
-            #index = len(self.layersStack) - 1
+            # add on top of active layer
             index = self.activeLayerIndex
-        layer = QLayer(QImg=self.layersStack[index])
+        # adjust active layer only
+        #layer = QLayer(QImg=self.layersStack[index])
+        layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
         layer.inputImg = self.layersStack[index]
+        self.addLayer(layer, name=name, index=index + 1)
+        #layer.parent = self
+        #self.setModified(True)
+        return layer
+
+    def addSegmentationLayer(self, name='', index=None):
+        if index == None:
+            index = self.activeLayerIndex
+        layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
+        layer.inputImg = self.layersStack[index]
+        layer.mask = QImage(self.width(), self.height(), self.format())
         self.addLayer(layer, name=name, index=index + 1)
         layer.parent = self
         self.setModified(True)
         return layer
 
-    def addSegmentationLayer(self, name='', index=None):
-        if index == None:
-            #index = len(self.layersStack) - 1
-            index = self.activeLayer
-
     def dupLayer(self, index=None):
         if index == None:
             index = len(self.layersStack) - 1
-        layer =QLayer(QImg=self.layersStack[index])
+        layer =QLayer.fromImage(self.layersStack[index], parentImage=self)
         self.addLayer(layer, name=self.layersStack[index].name, index=index+1)
 
     def save(self, filename, quality=-1):
@@ -323,7 +336,7 @@ class imImage(mImage) :
         Resize image and layers
         :param pixels:
         :param interpolation:
-        :return:
+        :return: resized imImage object
         """
         # resized vImage
         rszd0 = super(imImage, self).resize(pixels, interpolation=interpolation)
@@ -332,7 +345,7 @@ class imImage(mImage) :
         rszd.rect = rszd0.rect
         for k, l  in enumerate(self.layersStack):
             if l.name != "background" and l.name != 'drawlayer':
-                img = QLayer.fromImage(self._layers[l.name].resize(pixels, interpolation=interpolation))
+                img = QLayer.fromImage(self._layers[l.name].resize(pixels, interpolation=interpolation), parentImage=rszd)
                 rszd.layersStack.append (img)
                 rszd._layers[l.name] = img
         self.isModified = True
@@ -349,34 +362,47 @@ class imImage(mImage) :
         self.xOffset, self.yOffset = 0.0, 0.0
 
     def snapshot(self):
+        """
+        build a snapshot of image
+        :return: imImage object
+        """
         snap = imImage(QImg=self, meta=self.meta)
         #snap = QImage(self.width(), self.height(), QImage.Format_ARGB32)
         snap.fill(0)
         qp = QPainter(snap)
         for layer in self.layersStack:
             if layer.visible:
+                # monitor profile is applied to all pixmaps, thus we should not build
+                # images from pixmaps
+                """
                 #qp.setOpacity(layer.opacity)
                 if layer.qPixmap is not None:
                     qp.drawPixmap(QRect(0, 0, self.width(), self.height()),  layer.transfer() )
                 else:
-                    qp.drawImage(QRect(0, 0, self.width(), self.height()),  layer)
+                """
+                qp.drawImage(QRect(0, 0, self.width(), self.height()),  layer)
         qp.end()
-        # update background layer
+        # update background layer and call updatePixmap
         snap.layersStack[0].setImage(snap)
         return snap
 
 class QLayer(vImage):
     @classmethod
-    def fromImage(cls, mImg):
+    def fromImage(cls, mImg, parentImage=None):
         mImg.visible = True
         mImg.alpha = 255
         mImg.window = None
         # for adjustment layer
         mImg.transfer = lambda: mImg.qPixmap
         mImg.inputImg = None
-        return QLayer(QImg=mImg) #mImg
+        layer = QLayer(QImg=mImg)
+        layer.parentImage=parentImage
+        layer.updatePixmap()
+        return layer #QLayer(QImg=mImg) #mImg
 
     def __init__(self, *args, **kwargs):
+        self.adjustView = None
+        self.parentImage = None
         super(QLayer, self).__init__(*args, **kwargs)
         self.name='anonymous'
         self.visible = True
@@ -385,14 +411,23 @@ class QLayer(vImage):
         self.opacity = 1.0
         self.transfer = lambda : self.qPixmap
         # link to grid or curves view for adjustment layers
-        self.adjustView = None
-        self.parent = None
+
+    def updatePixmap(self):
+        if icc.COLOR_MANAGE and self.parentImage is not None:
+            # layer color model is parent image colopr model
+            img = convertQImage(self, transformation=self.parentImage.colorTransformation)
+        else:
+            img = QImage(self)
+        buf = QImageBuffer(img)
+        maskBuf = QImageBuffer(self.mask)
+        buf[:, :,3] = maskBuf[:, :,3]
+        self.qPixmap = QPixmap.fromImage(img)
 
     def setImage(self, qimg):
         """
-        replace layer image with a copy of qimg.
+        replace layer image with a copy of qimg buffer.
         The layer and qimg must have identical dimensions and type.
-        :param qimg: QImage
+        :param qimg: QImage object
         """
         buf1, buf2 = QImageBuffer(self), QImageBuffer(qimg)
         if buf1.shape != buf2.shape:
@@ -401,6 +436,10 @@ class QLayer(vImage):
         self.updatePixmap()
 
     def reset(self):
+        """
+        reset layer by ressetting it to imputImg
+        :return:
+        """
         self.setImage(self.inputImg)
 
     def setOpacity(self, value):
