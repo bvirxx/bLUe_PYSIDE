@@ -247,7 +247,7 @@ scr</string>
          <enum>QFrame::NoFrame</enum>
         </property>
         <property name="text">
-         <string>Label_1</string>
+         <string>Label</string>
         </property>
         <property name="margin">
          <number>0</number>

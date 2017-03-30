@@ -1,45 +1,33 @@
 """
-Copyright (C) 2017  Bernard Virot
+This File is part of bLUe software.
 
-bLUe - Photo editing software.
-
-With Blue you can enhance and correct the colors of your photos in a few clicks.
-No need for complex tools such as lasso, magic wand or masks.
-bLUe interactively constructs 3D LUTs (Look Up Tables), adjusting the exact set
-of colors you want.
-
-3D LUTs are widely used by professional film makers, but the lack of
-interactive tools maked them poorly useful for photo enhancement, as the shooting conditions
-can vary widely from an image to another. With bLUe, in a few clicks, you select the set of
-colors to modify, the corresponding 3D LUT is automatically built and applied to the image.
-You can then fine tune it as you want.
+Copyright (C) 2017  Bernard Virot <bernard.virot@libertysurf.fr>
 
 This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+it under the terms of the GNU Lesser General Public License as
+published by the Free Software Foundation, version 3.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+Lesser General Lesser Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>
+You should have received a copy of the GNU Lesser General Public License
+along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-import sys
 
-from PyQt4.QtCore import QSize
-from PyQt4.QtGui import QAction
-from PyQt4.QtGui import QApplication, QPainter, QWidget, QPixmap, QPushButton, QListWidget, QListWidgetItem
-from PyQt4.QtGui import QGraphicsView, QGraphicsScene, QAbstractItemView, QGraphicsItem, QGraphicsItemGroup, QGraphicsPathItem , QGraphicsPixmapItem, QGraphicsTextItem, QPolygonF, QGraphicsPolygonItem , QPainterPath, QPainterPathStroker, QPen, QBrush, QColor, QPixmap, QMainWindow, QLabel, QSizePolicy
-from PyQt4.QtCore import Qt, QPoint, QPointF, QRect, QRectF, QString
+
+from PySide.QtCore import QSize
+from PySide.QtGui import QAction
+from PySide.QtGui import QApplication, QPainter, QWidget, QPixmap, QPushButton, QListWidget, QListWidgetItem
+from PySide.QtGui import QGraphicsView, QGraphicsScene, QAbstractItemView, QGraphicsItem, QGraphicsItemGroup, QGraphicsPathItem , QGraphicsPixmapItem, QGraphicsTextItem, QPolygonF, QGraphicsPolygonItem , QPainterPath, QPainterPathStroker, QPen, QBrush, QColor, QPixmap, QMainWindow, QLabel, QSizePolicy
+from PySide.QtCore import Qt, QPoint, QPointF, QRect, QRectF #, QString
 import numpy as np
 from time import time
 
-from PyQt4.QtGui import QImage
-from PyQt4.QtGui import QMenu
-from PyQt4.QtGui import QRubberBand
+from PySide.QtGui import QImage
+from PySide.QtGui import QMenu
+from PySide.QtGui import QRubberBand
 
 from LUT3D import LUTSIZE, LUTSTEP, hsp2rgb_ClippingInd, LUT3DFromFactory, LUT3D_SHADOW, LUT3D_ORI
 from MarkedImg import QLayer, vImage
@@ -744,7 +732,7 @@ class colorPicker(QGraphicsPixmapItem):
             return
         self.rubberBand.hide()
         grid = self.scene().grid
-        screenOrigin = e.screenPos() - e.pos()
+        screenOrigin = e.screenPos() - e.pos().toPoint()
         rubberRect = QRect(self.origin, e.screenPos()).normalized()
         for i in range(grid.size):
             for j in range(grid.size):

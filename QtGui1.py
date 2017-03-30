@@ -1,50 +1,48 @@
 """
-Copyright (C) 2017  Bernard Virot
+This File is part of bLUe software.
 
-bLUe - Photo editing software.
-
-With Blue you can enhance and correct the colors of your photos in a few clicks.
-No need for complex tools such as lasso, magic wand or masks.
-bLUe interactively constructs 3D LUTs (Look Up Tables), adjusting the exact set
-of colors you want.
-
-3D LUTs are widely used by professional film makers, but the lack of
-interactive tools maked them poorly useful for photo enhancement, as the shooting conditions
-can vary widely from an image to another. With bLUe, in a few clicks, you select the set of
-colors to modify, the corresponding 3D LUT is automatically built and applied to the image.
-You can then fine tune it as you want.
+Copyright (C) 2017  Bernard Virot <bernard.virot@libertysurf.fr>
 
 This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+it under the terms of the GNU Lesser General Public License as
+published by the Free Software Foundation, version 3.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+Lesser General Lesser Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>
+You should have received a copy of the GNU Lesser General Public License
+along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-from PyQt4 import QtGui, uic
-from PyQt4.QtCore import QSettings, QSize
+
+from PySide import QtGui, QtUiTools #, uic
+from PySide.QtCore import QObject
+from PySide.QtCore import QSettings, QSize
 from PIL.ImageCms import getProfileDescription
 import sys
-from PyQt4.QtGui import QApplication, QMessageBox
-import resources_rc   # DO NOT REMOVE !!!!
+from PySide.QtGui import QApplication, QMessageBox
+from PySide.QtGui import QLabel
+from PySide.QtGui import QMainWindow
 
-class Form1(QtGui.QMainWindow):
+import resources_rc   # DO NOT REMOVE !!!!
+from layerView import QLayerView
+from pyside_dynamicLoader import loadUi
+
+
+class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
     """
     Main window class.
-    The layout is loaded from the ui form essai1.ui.
+    The layout is loaded from the ui form bLUe.ui.
     """
     def __init__(self, parent=None):
-        super(Form1, self).__init__(parent)
+        super(Form1, self).__init__()
+        #self.setupUi(self)
         # load UI
-        ui=uic.loadUi('essai1.ui', self)
+        loadUi('bLUe.ui', baseinstance=self, customWidgets= {'QLayerView': QLayerView, 'QLabel': QLabel})
+        #self = QtUiTools.QUiLoader().load("bLUe.ui", self)
         # Slot hooks : they make the GUI independent
-        # to the underlying application.
+        # from the underlying application.
         self.onWidgetChange = lambda : 0
         self.onShowContextMenu = lambda : 0
         self.onExecMenuFile = lambda : 0
@@ -54,7 +52,7 @@ class Form1(QtGui.QMainWindow):
         self.onExecMenuLayer = lambda: 0
         self.onUpdateMenuAssignProfile = lambda : 0
 
-        # dictionaries for button states.
+        # button state recording.
         self.slidersValues = {}
         self.btnValues = {}
 
@@ -87,16 +85,18 @@ class Form1(QtGui.QMainWindow):
             widget.customContextMenuRequested.connect(lambda pos, widget=widget : self.showContextMenu(pos,widget))
 
         for action in enumerateMenuActions(self.menu_File) : # replace by enumerateMenu
-            action.triggered.connect(lambda x, actionName=action.objectName(): self.execMenuFile(x, actionName))
+            action.triggered.connect(lambda x=0, actionName=action.objectName(): self.execMenuFile(x, actionName))
+            #action.triggered.connect(lambda actionName=action.objectName(): self.execMenuFile(0, actionName))
 
         for action in enumerateMenuActions(self.menuWindow) :
-            action.triggered.connect(lambda x, actionName=action.objectName(): self.execMenuWindow(x, actionName))
+            action.triggered.connect(lambda x=0, actionName=action.objectName(): self.execMenuWindow(x, actionName))
 
-        for action in enumerateMenuActions(self.menuImage) :
-            action.triggered.connect(lambda x, actionName=action.objectName(): self.execMenuImage(x, actionName))
+        tmp = enumerateMenuActions(self.menuImage)
+        for action in tmp :# enumerateMenuActions(self.menuImage) :
+            action.triggered.connect(lambda x=0, actionName=action.objectName(): self.execMenuImage(x, actionName))
 
         for action in enumerateMenuActions(self.menuLayer) :
-            action.triggered.connect(lambda x, actionName=action.objectName(): self.execMenuLayer(x, actionName))
+            action.triggered.connect(lambda x=0, actionName=action.objectName(): self.execMenuLayer(x, actionName))
 
         # mouse hovered event Slots
         #self.menuOpen_recent.menuAction().hovered.connect(lambda : self.updateMenuOpenRecent())
@@ -128,9 +128,10 @@ class Form1(QtGui.QMainWindow):
         self.onWidgetChange(button)
 
     def handleToolButtonClicked(self, button):   # connected to button.pressed signal
+        # mutually exclusive selection
         for k in self.btnValues :
-            self.btnValues[k]=0
-        self.btnValues[str(button.accessibleName())] = 1
+            self.btnValues[k] = False
+        self.btnValues[str(button.accessibleName())] = True #1
         self.onWidgetChange(button)
 
     def handleSliderMoved (self, value, slider) :   # connected to slider.valueChanged signal
@@ -138,18 +139,17 @@ class Form1(QtGui.QMainWindow):
         self.onWidgetChange(slider)
 
     def readSettings(self):
-        self.settings = QSettings("qsettingsexample.ini", QSettings.IniFormat);
-
-        self.resize(self.settings.value("mainwindow/size", QSize(250, 200)).toSize());
+        self.settings = QSettings("bLUe.ini", QSettings.IniFormat)
+        self.resize(self.settings.value("mainwindow/size", QSize(250, 200))) #.toSize())
 
     def writeSettings(self):
         self.settings.sync()
         """
-        settings = QSettings("qsettingsexample.ini", QSettings.IniFormat);
+        settings = QSettings("bLUe.ini", QSettings.IniFormat);
 
         print settings.value('paths/dlgdir', 'novalue').toString()
         return
-        settings = QSettings("qsettingsexample.ini", QSettings.IniFormat);
+        settings = QSettings("bLUe.ini", QSettings.IniFormat);
 
         settings.beginGroup("mainwindow")
         settings.setValue("size", self.size())
@@ -190,8 +190,9 @@ def enumerateMenuActions(menu):
     actions = []
     for action in menu.actions():
         #subMenu
-        if action.menu() :
+        if action.menu():
             actions.extend(enumerateMenuActions(action.menu()))
+            action.menu().parent()
         else:
             actions.append(action)
     return actions

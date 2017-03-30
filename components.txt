@@ -1,4 +1,4 @@
-PyQt4 version 4-4.11.4
+pySide version 4-4.11.4
 PyQwt-5.2.1
 Pillow-3.4.2
 opencv 3

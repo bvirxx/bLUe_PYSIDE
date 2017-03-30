@@ -1,46 +1,51 @@
 """
-Copyright (C) 2017  Bernard Virot
+This File is part of bLUe software.
 
+Copyright (C) 2017  Bernard Virot <bernard.virot@libertysurf.fr>
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Lesser General Public License as
+published by the Free Software Foundation, version 3.
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+Lesser General Lesser Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License
+along with this program. If not, see <http://www.gnu.org/licenses/>.
+"""
+
+"""
 bLUe - Photo editing software.
+
+Copyright (C) 2017  Bernard Virot <bernard.virot@libertysurf.fr>
 
 With Blue you can enhance and correct the colors of your photos in a few clicks.
 No need for complex tools such as lasso, magic wand or masks.
 bLUe interactively constructs 3D LUTs (Look Up Tables), adjusting the exact set
-of colors you want.
+of colors you chose.
 
 3D LUTs are widely used by professional film makers, but the lack of
 interactive tools maked them poorly useful for photo enhancement, as the shooting conditions
 can vary widely from an image to another. With bLUe, in a few clicks, you select the set of
 colors to modify, the corresponding 3D LUT is automatically built and applied to the image.
-You can then fine tune it as you want.
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>
+Then, you can fine tune it as you want.
 """
+
 from grabcut import segmentForm
-from settings import *
 import sys
-from PyQt4.QtCore import Qt, QRect, QEvent, QDir, QSettings, QSize, QString
-from PyQt4.QtGui import QWidget, QSplitter, QPixmap, QImage, QAbstractItemView, QColor,QPainter, QApplication, QMenu, QAction, QCursor, QFileDialog, QMessageBox, QColorDialog, QMainWindow, QLabel, QDockWidget, QHBoxLayout, QSizePolicy
+from PySide.QtCore import Qt, QRect, QEvent, QDir
+from PySide.QtGui import QColor,QPainter, QApplication, QMenu, QAction, QCursor, QFileDialog, QMessageBox, QMainWindow, QLabel, QDockWidget, QSizePolicy
 from QtGui1 import app, window
 import exiftool
 from imgconvert import *
-from MarkedImg import mImage, imImage, QLayer
+from MarkedImg import imImage, metadata
 
 from graphicsLUT import graphicsForm
 from graphicsLUT3D import graphicsForm3DLUT
 from LUT3D import LUTSIZE
-from colorModels import hueSatModel, cmHSP, cmHSB
+from colorModels import cmHSP, cmHSB
 import icc
 from os import path
 
@@ -105,14 +110,21 @@ def paintEvent(widg, e) :
 pressed=False
 clicked = True
 def mouseEvent(widget, event) :
-
+    """
+    mouse event handler for QLabel object.
+    It handles image positionning and zooming, and
+    tool interactions with the active layer.
+    :param widget:
+    :param event:
+    """
     global rect_or_mask, mask, mask_s, Mimg_1, pressed, clicked
+
     img= widget.img
+    layer = img.getActiveLayer()
     r = img.resize_coeff(widget)
     x, y = event.x(), event.y()
     # read keyboard modifiers
     modifier = QApplication.keyboardModifiers()
-
     """
     if modifier == Qt.ControlModifier:
         if event.type() == QEvent.MouseButtonPress:
@@ -121,6 +133,7 @@ def mouseEvent(widget, event) :
             #turn = (turn + 1) % 2
         return
     """
+    # press event
     if event.type() == QEvent.MouseButtonPress :
         pressed=True
         if event.button() == Qt.LeftButton:
@@ -139,6 +152,7 @@ def mouseEvent(widget, event) :
                 # mask = cv2.bitwise_or(img.mask, mask)
                 # do_grabcut(Mimg_p, Mimg_1, preview=P_SIZE)
         """
+        # recording of possible move beginning coordinates
         State['ix'], State['iy'] = x, y
         State['ix_begin'], State['iy_begin'] = x, y
     elif event.type() == QEvent.MouseMove :
@@ -146,13 +160,16 @@ def mouseEvent(widget, event) :
         if pressed :
             # button pressed
             if img.isMouseSelectable:
+                # marquee
                 if window.btnValues['rectangle']:
-                    img.getActiveLayer().rect = QRect(min(State['ix_begin'], x)/r -img.xOffset/r, min(State['iy_begin'], y)/r - img.yOffset/r, abs(State['ix_begin'] - x)/r, abs(State['iy_begin'] - y)/r)
+                    layer.rect = QRect(min(State['ix_begin'], x)/r -img.xOffset/r, min(State['iy_begin'], y)/r - img.yOffset/r, abs(State['ix_begin'] - x)/r, abs(State['iy_begin'] - y)/r)
                     rect_or_mask = 0
+                # brush
                 elif (window.btnValues['drawFG'] or window.btnValues['drawBG']):
                     color= CONST_FG_COLOR if window.btnValues['drawFG'] else CONST_BG_COLOR
                     #qp.begin(img._layers['drawlayer'])
-                    qp.begin(img.getActiveLayer())
+                    tmp = layer.mask if layer.maskIsEnabled else layer
+                    qp.begin(tmp)
                     qp.setPen(color)
                     qp.setBrush(color)
                     # avoid alpha summation
@@ -167,7 +184,7 @@ def mouseEvent(widget, event) :
             else:
                 img.xOffset+=(x-State['ix'])
                 img.yOffset+=(y-State['iy'])
-        #update
+        #update current coordinates
         State['ix'],State['iy']=x,y
     elif event.type() == QEvent.MouseButtonRelease :
         pressed=False
@@ -180,14 +197,13 @@ def mouseEvent(widget, event) :
                 cM = QColor(img.getActiveLayer().pixel(State['ix'] / r - img.xOffset / r, State['iy'] / r - img.yOffset / r))
                 red, green, blue = c.red(), c.green(), c.blue()
                 rM, gM, bM = cM.red(), cM.green(), cM.blue()
-                layer = img.getActiveLayer()
                 if hasattr(layer, "adjustView") and layer.adjustView is not None:
                     if hasattr(layer.adjustView.widget(), 'selectGridNode'):
                         # adding/removing  nodes
                         layer.adjustView.widget().selectGridNode(red, green, blue, rM,gM,bM)
                 window.label.repaint()
             if window.btnValues['rectangle'] and img.isMouseSelectable:
-                img.getActiveLayer().rect = QRect(min(State['ix_begin'], x)/r-img.xOffset/r, min(State['iy_begin'], y)/r- img.yOffset/r, abs(State['ix_begin'] - x)/r, abs(State['iy_begin'] - y)/r)
+                layer.rect = QRect(min(State['ix_begin'], x)/r-img.xOffset/r, min(State['iy_begin'], y)/r- img.yOffset/r, abs(State['ix_begin'] - x)/r, abs(State['iy_begin'] - y)/r)
                 rect_or_mask = 0 #init_with_rect
 
                 rect_or_mask=1 # init with mask
@@ -237,7 +253,8 @@ def set_event_handler(widg):
     subclassing or overridding.
     :param widg:
     """
-    widg.paintEvent = lambda e, wdg=widg : paintEvent(wdg,e)
+    #widg.paintEvent = new.instancemethod(lambda e, wdg=widg : paintEvent(wdg,e), widg, QLabel)
+    widg.paintEvent = lambda e, wdg=widg: paintEvent(wdg, e)
     widg.mousePressEvent = lambda e, wdg=widg : mouseEvent(wdg, e)
     widg.mouseMoveEvent = lambda e, wdg=widg : mouseEvent(wdg, e)
     widg.mouseReleaseEvent = lambda e, wdg=widg : mouseEvent(wdg, e)
@@ -251,7 +268,6 @@ def button_change(button):
         #window.label_2.img=do_grabcut(window.label.img, mode=cv2.GC_INIT_WITH_MASK, again=(rect_or_mask==0))
 
 def contextMenu(widget):
-
     qmenu = QMenu("Context menu")
     for k in widget.img.layers.keys():
         action1 = QAction(k, qmenu, checkable=True)
@@ -270,33 +286,19 @@ def menuFile(name):
     :param name: name of calling action
     :return:
     """
-    window._recentFiles = window.settings.value('paths/recent', [], QString)
+    window._recentFiles = window.settings.value('paths/recent', [])
     # update menu and actions
     updateMenuOpenRecent()
 
-    def save():
-        lastDir = window.settings.value('paths/dlgdir', QDir.currentPath()).toString()
-        dlg = QFileDialog(window, "select", lastDir)
-        if dlg.exec_():
-            filenames = dlg.selectedFiles()
-            # Note : class vImage overrides QImage.save()
-            img = window.label.img
-            img.save(filenames[0], quality=100)
-            with exiftool.ExifTool() as e:
-                e.restoreMetadata(img.filename, str(filenames[0]))
-
     if name == 'actionOpen' :
         if window.label.img.isModified:
-            quit_msg = "%s is modified. Save?" % window.label.img.meta.name
-            reply = QMessageBox.question(window, 'Message', quit_msg, QMessageBox.Yes, QMessageBox.No, QMessageBox.Cancel)
-            if reply == QMessageBox.Yes:
+            ret = savingDialog(window.label.img)
+            if ret == QMessageBox.Yes:
                 save()
-            elif reply == QMessageBox.Cancel:
+            elif ret == QMessageBox.Cancel:
                 return
-
-        lastDir = window.settings.value('paths/dlgdir', 'F:/bernard').toString()
+        lastDir = window.settings.value('paths/dlgdir', '.')
         dlg =QFileDialog(window, "select", lastDir)
-
         if dlg.exec_():
             filenames = dlg.selectedFiles()
             newDir = dlg.directory().absolutePath()
@@ -317,8 +319,8 @@ def menuFile(name):
 def openFile(f):
 
     # convert QString object to string
-    if isinstance(f, QString):
-        f=str(f.toUtf8())
+    #if isinstance(f, QString):
+        #f=str(f.toUtf8())
 
     # extract embedded profile and metadata, if any.
     # metadata is a list of dicts with len(metadata) >=1.
@@ -413,7 +415,7 @@ def menuImage(x, name) :
             s = s + '\n'.join('%s : %s' % (k,v) for k, v in d.iteritems())
         w, label = handleTextWindow(parent=window, title='Image info')
         label.setWordWrap(True)
-        label.setText(QString(s))
+        label.setText(s)
     elif name == 'actionColor_manage':
         icc.COLOR_MANAGE = window.actionColor_manage.isChecked()
         img.updatePixmap()
@@ -426,7 +428,7 @@ def menuImage(x, name) :
         s = s + '\nThe monitor profile is associated with your monitor'
         s = s + '\nBoth profles are used in conjunction to display exact colors'
         s = s + '\n\nIf the monitor profile listed above is not the right profile\nfor your monitor, check the system settings for color management'
-        label.setText(QString(s))
+        label.setText(s)
     elif name == 'actionSnap':
         snap = img.snapshot()
         snap.setView(*window.label_2.img.view())
@@ -475,7 +477,7 @@ def menuLayer(x, name):
         l=window.label.img.addSegmentationLayer(name='Segmentation')
         window.tableView.addLayers(window.label.img)
         # link to grabcut form
-        l.segmentView = segmentForm.getNewWindow()
+        l.segmentView = segmentForm.getNewWindow(targetImage=window.label.img)
         # TODO continue
 
 
@@ -526,16 +528,36 @@ def initMenuAssignProfile():
     for f in PROFILES_LIST:
         window.menuAssign_profile.addAction(f[0]+" "+f[1], lambda x=f : window.execAssignProfile(x))
 
-
+def savingDialog(img):
+    reply = QMessageBox()
+    reply.setText("%s has been modified" % img.meta.name if len(img.meta.name) > 0 else 'unnamed image')
+    reply.setInformativeText("Save your changes ?")
+    reply.setStandardButtons(QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
+    reply.setDefaultButton(QMessageBox.Save)
+    ret = reply.exec_()
+    return ret
 
 ###########
 # app init
 ##########
 window.setStyleSheet("background-color: rgb(200, 200, 200);")
 
+def save():
+    lastDir = window.settings.value('paths/dlgdir', QDir.currentPath()).toString()
+    dlg = QFileDialog(window, "select", lastDir)
+    if dlg.exec_():
+        filenames = dlg.selectedFiles()
+        # Note : class vImage overrides QImage.save()
+        img = window.label.img
+        img.save(filenames[0], quality=100)
+        with exiftool.ExifTool() as e:
+            e.restoreMetadata(img.filename, str(filenames[0]))
+
 def close(e):
     if window.label.img.isModified:
-        if (QMessageBox.Yes == QMessageBox.question(window, "Close Confirmation", "Image is modified. Exit without saving?", QMessageBox.Yes | QMessageBox.No)):
+        ret = savingDialog(window.label.img)
+        if ret == QMessageBox.Yes:
+            save()
             return True
         else:
             return False
@@ -557,16 +579,17 @@ window.onExecMenuImage = menuImage
 window.onExecMenuLayer = menuLayer
 #window.onUpdateMenuAssignProfile = menuAssignProfile
 
+# load current settings
 window.readSettings()
 
-window._recentFiles = window.settings.value('paths/recent', [], QString)
+window._recentFiles = window.settings.value('paths/recent', [])
 
 set_event_handler(window.label)
 set_event_handler(window.label_2)
 
 img=QImage(200, 200, QImage.Format_ARGB32)
 img.fill(Qt.darkGray)
-defaultImImage = imImage(QImg=img)
+defaultImImage = imImage(QImg=img, meta=metadata(name='noName'))
 
 PROFILES_LIST = icc.getProfiles()
 initMenuAssignProfile()

@@ -1,24 +1,23 @@
 """
-Copyright (C) 2017  Bernard Virot
+This File is part of bLUe software.
 
-PeLUT - Photo editing software using adjustment layers with 1D and 3D Look Up Tables.
+Copyright (C) 2017  Bernard Virot <bernard.virot@libertysurf.fr>
 
 This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+it under the terms of the GNU Lesser General Public License as
+published by the Free Software Foundation, version 3.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+Lesser General Lesser Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>
+You should have received a copy of the GNU Lesser General Public License
+along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 import numpy as np
-from PyQt4.QtGui import QImage
+from PySide.QtGui import QImage
 from PIL import Image
 
 QImageFormats = {0:'invalid', 1:'mono', 2:'monoLSB', 3:'indexed8', 4:'RGB32', 5:'ARGB32',6:'ARGB32 Premultiplied',
@@ -70,7 +69,7 @@ def QImageBuffer(qimg):
     # suppressing dependencies due to implicit data sharing.
     # To avoid deep copy use constBits() instead.
     ptr = qimg.bits()
-    ptr.setsize(qimg.byteCount())
+    #ptr.setsize(qimg.byteCount())
 
     #convert sip array to ndarray and reshape
     h,w = qimg.height(), qimg.width()

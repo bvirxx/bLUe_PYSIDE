@@ -1,39 +1,28 @@
 """
-Copyright (C) 2017  Bernard Virot
+This File is part of bLUe software.
 
-bLUe - Photo editing software.
-
-With Blue you can enhance and correct the colors of your photos in a few clicks.
-No need for complex tools such as lasso, magic wand or masks.
-bLUe interactively constructs 3D LUTs (Look Up Tables), adjusting the exact set
-of colors you want.
-
-3D LUTs are widely used by professional film makers, but the lack of
-interactive tools maked them poorly useful for photo enhancement, as the shooting conditions
-can vary widely from an image to another. With bLUe, in a few clicks, you select the set of
-colors to modify, the corresponding 3D LUT is automatically built and applied to the image.
-You can then fine tune it as you want.
+Copyright (C) 2017  Bernard Virot <bernard.virot@libertysurf.fr>
 
 This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+it under the terms of the GNU Lesser General Public License as
+published by the Free Software Foundation, version 3.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+Lesser General Lesser Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>
+You should have received a copy of the GNU Lesser General Public License
+along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-from PyQt4.QtCore import QRectF
-from PyQt4.QtCore import QString
-from PyQt4.QtCore import QVariant
-from PyQt4.QtGui import QAction, QMenu, QSlider
-from PyQt4.QtGui import QBrush
-from PyQt4.QtGui import QTableView, QStandardItem, QStandardItemModel, QItemSelectionModel, QAbstractItemView, QPalette, QStyledItemDelegate, QColor, QImage, QPixmap, QIcon, QHeaderView
-from PyQt4.QtCore import Qt
+
+from PySide.QtCore import QRectF
+#from PySide.QtCore import QString
+#from PySide.QtCore import QVariant
+from PySide.QtGui import QAction, QMenu, QSlider
+from PySide.QtGui import QBrush
+from PySide.QtGui import QTableView, QStandardItem, QStandardItemModel, QItemSelectionModel, QAbstractItemView, QPalette, QStyledItemDelegate, QColor, QImage, QPixmap, QIcon, QHeaderView
+from PySide.QtCore import Qt
 import resources_rc  # mandatory : DO NOT REMOVE !!!
 import QtGui1
 
@@ -48,16 +37,16 @@ class layerModel(QStandardItemModel):
 
 class itemDelegate(QStyledItemDelegate):
     """
-    
-    """
 
+    """
     def __init__(self, parent=None):
         QStyledItemDelegate.__init__(self, parent)
 
     def paint(self, painter, option, index):
         rect = QRectF(option.rect)
+        # mask column
         if index.column() == 2:
-            painter.drawText(rect, QString('A'))
+            painter.drawText(rect, 'A')
         else:
             QStyledItemDelegate.paint(self, painter, option, index)
 
@@ -127,7 +116,8 @@ class QLayerView(QTableView) :
                 item_mask = QStandardItem('')
             items.append(item_mask)
             model.appendRow(items)
-        model.setData(model.index(0, 2), QVariant(QBrush(Qt.red)), Qt.ForegroundRole | Qt.DecorationRole)
+        #model.setData(model.index(0, 2), QVariant(QBrush(Qt.red)), Qt.ForegroundRole | Qt.DecorationRole)
+        model.setData(model.index(0, 2), QBrush(Qt.red), Qt.ForegroundRole | Qt.DecorationRole)
 
         self.setModel(model)
 
@@ -225,9 +215,11 @@ class QLayerView(QTableView) :
             if self.currentWin is not None:
                 self.currentWin.hide()
             if hasattr(self.img.layersStack[-1-row], "adjustView"):
-                self.currentWin = self.img.layersStack[-1-row].adjustView
-            else:
-                self.currentWin = None
+                if self.img.layersStack[-1-row].adjustView is not None:
+                    self.currentWin = self.img.layersStack[-1-row].adjustView
+            if hasattr(self.img.layersStack[-1-row], "segmentView"):
+                if self.img.layersStack[-1-row].segmentView is not None:
+                    self.currentWin = self.img.layersStack[-1 - row].segmentView
             if self.currentWin is not None:
                 self.currentWin.show()
         QtGui1.window.label.repaint()
@@ -235,15 +227,21 @@ class QLayerView(QTableView) :
     def contextMenu(self, pos):
         """
         context menu event handler
-        :param pos: event coordinates relative to widget
+        :param pos: event coordinates (relative to widget)
         """
         index = self.indexAt(pos)
         layer = self.img.layersStack[-1-index.row()]
         menu = QMenu()
         actionTransparency = QAction('Transparency', None)
         actionDup = QAction('Duplicate layer', None)
+        actionMaskEnable = QAction('Enable mask', None)
+        actionMaskDisable = QAction('Disable mask', None)
+        actionMaskReset = QAction('Reset mask', None)
         menu.addAction(actionTransparency)
         menu.addAction(actionDup)
+        menu.addAction(actionMaskEnable)
+        menu.addAction(actionMaskDisable)
+        menu.addAction(actionMaskReset)
         self.wdgt = QSlider(Qt.Horizontal)
         self.wdgt.setMinimum(0)
         self.wdgt.setMaximum(100)
@@ -255,8 +253,20 @@ class QLayerView(QTableView) :
         def dup():
             self.img.dupLayer(index = len(self.img.layersStack) -1 - index.row())
             self.addLayers(self.img)
+        def maskEnable():
+            layer.maskIsEnabled = True
+            layer.updatePixmap()
+        def maskDisable():
+            layer.maskIsEnabled = False
+            layer.updatePixmap()
+        def maskReset():
+            layer.resetMask()
+            layer.updatePixmap()
         actionTransparency.triggered.connect(f)
         actionDup.triggered.connect(dup)
+        actionMaskEnable.triggered.connect(maskEnable)
+        actionMaskDisable.triggered.connect(maskDisable)
+        actionMaskReset.triggered.connect(maskReset)
         self.wdgt.valueChanged.connect(g)
 
 

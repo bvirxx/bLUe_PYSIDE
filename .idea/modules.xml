@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/CS4.iml" filepath="$PROJECT_DIR$/.idea/CS4.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/CS4_PYSIDE.iml" filepath="$PROJECT_DIR$/.idea/CS4_PYSIDE.iml" />
     </modules>
   </component>
 </project>

@@ -1,41 +1,30 @@
 """
-Copyright (C) 2017  Bernard Virot
+This File is part of bLUe software.
 
-bLUe - Photo editing software.
-
-With Blue you can enhance and correct the colors of your photos in a few clicks.
-No need for complex tools such as lasso, magic wand or masks.
-bLUe interactively constructs 3D LUTs (Look Up Tables), adjusting the exact set
-of colors you want.
-
-3D LUTs are widely used by professional film makers, but the lack of
-interactive tools maked them poorly useful for photo enhancement, as the shooting conditions
-can vary widely from an image to another. With bLUe, in a few clicks, you select the set of
-colors to modify, the corresponding 3D LUT is automatically built and applied to the image.
-You can then fine tune it as you want.
+Copyright (C) 2017  Bernard Virot <bernard.virot@libertysurf.fr>
 
 This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+it under the terms of the GNU Lesser General Public License as
+published by the Free Software Foundation, version 3.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+Lesser General Lesser Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>
+You should have received a copy of the GNU Lesser General Public License
+along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-from PyQt4.QtCore import QObject
-from PyQt4.QtCore import Qt
-from PyQt4.QtCore import pyqtSignal
+
+#from PySide.QtCore import QObject
+#from PySide.QtCore import Qt
+
 
 from settings import *
 import cv2
 from imgconvert import *
-from PyQt4.QtGui import QPixmap, QImage, QColor, QPainter, QMessageBox
-from PyQt4.QtCore import QRect, QByteArray
+from PySide.QtGui import QPixmap, QImage, QColor, QPainter, QMessageBox
+from PySide.QtCore import QRect, QByteArray
 from icc import convertQImage, COLOR_MANAGE
 from LUT3D import interpVec
 from time import time
@@ -47,22 +36,23 @@ class metadata:
     """
     Image meta data
     """
-    def __init__(self):
-        self.name, self.colorSpace, self.rawMetadata, self.profile, self.orientation = '', -1, [], '', None
+    def __init__(self, name=''):
+        self.name, self.colorSpace, self.rawMetadata, self.profile, self.orientation = name, -1, [], '', None
 
 class vImage(QImage):
     """
     versatile image class.
     This is the base class for all multi-layered and interactive image classes.
-    When no data is passed as parameter, we build a null image.
+    With no parameter, build a null image.
+    Mask is disabled by default.
     """
-    def __init__(self, filename=None, cv2Img=None, QImg=None, cv2mask=None, format=QImage.Format_ARGB32,
+    def __init__(self, filename=None, cv2Img=None, QImg=None, mask=None, format=QImage.Format_ARGB32,
                                             name='', colorSpace=-1, orientation=None, meta=None, rawMetadata=[], profile=''):
         """
         :param filename:
         :param cv2Img:
         :param QImg:
-        :param cv2mask:
+        :param mask:
         :param format: QImage format (default QImage.Format_ARGB32)
         :param name:
         :param colorSpace:
@@ -74,7 +64,7 @@ class vImage(QImage):
         self.colorTransformation = None
         self.isModified = False
         self.onModify = lambda : 0
-        self.rect, self.mask, = None, cv2mask
+        self.rect, self.mask, = None, mask
         self.filename = filename
 
         if meta is None:
@@ -88,29 +78,33 @@ class vImage(QImage):
             super(vImage, self).__init__(format=format)
 
         # load image from file
+        # ARGB32 and RGB32 formats have equal depths (32), so
+        # we don't care about the format parameter value.
         if filename is not None:
             if self.meta.orientation is not None:
                 tmp =QImage(filename).transformed(self.meta.orientation)
             else:
                 tmp = QImage(filename)
-            # shallow copy : no harm !
+            # call to super is mandatory. Shallow copy : no harm !
             super(vImage, self).__init__(tmp)
-            #if self.meta.orientation is not None:
-                #self.transformed(self.meta.orientation)
-        # build image from QImage, shallow copy
         elif QImg is not None:
+            # build image from QImage, shallow copy
             super(vImage, self).__init__(QImg)  # copy ?
             if hasattr(QImg, "meta"):
                 self.meta = copy(QImg.meta)
-        # build image from buffer
         elif cv2Img is not None:
+            # build image from buffer
             super(vImage, self).__init__(ndarrayToQImage(cv2Img, format=format))
+        # consistency check
+        if self.depth() != 32:
+            raise ValueError('vImage : Not a 8 bits/channel color image')
+        # mask
+        self.maskIsEnabled = False
+        self.maskIsSelected = False
         if self.mask is None:
             self.mask = QImage(self.width(), self.height(), QImage.Format_ARGB32)
             self.mask.fill(QColor(0,0,0, 128))
         self.updatePixmap()
-
-
 
     def setModified(self, b):
         self.isModified = b
@@ -121,11 +115,14 @@ class vImage(QImage):
             img = convertQImage(self)
         else:
             img = QImage(self)
-        buf = QImageBuffer(img)
-        maskBuf = QImageBuffer(self.mask)
-        #buf[:,:,3] = maskBuf[:,:,3]
+        if self.maskIsEnabled:
+            buf = QImageBuffer(img)
+            maskBuf = QImageBuffer(self.mask)
+            buf[:,:,3] = maskBuf[:,:,3]
         self.qPixmap = QPixmap.fromImage(img)
 
+    def resetMask(self):
+        self.mask.fill(QColor(0, 0, 0, 255))
 
     def resize(self, pixels, interpolation=cv2.INTER_CUBIC):
         """
@@ -214,6 +211,7 @@ class mImage(vImage):
         self.setModified(False)
         self.addLayer(bgLayer, name='background')
         self.activeLayerIndex = 0
+        self.isModified = False
 
     def getActiveLayer(self):
         return self.layersStack[self.activeLayerIndex]
@@ -279,7 +277,7 @@ class mImage(vImage):
             index = self.activeLayerIndex
         layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
         layer.inputImg = self.layersStack[index]
-        layer.mask = QImage(self.width(), self.height(), self.format())
+        #layer.mask = QImage(self.width(), self.height(), self.format())
         self.addLayer(layer, name=name, index=index + 1)
         layer.parent = self
         self.setModified(True)
@@ -319,6 +317,7 @@ class imImage(mImage) :
         self.Zoom_coeff = 1.0
         self.xOffset, self.yOffset = 0, 0
         self.isMouseSelectable =True
+        self.isModified = False
 
     def resize_coeff(self, widget):
         """
@@ -418,9 +417,10 @@ class QLayer(vImage):
             img = convertQImage(self, transformation=self.parentImage.colorTransformation)
         else:
             img = QImage(self)
-        buf = QImageBuffer(img)
-        maskBuf = QImageBuffer(self.mask)
-        buf[:, :,3] = maskBuf[:, :,3]
+        if self.maskIsEnabled:
+            buf = QImageBuffer(img)
+            maskBuf = QImageBuffer(self.mask)
+            buf[:, :,3] = maskBuf[:, :,3]
         self.qPixmap = QPixmap.fromImage(img)
 
     def setImage(self, qimg):
