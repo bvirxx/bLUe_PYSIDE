@@ -16,13 +16,21 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-from PySide.QtGui import QApplication, QPainter, QWidget, QPixmap, QPushButton, QListWidget, QListWidgetItem
-from PySide.QtGui import QGraphicsView, QGraphicsScene, QAbstractItemView, QGraphicsItem, QGraphicsItemGroup, QGraphicsPathItem , QGraphicsPixmapItem, QGraphicsTextItem, QPolygonF, QGraphicsPolygonItem , QPainterPath, QPainterPathStroker, QPen, QBrush, QColor, QPixmap, QMainWindow, QLabel, QSizePolicy
-from PySide.QtCore import Qt, QPoint, QPointF, QRect, QRectF#, QString
+from PySide.QtGui import QListWidget, QListWidgetItem
+from PySide.QtCore import Qt
 
 class optionsWidget(QListWidget) :
+    """
+    Displays a list of options with checkboxes.
+    The choices can be mutually exclusive (default) or not
+    exclusive.
+    """
 
     def __init__(self, options=[], exclusive=True):
+        """
+        :param options: list of strings
+        :param exclusive: boolean
+        """
         super(optionsWidget, self).__init__()
         self.items = {}
         for option in options:
@@ -34,6 +42,7 @@ class optionsWidget(QListWidget) :
         self.setMinimumWidth(self.sizeHintForColumn(0))
         self.exclusive = exclusive
         self.itemClicked.connect(self.select)
+        # selection hook.
         self.onSelect = lambda x : 0
 
     def select(self, item):

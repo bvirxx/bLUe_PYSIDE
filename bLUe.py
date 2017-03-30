@@ -16,6 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
+
 """
 bLUe - Photo editing software.
 
@@ -32,7 +33,7 @@ can vary widely from an image to another. With bLUe, in a few clicks, you select
 colors to modify, the corresponding 3D LUT is automatically built and applied to the image.
 Then, you can fine tune it as you want.
 """
-
+from types import MethodType
 from grabcut import segmentForm
 import sys
 from PySide.QtCore import Qt, QRect, QEvent, QDir
@@ -53,7 +54,7 @@ CONST_FG_COLOR = QColor(255, 255, 255,128)
 CONST_BG_COLOR = QColor(255, 0, 255,128)
 
 thickness = 30*4
-State = {'drag' : False, 'drawing' : False , 'tool_rect' : False, 'rect_over' : False, 'ix' : 0, 'iy' :0, 'rawMask' : None}
+
 # application windows
 #Wins = {'3D_LUT': None, 'Brightness-Contrast':None}
 rect_or_mask = 0
@@ -71,6 +72,10 @@ def paintEvent(widg, e) :
     """
     Paint event handler for widgets that display a mImage object.
     The widget must have a valid img attribute of type QImage.
+    It should override the paintEvent method of widg. This can be done
+    by subclassing, or by dynamically assigning paintEvent
+    to widg.paintEvent (cf. the function set_event_handler
+    below).
     :param widg: widget object with a img attribute
     :param e: paint event
     """
@@ -109,50 +114,35 @@ def paintEvent(widg, e) :
 
 pressed=False
 clicked = True
+# Mouse coordinates recording
+State = {'drag':False, 'drawing':False , 'tool_rect':False, 'rect_over':False, 'ix':0, 'iy':0, 'ix_begin':0, 'iy_begin':0, 'rawMask':None}
 def mouseEvent(widget, event) :
     """
-    mouse event handler for QLabel object.
-    It handles image positionning and zooming, and
-    tool interactions with the active layer.
-    :param widget:
-    :param event:
+    Mouse event handler for QLabel object.
+    It handles image positionning, zooming, and
+    tool actions. It must be called by mousePressed,
+    mouseMoved and mouseReleased. This can be done by subclassing
+    and overidding, or by dynamically assigning mouseEvent
+    to the former three methods (cf. the function set_event_handler
+    below)
+    :param widget: QLabel object
+    :param event: mouse event
     """
     global rect_or_mask, mask, mask_s, Mimg_1, pressed, clicked
-
+    # image and active layer
     img= widget.img
     layer = img.getActiveLayer()
+
     r = img.resize_coeff(widget)
     x, y = event.x(), event.y()
     # read keyboard modifiers
     modifier = QApplication.keyboardModifiers()
-    """
-    if modifier == Qt.ControlModifier:
-        if event.type() == QEvent.MouseButtonPress:
-            pass
-            #showResult(Mimg_p, Mimg_1, turn)
-            #turn = (turn + 1) % 2
-        return
-    """
     # press event
     if event.type() == QEvent.MouseButtonPress :
         pressed=True
         if event.button() == Qt.LeftButton:
+            # no move yet
             clicked=True
-        """
-        elif event.button() == Qt.RightButton:
-            #State['drag'] = True
-            if not State['rect_over']:
-                print("first draw rectangle \n")
-            else:
-                pass
-                # State['drawing'] = True
-                # # cv2.circle(img.cv2Img, (int(x/r), int(y/r)), thickness, value['color'], -1)
-                # cv2.circle(img.mask, (int(x/r), int(y/r)), thickness, value['val'], -1)
-                # rect_or_mask = 1
-                # mask = cv2.bitwise_or(img.mask, mask)
-                # do_grabcut(Mimg_p, Mimg_1, preview=P_SIZE)
-        """
-        # recording of possible move beginning coordinates
         State['ix'], State['iy'] = x, y
         State['ix_begin'], State['iy_begin'] = x, y
     elif event.type() == QEvent.MouseMove :
@@ -160,9 +150,14 @@ def mouseEvent(widget, event) :
         if pressed :
             # button pressed
             if img.isMouseSelectable:
-                # marquee
+                # marquee tool
                 if window.btnValues['rectangle']:
-                    layer.rect = QRect(min(State['ix_begin'], x)/r -img.xOffset/r, min(State['iy_begin'], y)/r - img.yOffset/r, abs(State['ix_begin'] - x)/r, abs(State['iy_begin'] - y)/r)
+                    # rectangle coordinates relative to image
+                    X = (min(State['ix_begin'], x) - img.xOffset) / r
+                    Y = (min(State['iy_begin'], y) - img.yOffset) / r
+                    w = abs(State['ix_begin'] - x) / r
+                    h = abs(State['iy_begin'] - y) / r
+                    layer.rect = QRect(X, Y, w, h)
                     rect_or_mask = 0
                 # brush
                 elif (window.btnValues['drawFG'] or window.btnValues['drawBG']):
@@ -250,15 +245,17 @@ def wheelEvent(widget,img, event):
 def set_event_handler(widg):
     """
     Pythonic way for redefining event handlers, without
-    subclassing or overridding.
+    subclassing or overridding. However, the PySide dynamic
+    ui loader needs that we set the corresponding classes as customWidget
+    (cf. file pyside_dynamicLoader.py).
     :param widg:
     """
     #widg.paintEvent = new.instancemethod(lambda e, wdg=widg : paintEvent(wdg,e), widg, QLabel)
-    widg.paintEvent = lambda e, wdg=widg: paintEvent(wdg, e)
-    widg.mousePressEvent = lambda e, wdg=widg : mouseEvent(wdg, e)
-    widg.mouseMoveEvent = lambda e, wdg=widg : mouseEvent(wdg, e)
-    widg.mouseReleaseEvent = lambda e, wdg=widg : mouseEvent(wdg, e)
-    widg.wheelEvent = lambda e, wdg=widg : wheelEvent(wdg, wdg.img, e)
+    widg.paintEvent = MethodType(lambda instance, e, wdg=widg: paintEvent(wdg, e), widg.__class__)
+    widg.mousePressEvent = MethodType(lambda instance, e, wdg=widg : mouseEvent(wdg, e), widg.__class__)
+    widg.mouseMoveEvent = MethodType(lambda instance, e, wdg=widg : mouseEvent(wdg, e), widg.__class__)
+    widg.mouseReleaseEvent = MethodType(lambda instance, e, wdg=widg : mouseEvent(wdg, e), widg.__class__)
+    widg.wheelEvent = MethodType(lambda instance, e, wdg=widg : wheelEvent(wdg, wdg.img, e), widg.__class__)
 
 def button_change(button):
     if str(button.accessibleName()) == "Fit_Screen" :
@@ -317,11 +314,9 @@ def menuFile(name):
     updateEnabledActions()
 
 def openFile(f):
-
-    # convert QString object to string
-    #if isinstance(f, QString):
-        #f=str(f.toUtf8())
-
+    """
+    :param f: file name (type str)
+    """
     # extract embedded profile and metadata, if any.
     # metadata is a list of dicts with len(metadata) >=1.
     # metadata[0] contains at least 'SourceFile' : path.
@@ -380,7 +375,6 @@ def updateEnabledActions():
     window.actionSave.setEnabled(window.label.img.isModified)
 
 def menuWindow(x, name):
-
     if name == 'actionShow_hide_left_window' :
         pass
     elif name == 'actionShow_hide_right_window_3' :
@@ -537,11 +531,6 @@ def savingDialog(img):
     ret = reply.exec_()
     return ret
 
-###########
-# app init
-##########
-window.setStyleSheet("background-color: rgb(200, 200, 200);")
-
 def save():
     lastDir = window.settings.value('paths/dlgdir', QDir.currentPath()).toString()
     dlg = QFileDialog(window, "select", lastDir)
@@ -559,9 +548,14 @@ def close(e):
         if ret == QMessageBox.Yes:
             save()
             return True
-        else:
+        elif ret == QMessageBox.Cancel:
             return False
     return True
+
+###########
+# app init
+##########
+window.setStyleSheet("background-color: rgb(200, 200, 200);")
 
 window.onCloseEvent = close
 
