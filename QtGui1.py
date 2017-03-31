@@ -58,24 +58,20 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
 
         self._recentFiles = []
 
-        # event connections to SLOTS
+        # connections to SLOTS
         for slider in self.findChildren(QtGui.QSlider):
-            #segment = slider.objectName()
             slider.valueChanged.connect(
                             lambda value, slider=slider : self.handleSliderMoved(value, slider)
                             )
             self.slidersValues [str(slider.accessibleName())] = slider.value()
 
         for button in self.findChildren(QtGui.QPushButton) :
-            #segment = button.objectName()
             button.pressed.connect(
                             lambda button=button : self.handlePushButtonClicked(button)
                             )
             self.btnValues[str(button.accessibleName())] = button.isChecked()
 
         for button in self.findChildren(QtGui.QToolButton) :
-            #segment = button.objectName()
-            #button.setStyleSheet("QToolButton#DCButton:checked {color:black; background-color: green;}")
             button.pressed.connect(
                             lambda button=button : self.handleToolButtonClicked(button)
                             )
@@ -127,14 +123,23 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
     def handlePushButtonClicked(self, button):
         self.onWidgetChange(button)
 
-    def handleToolButtonClicked(self, button):   # connected to button.pressed signal
-        # mutually exclusive selection
+    def handleToolButtonClicked(self, button):
+        """
+        connected to button.pressed signal
+        mutually exclusive selection
+        :param button:
+        """
         for k in self.btnValues :
             self.btnValues[k] = False
-        self.btnValues[str(button.accessibleName())] = True #1
+        self.btnValues[str(button.accessibleName())] = True
         self.onWidgetChange(button)
 
-    def handleSliderMoved (self, value, slider) :   # connected to slider.valueChanged signal
+    def handleSliderMoved (self, value, slider) :
+        """
+        connected to slider.valueChanged signal
+        :param value:
+        :param slider:
+        """
         self.slidersValues[str(slider.accessibleName())] = value
         self.onWidgetChange(slider)
 

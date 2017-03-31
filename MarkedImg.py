@@ -103,7 +103,7 @@ class vImage(QImage):
         self.maskIsSelected = False
         if self.mask is None:
             self.mask = QImage(self.width(), self.height(), QImage.Format_ARGB32)
-            self.mask.fill(QColor(0,0,0, 128))
+            self.mask.fill(QColor(255,0,0, 255))
         self.updatePixmap()
 
     def setModified(self, b):
@@ -116,9 +116,16 @@ class vImage(QImage):
         else:
             img = QImage(self)
         if self.maskIsEnabled:
+            qp = QPainter(img)
+            qp.setOpacity(0.2)
+            qp.drawImage(0, 0, self.mask)
+            qp.end()
+        """
+        if self.maskIsEnabled:
             buf = QImageBuffer(img)
             maskBuf = QImageBuffer(self.mask)
             buf[:,:,3] = maskBuf[:,:,3]
+        """
         self.qPixmap = QPixmap.fromImage(img)
 
     def resetMask(self):
@@ -410,7 +417,7 @@ class QLayer(vImage):
         self.opacity = 1.0
         self.transfer = lambda : self.qPixmap
         # link to grid or curves view for adjustment layers
-
+    """
     def updatePixmap(self):
         if icc.COLOR_MANAGE and self.parentImage is not None:
             # layer color model is parent image colopr model
@@ -418,11 +425,12 @@ class QLayer(vImage):
         else:
             img = QImage(self)
         if self.maskIsEnabled:
-            buf = QImageBuffer(img)
-            maskBuf = QImageBuffer(self.mask)
-            buf[:, :,3] = maskBuf[:, :,3]
+            qp=QPainter(img)
+            qp.setOpacity(128)
+            qp.drawImage(0,0,self.mask)
+            qp.end()
         self.qPixmap = QPixmap.fromImage(img)
-
+    """
     def setImage(self, qimg):
         """
         replace layer image with a copy of qimg buffer.

@@ -15,7 +15,10 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+from time import sleep
 
+from PySide.QtGui import QBrush
+from PySide.QtGui import QPen
 
 """
 bLUe - Photo editing software.
@@ -50,18 +53,6 @@ from colorModels import cmHSP, cmHSB
 import icc
 from os import path
 
-CONST_FG_COLOR = QColor(255, 255, 255,128)
-CONST_BG_COLOR = QColor(255, 0, 255,128)
-
-thickness = 30*4
-
-# application windows
-#Wins = {'3D_LUT': None, 'Brightness-Contrast':None}
-rect_or_mask = 0
-
-
-mask=None
-mask_s=None
 
 
 # paintEvent painter and background color
@@ -81,13 +72,11 @@ def paintEvent(widg, e) :
     """
     if not hasattr(widg, 'img'):
         raise ValueError("paintEvent : no image defined")
-    if widg.img is None:
-        raise ValueError("paintEvent : no image set")
     mimg = widg.img
+    if mimg is None:
+        raise ValueError("paintEvent : no image set")
     r = mimg.resize_coeff(widg)
     qp.begin(widg)
-    # pen for selection rectangle
-    qp.setPen(QColor(0,255,0))
     # background
     qp.fillRect(QRect(0, 0, widg.width() , widg.height() ), defaultBgColor)
     # draw layers
@@ -103,11 +92,10 @@ def paintEvent(widg, e) :
                               layer  # layer.qPixmap
                               )
     # draw selection rectangle
+    qp.setPen(QColor(0, 255, 0))
     if (mimg.getActiveLayer().visible) and (mimg.getActiveLayer().rect is not None ):
-        rct = mimg.getActiveLayer().rect
-        qp.drawRect(rct.left()*r + mimg.xOffset, rct.top()*r +mimg.yOffset, rct.width()*r, rct.height()*r)
-    #if mimg.mask is not None :
-        #qp.drawImage(QRect(mimg.xOffset, mimg.yOffset, mimg.width * r-10, mimg.height * r  -10), mimg.mask)
+        rect = mimg.getActiveLayer().rect
+        qp.drawRect(rect.left()*r + mimg.xOffset, rect.top()*r +mimg.yOffset, rect.width()*r, rect.height()*r)
     qp.end()
 
 # mouse event handler for image widgets (dynamically set attribute widget.img, currently label and label_2)
@@ -116,6 +104,10 @@ pressed=False
 clicked = True
 # Mouse coordinates recording
 State = {'drag':False, 'drawing':False , 'tool_rect':False, 'rect_over':False, 'ix':0, 'iy':0, 'ix_begin':0, 'iy_begin':0, 'rawMask':None}
+CONST_FG_COLOR = QColor(255, 255, 255, 255)
+CONST_BG_COLOR = QColor(255, 0, 255, 255)
+rect_or_mask = 0
+
 def mouseEvent(widget, event) :
     """
     Mouse event handler for QLabel object.
@@ -128,7 +120,7 @@ def mouseEvent(widget, event) :
     :param widget: QLabel object
     :param event: mouse event
     """
-    global rect_or_mask, mask, mask_s, Mimg_1, pressed, clicked
+    global rect_or_mask, Mimg_1, pressed, clicked
     # image and active layer
     img= widget.img
     layer = img.getActiveLayer()
@@ -145,6 +137,7 @@ def mouseEvent(widget, event) :
             clicked=True
         State['ix'], State['iy'] = x, y
         State['ix_begin'], State['iy_begin'] = x, y
+        State['x_imagePrecPos'], State['y_imagePrecPos'] = (x - img.xOffset) // r, (y - img.yOffset) // r
     elif event.type() == QEvent.MouseMove :
         clicked=False
         if pressed :
@@ -153,25 +146,30 @@ def mouseEvent(widget, event) :
                 # marquee tool
                 if window.btnValues['rectangle']:
                     # rectangle coordinates relative to image
-                    X = (min(State['ix_begin'], x) - img.xOffset) / r
-                    Y = (min(State['iy_begin'], y) - img.yOffset) / r
-                    w = abs(State['ix_begin'] - x) / r
-                    h = abs(State['iy_begin'] - y) / r
-                    layer.rect = QRect(X, Y, w, h)
+                    x_img = (min(State['ix_begin'], x) - img.xOffset) // r
+                    y_img = (min(State['iy_begin'], y) - img.yOffset) // r
+                    w = abs(State['ix_begin'] - x) // r
+                    h = abs(State['iy_begin'] - y) // r
+                    layer.rect = QRect(x_img, y_img, w, h)
                     rect_or_mask = 0
                 # brush
                 elif (window.btnValues['drawFG'] or window.btnValues['drawBG']):
                     color= CONST_FG_COLOR if window.btnValues['drawFG'] else CONST_BG_COLOR
-                    #qp.begin(img._layers['drawlayer'])
                     tmp = layer.mask if layer.maskIsEnabled else layer
                     qp.begin(tmp)
-                    qp.setPen(color)
-                    qp.setBrush(color)
+                    qp.setPen(QPen(QBrush(color), 10))
+                    #qp.pen().setWidth(80)
+                    #qp.setBrush(color)
                     # avoid alpha summation
-                    qp.setCompositionMode(qp.CompositionMode_Source)
-                    qp.drawEllipse(int(x / r)-img.xOffset/r, int(y / r)- img.yOffset/r, 80, 80)
+                    #qp.setCompositionMode(qp.CompositionMode_Source)
+                    tmp_x = (x - img.xOffset) // r
+                    tmp_y = (y - img.yOffset) // r
+                    #qp.drawEllipse(tmp_x, tmp_y, 8, 8)
+                    qp.drawLine(State['x_imagePrecPos'], State['y_imagePrecPos'], tmp_x, tmp_y)
                     qp.end()
+                    State['x_imagePrecPos'], State['y_imagePrecPos'] = tmp_x, tmp_y
                     rect_or_mask=1
+                    layer.updatePixmap()
                     window.label.repaint()
                 else:
                     img.xOffset+=(x-State['ix'])
@@ -184,25 +182,44 @@ def mouseEvent(widget, event) :
     elif event.type() == QEvent.MouseButtonRelease :
         pressed=False
         if event.button() == Qt.LeftButton:
-            # click event
-            if img.isMouseSelectable and clicked:
-                # adding/removing grid nodes
-                # Note : for multilayered images we read pixel color from  the background layer
-                c = QColor(img.getActivePixel(State['ix'] / r -  img.xOffset/r, State['iy'] / r - img.yOffset/r))
-                cM = QColor(img.getActiveLayer().pixel(State['ix'] / r - img.xOffset / r, State['iy'] / r - img.yOffset / r))
-                red, green, blue = c.red(), c.green(), c.blue()
-                rM, gM, bM = cM.red(), cM.green(), cM.blue()
-                if hasattr(layer, "adjustView") and layer.adjustView is not None:
-                    if hasattr(layer.adjustView.widget(), 'selectGridNode'):
-                        # adding/removing  nodes
-                        layer.adjustView.widget().selectGridNode(red, green, blue, rM,gM,bM)
-                window.label.repaint()
-            if window.btnValues['rectangle'] and img.isMouseSelectable:
-                layer.rect = QRect(min(State['ix_begin'], x)/r-img.xOffset/r, min(State['iy_begin'], y)/r- img.yOffset/r, abs(State['ix_begin'] - x)/r, abs(State['iy_begin'] - y)/r)
-                rect_or_mask = 0 #init_with_rect
-
-                rect_or_mask=1 # init with mask
-                #print(" Now press the key 'n' a few times until no further change \n")
+            if img.isMouseSelectable:
+                # click event
+                if clicked:
+                    # adding/removing grid nodes
+                    # Note : for multilayered images we read pixel color from  the background layer
+                    c = QColor(img.getActivePixel(State['ix'] // r -  img.xOffset//r, State['iy'] // r - img.yOffset//r))
+                    cM = QColor(img.getActiveLayer().pixel(State['ix'] // r - img.xOffset // r, State['iy'] // r - img.yOffset // r))
+                    red, green, blue = c.red(), c.green(), c.blue()
+                    rM, gM, bM = cM.red(), cM.green(), cM.blue()
+                    if hasattr(layer, "adjustView") and layer.adjustView is not None:
+                        if hasattr(layer.adjustView.widget(), 'selectGridNode'):
+                            # adding/removing  nodes
+                            layer.adjustView.widget().selectGridNode(red, green, blue, rM,gM,bM)
+                    window.label.repaint()
+                if window.btnValues['rectangle']:
+                    layer.rect = QRect(min(State['ix_begin'], x)//r-img.xOffset//r, min(State['iy_begin'], y)//r- img.yOffset//r, abs(State['ix_begin'] - x)//r, abs(State['iy_begin'] - y)//r)
+                    rect_or_mask = 0 #init_with_rect
+                    rect_or_mask=1 # init with mask
+                elif (window.btnValues['drawFG'] or window.btnValues['drawBG']):
+                    color = CONST_FG_COLOR if window.btnValues['drawFG'] else CONST_BG_COLOR
+                    # qp.begin(img._layers['drawlayer'])
+                    tmp = layer.mask if layer.maskIsEnabled else layer
+                    qp.begin(tmp)
+                    qp.setPen(QPen(QBrush(color), 10))
+                    # avoid alpha summation
+                    tmp_x = (x - img.xOffset) // r
+                    tmp_y = (y - img.yOffset) // r
+                    # qp.drawEllipse(tmp_x, tmp_y, 8, 8)
+                    qp.drawLine(State['x_imagePrecPos'], State['y_imagePrecPos'], tmp_x, tmp_y)
+                    qp.end()
+                    #State['x_imagePrecPos'], State['y_imagePrecPos'] = tmp_x, tmp_y
+                    rect_or_mask = 1
+                    layer.updatePixmap()
+                    window.label.repaint()
+                    tmp.isModified = True
+                else:
+                    img.xOffset += (x - State['ix'])
+                    img.yOffset += (y - State['iy'])
         """
         elif event.button() == Qt.RightButton:
             State['drag'] = False
@@ -261,8 +278,6 @@ def button_change(button):
     if str(button.accessibleName()) == "Fit_Screen" :
         window.label.img.fit_window(window.label)
         window.label.repaint()
-        #do_grabcut(Mimg_p, mode=cv2.GC_INIT_WITH_MASK, again=(rect_or_mask==0))
-        #window.label_2.img=do_grabcut(window.label.img, mode=cv2.GC_INIT_WITH_MASK, again=(rect_or_mask==0))
 
 def contextMenu(widget):
     qmenu = QMenu("Context menu")
@@ -326,8 +341,7 @@ def openFile(f):
     with exiftool.ExifTool() as e:
         profile, metadata = e.get_metadata(f)
 
-    # trying to get color space info
-    # 1 = sRGB
+    # trying to get color space info : 1 = sRGB
     colorSpace = metadata[0].get("EXIF:ColorSpace", -1)
     if colorSpace <0:
         # sRGBIEC61966-2.1
@@ -485,7 +499,6 @@ def handleNewWindow(imImg=None, parent=None, title='New window', show_maximized=
     :param title:
     :param event_handler:
     """
-
     newwindow = QMainWindow(parent)
     newwindow.setAttribute(Qt.WA_DeleteOnClose)
     newwindow.setWindowTitle(parent.tr(title))

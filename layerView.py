@@ -17,8 +17,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 from PySide.QtCore import QRectF
-#from PySide.QtCore import QString
-#from PySide.QtCore import QVariant
 from PySide.QtGui import QAction, QMenu, QSlider
 from PySide.QtGui import QBrush
 from PySide.QtGui import QTableView, QStandardItem, QStandardItemModel, QItemSelectionModel, QAbstractItemView, QPalette, QStyledItemDelegate, QColor, QImage, QPixmap, QIcon, QHeaderView
@@ -189,7 +187,6 @@ class QLayerView(QTableView) :
 
             self.img.layersStack = rStack[::-1]
             event.accept()
-
 
     def viewClicked(self, clickedIndex):
         """
