@@ -35,6 +35,7 @@ class layerModel(QStandardItemModel):
 
 class itemDelegate(QStyledItemDelegate):
     """
+    Delegate for item painting
 
     """
     def __init__(self, parent=None):
@@ -44,7 +45,16 @@ class itemDelegate(QStyledItemDelegate):
         rect = QRectF(option.rect)
         # mask column
         if index.column() == 2:
+            if self.parent().img is not None:
+                if self.parent().img.layersStack[-1-index.row()].maskIsSelected:
+                    painter.save()
+                    painter.setPen(Qt.red)
+                    painter.drawText(rect, 'A')
+                    painter.restore()
+                    return
+
             painter.drawText(rect, 'A')
+
         else:
             QStyledItemDelegate.paint(self, painter, option, index)
 
@@ -55,9 +65,9 @@ class QLayerView(QTableView) :
     in the main form to display lists
     of image layers.
     """
-    def __init__(self, img):
-        super(QLayerView, self).__init__()
-        self.img = img
+    def __init__(self, parent):
+        super(QLayerView, self).__init__(parent)
+        self.img = None
         # form to display
         self.currentWin = None
         self.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -80,7 +90,7 @@ class QLayerView(QTableView) :
         self.setAcceptDrops(True)
         self.setDropIndicatorShown(True)
 
-        self.setItemDelegate(itemDelegate())
+        self.setItemDelegate(itemDelegate(parent=self))
 
 
     def addLayers(self, mImg):
@@ -138,7 +148,6 @@ class QLayerView(QTableView) :
 
     def update(self):
         activeLayer = self.img.getActiveLayer()
-
         if hasattr(activeLayer, 'adjustView'):
             self.currentWin = activeLayer.adjustView
         if hasattr(activeLayer, 'segmentView'):
@@ -211,6 +220,7 @@ class QLayerView(QTableView) :
             # update displayed window
             if self.currentWin is not None:
                 self.currentWin.hide()
+                self.currentWin=None
             if hasattr(self.img.layersStack[-1-row], "adjustView"):
                 if self.img.layersStack[-1-row].adjustView is not None:
                     self.currentWin = self.img.layersStack[-1-row].adjustView
@@ -219,6 +229,10 @@ class QLayerView(QTableView) :
                     self.currentWin = self.img.layersStack[-1 - row].segmentView
             if self.currentWin is not None:
                 self.currentWin.show()
+        # select mask
+        elif clickedIndex.column() == 2:
+            self.img.layersStack[-1-clickedIndex.row()].maskIsSelected = not self.img.layersStack[-1-clickedIndex.row()].maskIsSelected
+            self.repaint()
         QtGui1.window.label.repaint()
 
     def contextMenu(self, pos):

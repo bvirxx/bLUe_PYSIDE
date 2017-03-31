@@ -486,6 +486,7 @@ def menuLayer(x, name):
         window.tableView.addLayers(window.label.img)
         # link to grabcut form
         l.segmentView = segmentForm.getNewWindow(targetImage=window.label.img)
+        window.tableView.update()
         # TODO continue
 
 

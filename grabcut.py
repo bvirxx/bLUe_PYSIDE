@@ -22,6 +22,7 @@ from time import time
 
 from PySide.QtGui import QHBoxLayout
 from PySide.QtGui import QImage
+from PySide.QtGui import QMessageBox
 from PySide.QtGui import QPushButton
 from PySide.QtGui import QWidget
 
@@ -29,6 +30,9 @@ from imgconvert import QImageBuffer
 
 
 class segmentForm(QWidget):
+    """
+    Form for applying segmentation
+    """
 
     @classmethod
     def getNewWindow(cls, targetImage=None):
@@ -37,7 +41,7 @@ class segmentForm(QWidget):
         hLay = QHBoxLayout()
         wdgt.setLayout(hLay)
         hLay.addWidget(pushButton)
-        pushButton.clicked.connect(lambda x : wdgt.execute())
+        pushButton.clicked.connect(lambda : wdgt.execute())
         return wdgt
 
     def __init__(self, targetImage=None):
@@ -45,59 +49,51 @@ class segmentForm(QWidget):
         self.targetImage=targetImage
 
     def execute(self):
-        do_grabcut(self.targetImage.getActiveLayer(), preview=-1, nb_iter=1, mode=cv2.GC_INIT_WITH_MASK, again=False)
+        do_grabcut(self.targetImage.getActiveLayer(), nb_iter=1, mode=cv2.GC_INIT_WITH_MASK, again=False)
 
 
-def do_grabcut(layer, preview=-1, nb_iter=1, mode=cv2.GC_INIT_WITH_MASK, again=False):
+def do_grabcut(layer, nb_iter=1, mode=cv2.GC_INIT_WITH_MASK, again=False):
     """
-    segment source MImage instance.
 
-    :param inputImg: input image (type QLayer)
+    :param layer: source image (type QLayer)
     :param nb_iter:
-    :param mode
+    :param mode:
+    :param again:
     :return:
     """
     global rect_or_mask
     inputImg = layer.inputImg
 
-    mask = layer.mask #State['rawMask']
+    mask = layer.mask
+    rect = layer.rect
 
-    img0_r=inputImg
-
-    # set mask from selection rectangle
+    # set mask from selection rectangle, if any
     rectMask = np.zeros((layer.height(), layer.width()), dtype=np.uint8)
-    rectMask[layer.rect.top():layer.rect.bottom(), layer.rect.left():layer.rect.right()] = cv2.GC_PR_FGD
-
-    if not again:
-        #get painted values in BGRA order
-        paintedMask = QImageBuffer(layer.mask)
-        paintedMask[paintedMask==255]=cv2.GC_FGD
-        paintedMask[paintedMask==0]=cv2.GC_BGD
-
-        #np.copyto(rectMask, paintedMask[:,:,1], where=(paintedMask[:,:,3]>0)) # copy  painted (A > 0) pixels (G value only)
-
-        #if mask is not None:
-            #np.copyto(rectMask, mask, where=(np.logical_and((mask==0),(paintedMask[:,:,0]==0))))
-
-        mask=rectMask
-        rect_or_mask=0
+    if rect is not None:
+        rectMask[rect.top():rect.bottom(), rect.left():rect.right()] = cv2.GC_PR_FGD
     else:
-        if mask is None:
-            mask=rectMask
-            print "None mask"
-        else:
-            print "reuse mask"
+        rectMask = rectMask + cv2.GC_PR_FGD
 
+
+    paintedMask = QImageBuffer(mask)
+    #paintedMask[paintedMask==255]=cv2.GC_FGD
+    #paintedMask[paintedMask==0]=cv2.GC_BGD
+
+    #np.copyto(rectMask, paintedMask[:,:,3], where=(paintedMask[:,:,1]>0)) # copy  painted (G > 0) pixels (alpha value only)
+
+    if not(np.any(rectMask==cv2.GC_FGD) and np.any(rectMask==cv2.GC_BGD )):
+        reply = QMessageBox()
+        reply.setText('You muest select some background or foreground pixels')
+        reply.setInformativeText('Use selection rectangle or mask')
+        reply.setStandardButtons(QMessageBox.Ok)
+        ret = reply.exec_()
+        return None
 
     bgdmodel = np.zeros((1, 13 * 5), np.float64)  # Temporary array for the background model
     fgdmodel = np.zeros((1, 13 * 5), np.float64)  # Temporary array for the foreground model
 
     t0 = time()
-    #if preview >0:
-        #img0_r=img0_r.resize(preview)
-        #mask=cv2.resize(mask, (img0_r.width(), img0_r.height()), interpolation=cv2.INTER_NEAREST)
-        #a=img0_r.cv2Img()
-    #cv2.grabCut_mtd(img0_r.cv2Img()[:,:,:3],
+
     cv2.grabCut_mtd(QImageBuffer(inputImg)[:, :, :3],
                 rectMask,
                 None,#QRect2tuple(img0_r.rect),
@@ -106,11 +102,6 @@ def do_grabcut(layer, preview=-1, nb_iter=1, mode=cv2.GC_INIT_WITH_MASK, again=F
                 mode)
     print 'grabcut_mtd time :', time()-t0
 
-    #img0_r = inputImg
-    #if preview >0:
-        #mask=cv2.resize(mask, (inputImg.width(), inputImg.height()), interpolation=cv2.INTER_NEAREST)
-
-    #State['rawMask'] = mask
     # apply mask
     current_mask = rectMask
 
