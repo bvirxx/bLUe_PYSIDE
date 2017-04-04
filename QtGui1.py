@@ -94,6 +94,9 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
         for action in enumerateMenuActions(self.menuLayer) :
             action.triggered.connect(lambda x=0, actionName=action.objectName(): self.execMenuLayer(x, actionName))
 
+            for action in enumerateMenuActions(self.menuHelp):
+                action.triggered.connect(lambda x=0, actionName=action.objectName(): self.execMenuHelp(x, actionName))
+
         # mouse hovered event Slots
         #self.menuOpen_recent.menuAction().hovered.connect(lambda : self.updateMenuOpenRecent())
         #self.menuColor_settings.menuAction().hovered.connect(lambda : self.updateMenuAssignProfile())
@@ -103,7 +106,7 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
         self.onExecAssignProfile(x)
 
     def execMenuFile(self,x, name):
-        self.onExecMenuFile(name)
+        self.onExecMenuFile(x, name)
 
     def execFileOpen(self, f):
         self.onExecFileOpen(f)
@@ -116,6 +119,9 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
 
     def execMenuLayer(self, x, name):
         self.onExecMenuLayer(x, name)
+
+    def execMenuHelp(self, x, name):
+        self.onExecMenuHelp(x, name)
 
     def showContextMenu(self, pos, widget):
         self.onShowContextMenu(widget)

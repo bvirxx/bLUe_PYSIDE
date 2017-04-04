@@ -117,7 +117,8 @@ class vImage(QImage):
             img = QImage(self)
         if self.maskIsEnabled:
             qp = QPainter(img)
-            qp.setOpacity(0.2)
+            #qp.setOpacity(0.2)
+            qp.setCompositionMode(QPainter.RasterOp_SourceAndDestination)
             qp.drawImage(0, 0, self.mask)
             qp.end()
         """

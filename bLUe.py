@@ -15,10 +15,31 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-from time import sleep
+from PySide.QtCore import QUrl
+from PySide.QtGui import QDesktopServices
+from PySide.QtGui import QTextBrowser
+from PySide.QtWebKit import QWebView
+
+"""
+The QtHelp module uses the CLucene indexing library
+Copyright (C) 2003-2006 Ben van Klinken and the CLucene Team
+
+Changes are Copyright (C) 2010 Nokia Corporation and/or its subsidiary(-ies).
+
+This library is free software; you can redistribute it and/or modify it under the terms of the GNU Lesser General Public License
+as published by the Free Software Foundation; either version 2.1 of the License, or (at your option) any later version.
+
+This library is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License along with this library; if not, write to the Free Software Foundation,
+Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+"""
+from time import sleep, time
 
 from PySide.QtGui import QBrush
 from PySide.QtGui import QPen
+from PySide.QtGui import QSplashScreen
 
 """
 bLUe - Photo editing software.
@@ -40,7 +61,7 @@ from types import MethodType
 from grabcut import segmentForm
 import sys
 from PySide.QtCore import Qt, QRect, QEvent, QDir
-from PySide.QtGui import QColor,QPainter, QApplication, QMenu, QAction, QCursor, QFileDialog, QMessageBox, QMainWindow, QLabel, QDockWidget, QSizePolicy
+from PySide.QtGui import QPixmap, QColor,QPainter, QApplication, QMenu, QAction, QCursor, QFileDialog, QMessageBox, QMainWindow, QLabel, QDockWidget, QSizePolicy
 from QtGui1 import app, window
 import exiftool
 from imgconvert import *
@@ -292,42 +313,6 @@ def toggleLayer(widget, layer, b):
     layer.visible = b
     widget.repaint()
 
-def menuFile(name):
-    """
-
-    :param name: name of calling action
-    :return:
-    """
-    window._recentFiles = window.settings.value('paths/recent', [])
-    # update menu and actions
-    updateMenuOpenRecent()
-
-    if name == 'actionOpen' :
-        if window.label.img.isModified:
-            ret = savingDialog(window.label.img)
-            if ret == QMessageBox.Yes:
-                save()
-            elif ret == QMessageBox.Cancel:
-                return
-        lastDir = window.settings.value('paths/dlgdir', '.')
-        dlg =QFileDialog(window, "select", lastDir)
-        if dlg.exec_():
-            filenames = dlg.selectedFiles()
-            newDir = dlg.directory().absolutePath()
-            window.settings.setValue('paths/dlgdir', newDir)
-            # update list of recent files
-            filter(lambda a: a != filenames[0], window._recentFiles)
-            window._recentFiles.append(filenames[0])
-            if len(window._recentFiles) > 10:
-                window._recentFiles.pop(0)
-            window.settings.setValue('paths/recent', window._recentFiles)
-            # update menu and actions
-            updateMenuOpenRecent()
-            openFile(filenames[0])
-    elif name == 'actionSave':
-        save()
-    updateEnabledActions()
-
 def openFile(f):
     """
     :param f: file name (type str)
@@ -388,7 +373,48 @@ def updateMenuOpenRecent():
 def updateEnabledActions():
     window.actionSave.setEnabled(window.label.img.isModified)
 
+def menuFile(x, name):
+    """
+
+    :param x: dummy
+    :param name: action name
+    """
+    window._recentFiles = window.settings.value('paths/recent', [])
+    # update menu and actions
+    updateMenuOpenRecent()
+
+    if name == 'actionOpen' :
+        if window.label.img.isModified:
+            ret = savingDialog(window.label.img)
+            if ret == QMessageBox.Yes:
+                save()
+            elif ret == QMessageBox.Cancel:
+                return
+        lastDir = window.settings.value('paths/dlgdir', '.')
+        dlg =QFileDialog(window, "select", lastDir)
+        if dlg.exec_():
+            filenames = dlg.selectedFiles()
+            newDir = dlg.directory().absolutePath()
+            window.settings.setValue('paths/dlgdir', newDir)
+            # update list of recent files
+            filter(lambda a: a != filenames[0], window._recentFiles)
+            window._recentFiles.append(filenames[0])
+            if len(window._recentFiles) > 10:
+                window._recentFiles.pop(0)
+            window.settings.setValue('paths/recent', window._recentFiles)
+            # update menu and actions
+            updateMenuOpenRecent()
+            openFile(filenames[0])
+    elif name == 'actionSave':
+        save()
+    updateEnabledActions()
+
 def menuWindow(x, name):
+    """
+
+    :param x: dummy
+    :param name: action name
+    """
     if name == 'actionShow_hide_left_window' :
         pass
     elif name == 'actionShow_hide_right_window_3' :
@@ -400,6 +426,11 @@ def menuWindow(x, name):
         handleNewWindow(imImg=window.label.img, title='Diaporama', show_maximized=True, parent=window)
 
 def menuImage(x, name) :
+    """
+
+    :param x: dummy
+    :param name: action name
+    """
     img = window.label.img
     # display image info
     if name == 'actionImage_info' :
@@ -445,6 +476,11 @@ def menuImage(x, name) :
 
 
 def menuLayer(x, name):
+    """
+
+    :param x: dummy
+    :param name: action name
+    """
     if name == 'actionBrightness_Contrast':
         grWindow=graphicsForm.getNewWindow()
         #Wins['Brightness-Contrast'] = grWindow
@@ -490,14 +526,30 @@ def menuLayer(x, name):
         # TODO continue
 
 
+def menuHelp(x, name):
+    """
+    Help browser is created only once.
+    :param x: dummy
+    :param name: action name
+    """
+    global helpWindow
+    link = "Help.html"
+    if helpWindow is None:
+        helpWindow = QWebView()
+        helpWindow.load(QUrl(link))
+    helpWindow.show()
+
+
 def handleNewWindow(imImg=None, parent=None, title='New window', show_maximized=False, event_handler=True):
     """
     Show a floating window with a QLabel object. It can be used
     to display text or iamge. If the parameter event_handler is True (default)
     the QLabel object redefines its handlers for paint and mouse events to display
     the imImage object label.img
+    :param imImg:
     :param parent:
     :param title:
+    :param show_maximized:
     :param event_handler:
     """
     newwindow = QMainWindow(parent)
@@ -557,6 +609,10 @@ def save():
             e.restoreMetadata(img.filename, str(filenames[0]))
 
 def close(e):
+    """
+
+    :param e: close event
+    """
     if window.label.img.isModified:
         ret = savingDialog(window.label.img)
         if ret == QMessageBox.Yes:
@@ -569,6 +625,19 @@ def close(e):
 ###########
 # app init
 ##########
+
+#splash screen
+pixmap = QPixmap('logo.png')
+splash = QSplashScreen(pixmap, Qt.WindowStaysOnTopHint)
+splash.show()
+app.processEvents()
+splash.showMessage("bLUe", color=Qt.darkBlue, alignment=Qt.AlignCenter)
+app.processEvents()
+sleep(3)
+
+#help Window
+helpWindow=None
+
 window.setStyleSheet("background-color: rgb(200, 200, 200);")
 
 window.onCloseEvent = close
@@ -585,6 +654,7 @@ window.onExecFileOpen = openFile
 window.onExecMenuWindow = menuWindow
 window.onExecMenuImage = menuImage
 window.onExecMenuLayer = menuLayer
+window.onExecMenuHelp = menuHelp
 #window.onUpdateMenuAssignProfile = menuAssignProfile
 
 # load current settings
@@ -607,5 +677,6 @@ window.label.img = defaultImImage
 window.label_2.img = defaultImImage
 
 window.showMaximized()
+splash.finish(window)
 
 sys.exit(app.exec_())

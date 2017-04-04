@@ -49,11 +49,11 @@ class itemDelegate(QStyledItemDelegate):
                 if self.parent().img.layersStack[-1-index.row()].maskIsSelected:
                     painter.save()
                     painter.setPen(Qt.red)
-                    painter.drawText(rect, 'A')
+                    painter.drawText(rect, 'M')
                     painter.restore()
                     return
 
-            painter.drawText(rect, 'A')
+            painter.drawText(rect, 'M')
 
         else:
             QStyledItemDelegate.paint(self, painter, option, index)
