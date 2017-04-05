@@ -159,6 +159,12 @@ class vImage(QImage):
         return rszd
 
     def applyLUT(self, LUT, widget=None, options={}):
+        """
+
+        :param LUT:
+        :param widget:
+        :param options:
+        """
 
         # get image buffer (BGR order on intel proc.)
         ndImg0 = QImageBuffer(self.inputImg)[:, :, :3] #[:, :, ::-1]

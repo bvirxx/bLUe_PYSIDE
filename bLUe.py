@@ -482,18 +482,22 @@ def menuLayer(x, name):
     :param name: action name
     """
     if name == 'actionBrightness_Contrast':
-        grWindow=graphicsForm.getNewWindow()
-        #Wins['Brightness-Contrast'] = grWindow
-        grWindow.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored);
-        grWindow.setGeometry(QRect(100, 40, 156, 102))
-
+        ccm = cmHSP
+        layerName = 'Brightness Contrast'
+        l = window.label.img.addAdjustmentLayer(name=layerName)
+        grWindow=graphicsForm.getNewWindow(ccm, size=800, targetImage=window.label.img, layer=l)
+        #grWindow.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored);
+        #grWindow.setGeometry(QRect(100, 40, 156, 102))
         dock=QDockWidget()
         dock.setWidget(grWindow)
-        window.addDockWidget(Qt.RightDockWidgetArea, dock)
+        dock.setWindowFlags(Qt.Window | Qt.WindowMaximizeButtonHint | Qt.WindowStaysOnTopHint)
+        dock.setWindowTitle(grWindow.windowTitle())
+        dock.move(900, 40)
+        #window.addDockWidget(Qt.RightDockWidgetArea, dock)
         #l=QLayer(QImg=testLUT(grWindow.LUTXY))
-        layerName='Brightness Contrast'
-        l=window.label.img.addAdjustmentLayer(name=layerName)
         l.inputImg = window.label.img
+        # link dock with adjustment layer
+        l.adjustView = dock
         l.applyLUT(grWindow.graphicsScene.LUTXY, widget=window.label)
         #window.label.img.addLayer(l, name='Brightness/Contrast')
         window.tableView.addLayers(window.label.img)

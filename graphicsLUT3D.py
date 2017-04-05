@@ -769,7 +769,7 @@ class graphicsForm3DLUT(QGraphicsView) :
     defaultColorWheelBr = 0.45
 
     @classmethod
-    def getNewWindow(cls, cModel, targetImage=None, size=500, LUTSize=LUTSIZE, layer='None', parent=None):
+    def getNewWindow(cls, cModel, targetImage=None, size=500, LUTSize=LUTSIZE, layer=None, parent=None):
         """
         build a graphicsForm3DLUT object. The parameter size represents the size of
         the color wheel, border not included (the size of the window is adjusted).
