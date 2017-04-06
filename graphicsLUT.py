@@ -73,21 +73,16 @@ class myGraphicsPathItem (QGraphicsPathItem):
 
 class activePoint(myGraphicsPathItem):
     def __init__(self, x,y, parentItem=None):
-        #super(QGraphicsPathItem, self).__init__()
-        super(myGraphicsPathItem, self).__init__(parentItem=parentItem)
-        #self.setPen(QPen(QBrush(QColor(0, 0, 255)), 2))
-        self.setPen(QPen(QColor(0, 0, 255),2))
-        self.position_ = QPointF(x,y)
+        super(myGraphicsPathItem, self).__init__()
+        self.setParentItem(parentItem)
+        #self.position_ = QPointF(x,y)
         self.setPos(QPointF(x,y))
-        self.moveStart=QPointF(0,0)
+        self.moveStart=QPointF()
+        self.setPen(QPen(QColor(255, 0, 0), 2))
         qpp = QPainterPath()
-        #qpp.addEllipse(self.position_, 5, 5)
-        qpp.addEllipse(0,0, 5, 5)
+        qpp.addEllipse(0,0, 8, 8)
         self.setPath(qpp)
-        #self.updatePath()
 
-    def position(self):
-        return self.position_
 
     def mousePressEvent(self, e):
         self.moveStart = e.pos()
@@ -98,134 +93,65 @@ class activePoint(myGraphicsPathItem):
         updateScene(self.scene())
 
     def mouseReleaseEvent(self, e):
-        self.scene().fixedPoints.sort(key=lambda p : p.position().x())
+        self.scene().fixedPoints.sort(key=lambda p : p.scenePos().x())
         self.position_=e.scenePos()
         self.setPos(e.scenePos())
         sc = self.scene()
         if self.moveStart == e.pos():
             self.scene().fixedPoints.remove(self)
             sc.removeItem(self)
-            for t in self.scene().tangents :
-                if t.contactPoint == self.position() :
-                    print "removed"
-                    self.scene().tangents.remove(t)
-                    self.scene().removeItem(t)
             updateScene(sc)
-        sc.onUpdateScene()
-
-class activeTangent(myGraphicsPathItem):
-    def __init__(self, controlPoint=QPointF(), contactPoint=QPointF(), parentItem=None):
-        #super(QGraphicsPathItem, self).__init__()
-        super(myGraphicsPathItem, self).__init__(parentItem=parentItem)
-        self.setPen(QPen(QBrush(QColor(255, 0, 0)), 2))
-        self.controlPoint = controlPoint
-        self.contactPoint = contactPoint
-        self.updatePath()
-
-    def updatePath(self):
-        qpp = QPainterPath()
-        qpp.addEllipse(self.controlPoint, 5, 5)
-        qpp.moveTo(self.controlPoint)
-        qpp.lineTo(self.contactPoint)
-        self.setPath(qpp)
-
-    def mousePressEvent(self, e):
-        global computeControlPoints
-        computeControlPoints = False
-
-    def mouseMoveEvent(self, e):
-        self.controlPoint = e.pos()
         updateScene(self.scene())
-
-    def mouseReleaseEvent(self, e):
-        global computeControlPoints
-        if e.lastPos() == e.pos():
-            print 'tangent click'
-        computeControlPoints = True
-
         self.scene().onUpdateScene()
+        self.scene().onUpdateLUT()
+        sc.onUpdateScene()
+        img=self.scene().targetImage
+        self.scene().histImg = img.histogram()
 
 
-def qBezierLen(p0, p1, p2) :
-    """
-    Compute the length of a quadratic Bezier curve.
-    cf. http://www.malczak.linuxpl.com/blog/quadratic-bezier-curve-length
-    :param p0: starting point ( type QPointF)
-    :param p1: control point (type QPointF)
-    :param p2: end point (type QPointF)
-    :return: curve length (type float)
-    """
-    if p0 == p2:
-        return 0.0
-    v = p2 - p0
-    w = p1 - p0
 
-    if v.x()*w.y() - v.y()*w.x() == 0.0:
-        # the curve is degenerated, return norm(v)
-        return np.sqrt(v.x()*v.x() + v.y()*v.y())
+class cubicItem(myGraphicsPathItem) :
 
-    a = QPointF(p0 - 2*p1 + p2)
-    b = QPointF(2*(p1 - p0))
-
-
-    A = 4*(a.x()*a.x() + a.y()*a.y())
-    B = 4*(a.x()*b.x() + a.y()*b.y())
-    C = b.x()*b.x() + b.y()*b.y()
-
-    Sabc = 2*np.sqrt(A+B+C)
-
-    A_2 = np.sqrt(A)
-    A_32 = 2 * A* A_2
-    C_2 = 2 * np.sqrt(C)
-    BA = B / A_2
-
-    return (
-               A_32 * Sabc + A_2 * B * (Sabc - C_2) + (4*C*A - B*B) * np.log( (2*A_2 + BA + Sabc ) / ( BA + C_2) )
-           ) / (4 * A_32)
-
-class Bezier(myGraphicsPathItem) :
-
-    def __init__(self, size):
-        super(Bezier, self).__init__()
+    def __init__(self, size, parentItem=None):
+        super(cubicItem, self).__init__()
+        self.setParentItem(parentItem)
         self.qpp = QPainterPath()
-
-        #build curve
+        # initial curve : diagonal
         self.qpp.lineTo(QPoint(size, -size))
-        #for p in fixedPoints :
-            #self.qpp.addEllipse(p.pos(),3,3)
-
         # stroke curve
         stroker=QPainterPathStroker()
         stroker.setWidth(strokeWidth)
         self.mboundingPath = stroker.createStroke(self.qpp)
-
         self.setPath(self.mboundingPath)
-
         self.clicked=QPoint(0,0)
         self.selected = False
 
     def updatePath(self):
         qpp = QPainterPath()
-        polygon = QPolygonF()
         X = np.array([item.x() for item in self.scene().fixedPoints])
         Y = np.array([item.y() for item in self.scene().fixedPoints])
 
+        """
         xValues, yValues = cubicSplineCurve(X, Y)
         for i in range(len(xValues)):
             polygon.append(QPointF(xValues[i], yValues[i]))
-
+        """
+        l = cubicSplineCurve(X, Y, clippingInterval= [-self.scene().axeSize, 0])#self.scene().axeSize])
+        polygon = QPolygonF(l)
         qpp.addPolygon(polygon)
 
         # stroke path
         stroker = QPainterPathStroker()
-        stroker.setWidth(5)
+        stroker.setWidth(3)
         # mboundingPath = QPainterPath(qpp)
-        mboundingPath = stroker.createStroke(qpp);
+        mboundingPath = stroker.createStroke(qpp)
         # self.setPath(mboundingPath + qpp1)
         self.setPath(mboundingPath)
-        #self.scene().LUTXY = buildLUT(LUT)
+        LUT=[]
+        LUT.extend([int((-p.y())*255.0/800.0) for p in l])
+        self.scene().LUTXY = np.array(LUT) #buildLUT(LUT)
 
-
+    """
 
     def updatePathOld(self):
         lfixedPoints = self.scene().fixedPoints
@@ -297,7 +223,7 @@ class Bezier(myGraphicsPathItem) :
         self.setPath(mboundingPath)
         self.scene().LUTXY = buildLUT(LUT)
         #print len(LUTX), max([abs(p.x() - q.x()) for p,q in zip(LUT[1:], LUT[:-1])])
-
+    """
 
     def mousePressEvent(self, e):
         self.beginMouseMove = e.pos()
@@ -314,13 +240,10 @@ class Bezier(myGraphicsPathItem) :
         if self.beginMouseMove == e.pos():
             #add point
             p=e.pos()
-            a=activePoint(p.x(), p.y())
+            a=activePoint(p.x(), p.y(), parentItem=self.scene().cubicItem)
             self.scene().fixedPoints.append(a)
-            self.scene().fixedPoints.sort(key=lambda z : z.position().x())
-            c,d=activeTangent(), activeTangent()
-            self.scene().tangents.extend([c,d])
-            for x in [a,c,d]:
-                self.scene().addItem(x)
+            self.scene().fixedPoints.sort(key=lambda z : z.scenePos().x())
+            self.scene().addItem(a)
             updateScene(self.scene())
             self.scene().onUpdateScene()
             self.scene().onUpdateLUT()
@@ -329,12 +252,13 @@ class graphicsForm(QGraphicsView) :
 
     @classmethod
     def getNewWindow(cls, cModel, targetImage=None, size=500, layer=None, parent=None):
-        newWindow = graphicsForm(size, cModel, parent=parent)
+        newWindow = graphicsForm(size, cModel, targetImage=targetImage, layer=layer, parent=parent)
         newWindow.setWindowTitle(layer.name)
         return newWindow
 
-    def __init__(self, size, cModel, parent=None):
+    def __init__(self, size, cModel, targetImage=None, layer=None, parent=None):
         super(graphicsForm, self).__init__(parent=parent)
+
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(size + 80, size + 200)
         self.setWindowFlags(Qt.WindowStaysOnTopHint)
@@ -343,6 +267,9 @@ class graphicsForm(QGraphicsView) :
         self.bgPixmap = QPixmap.fromImage(hueSatModel.colorWheel(size, size, cModel))
         self.graphicsScene = QGraphicsScene()
         self.setScene(self.graphicsScene)
+        self.scene().targetImage = targetImage
+        self.scene().layer = layer
+        self.scene().histImg=None
         #self.LUTXY = LUTXY
         self.graphicsScene.LUTXY=np.array(range(256))
 
@@ -350,15 +277,6 @@ class graphicsForm(QGraphicsView) :
 
         self.graphicsScene.axeSize = size
 
-        # fixed points
-        self.graphicsScene.fixedPoints = [activePoint(0, 0), activePoint(self.graphicsScene.axeSize / 2, -self.graphicsScene.axeSize / 2),
-                                          activePoint(self.graphicsScene.axeSize, -self.graphicsScene.axeSize)]
-        #tangents
-        self.graphicsScene.tangents = []
-        for i in range(len(self.graphicsScene.fixedPoints)-1):
-            cp = (self.graphicsScene.fixedPoints[i].pos() + self.graphicsScene.fixedPoints[i+1].pos()) / 2.0
-            self.graphicsScene.tangents.append(activeTangent(cp, self.graphicsScene.fixedPoints[i].pos()))
-            self.graphicsScene.tangents.append(activeTangent(cp, self.graphicsScene.fixedPoints[i+1].pos()))
 
         self.graphicsScene.sampleSize = 400
         self.graphicsScene.tSample = [float(i) / self.graphicsScene.sampleSize for i in range(self.graphicsScene.sampleSize + 1)]
@@ -384,44 +302,23 @@ class graphicsForm(QGraphicsView) :
         #self.graphicsScene.addPath(qppath, QPen(Qt.DashLine))  #create and add QGraphicsPathItem
 
         #add curve
-        item = Bezier(self.graphicsScene.axeSize)
-        self.graphicsScene.addItem(item)
+        cubic = cubicItem(self.graphicsScene.axeSize)
+        self.scene().cubicItem = cubic
+        self.graphicsScene.addItem(cubic)
 
         #add fixed points
+        # fixed points
+        self.graphicsScene.fixedPoints = [activePoint(0, 0, parentItem=cubic),
+                                          activePoint(self.graphicsScene.axeSize / 2, -self.graphicsScene.axeSize / 2, parentItem=cubic),
+                                          activePoint(self.graphicsScene.axeSize, -self.graphicsScene.axeSize, parentItem=cubic)]
+
         for p in self.graphicsScene.fixedPoints :
-            #p.setPen(QPen(QBrush(QColor(0, 0, 255)), 2))
             self.graphicsScene.addItem(p)
 
-        # add tangents
-        for p in self.graphicsScene.tangents:
-            self.graphicsScene.addItem(p)
 
     def drawBackground(self, qp, qrF):
         s = self.graphicsScene.axeSize
-        #qp.drawPixmap(QRect(0,-s, s, s), self.bgPixmap)
+        if self.scene().histImg is not None:
+            qp.drawPixmap(QRect(0,-s, s, s), QPixmap.fromImage(self.scene().histImg))
 
 
-"""
-float blen(v* p0, v* p1, v* p2)
-{
- v a,b;
- a.x = p0->x - 2*p1->x + p2->x;
- a.y = p0->y - 2*p1->y + p2->y;
- b.x = 2*p1->x - 2*p0->x;
- b.y = 2*p1->y - 2*p0->y;
- float A = 4*(a.x*a.x + a.y*a.y);
- float B = 4*(a.x*b.x + a.y*b.y);
- float C = b.x*b.x + b.y*b.y;
-
- float Sabc = 2*sqrt(A+B+C);
- float A_2 = sqrt(A);
- float A_32 = 2*A*A_2;
- float C_2 = 2*sqrt(C);
- float BA = B/A_2;
-
- return ( A_32*Sabc +
-          A_2*B*(Sabc-C_2) +
-          (4*C*A-B*B)*log( (2*A_2+BA+Sabc)/(BA+C_2) )
-        )/(4*A_32);
-};
-"""

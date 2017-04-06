@@ -256,6 +256,7 @@ class activeNode(QGraphicsPathItem):
         :param grid: owner grid
         """
         super(activeNode, self).__init__()
+        self.setParentItem(parent)
         self.cModel = cModel
         self.mouseIsPressed = False
         self.mouseIsMoved = False
@@ -266,7 +267,7 @@ class activeNode(QGraphicsPathItem):
         self.setFlag(QGraphicsItem.ItemIgnoresTransformations, True)
         self.setVisible(False)
         # current scene
-        scene = parent.scene()
+        scene = parent.scene() #TODO remove
 
         # read color from color wheel.
         # Node parent is the grid and grandfather is the color wheel
@@ -298,7 +299,7 @@ class activeNode(QGraphicsPathItem):
         #np.where(LUT3D_SHADOW[:,:,:,3]==0)
 
         # mark central node
-        self.setParentItem(parent)
+
         c = grid.size/2
         if self.gridRow == c and self.gridCol == c:
             self.setPath(self.qppR)

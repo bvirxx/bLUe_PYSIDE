@@ -165,7 +165,6 @@ class vImage(QImage):
         :param widget:
         :param options:
         """
-
         # get image buffer (BGR order on intel proc.)
         ndImg0 = QImageBuffer(self.inputImg)[:, :, :3] #[:, :, ::-1]
         ndImg1 = QImageBuffer(self)[:, :, :3]
@@ -207,6 +206,39 @@ class vImage(QImage):
 
         if widget is not None:
             widget.repaint()
+
+    def histogram(self):
+        buf = QImageBuffer(self)
+        buf = buf.astype(np.float64)
+
+        buf0 = buf[:,:,0] / (255.0)
+        hist, bin_edges = np.histogram(buf0, bins='auto', density=True)#, bins=[i/100.0 for i in range(101)], density=True)
+        img = QImage(200,200, QImage.Format_ARGB32)
+        img.fill(128)
+        qp=QPainter(img)
+        for i, y in enumerate(hist):
+            qp.drawRect(bin_edges[i]*200, img.height() - y*20, bin_edges[i+1]*200- bin_edges[i]*200, y*20)
+
+        buf1 = buf[:, :, 1] / (255.0)
+        hist, bin_edges = np.histogram(buf1, bins='auto',
+                                       density=True)  # , bins=[i/100.0 for i in range(101)], density=True)
+
+
+        for i, y in enumerate(hist):
+            qp.drawRect(bin_edges[i] * 200, img.height() - y * 20, bin_edges[i + 1] * 200 - bin_edges[i] * 200, y * 20)
+
+        buf2 = buf[:, :, 2] / (255.0)
+        hist, bin_edges = np.histogram(buf2, bins='auto',
+                                       density=True)  # , bins=[i/100.0 for i in range(101)], density=True)
+
+
+        for i, y in enumerate(hist):
+            qp.drawRect(bin_edges[i] * 200, img.height() - y * 20, bin_edges[i + 1] * 200 - bin_edges[i] * 200, y * 20)
+        qp.end()
+        return img
+        return hist, bin_edges
+
+
 
 class mImage(vImage):
     """
