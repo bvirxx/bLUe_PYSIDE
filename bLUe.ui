@@ -469,7 +469,7 @@ scr</string>
   </action>
   <action name="actionBrightness_Contrast">
    <property name="text">
-    <string>Brightness Contrast</string>
+    <string>Curves</string>
    </property>
   </action>
   <action name="action3D_LUT">

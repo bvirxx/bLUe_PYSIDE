@@ -27,6 +27,7 @@ from PySide.QtGui import QPolygonF
 
 from colorModels import hueSatModel
 from spline import cubicSplineCurve
+from utils import optionsWidget, Channel
 
 strokeWidth = 3
 controlPoints =[]
@@ -55,27 +56,10 @@ def buildLUT(curve):
     LUTXY = np.clip(LUTXY, 0, 255)
     return LUTXY
 
-def updateScene(grScene):
-    """
-    Update all curves in the scene.
-    """
-    for item in grScene.items():
-        item.updatePath()
-    #grScene.onUpdateScene()
-
-class myGraphicsPathItem (QGraphicsPathItem):
-    """
-    Base class for GraphicsPathItems.
-    Add method updatePath
-    """
-    def updatePath(self):
-        pass
-
-class activePoint(myGraphicsPathItem):
+class activePoint(QGraphicsPathItem):
     def __init__(self, x,y, parentItem=None):
-        super(myGraphicsPathItem, self).__init__()
+        super(activePoint, self).__init__()
         self.setParentItem(parentItem)
-        #self.position_ = QPointF(x,y)
         self.setPos(QPointF(x,y))
         self.moveStart=QPointF()
         self.setPen(QPen(QColor(255, 0, 0), 2))
@@ -83,34 +67,37 @@ class activePoint(myGraphicsPathItem):
         qpp.addEllipse(0,0, 8, 8)
         self.setPath(qpp)
 
-
     def mousePressEvent(self, e):
         self.moveStart = e.pos()
 
     def mouseMoveEvent(self, e):
         self.position_ = e.scenePos()
         self.setPos(e.scenePos())
-        updateScene(self.scene())
+        self.scene().cubicItem.updatePath()
 
     def mouseReleaseEvent(self, e):
-        self.scene().fixedPoints.sort(key=lambda p : p.scenePos().x())
+        cubicItem = self.scene().cubicItem
+        cubicItem.fixedPoints.sort(key=lambda p : p.scenePos().x())
         self.position_=e.scenePos()
         self.setPos(e.scenePos())
         sc = self.scene()
         if self.moveStart == e.pos():
-            self.scene().fixedPoints.remove(self)
+            cubicItem.fixedPoints.remove(self)
             sc.removeItem(self)
-            updateScene(sc)
-        updateScene(self.scene())
-        self.scene().onUpdateScene()
+        self.scene().cubicItem.updatePath()
+        LUT = []
+        scale = 255.0 / self.scene().axeSize
+        LUT.extend([int((-p.y()) * scale) for p in self.scene().cubicItem.spline])
+        cubicItem.LUTXY = np.array(LUT)  # buildLUT(LUT)
         self.scene().onUpdateLUT()
-        sc.onUpdateScene()
-        img=self.scene().targetImage
-        self.scene().histImg = img.histogram()
+        img=self.scene().layer.inputImg
+        self.scene().cubicItem.histImg = img.histogram(size=self.scene().axeSize, opacity=0.1, channel=cubicItem.channel)
+        self.scene().invalidate(QRectF(0.0,-self.scene().axeSize, self.scene().axeSize, self.scene().axeSize), QGraphicsScene.BackgroundLayer)
 
 
 
-class cubicItem(myGraphicsPathItem) :
+
+class cubicItem(QGraphicsPathItem) :
 
     def __init__(self, size, parentItem=None):
         super(cubicItem, self).__init__()
@@ -125,113 +112,36 @@ class cubicItem(myGraphicsPathItem) :
         self.setPath(self.mboundingPath)
         self.clicked=QPoint(0,0)
         self.selected = False
+        self.setVisible(False)
+        self.fixedPoints = []
+        self.spline = []
+        self.LUTXY = np.array(range(256))
+        self.channel = Channel.RGB
+        self.histImg = None
 
     def updatePath(self):
         qpp = QPainterPath()
-        X = np.array([item.x() for item in self.scene().fixedPoints])
-        Y = np.array([item.y() for item in self.scene().fixedPoints])
+        X = np.array([item.x() for item in self.fixedPoints])
+        Y = np.array([item.y() for item in self.fixedPoints])
 
-        """
-        xValues, yValues = cubicSplineCurve(X, Y)
-        for i in range(len(xValues)):
-            polygon.append(QPointF(xValues[i], yValues[i]))
-        """
-        l = cubicSplineCurve(X, Y, clippingInterval= [-self.scene().axeSize, 0])#self.scene().axeSize])
-        polygon = QPolygonF(l)
+        self.spline = cubicSplineCurve(X, Y, clippingInterval= [-self.scene().axeSize, 0])#self.scene().axeSize])
+        polygon = QPolygonF(self.spline)
         qpp.addPolygon(polygon)
 
         # stroke path
         stroker = QPainterPathStroker()
         stroker.setWidth(3)
-        # mboundingPath = QPainterPath(qpp)
         mboundingPath = stroker.createStroke(qpp)
-        # self.setPath(mboundingPath + qpp1)
         self.setPath(mboundingPath)
-        LUT=[]
-        LUT.extend([int((-p.y())*255.0/800.0) for p in l])
-        self.scene().LUTXY = np.array(LUT) #buildLUT(LUT)
-
-    """
-
-    def updatePathOld(self):
-        lfixedPoints = self.scene().fixedPoints
-
-        t = 0.2
-
-        mvptIndex = 1
-        qpp = QPainterPath()
-        qpp1 = QPainterPath()
-
-        if lfixedPoints[mvptIndex].position().x() < -lfixedPoints[mvptIndex].position().y():
-            initila = QPointF(-1, 0) * t * lfixedPoints[mvptIndex].position().y()
-        else:
-            initila = QPointF(0, -1) * t * lfixedPoints[mvptIndex].position().y()
-
-        if computeControlPoints :
-            cp = lfixedPoints[mvptIndex - 1].position() + initila
-            self.scene().tangents[0].controlPoint=cp
-            self.scene().tangents[0].contactPoint=lfixedPoints[mvptIndex-1].position()
-            #print 'tangent0', self.scene().tangents[0].contactPoint, self.scene().tangents[0].controlPoint
-        else :
-            cp = self.scene().tangents[0].controlPoint
-
-        qpp.moveTo(lfixedPoints[mvptIndex - 1].position())
-
-        LUT=[]
-        for i in range(0, len(lfixedPoints) - mvptIndex):
-            # draw curve
-            qpp.quadTo(cp, lfixedPoints[mvptIndex + i].position())
-
-            #ecart = abs(lfixedPoints[mvptIndex + i].position().x() - lfixedPoints[mvptIndex +i - 1].position().x()) + abs(cp.x())  #take abs and add abs(cp.x())
-
-            lgth = qBezierLen(lfixedPoints[mvptIndex + i - 1].position(), cp, lfixedPoints[mvptIndex + i].position())
-            gap = int(self.scene().sampleSize/lgth)
-            idx = np.arange(0, len(self.scene().tSample1), max(1, gap), dtype=int)
-            #print 'spread', int(sampleSize/lgth)
-
-
-            LUT.extend(self.scene().tSample1[idx] * lfixedPoints[mvptIndex +i - 1].position() + self.scene().tSample2[idx]* cp + self.scene().tSample3[idx] * lfixedPoints[mvptIndex + i].position())
-            # self.qpp.addEllipse(lfixedPoints[mvptIndex + i].position(), 3, 3)
-            # draw tangents
-            qpp1.moveTo(lfixedPoints[mvptIndex + i-1].position())
-            qpp1.lineTo(cp)
-            qpp1.moveTo(lfixedPoints[mvptIndex + i].position())
-            qpp1.lineTo(cp)
-            #qpp1.lineTo(lfixedPoints[mvptIndex + i].pos())
-            qpp1.addEllipse(cp, 3, 3)
-            #tangents[i].setPath(qpp1)
-            qpp.moveTo(lfixedPoints[mvptIndex + i].position())
-            #print 'f', mvptIndex, mvptIndex + i, lfixedPoints[mvptIndex + i].pos(), cp, initila
-            if computeControlPoints and i < len(lfixedPoints) - mvptIndex - 1:
-                cp = 2 * lfixedPoints[mvptIndex + i].position() - cp
-                self.scene().tangents[2*(i+1)].controlPoint=cp
-                self.scene().tangents[2*(i+1)].contactPoint=lfixedPoints[mvptIndex+i].position()
-                self.scene().tangents[2 * (i + 1)+1].controlPoint = cp
-                self.scene().tangents[2 * (i + 1)+1].contactPoint = lfixedPoints[mvptIndex + i+1].position()
-            else:
-                if 2*(i+1)<len(self.scene().tangents):
-                    cp = self.scene().tangents[2*(i+1)].controlPoint
-        #qpp.moveTo(lfixedPoints[mvptIndex - 1].position())
-        #cp = lfixedPoints[mvptIndex - 1].position() - initila
-
-        #stroke path
-        stroker = QPainterPathStroker()
-        stroker.setWidth(5)
-        #mboundingPath = QPainterPath(qpp)
-        mboundingPath = stroker.createStroke(qpp);
-        # self.setPath(mboundingPath + qpp1)
-        self.setPath(mboundingPath)
-        self.scene().LUTXY = buildLUT(LUT)
-        #print len(LUTX), max([abs(p.x() - q.x()) for p,q in zip(LUT[1:], LUT[:-1])])
-    """
 
     def mousePressEvent(self, e):
         self.beginMouseMove = e.pos()
         self.selected= True
 
     def mouseMoveEvent(self, e):
+        pass
         #self.updatePath()
-        updateScene(self.scene())
+        #updateScene(self.scene())
 
 
     def mouseReleaseEvent(self, e):
@@ -240,13 +150,18 @@ class cubicItem(myGraphicsPathItem) :
         if self.beginMouseMove == e.pos():
             #add point
             p=e.pos()
-            a=activePoint(p.x(), p.y(), parentItem=self.scene().cubicItem)
-            self.scene().fixedPoints.append(a)
-            self.scene().fixedPoints.sort(key=lambda z : z.scenePos().x())
-            self.scene().addItem(a)
-            updateScene(self.scene())
-            self.scene().onUpdateScene()
-            self.scene().onUpdateLUT()
+            a=activePoint(p.x(), p.y(), parentItem=self)
+            self.fixedPoints.append(a)
+            self.fixedPoints.sort(key=lambda z : z.scenePos().x())
+            #self.scene().addItem(a)
+            self.updatePath()
+
+    def getStackedLUTXY(self):
+        if self.channel == Channel.RGB:
+            return np.vstack((self.LUTXY, self.LUTXY, self.LUTXY))
+        else:
+            return np.vstack((self.scene().cubicR.LUTXY, self.scene().cubicG.LUTXY, self.scene().cubicB.LUTXY))
+
 
 class graphicsForm(QGraphicsView) :
 
@@ -269,23 +184,23 @@ class graphicsForm(QGraphicsView) :
         self.setScene(self.graphicsScene)
         self.scene().targetImage = targetImage
         self.scene().layer = layer
-        self.scene().histImg=None
+
         #self.LUTXY = LUTXY
-        self.graphicsScene.LUTXY=np.array(range(256))
+
 
         self.graphicsScene.onUpdateScene = lambda : 0
 
         self.graphicsScene.axeSize = size
 
-
+        """
         self.graphicsScene.sampleSize = 400
         self.graphicsScene.tSample = [float(i) / self.graphicsScene.sampleSize for i in range(self.graphicsScene.sampleSize + 1)]
         self.graphicsScene.tSample1 = np.array([(1 - t) ** 2 for t in self.graphicsScene.tSample])
         self.graphicsScene.tSample2 = np.array([2 * t * (1 - t) for t in self.graphicsScene.tSample])
         self.graphicsScene.tSample3 = np.array([t ** 2 for t in self.graphicsScene.tSample])
-
+        """
         # draw axes
-        item=myGraphicsPathItem()
+        item=QGraphicsPathItem()
         item.setPen(QPen(QBrush(QColor(255, 0, 0)), 1, style=Qt.DashLine))
         qppath = QPainterPath()
         qppath.moveTo(QPoint(0, 0))
@@ -295,30 +210,93 @@ class graphicsForm(QGraphicsView) :
         qppath.closeSubpath()
         qppath.lineTo(QPoint(self.graphicsScene.axeSize, -self.graphicsScene.axeSize))
 
-        #add axes
+        # axes
         item.setPath(qppath)
         self.graphicsScene.addItem(item)
 
         #self.graphicsScene.addPath(qppath, QPen(Qt.DashLine))  #create and add QGraphicsPathItem
 
-        #add curve
-        cubic = cubicItem(self.graphicsScene.axeSize)
-        self.scene().cubicItem = cubic
-        self.graphicsScene.addItem(cubic)
+        # curve
 
-        #add fixed points
-        # fixed points
-        self.graphicsScene.fixedPoints = [activePoint(0, 0, parentItem=cubic),
+
+        # curves
+        cubic = cubicItem(self.graphicsScene.axeSize)
+        self.graphicsScene.addItem(cubic)
+        self.graphicsScene.cubicRGB = cubic
+        cubic.channel = Channel.RGB
+        cubic.histImg = self.scene().layer.inputImg.histogram(size=self.scene().axeSize, opacity=0.1, channel=Channel.RGB)
+        cubic.fixedPoints = [activePoint(0, 0, parentItem=cubic),
                                           activePoint(self.graphicsScene.axeSize / 2, -self.graphicsScene.axeSize / 2, parentItem=cubic),
                                           activePoint(self.graphicsScene.axeSize, -self.graphicsScene.axeSize, parentItem=cubic)]
+        cubic = cubicItem(self.graphicsScene.axeSize)
+        self.graphicsScene.addItem(cubic)
+        self.graphicsScene.cubicR = cubic
+        cubic.channel = Channel.Red
+        cubic.histImg = self.scene().layer.inputImg.histogram(size=self.scene().axeSize, opacity=0.1, channel=Channel.Red)
+        cubic.fixedPoints = [activePoint(0, 0, parentItem=cubic),
+                                             activePoint(self.graphicsScene.axeSize / 2,
+                                                         -self.graphicsScene.axeSize / 2, parentItem=cubic),
+                                             activePoint(self.graphicsScene.axeSize, -self.graphicsScene.axeSize,
+                                                         parentItem=cubic)]
+        cubic = cubicItem(self.graphicsScene.axeSize)
+        self.graphicsScene.addItem(cubic)
+        self.graphicsScene.cubicG = cubic
+        cubic.channel = Channel.Green
+        cubic.histImg = self.scene().layer.inputImg.histogram(size=self.scene().axeSize, opacity=0.1, channel=Channel.Green)
+        cubic.fixedPoints = [activePoint(0, 0, parentItem=cubic),
+                                             activePoint(self.graphicsScene.axeSize / 2,
+                                                         -self.graphicsScene.axeSize / 2, parentItem=cubic),
+                                             activePoint(self.graphicsScene.axeSize, -self.graphicsScene.axeSize,
+                                                         parentItem=cubic)]
+        cubic = cubicItem(self.graphicsScene.axeSize)
+        self.graphicsScene.addItem(cubic)
+        self.graphicsScene.cubicB = cubic
+        cubic.channel = Channel.Blue
+        cubic.histImg = self.scene().layer.inputImg.histogram(size=self.scene().axeSize, opacity=0.1, channel=Channel.Blue)
+        cubic.fixedPoints = [activePoint(0, 0, parentItem=cubic),
+                                             activePoint(self.graphicsScene.axeSize / 2,
+                                                         -self.graphicsScene.axeSize / 2, parentItem=cubic),
+                                             activePoint(self.graphicsScene.axeSize, -self.graphicsScene.axeSize,
+                                                         parentItem=cubic)]
+        # set current
+        #self.graphicsScene.fixedPoints = self.graphicsScene.fixedPointsRGB
+        self.scene().cubicItem = self.graphicsScene.cubicRGB
+        self.scene().cubicItem.setVisible(True)
 
-        for p in self.graphicsScene.fixedPoints :
-            self.graphicsScene.addItem(p)
+        # options
+        self.listWidget1 = optionsWidget(options=['RGB', 'Red', 'Green', 'Blue'], exclusive=True)
+        self.listWidget1.select(self.listWidget1.items['RGB'])
+        self.listWidget1.setGeometry(50, 50, 10, 100)
+        self.graphicsScene.addWidget(self.listWidget1)
+        self.listWidget1.setStyleSheet("QListWidget{background: white;} QListWidget::item{color: black;}")
 
+        def onSelect1(item):
+            self.scene().cubicItem.setVisible(False)
+            if item.mySelectedAttr:
+                if item.text() == 'RGB' :
+                    self.scene().cubicItem = self.graphicsScene.cubicRGB
+                elif item.text() == 'Red':
+                        self.scene().cubicItem = self.graphicsScene.cubicR
+                elif item.text() == 'Green':
+                        self.scene().cubicItem = self.graphicsScene.cubicG
+                elif item.text() == 'Blue':
+                        self.scene().cubicItem = self.graphicsScene.cubicB
+
+                self.scene().cubicItem.setVisible(True)
+                # draw  histogram
+                self.scene().invalidate(QRectF(0.0, -self.scene().axeSize, self.scene().axeSize, self.scene().axeSize),
+                                        QGraphicsScene.BackgroundLayer)
+            else:
+                pass
+            #for name in self.listWidget1.items :
+                #self.graphicsScene.items[name] = item is self.listWidget1.items['RGB']
+
+        self.listWidget1.onSelect = onSelect1
 
     def drawBackground(self, qp, qrF):
         s = self.graphicsScene.axeSize
-        if self.scene().histImg is not None:
-            qp.drawPixmap(QRect(0,-s, s, s), QPixmap.fromImage(self.scene().histImg))
+        if self.scene().cubicItem.histImg is not None:
+            qp.drawPixmap(QRect(0,-s, s, s), QPixmap.fromImage(self.scene().cubicItem.histImg))
+
 
 

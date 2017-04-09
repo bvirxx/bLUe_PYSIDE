@@ -35,7 +35,7 @@ class layerModel(QStandardItemModel):
 
 class itemDelegate(QStyledItemDelegate):
     """
-    Delegate for item painting
+    Item painting
 
     """
     def __init__(self, parent=None):
@@ -56,6 +56,7 @@ class itemDelegate(QStyledItemDelegate):
             painter.drawText(rect, 'M')
 
         else:
+            # call default
             QStyledItemDelegate.paint(self, painter, option, index)
 
 
@@ -76,7 +77,7 @@ class QLayerView(QTableView) :
         # behavior and style for selection
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.setStyleSheet("QTableView { background-color: lightgray;\
-                                          selection-background-color: gray;}"
+                                          selection-background-color: lightblue;}"
                            )
         """
         self.verticalHeader().setMovable(True)

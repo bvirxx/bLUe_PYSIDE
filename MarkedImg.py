@@ -18,7 +18,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 #from PySide.QtCore import QObject
 #from PySide.QtCore import Qt
-
+from PySide.QtCore import Qt
+from PySide.QtGui import QBrush
 
 from settings import *
 import cv2
@@ -31,6 +32,9 @@ from time import time
 import re
 import icc
 from copy import copy
+
+from utils import savitzky_golay, Channel
+
 
 class metadata:
     """
@@ -158,10 +162,11 @@ class vImage(QImage):
         self.setModified(True)
         return rszd
 
-    def applyLUT(self, LUT, widget=None, options={}):
+    def applyLUT(self, stackedLUT, widget=None, options={}):
         """
+        Applies LUT to the image
 
-        :param LUT:
+        :param LUT: array of 255 color values (in range 0..255)
         :param widget:
         :param options:
         """
@@ -169,11 +174,17 @@ class vImage(QImage):
         ndImg0 = QImageBuffer(self.inputImg)[:, :, :3] #[:, :, ::-1]
         ndImg1 = QImageBuffer(self)[:, :, :3]
         # apply LUT to each channel
-        ndImg1[:,:,:]=LUT[ndImg0]
+        #LUT = np.vstack((LUT,LUT,LUT))
+        rList = np.array([2,1,0]) #BGR
+        ndImg1[:, :, :]= stackedLUT[rList[np.newaxis,:], ndImg0]
+
+        #ndImg1[:,:,:]=LUT[ndImg0]
         #update
         self.updatePixmap()
         if widget is not None:
             widget.repaint()
+
+        rows = np.array([0, 3], dtype=np.intp)
 
     def apply3DLUT(self, LUT, widget=None, options={}):
 
@@ -207,38 +218,52 @@ class vImage(QImage):
         if widget is not None:
             widget.repaint()
 
-    def histogram(self):
+    def histogram(self, size=200, opacity=1.0, channel=Channel.RGB):
+        """
+        Plots the histogram of the image
+        :param size: image size
+        :param opacity: image opacity (between 0 and 1)
+        :return: histogram (type QImage)
+        """
+        # scaling factor for the bin edges
+        scale = size / 255.0
+
+        def drawChannelHistogram(qp, channel):
+            """
+            Computes and draws the (smoothed) histogram for a single channel.
+            :param channel: channel index (BGRA (intel) or ARGB )
+            """
+            buf0 = buf[:,:,2-channel]
+            hist, bin_edges = np.histogram(buf0, bins='auto', density=True)
+            # smooth hist
+            hist = savitzky_golay(hist, 11, 3)
+            p = len(hist) - len(bin_edges)
+            # P > 1 iff hist was padded by savitzky_golay filter
+            # then, we pad bin_edges accordingly
+            if p >1:
+                p = p /2 +1
+                bin_firstVals = (bin_edges[0] - np.arange(p))[::-1]
+                bin_lastVals = bin_edges[-1] + np.arange(p-1)
+                bin_edges = np.concatenate((bin_firstVals, bin_edges, bin_lastVals))
+            # draw hist
+            color = Qt.red if channel == Channel.Red else Qt.green if channel == Channel.Green else Qt.blue
+            qp.setPen(color)
+            for i, y in enumerate(hist):
+                qp.drawRect(int(bin_edges[i]*scale), max(img.height()-int(y*20*255),0), int((bin_edges[i+1]-bin_edges[i])*scale), int(y*20*255))
+
         buf = QImageBuffer(self)
-        buf = buf.astype(np.float64)
-
-        buf0 = buf[:,:,0] / (255.0)
-        hist, bin_edges = np.histogram(buf0, bins='auto', density=True)#, bins=[i/100.0 for i in range(101)], density=True)
-        img = QImage(200,200, QImage.Format_ARGB32)
-        img.fill(128)
-        qp=QPainter(img)
-        for i, y in enumerate(hist):
-            qp.drawRect(bin_edges[i]*200, img.height() - y*20, bin_edges[i+1]*200- bin_edges[i]*200, y*20)
-
-        buf1 = buf[:, :, 1] / (255.0)
-        hist, bin_edges = np.histogram(buf1, bins='auto',
-                                       density=True)  # , bins=[i/100.0 for i in range(101)], density=True)
-
-
-        for i, y in enumerate(hist):
-            qp.drawRect(bin_edges[i] * 200, img.height() - y * 20, bin_edges[i + 1] * 200 - bin_edges[i] * 200, y * 20)
-
-        buf2 = buf[:, :, 2] / (255.0)
-        hist, bin_edges = np.histogram(buf2, bins='auto',
-                                       density=True)  # , bins=[i/100.0 for i in range(101)], density=True)
-
-
-        for i, y in enumerate(hist):
-            qp.drawRect(bin_edges[i] * 200, img.height() - y * 20, bin_edges[i + 1] * 200 - bin_edges[i] * 200, y * 20)
+        img = QImage(size, size, QImage.Format_ARGB32)
+        img.fill(Qt.white)
+        qp = QPainter(img)
+        if channel == Channel.RGB:
+            for channel in [0,1,2]:
+                drawChannelHistogram(qp, channel)
+        else:
+            drawChannelHistogram(qp, channel)
         qp.end()
+        buf = QImageBuffer(img)
+        #buf[:,:,3]= int(opacity*255)
         return img
-        return hist, bin_edges
-
-
 
 class mImage(vImage):
     """

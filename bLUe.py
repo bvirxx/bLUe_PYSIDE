@@ -483,10 +483,11 @@ def menuLayer(x, name):
     """
     if name == 'actionBrightness_Contrast':
         ccm = cmHSP
-        layerName = 'Brightness Contrast'
+        layerName = 'Curves'
         l = window.label.img.addAdjustmentLayer(name=layerName)
-        grWindow=graphicsForm.getNewWindow(ccm, size=800, targetImage=window.label.img, layer=l)
-        #grWindow.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored);
+        grWindow=graphicsForm.getNewWindow(ccm, size=400, targetImage=window.label.img, layer=l)
+        # redimensionable window
+        grWindow.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
         #grWindow.setGeometry(QRect(100, 40, 156, 102))
         dock=QDockWidget()
         dock.setWidget(grWindow)
@@ -498,10 +499,11 @@ def menuLayer(x, name):
         l.inputImg = window.label.img
         # link dock with adjustment layer
         l.adjustView = dock
-        l.applyLUT(grWindow.graphicsScene.LUTXY, widget=window.label)
+        #l.applyLUT(grWindow.graphicsScene.LUTXY, widget=window.label)
+        l.applyLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY(), widget=window.label)
         #window.label.img.addLayer(l, name='Brightness/Contrast')
         window.tableView.addLayers(window.label.img)
-        grWindow.graphicsScene.onUpdateLUT = lambda options={} : l.applyLUT(grWindow.graphicsScene.LUTXY, widget=window.label, options=options)
+        grWindow.graphicsScene.onUpdateLUT = lambda options={} : l.applyLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY(), widget=window.label, options=options)
         window.label.repaint()
     elif name in ['action3D_LUT', 'action3D_LUT_HSB']:
         ccm = cmHSP if name == 'action3D_LUT' else cmHSB
@@ -629,7 +631,10 @@ def close(e):
 ###########
 # app init
 ##########
-
+app.setStyleSheet("QMenu { background-color: lightgray;\
+                                          selection-background-color: blue;\
+                                          selection-color: white}"
+                           )
 #splash screen
 pixmap = QPixmap('logo.png')
 splash = QSplashScreen(pixmap, Qt.WindowStaysOnTopHint)
