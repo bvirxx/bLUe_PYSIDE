@@ -91,7 +91,7 @@ class activePoint(QGraphicsPathItem):
         cubicItem.LUTXY = np.array(LUT)  # buildLUT(LUT)
         self.scene().onUpdateLUT()
         img=self.scene().layer.inputImg
-        self.scene().cubicItem.histImg = img.histogram(size=self.scene().axeSize, opacity=0.1, channel=cubicItem.channel)
+        self.scene().cubicItem.histImg = img.histogram(size=self.scene().axeSize, channel=cubicItem.channel)
         self.scene().invalidate(QRectF(0.0,-self.scene().axeSize, self.scene().axeSize, self.scene().axeSize), QGraphicsScene.BackgroundLayer)
 
 
@@ -176,7 +176,7 @@ class graphicsForm(QGraphicsView) :
 
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(size + 80, size + 200)
-        self.setWindowFlags(Qt.WindowStaysOnTopHint)
+        #self.setWindowFlags(Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.setBackgroundBrush(QBrush(Qt.black, Qt.SolidPattern))
         self.bgPixmap = QPixmap.fromImage(hueSatModel.colorWheel(size, size, cModel))
@@ -224,7 +224,7 @@ class graphicsForm(QGraphicsView) :
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicRGB = cubic
         cubic.channel = Channel.RGB
-        cubic.histImg = self.scene().layer.inputImg.histogram(size=self.scene().axeSize, opacity=0.1, channel=Channel.RGB)
+        cubic.histImg = self.scene().layer.inputImg.histogram(size=self.scene().axeSize, channel=Channel.RGB)
         cubic.fixedPoints = [activePoint(0, 0, parentItem=cubic),
                                           activePoint(self.graphicsScene.axeSize / 2, -self.graphicsScene.axeSize / 2, parentItem=cubic),
                                           activePoint(self.graphicsScene.axeSize, -self.graphicsScene.axeSize, parentItem=cubic)]
@@ -232,7 +232,7 @@ class graphicsForm(QGraphicsView) :
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicR = cubic
         cubic.channel = Channel.Red
-        cubic.histImg = self.scene().layer.inputImg.histogram(size=self.scene().axeSize, opacity=0.1, channel=Channel.Red)
+        cubic.histImg = self.scene().layer.inputImg.histogram(size=self.scene().axeSize, channel=Channel.Red)
         cubic.fixedPoints = [activePoint(0, 0, parentItem=cubic),
                                              activePoint(self.graphicsScene.axeSize / 2,
                                                          -self.graphicsScene.axeSize / 2, parentItem=cubic),
@@ -242,7 +242,7 @@ class graphicsForm(QGraphicsView) :
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicG = cubic
         cubic.channel = Channel.Green
-        cubic.histImg = self.scene().layer.inputImg.histogram(size=self.scene().axeSize, opacity=0.1, channel=Channel.Green)
+        cubic.histImg = self.scene().layer.inputImg.histogram(size=self.scene().axeSize, channel=Channel.Green)
         cubic.fixedPoints = [activePoint(0, 0, parentItem=cubic),
                                              activePoint(self.graphicsScene.axeSize / 2,
                                                          -self.graphicsScene.axeSize / 2, parentItem=cubic),
@@ -252,7 +252,7 @@ class graphicsForm(QGraphicsView) :
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicB = cubic
         cubic.channel = Channel.Blue
-        cubic.histImg = self.scene().layer.inputImg.histogram(size=self.scene().axeSize, opacity=0.1, channel=Channel.Blue)
+        cubic.histImg = self.scene().layer.inputImg.histogram(size=self.scene().axeSize, channel=Channel.Blue)
         cubic.fixedPoints = [activePoint(0, 0, parentItem=cubic),
                                              activePoint(self.graphicsScene.axeSize / 2,
                                                          -self.graphicsScene.axeSize / 2, parentItem=cubic),

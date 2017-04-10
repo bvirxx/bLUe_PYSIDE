@@ -21,6 +21,8 @@ from PySide.QtGui import QAction, QMenu, QSlider
 from PySide.QtGui import QBrush
 from PySide.QtGui import QTableView, QStandardItem, QStandardItemModel, QItemSelectionModel, QAbstractItemView, QPalette, QStyledItemDelegate, QColor, QImage, QPixmap, QIcon, QHeaderView
 from PySide.QtCore import Qt
+from PySide.QtGui import QTextOption
+
 import resources_rc  # mandatory : DO NOT REMOVE !!!
 import QtGui1
 
@@ -46,15 +48,18 @@ class itemDelegate(QStyledItemDelegate):
         # mask column
         if index.column() == 2:
             if self.parent().img is not None:
-                if self.parent().img.layersStack[-1-index.row()].maskIsSelected:
+                if self.parent().img.layersStack[-1 - index.row()].maskIsSelected:
+                    text = 'M *'
+                else:
+                    text = 'M  '
+                if self.parent().img.layersStack[-1 - index.row()].maskIsEnabled:
                     painter.save()
                     painter.setPen(Qt.red)
-                    painter.drawText(rect, 'M')
+                    painter.drawText(rect, text, QTextOption(Qt.AlignCenter))
                     painter.restore()
                     return
 
-            painter.drawText(rect, 'M')
-
+                painter.drawText(rect, text, QTextOption(Qt.AlignCenter))
         else:
             # call default
             QStyledItemDelegate.paint(self, painter, option, index)
@@ -63,8 +68,7 @@ class itemDelegate(QStyledItemDelegate):
 class QLayerView(QTableView) :
     """
     The class QLayerView inherits from QTableView. It is used
-    in the main form to display lists
-    of image layers.
+    in the main form to display lists of image layers.
     """
     def __init__(self, parent):
         super(QLayerView, self).__init__(parent)
@@ -77,7 +81,8 @@ class QLayerView(QTableView) :
         # behavior and style for selection
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.setStyleSheet("QTableView { background-color: lightgray;\
-                                          selection-background-color: lightblue;}"
+                                          selection-background-color: gray;\
+                                          selection-color: white;}"
                            )
         """
         self.verticalHeader().setMovable(True)
@@ -93,8 +98,21 @@ class QLayerView(QTableView) :
 
         self.setItemDelegate(itemDelegate(parent=self))
 
+    def closeAdjustForms(self):
+        if self.img is None:
+            return
+        stack = self.img.layersStack
+        for i in xrange(len(stack)):
+            if hasattr(stack[i], "adjustView"):
+                if stack[i].adjustView is not None:
+                    stack[i].adjustView.close()
 
-    def addLayers(self, mImg):
+    def setLayers(self, mImg):
+        """
+        sets img attribute to mImg and shows the stack of layers from mImg
+        :param mImg: mImage
+        """
+        self.closeAdjustForms()
         self.img=mImg
         mImg.layerView = self
         model = layerModel() #QStandardItemModel()
@@ -114,18 +132,12 @@ class QLayerView(QTableView) :
                 item_visible = QStandardItem(QIcon(":/images/resources/eye-icon-strike.png"), "")
             items.append(item_visible)
             # col 1 : image icon and name
-            item_name = QStandardItem(QIcon(lay.qPixmap), lay.name)
+            smallImg = lay.resize(200)
+            item_name = QStandardItem(QIcon(QPixmap.fromImage(smallImg)), lay.name)
             items.append(item_name)
-            # index in layersStack
-            #item_rank = QStandardItem (l - r)
-            #items.append(item_rank)
-            if hasattr(lay, 'mask'):
-                item_mask = QStandardItem('M')
-            else:
-                item_mask = QStandardItem('')
+            item_mask = QStandardItem('M')
             items.append(item_mask)
             model.appendRow(items)
-        #model.setData(model.index(0, 2), QVariant(QBrush(Qt.red)), Qt.ForegroundRole | Qt.DecorationRole)
         model.setData(model.index(0, 2), QBrush(Qt.red), Qt.ForegroundRole | Qt.DecorationRole)
 
         self.setModel(model)
@@ -158,7 +170,7 @@ class QLayerView(QTableView) :
 
     def dropEvent(self, event):
         """
-        drop event handler. Moving row
+        drop event handler : moving layer
         :param event:
         """
         if event.source() == self:
@@ -196,7 +208,7 @@ class QLayerView(QTableView) :
                 rStack.pop(row)
 
             self.img.layersStack = rStack[::-1]
-            event.accept()
+            #event.accept()
 
     def viewClicked(self, clickedIndex):
         """
@@ -230,6 +242,9 @@ class QLayerView(QTableView) :
                     self.currentWin = self.img.layersStack[-1 - row].segmentView
             if self.currentWin is not None:
                 self.currentWin.show()
+                self.currentWin.activateWindow()
+                #self.currentWin.raise_()
+
         # select mask
         elif clickedIndex.column() == 2:
             self.img.layersStack[-1-clickedIndex.row()].maskIsSelected = not self.img.layersStack[-1-clickedIndex.row()].maskIsSelected
@@ -264,7 +279,7 @@ class QLayerView(QTableView) :
             layer.setOpacity(value)
         def dup():
             self.img.dupLayer(index = len(self.img.layersStack) -1 - index.row())
-            self.addLayers(self.img)
+            self.setLayers(self.img)
         def maskEnable():
             layer.maskIsEnabled = True
             layer.updatePixmap()

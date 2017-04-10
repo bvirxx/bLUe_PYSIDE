@@ -358,7 +358,8 @@ def openFile(f):
     window.label_2.img = imImage(QImg=img.copy(), meta=img.meta)
     # no mouse drawing or painting
     window.label_2.img.isMouseSelectable = False
-    window.tableView.addLayers(window.label.img)
+    # init layer view
+    window.tableView.setLayers(window.label.img)
     window.label.repaint()
     window.label_2.repaint()
     # used by graphicsForm3DLUT.onReset
@@ -384,12 +385,14 @@ def menuFile(x, name):
     updateMenuOpenRecent()
 
     if name == 'actionOpen' :
+        # save dialog
         if window.label.img.isModified:
             ret = savingDialog(window.label.img)
             if ret == QMessageBox.Yes:
                 save()
             elif ret == QMessageBox.Cancel:
                 return
+        # open dialog
         lastDir = window.settings.value('paths/dlgdir', '.')
         dlg =QFileDialog(window, "select", lastDir)
         if dlg.exec_():
@@ -407,6 +410,18 @@ def menuFile(x, name):
             openFile(filenames[0])
     elif name == 'actionSave':
         save()
+    elif name == 'actionClose':
+        if window.label.img.isModified:
+            ret = savingDialog(window.label.img)
+            if ret == QMessageBox.Yes:
+                save()
+            elif ret == QMessageBox.Cancel:
+                return
+        window.label.img = defaultImImage
+        window.label_2.img = defaultImImage
+        window.tableView.setLayers(window.label.img)
+        window.label.repaint()
+        window.label_2.repaint()
     updateEnabledActions()
 
 def menuWindow(x, name):
@@ -491,41 +506,44 @@ def menuLayer(x, name):
         #grWindow.setGeometry(QRect(100, 40, 156, 102))
         dock=QDockWidget()
         dock.setWidget(grWindow)
-        dock.setWindowFlags(Qt.Window | Qt.WindowMaximizeButtonHint | Qt.WindowStaysOnTopHint)
+        dock.setWindowFlags(Qt.Window | Qt.WindowMaximizeButtonHint)# | Qt.WindowStaysOnTopHint)
         dock.setWindowTitle(grWindow.windowTitle())
         dock.move(900, 40)
         #window.addDockWidget(Qt.RightDockWidgetArea, dock)
-        #l=QLayer(QImg=testLUT(grWindow.LUTXY))
         l.inputImg = window.label.img
         # link dock with adjustment layer
         l.adjustView = dock
-        #l.applyLUT(grWindow.graphicsScene.LUTXY, widget=window.label)
-        l.applyLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY(), widget=window.label)
-        #window.label.img.addLayer(l, name='Brightness/Contrast')
-        window.tableView.addLayers(window.label.img)
-        grWindow.graphicsScene.onUpdateLUT = lambda options={} : l.applyLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY(), widget=window.label, options=options)
-        window.label.repaint()
+        #l.applyLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
+        window.tableView.setLayers(window.label.img)
+        def f():
+            l.applyLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
+            window.label.repaint()
+        grWindow.graphicsScene.onUpdateLUT = f #lambda : l.applyLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY(), widget=window.label)
+        #window.label.repaint()
     elif name in ['action3D_LUT', 'action3D_LUT_HSB']:
         ccm = cmHSP if name == 'action3D_LUT' else cmHSB
         layerName = '3D LUT HSpB' if name == 'action3D_LUT' else '3D LUT HSB'
         l = window.label.img.addAdjustmentLayer(name=layerName)
-        window.tableView.addLayers(window.label.img)
+        window.tableView.setLayers(window.label.img)
         grWindow = graphicsForm3DLUT.getNewWindow(ccm, size=800, targetImage=window.label.img, LUTSize=LUTSIZE, layer=l, parent=window)
         # add a dockable widget
         dock = QDockWidget(window)
         # link dock with adjustment layer
         l.adjustView = dock
         dock.setWidget(grWindow)
-        dock.setWindowFlags(Qt.Window | Qt.WindowMaximizeButtonHint | Qt.WindowStaysOnTopHint)
+        dock.setWindowFlags(Qt.Window | Qt.WindowMaximizeButtonHint)# | Qt.WindowStaysOnTopHint)
         dock.setWindowTitle(grWindow.windowTitle())
         dock.move(900, 40)
         #window.addDockWidget(Qt.RightDockWidgetArea, dock)
         window.tableView.update()
-        grWindow.graphicsScene.onUpdateLUT = lambda options={} : l.apply3DLUT(grWindow.graphicsScene.LUT3D, widget=window.label, options=options)
-        window.label.repaint()
+        def g(options={}):
+            l.apply3DLUT(grWindow.graphicsScene.LUT3D, options=options)
+            window.label.repaint()
+        grWindow.graphicsScene.onUpdateLUT = g
+        #window.label.repaint()
     elif name == 'actionNew_segmentation_layer':
         l=window.label.img.addSegmentationLayer(name='Segmentation')
-        window.tableView.addLayers(window.label.img)
+        window.tableView.setLayers(window.label.img)
         # link to grabcut form
         l.segmentView = segmentForm.getNewWindow(targetImage=window.label.img)
         window.tableView.update()
@@ -640,7 +658,7 @@ pixmap = QPixmap('logo.png')
 splash = QSplashScreen(pixmap, Qt.WindowStaysOnTopHint)
 splash.show()
 app.processEvents()
-splash.showMessage("bLUe", color=Qt.darkBlue, alignment=Qt.AlignCenter)
+splash.showMessage("Loading...", color=Qt.white, alignment=Qt.AlignCenter)
 app.processEvents()
 sleep(3)
 

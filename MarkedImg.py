@@ -16,50 +16,49 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-#from PySide.QtCore import QObject
-#from PySide.QtCore import Qt
-from PySide.QtCore import Qt
-from PySide.QtGui import QBrush
 
-from settings import *
+from PySide.QtCore import Qt
+
 import cv2
-from imgconvert import *
+from copy import copy
 from PySide.QtGui import QPixmap, QImage, QColor, QPainter, QMessageBox
-from PySide.QtCore import QRect, QByteArray
-from icc import convertQImage, COLOR_MANAGE
+from PySide.QtCore import QRect
+from icc import convertQImage
+from imgconvert import *
 from LUT3D import interpVec
 from time import time
-import re
 import icc
-from copy import copy
-
 from utils import savitzky_golay, Channel
 
+class ColorSpace:
+    notSpecified = -1; sRGB = 1
 
 class metadata:
     """
-    Image meta data
+    Container for vImage meta data
     """
     def __init__(self, name=''):
-        self.name, self.colorSpace, self.rawMetadata, self.profile, self.orientation = name, -1, [], '', None
+        self.name, self.colorSpace, self.rawMetadata, self.profile, self.orientation = name, ColorSpace.notSpecified, [], '', None
 
 class vImage(QImage):
     """
     versatile image class.
     This is the base class for all multi-layered and interactive image classes.
-    With no parameter, build a null image.
-    Mask is disabled by default.
+    It gathers all image information, including meta-data.
+    Each image owns a mask (disabled by default). When enabled, masking operation is bitwise AND.
     """
     def __init__(self, filename=None, cv2Img=None, QImg=None, mask=None, format=QImage.Format_ARGB32,
                                             name='', colorSpace=-1, orientation=None, meta=None, rawMetadata=[], profile=''):
         """
+        With no parameter, builds a null image.
+        Mask is disabled by default.
         :param filename:
         :param cv2Img:
         :param QImg:
-        :param mask:
+        :param mask: Image mask (type QImage); Should have format and dims identical to those of image
         :param format: QImage format (default QImage.Format_ARGB32)
         :param name:
-        :param colorSpace:
+        :param colorSpace: type ColorSpace (default notSpecified)
         :param orientation: Qtransform object (default None)
         :param meta: metadata object (default None)
         :param rawMetadata: list of dictionaries (default [])
@@ -72,19 +71,18 @@ class vImage(QImage):
         self.filename = filename
 
         if meta is None:
+            # init container
             self.meta = metadata()
             self.meta.name, self.meta.colorSpace, self.meta.rawMetadata, self.meta.profile, self.meta.orientation = name, colorSpace, rawMetadata, profile, orientation
         else:
             self.meta = meta
 
-        # create a null image when no data given
         if (filename is None and cv2Img is None and QImg is None):
-            super(vImage, self).__init__(format=format)
+            # creates a null image
+            super(vImage, self).__init__()
 
-        # load image from file
-        # ARGB32 and RGB32 formats have equal depths (32), so
-        # we don't care about the format parameter value.
         if filename is not None:
+            # loads image from file (should be a 8 bits/channel color image)
             if self.meta.orientation is not None:
                 tmp =QImage(filename).transformed(self.meta.orientation)
             else:
@@ -92,49 +90,49 @@ class vImage(QImage):
             # call to super is mandatory. Shallow copy : no harm !
             super(vImage, self).__init__(tmp)
         elif QImg is not None:
-            # build image from QImage, shallow copy
-            super(vImage, self).__init__(QImg)  # copy ?
+            # builds image from QImage, shallow copy
+            super(vImage, self).__init__(QImg)
             if hasattr(QImg, "meta"):
                 self.meta = copy(QImg.meta)
         elif cv2Img is not None:
-            # build image from buffer
+            # builds image from buffer
             super(vImage, self).__init__(ndarrayToQImage(cv2Img, format=format))
-        # consistency check
+        # Format check
         if self.depth() != 32:
-            raise ValueError('vImage : Not a 8 bits/channel color image')
+            raise ValueError('vImage : should be a 8 bits/channel color image')
         # mask
         self.maskIsEnabled = False
         self.maskIsSelected = False
         if self.mask is None:
-            self.mask = QImage(self.width(), self.height(), QImage.Format_ARGB32)
+            self.mask = QImage(self.width(), self.height(), format)
             self.mask.fill(QColor(255,0,0, 255))
         self.updatePixmap()
 
     def setModified(self, b):
+        """
+        Sets the flag isModified and calls hook for menu updating.
+        :param b: boolean
+        """
         self.isModified = b
         self.onModify()
 
     def updatePixmap(self):
+        """
+        Updates image pixmap
+        """
         if icc.COLOR_MANAGE:
             img = convertQImage(self)
         else:
             img = QImage(self)
         if self.maskIsEnabled:
             qp = QPainter(img)
-            #qp.setOpacity(0.2)
             qp.setCompositionMode(QPainter.RasterOp_SourceAndDestination)
             qp.drawImage(0, 0, self.mask)
             qp.end()
-        """
-        if self.maskIsEnabled:
-            buf = QImageBuffer(img)
-            maskBuf = QImageBuffer(self.mask)
-            buf[:,:,3] = maskBuf[:,:,3]
-        """
         self.qPixmap = QPixmap.fromImage(img)
 
     def resetMask(self):
-        self.mask.fill(QColor(0, 0, 0, 255))
+        self.mask.fill(QColor(255, 255, 255, 255))
 
     def resize(self, pixels, interpolation=cv2.INTER_CUBIC):
         """
@@ -162,48 +160,42 @@ class vImage(QImage):
         self.setModified(True)
         return rszd
 
-    def applyLUT(self, stackedLUT, widget=None, options={}):
+    def applyLUT(self, stackedLUT, options={}):
         """
-        Applies LUT to the image
+        Applies per channel LUTS to the image
 
-        :param LUT: array of 255 color values (in range 0..255)
-        :param widget:
-        :param options:
+        :param stackedLUT: array color values (in range 0..255). Shape must be (3, 255) : a line for each RGB channel
+        :param options: not used yet
         """
-        # get image buffer (BGR order on intel proc.)
+        # get image buffers (BGR order on intel proc.)
         ndImg0 = QImageBuffer(self.inputImg)[:, :, :3] #[:, :, ::-1]
         ndImg1 = QImageBuffer(self)[:, :, :3]
-        # apply LUT to each channel
-        #LUT = np.vstack((LUT,LUT,LUT))
+        # apply LUTS to the 3 channels
         rList = np.array([2,1,0]) #BGR
         ndImg1[:, :, :]= stackedLUT[rList[np.newaxis,:], ndImg0]
-
-        #ndImg1[:,:,:]=LUT[ndImg0]
         #update
         self.updatePixmap()
-        if widget is not None:
-            widget.repaint()
 
-        rows = np.array([0, 3], dtype=np.intp)
-
-    def apply3DLUT(self, LUT, widget=None, options={}):
-
-        # get image buffer (type RGB)
-        #w1, w2, h1, h2 = 0, self.inputImg.width(), 0, self.inputImg.height()
+    def apply3DLUT(self, LUT, options={}):
+        """
+        Applies 3D LUT to the image
+        :param LUT: LUT3D array (see module LUT3D.py)
+        :param options: dict of string:boolean records
+        """
+        # get selection
         w1, w2, h1, h2 = (0.0,) * 4
-        #if self.parent.rect is not None:
         if options['use selection']:
             if self.rect is not None:
                 w1, w2, h1,h2= self.rect.left(), self.rect.right(), self.rect.top(), self.rect.bottom()
             if w1>=w2 or h1>=h2:
                 msg = QMessageBox()
-                msg.setText("Empty selection\nSelect a region with marquee tool")
+                msg.setText("Empty selection\nSelect a region with the marquee tool")
                 msg.exec_()
                 return
         else:
             w1, w2, h1, h2 = 0, self.inputImg.width(), 0, self.inputImg.height()
 
-        ndImg0 = QImageBuffer(self.inputImg)[h1+1:h2+1, w1+1:w2+1, :3] #[:, :, ::-1]
+        ndImg0 = QImageBuffer(self.inputImg)[h1+1:h2+1, w1+1:w2+1, :3]
 
         ndImg1 = QImageBuffer(self)[:, :, :3]
 
@@ -215,22 +207,21 @@ class vImage(QImage):
 
         self.updatePixmap()
 
-        if widget is not None:
-            widget.repaint()
 
-    def histogram(self, size=200, opacity=1.0, channel=Channel.RGB):
+    def histogram(self, size=200, channel=Channel.RGB):
         """
-        Plots the histogram of the image
-        :param size: image size
-        :param opacity: image opacity (between 0 and 1)
-        :return: histogram (type QImage)
+        Plots the histogram of the image for the
+        specified channels (all channels or single channel)
+        :param size: size of the histogram plot
+        :param channel: type Channel
+        :return: histogram plot (type QImage)
         """
         # scaling factor for the bin edges
         scale = size / 255.0
 
         def drawChannelHistogram(qp, channel):
             """
-            Computes and draws the (smoothed) histogram for a single channel.
+            Computes and draws the (smoothed) histogram of the image for a single channel.
             :param channel: channel index (BGRA (intel) or ARGB )
             """
             buf0 = buf[:,:,2-channel]
@@ -262,7 +253,6 @@ class vImage(QImage):
             drawChannelHistogram(qp, channel)
         qp.end()
         buf = QImageBuffer(img)
-        #buf[:,:,3]= int(opacity*255)
         return img
 
 class mImage(vImage):
@@ -280,8 +270,8 @@ class mImage(vImage):
         # add background layer
         bgLayer = QLayer.fromImage(self, parentImage=self)
         self.setModified(False)
+        self.activeLayerIndex = None
         self.addLayer(bgLayer, name='background')
-        self.activeLayerIndex = 0
         self.isModified = False
 
     def getActiveLayer(self):
@@ -293,6 +283,13 @@ class mImage(vImage):
             self.layerView.selectRow(len(self.layersStack) - 1 - value)
 
     def getActivePixel(self,x, y):
+        """
+        Reads pixel value from active layer. For
+        adjustment or segmentation layer, we read pixel value
+        from input image.
+        :param x, y: coordinates of pixel
+        :return: pixel value (type QRgb : unsigned int ARGB)
+        """
         activeLayer = self.getActiveLayer()
         if  hasattr(activeLayer, "inputImg") and activeLayer.inputImg is not None:
             # layer is adjustment or segmentation : read from input image
@@ -303,32 +300,47 @@ class mImage(vImage):
 
     def updatePixmap(self):
         """
-        Override vImage.updatePixmap()
+        Overrides vImage.updatePixmap()
         """
         vImage.updatePixmap(self)
         for layer in self.layersStack:
                 vImage.updatePixmap(layer)
-        return
+
 
     def addLayer(self, layer, name='', index=None):
-        # build a unique name
+        """
+        Adds layer.
+
+        :param layer: layer to add (fresh layer if None, type QLayer)
+        :param name:
+        :param index: index of insertion in layersStack (top of active layer if index=None)
+        :return: the layer added
+        """
+        # building a unique name
         usedNames = [l.name for l in self.layersStack]
         a = 1
-        trialname = name
+        trialname = name if len(name) > 0 else 'noname'
         while trialname in usedNames:
             trialname = name + '_'+ str(a)
             a = a+1
+        if layer is None:
+            layer = QLayer(QImg=QImage(self))
+            layer.fill(Qt.white)
         layer.name = trialname
-        self._layers[layer.name] = layer
+        layer.parentImage = self
         if index==None:
-            self.layersStack.append(layer)
-            self.setActiveLayer(len(self.layersStack) - 1)
-        else:
-            self.layersStack.insert(index, layer)
-            self.setActiveLayer(index)
+            if self.activeLayerIndex is not None:
+                # add on top of active layer if any
+                index = self.activeLayerIndex
+            else:
+                # empty stack
+                index = 0
+        self.layersStack.insert(index, layer)
+        self.setActiveLayer(index)
         layer.meta = self.meta
         layer.parentImage = self
         self.setModified(True)
+        return layer
 
     def addAdjustmentLayer(self, name='', index=None):
         if index == None:
@@ -474,7 +486,7 @@ class QLayer(vImage):
         self.adjustView = None
         self.parentImage = None
         super(QLayer, self).__init__(*args, **kwargs)
-        self.name='anonymous'
+        self.name='noname'
         self.visible = True
         # layer opacity is used by QPainter operations.
         # Its value must be in the range 0.0...1.0

@@ -334,6 +334,7 @@ scr</string>
     <addaction name="actionOpen"/>
     <addaction name="actionSave"/>
     <addaction name="menuOpen_recent"/>
+    <addaction name="actionClose"/>
    </widget>
    <widget class="QMenu" name="menuWindow">
     <property name="title">
@@ -519,6 +520,11 @@ scr</string>
   <action name="actionBlue_help">
    <property name="text">
     <string>Blue help</string>
+   </property>
+  </action>
+  <action name="actionClose">
+   <property name="text">
+    <string>Close</string>
    </property>
   </action>
  </widget>

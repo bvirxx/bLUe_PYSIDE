@@ -17,12 +17,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 import numpy as np
-from PySide.QtCore import Qt, QPoint, QPointF
-from PySide.QtGui import QImage, QColor
-from fractions import gcd
+from cartesian import cartesianProduct
+
 
 # 3D LUT init.
-from cartesian import cartesianProduct
 
 """
 Each axis of the LUT has length LUTSIZE.
@@ -93,45 +91,21 @@ class LUT3D (object):
 
 def LUT3DFromFactory(size=LUTSIZE):
     """
-    Init a LUT3D array of shape ( size, size,size, 3).
-    The 4th dim holds 3-uples (r,g,b) of integers evenly
-    distributed in the range 0..256, limits inclusive, so that
-    Tri-linear interpolation boils down to identity : let
-    step = 256 / (size - 1), then for all
-    i,j,k in the range 0..256,
-    trilinear(i/step, j/step, k/step) = (i,j,k)
+    Inits a LUT3D array of shape ( size, size,size, 3).
+    size should be 2**n +1. Most common values are 17 and 33.
+    The 4th axis holds 3-uples (r,g,b) of integers evenly
+    distributed in the range 0..256 (edges inclusive) :
+    let step = 256 / (size - 1), then
+    LUT3DArray(i, j, k) = (i*step, j*step, k*step).
+    Note that, with these initialization, trilinear interpolation boils down to identity :
+    for all i,j,k in the range 0..256,
+    trilinear(i//step, j//step, k//step) = (i,j,k).
     :param size: integer value (should be 2**n+1)
-    :return: 4D-array, dtype=int32
+    :return: 4D-array, dtype=int
     """
     step = 256 / (size - 1)
     a = np.arange(size)
     return LUT3D(cartesianProduct((a, a, a)) * step, size)
-
-"""
-class QPoint3D(object):
-    def __init__(self, x,y,z):
-        self.x_ =x
-        self.y_=y
-        self.z_=z
-
-    def x(self):
-        return self.x_
-    def y(self):
-        return self.y_
-    def z(self):
-        return self.z_
-
-    def __add__(self, other):
-        return QPoint3D(self.x_ + other.x_, self.y_ + other.y_, self.z_ + other.z_)
-
-    def __radd__(self, other):
-        return QPoint3D(self.x_ + other.x_, self.y_ + other.y_, self.z_ + other.z_)
-
-    def __mul__(self, scalar):
-        return QPoint3D(scalar*self.x_, scalar.self.y_, scalar.self.z_)
-
-    def __rmul__(self, scalar):
-"""
 
 def redistribute_rgb(r, g, b):
     """
