@@ -19,6 +19,7 @@ from PySide.QtCore import QUrl
 from PySide.QtGui import QDesktopServices
 from PySide.QtGui import QTextBrowser
 from PySide.QtWebKit import QWebView
+from os.path import isfile
 
 """
 The QtHelp module uses the CLucene indexing library
@@ -84,10 +85,12 @@ def paintEvent(widg, e) :
     """
     Paint event handler for widgets that display a mImage object.
     The widget must have a valid img attribute of type QImage.
-    It should override the paintEvent method of widg. This can be done
+    The handler should override the paintEvent method of widg. This can be done
     by subclassing, or by dynamically assigning paintEvent
     to widg.paintEvent (cf. the function set_event_handler
     below).
+    Image layers are painted in stack ascending order,
+    each with its own opacity.
     :param widg: widget object with a img attribute
     :param e: paint event
     """
@@ -389,7 +392,7 @@ def menuFile(x, name):
         if window.label.img.isModified:
             ret = savingDialog(window.label.img)
             if ret == QMessageBox.Yes:
-                save()
+                save(window.label.img)
             elif ret == QMessageBox.Cancel:
                 return
         # open dialog
@@ -409,12 +412,12 @@ def menuFile(x, name):
             updateMenuOpenRecent()
             openFile(filenames[0])
     elif name == 'actionSave':
-        save()
+        save(window.label.img)
     elif name == 'actionClose':
         if window.label.img.isModified:
             ret = savingDialog(window.label.img)
             if ret == QMessageBox.Yes:
-                save()
+                save(window.label.img)
             elif ret == QMessageBox.Cancel:
                 return
         window.label.img = defaultImImage
@@ -621,16 +624,53 @@ def savingDialog(img):
     ret = reply.exec_()
     return ret
 
-def save():
-    lastDir = window.settings.value('paths/dlgdir', QDir.currentPath()).toString()
-    dlg = QFileDialog(window, "select", lastDir)
+def save(img):
+    lastDir = window.settings.value('paths/dlgdir', QDir.currentPath())
+    dlg = QFileDialog(window, "Save", lastDir)
+    dlg.selectFile(img.filename)
     if dlg.exec_():
         filenames = dlg.selectedFiles()
+        if filenames:
+            filename = filenames[0]
+        else:
+            msg = QMessageBox()
+            msg.setWindowTitle('Warning')
+            msg.setIcon(QMessageBox.Warning)
+            msg.setText("You must select a file")
+            msg.exec_()
+            return False
+        if isfile(filename):
+            reply = QMessageBox()
+            reply.setWindowTitle('Warning')
+            reply.setIcon(QMessageBox.Warning)
+            reply.setText("File %s exists\n" % filename)
+            reply.setInformativeText("Save image as a new copy ?<br><font color='red'>CAUTION : Answering No will overwrite the file</font>")
+            reply.setStandardButtons(QMessageBox.No | QMessageBox.Yes | QMessageBox.Cancel)
+            reply.setDefaultButton(QMessageBox.Yes)
+            ret = reply.exec_()
+        if ret == QMessageBox.Cancel:
+            return False
+        elif ret == QMessageBox.Yes:
+            i = 0
+            base = filename
+            if '_copy' in base:
+                flag = '_'
+            else:
+                flag = '_copy'
+            while isfile(filename):
+                filename = base[:-4] + flag + str(i) + base[-4:]
+                i = i+1
+        #img = window.label.img
+        # quality range 0..100
         # Note : class vImage overrides QImage.save()
-        img = window.label.img
-        img.save(filenames[0], quality=100)
-        with exiftool.ExifTool() as e:
-            e.restoreMetadata(img.filename, str(filenames[0]))
+        res = img.save(filename, quality=100)
+        if res:
+            # copy sidecar to file
+            with exiftool.ExifTool() as e:
+                e.restoreMetadata(img.filename, filename)
+        else:
+            return False
+        return True
 
 def close(e):
     """
@@ -640,7 +680,7 @@ def close(e):
     if window.label.img.isModified:
         ret = savingDialog(window.label.img)
         if ret == QMessageBox.Yes:
-            save()
+            save(window.label.img)
             return True
         elif ret == QMessageBox.Cancel:
             return False

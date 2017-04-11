@@ -21,6 +21,8 @@ from PySide.QtCore import Qt
 
 import cv2
 from copy import copy
+
+from PySide.QtGui import QImageWriter
 from PySide.QtGui import QPixmap, QImage, QColor, QPainter, QMessageBox
 from PySide.QtCore import QRect
 from icc import convertQImage
@@ -373,20 +375,35 @@ class mImage(vImage):
         self.addLayer(layer, name=self.layersStack[index].name, index=index+1)
 
     def save(self, filename, quality=-1):
-        # build resulting image
+        """
+        builds the resulting image from visible layers
+        and writes it to file
+        :param filename:
+        :param quality: interger value in range 0..100
+        :return: True if image is saved, False otherwise
+        """
+
         img = QImage(self.width(), self.height(), self.format())
+        img.fill(QColor(0,0,0,0))
         qpainter = QPainter(img)
         for layer in self.layersStack:
             if layer.visible:
                 qpainter.drawImage(0,0, layer)
         qpainter.end()
         # save to file
-        if not img.save(filename, quality=quality):
-            msg = QMessageBox()
-            msg.setText("unable to save file %s" % filename)
-            msg.exec_()
-        else:
+        imgWriter = QImageWriter(filename)
+        imgWriter.setQuality(quality)
+        if imgWriter.write(img): #img.save(filename, quality=quality):
             self.setModified(False)
+            return True
+        else:
+            msg = QMessageBox()
+            msg.setWindowTitle('Warning')
+            msg.setIcon(QMessageBox.Warning)
+            msg.setText("cannot write file %s\n%s" % (filename, imgWriter.errorString()))
+            msg.exec_()
+            return False
+
 
 
 class imImage(mImage) :

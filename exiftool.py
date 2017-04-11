@@ -23,7 +23,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import subprocess
 import os
 import json
+from tempfile import NamedTemporaryFile
+
 from PySide.QtGui import QTransform, QMessageBox
+from os.path import isfile
+
 from settings import EXIFTOOL_PATH
 
 class ExifTool(object):
@@ -80,10 +84,13 @@ class ExifTool(object):
 
     def saveMetadata(self, f):
         """
-        save all metadata and icc profile to sidecar .mie files.
-        :param f: arbitrary number of file names to process
+        save all metadata and icc profile to sidecar file
+        :param f: file name to process
         """
-        self.execute(*(["-tagsFromFile", f, "-all:all", "-icc_profile", f+".mie"]))
+        #temp = NamedTemporaryFile(delete=False)
+        #temp.close()
+        #self.execute(*(["-tagsFromFile", f, "-all:all", "-overwrite_original", "-icc_profile", f[:-4] + ".mie"]))
+        self.execute(*(["-tagsFromFile", f, "-overwrite_original", f[:-4] + ".mie"]))
 
     def restoreMetadata(self, source, dest, removesidecar=False):
         """
@@ -92,12 +99,18 @@ class ExifTool(object):
         restoration.
         :param source: file the image was loaded from
         :param dest: file the image is saved to
-        :param removesidecar: if True (default) remove sidecar file after restoration
+        :param removesidecar: if True remove sidecar file after restoration. Default is False
+        :return True if sidecar file exists, False otherwise
         """
-        sidecar = source + '.mie'
-        self.execute(*(["-tagsFromFile", sidecar, "-all:all", "-icc_profile", dest]))
+        sidecar = source[:-4] + '.mie'
+        if isfile(sidecar):
+            #self.execute(*(["-tagsFromFile", sidecar, "-all:all", "-overwrite_original", "-icc_profile", dest]))
+            self.execute(*(["-tagsFromFile", sidecar, "-overwrite_original", dest]))
+        else:
+            return False
         if removesidecar:
             os.remove(sidecar)
+        return True
 
 def decodeExifOrientation(value):
     """
