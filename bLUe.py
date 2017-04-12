@@ -503,11 +503,11 @@ def menuLayer(x, name):
         ccm = cmHSP
         layerName = 'Curves'
         l = window.label.img.addAdjustmentLayer(name=layerName)
-        grWindow=graphicsForm.getNewWindow(ccm, size=400, targetImage=window.label.img, layer=l)
+        grWindow=graphicsForm.getNewWindow(ccm, size=400, targetImage=window.label.img, layer=l, parent=window)
         # redimensionable window
         grWindow.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
         #grWindow.setGeometry(QRect(100, 40, 156, 102))
-        dock=QDockWidget()
+        dock=QDockWidget(window)
         dock.setWidget(grWindow)
         dock.setWindowFlags(Qt.Window | Qt.WindowMaximizeButtonHint)# | Qt.WindowStaysOnTopHint)
         dock.setWindowTitle(grWindow.windowTitle())
@@ -518,11 +518,15 @@ def menuLayer(x, name):
         l.adjustView = dock
         #l.applyLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
         window.tableView.setLayers(window.label.img)
+
         def f():
+            """
+            Apply current LUT and repaint window
+            """
             l.applyLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
             window.label.repaint()
-        grWindow.graphicsScene.onUpdateLUT = f #lambda : l.applyLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY(), widget=window.label)
-        #window.label.repaint()
+        grWindow.graphicsScene.onUpdateLUT = f
+
     elif name in ['action3D_LUT', 'action3D_LUT_HSB']:
         ccm = cmHSP if name == 'action3D_LUT' else cmHSB
         layerName = '3D LUT HSpB' if name == 'action3D_LUT' else '3D LUT HSB'
@@ -539,11 +543,16 @@ def menuLayer(x, name):
         dock.move(900, 40)
         #window.addDockWidget(Qt.RightDockWidgetArea, dock)
         window.tableView.update()
+
         def g(options={}):
+            """
+            Apply current 3D LUT and repaint window
+            :param options: dictionary of options
+            """
             l.apply3DLUT(grWindow.graphicsScene.LUT3D, options=options)
             window.label.repaint()
         grWindow.graphicsScene.onUpdateLUT = g
-        #window.label.repaint()
+
     elif name == 'actionNew_segmentation_layer':
         l=window.label.img.addSegmentationLayer(name='Segmentation')
         window.tableView.setLayers(window.label.img)
@@ -552,12 +561,14 @@ def menuLayer(x, name):
         window.tableView.update()
         # TODO continue
 
-
 def menuHelp(x, name):
     """
-    Help browser is created only once.
-    :param x: dummy
-    :param name: action name
+    Init help browser
+    A single instance is created.
+    Unused parameters are for the sake of symetry
+    in all menu function calls.
+    :param x:
+    :param name:
     """
     global helpWindow
     link = "Help.html"
@@ -674,7 +685,7 @@ def save(img):
 
 def close(e):
     """
-
+    app close event handler
     :param e: close event
     """
     if window.label.img.isModified:
@@ -689,31 +700,36 @@ def close(e):
 ###########
 # app init
 ##########
-app.setStyleSheet("QMenu { background-color: lightgray;\
-                                          selection-background-color: blue;\
-                                          selection-color: white}"
-                           )
-#splash screen
+
+# help Window
+helpWindow=None
+
+# style sheet
+app.setStyleSheet("QMainWindow, QGraphicsView, QListWidget, QMenu {background-color: rgb(200, 200, 200)}\
+                   QMenu { selection-background-color: blue;\
+                           selection-color: white}"
+                 )
+
+# splash screen
 pixmap = QPixmap('logo.png')
 splash = QSplashScreen(pixmap, Qt.WindowStaysOnTopHint)
 splash.show()
 app.processEvents()
-splash.showMessage("Loading...", color=Qt.white, alignment=Qt.AlignCenter)
+splash.showMessage("Loading .", color=Qt.white, alignment=Qt.AlignCenter)
 app.processEvents()
-sleep(3)
+sleep(1)
+splash.showMessage("Loading ...", color=Qt.white, alignment=Qt.AlignCenter)
+app.processEvents()
+sleep(1)
 
-#help Window
-helpWindow=None
-
-window.setStyleSheet("background-color: rgb(200, 200, 200);")
-
+# close event handler
 window.onCloseEvent = close
 
-#get mouse hover events
+# mouse hover events
 window.label.setMouseTracking(True)
 #window.label_2.setMouseTracking(True)
 
-# set GUI Slot hooks
+# GUI Slot hooks
 window.onWidgetChange = button_change
 window.onShowContextMenu = contextMenu
 window.onExecMenuFile = menuFile
@@ -722,11 +738,10 @@ window.onExecMenuWindow = menuWindow
 window.onExecMenuImage = menuImage
 window.onExecMenuLayer = menuLayer
 window.onExecMenuHelp = menuHelp
-#window.onUpdateMenuAssignProfile = menuAssignProfile
+
 
 # load current settings
 window.readSettings()
-
 window._recentFiles = window.settings.value('paths/recent', [])
 
 set_event_handler(window.label)

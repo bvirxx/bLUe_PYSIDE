@@ -21,10 +21,10 @@ import numpy as np
 from PySide.QtCore import QPointF
 
 """
-Cubic spline interpolation of a set of N 2D-points.
+Cubic spline interpolation for a set of N 2D-points.
 Interpolation is done through N-1 cubic polynomials. First and second derivatives of successive
 polynomials at the boundary points must be equal.
-See https://en.wikiversity.org/wiki/Cubic_Spline_Interpolation for details.
+See https://en.wikiversity.org/wiki/Cubic_Spline_Interpolation for more information.
 """
 
 def coeff(X, Y):
@@ -32,17 +32,21 @@ def coeff(X, Y):
     Given the arrays of X and Y coordinates with the same size N, we compute the coefficients
     deltaX1 and R of the N-1 cubic polynoms.
     Polynom Pi is Pi(t) = t * Y[i+1] + (1-t)*Y[i] + deltaX1[i] * deltaX1[i] * (P(t) * R[i+1] + P(1-t) * R[i])/6.0,
-    where t = (x - X[i]) / deltaX1[i] and P(t) = t**3 - t
+    where t = (x - X[i]) / deltaX1[i] and P(t) = t**3 - t.
+    If two points have identical x-coordinates, a ValueError exception is raised.
     :param X: X ccordinates of points (array)
     :param y: Y coordinates of points (array)
     :return: deltaX1 and R arrays of size N-1 and N respectively
     """
-
-    # deltaX1[0]=X[1] - X[0],..., deltaX1[N-2]=X[N-1]-X[N-2]
+    old_settings = np.seterr(all='ignore')
     deltaX1 = X[1:] - X[:-1]
     deltaY1 = Y[1:] - Y[:-1]
 
     D1= deltaY1 / deltaX1
+    np.seterr(**old_settings)
+
+    if np.isnan(D1).any() or (D1==np.inf).any() or (D1==-np.inf).any():
+        raise ValueError()
 
     deltaX2 = np.zeros((X.shape[0]-1,))
     deltaX2[1:] = 2.0 * (X[2:] - X[:-2])  #tangent

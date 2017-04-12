@@ -24,6 +24,7 @@ from PySide.QtGui import QGraphicsView, QGraphicsScene, QGraphicsPathItem , QPai
 from PySide.QtCore import Qt, QPoint, QPointF, QRectF
 import numpy as np
 from PySide.QtGui import QPolygonF
+from PySide.QtGui import QPushButton
 
 from colorModels import hueSatModel
 from spline import cubicSplineCurve
@@ -61,6 +62,7 @@ class activePoint(QGraphicsPathItem):
         super(activePoint, self).__init__()
         self.setParentItem(parentItem)
         self.setPos(QPointF(x,y))
+        self.clicked = False
         self.moveStart=QPointF()
         self.setPen(QPen(QColor(255, 0, 0), 2))
         qpp = QPainterPath()
@@ -68,9 +70,11 @@ class activePoint(QGraphicsPathItem):
         self.setPath(qpp)
 
     def mousePressEvent(self, e):
-        self.moveStart = e.pos()
+        #self.moveStart = e.pos()
+        self.clicked = True
 
     def mouseMoveEvent(self, e):
+        self.clicked = False
         self.position_ = e.scenePos()
         self.setPos(e.scenePos())
         self.scene().cubicItem.updatePath()
@@ -81,21 +85,20 @@ class activePoint(QGraphicsPathItem):
         self.position_=e.scenePos()
         self.setPos(e.scenePos())
         sc = self.scene()
-        if self.moveStart == e.pos():
+        # click event : remove point
+        if self.clicked:
             cubicItem.fixedPoints.remove(self)
             sc.removeItem(self)
+            return
         self.scene().cubicItem.updatePath()
         LUT = []
         scale = 255.0 / self.scene().axeSize
         LUT.extend([int((-p.y()) * scale) for p in self.scene().cubicItem.spline])
-        cubicItem.LUTXY = np.array(LUT)  # buildLUT(LUT)
+        cubicItem.LUTXY = np.array(LUT)
         self.scene().onUpdateLUT()
         img=self.scene().layer.inputImg
-        self.scene().cubicItem.histImg = img.histogram(size=self.scene().axeSize, channel=cubicItem.channel)
+        self.scene().cubicItem.histImg = img.histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, channel=cubicItem.channel)
         self.scene().invalidate(QRectF(0.0,-self.scene().axeSize, self.scene().axeSize, self.scene().axeSize), QGraphicsScene.BackgroundLayer)
-
-
-
 
 class cubicItem(QGraphicsPathItem) :
 
@@ -123,16 +126,20 @@ class cubicItem(QGraphicsPathItem) :
         qpp = QPainterPath()
         X = np.array([item.x() for item in self.fixedPoints])
         Y = np.array([item.y() for item in self.fixedPoints])
+        # cubicSplineCurve raises an exception if two points have identical x-coordinates
+        try:
+            self.spline = cubicSplineCurve(X, Y, clippingInterval= [-self.scene().axeSize, 0])#self.scene().axeSize])
 
-        self.spline = cubicSplineCurve(X, Y, clippingInterval= [-self.scene().axeSize, 0])#self.scene().axeSize])
-        polygon = QPolygonF(self.spline)
-        qpp.addPolygon(polygon)
+            polygon = QPolygonF(self.spline)
+            qpp.addPolygon(polygon)
 
-        # stroke path
-        stroker = QPainterPathStroker()
-        stroker.setWidth(3)
-        mboundingPath = stroker.createStroke(qpp)
-        self.setPath(mboundingPath)
+            # stroke path
+            stroker = QPainterPathStroker()
+            stroker.setWidth(3)
+            mboundingPath = stroker.createStroke(qpp)
+            self.setPath(mboundingPath)
+        except:
+            pass
 
     def mousePressEvent(self, e):
         self.beginMouseMove = e.pos()
@@ -142,7 +149,6 @@ class cubicItem(QGraphicsPathItem) :
         pass
         #self.updatePath()
         #updateScene(self.scene())
-
 
     def mouseReleaseEvent(self, e):
         self.selected = False
@@ -162,6 +168,21 @@ class cubicItem(QGraphicsPathItem) :
         else:
             return np.vstack((self.scene().cubicR.LUTXY, self.scene().cubicG.LUTXY, self.scene().cubicB.LUTXY))
 
+    def reset(self):
+        self.clicked = QPoint(0, 0)
+        self.selected = False
+        for point in self.childItems():
+            self.scene().removeItem(point)
+        self.fixedPoints = [activePoint(0, 0, parentItem=self),
+                             activePoint(self.scene().axeSize / 2,
+                                         -self.scene().axeSize / 2, parentItem=self),
+                             activePoint(self.scene().axeSize, -self.scene().axeSize,
+                                         parentItem=self)]
+        self.updatePath()
+        LUT = []
+        scale = 255.0 / self.scene().axeSize
+        LUT.extend([int((-p.y()) * scale) for p in self.spline])
+        self.LUTXY = np.array(LUT)  # buildLUT(LUT)
 
 class graphicsForm(QGraphicsView) :
 
@@ -178,12 +199,13 @@ class graphicsForm(QGraphicsView) :
         self.setMinimumSize(size + 80, size + 200)
         #self.setWindowFlags(Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_DeleteOnClose)
-        self.setBackgroundBrush(QBrush(Qt.black, Qt.SolidPattern))
-        self.bgPixmap = QPixmap.fromImage(hueSatModel.colorWheel(size, size, cModel))
+        #self.setBackgroundBrush(QBrush(Qt.black, Qt.SolidPattern))
+        #self.bgPixmap = QPixmap.fromImage(hueSatModel.colorWheel(size, size, cModel))
         self.graphicsScene = QGraphicsScene()
         self.setScene(self.graphicsScene)
         self.scene().targetImage = targetImage
         self.scene().layer = layer
+        self.scene().bgColor = QColor(200,200,200)#self.palette().color(self.backgroundRole()) TODO parametrize
 
         #self.LUTXY = LUTXY
 
@@ -224,7 +246,7 @@ class graphicsForm(QGraphicsView) :
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicRGB = cubic
         cubic.channel = Channel.RGB
-        cubic.histImg = self.scene().layer.inputImg.histogram(size=self.scene().axeSize, channel=Channel.RGB)
+        cubic.histImg = self.scene().layer.inputImg.histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, channel=Channel.RGB)
         cubic.fixedPoints = [activePoint(0, 0, parentItem=cubic),
                                           activePoint(self.graphicsScene.axeSize / 2, -self.graphicsScene.axeSize / 2, parentItem=cubic),
                                           activePoint(self.graphicsScene.axeSize, -self.graphicsScene.axeSize, parentItem=cubic)]
@@ -232,7 +254,7 @@ class graphicsForm(QGraphicsView) :
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicR = cubic
         cubic.channel = Channel.Red
-        cubic.histImg = self.scene().layer.inputImg.histogram(size=self.scene().axeSize, channel=Channel.Red)
+        cubic.histImg = self.scene().layer.inputImg.histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, channel=Channel.Red)
         cubic.fixedPoints = [activePoint(0, 0, parentItem=cubic),
                                              activePoint(self.graphicsScene.axeSize / 2,
                                                          -self.graphicsScene.axeSize / 2, parentItem=cubic),
@@ -242,7 +264,7 @@ class graphicsForm(QGraphicsView) :
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicG = cubic
         cubic.channel = Channel.Green
-        cubic.histImg = self.scene().layer.inputImg.histogram(size=self.scene().axeSize, channel=Channel.Green)
+        cubic.histImg = self.scene().layer.inputImg.histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, channel=Channel.Green)
         cubic.fixedPoints = [activePoint(0, 0, parentItem=cubic),
                                              activePoint(self.graphicsScene.axeSize / 2,
                                                          -self.graphicsScene.axeSize / 2, parentItem=cubic),
@@ -252,23 +274,38 @@ class graphicsForm(QGraphicsView) :
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicB = cubic
         cubic.channel = Channel.Blue
-        cubic.histImg = self.scene().layer.inputImg.histogram(size=self.scene().axeSize, channel=Channel.Blue)
+        cubic.histImg = self.scene().layer.inputImg.histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, channel=Channel.Blue)
         cubic.fixedPoints = [activePoint(0, 0, parentItem=cubic),
                                              activePoint(self.graphicsScene.axeSize / 2,
                                                          -self.graphicsScene.axeSize / 2, parentItem=cubic),
                                              activePoint(self.graphicsScene.axeSize, -self.graphicsScene.axeSize,
                                                          parentItem=cubic)]
         # set current
-        #self.graphicsScene.fixedPoints = self.graphicsScene.fixedPointsRGB
         self.scene().cubicItem = self.graphicsScene.cubicRGB
         self.scene().cubicItem.setVisible(True)
+
+        def onResetCurve():
+            """
+            Reset the selected curve
+            """
+            self.scene().cubicItem.reset()
+            self.scene().onUpdateLUT()
+
+        pushButton = QPushButton("Reset Curve")
+        pushButton.setObjectName("btn_reset_channel")
+        pushButton.setMinimumSize(1, 1)
+        pushButton.setGeometry(140, 50, 80, 30)  # x,y,w,h
+        pushButton.clicked.connect(onResetCurve)
+        self.graphicsScene.addWidget(pushButton)
 
         # options
         self.listWidget1 = optionsWidget(options=['RGB', 'Red', 'Green', 'Blue'], exclusive=True)
         self.listWidget1.select(self.listWidget1.items['RGB'])
         self.listWidget1.setGeometry(50, 50, 10, 100)
         self.graphicsScene.addWidget(self.listWidget1)
-        self.listWidget1.setStyleSheet("QListWidget{background: white;} QListWidget::item{color: black;}")
+        #self.listWidget1.setStyleSheet("QListWidget{background: white;} QListWidget::item{color: black;}")
+
+
 
         def onSelect1(item):
             self.scene().cubicItem.setVisible(False)
@@ -283,13 +320,11 @@ class graphicsForm(QGraphicsView) :
                         self.scene().cubicItem = self.graphicsScene.cubicB
 
                 self.scene().cubicItem.setVisible(True)
+                self.scene().onUpdateLUT()
+
                 # draw  histogram
                 self.scene().invalidate(QRectF(0.0, -self.scene().axeSize, self.scene().axeSize, self.scene().axeSize),
                                         QGraphicsScene.BackgroundLayer)
-            else:
-                pass
-            #for name in self.listWidget1.items :
-                #self.graphicsScene.items[name] = item is self.listWidget1.items['RGB']
 
         self.listWidget1.onSelect = onSelect1
 

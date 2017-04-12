@@ -210,7 +210,7 @@ class vImage(QImage):
         self.updatePixmap()
 
 
-    def histogram(self, size=200, channel=Channel.RGB):
+    def histogram(self, size=200, bgColor=Qt.white, channel=Channel.RGB):
         """
         Plots the histogram of the image for the
         specified channels (all channels or single channel)
@@ -246,7 +246,7 @@ class vImage(QImage):
 
         buf = QImageBuffer(self)
         img = QImage(size, size, QImage.Format_ARGB32)
-        img.fill(Qt.white)
+        img.fill(bgColor)
         qp = QPainter(img)
         if channel == Channel.RGB:
             for channel in [0,1,2]:

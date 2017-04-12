@@ -868,7 +868,8 @@ class graphicsForm3DLUT(QGraphicsView) :
         # grid
         self.grid = activeGrid(self.LUTSize, self.cModel, parent=self.graphicsScene.colorWheel)
         self.graphicsScene.grid = self.grid
-        # reset button
+
+        # buttons
         pushButton = QPushButton("reset grid")
         pushButton.setObjectName("btn_reset")
         pushButton.setMinimumSize(1,1)
