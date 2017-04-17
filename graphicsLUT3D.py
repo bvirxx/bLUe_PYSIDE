@@ -776,17 +776,17 @@ class graphicsForm3DLUT(QGraphicsView) :
         the color wheel, border not included (the size of the window is adjusted).
         :param cModel
         :param targetImage
-        :param size: size of the color wheel
+        :param size: size of the color wheel (default 500)
         :param LUTSize: size of the LUT
         :param layer: layer of targetImage linked to graphics form
         :param parent: parent widget
         :return: graphicsForm3DLUT object
         """
-        newWindow = graphicsForm3DLUT(size, cModel, targetImage=targetImage, LUTSize=LUTSize, layer=layer, parent=parent)
+        newWindow = graphicsForm3DLUT(cModel, targetImage=targetImage, size=size, LUTSize=LUTSize, layer=layer, parent=parent)
         newWindow.setWindowTitle(layer.name)
         return newWindow
 
-    def __init__(self, size, cModel, targetImage=None, LUTSize = LUTSIZE, layer=None, parent=None):
+    def __init__(self, cModel, targetImage=None, size=500, LUTSize = LUTSIZE, layer=None, parent=None):
         """
 
         :param size: size of the color wheel

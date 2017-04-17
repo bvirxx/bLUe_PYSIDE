@@ -15,7 +15,8 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-
+import numpy as np
+from math import erf
 from PySide.QtGui import QListWidget, QListWidgetItem
 from PySide.QtCore import Qt
 
@@ -107,3 +108,36 @@ def savitzky_golay(y, window_size, order, deriv=0, rate=1):
     lastvals = y[-1] + np.abs(y[-half_window-1:-1][::-1] - y[-1])
     y = np.concatenate((firstvals, y, lastvals))
     return np.convolve( m[::-1], y, mode='valid')
+
+def phi(x, mu, sigma):
+    """
+    calculates the cumulative distribution function (CDF) phi of the
+    normal distribution N(mu, sigma)
+    :param x: float
+    :param mu : mean value
+    :param sigma : standard deviation
+    :return: CDF value
+    """
+    return (1.0 + erf((x-mu)/(sigma*np.sqrt(2)))) / 2.0
+
+def gaussianKernel(mu, w):
+    """
+    Calculates the 2D gaussian kernel of size w,
+    for mean mu.
+    The standard deviation sigma and w are bound by the relation w = 2.0 * int(4.0 * sigma + 0.5)
+    :param mu:
+    :param sigma:
+    :param size:
+    :return:
+    """
+    sigma = (w - 1.0) / 8.0
+    interval = 4.0 * sigma
+    points = np.linspace(-interval, interval, w + 1)
+
+    points = map(lambda x : phi(x,0, sigma), points)
+    kern1d = np.diff(points)
+    kernel_raw = np.sqrt(np.outer(kern1d, kern1d))
+    kernel = kernel_raw / kernel_raw.sum()
+    return kernel
+
+print gaussianKernel(0, 5)*256

@@ -21,6 +21,9 @@ from PySide.QtGui import QTextBrowser
 from PySide.QtWebKit import QWebView
 from os.path import isfile
 
+import colorTemperature
+from colorTemperature import applyTemperature, temperatureForm
+
 """
 The QtHelp module uses the CLucene indexing library
 Copyright (C) 2003-2006 Ben van Klinken and the CLucene Team
@@ -107,6 +110,7 @@ def paintEvent(widg, e) :
     for layer in mimg.layersStack :
         if layer.visible:
             qp.setOpacity(layer.opacity)
+            qp.setCompositionMode(layer.compositionMode)
             if layer.qPixmap is not None:
                 qp.drawPixmap(QRect(mimg.xOffset,mimg.yOffset, mimg.width()*r, mimg.height()*r), # target rect
                            layer.transfer() #layer.qPixmap
@@ -215,10 +219,10 @@ def mouseEvent(widget, event) :
                     cM = QColor(img.getActiveLayer().pixel(State['ix'] // r - img.xOffset // r, State['iy'] // r - img.yOffset // r))
                     red, green, blue = c.red(), c.green(), c.blue()
                     rM, gM, bM = cM.red(), cM.green(), cM.blue()
-                    if hasattr(layer, "adjustView") and layer.adjustView is not None:
-                        if hasattr(layer.adjustView.widget(), 'selectGridNode'):
+                    if hasattr(layer, "view") and layer.view is not None:
+                        if hasattr(layer.view.widget(), 'selectGridNode'):
                             # adding/removing  nodes
-                            layer.adjustView.widget().selectGridNode(red, green, blue, rM,gM,bM)
+                            layer.view.widget().selectGridNode(red, green, blue, rM,gM,bM)
                     window.label.repaint()
                 if window.btnValues['rectangle']:
                     layer.rect = QRect(min(State['ix_begin'], x)//r-img.xOffset//r, min(State['iy_begin'], y)//r- img.yOffset//r, abs(State['ix_begin'] - x)//r, abs(State['iy_begin'] - y)//r)
@@ -356,9 +360,11 @@ def openFile(f):
         img.meta.colorSpace = 1
         img.updatePixmap()
 
-    window.label.img = img
+    window.label.img =  img
     window.label.img.onModify = lambda : updateEnabledActions()
+    window.label.img.onImageChanged = window.label.repaint
     window.label_2.img = imImage(QImg=img.copy(), meta=img.meta)
+    #window.label_2.img.layersStack[0].applyFilter2D()
     # no mouse drawing or painting
     window.label_2.img.isMouseSelectable = False
     # init layer view
@@ -368,6 +374,7 @@ def openFile(f):
     # used by graphicsForm3DLUT.onReset
     window.label.img.window = window.label
     window.label_2.img.window = window.label_2
+    updateStatus()
 
 def updateMenuOpenRecent():
     window.menuOpen_recent.clear()
@@ -426,6 +433,8 @@ def menuFile(x, name):
         window.label.repaint()
         window.label_2.repaint()
     updateEnabledActions()
+    updateStatus()
+
 
 def menuWindow(x, name):
     """
@@ -499,26 +508,27 @@ def menuLayer(x, name):
     :param x: dummy
     :param name: action name
     """
+    # curves
     if name == 'actionBrightness_Contrast':
         ccm = cmHSP
         layerName = 'Curves'
+        # add new layer on top of active layer
         l = window.label.img.addAdjustmentLayer(name=layerName)
         grWindow=graphicsForm.getNewWindow(ccm, size=400, targetImage=window.label.img, layer=l, parent=window)
         # redimensionable window
         grWindow.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
-        #grWindow.setGeometry(QRect(100, 40, 156, 102))
+        # add dock widget
         dock=QDockWidget(window)
         dock.setWidget(grWindow)
         dock.setWindowFlags(Qt.Window | Qt.WindowMaximizeButtonHint)# | Qt.WindowStaysOnTopHint)
         dock.setWindowTitle(grWindow.windowTitle())
         dock.move(900, 40)
         #window.addDockWidget(Qt.RightDockWidgetArea, dock)
-        l.inputImg = window.label.img
+        #l.inputImg = window.label.img
         # link dock with adjustment layer
-        l.adjustView = dock
+        l.view = dock
         #l.applyLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
-        window.tableView.setLayers(window.label.img)
-
+        # Curve change event handler
         def f():
             """
             Apply current LUT and repaint window
@@ -526,24 +536,26 @@ def menuLayer(x, name):
             l.applyLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
             window.label.repaint()
         grWindow.graphicsScene.onUpdateLUT = f
-
+    # 3D LUT
     elif name in ['action3D_LUT', 'action3D_LUT_HSB']:
+        # color model
         ccm = cmHSP if name == 'action3D_LUT' else cmHSB
         layerName = '3D LUT HSpB' if name == 'action3D_LUT' else '3D LUT HSB'
+        # add new layer on top of active layer
         l = window.label.img.addAdjustmentLayer(name=layerName)
-        window.tableView.setLayers(window.label.img)
+        #window.tableView.setLayers(window.label.img)
         grWindow = graphicsForm3DLUT.getNewWindow(ccm, size=800, targetImage=window.label.img, LUTSize=LUTSIZE, layer=l, parent=window)
         # add a dockable widget
         dock = QDockWidget(window)
-        # link dock with adjustment layer
-        l.adjustView = dock
+        # add dock widget
+        l.view = dock
         dock.setWidget(grWindow)
         dock.setWindowFlags(Qt.Window | Qt.WindowMaximizeButtonHint)# | Qt.WindowStaysOnTopHint)
         dock.setWindowTitle(grWindow.windowTitle())
         dock.move(900, 40)
         #window.addDockWidget(Qt.RightDockWidgetArea, dock)
-        window.tableView.update()
-
+        #window.tableView.update()
+        # LUT change event handler
         def g(options={}):
             """
             Apply current 3D LUT and repaint window
@@ -552,14 +564,29 @@ def menuLayer(x, name):
             l.apply3DLUT(grWindow.graphicsScene.LUT3D, options=options)
             window.label.repaint()
         grWindow.graphicsScene.onUpdateLUT = g
-
+        #window.tableView.setLayers(window.label.img)
+    # segmentation grabcut
     elif name == 'actionNew_segmentation_layer':
         l=window.label.img.addSegmentationLayer(name='Segmentation')
-        window.tableView.setLayers(window.label.img)
+        #window.tableView.setLayers(window.label.img)
         # link to grabcut form
-        l.segmentView = segmentForm.getNewWindow(targetImage=window.label.img)
-        window.tableView.update()
+        l.view = segmentForm.getNewWindow(targetImage=window.label.img)
+        #window.tableView.update()
         # TODO continue
+    elif name == 'actionColor_Temperature':
+        l = window.label.img.addAdjustmentLayer(name='Color temperature')
+        #window.tableView.setLayers(window.label.img)
+        grWindow = temperatureForm.getNewWindow(size=400, targetImage=window.label.img, layer=l, parent=window)
+        dock = QDockWidget(window)
+        # add dock widget
+        l.view = dock
+        dock.setWidget(grWindow)
+        dock.setWindowFlags(Qt.Window | Qt.WindowMaximizeButtonHint)  # | Qt.WindowStaysOnTopHint)
+        dock.setWindowTitle(grWindow.windowTitle())
+        dock.move(900, 40)
+    window.tableView.setLayers(window.label.img)
+
+
 
 def menuHelp(x, name):
     """
@@ -697,6 +724,10 @@ def close(e):
             return False
     return True
 
+def updateStatus():
+    s = window.label.img.filename
+    window.Label_status.setText(s)
+
 ###########
 # app init
 ##########
@@ -705,10 +736,13 @@ def close(e):
 helpWindow=None
 
 # style sheet
-app.setStyleSheet("QMainWindow, QGraphicsView, QListWidget, QMenu {background-color: rgb(200, 200, 200)}\
-                   QMenu { selection-background-color: blue;\
-                           selection-color: white}"
+app.setStyleSheet("QMainWindow, QGraphicsView, QListWidget, QMenu, QTableView {background-color: rgb(200, 200, 200)}\
+                   QMenu, QTableView { selection-background-color: blue;\
+                                        selection-color: white;}"
                  )
+# status bar
+window.Label_status = QLabel()
+window.statusBar().addWidget(window.Label_status)
 
 # splash screen
 pixmap = QPixmap('logo.png')

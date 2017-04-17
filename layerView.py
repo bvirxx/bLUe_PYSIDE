@@ -19,9 +19,15 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 from PySide.QtCore import QRectF
 from PySide.QtGui import QAction, QMenu, QSlider
 from PySide.QtGui import QBrush
+from PySide.QtGui import QComboBox
+from PySide.QtGui import QFontMetrics
+from PySide.QtGui import QHBoxLayout
+from PySide.QtGui import QLabel
+from PySide.QtGui import QPainter
 from PySide.QtGui import QTableView, QStandardItem, QStandardItemModel, QItemSelectionModel, QAbstractItemView, QPalette, QStyledItemDelegate, QColor, QImage, QPixmap, QIcon, QHeaderView
 from PySide.QtCore import Qt
 from PySide.QtGui import QTextOption
+from PySide.QtGui import QVBoxLayout
 
 import resources_rc  # mandatory : DO NOT REMOVE !!!
 import QtGui1
@@ -80,10 +86,9 @@ class QLayerView(QTableView) :
         self.customContextMenuRequested.connect(self.contextMenu)
         # behavior and style for selection
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.setStyleSheet("QTableView { background-color: lightgray;\
-                                          selection-background-color: gray;\
-                                          selection-color: white;}"
-                           )
+
+        self.setItemDelegate(itemDelegate(parent=self))
+
         """
         self.verticalHeader().setMovable(True)
         self.verticalHeader().setDragEnabled(True)
@@ -96,16 +101,88 @@ class QLayerView(QTableView) :
         self.setAcceptDrops(True)
         self.setDropIndicatorShown(True)
 
-        self.setItemDelegate(itemDelegate(parent=self))
+        # opcity slider
+        l = QVBoxLayout()
+        l.setAlignment(Qt.AlignBottom )
+        self.wdgt = QSlider(Qt.Horizontal)
+        self.wdgt.setTickPosition(QSlider.TicksBelow)
+        self.wdgt.setRange(0, 100)
+        self.wdgt.setSingleStep(1)
+        self.wdgt.setSliderPosition(100)
+        opacityLabel = QLabel()
+        opacityLabel.setMaximumSize(100,30)
+        #self.opacityLabel.setStyleSheet("QLabel {background-color: white;}")
+        opacityLabel.setText("Layer opacity")
+        l.addWidget(opacityLabel)
+        hl =  QHBoxLayout()
+        self.opacityValue = QLabel()
+        font = self.opacityValue.font()
+        metrics = QFontMetrics(font)
+        w = metrics.width("100 ")
+        h = metrics.height()
+        self.opacityValue.setMinimumSize(w, h)
+        self.opacityValue.setMaximumSize(w, h)
+
+
+        self.opacityValue.setText('100 ')
+        self.opacityValue.setStyleSheet("QLabel {background-color: white;}")
+        hl.addWidget(self.opacityValue)
+        hl.addWidget(self.wdgt)
+        l.addLayout(hl)
+        l.setContentsMargins(20,0,20,25) # left, top, right, bottom
+        self.setLayout(l)
+
+
+        # opacity value changed event handler
+        def f():
+            self.opacityValue.setText(str('%d ' % self.wdgt.value()))
+            self.img.getActiveLayer().setOpacity(self.wdgt.value())
+            self.img.onImageChanged()
+
+        self.wdgt.valueChanged.connect(f)
+
+        # blending modes combo box
+
+        compLabel = QLabel()
+        #compLabel.setMaximumSize(100, 30)
+        # self.opacityLabel.setStyleSheet("QLabel {background-color: white;}")
+        compLabel.setText("Composition Mode")
+        l.addWidget(compLabel)
+        modes = ['Normal', 'Plus', 'Multiply', 'Screen', 'Overlay', 'Darken', 'Lighten', 'Color Dodge', 'Color Burn', 'Hard Light',
+                'Soft Light', 'Difference', 'Exclusion']
+
+        self.compositionModeDict = { 'Normal':QPainter.CompositionMode_SourceOver,
+                                'Plus':QPainter.CompositionMode_Plus, 'Multiply':QPainter.CompositionMode_Multiply,
+                                'Screen':QPainter.CompositionMode_Screen, 'Overlay':QPainter.CompositionMode_Overlay,
+                                'Darken':QPainter.CompositionMode_Darken, 'Lighten':QPainter.CompositionMode_Lighten,
+                                'Color Dodge':QPainter.CompositionMode_ColorDodge, 'Color Burn':QPainter.CompositionMode_ColorBurn,
+                                'Hard Light':QPainter.CompositionMode_HardLight, 'Soft Light':QPainter.CompositionMode_SoftLight,
+                                'Difference':QPainter.CompositionMode_Difference, 'Exclusion':QPainter.CompositionMode_Exclusion
+                                }
+
+        self.blendingModeCombo = QComboBox()
+        l.addWidget(self.blendingModeCombo)
+        self.blendingModeCombo.addItems(modes)
+
+
+
+
+        def g(ind):
+            s = self.blendingModeCombo.currentText()
+            self.img.getActiveLayer().compositionMode = self.compositionModeDict[str(s)]
+            self.img.onImageChanged()
+
+        self.blendingModeCombo.currentIndexChanged.connect(g)
+
 
     def closeAdjustForms(self):
         if self.img is None:
             return
         stack = self.img.layersStack
         for i in xrange(len(stack)):
-            if hasattr(stack[i], "adjustView"):
-                if stack[i].adjustView is not None:
-                    stack[i].adjustView.close()
+            if hasattr(stack[i], "view"):
+                if stack[i].view is not None:
+                    stack[i].view.close()
 
     def setLayers(self, mImg):
         """
@@ -115,10 +192,9 @@ class QLayerView(QTableView) :
         self.closeAdjustForms()
         self.img=mImg
         mImg.layerView = self
-        model = layerModel() #QStandardItemModel()
-        # columns : visible | icon and name | current index in layersStack (hidden)
+        model = layerModel()
         model.setColumnCount(3)
-        #self.setColumnHidden(2, True)
+
         self.setModel(model)
         l = len(mImg.layersStack)
 
@@ -150,23 +226,27 @@ class QLayerView(QTableView) :
         header.setResizeMode(2, QHeaderView.ResizeToContents)
         # select active layer
         self.selectRow(len(mImg.layersStack) - 1 - mImg.activeLayerIndex)
+
+        self.update()
+        """
         activeLayer = mImg.getActiveLayer()
 
+        self.currentWin = activeLayer.view
+
         if hasattr(activeLayer, 'adjustView'):
             self.currentWin = activeLayer.adjustView
         if hasattr(activeLayer, 'segmentView'):
             self.currentWin = activeLayer.segmentView
         if self.currentWin is not None:
             self.currentWin.show()
-
+        """
     def update(self):
         activeLayer = self.img.getActiveLayer()
-        if hasattr(activeLayer, 'adjustView'):
-            self.currentWin = activeLayer.adjustView
-        if hasattr(activeLayer, 'segmentView'):
-            self.currentWin = activeLayer.segmentView
+        if hasattr(activeLayer, 'view'):
+            self.currentWin = activeLayer.view
         if self.currentWin is not None:
             self.currentWin.show()
+            self.currentWin.activateWindow()
 
     def dropEvent(self, event):
         """
@@ -234,21 +314,25 @@ class QLayerView(QTableView) :
             if self.currentWin is not None:
                 self.currentWin.hide()
                 self.currentWin=None
-            if hasattr(self.img.layersStack[-1-row], "adjustView"):
-                if self.img.layersStack[-1-row].adjustView is not None:
-                    self.currentWin = self.img.layersStack[-1-row].adjustView
-            if hasattr(self.img.layersStack[-1-row], "segmentView"):
-                if self.img.layersStack[-1-row].segmentView is not None:
-                    self.currentWin = self.img.layersStack[-1 - row].segmentView
+            if hasattr(self.img.layersStack[-1-row], "view"):
+                if self.img.layersStack[-1-row].view is not None:
+                    self.currentWin = self.img.layersStack[-1-row].view
+            if hasattr(self.img.layersStack[-1-row], "view"):
+                if self.img.layersStack[-1-row].view is not None:
+                    self.currentWin = self.img.layersStack[-1 - row].view
             if self.currentWin is not None:
                 self.currentWin.show()
                 self.currentWin.activateWindow()
-                #self.currentWin.raise_()
 
         # select mask
         elif clickedIndex.column() == 2:
             self.img.layersStack[-1-clickedIndex.row()].maskIsSelected = not self.img.layersStack[-1-clickedIndex.row()].maskIsSelected
             self.repaint()
+
+        self.wdgt.setValue(int(self.img.getActiveLayer().opacity*100))
+        d = self.compositionModeDict
+        ind = self.blendingModeCombo.findText(d.keys()[d.values().index(self.img.getActiveLayer().compositionMode)])
+        self.blendingModeCombo.setCurrentIndex(ind)
         QtGui1.window.label.repaint()
 
     def contextMenu(self, pos):
@@ -269,10 +353,7 @@ class QLayerView(QTableView) :
         menu.addAction(actionMaskEnable)
         menu.addAction(actionMaskDisable)
         menu.addAction(actionMaskReset)
-        self.wdgt = QSlider(Qt.Horizontal)
-        self.wdgt.setMinimum(0)
-        self.wdgt.setMaximum(100)
-        #self.wdgt.valueChanged.connect
+
         def f():
             self.wdgt.show()
         def g(value):

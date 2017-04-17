@@ -303,7 +303,7 @@ scr</string>
           <string>Preview</string>
          </property>
          <property name="text">
-          <string>Preview</string>
+          <string/>
          </property>
         </widget>
        </item>
@@ -377,7 +377,7 @@ scr</string>
      <addaction name="actionBrightness_Contrast"/>
      <addaction name="action3D_LUT_HSB"/>
      <addaction name="action3D_LUT"/>
-     <addaction name="action3D_LUT_Lab"/>
+     <addaction name="actionColor_Temperature"/>
     </widget>
     <addaction name="menuNew_adjustment_layer"/>
     <addaction name="actionNew_segmentation_layer"/>
@@ -507,9 +507,9 @@ scr</string>
     <string>3D LUT HSB</string>
    </property>
   </action>
-  <action name="action3D_LUT_Lab">
+  <action name="actionColor_Temperature">
    <property name="text">
-    <string>3D LUT Lab</string>
+    <string>Color Temperature</string>
    </property>
   </action>
   <action name="actionNew_segmentation_layer">

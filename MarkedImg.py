@@ -108,6 +108,7 @@ class vImage(QImage):
         if self.mask is None:
             self.mask = QImage(self.width(), self.height(), format)
             self.mask.fill(QColor(255,0,0, 255))
+        self.onImageChanged = lambda : 0
         self.updatePixmap()
 
     def setModified(self, b):
@@ -257,6 +258,36 @@ class vImage(QImage):
         buf = QImageBuffer(img)
         return img
 
+    def applyFilter2D(self, kernel='unsharp'):
+
+        sharpen_kernel = np.array([[0.0, -1.0, 0.0],
+                                   [-1.0, 5.0, -1.0],
+                                   [0.0,-1.0, 0.0]])
+
+        unsharp_kernel = - np.array([[1, 4,  6,    4 , 1],
+                                     [4, 16, 24,   16, 4],
+                                     [6, 24, -476, 24, 6],
+                                     [4, 16, 24,   16, 4],
+                                     [1, 4,   6,   4,  1]]) / 256.0
+
+        gblur1_kernel = np.array([[1, 2, 1],
+                                 [2, 4 ,2],
+                                 [1, 2, 1]]) / 16.0
+
+        gblur2_kernel = np.array([1, 4,  6,  4,  1],
+                                 [4, 16, 24, 16, 4],
+                                 [6, 24, 36, 24, 6],
+                                 [4, 16, 24, 16, 4],
+                                 [1, 4,  6,  4,  1]) / 256.0
+        if kernel == 'sharpen':
+            kernel = sharpen_kernel
+        else:
+            kernel = unsharp_kernel  #TODO complete
+
+        buf = QImageBuffer(self)
+        buf[:, :, :] = cv2.filter2D(buf, -1, kernel)
+        self.updatePixmap()
+
 class mImage(vImage):
     """
     Multi-layer image. A mImage object holds at least a background
@@ -345,14 +376,21 @@ class mImage(vImage):
         return layer
 
     def addAdjustmentLayer(self, name='', index=None):
+        """
+        Add an adjustment layer to layer stack, at
+        position index (default top of active layer)
+        :param name:
+        :param index:
+        :return: layer (type QLayer)
+        """
         if index == None:
             # add on top of active layer
             index = self.activeLayerIndex
         # adjust active layer only
-        #layer = QLayer(QImg=self.layersStack[index])
         layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
         layer.inputImg = self.layersStack[index]
         self.addLayer(layer, name=name, index=index + 1)
+        layer.view = None
         #layer.parent = self
         #self.setModified(True)
         return layer
@@ -385,11 +423,13 @@ class mImage(vImage):
 
         img = QImage(self.width(), self.height(), self.format())
         img.fill(QColor(0,0,0,0))
-        qpainter = QPainter(img)
+        qp = QPainter(img)
         for layer in self.layersStack:
             if layer.visible:
-                qpainter.drawImage(0,0, layer)
-        qpainter.end()
+                qp.setOpacity(layer.opacity)
+                qp.setCompositionMode(layer.compositionMode)
+                qp.drawImage(0,0, layer)
+        qp.end()
         # save to file
         imgWriter = QImageWriter(filename)
         imgWriter.setQuality(quality)
@@ -479,6 +519,8 @@ class imImage(mImage) :
                     qp.drawPixmap(QRect(0, 0, self.width(), self.height()),  layer.transfer() )
                 else:
                 """
+                qp.setOpacity(layer.opacity)
+                qp.setCompositionMode(layer.compositionMode)
                 qp.drawImage(QRect(0, 0, self.width(), self.height()),  layer)
         qp.end()
         # update background layer and call updatePixmap
@@ -500,7 +542,7 @@ class QLayer(vImage):
         return layer #QLayer(QImg=mImg) #mImg
 
     def __init__(self, *args, **kwargs):
-        self.adjustView = None
+        #self.adjustView = None
         self.parentImage = None
         super(QLayer, self).__init__(*args, **kwargs)
         self.name='noname'
@@ -508,6 +550,8 @@ class QLayer(vImage):
         # layer opacity is used by QPainter operations.
         # Its value must be in the range 0.0...1.0
         self.opacity = 1.0
+        # default composition mode
+        self.compositionMode = QPainter.CompositionMode_SourceOver
         self.transfer = lambda : self.qPixmap
         # link to grid or curves view for adjustment layers
     """
@@ -550,6 +594,7 @@ class QLayer(vImage):
         """
         self.opacity = value /100.0
         return
+
 
 
 

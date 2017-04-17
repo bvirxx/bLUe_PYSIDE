@@ -188,13 +188,12 @@ class graphicsForm(QGraphicsView) :
 
     @classmethod
     def getNewWindow(cls, cModel, targetImage=None, size=500, layer=None, parent=None):
-        newWindow = graphicsForm(size, cModel, targetImage=targetImage, layer=layer, parent=parent)
+        newWindow = graphicsForm(cModel, targetImage=targetImage, size=size, layer=layer, parent=parent)
         newWindow.setWindowTitle(layer.name)
         return newWindow
 
-    def __init__(self, size, cModel, targetImage=None, layer=None, parent=None):
+    def __init__(self, cModel, targetImage=None, size=500, layer=None, parent=None):
         super(graphicsForm, self).__init__(parent=parent)
-
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(size + 80, size + 200)
         #self.setWindowFlags(Qt.WindowStaysOnTopHint)
