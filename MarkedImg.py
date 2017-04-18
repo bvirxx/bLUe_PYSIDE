@@ -25,6 +25,9 @@ from copy import copy
 from PySide.QtGui import QImageWriter
 from PySide.QtGui import QPixmap, QImage, QColor, QPainter, QMessageBox
 from PySide.QtCore import QRect
+
+
+
 from icc import convertQImage
 from imgconvert import *
 from LUT3D import interpVec
@@ -171,7 +174,7 @@ class vImage(QImage):
         :param options: not used yet
         """
         # get image buffers (BGR order on intel proc.)
-        ndImg0 = QImageBuffer(self.inputImg)[:, :, :3] #[:, :, ::-1]
+        ndImg0 = QImageBuffer(self.inputImg())[:, :, :3] #[:, :, ::-1]
         ndImg1 = QImageBuffer(self)[:, :, :3]
         # apply LUTS to the 3 channels
         rList = np.array([2,1,0]) #BGR
@@ -196,9 +199,9 @@ class vImage(QImage):
                 msg.exec_()
                 return
         else:
-            w1, w2, h1, h2 = 0, self.inputImg.width(), 0, self.inputImg.height()
+            w1, w2, h1, h2 = 0, self.inputImg().width(), 0, self.inputImg().height()
 
-        ndImg0 = QImageBuffer(self.inputImg)[h1+1:h2+1, w1+1:w2+1, :3]
+        ndImg0 = QImageBuffer(self.inputImg())[h1+1:h2+1, w1+1:w2+1, :3]
 
         ndImg1 = QImageBuffer(self)[:, :, :3]
 
@@ -288,6 +291,42 @@ class vImage(QImage):
         buf[:, :, :] = cv2.filter2D(buf, -1, kernel)
         self.updatePixmap()
 
+    def applyTemperature(self, temperature, coeff=1.0, version=2):
+        """
+
+        :param qImg:
+        :param temperature:
+        :param coeff:
+        :return:
+        """
+        from blend import blendLuminosity
+        from colorTemperature import bbTemperature2RGB, conversionMatrix, rgb2rgbLinearVec, rgbLinear2rgbVec
+        if version == 0:
+            r, g, b = bbTemperature2RGB(temperature)
+            filter = QImage(self.inputImg())
+            filter.fill(QColor(r, g, b, 255))
+            qp = QPainter(filter)
+            # qp.setOpacity(coeff)
+            qp.setCompositionMode(QPainter.CompositionMode_Multiply)
+            qp.drawImage(0, 0, self.inputImg())
+            qp.end()
+            img = blendLuminosity(filter, self.inputImg())
+            buf = QImageBuffer(img)
+            buf[:, :, 3] = int(coeff * 255)
+            return img
+        else:
+            M = conversionMatrix(temperature, 6500)
+            #img = QImage(self)
+            buf = QImageBuffer(self.inputImg())[:, :, :3]
+            bufLinear = rgb2rgbLinearVec(buf)
+            resLinear = np.tensordot(bufLinear[:, :, ::-1], M, axes=(-1, -1))
+            res = rgbLinear2rgbVec(resLinear)
+            res = np.clip(res, 0, 255)
+            bufOut = QImageBuffer(self)[:,:,:3]
+            bufOut[:, :, ::-1] = res
+        self.updatePixmap()
+       # return img
+
 class mImage(vImage):
     """
     Multi-layer image. A mImage object holds at least a background
@@ -326,7 +365,7 @@ class mImage(vImage):
         activeLayer = self.getActiveLayer()
         if  hasattr(activeLayer, "inputImg") and activeLayer.inputImg is not None:
             # layer is adjustment or segmentation : read from input image
-            return activeLayer.inputImg.pixel(x, y)
+            return activeLayer.inputImg().pixel(x, y)
         else:
             # read from image
             return activeLayer.pixel(x, y)
@@ -388,7 +427,7 @@ class mImage(vImage):
             index = self.activeLayerIndex
         # adjust active layer only
         layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
-        layer.inputImg = self.layersStack[index]
+        layer.inputImg = lambda : self.layersStack[layer.getStackIndex() -1] #self.layersStack[index]
         self.addLayer(layer, name=name, index=index + 1)
         layer.view = None
         #layer.parent = self
@@ -399,7 +438,7 @@ class mImage(vImage):
         if index == None:
             index = self.activeLayerIndex
         layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
-        layer.inputImg = self.layersStack[index]
+        layer.inputImg = lambda : self.layersStack[self.getStackIndex(layer) -1] #self.layersStack[index]
         #layer.mask = QImage(self.width(), self.height(), self.format())
         self.addLayer(layer, name=name, index=index + 1)
         layer.parent = self
@@ -530,12 +569,12 @@ class imImage(mImage) :
 class QLayer(vImage):
     @classmethod
     def fromImage(cls, mImg, parentImage=None):
-        mImg.visible = True
-        mImg.alpha = 255
-        mImg.window = None
+        #mImg.visible = True
+        #mImg.alpha = 255
+        #mImg.window = None
         # for adjustment layer
-        mImg.transfer = lambda: mImg.qPixmap
-        mImg.inputImg = None
+        #mImg.transfer = lambda: mImg.qPixmap
+        #mImg.inputImg = None
         layer = QLayer(QImg=mImg)
         layer.parentImage=parentImage
         layer.updatePixmap()
@@ -553,7 +592,12 @@ class QLayer(vImage):
         # default composition mode
         self.compositionMode = QPainter.CompositionMode_SourceOver
         self.transfer = lambda : self.qPixmap
-        # link to grid or curves view for adjustment layers
+        def f():
+            self.execute()
+            if self.getStackIndex() + 1 < len(self.parentImage.layersStack):
+                self.parentImage.layersStack[self.getStackIndex() + 1].apply()
+
+        self.apply = f #lambda : self.parentImage.layersStack[self.getStackIndex()+1].apply() if self.getStackIndex() +1 < len(self.parentImage.layersStack) else 0
     """
     def updatePixmap(self):
         if icc.COLOR_MANAGE and self.parentImage is not None:
@@ -568,6 +612,13 @@ class QLayer(vImage):
             qp.end()
         self.qPixmap = QPixmap.fromImage(img)
     """
+    def getStackIndex(self):
+        #return self.parentImage.layersStack.index(self)
+        for i, l in enumerate(self.parentImage.layersStack):
+            if l is self:
+                break
+        return i
+
     def setImage(self, qimg):
         """
         replace layer image with a copy of qimg buffer.
@@ -585,7 +636,7 @@ class QLayer(vImage):
         reset layer by ressetting it to imputImg
         :return:
         """
-        self.setImage(self.inputImg)
+        self.setImage(self.inputImg())
 
     def setOpacity(self, value):
         """

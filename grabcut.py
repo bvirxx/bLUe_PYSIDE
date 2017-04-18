@@ -61,7 +61,7 @@ def do_grabcut(layer, nb_iter=1, mode=cv2.GC_INIT_WITH_MASK, again=False):
     :param again:
     """
     global rect_or_mask
-    inputImg = layer.inputImg
+    inputImg = layer.inputImg()
 
     mask = layer.mask
     rect = layer.rect

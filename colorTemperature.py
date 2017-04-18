@@ -55,8 +55,10 @@ BradfordInverse =  [[0.9869929, -0.1470543,  0.1599627],
                     [0.4323053,  0.5183603,  0.0492912],
                     [-0.0085287, 0.0400428,  0.9684867]]
 
-# conversion from sRGB (D65) to XYZ
+# conversion from LINEAR sRGB (D65) to XYZ and inverse
 # see http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
+# and https://en.wikipedia.org/wiki/SRGB
+
 sRGB2XYZ = [[0.4124564,  0.3575761,  0.1804375],
             [0.2126729,  0.7151522,  0.0721750],
             [0.0193339,  0.1191920,  0.9503041]]
@@ -68,6 +70,74 @@ sRGB2XYZInverse = [[3.2404542, -1.5371385, -0.4985314],
 ################
 #
 ################
+
+def rgbLinear2rgb(r,g,b):
+
+    """
+    Conversion from linear sRGB to sRGB.
+    All values are in range 0..1.
+    See https://en.wikipedia.org/wiki/SRGB
+    :param r:
+    :param g:
+    :param b:
+    :return: The converted values
+    """
+    a = 0.055
+    alpha = 2.4
+    beta = 1.0 / alpha
+
+    def cl2c(c):
+        if c <= 0.0031308:
+            c = 12.92 * c
+        else:
+            c = (1.0 + a) * (c**beta) - a
+        return c
+    return cl2c(r)*255, cl2c(g)*255, cl2c(b)*255
+
+def rgbLinear2rgbVec(img):
+
+    a = 0.055
+    alpha = 2.4
+    beta = 1.0 / alpha
+
+    img1 = img#.astype(np.float64)
+
+    img2 = 12.92 * img1
+    img3 = (1.0 + a) * np.power(img1, beta) - a
+
+    return np.where(img1 <=  0.0031308, img2, img3) * 255
+
+def rgb2rgbLinear(r,g,b):
+    """
+       Conversion from sRGB to LINEAR sRGB.
+       All values are in range 0..1.
+       See https://en.wikipedia.org/wiki/SRGB
+       :param r:
+       :param g:
+       :param b:
+       :return: The converted values
+       """
+    a = 0.055
+    alpha = 2.4
+    def c2cl(c):
+        if c <= 0.04045:
+            c =  c / 12.92
+        else:
+            c = ((c+a)/(1+a))**alpha
+        return c
+    return c2cl(r), c2cl(g), c2cl(b)
+
+def rgb2rgbLinearVec(img):
+    a = 0.055
+    alpha = 2.4
+
+    img1 = img.astype(np.float64)/255.0
+
+    img2 = img1 / 12.92
+    img3 = np.power((img1 + a) * (1.0/(1.0 + a)), alpha)
+
+    return np.where(img1 <= 0.04045, img2, img3)
+
 
 def bbTemperature2RGB(temperature):
     """
@@ -88,14 +158,17 @@ def bbTemperature2RGB(temperature):
         red = min(max(0, red), 255)
         green = temperature - 60
         green = 288.1221695283 * (green**-0.0755148492)
-        green = min(max(0, green), 255)
+    green = min(max(0, green), 255)
 
     if temperature >= 66:
         blue = 255
     else:
-        blue = temperature - 10
-        blue = 138.5177312231 * np.log(blue) - 305.0447927307
-        blue = min(max(0,blue), 255)
+        if temperature <= 19:
+            blue = 0
+        else:
+            blue = temperature - 10
+            blue = 138.5177312231 * np.log(blue) - 305.0447927307
+            blue = min(max(0,blue), 255)
 
     return red, green, blue
 
@@ -124,7 +197,9 @@ def applyTemperature(qImg, temperature, coeff, version=2):
         M = conversionMatrix(temperature, 6500)
         img = QImage(qImg)
         buf =QImageBuffer(img)[:,:,:3]
-        res = np.tensordot(buf[:,:,::-1].astype(np.float64), M, axes= (-1,-1))
+        bufLinear = rgb2rgbLinearVec(buf)
+        resLinear = np.tensordot(bufLinear[:,:,::-1], M, axes= (-1,-1))
+        res = rgbLinear2rgbVec(resLinear)
         res=np.clip(res, 0, 255)
         buf[:, :, ::-1] = res
     return img
@@ -140,9 +215,9 @@ def temperature2xyWP(T):
     """
 
     if T <= 4000:
-        xc = -0.2661239 *(10**9) / (T**3) - 0.2343580 *10**6 / (T**2) + 0.8776956 * 10**3 / T + 0.179910  # 1667<T<4000
+        xc = -0.2661239 *(10**9) / (T**3) - 0.2343580 *(10**6) / (T**2) + 0.8776956 * (10**3) / T + 0.179910  # 1667<T<4000
     else:
-        xc = - 3.0258469 *(10**9) / (T**3) + 2.1070379 *10**6 / (T**2) + 0.2226347 * 10**3 / T + 0.240390 # 4000<T<25000
+        xc = - 3.0258469 *(10**9) / (T**3) + 2.1070379 *(10**6) / (T**2) + 0.2226347 * (10**3) / T + 0.240390 # 4000<T<25000
 
     if T <= 2222:
         yc = -1.1063814 * (xc**3) - 1.34811020 * (xc**2) + 2.18555832 * xc - 0.20219683  #1667<T<2222
@@ -229,9 +304,10 @@ class temperatureForm (QWidget):
         def f():
             self.sliderTemp.setEnabled(False)
             self.opacityValue.setText(str('%d ' % self.sliderTemp.value()))
-            QImg=applyTemperature(self.layer.inputImg, self.sliderTemp.value(), 0.25)
-            self.layer.setImage(QImg)
-            self.img.onImageChanged()
+            #QImg=applyTemperature(self.layer.inputImg(), self.sliderTemp.value(), 0.25)
+            #self.layer.setImage(QImg)
+            #self.img.onImageChanged()
+            self.onUpdateTemperature(self.sliderTemp.value())
             self.sliderTemp.setEnabled(True)
 
         # opacity value changed event handler
@@ -246,10 +322,12 @@ class temperatureForm (QWidget):
 
 
 if __name__ == '__main__':
-    T=5000.0
+    T=4000.0
     r,g,b = bbTemperature2RGB(T)
     x,y = temperature2xyWP(T)
-    L=200
-    r1, g1, b1 = np.dot(np.array(sRGB2XYZInverse), np.array([L*x/y, L, L* (1.0 -x - y)/y]).T)
-    print 'ici',  r,g,b ,r1, g1,b1
+    L=0.7
+    r1, g1, b1 = np.dot(sRGB2XYZInverse, np.array([L*x/y, L, L* (1.0 -x - y)/y]).T)
+    r2, g2, b2 = rgbLinear2rgb(r1,g1,b1)
+    print r,g,b
+    print r2, g2, b2
 

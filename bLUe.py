@@ -533,9 +533,12 @@ def menuLayer(x, name):
             """
             Apply current LUT and repaint window
             """
-            l.applyLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
+            l.apply()
+            #l.applyLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
             window.label.repaint()
+        l.execute = lambda : l.applyLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
         grWindow.graphicsScene.onUpdateLUT = f
+
     # 3D LUT
     elif name in ['action3D_LUT', 'action3D_LUT_HSB']:
         # color model
@@ -561,9 +564,12 @@ def menuLayer(x, name):
             Apply current 3D LUT and repaint window
             :param options: dictionary of options
             """
-            l.apply3DLUT(grWindow.graphicsScene.LUT3D, options=options)
+            l.options = options
+            l.apply()
+            #l.apply3DLUT(grWindow.graphicsScene.LUT3D, options=options)
             window.label.repaint()
         grWindow.graphicsScene.onUpdateLUT = g
+        l.execute = lambda : l.apply3DLUT(grWindow.graphicsScene.LUT3D, l.options)
         #window.tableView.setLayers(window.label.img)
     # segmentation grabcut
     elif name == 'actionNew_segmentation_layer':
@@ -584,6 +590,13 @@ def menuLayer(x, name):
         dock.setWindowFlags(Qt.Window | Qt.WindowMaximizeButtonHint)  # | Qt.WindowStaysOnTopHint)
         dock.setWindowTitle(grWindow.windowTitle())
         dock.move(900, 40)
+        def h(temperature):
+            l.temperature = temperature
+            l.apply()#l.applyTemperature(temperature)
+            window.label.repaint()
+
+        grWindow.onUpdateTemperature = h
+        l.execute = lambda : l.applyTemperature(l.temperature)
     window.tableView.setLayers(window.label.img)
 
 

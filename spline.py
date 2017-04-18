@@ -81,8 +81,9 @@ def cubicSpline(X, Y, deltaX1, R, v):
     return value
 
 def cubicSplineCurve(X,Y, clippingInterval=None):
-    step = (np.max(X) - np.min(X)) / 255.0
-    xValues = np.array([i*step for i in xrange(256)])
+    m, M = np.min(X) , np.max(X)
+    step = (M - m) / 255.0
+    xValues = np.array([i*step + m for i in xrange(256)])
     #xValues = np.arange(np.min(X),np.max(X))
     deltaX1, R = coeff(X, Y)
     def f(v):
