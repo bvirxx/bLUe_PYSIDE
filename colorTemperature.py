@@ -39,6 +39,8 @@ from imgconvert import QImageBuffer
 
 # Conversion from CIE XYZ to LMS-like color space for chromatic adaptation
 # see http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html
+from utils import optionsWidget
+
 Von_Kries =  [[0.4002400,  0.7076000, -0.0808100],
               [-0.2263000, 1.1653200,  0.0457000],
               [0.0000000,  0.0000000,  0.9182200]]
@@ -68,44 +70,53 @@ sRGB2XYZInverse = [[3.2404542, -1.5371385, -0.4985314],
                     [0.0556434, -0.2040259, 1.0572252]]
 
 ################
-#
+# Constants and precomputed arrays for sRGB linearizing functions.
+# See https://en.wikipedia.org/wiki/SRGB
 ################
+
+a = 0.055
+alpha = 2.4
+beta = 1.0 / alpha
+b = (a / (1.0 + a)) ** alpha
+d = 12.92
+c = 255.0 * d
+
+tab0 = np.arange(256, dtype=np.float64)
+tab1 = tab0 / 255.0  # np.array([i/255.0 for i in xrange(256)])
+tab2 = tab0 / c  # np.array([i/c for i in xrange(256)])
+tab3 = np.power(tab1, alpha)
 
 def rgbLinear2rgb(r,g,b):
 
     """
     Conversion from linear sRGB to sRGB.
     All values are in range 0..1.
-    See https://en.wikipedia.org/wiki/SRGB
+    
     :param r:
     :param g:
     :param b:
     :return: The converted values
     """
-    a = 0.055
-    alpha = 2.4
-    beta = 1.0 / alpha
-
     def cl2c(c):
         if c <= 0.0031308:
-            c = 12.92 * c
+            c = d * c
         else:
             c = (1.0 + a) * (c**beta) - a
         return c
     return cl2c(r)*255, cl2c(g)*255, cl2c(b)*255
 
 def rgbLinear2rgbVec(img):
+    """
+    Converts image from linear sRGB to sRGB.
+    THe image colors are first converted to float values in range 0..1
+    :param img: linear sRGB image (RGB range 0..1, type numpy array, dtype=np.float64)
+    :return: converted image (RGB range 0..255
+    See https://en.wikipedia.org/wiki/SRGB
+    """
+    img2 = d * img
+    img3 = (1.0 + a) * np.power(img, beta) - a
 
-    a = 0.055
-    alpha = 2.4
-    beta = 1.0 / alpha
-
-    img1 = img#.astype(np.float64)
-
-    img2 = 12.92 * img1
-    img3 = (1.0 + a) * np.power(img1, beta) - a
-
-    return np.where(img1 <=  0.0031308, img2, img3) * 255
+    return np.where(img <=  0.0031308, img2, img3) * 255
 
 def rgb2rgbLinear(r,g,b):
     """
@@ -117,25 +128,25 @@ def rgb2rgbLinear(r,g,b):
        :param b:
        :return: The converted values
        """
-    a = 0.055
-    alpha = 2.4
     def c2cl(c):
         if c <= 0.04045:
-            c =  c / 12.92
+            c =  c / d
         else:
             c = ((c+a)/(1+a))**alpha
         return c
     return c2cl(r), c2cl(g), c2cl(b)
 
 def rgb2rgbLinearVec(img):
-    a = 0.055
-    alpha = 2.4
-
-    img1 = img.astype(np.float64)/255.0
-
-    img2 = img1 / 12.92
-    img3 = np.power((img1 + a) * (1.0/(1.0 + a)), alpha)
-
+    """
+    Converts image from sRGB to linear sRGB.
+    THe image colors are first converted to float values in range 0..1
+    :param img: sRGB image (RGB range 0..255, type numpy array)
+    :return: converted image (RGB range 0..1, type numpy array dtype=np.float64)
+    See https://en.wikipedia.org/wiki/SRGB
+    """
+    img1 =  tab1[img[...]]
+    img2 = tab2[img[...]]
+    img3 = tab3[img[...]]
     return np.where(img1 <= 0.04045, img2, img3)
 
 
@@ -172,14 +183,15 @@ def bbTemperature2RGB(temperature):
 
     return red, green, blue
 
+"""
 def applyTemperature(qImg, temperature, coeff, version=2):
-    """
+    
 
     :param qImg:
     :param temperature:
     :param coeff:
     :return:
-    """
+    
     if version == 0:
         r, g, b = bbTemperature2RGB(temperature)
         filter = QImage(qImg)
@@ -203,7 +215,7 @@ def applyTemperature(qImg, temperature, coeff, version=2):
         res=np.clip(res, 0, 255)
         buf[:, :, ::-1] = res
     return img
-
+"""
 def temperature2xyWP(T):
     """
     Calculates the CIE chromaticity coordinates xc, yc
@@ -271,10 +283,19 @@ class temperatureForm (QWidget):
         self.img = targetImage
         self.layer = layer
         self.defaultTemp = 6500
-
-        # opcity slider
         l = QVBoxLayout()
         l.setAlignment(Qt.AlignBottom)
+
+        # options
+        self.options = {'use Chromatic Adaptation': True}
+        self.listWidget1 = optionsWidget(options=['use Photo Filter', 'use Chromatic Adaptation'], exclusive=True)
+        self.listWidget1.select(self.listWidget1.items['use Chromatic Adaptation'])
+        def onSelect1(item):
+            self.options['use Chromatic Adaptation'] = item is self.listWidget1.items['use Chromatic Adaptation']
+        self.listWidget1.onSelect = onSelect1
+        l.addWidget(self.listWidget1)
+
+        # opcity slider
         self.sliderTemp = QSlider(Qt.Horizontal)
         self.sliderTemp.setTickPosition(QSlider.TicksBelow)
         self.sliderTemp.setRange(1000, 9000)
@@ -298,6 +319,8 @@ class temperatureForm (QWidget):
         hl.addWidget(self.sliderTemp)
         l.addLayout(hl)
         l.setContentsMargins(20, 0, 20, 25)  # left, top, right, bottom
+
+
         self.setLayout(l)
 
         # opacity value done event handler

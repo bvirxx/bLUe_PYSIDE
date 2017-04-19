@@ -291,7 +291,7 @@ class vImage(QImage):
         buf[:, :, :] = cv2.filter2D(buf, -1, kernel)
         self.updatePixmap()
 
-    def applyTemperature(self, temperature, coeff=1.0, version=2):
+    def applyTemperature(self, temperature, options, coeff=1.0):
         """
 
         :param qImg:
@@ -301,6 +301,10 @@ class vImage(QImage):
         """
         from blend import blendLuminosity
         from colorTemperature import bbTemperature2RGB, conversionMatrix, rgb2rgbLinearVec, rgbLinear2rgbVec
+        if options['use Chromatic Adaptation']:
+            version = 2
+        else:
+            version = 0
         if version == 0:
             r, g, b = bbTemperature2RGB(temperature)
             filter = QImage(self.inputImg())
@@ -310,10 +314,8 @@ class vImage(QImage):
             qp.setCompositionMode(QPainter.CompositionMode_Multiply)
             qp.drawImage(0, 0, self.inputImg())
             qp.end()
-            img = blendLuminosity(filter, self.inputImg())
-            buf = QImageBuffer(img)
-            buf[:, :, 3] = int(coeff * 255)
-            return img
+            resImg = blendLuminosity(filter, self.inputImg())
+            res = QImageBuffer(resImg)[:,:,:3][:,:,::-1]
         else:
             M = conversionMatrix(temperature, 6500)
             #img = QImage(self)
@@ -322,8 +324,8 @@ class vImage(QImage):
             resLinear = np.tensordot(bufLinear[:, :, ::-1], M, axes=(-1, -1))
             res = rgbLinear2rgbVec(resLinear)
             res = np.clip(res, 0, 255)
-            bufOut = QImageBuffer(self)[:,:,:3]
-            bufOut[:, :, ::-1] = res
+        bufOut = QImageBuffer(self)[:,:,:3]
+        bufOut[:, :, ::-1] = res
         self.updatePixmap()
        # return img
 
@@ -414,6 +416,7 @@ class mImage(vImage):
         self.setModified(True)
         return layer
 
+
     def addAdjustmentLayer(self, name='', index=None):
         """
         Add an adjustment layer to layer stack, at
@@ -427,7 +430,7 @@ class mImage(vImage):
             index = self.activeLayerIndex
         # adjust active layer only
         layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
-        layer.inputImg = lambda : self.layersStack[layer.getStackIndex() -1] #self.layersStack[index]
+        layer.inputImg = lambda : self.layersStack[layer.getLowerVisibleStackIndex()]
         self.addLayer(layer, name=name, index=index + 1)
         layer.view = None
         #layer.parent = self
@@ -438,8 +441,7 @@ class mImage(vImage):
         if index == None:
             index = self.activeLayerIndex
         layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
-        layer.inputImg = lambda : self.layersStack[self.getStackIndex(layer) -1] #self.layersStack[index]
-        #layer.mask = QImage(self.width(), self.height(), self.format())
+        layer.inputImg = lambda : self.layersStack[layer.getLowerVisibleStackIndex()]
         self.addLayer(layer, name=name, index=index + 1)
         layer.parent = self
         self.setModified(True)
@@ -592,13 +594,25 @@ class QLayer(vImage):
         # default composition mode
         self.compositionMode = QPainter.CompositionMode_SourceOver
         self.transfer = lambda : self.qPixmap
-        def f():
-            self.execute()
-            if self.getStackIndex() + 1 < len(self.parentImage.layersStack):
-                self.parentImage.layersStack[self.getStackIndex() + 1].apply()
+        # Following attributes are used by adjustment layers only
+        # wrapper for the right exec method
+        self.execute = lambda : 0
+        self.temperature = 0
+        self.options = {}
 
-        self.apply = f #lambda : self.parentImage.layersStack[self.getStackIndex()+1].apply() if self.getStackIndex() +1 < len(self.parentImage.layersStack) else 0
-    """
+    def applyToStack(self):
+        """
+        Applies and propagates changes.
+        All parameter change event handlers
+        should call this method.
+        """
+        self.execute()
+        ind = self.getStackIndex()
+        if ind + 1 < len(self.parentImage.layersStack):
+            self.parentImage.layersStack[ind + 1].applyToStack()
+
+        #self.apply = f #lambda : self.parentImage.layersStack[self.getStackIndex()+1].apply() if self.getStackIndex() +1 < len(self.parentImage.layersStack) else 0
+
     def updatePixmap(self):
         if icc.COLOR_MANAGE and self.parentImage is not None:
             # layer color model is parent image colopr model
@@ -611,11 +625,17 @@ class QLayer(vImage):
             qp.drawImage(0,0,self.mask)
             qp.end()
         self.qPixmap = QPixmap.fromImage(img)
-    """
+
     def getStackIndex(self):
-        #return self.parentImage.layersStack.index(self)
         for i, l in enumerate(self.parentImage.layersStack):
             if l is self:
+                break
+        return i
+
+    def getLowerVisibleStackIndex(self):
+        ind = self.getStackIndex()
+        for i in range(ind-1, -1, -1):
+            if self.parentImage.layersStack[i].visible:
                 break
         return i
 

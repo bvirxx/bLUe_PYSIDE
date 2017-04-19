@@ -22,7 +22,7 @@ from PySide.QtWebKit import QWebView
 from os.path import isfile
 
 import colorTemperature
-from colorTemperature import applyTemperature, temperatureForm
+from colorTemperature import temperatureForm
 
 """
 The QtHelp module uses the CLucene indexing library
@@ -533,9 +533,10 @@ def menuLayer(x, name):
             """
             Apply current LUT and repaint window
             """
-            l.apply()
+            l.applyToStack()
             #l.applyLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
             window.label.repaint()
+        # wrapper for the right apply method
         l.execute = lambda : l.applyLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
         grWindow.graphicsScene.onUpdateLUT = f
 
@@ -565,10 +566,11 @@ def menuLayer(x, name):
             :param options: dictionary of options
             """
             l.options = options
-            l.apply()
+            l.applyToStack()
             #l.apply3DLUT(grWindow.graphicsScene.LUT3D, options=options)
             window.label.repaint()
         grWindow.graphicsScene.onUpdateLUT = g
+        # wrapper for the right apply method
         l.execute = lambda : l.apply3DLUT(grWindow.graphicsScene.LUT3D, l.options)
         #window.tableView.setLayers(window.label.img)
     # segmentation grabcut
@@ -590,13 +592,14 @@ def menuLayer(x, name):
         dock.setWindowFlags(Qt.Window | Qt.WindowMaximizeButtonHint)  # | Qt.WindowStaysOnTopHint)
         dock.setWindowTitle(grWindow.windowTitle())
         dock.move(900, 40)
+        # temperature change event handler
         def h(temperature):
             l.temperature = temperature
-            l.apply()#l.applyTemperature(temperature)
+            l.applyToStack()
             window.label.repaint()
-
         grWindow.onUpdateTemperature = h
-        l.execute = lambda : l.applyTemperature(l.temperature)
+        # wrapper for the right apply method
+        l.execute = lambda : l.applyTemperature(l.temperature, grWindow.options)
     window.tableView.setLayers(window.label.img)
 
 
@@ -730,7 +733,7 @@ def close(e):
     """
     if window.label.img.isModified:
         ret = savingDialog(window.label.img)
-        if ret == QMessageBox.Yes:
+        if ret == QMessageBox.Save:
             save(window.label.img)
             return True
         elif ret == QMessageBox.Cancel:

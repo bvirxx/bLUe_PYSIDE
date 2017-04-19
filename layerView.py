@@ -17,14 +17,14 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 from PySide.QtCore import QRectF
-from PySide.QtGui import QAction, QMenu, QSlider
+from PySide.QtGui import QAction, QMenu, QSlider, QImage, QStyle, QPalette, QColor
 from PySide.QtGui import QBrush
 from PySide.QtGui import QComboBox
 from PySide.QtGui import QFontMetrics
 from PySide.QtGui import QHBoxLayout
 from PySide.QtGui import QLabel
 from PySide.QtGui import QPainter
-from PySide.QtGui import QTableView, QStandardItem, QStandardItemModel, QItemSelectionModel, QAbstractItemView, QPalette, QStyledItemDelegate, QColor, QImage, QPixmap, QIcon, QHeaderView
+from PySide.QtGui import QTableView, QStandardItem, QStandardItemModel, QAbstractItemView, QStyledItemDelegate, QPixmap, QIcon, QHeaderView
 from PySide.QtCore import Qt
 from PySide.QtGui import QTextOption
 from PySide.QtGui import QVBoxLayout
@@ -39,6 +39,7 @@ class layerModel(QStandardItemModel):
 
     def flags(self, index):
         return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsDragEnabled | Qt.ItemIsDropEnabled | Qt.ItemIsEditable
+
 
 
 class itemDelegate(QStyledItemDelegate):
@@ -64,17 +65,27 @@ class itemDelegate(QStyledItemDelegate):
                     painter.drawText(rect, text, QTextOption(Qt.AlignCenter))
                     painter.restore()
                     return
-
                 painter.drawText(rect, text, QTextOption(Qt.AlignCenter))
+        elif index.column() == 0:
+            painter.save()
+            #painter.setPen(Qt.red)
+            if option.state & QStyle.State_Selected:
+                c = option.palette.color(QPalette.Highlight)
+                painter.fillRect(rect, c)
+            if self.parent().img.layersStack[-1 - index.row()].visible:
+                px = self.inv_px1 if option.state & QStyle.State_Selected else self.px1
+            else:
+                px = self.inv_px2 if option.state & QStyle.State_Selected else self.px2
+            painter.drawPixmap(rect, px, QRectF(0,0,self.px1.width(), self.px1.height()))
+            painter.restore()
         else:
             # call default
             QStyledItemDelegate.paint(self, painter, option, index)
 
-
 class QLayerView(QTableView) :
     """
     The class QLayerView inherits from QTableView. It is used
-    in the main form to display lists of image layers.
+    in the main form to display the stack of image layers.
     """
     def __init__(self, parent):
         super(QLayerView, self).__init__(parent)
@@ -86,8 +97,17 @@ class QLayerView(QTableView) :
         self.customContextMenuRequested.connect(self.contextMenu)
         # behavior and style for selection
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
+        delegate = itemDelegate(parent=self)
+        self.setItemDelegate(delegate)
+        ic1 = QImage(":/images/resources/eye-icon.png")
+        ic2 = QImage(":/images/resources/eye-icon-strike.png")
+        delegate.px1 = QPixmap.fromImage(ic1)
+        delegate.px2 = QPixmap.fromImage(ic2)
+        ic1.invertPixels()
+        ic2.invertPixels()
+        delegate.inv_px1 = QPixmap.fromImage(ic1)
+        delegate.inv_px2 = QPixmap.fromImage(ic2)
 
-        self.setItemDelegate(itemDelegate(parent=self))
 
         """
         self.verticalHeader().setMovable(True)
@@ -123,7 +143,6 @@ class QLayerView(QTableView) :
         self.opacityValue.setMinimumSize(w, h)
         self.opacityValue.setMaximumSize(w, h)
 
-
         self.opacityValue.setText('100 ')
         self.opacityValue.setStyleSheet("QLabel {background-color: white;}")
         hl.addWidget(self.opacityValue)
@@ -131,7 +150,6 @@ class QLayerView(QTableView) :
         l.addLayout(hl)
         l.setContentsMargins(20,0,20,25) # left, top, right, bottom
         self.setLayout(l)
-
 
         # opacity value changed event handler
         def f():
@@ -144,8 +162,6 @@ class QLayerView(QTableView) :
         # blending modes combo box
 
         compLabel = QLabel()
-        #compLabel.setMaximumSize(100, 30)
-        # self.opacityLabel.setStyleSheet("QLabel {background-color: white;}")
         compLabel.setText("Composition Mode")
         l.addWidget(compLabel)
         modes = ['Normal', 'Plus', 'Multiply', 'Screen', 'Overlay', 'Darken', 'Lighten', 'Color Dodge', 'Color Burn', 'Hard Light',
@@ -164,16 +180,12 @@ class QLayerView(QTableView) :
         l.addWidget(self.blendingModeCombo)
         self.blendingModeCombo.addItems(modes)
 
-
-
-
         def g(ind):
             s = self.blendingModeCombo.currentText()
             self.img.getActiveLayer().compositionMode = self.compositionModeDict[str(s)]
             self.img.onImageChanged()
 
         self.blendingModeCombo.currentIndexChanged.connect(g)
-
 
     def closeAdjustForms(self):
         if self.img is None:
@@ -195,7 +207,7 @@ class QLayerView(QTableView) :
         model = layerModel()
         model.setColumnCount(3)
 
-        self.setModel(model)
+        #self.setModel(model)
         l = len(mImg.layersStack)
 
         for r, lay in enumerate(reversed(mImg.layersStack)):
@@ -203,7 +215,6 @@ class QLayerView(QTableView) :
             # col 0 : visibility icon
             if lay.visible :
                 item_visible = QStandardItem(QIcon(":/images/resources/eye-icon.png"), "")
-
             else:
                 item_visible = QStandardItem(QIcon(":/images/resources/eye-icon-strike.png"), "")
             items.append(item_visible)
@@ -214,7 +225,8 @@ class QLayerView(QTableView) :
             item_mask = QStandardItem('M')
             items.append(item_mask)
             model.appendRow(items)
-        model.setData(model.index(0, 2), QBrush(Qt.red), Qt.ForegroundRole | Qt.DecorationRole)
+
+        #model.setData(model.index(0, 2), QBrush(Qt.red), Qt.ForegroundRole | Qt.DecorationRole)
 
         self.setModel(model)
 
@@ -296,9 +308,11 @@ class QLayerView(QTableView) :
         :param clickedIndex:
         """
         row = clickedIndex.row()
-        #model = clickedIndex.model()
         # toggle layer visibility
         if clickedIndex.column() == 0 :
+            # background layer is always visible
+            if row == len(self.img.layersStack) - 1:
+                return
             visible = not(self.img.layersStack[-1-row].visible)
             self.img.layersStack[-1-row].visible = visible
             # update visibility icon
@@ -323,17 +337,17 @@ class QLayerView(QTableView) :
             if self.currentWin is not None:
                 self.currentWin.show()
                 self.currentWin.activateWindow()
-
         # select mask
         elif clickedIndex.column() == 2:
             self.img.layersStack[-1-clickedIndex.row()].maskIsSelected = not self.img.layersStack[-1-clickedIndex.row()].maskIsSelected
-            self.repaint()
-
+            #self.repaint()
+        """
         self.wdgt.setValue(int(self.img.getActiveLayer().opacity*100))
         d = self.compositionModeDict
         ind = self.blendingModeCombo.findText(d.keys()[d.values().index(self.img.getActiveLayer().compositionMode)])
         self.blendingModeCombo.setCurrentIndex(ind)
         QtGui1.window.label.repaint()
+        """
 
     def contextMenu(self, pos):
         """

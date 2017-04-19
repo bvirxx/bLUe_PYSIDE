@@ -816,8 +816,6 @@ class graphicsForm3DLUT(QGraphicsView) :
         # LUT
         LUT3D = LUT3DFromFactory(size=LUTSize)
         self.LUTSize, self.LUTStep, self.graphicsScene.LUTContrast, self.graphicsScene.LUT3D = LUT3D.size, LUT3D.step, LUT3D.contrast, LUT3D.LUT3DArray
-        # options
-        self.graphicsScene.options = {'use selection' : True, 'add node': True, 'select neighbors': True, 'reset removed nodes': True, 'use perceptive brightness':True}
 
         # color wheel
         QImg = hueSatModel.colorWheel(size, size, cModel,  perceptualBrightness=self.defaultColorWheelBr, border=border)
@@ -878,6 +876,8 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.graphicsScene.addWidget(pushButton)
 
         # options
+        self.graphicsScene.options = {'use selection': True, 'add node': True, 'select neighbors': True,
+                                      'reset removed nodes': True, 'use perceptive brightness': True}
         self.listWidget1 = optionsWidget(options=['use image', 'use selection'], exclusive=True)
         self.listWidget1.select(self.listWidget1.items['use selection'])
         def onSelect1(item):

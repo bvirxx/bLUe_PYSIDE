@@ -237,9 +237,6 @@ class graphicsForm(QGraphicsView) :
 
         #self.graphicsScene.addPath(qppath, QPen(Qt.DashLine))  #create and add QGraphicsPathItem
 
-        # curve
-
-
         # curves
         cubic = cubicItem(self.graphicsScene.axeSize)
         self.graphicsScene.addItem(cubic)
@@ -303,8 +300,6 @@ class graphicsForm(QGraphicsView) :
         self.listWidget1.setGeometry(50, 50, 10, 100)
         self.graphicsScene.addWidget(self.listWidget1)
         #self.listWidget1.setStyleSheet("QListWidget{background: white;} QListWidget::item{color: black;}")
-
-
 
         def onSelect1(item):
             self.scene().cubicItem.setVisible(False)
