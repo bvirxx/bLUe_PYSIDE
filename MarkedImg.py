@@ -27,10 +27,9 @@ from PySide.QtGui import QPixmap, QImage, QColor, QPainter, QMessageBox
 from PySide.QtCore import QRect
 
 
-
 from icc import convertQImage
 from imgconvert import *
-from LUT3D import interpVec
+from LUT3D import interpVec, rgb2hspVec, hsp2rgbVec
 from time import time
 import icc
 from utils import savitzky_golay, Channel
@@ -166,20 +165,77 @@ class vImage(QImage):
         self.setModified(True)
         return rszd
 
-    def applyLUT(self, stackedLUT, options={}):
+    def apply1DLUT(self, stackedLUT, options={}):
         """
-        Applies per channel LUTS to the image
-
-        :param stackedLUT: array color values (in range 0..255). Shape must be (3, 255) : a line for each RGB channel
+        Applies 1D LUTS (one for each channel)
+        :param stackedLUT: array of color values (in range 0..255). Shape must be (3, 255) : a line for each channel
         :param options: not used yet
         """
-        # get image buffers (BGR order on intel proc.)
-        ndImg0 = QImageBuffer(self.inputImg())[:, :, :3] #[:, :, ::-1]
+        # get image buffers (BGR order on intel arch.)
+        ndImg0 = QImageBuffer(self.inputImg())[:, :, :3]
         ndImg1 = QImageBuffer(self)[:, :, :3]
-        # apply LUTS to the 3 channels
+        # apply LUTS to channels
         rList = np.array([2,1,0]) #BGR
         ndImg1[:, :, :]= stackedLUT[rList[np.newaxis,:], ndImg0]
-        #update
+        # update
+        self.updatePixmap()
+
+    def applyLab1DLUT(self, stackedLUT, options={}):
+        """
+        Applies 1D LUTS (one for each L,a,b channel)
+        :param stackedLUT: array of color values (in range 0..255). Shape must be (3, 255) : a line for each channel
+        :param options: not used yet
+        """
+        from colorTemperature import sRGB2LabVec, Lab2sRGBVec, rgb2rgbLinearVec, rgbLinear2rgbVec
+        # get image buffers (RGB order on intel arch.)
+        ndImg0 = QImageBuffer(self.inputImg())[:, :, :3][:,:,::-1]
+        # Lab conversion
+        ndLabImg0 = sRGB2LabVec(ndImg0)
+
+        # apply LUTS to channels
+        ndLImg0 = (ndLabImg0[:,:,0]*255.0).astype(int)
+        #rList = np.array([0,1,2]) # Lab
+        #ndLabImg1 = stackedLUT[rList[np.newaxis,:], ndLabImg0]
+        LUT = stackedLUT[0,:]
+        ndLImg1 = LUT[ndLImg0] /255.0
+        ndLabImg1 = np.dstack((ndLImg1, ndLabImg0[:,:,1], ndLabImg0[:,:,2]))
+        # back sRGB conversion
+        ndsRGBImg1 = Lab2sRGBVec(ndLabImg1)
+        # clipping is mandatory here : numpy bug ?
+        ndsRGBImg1 = np.clip(ndsRGBImg1, 0, 255)
+        ndImg1 = QImageBuffer(self)[:, :, :3]
+        ndImg1[:,:,::-1] = ndsRGBImg1
+
+        # update
+        self.updatePixmap()
+
+    def applyHSPB1DLUT(self, stackedLUT, options={}):
+        """
+        Applies 1D LUTS (one for each L,a,b channel)
+        :param stackedLUT: array of color values (in range 0..255). Shape must be (3, 255) : a line for each channel
+        :param options: not used yet
+        """
+
+        # get image buffers (RGB order on intel arch.)
+        ndImg0 = QImageBuffer(self.inputImg())[:, :, :3][:,:,::-1]
+        # HSPB conversion
+        ndHSPBImg0 = rgb2hspVec(ndImg0)
+
+        # apply LUTS to channels
+        ndLImg0 = (ndHSPBImg0[:,:,2]*255).astype(int)
+        #rList = np.array([0,1,2]) # Lab
+        #ndLabImg1 = stackedLUT[rList[np.newaxis,:], ndLabImg0]
+        LUT = stackedLUT[0,:]
+        ndLImg1 = LUT[ndLImg0]
+        ndHSBPImg1 = np.dstack((ndHSPBImg0[:,:,0], ndHSPBImg0[:,:,1], ndLImg1/255.0))
+        # back sRGB conversion
+        ndRGBImg1 = hsp2rgbVec(ndHSBPImg1)
+        # clipping is mandatory here : numpy bug ?
+        ndRGBImg1 = np.clip(ndRGBImg1, 0, 255)
+        ndImg1 = QImageBuffer(self)[:, :, :3]
+        ndImg1[:,:,::-1] = ndRGBImg1
+
+        # update
         self.updatePixmap()
 
     def apply3DLUT(self, LUT, options={}):

@@ -57,9 +57,11 @@ BradfordInverse =  [[0.9869929, -0.1470543,  0.1599627],
                     [0.4323053,  0.5183603,  0.0492912],
                     [-0.0085287, 0.0400428,  0.9684867]]
 
-# conversion from LINEAR sRGB (D65) to XYZ and inverse
+#########################
+# conversion from LINEAR sRGB (D65) to XYZ and backwards.
 # see http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
 # and https://en.wikipedia.org/wiki/SRGB
+########################
 
 sRGB2XYZ = [[0.4124564,  0.3575761,  0.1804375],
             [0.2126729,  0.7151522,  0.0721750],
@@ -70,7 +72,10 @@ sRGB2XYZInverse = [[3.2404542, -1.5371385, -0.4985314],
                     [0.0556434, -0.2040259, 1.0572252]]
 
 ################
-# Constants and precomputed arrays for sRGB linearizing functions.
+# Constants and precomputed tables for the
+# sRGB linearizing functions
+# rgbLinear2rgbVec,
+# rgb2rgbLinearVec.
 # See https://en.wikipedia.org/wiki/SRGB
 ################
 
@@ -80,11 +85,15 @@ beta = 1.0 / alpha
 b = (a / (1.0 + a)) ** alpha
 d = 12.92
 c = 255.0 * d
+e = 255*255
+F = 255.0**(2*beta)
 
-tab0 = np.arange(256, dtype=np.float64)
-tab1 = tab0 / 255.0  # np.array([i/255.0 for i in xrange(256)])
-tab2 = tab0 / c  # np.array([i/c for i in xrange(256)])
-tab3 = np.power(tab1, alpha)
+table0 = np.arange(256, dtype=np.float64)
+table1 = table0 / 255.0  # np.array([i/255.0 for i in xrange(256)])
+table2 = table0 / c  # np.array([i/c for i in xrange(256)])
+table3 = np.power(table1, alpha)
+table4 = np.arange(e + 1, dtype = np.float64)
+table5 = np.power(table4, beta)
 
 def rgbLinear2rgb(r,g,b):
 
@@ -108,14 +117,19 @@ def rgbLinear2rgb(r,g,b):
 def rgbLinear2rgbVec(img):
     """
     Converts image from linear sRGB to sRGB.
-    THe image colors are first converted to float values in range 0..1
     :param img: linear sRGB image (RGB range 0..1, type numpy array, dtype=np.float64)
-    :return: converted image (RGB range 0..255
+    :return: converted image (RGB range 0..255)
     See https://en.wikipedia.org/wiki/SRGB
     """
     img2 = d * img
-    img3 = (1.0 + a) * np.power(img, beta) - a
-
+    #img3 = (1.0 + a) * np.power(img, beta) - a
+    imgDiscretized = (img * e )
+    imgDiscretized = np.clip(imgDiscretized, 0, e)
+    imgDiscretized = np.floor(imgDiscretized)
+    imgDiscretized = imgDiscretized.astype(float)
+    imgDiscretized = imgDiscretized.astype(int)
+    imgDiscretized = np.clip(imgDiscretized, 0, e)
+    img3 = (1.0 + a) * table5[imgDiscretized] / F
     return np.where(img <=  0.0031308, img2, img3) * 255
 
 def rgb2rgbLinear(r,g,b):
@@ -140,14 +154,74 @@ def rgb2rgbLinearVec(img):
     """
     Converts image from sRGB to linear sRGB.
     THe image colors are first converted to float values in range 0..1
+    See https://en.wikipedia.org/wiki/SRGB
     :param img: sRGB image (RGB range 0..255, type numpy array)
     :return: converted image (RGB range 0..1, type numpy array dtype=np.float64)
-    See https://en.wikipedia.org/wiki/SRGB
     """
-    img1 =  tab1[img[...]]
-    img2 = tab2[img[...]]
-    img3 = tab3[img[...]]
+    img1 =  table1[img[...]]
+    img2 = table2[img[...]]
+    img3 = table3[img[...]]
     return np.where(img1 <= 0.04045, img2, img3)
+
+def sRGB2XYZVec(imgBuf):
+    """
+    Conversion from sRGB to XYZ
+    :param imgBuf: Array of RGB values, range 0..255
+    :return: 
+    """
+    #buf = QImageBuffer(img)[:, :, :3][:,:,::-1]
+    bufLinear = rgb2rgbLinearVec(imgBuf)
+    bufXYZ = np.tensordot(bufLinear, sRGB2XYZ, axes=(-1, -1))
+    return bufXYZ
+
+def XYZ2sRGBVec(imgBuf):
+    """
+    
+    :param imgBuf: XYZ buffer
+    :return: sRGB buffer range 0..255
+    """
+    #buf = QImageBuffer(img)[:, :, :3]
+    bufsRGBLinear = np.tensordot(imgBuf, sRGB2XYZInverse, axes=(-1, -1))
+    bufsRGB = rgbLinear2rgbVec(bufsRGBLinear)
+    return bufsRGB
+
+def sRGB2LabVec(bufsRGB) :
+    """
+    https://en.wikipedia.org/wiki/Lab_color_space
+    :param bufsRGB: 
+    :return: bufLab Image buffer mode Lab, range 0..1, dtype float64
+    """
+    Xn, Yn, Zn = 95.02, 100.0, 108.82 #95.02, 100.0, 108.82
+    Ka, Kb = 172.30, 67.20
+    bufXYZ = sRGB2XYZVec(bufsRGB)
+    YoverYn = bufXYZ[:,:,1] / Yn
+    bufL = np.sqrt(YoverYn)
+    bufa = Ka * ( bufXYZ[:,:,0] / Xn - YoverYn) / bufL
+    bufb = Kb * (YoverYn - bufXYZ[:,:,2]/Zn) / bufL
+
+    bufLab = np.dstack((bufL, bufa, bufb))
+
+    return bufLab
+
+
+def Lab2sRGBVec(bufLab):
+    """
+    https://en.wikipedia.org/wiki/Lab_color_space
+    :param bufLab: 
+    :return: bufsRGB
+    """
+    Xn, Yn, Zn = 95.02, 100.0, 108.82
+    Ka, Kb = 172.30, 67.20
+    #buf =  QImageBuffer(bufLab)
+    bufL, bufa, bufb = bufLab[:,:,0], bufLab[:,:,1], bufLab[:,:,2]
+    bufL2 = bufL* bufL
+    bufY = bufL2 * Yn
+    bufX = Xn * ((bufa/ Ka) * bufL + bufL2)
+    bufZ = Zn * (bufL2 - ((bufb / Kb)) * bufL)
+
+    bufXYZ = np.dstack((bufX, bufY, bufZ))
+
+    return XYZ2sRGBVec(bufXYZ)
 
 
 def bbTemperature2RGB(temperature):

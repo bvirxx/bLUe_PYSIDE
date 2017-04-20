@@ -537,7 +537,7 @@ def menuLayer(x, name):
             #l.applyLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
             window.label.repaint()
         # wrapper for the right apply method
-        l.execute = lambda : l.applyLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
+        l.execute = lambda : l.applyHSPB1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
         grWindow.graphicsScene.onUpdateLUT = f
 
     # 3D LUT
