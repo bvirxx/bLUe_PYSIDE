@@ -359,7 +359,8 @@ def openFile(f):
         msg.exec_()
         img.meta.colorSpace = 1
         img.updatePixmap()
-
+    img.useThumb = True
+    img.initThumb()
     window.label.img =  img
     window.label.img.onModify = lambda : updateEnabledActions()
     window.label.img.onImageChanged = window.label.repaint
@@ -741,7 +742,10 @@ def close(e):
     return True
 
 def updateStatus():
-    s = window.label.img.filename
+    img = window.label.img
+    s = img.filename
+    if img.useThumb:
+        s = s + '  ' + '<font color=red><b>Preview</b></font> '
     window.Label_status.setText(s)
 
 ###########

@@ -58,7 +58,7 @@ def convertQImage(image, transformation = workToMonTransform):
     :return: The converted QImage
     """
     # sRGB
-    if image.meta.colorSpace == 1 or transformation is not None:
+    if transformation is not None: #  or image.meta.colorSpace == 1
         # conversion in the PIL context
         converted_image = applyTransform(QImageToPilImage(image), transformation, 0)
         image.colorTransformation = transformation

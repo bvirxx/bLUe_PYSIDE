@@ -109,8 +109,12 @@ class vImage(QImage):
         self.maskIsSelected = False
         if self.mask is None:
             self.mask = QImage(self.width(), self.height(), format)
-            self.mask.fill(QColor(255,0,0, 255))
+            self.mask.fill(QColor(255, 0, 255))
         self.onImageChanged = lambda : 0
+        #thumbnail
+        self.useThumb = False
+        self.thumb = None
+        self.qPixmap = None
         self.updatePixmap()
 
     def setModified(self, b):
@@ -121,14 +125,21 @@ class vImage(QImage):
         self.isModified = b
         self.onModify()
 
+    def initThumb(self):
+        self.thumb = vImage(QImg=self.scaled(500, 500, Qt.KeepAspectRatio))
+
     def updatePixmap(self):
         """
         Updates image pixmap
         """
-        if icc.COLOR_MANAGE:
-            img = convertQImage(self)
+        if self.useThumb:
+            currentImage = self.thumb
         else:
-            img = QImage(self)
+            currentImage = self
+        if icc.COLOR_MANAGE:
+            img = convertQImage(currentImage)
+        else:
+            img = QImage(currentImage)
         if self.maskIsEnabled:
             qp = QPainter(img)
             qp.setCompositionMode(QPainter.RasterOp_SourceAndDestination)
@@ -153,9 +164,11 @@ class vImage(QImage):
         w, h = int(np.sqrt(pixels * ratio)), int(np.sqrt(pixels / ratio))
         hom = w / float(self.width())
         # resizing
-        cv2Img = cv2.resize(QImageBuffer(self), (w, h), interpolation=interpolation)
+        Buf = QImageBuffer(self)
+        cv2Img = cv2.resize(Buf, (w, h), interpolation=interpolation)
         rszd = vImage(cv2Img=cv2Img, meta=copy(self.meta), format=self.format())
-
+        # prevents buffer from garbage collector
+        rszd.dummy = cv2Img
         #resize rect and mask
         if self.rect is not None:
             rszd.rect = QRect(self.rect.left() * hom, self.rect.top() * hom, self.rect.width() * hom, self.rect.height() * hom)
@@ -232,7 +245,11 @@ class vImage(QImage):
         ndRGBImg1 = hsp2rgbVec(ndHSBPImg1)
         # clipping is mandatory here : numpy bug ?
         ndRGBImg1 = np.clip(ndRGBImg1, 0, 255)
-        ndImg1 = QImageBuffer(self)[:, :, :3]
+        if self.parentImage.useThumb:
+            currentImage = self.thumb
+        else:
+            currentImage = self
+        ndImg1 = QImageBuffer(currentImage)[:, :, :3]
         ndImg1[:,:,::-1] = ndRGBImg1
 
         # update
@@ -257,14 +274,14 @@ class vImage(QImage):
         else:
             w1, w2, h1, h2 = 0, self.inputImg().width(), 0, self.inputImg().height()
 
-        ndImg0 = QImageBuffer(self.inputImg())[h1+1:h2+1, w1+1:w2+1, :3]
-
+        ndImg0 = QImageBuffer(input)[h1+1:h2+1, w1+1:w2+1, :3]
         ndImg1 = QImageBuffer(self)[:, :, :3]
 
         # apply LUT
         start=time()
         ndImg1[h1+1:h2+1,w1+1:w2+1,:] = interpVec(LUT, ndImg0)
         end=time()
+
         print 'time %.2f' % (end-start)
 
         self.updatePixmap()
@@ -428,6 +445,18 @@ class mImage(vImage):
             # read from image
             return activeLayer.pixel(x, y)
 
+    def initThumb(self):
+        vImage.initThumb(self)
+        for layer in self.layersStack:
+                vImage.initThumb(layer)
+
+    def setThumbMode(self, value):
+        if value == self.useThumb:
+            return
+        self.useThumb = value
+        # recalculate the whole stack
+        self.layerStack[0].apply()
+
     def updatePixmap(self):
         """
         Overrides vImage.updatePixmap()
@@ -470,6 +499,7 @@ class mImage(vImage):
         layer.meta = self.meta
         layer.parentImage = self
         self.setModified(True)
+        layer.initThumb()
         return layer
 
 
@@ -486,11 +516,15 @@ class mImage(vImage):
             index = self.activeLayerIndex
         # adjust active layer only
         layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
-        layer.inputImg = lambda : self.layersStack[layer.getLowerVisibleStackIndex()]
+        if self.useThumb:
+            layer.inputImg = lambda : self.layersStack[layer.getLowerVisibleStackIndex()].thumb
+        else:
+            layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()]
         self.addLayer(layer, name=name, index=index + 1)
         layer.view = None
         #layer.parent = self
         #self.setModified(True)
+        layer.initThumb()
         return layer
 
     def addSegmentationLayer(self, name='', index=None):
@@ -581,9 +615,9 @@ class imImage(mImage) :
         rszd.rect = rszd0.rect
         for k, l  in enumerate(self.layersStack):
             if l.name != "background" and l.name != 'drawlayer':
-                img = QLayer.fromImage(self._layers[l.name].resize(pixels, interpolation=interpolation), parentImage=rszd)
-                rszd.layersStack.append (img)
-                rszd._layers[l.name] = img
+                img = QLayer.fromImage(l.resize(pixels, interpolation=interpolation), parentImage=rszd)
+                rszd.layersStack.append(img)
+                #rszd._layers[l.name] = img
         self.isModified = True
         return rszd
 
@@ -656,6 +690,10 @@ class QLayer(vImage):
         self.temperature = 0
         self.options = {}
 
+    def initThumb(self):
+        self.thumb = QLayer(QImg=self.scaled(500, 500, Qt.KeepAspectRatio))
+        self.thumb.parentImage = self.parentImage
+
     def applyToStack(self):
         """
         Applies and propagates changes.
@@ -670,11 +708,16 @@ class QLayer(vImage):
         #self.apply = f #lambda : self.parentImage.layersStack[self.getStackIndex()+1].apply() if self.getStackIndex() +1 < len(self.parentImage.layersStack) else 0
 
     def updatePixmap(self):
+        currentImage = self
+        if self.parentImage is not None:
+            if self.parentImage.useThumb:
+                if self.thumb is not None:
+                    currentImage = self.thumb
         if icc.COLOR_MANAGE and self.parentImage is not None:
             # layer color model is parent image colopr model
-            img = convertQImage(self, transformation=self.parentImage.colorTransformation)
+            img = convertQImage(currentImage, transformation=self.parentImage.colorTransformation)
         else:
-            img = QImage(self)
+            img = QImage(currentImage)
         if self.maskIsEnabled:
             qp=QPainter(img)
             qp.setOpacity(128)

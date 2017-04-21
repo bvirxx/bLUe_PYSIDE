@@ -31,12 +31,12 @@ class optionsWidget(QListWidget) :
     exclusive.
     """
 
-    def __init__(self, options=[], exclusive=True):
+    def __init__(self, options=[], exclusive=True, parent=None):
         """
         :param options: list of strings
         :param exclusive: boolean
         """
-        super(optionsWidget, self).__init__()
+        super(optionsWidget, self).__init__(parent)
         self.items = {}
         for option in options:
             listItem = QListWidgetItem(option, self)
@@ -45,6 +45,7 @@ class optionsWidget(QListWidget) :
             self.addItem(listItem)
             self.items[option] = listItem
         self.setMinimumWidth(self.sizeHintForColumn(0))
+        #self.setGeometry(self.sizeHintForColumn(0), self.sizeHintForRow(0))
         self.exclusive = exclusive
         self.itemClicked.connect(self.select)
         # selection hook.

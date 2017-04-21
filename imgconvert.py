@@ -45,7 +45,6 @@ def ndarrayToQImage(ndimg, format=QImage.Format_ARGB32):
     qimg = QImage(ndimg.data, ndimg.shape[1], ndimg.shape[0], bytePerLine, format)
     if qimg.format() == QImage.Format_Invalid:
         raise ValueError("ndarrayToQImage : wrong conversion")
-
     return qimg
 
 def QImageBuffer(qimg):

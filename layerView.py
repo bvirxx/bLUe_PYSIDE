@@ -17,7 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 from PySide.QtCore import QRectF
-from PySide.QtGui import QAction, QMenu, QSlider, QImage, QStyle, QPalette, QColor
+from PySide.QtGui import QAction, QMenu, QSlider, QImage, QStyle, QPalette, QColor, QListWidget, QCheckBox
 from PySide.QtGui import QBrush
 from PySide.QtGui import QComboBox
 from PySide.QtGui import QFontMetrics
@@ -31,6 +31,8 @@ from PySide.QtGui import QVBoxLayout
 
 import resources_rc  # mandatory : DO NOT REMOVE !!!
 import QtGui1
+from utils import optionsWidget
+
 
 class layerModel(QStandardItemModel):
 
@@ -121,9 +123,28 @@ class QLayerView(QTableView) :
         self.setAcceptDrops(True)
         self.setDropIndicatorShown(True)
 
-        # opcity slider
+        # verticallayout
         l = QVBoxLayout()
-        l.setAlignment(Qt.AlignBottom )
+        l.setAlignment(Qt.AlignBottom)
+
+        # Preview option
+        self.previewOptionBox = QCheckBox('Preview')
+        self.previewOptionBox.setMaximumSize(100, 30)
+        self.previewOptionBox.setChecked(True)
+        l.addWidget(self.previewOptionBox)
+        def m(state): # Qt.Checked Qt.UnChecked
+            if self.img is None:
+                return
+            if state == Qt.Checked:
+                self.img.useThumb = True
+            else:
+                self.img.useThumb = False
+            from bLUe import updateStatus
+            updateStatus()
+            self.img.layerStack[0].apply()
+        self.previewOptionBox.stateChanged.connect(m)
+
+        # opcity slider
         self.wdgt = QSlider(Qt.Horizontal)
         self.wdgt.setTickPosition(QSlider.TicksBelow)
         self.wdgt.setRange(0, 100)
@@ -134,6 +155,7 @@ class QLayerView(QTableView) :
         #self.opacityLabel.setStyleSheet("QLabel {background-color: white;}")
         opacityLabel.setText("Layer opacity")
         l.addWidget(opacityLabel)
+
         hl =  QHBoxLayout()
         self.opacityValue = QLabel()
         font = self.opacityValue.font()
