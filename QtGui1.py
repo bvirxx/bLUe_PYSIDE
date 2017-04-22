@@ -41,8 +41,10 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
         # load UI
         loadUi('bLUe.ui', baseinstance=self, customWidgets= {'QLayerView': QLayerView, 'QLabel': QLabel})
         #self = QtUiTools.QUiLoader().load("bLUe.ui", self)
-        # Slot hooks : they make the GUI independent
-        # from the underlying application.
+
+        # Status window updating
+        self.updateStatus = lambda : 0
+        # hooks used in event slots:
         self.onWidgetChange = lambda : 0
         self.onShowContextMenu = lambda : 0
         self.onExecMenuFile = lambda : 0
@@ -52,10 +54,9 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
         self.onExecMenuLayer = lambda: 0
         self.onUpdateMenuAssignProfile = lambda : 0
 
-        # button state recording.
+        # State recording.
         self.slidersValues = {}
         self.btnValues = {}
-
         self._recentFiles = []
 
         # connections to SLOTS
@@ -80,9 +81,8 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
         for widget in self.findChildren(QtGui.QLabel):
             widget.customContextMenuRequested.connect(lambda pos, widget=widget : self.showContextMenu(pos,widget))
 
-        for action in enumerateMenuActions(self.menu_File) : # replace by enumerateMenu
+        for action in enumerateMenuActions(self.menu_File) : # TODO replace by enumerateMenu
             action.triggered.connect(lambda x=0, actionName=action.objectName(): self.execMenuFile(x, actionName))
-            #action.triggered.connect(lambda actionName=action.objectName(): self.execMenuFile(0, actionName))
 
         for action in enumerateMenuActions(self.menuWindow) :
             action.triggered.connect(lambda x=0, actionName=action.objectName(): self.execMenuWindow(x, actionName))
@@ -94,8 +94,8 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
         for action in enumerateMenuActions(self.menuLayer) :
             action.triggered.connect(lambda x=0, actionName=action.objectName(): self.execMenuLayer(x, actionName))
 
-            for action in enumerateMenuActions(self.menuHelp):
-                action.triggered.connect(lambda x=0, actionName=action.objectName(): self.execMenuHelp(x, actionName))
+        for action in enumerateMenuActions(self.menuHelp):
+            action.triggered.connect(lambda x=0, actionName=action.objectName(): self.execMenuHelp(x, actionName))
 
         # mouse hovered event Slots
         #self.menuOpen_recent.menuAction().hovered.connect(lambda : self.updateMenuOpenRecent())
@@ -193,7 +193,7 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
 
 def enumerateMenuActions(menu):
     """
-    Build  recursively the list of actions contained in a menu
+    recursively builds   the list of actions contained in a menu
     and all its submenus.
     :param menu: Qmenu object
     :return: list of actions

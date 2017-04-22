@@ -224,7 +224,7 @@ class vImage(QImage):
 
     def applyHSPB1DLUT(self, stackedLUT, options={}):
         """
-        Applies 1D LUTS (one for each L,a,b channel)
+        Applies 1D LUTS (one for each sat and brightness channel)
         :param stackedLUT: array of color values (in range 0..255). Shape must be (3, 255) : a line for each channel
         :param options: not used yet
         """
@@ -285,7 +285,6 @@ class vImage(QImage):
         print 'time %.2f' % (end-start)
 
         self.updatePixmap()
-
 
     def histogram(self, size=200, bgColor=Qt.white, channel=Channel.RGB):
         """
@@ -516,10 +515,9 @@ class mImage(vImage):
             index = self.activeLayerIndex
         # adjust active layer only
         layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
-        if self.useThumb:
-            layer.inputImg = lambda : self.layersStack[layer.getLowerVisibleStackIndex()].thumb
-        else:
-            layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()]
+        # dynamic typing for adjustment layer
+        layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].thumb if layer.parentImage.useThumb else self.layersStack[layer.getLowerVisibleStackIndex()]
+        layer.inputImgFull = lambda: self.layersStack[layer.getLowerVisibleStackIndex()]
         self.addLayer(layer, name=name, index=index + 1)
         layer.view = None
         #layer.parent = self
@@ -673,7 +671,6 @@ class QLayer(vImage):
         return layer #QLayer(QImg=mImg) #mImg
 
     def __init__(self, *args, **kwargs):
-        #self.adjustView = None
         self.parentImage = None
         super(QLayer, self).__init__(*args, **kwargs)
         self.name='noname'
@@ -686,9 +683,14 @@ class QLayer(vImage):
         self.transfer = lambda : self.qPixmap
         # Following attributes are used by adjustment layers only
         # wrapper for the right exec method
-        self.execute = lambda : 0
+        #self.execute = lambda : 0
+        self.execute = lambda : self.updatePixmap()
         self.temperature = 0
         self.options = {}
+        # Following attributes are reserved (dynamic typing for adjustment layers)
+        # See addAdjustmentlayer above
+            # self.inputImg
+            # self.inputImgFull
 
     def initThumb(self):
         self.thumb = QLayer(QImg=self.scaled(500, 500, Qt.KeepAspectRatio))

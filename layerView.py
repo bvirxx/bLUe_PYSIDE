@@ -17,7 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 from PySide.QtCore import QRectF
-from PySide.QtGui import QAction, QMenu, QSlider, QImage, QStyle, QPalette, QColor, QListWidget, QCheckBox
+from PySide.QtGui import QAction, QMenu, QSlider, QImage, QStyle, QPalette, QColor, QListWidget, QCheckBox, QMessageBox
 from PySide.QtGui import QBrush
 from PySide.QtGui import QComboBox
 from PySide.QtGui import QFontMetrics
@@ -31,7 +31,7 @@ from PySide.QtGui import QVBoxLayout
 
 import resources_rc  # mandatory : DO NOT REMOVE !!!
 import QtGui1
-from utils import optionsWidget
+
 
 
 class layerModel(QStandardItemModel):
@@ -128,9 +128,13 @@ class QLayerView(QTableView) :
         l.setAlignment(Qt.AlignBottom)
 
         # Preview option
+        # We should use a QListWidget or a custom optionsWidget
+        # (cf. utils.py) :  adding it to QVBoxLayout with mode
+        # Qt.AlignBottom does not work.
+        # TODO : try setSizePolicy(QSizePolicy.Fixed , QSizePolicy.Fixed)
         self.previewOptionBox = QCheckBox('Preview')
         self.previewOptionBox.setMaximumSize(100, 30)
-        self.previewOptionBox.setChecked(True)
+        self.previewOptionBox.setChecked(False)
         l.addWidget(self.previewOptionBox)
         def m(state): # Qt.Checked Qt.UnChecked
             if self.img is None:
@@ -139,9 +143,16 @@ class QLayerView(QTableView) :
                 self.img.useThumb = True
             else:
                 self.img.useThumb = False
-            from bLUe import updateStatus
-            updateStatus()
-            self.img.layerStack[0].apply()
+            QtGui1.window.updateStatus()
+            if not self.img.useThumb:
+                info = QMessageBox()
+                info.setWindowTitle('Information')
+                info.setIcon(QMessageBox.Information)
+                info.setText('Processing...Please wait')
+                info.show()
+            QtGui1.app.processEvents()
+            self.img.layersStack[0].applyToStack()
+            QtGui1.window.label.repaint()
         self.previewOptionBox.stateChanged.connect(m)
 
         # opcity slider
@@ -363,13 +374,6 @@ class QLayerView(QTableView) :
         elif clickedIndex.column() == 2:
             self.img.layersStack[-1-clickedIndex.row()].maskIsSelected = not self.img.layersStack[-1-clickedIndex.row()].maskIsSelected
             #self.repaint()
-        """
-        self.wdgt.setValue(int(self.img.getActiveLayer().opacity*100))
-        d = self.compositionModeDict
-        ind = self.blendingModeCombo.findText(d.keys()[d.values().index(self.img.getActiveLayer().compositionMode)])
-        self.blendingModeCombo.setCurrentIndex(ind)
-        QtGui1.window.label.repaint()
-        """
 
     def contextMenu(self, pos):
         """

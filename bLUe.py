@@ -15,14 +15,9 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-from PySide.QtCore import QUrl
-from PySide.QtGui import QDesktopServices
-from PySide.QtGui import QTextBrowser
-from PySide.QtWebKit import QWebView
-from os.path import isfile
+import weakref
 
-import colorTemperature
-from colorTemperature import temperatureForm
+import gc
 
 """
 The QtHelp module uses the CLucene indexing library
@@ -39,11 +34,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser General 
 You should have received a copy of the GNU Lesser General Public License along with this library; if not, write to the Free Software Foundation,
 Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 """
-from time import sleep, time
 
-from PySide.QtGui import QBrush
-from PySide.QtGui import QPen
-from PySide.QtGui import QSplashScreen
 
 """
 bLUe - Photo editing software.
@@ -71,12 +62,23 @@ import exiftool
 from imgconvert import *
 from MarkedImg import imImage, metadata
 
-from graphicsLUT import graphicsForm
+from graphicsRGBLUT import graphicsForm
 from graphicsLUT3D import graphicsForm3DLUT
 from LUT3D import LUTSIZE
 from colorModels import cmHSP, cmHSB
 import icc
 from os import path
+
+from PySide.QtCore import QUrl
+from PySide.QtWebKit import QWebView
+from os.path import isfile
+
+from colorTemperature import temperatureForm
+from time import sleep
+
+from PySide.QtGui import QBrush
+from PySide.QtGui import QPen
+from PySide.QtGui import QSplashScreen
 
 
 
@@ -347,6 +349,7 @@ def openFile(f):
 
     name = path.basename(f)
     img = imImage(filename=f, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile, name=name)
+    img.initThumb()
     if img.format() < 4:
         msg = QMessageBox()
         msg.setText("Cannot edit indexed formats\nConvert image to a non indexed mode first")
@@ -359,8 +362,7 @@ def openFile(f):
         msg.exec_()
         img.meta.colorSpace = 1
         img.updatePixmap()
-    img.useThumb = True
-    img.initThumb()
+
     window.label.img =  img
     window.label.img.onModify = lambda : updateEnabledActions()
     window.label.img.onImageChanged = window.label.repaint
@@ -428,9 +430,14 @@ def menuFile(x, name):
                 save(window.label.img)
             elif ret == QMessageBox.Cancel:
                 return
+        #r = weakref.ref(window.label.img)
+        #print 'ref', r()
         window.label.img = defaultImImage
         window.label_2.img = defaultImImage
         window.tableView.setLayers(window.label.img)
+        # free (almost) all memory used by images
+        gc.collect()
+        #print 'ref', r()
         window.label.repaint()
         window.label_2.repaint()
     updateEnabledActions()
@@ -540,6 +547,7 @@ def menuLayer(x, name):
         # wrapper for the right apply method
         l.execute = lambda : l.applyHSPB1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
         grWindow.graphicsScene.onUpdateLUT = f
+        dock.setWindowModality(Qt.ApplicationModal)
 
     # 3D LUT
     elif name in ['action3D_LUT', 'action3D_LUT_HSB']:
@@ -763,6 +771,7 @@ app.setStyleSheet("QMainWindow, QGraphicsView, QListWidget, QMenu, QTableView {b
 # status bar
 window.Label_status = QLabel()
 window.statusBar().addWidget(window.Label_status)
+window.updateStatus = updateStatus
 
 # splash screen
 pixmap = QPixmap('logo.png')
