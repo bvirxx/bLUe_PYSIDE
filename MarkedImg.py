@@ -74,6 +74,9 @@ class vImage(QImage):
         self.rect, self.mask, = None, mask
         self.filename = filename
 
+        #buffers for color modes
+        self.hspbBuffer = None
+
         if meta is None:
             # init container
             self.meta = metadata()
@@ -117,6 +120,19 @@ class vImage(QImage):
         self.qPixmap = None
         self.updatePixmap()
 
+    def getHspbBuffer(self):
+        """
+        returns the image buffer in color mode HSpB.
+        The buffer is calculated if needed and cached.
+        :return: HSPB buffer (type ndarray)
+        """
+        if self.hspbBuffer is None:
+            if self.useThumb:
+                self.hspbBuffer = rgb2hspVec(QImageBuffer(self.thumb)[:,:,:3][:,:,::-1])
+            else:
+                self.hspbBuffer = rgb2hspVec(QImageBuffer(self)[:,:,:3][:,:,::-1])
+        return self.hspbBuffer
+
     def setModified(self, b):
         """
         Sets the flag isModified and calls hook for menu updating.
@@ -127,6 +143,9 @@ class vImage(QImage):
 
     def initThumb(self):
         self.thumb = vImage(QImg=self.scaled(500, 500, Qt.KeepAspectRatio))
+
+    def cacheInvalidate(self):
+        self.hspbBuffer = None
 
     def updatePixmap(self):
         """
@@ -224,23 +243,21 @@ class vImage(QImage):
 
     def applyHSPB1DLUT(self, stackedLUT, options={}):
         """
-        Applies 1D LUTS (one for each sat and brightness channel)
+        Applies 1D LUTS (one for each hue sat and brightness channels)
         :param stackedLUT: array of color values (in range 0..255). Shape must be (3, 255) : a line for each channel
         :param options: not used yet
         """
-
-        # get image buffers (RGB order on intel arch.)
-        ndImg0 = QImageBuffer(self.inputImg())[:, :, :3][:,:,::-1]
-        # HSPB conversion
-        ndHSPBImg0 = rgb2hspVec(ndImg0)
+        # hspb mode
+        ndHSPBImg0 = self.getHspbBuffer()
 
         # apply LUTS to channels
-        ndLImg0 = (ndHSPBImg0[:,:,2]*255).astype(int)
-        #rList = np.array([0,1,2]) # Lab
-        #ndLabImg1 = stackedLUT[rList[np.newaxis,:], ndLabImg0]
-        LUT = stackedLUT[0,:]
-        ndLImg1 = LUT[ndLImg0]
-        ndHSBPImg1 = np.dstack((ndHSPBImg0[:,:,0], ndHSPBImg0[:,:,1], ndLImg1/255.0))
+        #ndLImg0 = (ndHSPBImg0[:,:,1:] * 255).astype(int) # suppress hue channel
+        ndLImg0 = (ndHSPBImg0 * [255.0/360.0, 255.0, 255.0]).astype(int)
+        rList = np.array([0,1,2]) # HSB
+        ndLabImg1 = stackedLUT[rList[np.newaxis,:], ndLImg0]
+        #LUT = stackedLUT[2,:]
+        #ndLImg1 = stackedLUT[ndLImg0]
+        ndHSBPImg1 = np.dstack((ndLabImg1[:,:,0]*360.0/255.0, ndLabImg1[:,:,1]/255.0, ndLabImg1[:,:,2]/255.0))
         # back sRGB conversion
         ndRGBImg1 = hsp2rgbVec(ndHSBPImg1)
         # clipping is mandatory here : numpy bug ?
@@ -251,7 +268,6 @@ class vImage(QImage):
             currentImage = self
         ndImg1 = QImageBuffer(currentImage)[:, :, :3]
         ndImg1[:,:,::-1] = ndRGBImg1
-
         # update
         self.updatePixmap()
 
@@ -286,23 +302,25 @@ class vImage(QImage):
 
         self.updatePixmap()
 
-    def histogram(self, size=200, bgColor=Qt.white, channel=Channel.RGB):
+    def histogram(self, size=200, bgColor=Qt.white, range =(0,255), channel=Channel.RGB, mode='RGB'):
         """
         Plots the histogram of the image for the
-        specified channels (all channels or single channel)
+        specified channels.
         :param size: size of the histogram plot
-        :param channel: type Channel
+        :param channel: list of channels indices, type Channel
+        :param mode color mode ((one of 'RGB', 'HSpB')
         :return: histogram plot (type QImage)
         """
         # scaling factor for the bin edges
-        scale = size / 255.0
+        spread = float(range[1] - range[0])
+        scale = size / spread
 
         def drawChannelHistogram(qp, channel):
             """
             Computes and draws the (smoothed) histogram of the image for a single channel.
             :param channel: channel index (BGRA (intel) or ARGB )
             """
-            buf0 = buf[:,:,2-channel]
+            buf0 = buf[:,:, channel]
             hist, bin_edges = np.histogram(buf0, bins='auto', density=True)
             # smooth hist
             hist = savitzky_golay(hist, 11, 3)
@@ -315,20 +333,23 @@ class vImage(QImage):
                 bin_lastVals = bin_edges[-1] + np.arange(p-1)
                 bin_edges = np.concatenate((bin_firstVals, bin_edges, bin_lastVals))
             # draw hist
-            color = Qt.red if channel == Channel.Red else Qt.green if channel == Channel.Green else Qt.blue
+            color = Qt.red if channel == 0 else Qt.green if channel == 1 else Qt.blue
             qp.setPen(color)
+            M = max(hist) #+ size / 4.0
             for i, y in enumerate(hist):
-                qp.drawRect(int(bin_edges[i]*scale), max(img.height()-int(y*20*255),0), int((bin_edges[i+1]-bin_edges[i])*scale), int(y*20*255))
+                #h = int(y*20*255)
+                h = int(size * y / M)
+                qp.drawRect(int(bin_edges[i]*scale), max(img.height()-h,0), int((bin_edges[i+1]-bin_edges[i])*scale), h)
 
-        buf = QImageBuffer(self)
+        if mode == 'RGB':
+            buf = QImageBuffer(self)[:,:,:3][:,:,::-1]  #RGB
+        elif mode == 'HSpB':
+            buf = self.getHspbBuffer()
         img = QImage(size, size, QImage.Format_ARGB32)
         img.fill(bgColor)
         qp = QPainter(img)
-        if channel == Channel.RGB:
-            for channel in [0,1,2]:
-                drawChannelHistogram(qp, channel)
-        else:
-            drawChannelHistogram(qp, channel)
+        for ch in channel:
+            drawChannelHistogram(qp, ch)
         qp.end()
         buf = QImageBuffer(img)
         return img
@@ -443,6 +464,11 @@ class mImage(vImage):
         else:
             # read from image
             return activeLayer.pixel(x, y)
+
+    def cacheInvalidate(self):
+        vImage.cacheInvalidate(self)
+        for layer in self.layersStack:
+            layer.cacheInvalidate()
 
     def initThumb(self):
         vImage.initThumb(self)
@@ -687,14 +713,35 @@ class QLayer(vImage):
         self.execute = lambda : self.updatePixmap()
         self.temperature = 0
         self.options = {}
-        # Following attributes are reserved (dynamic typing for adjustment layers)
+        # Following attributes (functions)  are reserved (dynamic typing for adjustment layers)
         # See addAdjustmentlayer above
-            # self.inputImg
-            # self.inputImgFull
+            # self.inputImg : access to upper lower visible layer image or thumbnail, according to flag useThumb
+            # self.inputImgFull : access to upper lower visible layer image
+            # Accessing upper lower thumbnail must be done by calling inputImgFull().thumb. Using inputImg().thumb will fail if useThumb is True.
 
     def initThumb(self):
-        self.thumb = QLayer(QImg=self.scaled(500, 500, Qt.KeepAspectRatio))
+        if hasattr(self, 'inputImgFull'):
+            self.thumb = QLayer(QImg=self.inputImgFull().scaled(500, 500, Qt.KeepAspectRatio))
+        else:
+            self.thumb = QLayer(QImg=self.scaled(500, 500, Qt.KeepAspectRatio))
         self.thumb.parentImage = self.parentImage
+
+    def getHspbBuffer(self):
+        """
+        returns the image buffer in color mode HSpB.
+        The buffer is calculated if needed and cached.
+        :return: HSPB buffer (type ndarray)
+        """
+        if self.hspbBuffer is None:
+            if self.parentImage.useThumb:
+                #self.hspbBuffer = rgb2hspVec(QImageBuffer(self.thumb)[:,:,:3][:,:,::-1])
+                self.hspbBuffer = rgb2hspVec(QImageBuffer(self.inputImgFull().thumb)[:, :, :3][:, :, ::-1])
+            else:
+                if hasattr(self, 'inputImg'):
+                    self.hspbBuffer = rgb2hspVec(QImageBuffer(self.inputImg())[:,:,:3][:,:,::-1])
+                else:
+                    self.hspbBuffer = rgb2hspVec(QImageBuffer(self)[:, :, :3][:, :, ::-1])
+        return self.hspbBuffer
 
     def applyToStack(self):
         """

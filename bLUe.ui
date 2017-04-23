@@ -375,6 +375,7 @@ scr</string>
       <string>New adjustment layer</string>
      </property>
      <addaction name="actionBrightness_Contrast"/>
+     <addaction name="actionCurves_HSpB"/>
      <addaction name="action3D_LUT_HSB"/>
      <addaction name="action3D_LUT"/>
      <addaction name="actionColor_Temperature"/>
@@ -525,6 +526,11 @@ scr</string>
   <action name="actionClose">
    <property name="text">
     <string>Close</string>
+   </property>
+  </action>
+  <action name="actionCurves_HSpB">
+   <property name="text">
+    <string>Curves HSpB</string>
    </property>
   </action>
  </widget>

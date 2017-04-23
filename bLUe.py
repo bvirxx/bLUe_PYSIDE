@@ -19,6 +19,8 @@ import weakref
 
 import gc
 
+from graphicsHspbLUT import graphicsHspbForm
+
 """
 The QtHelp module uses the CLucene indexing library
 Copyright (C) 2003-2006 Ben van Klinken and the CLucene Team
@@ -517,12 +519,18 @@ def menuLayer(x, name):
     :param name: action name
     """
     # curves
-    if name == 'actionBrightness_Contrast':
+    if name == 'actionBrightness_Contrast' or name == 'actionCurves_HSpB':
         ccm = cmHSP
-        layerName = 'Curves'
+        if name == 'actionBrightness_Contrast':
+            layerName = 'Curves mode RGB'
+        elif name == 'actionCurves_HSpB':
+            layerName = 'Curves mode HSpB'
         # add new layer on top of active layer
         l = window.label.img.addAdjustmentLayer(name=layerName)
-        grWindow=graphicsForm.getNewWindow(ccm, size=400, targetImage=window.label.img, layer=l, parent=window)
+        if name == 'actionBrightness_Contrast':
+            grWindow=graphicsForm.getNewWindow(ccm, size=400, targetImage=window.label.img, layer=l, parent=window)
+        elif name == 'actionCurves_HSpB':
+            grWindow = graphicsHspbForm.getNewWindow(ccm, size=400, targetImage=window.label.img, layer=l, parent=window)
         # redimensionable window
         grWindow.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
         # add dock widget
@@ -545,7 +553,10 @@ def menuLayer(x, name):
             #l.applyLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
             window.label.repaint()
         # wrapper for the right apply method
-        l.execute = lambda : l.applyHSPB1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
+        if name == 'actionBrightness_Contrast':
+            l.execute = lambda : l.apply1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
+        elif name == 'actionCurves_HSpB':
+            l.execute = lambda: l.applyHSPB1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
         grWindow.graphicsScene.onUpdateLUT = f
         dock.setWindowModality(Qt.ApplicationModal)
 

@@ -136,6 +136,7 @@ class QLayerView(QTableView) :
         self.previewOptionBox.setMaximumSize(100, 30)
         self.previewOptionBox.setChecked(False)
         l.addWidget(self.previewOptionBox)
+        # state changed event handler
         def m(state): # Qt.Checked Qt.UnChecked
             if self.img is None:
                 return
@@ -144,15 +145,19 @@ class QLayerView(QTableView) :
             else:
                 self.img.useThumb = False
             QtGui1.window.updateStatus()
+            self.img.cacheInvalidate()
             if not self.img.useThumb:
                 info = QMessageBox()
+                info.setWindowModality(Qt.ApplicationModal)
                 info.setWindowTitle('Information')
                 info.setIcon(QMessageBox.Information)
-                info.setText('Processing...Please wait')
+                info.setText('Updating all layers.....Please wait')
                 info.show()
             QtGui1.app.processEvents()
             self.img.layersStack[0].applyToStack()
             QtGui1.window.label.repaint()
+            QtGui1.app.processEvents()
+
         self.previewOptionBox.stateChanged.connect(m)
 
         # opcity slider
@@ -193,7 +198,6 @@ class QLayerView(QTableView) :
         self.wdgt.valueChanged.connect(f)
 
         # blending modes combo box
-
         compLabel = QLabel()
         compLabel.setText("Composition Mode")
         l.addWidget(compLabel)
