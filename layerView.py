@@ -236,7 +236,7 @@ class QLayerView(QTableView) :
     def setLayers(self, mImg):
         """
         sets img attribute to mImg and shows the stack of layers from mImg
-        :param mImg: mImage
+        @param mImg: mImage
         """
         self.closeAdjustForms()
         self.img=mImg
@@ -300,7 +300,7 @@ class QLayerView(QTableView) :
     def dropEvent(self, event):
         """
         drop event handler : moving layer
-        :param event:
+        @param event:
         """
         if event.source() == self:
             rows = set([mi.row() for mi in self.selectedIndexes()])
@@ -342,7 +342,7 @@ class QLayerView(QTableView) :
     def viewClicked(self, clickedIndex):
         """
         Mouse click event handler.
-        :param clickedIndex:
+        @param clickedIndex:
         """
         row = clickedIndex.row()
         # toggle layer visibility
@@ -382,7 +382,7 @@ class QLayerView(QTableView) :
     def contextMenu(self, pos):
         """
         context menu event handler
-        :param pos: event coordinates (relative to widget)
+        @param pos: event coordinates (relative to widget)
         """
         index = self.indexAt(pos)
         layer = self.img.layersStack[-1-index.row()]

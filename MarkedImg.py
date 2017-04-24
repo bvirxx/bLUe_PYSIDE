@@ -50,23 +50,37 @@ class vImage(QImage):
     This is the base class for all multi-layered and interactive image classes.
     It gathers all image information, including meta-data.
     Each image owns a mask (disabled by default). When enabled, masking operation is bitwise AND.
+    Several data buffers are defined for thumbnails and color modes.
+    they are cached; access functions are initThumb, getHspbBuffer,
+    updatePixmap, cacheInvalidate.
     """
     def __init__(self, filename=None, cv2Img=None, QImg=None, mask=None, format=QImage.Format_ARGB32,
                                             name='', colorSpace=-1, orientation=None, meta=None, rawMetadata=[], profile=''):
         """
         With no parameter, builds a null image.
         Mask is disabled by default.
-        :param filename:
-        :param cv2Img:
-        :param QImg:
-        :param mask: Image mask (type QImage); Should have format and dims identical to those of image
-        :param format: QImage format (default QImage.Format_ARGB32)
-        :param name:
-        :param colorSpace: type ColorSpace (default notSpecified)
-        :param orientation: Qtransform object (default None)
-        :param meta: metadata object (default None)
-        :param rawMetadata: list of dictionaries (default [])
-        :param profile: embedded profile (default '')
+        @param filename: path to file
+        @type filename: str
+        @param cv2Img: data buffer
+        @type cv2Img: ndarray
+        @param QImg: image
+        @type QImg: QImage
+        @param mask: Image mask. Should have format and dims identical to those of image
+        @type mask: QImage
+        @param format: QImage format (default QImage.Format_ARGB32)
+        @type format: QImage.Format
+        @param name: image name
+        @type name: str
+        @param colorSpace: color space (default notSpecified)
+        @type colorSpace: MarkedImg.colorSpace
+        @param orientation: Qtransform object (default None)
+        @type orientation: Qtransform 
+        @param meta: meta data (default None)
+        @type meta: MarkedImg.metadata
+        @param rawMetadata: list of dictionaries (default [])
+        @type rawMetadata: list of dictionaries
+        @param profile: embedded profile (default '')
+        @type profile: str
         """
         self.colorTransformation = None
         self.isModified = False
@@ -74,8 +88,13 @@ class vImage(QImage):
         self.rect, self.mask, = None, mask
         self.filename = filename
 
-        #buffers for color modes
+        # Caches
+        self.useThumb = False
+        self.thumb = None
+        self.qPixmap = None
         self.hspbBuffer = None
+
+        self.onImageChanged = lambda: 0
 
         if meta is None:
             # init container
@@ -113,18 +132,22 @@ class vImage(QImage):
         if self.mask is None:
             self.mask = QImage(self.width(), self.height(), format)
             self.mask.fill(QColor(255, 0, 255))
-        self.onImageChanged = lambda : 0
-        #thumbnail
-        self.useThumb = False
-        self.thumb = None
-        self.qPixmap = None
+
         self.updatePixmap()
+
+    def getCurrentImage(self):
+        if self.useThumb:
+            currentImage = self.thumb
+        else:
+            currentImage = self
+        return currentImage
 
     def getHspbBuffer(self):
         """
         returns the image buffer in color mode HSpB.
         The buffer is calculated if needed and cached.
-        :return: HSPB buffer (type ndarray)
+        @return: HSPB buffer 
+        @rtype: ndarray
         """
         if self.hspbBuffer is None:
             if self.useThumb:
@@ -136,13 +159,17 @@ class vImage(QImage):
     def setModified(self, b):
         """
         Sets the flag isModified and calls hook for menu updating.
-        :param b: boolean
+        @param b: boolean
         """
         self.isModified = b
         self.onModify()
 
     def initThumb(self):
-        self.thumb = vImage(QImg=self.scaled(500, 500, Qt.KeepAspectRatio))
+        """
+        Inits thumbnail
+        @return: 
+        """
+        self.thumb = self.scaled(500, 500, Qt.KeepAspectRatio)  #QImage(QImg=self.scaled(500, 500, Qt.KeepAspectRatio))
 
     def cacheInvalidate(self):
         self.hspbBuffer = None
@@ -150,6 +177,7 @@ class vImage(QImage):
     def updatePixmap(self):
         """
         Updates image pixmap
+        @return: 
         """
         if self.useThumb:
             currentImage = self.thumb
@@ -172,12 +200,12 @@ class vImage(QImage):
     def resize(self, pixels, interpolation=cv2.INTER_CUBIC):
         """
         Resize an image while keeping its aspect ratio. We use
-        the opencv finction cv2.resize() to perform the resizing operation, so we
+        the opencv function cv2.resize() to perform the resizing operation, so we
         can choose the resizing method (default cv2.INTER_CUBIC)
         The original image is not modified.
-        :param pixels: pixel count for the resized image
-        :param interpolation method (default cv2.INTER_CUBIC)
-        :return : the resized vImage
+        @param pixels: pixel count for the resized image
+        @param interpolation method (default cv2.INTER_CUBIC)
+        @return : the resized vImage
         """
         ratio = self.width() / float(self.height())
         w, h = int(np.sqrt(pixels * ratio)), int(np.sqrt(pixels / ratio))
@@ -200,12 +228,13 @@ class vImage(QImage):
     def apply1DLUT(self, stackedLUT, options={}):
         """
         Applies 1D LUTS (one for each channel)
-        :param stackedLUT: array of color values (in range 0..255). Shape must be (3, 255) : a line for each channel
-        :param options: not used yet
+        @param stackedLUT: array of color values (in range 0..255). Shape must be (3, 255) : a line for each channel
+        @param options: not used yet
         """
         # get image buffers (BGR order on intel arch.)
         ndImg0 = QImageBuffer(self.inputImg())[:, :, :3]
-        ndImg1 = QImageBuffer(self)[:, :, :3]
+        currentImage = self.getCurrentImage()
+        ndImg1 = QImageBuffer(currentImage)[:, :, :3]
         # apply LUTS to channels
         rList = np.array([2,1,0]) #BGR
         ndImg1[:, :, :]= stackedLUT[rList[np.newaxis,:], ndImg0]
@@ -215,8 +244,8 @@ class vImage(QImage):
     def applyLab1DLUT(self, stackedLUT, options={}):
         """
         Applies 1D LUTS (one for each L,a,b channel)
-        :param stackedLUT: array of color values (in range 0..255). Shape must be (3, 255) : a line for each channel
-        :param options: not used yet
+        @param stackedLUT: array of color values (in range 0..255). Shape must be (3, 255) : a line for each channel
+        @param options: not used yet
         """
         from colorTemperature import sRGB2LabVec, Lab2sRGBVec, rgb2rgbLinearVec, rgbLinear2rgbVec
         # get image buffers (RGB order on intel arch.)
@@ -244,8 +273,8 @@ class vImage(QImage):
     def applyHSPB1DLUT(self, stackedLUT, options={}):
         """
         Applies 1D LUTS (one for each hue sat and brightness channels)
-        :param stackedLUT: array of color values (in range 0..255). Shape must be (3, 255) : a line for each channel
-        :param options: not used yet
+        @param stackedLUT: array of color values (in range 0..255). Shape must be (3, 255) : a line for each channel
+        @param options: not used yet
         """
         # hspb mode
         ndHSPBImg0 = self.getHspbBuffer()
@@ -262,10 +291,7 @@ class vImage(QImage):
         ndRGBImg1 = hsp2rgbVec(ndHSBPImg1)
         # clipping is mandatory here : numpy bug ?
         ndRGBImg1 = np.clip(ndRGBImg1, 0, 255)
-        if self.parentImage.useThumb:
-            currentImage = self.thumb
-        else:
-            currentImage = self
+        currentImage = self.getCurrentImage()
         ndImg1 = QImageBuffer(currentImage)[:, :, :3]
         ndImg1[:,:,::-1] = ndRGBImg1
         # update
@@ -274,8 +300,8 @@ class vImage(QImage):
     def apply3DLUT(self, LUT, options={}):
         """
         Applies 3D LUT to the image
-        :param LUT: LUT3D array (see module LUT3D.py)
-        :param options: dict of string:boolean records
+        @param LUT: LUT3D array (see module LUT3D.py)
+        @param options: dict of string:boolean records
         """
         # get selection
         w1, w2, h1, h2 = (0.0,) * 4
@@ -306,10 +332,10 @@ class vImage(QImage):
         """
         Plots the histogram of the image for the
         specified channels.
-        :param size: size of the histogram plot
-        :param channel: list of channels indices, type Channel
-        :param mode color mode ((one of 'RGB', 'HSpB')
-        :return: histogram plot (type QImage)
+        @param size: size of the histogram plot
+        @param channel: list of channels indices, type Channel
+        @param mode color mode ((one of 'RGB', 'HSpB')
+        @return: histogram plot (type QImage)
         """
         # scaling factor for the bin edges
         spread = float(range[1] - range[0])
@@ -318,7 +344,7 @@ class vImage(QImage):
         def drawChannelHistogram(qp, channel):
             """
             Computes and draws the (smoothed) histogram of the image for a single channel.
-            :param channel: channel index (BGRA (intel) or ARGB )
+            @param channel: channel index (BGRA (intel) or ARGB )
             """
             buf0 = buf[:,:, channel]
             hist, bin_edges = np.histogram(buf0, bins='auto', density=True)
@@ -387,10 +413,10 @@ class vImage(QImage):
     def applyTemperature(self, temperature, options, coeff=1.0):
         """
 
-        :param qImg:
-        :param temperature:
-        :param coeff:
-        :return:
+        @param qImg:
+        @param temperature:
+        @param coeff:
+        @return:
         """
         from blend import blendLuminosity
         from colorTemperature import bbTemperature2RGB, conversionMatrix, rgb2rgbLinearVec, rgbLinear2rgbVec
@@ -454,8 +480,8 @@ class mImage(vImage):
         Reads pixel value from active layer. For
         adjustment or segmentation layer, we read pixel value
         from input image.
-        :param x, y: coordinates of pixel
-        :return: pixel value (type QRgb : unsigned int ARGB)
+        @param x, y: coordinates of pixel
+        @return: pixel value (type QRgb : unsigned int ARGB)
         """
         activeLayer = self.getActiveLayer()
         if  hasattr(activeLayer, "inputImg") and activeLayer.inputImg is not None:
@@ -495,10 +521,10 @@ class mImage(vImage):
         """
         Adds layer.
 
-        :param layer: layer to add (fresh layer if None, type QLayer)
-        :param name:
-        :param index: index of insertion in layersStack (top of active layer if index=None)
-        :return: the layer added
+        @param layer: layer to add (fresh layer if None, type QLayer)
+        @param name:
+        @param index: index of insertion in layersStack (top of active layer if index=None)
+        @return: the layer added
         """
         # building a unique name
         usedNames = [l.name for l in self.layersStack]
@@ -527,14 +553,13 @@ class mImage(vImage):
         layer.initThumb()
         return layer
 
-
     def addAdjustmentLayer(self, name='', index=None):
         """
-        Add an adjustment layer to layer stack, at
-        position index (default top of active layer)
-        :param name:
-        :param index:
-        :return: layer (type QLayer)
+        Adds an adjustment layer to the layer stack, at
+        position index (default is top of active layer)
+        @param name: 
+        @param index: 
+        @return: 
         """
         if index == None:
             # add on top of active layer
@@ -571,9 +596,9 @@ class mImage(vImage):
         """
         builds the resulting image from visible layers
         and writes it to file
-        :param filename:
-        :param quality: interger value in range 0..100
-        :return: True if image is saved, False otherwise
+        @param filename:
+        @param quality: interger value in range 0..100
+        @return: True if image is saved, False otherwise
         """
 
         img = QImage(self.width(), self.height(), self.format())
@@ -618,8 +643,8 @@ class imImage(mImage) :
         """
         return the current resizing coefficient. It is used by
         the paint event handler to display the image
-        :param widget: Qwidget object
-        :return: the (multiplicative) resizing coefficient
+        @param widget: Qwidget object
+        @return: the (multiplicative) resizing coefficient
         """
         r_w, r_h = float(widget.width()) / self.width(), float(widget.height()) / self.height()
         r = max(r_w, r_h)
@@ -628,9 +653,9 @@ class imImage(mImage) :
     def resize(self, pixels, interpolation=cv2.INTER_CUBIC):
         """
         Resize image and layers
-        :param pixels:
-        :param interpolation:
-        :return: resized imImage object
+        @param pixels:
+        @param interpolation:
+        @return: resized imImage object
         """
         # resized vImage
         rszd0 = super(imImage, self).resize(pixels, interpolation=interpolation)
@@ -658,7 +683,7 @@ class imImage(mImage) :
     def snapshot(self):
         """
         build a snapshot of image
-        :return: imImage object
+        @return: imImage object
         """
         snap = imImage(QImg=self, meta=self.meta)
         #snap = QImage(self.width(), self.height(), QImage.Format_ARGB32)
@@ -720,17 +745,27 @@ class QLayer(vImage):
             # Accessing upper lower thumbnail must be done by calling inputImgFull().thumb. Using inputImg().thumb will fail if useThumb is True.
 
     def initThumb(self):
+        """
+        Overrides vImage.initThumb
+        """
         if hasattr(self, 'inputImgFull'):
             self.thumb = QLayer(QImg=self.inputImgFull().scaled(500, 500, Qt.KeepAspectRatio))
         else:
             self.thumb = QLayer(QImg=self.scaled(500, 500, Qt.KeepAspectRatio))
         self.thumb.parentImage = self.parentImage
 
+    def getCurrentImage(self):
+        if self.parentImage.useThumb:
+            currentImage = self.thumb
+        else:
+            currentImage = self
+        return currentImage
+
     def getHspbBuffer(self):
         """
         returns the image buffer in color mode HSpB.
         The buffer is calculated if needed and cached.
-        :return: HSPB buffer (type ndarray)
+        @return: HSPB buffer (type ndarray)
         """
         if self.hspbBuffer is None:
             if self.parentImage.useThumb:
@@ -791,7 +826,7 @@ class QLayer(vImage):
         """
         replace layer image with a copy of qimg buffer.
         The layer and qimg must have identical dimensions and type.
-        :param qimg: QImage object
+        @param qimg: QImage object
         """
         buf1, buf2 = QImageBuffer(self), QImageBuffer(qimg)
         if buf1.shape != buf2.shape:
@@ -802,14 +837,14 @@ class QLayer(vImage):
     def reset(self):
         """
         reset layer by ressetting it to imputImg
-        :return:
+        @return:
         """
         self.setImage(self.inputImg())
 
     def setOpacity(self, value):
         """
         set the opacity attribute to value/100.0
-        :param value:
+        @param value:
         """
         self.opacity = value /100.0
         return

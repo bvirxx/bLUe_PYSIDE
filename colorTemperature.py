@@ -101,10 +101,10 @@ def rgbLinear2rgb(r,g,b):
     Conversion from linear sRGB to sRGB.
     All values are in range 0..1.
     
-    :param r:
-    :param g:
-    :param b:
-    :return: The converted values
+    @param r:
+    @param g:
+    @param b:
+    @return: The converted values
     """
     def cl2c(c):
         if c <= 0.0031308:
@@ -117,8 +117,8 @@ def rgbLinear2rgb(r,g,b):
 def rgbLinear2rgbVec(img):
     """
     Converts image from linear sRGB to sRGB.
-    :param img: linear sRGB image (RGB range 0..1, type numpy array, dtype=np.float64)
-    :return: converted image (RGB range 0..255)
+    @param img: linear sRGB image (RGB range 0..1, type numpy array, dtype=np.float64)
+    @return: converted image (RGB range 0..255)
     See https://en.wikipedia.org/wiki/SRGB
     """
     img2 = d * img
@@ -137,10 +137,10 @@ def rgb2rgbLinear(r,g,b):
        Conversion from sRGB to LINEAR sRGB.
        All values are in range 0..1.
        See https://en.wikipedia.org/wiki/SRGB
-       :param r:
-       :param g:
-       :param b:
-       :return: The converted values
+       @param r:
+       @param g:
+       @param b:
+       @return: The converted values
        """
     def c2cl(c):
         if c <= 0.04045:
@@ -155,8 +155,8 @@ def rgb2rgbLinearVec(img):
     Converts image from sRGB to linear sRGB.
     THe image colors are first converted to float values in range 0..1
     See https://en.wikipedia.org/wiki/SRGB
-    :param img: sRGB image (RGB range 0..255, type numpy array)
-    :return: converted image (RGB range 0..1, type numpy array dtype=np.float64)
+    @param img: sRGB image (RGB range 0..255, type numpy array)
+    @return: converted image (RGB range 0..1, type numpy array dtype=np.float64)
     """
     img1 =  table1[img[...]]
     img2 = table2[img[...]]
@@ -166,8 +166,8 @@ def rgb2rgbLinearVec(img):
 def sRGB2XYZVec(imgBuf):
     """
     Conversion from sRGB to XYZ
-    :param imgBuf: Array of RGB values, range 0..255
-    :return: 
+    @param imgBuf: Array of RGB values, range 0..255
+    @return: 
     """
     #buf = QImageBuffer(img)[:, :, :3][:,:,::-1]
     bufLinear = rgb2rgbLinearVec(imgBuf)
@@ -177,8 +177,8 @@ def sRGB2XYZVec(imgBuf):
 def XYZ2sRGBVec(imgBuf):
     """
     
-    :param imgBuf: XYZ buffer
-    :return: sRGB buffer range 0..255
+    @param imgBuf: XYZ buffer
+    @return: sRGB buffer range 0..255
     """
     #buf = QImageBuffer(img)[:, :, :3]
     bufsRGBLinear = np.tensordot(imgBuf, sRGB2XYZInverse, axes=(-1, -1))
@@ -188,8 +188,8 @@ def XYZ2sRGBVec(imgBuf):
 def sRGB2LabVec(bufsRGB) :
     """
     https://en.wikipedia.org/wiki/Lab_color_space
-    :param bufsRGB: 
-    :return: bufLab Image buffer mode Lab, range 0..1, dtype float64
+    @param bufsRGB: 
+    @return: bufLab Image buffer mode Lab, range 0..1, dtype float64
     """
     Xn, Yn, Zn = 95.02, 100.0, 108.82 #95.02, 100.0, 108.82
     Ka, Kb = 172.30, 67.20
@@ -207,8 +207,8 @@ def sRGB2LabVec(bufsRGB) :
 def Lab2sRGBVec(bufLab):
     """
     https://en.wikipedia.org/wiki/Lab_color_space
-    :param bufLab: 
-    :return: bufsRGB
+    @param bufLab: 
+    @return: bufsRGB
     """
     Xn, Yn, Zn = 95.02, 100.0, 108.82
     Ka, Kb = 172.30, 67.20
@@ -229,8 +229,8 @@ def bbTemperature2RGB(temperature):
     Converts Kelvin temperature to rgb values.
     The temperature is Kelvin.
     See http://www.tannerhelland.com/4435/convert-temperature-rgb-algorithm-code
-    :param temp: Kelvin temperature
-    :return: r, g, b vlaues in  range 0..255 (type int)
+    @param temp: Kelvin temperature
+    @return: r, g, b vlaues in  range 0..255 (type int)
     """
     temperature = temperature / 100.0
     if temperature <= 66 :
@@ -261,10 +261,10 @@ def bbTemperature2RGB(temperature):
 def applyTemperature(qImg, temperature, coeff, version=2):
     
 
-    :param qImg:
-    :param temperature:
-    :param coeff:
-    :return:
+    @param qImg:
+    @param temperature:
+    @param coeff:
+    @return:
     
     if version == 0:
         r, g, b = bbTemperature2RGB(temperature)
@@ -296,8 +296,8 @@ def temperature2xyWP(T):
     of white point from temperature (cubic spline approximation).
     see http://en.wikipedia.org/wiki/Planckian_locus#Approximation
 
-    :param T: temperature in Kelvin
-    :return: xc, yc
+    @param T: temperature in Kelvin
+    @return: xc, yc
     """
 
     if T <= 4000:

@@ -98,8 +98,8 @@ def paintEvent(widg, e) :
     below).
     Image layers are painted in stack ascending order,
     each with its own opacity.
-    :param widg: widget object with a img attribute
-    :param e: paint event
+    @param widg: widget object with a img attribute
+    @param e: paint event
     """
     if not hasattr(widg, 'img'):
         raise ValueError("paintEvent : no image defined")
@@ -149,8 +149,8 @@ def mouseEvent(widget, event) :
     and overidding, or by dynamically assigning mouseEvent
     to the former three methods (cf. the function set_event_handler
     below)
-    :param widget: QLabel object
-    :param event: mouse event
+    @param widget: QLabel object
+    @param event: mouse event
     """
     global rect_or_mask, Mimg_1, pressed, clicked
     # image and active layer
@@ -274,9 +274,9 @@ def wheelEvent(widget,img, event):
     """
     Mouse wheel event handler for zooming
     imImage objects.
-    :param widget: widget displaying image
-    :param img: imImage object to display
-    :param event: mouse wheel event (type QWheelEvent)
+    @param widget: widget displaying image
+    @param img: imImage object to display
+    @param event: mouse wheel event (type QWheelEvent)
     """
     pos = event.pos()
     # delta unit is 1/8 of degree
@@ -297,7 +297,7 @@ def set_event_handler(widg):
     subclassing or overridding. However, the PySide dynamic
     ui loader needs that we set the corresponding classes as customWidget
     (cf. file pyside_dynamicLoader.py).
-    :param widg:
+    @param widg:
     """
     #widg.paintEvent = new.instancemethod(lambda e, wdg=widg : paintEvent(wdg,e), widg, QLabel)
     widg.paintEvent = MethodType(lambda instance, e, wdg=widg: paintEvent(wdg, e), widg.__class__)
@@ -326,7 +326,7 @@ def toggleLayer(widget, layer, b):
 
 def openFile(f):
     """
-    :param f: file name (type str)
+    @param f: file name (type str)
     """
     # extract embedded profile and metadata, if any.
     # metadata is a list of dicts with len(metadata) >=1.
@@ -392,8 +392,8 @@ def updateEnabledActions():
 def menuFile(x, name):
     """
 
-    :param x: dummy
-    :param name: action name
+    @param x: dummy
+    @param name: action name
     """
     window._recentFiles = window.settings.value('paths/recent', [])
     # update menu and actions
@@ -449,8 +449,8 @@ def menuFile(x, name):
 def menuWindow(x, name):
     """
 
-    :param x: dummy
-    :param name: action name
+    @param x: dummy
+    @param name: action name
     """
     if name == 'actionShow_hide_left_window' :
         pass
@@ -465,8 +465,8 @@ def menuWindow(x, name):
 def menuImage(x, name) :
     """
 
-    :param x: dummy
-    :param name: action name
+    @param x: dummy
+    @param name: action name
     """
     img = window.label.img
     # display image info
@@ -515,8 +515,8 @@ def menuImage(x, name) :
 def menuLayer(x, name):
     """
 
-    :param x: dummy
-    :param name: action name
+    @param x: dummy
+    @param name: action name
     """
     # curves
     if name == 'actionBrightness_Contrast' or name == 'actionCurves_HSpB':
@@ -528,9 +528,9 @@ def menuLayer(x, name):
         # add new layer on top of active layer
         l = window.label.img.addAdjustmentLayer(name=layerName)
         if name == 'actionBrightness_Contrast':
-            grWindow=graphicsForm.getNewWindow(ccm, size=400, targetImage=window.label.img, layer=l, parent=window)
+            grWindow=graphicsForm.getNewWindow(ccm, axeSize=400, targetImage=window.label.img, layer=l, parent=window)
         elif name == 'actionCurves_HSpB':
-            grWindow = graphicsHspbForm.getNewWindow(ccm, size=400, targetImage=window.label.img, layer=l, parent=window)
+            grWindow = graphicsHspbForm.getNewWindow(ccm, axeSize=400, targetImage=window.label.img, layer=l, parent=window)
         # redimensionable window
         grWindow.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
         # add dock widget
@@ -583,7 +583,7 @@ def menuLayer(x, name):
         def g(options={}):
             """
             Apply current 3D LUT and repaint window
-            :param options: dictionary of options
+            @param options: dictionary of options
             """
             l.options = options
             l.applyToStack()
@@ -630,8 +630,8 @@ def menuHelp(x, name):
     A single instance is created.
     Unused parameters are for the sake of symetry
     in all menu function calls.
-    :param x:
-    :param name:
+    @param x:
+    @param name:
     """
     global helpWindow
     link = "Help.html"
@@ -647,11 +647,11 @@ def handleNewWindow(imImg=None, parent=None, title='New window', show_maximized=
     to display text or iamge. If the parameter event_handler is True (default)
     the QLabel object redefines its handlers for paint and mouse events to display
     the imImage object label.img
-    :param imImg:
-    :param parent:
-    :param title:
-    :param show_maximized:
-    :param event_handler:
+    @param imImg:
+    @param parent:
+    @param title:
+    @param show_maximized:
+    @param event_handler:
     """
     newwindow = QMainWindow(parent)
     newwindow.setAttribute(Qt.WA_DeleteOnClose)
@@ -672,8 +672,8 @@ def handleNewWindow(imImg=None, parent=None, title='New window', show_maximized=
 def handleTextWindow(parent=None, title=''):
     """
     Display a floating modal text window
-    :param parent:
-    :param title:
+    @param parent:
+    @param title:
     """
     w, label = handleNewWindow(parent=parent, title=title, event_handler=False)
     w.setFixedSize(500,500)
@@ -749,7 +749,7 @@ def save(img):
 def close(e):
     """
     app close event handler
-    :param e: close event
+    @param e: close event
     """
     if window.label.img.isModified:
         ret = savingDialog(window.label.img)

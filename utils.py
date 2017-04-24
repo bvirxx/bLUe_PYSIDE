@@ -34,8 +34,8 @@ class optionsWidget(QListWidget) :
 
     def __init__(self, options=[], exclusive=True, parent=None):
         """
-        :param options: list of strings
-        :param exclusive: boolean
+        @param options: list of strings
+        @param exclusive: boolean
         """
         super(optionsWidget, self).__init__(parent)
         self.items = {}
@@ -55,7 +55,7 @@ class optionsWidget(QListWidget) :
     def select(self, item):
         """
         Mouse click event handler
-        :param item:
+        @param item:
         """
         for r in range(self.count()):
             currentItem = self.item(r)
@@ -76,12 +76,12 @@ def savitzky_golay(y, window_size, order, deriv=0, rate=1):
     This pure numpy implementation of the savitzky_golay filter is taken
     from http://stackoverflow.com/questions/22988882/how-to-smooth-a-curve-in-python
     Many thanks to elviuz.
-    :param y: data (type numpy array)
-    :param window_size:
-    :param order:
-    :param deriv:
-    :param rate:
-    :return: smoothed data array
+    @param y: data (type numpy array)
+    @param window_size:
+    @param order:
+    @param deriv:
+    @param rate:
+    @return: smoothed data array
     """
 
     import numpy as np
@@ -115,10 +115,10 @@ def phi(x, mu, sigma):
     """
     calculates the cumulative distribution function (CDF) phi of the
     normal distribution N(mu, sigma)
-    :param x: float
-    :param mu : mean value
-    :param sigma : standard deviation
-    :return: CDF value
+    @param x: float
+    @param mu : mean value
+    @param sigma : standard deviation
+    @return: CDF value
     """
     return (1.0 + erf((x-mu)/(sigma*np.sqrt(2)))) / 2.0
 
@@ -127,10 +127,10 @@ def gaussianKernel(mu, w):
     Calculates the 2D gaussian kernel of size w,
     for mean mu.
     The standard deviation sigma and w are bound by the relation w = 2.0 * int(4.0 * sigma + 0.5)
-    :param mu:
-    :param sigma:
-    :param size:
-    :return:
+    @param mu:
+    @param sigma:
+    @param size:
+    @return:
     """
     sigma = (w - 1.0) / 8.0
     interval = 4.0 * sigma

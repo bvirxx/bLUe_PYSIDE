@@ -30,11 +30,10 @@ def ndarrayToQImage(ndimg, format=QImage.Format_ARGB32):
     done concerning the compatibility between the ndarray shape and
     the QImage format. Although the doc is unclear, it seems that the
     buffer is copied when needed.
-    :param ndimg: The ndarray to be converted
-    :param format: The QImage format (default ARGB32)
-    :return: The converted image
+    @param ndimg: The ndarray to be converted
+    @param format: The QImage format (default ARGB32)
+    @return: The converted image
     """
-
     if ndimg.ndim != 3 or ndimg.dtype != 'uint8':
         raise ValueError("ndarray2QImage : array must be 3D with dtype=uint8, found ndim=%d, dtype=%s" %(ndimg.ndim, ndimg.dtype))
 
@@ -53,8 +52,9 @@ def QImageBuffer(qimg):
     3rd axis depends on the image type. Pixel color is
     in BGRA order (little endian arch. (intel)) or ARGB (big  endian arch.)
     Format 1 bit per pixel is not supported
-    :param qimg: QImage
-    :return: The buffer array
+    @rtype: numpy.ndarray
+    @param qimg: QImage
+    @return: The buffer array
     """
     # pixel depth
     bpp = qimg.depth()
@@ -74,12 +74,13 @@ def QImageBuffer(qimg):
     h,w = qimg.height(), qimg.width()
     return np.asarray(ptr).reshape(h, w, Bpp)
 
-
 def PilImageToQImage(pilimg) :
     """
     Convert a PIL image to a QImage
-    :param pilimg: The PIL image, mode RGB
-    :return: QImage object, format QImage.Format_ARGB32
+    @param pilimg: The PIL image, mode RGB
+    @type pilimg: PIL image
+    @return: QImage object, format QImage.Format_ARGB32
+    @rtype: PySide.QtGui.QImage
     """
     w, h = pilimg.width, pilimg.height
     mode = pilimg.mode
@@ -102,8 +103,8 @@ def PilImageToQImage(pilimg) :
 def QImageToPilImage(qimg) :
     """
     Convert a QImage to a PIL image
-    :param qimg: The Qimage
-    :return: PIL image  object, mode RGB
+    @param qimg: The Qimage
+    @return: PIL image  object, mode RGB
     """
     a = QImageBuffer(qimg)
 

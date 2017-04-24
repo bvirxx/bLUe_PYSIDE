@@ -55,10 +55,10 @@ class segmentForm(QWidget):
 def do_grabcut(layer, nb_iter=1, mode=cv2.GC_INIT_WITH_MASK, again=False):
     """
 
-    :param layer: source image (type QLayer)
-    :param nb_iter:
-    :param mode:
-    :param again:
+    @param layer: source image (type QLayer)
+    @param nb_iter:
+    @param mode:
+    @param again:
     """
     global rect_or_mask
     inputImg = layer.inputImg()

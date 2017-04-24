@@ -12,9 +12,9 @@ def cartesianProduct(arrayList, out=None):
     Build the cartesian product of
     several 1-D array-like objects as a numpy array
 
-    :param arrayList : list or tuple of 1-D array-like objects
-    :param out : only used by recursive calls
-    :return 2-D array of shape (M, len(arrays))
+    @param arrayList : list or tuple of 1-D array-like objects
+    @param out : only used by recursive calls
+    @return 2-D array of shape (M, len(arrays))
 
     """
     arrayList = [np.asarray(x) for x in arrayList]

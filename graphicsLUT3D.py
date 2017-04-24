@@ -237,10 +237,10 @@ class activeNode(QGraphicsPathItem):
     position on the color wheel.
     The attribute LUTIndices holds the list of LUT indices
     matching h and s.
-    """
+        """
     # node drawing
     qppE = QPainterPath()
-    qppE.addEllipse(0, 0, 7, 7)
+    qppE.addEllipse(-3, -3, 6, 6)
     qppR = QPainterPath()
     qppR.addRect(0, 0, 10, 10)
 
@@ -251,9 +251,9 @@ class activeNode(QGraphicsPathItem):
         of LUT vertices, corresponding to its initial color.
         When a node is moved over the color wheel, calling the method setState synchronizes
         the values of the LUT vertices with the current node position.
-        :param position: QpointF node position (relative to parent item)
-        :param parent: parent item
-        :param grid: owner grid
+        @param position: QpointF node position (relative to parent item)
+        @param parent: parent item
+        @param grid: owner grid
         """
         super(activeNode, self).__init__()
         self.setParentItem(parent)
@@ -266,14 +266,13 @@ class activeNode(QGraphicsPathItem):
         self.setFlag(QGraphicsItem.ItemIsSelectable, True)
         self.setFlag(QGraphicsItem.ItemIgnoresTransformations, True)
         self.setVisible(False)
-        # current scene
-        scene = parent.scene() #TODO remove
 
         # read color from color wheel.
         # Node parent is the grid and grandfather is the color wheel
         # grid is at pos (0,0) on the color wheel (colorPicker object)
         # Color wheel has a non null offset for border.
         p = position - parent.parentItem().offset()
+        scene = parent.scene()
         c = QColor(scene.colorWheel.QImg.pixel(p.toPoint()))
         self.r, self.g, self.b, _ = c.getRgb()
         self.hue, self.sat, self.pB = self.cModel.rgb2cm(self.r, self.g, self.b)#, perceptual=True)
@@ -314,7 +313,7 @@ class activeNode(QGraphicsPathItem):
     def setState(self, position):
         """
         Synchronize LUT
-        :param position: node position
+        @param position: node position
         """
         img = self.scene().colorWheel.QImg
         w, h = img.width(), img.height()
@@ -518,8 +517,8 @@ class activeGrid(QGraphicsPathItem):
     def __init__(self, size, cModel, parent=None):
         """
 
-        :param size: number of nodes in each dim.
-        :param parent:
+        @param size: number of nodes in each dim.
+        @param parent:
         """
         super(activeGrid, self).__init__()
         self.setParentItem(parent)
@@ -655,11 +654,11 @@ class colorPicker(QGraphicsPixmapItem):
     """
     def __init__(self, cModel, QImg, target=None, size=0, border=0):
         """
-        :param cModel: color model (type cmConverter)
-        :param QImg: color wheel
-        :param target: image to sample
-        :param size: color wheel diameter
-        :param border: border size
+        @param cModel: color model (type cmConverter)
+        @param QImg: color wheel
+        @param target: image to sample
+        @param size: color wheel diameter
+        @param border: border size
         """
         self.QImg = QImg
         self.border = border
@@ -774,13 +773,13 @@ class graphicsForm3DLUT(QGraphicsView) :
         """
         build a graphicsForm3DLUT object. The parameter size represents the size of
         the color wheel, border not included (the size of the window is adjusted).
-        :param cModel
-        :param targetImage
-        :param size: size of the color wheel (default 500)
-        :param LUTSize: size of the LUT
-        :param layer: layer of targetImage linked to graphics form
-        :param parent: parent widget
-        :return: graphicsForm3DLUT object
+        @param cModel
+        @param targetImage
+        @param size: size of the color wheel (default 500)
+        @param LUTSize: size of the LUT
+        @param layer: layer of targetImage linked to graphics form
+        @param parent: parent widget
+        @return: graphicsForm3DLUT object
         """
         newWindow = graphicsForm3DLUT(cModel, targetImage=targetImage, size=size, LUTSize=LUTSize, layer=layer, parent=parent)
         newWindow.setWindowTitle(layer.name)
@@ -789,11 +788,11 @@ class graphicsForm3DLUT(QGraphicsView) :
     def __init__(self, cModel, targetImage=None, size=500, LUTSize = LUTSIZE, layer=None, parent=None):
         """
 
-        :param size: size of the color wheel
-        :param targetImage:
-        :param LUTSize:
-        :param layer: layer of targetImage linked to graphics form
-        :param parent:
+        @param size: size of the color wheel
+        @param targetImage:
+        @param LUTSize:
+        @param layer: layer of targetImage linked to graphics form
+        @param parent:
         """
         super(graphicsForm3DLUT, self).__init__(parent=parent)
         self.cModel = cModel
@@ -914,8 +913,8 @@ class graphicsForm3DLUT(QGraphicsView) :
     def selectGridNode(self, r, g, b, rM,gM,bM):
         """
         select the nearest grid nodes corresponding to r,g,b values.
-        :param r,g,b : color
-        :param rM, gM, bM : color for debugging purpose
+        @param r,g,b : color
+        @param rM, gM, bM : color for debugging purpose
         """
         #w = self.grid.size
         w = self.LUTStep

@@ -34,9 +34,9 @@ def coeff(X, Y):
     Polynom Pi is Pi(t) = t * Y[i+1] + (1-t)*Y[i] + deltaX1[i] * deltaX1[i] * (P(t) * R[i+1] + P(1-t) * R[i])/6.0,
     where t = (x - X[i]) / deltaX1[i] and P(t) = t**3 - t.
     If two points have identical x-coordinates, a ValueError exception is raised.
-    :param X: X ccordinates of points (array)
-    :param y: Y coordinates of points (array)
-    :return: deltaX1 and R arrays of size N-1 and N respectively
+    @param X: X ccordinates of points (array)
+    @param y: Y coordinates of points (array)
+    @return: deltaX1 and R arrays of size N-1 and N respectively
     """
     old_settings = np.seterr(all='ignore')
     deltaX1 = X[1:] - X[:-1]
@@ -81,6 +81,17 @@ def cubicSpline(X, Y, deltaX1, R, v):
     return value
 
 def cubicSplineCurve(X,Y, clippingInterval=None):
+    """
+    Interpolates a set of 2D points by a cubic spline.
+    @param X: x-coordinates of points
+    @type X: list of float
+    @param Y: y-coordinates of points
+    @type Y: list of float
+    @param clippingInterval: min and max values for spline y-values
+    @type clippingInterval: 2-uple-like of float values
+    @return: the cubic spline
+    @rtype: list of QPointF objects
+    """
     m, M = np.min(X) , np.max(X)
     step = (M - m) / 255.0
     xValues = np.array([i*step + m for i in xrange(256)])

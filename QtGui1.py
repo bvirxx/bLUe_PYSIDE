@@ -133,7 +133,7 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
         """
         connected to button.pressed signal
         mutually exclusive selection
-        :param button:
+        @param button:
         """
         for k in self.btnValues :
             self.btnValues[k] = False
@@ -143,8 +143,8 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
     def handleSliderMoved (self, value, slider) :
         """
         connected to slider.valueChanged signal
-        :param value:
-        :param slider:
+        @param value:
+        @param slider:
         """
         self.slidersValues[str(slider.accessibleName())] = value
         self.onWidgetChange(slider)
@@ -195,8 +195,8 @@ def enumerateMenuActions(menu):
     """
     recursively builds   the list of actions contained in a menu
     and all its submenus.
-    :param menu: Qmenu object
-    :return: list of actions
+    @param menu: Qmenu object
+    @return: list of actions
     """
     actions = []
     for action in menu.actions():

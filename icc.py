@@ -53,9 +53,9 @@ def getProfiles():
 def convertQImage(image, transformation = workToMonTransform):
     """
     Convert a QImage from profile fromProfile to profile toProfile.
-    :param image: source QImage
-    :param transformation : a CmsTransform object (default workToMonTransform)
-    :return: The converted QImage
+    @param image: source QImage
+    @param transformation : a CmsTransform object (default workToMonTransform)
+    @return: The converted QImage
     """
     # sRGB
     if transformation is not None: #  or image.meta.colorSpace == 1

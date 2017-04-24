@@ -29,9 +29,14 @@ def blendLuminosity(dest, source):
     in Qt. We use the HSpB color model for the intermediate color space.
     The blended image retains the hue and saturation of dest, with the
     luminosity (i.e. perceptive brightness) of source.
-    :param dest: destination QImage
-    :param source: source QImage
-    :return: The blended image
+   
+    @param dest: destination QImage
+    @type dest QImage
+    @param source: source QImage
+    @type source QImage
+    @return: The blended image
+    @rtype: QImage
+    
     """
     sourceBuf = QImageBuffer(source)[:,:,:3]
     destBuf = QImageBuffer(dest)[:,:,:3]
@@ -50,13 +55,16 @@ def blendLuminosity(dest, source):
 
 def blendColor(dest, source):
     """
-    Implements blending with color mode, which is missing
-    in Qt. We use the HSpB color model for the intermediate color space.
+    Implements blending using color mode, which is missing
+    in Qt. We use the HSpB color model as intermediate color space.
     The blended image retains the hue and saturation of source, with the
     luminosity (i.e. perceptive brightness) of dest.
-    :param dest: destination QImage
-    :param source: source QImage
-    :return: The blended image
+    @param dest: destination QImage
+    @type dest: QImage
+    @param source: source QImage
+    @type source: QImage
+    @return: The blended image
+    @rtype: QImage
     """
     sourceBuf = QImageBuffer(source)[:, :, :3]
     destBuf = QImageBuffer(dest)[:, :, :3]

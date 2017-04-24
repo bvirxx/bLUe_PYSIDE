@@ -49,11 +49,11 @@ class hueSatModel (imImage):
         """
         Build a hue, sat color chart imImage. All image pixels have the same
         (perceptual) brightness (default 0.45).
-        :param w: image width
-        :param h: image height
-        :param cModel: color model (cmConverter object)
-        :param perceptualBrightness: brightness of image pixels
-        :return: imImage
+        @param w: image width
+        @param h: image height
+        @param cModel: color model (cmConverter object)
+        @param perceptualBrightness: brightness of image pixels
+        @return: imImage
         """
         w+= 2*border
         h+= 2*border
@@ -148,7 +148,7 @@ class hueSatModel (imImage):
     def setPb(self,pb):
         """
         Set brightness and update image
-        :param pb: perceptive brightness (range 0,..,1)
+        @param pb: perceptive brightness (range 0,..,1)
         """
         self.pb = pb
         self.hsArray[:,:,2] = pb
@@ -161,9 +161,9 @@ class hueSatModel (imImage):
         """
         convert hue, sat values to cartesian coordinates
         on the color wheel (origin top-left corner).
-        :param h: hue in range 0..1
-        :param s: saturation in range 0..1
-        :return: cartesian coordinates
+        @param h: hue in range 0..1
+        @param s: saturation in range 0..1
+        @return: cartesian coordinates
         """
         cx = self.width() / 2
         cy = self.height() / 2
@@ -176,8 +176,8 @@ class hueSatModel (imImage):
         """
         convert hue, sat values to cartesian coordinates
         on the color wheel (origin top-left corner).
-        :param hsarray
-        :return: cartesian coordinates
+        @param hsarray
+        @return: cartesian coordinates
         """
         h, s = hsarray[:,:,0], hsarray[:,:,1]
         cx = self.width() / 2

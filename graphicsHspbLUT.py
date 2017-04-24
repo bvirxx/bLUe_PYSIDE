@@ -39,15 +39,15 @@ computeControlPoints = True
 class graphicsHspbForm(QGraphicsView) :
 
     @classmethod
-    def getNewWindow(cls, cModel, targetImage=None, size=500, layer=None, parent=None):
-        newWindow = graphicsHspbForm(cModel, targetImage=targetImage, size=size, layer=layer, parent=parent)
+    def getNewWindow(cls, cModel, targetImage=None, axeSize=500, layer=None, parent=None):
+        newWindow = graphicsHspbForm(cModel, targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
         newWindow.setWindowTitle(layer.name)
         return newWindow
 
-    def __init__(self, cModel, targetImage=None, size=500, layer=None, parent=None):
+    def __init__(self, cModel, targetImage=None, axeSize=500, layer=None, parent=None):
         super(graphicsHspbForm, self).__init__(parent=parent)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        self.setMinimumSize(size + 80, size + 200)
+        self.setMinimumSize(axeSize + 80, axeSize + 200)
         #self.setWindowFlags(Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_DeleteOnClose)
         #self.setBackgroundBrush(QBrush(Qt.black, Qt.SolidPattern))
@@ -63,18 +63,18 @@ class graphicsHspbForm(QGraphicsView) :
 
         self.graphicsScene.onUpdateScene = lambda : 0
 
-        self.graphicsScene.axeSize = size
+        self.graphicsScene.axeSize = axeSize
 
         # draw axes
         item=QGraphicsPathItem()
         item.setPen(QPen(QBrush(QColor(255, 0, 0)), 1, style=Qt.DashLine))
         qppath = QPainterPath()
         qppath.moveTo(QPoint(0, 0))
-        qppath.lineTo(QPoint(self.graphicsScene.axeSize, 0))
-        qppath.lineTo(QPoint(self.graphicsScene.axeSize, -self.graphicsScene.axeSize))
-        qppath.lineTo(QPoint(0, -self.graphicsScene.axeSize))
+        qppath.lineTo(QPoint(axeSize, 0))
+        qppath.lineTo(QPoint(axeSize, -axeSize))
+        qppath.lineTo(QPoint(0, -axeSize))
         qppath.closeSubpath()
-        qppath.lineTo(QPoint(self.graphicsScene.axeSize, -self.graphicsScene.axeSize))
+        qppath.lineTo(QPoint(axeSize, -axeSize))
         item.setPath(qppath)
         self.graphicsScene.addItem(item)
 
@@ -91,36 +91,24 @@ class graphicsHspbForm(QGraphicsView) :
                                           activePoint(self.graphicsScene.axeSize / 2, -self.graphicsScene.axeSize / 2, parentItem=cubic),
                                           activePoint(self.graphicsScene.axeSize, -self.graphicsScene.axeSize, parentItem=cubic)]
         """
-        cubic = cubicItem(self.graphicsScene.axeSize)
+        cubic = cubicItem(axeSize)
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicR = cubic
         cubic.channel = Channel.Hue
         cubic.histImg = self.scene().layer.inputImgFull().histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, range=(0, 360), channel=Channel.Hue, mode='HSpB')
-        cubic.fixedPoints = [activePoint(0, 0, parentItem=cubic),
-                                             activePoint(self.graphicsScene.axeSize / 2,
-                                                         -self.graphicsScene.axeSize / 2, parentItem=cubic),
-                                             activePoint(self.graphicsScene.axeSize, -self.graphicsScene.axeSize,
-                                                         parentItem=cubic)]
+        cubic.initFixedPoints()
         cubic = cubicItem(self.graphicsScene.axeSize)
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicG = cubic
         cubic.channel = Channel.Sat
         cubic.histImg = self.scene().layer.inputImgFull().histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, range=(0,1), channel=Channel.Sat, mode='HSpB')
-        cubic.fixedPoints = [activePoint(0, 0, parentItem=cubic),
-                                             activePoint(self.graphicsScene.axeSize / 2,
-                                                         -self.graphicsScene.axeSize / 2, parentItem=cubic),
-                                             activePoint(self.graphicsScene.axeSize, -self.graphicsScene.axeSize,
-                                                         parentItem=cubic)]
+        cubic.initFixedPoints()
         cubic = cubicItem(self.graphicsScene.axeSize)
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicB = cubic
         cubic.channel = Channel.Br
         cubic.histImg = self.scene().layer.inputImgFull().histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, range=(0,1), channel=Channel.Br, mode='HSpB')
-        cubic.fixedPoints = [activePoint(0, 0, parentItem=cubic),
-                                             activePoint(self.graphicsScene.axeSize / 2,
-                                                         -self.graphicsScene.axeSize / 2, parentItem=cubic),
-                                             activePoint(self.graphicsScene.axeSize, -self.graphicsScene.axeSize,
-                                                         parentItem=cubic)]
+        cubic.initFixedPoints()
         # set current
         self.scene().cubicItem = self.graphicsScene.cubicB
         self.scene().cubicItem.setVisible(True)

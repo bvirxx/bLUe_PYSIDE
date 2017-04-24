@@ -100,8 +100,8 @@ def LUT3DFromFactory(size=LUTSIZE):
     Note that, with these initialization, trilinear interpolation boils down to identity :
     for all i,j,k in the range 0..256,
     trilinear(i//step, j//step, k//step) = (i,j,k).
-    :param size: integer value (should be 2**n+1)
-    :return: 4D-array, dtype=int
+    @param size: integer value (should be 2**n+1)
+    @return: 4D-array, dtype=int
     """
     step = 256 / (size - 1)
     a = np.arange(size)
@@ -110,10 +110,10 @@ def LUT3DFromFactory(size=LUTSIZE):
 def redistribute_rgb(r, g, b):
     """
      To keep the hue, we want to maintain the ratio of (middle-lowest)/(highest-lowest).
-    :param r:
-    :param g:
-    :param b:
-    :return:
+    @param r:
+    @param g:
+    @param b:
+    @return:
     """
 
     threshold = 255.999
@@ -143,11 +143,11 @@ def rgb2hsB(r, g, b, perceptual=False):
     into hue, saturation, brightness h, s, v. (Cf. schema in file colors.docx)
     The r, g, b components are integers in range 0..255. If perceptual is False
     (default) v = max(r,g,b)/255.0, else v = sqrt(Perc_R*r*r + Perc_G*g*g + Perc_B*b*b)
-    :param r:
-    :param g:
-    :param b:
-    :param perceptual: boolean
-    :return: h, s, v float values : 0<=h<360, 0<=s<=1, 0<=v<=1
+    @param r:
+    @param g:
+    @param b:
+    @param perceptual: boolean
+    @return: h, s, v float values : 0<=h<360, 0<=s<=1, 0<=v<=1
     """
 
     cMax = max(r, g, b)
@@ -181,8 +181,8 @@ def rgb2hsB(r, g, b, perceptual=False):
 def rgb2hsBVec(rgbImg, perceptual=False):
     """
     Vectorized version of rgb2hsB
-    :param rgbImg: (n,m,3) array of rgb values
-    :return: identical shape array of hsB values 0<=h<=360, 0<=s<=1, 0<=v<=1
+    @param rgbImg: (n,m,3) array of rgb values
+    @return: identical shape array of hsB values 0<=h<=360, 0<=s<=1, 0<=v<=1
     """
     r, g, b = rgbImg[:, :, 0].astype(float), rgbImg[:, :, 1].astype(float), rgbImg[:, :, 2].astype(float)
 
@@ -230,10 +230,10 @@ def hsv2rgb(h,s,v):
     Note : here, brightness is v= max(r,g,b)/255.0. For perceptual brightness use
     hsp2rgb()
 
-    :param h: float value in range 0..360
-    :param s: float value in range 0..1
-    :param v: float value in range 0..1
-    :return: r,g,b integers between 0 and 255
+    @param h: float value in range 0..360
+    @param s: float value in range 0..1
+    @param v: float value in range 0..1
+    @return: r,g,b integers between 0 and 255
     """
     assert h>=0 and h<=360 and s>=0 and s<=1 and v>=0 and v<=1
 
@@ -268,8 +268,8 @@ def hsv2rgbVec(hsvImg):
     Vectorized version of hsv2rgb.
     Transform the hue, saturation and brightness h, s, v components of a color
     into red, green, blue values.
-    :param hsvImg: hsv image array
-    :return: rgb image array
+    @param hsvImg: hsv image array
+    @return: rgb image array
     """
 
     h,s,v = hsvImg[:,:,0], hsvImg[:,:,1], hsvImg[:,:,2]
@@ -307,10 +307,10 @@ def hsp2rgbOld(h,s,p, trunc=True):
     """
     Transform the hue, saturation and perceptual brightness h, s, p components of a color
     into red, green, blue values.
-    :param h: float value in range 0..360
-    :param s: float value in range 0..1
-    :param p: float value in range 0..1
-    :return: r,g,b integers between 0 and 255
+    @param h: float value in range 0..360
+    @param s: float value in range 0..1
+    @param p: float value in range 0..1
+    @return: r,g,b integers between 0 and 255
     """
 
     h = h /60.0
@@ -404,10 +404,10 @@ def hsp2rgb_ClippingInd(h,s,p, trunc=True):
     """
     Transform the hue, saturation and perceptual brightness components of a color
     into red, green, blue values.
-    :param h: float value in range 0..360
-    :param s: float value in range 0..1
-    :param p: float value in range 0..1
-    :return: r,g,b integers between 0 and 255
+    @param h: float value in range 0..360
+    @param s: float value in range 0..1
+    @param p: float value in range 0..1
+    @return: r,g,b integers between 0 and 255
     """
 
     h = h /60.0
@@ -491,8 +491,8 @@ def hsp2rgbVec(hspImg):
     """
     Vectorized version of hsp2rgb
 
-    :param hspImg: (n,m,3) array of hsp values
-    :return: identical shape array of rgb values
+    @param hspImg: (n,m,3) array of hsp values
+    @return: identical shape array of rgb values
     """
     h, s, p = hspImg[:, :, 0], hspImg[:, :, 1], hspImg[:, :, 2]
 
@@ -607,9 +607,9 @@ def interpVec(LUT, ndImg):
     We use a vectorized version of trilinear interpolation.
     Cf. file trilinear.docx for details
 
-    :param LUT: 3D LUT array
-    :param ndImg: image array
-    :return: RGB image with same dimensions as the input image
+    @param LUT: 3D LUT array
+    @param ndImg: image array
+    @return: RGB image with same dimensions as the input image
     """
 
     # bounding unit cube coordinates for (r, g, b)/LUTSTEP

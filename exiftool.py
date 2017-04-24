@@ -85,7 +85,7 @@ class ExifTool(object):
     def saveMetadata(self, f):
         """
         save all metadata and icc profile to sidecar file
-        :param f: file name to process
+        @param f: file name to process
         """
         #temp = NamedTemporaryFile(delete=False)
         #temp.close()
@@ -97,10 +97,10 @@ class ExifTool(object):
         restore all metadata and icc profile from sidecar .mie to image files.
         if removesidecar is True, the sidecar file is removed after
         restoration.
-        :param source: file the image was loaded from
-        :param dest: file the image is saved to
-        :param removesidecar: if True remove sidecar file after restoration. Default is False
-        :return True if sidecar file exists, False otherwise
+        @param source: file the image was loaded from
+        @param dest: file the image is saved to
+        @param removesidecar: if True remove sidecar file after restoration. Default is False
+        @return True if sidecar file exists, False otherwise
         """
         sidecar = source[:-4] + '.mie'
         if isfile(sidecar):
@@ -116,8 +116,8 @@ def decodeExifOrientation(value):
     """
     Returns a QTransform object representing the
     image transformation corresponding to the orientation tag value
-    :param value: orientation tag
-    :return: Qtransform object
+    @param value: orientation tag
+    @return: Qtransform object
     """
     # identity transformation
     tr = QTransform()
