@@ -342,7 +342,8 @@ class QLayerView(QTableView) :
     def viewClicked(self, clickedIndex):
         """
         Mouse click event handler.
-        @param clickedIndex:
+        @param clickedIndex: 
+        @type clickedIndex: QModelIndex
         """
         row = clickedIndex.row()
         # toggle layer visibility
@@ -357,6 +358,7 @@ class QLayerView(QTableView) :
                 self.model().setData(clickedIndex, QIcon(":/images/resources/eye-icon.png") ,Qt.DecorationRole)
             else:
                 self.model().setData(clickedIndex, QIcon(":/images/resources/eye-icon-strike.png"), Qt.DecorationRole)
+            self.img.onImageChanged()
         # hide/display adjustment form
         elif clickedIndex.column() == 1 :
             # make selected layer the active layer

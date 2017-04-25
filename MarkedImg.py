@@ -26,13 +26,13 @@ from PySide.QtGui import QImageWriter
 from PySide.QtGui import QPixmap, QImage, QColor, QPainter, QMessageBox
 from PySide.QtCore import QRect
 
-
+from colorTemperature import sRGB2LabVec
 from icc import convertQImage
 from imgconvert import *
 from LUT3D import interpVec, rgb2hspVec, hsp2rgbVec
 from time import time
 import icc
-from utils import savitzky_golay, Channel
+from utils import savitzky_golay, channelValues
 
 class ColorSpace:
     notSpecified = -1; sRGB = 1
@@ -54,6 +54,7 @@ class vImage(QImage):
     they are cached; access functions are initThumb, getHspbBuffer,
     updatePixmap, cacheInvalidate.
     """
+    thumbSize = 1000
     def __init__(self, filename=None, cv2Img=None, QImg=None, mask=None, format=QImage.Format_ARGB32,
                                             name='', colorSpace=-1, orientation=None, meta=None, rawMetadata=[], profile=''):
         """
@@ -93,6 +94,7 @@ class vImage(QImage):
         self.thumb = None
         self.qPixmap = None
         self.hspbBuffer = None
+        self.LabBuffer = None
 
         self.onImageChanged = lambda: 0
 
@@ -137,6 +139,8 @@ class vImage(QImage):
 
     def getCurrentImage(self):
         if self.useThumb:
+            if self.thumb is None:
+                self.initThumb()
             currentImage = self.thumb
         else:
             currentImage = self
@@ -156,10 +160,25 @@ class vImage(QImage):
                 self.hspbBuffer = rgb2hspVec(QImageBuffer(self)[:,:,:3][:,:,::-1])
         return self.hspbBuffer
 
+    def getLabBuffer(self):
+        """
+        returns the image buffer in color mode Lab.
+        The buffer is calculated if needed and cached.
+        @return: HSPB buffer 
+        @rtype: ndarray
+        """
+        if self.LabBuffer is None:
+            if self.useThumb:
+                self.LabBuffer = sRGB2LabVec(QImageBuffer(self.thumb)[:,:,:3][:,:,::-1])
+            else:
+                self.LabBuffer = sRGB2LabVec(QImageBuffer(self)[:,:,:3][:,:,::-1])
+        return self.LabBuffer
+
     def setModified(self, b):
         """
-        Sets the flag isModified and calls hook for menu updating.
-        @param b: boolean
+        Sets the flag isModified and calls handler.
+        @param b: flag
+        @type b: boolean
         """
         self.isModified = b
         self.onModify()
@@ -169,10 +188,16 @@ class vImage(QImage):
         Inits thumbnail
         @return: 
         """
-        self.thumb = self.scaled(500, 500, Qt.KeepAspectRatio)  #QImage(QImg=self.scaled(500, 500, Qt.KeepAspectRatio))
+        self.thumb = self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio)  #QImage(QImg=self.scaled(500, 500, Qt.KeepAspectRatio))
 
     def cacheInvalidate(self):
+        """
+        Invalidates thumbnail and buffers.
+        @return: 
+        """
+        self.thumb = None
         self.hspbBuffer = None
+        self.LabBuffer = None
 
     def updatePixmap(self):
         """
@@ -232,7 +257,7 @@ class vImage(QImage):
         @param options: not used yet
         """
         # get image buffers (BGR order on intel arch.)
-        ndImg0 = QImageBuffer(self.inputImg())[:, :, :3]
+        ndImg0 = QImageBuffer(self.inputImgFull().getCurrentImage())[:, :, :3]
         currentImage = self.getCurrentImage()
         ndImg1 = QImageBuffer(currentImage)[:, :, :3]
         # apply LUTS to channels
@@ -248,8 +273,38 @@ class vImage(QImage):
         @param options: not used yet
         """
         from colorTemperature import sRGB2LabVec, Lab2sRGBVec, rgb2rgbLinearVec, rgbLinear2rgbVec
+        # hspb mode
+        ndLabImg0 = self.getLabBuffer()
+
+        # apply LUTS to channels
+        def scaleLabBuf(buf):
+            buf = buf + [0.0, 128.0, 128.0]
+            buf = buf * [255.0, 1.0, 1.0]# [255.0, 255.0/210.0, 255.0/210.0]
+            return buf
+        def scaleBackLabBuf(buf):
+            #buf = np.dstack((buf[:, :, 0] / 255.0, buf[:, :, 1] * (210.0/255.0), buf[:, :, 2] * (210.0/ 255.0)))
+            buf = np.dstack((buf[:, :, 0] / 255.0, buf[:, :, 1] , buf[:, :, 2] ))
+            buf = buf - [0.0, 128.0, 128.0]
+            return buf
+        ndLImg0 = scaleLabBuf(ndLabImg0).astype(int)
+        #ndLImg0 = (ndLabImg0 * [1.0, 255.0, 255.0]).astype(int)
+        rList = np.array([0, 1, 2])  # HSB
+        ndLabImg1 = stackedLUT[rList[np.newaxis, :], ndLImg0]
+        # LUT = stackedLUT[2,:]
+        # ndLImg1 = stackedLUT[ndLImg0]
+        ndLabImg1 = scaleBackLabBuf(ndLabImg1) #np.dstack((ndLabImg1[:, :, 0] / 255.0, ndLabImg1[:, :, 1] * (210.0/255.0), ndLabImg1[:, :, 2] * (210.0/ 255.0)))
+        # back sRGB conversion
+        ndsRGBImg1 = Lab2sRGBVec(ndLabImg1)
+        # clipping is mandatory here : numpy bug ?
+        ndsRGBImg1 = np.clip(ndsRGBImg1, 0, 255)
+        currentImage = self.getCurrentImage()
+        ndImg1 = QImageBuffer(currentImage)[:, :, :3]
+        ndImg1[:, :, ::-1] = ndsRGBImg1
+        # update
+        self.updatePixmap()
+        """
         # get image buffers (RGB order on intel arch.)
-        ndImg0 = QImageBuffer(self.inputImg())[:, :, :3][:,:,::-1]
+        ndImg0 = QImageBuffer(self.inputImgFull().getCurrentImage())[:, :, :3][:,:,::-1]
         # Lab conversion
         ndLabImg0 = sRGB2LabVec(ndImg0)
 
@@ -269,6 +324,7 @@ class vImage(QImage):
 
         # update
         self.updatePixmap()
+        """
 
     def applyHSPB1DLUT(self, stackedLUT, options={}):
         """
@@ -328,14 +384,20 @@ class vImage(QImage):
 
         self.updatePixmap()
 
-    def histogram(self, size=200, bgColor=Qt.white, range =(0,255), channel=Channel.RGB, mode='RGB'):
+    def histogram(self, size=200, bgColor=Qt.white, range =(0,255), chans=channelValues.RGB, chanColors=Qt.gray, mode='RGB'):
         """
         Plots the histogram of the image for the
-        specified channels.
+        specified color mode and channels.
         @param size: size of the histogram plot
-        @param channel: list of channels indices, type Channel
-        @param mode color mode ((one of 'RGB', 'HSpB')
-        @return: histogram plot (type QImage)
+        @type size: int
+        @param chans: list of channels indices
+        @type chans: Utils.channelValues
+        @param chanColors: color or 3-uple of colors
+        @type chanColors: QColor or 3-uple of QColor 
+        @param mode: color mode ((one of 'RGB', 'HSpB', 'Lab')
+        @type mode: str
+        @return: histogram plot
+        @rtype: QImage
         """
         # scaling factor for the bin edges
         spread = float(range[1] - range[0])
@@ -359,7 +421,10 @@ class vImage(QImage):
                 bin_lastVals = bin_edges[-1] + np.arange(p-1)
                 bin_edges = np.concatenate((bin_firstVals, bin_edges, bin_lastVals))
             # draw hist
-            color = Qt.red if channel == 0 else Qt.green if channel == 1 else Qt.blue
+            if type(chanColors) is QColor or type(chanColors) is Qt.GlobalColor:
+                color = chanColors
+            else:
+                color = chanColors[channel] # Qt.red if channel == 0 else Qt.green if channel == 1 else Qt.blue
             qp.setPen(color)
             M = max(hist) #+ size / 4.0
             for i, y in enumerate(hist):
@@ -371,10 +436,12 @@ class vImage(QImage):
             buf = QImageBuffer(self)[:,:,:3][:,:,::-1]  #RGB
         elif mode == 'HSpB':
             buf = self.getHspbBuffer()
+        elif mode == 'Lab':
+            buf = self.getLabBuffer()
         img = QImage(size, size, QImage.Format_ARGB32)
         img.fill(bgColor)
         qp = QPainter(img)
-        for ch in channel:
+        for ch in chans:
             drawChannelHistogram(qp, ch)
         qp.end()
         buf = QImageBuffer(img)
@@ -749,13 +816,15 @@ class QLayer(vImage):
         Overrides vImage.initThumb
         """
         if hasattr(self, 'inputImgFull'):
-            self.thumb = QLayer(QImg=self.inputImgFull().scaled(500, 500, Qt.KeepAspectRatio))
+            self.thumb = QLayer(QImg=self.inputImgFull().scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio))
         else:
-            self.thumb = QLayer(QImg=self.scaled(500, 500, Qt.KeepAspectRatio))
+            self.thumb = QLayer(QImg=self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio))
         self.thumb.parentImage = self.parentImage
 
     def getCurrentImage(self):
         if self.parentImage.useThumb:
+            if self.thumb is None:
+                self.initThumb()
             currentImage = self.thumb
         else:
             currentImage = self
@@ -770,7 +839,7 @@ class QLayer(vImage):
         if self.hspbBuffer is None:
             if self.parentImage.useThumb:
                 #self.hspbBuffer = rgb2hspVec(QImageBuffer(self.thumb)[:,:,:3][:,:,::-1])
-                self.hspbBuffer = rgb2hspVec(QImageBuffer(self.inputImgFull().thumb)[:, :, :3][:, :, ::-1])
+                self.hspbBuffer = rgb2hspVec(QImageBuffer(self.inputImgFull().getCurrentImage())[:, :, :3][:, :, ::-1])
             else:
                 if hasattr(self, 'inputImg'):
                     self.hspbBuffer = rgb2hspVec(QImageBuffer(self.inputImg())[:,:,:3][:,:,::-1])
@@ -781,13 +850,16 @@ class QLayer(vImage):
     def applyToStack(self):
         """
         Applies and propagates changes.
-        All parameter change event handlers
+        All event handlers changing parameters
         should call this method.
         """
         self.execute()
         ind = self.getStackIndex()
         if ind + 1 < len(self.parentImage.layersStack):
-            self.parentImage.layersStack[ind + 1].applyToStack()
+            img = self.parentImage.layersStack[ind + 1]
+            img.cacheInvalidate()
+            if img.visible:
+                img.applyToStack()
 
         #self.apply = f #lambda : self.parentImage.layersStack[self.getStackIndex()+1].apply() if self.getStackIndex() +1 < len(self.parentImage.layersStack) else 0
 

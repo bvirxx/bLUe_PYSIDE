@@ -28,7 +28,7 @@ from PySide.QtGui import QPushButton
 
 from colorModels import hueSatModel
 from spline import cubicSplineCurve
-from utils import optionsWidget, Channel
+from utils import optionsWidget, channelValues
 
 strokeWidth = 3
 controlPoints =[]
@@ -155,7 +155,7 @@ class cubicItem(QGraphicsPathItem) :
         self.fixedPoints = []
         self.spline = []
         self.LUTXY = np.array(range(256))
-        self.channel = Channel.RGB
+        self.channel = channelValues.RGB
         self.histImg = None
 
     def initFixedPoints(self):
@@ -212,7 +212,7 @@ class cubicItem(QGraphicsPathItem) :
             self.updatePath()
 
     def getStackedLUTXY(self):
-        if self.channel == Channel.RGB:
+        if self.channel == channelValues.RGB:
             return np.vstack((self.LUTXY, self.LUTXY, self.LUTXY))
         else:
             return np.vstack((self.scene().cubicR.LUTXY, self.scene().cubicG.LUTXY, self.scene().cubicB.LUTXY))
@@ -258,9 +258,6 @@ class graphicsForm(QGraphicsView) :
         self.scene().layer = layer
         self.scene().bgColor = QColor(200,200,200)#self.palette().color(self.backgroundRole()) TODO parametrize
 
-        #self.LUTXY = LUTXY
-
-
         self.graphicsScene.onUpdateScene = lambda : 0
 
         self.graphicsScene.axeSize = axeSize
@@ -284,26 +281,26 @@ class graphicsForm(QGraphicsView) :
         cubic = cubicItem(axeSize)
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicRGB = cubic
-        cubic.channel = Channel.RGB
-        cubic.histImg = self.scene().layer.inputImgFull().histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, channel=Channel.RGB)
+        cubic.channel = channelValues.RGB
+        cubic.histImg = self.scene().layer.inputImgFull().histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, chans=channelValues.RGB)
         cubic.initFixedPoints()
         cubic = cubicItem(axeSize)
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicR = cubic
-        cubic.channel = Channel.Red
-        cubic.histImg = self.scene().layer.inputImgFull().histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, channel=Channel.Red)
+        cubic.channel = channelValues.Red
+        cubic.histImg = self.scene().layer.inputImgFull().histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, chans=channelValues.Red)
         cubic.initFixedPoints()
         cubic = cubicItem(axeSize)
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicG = cubic
-        cubic.channel = Channel.Green
-        cubic.histImg = self.scene().layer.inputImgFull().histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, channel=Channel.Green)
+        cubic.channel = channelValues.Green
+        cubic.histImg = self.scene().layer.inputImgFull().histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, chans=channelValues.Green)
         cubic.initFixedPoints()
         cubic = cubicItem(axeSize)
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicB = cubic
-        cubic.channel = Channel.Blue
-        cubic.histImg = self.scene().layer.inputImgFull().histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, channel=Channel.Blue)
+        cubic.channel = channelValues.Blue
+        cubic.histImg = self.scene().layer.inputImgFull().histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, chans=channelValues.Blue)
         cubic.initFixedPoints()
         # set current
         self.scene().cubicItem = self.graphicsScene.cubicRGB
@@ -316,12 +313,23 @@ class graphicsForm(QGraphicsView) :
             self.scene().cubicItem.reset()
             self.scene().onUpdateLUT()
 
-        pushButton = QPushButton("Reset Curve")
-        pushButton.setObjectName("btn_reset_channel")
-        pushButton.setMinimumSize(1, 1)
-        pushButton.setGeometry(140, 50, 80, 30)  # x,y,w,h
-        pushButton.clicked.connect(onResetCurve)
-        self.graphicsScene.addWidget(pushButton)
+        def updateStack():
+            layer.applyToStack()
+            targetImage.onImageChanged()
+
+        # buttons
+        pushButton1 = QPushButton("Reset Curve")
+        pushButton1.setObjectName("btn_reset_channel")
+        pushButton1.setMinimumSize(1, 1)
+        pushButton1.setGeometry(140, 50, 80, 30)  # x,y,w,h
+        pushButton1.clicked.connect(onResetCurve)
+        self.graphicsScene.addWidget(pushButton1)
+        pushButton2 = QPushButton("Update top layers")
+        pushButton2.setObjectName("btn_reset_channel")
+        pushButton2.setMinimumSize(1, 1)
+        pushButton2.setGeometry(140, 90, 80, 30)  # x,y,w,h
+        pushButton2.clicked.connect(updateStack)
+        self.graphicsScene.addWidget(pushButton2)
 
         # options
         self.listWidget1 = optionsWidget(options=['RGB', 'Red', 'Green', 'Blue'], exclusive=True)

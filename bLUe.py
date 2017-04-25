@@ -20,6 +20,7 @@ import weakref
 import gc
 
 from graphicsHspbLUT import graphicsHspbForm
+from graphicsLabLUT import graphicsLabForm
 
 """
 The QtHelp module uses the CLucene indexing library
@@ -519,18 +520,22 @@ def menuLayer(x, name):
     @param name: action name
     """
     # curves
-    if name == 'actionBrightness_Contrast' or name == 'actionCurves_HSpB':
+    if name in ['actionBrightness_Contrast', 'actionCurves_HSpB', 'actionCurves_Lab']:
         ccm = cmHSP
         if name == 'actionBrightness_Contrast':
-            layerName = 'Curves mode RGB'
+            layerName = 'Curves R, G, B'
         elif name == 'actionCurves_HSpB':
-            layerName = 'Curves mode HSpB'
+            layerName = 'Curves H, S, pB'
+        elif name == 'actionCurves_Lab':
+            layerName = 'Curves L, a, b'
         # add new layer on top of active layer
         l = window.label.img.addAdjustmentLayer(name=layerName)
         if name == 'actionBrightness_Contrast':
             grWindow=graphicsForm.getNewWindow(ccm, axeSize=400, targetImage=window.label.img, layer=l, parent=window)
         elif name == 'actionCurves_HSpB':
             grWindow = graphicsHspbForm.getNewWindow(ccm, axeSize=400, targetImage=window.label.img, layer=l, parent=window)
+        elif name == 'actionCurves_Lab':
+            grWindow = graphicsLabForm.getNewWindow(ccm, axeSize=400, targetImage=window.label.img, layer=l, parent=window)
         # redimensionable window
         grWindow.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
         # add dock widget
@@ -549,7 +554,8 @@ def menuLayer(x, name):
             """
             Apply current LUT and repaint window
             """
-            l.applyToStack()
+            l.execute()
+            #l.applyToStack()
             #l.applyLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
             window.label.repaint()
         # wrapper for the right apply method
@@ -557,9 +563,10 @@ def menuLayer(x, name):
             l.execute = lambda : l.apply1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
         elif name == 'actionCurves_HSpB':
             l.execute = lambda: l.applyHSPB1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
+        elif name == 'actionCurves_Lab':
+            l.execute = lambda: l.applyLab1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
         grWindow.graphicsScene.onUpdateLUT = f
         dock.setWindowModality(Qt.ApplicationModal)
-
     # 3D LUT
     elif name in ['action3D_LUT', 'action3D_LUT_HSB']:
         # color model

@@ -20,7 +20,8 @@ import sys
 
 from PySide.QtCore import QRect
 from PySide.QtGui import QApplication, QPainter, QWidget
-from PySide.QtGui import QGraphicsView, QGraphicsScene, QGraphicsPathItem , QPainterPath, QPainterPathStroker, QPen, QBrush, QColor, QPixmap, QMainWindow, QLabel, QSizePolicy
+from PySide.QtGui import QGraphicsView, QGraphicsScene, QGraphicsPathItem, QPainterPath, QPainterPathStroker, QPen, \
+    QBrush, QColor, QPixmap, QMainWindow, QLabel, QSizePolicy
 from PySide.QtCore import Qt, QPoint, QPointF, QRectF
 import numpy as np
 from PySide.QtGui import QPolygonF
@@ -32,41 +33,40 @@ from spline import cubicSplineCurve
 from utils import optionsWidget, channelValues
 
 strokeWidth = 3
-controlPoints =[]
+controlPoints = []
 computeControlPoints = True
 
 
-class graphicsHspbForm(QGraphicsView) :
-
+class graphicsLabForm(QGraphicsView):
     @classmethod
     def getNewWindow(cls, cModel, targetImage=None, axeSize=500, layer=None, parent=None):
-        newWindow = graphicsHspbForm(cModel, targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
+        newWindow = graphicsLabForm(cModel, targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
         newWindow.setWindowTitle(layer.name)
         return newWindow
 
     def __init__(self, cModel, targetImage=None, axeSize=500, layer=None, parent=None):
-        super(graphicsHspbForm, self).__init__(parent=parent)
+        super(graphicsLabForm, self).__init__(parent=parent)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize + 80, axeSize + 200)
-        #self.setWindowFlags(Qt.WindowStaysOnTopHint)
+        # self.setWindowFlags(Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_DeleteOnClose)
-        #self.setBackgroundBrush(QBrush(Qt.black, Qt.SolidPattern))
-        #self.bgPixmap = QPixmap.fromImage(hueSatModel.colorWheel(size, size, cModel))
+        # self.setBackgroundBrush(QBrush(Qt.black, Qt.SolidPattern))
+        # self.bgPixmap = QPixmap.fromImage(hueSatModel.colorWheel(size, size, cModel))
         self.graphicsScene = QGraphicsScene()
         self.setScene(self.graphicsScene)
         self.scene().targetImage = targetImage
         self.scene().layer = layer
-        self.scene().bgColor = QColor(200,200,200)#self.palette().color(self.backgroundRole()) TODO parametrize
+        self.scene().bgColor = QColor(200, 200, 200)  # self.palette().color(self.backgroundRole()) TODO parametrize
 
-        #self.LUTXY = LUTXY
+        # self.LUTXY = LUTXY
 
 
-        self.graphicsScene.onUpdateScene = lambda : 0
+        self.graphicsScene.onUpdateScene = lambda: 0
 
         self.graphicsScene.axeSize = axeSize
 
         # draw axes
-        item=QGraphicsPathItem()
+        item = QGraphicsPathItem()
         item.setPen(QPen(QBrush(QColor(255, 0, 0)), 1, style=Qt.DashLine))
         qppath = QPainterPath()
         qppath.moveTo(QPoint(0, 0))
@@ -78,39 +78,35 @@ class graphicsHspbForm(QGraphicsView) :
         item.setPath(qppath)
         self.graphicsScene.addItem(item)
 
-        #self.graphicsScene.addPath(qppath, QPen(Qt.DashLine))  #create and add QGraphicsPathItem
+        # self.graphicsScene.addPath(qppath, QPen(Qt.DashLine))  #create and add QGraphicsPathItem
 
         # curves
-        """
-        cubic = cubicItem(self.graphicsScene.axeSize)
-        self.graphicsScene.addItem(cubic)
-        self.graphicsScene.cubicRGB = cubic
-        cubic.channel = Channel.RGB
-        cubic.histImg = self.scene().layer.inputImgFull().histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, channel=Channel.HSB, mode='HSpB')
-        cubic.fixedPoints = [activePoint(0, 0, parentItem=cubic),
-                                          activePoint(self.graphicsScene.axeSize / 2, -self.graphicsScene.axeSize / 2, parentItem=cubic),
-                                          activePoint(self.graphicsScene.axeSize, -self.graphicsScene.axeSize, parentItem=cubic)]
-        """
         cubic = cubicItem(axeSize)
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicR = cubic
-        cubic.channel = channelValues.Hue
-        cubic.histImg = self.scene().layer.inputImgFull().histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, range=(0, 360), chans=channelValues.Hue, mode='HSpB')
+        cubic.channel = channelValues.L
+        cubic.histImg = self.scene().layer.inputImgFull().histogram(size=self.scene().axeSize,
+                                                                    bgColor=self.scene().bgColor, range=(0, 360),
+                                                                    chans=channelValues.L, mode='Lab')
         cubic.initFixedPoints()
         cubic = cubicItem(self.graphicsScene.axeSize)
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicG = cubic
-        cubic.channel = channelValues.Sat
-        cubic.histImg = self.scene().layer.inputImgFull().histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, range=(0,1), chans=channelValues.Sat, mode='HSpB')
+        cubic.channel = channelValues.a
+        cubic.histImg = self.scene().layer.inputImgFull().histogram(size=self.scene().axeSize,
+                                                                    bgColor=self.scene().bgColor, range=(0, 1),
+                                                                    chans=channelValues.a, mode='Lab')
         cubic.initFixedPoints()
         cubic = cubicItem(self.graphicsScene.axeSize)
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicB = cubic
-        cubic.channel = channelValues.Br
-        cubic.histImg = self.scene().layer.inputImgFull().histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, range=(0,1), chans=channelValues.Br, mode='HSpB')
+        cubic.channel = channelValues.b
+        cubic.histImg = self.scene().layer.inputImgFull().histogram(size=self.scene().axeSize,
+                                                                    bgColor=self.scene().bgColor, range=(0, 1),
+                                                                    chans=channelValues.b, mode='Lab')
         cubic.initFixedPoints()
         # set current
-        self.scene().cubicItem = self.graphicsScene.cubicB
+        self.scene().cubicItem = self.graphicsScene.cubicR
         self.scene().cubicItem.setVisible(True)
 
         def onResetCurve():
@@ -119,6 +115,7 @@ class graphicsHspbForm(QGraphicsView) :
             """
             self.scene().cubicItem.reset()
             self.scene().onUpdateLUT()
+
         def onResetAllCurves():
             """
             Reset all curves
@@ -130,15 +127,16 @@ class graphicsHspbForm(QGraphicsView) :
         def updateStack():
             layer.applyToStack()
             targetImage.onImageChanged()
+
         # buttons
         pushButton1 = QPushButton("Reset Curve")
-        #pushButton1.setObjectName("btn_reset_channel")
+        # pushButton1.setObjectName("btn_reset_channel")
         pushButton1.setMinimumSize(1, 1)
         pushButton1.setGeometry(140, 50, 80, 30)  # x,y,w,h
         pushButton1.clicked.connect(onResetCurve)
         self.graphicsScene.addWidget(pushButton1)
         pushButton2 = QPushButton("Reset All")
-        #pushButton2.setObjectName("btn_reset_all")
+        # pushButton2.setObjectName("btn_reset_all")
         pushButton2.setMinimumSize(1, 1)
         pushButton2.setGeometry(140, 90, 80, 30)  # x,y,w,h
         pushButton2.clicked.connect(onResetAllCurves)
@@ -151,25 +149,26 @@ class graphicsHspbForm(QGraphicsView) :
         self.graphicsScene.addWidget(pushButton2)
 
         # options
-        self.listWidget1 = optionsWidget(options=['H', 'S', 'B'], exclusive=True)
-        self.listWidget1.select(self.listWidget1.items['B'])
+        self.listWidget1 = optionsWidget(options=['L', 'a', 'b'], exclusive=True)
+        self.listWidget1.select(self.listWidget1.items['L'])
         self.listWidget1.setGeometry(50, 50, 10, 80)
         self.graphicsScene.addWidget(self.listWidget1)
-        #self.listWidget1.setStyleSheet("QListWidget{background: white;} QListWidget::item{color: black;}")
+
+        # self.listWidget1.setStyleSheet("QListWidget{background: white;} QListWidget::item{color: black;}")
 
         def onSelect1(item):
             self.scene().cubicItem.setVisible(False)
             if item.mySelectedAttr:
-                if item.text() == 'H':
+                if item.text() == 'L':
                     self.scene().cubicItem = self.graphicsScene.cubicR
-                elif item.text() == 'S':
+                elif item.text() == 'a':
                     self.scene().cubicItem = self.graphicsScene.cubicG
-                elif item.text() == 'B':
+                elif item.text() == 'b':
                     self.scene().cubicItem = self.graphicsScene.cubicB
 
                 self.scene().cubicItem.setVisible(True)
                 # no need for update, but for color mode RGB.
-                #self.scene().onUpdateLUT()
+                # self.scene().onUpdateLUT()
 
                 # draw  histogram
                 self.scene().invalidate(QRectF(0.0, -self.scene().axeSize, self.scene().axeSize, self.scene().axeSize),
@@ -180,5 +179,4 @@ class graphicsHspbForm(QGraphicsView) :
     def drawBackground(self, qp, qrF):
         s = self.graphicsScene.axeSize
         if self.scene().cubicItem.histImg is not None:
-            qp.drawPixmap(QRect(0,-s, s, s), QPixmap.fromImage(self.scene().cubicItem.histImg))
-
+            qp.drawPixmap(QRect(0, -s, s, s), QPixmap.fromImage(self.scene().cubicItem.histImg))

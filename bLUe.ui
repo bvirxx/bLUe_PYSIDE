@@ -376,6 +376,8 @@ scr</string>
      </property>
      <addaction name="actionBrightness_Contrast"/>
      <addaction name="actionCurves_HSpB"/>
+     <addaction name="actionCurves_Lab"/>
+     <addaction name="separator"/>
      <addaction name="action3D_LUT_HSB"/>
      <addaction name="action3D_LUT"/>
      <addaction name="actionColor_Temperature"/>
@@ -471,7 +473,7 @@ scr</string>
   </action>
   <action name="actionBrightness_Contrast">
    <property name="text">
-    <string>Curves</string>
+    <string>Curves RGB</string>
    </property>
   </action>
   <action name="action3D_LUT">
@@ -531,6 +533,11 @@ scr</string>
   <action name="actionCurves_HSpB">
    <property name="text">
     <string>Curves HSpB</string>
+   </property>
+  </action>
+  <action name="actionCurves_Lab">
+   <property name="text">
+    <string>Curves Lab</string>
    </property>
   </action>
  </widget>

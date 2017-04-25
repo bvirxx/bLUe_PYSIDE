@@ -19,7 +19,6 @@ import numpy as np
 from PySide.QtGui import QImage
 
 from LUT3D import hsv2rgbVec, rgb2hsBVec, hsp2rgbVec
-from MarkedImg import imImage
 from imgconvert import QImageBuffer
 
 

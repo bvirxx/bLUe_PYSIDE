@@ -21,9 +21,10 @@ from PySide.QtGui import QListWidget, QListWidgetItem
 from PySide.QtCore import Qt
 
 
-class Channel():
+class channelValues():
     RGB, Red, Green, Blue =[0,1,2], [0], [1], [2]
     HSB, Hue, Sat, Br = [0, 1, 2], [0], [1], [2]
+    Lab, L, a, b = [0, 1, 2], [0], [1], [2]
 
 class optionsWidget(QListWidget) :
     """

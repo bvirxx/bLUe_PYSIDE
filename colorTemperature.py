@@ -32,6 +32,7 @@ from PySide.QtGui import QWidget
 
 from blend import blendLuminosity
 from imgconvert import QImageBuffer
+from utils import optionsWidget
 
 ################
 # Conversion Matrices
@@ -39,7 +40,7 @@ from imgconvert import QImageBuffer
 
 # Conversion from CIE XYZ to LMS-like color space for chromatic adaptation
 # see http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html
-from utils import optionsWidget
+
 
 Von_Kries =  [[0.4002400,  0.7076000, -0.0808100],
               [-0.2263000, 1.1653200,  0.0457000],
@@ -176,9 +177,11 @@ def sRGB2XYZVec(imgBuf):
 
 def XYZ2sRGBVec(imgBuf):
     """
-    
-    @param imgBuf: XYZ buffer
-    @return: sRGB buffer range 0..255
+    Vectorized XYZ to sRGB conversion.
+    @param imgBuf: image buffer, mode XYZ
+    @type imgBuf: ndarray
+    @return: image buffer, mode sRGB, range 0..255
+    @rtype: ndarray, dtype numpy.float64
     """
     #buf = QImageBuffer(img)[:, :, :3]
     bufsRGBLinear = np.tensordot(imgBuf, sRGB2XYZInverse, axes=(-1, -1))
@@ -187,9 +190,17 @@ def XYZ2sRGBVec(imgBuf):
 
 def sRGB2LabVec(bufsRGB) :
     """
-    https://en.wikipedia.org/wiki/Lab_color_space
-    @param bufsRGB: 
-    @return: bufLab Image buffer mode Lab, range 0..1, dtype float64
+    Vectorized sRGB to Lab conversion.
+    
+    See U{https://en.wikipedia.org/wiki/Lab_color_space}
+    
+    range for Lab coordinates is L:0..1, a:-86.185..98.254, b:-107.863..94.482
+    
+    See U{http://stackoverflow.com/questions/19099063/what-are-the-ranges-of-coordinates-in-the-cielab-color-space}
+    @param bufsRGB: image buffer, mode sRGB, range 0..255
+    @type bufsRGB: ndarray
+    @return: bufLab Image buffer mode Lab
+    @rtype: ndarray, dtype numpy.float64
     """
     Xn, Yn, Zn = 95.02, 100.0, 108.82 #95.02, 100.0, 108.82
     Ka, Kb = 172.30, 67.20
@@ -206,9 +217,12 @@ def sRGB2LabVec(bufsRGB) :
 
 def Lab2sRGBVec(bufLab):
     """
-    https://en.wikipedia.org/wiki/Lab_color_space
-    @param bufLab: 
-    @return: bufsRGB
+    Vectorized Lab to sRGB conversion.
+    
+    U{See https://en.wikipedia.org/wiki/Lab_color_space}
+    @param bufLab: image buffer, mode Lab, range 0..1
+    @return: bufLab Image buffer mode sRGB, range 0..255, 
+    @rtype: ndarray, dtype numpy.float64
     """
     Xn, Yn, Zn = 95.02, 100.0, 108.82
     Ka, Kb = 172.30, 67.20
@@ -218,9 +232,7 @@ def Lab2sRGBVec(bufLab):
     bufY = bufL2 * Yn
     bufX = Xn * ((bufa/ Ka) * bufL + bufL2)
     bufZ = Zn * (bufL2 - ((bufb / Kb)) * bufL)
-
     bufXYZ = np.dstack((bufX, bufY, bufZ))
-
     return XYZ2sRGBVec(bufXYZ)
 
 
