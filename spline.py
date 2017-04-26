@@ -83,6 +83,7 @@ def cubicSpline(X, Y, deltaX1, R, v):
 def cubicSplineCurve(X,Y, clippingInterval=None):
     """
     Interpolates a set of 2D points by a cubic spline.
+    The returned list has exactly 256 sampling points. 
     @param X: x-coordinates of points
     @type X: list of float
     @param Y: y-coordinates of points
@@ -90,7 +91,7 @@ def cubicSplineCurve(X,Y, clippingInterval=None):
     @param clippingInterval: min and max values for spline y-values
     @type clippingInterval: 2-uple-like of float values
     @return: the cubic spline
-    @rtype: list of QPointF objects
+    @rtype: list of QPointF (length 256)
     """
     m, M = np.min(X) , np.max(X)
     step = (M - m) / 255.0

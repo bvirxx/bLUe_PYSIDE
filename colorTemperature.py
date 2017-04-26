@@ -72,6 +72,15 @@ sRGB2XYZInverse = [[3.2404542, -1.5371385, -0.4985314],
                    [-0.9692660, 1.8760108,  0.0415560],
                     [0.0556434, -0.2040259, 1.0572252]]
 
+######################
+# XYZ/Lab conversion :
+# D65 illuminant Xn, Yn, Zn
+# conversion constants Ka, Kb
+# See https://en.wikipedia.org/wiki/Lab_color_space
+####################
+Xn, Yn, Zn = 0.95047, 1.0, 1.08883 #95.02, 100.0, 108.82 #95.047, 100.0, 108.883
+Ka, Kb = 172.355, 67.038 #172.30, 67.20
+
 ################
 # Constants and precomputed tables for the
 # sRGB linearizing functions
@@ -202,9 +211,7 @@ def sRGB2LabVec(bufsRGB) :
     @return: bufLab Image buffer mode Lab
     @rtype: ndarray, dtype numpy.float64
     """
-    Xn, Yn, Zn = 95.02, 100.0, 108.82 #95.02, 100.0, 108.82
-    Ka, Kb = 172.30, 67.20
-    bufXYZ = sRGB2XYZVec(bufsRGB)
+    bufXYZ = sRGB2XYZVec(bufsRGB) # * 100.0
     YoverYn = bufXYZ[:,:,1] / Yn
     bufL = np.sqrt(YoverYn)
     bufa = Ka * ( bufXYZ[:,:,0] / Xn - YoverYn) / bufL
@@ -219,20 +226,17 @@ def Lab2sRGBVec(bufLab):
     """
     Vectorized Lab to sRGB conversion.
     
-    U{See https://en.wikipedia.org/wiki/Lab_color_space}
+    See U{https://en.wikipedia.org/wiki/Lab_color_space}
     @param bufLab: image buffer, mode Lab, range 0..1
     @return: bufLab Image buffer mode sRGB, range 0..255, 
     @rtype: ndarray, dtype numpy.float64
     """
-    Xn, Yn, Zn = 95.02, 100.0, 108.82
-    Ka, Kb = 172.30, 67.20
-    #buf =  QImageBuffer(bufLab)
     bufL, bufa, bufb = bufLab[:,:,0], bufLab[:,:,1], bufLab[:,:,2]
     bufL2 = bufL* bufL
     bufY = bufL2 * Yn
     bufX = Xn * ((bufa/ Ka) * bufL + bufL2)
     bufZ = Zn * (bufL2 - ((bufb / Kb)) * bufL)
-    bufXYZ = np.dstack((bufX, bufY, bufZ))
+    bufXYZ = np.dstack((bufX, bufY, bufZ)) # /100.0
     return XYZ2sRGBVec(bufXYZ)
 
 

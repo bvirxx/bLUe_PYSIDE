@@ -153,25 +153,34 @@ class vImage(QImage):
         @return: HSPB buffer 
         @rtype: ndarray
         """
+        #inputImage = self.inputImgFull().getCurrentImage()
         if self.hspbBuffer is None:
+            currentImage = self.getCurrentImage()
+            self.hspbBuffer = rgb2hspVec(QImageBuffer(currentImage)[:,:,:3][:,:,::-1])
+            """
             if self.useThumb:
                 self.hspbBuffer = rgb2hspVec(QImageBuffer(self.thumb)[:,:,:3][:,:,::-1])
             else:
                 self.hspbBuffer = rgb2hspVec(QImageBuffer(self)[:,:,:3][:,:,::-1])
+            """
         return self.hspbBuffer
 
     def getLabBuffer(self):
         """
         returns the image buffer in color mode Lab.
         The buffer is calculated if needed and cached.
-        @return: HSPB buffer 
-        @rtype: ndarray
+        @return: Lab buffer 
+        @rtype: numpy ndarray, dtype numpy.float64
         """
         if self.LabBuffer is None:
+            currentImage = self.getCurrentImage()
+            self.LabBuffer = sRGB2LabVec(QImageBuffer(currentImage)[:, :, :3][:, :, ::-1])
+            """
             if self.useThumb:
                 self.LabBuffer = sRGB2LabVec(QImageBuffer(self.thumb)[:,:,:3][:,:,::-1])
             else:
                 self.LabBuffer = sRGB2LabVec(QImageBuffer(self)[:,:,:3][:,:,::-1])
+            """
         return self.LabBuffer
 
     def setModified(self, b):
@@ -257,8 +266,9 @@ class vImage(QImage):
         @param options: not used yet
         """
         # get image buffers (BGR order on intel arch.)
-        ndImg0 = QImageBuffer(self.inputImgFull().getCurrentImage())[:, :, :3]
+        inputImage = self.inputImgFull().getCurrentImage()
         currentImage = self.getCurrentImage()
+        ndImg0 = QImageBuffer(inputImage)[:, :, :3]
         ndImg1 = QImageBuffer(currentImage)[:, :, :3]
         # apply LUTS to channels
         rList = np.array([2,1,0]) #BGR
@@ -273,7 +283,7 @@ class vImage(QImage):
         @param options: not used yet
         """
         from colorTemperature import sRGB2LabVec, Lab2sRGBVec, rgb2rgbLinearVec, rgbLinear2rgbVec
-        # hspb mode
+        # Lab mode
         ndLabImg0 = self.getLabBuffer()
 
         # apply LUTS to channels
@@ -286,9 +296,9 @@ class vImage(QImage):
             buf = np.dstack((buf[:, :, 0] / 255.0, buf[:, :, 1] , buf[:, :, 2] ))
             buf = buf - [0.0, 128.0, 128.0]
             return buf
-        ndLImg0 = scaleLabBuf(ndLabImg0).astype(int)
+        ndLImg0 = scaleLabBuf(ndLabImg0).astype(int)  #TODO problem here with astype(int) conversion
         #ndLImg0 = (ndLabImg0 * [1.0, 255.0, 255.0]).astype(int)
-        rList = np.array([0, 1, 2])  # HSB
+        rList = np.array([0, 1, 2])  # Lab
         ndLabImg1 = stackedLUT[rList[np.newaxis, :], ndLImg0]
         # LUT = stackedLUT[2,:]
         # ndLImg1 = stackedLUT[ndLImg0]
@@ -491,26 +501,28 @@ class vImage(QImage):
             version = 2
         else:
             version = 0
+        inputImage = self.inputImgFull().getCurrentImage()
+        currentImage = self.getCurrentImage()
         if version == 0:
+            # black body color
             r, g, b = bbTemperature2RGB(temperature)
-            filter = QImage(self.inputImg())
+            filter = QImage(inputImage)
             filter.fill(QColor(r, g, b, 255))
             qp = QPainter(filter)
             # qp.setOpacity(coeff)
             qp.setCompositionMode(QPainter.CompositionMode_Multiply)
-            qp.drawImage(0, 0, self.inputImg())
+            qp.drawImage(0, 0, inputImage)
             qp.end()
-            resImg = blendLuminosity(filter, self.inputImg())
+            resImg = blendLuminosity(filter, inputImage)
             res = QImageBuffer(resImg)[:,:,:3][:,:,::-1]
         else:
             M = conversionMatrix(temperature, 6500)
-            #img = QImage(self)
-            buf = QImageBuffer(self.inputImg())[:, :, :3]
+            buf = QImageBuffer(inputImage)[:, :, :3]
             bufLinear = rgb2rgbLinearVec(buf)
             resLinear = np.tensordot(bufLinear[:, :, ::-1], M, axes=(-1, -1))
             res = rgbLinear2rgbVec(resLinear)
             res = np.clip(res, 0, 255)
-        bufOut = QImageBuffer(self)[:,:,:3]
+        bufOut = QImageBuffer(currentImage)[:,:,:3]
         bufOut[:, :, ::-1] = res
         self.updatePixmap()
        # return img

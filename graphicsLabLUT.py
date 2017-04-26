@@ -19,7 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import sys
 
 from PySide.QtCore import QRect
-from PySide.QtGui import QApplication, QPainter, QWidget
+from PySide.QtGui import QApplication, QPainter, QWidget, QDockWidget
 from PySide.QtGui import QGraphicsView, QGraphicsScene, QGraphicsPathItem, QPainterPath, QPainterPathStroker, QPen, \
     QBrush, QColor, QPixmap, QMainWindow, QLabel, QSizePolicy
 from PySide.QtCore import Qt, QPoint, QPointF, QRectF
@@ -47,7 +47,7 @@ class graphicsLabForm(QGraphicsView):
     def __init__(self, cModel, targetImage=None, axeSize=500, layer=None, parent=None):
         super(graphicsLabForm, self).__init__(parent=parent)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        self.setMinimumSize(axeSize + 80, axeSize + 200)
+        self.setMinimumSize(axeSize + 60, axeSize + 140)
         # self.setWindowFlags(Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_DeleteOnClose)
         # self.setBackgroundBrush(QBrush(Qt.black, Qt.SolidPattern))
@@ -57,9 +57,6 @@ class graphicsLabForm(QGraphicsView):
         self.scene().targetImage = targetImage
         self.scene().layer = layer
         self.scene().bgColor = QColor(200, 200, 200)  # self.palette().color(self.backgroundRole()) TODO parametrize
-
-        # self.LUTXY = LUTXY
-
 
         self.graphicsScene.onUpdateScene = lambda: 0
 
@@ -130,31 +127,30 @@ class graphicsLabForm(QGraphicsView):
 
         # buttons
         pushButton1 = QPushButton("Reset Curve")
-        # pushButton1.setObjectName("btn_reset_channel")
         pushButton1.setMinimumSize(1, 1)
-        pushButton1.setGeometry(140, 50, 80, 30)  # x,y,w,h
+        pushButton1.setGeometry(100, 20, 80, 30)  # x,y,w,h
+        pushButton1.adjustSize()
         pushButton1.clicked.connect(onResetCurve)
         self.graphicsScene.addWidget(pushButton1)
         pushButton2 = QPushButton("Reset All")
-        # pushButton2.setObjectName("btn_reset_all")
         pushButton2.setMinimumSize(1, 1)
-        pushButton2.setGeometry(140, 90, 80, 30)  # x,y,w,h
+        pushButton2.setGeometry(100, 50, 80, 30)  # x,y,w,h
+        pushButton2.adjustSize()
         pushButton2.clicked.connect(onResetAllCurves)
         self.graphicsScene.addWidget(pushButton2)
-        pushButton3 = QPushButton("Update top layers")
+        pushButton3 = QPushButton("Update Top Layers")
         pushButton3.setObjectName("btn_reset_channel")
         pushButton3.setMinimumSize(1, 1)
-        pushButton3.setGeometry(140, 90, 80, 30)  # x,y,w,h
+        pushButton3.setGeometry(100, 80, 80, 30)  # x,y,w,h
+        pushButton3.adjustSize()
         pushButton3.clicked.connect(updateStack)
-        self.graphicsScene.addWidget(pushButton2)
+        self.graphicsScene.addWidget(pushButton3)
 
         # options
         self.listWidget1 = optionsWidget(options=['L', 'a', 'b'], exclusive=True)
         self.listWidget1.select(self.listWidget1.items['L'])
-        self.listWidget1.setGeometry(50, 50, 10, 80)
+        self.listWidget1.setGeometry(20, 20, 10, 80)
         self.graphicsScene.addWidget(self.listWidget1)
-
-        # self.listWidget1.setStyleSheet("QListWidget{background: white;} QListWidget::item{color: black;}")
 
         def onSelect1(item):
             self.scene().cubicItem.setVisible(False)
@@ -175,6 +171,7 @@ class graphicsLabForm(QGraphicsView):
                                         QGraphicsScene.BackgroundLayer)
 
         self.listWidget1.onSelect = onSelect1
+
 
     def drawBackground(self, qp, qrF):
         s = self.graphicsScene.axeSize

@@ -20,8 +20,7 @@ import numpy as np
 from MarkedImg import imImage
 from LUT3D import hsv2rgbVec,hsp2rgb, hsp2rgbVec, rgb2hsp, rgb2hspVec, hsv2rgb, \
     rgb2hsB, rgb2hsBVec
-from math import floor
-from PySide.QtGui import QImage, QColor, QPainter, QBrush
+from PySide.QtGui import QImage
 from imgconvert import QImageBuffer
 
 class cmConverter ( object):
@@ -233,21 +232,3 @@ class pbModel (imImage):
         super(pbModel, self).__init__(QImg=img)
         self.cModel = cModel
 
-
-"""
-ptr = img.bits()
-ptr.setsize(img.byteCount())
-
-## copy the data out as a string
-strData = ptr.asstring()
-
-## get a read-only buffer to access the data
-buf = buffer(ptr, 0, img.byteCount())
-
-## view the data as a read-only numpy array
-import numpy as np
-arr = np.frombuffer(buf, dtype=np.ubyte).reshape(img.height(), img.width(), 4)
-
-## view the data as a writable numpy array
-arr = np.asarray(ptr).reshape(img.height(), img.width(), 4)
-"""

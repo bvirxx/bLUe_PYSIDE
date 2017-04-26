@@ -520,6 +520,7 @@ def menuLayer(x, name):
     @param name: action name
     """
     # curves
+    axeSize = 200
     if name in ['actionBrightness_Contrast', 'actionCurves_HSpB', 'actionCurves_Lab']:
         ccm = cmHSP
         if name == 'actionBrightness_Contrast':
@@ -531,24 +532,13 @@ def menuLayer(x, name):
         # add new layer on top of active layer
         l = window.label.img.addAdjustmentLayer(name=layerName)
         if name == 'actionBrightness_Contrast':
-            grWindow=graphicsForm.getNewWindow(ccm, axeSize=400, targetImage=window.label.img, layer=l, parent=window)
+            grWindow=graphicsForm.getNewWindow(ccm, axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window)
         elif name == 'actionCurves_HSpB':
-            grWindow = graphicsHspbForm.getNewWindow(ccm, axeSize=400, targetImage=window.label.img, layer=l, parent=window)
+            grWindow = graphicsHspbForm.getNewWindow(ccm, axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window)
         elif name == 'actionCurves_Lab':
-            grWindow = graphicsLabForm.getNewWindow(ccm, axeSize=400, targetImage=window.label.img, layer=l, parent=window)
+            grWindow = graphicsLabForm.getNewWindow(ccm, axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window)
         # redimensionable window
         grWindow.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
-        # add dock widget
-        dock=QDockWidget(window)
-        dock.setWidget(grWindow)
-        dock.setWindowFlags(Qt.Window | Qt.WindowMaximizeButtonHint)# | Qt.WindowStaysOnTopHint)
-        dock.setWindowTitle(grWindow.windowTitle())
-        dock.move(900, 40)
-        #window.addDockWidget(Qt.RightDockWidgetArea, dock)
-        #l.inputImg = window.label.img
-        # link dock with adjustment layer
-        l.view = dock
-        #l.applyLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
         # Curve change event handler
         def f():
             """
@@ -566,7 +556,6 @@ def menuLayer(x, name):
         elif name == 'actionCurves_Lab':
             l.execute = lambda: l.applyLab1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
         grWindow.graphicsScene.onUpdateLUT = f
-        dock.setWindowModality(Qt.ApplicationModal)
     # 3D LUT
     elif name in ['action3D_LUT', 'action3D_LUT_HSB']:
         # color model
@@ -576,16 +565,6 @@ def menuLayer(x, name):
         l = window.label.img.addAdjustmentLayer(name=layerName)
         #window.tableView.setLayers(window.label.img)
         grWindow = graphicsForm3DLUT.getNewWindow(ccm, size=800, targetImage=window.label.img, LUTSize=LUTSIZE, layer=l, parent=window)
-        # add a dockable widget
-        dock = QDockWidget(window)
-        # add dock widget
-        l.view = dock
-        dock.setWidget(grWindow)
-        dock.setWindowFlags(Qt.Window | Qt.WindowMaximizeButtonHint)# | Qt.WindowStaysOnTopHint)
-        dock.setWindowTitle(grWindow.windowTitle())
-        dock.move(900, 40)
-        #window.addDockWidget(Qt.RightDockWidgetArea, dock)
-        #window.tableView.update()
         # LUT change event handler
         def g(options={}):
             """
@@ -611,14 +590,7 @@ def menuLayer(x, name):
     elif name == 'actionColor_Temperature':
         l = window.label.img.addAdjustmentLayer(name='Color temperature')
         #window.tableView.setLayers(window.label.img)
-        grWindow = temperatureForm.getNewWindow(size=400, targetImage=window.label.img, layer=l, parent=window)
-        dock = QDockWidget(window)
-        # add dock widget
-        l.view = dock
-        dock.setWidget(grWindow)
-        dock.setWindowFlags(Qt.Window | Qt.WindowMaximizeButtonHint)  # | Qt.WindowStaysOnTopHint)
-        dock.setWindowTitle(grWindow.windowTitle())
-        dock.move(900, 40)
+        grWindow = temperatureForm.getNewWindow(size=axeSize, targetImage=window.label.img, layer=l, parent=window)
         # temperature change event handler
         def h(temperature):
             l.temperature = temperature
@@ -627,6 +599,20 @@ def menuLayer(x, name):
         grWindow.onUpdateTemperature = h
         # wrapper for the right apply method
         l.execute = lambda : l.applyTemperature(l.temperature, grWindow.options)
+        # l.execute = lambda: l.applyLab1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
+    # dock widget
+    dock = QDockWidget(window)
+    dock.setWidget(grWindow)
+    dock.setWindowFlags(Qt.Window | Qt.WindowMaximizeButtonHint)  # | Qt.WindowStaysOnTopHint)
+    dock.setWindowTitle(grWindow.windowTitle())
+    dock.move(900, 40)
+    # set modal : docked windows
+    # are not modal, so docking
+    # must be disabled
+    dock.setAllowedAreas(Qt.NoDockWidgetArea)
+    dock.setWindowModality(Qt.ApplicationModal)
+    l.view = dock
+    # update layer stack view
     window.tableView.setLayers(window.label.img)
 
 

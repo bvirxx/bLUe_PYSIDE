@@ -235,9 +235,11 @@ class QLayerView(QTableView) :
 
     def setLayers(self, mImg):
         """
-        sets img attribute to mImg and shows the stack of layers from mImg
-        @param mImg: mImage
+        Displays the layer stack of mImg
+        @param mImg: image
+        @type mImg: mImage
         """
+        # close open adjustment windows
         self.closeAdjustForms()
         self.img=mImg
         mImg.layerView = self
@@ -263,8 +265,6 @@ class QLayerView(QTableView) :
             items.append(item_mask)
             model.appendRow(items)
 
-        #model.setData(model.index(0, 2), QBrush(Qt.red), Qt.ForegroundRole | Qt.DecorationRole)
-
         self.setModel(model)
 
         self.horizontalHeader().hide()
@@ -277,18 +277,8 @@ class QLayerView(QTableView) :
         self.selectRow(len(mImg.layersStack) - 1 - mImg.activeLayerIndex)
 
         self.update()
-        """
-        activeLayer = mImg.getActiveLayer()
 
-        self.currentWin = activeLayer.view
 
-        if hasattr(activeLayer, 'adjustView'):
-            self.currentWin = activeLayer.adjustView
-        if hasattr(activeLayer, 'segmentView'):
-            self.currentWin = activeLayer.segmentView
-        if self.currentWin is not None:
-            self.currentWin.show()
-        """
     def update(self):
         activeLayer = self.img.getActiveLayer()
         if hasattr(activeLayer, 'view'):

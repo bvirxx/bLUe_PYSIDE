@@ -143,4 +143,5 @@ def gaussianKernel(mu, w):
     kernel = kernel_raw / kernel_raw.sum()
     return kernel
 
-print gaussianKernel(0, 5)*256
+if __name__ == '__main__':
+    print gaussianKernel(0, 5)*256

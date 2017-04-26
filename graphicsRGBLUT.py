@@ -169,16 +169,25 @@ class cubicItem(QGraphicsPathItem) :
         # add boundary points if needed
         X = [item.x() for item in self.fixedPoints]
         Y = [item.y() for item in self.fixedPoints]
+        X0, X1 = X[0], X[-1]
+        Y0, Y1 = Y[0], Y[-1]
+        Y2 = Y0 - X0 * (Y1-Y0)/(X1-X0)
+        Y3 = Y0 + (self.size - X0) * (Y1-Y0)/(X1-X0)
         if X[0] > 0.0:
             X.insert(0, 0.0)
-            Y.insert(0, Y[0])
+            Y.insert(0, Y2)
         if X[-1] < self.size:
             X.append(self.size)
-            Y.append(Y[-1])
+            Y.append(Y3)
         # cubicSplineCurve raises an exception if two points have identical x-coordinates
         try:
             self.spline = cubicSplineCurve(np.array(X), np.array(Y), clippingInterval= [-self.scene().axeSize, 0])
 
+            for P in self.spline:
+                if P.x()<X0:
+                    P.setY(Y0)
+                elif P.x() > X1:
+                    P.setY(Y1)
             polygon = QPolygonF(self.spline)
             qpp.addPolygon(polygon)
 
@@ -230,10 +239,11 @@ class cubicItem(QGraphicsPathItem) :
                                          parentItem=self)]
         """
         self.initFixedPoints()
+        #calculate spline
         self.updatePath()
-        LUT = []
-        scale = 255.0 / self.scene().axeSize
-        LUT.extend([int((-p.y()) * scale) for p in self.spline])
+        LUT = range(256)
+        #scale = 255.0 / self.scene().axeSize
+        #LUT.extend([int((-p.y()) * scale) for p in self.spline])
         self.LUTXY = np.array(LUT)  # buildLUT(LUT)
 
 class graphicsForm(QGraphicsView) :
@@ -247,7 +257,7 @@ class graphicsForm(QGraphicsView) :
     def __init__(self, cModel, targetImage=None, axeSize=500, layer=None, parent=None):
         super(graphicsForm, self).__init__(parent=parent)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        self.setMinimumSize(axeSize + 80, axeSize + 200)
+        self.setMinimumSize(axeSize + 60, axeSize + 140)
         #self.setWindowFlags(Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_DeleteOnClose)
         #self.setBackgroundBrush(QBrush(Qt.black, Qt.SolidPattern))
@@ -319,22 +329,22 @@ class graphicsForm(QGraphicsView) :
 
         # buttons
         pushButton1 = QPushButton("Reset Curve")
-        pushButton1.setObjectName("btn_reset_channel")
         pushButton1.setMinimumSize(1, 1)
-        pushButton1.setGeometry(140, 50, 80, 30)  # x,y,w,h
+        pushButton1.setGeometry(100, 20, 80, 30)  # x,y,w,h
+        pushButton1.adjustSize()
         pushButton1.clicked.connect(onResetCurve)
         self.graphicsScene.addWidget(pushButton1)
-        pushButton2 = QPushButton("Update top layers")
-        pushButton2.setObjectName("btn_reset_channel")
-        pushButton2.setMinimumSize(1, 1)
-        pushButton2.setGeometry(140, 90, 80, 30)  # x,y,w,h
-        pushButton2.clicked.connect(updateStack)
-        self.graphicsScene.addWidget(pushButton2)
+        pushButton3 = QPushButton("Update Top Layers")
+        pushButton3.setMinimumSize(1, 1)
+        pushButton3.setGeometry(100, 80, 80, 30)  # x,y,w,h
+        pushButton3.adjustSize()
+        pushButton3.clicked.connect(updateStack)
+        self.graphicsScene.addWidget(pushButton3)
 
         # options
         self.listWidget1 = optionsWidget(options=['RGB', 'Red', 'Green', 'Blue'], exclusive=True)
         self.listWidget1.select(self.listWidget1.items['RGB'])
-        self.listWidget1.setGeometry(50, 50, 10, 100)
+        self.listWidget1.setGeometry(20, 20, 10, 100)
         self.graphicsScene.addWidget(self.listWidget1)
         #self.listWidget1.setStyleSheet("QListWidget{background: white;} QListWidget::item{color: black;}")
 
