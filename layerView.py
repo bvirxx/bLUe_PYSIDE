@@ -17,7 +17,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 from PySide.QtCore import QRectF
-from PySide.QtGui import QAction, QMenu, QSlider, QImage, QStyle, QPalette, QColor, QListWidget, QCheckBox, QMessageBox
+from PySide.QtGui import QAction, QMenu, QSlider, QImage, QStyle, QPalette, QColor, QListWidget, QCheckBox, QMessageBox, \
+    QApplication, QKeySequence
 from PySide.QtGui import QBrush
 from PySide.QtGui import QComboBox
 from PySide.QtGui import QFontMetrics
@@ -94,9 +95,11 @@ class QLayerView(QTableView) :
         self.img = None
         # form to display
         self.currentWin = None
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        # context menu
+        #self.setContextMenuPolicy(Qt.CustomContextMenu)
+        # mouse click
         self.clicked.connect(self.viewClicked)
-        self.customContextMenuRequested.connect(self.contextMenu)
+        #self.customContextMenuRequested.connect(self.contextMenu)
         # behavior and style for selection
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
         delegate = itemDelegate(parent=self)
@@ -224,6 +227,34 @@ class QLayerView(QTableView) :
 
         self.blendingModeCombo.currentIndexChanged.connect(g)
 
+        # shortcut actions
+        self.actionDup = QAction('Duplicate layer', None)
+        self.actionDup.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_J))
+        self.addAction(self.actionDup)
+        def dup():
+            row = self.selectedIndexes()[0].row()
+            layer = self.img.layersStack[-row]
+            if hasattr(layer, 'inputImg'):
+                return
+            self.img.dupLayer(index=-row-1)
+            self.setLayers(self.img)
+            #self.selectRow(row - 1)
+            self.img.setActiveLayer(len(self.img.layersStack) -1 - row)
+        self.actionDup.triggered.connect(dup)
+
+    def mousePressEvent(self, e):
+        super(QLayerView, self).mousePressEvent(e)
+        self.oldMousePos = e.pos()
+
+    def mouseReleaseEvent(self, e):
+        # right button click
+        if e.pos() == self.oldMousePos:
+            if e.button() == Qt.RightButton:
+                self.contextMenu(e.pos())
+                return
+        super(QLayerView, self).mouseReleaseEvent(e)
+
+
     def closeAdjustForms(self):
         if self.img is None:
             return
@@ -232,6 +263,18 @@ class QLayerView(QTableView) :
             if hasattr(stack[i], "view"):
                 if stack[i].view is not None:
                     stack[i].view.close()
+
+    def clear(self):
+        """
+        Clears data
+        @return: 
+        """
+        self.closeAdjustForms()
+        self.img = None
+        model = layerModel()
+        model.setColumnCount(3)
+        self.setModel(None)
+
 
     def setLayers(self, mImg):
         """
@@ -325,7 +368,6 @@ class QLayerView(QTableView) :
                 rStack[tgtRow] = rStack[srcRow]
             for row in reversed(sorted(rowMapping.iterkeys())):
                 rStack.pop(row)
-
             self.img.layersStack = rStack[::-1]
             #event.accept()
 
@@ -352,7 +394,7 @@ class QLayerView(QTableView) :
         # hide/display adjustment form
         elif clickedIndex.column() == 1 :
             # make selected layer the active layer
-            self.img.setActiveLayer(len(self.img.layersStack) - 1 - row, signaling=False)
+            self.img.setActiveLayer(len(self.img.layersStack) - 1 - row)#, signaling=False)
             # update displayed window
             if self.currentWin is not None:
                 self.currentWin.hide()
@@ -371,32 +413,47 @@ class QLayerView(QTableView) :
             self.img.layersStack[-1-clickedIndex.row()].maskIsSelected = not self.img.layersStack[-1-clickedIndex.row()].maskIsSelected
             #self.repaint()
 
+
     def contextMenu(self, pos):
         """
-        context menu event handler
+        context menu
         @param pos: event coordinates (relative to widget)
         """
         index = self.indexAt(pos)
         layer = self.img.layersStack[-1-index.row()]
+        lower = self.img.layersStack[layer.getLowerVisibleStackIndex()]
         menu = QMenu()
         actionTransparency = QAction('Transparency', None)
-        actionDup = QAction('Duplicate layer', None)
+        #actionDup = QAction('Duplicate layer', None)
+        #actionDup.setShortcut(QKeySequence(Qt.CTRL+Qt.Key_J))
+        #self.addAction(actionDup)
+        #if hasattr(layer, 'inputImg') :
+            #actionDup.setEnabled(False)
+        actionMerge = QAction('Merge with below', None)
+        # merge only adjustment layer with simple layer
+        if not hasattr(layer, 'inputImg') or hasattr(lower, 'inputImg'):
+            actionMerge.setEnabled(False)
         actionMaskEnable = QAction('Enable mask', None)
         actionMaskDisable = QAction('Disable mask', None)
         actionMaskReset = QAction('Reset mask', None)
         menu.addAction(actionTransparency)
-        menu.addAction(actionDup)
+        menu.addAction(self.actionDup)
+        menu.addAction(actionMerge)
         menu.addAction(actionMaskEnable)
         menu.addAction(actionMaskDisable)
         menu.addAction(actionMaskReset)
-
+        # Event handlers
         def f():
             self.wdgt.show()
         def g(value):
             layer.setOpacity(value)
+        """
         def dup():
             self.img.dupLayer(index = len(self.img.layersStack) -1 - index.row())
             self.setLayers(self.img)
+        """
+        def merge():
+            layer.merge_with_layer_immediately_below()
         def maskEnable():
             layer.maskIsEnabled = True
             layer.updatePixmap()
@@ -407,13 +464,12 @@ class QLayerView(QTableView) :
             layer.resetMask()
             layer.updatePixmap()
         actionTransparency.triggered.connect(f)
-        actionDup.triggered.connect(dup)
+        #actionDup.triggered.connect(dup)
+        actionMerge.triggered.connect(merge)
         actionMaskEnable.triggered.connect(maskEnable)
         actionMaskDisable.triggered.connect(maskDisable)
         actionMaskReset.triggered.connect(maskReset)
         self.wdgt.valueChanged.connect(g)
-
-
         menu.exec_(self.mapToGlobal(pos))
 
 

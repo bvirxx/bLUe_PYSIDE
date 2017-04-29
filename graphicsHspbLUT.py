@@ -29,7 +29,7 @@ from PySide.QtGui import QPushButton
 from colorModels import hueSatModel
 from graphicsRGBLUT import cubicItem, activePoint
 from spline import cubicSplineCurve
-from utils import optionsWidget, channelValues
+from utils import optionsWidget, channelValues, drawPlotGrid
 
 strokeWidth = 3
 controlPoints =[]
@@ -39,12 +39,12 @@ computeControlPoints = True
 class graphicsHspbForm(QGraphicsView) :
 
     @classmethod
-    def getNewWindow(cls, cModel, targetImage=None, axeSize=500, layer=None, parent=None):
-        newWindow = graphicsHspbForm(cModel, targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
+    def getNewWindow(cls, cModel=None, targetImage=None, axeSize=500, layer=None, parent=None):
+        newWindow = graphicsHspbForm(cModel=cModel, targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
         newWindow.setWindowTitle(layer.name)
         return newWindow
 
-    def __init__(self, cModel, targetImage=None, axeSize=500, layer=None, parent=None):
+    def __init__(self, cModel=None, targetImage=None, axeSize=500, layer=None, parent=None):
         super(graphicsHspbForm, self).__init__(parent=parent)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize + 60, axeSize + 140)
@@ -65,17 +65,10 @@ class graphicsHspbForm(QGraphicsView) :
 
         self.graphicsScene.axeSize = axeSize
 
-        # draw axes
-        item=QGraphicsPathItem()
-        item.setPen(QPen(QBrush(QColor(255, 0, 0)), 1, style=Qt.DashLine))
-        qppath = QPainterPath()
-        qppath.moveTo(QPoint(0, 0))
-        qppath.lineTo(QPoint(axeSize, 0))
-        qppath.lineTo(QPoint(axeSize, -axeSize))
-        qppath.lineTo(QPoint(0, -axeSize))
-        qppath.closeSubpath()
-        qppath.lineTo(QPoint(axeSize, -axeSize))
-        item.setPath(qppath)
+        # axes and grid
+        item = drawPlotGrid(axeSize)
+        self.graphicsScene.addItem(item)
+
         self.graphicsScene.addItem(item)
 
         #self.graphicsScene.addPath(qppath, QPen(Qt.DashLine))  #create and add QGraphicsPathItem

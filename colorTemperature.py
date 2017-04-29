@@ -199,7 +199,8 @@ def XYZ2sRGBVec(imgBuf):
 
 def sRGB2LabVec(bufsRGB) :
     """
-    Vectorized sRGB to Lab conversion.
+    Vectorized sRGB to Lab conversion.  No clipping
+    is performed.
     
     See U{https://en.wikipedia.org/wiki/Lab_color_space}
     
@@ -211,20 +212,23 @@ def sRGB2LabVec(bufsRGB) :
     @return: bufLab Image buffer mode Lab
     @rtype: ndarray, dtype numpy.float64
     """
+    oldsettings = np.seterr(all='ignore')
     bufXYZ = sRGB2XYZVec(bufsRGB) # * 100.0
     YoverYn = bufXYZ[:,:,1] / Yn
     bufL = np.sqrt(YoverYn)
     bufa = Ka * ( bufXYZ[:,:,0] / Xn - YoverYn) / bufL
     bufb = Kb * (YoverYn - bufXYZ[:,:,2]/Zn) / bufL
-
+    np.seterr(**oldsettings)
     bufLab = np.dstack((bufL, bufa, bufb))
-
+    # converting invalid values to int gives indeterminate results
+    bufLab[np.isnan(bufLab)] = 0.0  # TODO np.inf
     return bufLab
 
 
 def Lab2sRGBVec(bufLab):
     """
-    Vectorized Lab to sRGB conversion.
+    Vectorized Lab to sRGB conversion. No clipping
+    is performed.
     
     See U{https://en.wikipedia.org/wiki/Lab_color_space}
     @param bufLab: image buffer, mode Lab, range 0..1
@@ -237,8 +241,10 @@ def Lab2sRGBVec(bufLab):
     bufX = Xn * ((bufa/ Ka) * bufL + bufL2)
     bufZ = Zn * (bufL2 - ((bufb / Kb)) * bufL)
     bufXYZ = np.dstack((bufX, bufY, bufZ)) # /100.0
-    return XYZ2sRGBVec(bufXYZ)
-
+    bufsRGB = XYZ2sRGBVec(bufXYZ)
+    # converting invalid values to int gives indeterminate results
+    bufsRGB[np.isnan(bufsRGB)] = 0.0  # TODO np.inf
+    return bufsRGB
 
 def bbTemperature2RGB(temperature):
     """

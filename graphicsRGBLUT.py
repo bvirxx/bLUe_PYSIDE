@@ -28,7 +28,7 @@ from PySide.QtGui import QPushButton
 
 from colorModels import hueSatModel
 from spline import cubicSplineCurve
-from utils import optionsWidget, channelValues
+from utils import optionsWidget, channelValues, drawPlotGrid
 
 strokeWidth = 3
 controlPoints =[]
@@ -249,12 +249,12 @@ class cubicItem(QGraphicsPathItem) :
 class graphicsForm(QGraphicsView) :
 
     @classmethod
-    def getNewWindow(cls, cModel, targetImage=None, axeSize=500, layer=None, parent=None):
-        newWindow = graphicsForm(cModel, targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
+    def getNewWindow(cls, cModel=None, targetImage=None, axeSize=500, layer=None, parent=None):
+        newWindow = graphicsForm(cModel=cModel, targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
         newWindow.setWindowTitle(layer.name)
         return newWindow
 
-    def __init__(self, cModel, targetImage=None, axeSize=500, layer=None, parent=None):
+    def __init__(self, cModel=None, targetImage=None, axeSize=500, layer=None, parent=None):
         super(graphicsForm, self).__init__(parent=parent)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize + 60, axeSize + 140)
@@ -272,19 +272,10 @@ class graphicsForm(QGraphicsView) :
 
         self.graphicsScene.axeSize = axeSize
 
-        # draw axes
-        item=QGraphicsPathItem()
-        item.setPen(QPen(QBrush(QColor(255, 0, 0)), 1, style=Qt.DashLine))
-        qppath = QPainterPath()
-        qppath.moveTo(QPoint(0, 0))
-        qppath.lineTo(QPoint(axeSize, 0))
-        qppath.lineTo(QPoint(axeSize, -axeSize))
-        qppath.lineTo(QPoint(0, -axeSize))
-        qppath.closeSubpath()
-        qppath.lineTo(QPoint(axeSize, -axeSize))
+        # axes and grid
+        item = drawPlotGrid(axeSize)
+        self.graphicsScene.addItem(item)
 
-        # axes
-        item.setPath(qppath)
         self.graphicsScene.addItem(item)
 
         # curves

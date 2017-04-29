@@ -19,6 +19,7 @@ import weakref
 
 import gc
 
+from graphicsFilter import filterForm
 from graphicsHspbLUT import graphicsHspbForm
 from graphicsLabLUT import graphicsLabForm
 
@@ -325,22 +326,13 @@ def toggleLayer(widget, layer, b):
     layer.visible = b
     widget.repaint()
 
-def openFile(f):
-    """
-    @param f: file name (type str)
-    """
-    # extract embedded profile and metadata, if any.
-    # metadata is a list of dicts with len(metadata) >=1.
-    # metadata[0] contains at least 'SourceFile' : path.
-    # profile is a string containing the profile binary data.
-    # Currently, we do not use these data : standard profiles
-    # are loaded from disk, non standard profiles are ignored.
+def loadImageFromFile(f):
     with exiftool.ExifTool() as e:
         profile, metadata = e.get_metadata(f)
 
-    # trying to get color space info : 1 = sRGB
+        # trying to get color space info : 1 = sRGB
     colorSpace = metadata[0].get("EXIF:ColorSpace", -1)
-    if colorSpace <0:
+    if colorSpace < 0:
         # sRGBIEC61966-2.1
         desc_colorSpace = metadata[0].get("ICC_Profile:ProfileDescription", '')
         if isinstance(desc_colorSpace, unicode) or isinstance(desc_colorSpace, str):
@@ -351,13 +343,14 @@ def openFile(f):
     transformation = exiftool.decodeExifOrientation(orientation)
 
     name = path.basename(f)
-    img = imImage(filename=f, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile, name=name)
+    img = imImage(filename=f, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile,
+                  name=name)
     img.initThumb()
     if img.format() < 4:
         msg = QMessageBox()
         msg.setText("Cannot edit indexed formats\nConvert image to a non indexed mode first")
         msg.exec_()
-        return
+        return None
     if colorSpace < 0:
         print 'colorspace', colorSpace
         msg = QMessageBox()
@@ -365,7 +358,22 @@ def openFile(f):
         msg.exec_()
         img.meta.colorSpace = 1
         img.updatePixmap()
+    return img
 
+def openFile(f):
+    """
+    @param f: file name (type str)
+    """
+    # extract embedded profile and metadata, if any.
+    # metadata is a list of dicts with len(metadata) >=1.
+    # metadata[0] contains at least 'SourceFile' : path.
+    # profile is a string containing the profile binary data.
+    # Currently, we do not use these data : standard profiles
+    # are loaded from disk, non standard profiles are ignored.
+
+    img = loadImageFromFile(f)
+    if img is None:
+        return
     window.label.img =  img
     window.label.img.onModify = lambda : updateEnabledActions()
     window.label.img.onImageChanged = window.label.repaint
@@ -396,6 +404,24 @@ def menuFile(x, name):
     @param x: dummy
     @param name: action name
     """
+    def openDlg():
+        lastDir = window.settings.value('paths/dlgdir', '.')
+        dlg = QFileDialog(window, "select", lastDir)
+        if dlg.exec_():
+            filenames = dlg.selectedFiles()
+            newDir = dlg.directory().absolutePath()
+            window.settings.setValue('paths/dlgdir', newDir)
+            # update list of recent files
+            filter(lambda a: a != filenames[0], window._recentFiles)
+            window._recentFiles.append(filenames[0])
+            if len(window._recentFiles) > 10:
+                window._recentFiles.pop(0)
+            window.settings.setValue('paths/recent', window._recentFiles)
+            # update menu and actions
+            updateMenuOpenRecent()
+            return filenames[0]
+        else:
+            return None
     window._recentFiles = window.settings.value('paths/recent', [])
     # update menu and actions
     updateMenuOpenRecent()
@@ -409,21 +435,9 @@ def menuFile(x, name):
             elif ret == QMessageBox.Cancel:
                 return
         # open dialog
-        lastDir = window.settings.value('paths/dlgdir', '.')
-        dlg =QFileDialog(window, "select", lastDir)
-        if dlg.exec_():
-            filenames = dlg.selectedFiles()
-            newDir = dlg.directory().absolutePath()
-            window.settings.setValue('paths/dlgdir', newDir)
-            # update list of recent files
-            filter(lambda a: a != filenames[0], window._recentFiles)
-            window._recentFiles.append(filenames[0])
-            if len(window._recentFiles) > 10:
-                window._recentFiles.pop(0)
-            window.settings.setValue('paths/recent', window._recentFiles)
-            # update menu and actions
-            updateMenuOpenRecent()
-            openFile(filenames[0])
+        filename = openDlg()
+        if filename is not None:
+            openFile(filename)
     elif name == 'actionSave':
         save(window.label.img)
     elif name == 'actionClose':
@@ -435,6 +449,7 @@ def menuFile(x, name):
                 return
         #r = weakref.ref(window.label.img)
         #print 'ref', r()
+
         window.label.img = defaultImImage
         window.label_2.img = defaultImImage
         window.tableView.setLayers(window.label.img)
@@ -522,7 +537,6 @@ def menuLayer(x, name):
     # curves
     axeSize = 200
     if name in ['actionBrightness_Contrast', 'actionCurves_HSpB', 'actionCurves_Lab']:
-        ccm = cmHSP
         if name == 'actionBrightness_Contrast':
             layerName = 'Curves R, G, B'
         elif name == 'actionCurves_HSpB':
@@ -532,11 +546,11 @@ def menuLayer(x, name):
         # add new layer on top of active layer
         l = window.label.img.addAdjustmentLayer(name=layerName)
         if name == 'actionBrightness_Contrast':
-            grWindow=graphicsForm.getNewWindow(ccm, axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window)
+            grWindow=graphicsForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window)
         elif name == 'actionCurves_HSpB':
-            grWindow = graphicsHspbForm.getNewWindow(ccm, axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window)
+            grWindow = graphicsHspbForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window)
         elif name == 'actionCurves_Lab':
-            grWindow = graphicsLabForm.getNewWindow(ccm, axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window)
+            grWindow = graphicsLabForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window)
         # redimensionable window
         grWindow.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
         # Curve change event handler
@@ -587,19 +601,35 @@ def menuLayer(x, name):
         l.view = segmentForm.getNewWindow(targetImage=window.label.img)
         #window.tableView.update()
         # TODO continue
-    elif name == 'actionColor_Temperature':
-        l = window.label.img.addAdjustmentLayer(name='Color temperature')
-        #window.tableView.setLayers(window.label.img)
-        grWindow = temperatureForm.getNewWindow(size=axeSize, targetImage=window.label.img, layer=l, parent=window)
-        # temperature change event handler
-        def h(temperature):
-            l.temperature = temperature
-            l.applyToStack()
-            window.label.repaint()
-        grWindow.onUpdateTemperature = h
-        # wrapper for the right apply method
-        l.execute = lambda : l.applyTemperature(l.temperature, grWindow.options)
-        # l.execute = lambda: l.applyLab1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
+    elif name in ['actionColor_Temperature', 'actionFilter']:
+        if name == 'actionColor_Temperature':
+            lname = 'Color Temperature'
+            l = window.label.img.addAdjustmentLayer(name=lname)
+            grWindow = temperatureForm.getNewWindow(size=axeSize, targetImage=window.label.img, layer=l, parent=window)
+            # temperature change event handler
+            def h(temperature):
+                l.temperature = temperature
+                l.applyToStack()
+                window.label.repaint()
+            grWindow.onUpdateTemperature = h
+            # wrapper for the right apply method
+            l.execute = lambda: l.applyTemperature(l.temperature, grWindow.options)
+            # l.execute = lambda: l.applyLab1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
+        elif name == 'actionFilter':
+            lname = 'Filter'
+            l = window.label.img.addAdjustmentLayer(name=lname)
+            grWindow = filterForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window)
+            # temperature change event handler
+            def h(category, radius, amount):
+                l.kernelCategory = category
+                l.radius = radius
+                l.amount = amount
+                l.applyToStack()
+                window.label.repaint()
+            grWindow.onUpdateFilter = h
+            # wrapper for the right apply method
+            l.execute = lambda: l.applyFilter2D()
+            # l.execute = lambda: l.applyLab1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
     # dock widget
     dock = QDockWidget(window)
     dock.setWidget(grWindow)
@@ -614,8 +644,6 @@ def menuLayer(x, name):
     l.view = dock
     # update layer stack view
     window.tableView.setLayers(window.label.img)
-
-
 
 def menuHelp(x, name):
     """
@@ -632,7 +660,6 @@ def menuHelp(x, name):
         helpWindow = QWebView()
         helpWindow.load(QUrl(link))
     helpWindow.show()
-
 
 def handleNewWindow(imImg=None, parent=None, title='New window', show_maximized=False, event_handler=True):
     """

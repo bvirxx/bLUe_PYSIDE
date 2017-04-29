@@ -17,8 +17,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import numpy as np
 from math import erf
-from PySide.QtGui import QListWidget, QListWidgetItem
-from PySide.QtCore import Qt
+from PySide.QtGui import QListWidget, QListWidgetItem, QGraphicsPathItem, QColor, QPainterPath, QPen
+from PySide.QtCore import Qt, QPoint
 
 
 class channelValues():
@@ -112,36 +112,34 @@ def savitzky_golay(y, window_size, order, deriv=0, rate=1):
     y = np.concatenate((firstvals, y, lastvals))
     return np.convolve( m[::-1], y, mode='valid')
 
-def phi(x, mu, sigma):
-    """
-    calculates the cumulative distribution function (CDF) phi of the
-    normal distribution N(mu, sigma)
-    @param x: float
-    @param mu : mean value
-    @param sigma : standard deviation
-    @return: CDF value
-    """
-    return (1.0 + erf((x-mu)/(sigma*np.sqrt(2)))) / 2.0
+def drawPlotGrid(axeSize):
+    item = QGraphicsPathItem()
+    item.setPen(QPen(QColor(255, 0, 0), 1, Qt.DashLine))
+    qppath = QPainterPath()
+    qppath.moveTo(QPoint(0, 0))
+    qppath.lineTo(QPoint(axeSize, 0))
+    qppath.lineTo(QPoint(axeSize, -axeSize))
+    qppath.lineTo(QPoint(0, -axeSize))
+    qppath.closeSubpath()
+    qppath.lineTo(QPoint(axeSize, -axeSize))
+    for i in range(1, 5):
+        a = (axeSize * i) / 4
+        qppath.moveTo(a, -axeSize)
+        qppath.lineTo(a, 0)
+        qppath.moveTo(0, -a)
+        qppath.lineTo(axeSize, -a)
+    item.setPath(qppath)
+    return item
+    #self.graphicsScene.addItem(item)
+"""
+#pickle example
+saved_data = dict(outputFile, 
+                  saveFeature1 = feature1, 
+                  saveFeature2 = feature2, 
+                  saveLabel1 = label1, 
+                  saveLabel2 = label2,
+                  saveString = docString)
 
-def gaussianKernel(mu, w):
-    """
-    Calculates the 2D gaussian kernel of size w,
-    for mean mu.
-    The standard deviation sigma and w are bound by the relation w = 2.0 * int(4.0 * sigma + 0.5)
-    @param mu:
-    @param sigma:
-    @param size:
-    @return:
-    """
-    sigma = (w - 1.0) / 8.0
-    interval = 4.0 * sigma
-    points = np.linspace(-interval, interval, w + 1)
-
-    points = map(lambda x : phi(x,0, sigma), points)
-    kern1d = np.diff(points)
-    kernel_raw = np.sqrt(np.outer(kern1d, kern1d))
-    kernel = kernel_raw / kernel_raw.sum()
-    return kernel
-
-if __name__ == '__main__':
-    print gaussianKernel(0, 5)*256
+with open('test.dat', 'wb') as outfile:
+    pickle.dump(saved_data, outfile, protocol=pickle.HIGHEST_PROTOCOL)
+"""

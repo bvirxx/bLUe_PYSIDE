@@ -15,7 +15,8 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-
+import json
+from trace import pickle
 
 from PySide.QtCore import Qt
 
@@ -27,12 +28,14 @@ from PySide.QtGui import QPixmap, QImage, QColor, QPainter, QMessageBox
 from PySide.QtCore import QRect
 
 from colorTemperature import sRGB2LabVec
+from graphicsFilter import filterIndex
 from icc import convertQImage
 from imgconvert import *
 from LUT3D import interpVec, rgb2hspVec, hsp2rgbVec
 from time import time
 import icc
 from utils import savitzky_golay, channelValues
+
 
 class ColorSpace:
     notSpecified = -1; sRGB = 1
@@ -51,7 +54,7 @@ class vImage(QImage):
     It gathers all image information, including meta-data.
     Each image owns a mask (disabled by default). When enabled, masking operation is bitwise AND.
     Several data buffers are defined for thumbnails and color modes.
-    they are cached; access functions are initThumb, getHspbBuffer,
+    they are cached; access functions are initThumb, getHspbBuffer, getLabBuffer,
     updatePixmap, cacheInvalidate.
     """
     thumbSize = 1000
@@ -400,8 +403,10 @@ class vImage(QImage):
         specified color mode and channels.
         @param size: size of the histogram plot
         @type size: int
-        @param chans: list of channels indices
-        @type chans: Utils.channelValues
+        @param bgColor: background color
+        @type bgColor: QColor
+        @param range: plot data range
+        @type range: 2-uple of int or float
         @param chanColors: color or 3-uple of colors
         @type chanColors: QColor or 3-uple of QColor 
         @param mode: color mode ((one of 'RGB', 'HSpB', 'Lab')
@@ -440,7 +445,7 @@ class vImage(QImage):
             for i, y in enumerate(hist):
                 #h = int(y*20*255)
                 h = int(size * y / M)
-                qp.drawRect(int(bin_edges[i]*scale), max(img.height()-h,0), int((bin_edges[i+1]-bin_edges[i])*scale), h)
+                qp.drawRect(int((bin_edges[i]-range[0])*scale), max(img.height()-h,0), int((bin_edges[i+1]-bin_edges[i])*scale), h)
 
         if mode == 'RGB':
             buf = QImageBuffer(self)[:,:,:3][:,:,::-1]  #RGB
@@ -457,34 +462,44 @@ class vImage(QImage):
         buf = QImageBuffer(img)
         return img
 
-    def applyFilter2D(self, kernel='unsharp'):
+    def applyFilter2D(self):
+        """
+        Applies 2D kernel. Available kernels are
+        sharpen, unsharp, gaussian_blur
+        @param radius: filter radius
+        @type radius: float
+        @param filter: filter type
+        @type filter: filterIndex object (enum)
+        @return: 
+        """
+        """
+        unsharp_kernel = - np.array([[1, 4, 6, 4, 1],
+                                    [4, 16, 24, 16, 4],
+                                    [6, 24, -476, 24, 6],
+                                    [4, 16, 24, 16, 4],
+                                    [1, 4, 6, 4, 1]]) / 256.0
 
         sharpen_kernel = np.array([[0.0, -1.0, 0.0],
-                                   [-1.0, 5.0, -1.0],
-                                   [0.0,-1.0, 0.0]])
+                                  [-1.0, 5.0, -1.0],
+                                  [0.0,-1.0, 0.0]])
 
-        unsharp_kernel = - np.array([[1, 4,  6,    4 , 1],
-                                     [4, 16, 24,   16, 4],
-                                     [6, 24, -476, 24, 6],
-                                     [4, 16, 24,   16, 4],
-                                     [1, 4,   6,   4,  1]]) / 256.0
 
         gblur1_kernel = np.array([[1, 2, 1],
                                  [2, 4 ,2],
                                  [1, 2, 1]]) / 16.0
 
-        gblur2_kernel = np.array([1, 4,  6,  4,  1],
-                                 [4, 16, 24, 16, 4],
-                                 [6, 24, 36, 24, 6],
-                                 [4, 16, 24, 16, 4],
-                                 [1, 4,  6,  4,  1]) / 256.0
-        if kernel == 'sharpen':
-            kernel = sharpen_kernel
-        else:
-            kernel = unsharp_kernel  #TODO complete
+        gblur2_kernel = np.array([[1, 4,  6,  4,  1],
+                                  [4, 16, 24, 16, 4],
+                                  [6, 24, 36, 24, 6],
+                                  [4, 16, 24, 16, 4],
+                                  [1, 4,  6,  4,  1]]) / 256.0
+        """
 
-        buf = QImageBuffer(self)
-        buf[:, :, :] = cv2.filter2D(buf, -1, kernel)
+        inputImage = self.inputImgFull().getCurrentImage()
+        currentImage = self.getCurrentImage()
+        buf0 = QImageBuffer(inputImage)
+        buf1 = QImageBuffer(currentImage)
+        buf1[:, :, :] = cv2.filter2D(buf0, -1, self.kernel)
         self.updatePixmap()
 
     def applyTemperature(self, temperature, options, coeff=1.0):
@@ -545,11 +560,19 @@ class mImage(vImage):
         self.activeLayerIndex = None
         self.addLayer(bgLayer, name='background')
         self.isModified = False
+        # will be set to QTableView referenec
+        self.layerView = None
 
     def getActiveLayer(self):
         return self.layersStack[self.activeLayerIndex]
 
-    def setActiveLayer(self, value, signaling=True):
+    def setActiveLayer(self, value):
+        """
+        Assigns value to  activeLayerIndex and
+        updates the layer View Form
+        @param value: 
+        @return: 
+        """
         self.activeLayerIndex = value
         if hasattr(self, 'layerView'):
             self.layerView.selectRow(len(self.layersStack) - 1 - value)
@@ -649,7 +672,7 @@ class mImage(vImage):
         layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].thumb if layer.parentImage.useThumb else self.layersStack[layer.getLowerVisibleStackIndex()]
         layer.inputImgFull = lambda: self.layersStack[layer.getLowerVisibleStackIndex()]
         self.addLayer(layer, name=name, index=index + 1)
-        layer.view = None
+        #layer.view = None
         #layer.parent = self
         #self.setModified(True)
         layer.initThumb()
@@ -666,10 +689,21 @@ class mImage(vImage):
         return layer
 
     def dupLayer(self, index=None):
+        """
+        inserts in layersStack at position index+1 a copy of the layer 
+        at position index. If index is None (default value), the layer is inserted
+        on top of the stack. Adjustment layers are not duplicated.
+        @param index: 
+        @type index: int
+        @return: 
+        """
         if index == None:
             index = len(self.layersStack) - 1
-        layer =QLayer.fromImage(self.layersStack[index], parentImage=self)
-        self.addLayer(layer, name=self.layersStack[index].name, index=index+1)
+        layer0 = self.layersStack[index]
+        if hasattr(layer0, 'inputImg'):
+            return
+        layer1 = QLayer.fromImage(layer0, parentImage=self)
+        self.addLayer(layer1, name=layer0.name, index=index+1)
 
     def save(self, filename, quality=-1):
         """
@@ -702,7 +736,6 @@ class mImage(vImage):
             msg.setText("cannot write file %s\n%s" % (filename, imgWriter.errorString()))
             msg.exec_()
             return False
-
 
 
 class imImage(mImage) :
@@ -859,9 +892,25 @@ class QLayer(vImage):
                     self.hspbBuffer = rgb2hspVec(QImageBuffer(self)[:, :, :3][:, :, ::-1])
         return self.hspbBuffer
 
+    def getLabBuffer(self):
+        """
+        returns the image buffer in color mode HSpB.
+        The buffer is calculated if needed and cached.
+        @return: HSPB buffer (type ndarray)
+        """
+        if self.LabBuffer is None:
+            if self.parentImage.useThumb:
+                self.LabBuffer = sRGB2LabVec(QImageBuffer(self.inputImgFull().getCurrentImage())[:, :, :3][:, :, ::-1])
+            else:
+                if hasattr(self, 'inputImg'):
+                    self.LabBuffer = sRGB2LabVec(QImageBuffer(self.inputImg())[:,:,:3][:,:,::-1])
+                else:
+                    self.LabBuffer = sRGB2LabVec(QImageBuffer(self)[:, :, :3][:, :, ::-1])
+        return self.LabBuffer
+
     def applyToStack(self):
         """
-        Applies and propagates changes.
+        Applies and propagates changes to upper layers.
         All event handlers changing parameters
         should call this method.
         """
@@ -901,10 +950,33 @@ class QLayer(vImage):
 
     def getLowerVisibleStackIndex(self):
         ind = self.getStackIndex()
+        i = -1
         for i in range(ind-1, -1, -1):
             if self.parentImage.layersStack[i].visible:
                 break
         return i
+
+    def merge_with_layer_immediately_below(self):
+        if not hasattr(self, 'inputImg'):
+            return
+        ind = self.getLowerVisibleStackIndex()
+        if ind < 0:
+            # no visible layer found
+            return
+        target = self.parentImage.layersStack[ind]
+        if hasattr(target, 'inputImg') or self.parentImage.useThumb:
+            # target is also an adjustment layer preview mode
+            return
+
+        #update stack
+        self.parentImage.layersStack[0].applyToStack()
+        target.setImage(self)
+        #self.parentImage.activeLayerIndex = ind - 1
+        self.parentImage.layerView.clear()
+        currentIndex = self.getStackIndex()
+        self.parentImage.activeLayerIndex = ind
+        self.parentImage.layersStack.pop(currentIndex)
+        self.parentImage.layerView.setLayers(self.parentImage)
 
     def setImage(self, qimg):
         """

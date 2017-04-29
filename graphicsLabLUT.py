@@ -30,7 +30,7 @@ from PySide.QtGui import QPushButton
 from colorModels import hueSatModel
 from graphicsRGBLUT import cubicItem, activePoint
 from spline import cubicSplineCurve
-from utils import optionsWidget, channelValues
+from utils import optionsWidget, channelValues, drawPlotGrid
 
 strokeWidth = 3
 controlPoints = []
@@ -39,12 +39,12 @@ computeControlPoints = True
 
 class graphicsLabForm(QGraphicsView):
     @classmethod
-    def getNewWindow(cls, cModel, targetImage=None, axeSize=500, layer=None, parent=None):
-        newWindow = graphicsLabForm(cModel, targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
+    def getNewWindow(cls, cModel=None, targetImage=None, axeSize=500, layer=None, parent=None):
+        newWindow = graphicsLabForm(cModel=cModel, targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
         newWindow.setWindowTitle(layer.name)
         return newWindow
 
-    def __init__(self, cModel, targetImage=None, axeSize=500, layer=None, parent=None):
+    def __init__(self, cModel=None, targetImage=None, axeSize=500, layer=None, parent=None):
         super(graphicsLabForm, self).__init__(parent=parent)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize + 60, axeSize + 140)
@@ -62,17 +62,8 @@ class graphicsLabForm(QGraphicsView):
 
         self.graphicsScene.axeSize = axeSize
 
-        # draw axes
-        item = QGraphicsPathItem()
-        item.setPen(QPen(QBrush(QColor(255, 0, 0)), 1, style=Qt.DashLine))
-        qppath = QPainterPath()
-        qppath.moveTo(QPoint(0, 0))
-        qppath.lineTo(QPoint(axeSize, 0))
-        qppath.lineTo(QPoint(axeSize, -axeSize))
-        qppath.lineTo(QPoint(0, -axeSize))
-        qppath.closeSubpath()
-        qppath.lineTo(QPoint(axeSize, -axeSize))
-        item.setPath(qppath)
+        # axes and grid
+        item = drawPlotGrid(axeSize)
         self.graphicsScene.addItem(item)
 
         # self.graphicsScene.addPath(qppath, QPen(Qt.DashLine))  #create and add QGraphicsPathItem
@@ -83,7 +74,7 @@ class graphicsLabForm(QGraphicsView):
         self.graphicsScene.cubicR = cubic
         cubic.channel = channelValues.L
         cubic.histImg = self.scene().layer.inputImgFull().histogram(size=self.scene().axeSize,
-                                                                    bgColor=self.scene().bgColor, range=(0, 360),
+                                                                    bgColor=self.scene().bgColor, range=(0, 1),
                                                                     chans=channelValues.L, mode='Lab')
         cubic.initFixedPoints()
         cubic = cubicItem(self.graphicsScene.axeSize)
@@ -91,7 +82,7 @@ class graphicsLabForm(QGraphicsView):
         self.graphicsScene.cubicG = cubic
         cubic.channel = channelValues.a
         cubic.histImg = self.scene().layer.inputImgFull().histogram(size=self.scene().axeSize,
-                                                                    bgColor=self.scene().bgColor, range=(0, 1),
+                                                                    bgColor=self.scene().bgColor, range=(-100, 100),
                                                                     chans=channelValues.a, mode='Lab')
         cubic.initFixedPoints()
         cubic = cubicItem(self.graphicsScene.axeSize)
@@ -99,7 +90,7 @@ class graphicsLabForm(QGraphicsView):
         self.graphicsScene.cubicB = cubic
         cubic.channel = channelValues.b
         cubic.histImg = self.scene().layer.inputImgFull().histogram(size=self.scene().axeSize,
-                                                                    bgColor=self.scene().bgColor, range=(0, 1),
+                                                                    bgColor=self.scene().bgColor, range=(-100, 100),
                                                                     chans=channelValues.b, mode='Lab')
         cubic.initFixedPoints()
         # set current

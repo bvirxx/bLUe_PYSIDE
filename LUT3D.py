@@ -556,7 +556,7 @@ def hsp2rgbVec(hspImg):
     rgb = clist[order[i], tmp]  # order[i] has shape (w*h, 3), tmp is broadcast to the same shape, thus rgb has (shape w*h, 3)
 
     # converting invalid values to int gives indeterminate results
-    rgb[np.isnan(rgb)] = 0.0
+    rgb[np.isnan(rgb)] = 0.0  # TODO np.inf
 
     # for uint8 image buffer, int values > 255 are truncated to lower 8 bits
     # rgbMask = (rgb > 1)

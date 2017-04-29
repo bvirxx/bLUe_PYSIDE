@@ -335,6 +335,7 @@ scr</string>
     <addaction name="actionSave"/>
     <addaction name="menuOpen_recent"/>
     <addaction name="actionClose"/>
+    <addaction name="actionOpen_in_stack"/>
    </widget>
    <widget class="QMenu" name="menuWindow">
     <property name="title">
@@ -377,6 +378,7 @@ scr</string>
      <addaction name="actionBrightness_Contrast"/>
      <addaction name="actionCurves_HSpB"/>
      <addaction name="actionCurves_Lab"/>
+     <addaction name="actionFilter"/>
      <addaction name="separator"/>
      <addaction name="action3D_LUT_HSB"/>
      <addaction name="action3D_LUT"/>
@@ -541,6 +543,16 @@ scr</string>
   <action name="actionCurves_Lab">
    <property name="text">
     <string>Curves Lab</string>
+   </property>
+  </action>
+  <action name="actionFilter">
+   <property name="text">
+    <string>Filter</string>
+   </property>
+  </action>
+  <action name="actionOpen_in_stack">
+   <property name="text">
+    <string>Open in stack</string>
    </property>
   </action>
  </widget>
