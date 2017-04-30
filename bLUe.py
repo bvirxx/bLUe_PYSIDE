@@ -630,6 +630,7 @@ def menuLayer(x, name):
             # wrapper for the right apply method
             l.execute = lambda: l.applyFilter2D()
             # l.execute = lambda: l.applyLab1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
+    l.actionName = name
     # dock widget
     dock = QDockWidget(window)
     dock.setWidget(grWindow)

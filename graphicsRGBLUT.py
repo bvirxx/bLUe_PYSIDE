@@ -34,7 +34,7 @@ strokeWidth = 3
 controlPoints =[]
 computeControlPoints = True
 
-def buildLUT(curve):
+def buildLUT(curve):  #unused
     """
     Build the LUT from a list of QPOINTF objects, representing
     a curve. The LUT values are interpolated between consecutive curve points.
@@ -119,10 +119,14 @@ class activePoint(QGraphicsPathItem):
             sc.removeItem(self)
             return
         self.scene().cubicItem.updatePath()
+        self.scene().cubicItem.updateLUTXY()
+        """
         LUT = []
         scale = 255.0 / self.scene().axeSize
         LUT.extend([int((-p.y()) * scale) for p in self.scene().cubicItem.spline])
         cubicItem.LUTXY = np.array(LUT)
+        """
+
         self.scene().onUpdateLUT()
 
 class cubicItem(QGraphicsPathItem) :
@@ -130,7 +134,7 @@ class cubicItem(QGraphicsPathItem) :
     Interactive cubic spline.
     """
 
-    def __init__(self, size, parentItem=None):
+    def __init__(self, size, fixedPoints=[], parentItem=None):
         """
         Builds a spline with an empty set of fixed points
         @param size: initial path size
@@ -152,7 +156,7 @@ class cubicItem(QGraphicsPathItem) :
         self.clicked=QPoint(0,0)
         self.selected = False
         self.setVisible(False)
-        self.fixedPoints = []
+        self.fixedPoints = fixedPoints
         self.spline = []
         self.LUTXY = np.array(range(256))
         self.channel = channelValues.RGB
@@ -163,6 +167,12 @@ class cubicItem(QGraphicsPathItem) :
         self.fixedPoints = [activePoint(0, 0, persistent=True, rect=QRectF(0.0, -axeSize, axeSize, axeSize), parentItem=self),
                             activePoint(axeSize / 2, -axeSize / 2, rect=QRectF(0.0, -axeSize, axeSize, axeSize), parentItem=self),
                             activePoint(axeSize, -axeSize, persistent=True, rect=QRectF(0.0, -axeSize, axeSize, axeSize), parentItem=self)]
+
+    def updateLUTXY(self):
+        scale = 255.0 / self.size
+        LUT = []
+        LUT.extend([int((-p.y()) * scale) for p in self.spline])
+        self.LUTXY = np.array(LUT)
 
     def updatePath(self):
         qpp = QPainterPath()
@@ -245,6 +255,28 @@ class cubicItem(QGraphicsPathItem) :
         #scale = 255.0 / self.scene().axeSize
         #LUT.extend([int((-p.y()) * scale) for p in self.spline])
         self.LUTXY = np.array(LUT)  # buildLUT(LUT)
+
+    def writeToStream(self, outStream):
+        outStream.writeInt32(self.size)
+        outStream.writeInt32(len(self.fixedPoints))
+        for point in self.fixedPoints:
+            outStream << point.scenePos()
+        return outStream
+
+    @classmethod
+    def readFromStream(cls, inStream):
+        size = inStream.readInt32()
+        count = inStream.readInt32()
+        fixedPoints = []
+        for i in range(count):
+            point = QPointF()
+            inStream >> point
+            fixedPoints.append(point)
+        cubic = cubicItem(size, fixedPoints=fixedPoints)
+        cubic.updatePath()
+        cubic.updateLUTXY()
+        return cubic
+
 
 class graphicsForm(QGraphicsView) :
 
@@ -341,7 +373,7 @@ class graphicsForm(QGraphicsView) :
 
         def onSelect1(item):
             self.scene().cubicItem.setVisible(False)
-            if item.mySelectedAttr:
+            if item.isSelected():
                 if item.text() == 'RGB' :
                     self.scene().cubicItem = self.graphicsScene.cubicRGB
                 elif item.text() == 'Red':
@@ -364,6 +396,8 @@ class graphicsForm(QGraphicsView) :
         s = self.graphicsScene.axeSize
         if self.scene().cubicItem.histImg is not None:
             qp.drawPixmap(QRect(0,-s, s, s), QPixmap.fromImage(self.scene().cubicItem.histImg))
+
+
 
 
 

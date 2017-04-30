@@ -424,7 +424,12 @@ class vImage(QImage):
             @param channel: channel index (BGRA (intel) or ARGB )
             """
             buf0 = buf[:,:, channel]
-            hist, bin_edges = np.histogram(buf0, bins='auto', density=True)
+            # bins='auto' sometimes causes huge number of bins ( >= 10**9) and memory error
+            # even for small data size (<=250000), so we don't use it.
+            # This is a numpy bug : in module function_base.py, to avoid memory error,
+            # a reasonable upper bound for bins should be fixed at line 532.
+            # hist, bin_edges = np.histogram(buf0, bins='auto', density=True)
+            hist, bin_edges = np.histogram(buf0, bins=100, density=True)
             # smooth hist
             hist = savitzky_golay(hist, 11, 3)
             p = len(hist) - len(bin_edges)
@@ -736,7 +741,6 @@ class mImage(vImage):
             msg.setText("cannot write file %s\n%s" % (filename, imgWriter.errorString()))
             msg.exec_()
             return False
-
 
 class imImage(mImage) :
     """

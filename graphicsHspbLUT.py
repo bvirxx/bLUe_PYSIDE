@@ -155,7 +155,7 @@ class graphicsHspbForm(QGraphicsView) :
 
         def onSelect1(item):
             self.scene().cubicItem.setVisible(False)
-            if item.mySelectedAttr:
+            if item.isSelected():
                 if item.text() == 'H':
                     self.scene().cubicItem = self.graphicsScene.cubicR
                 elif item.text() == 'S':

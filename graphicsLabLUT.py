@@ -18,7 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import sys
 
-from PySide.QtCore import QRect
+from PySide.QtCore import QRect, QBuffer, QDataStream, QIODevice
 from PySide.QtGui import QApplication, QPainter, QWidget, QDockWidget
 from PySide.QtGui import QGraphicsView, QGraphicsScene, QGraphicsPathItem, QPainterPath, QPainterPathStroker, QPen, \
     QBrush, QColor, QPixmap, QMainWindow, QLabel, QSizePolicy
@@ -145,7 +145,7 @@ class graphicsLabForm(QGraphicsView):
 
         def onSelect1(item):
             self.scene().cubicItem.setVisible(False)
-            if item.mySelectedAttr:
+            if item.isSelected():
                 if item.text() == 'L':
                     self.scene().cubicItem = self.graphicsScene.cubicR
                 elif item.text() == 'a':
@@ -168,3 +168,35 @@ class graphicsLabForm(QGraphicsView):
         s = self.graphicsScene.axeSize
         if self.scene().cubicItem.histImg is not None:
             qp.drawPixmap(QRect(0, -s, s, s), QPixmap.fromImage(self.scene().cubicItem.histImg))
+
+    def writeToStream(self, outStream):
+
+        layer = self.scene().layer
+        outStream.writeQString(layer.actionName)
+        outStream.writeQString(layer.name)
+        if layer.actionName in ['actionBrightness_Contrast', 'actionCurves_HSpB', 'actionCurves_Lab']:
+            outStream.writeQString(self.listWidget1.selectedItems()[0].text())
+            self.graphicsScene.cubicR.writeToStream(outStream)
+            self.graphicsScene.cubicG.writeToStream(outStream)
+            self.graphicsScene.cubicB.writeToStream(outStream)
+        return outStream
+
+    def readFromStream(self, inStream):
+        actionName = inStream.readQString()
+        name = inStream.readQString()
+        sel = inStream.readQString()
+        cubic = cubicItem.readFromStream(inStream)
+
+
+        return inStream
+
+    def testState(self):
+
+        buffer = QBuffer()
+        buffer.open( QIODevice.WriteOnly)
+        dataStream = QDataStream(buffer)
+        self.writeToStream(dataStream)
+        buffer.close()
+        buffer.open(QIODevice.ReadOnly)
+        dataStream = QDataStream(buffer)
+        self.readFromStream(dataStream)
