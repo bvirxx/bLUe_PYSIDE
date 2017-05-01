@@ -386,6 +386,8 @@ scr</string>
     </widget>
     <addaction name="menuNew_adjustment_layer"/>
     <addaction name="actionNew_segmentation_layer"/>
+    <addaction name="actionSave_Layer_Stack"/>
+    <addaction name="actionLoad_Layer_Stack"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -553,6 +555,16 @@ scr</string>
   <action name="actionOpen_in_stack">
    <property name="text">
     <string>Open in stack</string>
+   </property>
+  </action>
+  <action name="actionSave_Layer_Stack">
+   <property name="text">
+    <string>Save Layer Stack</string>
+   </property>
+  </action>
+  <action name="actionLoad_Layer_Stack">
+   <property name="text">
+    <string>Load Layer Stack</string>
    </property>
   </action>
  </widget>

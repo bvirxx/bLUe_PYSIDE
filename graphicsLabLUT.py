@@ -170,7 +170,6 @@ class graphicsLabForm(QGraphicsView):
             qp.drawPixmap(QRect(0, -s, s, s), QPixmap.fromImage(self.scene().cubicItem.histImg))
 
     def writeToStream(self, outStream):
-
         layer = self.scene().layer
         outStream.writeQString(layer.actionName)
         outStream.writeQString(layer.name)
@@ -185,18 +184,25 @@ class graphicsLabForm(QGraphicsView):
         actionName = inStream.readQString()
         name = inStream.readQString()
         sel = inStream.readQString()
-        cubic = cubicItem.readFromStream(inStream)
-
-
+        cubics = []
+        #for i in range(3):
+            #cubic = cubicItem.readFromStream(inStream)
+            #cubics.append(cubic)
+        #kwargs = dict(zip(['cubicR', 'cubicG', 'cubicB'], cubics))
+        #self.setEntries(sel=sel, **kwargs)
+        self.graphicsScene.cubicR.readFromStream(inStream)
+        self.graphicsScene.cubicG.readFromStream(inStream)
+        self.graphicsScene.cubicB.readFromStream(inStream)
         return inStream
 
-    def testState(self):
-
-        buffer = QBuffer()
-        buffer.open( QIODevice.WriteOnly)
-        dataStream = QDataStream(buffer)
-        self.writeToStream(dataStream)
-        buffer.close()
-        buffer.open(QIODevice.ReadOnly)
-        dataStream = QDataStream(buffer)
-        self.readFromStream(dataStream)
+    #unused
+    def setEntries(self, sel='', cubicR=None, cubicG=None, cubicB=None):
+        listWidget = self.listWidget1
+        self.graphicsScene.cubicR = cubicR
+        self.graphicsScene.cubicG = cubicG
+        self.graphicsScene.cubicB = cubicB
+        for r in range(listWidget.count()):
+            currentItem = listWidget.item(r)
+            if currentItem.text() == sel:
+                listWidget.select(currentItem)
+        self.repaint()

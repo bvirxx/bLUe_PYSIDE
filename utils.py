@@ -57,6 +57,7 @@ class optionsWidget(QListWidget) :
         """
         Mouse click event handler
         @param item:
+        @type item: QListWidgetItem
         """
         for r in range(self.count()):
             currentItem = self.item(r)

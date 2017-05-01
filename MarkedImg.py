@@ -18,7 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import json
 from trace import pickle
 
-from PySide.QtCore import Qt
+from PySide.QtCore import Qt, QBuffer, QDataStream, QFile, QIODevice
 
 import cv2
 from copy import copy
@@ -742,6 +742,38 @@ class mImage(vImage):
             msg.exec_()
             return False
 
+    def writeStackToStream(self, dataStream):
+        dataStream.writeInt32(len(self.layersStack))
+        for layer in self.layersStack:
+            dataStream.writeQString('menuLayer(None, "%s")' % layer.actionName)
+            dataStream.writeQString('if "%s" != "actionNull":\n dataStream=window.label.img.layersStack[-1].readFromStream(dataStream)' % layer.actionName)
+        for layer in self.layersStack:
+            if hasattr(layer, 'view'):
+                layer.view.widget().writeToStream(dataStream)
+
+    def readStackFromStream(self, dataStream):
+        count = dataStream.readInt32()
+        script = []
+        for i in range(2* count):
+            line = dataStream.readQString()
+            script.append(line)
+        return script
+
+    def saveStackToFile(self, filename):
+        qf = QFile(filename)
+        qf.open(QIODevice.WriteOnly)
+        dataStream = QDataStream(qf)
+        self.writeStackToStream(dataStream)
+        qf.close()
+
+    def loadStackFromFile(self, filename):
+        qf = QFile(filename)
+        qf.open(QIODevice.ReadOnly)
+        dataStream = QDataStream(qf)
+        script = self.readStackFromStream(dataStream)
+        #qf.close()
+        return script, qf, dataStream
+
 class imImage(mImage) :
     """
     Interactive multi-layer image
@@ -859,6 +891,7 @@ class QLayer(vImage):
             # self.inputImg : access to upper lower visible layer image or thumbnail, according to flag useThumb
             # self.inputImgFull : access to upper lower visible layer image
             # Accessing upper lower thumbnail must be done by calling inputImgFull().thumb. Using inputImg().thumb will fail if useThumb is True.
+        self.actionName = 'actionNull'
 
     def initThumb(self):
         """
@@ -1008,6 +1041,12 @@ class QLayer(vImage):
         """
         self.opacity = value /100.0
         return
+
+    def readFromStream(self, dataStream):
+
+        if hasattr(self, 'view'):
+            self.view.widget().readFromStream(dataStream)
+        return dataStream
 
 
 

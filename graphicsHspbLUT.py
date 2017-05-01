@@ -178,3 +178,28 @@ class graphicsHspbForm(QGraphicsView) :
         if self.scene().cubicItem.histImg is not None:
             qp.drawPixmap(QRect(0,-s, s, s), QPixmap.fromImage(self.scene().cubicItem.histImg))
 
+    def writeToStream(self, outStream):
+        layer = self.scene().layer
+        outStream.writeQString(layer.actionName)
+        outStream.writeQString(layer.name)
+        if layer.actionName in ['actionBrightness_Contrast', 'actionCurves_HSpB', 'actionCurves_Lab']:
+            outStream.writeQString(self.listWidget1.selectedItems()[0].text())
+            self.graphicsScene.cubicR.writeToStream(outStream)
+            self.graphicsScene.cubicG.writeToStream(outStream)
+            self.graphicsScene.cubicB.writeToStream(outStream)
+        return outStream
+
+    def readFromStream(self, inStream):
+        actionName = inStream.readQString()
+        name = inStream.readQString()
+        sel = inStream.readQString()
+        cubics = []
+        # for i in range(3):
+        # cubic = cubicItem.readFromStream(inStream)
+        # cubics.append(cubic)
+        # kwargs = dict(zip(['cubicR', 'cubicG', 'cubicB'], cubics))
+        # self.setEntries(sel=sel, **kwargs)
+        self.graphicsScene.cubicR.readFromStream(inStream)
+        self.graphicsScene.cubicG.readFromStream(inStream)
+        self.graphicsScene.cubicB.readFromStream(inStream)
+        return inStream

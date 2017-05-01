@@ -630,6 +630,29 @@ def menuLayer(x, name):
             # wrapper for the right apply method
             l.execute = lambda: l.applyFilter2D()
             # l.execute = lambda: l.applyLab1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
+    elif name == 'actionSave_Layer_Stack':
+        lastDir = window.settings.value('paths/dlgdir', '.')
+        dlg = QFileDialog(window, "select", lastDir)
+        if dlg.exec_():
+            filenames = dlg.selectedFiles()
+            newDir = dlg.directory().absolutePath()
+            window.settings.setValue('paths/dlgdir', newDir)
+            window.label.img.saveStackToFile(filenames[0])
+            return
+    elif name == 'actionLoad_Layer_Stack':
+        lastDir = window.settings.value('paths/dlgdir', '.')
+        dlg = QFileDialog(window, "select", lastDir)
+        if dlg.exec_():
+            filenames = dlg.selectedFiles()
+            newDir = dlg.directory().absolutePath()
+            window.settings.setValue('paths/dlgdir', newDir)
+            script, qf, dataStream = window.label.img.loadStackFromFile(filenames[0])
+            script = '\n'.join(script)
+            exec script in globals(), locals()
+            return
+    else:
+        return
+    # record action name for scripting
     l.actionName = name
     # dock widget
     dock = QDockWidget(window)

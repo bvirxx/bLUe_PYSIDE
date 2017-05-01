@@ -263,19 +263,21 @@ class cubicItem(QGraphicsPathItem) :
             outStream << point.scenePos()
         return outStream
 
-    @classmethod
-    def readFromStream(cls, inStream):
+    def readFromStream(self, inStream):
         size = inStream.readInt32()
         count = inStream.readInt32()
-        fixedPoints = []
+        for point in self.childItems():
+            self.scene().removeItem(point)
+        self.fixedPoints = []
         for i in range(count):
             point = QPointF()
             inStream >> point
-            fixedPoints.append(point)
-        cubic = cubicItem(size, fixedPoints=fixedPoints)
-        cubic.updatePath()
-        cubic.updateLUTXY()
-        return cubic
+            self.fixedPoints.append(activePoint(point.x(), point.y(), parentItem=self))
+        #cubic = cubicItem(size, fixedPoints=fixedPoints)
+        #self.fixedPoints = fixedPoints
+        self.updatePath()
+        self.updateLUTXY()
+        return self
 
 
 class graphicsForm(QGraphicsView) :
@@ -397,7 +399,27 @@ class graphicsForm(QGraphicsView) :
         if self.scene().cubicItem.histImg is not None:
             qp.drawPixmap(QRect(0,-s, s, s), QPixmap.fromImage(self.scene().cubicItem.histImg))
 
+    def writeToStream(self, outStream):
+        layer = self.scene().layer
+        outStream.writeQString(layer.actionName)
+        outStream.writeQString(layer.name)
+        if layer.actionName in ['actionBrightness_Contrast', 'actionCurves_HSpB', 'actionCurves_Lab']:
+            outStream.writeQString(self.listWidget1.selectedItems()[0].text())
+            self.graphicsScene.cubicRGB.writeToStream(outStream)
+            self.graphicsScene.cubicR.writeToStream(outStream)
+            self.graphicsScene.cubicG.writeToStream(outStream)
+            self.graphicsScene.cubicB.writeToStream(outStream)
+        return outStream
 
+    def readFromStream(self, inStream):
+        actionName = inStream.readQString()
+        name = inStream.readQString()
+        sel = inStream.readQString()
+        self.graphicsScene.cubicRGB.readFromStream(inStream)
+        self.graphicsScene.cubicR.readFromStream(inStream)
+        self.graphicsScene.cubicG.readFromStream(inStream)
+        self.graphicsScene.cubicB.readFromStream(inStream)
+        return inStream
 
 
 
