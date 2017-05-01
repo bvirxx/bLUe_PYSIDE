@@ -101,7 +101,8 @@ def LUT3DFromFactory(size=LUTSIZE):
     for all i,j,k in the range 0..256,
     trilinear(i//step, j//step, k//step) = (i,j,k).
     @param size: integer value (should be 2**n+1)
-    @return: 4D-array, dtype=int
+    @return: 3D LUT table
+    @rtype: LUT3D object
     """
     step = 256 / (size - 1)
     a = np.arange(size)

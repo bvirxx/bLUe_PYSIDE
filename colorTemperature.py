@@ -391,27 +391,27 @@ class temperatureForm (QWidget):
         self.listWidget1.onSelect = onSelect1
         l.addWidget(self.listWidget1)
 
-        # opcity slider
+        # temp slider
         self.sliderTemp = QSlider(Qt.Horizontal)
         self.sliderTemp.setTickPosition(QSlider.TicksBelow)
         self.sliderTemp.setRange(1000, 9000)
         self.sliderTemp.setSingleStep(100)
-        opacityLabel = QLabel()
-        opacityLabel.setMaximumSize(150, 30)
-        opacityLabel.setText("Color temperature")
-        l.addWidget(opacityLabel)
+        tempLabel = QLabel()
+        tempLabel.setMaximumSize(150, 30)
+        tempLabel.setText("Color temperature")
+        l.addWidget(tempLabel)
         hl = QHBoxLayout()
-        self.opacityValue = QLabel()
-        font = self.opacityValue.font()
+        self.tempValue = QLabel()
+        font = self.tempValue.font()
         metrics = QFontMetrics(font)
         w = metrics.width("1000 ")
         h = metrics.height()
-        self.opacityValue.setMinimumSize(w, h)
-        self.opacityValue.setMaximumSize(w, h)
+        self.tempValue.setMinimumSize(w, h)
+        self.tempValue.setMaximumSize(w, h)
 
         #self.opacityValue.setText('6500 ')
-        self.opacityValue.setStyleSheet("QLabel {background-color: white;}")
-        hl.addWidget(self.opacityValue)
+        self.tempValue.setStyleSheet("QLabel {background-color: white;}")
+        hl.addWidget(self.tempValue)
         hl.addWidget(self.sliderTemp)
         l.addLayout(hl)
         l.setContentsMargins(20, 0, 20, 25)  # left, top, right, bottom
@@ -422,7 +422,7 @@ class temperatureForm (QWidget):
         # opacity value done event handler
         def f():
             self.sliderTemp.setEnabled(False)
-            self.opacityValue.setText(str('%d ' % self.sliderTemp.value()))
+            self.tempValue.setText(str('%d ' % self.sliderTemp.value()))
             #QImg=applyTemperature(self.layer.inputImg(), self.sliderTemp.value(), 0.25)
             #self.layer.setImage(QImg)
             #self.img.onImageChanged()
@@ -431,7 +431,7 @@ class temperatureForm (QWidget):
 
         # opacity value changed event handler
         def g():
-            self.opacityValue.setText(str('%d ' % self.sliderTemp.value()))
+            self.tempValue.setText(str('%d ' % self.sliderTemp.value()))
             #self.previewWindow.setPixmap()
 
         self.sliderTemp.valueChanged.connect(g)
@@ -439,6 +439,26 @@ class temperatureForm (QWidget):
 
         self.sliderTemp.setValue(self.defaultTemp)
 
+    def writeToStream(self, outStream):
+        layer = self.layer
+        outStream.writeQString(layer.actionName)
+        outStream.writeQString(layer.name)
+        outStream.writeQString(self.listWidget1.selectedItems()[0].text())
+        outStream.writeInt32(self.sliderTemp.value())
+        return outStream
+
+    def readFromStream(self, inStream):
+        actionName = inStream.readQString()
+        name = inStream.readQString()
+        sel = inStream.readQString()
+        temp = inStream.readInt32()
+        for r in range(self.listWidget1.count()):
+            currentItem = self.listWidget1.item(r)
+            if currentItem.text() == sel:
+                self.listWidget.select(currentItem)
+        self.sliderTemp.setValue(temp)
+        self.repaint()
+        return inStream
 
 if __name__ == '__main__':
     T=4000.0

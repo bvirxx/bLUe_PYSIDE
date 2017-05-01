@@ -1046,3 +1046,19 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.layer.reset()
         self.layer.parentImage.window.repaint()
 
+    def writeToStream(self, outStream):
+        layer = self.layer
+        outStream.writeQString(layer.actionName)
+        outStream.writeQString(layer.name)
+        bytes = self.graphicsScene.LUT3D.tostring()
+        outStream.writeInt32(len(bytes))
+        outStream.writeRawData(bytes)
+        return outStream
+
+    def readFromStream(self, inStream):
+        actionName = inStream.readQString()
+        name = inStream.readQString()
+        len=inStream.readInt32()
+        bytes = inStream.readRawData(len)
+        self.graphicsScene.LUT3D = np.fromstring(bytes, dtype=np.uint8)
+        return inStream
