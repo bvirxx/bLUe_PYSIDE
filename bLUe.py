@@ -633,6 +633,8 @@ def menuLayer(x, name):
     elif name == 'actionSave_Layer_Stack':
         lastDir = window.settings.value('paths/dlgdir', '.')
         dlg = QFileDialog(window, "select", lastDir)
+        dlg.setNameFilter('*.sba')
+        dlg.setDefaultSuffix('sba')
         if dlg.exec_():
             filenames = dlg.selectedFiles()
             newDir = dlg.directory().absolutePath()
@@ -642,13 +644,19 @@ def menuLayer(x, name):
     elif name == 'actionLoad_Layer_Stack':
         lastDir = window.settings.value('paths/dlgdir', '.')
         dlg = QFileDialog(window, "select", lastDir)
+        dlg.setNameFilter('*.sba')
+        dlg.setDefaultSuffix('sba')
         if dlg.exec_():
             filenames = dlg.selectedFiles()
             newDir = dlg.directory().absolutePath()
             window.settings.setValue('paths/dlgdir', newDir)
             script, qf, dataStream = window.label.img.loadStackFromFile(filenames[0])
             script = '\n'.join(script)
-            exec script in globals(), locals()
+            # secure env for exec
+            safe_list = ['menuLayer', 'window']
+            safe_dict = dict([(k, globals().get(k, None)) for k in safe_list])
+            exec script in safe_dict, locals() #globals(), locals()
+            qf.close()
             return
     else:
         return

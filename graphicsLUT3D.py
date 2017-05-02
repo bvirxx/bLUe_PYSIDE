@@ -813,8 +813,8 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.graphicsScene = QGraphicsScene()
         self.setScene(self.graphicsScene)
         # LUT
-        LUT3D = LUT3DFromFactory(size=LUTSize)
-        self.LUTSize, self.LUTStep, self.graphicsScene.LUTContrast, self.graphicsScene.LUT3D = LUT3D.size, LUT3D.step, LUT3D.contrast, LUT3D.LUT3DArray
+        freshLUT3D = LUT3DFromFactory(size=LUTSize)
+        self.LUTSize, self.LUTStep, self.graphicsScene.LUTContrast, self.graphicsScene.LUT3D = freshLUT3D.size, freshLUT3D.step, freshLUT3D.contrast, freshLUT3D.LUT3DArray
 
         # color wheel
         QImg = hueSatModel.colorWheel(size, size, cModel,  perceptualBrightness=self.defaultColorWheelBr, border=border)
@@ -1050,6 +1050,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         layer = self.layer
         outStream.writeQString(layer.actionName)
         outStream.writeQString(layer.name)
+        #outStream.writeInt32(self.graphicsScene.LUT3D.)
         bytes = self.graphicsScene.LUT3D.tostring()
         outStream.writeInt32(len(bytes))
         outStream.writeRawData(bytes)

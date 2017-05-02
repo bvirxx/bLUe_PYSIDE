@@ -370,7 +370,9 @@ class vImage(QImage):
         """
         Applies 3D LUT to the image
         @param LUT: LUT3D array (see module LUT3D.py)
+        @type LUT: 3d numpy array, dtype = np.uint8
         @param options: dict of string:boolean records
+        @type options: dictionary
         """
         # get selection
         w1, w2, h1, h2 = (0.0,) * 4
@@ -745,18 +747,23 @@ class mImage(vImage):
     def writeStackToStream(self, dataStream):
         dataStream.writeInt32(len(self.layersStack))
         for layer in self.layersStack:
+            """
             dataStream.writeQString('menuLayer(None, "%s")' % layer.actionName)
             dataStream.writeQString('if "%s" != "actionNull":\n dataStream=window.label.img.layersStack[-1].readFromStream(dataStream)' % layer.actionName)
+            """
+            dataStream.writeQString(layer.actionName)
         for layer in self.layersStack:
             if hasattr(layer, 'view'):
                 layer.view.widget().writeToStream(dataStream)
 
     def readStackFromStream(self, dataStream):
+        # stack length
         count = dataStream.readInt32()
         script = []
-        for i in range(2* count):
-            line = dataStream.readQString()
-            script.append(line)
+        for i in range(count):
+            actionName = dataStream.readQString()
+            script.append('menuLayer(None, "%s")' % actionName)
+            script.append('if "%s" != "actionNull":\n dataStream=window.label.img.layersStack[-1].readFromStream(dataStream)' % actionName)
         return script
 
     def saveStackToFile(self, filename):
