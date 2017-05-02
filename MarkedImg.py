@@ -387,12 +387,17 @@ class vImage(QImage):
         else:
             w1, w2, h1, h2 = 0, self.inputImg().width(), 0, self.inputImg().height()
 
-        ndImg0 = QImageBuffer(input)[h1+1:h2+1, w1+1:w2+1, :3]
-        ndImg1 = QImageBuffer(self)[:, :, :3]
+        #ndImg0 = QImageBuffer(input)[h1+1:h2+1, w1+1:w2+1, :3]
+        #ndImg1 = QImageBuffer(self)[:, :, :3]
+        inputImage = self.inputImgFull().getCurrentImage()
+        currentImage = self.getCurrentImage()
+        ndImg0 = QImageBuffer(inputImage)[:, :, :3]
+        ndImg1 = QImageBuffer(currentImage)[:, :, :3]
 
         # apply LUT
         start=time()
-        ndImg1[h1+1:h2+1,w1+1:w2+1,:] = interpVec(LUT, ndImg0)
+        #ndImg1[h1+1:h2+1,w1+1:w2+1,:] = interpVec(LUT, ndImg0)
+        ndImg1[h1:h2 + 1, w1:w2 + 1, :] = interpVec(LUT, ndImg0)
         end=time()
 
         print 'time %.2f' % (end-start)

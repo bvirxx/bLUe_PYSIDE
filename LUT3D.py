@@ -17,6 +17,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 import numpy as np
+from PySide.QtCore import QDataStream, QFile, QIODevice, QTextStream
+
 from cartesian import cartesianProduct
 
 
@@ -75,18 +77,45 @@ Perc_B=1.0/3.0
 class LUT3D (object):
     """
     Implements 3D LUT. Size must be 2**n.
+    Array shape should be (size, size, size, 3)
     """
     def __init__(self, LUT3DArray, size=LUTSIZE):
         # consistency check
         if not (size & (size - 1)):
             raise ValueError("LUT3D : size must be 2**n, found %d" % size)
-
         self.LUT3DArray = LUT3DArray
         self.size = size
         # for convenience
         self.step = 256 / (size - 1)
-        #
         self.contrast = lambda p : p #np.power(p,1.2)
+
+    @classmethod
+    def readFromTextStream(self, inStream):
+        #header
+        for i in range(2):
+            line = inStream.readLine()
+        buf = np.zeros((33**3)*3, dtype=float)
+        i=0
+        while True:
+            line = inStream.readLine()
+            if len(line) == 0:
+                break
+            a, b, c = line.split(" ")
+            buf[i], buf[i+1], buf[i+2] = float(a), float(b), float(c)
+            i+=3
+        buf = buf.reshape(33,33,33,3)
+        return buf
+
+    @classmethod
+    def readFromTextFile(self, filename):
+        qf = QFile(filename)
+        qf.open(QIODevice.ReadOnly)
+        textStream = QTextStream(qf)
+        LUT3DArray = self.readFromTextStream(textStream)
+        LUT3DArray = LUT3DArray *255.0
+        LUT3DArray = LUT3DArray.astype(int)
+        LUT3DArray = LUT3DArray.transpose(2,1,0, 3)
+        return LUT3DArray
 
 
 def LUT3DFromFactory(size=LUTSIZE):
@@ -102,11 +131,11 @@ def LUT3DFromFactory(size=LUTSIZE):
     trilinear(i//step, j//step, k//step) = (i,j,k).
     @param size: integer value (should be 2**n+1)
     @return: 3D LUT table
-    @rtype: LUT3D object
+    @rtype: LUT3D object shape (size, size, size, 3), dtype=int
     """
     step = 256 / (size - 1)
     a = np.arange(size)
-    return LUT3D(cartesianProduct((a, a, a)) * step, size)
+    return LUT3D(cartesianProduct((a, a, a)) * step, size=size)
 
 def redistribute_rgb(r, g, b):
     """

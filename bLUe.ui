@@ -388,6 +388,7 @@ scr</string>
     <addaction name="actionNew_segmentation_layer"/>
     <addaction name="actionSave_Layer_Stack"/>
     <addaction name="actionLoad_Layer_Stack"/>
+    <addaction name="actionLoad_3D_LUT"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -565,6 +566,11 @@ scr</string>
   <action name="actionLoad_Layer_Stack">
    <property name="text">
     <string>Load Layer Stack</string>
+   </property>
+  </action>
+  <action name="actionLoad_3D_LUT">
+   <property name="text">
+    <string>Load 3D LUT</string>
    </property>
   </action>
  </widget>

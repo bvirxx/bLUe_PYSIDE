@@ -338,7 +338,7 @@ class activeNode(QGraphicsPathItem):
             (i,j,k) = x.ind
             p=x.p
             nbghd = LUT3D_ORI[max(k-spread,0):k+spread+1, max(j-spread,0):j+spread+1, max(i-spread,0):i+spread+1, ::-1]
-            trgNbghd = self.scene().LUT3D[max(k-spread,0):k+spread+1, max(j-spread,0):j+spread+1, max(i-spread,0):i+spread+1, ::-1]
+            trgNbghd = self.scene().LUT3DArray[max(k-spread,0):k+spread+1, max(j-spread,0):j+spread+1, max(i-spread,0):i+spread+1, ::-1]
             trgNbghd[...] = np.clip(nbghd + (np.array(self.cModel.cm2rgb(hue, sat, contrast(p))) - LUT3D_ORI[k, j , i, ::-1]), 0, 255)
             #self.scene().LUT3D[max(k-spread,0):k+spread+1, max(j-spread,0):j+spread+1, max(i-spread,0):i+spread+1, ::-1] = np.clip(LUT3D_ORI[max(k-spread,0):k+spread+1, max(j-spread,0):j+spread+1, max(i-spread,0):i+spread+1, ::-1] + (np.array(hsp2rgb(hue, sat, contrast(p))) - LUT3D_ORI[k, j , i,::-1]),0,255)
 
@@ -814,7 +814,8 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.setScene(self.graphicsScene)
         # LUT
         freshLUT3D = LUT3DFromFactory(size=LUTSize)
-        self.LUTSize, self.LUTStep, self.graphicsScene.LUTContrast, self.graphicsScene.LUT3D = freshLUT3D.size, freshLUT3D.step, freshLUT3D.contrast, freshLUT3D.LUT3DArray
+        #self.LUTSize, self.LUTStep, self.graphicsScene.LUTContrast, self.graphicsScene.LUT3DArray = freshLUT3D.size, freshLUT3D.step, freshLUT3D.contrast, freshLUT3D.LUT3DArray
+        self.graphicsScene.LUTSize, self.graphicsScene.LUTStep, self.graphicsScene.LUTContrast, self.graphicsScene.LUT3DArray = freshLUT3D.size, freshLUT3D.step, freshLUT3D.contrast, freshLUT3D.LUT3DArray
 
         # color wheel
         QImg = hueSatModel.colorWheel(size, size, cModel,  perceptualBrightness=self.defaultColorWheelBr, border=border)
@@ -863,7 +864,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.setRenderHints(QPainter.Antialiasing | QPainter.SmoothPixmapTransform)
 
         # grid
-        self.grid = activeGrid(self.LUTSize, self.cModel, parent=self.graphicsScene.colorWheel)
+        self.grid = activeGrid(self.graphicsScene.LUTSize, self.cModel, parent=self.graphicsScene.colorWheel)
         self.graphicsScene.grid = self.grid
 
         # buttons
@@ -1032,7 +1033,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         reset grid and LUT
         """
         # get a fresh LUT
-        self.graphicsScene.LUT3D = LUT3DFromFactory(size=self.LUTSize).LUT3DArray
+        self.graphicsScene.LUT3DArray = LUT3DFromFactory(size=self.LUTSize).LUT3DArray
         # explode all node groups
         groupList = [item for item in self.grid.childItems() if type(item) is nodeGroup]
         for item in groupList:
@@ -1050,8 +1051,9 @@ class graphicsForm3DLUT(QGraphicsView) :
         layer = self.layer
         outStream.writeQString(layer.actionName)
         outStream.writeQString(layer.name)
-        #outStream.writeInt32(self.graphicsScene.LUT3D.)
-        bytes = self.graphicsScene.LUT3D.tostring()
+        outStream.writeInt32(self.graphicsScene.LUTSize)
+        outStream.writeInt32(self.graphicsScene.LUTStep)
+        bytes = self.graphicsScene.LUT3DArray.tostring()
         outStream.writeInt32(len(bytes))
         outStream.writeRawData(bytes)
         return outStream
@@ -1059,7 +1061,10 @@ class graphicsForm3DLUT(QGraphicsView) :
     def readFromStream(self, inStream):
         actionName = inStream.readQString()
         name = inStream.readQString()
+        size = inStream.readInt32()
+        self.graphicsScene.LUTsize = size
+        self.graphicsScene.LUTstep = inStream.readInt32()
         len=inStream.readInt32()
         bytes = inStream.readRawData(len)
-        self.graphicsScene.LUT3D = np.fromstring(bytes, dtype=np.uint8)
+        self.graphicsScene.LUT3DArray = np.fromstring(bytes, dtype=int).reshape((size, size, size, 3))
         return inStream

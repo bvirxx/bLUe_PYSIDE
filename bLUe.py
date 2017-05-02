@@ -68,7 +68,7 @@ from MarkedImg import imImage, metadata
 
 from graphicsRGBLUT import graphicsForm
 from graphicsLUT3D import graphicsForm3DLUT
-from LUT3D import LUTSIZE
+from LUT3D import LUTSIZE, LUT3D
 from colorModels import cmHSP, cmHSB
 import icc
 from os import path
@@ -658,6 +658,18 @@ def menuLayer(x, name):
             exec script in safe_dict, locals() #globals(), locals()
             qf.close()
             return
+    elif name == 'actionLoad_3D_LUT' :
+        lastDir = window.settings.value('paths/dlgdir', '.')
+        dlg = QFileDialog(window, "select", lastDir)
+        #dlg.setNameFilter('*.sba')
+        #dlg.setDefaultSuffix('sba')
+        if dlg.exec_():
+            filenames = dlg.selectedFiles()
+            LUT3DArray = LUT3D.readFromTextFile(filenames[0])
+            lname = '3D LUT adhoc'
+            l = window.label.img.addAdjustmentLayer(name=lname)
+            l.apply3DLUT(LUT3DArray, {'use selection':False})
+        return
     else:
         return
     # record action name for scripting
