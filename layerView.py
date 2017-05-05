@@ -43,8 +43,6 @@ class layerModel(QStandardItemModel):
     def flags(self, index):
         return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsDragEnabled | Qt.ItemIsDropEnabled | Qt.ItemIsEditable
 
-
-
 class itemDelegate(QStyledItemDelegate):
     """
     Item painting
@@ -231,13 +229,21 @@ class QLayerView(QTableView) :
         self.addAction(self.actionDup)
         def dup():
             row = self.selectedIndexes()[0].row()
-            layer = self.img.layersStack[-row]
+            #Stack index
+            index = len(self.img.layersStack) - row -1
+            layer = self.img.layersStack[index]
             if hasattr(layer, 'inputImg'):
                 return
-            self.img.dupLayer(index=-row-1)
+            # add new layer to stack and set it to active
+            self.img.dupLayer(index=index)
+            # update layer view
             self.setLayers(self.img)
-            #self.selectRow(row - 1)
-            self.img.setActiveLayer(len(self.img.layersStack) -1 - row)
+            # select the new layer
+            # the 1rst call to setActiveLayer has no effect
+            # when dup is triggered by the shorcut keys
+            # Maybe a Pyside or Qt bug ?
+            #self.img.setActiveLayer(index + 1)
+            #self.img.setActiveLayer(index + 1)
         self.actionDup.triggered.connect(dup)
 
     def mousePressEvent(self, e):
@@ -286,9 +292,17 @@ class QLayerView(QTableView) :
         mImg.layerView = self
         model = layerModel()
         model.setColumnCount(3)
-
-        #self.setModel(model)
         l = len(mImg.layersStack)
+        # row edit event handler
+        def f(index1, index2):
+            #index1 and index2 should be equal
+            # only layer name should be editable
+            if index1.column() != 1:
+                return
+            row = index1.row()
+            stackIndex = l - row - 1
+            mImg.layersStack[stackIndex].name = index1.data()
+        model.dataChanged.connect(f)
 
         for r, lay in enumerate(reversed(mImg.layersStack)):
             items = []
@@ -298,9 +312,12 @@ class QLayerView(QTableView) :
             else:
                 item_visible = QStandardItem(QIcon(":/images/resources/eye-icon-strike.png"), "")
             items.append(item_visible)
-            # col 1 : image icon and name
-            smallImg = lay.resize(200)
-            item_name = QStandardItem(QIcon(QPixmap.fromImage(smallImg)), lay.name)
+            # col 1 : image icon (for non-adjustment layeronly) and name
+            if hasattr(lay, 'inputImg'):
+                item_name = QStandardItem(lay.name)
+            else:
+                smallImg = lay.resize(200)
+                item_name = QStandardItem(QIcon(QPixmap.fromImage(smallImg)), lay.name)
             items.append(item_name)
             item_mask = QStandardItem('M')
             items.append(item_mask)
@@ -316,7 +333,6 @@ class QLayerView(QTableView) :
         header.setResizeMode(2, QHeaderView.ResizeToContents)
         # select active layer
         self.selectRow(len(mImg.layersStack) - 1 - mImg.activeLayerIndex)
-
         self.update()
 
 
@@ -435,7 +451,12 @@ class QLayerView(QTableView) :
         actionMaskDisable = QAction('Disable mask', None)
         actionMaskReset = QAction('Reset mask', None)
         menu.addAction(actionTransparency)
+        # to link actionDup with a shortcut
+        # it must be set in __init__
         menu.addAction(self.actionDup)
+        # don't dup adjustment layers
+        if hasattr(layer, 'inputImg'):
+            self.actionDup.setEnabled(False)
         menu.addAction(actionMerge)
         menu.addAction(actionMaskEnable)
         menu.addAction(actionMaskDisable)
@@ -445,11 +466,9 @@ class QLayerView(QTableView) :
             self.wdgt.show()
         def g(value):
             layer.setOpacity(value)
-        """
-        def dup():
-            self.img.dupLayer(index = len(self.img.layersStack) -1 - index.row())
-            self.setLayers(self.img)
-        """
+        #def dup():
+            #self.img.dupLayer(index = len(self.img.layersStack) -1 - index.row())
+            #self.setLayers(self.img)
         def merge():
             layer.merge_with_layer_immediately_below()
         def maskEnable():

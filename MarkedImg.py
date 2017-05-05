@@ -563,6 +563,8 @@ class mImage(vImage):
         # as updatePixmap uses layersStack, must be before super __init__
         self._layers = {}
         self.layersStack = []
+        # will be set to QTableView reference
+        self.layerView = None
         super(mImage, self).__init__(*args, **kwargs)
         # add background layer
         bgLayer = QLayer.fromImage(self, parentImage=self)
@@ -570,22 +572,28 @@ class mImage(vImage):
         self.activeLayerIndex = None
         self.addLayer(bgLayer, name='background')
         self.isModified = False
-        # will be set to QTableView referenec
-        self.layerView = None
+
+
 
     def getActiveLayer(self):
+        """
+        Returns the currently active layer.
+        @return: The active layer
+        @rtype: QLayer
+        """
         return self.layersStack[self.activeLayerIndex]
 
-    def setActiveLayer(self, value):
+    def setActiveLayer(self, stackIndex):
         """
-        Assigns value to  activeLayerIndex and
-        updates the layer View Form
-        @param value: 
+        Assigns stackIndex value to  activeLayerIndex and
+        updates the layer View.
+        @param stackIndex: index in stack for the layer to select
+        @type stackIndex: int
         @return: 
         """
-        self.activeLayerIndex = value
-        if hasattr(self, 'layerView'):
-            self.layerView.selectRow(len(self.layersStack) - 1 - value)
+        self.activeLayerIndex = stackIndex
+        if self.layerView is not None:
+            self.layerView.selectRow(len(self.layersStack) - 1 - stackIndex)
 
     def getActivePixel(self,x, y):
         """
