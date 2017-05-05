@@ -143,10 +143,7 @@ class QLayerView(QTableView) :
         def m(state): # Qt.Checked Qt.UnChecked
             if self.img is None:
                 return
-            if state == Qt.Checked:
-                self.img.useThumb = True
-            else:
-                self.img.useThumb = False
+            self.img.useThumb = (state == Qt.Checked)
             QtGui1.window.updateStatus()
             self.img.cacheInvalidate()
             if not self.img.useThumb:
@@ -157,6 +154,7 @@ class QLayerView(QTableView) :
                 info.setText('Updating all layers.....Please wait')
                 info.show()
             QtGui1.app.processEvents()
+            # update stack
             self.img.layersStack[0].applyToStack()
             QtGui1.window.label.repaint()
             QtGui1.app.processEvents()

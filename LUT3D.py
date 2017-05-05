@@ -15,14 +15,19 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+import multiprocessing
+from time import time
 
 import numpy as np
 from PySide.QtCore import QDataStream, QFile, QIODevice, QTextStream
+from PySide.QtGui import QImage
+
 
 from cartesian import cartesianProduct
 
 
 # 3D LUT init.
+from imgconvert import QImageBuffer
 
 """
 Each axis of the LUT has length LUTSIZE.
@@ -31,11 +36,7 @@ r,g,b values are between 0 and 256.
 LUTSIZE = 17
 LUTSIZE = 33
 LUTSTEP = 256 / (LUTSIZE - 1)
-a = np.arange(LUTSIZE)
-LUT3D_ORI = cartesianProduct((a,a,a)) * LUTSTEP
-a,b,c,d = LUT3D_ORI.shape
-LUT3D_SHADOW = np.zeros((a,b,c,d+1))
-LUT3D_SHADOW[:,:,:,:3] = LUT3D_ORI
+
 
 """
 v = QVector3D(1.0,1.0,1.0) * 256.0 / 3.0
@@ -76,7 +77,7 @@ Perc_B=1.0/3.0
 """
 class LUT3D (object):
     """
-    Implements 3D LUT. Size must be 2**n.
+    Implements 3D LUT. Size must be 2**n + 1.
     Array shape should be (size, size, size, 3)
     """
     def __init__(self, LUT3DArray, size=LUTSIZE):
@@ -88,6 +89,39 @@ class LUT3D (object):
         # for convenience
         self.step = 256 / (size - 1)
         self.contrast = lambda p : p #np.power(p,1.2)
+
+    def LUT2HaldImage(self):
+        from MarkedImg import imImage
+        s1 = self.size
+        s2 = (self.size - 1)
+        p = int(np.log2(s2))
+        s3 = s2 / p
+        buf = self.LUT3DArray[:s1,:s1,:s1,:]
+        buf.reshape(((s2, s3)))
+        return imImage(cv2Img=buf)
+
+    @classmethod
+    def HaldImage2LUT3D(cls, hald, size):
+        buf = QImageBuffer(hald)
+        buf = buf[:,:,:3][:,:,::-1]
+        buf = buf.reshape((size-1, size-1, size-1, 3))
+        LUT = np.zeros((size, size, size, 3), dtype=int)+256
+        LUT[:size-1, :size-1,:size-1, :] = buf
+        return LUT3D(LUT)
+
+    def identHaldImage(self):
+        from MarkedImg import imImage
+        s1 = self.size
+        s2 = (self.size - 1)**3
+        p = int(np.log2(s2)) / 2
+        s3 = 2**p
+        s4 = s2 / s3
+        buf = np.zeros((s4,s3,4)) + 255
+        buf[:,:,:3] = LUT3D_ORI[:s1-1, :s1-1, :s1-1, :].reshape((s4,s3,3))[:,:,::-1]
+        buf = buf.astype(np.uint8)
+        #img = imImage(cv2Img=buf)
+        #testbuf = QImageBuffer(img)
+        return buf #imImage(cv2Img=buf)
 
     @classmethod
     def readFromTextStream(self, inStream):
@@ -112,10 +146,39 @@ class LUT3D (object):
         qf.open(QIODevice.ReadOnly)
         textStream = QTextStream(qf)
         LUT3DArray = self.readFromTextStream(textStream)
+        qf.close()
         LUT3DArray = LUT3DArray *255.0
         LUT3DArray = LUT3DArray.astype(int)
         LUT3DArray = LUT3DArray.transpose(2,1,0, 3)
         return LUT3DArray
+
+    @classmethod
+    def readFromHaldFile(self, filename):
+        img = QImage(filename)
+        buf = QImageBuffer(img)[:,:,:3][:,:,::-1]
+        LUT = LUT3DFromFactory()
+        s = LUT.size
+        buf = buf.reshape(s-1, s-1,s-1,3)
+        LUT.LUT3DArray[:s-1,:s-1,:s-1] = buf
+        return LUT.LUT3DArray
+
+    def writeToTextStream(self, outStream):
+        LUT=self.LUT3DArray
+        outStream << ('bLUe 3D LUT')<<'\n'
+        outStream << ('Size %d' % self.size)<<'\n'
+        for b in xrange(self.size):
+            for g in xrange(self.size):
+                for r in xrange(self.size):
+                    r1, g1, b1 = LUT[r, g, b]
+                    outStream << ("%.7f %.7f %.7f" % (r1 / 256.0, g1 / 256.0, b1 / 256.0)) << '\n'
+
+    def writeToTextFile(self, filename):
+        qf = QFile(filename)
+        qf.open(QIODevice.WriteOnly)
+        textStream = QTextStream(qf)
+        self.writeToTextStream(textStream)
+        qf.close()
+
 
 
 def LUT3DFromFactory(size=LUTSIZE):
@@ -137,6 +200,13 @@ def LUT3DFromFactory(size=LUTSIZE):
     a = np.arange(size)
     return LUT3D(cartesianProduct((a, a, a)) * step, size=size)
 
+a = np.arange(LUTSIZE)
+#LUT3D_ORI = cartesianProduct((a,a,a)) * LUTSTEP
+LUT3DIdentity = LUT3DFromFactory()
+LUT3D_ORI = LUT3DIdentity.LUT3DArray
+a,b,c,d = LUT3D_ORI.shape
+LUT3D_SHADOW = np.zeros((a,b,c,d+1))
+LUT3D_SHADOW[:,:,:,:3] = LUT3D_ORI
 def redistribute_rgb(r, g, b):
     """
      To keep the hue, we want to maintain the ratio of (middle-lowest)/(highest-lowest).
@@ -643,7 +713,7 @@ def interpVec(LUT, ndImg):
     """
 
     # bounding unit cube coordinates for (r, g, b)/LUTSTEP
-    ndImgF = ndImg/float(LUTSTEP)
+    ndImgF = ndImg / float(LUTSTEP)
     a=np.floor(ndImgF).astype(int)
     aplus1 = a + 1
 
@@ -651,8 +721,50 @@ def interpVec(LUT, ndImg):
     # RGB channels
     r0, g0, b0 = a[:,:,0], a[:,:,1], a[:,:,2]
     r1, g1, b1 = aplus1[:,:,0], aplus1[:,:,1], aplus1[:,:,2]
+    ##############
+    """
+    r = np.dstack((r0,r1,r0,r1,r0,r1,r0,r1))
+    g = np.dstack((g0,g0,g1,g1,g0,g0,g1,g1))
+    b = np.dstack((b0,b0,b0,b0,b1,b1,b1,b1))
 
+    T = LUT[r, g, b]
+    #########################
+   
+    SLUT = np.vstack((LUT,)*2)
+
+    T0, T1, T2, T3 = np.dstack((r0, g0, b0)),np.dstack((r1, g0, b0)) , np.dstack((r0,g1,b0)), np.dstack((r1,g1,b0))
+    T4, T5, T6, T7 = np.dstack((r0,g0,b1)), np.dstack((r1,g0,b1)), np.dstack((r0,g1,b1)), np.dstack((r1,g1,b1))
+
+    VTX = np.vstack((T0, T1))#, T2, T3, T4))#, T5, T6, T7) )
+
+    res = SLUT[VTX]
+
+    """
+
+    ##########################
     #apply LUT to cube vertices
+    #r = np.dstack((r0, r1))
+    #T = LUT[r, g0[...,np.newaxis], b0[...,np.newaxis]]
+    #ndImg00 = T[:,:,0,:]
+    #ndImg01 = T[:, :, 1, :]
+    """
+    def apLUT(value):
+        return LUT[value[0], value[1], value[2]]
+    t =time()
+    def mp_handler():
+        print 'done'
+        pool = multiprocessing.Pool(processes=2)
+        res = pool.map(apLUT, [(r0, g0, b0), (r1, g0, b0), (r0, g1, b0), (r1, g1, b0), (r0, g0, b1) , (r1, g0, b1), (r0, g1, b1), (r1, g1, b1) ], 1)
+
+        pool.close()
+        pool.join()
+
+        return res
+
+    res = mp_handler()
+    print 'time', time() -t
+    """
+
     ndImg00 = LUT[r0, g0, b0]
     ndImg01 = LUT[r1, g0, b0]
     ndImg02 = LUT[r0, g1, b0]
@@ -663,17 +775,16 @@ def interpVec(LUT, ndImg):
     ndImg12 = LUT[r0, g1, b1]
     ndImg13 = LUT[r1, g1, b1]
 
-
     # interpolate
     alpha =  ndImgF[:,:,1] - g0
     alpha=np.dstack((alpha, alpha, alpha))
     #alpha = alpha[..., np.newaxis]  slower !
-    oneMinusAlpha = 1 - alpha
+    #oneMinusAlpha = 1 - alpha
 
-    I11Value = oneMinusAlpha * ndImg11 + alpha * ndImg13
-    I12Value = oneMinusAlpha * ndImg10 + alpha * ndImg12
-    I21Value = oneMinusAlpha * ndImg01 + alpha * ndImg03
-    I22Value = oneMinusAlpha * ndImg00 + alpha * ndImg02
+    I11Value = ndImg11 + alpha * (ndImg13 - ndImg11)  #oneMinusAlpha * ndImg11 + alpha * ndImg13
+    I12Value = ndImg10 + alpha * (ndImg12 - ndImg10)  #oneMinusAlpha * ndImg10 + alpha * ndImg12
+    I21Value = ndImg01 + alpha * (ndImg03 - ndImg01)  #oneMinusAlpha * ndImg01 + alpha * ndImg03
+    I22Value = ndImg00 + alpha * (ndImg02 - ndImg00)  # oneMinusAlpha * ndImg00 + alpha * ndImg02
     """
     I11Value = ndImg11 + alpha * (ndImg13 - ndImg11)
     I12Value = ndImg10 + alpha * (ndImg12 - ndImg10)
@@ -683,9 +794,9 @@ def interpVec(LUT, ndImg):
     beta = ndImgF[:,:,0] - r0
     beta = np.dstack((beta, beta, beta))
     #beta = beta[..., np.newaxis] slower !
-    oneMinusBeta = 1 - beta
-    I1Value = oneMinusBeta * I12Value + beta * I11Value
-    I2Value = oneMinusBeta * I22Value + beta * I21Value
+    #oneMinusBeta = 1 - beta
+    I1Value = I12Value + beta * (I11Value - I12Value) #oneMinusBeta * I12Value + beta * I11Value
+    I2Value = I22Value + beta * (I21Value - I22Value) #oneMinusBeta * I22Value + beta * I21Value
 
     #I1Value = oneMinusBeta * oneMinusAlpha * ndImg10 + oneMinusBeta * alpha * ndImg12 + beta * oneMinusAlpha * ndImg11 + beta * alpha * ndImg13
     #I2Value = oneMinusBeta * oneMinusAlpha * ndImg00 + oneMinusBeta * alpha * ndImg02 + beta * oneMinusAlpha * ndImg01 + beta * alpha * ndImg03
@@ -693,7 +804,7 @@ def interpVec(LUT, ndImg):
     gamma = ndImgF[:,:,2] - b0
     gamma = np.dstack((gamma, gamma, gamma))
     #gamma = gamma[..., np.newaxis] slower !
-    IValue = (1 - gamma) * I2Value + gamma * I1Value
+    IValue =  I2Value + gamma * (I1Value - I2Value)  #(1 - gamma) * I2Value + gamma * I1Value
 
     return IValue
 

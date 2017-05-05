@@ -331,11 +331,18 @@ scr</string>
      </property>
      <addaction name="actionSub"/>
     </widget>
+    <widget class="QMenu" name="menuOpen_hald">
+     <property name="title">
+      <string>Open hald</string>
+     </property>
+     <addaction name="actionHald_from_file"/>
+     <addaction name="actionHald_identity"/>
+    </widget>
     <addaction name="actionOpen"/>
     <addaction name="actionSave"/>
     <addaction name="menuOpen_recent"/>
     <addaction name="actionClose"/>
-    <addaction name="actionOpen_in_stack"/>
+    <addaction name="menuOpen_hald"/>
    </widget>
    <widget class="QMenu" name="menuWindow">
     <property name="title">
@@ -553,11 +560,6 @@ scr</string>
     <string>Filter</string>
    </property>
   </action>
-  <action name="actionOpen_in_stack">
-   <property name="text">
-    <string>Open in stack</string>
-   </property>
-  </action>
   <action name="actionSave_Layer_Stack">
    <property name="text">
     <string>Save Layer Stack</string>
@@ -571,6 +573,16 @@ scr</string>
   <action name="actionLoad_3D_LUT">
    <property name="text">
     <string>Load 3D LUT</string>
+   </property>
+  </action>
+  <action name="actionHald_from_file">
+   <property name="text">
+    <string>from file</string>
+   </property>
+  </action>
+  <action name="actionHald_identity">
+   <property name="text">
+    <string>identity</string>
    </property>
   </action>
  </widget>

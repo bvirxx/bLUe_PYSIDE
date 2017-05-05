@@ -370,7 +370,7 @@ class vImage(QImage):
         """
         Applies 3D LUT to the image
         @param LUT: LUT3D array (see module LUT3D.py)
-        @type LUT: 3d numpy array, dtype = np.uint8
+        @type LUT: 3d numpy array, dtype = int
         @param options: dict of string:boolean records
         @type options: dictionary
         """
@@ -391,7 +391,7 @@ class vImage(QImage):
         #ndImg1 = QImageBuffer(self)[:, :, :3]
         inputImage = self.inputImgFull().getCurrentImage()
         currentImage = self.getCurrentImage()
-        ndImg0 = QImageBuffer(inputImage)[:, :, :3]
+        ndImg0 = QImageBuffer(inputImage)[h1:h2+1, w1:w2+1, :3]
         ndImg1 = QImageBuffer(currentImage)[:, :, :3]
 
         # apply LUT
@@ -399,9 +399,7 @@ class vImage(QImage):
         #ndImg1[h1+1:h2+1,w1+1:w2+1,:] = interpVec(LUT, ndImg0)
         ndImg1[h1:h2 + 1, w1:w2 + 1, :] = interpVec(LUT, ndImg0)
         end=time()
-
-        print 'time %.2f' % (end-start)
-
+        print 'Apply3DLUT time %.2f' % (end-start)
         self.updatePixmap()
 
     def histogram(self, size=200, bgColor=Qt.white, range =(0,255), chans=channelValues.RGB, chanColors=Qt.gray, mode='RGB'):
@@ -681,7 +679,8 @@ class mImage(vImage):
         # adjust active layer only
         layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
         # dynamic typing for adjustment layer
-        layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].thumb if layer.parentImage.useThumb else self.layersStack[layer.getLowerVisibleStackIndex()]
+        #layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].thumb if layer.parentImage.useThumb else self.layersStack[layer.getLowerVisibleStackIndex()]
+        layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getCurrentImage()
         layer.inputImgFull = lambda: self.layersStack[layer.getLowerVisibleStackIndex()]
         self.addLayer(layer, name=name, index=index + 1)
         #layer.view = None

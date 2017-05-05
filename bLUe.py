@@ -68,7 +68,7 @@ from MarkedImg import imImage, metadata
 
 from graphicsRGBLUT import graphicsForm
 from graphicsLUT3D import graphicsForm3DLUT
-from LUT3D import LUTSIZE, LUT3D
+from LUT3D import LUTSIZE, LUT3D, LUT3D_ORI, LUT3DIdentity
 from colorModels import cmHSP, cmHSB
 import icc
 from os import path
@@ -374,6 +374,9 @@ def openFile(f):
     img = loadImageFromFile(f)
     if img is None:
         return
+    setDocumentImage(img)
+
+def setDocumentImage(img):
     window.label.img =  img
     window.label.img.onModify = lambda : updateEnabledActions()
     window.label.img.onImageChanged = window.label.repaint
@@ -405,6 +408,12 @@ def menuFile(x, name):
     @param name: action name
     """
     def openDlg():
+        if window.label.img.isModified:
+            ret = savingDialog(window.label.img)
+            if ret == QMessageBox.Yes:
+                save(window.label.img)
+            elif ret == QMessageBox.Cancel:
+                return
         lastDir = window.settings.value('paths/dlgdir', '.')
         dlg = QFileDialog(window, "select", lastDir)
         if dlg.exec_():
@@ -425,15 +434,7 @@ def menuFile(x, name):
     window._recentFiles = window.settings.value('paths/recent', [])
     # update menu and actions
     updateMenuOpenRecent()
-
-    if name == 'actionOpen' :
-        # save dialog
-        if window.label.img.isModified:
-            ret = savingDialog(window.label.img)
-            if ret == QMessageBox.Yes:
-                save(window.label.img)
-            elif ret == QMessageBox.Cancel:
-                return
+    if name in ['actionOpen', 'actionHald_from_file'] :
         # open dialog
         filename = openDlg()
         if filename is not None:
@@ -458,6 +459,13 @@ def menuFile(x, name):
         #print 'ref', r()
         window.label.repaint()
         window.label_2.repaint()
+    elif name == 'actionHald_identity':
+        buf = LUT3DIdentity.identHaldImage()
+        img = imImage(cv2Img=buf)
+        setDocumentImage(img)
+        LUT = LUT3D.HaldImage2LUT3D(img, 33)
+        LUT.writeToTextFile('toto')
+
     updateEnabledActions()
     updateStatus()
 
@@ -665,9 +673,14 @@ def menuLayer(x, name):
         #dlg.setDefaultSuffix('sba')
         if dlg.exec_():
             filenames = dlg.selectedFiles()
-            LUT3DArray = LUT3D.readFromTextFile(filenames[0])
-            lname = '3D LUT adhoc'
+            name = filenames[0]
+            if name[-4:] == '.png':
+                LUT3DArray = LUT3D.readFromHaldFile(name)
+            else :
+                LUT3DArray = LUT3D.readFromTextFile(name)
+            lname = path.basename(name)
             l = window.label.img.addAdjustmentLayer(name=lname)
+            window.tableView.setLayers(window.label.img)
             l.apply3DLUT(LUT3DArray, {'use selection':False})
         return
     else:
@@ -786,18 +799,18 @@ def save(img):
             reply.setStandardButtons(QMessageBox.No | QMessageBox.Yes | QMessageBox.Cancel)
             reply.setDefaultButton(QMessageBox.Yes)
             ret = reply.exec_()
-        if ret == QMessageBox.Cancel:
-            return False
-        elif ret == QMessageBox.Yes:
-            i = 0
-            base = filename
-            if '_copy' in base:
-                flag = '_'
-            else:
-                flag = '_copy'
-            while isfile(filename):
-                filename = base[:-4] + flag + str(i) + base[-4:]
-                i = i+1
+            if ret == QMessageBox.Cancel:
+                return False
+            elif ret == QMessageBox.Yes:
+                i = 0
+                base = filename
+                if '_copy' in base:
+                    flag = '_'
+                else:
+                    flag = '_copy'
+                while isfile(filename):
+                    filename = base[:-4] + flag + str(i) + base[-4:]
+                    i = i+1
         #img = window.label.img
         # quality range 0..100
         # Note : class vImage overrides QImage.save()
@@ -834,7 +847,6 @@ def updateStatus():
 ###########
 # app init
 ##########
-
 # help Window
 helpWindow=None
 
