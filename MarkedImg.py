@@ -573,8 +573,6 @@ class mImage(vImage):
         self.addLayer(bgLayer, name='background')
         self.isModified = False
 
-
-
     def getActiveLayer(self):
         """
         Returns the currently active layer.
@@ -724,6 +722,23 @@ class mImage(vImage):
         layer1 = QLayer.fromImage(layer0, parentImage=self)
         self.addLayer(layer1, name=layer0.name, index=index+1)
 
+    def mergeVisibleLayers(self):
+        """
+        Merges visible layers
+        @return: image
+        @rtype: QImage
+        """
+        img = QImage(self.width(), self.height(), self.format())
+        img.fill(QColor(0, 0, 0, 0))
+        qp = QPainter(img)
+        for layer in self.layersStack:
+            if layer.visible:
+                qp.setOpacity(layer.opacity)
+                qp.setCompositionMode(layer.compositionMode)
+                qp.drawImage(0, 0, layer)
+        qp.end()
+        return img
+
     def save(self, filename, quality=-1):
         """
         builds the resulting image from visible layers
@@ -732,7 +747,7 @@ class mImage(vImage):
         @param quality: interger value in range 0..100
         @return: True if image is saved, False otherwise
         """
-
+        """
         img = QImage(self.width(), self.height(), self.format())
         img.fill(QColor(0,0,0,0))
         qp = QPainter(img)
@@ -742,6 +757,8 @@ class mImage(vImage):
                 qp.setCompositionMode(layer.compositionMode)
                 qp.drawImage(0,0, layer)
         qp.end()
+        """
+        img = self.mergeVisibleLayers()
         # save to file
         imgWriter = QImageWriter(filename)
         imgWriter.setQuality(quality)

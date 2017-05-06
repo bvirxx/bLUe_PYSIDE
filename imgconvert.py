@@ -52,9 +52,9 @@ def QImageBuffer(qimg):
     3rd axis depends on the image type. Pixel color is
     in BGRA order (little endian arch. (intel)) or ARGB (big  endian arch.)
     Format 1 bit per pixel is not supported
-    @rtype: numpy.ndarray
     @param qimg: QImage
     @return: The buffer array
+    @rtype: numpy.ndarray, shape = (h,w, bytes_per_pixel)
     """
     # pixel depth
     bpp = qimg.depth()

@@ -77,8 +77,9 @@ Perc_B=1.0/3.0
 """
 class LUT3D (object):
     """
-    Implements 3D LUT. Size must be 2**n + 1.
-    Array shape should be (size, size, size, 3)
+    Implements 3D LUT. Size should be be 2**n + 1,
+    array shape (size, size, size, 3) and array values 
+    positive integers in range 00..255
     """
     def __init__(self, LUT3DArray, size=LUTSIZE):
         # consistency check
@@ -101,27 +102,47 @@ class LUT3D (object):
         return imImage(cv2Img=buf)
 
     @classmethod
-    def HaldImage2LUT3D(cls, hald, size):
+    def HaldImage2LUT3D(cls, hald, size=LUTSIZE):
+        """
+        Converts a hald image to a 3D LUT.
+        @param hald: image
+        @type hald: QImage
+        @param size: LUT size
+        @type size: int
+        @return: 3D LUT
+        @rtype: LUT3D object
+        """
         buf = QImageBuffer(hald)
-        buf = buf[:,:,:3][:,:,::-1]
+        buf = buf[:,:,:3].ravel()
+        count = ((size - 1) ** 3) * 3
+        buf = buf[:count]
         buf = buf.reshape((size-1, size-1, size-1, 3))
         LUT = np.zeros((size, size, size, 3), dtype=int)+256
-        LUT[:size-1, :size-1,:size-1, :] = buf
-        return LUT3D(LUT)
+        LUT[:size-1, :size-1,:size-1, :] = buf[:,:,:,::-1]
+        return LUT3D(LUT, size=size)
 
-    def identHaldImage(self):
-        from MarkedImg import imImage
-        s1 = self.size
-        s2 = (self.size - 1)**3
-        p = int(np.log2(s2)) / 2
-        s3 = 2**p
-        s4 = s2 / s3
-        buf = np.zeros((s4,s3,4)) + 255
-        buf[:,:,:3] = LUT3D_ORI[:s1-1, :s1-1, :s1-1, :].reshape((s4,s3,3))[:,:,::-1]
-        buf = buf.astype(np.uint8)
-        #img = imImage(cv2Img=buf)
-        #testbuf = QImageBuffer(img)
-        return buf #imImage(cv2Img=buf)
+    def identHaldImage(self, w, h):
+        """
+        Builds a numpy array whose (self.size-1)**3 *3 first bytes are
+        
+        [(b*step, g*step, r*step) for r in range(self.size-1) for g in range(self.size-1) for b in range(self.size-1)]
+        
+       The remainings bytes are padding, set to 0.
+       
+        Note that the buffer is in BGR order, suitable for conversion to a QImage and that 
+        the b value increases fastest (i.e. from a byte to the next). 
+        @param w: image width
+        @type w: int
+        @param h: image height
+        @type h: int
+        @return: numpy array shape=(h,w,3), dtype=np.uint8
+        """
+        buf = np.zeros((w*h*3), dtype = np.uint8) # + 255
+        s = self.size - 1
+        count = (s**3) *3
+        buf[:count] = LUT3D_ORI[:s,:s,:s,::-1].ravel()
+        buf = buf.reshape(h, w, 3)
+        return buf
 
     @classmethod
     def readFromTextStream(self, inStream):
@@ -189,7 +210,7 @@ def LUT3DFromFactory(size=LUTSIZE):
     distributed in the range 0..256 (edges inclusive) :
     let step = 256 / (size - 1), then
     LUT3DArray(i, j, k) = (i*step, j*step, k*step).
-    Note that, with these initialization, trilinear interpolation boils down to identity :
+    Note that, with these initial values, trilinear interpolation boils down to identity :
     for all i,j,k in the range 0..256,
     trilinear(i//step, j//step, k//step) = (i,j,k).
     @param size: integer value (should be 2**n+1)

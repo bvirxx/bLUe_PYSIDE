@@ -377,6 +377,12 @@ def openFile(f):
     setDocumentImage(img)
 
 def setDocumentImage(img):
+    """
+    display img
+    @param img: image
+    @type img: imImage
+    @return: 
+    """
     window.label.img =  img
     window.label.img.onModify = lambda : updateEnabledActions()
     window.label.img.onImageChanged = window.label.repaint
@@ -460,12 +466,16 @@ def menuFile(x, name):
         window.label.repaint()
         window.label_2.repaint()
     elif name == 'actionHald_identity':
-        buf = LUT3DIdentity.identHaldImage()
-        img = imImage(cv2Img=buf)
-        setDocumentImage(img)
-        LUT = LUT3D.HaldImage2LUT3D(img, 33)
+        doc = window.label.img
+        buf = LUT3DIdentity.identHaldImage(doc.width(), doc.height())
+        layer = doc.layersStack[0]
+        docBuf = QImageBuffer(layer)
+        docBuf[:,:,:3] = buf
+        layer.applyToStack()
+        window.label.repaint()
+        img = doc.mergeVisibleLayers()
+        LUT = LUT3D.HaldImage2LUT3D(img, size=33)
         LUT.writeToTextFile('toto')
-
     updateEnabledActions()
     updateStatus()
 
@@ -562,10 +572,8 @@ def menuLayer(x, name):
         # redimensionable window
         grWindow.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
         # Curve change event handler
+        # Apply current LUT and repaint window
         def f():
-            """
-            Apply current LUT and repaint window
-            """
             l.execute()
             #l.applyToStack()
             #l.applyLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
