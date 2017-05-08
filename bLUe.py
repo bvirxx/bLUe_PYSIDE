@@ -406,6 +406,7 @@ def updateMenuOpenRecent():
 
 def updateEnabledActions():
     window.actionSave.setEnabled(window.label.img.isModified)
+    window.actionSave_Hald_Cube.setEnabled(window.label.img.isHald)
 
 def menuFile(x, name):
     """
@@ -466,16 +467,41 @@ def menuFile(x, name):
         window.label.repaint()
         window.label_2.repaint()
     elif name == 'actionHald_identity':
+        #doc = window.label.img
+        img = QImage(LUTSIZE, LUTSIZE**2, QImage.Format_ARGB32)
+        buf = QImageBuffer(img)
+        buf[:,:,:3] = LUT3DIdentity.getHaldImage(LUTSIZE, LUTSIZE**2)
+        img1 = imImage(QImg=img)
+        img1.initThumb()
+        setDocumentImage(img1)
+        img1.isHald = True
+    elif name == 'actionSave_Hald_Cube':
+        # apply stack
         doc = window.label.img
-        buf = LUT3DIdentity.identHaldImage(doc.width(), doc.height())
-        layer = doc.layersStack[0]
-        docBuf = QImageBuffer(layer)
-        docBuf[:,:,:3] = buf
-        layer.applyToStack()
+        if not doc.isHald:
+            return
+        doc.layersStack[0].applyToStack()
         window.label.repaint()
+        # get resulting image
         img = doc.mergeVisibleLayers()
+        # convert image to LUT3D object
+        LUT = LUT3D.HaldImage2LUT3D(img, size=33)
+        # open file and save
+        lastDir = window.settings.value('paths/dlgdir', '.')
+        dlg = QFileDialog(window, "select", lastDir)
+        dlg.setNameFilter('*.cube')
+        dlg.setDefaultSuffix('cube')
+        if dlg.exec_():
+            filenames = dlg.selectedFiles()
+            newDir = dlg.directory().absolutePath()
+            window.settings.setValue('paths/dlgdir', newDir)
+            LUT.writeToTextFile(filenames[0])
+        """
+        img = doc.mergeVisibleLayers()
+        # convert image to LUT3D object
         LUT = LUT3D.HaldImage2LUT3D(img, size=33)
         LUT.writeToTextFile('toto')
+        """
     updateEnabledActions()
     updateStatus()
 
@@ -539,18 +565,20 @@ def menuImage(x, name) :
         s = s + '\nBoth profles are used in conjunction to display exact colors'
         s = s + '\n\nIf the monitor profile listed above is not the right profile\nfor your monitor, check the system settings for color management'
         label.setText(s)
+    # snapshot
     elif name == 'actionSnap':
         snap = img.snapshot()
+        # keep zoom and offset
         snap.setView(*window.label_2.img.view())
         window.label_2.img = snap
         window.label_2.repaint()
-
 
 def menuLayer(x, name):
     """
 
     @param x: dummy
     @param name: action name
+    @type name: str
     """
     # curves
     axeSize = 200
@@ -617,35 +645,35 @@ def menuLayer(x, name):
         l.view = segmentForm.getNewWindow(targetImage=window.label.img)
         #window.tableView.update()
         # TODO continue
-    elif name in ['actionColor_Temperature', 'actionFilter']:
-        if name == 'actionColor_Temperature':
-            lname = 'Color Temperature'
-            l = window.label.img.addAdjustmentLayer(name=lname)
-            grWindow = temperatureForm.getNewWindow(size=axeSize, targetImage=window.label.img, layer=l, parent=window)
-            # temperature change event handler
-            def h(temperature):
-                l.temperature = temperature
-                l.applyToStack()
-                window.label.repaint()
-            grWindow.onUpdateTemperature = h
-            # wrapper for the right apply method
-            l.execute = lambda: l.applyTemperature(l.temperature, grWindow.options)
-            # l.execute = lambda: l.applyLab1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
-        elif name == 'actionFilter':
-            lname = 'Filter'
-            l = window.label.img.addAdjustmentLayer(name=lname)
-            grWindow = filterForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window)
-            # temperature change event handler
-            def h(category, radius, amount):
-                l.kernelCategory = category
-                l.radius = radius
-                l.amount = amount
-                l.applyToStack()
-                window.label.repaint()
-            grWindow.onUpdateFilter = h
-            # wrapper for the right apply method
-            l.execute = lambda: l.applyFilter2D()
-            # l.execute = lambda: l.applyLab1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
+    # Temperature
+    elif name == 'actionColor_Temperature':
+        lname = 'Color Temperature'
+        l = window.label.img.addAdjustmentLayer(name=lname)
+        grWindow = temperatureForm.getNewWindow(size=axeSize, targetImage=window.label.img, layer=l, parent=window)
+        # temperature change event handler
+        def h(temperature):
+            l.temperature = temperature
+            l.applyToStack()
+            window.label.repaint()
+        grWindow.onUpdateTemperature = h
+        # wrapper for the right apply method
+        l.execute = lambda: l.applyTemperature(l.temperature, grWindow.options)
+        # l.execute = lambda: l.applyLab1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
+    elif name == 'actionFilter':
+        lname = 'Filter'
+        l = window.label.img.addAdjustmentLayer(name=lname)
+        grWindow = filterForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window)
+        # temperature change event handler
+        def h(category, radius, amount):
+            l.kernelCategory = category
+            l.radius = radius
+            l.amount = amount
+            l.applyToStack()
+            window.label.repaint()
+        grWindow.onUpdateFilter = h
+        # wrapper for the right apply method
+        l.execute = lambda: l.applyFilter2D()
+        # l.execute = lambda: l.applyLab1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
     elif name == 'actionSave_Layer_Stack':
         lastDir = window.settings.value('paths/dlgdir', '.')
         dlg = QFileDialog(window, "select", lastDir)
@@ -674,22 +702,61 @@ def menuLayer(x, name):
             exec script in safe_dict, locals() #globals(), locals()
             qf.close()
             return
+    # adjustment layer from .cube file
     elif name == 'actionLoad_3D_LUT' :
         lastDir = window.settings.value('paths/dlgdir', '.')
         dlg = QFileDialog(window, "select", lastDir)
-        #dlg.setNameFilter('*.sba')
-        #dlg.setDefaultSuffix('sba')
+        dlg.setNameFilter('*.cube')
+        dlg.setDefaultSuffix('cube')
         if dlg.exec_():
+            newDir = dlg.directory().absolutePath()
+            window.settings.setValue('paths/dlgdir', newDir)
             filenames = dlg.selectedFiles()
             name = filenames[0]
+            """
             if name[-4:] == '.png':
                 LUT3DArray = LUT3D.readFromHaldFile(name)
             else :
-                LUT3DArray = LUT3D.readFromTextFile(name)
+            """
+            try:
+                LUT3DArray, size = LUT3D.readFromTextFile(name)
+            except (ValueError, IOError) as e:
+                reply = QMessageBox()
+                reply.setText('Unable to load 3D LUT')
+                reply.setInformativeText(str(e))
+                reply.setStandardButtons(QMessageBox.Ok)
+                ret = reply.exec_()
+                return
             lname = path.basename(name)
             l = window.label.img.addAdjustmentLayer(name=lname)
+            l.execute = lambda: l.apply3DLUT(LUT3DArray, {'use selection': False})
             window.tableView.setLayers(window.label.img)
-            l.apply3DLUT(LUT3DArray, {'use selection':False})
+            l.applyToStack()
+            #l.apply3DLUT(LUT3DArray, {'use selection':False})
+        return
+    elif name == 'actionSave_Layer_Stack_as_LUT_Cube':
+        doc = window.label.img
+        buf = LUT3DIdentity.getHaldImage(doc.width(), doc.height())
+        layer = doc.layersStack[0]
+        docBuf = QImageBuffer(layer)
+        docBuf[:, :, :3] = buf
+        layer.applyToStack()
+        window.label.repaint()
+        img = doc.mergeVisibleLayers()
+        # convert image to LUT3D object
+        LUT = LUT3D.HaldImage2LUT3D(img, size=33)
+        # open file and save
+        lastDir = window.settings.value('paths/dlgdir', '.')
+        dlg = QFileDialog(window, "select", lastDir)
+        dlg.setNameFilter('*.cube')
+        dlg.setDefaultSuffix('cube')
+        if dlg.exec_():
+            newDir = dlg.directory().absolutePath()
+            window.settings.setValue('paths/dlgdir', newDir)
+            filenames = dlg.selectedFiles()
+            newDir = dlg.directory().absolutePath()
+            window.settings.setValue('paths/dlgdir', newDir)
+            LUT.writeToTextFile(filenames[0])
         return
     else:
         return
@@ -788,6 +855,8 @@ def save(img):
     dlg = QFileDialog(window, "Save", lastDir)
     dlg.selectFile(img.filename)
     if dlg.exec_():
+        newDir = dlg.directory().absolutePath()
+        window.settings.setValue('paths/dlgdir', newDir)
         filenames = dlg.selectedFiles()
         if filenames:
             filename = filenames[0]

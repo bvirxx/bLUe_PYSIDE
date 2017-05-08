@@ -16,7 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-from PySide.QtCore import QRectF
+from PySide.QtCore import QRectF, QSize
 from PySide.QtGui import QAction, QMenu, QSlider, QImage, QStyle, QPalette, QColor, QListWidget, QCheckBox, QMessageBox, \
     QApplication, QKeySequence
 from PySide.QtGui import QBrush
@@ -110,7 +110,7 @@ class QLayerView(QTableView) :
         ic2.invertPixels()
         delegate.inv_px1 = QPixmap.fromImage(ic1)
         delegate.inv_px2 = QPixmap.fromImage(ic2)
-
+        self.setIconSize(QSize(20,15))
 
         """
         self.verticalHeader().setMovable(True)
@@ -313,11 +313,23 @@ class QLayerView(QTableView) :
                 item_visible = QStandardItem(QIcon(":/images/resources/eye-icon-strike.png"), "")
             items.append(item_visible)
             # col 1 : image icon (for non-adjustment layeronly) and name
-            if hasattr(lay, 'inputImg'):
-                item_name = QStandardItem(lay.name)
+            if len(lay.name) <= 12:
+                name = lay.name
             else:
-                smallImg = lay.resize(200)
-                item_name = QStandardItem(QIcon(QPixmap.fromImage(smallImg)), lay.name)
+                name = lay.name[:10] + '...'
+            if hasattr(lay, 'inputImg'):
+                item_name = QStandardItem(name)
+            else:
+                smallImg = lay#.resize(50**3)
+                # icon with very small dim causes QPainter error
+                # QPixmap.fromImage bug ?
+                w,h = smallImg.width(), smallImg.height()
+                if w < h / 5 or h < w / 5:
+                    item_name = QStandardItem(name)
+                else:
+                    item_name = QStandardItem(QIcon(QPixmap.fromImage(smallImg)), name)
+            # set tool tip to full name
+            item_name.setToolTip(lay.name)
             items.append(item_name)
             item_mask = QStandardItem('M')
             items.append(item_mask)
@@ -334,7 +346,6 @@ class QLayerView(QTableView) :
         # select active layer
         self.selectRow(len(mImg.layersStack) - 1 - mImg.activeLayerIndex)
         self.update()
-
 
     def update(self):
         activeLayer = self.img.getActiveLayer()
@@ -397,13 +408,17 @@ class QLayerView(QTableView) :
             # background layer is always visible
             if row == len(self.img.layersStack) - 1:
                 return
-            visible = not(self.img.layersStack[-1-row].visible)
-            self.img.layersStack[-1-row].visible = visible
+            layer = self.img.layersStack[-1-row]
+            layer.visible = not(layer.visible)
             # update visibility icon
-            if visible:
+            if layer.visible:
                 self.model().setData(clickedIndex, QIcon(":/images/resources/eye-icon.png") ,Qt.DecorationRole)
             else:
                 self.model().setData(clickedIndex, QIcon(":/images/resources/eye-icon-strike.png"), Qt.DecorationRole)
+            if hasattr(layer, 'inputImg'):
+                # adjustment layer
+                layer.applyToStack()
+            # image changed event handler
             self.img.onImageChanged()
         # hide/display adjustment form
         elif clickedIndex.column() == 1 :

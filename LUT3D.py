@@ -20,22 +20,20 @@ from time import time
 
 import numpy as np
 from PySide.QtCore import QDataStream, QFile, QIODevice, QTextStream
-from PySide.QtGui import QImage
-
+from PySide.QtGui import QImage, QMessageBox
 
 from cartesian import cartesianProduct
-
-
-# 3D LUT init.
 from imgconvert import QImageBuffer
 
+# 3D LUT init.
 """
 Each axis of the LUT has length LUTSIZE.
 r,g,b values are between 0 and 256.
-""";
+"""
+MAXLUTRGB = 256 # Interpolation needs that all RGB points ly strictly inside the LUT cube
 LUTSIZE = 17
 LUTSIZE = 33
-LUTSTEP = 256 / (LUTSIZE - 1)
+LUTSTEP = MAXLUTRGB / (LUTSIZE - 1)
 
 
 """
@@ -88,23 +86,13 @@ class LUT3D (object):
         self.LUT3DArray = LUT3DArray
         self.size = size
         # for convenience
-        self.step = 256 / (size - 1)
+        self.step = MAXLUTRGB / (size - 1)
         self.contrast = lambda p : p #np.power(p,1.2)
-
-    def LUT2HaldImage(self):
-        from MarkedImg import imImage
-        s1 = self.size
-        s2 = (self.size - 1)
-        p = int(np.log2(s2))
-        s3 = s2 / p
-        buf = self.LUT3DArray[:s1,:s1,:s1,:]
-        buf.reshape(((s2, s3)))
-        return imImage(cv2Img=buf)
 
     @classmethod
     def HaldImage2LUT3D(cls, hald, size=LUTSIZE):
         """
-        Converts a hald image to a 3D LUT.
+        Converts a hald image to a LUT3D object.
         @param hald: image
         @type hald: QImage
         @param size: LUT size
@@ -114,22 +102,23 @@ class LUT3D (object):
         """
         buf = QImageBuffer(hald)
         buf = buf[:,:,:3].ravel()
-        count = ((size - 1) ** 3) * 3
+        count = (size ** 3) * 3 # ((size - 1) ** 3) * 3
         buf = buf[:count]
-        buf = buf.reshape((size-1, size-1, size-1, 3))
-        LUT = np.zeros((size, size, size, 3), dtype=int)+256
-        LUT[:size-1, :size-1,:size-1, :] = buf[:,:,:,::-1]
+        buf = buf.reshape((size, size, size, 3))
+        LUT = np.zeros((size, size, size, 3), dtype=int) + 255
+        LUT[:,:,:,:] = buf[:,:,:,::-1]
         return LUT3D(LUT, size=size)
 
-    def identHaldImage(self, w, h):
+    def getHaldImage(self, w, h):
         """
-        Builds a numpy array whose (self.size-1)**3 *3 first bytes are
+        Converts a LUT3D object to an image buffer (numpy array). 
+        The (self.size-1)**3 *3 first bytes of the buffer are
         
-        [(b*step, g*step, r*step) for r in range(self.size-1) for g in range(self.size-1) for b in range(self.size-1)]
+        [ LUT3DArray[r,g,b][::-1] for r in range(self.size-1) for g in range(self.size-1) for b in range(self.size-1) ]
         
-       The remainings bytes are padding, set to 0.
+       The remainings bytes are padded with 0.
        
-        Note that the buffer is in BGR order, suitable for conversion to a QImage and that 
+        Note that the buffer is in BGR order, suitable for direct conversion to a QImage and that 
         the b value increases fastest (i.e. from a byte to the next). 
         @param w: image width
         @type w: int
@@ -138,43 +127,58 @@ class LUT3D (object):
         @return: numpy array shape=(h,w,3), dtype=np.uint8
         """
         buf = np.zeros((w*h*3), dtype = np.uint8) # + 255
-        s = self.size - 1
+        s = self.size# - 1
         count = (s**3) *3
-        buf[:count] = LUT3D_ORI[:s,:s,:s,::-1].ravel()
+        buf[:count] = self.LUT3DArray[:,:,:,::-1].ravel() #self.LUT3DArray[:s,:s,:s,::-1].ravel()
         buf = buf.reshape(h, w, 3)
         return buf
 
     @classmethod
-    def readFromTextStream(self, inStream):
+    def readFromTextStream(cls, inStream):
         #header
         for i in range(2):
             line = inStream.readLine()
-        buf = np.zeros((33**3)*3, dtype=float)
-        i=0
+        # get LUT size (second line format should be : Size xx)
+        token = line.split()
+        if len(token) >= 2:
+            _, size = token
+        else:
+            raise ValueError('Cannot find LUT size')
+        size = int(size)
+        bufsize = (size**3)*3
+        buf = np.zeros(bufsize, dtype=float)
+        i = 0
         while True:
             line = inStream.readLine()
             if len(line) == 0:
                 break
-            a, b, c = line.split(" ")
+            token = line.split()
+            if len(token) >= 3:
+                a, b, c = token
+            else:
+                raise ValueError('Wrong file format')
             buf[i], buf[i+1], buf[i+2] = float(a), float(b), float(c)
             i+=3
-        buf = buf.reshape(33,33,33,3)
-        return buf
+        if i != bufsize:
+           raise ValueError('LUT size does not match line count')
+        buf = buf.reshape(size,size,size,3)
+        return buf, size
 
     @classmethod
-    def readFromTextFile(self, filename):
+    def readFromTextFile(cls, filename):
         qf = QFile(filename)
-        qf.open(QIODevice.ReadOnly)
+        if not qf.open(QIODevice.ReadOnly):
+            raise IOError('cannot open file %s' % filename)
         textStream = QTextStream(qf)
-        LUT3DArray = self.readFromTextStream(textStream)
+        LUT3DArray, size = cls.readFromTextStream(textStream)
         qf.close()
         LUT3DArray = LUT3DArray *255.0
         LUT3DArray = LUT3DArray.astype(int)
         LUT3DArray = LUT3DArray.transpose(2,1,0, 3)
-        return LUT3DArray
+        return LUT3DArray, size
 
     @classmethod
-    def readFromHaldFile(self, filename):
+    def readFromHaldFile(cls, filename):
         img = QImage(filename)
         buf = QImageBuffer(img)[:,:,:3][:,:,::-1]
         LUT = LUT3DFromFactory()
@@ -187,11 +191,12 @@ class LUT3D (object):
         LUT=self.LUT3DArray
         outStream << ('bLUe 3D LUT')<<'\n'
         outStream << ('Size %d' % self.size)<<'\n'
+        coeff = 255.0
         for b in xrange(self.size):
             for g in xrange(self.size):
                 for r in xrange(self.size):
                     r1, g1, b1 = LUT[r, g, b]
-                    outStream << ("%.7f %.7f %.7f" % (r1 / 256.0, g1 / 256.0, b1 / 256.0)) << '\n'
+                    outStream << ("%.7f %.7f %.7f" % (r1 / coeff, g1 / coeff, b1 / coeff)) << '\n'
 
     def writeToTextFile(self, filename):
         qf = QFile(filename)
@@ -217,9 +222,12 @@ def LUT3DFromFactory(size=LUTSIZE):
     @return: 3D LUT table
     @rtype: LUT3D object shape (size, size, size, 3), dtype=int
     """
-    step = 256 / (size - 1)
+    step = MAXLUTRGB / (size - 1)
     a = np.arange(size)
-    return LUT3D(cartesianProduct((a, a, a)) * step, size=size)
+    c = cartesianProduct((a, a, a)) * step
+    # clip for the sake of consistency
+    c = np.clip(c , 0, 255)
+    return LUT3D(c, size=size)
 
 a = np.arange(LUTSIZE)
 #LUT3D_ORI = cartesianProduct((a,a,a)) * LUTSTEP

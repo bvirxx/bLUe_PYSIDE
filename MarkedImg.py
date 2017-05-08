@@ -23,7 +23,7 @@ from PySide.QtCore import Qt, QBuffer, QDataStream, QFile, QIODevice
 import cv2
 from copy import copy
 
-from PySide.QtGui import QImageWriter
+from PySide.QtGui import QImageWriter, QApplication
 from PySide.QtGui import QPixmap, QImage, QColor, QPainter, QMessageBox
 from PySide.QtCore import QRect
 
@@ -90,7 +90,7 @@ class vImage(QImage):
         self.isModified = False
         self.onModify = lambda : 0
         self.rect, self.mask, = None, mask
-        self.filename = filename
+        self.filename = filename if filename is not None else ''
 
         # Caches
         self.useThumb = False
@@ -98,6 +98,7 @@ class vImage(QImage):
         self.qPixmap = None
         self.hspbBuffer = None
         self.LabBuffer = None
+        self.isHald = False
 
         self.onImageChanged = lambda: 0
 
@@ -141,6 +142,12 @@ class vImage(QImage):
         self.updatePixmap()
 
     def getCurrentImage(self):
+        """
+        Returns current image, according to 
+        the value of the flag useThumb.
+        @return: image
+        @rtype: QImage
+        """
         if self.useThumb:
             if self.thumb is None:
                 self.initThumb()
@@ -198,9 +205,10 @@ class vImage(QImage):
     def initThumb(self):
         """
         Inits thumbnail
-        @return: 
+        @return: thumbnail
+        @rtype: QImage
         """
-        self.thumb = self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio)  #QImage(QImg=self.scaled(500, 500, Qt.KeepAspectRatio))
+        self.thumb = self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio)
 
     def cacheInvalidate(self):
         """
@@ -858,6 +866,16 @@ class imImage(mImage) :
         return self.Zoom_coeff, self.xOffset, self.yOffset
 
     def setView(self, zoom=1.0, xOffset=0.0, yOffset=0.0):
+        """
+        Sets viewing conditions: zoom, offset
+        @param zoom: zoom coefficient
+        @type zoom: float
+        @param xOffset: x-offset
+        @type xOffset: int
+        @param yOffset: y-offset
+        @type yOffset: int
+        @return: 
+        """
         self.Zoom_coeff, self.xOffset, self.yOffset = zoom, xOffset, yOffset
 
     def fit_window(self, win):
@@ -866,8 +884,9 @@ class imImage(mImage) :
 
     def snapshot(self):
         """
-        build a snapshot of image
-        @return: imImage object
+        Flattens image by merging all visble layers.
+        @return: flattened image
+        @rtype: imImage
         """
         snap = imImage(QImg=self, meta=self.meta)
         #snap = QImage(self.width(), self.height(), QImage.Format_ARGB32)
@@ -885,7 +904,7 @@ class imImage(mImage) :
                 """
                 qp.setOpacity(layer.opacity)
                 qp.setCompositionMode(layer.compositionMode)
-                qp.drawImage(QRect(0, 0, self.width(), self.height()),  layer)
+                qp.drawImage(QRect(0, 0, self.width(), self.height()),  layer.getCurrentImage())
         qp.end()
         # update background layer and call updatePixmap
         snap.layersStack[0].setImage(snap)
@@ -987,15 +1006,24 @@ class QLayer(vImage):
         All event handlers changing parameters
         should call this method.
         """
-        self.execute()
-        ind = self.getStackIndex()
-        if ind + 1 < len(self.parentImage.layersStack):
-            img = self.parentImage.layersStack[ind + 1]
-            img.cacheInvalidate()
-            if img.visible:
-                img.applyToStack()
-
-        #self.apply = f #lambda : self.parentImage.layersStack[self.getStackIndex()+1].apply() if self.getStackIndex() +1 < len(self.parentImage.layersStack) else 0
+        def applyToStack_(img):
+            img.execute()
+            stack = img.parentImage.layersStack
+            ind = img.getStackIndex() + 1
+            # get next visible upper layer
+            while ind < len(stack):
+                if stack[ind].visible:
+                    break
+                ind += 1
+            if ind < len(stack):
+                img1 = stack[ind]
+                img1.cacheInvalidate()
+                applyToStack_(img1)
+        try:
+            QApplication.setOverrideCursor(Qt.WaitCursor)
+            applyToStack_(self)
+        finally:
+            QApplication.restoreOverrideCursor()
 
     def updatePixmap(self):
         currentImage = self
