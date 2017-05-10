@@ -77,6 +77,15 @@ class ExifTool(object):
         return output[:-len(self.sentinel)-2]
 
     def get_metadata(self, f, save=True):
+        """
+        
+        @param f: file name
+        @type f: str
+        @param save: 
+        @type save: boolean
+        @return: profile, metadata
+        @rtype: 
+        """
         profile=self.execute(*(self.extract_meta_flags + [f]))
         if save:
             self.saveMetadata(f)

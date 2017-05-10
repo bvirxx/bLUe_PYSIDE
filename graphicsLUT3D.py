@@ -18,7 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
 from PySide.QtCore import QSize
-from PySide.QtGui import QAction
+from PySide.QtGui import QAction, QFileDialog
 from PySide.QtGui import QPainter, QWidget, QPixmap, QPushButton
 from PySide.QtGui import QGraphicsView, QGraphicsScene, QGraphicsItem, QGraphicsItemGroup, QGraphicsPathItem , QGraphicsPixmapItem, QGraphicsTextItem, QPolygonF, QGraphicsPolygonItem , QPainterPath, QPainterPathStroker, QPen, QBrush, QColor, QPixmap, QMainWindow, QLabel, QSizePolicy
 from PySide.QtCore import Qt, QPoint, QPointF, QRect, QRectF #, QString
@@ -29,7 +29,7 @@ from PySide.QtGui import QImage
 from PySide.QtGui import QMenu
 from PySide.QtGui import QRubberBand
 
-from LUT3D import LUTSIZE, LUTSTEP, hsp2rgb_ClippingInd, LUT3DFromFactory, LUT3D_SHADOW, LUT3D_ORI
+from LUT3D import LUTSIZE, LUTSTEP, hsp2rgb_ClippingInd, LUT3DFromFactory, LUT3D_SHADOW, LUT3D_ORI, LUT3D
 from MarkedImg import QLayer, vImage
 from colorModels import hueSatModel, pbModel
 from imgconvert import QImageBuffer
@@ -670,7 +670,6 @@ class colorPicker(QGraphicsPixmapItem):
         # target histogram
         self.targetHist = None
         if target is not None:
-            #hsxImg = rgb2ccmVec(QImageBuffer(target)[:, :, :3][:, :, ::-1])
             hsxImg = cModel.rgb2cmVec(QImageBuffer(target)[:, :, :3][:, :, ::-1])
             xyarray = self.QImg.GetPointVec(hsxImg).astype(int)
             maxVal = self.QImg.width()
@@ -689,11 +688,12 @@ class colorPicker(QGraphicsPixmapItem):
 
             tmp=H[u,v]
             norma = np.amax(H)
-            # the color of each pixel in b is set proportionally to the weight of its bin
+            # the color of each pixel in b is proportional to the weight of its bin
             buf[xyarray[:,:,1], xyarray[:,:,0],...] = 255 #((255.0 *(1- tmp))[...,None] / norma).astype(int)
             # alpha channel
-            buf[xyarray[:, :, 1], xyarray[:, :, 0], 3] = 90 + 255.0 *  tmp / norma # 64
+            buf[xyarray[:, :, 1], xyarray[:, :, 0], 3] = 90 + 128.0 *  tmp / norma # 64
             self.targetHist = b
+            self.showTargetHist = False
 
         super(colorPicker, self).__init__(self.QImg.qPixmap)
         self.setPixmap(self.QImg.qPixmap)
@@ -702,14 +702,23 @@ class colorPicker(QGraphicsPixmapItem):
         self.onMouseRelease = lambda x, y, z : 0
         self.rubberBand = None
 
+
     def setPixmap(self, pxmap):
         # paint the histogram onto the pixmap
-        if self.targetHist is not None:
-            qp = QPainter(pxmap)
+        if self.targetHist is not None and self.showTargetHist:
+            pxmap1 = QPixmap(pxmap)
+            qp = QPainter(pxmap1)
             qp.drawImage(0, 0, self.targetHist)
             qp.end()
-        self.QImg.qPixmap = pxmap  # QPixmap.fromImage(a)
-        super(colorPicker, self).setPixmap(pxmap)
+        #self.QImg.qPixmap = pxmap  # QPixmap.fromImage(a)
+        super(colorPicker, self).setPixmap(pxmap1)
+
+    def updatePixmap(self):
+        """
+        Convenience method
+        @return: 
+        """
+        self.setPixmap(self.QImg.qPixmap)
 
     def mousePressEvent(self, e):
         #super(colorPicker, self).mousePressEvent(e)
@@ -769,7 +778,7 @@ class graphicsForm3DLUT(QGraphicsView) :
     defaultColorWheelBr = 0.45
 
     @classmethod
-    def getNewWindow(cls, cModel, targetImage=None, size=500, LUTSize=LUTSIZE, layer=None, parent=None):
+    def getNewWindow(cls, cModel, targetImage=None, size=500, LUTSize=LUTSIZE, layer=None, parent=None, mainForm=None):
         """
         build a graphicsForm3DLUT object. The parameter size represents the size of
         the color wheel, border not included (the size of the window is adjusted).
@@ -781,11 +790,11 @@ class graphicsForm3DLUT(QGraphicsView) :
         @param parent: parent widget
         @return: graphicsForm3DLUT object
         """
-        newWindow = graphicsForm3DLUT(cModel, targetImage=targetImage, size=size, LUTSize=LUTSize, layer=layer, parent=parent)
+        newWindow = graphicsForm3DLUT(cModel, targetImage=targetImage, size=size, LUTSize=LUTSize, layer=layer, parent=parent, mainForm=mainForm)
         newWindow.setWindowTitle(layer.name)
         return newWindow
 
-    def __init__(self, cModel, targetImage=None, size=500, LUTSize = LUTSIZE, layer=None, parent=None):
+    def __init__(self, cModel, targetImage=None, size=500, LUTSize = LUTSIZE, layer=None, parent=None, mainForm=None):
         """
 
         @param size: size of the color wheel
@@ -807,6 +816,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.size = size
         self.targetImage= targetImage
         self.layer=layer
+        self.mainForm = mainForm
         # currently selected grid node
         self.selected = None
         #self.bgPixmap = QPixmap.fromImage(self.QImg)
@@ -857,23 +867,40 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.graphicsScene.statusBar.setPlainText('')
         self.graphicsScene.addItem(self.graphicsScene.statusBar)
 
-        #self.graphicsScene.bSlider.setPixmap(QPixmap.fromImage(pbModel.colorChart(QImg.width(), QImg.width() / 10, self.currentHue, self.currentSat)))
         self.displayStatus()
 
-        self.graphicsScene.onUpdateScene = lambda : 0  # never set
-        self.setRenderHints(QPainter.Antialiasing | QPainter.SmoothPixmapTransform)
+        self.graphicsScene.onUpdateScene = lambda : 0  # TODO never used, suppress
+        #self.setRenderHints(QPainter.Antialiasing | QPainter.SmoothPixmapTransform)
 
         # grid
         self.grid = activeGrid(self.graphicsScene.LUTSize, self.cModel, parent=self.graphicsScene.colorWheel)
         self.graphicsScene.grid = self.grid
 
         # buttons
-        pushButton = QPushButton("reset grid")
-        pushButton.setObjectName("btn_reset")
-        pushButton.setMinimumSize(1,1)
-        pushButton.setGeometry(160, size+offset, 80, 21)  # x,y,w,h
-        pushButton.clicked.connect(self.onReset)
-        self.graphicsScene.addWidget(pushButton)
+        pushButton1 = QPushButton("Reset Grid")
+        #pushButton.setObjectName("btn_reset")
+        pushButton1.setMinimumSize(1,1)
+        pushButton1.setGeometry(160, size+offset, 80, 21)  # x,y,w,h
+        pushButton1.clicked.connect(self.onReset)
+        self.graphicsScene.addWidget(pushButton1)
+        pushButton2 = QPushButton("Save LUT")
+        # pushButton.setObjectName("btn_reset")
+        pushButton2.setMinimumSize(1, 1)
+        pushButton2.setGeometry(160, size + offset+25, 80, 21)  # x,y,w,h
+        pushButton2.clicked.connect(self.onReset)
+        self.graphicsScene.addWidget(pushButton2)
+        def saveLUT():
+            lastDir = mainForm.settings.value('paths/dlgdir', '.')
+            dlg = QFileDialog(mainForm, "Save Color LUT", lastDir)
+            dlg.setNameFilter('*.cube')
+            dlg.setDefaultSuffix('cube')
+            if dlg.exec_():
+                filenames = dlg.selectedFiles()
+                newDir = dlg.directory().absolutePath()
+                mainForm.settings.setValue('paths/dlgdir', newDir)
+                LUT= LUT3D(self.graphicsScene.LUT3DArray, self.graphicsScene.LUTSize)
+                LUT.writeToTextFile(filenames[0])
+        pushButton2.clicked.connect(saveLUT)
 
         # options
         self.graphicsScene.options = {'use selection': True, 'add node': True, 'select neighbors': True,
@@ -890,16 +917,17 @@ class graphicsForm3DLUT(QGraphicsView) :
             self.graphicsScene.options['add node'] = item is self.listWidget2.items['add node']
         self.listWidget2.onSelect = onSelect2
 
-        self.listWidget3 = optionsWidget(options=['select neighbors', 'reset removed nodes'], exclusive=False)
+        self.listWidget3 = optionsWidget(options=['select neighbors', 'reset removed nodes', 'show histogram'], exclusive=False)
         self.listWidget3.select(self.listWidget3.items['select neighbors'])
         self.listWidget3.select(self.listWidget3.items['reset removed nodes'])
         def onSelect3(item):
-            if item is self.listWidget3.items['select neighbors']:
-                self.graphicsScene.options['select neighbors'] = self.listWidget3.items['select neighbors'].isSelected()
-            if item is self.listWidget3.items['reset removed nodes']:
-                self.graphicsScene.options['reset removed nodes'] = self.listWidget3.items['reset removed nodes'].isSelected()
-        self.listWidget3.onSelect = onSelect3
+            option = item.text()
+            self.graphicsScene.options[option] = self.listWidget3.items[option].isSelected()
+            if option == 'show histogram':
+                self.graphicsScene.colorWheel.showTargetHist = self.graphicsScene.options[option]
+                self.graphicsScene.colorWheel.updatePixmap()
 
+        self.listWidget3.onSelect = onSelect3
 
         self.listWidget1.setGeometry(700,size+offset, 10,100)
         self.graphicsScene.addWidget(self.listWidget1)
@@ -911,6 +939,12 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.graphicsScene.addWidget(self.listWidget3)
         self.listWidget3.setStyleSheet("QListWidget{background: black;} QListWidget::item{color: white;}")
 
+    def showEvent(self, e):
+        self.mainForm.tableView.setEnabled(False)
+
+    def hideEvent(self, e):
+        self.mainForm.tableView.setEnabled(True)
+
     def selectGridNode(self, r, g, b, rM,gM,bM):
         """
         select the nearest grid nodes corresponding to r,g,b values.
@@ -918,7 +952,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         @param rM, gM, bM : color for debugging purpose
         """
         #w = self.grid.size
-        w = self.LUTStep
+        w = self.graphicsScene.LUTStep
 
         # surrounding cube
         LUTNeighborhood = [(i,j,k) for i in [r/w, (r/w)+1] for j in [g/w, (g/w)+1] for k in [b/w, (b/w)+1]]
@@ -1033,7 +1067,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         reset grid and LUT
         """
         # get a fresh LUT
-        self.graphicsScene.LUT3DArray = LUT3DFromFactory(size=self.LUTSize).LUT3DArray
+        self.graphicsScene.LUT3DArray = LUT3DFromFactory(size=self.graphicsScene.LUTSize).LUT3DArray
         # explode all node groups
         groupList = [item for item in self.grid.childItems() if type(item) is nodeGroup]
         for item in groupList:

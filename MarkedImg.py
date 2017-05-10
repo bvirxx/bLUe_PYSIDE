@@ -119,6 +119,8 @@ class vImage(QImage):
                 tmp =QImage(filename).transformed(self.meta.orientation)
             else:
                 tmp = QImage(filename)
+            if tmp.isNull():
+                raise ValueError('Cannot load %s' % filename)
             # call to super is mandatory. Shallow copy : no harm !
             super(vImage, self).__init__(tmp)
         elif QImg is not None:
@@ -805,14 +807,16 @@ class mImage(vImage):
 
     def saveStackToFile(self, filename):
         qf = QFile(filename)
-        qf.open(QIODevice.WriteOnly)
+        if not qf.open(QIODevice.WriteOnly):
+            raise IOError('cannot open file %s' % filename)
         dataStream = QDataStream(qf)
         self.writeStackToStream(dataStream)
         qf.close()
 
     def loadStackFromFile(self, filename):
         qf = QFile(filename)
-        qf.open(QIODevice.ReadOnly)
+        if not qf.open(QIODevice.ReadOnly):
+            raise IOError('cannot open file %s' % filename)
         dataStream = QDataStream(qf)
         script = self.readStackFromStream(dataStream)
         #qf.close()
@@ -1006,19 +1010,19 @@ class QLayer(vImage):
         All event handlers changing parameters
         should call this method.
         """
-        def applyToStack_(img):
-            img.execute()
-            stack = img.parentImage.layersStack
-            ind = img.getStackIndex() + 1
+        def applyToStack_(layer):
+            layer.execute()
+            stack = layer.parentImage.layersStack
+            ind = layer.getStackIndex() + 1
             # get next visible upper layer
             while ind < len(stack):
                 if stack[ind].visible:
                     break
                 ind += 1
             if ind < len(stack):
-                img1 = stack[ind]
-                img1.cacheInvalidate()
-                applyToStack_(img1)
+                layer1 = stack[ind]
+                layer1.cacheInvalidate()
+                applyToStack_(layer1)
         try:
             QApplication.setOverrideCursor(Qt.WaitCursor)
             applyToStack_(self)

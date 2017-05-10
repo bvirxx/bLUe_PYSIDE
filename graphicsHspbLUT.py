@@ -39,12 +39,12 @@ computeControlPoints = True
 class graphicsHspbForm(QGraphicsView) :
 
     @classmethod
-    def getNewWindow(cls, cModel=None, targetImage=None, axeSize=500, layer=None, parent=None):
-        newWindow = graphicsHspbForm(cModel=cModel, targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
+    def getNewWindow(cls, cModel=None, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
+        newWindow = graphicsHspbForm(cModel=cModel, targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         newWindow.setWindowTitle(layer.name)
         return newWindow
 
-    def __init__(self, cModel=None, targetImage=None, axeSize=500, layer=None, parent=None):
+    def __init__(self, cModel=None, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         super(graphicsHspbForm, self).__init__(parent=parent)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize + 60, axeSize + 140)
@@ -57,7 +57,7 @@ class graphicsHspbForm(QGraphicsView) :
         self.scene().targetImage = targetImage
         self.scene().layer = layer
         self.scene().bgColor = QColor(200,200,200)#self.palette().color(self.backgroundRole()) TODO parametrize
-
+        self.mainForm = mainForm
         #self.LUTXY = LUTXY
 
 
@@ -172,6 +172,12 @@ class graphicsHspbForm(QGraphicsView) :
                                         QGraphicsScene.BackgroundLayer)
 
         self.listWidget1.onSelect = onSelect1
+
+    def showEvent(self, e):
+        self.mainForm.tableView.setEnabled(False)
+
+    def hideEvent(self, e):
+        self.mainForm.tableView.setEnabled(True)
 
     def drawBackground(self, qp, qrF):
         s = self.graphicsScene.axeSize

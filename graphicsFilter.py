@@ -24,8 +24,8 @@ from utils import optionsWidget
 
 class filterForm (QWidget):
     @classmethod
-    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
-        wdgt = filterForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
+    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
+        wdgt = filterForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         wdgt.setWindowTitle(layer.name)
         """
         pushButton = QPushButton('apply', parent=wdgt)
@@ -36,7 +36,7 @@ class filterForm (QWidget):
         """
         return wdgt
 
-    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
+    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         super(filterForm, self).__init__(parent=parent)
         self.targetImage = targetImage
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
@@ -44,6 +44,7 @@ class filterForm (QWidget):
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.img = targetImage
         self.layer = layer
+        self.mainForm = mainForm
         self.layer.kernel = getKernel(filterIndex.UNSHARP)
         self.layer.kernelCategory = filterIndex.UNSHARP
         l = QVBoxLayout()
@@ -147,6 +148,12 @@ class filterForm (QWidget):
         self.sliderAmount.setValue(self.defaultAmount)
         self.radiusValue.setText(str('%d ' % self.sliderRadius.value()))
         self.amountValue.setText(str('%d ' % self.sliderAmount.value()))
+
+    def showEvent(self, e):
+        self.mainForm.tableView.setEnabled(False)
+
+    def hideEvent(self, e):
+        self.mainForm.tableView.setEnabled(True)
 
     def writeToStream(self, outStream):
         layer = self.layer

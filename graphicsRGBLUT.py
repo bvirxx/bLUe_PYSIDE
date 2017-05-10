@@ -283,12 +283,12 @@ class cubicItem(QGraphicsPathItem) :
 class graphicsForm(QGraphicsView) :
 
     @classmethod
-    def getNewWindow(cls, cModel=None, targetImage=None, axeSize=500, layer=None, parent=None):
-        newWindow = graphicsForm(cModel=cModel, targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
+    def getNewWindow(cls, cModel=None, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
+        newWindow = graphicsForm(cModel=cModel, targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         newWindow.setWindowTitle(layer.name)
         return newWindow
 
-    def __init__(self, cModel=None, targetImage=None, axeSize=500, layer=None, parent=None):
+    def __init__(self, cModel=None, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         super(graphicsForm, self).__init__(parent=parent)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize + 60, axeSize + 140)
@@ -305,7 +305,7 @@ class graphicsForm(QGraphicsView) :
         self.graphicsScene.onUpdateScene = lambda : 0
 
         self.graphicsScene.axeSize = axeSize
-
+        self.mainForm=mainForm
         # axes and grid
         item = drawPlotGrid(axeSize)
         self.graphicsScene.addItem(item)
@@ -393,6 +393,12 @@ class graphicsForm(QGraphicsView) :
                                         QGraphicsScene.BackgroundLayer)
 
         self.listWidget1.onSelect = onSelect1
+
+    def showEvent(self, e):
+        self.mainForm.tableView.setEnabled(False)
+
+    def hideEvent(self, e):
+        self.mainForm.tableView.setEnabled(True)
 
     def drawBackground(self, qp, qrF):
         s = self.graphicsScene.axeSize

@@ -327,8 +327,13 @@ def toggleLayer(widget, layer, b):
     widget.repaint()
 
 def loadImageFromFile(f):
-    with exiftool.ExifTool() as e:
-        profile, metadata = e.get_metadata(f)
+    try:
+        with exiftool.ExifTool() as e:
+            profile, metadata = e.get_metadata(f)
+    except ValueError as e:
+        # No me6atadat found
+        metadata = [{'SourceFile':f}]
+        profile=''
 
         # trying to get color space info : 1 = sRGB
     colorSpace = metadata[0].get("EXIF:ColorSpace", -1)
@@ -343,8 +348,7 @@ def loadImageFromFile(f):
     transformation = exiftool.decodeExifOrientation(orientation)
 
     name = path.basename(f)
-    img = imImage(filename=f, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile,
-                  name=name)
+    img = imImage(filename=f, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile, name=name)
     img.initThumb()
     if img.format() < 4:
         msg = QMessageBox()
@@ -370,9 +374,14 @@ def openFile(f):
     # profile is a string containing the profile binary data.
     # Currently, we do not use these data : standard profiles
     # are loaded from disk, non standard profiles are ignored.
-
-    img = loadImageFromFile(f)
-    if img is None:
+    try :
+        img = loadImageFromFile(f)
+    except ValueError as e:
+        msg = QMessageBox()
+        msg.setWindowTitle('Warning')
+        msg.setIcon(QMessageBox.Warning)
+        msg.setText(str(e))
+        msg.exec_()
         return
     setDocumentImage(img)
 
@@ -592,11 +601,11 @@ def menuLayer(x, name):
         # add new layer on top of active layer
         l = window.label.img.addAdjustmentLayer(name=layerName)
         if name == 'actionBrightness_Contrast':
-            grWindow=graphicsForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window)
+            grWindow=graphicsForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         elif name == 'actionCurves_HSpB':
-            grWindow = graphicsHspbForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window)
+            grWindow = graphicsHspbForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         elif name == 'actionCurves_Lab':
-            grWindow = graphicsLabForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window)
+            grWindow = graphicsLabForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         # redimensionable window
         grWindow.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
         # Curve change event handler
@@ -622,20 +631,21 @@ def menuLayer(x, name):
         # add new layer on top of active layer
         l = window.label.img.addAdjustmentLayer(name=layerName)
         #window.tableView.setLayers(window.label.img)
-        grWindow = graphicsForm3DLUT.getNewWindow(ccm, size=800, targetImage=window.label.img, LUTSize=LUTSIZE, layer=l, parent=window)
+        grWindow = graphicsForm3DLUT.getNewWindow(ccm, size=800, targetImage=window.label.img, LUTSize=LUTSIZE, layer=l, parent=window, mainForm=window)
         # LUT change event handler
         def g(options={}):
             """
             Apply current 3D LUT and repaint window
             @param options: dictionary of options
             """
-            l.options = options
+            #l.options = options
             l.applyToStack()
             #l.apply3DLUT(grWindow.graphicsScene.LUT3D, options=options)
             window.label.repaint()
         grWindow.graphicsScene.onUpdateLUT = g
         # wrapper for the right apply method
-        l.execute = lambda : l.apply3DLUT(grWindow.graphicsScene.LUT3D, l.options)
+        #l.execute = lambda : l.apply3DLUT(grWindow.graphicsScene.LUT3DArray, options=l.options)
+        l.execute = lambda: l.apply3DLUT(grWindow.graphicsScene.LUT3DArray, options=grWindow.graphicsScene.options)
         #window.tableView.setLayers(window.label.img)
     # segmentation grabcut
     elif name == 'actionNew_segmentation_layer':
@@ -649,7 +659,7 @@ def menuLayer(x, name):
     elif name == 'actionColor_Temperature':
         lname = 'Color Temperature'
         l = window.label.img.addAdjustmentLayer(name=lname)
-        grWindow = temperatureForm.getNewWindow(size=axeSize, targetImage=window.label.img, layer=l, parent=window)
+        grWindow = temperatureForm.getNewWindow(size=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         # temperature change event handler
         def h(temperature):
             l.temperature = temperature
@@ -662,7 +672,7 @@ def menuLayer(x, name):
     elif name == 'actionFilter':
         lname = 'Filter'
         l = window.label.img.addAdjustmentLayer(name=lname)
-        grWindow = filterForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window)
+        grWindow = filterForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         # temperature change event handler
         def h(category, radius, amount):
             l.kernelCategory = category
@@ -771,8 +781,8 @@ def menuLayer(x, name):
     # set modal : docked windows
     # are not modal, so docking
     # must be disabled
-    dock.setAllowedAreas(Qt.NoDockWidgetArea)
-    dock.setWindowModality(Qt.ApplicationModal)
+    #dock.setAllowedAreas(Qt.NoDockWidgetArea)
+    #dock.setWindowModality(Qt.ApplicationModal)
     l.view = dock
     # update layer stack view
     window.tableView.setLayers(window.label.img)

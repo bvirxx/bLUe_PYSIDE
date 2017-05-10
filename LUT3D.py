@@ -128,7 +128,7 @@ class LUT3D (object):
         """
         buf = np.zeros((w*h*3), dtype = np.uint8) # + 255
         s = self.size# - 1
-        count = (s**3) *3
+        count = (s**3) *3 # TODO clip LUT array to 0,255 ?
         buf[:count] = self.LUT3DArray[:,:,:,::-1].ravel() #self.LUT3DArray[:s,:s,:s,::-1].ravel()
         buf = buf.reshape(h, w, 3)
         return buf
@@ -166,6 +166,13 @@ class LUT3D (object):
 
     @classmethod
     def readFromTextFile(cls, filename):
+        """
+        Reads 3D LUT from text file in format .cube.
+        Values are multiplied by 255.
+        @param filename: 
+        @type filename: str
+        @return: 
+        """
         qf = QFile(filename)
         if not qf.open(QIODevice.ReadOnly):
             raise IOError('cannot open file %s' % filename)
@@ -188,6 +195,13 @@ class LUT3D (object):
         return LUT.LUT3DArray
 
     def writeToTextStream(self, outStream):
+        """
+        Writes 3D LUT to QTextStream in format .cube.
+        Values are divided by 255.
+        @param outStream: 
+        @type outStream: QTextStream
+        @return: 
+        """
         LUT=self.LUT3DArray
         outStream << ('bLUe 3D LUT')<<'\n'
         outStream << ('Size %d' % self.size)<<'\n'
@@ -200,20 +214,19 @@ class LUT3D (object):
 
     def writeToTextFile(self, filename):
         qf = QFile(filename)
-        qf.open(QIODevice.WriteOnly)
+        if not qf.open(QIODevice.WriteOnly):
+            raise IOError('cannot open file %s' % filename)
         textStream = QTextStream(qf)
         self.writeToTextStream(textStream)
         qf.close()
-
-
 
 def LUT3DFromFactory(size=LUTSIZE):
     """
     Inits a LUT3D array of shape ( size, size,size, 3).
     size should be 2**n +1. Most common values are 17 and 33.
     The 4th axis holds 3-uples (r,g,b) of integers evenly
-    distributed in the range 0..256 (edges inclusive) :
-    let step = 256 / (size - 1), then
+    distributed in the range 0..MAXLUTRGB (edges inclusive) :
+    let step = MAXLUTRGB / (size - 1), then
     LUT3DArray(i, j, k) = (i*step, j*step, k*step).
     Note that, with these initial values, trilinear interpolation boils down to identity :
     for all i,j,k in the range 0..256,
@@ -225,7 +238,7 @@ def LUT3DFromFactory(size=LUTSIZE):
     step = MAXLUTRGB / (size - 1)
     a = np.arange(size)
     c = cartesianProduct((a, a, a)) * step
-    # clip for the sake of consistency
+    # clip for the sake of consistency with Hald images
     c = np.clip(c , 0, 255)
     return LUT3D(c, size=size)
 
@@ -236,6 +249,7 @@ LUT3D_ORI = LUT3DIdentity.LUT3DArray
 a,b,c,d = LUT3D_ORI.shape
 LUT3D_SHADOW = np.zeros((a,b,c,d+1))
 LUT3D_SHADOW[:,:,:,:3] = LUT3D_ORI
+
 def redistribute_rgb(r, g, b):
     """
      To keep the hue, we want to maintain the ratio of (middle-lowest)/(highest-lowest).
