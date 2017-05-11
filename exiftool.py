@@ -48,8 +48,11 @@ class ExifTool(object):
     def __init__(self, executable = EXIFTOOL_PATH):
         self.executable = executable
 
-    # enter/exit "with" block
     def __enter__(self):
+        """
+        enter "with" block
+        @return: 
+        """
         try:
             self.process = subprocess.Popen(
                                         [self.executable, "-stay_open", "True",  "-@", "-"],
@@ -63,8 +66,16 @@ class ExifTool(object):
         return self
 
     def  __exit__(self, exc_type, exc_value, traceback):
+        """
+        exit "with" block
+        @param exc_type: 
+        @param exc_value: 
+        @param traceback: 
+        @return: 
+        """
         self.process.stdin.write("-stay_open\nFalse\n")
         self.process.stdin.flush()
+        self.process.terminate()
 
     def execute(self, *args):
         args = args + ("-execute\n",)

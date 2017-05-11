@@ -259,21 +259,37 @@ class QLayerView(QTableView) :
         super(QLayerView, self).mouseReleaseEvent(e)
 
 
-    def closeAdjustForms(self):
+    def closeAdjustForms(self, delete=False):
+        """
+        Closes all adjust forms. If delete is True (default False),
+        the forms and their dock containers are deleted.
+        @param delete:
+        @type delete: boolean
+        @return: 
+        """
         if self.img is None:
             return
         stack = self.img.layersStack
-        for i in xrange(len(stack)):
-            if hasattr(stack[i], "view"):
-                if stack[i].view is not None:
-                    stack[i].view.close()
+        for layer in  stack:
+            if hasattr(layer, "view"):
+                if layer.view is not None:
+                    dock = layer.view
+                    if delete:
+                        dock.widget().close()
+                        dock.setAttribute(Qt.WA_DeleteOnClose)
+                        dock.close()
+                        layer.view = None
+                    else:
+                        dock.close()
+        if delete:
+            self.currentWin = None
 
     def clear(self):
         """
         Clears data
         @return: 
         """
-        self.closeAdjustForms()
+        self.closeAdjustForms(delete=True)
         self.img = None
         model = layerModel()
         model.setColumnCount(3)
@@ -447,25 +463,27 @@ class QLayerView(QTableView) :
         """
         context menu
         @param pos: event coordinates (relative to widget)
+        @type pos: QPoint
         """
         index = self.indexAt(pos)
         layer = self.img.layersStack[-1-index.row()]
         lower = self.img.layersStack[layer.getLowerVisibleStackIndex()]
         menu = QMenu()
-        actionTransparency = QAction('Transparency', None)
+        #actionTransparency = QAction('Transparency', None)
+        # actionDup is added in __init__, to enable keyboard shortucut
         #actionDup = QAction('Duplicate layer', None)
         #actionDup.setShortcut(QKeySequence(Qt.CTRL+Qt.Key_J))
         #self.addAction(actionDup)
         #if hasattr(layer, 'inputImg') :
             #actionDup.setEnabled(False)
-        actionMerge = QAction('Merge with below', None)
-        # merge only adjustment layer with simple layer
+        actionMerge = QAction('Merge Lower', None)
+        # merge only adjustment layer with image layer
         if not hasattr(layer, 'inputImg') or hasattr(lower, 'inputImg'):
             actionMerge.setEnabled(False)
-        actionMaskEnable = QAction('Enable mask', None)
-        actionMaskDisable = QAction('Disable mask', None)
-        actionMaskReset = QAction('Reset mask', None)
-        menu.addAction(actionTransparency)
+        actionMaskEnable = QAction('Enable Mask', None)
+        actionMaskDisable = QAction('Disable Mask', None)
+        actionMaskReset = QAction('Reset Mask', None)
+        #menu.addAction(actionTransparency)
         # to link actionDup with a shortcut
         # it must be set in __init__
         menu.addAction(self.actionDup)
@@ -495,7 +513,7 @@ class QLayerView(QTableView) :
         def maskReset():
             layer.resetMask()
             layer.updatePixmap()
-        actionTransparency.triggered.connect(f)
+        #actionTransparency.triggered.connect(f)
         #actionDup.triggered.connect(dup)
         actionMerge.triggered.connect(merge)
         actionMaskEnable.triggered.connect(maskEnable)

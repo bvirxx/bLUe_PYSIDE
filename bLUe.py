@@ -419,9 +419,10 @@ def updateEnabledActions():
 
 def menuFile(x, name):
     """
-
+    Exec File Menu
     @param x: dummy
     @param name: action name
+    @type name: str
     """
     def openDlg():
         if window.label.img.isModified:
@@ -455,8 +456,10 @@ def menuFile(x, name):
         filename = openDlg()
         if filename is not None:
             openFile(filename)
+    # save dialog
     elif name == 'actionSave':
         save(window.label.img)
+    # closing dialog : close opened document
     elif name == 'actionClose':
         if window.label.img.isModified:
             ret = savingDialog(window.label.img)
@@ -466,17 +469,15 @@ def menuFile(x, name):
                 return
         #r = weakref.ref(window.label.img)
         #print 'ref', r()
-
         window.label.img = defaultImImage
         window.label_2.img = defaultImImage
-        window.tableView.setLayers(window.label.img)
+        window.tableView.clear() #setLayers(window.label.img)
         # free (almost) all memory used by images
         gc.collect()
         #print 'ref', r()
         window.label.repaint()
         window.label_2.repaint()
     elif name == 'actionHald_identity':
-        #doc = window.label.img
         img = QImage(LUTSIZE, LUTSIZE**2, QImage.Format_ARGB32)
         buf = QImageBuffer(img)
         buf[:,:,:3] = LUT3DIdentity.getHaldImage(LUTSIZE, LUTSIZE**2)

@@ -89,7 +89,7 @@ class nodeGroup(QGraphicsItemGroup):
         self.grid = grid
         self.mouseIsPressed = False
         self.mouseIsMoved = False
-        self.a = QPointF(100,100)
+        #self.a = QPointF(100,100)
         self.initialPosition = position
         self.setPos(position)
 
@@ -148,9 +148,6 @@ class nodeGroup(QGraphicsItemGroup):
             self.scene().onUpdateLUT(options=self.scene().options)
         self.mouseIsPressed = False
         self.mouseIsMoved = False
-        #update grid
-
-        return
 
     def contextMenuEvent(self, event):
         menu = QMenu()
@@ -205,23 +202,28 @@ class nodeGroup(QGraphicsItemGroup):
 
         menu.exec_(event.screenPos())
 
-
     def paint(self, qpainter, options, widget):
+        """
+        Overrides QGraphicsItemGroup paint
+        @param qpainter: 
+        @param options: 
+        @param widget: 
+        @return: 
+        """
         # local coordinates
-        b = qpainter.brush()
+        qpainter.save()
         if self.isSelected():
             qpainter.setBrush(QBrush(QColor(255,255,255)))
         else:
             qpainter.setBrush(QBrush(QColor(0,0,0)))
         if self.isSelected(): #self.mouseIsPressed:
-            pen = qpainter.pen()
-            #qpainter.pen().setStyle(Qt.DashDotLine)
-            qpainter.setPen(QPen(Qt.white, 1, Qt.DotLine, Qt.RoundCap));
+            #pen = qpainter.pen()
+            qpainter.setPen(QPen(Qt.white, 1, Qt.DotLine, Qt.RoundCap))
             for child in self.childItems():
                 qpainter.drawLine(QPointF(), child.pos())
-            qpainter.setPen(pen)
+            #qpainter.setPen(pen)
         qpainter.drawEllipse(0.0, 0.0, 10.0,10.0)
-        qpainter.setBrush(b)
+        qpainter.restore()
     """
     def boundingRectxxxx(self):
         # local coordinates
@@ -241,8 +243,9 @@ class activeNode(QGraphicsPathItem):
     # node drawing
     qppE = QPainterPath()
     qppE.addEllipse(-3, -3, 6, 6)
+    # central node
     qppR = QPainterPath()
-    qppR.addRect(0, 0, 10, 10)
+    qppR.addRect(-5, -5, 10, 10)
 
     def __init__(self, position, cModel, gridRow=0, gridCol=0, parent=None, grid=None):
         """
@@ -298,7 +301,6 @@ class activeNode(QGraphicsPathItem):
         #np.where(LUT3D_SHADOW[:,:,:,3]==0)
 
         # mark central node
-
         c = grid.size/2
         if self.gridRow == c and self.gridCol == c:
             self.setPath(self.qppR)
@@ -343,9 +345,19 @@ class activeNode(QGraphicsPathItem):
             #self.scene().LUT3D[max(k-spread,0):k+spread+1, max(j-spread,0):j+spread+1, max(i-spread,0):i+spread+1, ::-1] = np.clip(LUT3D_ORI[max(k-spread,0):k+spread+1, max(j-spread,0):j+spread+1, max(i-spread,0):i+spread+1, ::-1] + (np.array(hsp2rgb(hue, sat, contrast(p))) - LUT3D_ORI[k, j , i,::-1]),0,255)
 
     def gridPos(self):
+        """
+        Current node position, relative to grid
+        @return: position
+        @rtype: QpointF
+        """
         return self.scenePos() - self.grid.scenePos()
 
     def neighbors(self):
+        """
+        Returns the list of grid neighbors
+        @return: neighbors
+        @rtype: list
+        """
         nghb = []
         if self.gridRow >0 :
             nghb.append(self.grid.gridNodes[self.gridRow-1][self.gridCol])
@@ -534,6 +546,13 @@ class activeGrid(QGraphicsPathItem):
         self.selectedGroup = None
         self.setFlag(QGraphicsItem.ItemIsSelectable, True)
 
+    def paint(self, qpainter, options, widget):
+        qpainter.save()
+        qpainter.setBrush(QBrush(QColor(255, 255, 255)))
+        qpainter.setPen(QPen(QColor(255,255,255,128), 1, Qt.DotLine, Qt.RoundCap))
+        qpainter.drawPath(self.path())
+        qpainter.restore()
+
     def reset(self):
         """
         unselect and reset all nodes to their initial position
@@ -552,7 +571,7 @@ class activeGrid(QGraphicsPathItem):
             for j in range(self.size):
                 self.gridNodes[i][j].setPos(self.gridNodes[i][j].newPos)
 
-    def drawGrid(self):
+    def drawGridOld(self):
         #self.setElasticPos()
         qpp = QPainterPath()
         for i in range(self.size):
@@ -564,6 +583,7 @@ class activeGrid(QGraphicsPathItem):
                 else:
                     qpp.moveTo(self.gridNodes[i][j].gridPos())
                 previous = self.gridNodes[i][j].isSelected()
+        """
         for j in range(self.size):
             qpp.moveTo(self.gridNodes[0][j].gridPos())
             previous = self.gridNodes[0][j].isSelected()
@@ -573,6 +593,19 @@ class activeGrid(QGraphicsPathItem):
                 else:
                     qpp.moveTo(self.gridNodes[i][j].gridPos())
                 previous = self.gridNodes[i][j].isSelected()
+        """
+        self.setPath(qpp)
+
+    def drawGrid(self):
+        qpp = QPainterPath()
+        for i in range(self.size):
+            for j in range(self.size):
+                if not self.gridNodes[i][j].isSelected():
+                    continue
+                node = self.gridNodes[i][j]
+                for n in node.neighbors():
+                    qpp.moveTo(n.gridPos())
+                    qpp.lineTo(node.gridPos())
         self.setPath(qpp)
 
 class activeMarker(QGraphicsPolygonItem):
@@ -710,8 +743,9 @@ class colorPicker(QGraphicsPixmapItem):
             qp = QPainter(pxmap1)
             qp.drawImage(0, 0, self.targetHist)
             qp.end()
+            pxmap = pxmap1
         #self.QImg.qPixmap = pxmap  # QPixmap.fromImage(a)
-        super(colorPicker, self).setPixmap(pxmap1)
+        super(colorPicker, self).setPixmap(pxmap)
 
     def updatePixmap(self):
         """
@@ -766,12 +800,14 @@ class graphicsForm3DLUT(QGraphicsView) :
     Default color model is hsp.
     """
     # markers for grid nodes
-    qpp0 = QPainterPath()
-    qpp0.addRect(0, 0, 10, 10)
+    #qpp0 = QPainterPath()
+    #qpp0.addRect(0, 0, 10, 10)
+    qpp0 = activeNode.qppR
     selectBrush = QBrush(QColor(255,255,255))
 
-    qpp1 = QPainterPath()
-    qpp1.addEllipse(0, 0, 5, 5)
+    #qpp1 = QPainterPath()
+    #qpp1.addEllipse(0, 0, 5, 5)
+    qpp1 = activeNode.qppE
     unselectBrush = QBrush()
 
     # default perceptual brightness
@@ -849,7 +885,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         px = pbModel.colorChart(self.bSliderWidth, self.bSliderHeight, cModel, self.currentHue, self.currentSat).qPixmap
         self.graphicsScene.bSlider = QGraphicsPixmapItem(px, parent = self.graphicsScene.colorWheel)
         self.graphicsScene.bSlider.setPos(QPointF(-border, self.graphicsScene.colorWheel.QImg.height()-border))
-        self.graphicsScene.addItem(self.graphicsScene.bSlider)
+        #self.graphicsScene.addItem(self.graphicsScene.bSlider)
         bSliderCursor = activeMarker.fromTriangle(parent=self.graphicsScene.bSlider)
         bSliderCursor.setPos(self.graphicsScene.bSlider.pixmap().width() / 2, self.graphicsScene.bSlider.pixmap().height())
         # cursor event handler
@@ -903,10 +939,10 @@ class graphicsForm3DLUT(QGraphicsView) :
         pushButton2.clicked.connect(saveLUT)
 
         # options
-        self.graphicsScene.options = {'use selection': True, 'add node': True, 'select neighbors': True,
+        self.graphicsScene.options = {'use selection': False, 'add node': True, 'select neighbors': True,
                                       'reset removed nodes': True, 'use perceptive brightness': True}
         self.listWidget1 = optionsWidget(options=['use image', 'use selection'], exclusive=True)
-        self.listWidget1.select(self.listWidget1.items['use selection'])
+        self.listWidget1.items['use image'].setCheckState(Qt.Checked)
         def onSelect1(item):
             self.graphicsScene.options['use selection'] = item is self.listWidget1.items['use selection']
         self.listWidget1.onSelect = onSelect1
@@ -918,26 +954,29 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.listWidget2.onSelect = onSelect2
 
         self.listWidget3 = optionsWidget(options=['select neighbors', 'reset removed nodes', 'show histogram'], exclusive=False)
-        self.listWidget3.select(self.listWidget3.items['select neighbors'])
-        self.listWidget3.select(self.listWidget3.items['reset removed nodes'])
+        self.listWidget3.items['select neighbors'].setCheckState(Qt.Checked)
+        self.listWidget3.items['reset removed nodes'].setCheckState(Qt.Checked)
         def onSelect3(item):
             option = item.text()
-            self.graphicsScene.options[option] = self.listWidget3.items[option].isSelected()
+            self.graphicsScene.options[option] = True if (self.listWidget3.items[option].checkState() == Qt.Checked) else False
             if option == 'show histogram':
                 self.graphicsScene.colorWheel.showTargetHist = self.graphicsScene.options[option]
                 self.graphicsScene.colorWheel.updatePixmap()
 
         self.listWidget3.onSelect = onSelect3
 
-        self.listWidget1.setGeometry(700,size+offset, 10,100)
+        self.listWidget1.setGeometry(650,size+offset, 10,100)
         self.graphicsScene.addWidget(self.listWidget1)
-        self.listWidget1.setStyleSheet("QListWidget{background: black;} QListWidget::item{color: white;}")
+        ss = "QListWidget{background: black; selection-background-color: black; border: none;} QListWidget::item{color: white;}\
+                                      QListWidget::item::selected { background: black; border: none}"
+        self.listWidget1.setStyleSheet(ss)
+        self.listWidget1.setFocusPolicy(Qt.NoFocus)
         self.listWidget2.setGeometry(300, size + offset, 10, 100)
         self.graphicsScene.addWidget(self.listWidget2)
-        self.listWidget2.setStyleSheet("QListWidget{background: black;} QListWidget::item{color: white;}")
+        self.listWidget2.setStyleSheet(ss)
         self.listWidget3.setGeometry(450, size + offset, 10, 100)
         self.graphicsScene.addWidget(self.listWidget3)
-        self.listWidget3.setStyleSheet("QListWidget{background: black;} QListWidget::item{color: white;}")
+        self.listWidget3.setStyleSheet(ss)
 
     def showEvent(self, e):
         self.mainForm.tableView.setEnabled(False)
@@ -1004,14 +1043,15 @@ class graphicsForm3DLUT(QGraphicsView) :
         """
 
         # select and mark selected node
+        mode = self.graphicsScene.options['add node']
         if self.selected is not None:
             self.selected.setSelected(False)
         self.selected = NNN
         self.selected.setSelected(True)
         self.selected.setBrush(self.selectBrush)
         self.selected.setPath(self.qpp0)
-        self.selected.setVisible(True)
-        mode = self.graphicsScene.options['add node']
+        #self.selected.setVisible(True)
+        self.selected.setVisible(mode)
         nodesToSelect = NNN.neighbors() if self.graphicsScene.options['select neighbors'] else [NNN]
         for n in nodesToSelect:
             n.setVisible(mode)
@@ -1020,14 +1060,9 @@ class graphicsForm3DLUT(QGraphicsView) :
                     n.parentItem().removeFromGroup(n)
                 n.setPos(n.initialPos)
                 n.setState(n.initialPos)
-
-
-
-        #self.selected.setZValue(+1)
-
+        """
         if mode == '':
             self.selected.setSelected(True)
-        """
         elif mode == 'add':
             if self.grid.selectedGroup is None:
                 self.grid.selectionList = [self]

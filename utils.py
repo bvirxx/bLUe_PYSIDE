@@ -64,13 +64,15 @@ class optionsWidget(QListWidget) :
             if currentItem is item:
                 if self.exclusive:
                     currentItem.setCheckState(Qt.Checked)
-                    currentItem.setSelected(True)
+                    #currentItem.setSelected(True)
                 else:
-                    currentItem.setCheckState(Qt.Unchecked if currentItem.isSelected() else Qt.Checked)
-                    currentItem.setSelected(not currentItem.isSelected())
+                    pass
+                    #currentItem.setCheckState(Qt.Unchecked if currentItem.isSelected() else Qt.Checked)
+                    #currentItem.setCheckState(Qt.Unchecked if currentItem.checkState() else Qt.Checked)
+                    #currentItem.setSelected(not currentItem.isSelected())
             elif self.exclusive:
                 currentItem.setCheckState(Qt.Unchecked)
-                currentItem.setSelected(False)
+                #currentItem.setSelected(False)
         self.onSelect(item)
 
 def savitzky_golay(y, window_size, order, deriv=0, rate=1):
