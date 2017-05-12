@@ -103,7 +103,8 @@ class nodeGroup(QGraphicsItemGroup):
         print "group press"
         super(nodeGroup, self).mousePressEvent(e)
         self.mouseIsPressed = True
-        #self.scene().update()
+        # draw links to neighbors
+        self.grid.drawTrace = True
 
     def mouseMoveEvent(self,e):
         print "group move"
@@ -141,6 +142,7 @@ class nodeGroup(QGraphicsItemGroup):
                     self.removeFromGroup(i)
         """
         # move child nodes and synchronize LUT
+        self.grid.drawTrace = False
         if self.mouseIsMoved:
             for i in self.childItems():
                 i.setState(i.pos())
@@ -148,6 +150,7 @@ class nodeGroup(QGraphicsItemGroup):
             self.scene().onUpdateLUT(options=self.scene().options)
         self.mouseIsPressed = False
         self.mouseIsMoved = False
+
 
     def contextMenuEvent(self, event):
         menu = QMenu()
@@ -542,6 +545,7 @@ class activeGrid(QGraphicsPathItem):
         self.step = parent.size / float((self.size -1))
         self.setPos(0,0)
         self.gridNodes = [[activeNode(QPointF(i*self.step,j*self.step), cModel, gridRow=j, gridCol=i, parent=self, grid=self) for i in range(self.size)] for j in range(self.size)]
+        self.drawTrace = False
         self.drawGrid()
         self.selectedGroup = None
         self.setFlag(QGraphicsItem.ItemIsSelectable, True)
@@ -598,6 +602,9 @@ class activeGrid(QGraphicsPathItem):
 
     def drawGrid(self):
         qpp = QPainterPath()
+        if not self.drawTrace:
+            self.setPath(qpp)
+            return
         for i in range(self.size):
             for j in range(self.size):
                 if not self.gridNodes[i][j].isSelected():

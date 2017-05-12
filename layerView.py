@@ -144,18 +144,23 @@ class QLayerView(QTableView) :
             self.img.useThumb = (state == Qt.Checked)
             QtGui1.window.updateStatus()
             self.img.cacheInvalidate()
-            if not self.img.useThumb:
+            #if not self.img.useThumb:
+            try:
+                QApplication.setOverrideCursor(Qt.WaitCursor)
+                """
                 info = QMessageBox()
                 info.setWindowModality(Qt.ApplicationModal)
                 info.setWindowTitle('Information')
                 info.setIcon(QMessageBox.Information)
                 info.setText('Updating all layers.....Please wait')
                 info.show()
-            QtGui1.app.processEvents()
-            # update stack
-            self.img.layersStack[0].applyToStack()
+                """
+                QtGui1.app.processEvents()
+                # update stack
+                self.img.layersStack[0].applyToStack()
+            finally:
+                QApplication.restoreOverrideCursor()
             QtGui1.window.label.repaint()
-            QtGui1.app.processEvents()
 
         self.previewOptionBox.stateChanged.connect(m)
 

@@ -155,7 +155,7 @@ def mouseEvent(widget, event) :
     @param event: mouse event
     """
     global rect_or_mask, Mimg_1, pressed, clicked
-    # image and active layer
+    # get image and active layer
     img= widget.img
     layer = img.getActiveLayer()
 
@@ -225,6 +225,7 @@ def mouseEvent(widget, event) :
                     cM = QColor(img.getActiveLayer().pixel(State['ix'] // r - img.xOffset // r, State['iy'] // r - img.yOffset // r))
                     red, green, blue = c.red(), c.green(), c.blue()
                     rM, gM, bM = cM.red(), cM.green(), cM.blue()
+                    # adjustment layer
                     if hasattr(layer, "view") and layer.view is not None:
                         if hasattr(layer.view.widget(), 'selectGridNode'):
                             # adding/removing  nodes
@@ -293,6 +294,16 @@ def wheelEvent(widget,img, event):
     img.yOffset = -pos.y() * numSteps + (1.0+numSteps)*img.yOffset
     widget.repaint()
 
+def enterEvent(widget,img, event):
+    layer = window.label.img.getActiveLayer()
+    if layer.isAdjustLayer():
+        if layer.view.isVisible():
+            if not QApplication.overrideCursor():
+                QApplication.setOverrideCursor(window.cursor_EyeDropper)
+
+def leaveEvent(widget,img, event):
+    QApplication.restoreOverrideCursor()
+
 def set_event_handler(widg):
     """
     Pythonic way for redefining event handlers, without
@@ -301,12 +312,13 @@ def set_event_handler(widg):
     (cf. file pyside_dynamicLoader.py).
     @param widg:
     """
-    #widg.paintEvent = new.instancemethod(lambda e, wdg=widg : paintEvent(wdg,e), widg, QLabel)
     widg.paintEvent = MethodType(lambda instance, e, wdg=widg: paintEvent(wdg, e), widg.__class__)
     widg.mousePressEvent = MethodType(lambda instance, e, wdg=widg : mouseEvent(wdg, e), widg.__class__)
     widg.mouseMoveEvent = MethodType(lambda instance, e, wdg=widg : mouseEvent(wdg, e), widg.__class__)
     widg.mouseReleaseEvent = MethodType(lambda instance, e, wdg=widg : mouseEvent(wdg, e), widg.__class__)
     widg.wheelEvent = MethodType(lambda instance, e, wdg=widg : wheelEvent(wdg, wdg.img, e), widg.__class__)
+    widg.enterEvent = MethodType(lambda instance, e, wdg=widg : enterEvent(wdg, wdg.img, e), widg.__class__)
+    widg.leaveEvent = MethodType(lambda instance, e, wdg=widg : leaveEvent(wdg, wdg.img, e), widg.__class__)
 
 def button_change(button):
     if str(button.accessibleName()) == "Fit_Screen" :
@@ -998,5 +1010,7 @@ window.label_2.img = defaultImImage
 
 window.showMaximized()
 splash.finish(window)
+
+window.cursor_EyeDropper = QCursor(QPixmap.fromImage(QImage('resources/EyeDropper-icon.png')))
 
 sys.exit(app.exec_())
