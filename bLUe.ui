@@ -540,7 +540,10 @@ scr</string>
   </action>
   <action name="actionBlue_help">
    <property name="text">
-    <string>Blue help</string>
+    <string>Help</string>
+   </property>
+   <property name="shortcut">
+    <string>F1</string>
    </property>
   </action>
   <action name="actionClose">

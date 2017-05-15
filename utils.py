@@ -16,9 +16,10 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import numpy as np
-from math import erf
-from PySide.QtGui import QListWidget, QListWidgetItem, QGraphicsPathItem, QColor, QPainterPath, QPen
-from PySide.QtCore import Qt, QPoint
+from math import erf, factorial
+from PySide.QtGui import QListWidget, QListWidgetItem, QGraphicsPathItem, QColor, QPainterPath, QPen, QKeyEvent
+from PySide.QtCore import Qt, QPoint, QEvent, QObject, QUrl
+from PySide.QtWebKit import QWebView
 
 
 class channelValues():
@@ -75,6 +76,26 @@ class optionsWidget(QListWidget) :
                 #currentItem.setSelected(False)
         self.onSelect(item)
 
+class helpClient(QObject):
+    def __init__(self, parent=None, helpId=None):
+        super(helpClient, self).__init__()
+        parent.installEventFilter(self)
+        parent.helpId = helpId
+        self.window = None
+
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.KeyPress :
+            if (event.key() == Qt.Key_F1) or (event.key() == Qt.Key_Help):
+                if obj.isWidgetType() :
+                    widget = obj.focusWidget()
+                    self.window = QWebView()
+                    self.window.setAttribute(Qt.WA_DeleteOnClose)
+                    self.window.load(QUrl("Help.html#%s" % obj.helpId))
+                    self.window.show()
+                return True
+        return False
+
+
 def savitzky_golay(y, window_size, order, deriv=0, rate=1):
     """
     This pure numpy implementation of the savitzky_golay filter is taken
@@ -87,9 +108,6 @@ def savitzky_golay(y, window_size, order, deriv=0, rate=1):
     @param rate:
     @return: smoothed data array
     """
-
-    import numpy as np
-    from math import factorial
 
     try:
         window_size = np.abs(np.int(window_size))

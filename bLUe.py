@@ -804,8 +804,8 @@ def menuHelp(x, name):
     """
     Init help browser
     A single instance is created.
-    Unused parameters are for the sake of symetry
-    in all menu function calls.
+    Unused parameters are for the sake of symmetry
+    with other menu function calls.
     @param x:
     @param name:
     """
