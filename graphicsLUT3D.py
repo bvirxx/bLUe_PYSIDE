@@ -67,6 +67,18 @@ class nodeGroup(QGraphicsItemGroup):
 
     @classmethod
     def groupFromList(cls, items, grid=None, position=QPointF(), parent=None):
+        """
+        Inits a new group and adds all activeNode objects from list to the group.
+        @param items: 
+        @type items: list
+        @param grid: 
+        @type grid: activeGrid
+        @param position: group position
+        @type position: QPointF
+        @param parent: 
+        @return: group
+        @rtype: nodeGroup
+        """
         if not items:
             return
         newGroup = nodeGroup(grid=grid, position=position, parent=parent)
@@ -96,7 +108,7 @@ class nodeGroup(QGraphicsItemGroup):
         item.setSelected(False)
         super(nodeGroup, self).addToGroup(item)
         # set item position
-        item.setPos(item.initialPosition - self.initialPosition)
+        #item.setPos(item.initialPosition - self.initialPosition)
 
     def mousePressEvent(self,e):
         super(nodeGroup, self).mousePressEvent(e)
@@ -240,6 +252,22 @@ class activeNode(QGraphicsPathItem):
     # central node
     qppR = QPainterPath()
     qppR.addRect(-5, -5, 10, 10)
+
+    @classmethod
+    def resetNodes(cls, nodeList):
+        if not nodeList:
+            return
+        for n in nodeList:
+            if type(n) is activeNode:
+                n.setPos(n.initialPos)
+                n.setState(n.initialPos)
+        grid = nodeList[0].grid
+        grid.drawTrace = True
+        grid.drawGrid()
+        grid.drawTrace = False
+        grid.scene().onUpdateLUT(options=grid.scene().options)
+
+
 
     def __init__(self, position, cModel, gridRow=0, gridCol=0, parent=None, grid=None):
         """
@@ -399,123 +427,35 @@ class activeNode(QGraphicsPathItem):
 
     def mousePressEvent(self, e):
         # super Press select node
-        print [(i,j,k) for i,j,k in zip(np.where(LUT3D_SHADOW[:, :, :, 3] == 0)[0], np.where(LUT3D_SHADOW[:, :, :, 3] == 0)[1], np.where(LUT3D_SHADOW[:, :, :, 3] == 0)[2] )if i >1 and j > 1 and k > 1 and i<31 and j < 31 and k < 31]
+        #print [(i,j,k) for i,j,k in zip(np.where(LUT3D_SHADOW[:, :, :, 3] == 0)[0], np.where(LUT3D_SHADOW[:, :, :, 3] == 0)[1], np.where(LUT3D_SHADOW[:, :, :, 3] == 0)[2] )if i >1 and j > 1 and k > 1 and i<31 and j < 31 and k < 31]
         self.mouseIsPressed = True
         super(activeNode, self).mousePressEvent(e)
-        if type(self.parentItem()) is nodeGroup:
-            print "exploding"
-            self.parentItem().setSelected(False)
-            for i in self.parentItem().childItems():
-                i.setSelected(False)
-                i.grid.selectionList = []
-            self.scene().destroyItemGroup(self.parentItem())
-
-        print 'node mouse press'
-        #self.g.setHandlesChildEvents(False)
 
     def mouseMoveEvent(self, e):
-        #super(activeNode, self).mouseMoveEvent(e)
-        #self.g.setPos(e.pos())
-        #for l in self.liste:
-             #l.setPos(e.scenePos())
-        #self.p.drawGrid()
-        #self.scene().grid.drawGrid()
-        print 'node mouse move'
         self.mouseIsMoved = True
-        #for i in self.parentItem().childItems():
-            #i.setPos(e.pos() + i.delta)
-            #i.setPos(e.scenePos())
         self.setPos(e.scenePos())
+        self.grid.drawTrace = True
         self.grid.drawGrid()
 
-
     def mouseReleaseEvent(self, e):
-        print 'node mouse release'
-        #self.grid.selectionList.append(self)
-
         self.setState(self.pos())
-        """
-        for i in range(self.grid.size):
-            for j in range(self.grid.size):
-                self.grid.gridNodes[i][j].setState(self.grid.gridNodes[i][j].pos())
-        """
-        #scene = self.scene()
-
-        """
-        # read color from model
-        c = QColor(scene.colorWheel.QImg.pixel(int(self.pos().x()), int(self.pos().y())))
-        self.rM, self.gM, self.bM = c.red(), c.green(), c.blue()
-        hue, sat,_ = rgb2hsB(self.rM, self.gM, self.bM, perceptual=True)
-        #savedLUT = self.scene.LUT3D.copy()
-        for p, (i,j,k) in enumerate(self.LUTIndices):
-            scene.LUT3D[k,j,i,::-1] = hsp2rgb(hue,sat, p/100.0)
-        """
         if self.mouseIsMoved:
             self.scene().onUpdateLUT(options=self.scene().options)
-
         self.mouseIsPressed = False
         self.mouseIsMoved = False
-
-        #print self.scene().selectedItems()
-
+        self.grid.drawTrace = False
         super(activeNode, self).mouseReleaseEvent(e)
-
-        #self.setSelected(False)
-        return
-        if self.grid.selectedGroup is None:
-            self.grid.selectionList = [self]
-            print "group added"
-            self.grid.selectedGroup = nodeGroup(grid=self.grid)
-            self.grid.selectedGroup.setFlag(QGraphicsItem.ItemIsSelectable, True)
-            self.grid.selectedGroup.setFlag(QGraphicsItem.ItemIsMovable, True)
-
-            self.grid.selectedGroup.setSelected(True)
-
-        tmp = QPointF(0.0, 0.0)
-        for i in self.grid.selectionList:
-            tmp = tmp + i.scenePos()
-        tmp = tmp / len(self.grid.selectionList)
-        # self.g.setPos(a/len(self.liste))
-        self.grid.selectedGroup.a = tmp
-
-        if hasattr(self.parentItem(), 'drawGrid'):
-            self.grid.selectedGroup.setParentItem(self.parentItem())
-
-
-        for i in self.grid.selectionList:
-            i.delta = i.scenePos() - self.grid.selectedGroup.a
-            if i.parentItem() != self.grid.selectedGroup :
-                self.grid.selectedGroup.addToGroup(i)
-            i.setSelected(True)
-
-        #self.g=self.scene().createItemGroup(self.liste)
-        print self.grid.selectedGroup.childItems()
-
-        #g.setPos(self.scenePos())
-        scene.addItem(self.grid.selectedGroup)
-
-        for i in self.grid.selectionList:
-            i.setSelected(True)
-        return
-        self.grid.selectedGroup.setSelected(True)
-        print scene.selectedItems()
-        print 'group added'
-        print self.isSelected()
-        self.grid.selectedGroup.setHandlesChildEvents(True)
 
     def contextMenuEvent(self, event):
         menu = QMenu()
         actionGroup = QAction('Group', None)
         menu.addAction(actionGroup)
         actionGroup.triggered.connect(lambda : nodeGroup.groupFromList(self.scene().selectedItems(), grid=self.grid, position=self.scenePos(), parent=self.parentItem()))
+        actionGroup.setEnabled(len(self.scene().selectedItems()) > 1)
+        actionReset = QAction('Reset', None)
+        menu.addAction(actionReset)
+        actionReset.triggered.connect(lambda : activeNode.resetNodes(self.scene().selectedItems()))
         menu.exec_(event.screenPos())
-    """
-    def paint(self, qpainter, options, widget):
-        if self.isSelected():
-            print 'active node selected', self.gridRow, self.gridCol
-        self.setSelected(self.isSelected())
-        super(activeNode, self).paint(qpainter, options, widget)
-    """
 
 class activeGrid(QGraphicsPathItem):
     selectionList =[]
@@ -543,8 +483,8 @@ class activeGrid(QGraphicsPathItem):
 
     def paint(self, qpainter, options, widget):
         qpainter.save()
-        qpainter.setBrush(QBrush(QColor(255, 255, 255)))
-        qpainter.setPen(QPen(QColor(255,255,255,128), 1, Qt.DotLine, Qt.RoundCap))
+        #qpainter.setBrush(QBrush(QColor(255, 255, 255)))
+        qpainter.setPen(QPen(QColor(255,255,255), 1, Qt.DotLine, Qt.RoundCap))
         qpainter.drawPath(self.path())
         qpainter.restore()
 
@@ -566,31 +506,6 @@ class activeGrid(QGraphicsPathItem):
             for j in range(self.size):
                 self.gridNodes[i][j].setPos(self.gridNodes[i][j].newPos)
 
-    def drawGridOld(self):
-        #self.setElasticPos()
-        qpp = QPainterPath()
-        for i in range(self.size):
-            qpp.moveTo(self.gridNodes[i][0].gridPos())
-            previous = self.gridNodes[i][0].isSelected()
-            for j in range(self.size):
-                if previous or self.gridNodes[i][j].isSelected():
-                    qpp.lineTo(self.gridNodes[i][j].gridPos())
-                else:
-                    qpp.moveTo(self.gridNodes[i][j].gridPos())
-                previous = self.gridNodes[i][j].isSelected()
-        """
-        for j in range(self.size):
-            qpp.moveTo(self.gridNodes[0][j].gridPos())
-            previous = self.gridNodes[0][j].isSelected()
-            for i in range(self.size):
-                if previous or self.gridNodes[i][j].isSelected():
-                    qpp.lineTo(self.gridNodes[i][j].gridPos())
-                else:
-                    qpp.moveTo(self.gridNodes[i][j].gridPos())
-                previous = self.gridNodes[i][j].isSelected()
-        """
-        self.setPath(qpp)
-
     def drawGrid(self):
         qpp = QPainterPath()
         if not self.drawTrace:
@@ -601,9 +516,15 @@ class activeGrid(QGraphicsPathItem):
                 if not self.gridNodes[i][j].isSelected():
                     continue
                 node = self.gridNodes[i][j]
+                # mark initial position
+                qpp.moveTo(node.gridPos())
+                qpp.lineTo(node.initialPos)
+                qpp.addEllipse(node.initialPos, 5, 5)
+                # mark visible neighbors
                 for n in node.neighbors():
-                    qpp.moveTo(n.gridPos())
-                    qpp.lineTo(node.gridPos())
+                    if n.isVisible():
+                        qpp.moveTo(n.gridPos())
+                        qpp.lineTo(node.gridPos())
         self.setPath(qpp)
 
 class activeMarker(QGraphicsPolygonItem):
@@ -999,12 +920,10 @@ class graphicsForm3DLUT(QGraphicsView) :
         # surrounding cube
         LUTNeighborhood = [(i,j,k) for i in [r/w, (r/w)+1] for j in [g/w, (g/w)+1] for k in [b/w, (b/w)+1]]
 
-
         #reset previous selected marker
         if self.selected is not None:
             self.selected.setPath(self.qpp1)
             self.selected.setBrush(self.unselectBrush)
-
 
         h, s, p = self.cModel.rgb2cm(r, g, b)#, perceptual=True)
         #hspNeighborhood=[rgb2ccm(i * w, j * w, k * w, perceptual=True) for (i, j, k) in LUTNeighborhood if (i * w <= 255 and j * w <= 255 and k * w <= 255)]
