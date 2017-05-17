@@ -653,9 +653,13 @@ class mImage(vImage):
         Adds layer.
 
         @param layer: layer to add (fresh layer if None, type QLayer)
+        @type layer: QLayer
         @param name:
+        @type name: str
         @param index: index of insertion in layersStack (top of active layer if index=None)
+        @type index: int
         @return: the layer added
+        @rtype: QLayer
         """
         # building a unique name
         usedNames = [l.name for l in self.layersStack]
@@ -683,6 +687,11 @@ class mImage(vImage):
         self.setModified(True)
         layer.initThumb()
         return layer
+
+    def removeLayer(self, index=None):
+        if index is None:
+            return
+        self.layersStack.pop(index)
 
     def addAdjustmentLayer(self, name='', index=None):
         """

@@ -760,27 +760,33 @@ def menuLayer(x, name):
     elif name == 'actionSave_Layer_Stack_as_LUT_Cube':
         doc = window.label.img
         buf = LUT3DIdentity.getHaldImage(doc.width(), doc.height())
-        layer = doc.layersStack[0]
-        docBuf = QImageBuffer(layer)
-        docBuf[:, :, :3] = buf
-        layer.applyToStack()
-        window.label.repaint()
-        img = doc.mergeVisibleLayers()
-        # convert image to LUT3D object
-        LUT = LUT3D.HaldImage2LUT3D(img, size=33)
-        # open file and save
-        lastDir = window.settings.value('paths/dlgdir', '.')
-        dlg = QFileDialog(window, "select", lastDir)
-        dlg.setNameFilter('*.cube')
-        dlg.setDefaultSuffix('cube')
-        if dlg.exec_():
-            newDir = dlg.directory().absolutePath()
-            window.settings.setValue('paths/dlgdir', newDir)
-            filenames = dlg.selectedFiles()
-            newDir = dlg.directory().absolutePath()
-            window.settings.setValue('paths/dlgdir', newDir)
-            LUT.writeToTextFile(filenames[0])
-        return
+        try:
+            layer = doc.addLayer(None, name='Hald', index=1)
+            #layer = doc.layersStack[0]
+            docBuf = QImageBuffer(layer)
+            docBuf[:, :, :3] = buf
+            layer.applyToStack()
+            window.label.repaint()
+            img = doc.mergeVisibleLayers()
+            # convert image to LUT3D object
+            LUT = LUT3D.HaldImage2LUT3D(img, size=33)
+            # open file and save
+            lastDir = window.settings.value('paths/dlgdir', '.')
+            dlg = QFileDialog(window, "select", lastDir)
+            dlg.setNameFilter('*.cube')
+            dlg.setDefaultSuffix('cube')
+            if dlg.exec_():
+                newDir = dlg.directory().absolutePath()
+                window.settings.setValue('paths/dlgdir', newDir)
+                filenames = dlg.selectedFiles()
+                newDir = dlg.directory().absolutePath()
+                window.settings.setValue('paths/dlgdir', newDir)
+                LUT.writeToTextFile(filenames[0])
+            return
+        finally:
+            # restore doc
+            doc.removeLayer(1)
+            doc.layersStack[0].applyToStack()
     else:
         return
     # record action name for scripting

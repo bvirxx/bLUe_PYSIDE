@@ -219,7 +219,8 @@ class QLayerView(QTableView) :
 
         self.blendingModeCombo = QComboBox()
         l.addWidget(self.blendingModeCombo)
-        self.blendingModeCombo.addItems(modes)
+        for key in modes:
+            self.blendingModeCombo.addItem(key, self.compositionModeDict[key])
 
         def g(ind):
             s = self.blendingModeCombo.currentText()
@@ -444,7 +445,14 @@ class QLayerView(QTableView) :
         # hide/display adjustment form
         elif clickedIndex.column() == 1 :
             # make selected layer the active layer
-            self.img.setActiveLayer(len(self.img.layersStack) - 1 - row)#, signaling=False)
+            self.img.setActiveLayer(len(self.img.layersStack) - 1 - row)
+            opacity = int(self.img.getActiveLayer().opacity * 100)
+            self.opacityValue.setText(str('%d ' % opacity))
+            self.wdgt.setSliderPosition(opacity)
+            compositionMode = self.img.getActiveLayer().compositionMode
+            ind = self.blendingModeCombo.findData(compositionMode)
+            self.blendingModeCombo.setCurrentIndex(ind)
+
             # update displayed window
             if self.currentWin is not None:
                 self.currentWin.hide()
