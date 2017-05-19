@@ -340,15 +340,16 @@ def toggleLayer(widget, layer, b):
     widget.repaint()
 """
 def loadImageFromFile(f):
+    # read metadata
+
     try:
         with exiftool.ExifTool() as e:
             profile, metadata = e.get_metadata(f)
-    except ValueError as e:
+    except ValueError as er:
         # No me6atadat found
-        metadata = [{'SourceFile':f}]
-        profile=''
-
-        # trying to get color space info : 1 = sRGB
+        metadata = [{'SourceFile': f}]
+        profile = ''
+    # trying to get color space info : 1 = sRGB
     colorSpace = metadata[0].get("EXIF:ColorSpace", -1)
     if colorSpace < 0:
         # sRGBIEC61966-2.1
@@ -551,6 +552,9 @@ def playDiaporama(diaporamaGenerator, parent=None):
             newwindow.close()
             isSuspended = False
             playDiaporama(diaporamaGenerator, parent=window)
+        elif action.text() in ['0', '1','2','3','4','5']:
+            with exiftool.ExifTool() as e:
+                e.writeXMPTag(name, 'XMP:rating', int(action.text()))
     # context menu
     def contextMenu(position):
         menu = QMenu()
@@ -560,6 +564,11 @@ def playDiaporama(diaporamaGenerator, parent=None):
         action3.setEnabled(isSuspended)
         for action in [action1, action3]:
             menu.addAction(action)
+            action.triggered.connect(lambda name=action : h(name))
+        subMenuRating = menu.addMenu('Rating')
+        for i in range(6):
+            action = QAction(str(i), None)
+            subMenuRating.addAction(action)
             action.triggered.connect(lambda name=action : h(name))
         menu.exec_(position)
 
@@ -577,6 +586,15 @@ def playDiaporama(diaporamaGenerator, parent=None):
             if not newwindow.isVisible():
                 break
             name = diaporamaGenerator.next()
+            try:
+                with exiftool.ExifTool() as e:
+                    rating = e.readXMPTag(name, 'XMP:rating')
+                    rating = int(rating)
+            except ValueError as er:
+                # No metadata found
+                rating = 5
+            if rating < 2:
+                continue
             imImg= loadImageFromFile(name)
             if hasattr(label, 'img'):
                 if label.img is not None:

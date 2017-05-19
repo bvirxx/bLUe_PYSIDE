@@ -87,24 +87,39 @@ class ExifTool(object):
             output += os.read(fd, 4096)
         return output[:-len(self.sentinel)-2]
 
+    def writeXMPTag(self, filename, tagName, value):
+        self.execute(*(['-%s=%s' % (tagName, value)] + [filename]))
+
+    def readXMPTag(self, filename, tagName):
+        res = self.execute(*(['-%s' % tagName] + [filename]))
+        return res
+
     def get_metadata(self, f, save=True):
         """
-        
+        Reads metadata from file : data are read from the sidecar 
+        .mie file if it exists, otherwise data are read
+        from the image file and a .mie file is created if save is True (default)
         @param f: file name
         @type f: str
-        @param save: 
+        @param save: if True and the sidecar file does not exists, it is created
         @type save: boolean
         @return: profile, metadata
         @rtype: 
         """
-        profile=self.execute(*(self.extract_meta_flags + [f]))
+        fmie = f[:-4]+'.mie'
+        if isfile(fmie):
+            profile = self.execute(*(self.extract_meta_flags + [fmie]))
+            save = False
+        else:
+            profile=self.execute(*(self.extract_meta_flags + [f]))
         if save:
+            # write .mie file
             self.saveMetadata(f)
         return profile, json.loads(self.execute(*(self.flags + [f])))
 
     def saveMetadata(self, f):
         """
-        save all metadata and icc profile to sidecar file
+        save all metadata and icc profile to sidecar .mie file
         @param f: file name to process
         """
         #temp = NamedTemporaryFile(delete=False)
