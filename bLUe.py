@@ -18,6 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import weakref
 
 import gc
+from threading import Thread
 
 from graphicsFilter import filterForm
 from graphicsHspbLUT import graphicsHspbForm
@@ -59,7 +60,7 @@ Then, you can fine tune it as you want.
 from types import MethodType
 from grabcut import segmentForm
 import sys
-from PySide.QtCore import Qt, QRect, QEvent, QDir
+from PySide.QtCore import Qt, QRect, QEvent, QDir, QThread
 from PySide.QtGui import QPixmap, QColor,QPainter, QApplication, QMenu, QAction, QCursor, QFileDialog, QMessageBox, QMainWindow, QLabel, QDockWidget, QSizePolicy
 from QtGui1 import app, window
 import exiftool
@@ -71,7 +72,7 @@ from graphicsLUT3D import graphicsForm3DLUT
 from LUT3D import LUTSIZE, LUT3D, LUT3D_ORI, LUT3DIdentity
 from colorModels import cmHSP, cmHSB
 import icc
-from os import path
+from os import path, walk
 
 from PySide.QtCore import QUrl
 from PySide.QtWebKit import QWebView
@@ -104,7 +105,7 @@ def paintEvent(widg, e) :
     @param e: paint event
     """
     if not hasattr(widg, 'img'):
-        raise ValueError("paintEvent : no image defined")
+        raise ValueError("paintEvent : no image attribute")
     mimg = widg.img
     if mimg is None:
         raise ValueError("paintEvent : no image set")
@@ -324,7 +325,7 @@ def button_change(button):
     if str(button.accessibleName()) == "Fit_Screen" :
         window.label.img.fit_window(window.label)
         window.label.repaint()
-
+"""
 def contextMenu(widget):
     qmenu = QMenu("Context menu")
     for k in widget.img.layers.keys():
@@ -337,7 +338,7 @@ def contextMenu(widget):
 def toggleLayer(widget, layer, b):
     layer.visible = b
     widget.repaint()
-
+"""
 def loadImageFromFile(f):
     try:
         with exiftool.ExifTool() as e:
@@ -527,6 +528,84 @@ def menuFile(x, name):
     updateEnabledActions()
     updateStatus()
 
+isSuspended= False
+def playDiaporama(diaporamaGenerator, parent=None):
+    """
+    Plays diaporama
+    @param diaporamaGenerator: generator of file names
+    @type  diaporamaList: list of str
+    @param parent: 
+    @return: 
+    """
+    newwindow = QMainWindow(parent)
+    newwindow.setAttribute(Qt.WA_DeleteOnClose)
+    newwindow.setContextMenuPolicy(Qt.CustomContextMenu)
+    global isSuspended
+    isSuspended = False
+    # context menu event handler
+    def h(action):
+        global isSuspended
+        if action.text() == 'Pause':
+            isSuspended = True
+        elif action.text() == 'Resume':
+            newwindow.close()
+            isSuspended = False
+            playDiaporama(diaporamaGenerator, parent=window)
+    # context menu
+    def contextMenu(position):
+        menu = QMenu()
+        action1 = QAction('Pause', None)
+        action1.setEnabled(not isSuspended)
+        action3 = QAction('Resume', None)
+        action3.setEnabled(isSuspended)
+        for action in [action1, action3]:
+            menu.addAction(action)
+            action.triggered.connect(lambda name=action : h(name))
+        menu.exec_(position)
+
+    newwindow.customContextMenuRequested.connect(contextMenu)
+    newwindow.setWindowTitle(parent.tr('Diaporama'))
+    label = QLabel()
+    label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+    newwindow.setCentralWidget(label)
+    newwindow.showMaximized()
+    set_event_handler(label)
+    while not isSuspended:
+        try:
+            # test if window was closed
+            # close = hide();delete_later()
+            if not newwindow.isVisible():
+                break
+            name = diaporamaGenerator.next()
+            imImg= loadImageFromFile(name)
+            if hasattr(label, 'img'):
+                if label.img is not None:
+                    imImg.Zoom_coeff = label.img.Zoom_coeff
+            label.img = imImg
+            label.setToolTip(name)
+            coeff = imImg.resize_coeff(label)
+            imImg.yOffset -= (imImg.height()*coeff - label.height()) / 2.0
+            imImg.xOffset -= (imImg.width()*coeff - label.width()) / 2.0
+            label.repaint()
+            app.processEvents()
+            gc.collect()
+            sleep(2)
+        except StopIteration:
+            newwindow.close()
+            window.diaporamaGenerator = None
+            break
+        except ValueError as ev:
+            continue
+        except RuntimeError as er:
+            #newwindow.close()
+            window.diaporamaGenerator = None
+            break
+        except:
+            print "Unexpected error:", sys.exc_info()[0]
+            #newwindow.close()
+            window.diaporamaGenerator = None
+            raise
+        app.processEvents()
 
 def menuWindow(x, name):
     """
@@ -542,7 +621,37 @@ def menuWindow(x, name):
         else:
             window.label_2.hide()
     elif name == 'actionDiaporama':
-        handleNewWindow(imImg=window.label.img, title='Diaporama', show_maximized=True, parent=window)
+        if hasattr(window, 'diaporamaGenerator'):
+            if window.diaporamaGenerator is not None:
+                reply = QMessageBox()
+                reply.setWindowTitle('Question')
+                reply.setIcon(QMessageBox.Information)
+                reply.setText("A diaporama was suspended. Resume ?")
+                reply.setStandardButtons(QMessageBox.No | QMessageBox.Yes)
+                reply.setDefaultButton(QMessageBox.Yes)
+                ret = reply.exec_()
+                if ret == QMessageBox.No:
+                    window.diaporamaGenerator = None
+        else:
+            window.diaporamaGenerator = None
+        if window.diaporamaGenerator is None:
+            lastDir = window.settings.value('paths/dlgdir', '.')
+            dlg = QFileDialog(window, "select", lastDir)
+            dlg.setNameFilters( ['Image Files (*.jpg *.png)'])
+            diaporamaList = []
+            if dlg.exec_():
+                #filenames = dlg.selectedFiles()
+                newDir = dlg.directory().absolutePath()
+                window.settings.setValue('paths/dlgdir', newDir)
+
+                for dirpath, dirnames, filenames in walk(newDir):
+                    for filename in [f for f in filenames if (f.endswith(".jpg") or f.endswith(".png"))]:
+                        diaporamaList.append(path.join(dirpath, filename))
+            def f():
+                for filename in diaporamaList:
+                    yield filename
+            window.diaporamaGenerator = f()
+        playDiaporama(window.diaporamaGenerator, parent=window)
 
 def menuImage(x, name) :
     """
@@ -824,15 +933,19 @@ def menuHelp(x, name):
 
 def handleNewWindow(imImg=None, parent=None, title='New window', show_maximized=False, event_handler=True):
     """
-    Show a floating window with a QLabel object. It can be used
+    Show a floating window containing a QLabel object. It can be used
     to display text or iamge. If the parameter event_handler is True (default)
     the QLabel object redefines its handlers for paint and mouse events to display
-    the imImage object label.img
-    @param imImg:
+    the image imImg
+    @param imImg: Image to display
+    @type imImg: imImage
     @param parent:
     @param title:
     @param show_maximized:
     @param event_handler:
+    @type event_handler: boolean
+    @return: new window, label
+    @rtype: QMainWindow, QLabel
     """
     newwindow = QMainWindow(parent)
     newwindow.setAttribute(Qt.WA_DeleteOnClose)
@@ -987,7 +1100,7 @@ window.label.setMouseTracking(True)
 
 # GUI Slot hooks
 window.onWidgetChange = button_change
-window.onShowContextMenu = contextMenu
+#window.onShowContextMenu = contextMenu
 window.onExecMenuFile = menuFile
 window.onExecFileOpen = openFile
 window.onExecMenuWindow = menuWindow

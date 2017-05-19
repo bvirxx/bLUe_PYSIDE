@@ -849,7 +849,7 @@ class imImage(mImage) :
 
     def resize_coeff(self, widget):
         """
-        return the current resizing coefficient. It is used by
+        return the current resizing coefficient, used by
         the paint event handler to display the image
         @param widget: Qwidget object
         @return: the (multiplicative) resizing coefficient
