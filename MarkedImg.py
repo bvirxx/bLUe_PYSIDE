@@ -45,7 +45,7 @@ class metadata:
     Container for vImage meta data
     """
     def __init__(self, name=''):
-        self.name, self.colorSpace, self.rawMetadata, self.profile, self.orientation = name, ColorSpace.notSpecified, [], '', None
+        self.name, self.colorSpace, self.rawMetadata, self.profile, self.orientation, self.rating = name, ColorSpace.notSpecified, [], '', None, 5
 
 class vImage(QImage):
     """
@@ -59,7 +59,7 @@ class vImage(QImage):
     """
     thumbSize = 1000
     def __init__(self, filename=None, cv2Img=None, QImg=None, mask=None, format=QImage.Format_ARGB32,
-                                            name='', colorSpace=-1, orientation=None, meta=None, rawMetadata=[], profile=''):
+                                            name='', colorSpace=-1, orientation=None, rating=5, meta=None, rawMetadata=[], profile=''):
         """
         With no parameter, builds a null image.
         Mask is disabled by default.
@@ -105,7 +105,7 @@ class vImage(QImage):
         if meta is None:
             # init container
             self.meta = metadata()
-            self.meta.name, self.meta.colorSpace, self.meta.rawMetadata, self.meta.profile, self.meta.orientation = name, colorSpace, rawMetadata, profile, orientation
+            self.meta.name, self.meta.colorSpace, self.meta.rawMetadata, self.meta.profile, self.meta.orientation, self.meta.rating = name, colorSpace, rawMetadata, profile, orientation, rating
         else:
             self.meta = meta
 

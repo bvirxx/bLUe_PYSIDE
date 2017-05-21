@@ -41,7 +41,7 @@ class ExifTool(object):
     # -a : extract duplicate tags
     # -S : very short output format
     # -G0 : print group name for each tag
-    flags = ["-j", "-a", "-n", "-S", "-G0", "-Orientation", "-ProfileDescription", "-colorSpace", "-InteropIndex", "-WhitePoint", "-PrimaryChromaticities", "-Gamma"]#, "-ICC_Profile:all"]
+    flags = ["-j", "-a", "-XMP:all", "-EXIF:all", "-n", "-S", "-G0", "-Orientation", "-ProfileDescription", "-colorSpace", "-InteropIndex", "-WhitePoint", "-PrimaryChromaticities", "-Gamma"]#, "-ICC_Profile:all"]
     extract_meta_flags = ["-icc_profile", "-b"] #["-b"] #["-icc_profile", "-b"]
     #copy_meta_flags = ["-tagsFromFile", "-all:all"]
 

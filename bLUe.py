@@ -15,14 +15,7 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-import weakref
 
-import gc
-from threading import Thread
-
-from graphicsFilter import filterForm
-from graphicsHspbLUT import graphicsHspbForm
-from graphicsLabLUT import graphicsLabForm
 
 """
 The QtHelp module uses the CLucene indexing library
@@ -61,7 +54,8 @@ from types import MethodType
 from grabcut import segmentForm
 import sys
 from PySide.QtCore import Qt, QRect, QEvent, QDir, QThread
-from PySide.QtGui import QPixmap, QColor,QPainter, QApplication, QMenu, QAction, QCursor, QFileDialog, QMessageBox, QMainWindow, QLabel, QDockWidget, QSizePolicy
+from PySide.QtGui import QPixmap, QColor, QPainter, QApplication, QMenu, QAction, QCursor, QFileDialog, QMessageBox, \
+    QMainWindow, QLabel, QDockWidget, QSizePolicy, QKeySequence, QToolTip, QScrollArea, QVBoxLayout
 from QtGui1 import app, window
 import exiftool
 from imgconvert import *
@@ -85,6 +79,15 @@ from PySide.QtGui import QBrush
 from PySide.QtGui import QPen
 from PySide.QtGui import QSplashScreen
 
+from re import search
+import weakref
+
+import gc
+
+
+from graphicsFilter import filterForm
+from graphicsHspbLUT import graphicsHspbForm
+from graphicsLabLUT import graphicsLabForm
 
 
 # paintEvent painter and background color
@@ -361,8 +364,10 @@ def loadImageFromFile(f):
     orientation = metadata[0].get("EXIF:Orientation", 0)
     transformation = exiftool.decodeExifOrientation(orientation)
 
+    rating = metadata[0].get("XMP:Rating", 5)
+
     name = path.basename(f)
-    img = imImage(filename=f, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile, name=name)
+    img = imImage(filename=f, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile, name=name, rating=rating)
     img.initThumb()
     if img.format() < 4:
         msg = QMessageBox()
@@ -541,8 +546,13 @@ def playDiaporama(diaporamaGenerator, parent=None):
     newwindow = QMainWindow(parent)
     newwindow.setAttribute(Qt.WA_DeleteOnClose)
     newwindow.setContextMenuPolicy(Qt.CustomContextMenu)
+    newwindow.setWindowTitle(parent.tr('Slide show'))
     global isSuspended
     isSuspended = False
+    # Pause shortcut
+    actionEsc = QAction('Pause', None)
+    actionEsc.setShortcut(QKeySequence(Qt.Key_Escape))
+    newwindow.addAction(actionEsc)
     # context menu event handler
     def h(action):
         global isSuspended
@@ -555,6 +565,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
         elif action.text() in ['0', '1','2','3','4','5']:
             with exiftool.ExifTool() as e:
                 e.writeXMPTag(name, 'XMP:rating', int(action.text()))
+    actionEsc.triggered.connect(lambda name=actionEsc: h(name))
     # context menu
     def contextMenu(position):
         menu = QMenu()
@@ -573,15 +584,19 @@ def playDiaporama(diaporamaGenerator, parent=None):
         menu.exec_(position)
 
     newwindow.customContextMenuRequested.connect(contextMenu)
-    newwindow.setWindowTitle(parent.tr('Diaporama'))
+
     label = QLabel()
     label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+    label.img = None
     newwindow.setCentralWidget(label)
     newwindow.showMaximized()
     set_event_handler(label)
-    while not isSuspended:
+    while True:
+        if isSuspended:
+            newwindow.setWindowTitle(newwindow.windowTitle() + ' Paused')
+            break
         try:
-            # test if window was closed
+            # test if window was closed :
             # close = hide();delete_later()
             if not newwindow.isVisible():
                 break
@@ -589,25 +604,33 @@ def playDiaporama(diaporamaGenerator, parent=None):
             try:
                 with exiftool.ExifTool() as e:
                     rating = e.readXMPTag(name, 'XMP:rating')
-                    rating = int(rating)
+                    r = search("\d", rating)
+                    if r:
+                        rating = int(r.group(0))
             except ValueError as er:
                 # No metadata found
                 rating = 5
             if rating < 2:
+                app.processEvents()
+                print 'skip'
                 continue
             imImg= loadImageFromFile(name)
-            if hasattr(label, 'img'):
-                if label.img is not None:
-                    imImg.Zoom_coeff = label.img.Zoom_coeff
-            label.img = imImg
-            label.setToolTip(name)
+            if label.img is not None:
+                imImg.Zoom_coeff = label.img.Zoom_coeff
             coeff = imImg.resize_coeff(label)
             imImg.yOffset -= (imImg.height()*coeff - label.height()) / 2.0
             imImg.xOffset -= (imImg.width()*coeff - label.width()) / 2.0
+            app.processEvents()
+            if isSuspended:
+                newwindow.setWindowTitle(newwindow.windowTitle() + ' Paused')
+                break
+            newwindow.setWindowTitle(parent.tr('Slide show') + ' ' + name)
+            label.img = imImg
             label.repaint()
             app.processEvents()
             gc.collect()
             sleep(2)
+            app.processEvents()
         except StopIteration:
             newwindow.close()
             window.diaporamaGenerator = None
@@ -693,9 +716,10 @@ def menuImage(x, name) :
         # embedded profile
         if len(img.meta.profile) > 0:
             s = s +"\n\nEmbedded profile found, length %d" % len(img.meta.profile)
+        s = s + "\nRating %s" % ''.join(['*']*img.meta.rating)
         # raw meta data
         l = img.meta.rawMetadata
-        s = s + "\nMETADATA :\n"
+        s = s + "\n\nMETADATA :\n"
         for d in l:
             s = s + '\n'.join('%s : %s' % (k,v) for k, v in d.iteritems())
         w, label = handleTextWindow(parent=window, title='Image info')
@@ -949,7 +973,7 @@ def menuHelp(x, name):
         helpWindow.load(QUrl(link))
     helpWindow.show()
 
-def handleNewWindow(imImg=None, parent=None, title='New window', show_maximized=False, event_handler=True):
+def handleNewWindow(imImg=None, parent=None, title='New window', show_maximized=False, event_handler=True, scroll=False):
     """
     Show a floating window containing a QLabel object. It can be used
     to display text or iamge. If the parameter event_handler is True (default)
@@ -968,11 +992,17 @@ def handleNewWindow(imImg=None, parent=None, title='New window', show_maximized=
     newwindow = QMainWindow(parent)
     newwindow.setAttribute(Qt.WA_DeleteOnClose)
     newwindow.setWindowTitle(parent.tr(title))
-    label=QLabel()
-    newwindow.setCentralWidget(label)
+    label = QLabel()
+    if scroll:
+        scarea = QScrollArea(parent=newwindow)
+        scarea.setWidget(label)
+        newwindow.setCentralWidget(scarea)
+        scarea.setWidgetResizable(True)
+    else:
+        newwindow.setCentralWidget(label)
     # The attribute img is used by event handlers
     label.img = imImg
-    label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+    label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
     if event_handler:
         set_event_handler(label)
     if show_maximized:
@@ -987,9 +1017,9 @@ def handleTextWindow(parent=None, title=''):
     @param parent:
     @param title:
     """
-    w, label = handleNewWindow(parent=parent, title=title, event_handler=False)
+    w, label = handleNewWindow(parent=parent, title=title, event_handler=False, scroll = True)
+
     w.setFixedSize(500,500)
-    #label.setStyleSheet("QLabel { background-color: blue }")
     label.setAlignment(Qt.AlignTop)
     w.hide()
     w.setWindowModality(Qt.WindowModal)
