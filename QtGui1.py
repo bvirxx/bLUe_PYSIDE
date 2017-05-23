@@ -16,10 +16,10 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-from PySide import QtGui, QtUiTools #, uic
-from PySide.QtCore import QObject
+from PySide import QtGui #, QtUiTools #, uic
+#from PySide.QtCore import QObject
 from PySide.QtCore import QSettings, QSize
-from PIL.ImageCms import getProfileDescription
+#from PIL.ImageCms import getProfileDescription
 import sys
 from PySide.QtGui import QApplication, QMessageBox
 from PySide.QtGui import QLabel
@@ -27,6 +27,7 @@ from PySide.QtGui import QMainWindow
 
 import resources_rc   # DO NOT REMOVE !!!!
 from layerView import QLayerView
+#import PySide.QtXml pyinstaller neeeds it !!!
 from pyside_dynamicLoader import loadUi
 
 
@@ -57,7 +58,7 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
         # State recording.
         self.slidersValues = {}
         self.btnValues = {}
-        self._recentFiles = []
+        #self._recentFiles = []
 
         # connections to SLOTS
         for slider in self.findChildren(QtGui.QSlider):
@@ -131,9 +132,10 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
 
     def handleToolButtonClicked(self, button):
         """
-        connected to button.pressed signal
+        button.pressed signal slot
         mutually exclusive selection
         @param button:
+        @type button: QButton
         """
         for k in self.btnValues :
             self.btnValues[k] = False

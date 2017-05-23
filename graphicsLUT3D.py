@@ -908,11 +908,10 @@ class graphicsForm3DLUT(QGraphicsView) :
     def hideEvent(self, e):
         self.mainForm.tableView.setEnabled(True)
 
-    def selectGridNode(self, r, g, b, rM,gM,bM):
+    def selectGridNode(self, r, g, b):
         """
         select the nearest grid nodes corresponding to r,g,b values.
         @param r,g,b : color
-        @param rM, gM, bM : color for debugging purpose
         """
         #w = self.grid.size
         w = self.graphicsScene.LUTStep

@@ -221,7 +221,6 @@ class QLayerView(QTableView) :
         l.addWidget(self.blendingModeCombo)
         for key in modes:
             self.blendingModeCombo.addItem(key, self.compositionModeDict[key])
-
         def g(ind):
             s = self.blendingModeCombo.currentText()
             self.img.getActiveLayer().compositionMode = self.compositionModeDict[str(s)]
@@ -300,7 +299,6 @@ class QLayerView(QTableView) :
         model = layerModel()
         model.setColumnCount(3)
         self.setModel(None)
-
 
     def setLayers(self, mImg):
         """
@@ -466,6 +464,8 @@ class QLayerView(QTableView) :
             if self.currentWin is not None:
                 self.currentWin.show()
                 self.currentWin.activateWindow()
+            # draw the right rectangle
+            QtGui1.window.label.repaint()
         # select mask
         elif clickedIndex.column() == 2:
             self.img.layersStack[-1-clickedIndex.row()].maskIsSelected = not self.img.layersStack[-1-clickedIndex.row()].maskIsSelected

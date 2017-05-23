@@ -387,8 +387,11 @@ class vImage(QImage):
         # get selection
         w1, w2, h1, h2 = (0.0,) * 4
         if options['use selection']:
+            w, wF = self.inputImg().width(), self.inputImgFull().width()
+            h, hF = self.inputImg().height(), self.inputImgFull().height()
+            wRatio, hRatio = float(w) / wF, float(h) / hF
             if self.rect is not None:
-                w1, w2, h1,h2= self.rect.left(), self.rect.right(), self.rect.top(), self.rect.bottom()
+                w1, w2, h1, h2 = int(self.rect.left() * wRatio), int(self.rect.right() * wRatio), int(self.rect.top() * hRatio), int(self.rect.bottom() * hRatio)
             if w1>=w2 or h1>=h2:
                 msg = QMessageBox()
                 msg.setText("Empty selection\nSelect a region with the marquee tool")
@@ -607,7 +610,7 @@ class mImage(vImage):
         """
         Reads pixel value from active layer. For
         adjustment or segmentation layer, we read pixel value
-        from input image.
+        from input full image.
         @param x, y: coordinates of pixel
         @return: pixel value (type QRgb : unsigned int ARGB)
         """

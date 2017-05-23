@@ -88,34 +88,51 @@ class ExifTool(object):
         return output[:-len(self.sentinel)-2]
 
     def writeXMPTag(self, filename, tagName, value):
+        """
+        
+        @param filename: 
+        @type filename: str
+        @param tagName: tag name
+        @type tagName: str
+        @param value: tag value
+        @type value: str or number
+        @return: 
+        """
+        filename = filename[:-4] + '.mie'
         self.execute(*(['-%s=%s' % (tagName, value)] + [filename]))
 
     def readXMPTag(self, filename, tagName):
+        """
+        Reads tag info from the sidecar (.mie) file. Despite its name, the method can read
+        any type of tag. The file extension is modified.
+        @param filename: 
+        @param tagName: 
+        @return: 
+        """
+        filename = filename[:-4] + '.mie'
         res = self.execute(*(['-%s' % tagName] + [filename]))
         return res
 
-    def get_metadata(self, f, save=True):
+    def get_metadata(self, f):
         """
         Reads metadata from file : data are read from the sidecar 
         .mie file if it exists, otherwise data are read
-        from the image file and a .mie file is created if save is True (default)
+        from the image file and a sidecar file is created.
         @param f: file name
         @type f: str
-        @param save: if True and the sidecar file does not exists, it is created
-        @type save: boolean
         @return: profile, metadata
         @rtype: 
         """
         fmie = f[:-4]+'.mie'
         if isfile(fmie):
             profile = self.execute(*(self.extract_meta_flags + [fmie]))
-            save = False
+            data = json.loads(self.execute(*(self.flags + [fmie])))
         else:
-            profile=self.execute(*(self.extract_meta_flags + [f]))
-        if save:
-            # write .mie file
+            profile = self.execute(*(self.extract_meta_flags + [f]))
+            data = json.loads(self.execute(*(self.flags + [f])))
+            # write sidecar file
             self.saveMetadata(f)
-        return profile, json.loads(self.execute(*(self.flags + [f])))
+        return profile, data
 
     def saveMetadata(self, f):
         """
@@ -129,9 +146,8 @@ class ExifTool(object):
 
     def restoreMetadata(self, source, dest, removesidecar=False):
         """
-        restore all metadata and icc profile from sidecar .mie to image files.
-        if removesidecar is True, the sidecar file is removed after
-        restoration.
+        Copy all metadata and icc profile from sidecar .mie to image file.
+        if removesidecar is True, the sidecar file is removed after copying.
         @param source: file the image was loaded from
         @param dest: file the image is saved to
         @param removesidecar: if True remove sidecar file after restoration. Default is False

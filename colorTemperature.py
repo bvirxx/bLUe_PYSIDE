@@ -358,8 +358,8 @@ def conversionMatrix(Tdest, Tsource):
 
 class temperatureForm (QWidget):
     @classmethod
-    def getNewWindow(cls, targetImage=None, size=500, layer=None, parent=None):
-        wdgt = temperatureForm(targetImage=targetImage, size=size, layer=layer, parent=parent)
+    def getNewWindow(cls, targetImage=None, size=500, layer=None, parent=None, mainForm=None):
+        wdgt = temperatureForm(targetImage=targetImage, size=size, layer=layer, parent=parent, mainForm=mainForm)
         wdgt.setWindowTitle(layer.name)
         """
         pushButton = QPushButton('apply', parent=wdgt)
@@ -370,7 +370,7 @@ class temperatureForm (QWidget):
         """
         return wdgt
 
-    def __init__(self, targetImage=None, size=500, layer=None, parent=None):
+    def __init__(self, targetImage=None, size=500, layer=None, parent=None, mainForm=None):
         super(temperatureForm, self).__init__(parent=parent)
         self.targetImage = targetImage
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)

@@ -282,15 +282,17 @@ def rgb2hspVec(rgbImg):
 
 def rgb2hsB(r, g, b, perceptual=False):
     """
-    transform the red, green ,blue r, g, b components of a color
+    transforms the red, green ,blue r, g, b components of a color
     into hue, saturation, brightness h, s, v. (Cf. schema in file colors.docx)
     The r, g, b components are integers in range 0..255. If perceptual is False
     (default) v = max(r,g,b)/255.0, else v = sqrt(Perc_R*r*r + Perc_G*g*g + Perc_B*b*b)
     @param r:
     @param g:
     @param b:
-    @param perceptual: boolean
-    @return: h, s, v float values : 0<=h<360, 0<=s<=1, 0<=v<=1
+    @param perceptual:
+    @type perceptual: boolean
+    @return: h, s, v values : 0<=h<360, 0<=s<=1, 0<=v<=1
+    @rtype: float
     """
 
     cMax = max(r, g, b)
@@ -323,16 +325,22 @@ def rgb2hsB(r, g, b, perceptual=False):
 
 def rgb2hsBVec(rgbImg, perceptual=False):
     """
-    Vectorized version of rgb2hsB
-    @param rgbImg: (n,m,3) array of rgb values
-    @return: identical shape array of hsB values 0<=h<=360, 0<=s<=1, 0<=v<=1
+    Vectorized version of rgb2hsB.
+    transforms the red, green ,blue r, g, b components of a color
+    into hue, saturation, brightness h, s, v. (Cf. schema in file colors.docx)
+    The r, g, b components are integers in range 0..255. If perceptual is False
+    (default) v = max(r,g,b)/255.0, else v = sqrt(Perc_R*r*r + Perc_G*g*g + Perc_B*b*b)
+    @param rgbImg: array of r,g, b values
+    @type rgbImg: (n,m,3) array, , dtype=int or dtype=float
+    @return: identical shape array of hue,sat,brightness values (0<=h<=360, 0<=s<=1, 0<=v<=1)
+    @rtype: (n,m,3) array, dtype=float
     """
     r, g, b = rgbImg[:, :, 0].astype(float), rgbImg[:, :, 1].astype(float), rgbImg[:, :, 2].astype(float)
 
-    cMax = np.maximum.reduce([r, g, b]) #.astype(float)
-    cMin = np.minimum.reduce([r, g, b]) #.astype(float)
+    cMax = np.maximum.reduce([r, g, b])
+    cMin = np.minimum.reduce([r, g, b])
     delta = cMax - cMin
-
+    old_settings = np.seterr(all='ignore')
     H1 = 1.0 / delta
     H1 = np.where( delta==0.0, 0.0, H1)
     H2 = 60.0 * (g - b) * H1
@@ -354,21 +362,19 @@ def rgb2hsBVec(rgbImg, perceptual=False):
     """
     #saturation
     S = np.where(cMax==0.0, 0.0, delta / cMax)
-
-    #S = 0.0 if cMax == 0.0 else float(delta)/cMax
-
     # brightness
     if perceptual:
         V = np.sqrt(Perc_R * r * r + Perc_G * g * g + Perc_B * b * b)
         V = V / 255.0
     else:
         V = cMax/255.0
+    np.seterr(**old_settings)
     #assert 0<=H and H<=360 and 0<=S and S<=1 and 0<=V and V<=1, "rgb2hsv conversion error r=%d, g=%d, b=%d" %(r,g,b)
     return np.dstack((H,S,V))
 
 def hsv2rgb(h,s,v):
     """
-    Transform the hue, saturation, brightness h, s, v components of a color
+    Transforms the hue, saturation, brightness h, s, v components of a color
     into red, green, blue values. (Cf. schema in file colors.docx)
     Note : here, brightness is v= max(r,g,b)/255.0. For perceptual brightness use
     hsp2rgb()

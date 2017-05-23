@@ -32,30 +32,14 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser General 
 You should have received a copy of the GNU Lesser General Public License along with this library; if not, write to the Free Software Foundation,
 Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 """
-
-
-"""
-bLUe - Photo editing software.
-
-Copyright (C) 2017  Bernard Virot <bernard.virot@libertysurf.fr>
-
-With Blue you can enhance and correct the colors of your photos in a few clicks.
-No need for complex tools such as lasso, magic wand or masks.
-bLUe interactively constructs 3D LUTs (Look Up Tables), adjusting the exact set
-of colors you chose.
-
-3D LUTs are widely used by professional film makers, but the lack of
-interactive tools maked them poorly useful for photo enhancement, as the shooting conditions
-can vary widely from an image to another. With bLUe, in a few clicks, you select the set of
-colors to modify, the corresponding 3D LUT is automatically built and applied to the image.
-Then, you can fine tune it as you want.
-"""
+import sys
+from os import path, walk
+from os.path import isfile
 from types import MethodType
 from grabcut import segmentForm
-import sys
-from PySide.QtCore import Qt, QRect, QEvent, QDir, QThread
+from PySide.QtCore import Qt, QRect, QEvent, QDir, QUrl
 from PySide.QtGui import QPixmap, QColor, QPainter, QApplication, QMenu, QAction, QCursor, QFileDialog, QMessageBox, \
-    QMainWindow, QLabel, QDockWidget, QSizePolicy, QKeySequence, QToolTip, QScrollArea, QVBoxLayout
+    QMainWindow, QLabel, QDockWidget, QSizePolicy, QKeySequence, QToolTip, QScrollArea, QVBoxLayout, QBrush, QPen, QSplashScreen
 from QtGui1 import app, window
 import exiftool
 from imgconvert import *
@@ -63,34 +47,26 @@ from MarkedImg import imImage, metadata
 
 from graphicsRGBLUT import graphicsForm
 from graphicsLUT3D import graphicsForm3DLUT
-from LUT3D import LUTSIZE, LUT3D, LUT3D_ORI, LUT3DIdentity
+from LUT3D import LUTSIZE, LUT3D, LUT3DIdentity
 from colorModels import cmHSP, cmHSB
 import icc
-from os import path, walk
 
-from PySide.QtCore import QUrl
 from PySide.QtWebKit import QWebView
-from os.path import isfile
 
 from colorTemperature import temperatureForm
 from time import sleep
-
-from PySide.QtGui import QBrush
-from PySide.QtGui import QPen
-from PySide.QtGui import QSplashScreen
 
 from re import search
 import weakref
 
 import gc
 
-
 from graphicsFilter import filterForm
 from graphicsHspbLUT import graphicsHspbForm
 from graphicsLabLUT import graphicsLabForm
 
 
-# paintEvent painter and background color
+# Global paintEvent painter and background color
 qp=QPainter()
 defaultBgColor=QColor(191,191,191)
 
@@ -111,7 +87,8 @@ def paintEvent(widg, e) :
         raise ValueError("paintEvent : no image attribute")
     mimg = widg.img
     if mimg is None:
-        raise ValueError("paintEvent : no image set")
+        return
+        #raise ValueError("paintEvent : no image set")
     r = mimg.resize_coeff(widg)
     qp.begin(widg)
     # background
@@ -129,7 +106,7 @@ def paintEvent(widg, e) :
                 qp.drawImage(QRect(mimg.xOffset, mimg.yOffset, mimg.width() * r , mimg.height() * r ), # target rect
                               layer  # layer.qPixmap
                               )
-    # draw selection rectangle
+    # draw selection rectangle for active layer only
     qp.setPen(QColor(0, 255, 0))
     if (mimg.getActiveLayer().visible) and (mimg.getActiveLayer().rect is not None ):
         rect = mimg.getActiveLayer().rect
@@ -144,7 +121,6 @@ clicked = True
 State = {'drag':False, 'drawing':False , 'tool_rect':False, 'rect_over':False, 'ix':0, 'iy':0, 'ix_begin':0, 'iy_begin':0, 'rawMask':None}
 CONST_FG_COLOR = QColor(255, 255, 255, 255)
 CONST_BG_COLOR = QColor(255, 0, 255, 255)
-rect_or_mask = 0
 
 def mouseEvent(widget, event) :
     """
@@ -158,7 +134,7 @@ def mouseEvent(widget, event) :
     @param widget: QLabel object
     @param event: mouse event
     """
-    global rect_or_mask, Mimg_1, pressed, clicked
+    global pressed, clicked
     # get image and active layer
     img= widget.img
     layer = img.getActiveLayer()
@@ -183,13 +159,12 @@ def mouseEvent(widget, event) :
             if img.isMouseSelectable:
                 # marquee tool
                 if window.btnValues['rectangle']:
-                    # rectangle coordinates relative to image
+                    # rectangle coordinates are relative to image
                     x_img = (min(State['ix_begin'], x) - img.xOffset) // r
                     y_img = (min(State['iy_begin'], y) - img.yOffset) // r
                     w = abs(State['ix_begin'] - x) // r
                     h = abs(State['iy_begin'] - y) // r
                     layer.rect = QRect(x_img, y_img, w, h)
-                    rect_or_mask = 0
                 # brush
                 elif (window.btnValues['drawFG'] or window.btnValues['drawBG']):
                     color= CONST_FG_COLOR if window.btnValues['drawFG'] else CONST_BG_COLOR
@@ -206,7 +181,6 @@ def mouseEvent(widget, event) :
                     qp.drawLine(State['x_imagePrecPos'], State['y_imagePrecPos'], tmp_x, tmp_y)
                     qp.end()
                     State['x_imagePrecPos'], State['y_imagePrecPos'] = tmp_x, tmp_y
-                    rect_or_mask=1
                     layer.updatePixmap()
                     window.label.repaint()
                 else:
@@ -223,22 +197,21 @@ def mouseEvent(widget, event) :
             if img.isMouseSelectable:
                 # click event
                 if clicked:
-                    # adding/removing grid nodes
-                    # Note : for multilayered images we read pixel color from  the background layer
-                    c = QColor(img.getActivePixel(State['ix'] // r -  img.xOffset//r, State['iy'] // r - img.yOffset//r))
-                    cM = QColor(img.getActiveLayer().pixel(State['ix'] // r - img.xOffset // r, State['iy'] // r - img.yOffset // r))
+                    # Picking color from active layer - for adjustment layers, use full image
+                    c = QColor(img.getActivePixel((State['ix']  -  img.xOffset) // r, (State['iy'] - img.yOffset) // r))
+                    #cM = QColor(img.getActiveLayer().pixel(State['ix'] // r - img.xOffset // r, State['iy'] // r - img.yOffset // r))
                     red, green, blue = c.red(), c.green(), c.blue()
-                    rM, gM, bM = cM.red(), cM.green(), cM.blue()
-                    # adjustment layer
+                    #rM, gM, bM = cM.red(), cM.green(), cM.blue()
+                    # select grid node for 3DLUT form
                     if hasattr(layer, "view") and layer.view is not None:
                         if hasattr(layer.view.widget(), 'selectGridNode'):
-                            # adding/removing  nodes
-                            layer.view.widget().selectGridNode(red, green, blue, rM,gM,bM)
-                    window.label.repaint()
+                            layer.view.widget().selectGridNode(red, green, blue)#, rM, gM, bM)
+                    #window.label.repaint()
                 if window.btnValues['rectangle']:
-                    layer.rect = QRect(min(State['ix_begin'], x)//r-img.xOffset//r, min(State['iy_begin'], y)//r- img.yOffset//r, abs(State['ix_begin'] - x)//r, abs(State['iy_begin'] - y)//r)
-                    rect_or_mask = 0 #init_with_rect
-                    rect_or_mask=1 # init with mask
+                    #layer.rect = QRect(min(State['ix_begin'], x)//r-img.xOffset//r, min(State['iy_begin'], y)//r- img.yOffset//r, abs(State['ix_begin'] - x)//r, abs(State['iy_begin'] - y)//r)
+                    layer.rect = QRect((min(State['ix_begin'], x) - img.xOffset) // r,
+                                       (min(State['iy_begin'], y) - img.yOffset) // r,
+                                       abs(State['ix_begin'] - x) // r, abs(State['iy_begin'] - y) // r)
                 elif (window.btnValues['drawFG'] or window.btnValues['drawBG']):
                     color = CONST_FG_COLOR if window.btnValues['drawFG'] else CONST_BG_COLOR
                     # qp.begin(img._layers['drawlayer'])
@@ -251,8 +224,6 @@ def mouseEvent(widget, event) :
                     # qp.drawEllipse(tmp_x, tmp_y, 8, 8)
                     qp.drawLine(State['x_imagePrecPos'], State['y_imagePrecPos'], tmp_x, tmp_y)
                     qp.end()
-                    #State['x_imagePrecPos'], State['y_imagePrecPos'] = tmp_x, tmp_y
-                    rect_or_mask = 1
                     layer.updatePixmap()
                     window.label.repaint()
                     tmp.isModified = True
@@ -299,6 +270,8 @@ def wheelEvent(widget,img, event):
     widget.repaint()
 
 def enterEvent(widget,img, event):
+    if not window.btnValues['colorPicker']:
+        return
     layer = window.label.img.getActiveLayer()
     if layer.isAdjustLayer():
         if layer.view.isVisible():
@@ -324,10 +297,15 @@ def set_event_handler(widg):
     widg.enterEvent = MethodType(lambda instance, e, wdg=widg : enterEvent(wdg, wdg.img, e), widg.__class__)
     widg.leaveEvent = MethodType(lambda instance, e, wdg=widg : leaveEvent(wdg, wdg.img, e), widg.__class__)
 
+# button change event handler
 def button_change(button):
-    if str(button.accessibleName()) == "Fit_Screen" :
+    btnName = button.accessibleName()
+    if btnName == "Fit_Screen" :
         window.label.img.fit_window(window.label)
         window.label.repaint()
+    elif btnName == "colorPicker":
+        pass
+
 """
 def contextMenu(widget):
     qmenu = QMenu("Context menu")
@@ -343,29 +321,35 @@ def toggleLayer(widget, layer, b):
     widget.repaint()
 """
 def loadImageFromFile(f):
-    # read metadata
-
+    """
+    loads metadata and image from file.
+    @param f: path to file
+    @type f: str
+    @return: image
+    @rtype: imImage
+    """
+    # metadata
     try:
         with exiftool.ExifTool() as e:
             profile, metadata = e.get_metadata(f)
     except ValueError as er:
-        # No me6atadat found
+        # Default metadata and profile
         metadata = [{'SourceFile': f}]
         profile = ''
     # trying to get color space info : 1 = sRGB
     colorSpace = metadata[0].get("EXIF:ColorSpace", -1)
     if colorSpace < 0:
-        # sRGBIEC61966-2.1
         desc_colorSpace = metadata[0].get("ICC_Profile:ProfileDescription", '')
         if isinstance(desc_colorSpace, unicode) or isinstance(desc_colorSpace, str):
             if 'sRGB' in desc_colorSpace:
+                # sRGBIEC61966-2.1
                 colorSpace = 1
-
+    # orientation
     orientation = metadata[0].get("EXIF:Orientation", 0)
     transformation = exiftool.decodeExifOrientation(orientation)
-
+    # rating
     rating = metadata[0].get("XMP:Rating", 5)
-
+    # load image file
     name = path.basename(f)
     img = imImage(filename=f, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile, name=name, rating=rating)
     img.initThumb()
@@ -624,7 +608,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
             if isSuspended:
                 newwindow.setWindowTitle(newwindow.windowTitle() + ' Paused')
                 break
-            newwindow.setWindowTitle(parent.tr('Slide show') + ' ' + name)
+            newwindow.setWindowTitle(parent.tr('Slide show') + ' ' + name + ' ' + ' '.join(['*']*imImg.meta.rating))
             label.img = imImg
             label.repaint()
             app.processEvents()
@@ -745,6 +729,11 @@ def menuImage(x, name) :
         snap.setView(*window.label_2.img.view())
         window.label_2.img = snap
         window.label_2.repaint()
+    elif name in ['action0', 'action1', 'action2', 'action3', 'action4', 'action5']:
+        img.meta.rating = int(name[-1:])
+        updateStatus()
+        with exiftool.ExifTool() as e:
+            e.writeXMPTag(img.meta.filename, 'XMP:rating', img.meta.rating)
 
 def menuLayer(x, name):
     """
@@ -1106,7 +1095,7 @@ def close(e):
 
 def updateStatus():
     img = window.label.img
-    s = img.filename
+    s = img.filename + ' ' + (' '.join(['*']*img.meta.rating))
     if img.useThumb:
         s = s + '  ' + '<font color=red><b>Preview</b></font> '
     window.Label_status.setText(s)
@@ -1137,14 +1126,13 @@ app.processEvents()
 sleep(1)
 splash.showMessage("Loading ...", color=Qt.white, alignment=Qt.AlignCenter)
 app.processEvents()
-sleep(1)
+#sleep(1)
 
 # close event handler
 window.onCloseEvent = close
 
 # mouse hover events
 window.label.setMouseTracking(True)
-#window.label_2.setMouseTracking(True)
 
 # GUI Slot hooks
 window.onWidgetChange = button_change
@@ -1178,6 +1166,7 @@ window.label_2.img = defaultImImage
 window.showMaximized()
 splash.finish(window)
 
-window.cursor_EyeDropper = QCursor(QPixmap.fromImage(QImage('resources/EyeDropper-icon.png')))
+# init EyeDropper
+window.cursor_EyeDropper = QCursor(QPixmap.fromImage(QImage(":/images/resources/Eyedropper-icon.png")))
 
 sys.exit(app.exec_())
