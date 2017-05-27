@@ -27,7 +27,6 @@ from PySide.QtGui import QMainWindow
 
 import resources_rc   # DO NOT REMOVE !!!!
 from layerView import QLayerView
-#import PySide.QtXml pyinstaller neeeds it !!!
 from pyside_dynamicLoader import loadUi
 
 
@@ -144,11 +143,12 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
 
     def handleSliderMoved (self, value, slider) :
         """
-        connected to slider.valueChanged signal
+        Slider.valueChanged event handler
         @param value:
         @param slider:
+        @type slider : QSlider
         """
-        self.slidersValues[str(slider.accessibleName())] = value
+        self.slidersValues[slider.accessibleName()] = value
         self.onWidgetChange(slider)
 
     def readSettings(self):

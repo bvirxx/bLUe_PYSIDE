@@ -165,24 +165,23 @@ def mouseEvent(widget, event) :
                     w = abs(State['ix_begin'] - x) // r
                     h = abs(State['iy_begin'] - y) // r
                     layer.rect = QRect(x_img, y_img, w, h)
-                # brush
                 elif (window.btnValues['drawFG'] or window.btnValues['drawBG']):
-                    color= CONST_FG_COLOR if window.btnValues['drawFG'] else CONST_BG_COLOR
-                    tmp = layer.mask if layer.maskIsEnabled else layer
-                    qp.begin(tmp)
-                    qp.setPen(QPen(QBrush(color), 10))
-                    #qp.pen().setWidth(80)
-                    #qp.setBrush(color)
-                    # avoid alpha summation
-                    #qp.setCompositionMode(qp.CompositionMode_Source)
-                    tmp_x = (x - img.xOffset) // r
-                    tmp_y = (y - img.yOffset) // r
-                    #qp.drawEllipse(tmp_x, tmp_y, 8, 8)
-                    qp.drawLine(State['x_imagePrecPos'], State['y_imagePrecPos'], tmp_x, tmp_y)
-                    qp.end()
-                    State['x_imagePrecPos'], State['y_imagePrecPos'] = tmp_x, tmp_y
-                    layer.updatePixmap()
-                    window.label.repaint()
+                    if layer.maskIsEnabled:
+                        color = QColor(0, 0, 0, 255) if window.btnValues['drawFG'] else QColor(0, 0, 0, 0)
+                        tmp = layer.mask
+                        qp.begin(tmp)
+                        w = window.verticalSlider1.value()
+                        qp.setPen(QPen(color, w))
+                        # result is source (pen) pixel
+                        qp.setCompositionMode(qp.CompositionMode_Source)
+                        tmp_x = (x - img.xOffset) // r
+                        tmp_y = (y - img.yOffset) // r
+                        qp.drawEllipse(tmp_x, tmp_y, w , w)
+                        qp.drawLine(State['x_imagePrecPos'], State['y_imagePrecPos'], tmp_x, tmp_y)
+                        qp.end()
+                        State['x_imagePrecPos'], State['y_imagePrecPos'] = tmp_x, tmp_y
+                        layer.updatePixmap(maskOnly=True)
+                        window.label.repaint()
                 else:
                     img.xOffset+=(x-State['ix'])
                     img.yOffset+=(y-State['iy'])
@@ -213,39 +212,27 @@ def mouseEvent(widget, event) :
                                        (min(State['iy_begin'], y) - img.yOffset) // r,
                                        abs(State['ix_begin'] - x) // r, abs(State['iy_begin'] - y) // r)
                 elif (window.btnValues['drawFG'] or window.btnValues['drawBG']):
-                    color = CONST_FG_COLOR if window.btnValues['drawFG'] else CONST_BG_COLOR
-                    # qp.begin(img._layers['drawlayer'])
-                    tmp = layer.mask if layer.maskIsEnabled else layer
-                    qp.begin(tmp)
-                    qp.setPen(QPen(QBrush(color), 10))
-                    # avoid alpha summation
-                    tmp_x = (x - img.xOffset) // r
-                    tmp_y = (y - img.yOffset) // r
-                    # qp.drawEllipse(tmp_x, tmp_y, 8, 8)
-                    qp.drawLine(State['x_imagePrecPos'], State['y_imagePrecPos'], tmp_x, tmp_y)
-                    qp.end()
-                    layer.updatePixmap()
-                    window.label.repaint()
-                    tmp.isModified = True
+                    if layer.maskIsEnabled:
+                        color = QColor(0,0,0,255) if window.btnValues['drawFG'] else QColor(0,0,0,0)
+                        # qp.begin(img._layers['drawlayer'])
+                        tmp = layer.mask
+                        qp.begin(tmp)
+                        w = window.verticalSlider1.value()
+                        qp.setPen(QPen(color, w))
+                        tmp_x = (x - img.xOffset) // r
+                        tmp_y = (y - img.yOffset) // r
+                        # qp.drawEllipse(tmp_x, tmp_y, 8, 8)
+                        # result is source (pen) pixel
+                        qp.setCompositionMode(qp.CompositionMode_Source)
+                        qp.drawEllipse(tmp_x, tmp_y, w, w)
+                        qp.drawLine(State['x_imagePrecPos'], State['y_imagePrecPos'], tmp_x, tmp_y)
+                        qp.end()
+                        layer.updatePixmap()
+                        window.label.repaint()
+                        #tmp.isModified = True
                 else:
                     img.xOffset += (x - State['ix'])
                     img.yOffset += (y - State['iy'])
-        """
-        elif event.button() == Qt.RightButton:
-            State['drag'] = False
-            if window.btnValues['drawFG']:
-                #State['drawFG'] = False
-                #cv2.circle(img.cv2Img, (x, y), thickness, value['color'], -1)
-                #cv2.circle(img.mask, (int(x/r), int(y/r)), thickness, value['val'], -1)
-                qp.drawEllipse(int(x/r), int(y/r), 10,10)
-                rect_or_mask=1
-                #cv2.bitwise_or(img.mask, mask)
-                #window.label_2.img=do_grabcut(Mimg_p, preview=P_SIZE)
-                #tmp = img.mask
-                #if not (mask is None):
-                    #np.copyto(mask, tmp, where=(tmp == 1))
-                window.label.repaint()
-        """
     widget.repaint()
 
 def wheelEvent(widget,img, event):
@@ -298,12 +285,17 @@ def set_event_handler(widg):
     widg.leaveEvent = MethodType(lambda instance, e, wdg=widg : leaveEvent(wdg, wdg.img, e), widg.__class__)
 
 # button change event handler
-def button_change(button):
-    btnName = button.accessibleName()
-    if btnName == "Fit_Screen" :
+def widgetChange(widget):
+    """
+    
+    @param widget:
+    @type widget: QWidget
+    """
+    wdgName = widget.accessibleName()
+    if wdgName == "Fit_Screen" :
         window.label.img.fit_window(window.label)
         window.label.repaint()
-    elif btnName == "colorPicker":
+    elif wdgName == "verticalSlider1":
         pass
 
 """
@@ -663,12 +655,12 @@ def menuWindow(x, name):
             lastDir = window.settings.value('paths/dlgdir', '.')
             dlg = QFileDialog(window, "select", lastDir)
             dlg.setNameFilters( ['Image Files (*.jpg *.png)'])
+            dlg.setFileMode(QFileDialog.Directory)
             diaporamaList = []
             if dlg.exec_():
                 #filenames = dlg.selectedFiles()
                 newDir = dlg.directory().absolutePath()
                 window.settings.setValue('paths/dlgdir', newDir)
-
                 for dirpath, dirnames, filenames in walk(newDir):
                     for filename in [f for f in filenames if (f.endswith(".jpg") or f.endswith(".png"))]:
                         diaporamaList.append(path.join(dirpath, filename))
@@ -802,10 +794,11 @@ def menuLayer(x, name):
         #window.tableView.setLayers(window.label.img)
     # segmentation grabcut
     elif name == 'actionNew_segmentation_layer':
-        l=window.label.img.addSegmentationLayer(name='Segmentation')
+        lname = 'Segmentation'
+        l = window.label.img.addSegmentationLayer(name=lname)
         #window.tableView.setLayers(window.label.img)
         # link to grabcut form
-        l.view = segmentForm.getNewWindow(targetImage=window.label.img)
+        grWindow = segmentForm.getNewWindow(targetImage=window.label.img, layer=l, mainForm=window)
         #window.tableView.update()
         # TODO continue
     # Temperature
@@ -955,12 +948,19 @@ def menuHelp(x, name):
     @param x:
     @param name:
     """
-    global helpWindow
-    link = "Help.html"
-    if helpWindow is None:
-        helpWindow = QWebView()
-        helpWindow.load(QUrl(link))
-    helpWindow.show()
+    if name == "actionBlue_Help":
+        global helpWindow
+        link = "Help.html"
+        if helpWindow is None:
+            helpWindow = QWebView()
+            helpWindow.load(QUrl(link))
+        helpWindow.show()
+    elif name == "actionAbout_bLUe":
+        w, label = handleTextWindow(parent=window, title='About bLUe')
+        label.setStyleSheet("background-image: url(logo.png); color: white;")
+        label.setAlignment(Qt.AlignCenter)
+        label.setText("Version 1.0")
+        w.show()
 
 def handleNewWindow(imImg=None, parent=None, title='New window', show_maximized=False, event_handler=True, scroll=False):
     """
@@ -1005,6 +1005,8 @@ def handleTextWindow(parent=None, title=''):
     Display a floating modal text window
     @param parent:
     @param title:
+    @return (new window, label)
+    @rtype: QMainWindow, QLabel
     """
     w, label = handleNewWindow(parent=parent, title=title, event_handler=False, scroll = True)
 
@@ -1135,7 +1137,7 @@ window.onCloseEvent = close
 window.label.setMouseTracking(True)
 
 # GUI Slot hooks
-window.onWidgetChange = button_change
+window.onWidgetChange = widgetChange
 #window.onShowContextMenu = contextMenu
 window.onExecMenuFile = menuFile
 window.onExecFileOpen = openFile

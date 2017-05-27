@@ -426,8 +426,8 @@ class QLayerView(QTableView) :
         # toggle layer visibility
         if clickedIndex.column() == 0 :
             # background layer is always visible
-            if row == len(self.img.layersStack) - 1:
-                return
+            #if row == len(self.img.layersStack) - 1:
+                #return
             layer = self.img.layersStack[-1-row]
             layer.visible = not(layer.visible)
             # update visibility icon
@@ -450,7 +450,6 @@ class QLayerView(QTableView) :
             compositionMode = self.img.getActiveLayer().compositionMode
             ind = self.blendingModeCombo.findData(compositionMode)
             self.blendingModeCombo.setCurrentIndex(ind)
-
             # update displayed window
             if self.currentWin is not None:
                 self.currentWin.hide()
@@ -463,6 +462,7 @@ class QLayerView(QTableView) :
                     self.currentWin = self.img.layersStack[-1 - row].view
             if self.currentWin is not None:
                 self.currentWin.show()
+                # make self.currentWin the active window
                 self.currentWin.activateWindow()
             # draw the right rectangle
             QtGui1.window.label.repaint()
@@ -482,13 +482,6 @@ class QLayerView(QTableView) :
         layer = self.img.layersStack[-1-index.row()]
         lower = self.img.layersStack[layer.getLowerVisibleStackIndex()]
         menu = QMenu()
-        #actionTransparency = QAction('Transparency', None)
-        # actionDup is added in __init__, to enable keyboard shortucut
-        #actionDup = QAction('Duplicate layer', None)
-        #actionDup.setShortcut(QKeySequence(Qt.CTRL+Qt.Key_J))
-        #self.addAction(actionDup)
-        #if hasattr(layer, 'inputImg') :
-            #actionDup.setEnabled(False)
         actionMerge = QAction('Merge Lower', None)
         # merge only adjustment layer with image layer
         if not hasattr(layer, 'inputImg') or hasattr(lower, 'inputImg'):
@@ -512,22 +505,20 @@ class QLayerView(QTableView) :
             self.wdgt.show()
         def g(value):
             layer.setOpacity(value)
-        #def dup():
-            #self.img.dupLayer(index = len(self.img.layersStack) -1 - index.row())
-            #self.setLayers(self.img)
         def merge():
             layer.merge_with_layer_immediately_below()
         def maskEnable():
             layer.maskIsEnabled = True
-            layer.updatePixmap()
+            layer.applyToStack()
+            self.img.onImageChanged()
         def maskDisable():
             layer.maskIsEnabled = False
-            layer.updatePixmap()
+            layer.applyToStack()
+            self.img.onImageChanged()
         def maskReset():
             layer.resetMask()
-            layer.updatePixmap()
-        #actionTransparency.triggered.connect(f)
-        #actionDup.triggered.connect(dup)
+            layer.applyToStack()
+            self.img.onImageChanged()
         actionMerge.triggered.connect(merge)
         actionMaskEnable.triggered.connect(maskEnable)
         actionMaskDisable.triggered.connect(maskDisable)

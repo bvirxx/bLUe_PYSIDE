@@ -87,6 +87,8 @@ class vImage(QImage):
         @type profile: str
         """
         self.colorTransformation = None
+        # current color managed image
+        self.cmImage = None
         self.isModified = False
         self.onModify = lambda : 0
         self.rect, self.mask, = None, mask
@@ -138,9 +140,9 @@ class vImage(QImage):
         self.maskIsEnabled = False
         self.maskIsSelected = False
         if self.mask is None:
+            # if maskIsEnabled is True, image opacity channel is set to mask opacity channel
             self.mask = QImage(self.width(), self.height(), format)
-            self.mask.fill(QColor(255, 0, 255))
-
+            self.mask.fill(QColor(0, 0, 0,255))
         self.updatePixmap()
 
     def getCurrentImage(self):
@@ -221,25 +223,38 @@ class vImage(QImage):
         self.hspbBuffer = None
         self.LabBuffer = None
 
-    def updatePixmap(self):
+    def updatePixmap(self, maskOnly=False):
         """
-        Updates image pixmap
-        @return: 
+        Updates the image pixmap and caches the current color
+        managed version of the image. If maskOnly is True, this cache is not updated.
+        @param maskOnly: default False
+        @type maskOnly: boolean
         """
         if self.useThumb:
             currentImage = self.thumb
         else:
             currentImage = self
+        if not maskOnly:
+            self.cmImage = None
         if icc.COLOR_MANAGE:
-            img = convertQImage(currentImage)
+            if self.cmImage is None:
+                img = convertQImage(currentImage)
+            else:
+                img = self.cmImage
         else:
             img = QImage(currentImage)
         if self.maskIsEnabled:
+            # image opacity channel is set to mask opacity
+            buf = QImageBuffer(img)
+            buf[:, :, 3] = QImageBuffer(self.mask)[:, :, 3]
+            """
             qp = QPainter(img)
             qp.setCompositionMode(QPainter.RasterOp_SourceAndDestination)
             qp.drawImage(0, 0, self.mask)
             qp.end()
+            """
         self.qPixmap = QPixmap.fromImage(img)
+        self.cmImage = img
 
     def resetMask(self):
         self.mask.fill(QColor(255, 255, 255, 255))
@@ -413,6 +428,9 @@ class vImage(QImage):
         ndImg1[h1:h2 + 1, w1:w2 + 1, :] = interpVec(LUT, ndImg0)
         end=time()
         print 'Apply3DLUT time %.2f' % (end-start)
+        # propagate mask ????
+        #currentImage.mask = self.inputImgFull().getCurrentImage().mask
+        #self.mask = self.inputImgFull().mask
         self.updatePixmap()
 
     def histogram(self, size=200, bgColor=Qt.white, range =(0,255), chans=channelValues.RGB, chanColors=Qt.gray, mode='RGB'):
@@ -710,7 +728,6 @@ class mImage(vImage):
         # adjust active layer only
         layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
         # dynamic typing for adjustment layer
-        #layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].thumb if layer.parentImage.useThumb else self.layersStack[layer.getLowerVisibleStackIndex()]
         layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getCurrentImage()
         layer.inputImgFull = lambda: self.layersStack[layer.getLowerVisibleStackIndex()]
         self.addLayer(layer, name=name, index=index + 1)
@@ -898,6 +915,11 @@ class imImage(mImage) :
         self.Zoom_coeff, self.xOffset, self.yOffset = zoom, xOffset, yOffset
 
     def fit_window(self, win):
+        """
+        reset Zoom_coeff and offset
+        @param win: 
+        @return: 
+        """
         self.Zoom_coeff = 1.0
         self.xOffset, self.yOffset = 0.0, 0.0
 
@@ -960,8 +982,7 @@ class QLayer(vImage):
         self.execute = lambda : self.updatePixmap()
         self.temperature = 0
         self.options = {}
-        # Following attributes (functions)  are reserved (dynamic typing for adjustment layers)
-        # See addAdjustmentlayer above
+        # Following attributes (functions)  are reserved (dynamic typing for adjustment layers) and set in addAdjustmentlayer() above
             # self.inputImg : access to upper lower visible layer image or thumbnail, according to flag useThumb
             # self.inputImgFull : access to upper lower visible layer image
             # Accessing upper lower thumbnail must be done by calling inputImgFull().thumb. Using inputImg().thumb will fail if useThumb is True.
@@ -1047,21 +1068,43 @@ class QLayer(vImage):
     def isAdjustLayer(self):
         return hasattr(self, 'view')
 
-    def updatePixmap(self):
+    def updatePixmap(self, maskOnly = False):
+        """
+        Updates the image pixmap and caches the current (eventually) color
+        managed version of the image. If maskOnly is True, this cache is not updated.
+        @param maskOnly: default False
+        @type maskOnly: boolean
+        """
         currentImage = self
         if self.parentImage is not None:
             if self.parentImage.useThumb:
                 if self.thumb is not None:
                     currentImage = self.thumb
+        if not maskOnly:
+            # invalidate color managed cache
+            self.cmImage = None
+        # get up to date (eventually) color managed image
         if icc.COLOR_MANAGE and self.parentImage is not None:
-            # layer color model is parent image colopr model
-            img = convertQImage(currentImage, transformation=self.parentImage.colorTransformation)
+            # layer color model is parent image color model
+            if self.cmImage is None:
+                img = convertQImage(currentImage, transformation=self.parentImage.colorTransformation)
+            else:
+                img = QImage(self.cmImage)
         else:
             img = QImage(currentImage)
+        # refresh cache
+        if self.cmImage is None:
+            self.cmImage = QImage(img)
         if self.maskIsEnabled:
-            qp=QPainter(img)
-            qp.setOpacity(128)
-            qp.drawImage(0,0,self.mask)
+            # set image opacity channel to mask opacity
+            """
+            buf = QImageBuffer(img)
+            buf[:,:,3] = QImageBuffer(self.mask)[:,:,3]
+            """
+            qp = QPainter(img)
+            qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
+            #qp.drawImage(0, 0, self.mask)
+            qp.drawImage(QRect(0, 0, img.width(), img.height() ), self.mask)
             qp.end()
         self.qPixmap = QPixmap.fromImage(img)
 

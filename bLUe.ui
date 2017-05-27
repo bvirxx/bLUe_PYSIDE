@@ -49,7 +49,7 @@
         <property name="alignment">
          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
         </property>
-        <widget class="QWidget" name="">
+        <widget class="QWidget" name="layoutWidget">
          <property name="geometry">
           <rect>
            <x>10</x>
@@ -221,16 +221,47 @@
             <property name="toolTip">
              <string>Fit screen</string>
             </property>
+            <property name="accessibleName">
+             <string>Fit_Screen</string>
+            </property>
             <property name="text">
              <string>Fit
 scr</string>
             </property>
             <property name="checkable">
-             <bool>false</bool>
+             <bool>true</bool>
+            </property>
+            <property name="autoExclusive">
+             <bool>true</bool>
             </property>
            </widget>
           </item>
          </layout>
+        </widget>
+        <widget class="QSlider" name="verticalSlider1">
+         <property name="geometry">
+          <rect>
+           <x>20</x>
+           <y>290</y>
+           <width>19</width>
+           <height>160</height>
+          </rect>
+         </property>
+         <property name="accessibleName">
+          <string>verticalSlider1</string>
+         </property>
+         <property name="minimum">
+          <number>1</number>
+         </property>
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="tickPosition">
+          <enum>QSlider::TicksAbove</enum>
+         </property>
+         <property name="tickInterval">
+          <number>10</number>
+         </property>
         </widget>
        </widget>
       </item>
@@ -402,7 +433,7 @@ scr</string>
     </property>
     <widget class="QMenu" name="menuNew_adjustment_layer">
      <property name="title">
-      <string>New adjustment layer</string>
+      <string>New Adjustment Layer</string>
      </property>
      <addaction name="actionBrightness_Contrast"/>
      <addaction name="actionCurves_HSpB"/>
@@ -415,16 +446,18 @@ scr</string>
     </widget>
     <addaction name="menuNew_adjustment_layer"/>
     <addaction name="actionNew_segmentation_layer"/>
+    <addaction name="separator"/>
     <addaction name="actionSave_Layer_Stack"/>
+    <addaction name="actionSave_Layer_Stack_as_LUT_Cube"/>
     <addaction name="actionLoad_Layer_Stack"/>
     <addaction name="actionLoad_3D_LUT"/>
-    <addaction name="actionSave_Layer_Stack_as_LUT_Cube"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
      <string>Help</string>
     </property>
     <addaction name="actionBlue_help"/>
+    <addaction name="actionAbout_bLUe"/>
    </widget>
    <addaction name="menu_File"/>
    <addaction name="menuImage"/>
@@ -486,7 +519,7 @@ scr</string>
   </action>
   <action name="actionShow_hide_right_window_3">
    <property name="text">
-    <string>show/hide right window</string>
+    <string>Show/Hide Before Window</string>
    </property>
   </action>
   <action name="actionShow_hide_right_window">
@@ -496,7 +529,7 @@ scr</string>
   </action>
   <action name="actionDiaporama">
    <property name="text">
-    <string>diaporama</string>
+    <string>Slide show</string>
    </property>
   </action>
   <action name="actionProfile_1">
@@ -555,7 +588,7 @@ scr</string>
   </action>
   <action name="actionNew_segmentation_layer">
    <property name="text">
-    <string>New segmentation layer</string>
+    <string>New Segmentation Layer</string>
    </property>
   </action>
   <action name="actionBlue_help">
@@ -652,6 +685,11 @@ scr</string>
   <action name="action5">
    <property name="text">
     <string>5</string>
+   </property>
+  </action>
+  <action name="actionAbout_bLUe">
+   <property name="text">
+    <string>About bLUe</string>
    </property>
   </action>
  </widget>
