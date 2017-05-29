@@ -118,9 +118,11 @@ class vImage(QImage):
         if filename is not None:
             # loads image from file (should be a 8 bits/channel color image)
             if self.meta.orientation is not None:
-                tmp =QImage(filename).transformed(self.meta.orientation)
+                tmp =QImage(filename, format=format).transformed(self.meta.orientation)
             else:
-                tmp = QImage(filename)
+                tmp = QImage(filename, format=format)
+            # ensure format is format !!
+            tmp = tmp.convertToFormat(format)
             if tmp.isNull():
                 raise ValueError('Cannot load %s' % filename)
             # call to super is mandatory. Shallow copy : no harm !
@@ -143,14 +145,45 @@ class vImage(QImage):
             # if maskIsEnabled is True, image opacity channel is set to mask opacity channel
             self.mask = QImage(self.width(), self.height(), format)
             self.mask.fill(QColor(0, 0, 0,255))
-        self.updatePixmap()
+        #self.updatePixmap()
+        vImage.updatePixmap(self)
+
+    def getMaskedImageDummy(self):
+        """
+        Returns a copy of self masked with self.mask
+        @return: 
+        @rtype QImage
+        """
+        #img = QImage(self)
+        img = QLayer.fromImage(self, parentImage=self.parentImage)
+        qp = QPainter(img)
+        if img.format() != QImage.Format_ARGB32:
+            print "format erreor"
+        qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
+        # qp.drawImage(0, 0, self.mask)
+        qp.drawImage(QRect(0, 0, img.width(), img.height()), self.mask)
+        qp.end()
+        return img
+
+    def getCurrentMaskedImageDummy(self):
+        #img = QImage(self.getCurrentImage())
+        img = QLayer.fromImage(self.getCurrentImage(), parentImage=self.parentImage)
+        qp = QPainter(img)
+        if img.format() != QImage.Format_ARGB32:
+            print "format erreor"
+        qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
+        # qp.drawImage(0, 0, self.mask)
+        qp.drawImage(QRect(0, 0, img.width(), img.height()), self.mask)
+        qp.end()
+        return img
 
     def getCurrentImage(self):
         """
         Returns current image, according to 
         the value of the flag useThumb.
+        The method is overridden in QLayer
         @return: image
-        @rtype: QImage
+        @rtype: vImage
         """
         if self.useThumb:
             if self.thumb is None:
@@ -164,6 +197,7 @@ class vImage(QImage):
         """
         returns the image buffer in color mode HSpB.
         The buffer is calculated if needed and cached.
+        The method is overridden in QLayer
         @return: HSPB buffer 
         @rtype: ndarray
         """
@@ -183,6 +217,7 @@ class vImage(QImage):
         """
         returns the image buffer in color mode Lab.
         The buffer is calculated if needed and cached.
+        The method is overridden in QLayer
         @return: Lab buffer 
         @rtype: numpy ndarray, dtype numpy.float64
         """
@@ -246,6 +281,8 @@ class vImage(QImage):
         if self.maskIsEnabled:
             # image opacity channel is set to mask opacity
             buf = QImageBuffer(img)
+            if img.format() != QImage.Format_ARGB32:
+                print "format erreor"
             buf[:, :, 3] = QImageBuffer(self.mask)[:, :, 3]
             """
             qp = QPainter(img)
@@ -293,14 +330,21 @@ class vImage(QImage):
         @param stackedLUT: array of color values (in range 0..255). Shape must be (3, 255) : a line for each channel
         @param options: not used yet
         """
-        # get image buffers (BGR order on intel arch.)
-        inputImage = self.inputImgFull().getCurrentImage()
+        #inputImage = self.inputImgFull().getCurrentImage()
+        inputImage = self.inputImg()
         currentImage = self.getCurrentImage()
-        ndImg0 = QImageBuffer(inputImage)[:, :, :3]
-        ndImg1 = QImageBuffer(currentImage)[:, :, :3]
+        #ndImg0 = QImageBuffer(inputImage)[:, :, :3]
+        #ndImg1 = QImageBuffer(currentImage)[:, :, :3]
+        # get image buffers (BGR order on intel arch.)
+        ndImg0a = QImageBuffer(inputImage)
+        ndImg1a = QImageBuffer(currentImage)
+        ndImg0 = ndImg0a[:,:,:3]
+        ndImg1 = ndImg1a[:, :, :3]
         # apply LUTS to channels
         rList = np.array([2,1,0]) #BGR
         ndImg1[:, :, :]= stackedLUT[rList[np.newaxis,:], ndImg0]
+        # alpha propagation
+        #ndImg1a[:,:,3] = ndImg0a[:,:,3]
         # update
         self.updatePixmap()
 
@@ -336,8 +380,12 @@ class vImage(QImage):
         # clipping is mandatory here : numpy bug ?
         ndsRGBImg1 = np.clip(ndsRGBImg1, 0, 255)
         currentImage = self.getCurrentImage()
-        ndImg1 = QImageBuffer(currentImage)[:, :, :3]
+        ndImg1a = QImageBuffer(currentImage)[:, :, :3]
+        ndImg1 = ndImg1a[:,:,:3]
         ndImg1[:, :, ::-1] = ndsRGBImg1
+        # alpha propagation
+        #ndImg0 = QImageBuffer(self.InputImg())
+        #ndImg1a[:, :, 3] = ndImg0[:, :, 3]
         # update
         self.updatePixmap()
         """
@@ -386,8 +434,12 @@ class vImage(QImage):
         # clipping is mandatory here : numpy bug ?
         ndRGBImg1 = np.clip(ndRGBImg1, 0, 255)
         currentImage = self.getCurrentImage()
-        ndImg1 = QImageBuffer(currentImage)[:, :, :3]
+        ndImg1a = QImageBuffer(currentImage)
+        ndImg1 = ndImg1a[:,:,:3]
         ndImg1[:,:,::-1] = ndRGBImg1
+        # alpha propagation
+        #ndImg0 = QImageBuffer(self.InputImg())
+        #ndImg1[:, :, 3] = ndImg0[:, :, 3]
         # update
         self.updatePixmap()
 
@@ -417,10 +469,15 @@ class vImage(QImage):
 
         #ndImg0 = QImageBuffer(input)[h1+1:h2+1, w1+1:w2+1, :3]
         #ndImg1 = QImageBuffer(self)[:, :, :3]
-        inputImage = self.inputImgFull().getCurrentImage()
+        #inputImage = self.inputImgFull().getCurrentImage()
+        inputImage = self.inputImg()
         currentImage = self.getCurrentImage()
-        ndImg0 = QImageBuffer(inputImage)[h1:h2+1, w1:w2+1, :3]
-        ndImg1 = QImageBuffer(currentImage)[:, :, :3]
+        #ndImg0 = QImageBuffer(inputImage)[h1:h2+1, w1:w2+1, :3]
+        #ndImg1 = QImageBuffer(currentImage)[:, :, :3]
+        ndImg0a = QImageBuffer(inputImage)[h1:h2+1, w1:w2+1, :]
+        ndImg1a = QImageBuffer(currentImage)[:, :, :]
+        ndImg0 = ndImg0a[:,:,:3]
+        ndImg1 = ndImg1a[:, :, :3]
 
         # apply LUT
         start=time()
@@ -431,6 +488,8 @@ class vImage(QImage):
         # propagate mask ????
         #currentImage.mask = self.inputImgFull().getCurrentImage().mask
         #self.mask = self.inputImgFull().mask
+        # alpha propagation
+        #ndImg1a[:, :, 3] = ndImg0a[:, :, 3]
         self.updatePixmap()
 
     def histogram(self, size=200, bgColor=Qt.white, range =(0,255), chans=channelValues.RGB, chanColors=Qt.gray, mode='RGB'):
@@ -728,8 +787,10 @@ class mImage(vImage):
         # adjust active layer only
         layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
         # dynamic typing for adjustment layer
-        layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getCurrentImage()
-        layer.inputImgFull = lambda: self.layersStack[layer.getLowerVisibleStackIndex()]
+        #layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getCurrentImage()
+        #layer.inputImgFull = lambda: self.layersStack[layer.getLowerVisibleStackIndex()]
+        layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getCurrentMaskedImage()
+        layer.inputImgFull = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getMaskedImage()
         self.addLayer(layer, name=name, index=index + 1)
         #layer.view = None
         #layer.parent = self
@@ -990,11 +1051,14 @@ class QLayer(vImage):
 
     def initThumb(self):
         """
-        Overrides vImage.initThumb
+        Overrides vImage.initThumb.
+        For adjustment layer, thumbnail is the INPUT thumbnail. 
         """
-        if hasattr(self, 'inputImgFull'):
+        if hasattr(self, 'inputImgFull'): # TODO remove
+            # init from next lower visible layer
             self.thumb = QLayer(QImg=self.inputImgFull().scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio))
         else:
+            # init from layer
             self.thumb = QLayer(QImg=self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio))
         self.thumb.parentImage = self.parentImage
 
@@ -1007,6 +1071,43 @@ class QLayer(vImage):
             currentImage = self
         return currentImage
 
+    def getMaskedImage(self):
+        """
+        Returns a copy of self masked with self.mask
+        @return: 
+        @rtype QImage
+        """
+        # img = QImage(self)
+        img = QLayer.fromImage(self, parentImage=self.parentImage)
+        qp = QPainter(img)
+        #if img.format() != QImage.Format_ARGB32:
+            #print "format error"
+        qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
+        # qp.drawImage(0, 0, self.mask)
+        qp.drawImage(QRect(0, 0, img.width(), img.height()), self.mask)
+        if self.isAdjustLayer():
+            qp.setCompositionMode(QPainter.CompositionMode_DestinationOver)
+            #qp.drawImage(QRect(0, 0, img.width(), img.height()), self.inputImg())
+            qp.drawImage(QRect(0, 0, img.width(), img.height()), self.inputImgFull())
+        qp.end()
+        return img
+
+    def getCurrentMaskedImage(self):
+        # img = QImage(self.getCurrentImage())
+        img = QLayer.fromImage(self.getCurrentImage(), parentImage=self.parentImage)
+        qp = QPainter(img)
+        #if img.format() != QImage.Format_ARGB32:
+            #print "format error"
+        qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
+        # qp.drawImage(0, 0, self.mask)
+        qp.drawImage(QRect(0, 0, img.width(), img.height()), self.mask)
+        if self.isAdjustLayer():
+            qp.setCompositionMode(QPainter.CompositionMode_DestinationOver)
+            #qp.drawImage(QRect(0, 0, img.width(), img.height()), self.inputImgFull().getCurrentImage())
+            qp.drawImage(QRect(0, 0, img.width(), img.height()), self.inputImg())
+        qp.end()
+        return img
+
     def getHspbBuffer(self):
         """
         returns the image buffer in color mode HSpB.
@@ -1018,7 +1119,7 @@ class QLayer(vImage):
                 #self.hspbBuffer = rgb2hspVec(QImageBuffer(self.thumb)[:,:,:3][:,:,::-1])
                 self.hspbBuffer = rgb2hspVec(QImageBuffer(self.inputImgFull().getCurrentImage())[:, :, :3][:, :, ::-1])
             else:
-                if hasattr(self, 'inputImg'):
+                if hasattr(self, 'inputImg'): # TODO use inputImgFull().getCurrentImage() = inputImg()
                     self.hspbBuffer = rgb2hspVec(QImageBuffer(self.inputImg())[:,:,:3][:,:,::-1])
                 else:
                     self.hspbBuffer = rgb2hspVec(QImageBuffer(self)[:, :, :3][:, :, ::-1])
@@ -1075,11 +1176,14 @@ class QLayer(vImage):
         @param maskOnly: default False
         @type maskOnly: boolean
         """
+        """
         currentImage = self
         if self.parentImage is not None:
             if self.parentImage.useThumb:
                 if self.thumb is not None:
                     currentImage = self.thumb
+        """
+        currentImage = self.getCurrentImage()
         if not maskOnly:
             # invalidate color managed cache
             self.cmImage = None
@@ -1087,11 +1191,19 @@ class QLayer(vImage):
         if icc.COLOR_MANAGE and self.parentImage is not None:
             # layer color model is parent image color model
             if self.cmImage is None:
+                # CAUTION : reset alpha channel
                 img = convertQImage(currentImage, transformation=self.parentImage.colorTransformation)
+                buf0 = QImageBuffer(img)
+                buf1 = QImageBuffer(currentImage)
+                buf0[:,:,3] = buf1[:,:,3]
             else:
                 img = QImage(self.cmImage)
         else:
             img = QImage(currentImage)
+            ########
+            #buf = QImageBuffer(img)
+            #buf[:, :, 3] = 64#QImageBuffer(self.mask)[:, :, 3]
+            ########
         # refresh cache
         if self.cmImage is None:
             self.cmImage = QImage(img)
@@ -1102,6 +1214,8 @@ class QLayer(vImage):
             buf[:,:,3] = QImageBuffer(self.mask)[:,:,3]
             """
             qp = QPainter(img)
+            if img.format() != QImage.Format_ARGB32:
+                print "format erreor"
             qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
             #qp.drawImage(0, 0, self.mask)
             qp.drawImage(QRect(0, 0, img.width(), img.height() ), self.mask)
