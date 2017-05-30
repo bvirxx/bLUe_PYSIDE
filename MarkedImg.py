@@ -147,7 +147,8 @@ class vImage(QImage):
             self.mask = QImage(self.width(), self.height(), format)
             self.mask.fill(QColor(0, 0, 0,255))
         #self.updatePixmap()
-        vImage.updatePixmap(self)
+        if type(self) in [QLayer]:
+            vImage.updatePixmap(self)
 
     def getMaskedImageDummy(self):
         """
