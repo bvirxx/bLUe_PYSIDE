@@ -390,8 +390,8 @@ def setDocumentImage(img):
     window.label.img =  img
     window.label.img.onModify = lambda : updateEnabledActions()
     window.label.img.onImageChanged = window.label.repaint
-    window.label_2.img = imImage(QImg=img.copy(), meta=img.meta)
-    #window.label_2.img.layersStack[0].applyFilter2D()
+    #window.label_2.img = imImage(QImg=img.copy(), meta=img.meta)
+    window.label_2.img = imImage(QImg=img, meta=img.meta)
     # no mouse drawing or painting
     window.label_2.img.isMouseSelectable = False
     # init layer view

@@ -87,18 +87,14 @@ def PilImageToQImage(pilimg) :
 
     if mode != 'RGB':
         raise ValueError("PilImageToQImage : wrong mode : %s" % mode)
-
     # get data buffer (type str)
     data = pilimg.tobytes('raw', mode)
-
     if len(data) != w * h * 3:
         raise ValueError("PilImageToQImage : incorrect buffer length : %d, should be %d" % (len(data), w * h * 3))
-
     BytesPerLine = w * 3
     qimFormat = QImage.Format_RGB888
     img888 = QImage(data, w, h, BytesPerLine, qimFormat)
     return img888.convertToFormat(QImage.Format_ARGB32)
-
 
 def QImageToPilImage(qimg) :
     """
@@ -110,11 +106,9 @@ def QImageToPilImage(qimg) :
 
     if (qimg.format() == QImage.Format_ARGB32) or (qimg.format() == QImage.Format_RGB32):
         # convert pixels from BGRA or BGRX to RGB
-        a=a[:,:,:3][:,:,::-1]
+        a = a[:,:,:3][:,:,::-1]
         a = np.ascontiguousarray(a)
     else :
         raise ValueError("QImageToPilImage : unrecognized format : %s" %qimg.Format())
-
     w, h = qimg.width(), qimg.height()
-
     return Image.frombytes('RGB', (w,h), a.data)
