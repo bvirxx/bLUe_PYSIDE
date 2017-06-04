@@ -762,8 +762,8 @@ def menuLayer(x, name):
         # Curve change event handler
         # Apply current LUT and repaint window
         def f():
-            l.execute()
-            #l.applyToStack()
+            #l.execute()
+            l.applyToStack()
             #l.applyLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
             window.label.repaint()
         # wrapper for the right apply method

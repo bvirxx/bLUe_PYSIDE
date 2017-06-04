@@ -18,7 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import json
 from trace import pickle
 
-from PySide.QtCore import Qt, QBuffer, QDataStream, QFile, QIODevice
+from PySide.QtCore import Qt, QBuffer, QDataStream, QFile, QIODevice, QSize
 
 import cv2
 from copy import copy
@@ -32,7 +32,7 @@ from graphicsFilter import filterIndex
 from icc import convertQImage
 import icc
 from imgconvert import *
-from LUT3D import interpVec, rgb2hspVec, hsp2rgbVec
+from LUT3D import interpVec, rgb2hspVec, hsp2rgbVec, LUT3DIdentity, LUT3D
 from time import time
 from utils import savitzky_golay, channelValues
 
@@ -52,10 +52,11 @@ class vImage(QImage):
     versatile image class.
     This is the base class for all multi-layered and interactive image classes.
     It gathers all image information, including meta-data.
-    Each image owns a mask (disabled by default). When enabled, masking operation is bitwise AND.
-    Several data buffers are defined for thumbnails and color modes.
-    they are cached; access functions are initThumb, getHspbBuffer, getLabBuffer,
-    updatePixmap, cacheInvalidate.
+    A vImage holds three images: full (self), thumbnail (self.thumb) and
+    hald (self.hald) for LUT3D conversion. Note that self.thumb and self.hald are not
+    cache buffers : self, self.thumb and self.hald are initialized
+    and handled identically.
+    Each image owns a mask (disabled by default).
     """
     thumbSize = 1000
     def __init__(self, filename=None, cv2Img=None, QImg=None, mask=None, format=QImage.Format_ARGB32,
@@ -95,9 +96,13 @@ class vImage(QImage):
         self.rect, self.mask, = None, mask
         self.filename = filename if filename is not None else ''
 
-        # Caches
+        # modes
+        self.useHald = False
+        self.hald = None
         self.useThumb = False
         self.thumb = None
+
+        # Caches
         self.qPixmap = None
         self.hspbBuffer = None
         self.LabBuffer = None
@@ -171,8 +176,6 @@ class vImage(QImage):
         #img = QImage(self.getCurrentImage())
         img = QLayer.fromImage(self.getCurrentImage(), parentImage=self.parentImage)
         qp = QPainter(img)
-        if img.format() != QImage.Format_ARGB32:
-            print "format erreor"
         qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
         # qp.drawImage(0, 0, self.mask)
         qp.drawImage(QRect(0, 0, img.width(), img.height()), self.mask)
@@ -187,16 +190,26 @@ class vImage(QImage):
         """
         self.thumb = self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio)
 
+    def initHald(self):
+        s = int((LUT3DIdentity.size )**(3.0/2.0)) + 1
+        buf0 = LUT3DIdentity.getHaldImage(s, s)
+        self.Hald = QImage(QSize(s,s), QImage.Format_ARGB32)
+        buf1 = QImageBuffer(self.Hald)
+        buf1[:,:,:]=buf0
+
+
     def getCurrentImage(self):
         """
-        Returns current (full or preview) image,
-        according to the value of the flag useThumb.
-        The thumbnail is not updated,
-        unless self.thumb is None.
+        Returns current (full, preview or hald) image,
+        according to the values of the flag useThumb and useHald.
         The method is overridden in QLayer
         @return: image
         @rtype: vImage
         """
+        if self.useHald:
+            if self.hald is None:
+                self.initHald()
+            return self.hald
         if self.useThumb:
             if self.thumb is None:
                 self.initThumb()
@@ -427,12 +440,15 @@ class vImage(QImage):
     def applyHSPB1DLUT(self, stackedLUT, options={}):
         """
         Applies 1D LUTS (one for each hue sat and brightness channels).
-        IMPORTANT : Transformation is applied to self or self.thumb
+        IMPORTANT : Transformation is applied to the current view of the image
+        (self or self.thumb).
         Time 13,86s for 15 Mpxl, including 11,11 s for hsp2rgbVec
         @param stackedLUT: array of color values (in range 0..255). Shape must be (3, 255) : a line for each channel
         @param options: not used yet
         """
-        # hspb mode
+        t = time()
+        self.parentImage.useHald = True
+        self.hspbBuffer = None
         ndHSPBImg0 = self.getHspbBuffer()
         # apply LUTS to channels
         #ndLImg0 = (ndHSPBImg0[:,:,1:] * 255).astype(int) # suppress hue channel
@@ -454,11 +470,18 @@ class vImage(QImage):
         #ndImg0 = QImageBuffer(self.InputImg())
         #ndImg1[:, :, 3] = ndImg0[:, :, 3]
         # update
+        print 'usehald', time() -t
+        if self.parentImage.useThumb:
+            outputHald = self.getCurrentImage().copy()
+            self.parentImage.useHald = False
+            self.applyHald(outputHald)
         self.updatePixmap()
 
     def apply3DLUT(self, LUT, options={}):
         """
-        Applies 3D LUT to the image
+        Applies 3D LUT to the current view of the image
+        IMPORTANT : Transformation is applied to the current view of the image
+        (self or self.thumb).
         @param LUT: LUT3D array (see module LUT3D.py)
         @type LUT: 3d numpy array, dtype = int
         @param options: dict of string:boolean records
@@ -504,6 +527,10 @@ class vImage(QImage):
         # alpha propagation
         #ndImg1a[:, :, 3] = ndImg0a[:, :, 3]
         self.updatePixmap()
+
+    def applyHald(self, hald):
+        lut = LUT3D.HaldImage2LUT3D(hald)
+        self.apply3DLUT(lut.LUT3DArray, options={'use selection' : False})
 
     def histogram(self, size=200, bgColor=Qt.white, range =(0,255), chans=channelValues.RGB, chanColors=Qt.gray, mode='RGB'):
         """
@@ -1079,15 +1106,31 @@ class QLayer(vImage):
             # init from layer
             self.thumb = QLayer(QImg=self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio), parentImage=self.parentImage)
         """
-        self.thumb = QLayer(QImg=self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio), parentImage=self.parentImage)
+        #self.thumb = QLayer(QImg=self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio), parentImage=self.parentImage)
+        self.thumb = self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio)
         self.thumb.parentImage = self.parentImage
+
+    def initHald(self):
+        s = int((LUT3DIdentity.size) ** (3.0 / 2.0)) + 1
+        buf0 = LUT3DIdentity.getHaldImage(s, s)
+        #self.hald = QLayer(QImg=QImage(QSize(190,190), QImage.Format_ARGB32))
+        self.hald = QImage(QSize(s, s), QImage.Format_ARGB32)
+        buf1 = QImageBuffer(self.hald)
+        buf1[:, :, :3] = buf0
+        buf1[:,:,3] = 255
+        self.hald.parentImage = self.parentImage
 
     def getThumb(self):
         if self.thumb is None:
             self.initThumb()
         return self.thumb
 
-    def getCurrentImage(self, purgeThumb=False):
+    def getHald(self):
+        if self.hald is None:
+            self.initHald()
+        return self.hald
+
+    def getCurrentImage(self):
         """
         Returns current (full or preview) image, according to
         the value of the flag useThumb. The thumbnail is not
@@ -1096,8 +1139,10 @@ class QLayer(vImage):
         @return: current image
         @rtype: QLayer
         """
-        if purgeThumb:
-            self.thumb = None
+        if self.parentImage.useHald:
+            if self.hald is None:
+                self.initHald()
+            return self.hald
         if self.parentImage.useThumb:
             if self.thumb is None:
                 self.initThumb()
@@ -1145,6 +1190,8 @@ class QLayer(vImage):
         @return: maskedImageContainer or maskedThumbContainer
         @rtype QLayer
         """
+        if self.parentImage.useHald:
+            return self.getHald()
         if self.maskedThumbContainer is None:
             #self.maskedThumbContainer = QLayer.fromImage(self.thumb, parentImage=self.parentImage)
             self.maskedThumbContainer = QLayer.fromImage(self.getThumb(), parentImage=self.parentImage)
@@ -1177,12 +1224,12 @@ class QLayer(vImage):
         @return: HSPB buffer (type ndarray)
         """
         if self.hspbBuffer is None:
-            if self.parentImage.useThumb:
+            if self.parentImage.useThumb or self.parentImage.useHald:
                 #self.hspbBuffer = rgb2hspVec(QImageBuffer(self.thumb)[:,:,:3][:,:,::-1])
                 #self.hspbBuffer = rgb2hspVec(QImageBuffer(self.inputImgFull().getCurrentImage())[:, :, :3][:, :, ::-1])
                 self.hspbBuffer = rgb2hspVec(QImageBuffer(self.inputImg())[:, :, :3][:, :, ::-1])
             else:
-                if hasattr(self, 'inputImg'): # TODO use inputImgFull().getCurrentImage() = inputImg()
+                if hasattr(self, 'inputImg'):
                     self.hspbBuffer = rgb2hspVec(QImageBuffer(self.inputImg())[:,:,:3][:,:,::-1])
                 else:
                     self.hspbBuffer = rgb2hspVec(QImageBuffer(self)[:, :, :3][:, :, ::-1])
@@ -1226,6 +1273,14 @@ class QLayer(vImage):
         try:
             QApplication.setOverrideCursor(Qt.WaitCursor)
             applyToStack_(self)
+            if not self.parentImage.useThumb:
+                outputHald = self.parentImage.layersStack[-1].getCurrentImage().copy()
+                self.parentImage.useHald = False
+                self.applyHald(outputHald)
+                buf0 = QImageBuffer(self.parentImage.layersStack[-1])
+                buf1 = QImageBuffer(self)
+                buf0[:,:,:] = buf1
+                self.parentImage.layersStack[-1].updatePixmap()
         finally:
             QApplication.restoreOverrideCursor()
 

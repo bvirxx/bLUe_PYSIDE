@@ -117,6 +117,8 @@ class LUT3D (object):
         [ LUT3DArray[r,g,b][::-1] for r in range(self.size-1) for g in range(self.size-1) for b in range(self.size-1) ]
         
        The remainings bytes are padded with 0.
+       Example: LUT3DIdentity.getHaldImage(w, h) returns an identity hald image of size (w,h) padded with 0.
+       w*h must be greater than LUTSIZE^^3
        
         Note that the buffer is in BGR order, suitable for direct conversion to a QImage and that 
         the b value increases fastest (i.e. from a byte to the next). 

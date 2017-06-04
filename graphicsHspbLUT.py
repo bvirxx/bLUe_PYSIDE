@@ -126,8 +126,8 @@ class graphicsHspbForm(QGraphicsView) :
             self.scene().onUpdateLUT()
         # connected to pushButton3.clicked
         def updateStack():
-            layer.applyToStack()
-            targetImage.onImageChanged()
+           layer.applyToStack()
+           targetImage.onImageChanged()
         # buttons
         pushButton1 = QPushButton("Reset Curve")
         #pushButton1.setObjectName("btn_reset_channel")
