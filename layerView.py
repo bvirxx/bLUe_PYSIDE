@@ -426,8 +426,8 @@ class QLayerView(QTableView) :
         # toggle layer visibility
         if clickedIndex.column() == 0 :
             # background layer is always visible
-            #if row == len(self.img.layersStack) - 1:
-                #return
+            if row == len(self.img.layersStack) - 1:
+                return
             layer = self.img.layersStack[-1-row]
             layer.visible = not(layer.visible)
             # update visibility icon
@@ -435,9 +435,10 @@ class QLayerView(QTableView) :
                 self.model().setData(clickedIndex, QIcon(":/images/resources/eye-icon.png") ,Qt.DecorationRole)
             else:
                 self.model().setData(clickedIndex, QIcon(":/images/resources/eye-icon-strike.png"), Qt.DecorationRole)
-            if hasattr(layer, 'inputImg'):
+            #if hasattr(layer, 'inputImg'):
                 # adjustment layer
-                layer.applyToStack()
+                #layer.applyToStack()
+            layer.applyToStack()
             # image changed event handler
             self.img.onImageChanged()
         # hide/display adjustment form

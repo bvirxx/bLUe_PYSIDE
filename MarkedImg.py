@@ -179,10 +179,20 @@ class vImage(QImage):
         qp.end()
         return img
 
+    def initThumb(self):
+        """
+        Inits thumbnail
+        @return: thumbnail
+        @rtype: QImage
+        """
+        self.thumb = self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio)
+
     def getCurrentImage(self):
         """
-        Returns current image, according to 
-        the value of the flag useThumb.
+        Returns current (full or preview) image,
+        according to the value of the flag useThumb.
+        The thumbnail is not updated,
+        unless self.thumb is None.
         The method is overridden in QLayer
         @return: image
         @rtype: vImage
@@ -198,7 +208,7 @@ class vImage(QImage):
     def getHspbBuffer(self):
         """
         returns the image buffer in color mode HSpB.
-        The buffer is calculated if needed and cached.
+        The buffer is recalculated if needed and cached.
         The method is overridden in QLayer
         @return: HSPB buffer 
         @rtype: ndarray
@@ -243,20 +253,12 @@ class vImage(QImage):
         self.isModified = b
         self.onModify()
 
-    def initThumb(self):
-        """
-        Inits thumbnail
-        @return: thumbnail
-        @rtype: QImage
-        """
-        self.thumb = self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio)
-
     def cacheInvalidate(self):
         """
         Invalidates thumbnail and buffers.
         @return: 
         """
-        self.thumb = None
+        #self.thumb = None
         self.hspbBuffer = None
         self.LabBuffer = None
 
@@ -424,13 +426,14 @@ class vImage(QImage):
 
     def applyHSPB1DLUT(self, stackedLUT, options={}):
         """
-        Applies 1D LUTS (one for each hue sat and brightness channels)
+        Applies 1D LUTS (one for each hue sat and brightness channels).
+        IMPORTANT : Transformation is applied to self or self.thumb
+        Time 13,86s for 15 Mpxl, including 11,11 s for hsp2rgbVec
         @param stackedLUT: array of color values (in range 0..255). Shape must be (3, 255) : a line for each channel
         @param options: not used yet
         """
         # hspb mode
         ndHSPBImg0 = self.getHspbBuffer()
-
         # apply LUTS to channels
         #ndLImg0 = (ndHSPBImg0[:,:,1:] * 255).astype(int) # suppress hue channel
         ndLImg0 = (ndHSPBImg0 * [255.0/360.0, 255.0, 255.0]).astype(int)
@@ -1067,18 +1070,34 @@ class QLayer(vImage):
     def initThumb(self):
         """
         Overrides vImage.initThumb.
-        For adjustment layer, thumbnail is the INPUT thumbnail. 
         """
-        #if hasattr(self, 'inputImgFull'):
+        """
         if self.isAdjustLayer():
-            # init from next lower visible layer
+            # init from lower visible layers
             self.thumb = QLayer(QImg=self.inputImgFull().scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio))
         else:
             # init from layer
             self.thumb = QLayer(QImg=self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio), parentImage=self.parentImage)
+        """
+        self.thumb = QLayer(QImg=self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio), parentImage=self.parentImage)
         self.thumb.parentImage = self.parentImage
 
-    def getCurrentImage(self):
+    def getThumb(self):
+        if self.thumb is None:
+            self.initThumb()
+        return self.thumb
+
+    def getCurrentImage(self, purgeThumb=False):
+        """
+        Returns current (full or preview) image, according to
+        the value of the flag useThumb. The thumbnail is not
+        updated, unless self.thumb is None or purgeThumb is True.
+        Overrides vImage method
+        @return: current image
+        @rtype: QLayer
+        """
+        if purgeThumb:
+            self.thumb = None
         if self.parentImage.useThumb:
             if self.thumb is None:
                 self.initThumb()
@@ -1089,10 +1108,15 @@ class QLayer(vImage):
 
     def getMaskedImage(self):
         """
-        Set maskedImageContainer to self * mask + inputImgFull() * (1 -mask) 
+        Recursively builds full masked image from layer stack.
+        For non adjustment layers, sets maskedImageContainer to self * mask,
+        and for adjustment layers, to self * mask + inputImgFull() * (1 -mask).
+        InputImgFull  calls getMaskedImage recursively, so masked regions show
+        underlying layers. Recursion stops at the first non adjustment layer.
         @return: maskedImageContainer
         @rtype Qlayer
         """
+        # allocate only once
         if self.maskedImageContainer is None:
             self.maskedImageContainer = QLayer.fromImage(self, parentImage=self.parentImage)
         #img = QLayer.fromImage(self, parentImage=self.parentImage)
@@ -1112,13 +1136,18 @@ class QLayer(vImage):
 
     def getCurrentMaskedImage(self):
         """
-        set maskedImageContainer to self * mask + inputImg() * (1 -mask) or
-        maskedThumbContainer to self * mask + thumb * (1-mask)
+        Recursively builds current (full/thumbnail) masked image from layer stack.
+        set maskedImageContainer to self * mask + inputImg * (1 -mask) or
+        maskedThumbContainer to self * mask + thumb * (1-mask), according to the value
+        of the flag useThumb.
+        InputImg calls getCurrentMaskedImage recursively, so masked regions display
+        underlying layers. Recursion stops at the first non adjustment layer.
         @return: maskedImageContainer or maskedThumbContainer
         @rtype QLayer
         """
         if self.maskedThumbContainer is None:
-            self.maskedThumbContainer = QLayer.fromImage(self.thumb, parentImage=self.parentImage)
+            #self.maskedThumbContainer = QLayer.fromImage(self.thumb, parentImage=self.parentImage)
+            self.maskedThumbContainer = QLayer.fromImage(self.getThumb(), parentImage=self.parentImage)
         if self.maskedImageContainer is None:
             self.maskedImageContainer = QLayer.fromImage(self, parentImage=self.parentImage)
         if self.parentImage.useThumb:
@@ -1127,7 +1156,9 @@ class QLayer(vImage):
             img = self.maskedImageContainer
         #img = QLayer.fromImage(self.getCurrentImage(), parentImage=self.parentImage)
         qp = QPainter(img)
-        qp.drawImage(QRect(0, 0, img.width(), img.height()), self)
+        # MUST  call getCurrentImage in preview mode, otherwise thumbnail modifications are lost modified 2/6/17
+        #qp.drawImage(QRect(0, 0, img.width(), img.height()), self)
+        qp.drawImage(QRect(0, 0, img.width(), img.height()), self.getCurrentImage())
         # getCurrentImage() * mask
         qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
         qp.drawImage(QRect(0, 0, img.width(), img.height()), self.mask)
@@ -1141,14 +1172,15 @@ class QLayer(vImage):
 
     def getHspbBuffer(self):
         """
-        returns the image buffer in color mode HSpB.
+        returns the image (input)  buffer in color mode HSpB.
         The buffer is calculated if needed and cached.
         @return: HSPB buffer (type ndarray)
         """
         if self.hspbBuffer is None:
             if self.parentImage.useThumb:
                 #self.hspbBuffer = rgb2hspVec(QImageBuffer(self.thumb)[:,:,:3][:,:,::-1])
-                self.hspbBuffer = rgb2hspVec(QImageBuffer(self.inputImgFull().getCurrentImage())[:, :, :3][:, :, ::-1])
+                #self.hspbBuffer = rgb2hspVec(QImageBuffer(self.inputImgFull().getCurrentImage())[:, :, :3][:, :, ::-1])
+                self.hspbBuffer = rgb2hspVec(QImageBuffer(self.inputImg())[:, :, :3][:, :, ::-1])
             else:
                 if hasattr(self, 'inputImg'): # TODO use inputImgFull().getCurrentImage() = inputImg()
                     self.hspbBuffer = rgb2hspVec(QImageBuffer(self.inputImg())[:,:,:3][:,:,::-1])
@@ -1252,12 +1284,17 @@ class QLayer(vImage):
         return i
 
     def getLowerVisibleStackIndex(self):
+        """
+        Returns index of the next lower visible layer,
+        -1 if no such layer
+        @return:
+        """
         ind = self.getStackIndex()
         i = -1
         for i in range(ind-1, -1, -1):
             if self.parentImage.layersStack[i].visible:
-                break
-        return i
+                return i
+        return -1
 
     def merge_with_layer_immediately_below(self):
         if not hasattr(self, 'inputImg'):

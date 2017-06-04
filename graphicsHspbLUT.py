@@ -88,19 +88,22 @@ class graphicsHspbForm(QGraphicsView) :
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicR = cubic
         cubic.channel = channelValues.Hue
-        cubic.histImg = self.scene().layer.inputImgFull().histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, range=(0, 360), chans=channelValues.Hue, mode='HSpB')
+        #cubic.histImg = self.scene().layer.inputImgFull().histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, range=(0, 360), chans=channelValues.Hue, mode='HSpB')
+        cubic.histImg = self.scene().layer.histogram(size=self.scene().axeSize,
+                                                                    bgColor=self.scene().bgColor, range=(0, 360),
+                                                                    chans=channelValues.Hue, mode='HSpB')
         cubic.initFixedPoints()
         cubic = cubicItem(self.graphicsScene.axeSize)
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicG = cubic
         cubic.channel = channelValues.Sat
-        cubic.histImg = self.scene().layer.inputImgFull().histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, range=(0,1), chans=channelValues.Sat, mode='HSpB')
+        cubic.histImg = self.scene().layer.histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, range=(0,1), chans=channelValues.Sat, mode='HSpB')
         cubic.initFixedPoints()
         cubic = cubicItem(self.graphicsScene.axeSize)
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicB = cubic
         cubic.channel = channelValues.Br
-        cubic.histImg = self.scene().layer.inputImgFull().histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, range=(0,1), chans=channelValues.Br, mode='HSpB')
+        cubic.histImg = self.scene().layer.histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, range=(0,1), chans=channelValues.Br, mode='HSpB')
         cubic.initFixedPoints()
         # set current
         self.scene().cubicItem = self.graphicsScene.cubicB
@@ -111,6 +114,7 @@ class graphicsHspbForm(QGraphicsView) :
             Reset the selected curve
             """
             self.scene().cubicItem.reset()
+            # call Curve change event handler, defined in blue.menuLayer
             self.scene().onUpdateLUT()
         def onResetAllCurves():
             """
@@ -118,8 +122,9 @@ class graphicsHspbForm(QGraphicsView) :
             """
             for cubicItem in [self.graphicsScene.cubicR, self.graphicsScene.cubicG, self.graphicsScene.cubicB]:
                 cubicItem.reset()
+            # call Curve change event handlerdefined in blue.menuLayer
             self.scene().onUpdateLUT()
-
+        # connected to pushButton3.clicked
         def updateStack():
             layer.applyToStack()
             targetImage.onImageChanged()
@@ -139,12 +144,12 @@ class graphicsHspbForm(QGraphicsView) :
         pushButton2.clicked.connect(onResetAllCurves)
         self.graphicsScene.addWidget(pushButton2)
         pushButton3 = QPushButton("Update top layers")
-        pushButton3.setObjectName("btn_reset_channel")
+        pushButton3.setObjectName("btn_update_top")
         pushButton3.setMinimumSize(1, 1)
         pushButton3.setGeometry(100, 80, 80, 30)  # x,y,w,h
         pushButton3.adjustSize()
         pushButton3.clicked.connect(updateStack)
-        self.graphicsScene.addWidget(pushButton2)
+        self.graphicsScene.addWidget(pushButton3)
 
         # options
         self.listWidget1 = optionsWidget(options=['H', 'S', 'B'], exclusive=True)

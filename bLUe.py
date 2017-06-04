@@ -180,7 +180,10 @@ def mouseEvent(widget, event) :
                         qp.drawLine(State['x_imagePrecPos'], State['y_imagePrecPos'], tmp_x, tmp_y)
                         qp.end()
                         State['x_imagePrecPos'], State['y_imagePrecPos'] = tmp_x, tmp_y
-                        layer.updatePixmap(maskOnly=True)
+                        i = layer.getStackIndex()
+                        for l in img.layersStack[i:] :
+                            l.updatePixmap(maskOnly=True)
+                        #layer.updatePixmap(maskOnly=True)
                         window.label.repaint()
                 else:
                     img.xOffset+=(x-State['ix'])
@@ -227,7 +230,10 @@ def mouseEvent(widget, event) :
                         qp.drawEllipse(tmp_x, tmp_y, w, w)
                         qp.drawLine(State['x_imagePrecPos'], State['y_imagePrecPos'], tmp_x, tmp_y)
                         qp.end()
-                        layer.updatePixmap()
+                        #layer.updatePixmap(maskOnly=True)
+                        i = layer.getStackIndex()
+                        for l in img.layersStack[i:] :
+                            l.updatePixmap(maskOnly=True)
                         window.label.repaint()
                         #tmp.isModified = True
                 else:

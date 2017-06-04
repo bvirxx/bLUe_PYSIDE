@@ -639,10 +639,10 @@ def hsp2rgb_ClippingInd(h,s,p, trunc=True):
 def hsp2rgbVec(hspImg):
     """
     Vectorized version of hsp2rgb
-
     @param hspImg: (n,m,3) array of hsp values
     @return: identical shape array of rgb values
     """
+    # TODO optimize : time = 11,11 s   and space > 6 Go (15 Mpxl image)
     h, s, p = hspImg[:, :, 0], hspImg[:, :, 1], hspImg[:, :, 2]
 
     shape = h.shape

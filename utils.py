@@ -56,7 +56,7 @@ class optionsWidget(QListWidget) :
 
     def select(self, item):
         """
-        Mouse click event handler
+        Item clicked event handler
         @param item:
         @type item: QListWidgetItem
         """
@@ -67,14 +67,16 @@ class optionsWidget(QListWidget) :
                     currentItem.setCheckState(Qt.Checked)
                     #currentItem.setSelected(True)
                 else:
-                    pass
+                    currentItem.setCheckState(not currentItem.checkState())
                     #currentItem.setCheckState(Qt.Unchecked if currentItem.isSelected() else Qt.Checked)
                     #currentItem.setCheckState(Qt.Unchecked if currentItem.checkState() else Qt.Checked)
                     #currentItem.setSelected(not currentItem.isSelected())
             elif self.exclusive:
                 currentItem.setCheckState(Qt.Unchecked)
                 #currentItem.setSelected(False)
-        self.onSelect(item)
+        if item.checkState():
+            item.setSelected(True)
+            self.onSelect(item)
 
 class helpClient(QObject):
     def __init__(self, parent=None, helpId=None):
