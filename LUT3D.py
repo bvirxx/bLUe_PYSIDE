@@ -16,6 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import multiprocessing
+from functools import partial
 from time import time
 
 import numpy as np
@@ -750,14 +751,31 @@ def colorPicker(w,h):
     img = imImage(QImg=img)
     return img
 """
-
 def interpVec(LUT, ndImg):
     """
+    parallel version of trilinear interpolation
+    @param LUT:
+    @param ndImg:
+    @return:
+    """
+    w, h = ndImg.shape[1], ndImg.shape[0]
+    slices = [ (s1, s2) for s1 in [slice(0,w/3), slice(w/3, 2*w/3), slice(2*w/3, w)]
+                 for s2 in [slice(0,h/3), slice(h/3, 2*h/3), slice(2*h/3,h)]]
+    imgList = [ndImg[s2, s1] for s1, s2 in slices]
+    pool = multiprocessing.Pool(5)
+    partial_f = partial(interpVec_, LUT)
+    res = pool.map(partial_f, imgList)
+    outImg = np.empty(ndImg.shape)
+    for i, (s1, s2) in enumerate(slices):
+            outImg[s2, s1] = res[i]
+    return outImg
+
+def interpVec_(LUT, ndImg):
+    """
+    Vectorized version of trilinear interpolation
+    Cf. file trilinear.docx for details
     Convert an RGB image using a 3D LUT. The output image is interpolated from the LUT.
     It has the same dimensions and type as the input image.
-    We use a vectorized version of trilinear interpolation.
-    Cf. file trilinear.docx for details
-
     @param LUT: 3D LUT array
     @param ndImg: image array
     @return: RGB image with same dimensions as the input image

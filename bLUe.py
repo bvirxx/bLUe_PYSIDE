@@ -1111,70 +1111,72 @@ def updateStatus():
 ###########
 # app init
 ##########
-# help Window
-helpWindow=None
+if __name__ =='__main__':
 
-# style sheet
-app.setStyleSheet("QMainWindow, QGraphicsView, QListWidget, QMenu, QTableView {background-color: rgb(200, 200, 200)}\
-                   QMenu, QTableView { selection-background-color: blue;\
-                                        selection-color: white;}"
-                 )
-# status bar
-window.Label_status = QLabel()
-window.statusBar().addWidget(window.Label_status)
-window.updateStatus = updateStatus
+    # help Window
+    helpWindow=None
 
-# splash screen
-pixmap = QPixmap('logo.png')
-splash = QSplashScreen(pixmap, Qt.WindowStaysOnTopHint)
-splash.show()
-app.processEvents()
-splash.showMessage("Loading .", color=Qt.white, alignment=Qt.AlignCenter)
-app.processEvents()
-sleep(1)
-splash.showMessage("Loading ...", color=Qt.white, alignment=Qt.AlignCenter)
-app.processEvents()
-#sleep(1)
+    # style sheet
+    app.setStyleSheet("QMainWindow, QGraphicsView, QListWidget, QMenu, QTableView {background-color: rgb(200, 200, 200)}\
+                       QMenu, QTableView { selection-background-color: blue;\
+                                            selection-color: white;}"
+                     )
+    # status bar
+    window.Label_status = QLabel()
+    window.statusBar().addWidget(window.Label_status)
+    window.updateStatus = updateStatus
 
-# close event handler
-window.onCloseEvent = close
+    # splash screen
+    pixmap = QPixmap('logo.png')
+    splash = QSplashScreen(pixmap, Qt.WindowStaysOnTopHint)
+    splash.show()
+    app.processEvents()
+    splash.showMessage("Loading .", color=Qt.white, alignment=Qt.AlignCenter)
+    app.processEvents()
+    sleep(1)
+    splash.showMessage("Loading ...", color=Qt.white, alignment=Qt.AlignCenter)
+    app.processEvents()
+    #sleep(1)
 
-# mouse hover events
-window.label.setMouseTracking(True)
+    # close event handler
+    window.onCloseEvent = close
 
-# GUI Slot hooks
-window.onWidgetChange = widgetChange
-#window.onShowContextMenu = contextMenu
-window.onExecMenuFile = menuFile
-window.onExecFileOpen = openFile
-window.onExecMenuWindow = menuWindow
-window.onExecMenuImage = menuImage
-window.onExecMenuLayer = menuLayer
-window.onExecMenuHelp = menuHelp
+    # mouse hover events
+    window.label.setMouseTracking(True)
+
+    # GUI Slot hooks
+    window.onWidgetChange = widgetChange
+    #window.onShowContextMenu = contextMenu
+    window.onExecMenuFile = menuFile
+    window.onExecFileOpen = openFile
+    window.onExecMenuWindow = menuWindow
+    window.onExecMenuImage = menuImage
+    window.onExecMenuLayer = menuLayer
+    window.onExecMenuHelp = menuHelp
 
 
-# load current settings
-window.readSettings()
-window._recentFiles = window.settings.value('paths/recent', [])
+    # load current settings
+    window.readSettings()
+    window._recentFiles = window.settings.value('paths/recent', [])
 
-set_event_handler(window.label)
-set_event_handler(window.label_2)
+    set_event_handler(window.label)
+    set_event_handler(window.label_2)
 
-img=QImage(200, 200, QImage.Format_ARGB32)
-img.fill(Qt.darkGray)
-defaultImImage = imImage(QImg=img, meta=metadata(name='noName'))
+    img=QImage(200, 200, QImage.Format_ARGB32)
+    img.fill(Qt.darkGray)
+    defaultImImage = imImage(QImg=img, meta=metadata(name='noName'))
 
-PROFILES_LIST = icc.getProfiles()
-initMenuAssignProfile()
-updateMenuOpenRecent()
+    PROFILES_LIST = icc.getProfiles()
+    initMenuAssignProfile()
+    updateMenuOpenRecent()
 
-window.label.img = defaultImImage
-window.label_2.img = defaultImImage
+    window.label.img = defaultImImage
+    window.label_2.img = defaultImImage
 
-window.showMaximized()
-splash.finish(window)
+    window.showMaximized()
+    splash.finish(window)
 
-# init EyeDropper
-window.cursor_EyeDropper = QCursor(QPixmap.fromImage(QImage(":/images/resources/Eyedropper-icon.png")))
+    # init EyeDropper
+    window.cursor_EyeDropper = QCursor(QPixmap.fromImage(QImage(":/images/resources/Eyedropper-icon.png")))
 
-sys.exit(app.exec_())
+    sys.exit(app.exec_())
