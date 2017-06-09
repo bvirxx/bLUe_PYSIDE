@@ -691,10 +691,8 @@ class mImage(vImage):
         @return: pixel value (type QRgb : unsigned int ARGB)
         """
         activeLayer = self.getActiveLayer()
-        #if  hasattr(activeLayer, "inputImg") and activeLayer.inputImg is not None:
-            # layer is adjustment or segmentation : read from input image
-            #return activeLayer.inputImg().pixel(x, y)
-        if  hasattr(activeLayer, "inputImgFull") and activeLayer.inputImgFull is not None:
+        #if  hasattr(activeLayer, "inputImgFull") and activeLayer.inputImgFull is not None:
+        if activeLayer.isAdjustLayer() and activeLayer.inputImgFull is not None:
             # layer is adjustment or segmentation : read from input image
             return activeLayer.inputImgFull().pixel(x, y)
         else:

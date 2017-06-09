@@ -772,7 +772,6 @@ def menuLayer(x, name):
             l.execute = lambda  pool=None: l.applyHSPB1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY(), pool=pool)
         elif name == 'actionCurves_Lab':
             l.execute = lambda: l.applyLab1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
-
     # 3D LUT
     elif name in ['action3D_LUT', 'action3D_LUT_HSB']:
         # color model
@@ -795,7 +794,7 @@ def menuLayer(x, name):
         grWindow.graphicsScene.onUpdateLUT = g
         # wrapper for the right apply method
         #l.execute = lambda : l.apply3DLUT(grWindow.graphicsScene.LUT3DArray, options=l.options)
-        l.execute = lambda: l.apply3DLUT(grWindow.graphicsScene.LUT3DArray, options=grWindow.graphicsScene.options)
+        l.execute = lambda pool=None: l.apply3DLUT(grWindow.graphicsScene.LUT3DArray, options=grWindow.graphicsScene.options, pool=pool)
         #window.tableView.setLayers(window.label.img)
     # segmentation grabcut
     elif name == 'actionNew_segmentation_layer':
