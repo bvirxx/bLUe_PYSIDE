@@ -120,13 +120,9 @@ class activePoint(QGraphicsPathItem):
             return
         self.scene().cubicItem.updatePath()
         self.scene().cubicItem.updateLUTXY()
-        """
-        LUT = []
-        scale = 255.0 / self.scene().axeSize
-        LUT.extend([int((-p.y()) * scale) for p in self.scene().cubicItem.spline])
-        cubicItem.LUTXY = np.array(LUT)
-        """
-
+        # Curve change event handler,
+        # defined in blue.py
+        # Apply current LUT to stack and repaint window
         self.scene().onUpdateLUT()
 
 class cubicItem(QGraphicsPathItem) :
@@ -219,6 +215,10 @@ class cubicItem(QGraphicsPathItem) :
         #updateScene(self.scene())
 
     def mouseReleaseEvent(self, e):
+        """
+        Add a control point to the curve
+        @param e:
+        """
         self.selected = False
         # click event
         if self.beginMouseMove == e.pos():
@@ -231,6 +231,11 @@ class cubicItem(QGraphicsPathItem) :
             self.updatePath()
 
     def getStackedLUTXY(self):
+        """
+        Returns the 3-channel LUT (A 1-line LUT for each channel)
+        @return: LUT
+        @rtype: ndarray, shape (3,n)
+        """
         if self.channel == channelValues.RGB:
             return np.vstack((self.LUTXY, self.LUTXY, self.LUTXY))
         else:
@@ -349,6 +354,10 @@ class graphicsForm(QGraphicsView) :
             self.scene().onUpdateLUT()
 
         def updateStack():
+            """
+            pushbutton3 clicked event handler
+            @return:
+            """
             layer.applyToStack()
             targetImage.onImageChanged()
 

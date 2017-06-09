@@ -15,8 +15,8 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-import json
-from trace import pickle
+import multiprocessing
+from functools import partial
 
 from PySide.QtCore import Qt, QBuffer, QDataStream, QFile, QIODevice, QSize
 
@@ -386,7 +386,7 @@ class vImage(QImage):
         self.updatePixmap()
         """
 
-    def applyHSPB1DLUT(self, stackedLUT, options={}):
+    def applyHSPB1DLUT(self, stackedLUT, options={}, pool=None):
         """
         Applies 1D LUTS (one for each hue sat and brightness channels).
         IMPORTANT : if useThumb is True, the transformation is applied to
@@ -421,17 +421,19 @@ class vImage(QImage):
         #ndImg0 = QImageBuffer(self.InputImg())
         #ndImg1[:, :, 3] = ndImg0[:, :, 3]
         print 'usehald', time() -t
-        if self.parentImage.useThumb:
-            # apply transformation to thumbnail
-            outputHald = self.getCurrentImage()
-            self.parentImage.useHald = False
-            self.applyHald(outputHald)
-            # update
-            self.updatePixmap()
+        #if self.parentImage.useThumb:
+        # apply transformation
+        outputHald = self.getCurrentImage()
+        self.parentImage.useHald = False
+        self.applyHald(outputHald, pool=pool)
+        # update
+        self.updatePixmap()
 
-    def apply3DLUT(self, LUT, options={}):
+    def apply3DLUT(self, LUT, options={}, pool=None):
         """
-        Applies 3D LUT to the current view of the image (self or self.thumb or self.hald).
+        Applies a 3D LUT to the current view of the image (self or self.thumb or self.hald).
+        If pool is not None and the size of the current view is > 3000000, the computation is
+        done in parallel on image slices.
         @param LUT: LUT3D array (see module LUT3D.py)
         @type LUT: 3d ndarray, dtype = int
         @param options:
@@ -460,13 +462,13 @@ class vImage(QImage):
         ndImg0 = inputBuffer[:,:,:3]
         ndImg1 = imgBuffer[:, :, :3]
         # choose right interpolation method
-        if inputImage.width() * inputImage.height() > 3000000:
+        if (pool is not None) and (inputImage.width() * inputImage.height() > 3000000):
             interp = interpVec
         else:
             interp = interpVec_
         # apply LUT
         start=time()
-        ndImg1[h1:h2 + 1, w1:w2 + 1, :] = interp(LUT, ndImg0)
+        ndImg1[h1:h2 + 1, w1:w2 + 1, :] = interp(LUT, ndImg0, pool=pool)
         end=time()
         print 'Apply3DLUT time %.2f' % (end-start)
         # propagate mask ????
@@ -476,15 +478,18 @@ class vImage(QImage):
         #ndImg1a[:, :, 3] = ndImg0a[:, :, 3]
         self.updatePixmap()
 
-    def applyHald(self, hald):
+    def applyHald(self, hald, pool=None):
         """
-        Transforms a hald image into a 3DLUT object and applies
-        the 3D LUT to the current view of self.
+        Converts a hald image to a 3DLUT object and applies
+        the 3D LUT to the current view, using a pool of parallel processes if
+        pool is not None.
         @param hald: hald image
         @type hald: QImage
+        @param pool: pool of parallel processes, default None
+        @type pool: multiprocessing.pool
         """
         lut = LUT3D.HaldImage2LUT3D(hald)
-        self.apply3DLUT(lut.LUT3DArray, options={'use selection' : False})
+        self.apply3DLUT(lut.LUT3DArray, options={'use selection' : False}, pool=pool)
 
     def histogram(self, size=200, bgColor=Qt.white, range =(0,255), chans=channelValues.RGB, chanColors=Qt.gray, mode='RGB'):
         """
@@ -1035,8 +1040,7 @@ class QLayer(vImage):
         self.transfer = lambda : self.qPixmap
         # Following attributes are used by adjustment layers only
         # wrapper for the right exec method
-        #self.execute = lambda : 0
-        self.execute = lambda : self.updatePixmap()
+        self.execute = lambda pool=None: self.updatePixmap()
         self.temperature = 0
         self.options = {}
         # Following attributes (functions)  are reserved (dynamic typing for adjustment layers) and set in addAdjustmentlayer() above
@@ -1207,11 +1211,12 @@ class QLayer(vImage):
 
     def applyToStack(self):
         """
-        Applies and propagates changes to upper layers.
+        Applies transformation and propagates changes to upper layers.
         """
         # recursive function
-        def applyToStack_(layer):
-            layer.execute()
+        def applyToStack_(layer, pool=None):
+            # apply Transformation (call vImage.apply*LUT...)
+            layer.execute(pool=pool)
             stack = layer.parentImage.layersStack
             ind = layer.getStackIndex() + 1
             # get next visible upper layer
@@ -1222,21 +1227,18 @@ class QLayer(vImage):
             if ind < len(stack):
                 layer1 = stack[ind]
                 layer1.cacheInvalidate()
-                applyToStack_(layer1)
+                applyToStack_(layer1, pool=pool)
         try:
             QApplication.setOverrideCursor(Qt.WaitCursor)
             QApplication.processEvents()
-            applyToStack_(self)
-            # Full mode image update : only top layer is updated
-            if (not self.parentImage.useThumb) and self.parentImage.useHald:
-                #outputHald = self.parentImage.layersStack[-1].getCurrentImage().copy()
-                outputHald = self.parentImage.layersStack[-1].getCurrentImage()
-                self.parentImage.useHald = False
-                self.applyHald(outputHald)
-                buf0 = QImageBuffer(self.parentImage.layersStack[-1])
-                buf1 = QImageBuffer(self)
-                buf0[:,:,:] = buf1
-                self.parentImage.layersStack[-1].updatePixmap()
+            if (not self.parentImage.useThumb or self.parentImage.useHald):
+                pool = multiprocessing.Pool(8)
+            else:
+                pool = None
+            applyToStack_(self, pool=pool)
+            if pool is not None:
+                pool.close()
+            pool = None
         finally:
             QApplication.restoreOverrideCursor()
             QApplication.processEvents()
@@ -1380,6 +1382,31 @@ class QLayer(vImage):
             self.view.widget().readFromStream(dataStream)
         return dataStream
 
+def apply3DLUTSliceCls(LUT, inputBuffer, imgBuffer, s ):
+
+    inputBuffer = inputBuffer[s[1], s[0], :]
+    imgBuffer = imgBuffer[:, :, :]
+    ndImg0 = inputBuffer[:, :, :3]
+    ndImg1 = imgBuffer[:, :, :3]
+    # apply LUT
+    start = time()
+    ndImg1[s[1], s[0], :] = interpVec_(LUT, ndImg0)
+    end = time()
+    print 'Apply3DLUT time %.2f' % (end - start)
+
+
+def applyHaldCls(item):
+    """
+    Transforms a hald image into a 3DLUT object and applies
+    the 3D LUT to the current view of self.
+    @param hald: hald image
+    @type hald: QImage
+    """
+    # QImageBuffer(l.hald), QImageBuffer(l.inputImg()), QImageBuffer(l.getCurrentImage()), s
+    lut = LUT3D.HaldBuffer2LUT3D(item[0])
+    apply3DLUTSliceCls(lut.LUT3DArray, item[1], item[2], item[3])
+    return item[2]
+    #img.apply3DLUT(lut.LUT3DArray, options={'use selection' : True})
 
 
 

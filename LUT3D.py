@@ -16,6 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import multiprocessing
+from contextlib import closing
 from functools import partial
 from time import time
 
@@ -108,6 +109,17 @@ class LUT3D (object):
         buf = buf.reshape((size, size, size, 3))
         LUT = np.zeros((size, size, size, 3), dtype=int) + 255
         LUT[:,:,:,:] = buf[:,:,:,::-1]
+        return LUT3D(LUT, size=size)
+
+    @classmethod
+    def HaldBuffer2LUT3D(cls, haldBuff, size=LUTSIZE):
+        buf = haldBuff
+        buf = buf[:, :, :3].ravel()
+        count = (size ** 3) * 3  # ((size - 1) ** 3) * 3
+        buf = buf[:count]
+        buf = buf.reshape((size, size, size, 3))
+        LUT = np.zeros((size, size, size, 3), dtype=int) + 255
+        LUT[:, :, :, :] = buf[:, :, :, ::-1]
         return LUT3D(LUT, size=size)
 
     def getHaldImage(self, w, h):
@@ -751,7 +763,7 @@ def colorPicker(w,h):
     img = imImage(QImg=img)
     return img
 """
-def interpVec(LUT, ndImg):
+def interpVec(LUT, ndImg, pool=None):
     """
     parallel version of trilinear interpolation
     @param LUT:
@@ -759,18 +771,25 @@ def interpVec(LUT, ndImg):
     @return:
     """
     w, h = ndImg.shape[1], ndImg.shape[0]
-    slices = [ (s1, s2) for s1 in [slice(0,w/3), slice(w/3, 2*w/3), slice(2*w/3, w)]
-                 for s2 in [slice(0,h/3), slice(h/3, 2*h/3), slice(2*h/3,h)]]
+    SLF = 4
+    sl_w = [slice((w * i) / SLF, (w * (i+1)) / SLF) for i in range(SLF)]
+    sl_h = [slice((h * i) / SLF, (h * (i + 1)) / SLF) for i in range(SLF)]
+
+    slices = [ (s1, s2) for s1 in sl_w for s2 in sl_h]
     imgList = [ndImg[s2, s1] for s1, s2 in slices]
-    pool = multiprocessing.Pool(5)
+    if pool is None:
+        raise ValueError('interpVec: no processing pool')
+    # get vectorized interpolation as partial function
     partial_f = partial(interpVec_, LUT)
+    # parallel interpolation
     res = pool.map(partial_f, imgList)
     outImg = np.empty(ndImg.shape)
+    # paste results
     for i, (s1, s2) in enumerate(slices):
             outImg[s2, s1] = res[i]
     return outImg
 
-def interpVec_(LUT, ndImg):
+def interpVec_(LUT, ndImg, pool=None):
     """
     Vectorized version of trilinear interpolation
     Cf. file trilinear.docx for details

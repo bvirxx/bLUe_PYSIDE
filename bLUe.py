@@ -762,18 +762,17 @@ def menuLayer(x, name):
         # Curve change event handler
         # Apply current LUT and repaint window
         def f():
-            #l.execute()
             l.applyToStack()
-            #l.applyLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
             window.label.repaint()
+        grWindow.graphicsScene.onUpdateLUT = f
         # wrapper for the right apply method
         if name == 'actionBrightness_Contrast':
             l.execute = lambda : l.apply1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
         elif name == 'actionCurves_HSpB':
-            l.execute = lambda: l.applyHSPB1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
+            l.execute = lambda  pool=None: l.applyHSPB1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY(), pool=pool)
         elif name == 'actionCurves_Lab':
             l.execute = lambda: l.applyLab1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
-        grWindow.graphicsScene.onUpdateLUT = f
+
     # 3D LUT
     elif name in ['action3D_LUT', 'action3D_LUT_HSB']:
         # color model
