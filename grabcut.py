@@ -20,8 +20,8 @@ import numpy as np
 import cv2
 from time import time
 
-from PySide.QtGui import QHBoxLayout, QMessageBox, QPushButton, QWidget
-
+from PySide.QtCore import Qt
+from PySide.QtGui import QHBoxLayout, QMessageBox, QPushButton, QWidget, QSizePolicy, QVBoxLayout
 from imgconvert import QImageBuffer
 
 
@@ -33,18 +33,27 @@ class segmentForm(QWidget):
     @classmethod
     def getNewWindow(cls, targetImage=None, layer=None, mainForm=None):
         wdgt = segmentForm(targetImage=targetImage, layer=layer, mainForm=mainForm)
-        pushButton = QPushButton('apply', parent=wdgt)
-        hLay = QHBoxLayout()
-        wdgt.setLayout(hLay)
-        hLay.addWidget(pushButton)
-        pushButton.clicked.connect(lambda : wdgt.execute())
         return wdgt
 
     def __init__(self, targetImage=None, layer=None, mainForm=None):
         super(segmentForm, self).__init__()
+        self.setWindowTitle('grabcut')
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        self.setMinimumSize(200, 200)
+        self.setAttribute(Qt.WA_DeleteOnClose)
+        hLay = QVBoxLayout()
+        hLay.setAlignment(Qt.AlignTop)
+        hLay.setContentsMargins(20, 8, 20, 25)  # left, top, right, bottom
+        pushButton = QPushButton('apply')
+        hLay.addWidget(pushButton)
+
+        self.setLayout(hLay)
+        pushButton.clicked.connect(lambda: self.execute())
         self.targetImage=targetImage
         self.mainForm = mainForm
         layer.maskIsEnabled = True
+        buf = QImageBuffer(layer.mask)
+        buf[:,:,:] = 255
 
     def showEvent(self, e):
         self.mainForm.tableView.setEnabled(False)
@@ -67,7 +76,6 @@ def do_grabcut(layer, nb_iter=1, mode=cv2.GC_INIT_WITH_MASK, again=False):
     global rect_or_mask
     inputImg = layer.inputImg()
 
-    mask = layer.mask
     rect = layer.rect
 
     # set mask from selection rectangle, if any
@@ -77,17 +85,15 @@ def do_grabcut(layer, nb_iter=1, mode=cv2.GC_INIT_WITH_MASK, again=False):
     else:
         rectMask = rectMask + cv2.GC_PR_FGD
 
-
-    paintedMask = QImageBuffer(mask)
-    paintedMask[paintedMask==255]=cv2.GC_FGD
-    paintedMask[paintedMask==0]=cv2.GC_BGD
-
+    paintedMask = QImageBuffer(layer.mask)
+    # CAUTION: discriminant is blue=0 for FG and green=0 for BG 'cf. Blue.mouseEvent())
+    rectMask[paintedMask[:,:,0]==0] = cv2.GC_FGD
+    rectMask[paintedMask[:, :,1]==0 ] = cv2.GC_BGD
     finalMask = rectMask
-    #np.copyto(rectMask, paintedMask[:,:,3], where=(paintedMask[:,:,1]>0)) # copy  painted (G > 0) pixels (alpha value only)
 
     if not((np.any(finalMask==cv2.GC_FGD) or np.any(finalMask==cv2.GC_PR_FGD)) and (np.any(finalMask==cv2.GC_BGD) or np.any(finalMask==cv2.GC_PR_BGD))):
         reply = QMessageBox()
-        reply.setText('You muest select some background or foreground pixels')
+        reply.setText('You must select some background or foreground pixels')
         reply.setInformativeText('Use selection rectangle or mask')
         reply.setStandardButtons(QMessageBox.Ok)
         ret = reply.exec_()
@@ -106,14 +112,16 @@ def do_grabcut(layer, nb_iter=1, mode=cv2.GC_INIT_WITH_MASK, again=False):
                 mode)
     print 'grabcut_mtd time :', time()-t0
 
-    # set layer.mask to returned mask
+    # set layer.mask to the returned mask
     # foreground : 255, background : 0
-    finalMask = np.where((finalMask==cv2.GC_FGD) + (finalMask==cv2.GC_PR_FGD), 255, 0)
+    #finalMask = np.where((finalMask==cv2.GC_FGD) + (finalMask==cv2.GC_PR_FGD), 255, 0)
     buf = QImageBuffer(layer.mask)
+    buf[:,:,:3] = 0
+    buf[:,:,3] = 255
     # set layer mask
-    buf[:,:,3] = finalMask
+    #buf[:,:,0] =  np.where((finalMask==cv2.GC_BGD) + (finalMask==cv2.GC_PR_BGD), 255, buf[:, :, 0])
+    buf[:, :, 1] = np.where((finalMask == cv2.GC_FGD) + (finalMask == cv2.GC_PR_FGD), 255, buf[:, :, 1])
+
     layer.updatePixmap()
-
-
 
 

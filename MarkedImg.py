@@ -28,6 +28,7 @@ from PySide.QtGui import QPixmap, QImage, QColor, QPainter, QMessageBox
 from PySide.QtCore import QRect
 
 from colorTemperature import sRGB2LabVec
+from grabcut import segmentForm
 from graphicsFilter import filterIndex
 from icc import convertQImage
 import icc
@@ -243,11 +244,14 @@ class vImage(QImage):
         """
         currentImage = vImage.getCurrentImage(self)
         if not maskOnly:
+            # invalidate color managed cache
             self.cmImage = None
+        # get (eventually) up to date  color managed image
         if icc.COLOR_MANAGE: # and self.parentImage is not None vImage has no parentImage attribute
             if self.cmImage is None:
+                # CAUTION : reset alpha channel
                 img = convertQImage(currentImage)
-                #img = convertQImage(currentImage, transformation=self.parentImage.colorTransformation)
+                # restore alpha
                 buf0 = QImageBuffer(img)
                 buf1 = QImageBuffer(currentImage)
                 buf0[:, :, 3] = buf1[:, :, 3]
@@ -257,11 +261,18 @@ class vImage(QImage):
             img = QImage(currentImage)
         # refresh cache
         if maskOnly:
-            self.cmImage = QImage(img) #TODO deep copy img.copy()
+            self.cmImage = QImage(img)
         if self.maskIsEnabled:
-            # image opacity channel is set to mask opacity
-            buf = QImageBuffer(img)
-            buf[:, :, 3] = QImageBuffer(self.mask)[:, :, 3]
+            qp = QPainter(img)
+            if self.maskIsSelected:
+                # view mask as color filter
+                qp.setCompositionMode(QPainter.CompositionMode_Multiply)
+            else:
+                # view mask as opacity filter
+                # img * mask : img opacity is set to mask opacity
+                qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
+            qp.drawImage(QRect(0, 0, img.width(), img.height()), self.mask)
+            qp.end()
         self.qPixmap = QPixmap.fromImage(img)
 
 
@@ -1159,7 +1170,7 @@ class QLayer(vImage):
             img = self.maskedImageContainer
         #img = QLayer.fromImage(self.getCurrentImage(), parentImage=self.parentImage)
         qp = QPainter(img)
-        # MUST  call getCurrentImage in preview mode, otherwise thumbnail modifications are lost modified 2/6/17
+        # MUST  call getCurrentImage in preview mode, otherwise thumbnail modifications are lost modified (2/6/17)
         #qp.drawImage(QRect(0, 0, img.width(), img.height()), self)
         qp.drawImage(QRect(0, 0, img.width(), img.height()), self.getCurrentImage())
         # getCurrentImage() * mask
@@ -1168,7 +1179,6 @@ class QLayer(vImage):
         if self.isAdjustLayer():
             # inputImg() * (1 -mask)
             qp.setCompositionMode(QPainter.CompositionMode_DestinationOver)
-            #qp.drawImage(QRect(0, 0, img.width(), img.height()), self.inputImgFull().getCurrentImage())
             qp.drawImage(QRect(0, 0, img.width(), img.height()), self.inputImg())
         qp.end()
         return img
@@ -1261,10 +1271,14 @@ class QLayer(vImage):
     def isAdjustLayer(self):
         return hasattr(self, 'view')
 
+    def isSegmentLayer(self):
+        return 'egmentation' in self.name
+
     def updatePixmap(self, maskOnly = False):
         """
-        Updates the image pixmap and caches the current (eventually) color
-        managed version of the image. If maskOnly is True, this cache is not updated.
+        Updates the image pixmap and caches the current color
+        (eventually) managed version of the image. If maskOnly is True,
+        this cache is not updated.
         @param maskOnly: default False
         @type maskOnly: boolean
         """
@@ -1278,6 +1292,7 @@ class QLayer(vImage):
             if self.cmImage is None:
                 # CAUTION : reset alpha channel
                 img = convertQImage(currentImage, transformation=self.parentImage.colorTransformation)
+                # restore alpha
                 buf0 = QImageBuffer(img)
                 buf1 = QImageBuffer(currentImage)
                 buf0[:,:,3] = buf1[:,:,3]
@@ -1285,25 +1300,20 @@ class QLayer(vImage):
                 img = QImage(self.cmImage)
         else:
             img = QImage(currentImage)
-            ########
-            #buf = QImageBuffer(img)
-            #buf[:, :, 3] = 64#QImageBuffer(self.mask)[:, :, 3]
-            ########
-        # refresh cache
-        #if self.cmImage is None:
         if maskOnly:
             self.cmImage = QImage(img)
         if self.maskIsEnabled:
-            # set image opacity channel to mask opacity
-            """
-            buf = QImageBuffer(img)
-            buf[:,:,3] = QImageBuffer(self.mask)[:,:,3]
-            """
             qp = QPainter(img)
-            qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
-            #qp.drawImage(0, 0, self.mask)
+            if self.maskIsSelected:
+                # view mask as color filter
+                qp.setCompositionMode(QPainter.CompositionMode_Multiply)
+            else:
+                # view mask as opacity filter
+                # img * mask : img opacity is set to mask opacity
+                qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
             qp.drawImage(QRect(0, 0, img.width(), img.height() ), self.mask)
             qp.end()
+
         self.qPixmap = QPixmap.fromImage(img)
 
     def getStackIndex(self):

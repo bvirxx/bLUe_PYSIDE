@@ -323,7 +323,6 @@ class QLayerView(QTableView) :
             stackIndex = l - row - 1
             mImg.layersStack[stackIndex].name = index1.data()
         model.dataChanged.connect(f)
-
         for r, lay in enumerate(reversed(mImg.layersStack)):
             items = []
             # col 0 : visibility icon

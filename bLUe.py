@@ -165,14 +165,19 @@ def mouseEvent(widget, event) :
                     w = abs(State['ix_begin'] - x) // r
                     h = abs(State['iy_begin'] - y) // r
                     layer.rect = QRect(x_img, y_img, w, h)
-                elif (window.btnValues['drawFG'] or window.btnValues['drawBG']):
+                # drawing
+                elif window.btnValues['drawFG'] or window.btnValues['drawBG']:
                     if layer.maskIsEnabled:
-                        color = QColor(0, 0, 0, 255) if window.btnValues['drawFG'] else QColor(0, 0, 0, 0)
+                        if layer.isSegmentLayer():
+                            color = QColor(0, 255, 0, 128) if window.btnValues['drawFG'] else QColor(0, 0, 255, 128)
+                        else:
+                            color = QColor(0, 0, 0, 255) if window.btnValues['drawFG'] else QColor(0, 0, 0, 0)
                         tmp = layer.mask
                         qp.begin(tmp)
+                        # pen width
                         w = window.verticalSlider1.value()
                         qp.setPen(QPen(color, w))
-                        # result is source (pen) pixel
+                        # composition mode : result is source (=pen) pixel color and opacity
                         qp.setCompositionMode(qp.CompositionMode_Source)
                         tmp_x = (x - img.xOffset) // r
                         tmp_y = (y - img.yOffset) // r
@@ -180,10 +185,10 @@ def mouseEvent(widget, event) :
                         qp.drawLine(State['x_imagePrecPos'], State['y_imagePrecPos'], tmp_x, tmp_y)
                         qp.end()
                         State['x_imagePrecPos'], State['y_imagePrecPos'] = tmp_x, tmp_y
+                        # update
                         i = layer.getStackIndex()
                         for l in img.layersStack[i:] :
                             l.updatePixmap(maskOnly=True)
-                        #layer.updatePixmap(maskOnly=True)
                         window.label.repaint()
                 else:
                     img.xOffset+=(x-State['ix'])
@@ -216,8 +221,11 @@ def mouseEvent(widget, event) :
                                        abs(State['ix_begin'] - x) // r, abs(State['iy_begin'] - y) // r)
                 elif (window.btnValues['drawFG'] or window.btnValues['drawBG']):
                     if layer.maskIsEnabled:
-                        color = QColor(0,0,0,255) if window.btnValues['drawFG'] else QColor(0,0,0,0)
-                        # qp.begin(img._layers['drawlayer'])
+                        if layer.isSegmentLayer():
+                            # CAUTION: discriminant is blue=0 for FG and green=0 for BG
+                            color = QColor(0, 255, 0, 128) if window.btnValues['drawFG'] else QColor(0, 0, 255, 128)
+                        else:
+                            color = QColor(0, 0, 0, 255) if window.btnValues['drawFG'] else QColor(0, 0, 0, 0)
                         tmp = layer.mask
                         qp.begin(tmp)
                         w = window.verticalSlider1.value()
@@ -225,7 +233,7 @@ def mouseEvent(widget, event) :
                         tmp_x = (x - img.xOffset) // r
                         tmp_y = (y - img.yOffset) // r
                         # qp.drawEllipse(tmp_x, tmp_y, 8, 8)
-                        # result is source (pen) pixel
+                        # result is source (=pen) pixel color and opacity
                         qp.setCompositionMode(qp.CompositionMode_Source)
                         qp.drawEllipse(tmp_x, tmp_y, w, w)
                         qp.drawLine(State['x_imagePrecPos'], State['y_imagePrecPos'], tmp_x, tmp_y)
@@ -800,11 +808,7 @@ def menuLayer(x, name):
     elif name == 'actionNew_segmentation_layer':
         lname = 'Segmentation'
         l = window.label.img.addSegmentationLayer(name=lname)
-        #window.tableView.setLayers(window.label.img)
-        # link to grabcut form
         grWindow = segmentForm.getNewWindow(targetImage=window.label.img, layer=l, mainForm=window)
-        #window.tableView.update()
-        # TODO continue
     # Temperature
     elif name == 'actionColor_Temperature':
         lname = 'Color Temperature'
@@ -939,6 +943,7 @@ def menuLayer(x, name):
     # must be disabled
     #dock.setAllowedAreas(Qt.NoDockWidgetArea)
     #dock.setWindowModality(Qt.ApplicationModal)
+    # set ref. to the associated form
     l.view = dock
     # update layer stack view
     window.tableView.setLayers(window.label.img)
