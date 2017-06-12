@@ -32,7 +32,7 @@ from PySide.QtGui import QVBoxLayout
 
 import resources_rc  # mandatory : DO NOT REMOVE !!!
 import QtGui1
-
+from imgconvert import QImageBuffer
 
 
 class layerModel(QStandardItemModel):
@@ -422,12 +422,13 @@ class QLayerView(QTableView) :
         @type clickedIndex: QModelIndex
         """
         row = clickedIndex.row()
+        layer = self.img.layersStack[-1 - row]
         # toggle layer visibility
         if clickedIndex.column() == 0 :
             # background layer is always visible
             if row == len(self.img.layersStack) - 1:
                 return
-            layer = self.img.layersStack[-1-row]
+            #layer = self.img.layersStack[-1-row]
             layer.visible = not(layer.visible)
             # update visibility icon
             if layer.visible:
@@ -469,8 +470,9 @@ class QLayerView(QTableView) :
         # select mask
         elif clickedIndex.column() == 2:
             self.img.layersStack[-1-clickedIndex.row()].maskIsSelected = not self.img.layersStack[-1-clickedIndex.row()].maskIsSelected
-            #self.repaint()
-
+            # update
+            layer.applyToStack()
+            self.img.onImageChanged()
 
     def contextMenu(self, pos):
         """
@@ -488,8 +490,11 @@ class QLayerView(QTableView) :
             actionMerge.setEnabled(False)
         actionMaskEnable = QAction('Enable Mask', None)
         actionMaskDisable = QAction('Disable Mask', None)
+        actionMaskInvert = QAction('Invert Mask', None)
         actionMaskReset = QAction('Reset Mask', None)
-        #menu.addAction(actionTransparency)
+        actionMaskCopy = QAction('Copy Mask to Clipboard', None)
+        actionMaskPaste = QAction('Paste Mask', None)
+        actionMaskPaste.setEnabled(not QApplication.clipboard().image().isNull())
         # to link actionDup with a shortcut
         # it must be set in __init__
         menu.addAction(self.actionDup)
@@ -499,7 +504,10 @@ class QLayerView(QTableView) :
         menu.addAction(actionMerge)
         menu.addAction(actionMaskEnable)
         menu.addAction(actionMaskDisable)
+        menu.addAction(actionMaskInvert)
         menu.addAction(actionMaskReset)
+        menu.addAction(actionMaskCopy)
+        menu.addAction(actionMaskPaste)
         # Event handlers
         def f():
             self.wdgt.show()
@@ -515,14 +523,28 @@ class QLayerView(QTableView) :
             layer.maskIsEnabled = False
             layer.applyToStack()
             self.img.onImageChanged()
+        def maskInvert():
+            buf = QImageBuffer(layer.mask)
+            buf[:,:,3] = 255 - buf[:,:,3]
+            layer.applyToStack()
+            self.img.onImageChanged()
         def maskReset():
             layer.resetMask()
+            layer.applyToStack()
+            self.img.onImageChanged()
+        def maskCopy():
+            QApplication.clipboard().setImage(layer.mask)
+        def maskPaste():
+            layer.mask = QApplication.clipboard().image()
             layer.applyToStack()
             self.img.onImageChanged()
         actionMerge.triggered.connect(merge)
         actionMaskEnable.triggered.connect(maskEnable)
         actionMaskDisable.triggered.connect(maskDisable)
+        actionMaskInvert.triggered.connect(maskInvert)
         actionMaskReset.triggered.connect(maskReset)
+        actionMaskCopy.triggered.connect(maskCopy)
+        actionMaskPaste.triggered.connect(maskPaste)
         self.wdgt.valueChanged.connect(g)
         menu.exec_(self.mapToGlobal(pos))
 

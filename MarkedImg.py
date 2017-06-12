@@ -853,22 +853,13 @@ class mImage(vImage):
 
     def save(self, filename, quality=-1):
         """
-        builds the resulting image from visible layers
+        Builds an image from visible layers
         and writes it to file
         @param filename:
-        @param quality: interger value in range 0..100
-        @return: True if image is saved, False otherwise
-        """
-        """
-        img = QImage(self.width(), self.height(), self.format())
-        img.fill(QColor(0,0,0,0))
-        qp = QPainter(img)
-        for layer in self.layersStack:
-            if layer.visible:
-                qp.setOpacity(layer.opacity)
-                qp.setCompositionMode(layer.compositionMode)
-                qp.drawImage(0,0, layer)
-        qp.end()
+        @type filename: str
+        @param quality: integer value in range 0..100
+        @type quality: int
+        @return: True if succeeded, False otherwise
         """
         img = self.mergeVisibleLayers()
         # save to file
@@ -1306,14 +1297,14 @@ class QLayer(vImage):
             qp = QPainter(img)
             if self.maskIsSelected:
                 # view mask as color filter
-                qp.setCompositionMode(QPainter.CompositionMode_Multiply)
+                #qp.setCompositionMode(QPainter.CompositionMode_Multiply)
+                qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
             else:
                 # view mask as opacity filter
                 # img * mask : img opacity is set to mask opacity
                 qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
             qp.drawImage(QRect(0, 0, img.width(), img.height() ), self.mask)
             qp.end()
-
         self.qPixmap = QPixmap.fromImage(img)
 
     def getStackIndex(self):

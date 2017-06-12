@@ -93,7 +93,9 @@ def paintEvent(widg, e) :
     qp.begin(widg)
     # background
     qp.fillRect(QRect(0, 0, widg.width() , widg.height() ), defaultBgColor)
-    # draw layers
+    # draw layers.
+    # We follow the algorithm from MarkedImg.mergeVisibleLayers,
+    # but for color management we use pixmaps instead of images.
     for layer in mimg.layersStack :
         if layer.visible:
             qp.setOpacity(layer.opacity)

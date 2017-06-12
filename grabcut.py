@@ -21,7 +21,7 @@ import cv2
 from time import time
 
 from PySide.QtCore import Qt
-from PySide.QtGui import QHBoxLayout, QMessageBox, QPushButton, QWidget, QSizePolicy, QVBoxLayout
+from PySide.QtGui import QHBoxLayout, QMessageBox, QPushButton, QWidget, QSizePolicy, QVBoxLayout, QColor, QPainter
 from imgconvert import QImageBuffer
 
 
@@ -52,6 +52,7 @@ class segmentForm(QWidget):
         self.targetImage=targetImage
         self.mainForm = mainForm
         layer.maskIsEnabled = True
+        layer.maskIsSelected = True
         buf = QImageBuffer(layer.mask)
         buf[:,:,:] = 255
 
@@ -86,6 +87,7 @@ def do_grabcut(layer, nb_iter=1, mode=cv2.GC_INIT_WITH_MASK, again=False):
         rectMask = rectMask + cv2.GC_PR_FGD
 
     paintedMask = QImageBuffer(layer.mask)
+
     # CAUTION: discriminant is blue=0 for FG and green=0 for BG 'cf. Blue.mouseEvent())
     rectMask[paintedMask[:,:,0]==0] = cv2.GC_FGD
     rectMask[paintedMask[:, :,1]==0 ] = cv2.GC_BGD
@@ -115,13 +117,19 @@ def do_grabcut(layer, nb_iter=1, mode=cv2.GC_INIT_WITH_MASK, again=False):
     # set layer.mask to the returned mask
     # foreground : 255, background : 0
     #finalMask = np.where((finalMask==cv2.GC_FGD) + (finalMask==cv2.GC_PR_FGD), 255, 0)
+    # save a copy of mask
+
     buf = QImageBuffer(layer.mask)
+    # set mask
     buf[:,:,:3] = 0
     buf[:,:,3] = 255
-    # set layer mask
-    #buf[:,:,0] =  np.where((finalMask==cv2.GC_BGD) + (finalMask==cv2.GC_PR_BGD), 255, buf[:, :, 0])
-    buf[:, :, 1] = np.where((finalMask == cv2.GC_FGD) + (finalMask == cv2.GC_PR_FGD), 255, buf[:, :, 1])
 
+    buf[:, :,1] = np.where((finalMask == cv2.GC_FGD) + (finalMask == cv2.GC_PR_FGD), 255, 0)
+    buf[:,:,0] = 255 - buf[:, :,1]
+    # mask opacity
+    buf[:,:,3] = np.where((finalMask == cv2.GC_FGD) + (finalMask == cv2.GC_PR_FGD), 0, 255)
+
+    # update
     layer.updatePixmap()
 
 
