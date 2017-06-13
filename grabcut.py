@@ -88,7 +88,7 @@ def do_grabcut(layer, nb_iter=1, mode=cv2.GC_INIT_WITH_MASK, again=False):
 
     paintedMask = QImageBuffer(layer.mask)
 
-    # CAUTION: discriminant is blue=0 for FG and green=0 for BG 'cf. Blue.mouseEvent())
+    # CAUTION: mask is initialized to 255, thus discriminant is blue=0 for FG and green=0 for BG 'cf. Blue.mouseEvent())
     rectMask[paintedMask[:,:,0]==0] = cv2.GC_FGD
     rectMask[paintedMask[:, :,1]==0 ] = cv2.GC_BGD
     finalMask = rectMask
@@ -114,21 +114,26 @@ def do_grabcut(layer, nb_iter=1, mode=cv2.GC_INIT_WITH_MASK, again=False):
                 mode)
     print 'grabcut_mtd time :', time()-t0
 
-    # set layer.mask to the returned mask
-    # foreground : 255, background : 0
-    #finalMask = np.where((finalMask==cv2.GC_FGD) + (finalMask==cv2.GC_PR_FGD), 255, 0)
-    # save a copy of mask
-
     buf = QImageBuffer(layer.mask)
-    # set mask
+    # reset image mask
     buf[:,:,:3] = 0
     buf[:,:,3] = 255
 
-    buf[:, :,1] = np.where((finalMask == cv2.GC_FGD) + (finalMask == cv2.GC_PR_FGD), 255, 0)
-    buf[:,:,0] = 255 - buf[:, :,1]
-    # mask opacity
-    buf[:,:,3] = np.where((finalMask == cv2.GC_FGD) + (finalMask == cv2.GC_PR_FGD), 0, 255)
+    # set opacity (reveal background)
+    buf[:, :, 3] = np.where((finalMask == cv2.GC_FGD) + (finalMask == cv2.GC_PR_FGD), 0, 255)
+    # dilate background
+    kernel = np.ones((5, 5), np.uint8)
+    buf = cv2.dilate(buf, kernel, iterations=1)
+    #buf = cv2.erode(buf, kernel, iterations=1)
 
+    # R  G  B
+    # *  0 255  background
+    # * 255 0  foreground
+    # We mark all pixels as FG or BG, according to mask opacity
+    # set G channel
+    buf[:, :,1] = np.where(buf[:,:,3]==0, 255, 0)
+    # set B channel
+    buf[:,:,0] = 255 - buf[:, :,1]
     # update
     layer.updatePixmap()
 

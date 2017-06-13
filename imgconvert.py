@@ -15,6 +15,7 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+from time import time
 
 import numpy as np
 from PySide.QtGui import QImage
@@ -48,28 +49,28 @@ def ndarrayToQImage(ndimg, format=QImage.Format_ARGB32):
 
 def QImageBuffer(qimg):
     """
-    Get the QImage buffer as a numpy ndarray with dtype uint8. The size of the
-    3rd axis depends on the image type. Pixel color is
-    in BGRA order (little endian arch. (intel)) or ARGB (big  endian arch.)
-    Format 1 bit per pixel is not supported
+    Returns the QImage buffer as a numpy ndarray with dtype uint8. The size of the
+    3rd axis (raw pixels) depends on the image type. Pixels are in
+    BGRA order (little endian arch. (intel)) or ARGB (big  endian arch.)
+    Format 1 bit per pixel is not supported.
+    Performance : 20 ms for a 15 Mpx image.
     @param qimg: QImage
     @return: The buffer array
-    @rtype: numpy.ndarray, shape = (h,w, bytes_per_pixel)
+    @rtype: numpy ndarray, shape = (h,w, bytes_per_pixel), dtype = uint8
     """
     # pixel depth
     bpp = qimg.depth()
     if bpp == 1:
-        print "Qimage2array : unsupported image format 1 bit per pixel"
-        return None
+        raise ValueError("QImageBuffer : unsupported image format 1 bit per pixel")
+    # Bytes per pixel
     Bpp = bpp / 8
-
-    # image buffer (sip.array of Bytes)
+    # Get image buffer (sip.array of Bytes)
     # Calling bits() performs a deep copy of the buffer,
     # suppressing dependencies due to implicit data sharing.
-    # To avoid deep copy use constBits() instead.
+    # To avoid deep copy use constBits() instead,
+    # Note that constBits returns a read-only buffer.
     ptr = qimg.bits()
     #ptr.setsize(qimg.byteCount())
-
     #convert sip array to ndarray and reshape
     h,w = qimg.height(), qimg.width()
     return np.asarray(ptr).reshape(h, w, Bpp)

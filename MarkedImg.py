@@ -1270,6 +1270,8 @@ class QLayer(vImage):
         Updates the image pixmap and caches the current color
         (eventually) managed version of the image. If maskOnly is True,
         this cache is not updated.
+        If maskIsEnabled is True, the mask is drawn as a color mask or
+        an opacity mask, according to the value of maskIsSelected
         @param maskOnly: default False
         @type maskOnly: boolean
         """
@@ -1293,17 +1295,22 @@ class QLayer(vImage):
             img = QImage(currentImage)
         if maskOnly:
             self.cmImage = QImage(img)
+        # visualizing mask
         if self.maskIsEnabled:
+            tmp = self.mask
             qp = QPainter(img)
             if self.maskIsSelected:
-                # view mask as color filter
+                # draw mask as color mask
                 #qp.setCompositionMode(QPainter.CompositionMode_Multiply)
                 qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
+                tmp = tmp.copy()
+                tmpBuf = QImageBuffer(tmp)
+                tmpBuf[:,:,3] = 255 - tmpBuf[:,:,3]
             else:
-                # view mask as opacity filter
+                # draw mask as opacity mask
                 # img * mask : img opacity is set to mask opacity
                 qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
-            qp.drawImage(QRect(0, 0, img.width(), img.height() ), self.mask)
+            qp.drawImage(QRect(0, 0, img.width(), img.height() ), tmp)
             qp.end()
         self.qPixmap = QPixmap.fromImage(img)
 

@@ -154,6 +154,7 @@ def mouseEvent(widget, event) :
         State['ix'], State['iy'] = x, y
         State['ix_begin'], State['iy_begin'] = x, y
         State['x_imagePrecPos'], State['y_imagePrecPos'] = (x - img.xOffset) // r, (y - img.yOffset) // r
+    # mouse move event
     elif event.type() == QEvent.MouseMove :
         clicked=False
         if pressed :
@@ -177,13 +178,13 @@ def mouseEvent(widget, event) :
                         tmp = layer.mask
                         qp.begin(tmp)
                         # pen width
-                        w = window.verticalSlider1.value()
-                        qp.setPen(QPen(color, w))
-                        # composition mode : result is source (=pen) pixel color and opacity
+                        w = window.verticalSlider1.value() // (2*r)
+                        qp.setPen(QPen(color, 2*w))
+                        # composition mode source : result is source (=pen) pixel color and opacity
                         qp.setCompositionMode(qp.CompositionMode_Source)
                         tmp_x = (x - img.xOffset) // r
                         tmp_y = (y - img.yOffset) // r
-                        qp.drawEllipse(tmp_x, tmp_y, w , w)
+                        qp.drawEllipse(tmp_x-w//2, tmp_y-w//2, w, w)
                         qp.drawLine(State['x_imagePrecPos'], State['y_imagePrecPos'], tmp_x, tmp_y)
                         qp.end()
                         State['x_imagePrecPos'], State['y_imagePrecPos'] = tmp_x, tmp_y
@@ -200,6 +201,7 @@ def mouseEvent(widget, event) :
                 img.yOffset+=(y-State['iy'])
         #update current coordinates
         State['ix'],State['iy']=x,y
+    # mouse release event
     elif event.type() == QEvent.MouseButtonRelease :
         pressed=False
         if event.button() == Qt.LeftButton:
@@ -230,14 +232,14 @@ def mouseEvent(widget, event) :
                             color = QColor(0, 0, 0, 255) if window.btnValues['drawFG'] else QColor(0, 0, 0, 0)
                         tmp = layer.mask
                         qp.begin(tmp)
-                        w = window.verticalSlider1.value()
-                        qp.setPen(QPen(color, w))
+                        w = window.verticalSlider1.value() // (2*r)
+                        qp.setPen(QPen(color, 2*w))
                         tmp_x = (x - img.xOffset) // r
                         tmp_y = (y - img.yOffset) // r
                         # qp.drawEllipse(tmp_x, tmp_y, 8, 8)
                         # result is source (=pen) pixel color and opacity
                         qp.setCompositionMode(qp.CompositionMode_Source)
-                        qp.drawEllipse(tmp_x, tmp_y, w, w)
+                        qp.drawEllipse(tmp_x-w//2, tmp_y-w//2, w*0.8, w*0.8)
                         qp.drawLine(State['x_imagePrecPos'], State['y_imagePrecPos'], tmp_x, tmp_y)
                         qp.end()
                         #layer.updatePixmap(maskOnly=True)
@@ -273,13 +275,16 @@ def wheelEvent(widget,img, event):
     widget.repaint()
 
 def enterEvent(widget,img, event):
-    if not window.btnValues['colorPicker']:
-        return
-    layer = window.label.img.getActiveLayer()
-    if layer.isAdjustLayer():
-        if layer.view.isVisible():
-            if not QApplication.overrideCursor():
-                QApplication.setOverrideCursor(window.cursor_EyeDropper)
+    if window.btnValues['drawFG'] or window.btnValues['drawBG']:
+        if not QApplication.overrideCursor():
+            w = window.verticalSlider1.value()
+            QApplication.setOverrideCursor(window.cursor_Circle_Pixmap.scaled(w*1.5, w*1.5))
+    if window.btnValues['colorPicker']:
+        layer = window.label.img.getActiveLayer()
+        if layer.isAdjustLayer():
+            if layer.view.isVisible():
+                if not QApplication.overrideCursor():
+                    QApplication.setOverrideCursor(window.cursor_EyeDropper)
 
 def leaveEvent(widget,img, event):
     QApplication.restoreOverrideCursor()
@@ -1181,7 +1186,8 @@ if __name__ =='__main__':
     window.showMaximized()
     splash.finish(window)
 
-    # init EyeDropper
+    # init EyeDropper cursor
     window.cursor_EyeDropper = QCursor(QPixmap.fromImage(QImage(":/images/resources/Eyedropper-icon.png")))
-
+    # init tool cursor, must be resizable
+    window.cursor_Circle_Pixmap = QPixmap.fromImage(QImage(":/images/resources/cursor_circle.png"))
     sys.exit(app.exec_())
