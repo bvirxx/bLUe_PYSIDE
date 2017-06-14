@@ -278,8 +278,13 @@ def enterEvent(widget,img, event):
     if window.btnValues['drawFG'] or window.btnValues['drawBG']:
         if not QApplication.overrideCursor():
             w = window.verticalSlider1.value()
-            QApplication.setOverrideCursor(window.cursor_Circle_Pixmap.scaled(w*1.5, w*1.5))
-    if window.btnValues['colorPicker']:
+            if w > 5:
+                QApplication.setOverrideCursor(window.cursor_Circle_Pixmap.scaled(w*1.5, w*1.5))
+            else:
+                QApplication.setOverrideCursor(Qt.CrossCursor)
+    elif window.btnValues['drag']:
+        QApplication.setOverrideCursor(Qt.OpenHandCursor)
+    elif window.btnValues['colorPicker']:
         layer = window.label.img.getActiveLayer()
         if layer.isAdjustLayer():
             if layer.view.isVisible():

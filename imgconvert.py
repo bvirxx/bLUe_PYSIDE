@@ -70,8 +70,7 @@ def QImageBuffer(qimg):
     # To avoid deep copy use constBits() instead,
     # Note that constBits returns a read-only buffer.
     ptr = qimg.bits()
-    #ptr.setsize(qimg.byteCount())
-    #convert sip array to ndarray and reshape
+    #convert buffer to ndarray and reshape
     h,w = qimg.height(), qimg.width()
     return np.asarray(ptr).reshape(h, w, Bpp)
 

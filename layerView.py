@@ -15,11 +15,11 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-
+import cv2
+import numpy as np
 from PySide.QtCore import QRectF, QSize
 from PySide.QtGui import QAction, QMenu, QSlider, QImage, QStyle, QPalette, QColor, QListWidget, QCheckBox, QMessageBox, \
     QApplication, QKeySequence
-from PySide.QtGui import QBrush
 from PySide.QtGui import QComboBox
 from PySide.QtGui import QFontMetrics
 from PySide.QtGui import QHBoxLayout
@@ -33,7 +33,6 @@ from PySide.QtGui import QVBoxLayout
 import resources_rc  # mandatory : DO NOT REMOVE !!!
 import QtGui1
 from imgconvert import QImageBuffer
-
 
 class layerModel(QStandardItemModel):
 
@@ -494,6 +493,8 @@ class QLayerView(QTableView) :
         actionMaskReset = QAction('Reset Mask', None)
         actionMaskCopy = QAction('Copy Mask to Clipboard', None)
         actionMaskPaste = QAction('Paste Mask', None)
+        actionMaskDilate = QAction('Dilate Mask', None)
+        actionMaskErode = QAction('Erode Mask', None)
         actionMaskPaste.setEnabled(not QApplication.clipboard().image().isNull())
         # to link actionDup with a shortcut
         # it must be set in __init__
@@ -508,6 +509,8 @@ class QLayerView(QTableView) :
         menu.addAction(actionMaskReset)
         menu.addAction(actionMaskCopy)
         menu.addAction(actionMaskPaste)
+        menu.addAction(actionMaskDilate)
+        menu.addAction(actionMaskErode)
         # Event handlers
         def f():
             self.wdgt.show()
@@ -538,6 +541,20 @@ class QLayerView(QTableView) :
             layer.mask = QApplication.clipboard().image()
             layer.applyToStack()
             self.img.onImageChanged()
+        def maskDilate():
+            kernel = np.ones((5, 5), np.uint8)
+            buf = QImageBuffer(layer.mask)
+            # CAUTION erode decreases opacity (min filter), so it extends the masked part of the image
+            buf[:, :, 3] = cv2.erode(buf[:,:,3], kernel, iterations=1)
+            layer.updatePixmap()
+            self.img.onImageChanged()
+        def maskErode():
+            kernel = np.ones((5, 5), np.uint8)
+            buf = QImageBuffer(layer.mask)
+            # CAUTION dilate increases opacity (max filter), so it reduces the masked part of the image
+            buf[:,:,3] = cv2.dilate(buf[:,:,3], kernel, iterations=1)
+            layer.updatePixmap()
+            self.img.onImageChanged()
         actionMerge.triggered.connect(merge)
         actionMaskEnable.triggered.connect(maskEnable)
         actionMaskDisable.triggered.connect(maskDisable)
@@ -545,6 +562,8 @@ class QLayerView(QTableView) :
         actionMaskReset.triggered.connect(maskReset)
         actionMaskCopy.triggered.connect(maskCopy)
         actionMaskPaste.triggered.connect(maskPaste)
+        actionMaskDilate.triggered.connect(maskDilate)
+        actionMaskErode.triggered.connect(maskErode)
         self.wdgt.valueChanged.connect(g)
         menu.exec_(self.mapToGlobal(pos))
 
