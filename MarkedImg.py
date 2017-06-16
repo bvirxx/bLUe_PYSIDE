@@ -149,8 +149,8 @@ class vImage(QImage):
         self.maskIsEnabled = False
         self.maskIsSelected = False
         if self.mask is None:
-            # if maskIsEnabled is True, image opacity channel is set to mask opacity channel
             self.mask = QImage(self.width(), self.height(), format)
+            # nothing is masked
             self.mask.fill(QColor(0, 0, 0,255))
         #self.updatePixmap()
         if type(self) in [QLayer]:
@@ -239,6 +239,16 @@ class vImage(QImage):
         """
         Updates the image pixmap and caches the current color
         managed version of the image. If maskOnly is True, this cache is not updated.
+        if maskIsEnabled is False, the mask is not shown.
+        If maskIsEnabled is True, then
+            - if maskIsSelected is True, the mask is drawn over
+              the layer as a color and opacity mask, with its own
+              pixel color and inverse opacity.
+            - if maskIsSelected is False, the mask is drawn as an
+              opacity mask, setting image opacity to that of mask
+              (mode DestinationIn). Color mask is no used.
+        NOTE : the fully masked part of the image corresponds to
+        mask opacity = 0.
         @param maskOnly: default False
         @type maskOnly: boolean
         """
@@ -263,6 +273,7 @@ class vImage(QImage):
         if maskOnly:
             self.cmImage = QImage(img)
         if self.maskIsEnabled:
+            """
             qp = QPainter(img)
             if self.maskIsSelected:
                 # view mask as color filter
@@ -273,10 +284,28 @@ class vImage(QImage):
                 qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
             qp.drawImage(QRect(0, 0, img.width(), img.height()), self.mask)
             qp.end()
+            """
+            tmp = self.mask
+            qp = QPainter(img)
+            if self.maskIsSelected:
+                # draw mask as color mask
+                # qp.setCompositionMode(QPainter.CompositionMode_Multiply)
+                qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
+                # invert alpha
+                tmp = tmp.copy()
+                tmpBuf = QImageBuffer(tmp)
+                tmpBuf[:, :, 3] = 255 - tmpBuf[:, :, 3]
+            else:
+                # draw mask as opacity mask
+                # img * mask : img opacity is set to mask opacity
+                qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
+            qp.drawImage(QRect(0, 0, img.width(), img.height()), tmp)
+            qp.end()
         self.qPixmap = QPixmap.fromImage(img)
 
 
     def resetMask(self):
+        # nothing is masked
         self.mask.fill(QColor(255, 255, 255, 255))
 
     def resize(self, pixels, interpolation=cv2.INTER_CUBIC):
@@ -811,7 +840,9 @@ class mImage(vImage):
         if index == None:
             index = self.activeLayerIndex
         layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
-        layer.inputImg = lambda : self.layersStack[layer.getLowerVisibleStackIndex()]
+        #layer.inputImg = lambda : self.layersStack[layer.getLowerVisibleStackIndex()]
+        layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getCurrentMaskedImage()
+        layer.inputImgFull = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getMaskedImage()
         self.addLayer(layer, name=name, index=index + 1)
         layer.parent = self
         self.setModified(True)
@@ -836,7 +867,7 @@ class mImage(vImage):
 
     def mergeVisibleLayers(self):
         """
-        Merges visible layers
+        Merges visible layers in an image
         @return: image
         @rtype: QImage
         """
@@ -847,7 +878,8 @@ class mImage(vImage):
             if layer.visible:
                 qp.setOpacity(layer.opacity)
                 qp.setCompositionMode(layer.compositionMode)
-                qp.drawImage(0, 0, layer)
+                #qp.drawImage(0, 0, layer)
+                qp.drawImage(QRect(0, 0, self.width(), self.height()), layer)
         qp.end()
         return img
 
@@ -1113,7 +1145,7 @@ class QLayer(vImage):
         """
         Recursively builds full masked image from layer stack.
         For non adjustment layers, sets maskedImageContainer to self * mask,
-        and for adjustment layers, to self * mask + inputImgFull() * (1 -mask).
+        and for adjustment layers, to self * mask + inputImgFull() * (255 - mask).
         InputImgFull  calls getMaskedImage recursively, so masked regions show
         underlying layers. Recursion stops at the first non adjustment layer.
         @return: maskedImageContainer
@@ -1130,7 +1162,7 @@ class QLayer(vImage):
         qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
         qp.drawImage(QRect(0, 0, img.width(), img.height()), self.mask)
         if self.isAdjustLayer():
-            # inputImgFull() * (1 -mask)
+            # inputImgFull() * (255 -mask)
             qp.setCompositionMode(QPainter.CompositionMode_DestinationOver)
             #qp.drawImage(QRect(0, 0, img.width(), img.height()), self.inputImg())
             qp.drawImage(QRect(0, 0, img.width(), img.height()), self.inputImgFull())
@@ -1140,8 +1172,8 @@ class QLayer(vImage):
     def getCurrentMaskedImage(self):
         """
         Recursively builds current (full/thumbnail) masked image from layer stack.
-        set maskedImageContainer to self * mask + inputImg * (1 -mask) or
-        maskedThumbContainer to self * mask + thumb * (1-mask), according to the value
+        set maskedImageContainer to self * mask + inputImg * (255 -mask) or
+        maskedThumbContainer to self * mask + thumb * (255 - mask), according to the value
         of the flag useThumb.
         InputImg calls getCurrentMaskedImage recursively, so masked regions display
         underlying layers. Recursion stops at the first non adjustment layer.
@@ -1168,7 +1200,7 @@ class QLayer(vImage):
         qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
         qp.drawImage(QRect(0, 0, img.width(), img.height()), self.mask)
         if self.isAdjustLayer():
-            # inputImg() * (1 -mask)
+            # inputImg() * (255 -mask)
             qp.setCompositionMode(QPainter.CompositionMode_DestinationOver)
             qp.drawImage(QRect(0, 0, img.width(), img.height()), self.inputImg())
         qp.end()
@@ -1270,8 +1302,16 @@ class QLayer(vImage):
         Updates the image pixmap and caches the current color
         (eventually) managed version of the image. If maskOnly is True,
         this cache is not updated.
-        If maskIsEnabled is True, the mask is drawn as a color mask or
-        an opacity mask, according to the value of maskIsSelected
+        if maskIsEnabled is False, the mask is not shown.
+        If maskIsEnabled is True, then
+            - if maskIsSelected is True, the mask is drawn over
+              the layer as a color and opacity mask, with its own
+              pixel color and inverse opacity.
+            - if maskIsSelected is False, the mask is drawn as an
+              opacity mask, setting image opacity to that of mask
+              (mode DestinationIn). Color mask is no used.
+        NOTE : the fully masked part of the image corresponds to
+        mask opacity = 0.
         @param maskOnly: default False
         @type maskOnly: boolean
         """
@@ -1303,6 +1343,7 @@ class QLayer(vImage):
                 # draw mask as color mask
                 #qp.setCompositionMode(QPainter.CompositionMode_Multiply)
                 qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
+                # invert alpha
                 tmp = tmp.copy()
                 tmpBuf = QImageBuffer(tmp)
                 tmpBuf[:,:,3] = 255 - tmpBuf[:,:,3]

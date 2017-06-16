@@ -412,7 +412,8 @@ class graphicsForm(QGraphicsView) :
     def drawBackground(self, qp, qrF):
         s = self.graphicsScene.axeSize
         if self.scene().cubicItem.histImg is not None:
-            qp.drawPixmap(QRect(0,-s, s, s), QPixmap.fromImage(self.scene().cubicItem.histImg))
+            #qp.drawPixmap(QRect(0,-s, s, s), QPixmap.fromImage(self.scene().cubicItem.histImg))
+            qp.drawImage(QRect(0, -s, s, s), self.scene().cubicItem.histImg)
 
     def writeToStream(self, outStream):
         layer = self.scene().layer

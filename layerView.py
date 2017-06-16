@@ -487,7 +487,8 @@ class QLayerView(QTableView) :
         # merge only adjustment layer with image layer
         if not hasattr(layer, 'inputImg') or hasattr(lower, 'inputImg'):
             actionMerge.setEnabled(False)
-        actionMaskEnable = QAction('Enable Mask', None)
+        actionColorMaskEnable = QAction('Color Mask', None)
+        actionOpacityMaskEnable = QAction('Opacity Mask', None)
         actionMaskDisable = QAction('Disable Mask', None)
         actionMaskInvert = QAction('Invert Mask', None)
         actionMaskReset = QAction('Reset Mask', None)
@@ -496,6 +497,10 @@ class QLayerView(QTableView) :
         actionMaskDilate = QAction('Dilate Mask', None)
         actionMaskErode = QAction('Erode Mask', None)
         actionMaskPaste.setEnabled(not QApplication.clipboard().image().isNull())
+        actionColorMaskEnable.setCheckable(True)
+        actionOpacityMaskEnable.setCheckable(True)
+        actionColorMaskEnable.setChecked(layer.maskIsSelected and layer.maskIsEnabled)
+        actionOpacityMaskEnable.setChecked((not layer.maskIsSelected) and layer.maskIsEnabled)
         # to link actionDup with a shortcut
         # it must be set in __init__
         menu.addAction(self.actionDup)
@@ -503,7 +508,9 @@ class QLayerView(QTableView) :
         if hasattr(layer, 'inputImg'):
             self.actionDup.setEnabled(False)
         menu.addAction(actionMerge)
-        menu.addAction(actionMaskEnable)
+        subMenuEnable = menu.addMenu('Enable Mask')
+        subMenuEnable.addAction(actionColorMaskEnable)
+        subMenuEnable.addAction(actionOpacityMaskEnable)
         menu.addAction(actionMaskDisable)
         menu.addAction(actionMaskInvert)
         menu.addAction(actionMaskReset)
@@ -518,12 +525,19 @@ class QLayerView(QTableView) :
             layer.setOpacity(value)
         def merge():
             layer.merge_with_layer_immediately_below()
-        def maskEnable():
+        def colorMaskEnable():
             layer.maskIsEnabled = True
+            layer.maskIsSelected = True
+            layer.applyToStack()
+            self.img.onImageChanged()
+        def opacityMaskEnable():
+            layer.maskIsEnabled = True
+            layer.maskIsSelected = False
             layer.applyToStack()
             self.img.onImageChanged()
         def maskDisable():
             layer.maskIsEnabled = False
+            layer.maskIsSelected = False
             layer.applyToStack()
             self.img.onImageChanged()
         def maskInvert():
@@ -556,7 +570,8 @@ class QLayerView(QTableView) :
             layer.updatePixmap()
             self.img.onImageChanged()
         actionMerge.triggered.connect(merge)
-        actionMaskEnable.triggered.connect(maskEnable)
+        actionColorMaskEnable.triggered.connect(colorMaskEnable)
+        actionOpacityMaskEnable.triggered.connect(opacityMaskEnable)
         actionMaskDisable.triggered.connect(maskDisable)
         actionMaskInvert.triggered.connect(maskInvert)
         actionMaskReset.triggered.connect(maskReset)

@@ -74,20 +74,22 @@ class segmentForm(QWidget):
         @param mode:
         @param again:
         """
-        global rect_or_mask
+        #global rect_or_mask
         inputImg = layer.inputImg()
 
         rect = layer.rect
 
         # set mask from selection rectangle, if any
-        rectMask = np.zeros((layer.height(), layer.width()), dtype=np.uint8)
+        #rectMask = np.zeros((layer.height(), layer.width()), dtype=np.uint8)
+        rectMask = np.zeros((inputImg.height(), inputImg.width()), dtype=np.uint8)
         if rect is not None:
             rectMask[rect.top():rect.bottom(), rect.left():rect.right()] = cv2.GC_PR_FGD
         else:
             rectMask = rectMask + cv2.GC_PR_FGD
 
-        paintedMask = QImageBuffer(layer.mask)
-
+        scaledMask = layer.mask.scaled(inputImg.width(), inputImg.height())
+        paintedMask = QImageBuffer(scaledMask)
+        #paintedMask = QImageBuffer(layer.mask)
         # CAUTION: mask is initialized to 255, thus discriminant is blue=0 for FG and green=0 for BG 'cf. Blue.mouseEvent())
         #rectMask[paintedMask[:,:,0]==0] = cv2.GC_FGD
         rectMask[(paintedMask[:, :, 0] == 0)*(paintedMask[:,:,1]==255)] = cv2.GC_FGD
@@ -110,9 +112,10 @@ class segmentForm(QWidget):
         fgdmodel = np.zeros((1, 13 * 5), np.float64)  # Temporary array for the foreground model
 
         t0 = time()
-        tmp =inputImg.getHspbBuffer().astype(np.uint8)
+        #tmp =inputImg.getHspbBuffer().astype(np.uint8)
         #cv2.grabCut_mtd(tmp[:,:,:3], #QImageBuffer(inputImg)[:, :, :3],
         cv2.grabCut_mtd(QImageBuffer(inputImg)[:, :, :3],
+        #cv2.grabCut(QImageBuffer(inputImg)[:, :, :3],
                     finalMask,
                     None,#QRect2tuple(img0_r.rect),
                     bgdmodel, fgdmodel,
@@ -120,12 +123,13 @@ class segmentForm(QWidget):
                     mode)
         print 'grabcut_mtd time :', time()-t0
 
-        buf = QImageBuffer(layer.mask)
+
+        buf = QImageBuffer(scaledMask)
         # reset image mask
         buf[:,:,:3] = 0
         buf[:,:,3] = 255
 
-        # set opacity (reveal background)
+        # set opacity (255=background, 0=foreground)
         buf[:, :, 3] = np.where((finalMask == cv2.GC_FGD) + (finalMask == cv2.GC_PR_FGD), 0, 255)
         # dilate background
         #kernel = np.ones((5, 5), np.uint8)
@@ -138,16 +142,15 @@ class segmentForm(QWidget):
         # * 255 0  foreground
         # * 255 1  probably foreground
         # *
-        # We mark all pixels as FG or BG, according to mask opacity
-        # set G channel
+        # set Green channel(255=foreground, 0=background, 1=PR_BGD)
         buf[:, :,1] = np.where(buf[:,:,3]==0, 255, 0)
         buf[:, :, 1][finalMask == cv2.GC_PR_BGD] = 1
-        # set B channel
+        # set Blue channel(255=background, 0=foreground, 1=PR_FGD)
         buf[:,:,0] = np.where(buf[:,:,3]==255, 255, 0)
         buf[:, :, 0][finalMask == cv2.GC_PR_FGD] = 1
-        # invert mask
+        # invert mask opacity
         buf[:,:,3] = 255 - buf[:,:,3]
-
+        layer.mask = scaledMask.scaled(layer.width(), layer.height())
         # update
         layer.updatePixmap()
 
