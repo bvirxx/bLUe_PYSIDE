@@ -1245,7 +1245,7 @@ class QLayer(vImage):
         Applies transformation and propagates changes to upper layers.
         """
         # recursive function
-        def applyToStack_(layer, pool=None):
+        def applyToStack_(layer, pool=None ):
             # apply Transformation (call vImage.apply*LUT...)
             layer.execute(pool=pool)
             stack = layer.parentImage.layersStack
