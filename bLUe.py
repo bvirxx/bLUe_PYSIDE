@@ -37,13 +37,14 @@ from os import path, walk
 from os.path import isfile
 from types import MethodType
 from grabcut import segmentForm
-from PySide.QtCore import Qt, QRect, QEvent, QDir, QUrl
-from PySide.QtGui import QPixmap, QColor, QPainter, QApplication, QMenu, QAction, QCursor, QFileDialog, QMessageBox, \
-    QMainWindow, QLabel, QDockWidget, QSizePolicy, QKeySequence, QToolTip, QScrollArea, QVBoxLayout, QBrush, QPen, QSplashScreen
+from PySide2.QtCore import Qt, QRect, QEvent, QDir, QUrl
+from PySide2.QtGui import QPixmap, QColor, QPainter, QCursor, QKeySequence,  QBrush, QPen
+from PySide2.QtWidgets import QApplication, QMenu, QAction, QFileDialog, QMessageBox, \
+    QMainWindow, QLabel, QDockWidget, QSizePolicy, QToolTip, QScrollArea, QVBoxLayout, QSplashScreen
 from QtGui1 import app, window
 import exiftool
 from imgconvert import *
-from MarkedImg import imImage, metadata
+from MarkedImg import imImage, metadata, vImage
 
 from graphicsRGBLUT import graphicsForm
 from graphicsLUT3D import graphicsForm3DLUT
@@ -51,7 +52,7 @@ from LUT3D import LUTSIZE, LUT3D, LUT3DIdentity
 from colorModels import cmHSP, cmHSB
 import icc
 
-from PySide.QtWebKit import QWebView
+#from PySide2.QtWebKit import QWebView
 
 from colorTemperature import temperatureForm
 from time import sleep
@@ -66,9 +67,10 @@ from graphicsHspbLUT import graphicsHspbForm
 from graphicsLabLUT import graphicsLabForm
 
 
-# Global paintEvent painter and background color
-qp=QPainter()
-defaultBgColor=QColor(191,191,191)
+###############
+# Global paintEvent QPainter
+qp = QPainter()
+##############
 
 def paintEvent(widg, e) :
     """
@@ -92,7 +94,7 @@ def paintEvent(widg, e) :
     r = mimg.resize_coeff(widg)
     qp.begin(widg)
     # background
-    qp.fillRect(QRect(0, 0, widg.width() , widg.height() ), defaultBgColor)
+    qp.fillRect(QRect(0, 0, widg.width() , widg.height() ), vImage.defaultBgColor)
     # draw layers.
     # We follow the algorithm from MarkedImg.mergeVisibleLayers,
     # but for color management we use pixmaps instead of images.
@@ -377,7 +379,7 @@ def loadImageFromFile(f):
         msg.exec_()
         return None
     if colorSpace < 0:
-        print 'colorspace', colorSpace
+        #print 'colorspace', colorSpace
         msg = QMessageBox()
         msg.setText("Color profile missing\nAssigning sRGB profile")
         msg.exec_()
@@ -387,7 +389,8 @@ def loadImageFromFile(f):
 
 def openFile(f):
     """
-    @param f: file name (type str)
+    @param f: file name
+    @type f: str
     """
     # extract embedded profile and metadata, if any.
     # metadata is a list of dicts with len(metadata) >=1.
@@ -395,7 +398,12 @@ def openFile(f):
     # profile is a string containing the profile binary data.
     # Currently, we do not use these data : standard profiles
     # are loaded from disk, non standard profiles are ignored.
+    closeFile()
+    img = None
+    # load file
     try :
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        QApplication.processEvents()
         img = loadImageFromFile(f)
     except ValueError as e:
         msg = QMessageBox()
@@ -403,8 +411,31 @@ def openFile(f):
         msg.setIcon(QMessageBox.Warning)
         msg.setText(str(e))
         msg.exec_()
-        return
-    setDocumentImage(img)
+        #return
+    finally:
+        QApplication.restoreOverrideCursor()
+        QApplication.processEvents()
+    # display image
+    if img is not None:
+        setDocumentImage(img)
+
+def closeFile():
+    if window.label.img.isModified:
+        ret = savingDialog(window.label.img)
+        if ret == QMessageBox.Yes:
+            save(window.label.img)
+        elif ret == QMessageBox.Cancel:
+            return
+    # r = weakref.ref(window.label.img)
+    # print 'ref', r()
+    window.label.img = defaultImImage
+    window.label_2.img = defaultImImage
+    window.tableView.clear()  # setLayers(window.label.img)
+    # free (almost) all memory used by images
+    gc.collect()
+    # print 'ref', r()
+    window.label.repaint()
+    window.label_2.repaint()
 
 def setDocumentImage(img):
     """
@@ -427,6 +458,7 @@ def setDocumentImage(img):
     # used by graphicsForm3DLUT.onReset
     window.label.img.window = window.label
     window.label_2.img.window = window.label_2
+    window.label.img.setModified(True)
     updateStatus()
 
 def updateMenuOpenRecent():
@@ -482,22 +514,7 @@ def menuFile(x, name):
         save(window.label.img)
     # closing dialog : close opened document
     elif name == 'actionClose':
-        if window.label.img.isModified:
-            ret = savingDialog(window.label.img)
-            if ret == QMessageBox.Yes:
-                save(window.label.img)
-            elif ret == QMessageBox.Cancel:
-                return
-        #r = weakref.ref(window.label.img)
-        #print 'ref', r()
-        window.label.img = defaultImImage
-        window.label_2.img = defaultImImage
-        window.tableView.clear() #setLayers(window.label.img)
-        # free (almost) all memory used by images
-        gc.collect()
-        #print 'ref', r()
-        window.label.repaint()
-        window.label_2.repaint()
+        closeFile()
     elif name == 'actionHald_identity':
         img = QImage(LUTSIZE, LUTSIZE**2, QImage.Format_ARGB32)
         buf = QImageBuffer(img)
@@ -614,7 +631,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
                 rating = 5
             if rating < 2:
                 app.processEvents()
-                print 'skip'
+                #print 'skip'
                 continue
             imImg= loadImageFromFile(name)
             if label.img is not None:
@@ -644,7 +661,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
             window.diaporamaGenerator = None
             break
         except:
-            print "Unexpected error:", sys.exc_info()[0]
+            #print "Unexpected error:", sys.exc_info()[0]
             #newwindow.close()
             window.diaporamaGenerator = None
             raise
@@ -875,7 +892,8 @@ def menuLayer(x, name):
             # secure env for exec
             safe_list = ['menuLayer', 'window']
             safe_dict = dict([(k, globals().get(k, None)) for k in safe_list])
-            exec script in safe_dict, locals() #globals(), locals()
+            #exec script in safe_dict, locals() #globals(), locals()
+            exec (script, safe_dict, locals)  #3.6
             qf.close()
             return
     # adjustment layer from .cube file
@@ -1118,6 +1136,7 @@ def close(e):
 
 def updateStatus():
     img = window.label.img
+    # filename and rating
     s = img.filename + ' ' + (' '.join(['*']*img.meta.rating))
     if img.useThumb:
         s = s + '  ' + '<font color=red><b>Preview</b></font> '
@@ -1195,4 +1214,6 @@ if __name__ =='__main__':
     window.cursor_EyeDropper = QCursor(QPixmap.fromImage(QImage(":/images/resources/Eyedropper-icon.png")))
     # init tool cursor, must be resizable
     window.cursor_Circle_Pixmap = QPixmap.fromImage(QImage(":/images/resources/cursor_circle.png"))
+    app.addLibraryPath("D:/Python36/Lib/site-packages/PySide2")
+    app.addLibraryPath("D:/Python36/Lib/site-packages/PySide2/plugins/imageformats")
     sys.exit(app.exec_())

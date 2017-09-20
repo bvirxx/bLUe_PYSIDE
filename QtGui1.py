@@ -16,14 +16,12 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-from PySide import QtGui #, QtUiTools #, uic
+from PySide2 import QtGui, QtWidgets, QtCore  # , QtUiTools #, uic
 #from PySide.QtCore import QObject
-from PySide.QtCore import QSettings, QSize
+from PySide2.QtCore import QSettings, QSize
 #from PIL.ImageCms import getProfileDescription
 import sys
-from PySide.QtGui import QApplication, QMessageBox
-from PySide.QtGui import QLabel
-from PySide.QtGui import QMainWindow
+from PySide2.QtWidgets import QApplication, QMessageBox, QLabel, QMainWindow
 
 import resources_rc   # DO NOT REMOVE !!!!
 from layerView import QLayerView
@@ -60,25 +58,26 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
         #self._recentFiles = []
 
         # connections to SLOTS
-        for slider in self.findChildren(QtGui.QSlider):
+        #for slider in self.findChildren(QtGui.QSlider):
+        for slider in self.findChildren(QtWidgets.QSlider):
             slider.valueChanged.connect(
                             lambda value, slider=slider : self.handleSliderMoved(value, slider)
                             )
             self.slidersValues [str(slider.accessibleName())] = slider.value()
 
-        for button in self.findChildren(QtGui.QPushButton) :
+        for button in self.findChildren(QtWidgets.QPushButton) :
             button.pressed.connect(
                             lambda button=button : self.handlePushButtonClicked(button)
                             )
             self.btnValues[str(button.accessibleName())] = button.isChecked()
 
-        for button in self.findChildren(QtGui.QToolButton) :
+        for button in self.findChildren(QtWidgets.QToolButton) :
             button.pressed.connect(
                             lambda button=button : self.handleToolButtonClicked(button)
                             )
             self.btnValues[str(button.accessibleName())] = button.isChecked()
 
-        for widget in self.findChildren(QtGui.QLabel):
+        for widget in self.findChildren(QtWidgets.QLabel):
             widget.customContextMenuRequested.connect(lambda pos, widget=widget : self.showContextMenu(pos,widget))
 
         for action in enumerateMenuActions(self.menu_File) : # TODO replace by enumerateMenu
@@ -214,6 +213,14 @@ def enumerateMenuActions(menu):
 # QApplication and mainWindow init
 # A Python module is a singleton : the initialization code below
 # is executed only once, regardless the number of module imports.
+#######
+
+#######
+# PySide2 : Without the next line, app is unable to load
+# imageformats dlls for reading and writing QImage objects.
+#######
+print('1')
+QtCore.QCoreApplication.addLibraryPath("D:/Python36/Lib/site-packages/PySide2/plugins")
 #######
 app = QApplication(sys.argv)
 window = Form1()

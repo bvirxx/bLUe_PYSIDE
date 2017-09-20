@@ -247,6 +247,9 @@ scr</string>
            <height>160</height>
           </rect>
          </property>
+         <property name="toolTip">
+          <string>Brush Size</string>
+         </property>
          <property name="accessibleName">
           <string>verticalSlider1</string>
          </property>
@@ -496,6 +499,9 @@ scr</string>
          <width>16777215</width>
          <height>755</height>
         </size>
+       </property>
+       <property name="statusTip">
+        <string/>
        </property>
       </widget>
      </item>

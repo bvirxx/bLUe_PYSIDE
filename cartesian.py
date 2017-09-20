@@ -33,14 +33,15 @@ def cartesianProduct(arrayList, out=None):
         if a.dtype != dtype:
             raise ValueError("cartesianProduct : all arrays must have the same dtype")
 
-    m = n / arrayList[0].size
+    m = n //arrayList[0].size
     if out is None:
         out = np.zeros([n, itemSize], dtype=dtype)
     out[:,0] = np.repeat(arrayList[0], m)
 
     if arrayList[1:]:
-        cartesianProduct(arrayList[1:], out=out[0:m, 1:])
-        for j in xrange(1, arrayList[0].size):
+        #cartesianProduct(arrayList[1:], out=out[0:m, 1:])
+        cartesianProduct(arrayList[1: ], out=out[0:m, 1: ])
+        for j in range(1, arrayList[0].size):
             out[j*m:(j+1)*m,1:] = out[0:m,1:]
     dims = tuple([x.size for x in arrayList]+[len(arrayList)])
     return np.reshape(out, dims)

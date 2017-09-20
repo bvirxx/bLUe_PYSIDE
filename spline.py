@@ -18,7 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import bisect
 
 import numpy as np
-from PySide.QtCore import QPointF
+from PySide2.QtCore import QPointF
 
 """
 Cubic spline interpolation for a set of N 2D-points.

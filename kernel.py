@@ -96,4 +96,5 @@ def getKernel(category, radius=1, amount=1.0):
 
 
 if __name__ == '__main__':
-    print gaussianKernel(0, 5)*256
+    pass
+    #print gaussianKernel(0, 5)*256

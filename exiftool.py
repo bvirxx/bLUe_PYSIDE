@@ -25,7 +25,8 @@ import os
 import json
 from tempfile import NamedTemporaryFile
 
-from PySide.QtGui import QTransform, QMessageBox
+from PySide2.QtGui import QTransform
+from PySide2.QtWidgets import QMessageBox
 from os.path import isfile
 
 from settings import EXIFTOOL_PATH
@@ -73,18 +74,19 @@ class ExifTool(object):
         @param traceback: 
         @return: 
         """
-        self.process.stdin.write("-stay_open\nFalse\n")
+        self.process.stdin.write(bytearray("-stay_open\nFalse\n", 'ascii'))
         self.process.stdin.flush()
         self.process.terminate()
 
     def execute(self, *args):
         args = args + ("-execute\n",)
-        self.process.stdin.write(str.join("\n", args))
+        #self.process.stdin.write(str.join("\n", args))  Python 2.7
+        self.process.stdin.write(bytearray(str.join("\n", args), 'ascii'))
         self.process.stdin.flush()
         output = ""
         fd = self.process.stdout.fileno()
         while not output[:-2].endswith(self.sentinel):
-            output += os.read(fd, 4096)
+            output += os.read(fd, 4096).decode('ascii')
         return output[:-len(self.sentinel)-2]
 
     def writeXMPTag(self, filename, tagName, value):

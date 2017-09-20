@@ -18,14 +18,15 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import multiprocessing
 from functools import partial
 
-from PySide.QtCore import Qt, QBuffer, QDataStream, QFile, QIODevice, QSize
+from PySide2.QtCore import Qt, QBuffer, QDataStream, QFile, QIODevice, QSize
 
 import cv2
 from copy import copy
 
-from PySide.QtGui import QImageWriter, QApplication
-from PySide.QtGui import QPixmap, QImage, QColor, QPainter, QMessageBox
-from PySide.QtCore import QRect
+from PySide2.QtGui import QImageWriter, QImageReader
+from PySide2.QtWidgets import QApplication, QMessageBox
+from PySide2.QtGui import QPixmap, QImage, QColor, QPainter
+from PySide2.QtCore import QRect
 
 from colorTemperature import sRGB2LabVec
 from grabcut import segmentForm
@@ -60,6 +61,7 @@ class vImage(QImage):
     Each image owns a mask (disabled by default).
     """
     thumbSize = 1000
+    defaultBgColor = QColor(191, 191, 191)
     def __init__(self, filename=None, cv2Img=None, QImg=None, mask=None, format=QImage.Format_ARGB32,
                                             name='', colorSpace=-1, orientation=None, rating=5, meta=None, rawMetadata=[], profile=''):
         """
@@ -125,13 +127,13 @@ class vImage(QImage):
         if filename is not None:
             # loads image from file (should be a 8 bits/channel color image)
             if self.meta.orientation is not None:
-                tmp =QImage(filename, format=format).transformed(self.meta.orientation)
+                tmp = QImage(filename, format=format).transformed(self.meta.orientation)
             else:
                 tmp = QImage(filename, format=format)
             # ensure format is format !!
             tmp = tmp.convertToFormat(format)
             if tmp.isNull():
-                raise ValueError('Cannot load %s' % filename)
+                raise ValueError('Cannot load %s\nSupported image formats\n%s' % (filename, QImageReader.supportedImageFormats()))
             # call to super is mandatory. Shallow copy : no harm !
             super(vImage, self).__init__(tmp)
         elif QImg is not None:
@@ -460,7 +462,7 @@ class vImage(QImage):
         # alpha propagation
         #ndImg0 = QImageBuffer(self.InputImg())
         #ndImg1[:, :, 3] = ndImg0[:, :, 3]
-        print 'usehald', time() -t
+        #print 'usehald', time() -t
         #if self.parentImage.useThumb:
         # apply transformation
         outputHald = self.getCurrentImage()
@@ -510,7 +512,7 @@ class vImage(QImage):
         start=time()
         ndImg1[h1:h2 + 1, w1:w2 + 1, :] = interp(LUT, ndImg0, pool=pool)
         end=time()
-        print 'Apply3DLUT time %.2f' % (end-start)
+        #print 'Apply3DLUT time %.2f' % (end-start)
         # propagate mask ????
         #currentImage.mask = self.inputImgFull().getCurrentImage().mask
         #self.mask = self.inputImgFull().mask
@@ -872,7 +874,8 @@ class mImage(vImage):
         @rtype: QImage
         """
         img = QImage(self.width(), self.height(), self.format())
-        img.fill(QColor(0, 0, 0, 0))
+        #img.fill(QColor(0, 0, 0, 0))
+        img.fill(vImage.defaultBgColor)
         qp = QPainter(img)
         for layer in self.layersStack:
             if layer.visible:
@@ -898,7 +901,7 @@ class mImage(vImage):
         imgWriter = QImageWriter(filename)
         imgWriter.setQuality(quality)
         if imgWriter.write(img): #img.save(filename, quality=quality):
-            self.setModified(False)
+            #self.setModified(False) There is no safe reset to True!
             return True
         else:
             msg = QMessageBox()
@@ -1245,7 +1248,7 @@ class QLayer(vImage):
         Applies transformation and propagates changes to upper layers.
         """
         # recursive function
-        def applyToStack_(layer, pool=None ):
+        def applyToStack_(layer, pool=None):
             # apply Transformation (call vImage.apply*LUT...)
             layer.execute(pool=pool)
             stack = layer.parentImage.layersStack
@@ -1275,6 +1278,10 @@ class QLayer(vImage):
             QApplication.processEvents()
 
     def applyToStackIter(self):
+        """
+        iterative version of applyToStack
+        @return:
+        """
         stack = self.parentImage.layersStack
         ind = self.getStackIndex() + 1
         try:
@@ -1439,7 +1446,7 @@ def apply3DLUTSliceCls(LUT, inputBuffer, imgBuffer, s ):
     start = time()
     ndImg1[s[1], s[0], :] = interpVec_(LUT, ndImg0)
     end = time()
-    print 'Apply3DLUT time %.2f' % (end - start)
+    #print 'Apply3DLUT time %.2f' % (end - start)
 
 
 def applyHaldCls(item):

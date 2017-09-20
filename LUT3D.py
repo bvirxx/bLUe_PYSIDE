@@ -21,8 +21,9 @@ from functools import partial
 from time import time
 
 import numpy as np
-from PySide.QtCore import QDataStream, QFile, QIODevice, QTextStream
-from PySide.QtGui import QImage, QMessageBox
+from PySide2.QtCore import QDataStream, QFile, QIODevice, QTextStream
+from PySide2.QtGui import QImage
+from PySide2.QtWidgets import QMessageBox
 
 from cartesian import cartesianProduct
 from imgconvert import QImageBuffer
@@ -552,7 +553,8 @@ def hsp2rgbOld(h,s,p, trunc=True):
             b = g + h * (r - g)
 
     if r<0 or g<0 or b<0 :
-        print 'neg value found', h,s,p, r,g,b
+        pass
+        #print 'neg value found', h,s,p, r,g,b
 
     pc= Perc_R * r * r + Perc_G * g * g + Perc_B * b * b
     assert abs(p*p - pc)<= 0.000001, 'hsp2rgb error'
@@ -637,7 +639,8 @@ def hsp2rgb_ClippingInd(h,s,p, trunc=True):
             b = g + (1-f) * (r - g)
 
     if r<0 or g<0 or b<0 :
-        print 'neg value found', h,s,p, r,g,b
+        pass
+        #print 'neg value found', h,s,p, r,g,b
 
     pc= Perc_R * r * r + Perc_G * g * g + Perc_B * b * b
     assert abs(p*p - pc)<= 0.000001, 'hsp2rgb error'
@@ -905,7 +908,8 @@ if __name__=='__main__':
     interpImg = interpVec(LUT3D_ORI, testImg)
     d = testImg - interpImg
     if (d != 0.0).any():
-        print "interpolation error"
+        pass
+        #print "interpolation error"
 
 
 

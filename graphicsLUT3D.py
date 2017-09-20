@@ -17,17 +17,16 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 
-from PySide.QtCore import QSize
-from PySide.QtGui import QAction, QFileDialog, QToolTip
-from PySide.QtGui import QPainter, QWidget, QPixmap, QPushButton
-from PySide.QtGui import QGraphicsView, QGraphicsScene, QGraphicsItem, QGraphicsItemGroup, QGraphicsPathItem , QGraphicsPixmapItem, QGraphicsTextItem, QPolygonF, QGraphicsPolygonItem , QPainterPath, QPainterPathStroker, QPen, QBrush, QColor, QPixmap, QMainWindow, QLabel, QSizePolicy
-from PySide.QtCore import Qt, QPoint, QPointF, QRect, QRectF #, QString
+from PySide2.QtCore import QSize
+from PySide2.QtWidgets import QAction, QFileDialog, QToolTip, QWidget, QPushButton
+from PySide2.QtGui import QPainter, QPixmap, QPolygonF,QPainterPath, QPainterPathStroker, QPen, QBrush, QColor, QPixmap
+from PySide2.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsItem, QGraphicsItemGroup, QGraphicsPathItem , QGraphicsPixmapItem, QGraphicsTextItem,  QGraphicsPolygonItem ,  QMainWindow, QLabel, QSizePolicy
+from PySide2.QtCore import Qt, QPoint, QPointF, QRect, QRectF #, QString
 import numpy as np
 from time import time
 
-from PySide.QtGui import QImage
-from PySide.QtGui import QMenu
-from PySide.QtGui import QRubberBand
+from PySide2.QtGui import QImage
+from PySide2.QtWidgets import QMenu, QRubberBand
 
 from LUT3D import LUTSIZE, LUTSTEP, hsp2rgb_ClippingInd, LUT3DFromFactory, LUT3D_SHADOW, LUT3D_ORI, LUT3D
 from MarkedImg import QLayer, vImage
@@ -681,7 +680,7 @@ class colorPicker(QGraphicsPixmapItem):
 
     def mousePressEvent(self, e):
         #super(colorPicker, self).mousePressEvent(e)
-        print 'color picker mouse press'
+        #print 'color picker mouse press'
         if e.button() == Qt.RightButton:
             return
         self.origin = e.screenPos()

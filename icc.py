@@ -18,11 +18,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 from PIL import Image
 from PIL.ImageCms import profileToProfile, getOpenProfile, get_display_profile, getProfileDescription, getProfileInfo, buildTransformFromOpenProfiles, applyTransform
-from PIL.ImageQt import ImageQt
+#from PIL.ImageQt import ImageQt
 import numpy as np
-from PySide.QtGui import QPixmap, QImage
+from PySide2.QtGui import QPixmap, QImage
 from imgconvert import QImageBuffer, PilImageToQImage, QImageToPilImage
-from StringIO import StringIO
+#from StringIO import StringIO
 from os import path
 #help(PIL.ImageCms)
 from settings import ADOBE_RGB_PROFILE_PATH, SRGB_PROFILE_PATH

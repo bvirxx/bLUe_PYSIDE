@@ -6,7 +6,8 @@
 #
 # WARNING! All changes made in this file will be lost!
 
-from PyQt4 import QtCore
+#from PyQt4 import QtCore
+from PySide2 import QtCore
 
 qt_resource_data = "\
 \x00\x00\x09\xec\
@@ -2183,9 +2184,9 @@ qt_resource_struct = "\
 "
 
 def qInitResources():
-    QtCore.qRegisterResourceData(0x01, qt_resource_struct, qt_resource_name, qt_resource_data)
+    QtCore.qRegisterResourceData(0x01, qt_resource_struct.encode('utf_8'), qt_resource_name.encode('utf_8'), qt_resource_data.encode('utf_8'))
 
 def qCleanupResources():
-    QtCore.qUnregisterResourceData(0x01, qt_resource_struct, qt_resource_name, qt_resource_data)
+    QtCore.qUnregisterResourceData(0x01, qt_resource_struct.encode('utf_8'), qt_resource_name.encode('utf_8'), qt_resource_data.encode('utf_8'))
 
 qInitResources()

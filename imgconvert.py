@@ -18,7 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 from time import time
 
 import numpy as np
-from PySide.QtGui import QImage
+from PySide2.QtGui import QImage
 from PIL import Image
 
 QImageFormats = {0:'invalid', 1:'mono', 2:'monoLSB', 3:'indexed8', 4:'RGB32', 5:'ARGB32',6:'ARGB32 Premultiplied',
@@ -63,7 +63,7 @@ def QImageBuffer(qimg):
     if bpp == 1:
         raise ValueError("QImageBuffer : unsupported image format 1 bit per pixel")
     # Bytes per pixel
-    Bpp = bpp / 8
+    Bpp = bpp // 8
     # Get image buffer (sip.array of Bytes)
     # Calling bits() performs a deep copy of the buffer,
     # suppressing dependencies due to implicit data sharing.
@@ -111,4 +111,5 @@ def QImageToPilImage(qimg) :
     else :
         raise ValueError("QImageToPilImage : unrecognized format : %s" %qimg.Format())
     w, h = qimg.width(), qimg.height()
-    return Image.frombytes('RGB', (w,h), a.data)
+    #return Image.frombytes('RGB', (w,h), a.data) a.data is memorytview (python 3)
+    return Image.frombytes('RGB', (w,h), a.tobytes())

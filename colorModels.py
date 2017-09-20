@@ -20,7 +20,7 @@ import numpy as np
 from MarkedImg import imImage
 from LUT3D import hsv2rgbVec,hsp2rgb, hsp2rgbVec, rgb2hsp, rgb2hspVec, hsv2rgb, \
     rgb2hsB, rgb2hsBVec
-from PySide.QtGui import QImage
+from PySide2.QtGui import QImage
 from imgconvert import QImageBuffer
 
 class cmConverter ( object):

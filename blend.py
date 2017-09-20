@@ -16,7 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import numpy as np
-from PySide.QtGui import QImage
+from PySide2.QtGui import QImage
 
 from LUT3D import hsv2rgbVec, rgb2hsBVec, hsp2rgbVec
 from imgconvert import QImageBuffer

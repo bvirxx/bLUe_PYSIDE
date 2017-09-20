@@ -17,18 +17,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import cv2
 import numpy as np
-from PySide.QtCore import QRectF, QSize
-from PySide.QtGui import QAction, QMenu, QSlider, QImage, QStyle, QPalette, QColor, QListWidget, QCheckBox, QMessageBox, \
-    QApplication, QKeySequence
-from PySide.QtGui import QComboBox
-from PySide.QtGui import QFontMetrics
-from PySide.QtGui import QHBoxLayout
-from PySide.QtGui import QLabel
-from PySide.QtGui import QPainter
-from PySide.QtGui import QTableView, QStandardItem, QStandardItemModel, QAbstractItemView, QStyledItemDelegate, QPixmap, QIcon, QHeaderView
-from PySide.QtCore import Qt
-from PySide.QtGui import QTextOption
-from PySide.QtGui import QVBoxLayout
+from PySide2.QtCore import QRectF, QSize, Qt
+from PySide2.QtGui import QImage, QPalette, QColor, QKeySequence, QFontMetrics, QTextOption, QPixmap, QIcon, QPainter, QStandardItem, QStandardItemModel
+from PySide2.QtWidgets import QAction, QMenu, QSlider, QStyle, QListWidget, QCheckBox, QMessageBox, QApplication
+from PySide2.QtWidgets import QComboBox, QHBoxLayout, QLabel, QTableView, QAbstractItemView, QStyledItemDelegate, QHeaderView, QVBoxLayout
 
 import resources_rc  # mandatory : DO NOT REMOVE !!!
 import QtGui1
@@ -262,6 +254,13 @@ class QLayerView(QTableView) :
                 return
         super(QLayerView, self).mouseReleaseEvent(e)
 
+    def setEnabled(self, value):
+        super(QLayerView, self).setEnabled(value)
+        if not self.isEnabled():
+            self.setStatusTip('Close adjustment form %s to enable Layers' % self.currentWin.windowTitle())
+        else:
+            self.setStatusTip('')
+
 
     def closeAdjustForms(self, delete=False):
         """
@@ -358,9 +357,9 @@ class QLayerView(QTableView) :
         self.horizontalHeader().hide()
         self.verticalHeader().hide()
         header = self.horizontalHeader()
-        header.setResizeMode(0, QHeaderView.ResizeToContents)
-        header.setResizeMode(1, QHeaderView.ResizeToContents)
-        header.setResizeMode(2, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
         # select active layer
         self.selectRow(len(mImg.layersStack) - 1 - mImg.activeLayerIndex)
         self.update()
@@ -491,7 +490,7 @@ class QLayerView(QTableView) :
         actionOpacityMaskEnable = QAction('Opacity Mask', None)
         actionMaskDisable = QAction('Disable Mask', None)
         actionMaskInvert = QAction('Invert Mask', None)
-        actionMaskReset = QAction('Reset Mask', None)
+        actionMaskReset = QAction('Clear Mask', None)
         actionMaskCopy = QAction('Copy Mask to Clipboard', None)
         actionMaskPaste = QAction('Paste Mask', None)
         actionMaskDilate = QAction('Dilate Mask', None)

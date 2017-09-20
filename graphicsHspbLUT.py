@@ -18,13 +18,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import sys
 
-from PySide.QtCore import QRect
-from PySide.QtGui import QApplication, QPainter, QWidget
-from PySide.QtGui import QGraphicsView, QGraphicsScene, QGraphicsPathItem , QPainterPath, QPainterPathStroker, QPen, QBrush, QColor, QPixmap, QMainWindow, QLabel, QSizePolicy
-from PySide.QtCore import Qt, QPoint, QPointF, QRectF
+from PySide2.QtCore import QRect
+from PySide2.QtWidgets import QApplication,  QWidget, QGraphicsView, QGraphicsScene, QGraphicsPathItem, QMainWindow, QLabel, QSizePolicy, QPushButton
+from PySide2.QtGui import QPainterPath, QPainterPathStroker, QPen, QBrush, QColor, QPixmap
+from PySide2.QtCore import Qt, QPoint, QPointF, QRectF
 import numpy as np
-from PySide.QtGui import QPolygonF
-from PySide.QtGui import QPushButton
+from PySide2.QtGui import QPolygonF, QPainter
 
 from colorModels import hueSatModel
 from graphicsRGBLUT import cubicItem, activePoint

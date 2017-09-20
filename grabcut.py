@@ -20,8 +20,9 @@ import numpy as np
 import cv2
 from time import time
 
-from PySide.QtCore import Qt
-from PySide.QtGui import QHBoxLayout, QMessageBox, QPushButton, QWidget, QSizePolicy, QVBoxLayout, QColor, QPainter
+from PySide2.QtCore import Qt
+#from PySide2.QtGui import QHBoxLayout, QMessageBox, QPushButton, QWidget, QSizePolicy, QVBoxLayout, QColor, QPainter
+from PySide2.QtWidgets import QHBoxLayout, QMessageBox, QPushButton, QWidget, QSizePolicy, QVBoxLayout
 from imgconvert import QImageBuffer
 
 
@@ -121,7 +122,7 @@ class segmentForm(QWidget):
                     bgdmodel, fgdmodel,
                     nb_iter,
                     mode)
-        print 'grabcut_mtd time :', time()-t0
+        #print 'grabcut_mtd time :', time()-t0
 
 
         buf = QImageBuffer(scaledMask)

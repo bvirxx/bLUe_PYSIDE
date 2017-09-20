@@ -17,18 +17,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 import numpy as np
-from PySide.QtCore import Qt
-from PySide.QtGui import QColor
-from PySide.QtGui import QFontMetrics
-from PySide.QtGui import QHBoxLayout
-from PySide.QtGui import QImage
-from PySide.QtGui import QLabel
-from PySide.QtGui import QPainter
-from PySide.QtGui import QPushButton
-from PySide.QtGui import QSizePolicy
-from PySide.QtGui import QSlider
-from PySide.QtGui import QVBoxLayout
-from PySide.QtGui import QWidget
+from PySide2.QtCore import Qt
+from PySide2.QtGui import QColor, QFontMetrics
+from PySide2.QtWidgets import QHBoxLayout, QLabel, QPushButton, QSizePolicy, QSlider, QVBoxLayout, QWidget
+from PySide2.QtGui import QImage
+
+from PySide2.QtGui import QPainter
 
 from blend import blendLuminosity
 from imgconvert import QImageBuffer
@@ -467,6 +461,6 @@ if __name__ == '__main__':
     L=0.7
     r1, g1, b1 = np.dot(sRGB2XYZInverse, np.array([L*x/y, L, L* (1.0 -x - y)/y]).T)
     r2, g2, b2 = rgbLinear2rgb(r1,g1,b1)
-    print r,g,b
-    print r2, g2, b2
+    #print r,g,b
+    #print r2, g2, b2
 
