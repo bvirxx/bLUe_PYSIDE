@@ -222,9 +222,9 @@ class LUT3D (object):
         outStream << ('bLUe 3D LUT')<<'\n'
         outStream << ('Size %d' % self.size)<<'\n'
         coeff = 255.0
-        for b in xrange(self.size):
-            for g in xrange(self.size):
-                for r in xrange(self.size):
+        for b in range(self.size):
+            for g in range(self.size):
+                for r in range(self.size):
                     r1, g1, b1 = LUT[r, g, b]
                     outStream << ("%.7f %.7f %.7f" % (r1 / coeff, g1 / coeff, b1 / coeff)) << '\n'
 

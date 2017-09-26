@@ -60,7 +60,7 @@ def coeff(X, Y):
     N = X.shape[0]
     R = np.zeros(X.shape)
 
-    for i in xrange(N-2, 0, -1):
+    for i in range(N-2, 0, -1):
         R[i] = (W[i] - deltaX1[i] * R[i+1]) / deltaX2[i]
 
     return deltaX1, R
@@ -95,17 +95,18 @@ def cubicSplineCurve(X,Y, clippingInterval=None):
     """
     m, M = np.min(X) , np.max(X)
     step = (M - m) / 255.0
-    xValues = np.array([i*step + m for i in xrange(256)])
+    xValues = np.array([i*step + m for i in range(256)])
     #xValues = np.arange(np.min(X),np.max(X))
     deltaX1, R = coeff(X, Y)
     def f(v):
         return cubicSpline(X,Y, deltaX1, R, v)
-    yValues = np.array(map(f, list(xValues)))
+    #yValues = np.array(map(f, list(xValues)))
+    yValues = np.fromiter(map(f, list(xValues)), dtype = np.float) # python 3 map returns an  iterator, not a list
     if clippingInterval is not None:
         minY, maxY = clippingInterval[0], clippingInterval[1]
     yValues = np.clip(yValues, minY, maxY)
     # return xValues, yValues
-    return [QPointF(xValues[i], yValues[i]) for i in xrange(len(xValues))]
+    return [QPointF(xValues[i], yValues[i]) for i in range(len(xValues))]  # python 3 xrange--> range
 
 
 

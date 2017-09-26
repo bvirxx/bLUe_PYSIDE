@@ -297,7 +297,8 @@ class graphicsForm(QGraphicsView) :
         super(graphicsForm, self).__init__(parent=parent)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize + 60, axeSize + 140)
-        #self.setWindowFlags(Qt.WindowStaysOnTopHint)
+        #self.setWindowFlags(Qt.WindowStaysOnTopHint|Qt.WindowCloseButtonHint)
+        #self.setWindowFlags(Qt.CustomizeWindowHint | Qt.WindowCloseButtonHint)
         self.setAttribute(Qt.WA_DeleteOnClose)
         #self.setBackgroundBrush(QBrush(Qt.black, Qt.SolidPattern))
         #self.bgPixmap = QPixmap.fromImage(hueSatModel.colorWheel(size, size, cModel))
@@ -404,10 +405,12 @@ class graphicsForm(QGraphicsView) :
         self.listWidget1.onSelect = onSelect1
 
     def showEvent(self, e):
-        self.mainForm.tableView.setEnabled(False)
+        pass
+        #self.mainForm.tableView.setEnabled(False)
 
     def hideEvent(self, e):
-        self.mainForm.tableView.setEnabled(True)
+        pass
+        #self.mainForm.tableView.setEnabled(True)
 
     def drawBackground(self, qp, qrF):
         s = self.graphicsScene.axeSize

@@ -28,7 +28,7 @@ from tempfile import NamedTemporaryFile
 from PySide2.QtGui import QTransform
 from PySide2.QtWidgets import QMessageBox
 from os.path import isfile
-
+from PIL import Image
 from settings import EXIFTOOL_PATH
 
 class ExifTool(object):
@@ -124,6 +124,14 @@ class ExifTool(object):
         @type f: str
         @return: profile, metadata
         @rtype: 
+        """
+        # Using PIL _getexif is much simpler.
+        # However, exiftools is more powerful
+        # So, we keep exiftools
+        """
+        with open(f, 'rb') as fd:
+            img = Image.open(fd)
+        exif_data = img._getexif()
         """
         fmie = f[:-4]+'.mie'
         if isfile(fmie):

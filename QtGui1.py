@@ -21,6 +21,8 @@ from PySide2 import QtGui, QtWidgets, QtCore  # , QtUiTools #, uic
 from PySide2.QtCore import QSettings, QSize
 #from PIL.ImageCms import getProfileDescription
 import sys
+
+from PySide2.QtWebEngineWidgets import QWebEngineView
 from PySide2.QtWidgets import QApplication, QMessageBox, QLabel, QMainWindow
 
 import resources_rc   # DO NOT REMOVE !!!!
@@ -42,7 +44,7 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
 
         # Status window updating
         self.updateStatus = lambda : 0
-        # hooks used in event slots:
+        # hooks used for event slots:
         self.onWidgetChange = lambda : 0
         self.onShowContextMenu = lambda : 0
         self.onExecMenuFile = lambda : 0
@@ -78,7 +80,7 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
             self.btnValues[str(button.accessibleName())] = button.isChecked()
 
         for widget in self.findChildren(QtWidgets.QLabel):
-            widget.customContextMenuRequested.connect(lambda pos, widget=widget : self.showContextMenu(pos,widget))
+            widget.customContextMenuRequested.connect(lambda pos, widget=widget : self.showContextMenu(pos, widget))
 
         for action in enumerateMenuActions(self.menu_File) : # TODO replace by enumerateMenu
             action.triggered.connect(lambda x=0, actionName=action.objectName(): self.execMenuFile(x, actionName))
@@ -123,7 +125,7 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
         self.onExecMenuHelp(x, name)
 
     def showContextMenu(self, pos, widget):
-        self.onShowContextMenu(widget)
+        self.onShowContextMenu(pos, widget)
 
     def handlePushButtonClicked(self, button):
         self.onWidgetChange(button)
@@ -219,7 +221,6 @@ def enumerateMenuActions(menu):
 # PySide2 : Without the next line, app is unable to load
 # imageformats dlls for reading and writing QImage objects.
 #######
-print('1')
 QtCore.QCoreApplication.addLibraryPath("D:/Python36/Lib/site-packages/PySide2/plugins")
 #######
 app = QApplication(sys.argv)

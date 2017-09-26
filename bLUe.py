@@ -15,7 +15,12 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+from itertools import cycle
 
+from PySide2 import QtCore
+
+from PySide2.QtQml import QQmlApplicationEngine
+from PySide2.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 
 """
 The QtHelp module uses the CLucene indexing library
@@ -37,10 +42,11 @@ from os import path, walk
 from os.path import isfile
 from types import MethodType
 from grabcut import segmentForm
-from PySide2.QtCore import Qt, QRect, QEvent, QDir, QUrl
-from PySide2.QtGui import QPixmap, QColor, QPainter, QCursor, QKeySequence,  QBrush, QPen
+from PySide2.QtCore import Qt, QRect, QEvent, QDir, QUrl, QPoint
+from PySide2.QtGui import QPixmap, QColor, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, \
+    QMouseEvent, QPainterPath
 from PySide2.QtWidgets import QApplication, QMenu, QAction, QFileDialog, QMessageBox, \
-    QMainWindow, QLabel, QDockWidget, QSizePolicy, QToolTip, QScrollArea, QVBoxLayout, QSplashScreen
+    QMainWindow, QLabel, QDockWidget, QSizePolicy, QToolTip, QScrollArea, QVBoxLayout, QSplashScreen, QSplitter
 from QtGui1 import app, window
 import exiftool
 from imgconvert import *
@@ -66,15 +72,79 @@ from graphicsFilter import filterForm
 from graphicsHspbLUT import graphicsHspbForm
 from graphicsLabLUT import graphicsLabForm
 
+splittedViews = cycle(('H','V','B'))
+
+def setSplittedView():
+    window.label.hide()
+    window.splitter.show()
+    window.label_2.show()
+    window.label_3.show()
+    while not (window.label_3.isVisible() and window.label_2.isVisible()):
+        app.processEvents()
+    if window.splitter.currentState == 'H':
+        window.label_2.img.xOffset = - window.label_3.width()
+        window.label_2.img.yOffset = window.label_3.img.yOffset
+    elif window.splitter.currentState == 'V':
+        window.label_2.img.yOffset = - window.label_3.height()
+        window.label_2.img.xOffset = window.label_3.img.xOffset
+    else:
+        window.label_2.img.xOffset, window.label_2.img.yOffset = 0, 0
+        window.label_3.hide()
+
+def nextSplittedView():
+    window.splitter.currentState = next(splittedViews)
+    if window.splitter.currentState == 'H':
+        window.splitter.setOrientation(Qt.Horizontal)
+    elif window.splitter.currentState == 'V':
+        window.splitter.setOrientation(Qt.Vertical)
+    else:
+        window.label_3.hide()
+    window.label_3.show()
+    setSplittedView()
+    #window.splitter.setSizes([2 ** 20, 2 ** 20])
+
+def syncSplittedView(widg1, widg2, linked):
+    """
+    Sync Before/After views in splitter
+    @param widg1:
+    @type widg1:
+    @param widg2:
+    @type widg2:
+    @param linked:
+    @type linked:
+    @return:
+    @rtype:
+    """
+    if not linked:
+        return
+    # r = widg2.img.Zoom_coeff
+    widg1.img.Zoom_coeff = widg2.img.Zoom_coeff
+    if window.splitter.orientation() == Qt.Horizontal:
+        if widg1.objectName() == 'label_2': # dest is right
+            widg1.img.xOffset = widg2.img.xOffset - widg2.width()
+        else: # dest is left
+            widg1.img.xOffset = widg2.img.xOffset + widg1.width()
+        widg1.img.yOffset = widg2.img.yOffset
+    else:
+        if widg1.objectName() == 'label_2': # dest is right
+            widg1.img.yOffset = widg2.img.yOffset - widg2.height()
+        else: # dest is left
+            widg1.img.yOffset = widg2.img.yOffset + widg1.height()
+        widg1.img.xOffset = widg2.img.xOffset
 
 ###############
-# Global paintEvent QPainter
+# paintEvent global QPainter
 qp = QPainter()
+# stuff for Before/After marks
+qp.setFont((QFont("Arial", 10)))
+qp.markPath=QPainterPath()
+qp.markRect = QRect(0, 0, 50, 20)
+qp.markPath.addRoundedRect(qp.markRect, 5, 5)
 ##############
 
 def paintEvent(widg, e) :
     """
-    Paint event handler for widgets that display a mImage object.
+    Paint event handler for widgets displaying a mImage object.
     The widget must have a valid img attribute of type QImage.
     The handler should override the paintEvent method of widg. This can be done
     by subclassing, or by dynamically assigning paintEvent
@@ -82,7 +152,8 @@ def paintEvent(widg, e) :
     below).
     Image layers are painted in stack ascending order,
     each with its own opacity.
-    @param widg: widget object with a img attribute
+    @param widg: widget
+    @type widg: object with a img attribute of type mImage
     @param e: paint event
     """
     if not hasattr(widg, 'img'):
@@ -115,10 +186,18 @@ def paintEvent(widg, e) :
     if (mimg.getActiveLayer().visible) and (mimg.getActiveLayer().rect is not None ):
         rect = mimg.getActiveLayer().rect
         qp.drawRect(rect.left()*r + mimg.xOffset, rect.top()*r +mimg.yOffset, rect.width()*r, rect.height()*r)
+    name = widg.objectName()
+    # mark before/after views
+    if name == "label_2" or name == "label_3":
+        # draw filled rect
+        qp.fillPath(qp.markPath, QBrush(Qt.gray))
+        #qp.drawPath(qp.markPath)
+        # draw text
+        qp.setPen(Qt.white)
+        qp.drawText(qp.markRect, Qt.AlignCenter | Qt.AlignVCenter, "Before" if name == "label_2" else "After" )
     qp.end()
 
 # mouse event handler for image widgets (dynamically set attribute widget.img, currently label and label_2)
-
 pressed=False
 clicked = True
 # Mouse coordinates recording
@@ -142,7 +221,6 @@ def mouseEvent(widget, event) :
     # get image and active layer
     img= widget.img
     layer = img.getActiveLayer()
-
     r = img.resize_coeff(widget)
     x, y = event.x(), event.y()
     # read keyboard modifiers
@@ -161,7 +239,7 @@ def mouseEvent(widget, event) :
         clicked=False
         if pressed :
             # button pressed
-            if img.isMouseSelectable:
+             if img.isMouseSelectable:
                 # marquee tool
                 if window.btnValues['rectangle']:
                     # rectangle coordinates are relative to image
@@ -198,7 +276,7 @@ def mouseEvent(widget, event) :
                 else:
                     img.xOffset+=(x-State['ix'])
                     img.yOffset+=(y-State['iy'])
-            else:
+             else:
                 img.xOffset+=(x-State['ix'])
                 img.yOffset+=(y-State['iy'])
         #update current coordinates
@@ -254,6 +332,14 @@ def mouseEvent(widget, event) :
                     img.xOffset += (x - State['ix'])
                     img.yOffset += (y - State['iy'])
     widget.repaint()
+    # sync splitted views
+    linked = True
+    if widget.objectName() == 'label_2' :
+        syncSplittedView(window.label_3, window.label_2, linked)
+        window.label_3.repaint()
+    elif widget.objectName() == 'label_3':
+        syncSplittedView(window.label_2, window.label_3, linked)
+        window.label_2.repaint()
 
 def wheelEvent(widget,img, event):
     """
@@ -275,8 +361,23 @@ def wheelEvent(widget,img, event):
     img.xOffset = -pos.x() * numSteps + (1.0+numSteps)*img.xOffset
     img.yOffset = -pos.y() * numSteps + (1.0+numSteps)*img.yOffset
     widget.repaint()
+    # sync splitted views
+    linked = True
+    if widget.objectName() == 'label_2':
+        syncSplittedView(window.label_3, window.label_2, linked)
+        window.label_3.repaint()
+    elif widget.objectName() == 'label_3':
+        syncSplittedView(window.label_2, window.label_3, linked)
+        window.label_2.repaint()
 
 def enterEvent(widget,img, event):
+    """
+    MOuse enter event handler
+    @param widget:
+    @param img:
+    @param event:
+    @return:
+    """
     if window.btnValues['drawFG'] or window.btnValues['drawBG']:
         if not QApplication.overrideCursor():
             w = window.verticalSlider1.value()
@@ -296,13 +397,14 @@ def enterEvent(widget,img, event):
 def leaveEvent(widget,img, event):
     QApplication.restoreOverrideCursor()
 
-def set_event_handler(widg):
+def set_event_handlers(widg):
     """
     Pythonic way for redefining event handlers, without
     subclassing or overridding. However, the PySide dynamic
     ui loader needs that we set the corresponding classes as customWidget
     (cf. file pyside_dynamicLoader.py).
     @param widg:
+    @type widg : QObject
     """
     widg.paintEvent = MethodType(lambda instance, e, wdg=widg: paintEvent(wdg, e), widg.__class__)
     widg.mousePressEvent = MethodType(lambda instance, e, wdg=widg : mouseEvent(wdg, e), widg.__class__)
@@ -311,6 +413,7 @@ def set_event_handler(widg):
     widg.wheelEvent = MethodType(lambda instance, e, wdg=widg : wheelEvent(wdg, wdg.img, e), widg.__class__)
     widg.enterEvent = MethodType(lambda instance, e, wdg=widg : enterEvent(wdg, wdg.img, e), widg.__class__)
     widg.leaveEvent = MethodType(lambda instance, e, wdg=widg : leaveEvent(wdg, wdg.img, e), widg.__class__)
+    #widg.contextMenuEvent = MethodType(lambda instance, e, wdg=widg : contextMenu(wdg, e), widg.__class__)
 
 # button change event handler
 def widgetChange(widget):
@@ -326,20 +429,31 @@ def widgetChange(widget):
     elif wdgName == "verticalSlider1":
         pass
 
-"""
-def contextMenu(widget):
+
+def contextMenu(pos, widget):
+    """
+    Copntext menu for image QLabel
+    @param pos:
+    @param widget:
+    @return:
+    """
     qmenu = QMenu("Context menu")
-    for k in widget.img.layers.keys():
-        action1 = QAction(k, qmenu, checkable=True)
-        qmenu.addAction(action1)
-        action1.triggered[bool].connect(lambda b, widget=widget, layer=widget.img.layers[k]: toggleLayer(widget, layer,b))
-        action1.setChecked(widget.img.layers[k].visible)
+    if not hasattr(widget, 'img'):
+        return
+
+    action1 = QAction('test', qmenu, checkable=True)
+    action1.setShortcut(QKeySequence("Ctrl+ "))
+    action1.setShortcutContext(Qt.ApplicationShortcut)
+    qmenu.addAction(action1)
+    action1.triggered[bool].connect(lambda b, widget=widget : print('toto'))
+    action1.setChecked(True)
+
+    if widget is window.label_2:
+        print('2')
+    elif widget is window.label_3:
+        print('3')
     qmenu.exec_(QCursor.pos())
 
-def toggleLayer(widget, layer, b):
-    layer.visible = b
-    widget.repaint()
-"""
 def loadImageFromFile(f):
     """
     loads metadata and image from file.
@@ -360,7 +474,7 @@ def loadImageFromFile(f):
     colorSpace = metadata[0].get("EXIF:ColorSpace", -1)
     if colorSpace < 0:
         desc_colorSpace = metadata[0].get("ICC_Profile:ProfileDescription", '')
-        if isinstance(desc_colorSpace, unicode) or isinstance(desc_colorSpace, str):
+        if isinstance(desc_colorSpace, str):# or isinstance(desc_colorSpace, unicode): python3
             if 'sRGB' in desc_colorSpace:
                 # sRGBIEC61966-2.1
                 colorSpace = 1
@@ -439,16 +553,19 @@ def closeFile():
 
 def setDocumentImage(img):
     """
-    display img
+    display document
     @param img: image
     @type img: imImage
     @return: 
     """
     window.label.img =  img
+
     window.label.img.onModify = lambda : updateEnabledActions()
     window.label.img.onImageChanged = window.label.repaint
-    #window.label_2.img = imImage(QImg=img.copy(), meta=img.meta)
+    # before image
     window.label_2.img = imImage(QImg=img, meta=img.meta)
+    # after image
+    window.label_3.img =  img
     # no mouse drawing or painting
     window.label_2.img.isMouseSelectable = False
     # init layer view
@@ -609,7 +726,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
     label.img = None
     newwindow.setCentralWidget(label)
     newwindow.showMaximized()
-    set_event_handler(label)
+    set_event_handlers(label)
     while True:
         if isSuspended:
             newwindow.setWindowTitle(newwindow.windowTitle() + ' Paused')
@@ -667,19 +784,41 @@ def playDiaporama(diaporamaGenerator, parent=None):
             raise
         app.processEvents()
 
-def menuWindow(x, name):
+def menuWiew(x, name):
     """
-
+    menu Init
     @param x: dummy
     @param name: action name
     """
-    if name == 'actionShow_hide_left_window' :
-        pass
-    elif name == 'actionShow_hide_right_window_3' :
-        if window.label_2.isHidden() :
-            window.label_2.show()
+    # togle before/after mode
+    if name == 'actionShow_hide_right_window_3' :
+        if window.splitter.isHidden() :
+            #window.label.hide()
+            #window.splitter.show()
+            #window.label_2.show()
+            #window.label_3.show()
+            setSplittedView()
+            """
+            if window.splitter.currentState == 'H':
+                window.label_2.img.xOffset = - window.label_3.width()
+                window.label_2.img.yOffset = window.label_3.img.yOffset
+            elif window.splitter.currentState == 'V':
+                window.label_2.img.yOffset = - window.label_3.height()
+                window.label_2.img.xOffset = window.label_3.img.xOffset
+            else:
+                window.label_2.img.xOffset, window.label_2.img.yOffset = 0, 0
+                window.label_3.hide()
+
+            if window.splitter.orientation() == Qt.Horizontal:
+                window.label_2.img.xOffset = - window.label_3.width()
+            else:
+                window.label_2.img.yOffset = - window.label_3.height()
+            window.splittedView = True
+            """
         else:
-            window.label_2.hide()
+            window.label.show()
+            window.splitter.hide()
+            window.splittedView = False
     elif name == 'actionDiaporama':
         if hasattr(window, 'diaporamaGenerator'):
             if window.diaporamaGenerator is not None:
@@ -804,11 +943,11 @@ def menuLayer(x, name):
         grWindow.graphicsScene.onUpdateLUT = f
         # wrapper for the right apply method
         if name == 'actionBrightness_Contrast':
-            l.execute = lambda : l.apply1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
+            l.execute = lambda pool=None: l.apply1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
         elif name == 'actionCurves_HSpB':
             l.execute = lambda  pool=None: l.applyHSPB1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY(), pool=pool)
         elif name == 'actionCurves_Lab':
-            l.execute = lambda: l.applyLab1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
+            l.execute = lambda pool=None: l.applyLab1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
     # 3D LUT
     elif name in ['action3D_LUT', 'action3D_LUT_HSB']:
         # color model
@@ -962,11 +1101,12 @@ def menuLayer(x, name):
         return
     # record action name for scripting
     l.actionName = name
-    # dock widget
+    # dock graphic form
     dock = QDockWidget(window)
     dock.setWidget(grWindow)
-    dock.setWindowFlags(Qt.Window | Qt.WindowMaximizeButtonHint)  # | Qt.WindowStaysOnTopHint)
+    dock.setWindowFlags(grWindow.windowFlags())
     dock.setWindowTitle(grWindow.windowTitle())
+    #dock.setAttribute(Qt.WA_DeleteOnClose)
     dock.move(900, 40)
     # set modal : docked windows
     # are not modal, so docking
@@ -987,13 +1127,12 @@ def menuHelp(x, name):
     @param x:
     @param name:
     """
-    if name == "actionBlue_Help":
+    if name == "actionBlue_help":
         global helpWindow
         link = "Help.html"
         if helpWindow is None:
-            helpWindow = QWebView()
-            helpWindow.load(QUrl(link))
-        helpWindow.show()
+            QDesktopServices.openUrl(QUrl(link))
+            helpWindow='done'
     elif name == "actionAbout_bLUe":
         w, label = handleTextWindow(parent=window, title='About bLUe')
         label.setStyleSheet("background-image: url(logo.png); color: white;")
@@ -1004,7 +1143,7 @@ def menuHelp(x, name):
 def handleNewWindow(imImg=None, parent=None, title='New window', show_maximized=False, event_handler=True, scroll=False):
     """
     Show a floating window containing a QLabel object. It can be used
-    to display text or iamge. If the parameter event_handler is True (default)
+    to display text or image. If the parameter event_handler is True (default)
     the QLabel object redefines its handlers for paint and mouse events to display
     the image imImg
     @param imImg: Image to display
@@ -1032,7 +1171,7 @@ def handleNewWindow(imImg=None, parent=None, title='New window', show_maximized=
     label.img = imImg
     label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
     if event_handler:
-        set_event_handler(label)
+        set_event_handlers(label)
     if show_maximized:
         newwindow.showMaximized()
     else:
@@ -1160,6 +1299,9 @@ if __name__ =='__main__':
     window.statusBar().addWidget(window.Label_status)
     window.updateStatus = updateStatus
 
+    # Before/After views flag
+    window.splittedView = False
+
     # splash screen
     pixmap = QPixmap('logo.png')
     splash = QSplashScreen(pixmap, Qt.WindowStaysOnTopHint)
@@ -1170,7 +1312,6 @@ if __name__ =='__main__':
     sleep(1)
     splash.showMessage("Loading ...", color=Qt.white, alignment=Qt.AlignCenter)
     app.processEvents()
-    #sleep(1)
 
     # close event handler
     window.onCloseEvent = close
@@ -1178,23 +1319,22 @@ if __name__ =='__main__':
     # mouse hover events
     window.label.setMouseTracking(True)
 
-    # GUI Slot hooks
+    # GUI Slot hooks for the main window
     window.onWidgetChange = widgetChange
-    #window.onShowContextMenu = contextMenu
     window.onExecMenuFile = menuFile
     window.onExecFileOpen = openFile
-    window.onExecMenuWindow = menuWindow
+    window.onExecMenuWindow = menuWiew
     window.onExecMenuImage = menuImage
     window.onExecMenuLayer = menuLayer
     window.onExecMenuHelp = menuHelp
-
-
+    window.onShowContextMenu = contextMenu
     # load current settings
     window.readSettings()
     window._recentFiles = window.settings.value('paths/recent', [])
 
-    set_event_handler(window.label)
-    set_event_handler(window.label_2)
+    set_event_handlers(window.label)
+    set_event_handlers(window.label_2)
+    set_event_handlers(window.label_3)
 
     img=QImage(200, 200, QImage.Format_ARGB32)
     img.fill(Qt.darkGray)
@@ -1206,6 +1346,7 @@ if __name__ =='__main__':
 
     window.label.img = defaultImImage
     window.label_2.img = defaultImImage
+    window.label_3.img = defaultImImage
 
     window.showMaximized()
     splash.finish(window)
@@ -1214,6 +1355,20 @@ if __name__ =='__main__':
     window.cursor_EyeDropper = QCursor(QPixmap.fromImage(QImage(":/images/resources/Eyedropper-icon.png")))
     # init tool cursor, must be resizable
     window.cursor_Circle_Pixmap = QPixmap.fromImage(QImage(":/images/resources/cursor_circle.png"))
-    app.addLibraryPath("D:/Python36/Lib/site-packages/PySide2")
-    app.addLibraryPath("D:/Python36/Lib/site-packages/PySide2/plugins/imageformats")
+
+    # init Before/after View cycling action
+
+    window.splitter.setOrientation(Qt.Horizontal)
+    window.splitter.currentState = next(splittedViews)
+    window.splitter.setSizes([2 ** 20, 2 ** 20])
+    window.splitter.setHandleWidth(1)
+
+    window.splitter.hide()
+
+    action1 = QAction('test', None)
+    action1.setShortcut(QKeySequence("Ctrl+ "))
+    action1.triggered.connect(lambda: nextSplittedView())
+    window.addAction(action1)
+
+    # launch app
     sys.exit(app.exec_())

@@ -694,10 +694,10 @@ class mImage(vImage):
         # as updatePixmap uses layersStack, must be before super __init__
         self._layers = {}
         self.layersStack = []
-        # will be set to QTableView reference
+        # layerView will be set to QTableView reference
         self.layerView = None
         super(mImage, self).__init__(*args, **kwargs)
-        # add background layer
+        # add a background layer
         bgLayer = QLayer.fromImage(self, parentImage=self)
         self.setModified(False)
         self.activeLayerIndex = None
@@ -1050,19 +1050,11 @@ class imImage(mImage) :
 class QLayer(vImage):
     @classmethod
     def fromImage(cls, mImg, parentImage=None):
-        #mImg.visible = True
-        #mImg.alpha = 255
-        #mImg.window = None
-        # for adjustment layer
-        #mImg.transfer = lambda: mImg.qPixmap
-        #mImg.inputImg = None
-        #layer = QLayer(QImg=mImg)
         layer = QLayer(QImg=mImg, parentImage=parentImage)
         layer.parentImage=parentImage
         return layer #QLayer(QImg=mImg) #mImg
 
     def __init__(self, *args, **kwargs):
-        #self.parentImage = None
         self.parentImage = kwargs.pop('parentImage', None)
         super(QLayer, self).__init__(*args, **kwargs)
         self.name='noname'
