@@ -16,17 +16,13 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-import sys
-
 from PySide2.QtCore import QRect
-from PySide2.QtGui import QPainter
-from PySide2.QtGui import  QPainterPath, QPainterPathStroker, QPen, QBrush, QColor, QPixmap
+from PySide2.QtGui import  QPainterPath, QPainterPathStroker, QPen, QBrush, QColor
 from PySide2.QtCore import Qt, QPoint, QPointF, QRectF
 import numpy as np
 from PySide2.QtGui import QPolygonF
-from PySide2.QtWidgets import QPushButton, QApplication, QWidget, QGraphicsView, QGraphicsScene, QGraphicsPathItem, QMainWindow, QLabel, QSizePolicy
+from PySide2.QtWidgets import QPushButton, QGraphicsView, QGraphicsScene, QGraphicsPathItem, QSizePolicy
 
-from colorModels import hueSatModel
 from spline import cubicSplineCurve
 from utils import optionsWidget, channelValues, drawPlotGrid
 
@@ -188,7 +184,6 @@ class cubicItem(QGraphicsPathItem) :
         # cubicSplineCurve raises an exception if two points have identical x-coordinates
         try:
             self.spline = cubicSplineCurve(np.array(X), np.array(Y), clippingInterval= [-self.scene().axeSize, 0])
-
             for P in self.spline:
                 if P.x()<X0:
                     P.setY(Y0)
@@ -196,7 +191,6 @@ class cubicItem(QGraphicsPathItem) :
                     P.setY(Y1)
             polygon = QPolygonF(self.spline)
             qpp.addPolygon(polygon)
-
             # stroke path
             stroker = QPainterPathStroker()
             stroker.setWidth(3)
@@ -297,11 +291,8 @@ class graphicsForm(QGraphicsView) :
         super(graphicsForm, self).__init__(parent=parent)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize + 60, axeSize + 140)
-        #self.setWindowFlags(Qt.WindowStaysOnTopHint|Qt.WindowCloseButtonHint)
-        #self.setWindowFlags(Qt.CustomizeWindowHint | Qt.WindowCloseButtonHint)
+        #self.setWindowFlags(Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_DeleteOnClose)
-        #self.setBackgroundBrush(QBrush(Qt.black, Qt.SolidPattern))
-        #self.bgPixmap = QPixmap.fromImage(hueSatModel.colorWheel(size, size, cModel))
         self.graphicsScene = QGraphicsScene()
         self.setScene(self.graphicsScene)
         self.scene().targetImage = targetImage
@@ -371,15 +362,16 @@ class graphicsForm(QGraphicsView) :
         self.graphicsScene.addWidget(pushButton1)
         pushButton3 = QPushButton("Update Top Layers")
         pushButton3.setMinimumSize(1, 1)
-        pushButton3.setGeometry(100, 80, 80, 30)  # x,y,w,h
+        pushButton3.setGeometry(100, 50, 80, 30)  # x,y,w,h
         pushButton3.adjustSize()
         pushButton3.clicked.connect(updateStack)
         self.graphicsScene.addWidget(pushButton3)
 
         # options
-        self.listWidget1 = optionsWidget(options=['RGB', 'Red', 'Green', 'Blue'], exclusive=True)
-        self.listWidget1.select(self.listWidget1.items['RGB'])
-        self.listWidget1.setGeometry(20, 20, 10, 100)
+        options = ['RGB', 'Red', 'Green', 'Blue']
+        self.listWidget1 = optionsWidget(options=options, exclusive=True)
+        self.listWidget1.select(self.listWidget1.items[options[0]])
+        self.listWidget1.setGeometry(0, 10, self.listWidget1.sizeHintForColumn(0)+5, self.listWidget1.sizeHintForRow(0)*len(options) + 5)
         self.graphicsScene.addWidget(self.listWidget1)
         #self.listWidget1.setStyleSheet("QListWidget{background: white;} QListWidget::item{color: black;}")
 

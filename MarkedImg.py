@@ -28,7 +28,7 @@ from PySide2.QtWidgets import QApplication, QMessageBox
 from PySide2.QtGui import QPixmap, QImage, QColor, QPainter
 from PySide2.QtCore import QRect
 
-from colorTemperature import sRGB2LabVec
+from colorTemperature import sRGB2LabVec, sRGBWP
 from grabcut import segmentForm
 from graphicsFilter import filterIndex
 from icc import convertQImage
@@ -657,7 +657,8 @@ class vImage(QImage):
             version = 2
         else:
             version = 0
-        inputImage = self.inputImgFull().getCurrentImage()
+        #inputImage = self.inputImgFull().getCurrentImage()
+        inputImage = self.inputImg()
         currentImage = self.getCurrentImage()
         if version == 0:
             # black body color
@@ -672,7 +673,7 @@ class vImage(QImage):
             resImg = blendLuminosity(filter, inputImage)
             res = QImageBuffer(resImg)[:,:,:3][:,:,::-1]
         else:
-            M = conversionMatrix(temperature, 6500)
+            M = conversionMatrix(temperature, sRGBWP)  # input image is sRGB ref temperature D65
             buf = QImageBuffer(inputImage)[:, :, :3]
             bufLinear = rgb2rgbLinearVec(buf)
             resLinear = np.tensordot(bufLinear[:, :, ::-1], M, axes=(-1, -1))
@@ -1068,7 +1069,7 @@ class QLayer(vImage):
         # Following attributes are used by adjustment layers only
         # wrapper for the right exec method
         self.execute = lambda pool=None: self.updatePixmap()
-        self.temperature = 0
+        self.temperature = sRGBWP # ref temperature D65 (sRGB)
         self.options = {}
         # Following attributes (functions)  are reserved (dynamic typing for adjustment layers) and set in addAdjustmentlayer() above
             # self.inputImg : access to upper lower visible layer image or thumbnail, according to flag useThumb

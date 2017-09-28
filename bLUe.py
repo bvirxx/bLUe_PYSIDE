@@ -43,10 +43,9 @@ from os.path import isfile
 from types import MethodType
 from grabcut import segmentForm
 from PySide2.QtCore import Qt, QRect, QEvent, QDir, QUrl, QPoint
-from PySide2.QtGui import QPixmap, QColor, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, \
-    QMouseEvent, QPainterPath
+from PySide2.QtGui import QPixmap, QColor, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, QPainterPath
 from PySide2.QtWidgets import QApplication, QMenu, QAction, QFileDialog, QMessageBox, \
-    QMainWindow, QLabel, QDockWidget, QSizePolicy, QToolTip, QScrollArea, QVBoxLayout, QSplashScreen, QSplitter
+    QMainWindow, QLabel, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen
 from QtGui1 import app, window
 import exiftool
 from imgconvert import *
@@ -57,8 +56,6 @@ from graphicsLUT3D import graphicsForm3DLUT
 from LUT3D import LUTSIZE, LUT3D, LUT3DIdentity
 from colorModels import cmHSP, cmHSB
 import icc
-
-#from PySide2.QtWebKit import QWebView
 
 from colorTemperature import temperatureForm
 from time import sleep
@@ -72,65 +69,20 @@ from graphicsFilter import filterForm
 from graphicsHspbLUT import graphicsHspbForm
 from graphicsLabLUT import graphicsLabForm
 
-splittedViews = cycle(('H','V','B'))
+from splittedView import splittedWindow
 
-def setSplittedView():
-    window.label.hide()
-    window.splitter.show()
-    window.label_2.show()
-    window.label_3.show()
-    while not (window.label_3.isVisible() and window.label_2.isVisible()):
-        app.processEvents()
-    if window.splitter.currentState == 'H':
-        window.label_2.img.xOffset = - window.label_3.width()
-        window.label_2.img.yOffset = window.label_3.img.yOffset
-    elif window.splitter.currentState == 'V':
-        window.label_2.img.yOffset = - window.label_3.height()
-        window.label_2.img.xOffset = window.label_3.img.xOffset
-    else:
-        window.label_2.img.xOffset, window.label_2.img.yOffset = 0, 0
-        window.label_3.hide()
+##################
+#  Refresh views after image processing
+#################
+def updateDocView():
+    window.label.repaint()
+    window.label_3.repaint()
 
-def nextSplittedView():
-    window.splitter.currentState = next(splittedViews)
-    if window.splitter.currentState == 'H':
-        window.splitter.setOrientation(Qt.Horizontal)
-    elif window.splitter.currentState == 'V':
-        window.splitter.setOrientation(Qt.Vertical)
-    else:
-        window.label_3.hide()
-    window.label_3.show()
-    setSplittedView()
-    #window.splitter.setSizes([2 ** 20, 2 ** 20])
+#########
+# init Before/After view
+#########
 
-def syncSplittedView(widg1, widg2, linked):
-    """
-    Sync Before/After views in splitter
-    @param widg1:
-    @type widg1:
-    @param widg2:
-    @type widg2:
-    @param linked:
-    @type linked:
-    @return:
-    @rtype:
-    """
-    if not linked:
-        return
-    # r = widg2.img.Zoom_coeff
-    widg1.img.Zoom_coeff = widg2.img.Zoom_coeff
-    if window.splitter.orientation() == Qt.Horizontal:
-        if widg1.objectName() == 'label_2': # dest is right
-            widg1.img.xOffset = widg2.img.xOffset - widg2.width()
-        else: # dest is left
-            widg1.img.xOffset = widg2.img.xOffset + widg1.width()
-        widg1.img.yOffset = widg2.img.yOffset
-    else:
-        if widg1.objectName() == 'label_2': # dest is right
-            widg1.img.yOffset = widg2.img.yOffset - widg2.height()
-        else: # dest is left
-            widg1.img.yOffset = widg2.img.yOffset + widg1.height()
-        widg1.img.xOffset = widg2.img.xOffset
+splittedWin = splittedWindow(window)
 
 ###############
 # paintEvent global QPainter
@@ -335,10 +287,10 @@ def mouseEvent(widget, event) :
     # sync splitted views
     linked = True
     if widget.objectName() == 'label_2' :
-        syncSplittedView(window.label_3, window.label_2, linked)
+        splittedWin.syncSplittedView(window.label_3, window.label_2, linked)
         window.label_3.repaint()
     elif widget.objectName() == 'label_3':
-        syncSplittedView(window.label_2, window.label_3, linked)
+        splittedWin.syncSplittedView(window.label_2, window.label_3, linked)
         window.label_2.repaint()
 
 def wheelEvent(widget,img, event):
@@ -364,10 +316,10 @@ def wheelEvent(widget,img, event):
     # sync splitted views
     linked = True
     if widget.objectName() == 'label_2':
-        syncSplittedView(window.label_3, window.label_2, linked)
+        splittedWin.syncSplittedView(window.label_3, window.label_2, linked)
         window.label_3.repaint()
     elif widget.objectName() == 'label_3':
-        syncSplittedView(window.label_2, window.label_3, linked)
+        splittedWin.syncSplittedView(window.label_2, window.label_3, linked)
         window.label_2.repaint()
 
 def enterEvent(widget,img, event):
@@ -572,10 +524,12 @@ def setDocumentImage(img):
     window.tableView.setLayers(window.label.img)
     window.label.repaint()
     window.label_2.repaint()
+    window.label_3.repaint()
     # used by graphicsForm3DLUT.onReset
     window.label.img.window = window.label
     window.label_2.img.window = window.label_2
     window.label.img.setModified(True)
+    window.tableView.previewOptionBox.stateChanged.emit(Qt.Checked)
     updateStatus()
 
 def updateMenuOpenRecent():
@@ -797,7 +751,8 @@ def menuWiew(x, name):
             #window.splitter.show()
             #window.label_2.show()
             #window.label_3.show()
-            setSplittedView()
+            splittedWin.setSplittedView()
+            window.viewState = 'Before/After'
             """
             if window.splitter.currentState == 'H':
                 window.label_2.img.xOffset = - window.label_3.width()
@@ -819,6 +774,7 @@ def menuWiew(x, name):
             window.label.show()
             window.splitter.hide()
             window.splittedView = False
+            window.viewState = 'After'
     elif name == 'actionDiaporama':
         if hasattr(window, 'diaporamaGenerator'):
             if window.diaporamaGenerator is not None:
@@ -851,6 +807,7 @@ def menuWiew(x, name):
                     yield filename
             window.diaporamaGenerator = f()
         playDiaporama(window.diaporamaGenerator, parent=window)
+    updateStatus()
 
 def menuImage(x, name) :
     """
@@ -879,7 +836,7 @@ def menuImage(x, name) :
         l = img.meta.rawMetadata
         s = s + "\n\nMETADATA :\n"
         for d in l:
-            s = s + '\n'.join('%s : %s' % (k,v) for k, v in d.iteritems())
+            s = s + '\n'.join('%s : %s' % (k,v) for k, v in d.items()) # python 3 iteritems -> items
         w, label = handleTextWindow(parent=window, title='Image info')
         label.setWordWrap(True)
         label.setText(s)
@@ -939,8 +896,10 @@ def menuLayer(x, name):
         # Apply current LUT and repaint window
         def f():
             l.applyToStack()
-            window.label.repaint()
+            updateDocView()
+            #window.label.repaint()
         grWindow.graphicsScene.onUpdateLUT = f
+
         # wrapper for the right apply method
         if name == 'actionBrightness_Contrast':
             l.execute = lambda pool=None: l.apply1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
@@ -965,8 +924,9 @@ def menuLayer(x, name):
             """
             #l.options = options
             l.applyToStack()
+            updateDocView()
             #l.apply3DLUT(grWindow.graphicsScene.LUT3D, options=options)
-            window.label.repaint()
+            #window.label.repaint()
         grWindow.graphicsScene.onUpdateLUT = g
         # wrapper for the right apply method
         #l.execute = lambda : l.apply3DLUT(grWindow.graphicsScene.LUT3DArray, options=l.options)
@@ -986,10 +946,11 @@ def menuLayer(x, name):
         def h(temperature):
             l.temperature = temperature
             l.applyToStack()
-            window.label.repaint()
+            updateDocView()
+            #window.label.repaint()
         grWindow.onUpdateTemperature = h
         # wrapper for the right apply method
-        l.execute = lambda: l.applyTemperature(l.temperature, grWindow.options)
+        l.execute = lambda pool=None: l.applyTemperature(l.temperature, grWindow.options)
         # l.execute = lambda: l.applyLab1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
     elif name == 'actionFilter':
         lname = 'Filter'
@@ -1001,7 +962,8 @@ def menuLayer(x, name):
             l.radius = radius
             l.amount = amount
             l.applyToStack()
-            window.label.repaint()
+            updateDocView()
+            #window.label.repaint()
         grWindow.onUpdateFilter = h
         # wrapper for the right apply method
         l.execute = lambda: l.applyFilter2D()
@@ -1278,7 +1240,9 @@ def updateStatus():
     # filename and rating
     s = img.filename + ' ' + (' '.join(['*']*img.meta.rating))
     if img.useThumb:
-        s = s + '  ' + '<font color=red><b>Preview</b></font> '
+        s = s + '      ' + '<font color=red><b>Preview</b></font> '
+    if window.viewState == 'Before/After':
+        s += '      Before/After : Ctrl+space to cycle through views'
     window.Label_status.setText(s)
 
 ###########
@@ -1356,18 +1320,17 @@ if __name__ =='__main__':
     # init tool cursor, must be resizable
     window.cursor_Circle_Pixmap = QPixmap.fromImage(QImage(":/images/resources/cursor_circle.png"))
 
-    # init Before/after View cycling action
-
+    # init Before/after view and cycling action
     window.splitter.setOrientation(Qt.Horizontal)
-    window.splitter.currentState = next(splittedViews)
+    window.splitter.currentState = next(splittedWin.splittedViews)
     window.splitter.setSizes([2 ** 20, 2 ** 20])
     window.splitter.setHandleWidth(1)
-
     window.splitter.hide()
+    window.viewState = 'After'
 
-    action1 = QAction('test', None)
+    action1 = QAction('cycle', None)
     action1.setShortcut(QKeySequence("Ctrl+ "))
-    action1.triggered.connect(lambda: nextSplittedView())
+    action1.triggered.connect(lambda: splittedWin.nextSplittedView())
     window.addAction(action1)
 
     # launch app

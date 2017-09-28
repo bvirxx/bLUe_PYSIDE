@@ -422,6 +422,8 @@ scr</string>
      <property name="title">
       <string>New Adjustment Layer</string>
      </property>
+     <addaction name="actionColor_Temperature"/>
+     <addaction name="separator"/>
      <addaction name="actionBrightness_Contrast"/>
      <addaction name="actionCurves_HSpB"/>
      <addaction name="actionCurves_Lab"/>
@@ -429,7 +431,6 @@ scr</string>
      <addaction name="separator"/>
      <addaction name="action3D_LUT_HSB"/>
      <addaction name="action3D_LUT"/>
-     <addaction name="actionColor_Temperature"/>
     </widget>
     <addaction name="menuNew_adjustment_layer"/>
     <addaction name="actionNew_segmentation_layer"/>
@@ -585,7 +586,7 @@ scr</string>
   </action>
   <action name="actionColor_Temperature">
    <property name="text">
-    <string>Color Temperature</string>
+    <string>Color Correction</string>
    </property>
   </action>
   <action name="actionNew_segmentation_layer">

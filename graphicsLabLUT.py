@@ -18,17 +18,13 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import sys
 
-from PySide2.QtCore import QRect, QBuffer, QDataStream, QIODevice
-from PySide2.QtWidgets import QApplication,  QWidget, QDockWidget, QMainWindow, QLabel, QSizePolicy, QGraphicsView, QGraphicsScene, QGraphicsPathItem, QPushButton
-from PySide2.QtGui import  QPainterPath, QPainterPathStroker, QPen, \
-    QBrush, QColor, QPixmap,  QPainter
-from PySide2.QtCore import Qt, QPoint, QPointF, QRectF
-import numpy as np
-from PySide2.QtGui import QPolygonF
+from PySide2.QtCore import QRect
+from PySide2.QtWidgets import QSizePolicy, QGraphicsView, QGraphicsScene, QPushButton
+from PySide2.QtGui import  QColor, QPixmap
+from PySide2.QtCore import Qt, QRectF
 
-from colorModels import hueSatModel
-from graphicsRGBLUT import cubicItem, activePoint
-from spline import cubicSplineCurve
+from graphicsRGBLUT import cubicItem
+
 from utils import optionsWidget, channelValues, drawPlotGrid
 
 strokeWidth = 3
@@ -137,9 +133,10 @@ class graphicsLabForm(QGraphicsView):
         self.graphicsScene.addWidget(pushButton3)
 
         # options
-        self.listWidget1 = optionsWidget(options=['L', 'a', 'b'], exclusive=True)
-        self.listWidget1.select(self.listWidget1.items['L'])
-        self.listWidget1.setGeometry(20, 20, 10, 80)
+        options = ['L', 'a', 'b']
+        self.listWidget1 = optionsWidget(options=options, exclusive=True)
+        self.listWidget1.select(self.listWidget1.items[options[0]])
+        self.listWidget1.setGeometry(0, 10, self.listWidget1.sizeHintForColumn(0) + 5, self.listWidget1.sizeHintForRow(0) * len(options) + 5)
         self.graphicsScene.addWidget(self.listWidget1)
 
         def onSelect1(item):

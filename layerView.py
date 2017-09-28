@@ -126,7 +126,7 @@ class QLayerView(QTableView) :
         # TODO : try setSizePolicy(QSizePolicy.Fixed , QSizePolicy.Fixed)
         self.previewOptionBox = QCheckBox('Preview')
         self.previewOptionBox.setMaximumSize(100, 30)
-        self.previewOptionBox.setChecked(False)
+        self.previewOptionBox.setChecked(True)
         l.addWidget(self.previewOptionBox)
         # state changed event handler
         def m(state): # Qt.Checked Qt.UnChecked
@@ -135,7 +135,6 @@ class QLayerView(QTableView) :
             self.img.useThumb = (state == Qt.Checked)
             QtGui1.window.updateStatus()
             self.img.cacheInvalidate()
-            #if not self.img.useThumb:
             try:
                 QApplication.setOverrideCursor(Qt.WaitCursor)
                 """
@@ -397,18 +396,18 @@ class QLayerView(QTableView) :
                 else:
                     rowMapping[row + len(rows)] = targetRow + idx
             colCount = self.model().columnCount()
-            for srcRow, tgtRow in sorted(rowMapping.iteritems()):
+            for srcRow, tgtRow in sorted(rowMapping.items()): # python 3 iteritems->items
                 for col in range(0, colCount):
                     self.model().setItem(tgtRow, col, self.model().takeItem(srcRow, col))
-            for row in reversed(sorted(rowMapping.iterkeys())):
+            for row in reversed(sorted(rowMapping.keys())): # python 3 iterkeys -> keys
                 self.model().removeRow(row)
 
             rStack = self.img.layersStack[::-1]
             for _ in range(len(rows)):
                 rStack.insert(targetRow, None)
-            for srcRow, tgtRow in sorted(rowMapping.iteritems()):
+            for srcRow, tgtRow in sorted(rowMapping.items()): # python 3 iteritems->items
                 rStack[tgtRow] = rStack[srcRow]
-            for row in reversed(sorted(rowMapping.iterkeys())):
+            for row in reversed(sorted(rowMapping.keys())): # python 3 iterkeys -> keys
                 rStack.pop(row)
             self.img.layersStack = rStack[::-1]
             #event.accept()

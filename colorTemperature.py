@@ -19,7 +19,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QColor, QFontMetrics
-from PySide2.QtWidgets import QHBoxLayout, QLabel, QPushButton, QSizePolicy, QSlider, QVBoxLayout, QWidget
+from PySide2.QtWidgets import QHBoxLayout, QLabel, QPushButton, QSizePolicy, QSlider, QVBoxLayout, QWidget, \
+    QGraphicsView
 from PySide2.QtGui import QImage
 
 from PySide2.QtGui import QPainter
@@ -28,6 +29,13 @@ from blend import blendLuminosity
 from imgconvert import QImageBuffer
 from utils import optionsWidget
 
+#######################################################################
+# This module implements conversion functions                         #
+# for the color temperature of images.                                #
+# sRGB color space (illuminant D65)                                   #
+# is assumed for all input and output images.                         #
+#######################################################################
+
 ################
 # Conversion Matrices
 #################
@@ -35,6 +43,7 @@ from utils import optionsWidget
 # Conversion from CIE XYZ to LMS-like color space for chromatic adaptation
 # see http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html
 
+sRGBWP = 6500
 
 Von_Kries =  [[0.4002400,  0.7076000, -0.0808100],
               [-0.2263000, 1.1653200,  0.0457000],
@@ -100,7 +109,6 @@ table4 = np.arange(e + 1, dtype = np.float64)
 table5 = np.power(table4, beta)
 
 def rgbLinear2rgb(r,g,b):
-
     """
     Conversion from linear sRGB to sRGB.
     All values are in range 0..1.
@@ -350,7 +358,7 @@ def conversionMatrix(Tdest, Tsource):
     R = np.dot(Q , sRGB2XYZ)
     return R
 
-class temperatureForm (QWidget):
+class temperatureForm (QGraphicsView):
     @classmethod
     def getNewWindow(cls, targetImage=None, size=500, layer=None, parent=None, mainForm=None):
         wdgt = temperatureForm(targetImage=targetImage, size=size, layer=layer, parent=parent, mainForm=mainForm)
@@ -368,28 +376,36 @@ class temperatureForm (QWidget):
         super(temperatureForm, self).__init__(parent=parent)
         self.targetImage = targetImage
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        self.setMinimumSize(size, size)
+        self.setMinimumSize(size+100, size)  # default width 200 doesn't fit the length of option names
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.img = targetImage
         self.layer = layer
-        self.defaultTemp = 6500
+        self.defaultTemp = sRGBWP  # ref temperature D65
         l = QVBoxLayout()
         l.setAlignment(Qt.AlignBottom)
 
+        # f is defined later, but we need to declare it righjt now
+        def f():
+            pass
+
         # options
         self.options = {'use Chromatic Adaptation': True}
-        self.listWidget1 = optionsWidget(options=['use Photo Filter', 'use Chromatic Adaptation'], exclusive=True)
+        options = ['use Photo Filter', 'use Chromatic Adaptation']
+        self.listWidget1 = optionsWidget(options=options, exclusive=True)
         self.listWidget1.select(self.listWidget1.items['use Chromatic Adaptation'])
+        self.listWidget1.setMaximumSize(self.listWidget1.sizeHintForColumn(0) + 5, self.listWidget1.sizeHintForRow(0) * len(options) + 5)
         def onSelect1(item):
             self.options['use Chromatic Adaptation'] = item is self.listWidget1.items['use Chromatic Adaptation']
+            f()
         self.listWidget1.onSelect = onSelect1
         l.addWidget(self.listWidget1)
 
         # temp slider
         self.sliderTemp = QSlider(Qt.Horizontal)
         self.sliderTemp.setTickPosition(QSlider.TicksBelow)
-        self.sliderTemp.setRange(1000, 9000)
-        self.sliderTemp.setSingleStep(100)
+        self.sliderTemp.setRange(1000, 20000)
+        self.sliderTemp.setSingleStep(200)
+
         tempLabel = QLabel()
         tempLabel.setMaximumSize(150, 30)
         tempLabel.setText("Color temperature")
@@ -402,18 +418,16 @@ class temperatureForm (QWidget):
         h = metrics.height()
         self.tempValue.setMinimumSize(w, h)
         self.tempValue.setMaximumSize(w, h)
-
-        #self.opacityValue.setText('6500 ')
         self.tempValue.setStyleSheet("QLabel {background-color: white;}")
         hl.addWidget(self.tempValue)
         hl.addWidget(self.sliderTemp)
         l.addLayout(hl)
         l.setContentsMargins(20, 0, 20, 25)  # left, top, right, bottom
 
-
         self.setLayout(l)
+        self.adjustSize()
 
-        # opacity value done event handler
+        # temp done event handler
         def f():
             self.sliderTemp.setEnabled(False)
             self.tempValue.setText(str('%d ' % self.sliderTemp.value()))
@@ -423,7 +437,7 @@ class temperatureForm (QWidget):
             self.onUpdateTemperature(self.sliderTemp.value())
             self.sliderTemp.setEnabled(True)
 
-        # opacity value changed event handler
+        # temp value changed event handler
         def g():
             self.tempValue.setText(str('%d ' % self.sliderTemp.value()))
             #self.previewWindow.setPixmap()
