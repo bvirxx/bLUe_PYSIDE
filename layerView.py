@@ -21,7 +21,6 @@ from PySide2.QtCore import QRectF, QSize, Qt
 from PySide2.QtGui import QImage, QPalette, QColor, QKeySequence, QFontMetrics, QTextOption, QPixmap, QIcon, QPainter, QStandardItem, QStandardItemModel
 from PySide2.QtWidgets import QAction, QMenu, QSlider, QStyle, QListWidget, QCheckBox, QMessageBox, QApplication
 from PySide2.QtWidgets import QComboBox, QHBoxLayout, QLabel, QTableView, QAbstractItemView, QStyledItemDelegate, QHeaderView, QVBoxLayout
-
 import resources_rc  # mandatory : DO NOT REMOVE !!!
 import QtGui1
 from imgconvert import QImageBuffer
@@ -128,7 +127,7 @@ class QLayerView(QTableView) :
         self.previewOptionBox.setMaximumSize(100, 30)
         self.previewOptionBox.setChecked(True)
         l.addWidget(self.previewOptionBox)
-        # state changed event handler
+        # View/Preview changed event handler
         def m(state): # Qt.Checked Qt.UnChecked
             if self.img is None:
                 return
@@ -412,6 +411,19 @@ class QLayerView(QTableView) :
             self.img.layersStack = rStack[::-1]
             #event.accept()
 
+    def select(self, row, col):
+        """
+        select item in view
+        @param row:
+        @type row:
+        @param col:
+        @type col:
+        @return:
+        @rtype:
+        """
+        model = self.model()
+        self.viewClicked(model.index(row, col))
+
     def viewClicked(self, clickedIndex):
         """
         Mouse click event handler.
@@ -425,18 +437,17 @@ class QLayerView(QTableView) :
             # background layer is always visible
             if row == len(self.img.layersStack) - 1:
                 return
-            #layer = self.img.layersStack[-1-row]
             layer.visible = not(layer.visible)
             # update visibility icon
             if layer.visible:
                 self.model().setData(clickedIndex, QIcon(":/images/resources/eye-icon.png") ,Qt.DecorationRole)
             else:
                 self.model().setData(clickedIndex, QIcon(":/images/resources/eye-icon-strike.png"), Qt.DecorationRole)
-            #if hasattr(layer, 'inputImg'):
-                # adjustment layer
-                #layer.applyToStack()
+            if self.currentWin is not None:
+                self.currentWin.setVisible(layer.visible)
+                if not layer.visible:
+                    self.currentWin = None
             layer.applyToStack()
-            # image changed event handler
             self.img.onImageChanged()
         # hide/display adjustment form
         elif clickedIndex.column() == 1 :

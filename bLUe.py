@@ -22,6 +22,8 @@ from PySide2 import QtCore
 from PySide2.QtQml import QQmlApplicationEngine
 from PySide2.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 
+from graphicsCLAHE import CLAHEForm
+
 """
 The QtHelp module uses the CLucene indexing library
 Copyright (C) 2003-2006 Ben van Klinken and the CLucene Team
@@ -484,6 +486,10 @@ def openFile(f):
     # display image
     if img is not None:
         setDocumentImage(img)
+        # add basic adjustment layers
+        menuLayer(None, 'actionColor_Temperature')
+        menuLayer(None, 'actionContrast_Correction')
+        window.tableView.select(1, 1)
 
 def closeFile():
     if window.label.img.isModified:
@@ -510,14 +516,18 @@ def setDocumentImage(img):
     @type img: imImage
     @return: 
     """
-    window.label.img =  img
+    window.label.img = img
 
     window.label.img.onModify = lambda : updateEnabledActions()
-    window.label.img.onImageChanged = window.label.repaint
+    def f():
+        window.label.update()
+        window.label_3.update()
+
+    window.label.img.onImageChanged = f #window.label.repaint
     # before image
     window.label_2.img = imImage(QImg=img, meta=img.meta)
     # after image
-    window.label_3.img =  img
+    window.label_3.img = img
     # no mouse drawing or painting
     window.label_2.img.isMouseSelectable = False
     # init layer view
@@ -952,6 +962,20 @@ def menuLayer(x, name):
         # wrapper for the right apply method
         l.execute = lambda pool=None: l.applyTemperature(l.temperature, grWindow.options)
         # l.execute = lambda: l.applyLab1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
+    elif name == 'actionContrast_Correction':
+        lname = 'Contrast'
+        l = window.label.img.addAdjustmentLayer(name=lname)
+        l.clipLimit = CLAHEForm.defaultClipLimit
+        grWindow = CLAHEForm.getNewWindow(size=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
+        # clipLimit change event handler
+        def h(clipLimit):
+            l.clipLimit = clipLimit
+            l.applyToStack()
+            updateDocView()
+            #window.label.repaint()
+        grWindow.onUpdateContrast = h
+        # wrapper for the right apply method
+        l.execute = lambda pool=None: l.applyCLAHE(l.clipLimit, grWindow.options)
     elif name == 'actionFilter':
         lname = 'Filter'
         l = window.label.img.addAdjustmentLayer(name=lname)
@@ -1242,7 +1266,9 @@ def updateStatus():
     if img.useThumb:
         s = s + '      ' + '<font color=red><b>Preview</b></font> '
     if window.viewState == 'Before/After':
-        s += '      Before/After : Ctrl+space to cycle through views'
+        s += '&nbsp;&nbsp;Before/After : Ctrl+Space : cycle through views - Space : switch back to workspace'
+    else:
+        s += '&nbsp;&nbsp;Space : switch to Before/After View'
     window.Label_status.setText(s)
 
 ###########

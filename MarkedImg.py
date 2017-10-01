@@ -28,7 +28,7 @@ from PySide2.QtWidgets import QApplication, QMessageBox
 from PySide2.QtGui import QPixmap, QImage, QColor, QPainter
 from PySide2.QtCore import QRect
 
-from colorTemperature import sRGB2LabVec, sRGBWP
+from colorTemperature import sRGB2LabVec, sRGBWP, Lab2sRGBVec
 from grabcut import segmentForm
 from graphicsFilter import filterIndex
 from icc import convertQImage
@@ -38,6 +38,8 @@ from LUT3D import interpVec, rgb2hspVec, hsp2rgbVec, LUT3DIdentity, LUT3D, inter
 from time import time
 from utils import savitzky_golay, channelValues
 
+# pool is created in QLayer.applyToStack()
+MULTIPROC_POOLSIZE = 4
 
 class ColorSpace:
     notSpecified = -1; sRGB = 1
@@ -60,7 +62,9 @@ class vImage(QImage):
     and handled identically.
     Each image owns a mask (disabled by default).
     """
+    # max thumbSize
     thumbSize = 1000
+
     defaultBgColor = QColor(191, 191, 191)
     def __init__(self, filename=None, cv2Img=None, QImg=None, mask=None, format=QImage.Format_ARGB32,
                                             name='', colorSpace=-1, orientation=None, rating=5, meta=None, rawMetadata=[], profile=''):
@@ -106,6 +110,7 @@ class vImage(QImage):
         self.thumb = None
 
         # Caches
+        self.cachesEnabled = True
         self.qPixmap = None
         self.hspbBuffer = None
         self.LabBuffer = None
@@ -164,9 +169,13 @@ class vImage(QImage):
         @return: thumbnail
         @rtype: QImage
         """
+        if not self.cachesEnabled:
+            return
         self.thumb = self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio)
 
     def initHald(self):
+        if not self.cachesEnabled:
+            return
         s = int((LUT3DIdentity.size )**(3.0/2.0)) + 1
         buf0 = LUT3DIdentity.getHaldImage(s, s)
         self.Hald = QImage(QSize(s,s), QImage.Format_ARGB32)
@@ -178,21 +187,19 @@ class vImage(QImage):
         """
         Returns current (full, preview or hald) image,
         according to the values of the flag useThumb and useHald.
+        The thumbnail and hald are computed if they are not initialized.
+        Otherwise, they are not updated, unless self.thumb is None
+        or purgeThumb is True.
         The method is overridden in QLayer
         @return: image
         @rtype: vImage
         """
         if self.useHald:
-            if self.hald is None:
-                self.initHald()
-            return self.hald
+            return self.getHald()
         if self.useThumb:
-            if self.thumb is None:
-                self.initThumb()
-            currentImage = self.thumb
+            return self.getThumb()
         else:
-            currentImage = self
-        return currentImage
+            return self
 
     def getHspbBuffer(self):
         """
@@ -236,11 +243,22 @@ class vImage(QImage):
         """
         self.hspbBuffer = None
         self.LabBuffer = None
+        self.thumb = None
+        if hasattr(self, 'maskedImageContainer'):
+            if self.maskedImageContainer is not None:
+                self.maskedImageContainer.LabBuffer = None
+        if hasattr(self, 'maskedThumbContainer'):
+            if self.maskedThumbContainer is not None:
+                self.maskedThumbContainer.LabBuffer = None
 
     def updatePixmap(self, maskOnly=False):
         """
-        Updates the image pixmap and caches the current color
-        managed version of the image. If maskOnly is True, this cache is not updated.
+        Updates the caches qPixmap, thumb and cmImage.
+        The input image is that returned by getCurrentImage(), thus
+        the caches are synchronized using the current image
+        mode (full or preview).
+
+        If maskOnly is True, cmImage is not updated.
         if maskIsEnabled is False, the mask is not shown.
         If maskIsEnabled is True, then
             - if maskIsSelected is True, the mask is drawn over
@@ -337,6 +355,25 @@ class vImage(QImage):
             rszd.mask = self.mask.scaled(w, h)
         self.setModified(True)
         return rszd
+
+    def applyCLAHE(self, clipLimit, options):
+        inputImage = self.inputImg()
+        #inputImage.labBuffer = None
+        # get l channel
+        LBuf = np.array(inputImage.getLabBuffer(), copy=True)
+        # apply CLAHE
+        clahe = cv2.createCLAHE(clipLimit=clipLimit, tileGridSize=(8, 8))
+        clahe.setClipLimit(clipLimit)
+        res = clahe.apply((LBuf[:,:,0] * 255.0).astype(np.uint8))
+
+        LBuf[:,:,0] = res / 255
+        sRGBBuf = Lab2sRGBVec(LBuf)
+        # clipping is mandatory here : numpy bug ?
+        sRGBBuf = np.clip(sRGBBuf, 0, 255)
+        currentImage = self.getCurrentImage()
+        ndImg1a = QImageBuffer(currentImage)
+        ndImg1a[:, :, :3][:,:,::-1] = sRGBBuf
+        self.updatePixmap()
 
     def apply1DLUT(self, stackedLUT, options={}):
         """
@@ -681,6 +718,7 @@ class vImage(QImage):
             res = np.clip(res, 0, 255)
         bufOut = QImageBuffer(currentImage)[:,:,:3]
         bufOut[:, :, ::-1] = res
+        #self.cacheInvalidate()
         self.updatePixmap()
        # return img
 
@@ -781,7 +819,7 @@ class mImage(vImage):
         @return: the layer added
         @rtype: QLayer
         """
-        # building a unique name
+        # build a unique name
         usedNames = [l.name for l in self.layersStack]
         a = 1
         trialname = name if len(name) > 0 else 'noname'
@@ -789,7 +827,6 @@ class mImage(vImage):
             trialname = name + '_'+ str(a)
             a = a+1
         if layer is None:
-            #layer = QLayer(QImg=QImage(self))
             layer = QLayer(QImg=self)
             layer.fill(Qt.white)
         layer.name = trialname
@@ -806,7 +843,6 @@ class mImage(vImage):
         layer.meta = self.meta
         layer.parentImage = self
         self.setModified(True)
-        layer.initThumb()
         return layer
 
     def removeLayer(self, index=None):
@@ -825,18 +861,15 @@ class mImage(vImage):
         if index == None:
             # add on top of active layer
             index = self.activeLayerIndex
-        # adjust active layer only
+        # get image from active layer
         layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
-        # dynamic typing for adjustment layer
-        #layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getCurrentImage()
-        #layer.inputImgFull = lambda: self.layersStack[layer.getLowerVisibleStackIndex()]
+        if self.useThumb :
+            layer.thumb = QLayer.fromImage(self.layersStack[index].getCurrentImage(), parentImage=self)
         layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getCurrentMaskedImage()
         layer.inputImgFull = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getMaskedImage()
+        # sync caches
+        layer.updatePixmap()
         self.addLayer(layer, name=name, index=index + 1)
-        #layer.view = None
-        #layer.parent = self
-        #self.setModified(True)
-        layer.initThumb()
         return layer
 
     def addSegmentationLayer(self, name='', index=None):
@@ -1084,19 +1117,21 @@ class QLayer(vImage):
         """
         Overrides vImage.initThumb.
         """
-        """
-        if self.isAdjustLayer():
-            # init from lower visible layers
-            self.thumb = QLayer(QImg=self.inputImgFull().scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio))
-        else:
-            # init from layer
-            self.thumb = QLayer(QImg=self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio), parentImage=self.parentImage)
-        """
-        #self.thumb = QLayer(QImg=self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio), parentImage=self.parentImage)
+        if not self.cachesEnabled:
+            return
         self.thumb = self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio)
         self.thumb.parentImage = self.parentImage
 
+    def getThumb(self):
+        if not self.cachesEnabled:
+            return self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio)
+        if self.thumb is None:
+            self.initThumb()
+        return self.thumb
+
     def initHald(self):
+        if not self.cachesEnabled:
+            return
         s = int((LUT3DIdentity.size) ** (3.0 / 2.0)) + 1
         buf0 = LUT3DIdentity.getHaldImage(s, s)
         #self.hald = QLayer(QImg=QImage(QSize(190,190), QImage.Format_ARGB32))
@@ -1106,36 +1141,38 @@ class QLayer(vImage):
         buf1[:,:,3] = 255
         self.hald.parentImage = self.parentImage
 
-    def getThumb(self):
-        if self.thumb is None:
-            self.initThumb()
-        return self.thumb
-
     def getHald(self):
+        if not self.cachesEnabled:
+            s = int((LUT3DIdentity.size) ** (3.0 / 2.0)) + 1
+            buf0 = LUT3DIdentity.getHaldImage(s, s)
+            # self.hald = QLayer(QImg=QImage(QSize(190,190), QImage.Format_ARGB32))
+            hald = QImage(QSize(s, s), QImage.Format_ARGB32)
+            buf1 = QImageBuffer(hald)
+            buf1[:, :, :3] = buf0
+            buf1[:, :, 3] = 255
+            hald.parentImage = self.parentImage
+            return hald
         if self.hald is None:
             self.initHald()
         return self.hald
 
     def getCurrentImage(self):
         """
-        Returns current (full or preview) image, according to
-        the value of the flag useThumb. The thumbnail is not
-        updated, unless self.thumb is None or purgeThumb is True.
+        Returns current (full, preview or hald) image, according to
+        the value of the flags useThumb and useHald. The thumbnail and hald
+        are computed if they are not initialized.
+        Otherwise, they are not updated unless self.thumb is
+        None or purgeThumb is True.
         Overrides vImage method
         @return: current image
         @rtype: QLayer
         """
         if self.parentImage.useHald:
-            if self.hald is None:
-                self.initHald()
-            return self.hald
+            return self.getHald()
         if self.parentImage.useThumb:
-            if self.thumb is None:
-                self.initThumb()
-            currentImage = self.thumb
+            return self.getThumb()
         else:
-            currentImage = self
-        return currentImage
+            return self
 
     def getMaskedImage(self):
         """
@@ -1162,7 +1199,11 @@ class QLayer(vImage):
             qp.setCompositionMode(QPainter.CompositionMode_DestinationOver)
             #qp.drawImage(QRect(0, 0, img.width(), img.height()), self.inputImg())
             qp.drawImage(QRect(0, 0, img.width(), img.height()), self.inputImgFull())
+            #img.inputImg = self.inputImg
+            #img.inputImgFull = self.inputImgFull
+            img.name = self.name + '_getMaskedImage'
         qp.end()
+        img.cachesEnabled = False
         return img
 
     def getCurrentMaskedImage(self):
@@ -1199,7 +1240,11 @@ class QLayer(vImage):
             # inputImg() * (255 -mask)
             qp.setCompositionMode(QPainter.CompositionMode_DestinationOver)
             qp.drawImage(QRect(0, 0, img.width(), img.height()), self.inputImg())
+            #img.inputImg = lambda : self.inputImg()
+            #img.inputImgFull = lambda : self.inputImgFull()
+            img.name = self.name +'_getcurrentMaskedImage'
         qp.end()
+        img.cachesEnabled = False
         return img
 
     def getHspbBuffer(self):
@@ -1212,7 +1257,7 @@ class QLayer(vImage):
             if self.parentImage.useThumb or self.parentImage.useHald:
                 #self.hspbBuffer = rgb2hspVec(QImageBuffer(self.thumb)[:,:,:3][:,:,::-1])
                 #self.hspbBuffer = rgb2hspVec(QImageBuffer(self.inputImgFull().getCurrentImage())[:, :, :3][:, :, ::-1])
-                self.hspbBuffer = rgb2hspVec(QImageBuffer(self.inputImg())[:, :, :3][:, :, ::-1])
+                self.hspbBuffer = rgb2hspVec(QImageBuffer(self.inputImg())[:, :, :3][:, :, ::-1]) # TODO use getCurrentImage???
             else:
                 if hasattr(self, 'inputImg'):
                     self.hspbBuffer = rgb2hspVec(QImageBuffer(self.inputImg())[:,:,:3][:,:,::-1])
@@ -1222,18 +1267,27 @@ class QLayer(vImage):
 
     def getLabBuffer(self):
         """
-        returns the image buffer in color mode HSpB.
+        returns the image buffer in color mode Lab.
         The buffer is calculated if needed and cached.
-        @return: HSPB buffer (type ndarray)
+        @return: Lab buffer (type ndarray)
+        """
         """
         if self.LabBuffer is None:
             if self.parentImage.useThumb:
-                self.LabBuffer = sRGB2LabVec(QImageBuffer(self.inputImgFull().getCurrentImage())[:, :, :3][:, :, ::-1])
+                #self.LabBuffer = sRGB2LabVec(QImageBuffer(self.inputImgFull().getCurrentImage())[:, :, :3][:, :, ::-1])
+                #self.LabBuffer = sRGB2LabVec(QImageBuffer(self.inputImg())[:, :, :3][:, :, ::-1])  # TODO verify getcurrenmaskedimage is right here
+                self.LabBuffer = sRGB2LabVec(QImageBuffer(self.getCurrentImage())[:, :, :3][:, :, ::-1])
             else:
                 if hasattr(self, 'inputImg'):
                     self.LabBuffer = sRGB2LabVec(QImageBuffer(self.inputImg())[:,:,:3][:,:,::-1])
                 else:
                     self.LabBuffer = sRGB2LabVec(QImageBuffer(self)[:, :, :3][:, :, ::-1])
+        """
+        #if self.LabBuffer is None:
+        #self.thumb = None
+        img = self.getCurrentImage()
+        self.LabBuffer = sRGB2LabVec(QImageBuffer(img)[:, :, :3][:, :, ::-1])
+
         return self.LabBuffer
 
     def applyToStack(self):
@@ -1243,7 +1297,8 @@ class QLayer(vImage):
         # recursive function
         def applyToStack_(layer, pool=None):
             # apply Transformation (call vImage.apply*LUT...)
-            layer.execute(pool=pool)
+            if layer.visible:
+                layer.execute(pool=pool)
             stack = layer.parentImage.layersStack
             ind = layer.getStackIndex() + 1
             # get next visible upper layer
@@ -1259,7 +1314,7 @@ class QLayer(vImage):
             QApplication.setOverrideCursor(Qt.WaitCursor)
             QApplication.processEvents()
             if (not self.parentImage.useThumb or self.parentImage.useHald):
-                pool = multiprocessing.Pool(8)
+                pool = multiprocessing.Pool(MULTIPROC_POOLSIZE)  # TODO pool is always created and used only by LUT3D
             else:
                 pool = None
             applyToStack_(self, pool=pool)
@@ -1299,9 +1354,12 @@ class QLayer(vImage):
 
     def updatePixmap(self, maskOnly = False):
         """
-        Updates the image pixmap and caches the current color
-        (eventually) managed version of the image. If maskOnly is True,
-        this cache is not updated.
+        Updates the caches qPixmap, thumb and cmImage.
+        The input image is that returned by getCurrentImage(), thus
+        the caches are synchronized using the current image
+        mode (full or preview).
+
+        If maskOnly is True, cmImage is not updated.
         if maskIsEnabled is False, the mask is not shown.
         If maskIsEnabled is True, then
             - if maskIsSelected is True, the mask is drawn over

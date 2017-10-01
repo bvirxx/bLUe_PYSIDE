@@ -423,6 +423,7 @@ scr</string>
       <string>New Adjustment Layer</string>
      </property>
      <addaction name="actionColor_Temperature"/>
+     <addaction name="actionContrast_Correction"/>
      <addaction name="separator"/>
      <addaction name="actionBrightness_Contrast"/>
      <addaction name="actionCurves_HSpB"/>
@@ -693,6 +694,11 @@ scr</string>
   <action name="actionAbout_bLUe">
    <property name="text">
     <string>About bLUe</string>
+   </property>
+  </action>
+  <action name="actionContrast_Correction">
+   <property name="text">
+    <string>Contrast Correction</string>
    </property>
   </action>
  </widget>

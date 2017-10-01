@@ -465,7 +465,7 @@ class temperatureForm (QGraphicsView):
             if currentItem.text() == sel:
                 self.listWidget.select(currentItem)
         self.sliderTemp.setValue(temp)
-        self.repaint()
+        self.update()
         return inStream
 
 if __name__ == '__main__':
