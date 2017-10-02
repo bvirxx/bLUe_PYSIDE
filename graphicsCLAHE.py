@@ -15,6 +15,7 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+from time import time
 
 import cv2
 import numpy as np
@@ -28,18 +29,21 @@ from imgconvert import QImageBuffer
 # Contrast Limited Adaptive Histogram Equalization.
 from utils import optionsWidget
 
-
+"""
 def Clahe(imgLBuf):
+    #UNUSED
+    start = time()
     clahe = cv2.createCLAHE(clipLimit=4.0, tileGridSize=(8, 8))
     clahe.setClipLimit(0.8)
     res = clahe.apply((imgLBuf[:,:,0]*255.0).astype(np.uint8))
-    imgLBuf[:,:,0] = res / 255
+    imgLBuf[:,:,0] = res.astype(np.float) / 255
     return imgLBuf
     ndsRGBImg1 = Lab2sRGBVec(imgLBuf)
     # clipping is mandatory here : numpy bug ?
     ndsRGBImg1 = np.clip(ndsRGBImg1, 0, 255)
-    return ndsRGBImg1
-
+    print("clahe %.2f" % (time() - start))
+    return ndsRGBImg
+"""
 class CLAHEForm (QGraphicsView):
     defaultClipLimit = 0.25
     @classmethod

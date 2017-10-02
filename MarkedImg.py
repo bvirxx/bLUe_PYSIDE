@@ -357,23 +357,26 @@ class vImage(QImage):
         return rszd
 
     def applyCLAHE(self, clipLimit, options):
+
         inputImage = self.inputImg()
-        #inputImage.labBuffer = None
         # get l channel
+
         LBuf = np.array(inputImage.getLabBuffer(), copy=True)
         # apply CLAHE
         clahe = cv2.createCLAHE(clipLimit=clipLimit, tileGridSize=(8, 8))
         clahe.setClipLimit(clipLimit)
         res = clahe.apply((LBuf[:,:,0] * 255.0).astype(np.uint8))
-
         LBuf[:,:,0] = res / 255
         sRGBBuf = Lab2sRGBVec(LBuf)
         # clipping is mandatory here : numpy bug ?
-        sRGBBuf = np.clip(sRGBBuf, 0, 255)
+        #sRGBBuf = np.clip(sRGBBuf, 0, 255)
         currentImage = self.getCurrentImage()
         ndImg1a = QImageBuffer(currentImage)
+        start = time()
         ndImg1a[:, :, :3][:,:,::-1] = sRGBBuf
+        print("clahe %.2f" % (time() - start))
         self.updatePixmap()
+        print("***clahe %.2f" % (time() - start))
 
     def apply1DLUT(self, stackedLUT, options={}):
         """
@@ -707,15 +710,25 @@ class vImage(QImage):
             qp.setCompositionMode(QPainter.CompositionMode_Multiply)
             qp.drawImage(0, 0, inputImage)
             qp.end()
-            resImg = blendLuminosity(filter, inputImage)
+            resImg = blendLuminosity(filter, inputImage) #time 5s
             res = QImageBuffer(resImg)[:,:,:3][:,:,::-1]
         else:
+            """
             M = conversionMatrix(temperature, sRGBWP)  # input image is sRGB ref temperature D65
             buf = QImageBuffer(inputImage)[:, :, :3]
             bufLinear = rgb2rgbLinearVec(buf)
             resLinear = np.tensordot(bufLinear[:, :, ::-1], M, axes=(-1, -1))
             res = rgbLinear2rgbVec(resLinear)
             res = np.clip(res, 0, 255)
+            """
+            M = conversionMatrix(temperature, sRGBWP)  # input image is sRGB ref temperature D65
+            buf = QImageBuffer(inputImage)[:, :, :3]
+            bufXYZ = cv2.cvtColor(buf[:,:,::-1], cv2.COLOR_RGB2XYZ)
+            bufXYZ = np.tensordot(bufXYZ, M, axes=(-1, -1))
+            res = cv2.cvtColor(bufXYZ.astype(np.float32), cv2.COLOR_XYZ2RGB)
+            res = res.clip(0,255)
+            res = res.astype(np.uint8)
+
         bufOut = QImageBuffer(currentImage)[:,:,:3]
         bufOut[:, :, ::-1] = res
         #self.cacheInvalidate()
@@ -1283,11 +1296,11 @@ class QLayer(vImage):
                 else:
                     self.LabBuffer = sRGB2LabVec(QImageBuffer(self)[:, :, :3][:, :, ::-1])
         """
-        #if self.LabBuffer is None:
-        #self.thumb = None
-        img = self.getCurrentImage()
-        self.LabBuffer = sRGB2LabVec(QImageBuffer(img)[:, :, :3][:, :, ::-1])
-
+        if self.LabBuffer is None or not self.cachesEnabled:
+            #self.thumb = None
+            # Calling QImageBuffer  needs to keep a ref to self.getCurrentImage() to protect it against garbage collector.
+            img = self.getCurrentImage()
+            self.LabBuffer = sRGB2LabVec(QImageBuffer(img)[:, :, :3][:, :, ::-1])
         return self.LabBuffer
 
     def applyToStack(self):
@@ -1382,7 +1395,7 @@ class QLayer(vImage):
             # layer color model is parent image color model
             if self.cmImage is None:
                 # CAUTION : reset alpha channel
-                img = convertQImage(currentImage, transformation=self.parentImage.colorTransformation)
+                img = convertQImage(currentImage, transformation=self.parentImage.colorTransformation)  # time 0.7 s for full res.
                 # restore alpha
                 buf0 = QImageBuffer(img)
                 buf1 = QImageBuffer(currentImage)

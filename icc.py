@@ -15,6 +15,7 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+from time import time
 
 from PIL import Image
 from PIL.ImageCms import profileToProfile, getOpenProfile, get_display_profile, getProfileDescription, getProfileInfo, buildTransformFromOpenProfiles, applyTransform
@@ -59,8 +60,8 @@ def convertQImage(image, transformation = workToMonTransform):
     """
     # sRGB
     if transformation is not None: #  or image.meta.colorSpace == 1
-        # conversion in the PIL context
-        converted_image = applyTransform(QImageToPilImage(image), transformation, 0)
+        # conversion to the PIL context
+        converted_image = applyTransform(QImageToPilImage(image), transformation, 0)  # time 0.65s for full res.
         image.colorTransformation = transformation
         return PilImageToQImage(converted_image)
     else :

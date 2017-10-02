@@ -22,12 +22,13 @@ from LUT3D import hsv2rgbVec, rgb2hsBVec, hsp2rgbVec
 from imgconvert import QImageBuffer
 
 
-def blendLuminosity(dest, source):
+def blendLuminosity(dest, source, usePerceptual=False):
     """
     Implements blending with luminosity mode, which is missing
-    in Qt. We use the HSpB color model for the intermediate color space.
+    in Qt. if usePerceptual is True we use the HSpB color model
+    as intermediate color space.
     The blended image retains the hue and saturation of dest, with the
-    luminosity (i.e. perceptive brightness) of source.
+    luminosity of source.
    
     @param dest: destination QImage
     @type dest QImage
@@ -40,11 +41,13 @@ def blendLuminosity(dest, source):
     sourceBuf = QImageBuffer(source)[:,:,:3]
     destBuf = QImageBuffer(dest)[:,:,:3]
 
-    hsvSourceBuf = rgb2hsBVec(sourceBuf[:,:,::-1], perceptual=True)
-    hsvDestBuf = rgb2hsBVec(destBuf[:,:,::-1], perceptual=True)
+    hsvSourceBuf = rgb2hsBVec(sourceBuf[:,:,::-1], perceptual=usePerceptual)
+    hsvDestBuf = rgb2hsBVec(destBuf[:,:,::-1], perceptual=usePerceptual)
     hsvDestBuf[:, :, 2] = hsvSourceBuf[:,:,2]
-    blendBuf = hsp2rgbVec(hsvDestBuf)
-
+    if usePerceptual:
+        blendBuf = hsp2rgbVec(hsvDestBuf)
+    else:
+        blendBuf = hsv2rgbVec(hsvDestBuf)
     img = QImage(source.size(), source.format())
     tmp=QImageBuffer(img)
     (tmp[:,:,:3])[:,:,::-1] = blendBuf

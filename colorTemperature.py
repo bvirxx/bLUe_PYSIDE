@@ -15,7 +15,7 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-
+import cv2
 import numpy as np
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QColor, QFontMetrics
@@ -199,7 +199,7 @@ def XYZ2sRGBVec(imgBuf):
     bufsRGB = rgbLinear2rgbVec(bufsRGBLinear)
     return bufsRGB
 
-def sRGB2LabVec(bufsRGB) :
+def sRGB2LabVec(bufsRGB, useOpencv = True) :
     """
     Vectorized sRGB to Lab conversion.  No clipping
     is performed.
@@ -214,20 +214,28 @@ def sRGB2LabVec(bufsRGB) :
     @return: bufLab Image buffer mode Lab
     @rtype: ndarray, dtype numpy.float64
     """
-    oldsettings = np.seterr(all='ignore')
-    bufXYZ = sRGB2XYZVec(bufsRGB) # * 100.0
-    YoverYn = bufXYZ[:,:,1] / Yn
-    bufL = np.sqrt(YoverYn)
-    bufa = Ka * ( bufXYZ[:,:,0] / Xn - YoverYn) / bufL
-    bufb = Kb * (YoverYn - bufXYZ[:,:,2]/Zn) / bufL
-    np.seterr(**oldsettings)
-    bufLab = np.dstack((bufL, bufa, bufb))
-    # converting invalid values to int gives indeterminate results
-    bufLab[np.isnan(bufLab)] = 0.0  # TODO np.inf
+    if useOpencv :
+        bufLab = cv2.cvtColor(bufsRGB, cv2.COLOR_RGB2Lab)
+        bufLab = bufLab.astype(np.float)
+        # for 8 bits per channel images opencv uses L,a,b range 0..255
+        bufLab[:,:,0] = bufLab[:,:,0] / 255.0
+        bufLab[:,:,1] = bufLab[:,:,1] - 128
+        bufLab[:, :, 2] = bufLab[:, :, 2] - 128
+    else :
+        oldsettings = np.seterr(all='ignore')
+        bufXYZ = sRGB2XYZVec(bufsRGB) # * 100.0
+        YoverYn = bufXYZ[:,:,1] / Yn
+        bufL = np.sqrt(YoverYn)
+        bufa = Ka * ( bufXYZ[:,:,0] / Xn - YoverYn) / bufL
+        bufb = Kb * (YoverYn - bufXYZ[:,:,2]/Zn) / bufL
+        np.seterr(**oldsettings)
+        bufLab = np.dstack((bufL, bufa, bufb))
+        # converting invalid values to int gives indeterminate results
+        bufLab[np.isnan(bufLab)] = 0.0  # TODO np.inf
     return bufLab
 
 
-def Lab2sRGBVec(bufLab):
+def Lab2sRGBVec(bufLab, useOpencv = True):
     """
     Vectorized Lab to sRGB conversion. No clipping
     is performed.
@@ -237,15 +245,23 @@ def Lab2sRGBVec(bufLab):
     @return: bufLab Image buffer mode sRGB, range 0..255, 
     @rtype: ndarray, dtype numpy.float64
     """
-    bufL, bufa, bufb = bufLab[:,:,0], bufLab[:,:,1], bufLab[:,:,2]
-    bufL2 = bufL* bufL
-    bufY = bufL2 * Yn
-    bufX = Xn * ((bufa/ Ka) * bufL + bufL2)
-    bufZ = Zn * (bufL2 - ((bufb / Kb)) * bufL)
-    bufXYZ = np.dstack((bufX, bufY, bufZ)) # /100.0
-    bufsRGB = XYZ2sRGBVec(bufXYZ)
-    # converting invalid values to int gives indeterminate results
-    bufsRGB[np.isnan(bufsRGB)] = 0.0  # TODO np.inf
+    if useOpencv:
+        tmp = bufLab.copy()
+        # for 8 bits per channel images opencv uses L,a,b range 0..255
+        tmp[:,:,0] = tmp[:,:,0] * 255.0
+        tmp[:,:,1] = tmp[:,:,1] + 128
+        tmp[:, :, 2] = tmp[:, :, 2] + 128
+        bufsRGB = cv2.cvtColor(tmp.astype(np.uint8), cv2.COLOR_Lab2RGB)
+    else:
+        bufL, bufa, bufb = bufLab[:,:,0], bufLab[:,:,1], bufLab[:,:,2]
+        bufL2 = bufL* bufL
+        bufY = bufL2 * Yn
+        bufX = Xn * ((bufa/ Ka) * bufL + bufL2)
+        bufZ = Zn * (bufL2 - ((bufb / Kb)) * bufL)
+        bufXYZ = np.dstack((bufX, bufY, bufZ)) # /100.0
+        bufsRGB = XYZ2sRGBVec(bufXYZ)
+        # converting invalid values to int gives indeterminate results
+        bufsRGB[np.isnan(bufsRGB)] = 0.0  # TODO np.inf
     return bufsRGB
 
 def bbTemperature2RGB(temperature):
@@ -352,8 +368,9 @@ def conversionMatrix(Tdest, Tsource):
     rhos1, rhos2, rhos3  = temperature2Rho(Tsource)
     rhod1, rhod2, rhod3 = temperature2Rho(Tdest)
     D = np.diag((rhod1/rhos1, rhod2/rhos2, rhod3/rhos3))
-    N = np.dot(np.array(BradfordInverse), D)
-    P = np.dot(N, np.array(Bradford))
+    N = np.dot(np.array(BradfordInverse), D)  # N= MA**-1 D
+    P = np.dot(N, np.array(Bradford))         # P = N MA = MA**-1 D MA
+    return P
     Q = np.dot(np.array(sRGB2XYZInverse), P)
     R = np.dot(Q , sRGB2XYZ)
     return R

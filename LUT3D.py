@@ -351,6 +351,7 @@ def rgb2hsBVec(rgbImg, perceptual=False):
     @return: identical shape array of hue,sat,brightness values (0<=h<=360, 0<=s<=1, 0<=v<=1)
     @rtype: (n,m,3) array, dtype=float
     """
+    # TODO use opencv cvtColor() for perceptual=False
     r, g, b = rgbImg[:, :, 0].astype(float), rgbImg[:, :, 1].astype(float), rgbImg[:, :, 2].astype(float)
 
     cMax = np.maximum.reduce([r, g, b])
@@ -436,6 +437,7 @@ def hsv2rgbVec(hsvImg):
     @param hsvImg: hsv image array
     @return: rgb image array
     """
+    # TODO use opencv cvtColor()
 
     h,s,v = hsvImg[:,:,0], hsvImg[:,:,1], hsvImg[:,:,2]
 
