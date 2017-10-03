@@ -1330,7 +1330,7 @@ class QLayer(vImage):
             QApplication.setOverrideCursor(Qt.WaitCursor)
             QApplication.processEvents()
             if (not self.parentImage.useThumb or self.parentImage.useHald):
-                pool = multiprocessing.Pool(MULTIPROC_POOLSIZE)  # TODO pool is always created and used only by LUT3D
+                pool = multiprocessing.Pool(MULTIPROC_POOLSIZE)  # TODO time opt : pool is always created and used only by LUT3D; time 0.3s
             else:
                 pool = None
             applyToStack_(self, pool=pool)

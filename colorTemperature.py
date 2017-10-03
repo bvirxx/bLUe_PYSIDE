@@ -100,15 +100,26 @@ beta = 1.0 / alpha
 b = (a / (1.0 + a)) ** alpha
 d = 12.92
 c = 255.0 * d
-e = 255*255
-F = 255.0**(2*beta)
+e = 255 #255*255
+F = e**beta #255.0**(2*beta)
 
 table0 = np.arange(256, dtype=np.float64)
 table1 = table0 / 255.0
 table2 = table0 / c
-table3 = np.power(table1, alpha)
+table3 = np.power(table1, alpha)  # (i/255)**alpha
 table4 = np.arange(e + 1, dtype = np.float64)
-table5 = np.power(table4, beta)
+table5 = np.power(table4, beta) *(1.0+a)/F # i**beta
+
+
+def adjust_gamma(image, gamma=1.0):
+    # build a lookup table mapping the pixel values [0, 255] to
+    # their adjusted gamma values
+    invGamma = 1.0 / gamma
+    table = np.array([((i / 255.0) ** invGamma) * 255
+                      for i in np.arange(0, 256)]).astype("uint8")
+
+    # apply gamma correction using the lookup table
+    return cv2.LUT(image, table)
 
 def rgbLinear2rgb(r,g,b):
     """
@@ -131,20 +142,15 @@ def rgbLinear2rgb(r,g,b):
 def rgbLinear2rgbVec(img):
     """
     Converts image from linear sRGB to sRGB.
-    @param img: linear sRGB image (RGB range 0..1, type numpy array, dtype=np.float64)
-    @return: converted image (RGB range 0..255)
     See https://en.wikipedia.org/wiki/SRGB
+    @param img: linear sRGB image (RGB range 0..1)
+    @type img: numpy array, dtype=np.float64)
+    @return: converted image (RGB range 0..255)
     """
-    img2 = d * img
-    #img3 = (1.0 + a) * np.power(img, beta) - a
-    imgDiscretized = (img * e )
+    img2 = img * d
+    imgDiscretized = (img * e).astype(int)
     imgDiscretized = np.clip(imgDiscretized, 0, e)
-    imgDiscretized = np.floor(imgDiscretized)
-    #imgDiscretized = imgDiscretized.astype(float)
-    imgDiscretized = imgDiscretized.astype(int)
-    imgDiscretized = np.clip(imgDiscretized, 0, e)
-    #img3 = (1.0 + a) * table5[imgDiscretized] / F
-    img3 = table5[imgDiscretized] * ((1.0+a)/F)
+    img3 = table5[imgDiscretized] #* ((1.0+a)/F)
     return np.where(img <=  0.0031308, img2, img3) * 255
 
 gammaLinearTreshold = 0.04045
@@ -175,6 +181,7 @@ def rgb2rgbLinearVec(img):
     @param img: sRGB image (RGB range 0..255, type numpy array)
     @return: converted image (RGB range 0..1, type numpy array dtype=np.float64)
     """
+    #return adjust_gamma(img.astype(np.uint8), 1/2.4)
     #img1 =  table1[img[...]]
     img2 = table2[img[...]]  # equivalent to img2 = img2 / c, but runs faster
     img3 = table3[img[...]]
