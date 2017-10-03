@@ -43,6 +43,7 @@ def blendLuminosity(dest, source, usePerceptual=False):
 
     hsvSourceBuf = rgb2hsBVec(sourceBuf[:,:,::-1], perceptual=usePerceptual)
     hsvDestBuf = rgb2hsBVec(destBuf[:,:,::-1], perceptual=usePerceptual)
+    # copy source luminosity to dest
     hsvDestBuf[:, :, 2] = hsvSourceBuf[:,:,2]
     if usePerceptual:
         blendBuf = hsp2rgbVec(hsvDestBuf)
@@ -50,9 +51,8 @@ def blendLuminosity(dest, source, usePerceptual=False):
         blendBuf = hsv2rgbVec(hsvDestBuf)
     img = QImage(source.size(), source.format())
     tmp=QImageBuffer(img)
-    (tmp[:,:,:3])[:,:,::-1] = blendBuf
+    tmp[:,:,:3][:,:,::-1] = blendBuf
     tmp[:, :, 3]= 255
-
     return img
 
 def blendColor(dest, source):

@@ -15,6 +15,8 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+from time import time
+
 import cv2
 import numpy as np
 from PySide2.QtCore import Qt
@@ -102,8 +104,8 @@ e = 255*255
 F = 255.0**(2*beta)
 
 table0 = np.arange(256, dtype=np.float64)
-table1 = table0 / 255.0  # np.array([i/255.0 for i in xrange(256)])
-table2 = table0 / c  # np.array([i/c for i in xrange(256)])
+table1 = table0 / 255.0
+table2 = table0 / c
 table3 = np.power(table1, alpha)
 table4 = np.arange(e + 1, dtype = np.float64)
 table5 = np.power(table4, beta)
@@ -138,12 +140,14 @@ def rgbLinear2rgbVec(img):
     imgDiscretized = (img * e )
     imgDiscretized = np.clip(imgDiscretized, 0, e)
     imgDiscretized = np.floor(imgDiscretized)
-    imgDiscretized = imgDiscretized.astype(float)
+    #imgDiscretized = imgDiscretized.astype(float)
     imgDiscretized = imgDiscretized.astype(int)
     imgDiscretized = np.clip(imgDiscretized, 0, e)
-    img3 = (1.0 + a) * table5[imgDiscretized] / F
+    #img3 = (1.0 + a) * table5[imgDiscretized] / F
+    img3 = table5[imgDiscretized] * ((1.0+a)/F)
     return np.where(img <=  0.0031308, img2, img3) * 255
 
+gammaLinearTreshold = 0.04045
 def rgb2rgbLinear(r,g,b):
     """
        Conversion from sRGB to LINEAR sRGB.
@@ -155,7 +159,8 @@ def rgb2rgbLinear(r,g,b):
        @return: The converted values
        """
     def c2cl(c):
-        if c <= 0.04045:
+        if c <= gammaLinearTreshold:
+            # consider linear
             c =  c / d
         else:
             c = ((c+a)/(1+a))**alpha
@@ -170,10 +175,11 @@ def rgb2rgbLinearVec(img):
     @param img: sRGB image (RGB range 0..255, type numpy array)
     @return: converted image (RGB range 0..1, type numpy array dtype=np.float64)
     """
-    img1 =  table1[img[...]]
-    img2 = table2[img[...]]
+    #img1 =  table1[img[...]]
+    img2 = table2[img[...]]  # equivalent to img2 = img2 / c, but runs faster
     img3 = table3[img[...]]
-    return np.where(img1 <= 0.04045, img2, img3)
+    #return np.where(img1 <= gammaLinearTreshold, img2, img3)
+    return np.where(img <= gammaLinearTreshold * 255.0, img2, img3)
 
 def sRGB2XYZVec(imgBuf):
     """
@@ -219,8 +225,8 @@ def sRGB2LabVec(bufsRGB, useOpencv = True) :
         bufLab = bufLab.astype(np.float)
         # for 8 bits per channel images opencv uses L,a,b range 0..255
         bufLab[:,:,0] = bufLab[:,:,0] / 255.0
-        bufLab[:,:,1] = bufLab[:,:,1] - 128
-        bufLab[:, :, 2] = bufLab[:, :, 2] - 128
+        bufLab[:,:,1:] = bufLab[:,:,1:] - 128
+        # bufLab[:, :, 2] = bufLab[:, :, 2] - 128
     else :
         oldsettings = np.seterr(all='ignore')
         bufXYZ = sRGB2XYZVec(bufsRGB) # * 100.0
@@ -249,8 +255,8 @@ def Lab2sRGBVec(bufLab, useOpencv = True):
         tmp = bufLab.copy()
         # for 8 bits per channel images opencv uses L,a,b range 0..255
         tmp[:,:,0] = tmp[:,:,0] * 255.0
-        tmp[:,:,1] = tmp[:,:,1] + 128
-        tmp[:, :, 2] = tmp[:, :, 2] + 128
+        tmp[:,:,1:] = tmp[:,:,1:] + 128
+        #tmp[:, :, 2] = tmp[:, :, 2] + 128
         bufsRGB = cv2.cvtColor(tmp.astype(np.uint8), cv2.COLOR_Lab2RGB)
     else:
         bufL, bufa, bufb = bufLab[:,:,0], bufLab[:,:,1], bufLab[:,:,2]
@@ -297,39 +303,6 @@ def bbTemperature2RGB(temperature):
 
     return red, green, blue
 
-"""
-def applyTemperature(qImg, temperature, coeff, version=2):
-    
-
-    @param qImg:
-    @param temperature:
-    @param coeff:
-    @return:
-    
-    if version == 0:
-        r, g, b = bbTemperature2RGB(temperature)
-        filter = QImage(qImg)
-        filter.fill(QColor(r,g,b, 255))
-        qp = QPainter(filter)
-        #qp.setOpacity(coeff)
-        qp.setCompositionMode(QPainter.CompositionMode_Multiply)
-        qp.drawImage(0,0,qImg)
-        qp.end()
-        img = blendLuminosity(filter, qImg)
-        buf = QImageBuffer(img)
-        buf[:,:,3] = int(coeff * 255)
-        return img
-    else:
-        M = conversionMatrix(temperature, 6500)
-        img = QImage(qImg)
-        buf =QImageBuffer(img)[:,:,:3]
-        bufLinear = rgb2rgbLinearVec(buf)
-        resLinear = np.tensordot(bufLinear[:,:,::-1], M, axes= (-1,-1))
-        res = rgbLinear2rgbVec(resLinear)
-        res=np.clip(res, 0, 255)
-        buf[:, :, ::-1] = res
-    return img
-"""
 def temperature2xyWP(T):
     """
     Calculates the CIE chromaticity coordinates xc, yc
@@ -371,9 +344,11 @@ def conversionMatrix(Tdest, Tsource):
     N = np.dot(np.array(BradfordInverse), D)  # N= MA**-1 D
     P = np.dot(N, np.array(Bradford))         # P = N MA = MA**-1 D MA
     return P
+    """
     Q = np.dot(np.array(sRGB2XYZInverse), P)
     R = np.dot(Q , sRGB2XYZ)
     return R
+    """
 
 class temperatureForm (QGraphicsView):
     @classmethod

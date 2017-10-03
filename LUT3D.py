@@ -20,6 +20,7 @@ from contextlib import closing
 from functools import partial
 from time import time
 
+import cv2
 import numpy as np
 from PySide2.QtCore import QDataStream, QFile, QIODevice, QTextStream
 from PySide2.QtGui import QImage
@@ -352,6 +353,11 @@ def rgb2hsBVec(rgbImg, perceptual=False):
     @rtype: (n,m,3) array, dtype=float
     """
     # TODO use opencv cvtColor() for perceptual=False
+    if not perceptual:
+        buf = cv2.cvtColor(rgbImg.astype(np.uint8), cv2.COLOR_RGB2HSV)
+        buf = buf.astype(np.float) * [2, 1.0/255.0, 1.0/255.0]
+    return buf
+
     r, g, b = rgbImg[:, :, 0].astype(float), rgbImg[:, :, 1].astype(float), rgbImg[:, :, 2].astype(float)
 
     cMax = np.maximum.reduce([r, g, b])
@@ -438,6 +444,9 @@ def hsv2rgbVec(hsvImg):
     @return: rgb image array
     """
     # TODO use opencv cvtColor()
+    buf = hsvImg * np.array([1.0/2.0, 255.0, 255.0])
+    buf = cv2.cvtColor(buf.astype(np.uint8), cv2.COLOR_HSV2RGB )
+    return buf
 
     h,s,v = hsvImg[:,:,0], hsvImg[:,:,1], hsvImg[:,:,2]
 

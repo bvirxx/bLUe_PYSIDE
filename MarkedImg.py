@@ -372,11 +372,8 @@ class vImage(QImage):
         #sRGBBuf = np.clip(sRGBBuf, 0, 255)
         currentImage = self.getCurrentImage()
         ndImg1a = QImageBuffer(currentImage)
-        start = time()
         ndImg1a[:, :, :3][:,:,::-1] = sRGBBuf
-        print("clahe %.2f" % (time() - start))
         self.updatePixmap()
-        print("***clahe %.2f" % (time() - start))
 
     def apply1DLUT(self, stackedLUT, options={}):
         """
@@ -683,24 +680,24 @@ class vImage(QImage):
         buf1[:, :, :] = cv2.filter2D(buf0, -1, self.kernel)
         self.updatePixmap()
 
-    def applyTemperature(self, temperature, options, coeff=1.0):
+    def applyTemperature(self, temperature, options):
         """
-
-        @param qImg:
+        The method implements two algorithms for the correction of color temperature.
+        1) Chromatic adaptation : linear transformation in the XYZ color space with Bradford
+        cone response. cf. http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.htm
+        2) Photo filter : Blending using mode multiply
         @param temperature:
-        @param coeff:
+        @type temperature: float
+        @param options :
+        @type options : dictionary
         @return:
         """
         from blend import blendLuminosity
         from colorTemperature import bbTemperature2RGB, conversionMatrix, rgb2rgbLinearVec, rgbLinear2rgbVec
-        if options['use Chromatic Adaptation']:
-            version = 2
-        else:
-            version = 0
-        #inputImage = self.inputImgFull().getCurrentImage()
         inputImage = self.inputImg()
         currentImage = self.getCurrentImage()
-        if version == 0:
+        if not options['use Chromatic Adaptation']:
+            # use photo filter
             # black body color
             r, g, b = bbTemperature2RGB(temperature)
             filter = QImage(inputImage)
@@ -710,9 +707,10 @@ class vImage(QImage):
             qp.setCompositionMode(QPainter.CompositionMode_Multiply)
             qp.drawImage(0, 0, inputImage)
             qp.end()
-            resImg = blendLuminosity(filter, inputImage) #time 5s
-            res = QImageBuffer(resImg)[:,:,:3][:,:,::-1]
+            resImg = blendLuminosity(filter, inputImage)
+            bufOutRGB = QImageBuffer(resImg)[:,:,:3][:,:,::-1]
         else:
+            #chromatic adaptation
             """
             M = conversionMatrix(temperature, sRGBWP)  # input image is sRGB ref temperature D65
             buf = QImageBuffer(inputImage)[:, :, :3]
@@ -723,17 +721,20 @@ class vImage(QImage):
             """
             M = conversionMatrix(temperature, sRGBWP)  # input image is sRGB ref temperature D65
             buf = QImageBuffer(inputImage)[:, :, :3]
-            bufXYZ = cv2.cvtColor(buf[:,:,::-1], cv2.COLOR_RGB2XYZ)
+            # Unfortunately, opencv cvtColor does NOT perform gamma conversion
+            # for RGB<-->XYZ cf. http://docs.opencv.org/trunk/de/d25/imgproc_color_conversions.html#color_convert_rgb_xyz
+            # This yields incorrect results. As a workaround, we first convert to rgbLinear.
+            bufLinear = (rgb2rgbLinearVec(buf[:,:,::-1])*255).astype(np.uint8)
+            bufXYZ = cv2.cvtColor(bufLinear, cv2.COLOR_RGB2XYZ)
+            # apply conversion matrix
             bufXYZ = np.tensordot(bufXYZ, M, axes=(-1, -1))
-            res = cv2.cvtColor(bufXYZ.astype(np.float32), cv2.COLOR_XYZ2RGB)
-            res = res.clip(0,255)
-            res = res.astype(np.uint8)
-
+            bufOutRGBLinear = cv2.cvtColor(bufXYZ.astype(np.float32), cv2.COLOR_XYZ2RGB)
+            bufOutRGB = rgbLinear2rgbVec(bufOutRGBLinear.astype(np.float)/255.0)
+            bufOutRGB = (bufOutRGB.clip(0, 255)).astype(np.uint8)
+        # set output image
         bufOut = QImageBuffer(currentImage)[:,:,:3]
-        bufOut[:, :, ::-1] = res
-        #self.cacheInvalidate()
+        bufOut[:, :, ::-1] = bufOutRGB
         self.updatePixmap()
-       # return img
 
 class mImage(vImage):
     """
@@ -1311,7 +1312,9 @@ class QLayer(vImage):
         def applyToStack_(layer, pool=None):
             # apply Transformation (call vImage.apply*LUT...)
             if layer.visible:
+                start = time()
                 layer.execute(pool=pool)
+                print("%s %.2f" %(layer.name, time()-start))
             stack = layer.parentImage.layersStack
             ind = layer.getStackIndex() + 1
             # get next visible upper layer
