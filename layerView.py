@@ -145,7 +145,7 @@ class QLayerView(QTableView) :
                 info.show()
                 """
                 QtGui1.app.processEvents()
-                # update stack
+                # update whole stack
                 self.img.layersStack[0].applyToStack()
             finally:
                 QApplication.restoreOverrideCursor()

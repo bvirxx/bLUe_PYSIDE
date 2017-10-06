@@ -352,11 +352,10 @@ def rgb2hsBVec(rgbImg, perceptual=False):
     @return: identical shape array of hue,sat,brightness values (0<=h<=360, 0<=s<=1, 0<=v<=1)
     @rtype: (n,m,3) array, dtype=float
     """
-    # TODO use opencv cvtColor() for perceptual=False
     if not perceptual:
         buf = cv2.cvtColor(rgbImg.astype(np.uint8), cv2.COLOR_RGB2HSV)
-        buf = buf.astype(np.float) * [2, 1.0/255.0, 1.0/255.0]
-    return buf
+        buf = buf.astype(np.float) * [2, 1.0/255.0, 1.0/255.0]  # scale to 0..360, 0..1, 0..1
+        return buf
 
     r, g, b = rgbImg[:, :, 0].astype(float), rgbImg[:, :, 1].astype(float), rgbImg[:, :, 2].astype(float)
 
@@ -440,11 +439,10 @@ def hsv2rgbVec(hsvImg):
     Vectorized version of hsv2rgb.
     Transform the hue, saturation and brightness h, s, v components of a color
     into red, green, blue values.
-    @param hsvImg: hsv image array
+    @param hsvImg: hsv image array range 0..360, 0..1, 0..1
     @return: rgb image array
     """
-    # TODO use opencv cvtColor()
-    buf = hsvImg * np.array([1.0/2.0, 255.0, 255.0])
+    buf = hsvImg * [1.0/2.0, 255.0, 255.0]  # scale to 0..360/2, 0..255, 0..255 (opencv convention)
     buf = cv2.cvtColor(buf.astype(np.uint8), cv2.COLOR_HSV2RGB )
     return buf
 

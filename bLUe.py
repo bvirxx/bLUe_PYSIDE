@@ -23,6 +23,7 @@ from PySide2.QtQml import QQmlApplicationEngine
 from PySide2.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 
 from graphicsCLAHE import CLAHEForm
+from utils import channelValues
 
 """
 The QtHelp module uses the CLucene indexing library
@@ -44,7 +45,7 @@ from os import path, walk
 from os.path import isfile
 from types import MethodType
 from grabcut import segmentForm
-from PySide2.QtCore import Qt, QRect, QEvent, QDir, QUrl, QPoint
+from PySide2.QtCore import Qt, QRect, QEvent, QDir, QUrl, QPoint, QSize
 from PySide2.QtGui import QPixmap, QColor, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, QPainterPath
 from PySide2.QtWidgets import QApplication, QMenu, QAction, QFileDialog, QMessageBox, \
     QMainWindow, QLabel, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen
@@ -76,10 +77,12 @@ from splittedView import splittedWindow
 ##################
 #  Refresh views after image processing
 #################
+
+"""
 def updateDocView():
     window.label.repaint()
     window.label_3.repaint()
-
+"""
 #########
 # init Before/After view
 #########
@@ -517,13 +520,17 @@ def setDocumentImage(img):
     @return: 
     """
     window.label.img = img
-
     window.label.img.onModify = lambda : updateEnabledActions()
+
     def f():
         window.label.update()
         window.label_3.update()
+        histImg = vImage(QImg=window.label.img.mergeVisibleLayers())
+        histView = histImg.histogram(QSize(200, 80), chans=range(3), bgColor=Qt.lightGray, chanColors=window.Label_Hist.chanColors, mode=window.Label_Hist.mode)
+        window.Label_Hist.setPixmap(QPixmap.fromImage(histView))
+        window.Label_Hist.update()
 
-    window.label.img.onImageChanged = f #window.label.repaint
+    window.label.img.onImageChanged = f
     # before image
     window.label_2.img = imImage(QImg=img, meta=img.meta)
     # after image
@@ -540,7 +547,9 @@ def setDocumentImage(img):
     window.label_2.img.window = window.label_2
     window.label.img.setModified(True)
     window.tableView.previewOptionBox.stateChanged.emit(Qt.Checked)
+    # updates
     updateStatus()
+    window.label.img.onImageChanged()
 
 def updateMenuOpenRecent():
     window.menuOpen_recent.clear()
@@ -906,7 +915,8 @@ def menuLayer(x, name):
         # Apply current LUT and repaint window
         def f():
             l.applyToStack()
-            updateDocView()
+            #updateDocView()
+            window.label.img.onImageChanged()
             #window.label.repaint()
         grWindow.graphicsScene.onUpdateLUT = f
 
@@ -934,7 +944,8 @@ def menuLayer(x, name):
             """
             #l.options = options
             l.applyToStack()
-            updateDocView()
+            window.label.img.onImageChanged()
+            #updateDocView()
             #l.apply3DLUT(grWindow.graphicsScene.LUT3D, options=options)
             #window.label.repaint()
         grWindow.graphicsScene.onUpdateLUT = g
@@ -956,7 +967,8 @@ def menuLayer(x, name):
         def h(temperature):
             l.temperature = temperature
             l.applyToStack()
-            updateDocView()
+            #updateDocView()
+            window.label.img.onImageChanged()
             #window.label.repaint()
         grWindow.onUpdateTemperature = h
         # wrapper for the right apply method
@@ -971,7 +983,8 @@ def menuLayer(x, name):
         def h(clipLimit):
             l.clipLimit = clipLimit
             l.applyToStack()
-            updateDocView()
+            #updateDocView()
+            window.label.img.onImageChanged()
             #window.label.repaint()
         grWindow.onUpdateContrast = h
         # wrapper for the right apply method
@@ -986,7 +999,8 @@ def menuLayer(x, name):
             l.radius = radius
             l.amount = amount
             l.applyToStack()
-            updateDocView()
+            #updateDocView()
+            window.label.img.onImageChanged()
             #window.label.repaint()
         grWindow.onUpdateFilter = h
         # wrapper for the right apply method
@@ -1087,7 +1101,7 @@ def menuLayer(x, name):
         return
     # record action name for scripting
     l.actionName = name
-    # dock graphic form
+    # dock the form
     dock = QDockWidget(window)
     dock.setWidget(grWindow)
     dock.setWindowFlags(grWindow.windowFlags())
@@ -1100,7 +1114,11 @@ def menuLayer(x, name):
     #dock.setAllowedAreas(Qt.NoDockWidgetArea)
     #dock.setWindowModality(Qt.ApplicationModal)
     # set ref. to the associated form
+    #dock.setStyleSheet("border: 1px solid red")
+    dock.setStyleSheet("QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
     l.view = dock
+    # add to docking area
+    window.addDockWidget(Qt.RightDockWidgetArea, dock)
     # update layer stack view
     window.tableView.setLayers(window.label.img)
 
@@ -1291,6 +1309,9 @@ if __name__ =='__main__':
 
     # Before/After views flag
     window.splittedView = False
+
+    window.Label_Hist.mode = 'Luminosity'
+    window.Label_Hist.chanColors = Qt.gray #[Qt.red, Qt.green,Qt.blue]
 
     # splash screen
     pixmap = QPixmap('logo.png')

@@ -21,14 +21,8 @@ import cv2
 import numpy as np
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QColor, QFontMetrics
-from PySide2.QtWidgets import QHBoxLayout, QLabel, QPushButton, QSizePolicy, QSlider, QVBoxLayout, QWidget, \
-    QGraphicsView
-from PySide2.QtGui import QImage
+from PySide2.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QSlider, QVBoxLayout, QGraphicsView
 
-from PySide2.QtGui import QPainter
-
-from blend import blendLuminosity
-from imgconvert import QImageBuffer
 from utils import optionsWidget
 
 #######################################################################
@@ -64,7 +58,7 @@ BradfordInverse =  [[0.9869929, -0.1470543,  0.1599627],
                     [-0.0085287, 0.0400428,  0.9684867]]
 
 #########################
-# conversion from LINEAR sRGB (D65) to XYZ and backwards.
+# conversion from LINEAR sRGB (D65) to XYZ and back.
 # see http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
 # and https://en.wikipedia.org/wiki/SRGB
 ########################
@@ -100,6 +94,8 @@ beta = 1.0 / alpha
 b = (a / (1.0 + a)) ** alpha
 d = 12.92
 c = 255.0 * d
+# tabulation of x**beta
+# e is the size of the table
 e = 255 #255*255
 F = e**beta #255.0**(2*beta)
 
@@ -107,19 +103,9 @@ table0 = np.arange(256, dtype=np.float64)
 table1 = table0 / 255.0
 table2 = table0 / c
 table3 = np.power(table1, alpha)  # (i/255)**alpha
+# tabulation of x**beta
 table4 = np.arange(e + 1, dtype = np.float64)
 table5 = np.power(table4, beta) *(1.0+a)/F # i**beta
-
-
-def adjust_gamma(image, gamma=1.0):
-    # build a lookup table mapping the pixel values [0, 255] to
-    # their adjusted gamma values
-    invGamma = 1.0 / gamma
-    table = np.array([((i / 255.0) ** invGamma) * 255
-                      for i in np.arange(0, 256)]).astype("uint8")
-
-    # apply gamma correction using the lookup table
-    return cv2.LUT(image, table)
 
 def rgbLinear2rgb(r,g,b):
     """
@@ -181,9 +167,8 @@ def rgb2rgbLinearVec(img):
     @param img: sRGB image (RGB range 0..255, type numpy array)
     @return: converted image (RGB range 0..1, type numpy array dtype=np.float64)
     """
-    #return adjust_gamma(img.astype(np.uint8), 1/2.4)
     #img1 =  table1[img[...]]
-    img2 = table2[img[...]]  # equivalent to img2 = img2 / c, but runs faster
+    img2 = table2[img[...]]  # equivalent to img2 = img2 / c, faster
     img3 = table3[img[...]]
     #return np.where(img1 <= gammaLinearTreshold, img2, img3)
     return np.where(img <= gammaLinearTreshold * 255.0, img2, img3)
@@ -362,20 +347,13 @@ class temperatureForm (QGraphicsView):
     def getNewWindow(cls, targetImage=None, size=500, layer=None, parent=None, mainForm=None):
         wdgt = temperatureForm(targetImage=targetImage, size=size, layer=layer, parent=parent, mainForm=mainForm)
         wdgt.setWindowTitle(layer.name)
-        """
-        pushButton = QPushButton('apply', parent=wdgt)
-        hLay = QHBoxLayout()
-        wdgt.setLayout(hLay)
-        hLay.addWidget(pushButton)
-        pushButton.clicked.connect(lambda: wdgt.execute())
-        """
         return wdgt
 
     def __init__(self, targetImage=None, size=500, layer=None, parent=None, mainForm=None):
         super(temperatureForm, self).__init__(parent=parent)
         self.targetImage = targetImage
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        self.setMinimumSize(size+100, size)  # default width 200 doesn't fit the length of option names
+        self.setMinimumSize(size, size)
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.img = targetImage
         self.layer = layer
@@ -421,8 +399,9 @@ class temperatureForm (QGraphicsView):
         hl.addWidget(self.tempValue)
         hl.addWidget(self.sliderTemp)
         l.addLayout(hl)
-        l.setContentsMargins(20, 0, 20, 25)  # left, top, right, bottom
-
+        l.addStretch(1)
+        #l.setContentsMargins(20, 0, 20, 25)  # left, top, right, bottom
+        l.setContentsMargins(10, 10, 10, 10)  # left, top, right, bottom
         self.setLayout(l)
         self.adjustSize()
 

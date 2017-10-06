@@ -28,7 +28,7 @@ from PySide2.QtWidgets import QApplication, QMessageBox
 from PySide2.QtGui import QPixmap, QImage, QColor, QPainter
 from PySide2.QtCore import QRect
 
-from colorTemperature import sRGB2LabVec, sRGBWP, Lab2sRGBVec
+from colorTemperature import sRGB2LabVec, sRGBWP, Lab2sRGBVec, sRGB2XYZ, sRGB2XYZInverse
 from grabcut import segmentForm
 from graphicsFilter import filterIndex
 from icc import convertQImage
@@ -173,6 +173,13 @@ class vImage(QImage):
             return
         self.thumb = self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio)
 
+    def getThumb(self):
+        if not self.cachesEnabled:
+            return self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio)
+        if self.thumb is None:
+            self.initThumb()
+        return self.thumb
+
     def initHald(self):
         if not self.cachesEnabled:
             return
@@ -272,7 +279,7 @@ class vImage(QImage):
         @param maskOnly: default False
         @type maskOnly: boolean
         """
-        currentImage = vImage.getCurrentImage(self)
+        currentImage = self.getCurrentImage() #vImage.getCurrentImage(self)   modified 03/10/17
         if not maskOnly:
             # invalidate color managed cache
             self.cmImage = None
@@ -570,16 +577,18 @@ class vImage(QImage):
         lut = LUT3D.HaldImage2LUT3D(hald)
         self.apply3DLUT(lut.LUT3DArray, options={'use selection' : False}, pool=pool)
 
-    def histogram(self, size=200, bgColor=Qt.white, range =(0,255), chans=channelValues.RGB, chanColors=Qt.gray, mode='RGB'):
+    def histogram(self, size=QSize(200, 200), bgColor=Qt.white, range =(0,255), chans=channelValues.RGB, chanColors=Qt.gray, mode='RGB'):
         """
         Plots the histogram of the image for the
         specified color mode and channels.
         @param size: size of the histogram plot
-        @type size: int
+        @type size: int or QSize
         @param bgColor: background color
         @type bgColor: QColor
         @param range: plot data range
         @type range: 2-uple of int or float
+        @param chans: channels to plot b=0, G=1, R=2
+        @type chans: list of indices
         @param chanColors: color or 3-uple of colors
         @type chanColors: QColor or 3-uple of QColor 
         @param mode: color mode ((one of 'RGB', 'HSpB', 'Lab')
@@ -587,20 +596,23 @@ class vImage(QImage):
         @return: histogram plot
         @rtype: QImage
         """
+        if type(size) is int:
+            size = QSize(size, size)
         # scaling factor for the bin edges
         spread = float(range[1] - range[0])
-        scale = size / spread
+        scale = size.width() / spread
 
         def drawChannelHistogram(qp, channel):
             """
             Computes and draws the (smoothed) histogram of the image for a single channel.
+            @ param qp: QPainter
             @param channel: channel index (BGRA (intel) or ARGB )
             """
             buf0 = buf[:,:, channel]
             # bins='auto' sometimes causes huge number of bins ( >= 10**9) and memory error
             # even for small data size (<=250000), so we don't use it.
-            # This is a numpy bug : in module function_base.py, to avoid memory error,
-            # a reasonable upper bound for bins should be fixed at line 532.
+            # This is a numpy bug : in module function_base.py, to prevent memory error,
+            # a reasonable upper bound for bins should be chosen.
             # hist, bin_edges = np.histogram(buf0, bins='auto', density=True)
             hist, bin_edges = np.histogram(buf0, bins=100, density=True)
             # smooth hist
@@ -617,13 +629,17 @@ class vImage(QImage):
             if type(chanColors) is QColor or type(chanColors) is Qt.GlobalColor:
                 color = chanColors
             else:
-                color = chanColors[channel] # Qt.red if channel == 0 else Qt.green if channel == 1 else Qt.blue
+                color = chanColors[channel]
             qp.setPen(color)
-            M = max(hist) #+ size / 4.0
+            M = max(hist)
+            imgH = size.height()
             for i, y in enumerate(hist):
-                #h = int(y*20*255)
-                h = int(size * y / M)
-                qp.drawRect(int((bin_edges[i]-range[0])*scale), max(img.height()-h,0), int((bin_edges[i+1]-bin_edges[i])*scale), h)
+                h = int(imgH * y / M)
+                rect = QRect(int((bin_edges[i] - range[0]) * scale), max(img.height() - h, 0), int((bin_edges[i + 1] - bin_edges[i]) * scale), h)
+                qp.drawRect(rect)
+                qp.fillRect(rect, color)
+                #qp.drawRect(int((bin_edges[i] - range[0]) * scale), max(img.height() - h, 0), int((bin_edges[i + 1] - bin_edges[i]) * scale), h)
+                #qp.fillRect(int((bin_edges[i]-range[0])*scale), max(img.height()-h,0), int((bin_edges[i+1]-bin_edges[i])*scale), h, color)
 
         if mode == 'RGB':
             buf = QImageBuffer(self)[:,:,:3][:,:,::-1]  #RGB
@@ -631,7 +647,12 @@ class vImage(QImage):
             buf = self.getHspbBuffer()
         elif mode == 'Lab':
             buf = self.getLabBuffer()
-        img = QImage(size, size, QImage.Format_ARGB32)
+        elif mode =='Luminosity':
+            # convert to gray levels and add 3rd axis
+            # for compatibility with other modes.
+            buf = cv2.cvtColor(QImageBuffer(self)[:,:,:3], cv2.COLOR_BGR2GRAY)[...,np.newaxis] # returns Y (YCrCb) : Y = 0.299*R + 0.587*G+0.114*B
+            chans = [0]
+        img = QImage(size.width(), size.height(), QImage.Format_ARGB32)
         img.fill(bgColor)
         qp = QPainter(img)
         for ch in chans:
@@ -707,7 +728,8 @@ class vImage(QImage):
             qp.setCompositionMode(QPainter.CompositionMode_Multiply)
             qp.drawImage(0, 0, inputImage)
             qp.end()
-            resImg = blendLuminosity(filter, inputImage)
+            # using perceptual brightness gives better results, unsfortunately slower
+            resImg = blendLuminosity(filter, inputImage, usePerceptual=False)
             bufOutRGB = QImageBuffer(resImg)[:,:,:3][:,:,::-1]
         else:
             #chromatic adaptation
@@ -722,13 +744,21 @@ class vImage(QImage):
             M = conversionMatrix(temperature, sRGBWP)  # input image is sRGB ref temperature D65
             buf = QImageBuffer(inputImage)[:, :, :3]
             # Unfortunately, opencv cvtColor does NOT perform gamma conversion
-            # for RGB<-->XYZ cf. http://docs.opencv.org/trunk/de/d25/imgproc_color_conversions.html#color_convert_rgb_xyz
-            # This yields incorrect results. As a workaround, we first convert to rgbLinear.
+            # for RGB<-->XYZ cf. http://docs.opencv.org/trunk/de/d25/imgproc_color_conversions.html#color_convert_rgb_xyz.
+            # Moreover, RGB-->XYZ and XYZ-->RGB matrices are not inverse transformations!
+            # This yields incorrect results.
+            #  As a workaround, we first convert to rgbLinear,
+            # and use the sRGB2XYZ and sRGB2XYZInverse matrices from
+            # http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
             bufLinear = (rgb2rgbLinearVec(buf[:,:,::-1])*255).astype(np.uint8)
-            bufXYZ = cv2.cvtColor(bufLinear, cv2.COLOR_RGB2XYZ)
+            # convert to XYZ
+            #bufXYZ = cv2.cvtColor(bufLinear, cv2.COLOR_RGB2XYZ)
+            bufXYZ = np.tensordot( bufLinear, sRGB2XYZ, axes=(-1,-1))
             # apply conversion matrix
             bufXYZ = np.tensordot(bufXYZ, M, axes=(-1, -1))
-            bufOutRGBLinear = cv2.cvtColor(bufXYZ.astype(np.float32), cv2.COLOR_XYZ2RGB)
+            # convert back to sRGBLinear
+            #bufOutRGBLinear = cv2.cvtColor(bufXYZ.astype(np.float32), cv2.COLOR_XYZ2RGB)
+            bufOutRGBLinear = np.tensordot(bufXYZ, sRGB2XYZInverse, axes=(-1,-1))
             bufOutRGB = rgbLinear2rgbVec(bufOutRGBLinear.astype(np.float)/255.0)
             bufOutRGB = (bufOutRGB.clip(0, 255)).astype(np.uint8)
         # set output image
@@ -801,8 +831,8 @@ class mImage(vImage):
 
     def initThumb(self):
         vImage.initThumb(self)
-        for layer in self.layersStack:
-                vImage.initThumb(layer)
+        #for layer in self.layersStack:   03/10/17 prevent wrong reinit of the thumb stack when shifting from and to non color managed view in preview mode
+            #vImage.initThumb(layer)
 
     def setThumbMode(self, value):
         if value == self.useThumb:
@@ -817,7 +847,7 @@ class mImage(vImage):
         """
         vImage.updatePixmap(self)
         for layer in self.layersStack:
-                vImage.updatePixmap(layer)
+            vImage.updatePixmap(layer)
 
 
     def addLayer(self, layer, name='', index=None):
@@ -917,7 +947,8 @@ class mImage(vImage):
 
     def mergeVisibleLayers(self):
         """
-        Merges visible layers in an image
+        Merges the current images of visible layers and returns the
+        resulting QImage.
         @return: image
         @rtype: QImage
         """
@@ -930,7 +961,7 @@ class mImage(vImage):
                 qp.setOpacity(layer.opacity)
                 qp.setCompositionMode(layer.compositionMode)
                 #qp.drawImage(0, 0, layer)
-                qp.drawImage(QRect(0, 0, self.width(), self.height()), layer)
+                qp.drawImage(QRect(0, 0, self.width(), self.height()), layer.getCurrentImage())  # 05/10/17 added getCurrentImage to select the right stack
         qp.end()
         return img
 
@@ -1136,13 +1167,6 @@ class QLayer(vImage):
         self.thumb = self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio)
         self.thumb.parentImage = self.parentImage
 
-    def getThumb(self):
-        if not self.cachesEnabled:
-            return self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio)
-        if self.thumb is None:
-            self.initThumb()
-        return self.thumb
-
     def initHald(self):
         if not self.cachesEnabled:
             return
@@ -1330,7 +1354,8 @@ class QLayer(vImage):
             QApplication.setOverrideCursor(Qt.WaitCursor)
             QApplication.processEvents()
             if (not self.parentImage.useThumb or self.parentImage.useHald):
-                pool = multiprocessing.Pool(MULTIPROC_POOLSIZE)  # TODO time opt : pool is always created and used only by LUT3D; time 0.3s
+                pool=None
+                #pool = multiprocessing.Pool(MULTIPROC_POOLSIZE)  # TODO time opt : pool is always created and used only by LUT3D; time 0.3s
             else:
                 pool = None
             applyToStack_(self, pool=pool)

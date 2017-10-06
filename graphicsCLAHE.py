@@ -113,7 +113,7 @@ class CLAHEForm (QGraphicsView):
         hl.addWidget(self.sliderTemp)
         l.addLayout(hl)
         l.setContentsMargins(20, 0, 20, 25)  # left, top, right, bottom
-
+        l.addStretch(1)
         self.setLayout(l)
         self.adjustSize()
 

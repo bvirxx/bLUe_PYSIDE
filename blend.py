@@ -25,10 +25,12 @@ from imgconvert import QImageBuffer
 def blendLuminosity(dest, source, usePerceptual=False):
     """
     Implements blending with luminosity mode, which is missing
-    in Qt. if usePerceptual is True we use the HSpB color model
-    as intermediate color space.
+    in Qt.
     The blended image retains the hue and saturation of dest, with the
     luminosity of source.
+    if usePerceptual is True we use the HSpB color model
+    as intermediate color space. It gives better results, but,
+    unfortunately, as opencv ignores this color space, it is slower.
    
     @param dest: destination QImage
     @type dest QImage
