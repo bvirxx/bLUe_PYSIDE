@@ -458,7 +458,7 @@ scr</string>
    <property name="minimumSize">
     <size>
      <width>213</width>
-     <height>158</height>
+     <height>229</height>
     </size>
    </property>
    <property name="maximumSize">
@@ -475,10 +475,13 @@ scr</string>
    </attribute>
    <widget class="QWidget" name="dockWidgetContents">
     <layout class="QVBoxLayout" name="verticalLayout_2">
-     <item>
-      <widget class="QLabel" name="Label_Hist">
-       <property name="text">
-        <string/>
+     <item alignment="Qt::AlignTop">
+      <widget class="histForm" name="histView">
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>60</height>
+        </size>
        </property>
       </widget>
      </item>
@@ -714,6 +717,11 @@ scr</string>
    <class>QLayerView</class>
    <extends>QTableView</extends>
    <header location="global">layerView</header>
+  </customwidget>
+  <customwidget>
+   <class>histForm</class>
+   <extends>QGraphicsView</extends>
+   <header location="global">graphicsHist</header>
   </customwidget>
  </customwidgets>
  <resources>

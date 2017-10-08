@@ -18,7 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 from math import erf, factorial
 from PySide2.QtGui import  QColor, QPainterPath, QPen, QKeyEvent
-from PySide2.QtWidgets import QListWidget, QListWidgetItem, QGraphicsPathItem
+from PySide2.QtWidgets import QListWidget, QListWidgetItem, QGraphicsPathItem, QTableWidget
 from PySide2.QtCore import Qt, QPoint, QEvent, QObject, QUrl
 #from PySide2.QtWebEngine import QWebView
 
@@ -59,23 +59,12 @@ class optionsWidget(QListWidget) :
         @param item:
         @type item: QListWidgetItem
         """
-        for r in range(self.count()):
-            currentItem = self.item(r)
-            if currentItem is item:
-                if self.exclusive:
-                    currentItem.setCheckState(Qt.Checked)
-                    #currentItem.setSelected(True)
-                else:
-                    currentItem.setCheckState(not currentItem.checkState())
-                    #currentItem.setCheckState(Qt.Unchecked if currentItem.isSelected() else Qt.Checked)
-                    #currentItem.setCheckState(Qt.Unchecked if currentItem.checkState() else Qt.Checked)
-                    #currentItem.setSelected(not currentItem.isSelected())
-            elif self.exclusive:
-                currentItem.setCheckState(Qt.Unchecked)
-                #currentItem.setSelected(False)
-        if item.checkState():
-            item.setSelected(True)
-            self.onSelect(item)
+        if self.exclusive:
+            for r in range(self.count()):
+                currentItem = self.item(r)
+                if currentItem is not item:
+                    currentItem.setCheckState(Qt.Unchecked)
+        self.onSelect(item)
 
 class helpClient(QObject):
     def __init__(self, parent=None, helpId=None):

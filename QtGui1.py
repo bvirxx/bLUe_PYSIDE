@@ -23,9 +23,10 @@ from PySide2.QtCore import QSettings, QSize
 import sys
 
 from PySide2.QtWebEngineWidgets import QWebEngineView
-from PySide2.QtWidgets import QApplication, QMessageBox, QLabel, QMainWindow
+from PySide2.QtWidgets import QApplication, QMessageBox, QLabel, QMainWindow, QGraphicsView
 
 import resources_rc   # DO NOT REMOVE !!!!
+from graphicsHist import histForm
 from layerView import QLayerView
 from pyside_dynamicLoader import loadUi
 
@@ -39,7 +40,7 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
         super(Form1, self).__init__()
         #self.setupUi(self)
         # load UI
-        loadUi('bLUe.ui', baseinstance=self, customWidgets= {'QLayerView': QLayerView, 'QLabel': QLabel})
+        loadUi('bLUe.ui', baseinstance=self, customWidgets= {'QLayerView': QLayerView, 'QLabel': QLabel, 'histForm': histForm})
         #self = QtUiTools.QUiLoader().load("bLUe.ui", self)
 
         # Status window updating

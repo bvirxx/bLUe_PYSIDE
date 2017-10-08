@@ -89,7 +89,7 @@ class UiLoader(QUiLoader):
                 # relevant class_name in the dictionary, or TypeError, if
                 # customWidgets is None
                 try:
-                    widget = self.customWidgets[class_name](parent)
+                    widget = self.customWidgets[class_name](parent=parent)  # TODO fix : added parent= for coherence 08/10/17
                 except (TypeError, KeyError) as e:
                     raise Exception('No custom widget ' + class_name + ' found in customWidgets param of UiLoader __init__.')
             if self.baseinstance:

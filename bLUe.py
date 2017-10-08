@@ -60,7 +60,7 @@ from LUT3D import LUTSIZE, LUT3D, LUT3DIdentity
 from colorModels import cmHSP, cmHSB
 import icc
 
-from colorTemperature import temperatureForm
+from graphicsTemp import temperatureForm
 from time import sleep
 
 from re import search
@@ -521,14 +521,23 @@ def setDocumentImage(img):
     """
     window.label.img = img
     window.label.img.onModify = lambda : updateEnabledActions()
-
+    window.histView.targetImage = window.label.img
     def f():
         window.label.update()
         window.label_3.update()
-        histImg = vImage(QImg=window.label.img.mergeVisibleLayers())
-        histView = histImg.histogram(QSize(200, 80), chans=range(3), bgColor=Qt.lightGray, chanColors=window.Label_Hist.chanColors, mode=window.Label_Hist.mode)
-        window.Label_Hist.setPixmap(QPixmap.fromImage(histView))
-        window.Label_Hist.update()
+        if window.histView.listWidget1.items['Original Image'].checkState() is Qt.Checked:
+            histImg = vImage(QImg=window.label.img)
+        else:
+            histImg = vImage(QImg=window.label.img.mergeVisibleLayers())
+        if window.histView.listWidget2.items['Color Chans'].checkState() is Qt.Checked:
+            window.histView.mode = 'RGB'
+            window.histView.chanColors = [Qt.red, Qt.green, Qt.blue]
+        else:
+            window.histView.mode = 'Luminosity'
+            window.histView.chanColors = [Qt.gray]
+        histView = histImg.histogram(QSize(window.histView.width(), window.histView.height()-20), chans=range(3), bgColor=Qt.lightGray, chanColors=window.histView.chanColors, mode=window.histView.mode)
+        window.histView.Label_Hist.setPixmap(QPixmap.fromImage(histView))
+        window.histView.Label_Hist.update()
 
     window.label.img.onImageChanged = f
     # before image
@@ -1310,8 +1319,8 @@ if __name__ =='__main__':
     # Before/After views flag
     window.splittedView = False
 
-    window.Label_Hist.mode = 'Luminosity'
-    window.Label_Hist.chanColors = Qt.gray #[Qt.red, Qt.green,Qt.blue]
+    window.histView.mode = 'Luminosity'
+    window.histView.chanColors = Qt.gray #[Qt.red, Qt.green,Qt.blue]
 
     # splash screen
     pixmap = QPixmap('logo.png')

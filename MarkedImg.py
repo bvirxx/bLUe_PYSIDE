@@ -28,7 +28,7 @@ from PySide2.QtWidgets import QApplication, QMessageBox
 from PySide2.QtGui import QPixmap, QImage, QColor, QPainter
 from PySide2.QtCore import QRect
 
-from colorTemperature import sRGB2LabVec, sRGBWP, Lab2sRGBVec, sRGB2XYZ, sRGB2XYZInverse
+from graphicsTemp import sRGB2LabVec, sRGBWP, Lab2sRGBVec, sRGB2XYZ, sRGB2XYZInverse
 from grabcut import segmentForm
 from graphicsFilter import filterIndex
 from icc import convertQImage
@@ -37,7 +37,7 @@ from imgconvert import *
 from LUT3D import interpVec, rgb2hspVec, hsp2rgbVec, LUT3DIdentity, LUT3D, interpVec_
 from time import time
 from utils import savitzky_golay, channelValues
-
+import graphicsHist
 # pool is created in QLayer.applyToStack()
 MULTIPROC_POOLSIZE = 4
 
@@ -414,7 +414,7 @@ class vImage(QImage):
         @param stackedLUT: array of color values (in range 0..255). Shape must be (3, 255) : a line for each channel
         @param options: not used yet
         """
-        from colorTemperature import sRGB2LabVec, Lab2sRGBVec, rgb2rgbLinearVec, rgbLinear2rgbVec
+        from graphicsTemp import sRGB2LabVec, Lab2sRGBVec, rgb2rgbLinearVec, rgbLinear2rgbVec
         # Lab mode
         ndLabImg0 = self.getLabBuffer()
 
@@ -602,7 +602,7 @@ class vImage(QImage):
         spread = float(range[1] - range[0])
         scale = size.width() / spread
 
-        def drawChannelHistogram(qp, channel):
+        def drawChannelHistogram(qp, channel, buf, color):
             """
             Computes and draws the (smoothed) histogram of the image for a single channel.
             @ param qp: QPainter
@@ -626,10 +626,7 @@ class vImage(QImage):
                 bin_lastVals = bin_edges[-1] + np.arange(p-1)
                 bin_edges = np.concatenate((bin_firstVals, bin_edges, bin_lastVals))
             # draw hist
-            if type(chanColors) is QColor or type(chanColors) is Qt.GlobalColor:
-                color = chanColors
-            else:
-                color = chanColors[channel]
+
             qp.setPen(color)
             M = max(hist)
             imgH = size.height()
@@ -643,6 +640,7 @@ class vImage(QImage):
 
         if mode == 'RGB':
             buf = QImageBuffer(self)[:,:,:3][:,:,::-1]  #RGB
+            bufL = cv2.cvtColor(QImageBuffer(self)[:,:,:3], cv2.COLOR_BGR2GRAY)[...,np.newaxis] # returns Y (YCrCb) : Y = 0.299*R + 0.587*G+0.114*B
         elif mode == 'HSpB':
             buf = self.getHspbBuffer()
         elif mode == 'Lab':
@@ -650,13 +648,17 @@ class vImage(QImage):
         elif mode =='Luminosity':
             # convert to gray levels and add 3rd axis
             # for compatibility with other modes.
-            buf = cv2.cvtColor(QImageBuffer(self)[:,:,:3], cv2.COLOR_BGR2GRAY)[...,np.newaxis] # returns Y (YCrCb) : Y = 0.299*R + 0.587*G+0.114*B
-            chans = [0]
+            bufL = cv2.cvtColor(QImageBuffer(self)[:,:,:3], cv2.COLOR_BGR2GRAY)[...,np.newaxis] # returns Y (YCrCb) : Y = 0.299*R + 0.587*G+0.114*B
+            chans = []
         img = QImage(size.width(), size.height(), QImage.Format_ARGB32)
         img.fill(bgColor)
         qp = QPainter(img)
+        qp.setOpacity(0.6)
+        if type(chanColors) is QColor or type(chanColors) is Qt.GlobalColor:
+            chanColors = [chanColors]*3
         for ch in chans:
-            drawChannelHistogram(qp, ch)
+            drawChannelHistogram(qp, ch, buf, chanColors[ch])
+        drawChannelHistogram(qp, 0, bufL, Qt.darkGray)
         qp.end()
         buf = QImageBuffer(img)
         return img
@@ -714,7 +716,7 @@ class vImage(QImage):
         @return:
         """
         from blend import blendLuminosity
-        from colorTemperature import bbTemperature2RGB, conversionMatrix, rgb2rgbLinearVec, rgbLinear2rgbVec
+        from graphicsTemp import bbTemperature2RGB, conversionMatrix, rgb2rgbLinearVec, rgbLinear2rgbVec
         inputImage = self.inputImg()
         currentImage = self.getCurrentImage()
         if not options['use Chromatic Adaptation']:

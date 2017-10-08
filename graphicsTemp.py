@@ -366,13 +366,16 @@ class temperatureForm (QGraphicsView):
             pass
 
         # options
-        self.options = {'use Chromatic Adaptation': True}
         options = ['use Photo Filter', 'use Chromatic Adaptation']
         self.listWidget1 = optionsWidget(options=options, exclusive=True)
-        self.listWidget1.select(self.listWidget1.items['use Chromatic Adaptation'])
+        #self.listWidget1.select(self.listWidget1.items['use Chromatic Adaptation'])
+        self.listWidget1.items[options[1]].setCheckState(Qt.Checked)
         self.listWidget1.setMaximumSize(self.listWidget1.sizeHintForColumn(0) + 5, self.listWidget1.sizeHintForRow(0) * len(options) + 5)
+
+        # self.options is for convenience only
+        self.options = {option : True for option in options}
         def onSelect1(item):
-            self.options['use Chromatic Adaptation'] = item is self.listWidget1.items['use Chromatic Adaptation']
+            self.options[options[1]] = item is self.listWidget1.items[options[1]]
             f()
         self.listWidget1.onSelect = onSelect1
         l.addWidget(self.listWidget1)
