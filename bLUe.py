@@ -23,6 +23,7 @@ from PySide2.QtQml import QQmlApplicationEngine
 from PySide2.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 
 from graphicsCLAHE import CLAHEForm
+from graphicsExp import ExpForm
 from utils import channelValues
 
 """
@@ -998,6 +999,21 @@ def menuLayer(x, name):
         grWindow.onUpdateContrast = h
         # wrapper for the right apply method
         l.execute = lambda pool=None: l.applyCLAHE(l.clipLimit, grWindow.options)
+    elif name == 'actionExposure_Correction':
+        lname = 'Exposure'
+        l = window.label.img.addAdjustmentLayer(name=lname)
+        l.clipLimit = ExpForm.defaultExpCorrection
+        grWindow = ExpForm.getNewWindow(size=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
+        # clipLimit change event handler
+        def h(clipLimit):
+            l.clipLimit = clipLimit
+            l.applyToStack()
+            #updateDocView()
+            window.label.img.onImageChanged()
+            #window.label.repaint()
+        grWindow.onUpdateExposure = h
+        # wrapper for the right apply method
+        l.execute = lambda pool=None: l.applyExposure(l.clipLimit, grWindow.options)
     elif name == 'actionFilter':
         lname = 'Filter'
         l = window.label.img.addAdjustmentLayer(name=lname)

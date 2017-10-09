@@ -1,54 +1,14 @@
-"""
-This File is part of bLUe software.
-
-Copyright (C) 2017  Bernard Virot <bernard.virot@libertysurf.fr>
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as
-published by the Free Software Foundation, version 3.
-
-This program is distributed in the hope that it will be useful, but
-WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-Lesser General Lesser Public License for more details.
-
-You should have received a copy of the GNU Lesser General Public License
-along with this program. If not, see <http://www.gnu.org/licenses/>.
-"""
-from time import time
-
-import cv2
-import numpy as np
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
-from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout
+from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout, QGraphicsView
 
-from graphicsTemp import Lab2sRGBVec
-from imgconvert import QImageBuffer
 
-# Contrast Limited Adaptive Histogram Equalization.
-from utils import optionsWidget
-
-"""
-def Clahe(imgLBuf):
-    #UNUSED
-    start = time()
-    clahe = cv2.createCLAHE(clipLimit=4.0, tileGridSize=(8, 8))
-    clahe.setClipLimit(0.8)
-    res = clahe.apply((imgLBuf[:,:,0]*255.0).astype(np.uint8))
-    imgLBuf[:,:,0] = res.astype(np.float) / 255
-    return imgLBuf
-    ndsRGBImg1 = Lab2sRGBVec(imgLBuf)
-    # clipping is mandatory here : numpy bug ?
-    ndsRGBImg1 = np.clip(ndsRGBImg1, 0, 255)
-    print("clahe %.2f" % (time() - start))
-    return ndsRGBImg
-"""
-class CLAHEForm (QGraphicsView):
-    defaultClipLimit = 0.25
+class ExpForm (QGraphicsView):
+    defaultExpCorrection = 0.0
+    DefaultStep = 0.1
     @classmethod
     def getNewWindow(cls, targetImage=None, size=500, layer=None, parent=None, mainForm=None):
-        wdgt = CLAHEForm(targetImage=targetImage, size=size, layer=layer, parent=parent, mainForm=mainForm)
+        wdgt = ExpForm(targetImage=targetImage, size=size, layer=layer, parent=parent, mainForm=mainForm)
         wdgt.setWindowTitle(layer.name)
         """
         pushButton = QPushButton('apply', parent=wdgt)
@@ -60,7 +20,7 @@ class CLAHEForm (QGraphicsView):
         return wdgt
 
     def __init__(self, targetImage=None, size=500, layer=None, parent=None, mainForm=None):
-        super(CLAHEForm, self).__init__(parent=parent)
+        super(ExpForm, self).__init__(parent=parent)
         self.targetImage = targetImage
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(size+100, size)  # default width 200 doesn't fit the length of option names
@@ -77,28 +37,16 @@ class CLAHEForm (QGraphicsView):
 
         # options
         self.options = None
-        """
-        self.options = {'use Chromatic Adaptation': True}
-        options = ['use Photo Filter', 'use Chromatic Adaptation']
-        self.listWidget1 = optionsWidget(options=options, exclusive=True)
-        self.listWidget1.select(self.listWidget1.items['use Chromatic Adaptation'])
-        self.listWidget1.setMaximumSize(self.listWidget1.sizeHintForColumn(0) + 5, self.listWidget1.sizeHintForRow(0) * len(options) + 5)
-        def onSelect1(item):
-            self.options['use Chromatic Adaptation'] = item is self.listWidget1.items['use Chromatic Adaptation']
-            f()
-        self.listWidget1.onSelect = onSelect1
-        l.addWidget(self.listWidget1)
-        """
 
         # clipLimit slider
         self.sliderClip = QSlider(Qt.Horizontal)
         self.sliderClip.setTickPosition(QSlider.TicksBelow)
-        self.sliderClip.setRange(1, 50)
+        self.sliderClip.setRange(-10, 10)
         self.sliderClip.setSingleStep(1)
 
         tempLabel = QLabel()
         tempLabel.setMaximumSize(150, 30)
-        tempLabel.setText("Clip Limit")
+        tempLabel.setText("Exposure Correction")
         l.addWidget(tempLabel)
         hl = QHBoxLayout()
         self.tempValue = QLabel()
@@ -120,20 +68,20 @@ class CLAHEForm (QGraphicsView):
         # temp done event handler
         def f():
             self.sliderClip.setEnabled(False)
-            self.tempValue.setText(str("{:d}".format(self.sliderClip.value())))
-            self.onUpdateContrast(self.sliderClip.value() / 20.0)
+            self.tempValue.setText(str("{:+.1f}".format(self.sliderClip.value()*self.DefaultStep)))
+            self.onUpdateExposure(self.sliderClip.value() * self.DefaultStep)
             self.sliderClip.setEnabled(True)
 
         # temp value changed event handler
         def g():
-            self.tempValue.setText(str("{:d}".format(self.sliderClip.value())))
+            self.tempValue.setText(str("{:+.1f}".format(self.sliderClip.value()*self.DefaultStep)))
             #self.previewWindow.setPixmap()
 
         self.sliderClip.valueChanged.connect(g)
         self.sliderClip.sliderReleased.connect(f)
 
-        self.sliderClip.setValue(self.defaultClipLimit * 20)
-        self.tempValue.setText(str("{:d}".format(int(self.defaultClipLimit * 20))))
+        self.sliderClip.setValue(self.defaultExpCorrection / self.DefaultStep)
+        self.tempValue.setText(str("{:+.1f}".format(self.defaultExpCorrection )))
 
         def writeToStream(self, outStream):
             layer = self.layer

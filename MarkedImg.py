@@ -28,7 +28,8 @@ from PySide2.QtWidgets import QApplication, QMessageBox
 from PySide2.QtGui import QPixmap, QImage, QColor, QPainter
 from PySide2.QtCore import QRect
 
-from graphicsTemp import sRGB2LabVec, sRGBWP, Lab2sRGBVec, sRGB2XYZ, sRGB2XYZInverse
+from graphicsTemp import sRGB2LabVec, sRGBWP, Lab2sRGBVec, sRGB2XYZ, sRGB2XYZInverse, rgb2rgbLinearVec, rgbLinear2rgb, \
+    rgbLinear2rgbVec
 from grabcut import segmentForm
 from graphicsFilter import filterIndex
 from icc import convertQImage
@@ -362,6 +363,23 @@ class vImage(QImage):
             rszd.mask = self.mask.scaled(w, h)
         self.setModified(True)
         return rszd
+
+    def applyExposure(self, clipLimit, options):
+
+        buf = QImageBuffer(self.inputImg())[:,:,:3][:,:,::-1]
+
+        buf = rgb2rgbLinearVec(buf)
+
+        buf[:,:,:] = buf * (2**(clipLimit))
+
+        buf = rgbLinear2rgbVec(buf)
+
+        buf = np.clip(buf, 0.0, 255.0)
+        currentImage = self.getCurrentImage()
+        ndImg1a = QImageBuffer(currentImage)
+        ndImg1a[:, :, :3][:, :, ::-1] = buf
+        self.updatePixmap()
+
 
     def applyCLAHE(self, clipLimit, options):
 
@@ -1476,6 +1494,12 @@ class QLayer(vImage):
         return -1
 
     def merge_with_layer_immediately_below(self):
+        """
+        Merges a layer with the next lower visible layer. Does nothing
+        if mode is preview or the target layer is an adjustment layer.
+        @return:
+        @rtype:
+        """
         if not hasattr(self, 'inputImg'):
             return
         ind = self.getLowerVisibleStackIndex()
@@ -1484,14 +1508,22 @@ class QLayer(vImage):
             return
         target = self.parentImage.layersStack[ind]
         if hasattr(target, 'inputImg') or self.parentImage.useThumb:
-            # target is also an adjustment layer preview mode
+            msgBox = QMessageBox()
+            msgBox.setText("Cannot Merge layers")
+            msgBox.setInformativeText("Uncheck Preview first" if self.parentImage.useThumb else "Target layer must be background or image" )
+            msgBox.exec()
             return
-
         #update stack
         self.parentImage.layersStack[0].applyToStack()
-        target.setImage(self)
-        #self.parentImage.activeLayerIndex = ind - 1
-        self.parentImage.layerView.clear()
+        # merge
+        #target.setImage(self)
+        qp = QPainter(target)
+        qp.setCompositionMode(self.compositionMode)
+        qp.setOpacity(self.opacity)
+        qp.drawImage(QRect(0,0,self.width(), self.height()), self)
+        target.updatePixmap()
+
+        self.parentImage.layerView.clear(delete=False)
         currentIndex = self.getStackIndex()
         self.parentImage.activeLayerIndex = ind
         self.parentImage.layersStack.pop(currentIndex)
@@ -1499,8 +1531,8 @@ class QLayer(vImage):
 
     def setImage(self, qimg):
         """
-        replace layer image with a copy of qimg buffer.
-        The layer and qimg must have identical dimensions and type.
+        replace the layer image with a copy of qimg.
+        The layer and qimg must have identical dimension and type.
         @param qimg: QImage object
         """
         buf1, buf2 = QImageBuffer(self), QImageBuffer(qimg)

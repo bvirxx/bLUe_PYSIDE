@@ -285,12 +285,12 @@ class QLayerView(QTableView) :
         if delete:
             self.currentWin = None
 
-    def clear(self):
+    def clear(self, delete=True):
         """
         Clears data
         @return: 
         """
-        self.closeAdjustForms(delete=True)
+        self.closeAdjustForms(delete=delete) #TODO modified 8/10/17 for merge_with_layer_immediatly_below
         self.img = None
         model = layerModel()
         model.setColumnCount(3)

@@ -424,6 +424,7 @@ scr</string>
      </property>
      <addaction name="actionColor_Temperature"/>
      <addaction name="actionContrast_Correction"/>
+     <addaction name="actionExposure_Correction"/>
      <addaction name="separator"/>
      <addaction name="actionBrightness_Contrast"/>
      <addaction name="actionCurves_HSpB"/>
@@ -709,6 +710,11 @@ scr</string>
   <action name="actionContrast_Correction">
    <property name="text">
     <string>Contrast Correction</string>
+   </property>
+  </action>
+  <action name="actionExposure_Correction">
+   <property name="text">
+    <string>Exposure Correction</string>
    </property>
   </action>
  </widget>
