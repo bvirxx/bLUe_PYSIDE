@@ -41,7 +41,7 @@ class ExpForm (QGraphicsView):
         # clipLimit slider
         self.sliderClip = QSlider(Qt.Horizontal)
         self.sliderClip.setTickPosition(QSlider.TicksBelow)
-        self.sliderClip.setRange(-10, 10)
+        self.sliderClip.setRange(-20, 20)
         self.sliderClip.setSingleStep(1)
 
         tempLabel = QLabel()

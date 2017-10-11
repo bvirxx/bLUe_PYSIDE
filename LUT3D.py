@@ -352,10 +352,16 @@ def rgb2hsBVec(rgbImg, perceptual=False):
     @return: identical shape array of hue,sat,brightness values (0<=h<=360, 0<=s<=1, 0<=v<=1)
     @rtype: (n,m,3) array, dtype=float
     """
-    if not perceptual:
-        buf = cv2.cvtColor(rgbImg.astype(np.uint8), cv2.COLOR_RGB2HSV)
-        buf = buf.astype(np.float) * [2, 1.0/255.0, 1.0/255.0]  # scale to 0..360, 0..1, 0..1
-        return buf
+    buf = cv2.cvtColor(rgbImg.astype(np.uint8), cv2.COLOR_RGB2HSV)
+    buf = buf.astype(np.float) * [2, 1.0 / 255.0, 1.0 / 255.0]  # scale to 0..360, 0..1, 0..1
+    if perceptual:
+        rgbImg2 = rgbImg.astype(float) * rgbImg
+        pB = np.tensordot(rgbImg2, [Perc_R, Perc_G, Perc_B] , axes=(-1,-1)) / (255.0*255)
+        pB = np.sqrt(pB)
+        buf[:,:,2] = pB
+    return buf
+
+
 
     r, g, b = rgbImg[:, :, 0].astype(float), rgbImg[:, :, 1].astype(float), rgbImg[:, :, 2].astype(float)
 
@@ -669,6 +675,116 @@ def hsp2rgbVec(hspImg):
     @param hspImg: (n,m,3) array of hsp values
     @return: identical shape array of rgb values
     """
+    h, s, p = hspImg[:, :, 0], hspImg[:, :, 1], hspImg[:, :, 2]
+
+    shape = h.shape
+
+    h = np.ravel(h)
+    s = np.ravel(s)
+    p = np.ravel(p)
+    h = h / 60.0
+    i = np.floor(h).astype(int)
+    f = h - i
+
+    old_settings = np.seterr(all='ignore')
+    Mm = 1.0 / (1.0 - s)
+    Mm2 = Mm * Mm
+    f2 = f * f
+    oneMinusf = 1 - f
+    oneMinusMm = 1.0 - Mm
+    oneMinusf2 = oneMinusf * oneMinusf
+
+    part1 = 1.0 - f * oneMinusMm
+    part1 = np.where(Mm == np.inf, f, part1)  # TODO some invalid values remain for s = 1
+    part2 = 1.0 - oneMinusf * oneMinusMm
+    part2 = np.where(Mm == np.inf, oneMinusf, part2)
+
+    part1 = part1 * part1
+    part2 = part2 * part2
+
+
+    #X1 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_R * Mm2 + Perc_G * part1 + Perc_B))   # b
+    X1 = np.where(Mm == np.inf, 0, (p*p) / (Perc_R * Mm2 + Perc_G * part1 + Perc_B))  # b
+    #Y1 = np.where(Mm==np.inf, p / np.sqrt(Perc_R+ Perc_G * f *f), X1 * Mm)              # r
+    Y1 = np.where(Mm == np.inf, (p*p) / (Perc_R + Perc_G * f2), X1 * Mm2)  # r
+    X1=None
+    #Z1 = np.where(Mm==np.inf, Y1 * f, X1 + f * (Y1 - X1))                               # g
+
+    #X2 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_G * Mm2 + Perc_R * part2 + Perc_B))   # b
+    X2 = np.where(Mm == np.inf, 0, (p*p) / (Perc_G * Mm2 + Perc_R * part2 + Perc_B))  # b
+    #Y2 = np.where(Mm==np.inf, p / np.sqrt(Perc_G + Perc_R * (1-f) * (1-f)), X2 * Mm)    # g
+    Y2 = np.where(Mm == np.inf, (p*p) / (Perc_G + Perc_R * oneMinusf2), X2 * Mm2)  # g
+    X2=None
+    #Z2 = np.where(Mm==np.inf, Y2 * (1-f), X2 + (1 - f) * (Y2 - X2))                     # r
+
+    #X3 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_G * Mm2 + Perc_B * part1 + Perc_R))   # r
+    X3 = np.where(Mm == np.inf, 0, (p*p) / (Perc_G * Mm2 + Perc_B * part1 + Perc_R))  # r
+    #Y3 = np.where(Mm==np.inf, p / np.sqrt(Perc_G + Perc_B * f * f), X3 * Mm)            # g
+    Y3 = np.where(Mm == np.inf, (p*p) / (Perc_G + Perc_B * f2), X3 * Mm2)  # g
+    X3=None
+    #Z3 = np.where(Mm==np.inf, Y3 * f, X3 + f * (Y3 - X3))                               # b
+
+    #X4 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_B * Mm2 + Perc_G * part2 + Perc_R))   # r
+    X4 = np.where(Mm == np.inf, 0, (p*p) / (Perc_B * Mm2 + Perc_G * part2 + Perc_R))  # r
+    #Y4 = np.where(Mm==np.inf, p / np.sqrt(Perc_B + Perc_G * (1-f) * (1-f)), X4 * Mm)    # b
+    Y4 = np.where(Mm == np.inf, (p*p) / (Perc_B + Perc_G * oneMinusf2), X4 * Mm2)  # b
+    X4=None
+    #Z4 = np.where(Mm==np.inf, Y4 * (1 - f), X4 + (1 - f) * (Y4 - X4))                   # g
+
+    #X5 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_B * Mm2 + Perc_R * part1 + Perc_G))   # g
+    X5 = np.where(Mm == np.inf, 0, (p*p) / (Perc_B * Mm2 + Perc_R * part1 + Perc_G))  # g
+    #Y5 = np.where(Mm==np.inf, p / np.sqrt(Perc_B + Perc_R * f * f), X5 * Mm)            # b
+    Y5 = np.where(Mm == np.inf, (p*p) / (Perc_B + Perc_R * f2), X5 * Mm2)  # b
+    X5=None
+    #Z5 = np.where(Mm==np.inf, Y5 * f, X5 + f * (Y5 - X5))                               # r
+
+    #X6 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_R * Mm2 + Perc_B * part2 + Perc_G))   # g
+    X6 = np.where(Mm == np.inf, 0, (p*p) / (Perc_R * Mm2 + Perc_B * part2 + Perc_G))  # g
+    #Y6 = np.where(Mm==np.inf, p / np.sqrt(Perc_R + Perc_B * (1-f) * (1-f)), X6 * Mm)    # r
+    Y6 = np.where(Mm == np.inf, (p*p) / (Perc_R + Perc_B * oneMinusf2), X6 * Mm2)  # r
+    X6=None
+    #Z6 = np.where(Mm==np.inf, Y6 * (1 - f), X6 + (1 - f) * (Y6 - X6))                   # b
+
+    np.seterr(**old_settings)
+    # stacked as lines
+    clistMax = np.vstack((Y1, Y2, Y3, Y4, Y5,  Y6))
+
+    orderMax = np.array([[0],[1],[2],[3],[4],[5]])
+
+    tmp = np.arange(np.prod(shape))[:, None]
+
+    rgbMax = clistMax[orderMax[i], tmp][:,0]
+    rgbMax = np.sqrt(rgbMax)
+    rgbMax=rgbMax.clip(0,1)
+    hsv = np.dstack((h*60,s,rgbMax)).reshape(shape + (3,)) * [0.5, 255, 255]
+
+    rgb1=cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
+
+    return rgb1.reshape(shape + (3,))
+
+    # advanced array indexing
+    rgb = clist[order[i], tmp]  # order[i] has shape (w*h, 3), tmp is broadcast to the same shape, thus rgb has (shape w*h, 3)
+
+    # converting invalid values to int gives indeterminate results
+    rgb[np.isnan(rgb)] = 0.0  # TODO np.inf
+
+    # for uint8 image buffer, int values > 255 are truncated to lower 8 bits
+    # rgbMask = (rgb > 1)
+    clipped = np.amax(rgb, axis=1)
+    clipped = np.dstack((clipped, clipped, clipped))
+    rgb = np.where(clipped > 1, rgb / clipped, rgb)
+    # rgb = np.clip(rgb, 0, 1.0)
+
+    rgb = (rgb * 255.0).astype(int)
+
+    return rgb.reshape(shape + (3,))
+
+def hsp2rgbVecOld(hspImg):
+    """
+    Vectorized version of hsp2rgb
+    @param hspImg: (n,m,3) array of hsp values
+    @return: identical shape array of rgb values
+    """
     # TODO optimize : time = 11,11 s   and space > 6 Go (15 Mpxl image)
     h, s, p = hspImg[:, :, 0], hspImg[:, :, 1], hspImg[:, :, 2]
 
@@ -723,10 +839,23 @@ def hsp2rgbVec(hspImg):
     # stacked as lines
     clist = np.vstack((X1, Y1, Z1, X2, Y2, Z2, X3, Y3, Z3, X4, Y4, Z4, X5, Y5, Z5, X6, Y6, Z6))
 
+    clistMax = np.vstack((Y1, Y2, Y3, Y4, Y5,  Y6))
+    orderMax = np.array([[0],[1],[2],[3],[4],[5]])
+
+
+
     # for hue slices 0,..,5, the corresponding 3-uple gives the line indices in clist for the r,g,b values
     order = np.array([[1, 2, 0], [5, 4, 3], [6, 7, 8], [9, 11, 10], [14, 12, 13], [16, 15, 17]])
 
     tmp = np.arange(np.prod(shape))[:, None]
+
+    rgbMax = clistMax[orderMax[i], tmp][:,0]
+    rgbMax=rgbMax.clip(0,1)
+    hsv = np.dstack((h*60,s,rgbMax)).reshape(shape + (3,)) * [0.5, 255, 255]
+
+    rgb1=cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
+
+    return rgb1.reshape(shape + (3,))
 
     # advanced array indexing
     rgb = clist[order[i], tmp]  # order[i] has shape (w*h, 3), tmp is broadcast to the same shape, thus rgb has (shape w*h, 3)
@@ -744,6 +873,7 @@ def hsp2rgbVec(hspImg):
     rgb = (rgb * 255.0).astype(int)
 
     return rgb.reshape(shape + (3,))
+
 
 
 """

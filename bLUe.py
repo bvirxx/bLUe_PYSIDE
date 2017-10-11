@@ -459,6 +459,12 @@ def loadImageFromFile(f):
         img.updatePixmap()
     return img
 
+def addBasicAdjustmentLayers():
+    menuLayer(None, 'actionColor_Temperature')
+    menuLayer(None, 'actionExposure_Correction')
+    menuLayer(None, 'actionContrast_Correction')
+    window.tableView.select(2, 1)
+
 def openFile(f):
     """
     @param f: file name
@@ -490,10 +496,13 @@ def openFile(f):
     # display image
     if img is not None:
         setDocumentImage(img)
-        # add basic adjustment layers
-        menuLayer(None, 'actionColor_Temperature')
-        menuLayer(None, 'actionContrast_Correction')
-        window.tableView.select(1, 1)
+        addBasicAdjustmentLayers()
+        # switch to preview mode and process stack
+        window.tableView.previewOptionBox.stateChanged.emit(Qt.Checked)
+        # updates
+        updateStatus()
+        window.label.img.onImageChanged()
+
 
 def closeFile():
     if window.label.img.isModified:
@@ -522,10 +531,12 @@ def setDocumentImage(img):
     """
     window.label.img = img
     window.label.img.onModify = lambda : updateEnabledActions()
+    # init histogram
     window.histView.targetImage = window.label.img
+    # image changed event handler
     def f():
-        window.label.update()
-        window.label_3.update()
+        window.label.repaint() #update()  faster refreshing than update()
+        window.label_3.repaint() #update()
         if window.histView.listWidget1.items['Original Image'].checkState() is Qt.Checked:
             histImg = vImage(QImg=window.label.img)
         else:
@@ -536,9 +547,10 @@ def setDocumentImage(img):
         else:
             window.histView.mode = 'Luminosity'
             window.histView.chanColors = [Qt.gray]
-        histView = histImg.histogram(QSize(window.histView.width(), window.histView.height()-20), chans=range(3), bgColor=Qt.lightGray, chanColors=window.histView.chanColors, mode=window.histView.mode)
+        histView = histImg.histogram(QSize(window.histView.width(), window.histView.height()-20), chans=range(3), bgColor=Qt.lightGray,
+                                     chanColors=window.histView.chanColors, mode=window.histView.mode, addMode='Luminosity')
         window.histView.Label_Hist.setPixmap(QPixmap.fromImage(histView))
-        window.histView.Label_Hist.update()
+        window.histView.Label_Hist.repaint()#update()
 
     window.label.img.onImageChanged = f
     # before image
@@ -556,10 +568,13 @@ def setDocumentImage(img):
     window.label.img.window = window.label
     window.label_2.img.window = window.label_2
     window.label.img.setModified(True)
+    """
+    # switch to preview mode and process stack
     window.tableView.previewOptionBox.stateChanged.emit(Qt.Checked)
     # updates
     updateStatus()
     window.label.img.onImageChanged()
+    """
 
 def updateMenuOpenRecent():
     window.menuOpen_recent.clear()

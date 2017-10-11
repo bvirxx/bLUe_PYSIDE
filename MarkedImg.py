@@ -364,13 +364,30 @@ class vImage(QImage):
         self.setModified(True)
         return rszd
 
-    def applyExposure(self, clipLimit, options):
+    def applyExposure(self, exposureCorrection, options):
+        """
+        Apply exposure correction 2**exposureCorrection
+        to linearized RGB channels.
 
+        @param exposureCorrection:
+        @type exposureCorrection: float
+        @param options:
+        @type options:
+        @return:
+        @rtype:
+        """
+        # neutral point
+        if abs(exposureCorrection) < 0.05:
+            buf0 = QImageBuffer(self.getCurrentImage())
+            buf1 = QImageBuffer(self.inputImg())
+            buf0[:, :, :] = buf1
+            self.updatePixmap()
+            return
         buf = QImageBuffer(self.inputImg())[:,:,:3][:,:,::-1]
 
         buf = rgb2rgbLinearVec(buf)
 
-        buf[:,:,:] = buf * (2**(clipLimit))
+        buf[:,:,:] = buf * (2 ** exposureCorrection)
 
         buf = rgbLinear2rgbVec(buf)
 
@@ -382,6 +399,7 @@ class vImage(QImage):
 
 
     def applyCLAHE(self, clipLimit, options):
+        #TODO define neutral point
 
         inputImage = self.inputImg()
         # get l channel
@@ -501,19 +519,26 @@ class vImage(QImage):
         @param options: not used yet
         @type options : dictionary
         """
-        t = time()
+        # neutral point
+        if not np.any((stackedLUT - np.vstack((range(0,256), range(0,256), range(0,256))))) :
+            buf1 = QImageBuffer(self.inputImg())
+            buf2=QImageBuffer(self.getCurrentImage())
+            buf2[:,:,:] = buf1
+            self.updatePixmap()
+            return
         # enter hald mode
-        self.parentImage.useHald = True
-        # get updated HSpB buffer
-        self.hspbBuffer = None
-        ndHSPBImg0 = self.getHspbBuffer()
+        #self.parentImage.useHald = True
+
+        # get updated HSpB buffer for inputImg
+        #self.hspbBuffer = None
+        ndHSPBImg0 = self.inputImg().getHspbBuffer()   # time 2s with cache disabled for 15 Mpx
         # apply LUTS to normalized channels
         ndLImg0 = (ndHSPBImg0 * [255.0/360.0, 255.0, 255.0]).astype(int)
         rList = np.array([0,1,2]) # HSB
-        ndLImg1 = stackedLUT[rList[np.newaxis,:], ndLImg0]
-        ndHSBPImg1 = np.dstack((ndLImg1[:,:,0]*360.0/255.0, ndLImg1[:,:,1]/255.0, ndLImg1[:,:,2]/255.0))
-        # back sRGB conversion
-        ndRGBImg1 = hsp2rgbVec(ndHSBPImg1)
+        ndLImg1 = stackedLUT[rList[np.newaxis,:], ndLImg0] * [360.0/255.0, 1/255.0, 1/255.0]
+        ndHSBPImg1 = ndLImg1 #np.dstack((ndLImg1[:,:,0]*360.0/255.0, ndLImg1[:,:,1]/255.0, ndLImg1[:,:,2]/255.0))
+        # back to sRGB
+        ndRGBImg1 = hsp2rgbVec(ndHSBPImg1)  # time 4s for 15 Mpx
         # clipping is mandatory here : numpy bug ?
         ndRGBImg1 = np.clip(ndRGBImg1, 0, 255)
         # set current image to modified hald image
@@ -521,15 +546,14 @@ class vImage(QImage):
         ndImg1a = QImageBuffer(currentImage)
         ndImg1 = ndImg1a[:,:,:3]
         ndImg1[:,:,::-1] = ndRGBImg1
-        # alpha propagation
-        #ndImg0 = QImageBuffer(self.InputImg())
-        #ndImg1[:, :, 3] = ndImg0[:, :, 3]
-        #print 'usehald', time() -t
-        #if self.parentImage.useThumb:
-        # apply transformation
+
+        """
+        Mode useHald is slower : Overhead 2s for 15Mpx
+        # apply transformation in mode useHald
         outputHald = self.getCurrentImage()
         self.parentImage.useHald = False
         self.applyHald(outputHald, pool=pool)
+        """
         # update
         self.updatePixmap()
 
@@ -595,7 +619,7 @@ class vImage(QImage):
         lut = LUT3D.HaldImage2LUT3D(hald)
         self.apply3DLUT(lut.LUT3DArray, options={'use selection' : False}, pool=pool)
 
-    def histogram(self, size=QSize(200, 200), bgColor=Qt.white, range =(0,255), chans=channelValues.RGB, chanColors=Qt.gray, mode='RGB'):
+    def histogram(self, size=QSize(200, 200), bgColor=Qt.white, range =(0,255), chans=channelValues.RGB, chanColors=Qt.gray, mode='RGB', addMode=''):
         """
         Plots the histogram of the image for the
         specified color mode and channels.
@@ -656,9 +680,10 @@ class vImage(QImage):
                 #qp.drawRect(int((bin_edges[i] - range[0]) * scale), max(img.height() - h, 0), int((bin_edges[i + 1] - bin_edges[i]) * scale), h)
                 #qp.fillRect(int((bin_edges[i]-range[0])*scale), max(img.height()-h,0), int((bin_edges[i+1]-bin_edges[i])*scale), h, color)
 
+        bufL = cv2.cvtColor(QImageBuffer(self)[:, :, :3], cv2.COLOR_BGR2GRAY)[..., np.newaxis]  # returns Y (YCrCb) : Y = 0.299*R + 0.587*G+0.114*B
         if mode == 'RGB':
             buf = QImageBuffer(self)[:,:,:3][:,:,::-1]  #RGB
-            bufL = cv2.cvtColor(QImageBuffer(self)[:,:,:3], cv2.COLOR_BGR2GRAY)[...,np.newaxis] # returns Y (YCrCb) : Y = 0.299*R + 0.587*G+0.114*B
+            #bufL = cv2.cvtColor(QImageBuffer(self)[:,:,:3], cv2.COLOR_BGR2GRAY)[...,np.newaxis] # returns Y (YCrCb) : Y = 0.299*R + 0.587*G+0.114*B
         elif mode == 'HSpB':
             buf = self.getHspbBuffer()
         elif mode == 'Lab':
@@ -666,7 +691,7 @@ class vImage(QImage):
         elif mode =='Luminosity':
             # convert to gray levels and add 3rd axis
             # for compatibility with other modes.
-            bufL = cv2.cvtColor(QImageBuffer(self)[:,:,:3], cv2.COLOR_BGR2GRAY)[...,np.newaxis] # returns Y (YCrCb) : Y = 0.299*R + 0.587*G+0.114*B
+            #bufL = cv2.cvtColor(QImageBuffer(self)[:,:,:3], cv2.COLOR_BGR2GRAY)[...,np.newaxis] # returns Y (YCrCb) : Y = 0.299*R + 0.587*G+0.114*B
             chans = []
         img = QImage(size.width(), size.height(), QImage.Format_ARGB32)
         img.fill(bgColor)
@@ -676,7 +701,8 @@ class vImage(QImage):
             chanColors = [chanColors]*3
         for ch in chans:
             drawChannelHistogram(qp, ch, buf, chanColors[ch])
-        drawChannelHistogram(qp, 0, bufL, Qt.darkGray)
+        if mode=='Luminosity' or addMode=='Luminosity':
+            drawChannelHistogram(qp, 0, bufL, Qt.darkGray)
         qp.end()
         buf = QImageBuffer(img)
         return img
@@ -733,6 +759,13 @@ class vImage(QImage):
         @type options : dictionary
         @return:
         """
+        # neutral point
+        if abs(temperature -6500) < 100:
+            buf0 = QImageBuffer(self.getCurrentImage())
+            buf1 = QImageBuffer(self.inputImg())
+            buf0[:, :, :] = buf1
+            self.updatePixmap()
+            return
         from blend import blendLuminosity
         from graphicsTemp import bbTemperature2RGB, conversionMatrix, rgb2rgbLinearVec, rgbLinear2rgbVec
         inputImage = self.inputImg()
@@ -1307,9 +1340,10 @@ class QLayer(vImage):
 
     def getHspbBuffer(self):
         """
-        returns the image (input)  buffer in color mode HSpB.
+        returns the image buffer in color mode HSpB.
         The buffer is calculated if needed and cached.
         @return: HSPB buffer (type ndarray)
+        """
         """
         if self.hspbBuffer is None:
             if self.parentImage.useThumb or self.parentImage.useHald:
@@ -1321,6 +1355,13 @@ class QLayer(vImage):
                     self.hspbBuffer = rgb2hspVec(QImageBuffer(self.inputImg())[:,:,:3][:,:,::-1])
                 else:
                     self.hspbBuffer = rgb2hspVec(QImageBuffer(self)[:, :, :3][:, :, ::-1])
+        return self.hspbBuffer
+        """
+        if self.hspbBuffer is None or not self.cachesEnabled:
+            #self.thumb = None
+            # Calling QImageBuffer  needs to keep a ref to self.getCurrentImage() to protect it against garbage collector.
+            img = self.getCurrentImage()
+            self.hspbBuffer = rgb2hspVec(QImageBuffer(img)[:, :, :3][:, :, ::-1])
         return self.hspbBuffer
 
     def getLabBuffer(self):

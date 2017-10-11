@@ -111,6 +111,7 @@ class graphicsHspbForm(QGraphicsView) :
             self.scene().cubicItem.reset()
             # call Curve change event handler, defined in blue.menuLayer
             self.scene().onUpdateLUT()
+
         def onResetAllCurves():
             """
             Reset all curves
@@ -120,6 +121,7 @@ class graphicsHspbForm(QGraphicsView) :
             # call Curve change event handlerdefined in blue.menuLayer
             self.scene().onUpdateLUT()
         # connected to pushButton3.clicked
+
         def updateStack():
            layer.applyToStack()
            targetImage.onImageChanged()
@@ -149,38 +151,42 @@ class graphicsHspbForm(QGraphicsView) :
         # options
         options = ['H', 'S', 'B']
         self.listWidget1 = optionsWidget(options=options, exclusive=True)
-        self.listWidget1.select(self.listWidget1.items[options[0]])
-        #self.listWidget1.setGeometry(20, 20, 10, 80)
         self.listWidget1.setGeometry(0, 10, self.listWidget1.sizeHintForColumn(0) + 5, self.listWidget1.sizeHintForRow(0) * len(options) + 5)
         self.graphicsScene.addWidget(self.listWidget1)
-        #self.listWidget1.setStyleSheet("QListWidget{background: white;} QListWidget::item{color: black;}")
+
+        # self.options is for convenience only
+        self.options = {option: True for option in options}
 
         def onSelect1(item):
             self.scene().cubicItem.setVisible(False)
-            if item.isSelected():
-                if item.text() == 'H':
-                    self.scene().cubicItem = self.graphicsScene.cubicR
-                elif item.text() == 'S':
-                    self.scene().cubicItem = self.graphicsScene.cubicG
-                elif item.text() == 'B':
-                    self.scene().cubicItem = self.graphicsScene.cubicB
+            #if item.isSelected():
+            if item.text() == 'H':
+                self.scene().cubicItem = self.graphicsScene.cubicR
+            elif item.text() == 'S':
+                self.scene().cubicItem = self.graphicsScene.cubicG
+            elif item.text() == 'B':
+                self.scene().cubicItem = self.graphicsScene.cubicB
 
-                self.scene().cubicItem.setVisible(True)
-                # no need for update, but for color mode RGB.
-                #self.scene().onUpdateLUT()
+            self.scene().cubicItem.setVisible(True)
+            # no need for update, but for color mode RGB.
+            #self.scene().onUpdateLUT()
 
-                # draw  histogram
-                self.scene().invalidate(QRectF(0.0, -self.scene().axeSize, self.scene().axeSize, self.scene().axeSize),
-                                        QGraphicsScene.BackgroundLayer)
+            # draw  histogram
+            self.scene().invalidate(QRectF(0.0, -self.scene().axeSize, self.scene().axeSize, self.scene().axeSize), QGraphicsScene.BackgroundLayer)
 
         self.listWidget1.onSelect = onSelect1
 
+        # set initial selection to Saturation
+        item = self.listWidget1.items[options[1]]
+        item.setCheckState(Qt.Checked)
+        self.listWidget1.select(item)
+    """
     def showEvent(self, e):
         self.mainForm.tableView.setEnabled(False)
 
     def hideEvent(self, e):
         self.mainForm.tableView.setEnabled(True)
-
+    """
     def drawBackground(self, qp, qrF):
         s = self.graphicsScene.axeSize
         if self.scene().cubicItem.histImg is not None:

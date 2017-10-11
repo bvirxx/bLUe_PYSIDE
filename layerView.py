@@ -83,17 +83,14 @@ class QLayerView(QTableView) :
         self.img = None
         # form to display
         self.currentWin = None
-        # context menu
-        #self.setContextMenuPolicy(Qt.CustomContextMenu)
-        # mouse click
+        # mouse click event
         self.clicked.connect(self.viewClicked)
-        #self.customContextMenuRequested.connect(self.contextMenu)
         # behavior and style for selection
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
         delegate = itemDelegate(parent=self)
         self.setItemDelegate(delegate)
         ic1 = QImage(":/images/resources/eye-icon.png")
-        ic2 = QImage(":/images/resources/eye-icon-strike.png")
+        ic2 = QImage(":/images/resources/eye-icon-strike.png")#.scaled(10,20)
         delegate.px1 = QPixmap.fromImage(ic1)
         delegate.px2 = QPixmap.fromImage(ic2)
         ic1.invertPixels()
@@ -101,7 +98,10 @@ class QLayerView(QTableView) :
         delegate.inv_px1 = QPixmap.fromImage(ic1)
         delegate.inv_px2 = QPixmap.fromImage(ic2)
         self.setIconSize(QSize(20,15))
-
+        self.verticalHeader().setMinimumSectionSize(-1)
+        self.verticalHeader().setDefaultSectionSize(self.verticalHeader().minimumSectionSize())
+        self.horizontalHeader().setMinimumSectionSize(10)
+        self.horizontalHeader().setDefaultSectionSize(10)
         """
         self.verticalHeader().setMovable(True)
         self.verticalHeader().setDragEnabled(True)
@@ -153,7 +153,7 @@ class QLayerView(QTableView) :
 
         self.previewOptionBox.stateChanged.connect(m)
 
-        # opcity slider
+        # opacity slider
         self.wdgt = QSlider(Qt.Horizontal)
         self.wdgt.setTickPosition(QSlider.TicksBelow)
         self.wdgt.setRange(0, 100)
@@ -328,10 +328,10 @@ class QLayerView(QTableView) :
                 item_visible = QStandardItem(QIcon(":/images/resources/eye-icon-strike.png"), "")
             items.append(item_visible)
             # col 1 : image icon (for non-adjustment layeronly) and name
-            if len(lay.name) <= 12:
+            if len(lay.name) <= 30:
                 name = lay.name
             else:
-                name = lay.name[:10] + '...'
+                name = lay.name[:28] + '...'
             if hasattr(lay, 'inputImg'):
                 item_name = QStandardItem(name)
             else:
