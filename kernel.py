@@ -53,7 +53,7 @@ def gaussianKernel(mu, w):
     # gaussian CDF
     points = map(lambda x : phi(x,0, sigma), points)
     #1D kernel
-    kern1d = np.diff(points)
+    kern1d = np.diff(list(points))  # python 3
     # 2D kernel
     kernel_raw = np.sqrt(np.outer(kern1d, kern1d))
     # normalize
@@ -73,7 +73,7 @@ def kernelUnsharpMask(radius, amount):
 
     w = kernel.shape[0]
 
-    kernel[w/2, w/2] += 1.0 + amount
+    kernel[w//2, w//2] += 1.0 + amount  # python 3 integer quotient
 
     return kernel
 

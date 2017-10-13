@@ -345,6 +345,15 @@ class graphicsForm(QGraphicsView) :
             self.scene().cubicItem.reset()
             self.scene().onUpdateLUT()
 
+        def onResetAllCurves():
+            """
+            Reset all curves
+            """
+            for cubicItem in [self.graphicsScene.cubicR, self.graphicsScene.cubicG, self.graphicsScene.cubicB]:
+                cubicItem.reset()
+            # call Curve change event handlerdefined in blue.menuLayer
+            self.scene().onUpdateLUT()
+
         def updateStack():
             """
             pushbutton3 clicked event handler
@@ -356,54 +365,64 @@ class graphicsForm(QGraphicsView) :
         # buttons
         pushButton1 = QPushButton("Reset Curve")
         pushButton1.setMinimumSize(1, 1)
-        pushButton1.setGeometry(100, 20, 80, 30)  # x,y,w,h
+        pushButton1.setGeometry(80, 20, 100, 30)  # x,y,w,h
         pushButton1.adjustSize()
         pushButton1.clicked.connect(onResetCurve)
         self.graphicsScene.addWidget(pushButton1)
+        pushButton2 = QPushButton("Reset All Curves")
+        # pushButton2.setObjectName("btn_reset_all")
+        pushButton2.setMinimumSize(1, 1)
+        pushButton2.setGeometry(80, 50, 100, 30)  # x,y,w,h
+        pushButton2.adjustSize()
+        pushButton2.clicked.connect(onResetAllCurves)
+        self.graphicsScene.addWidget(pushButton2)
+        """
         pushButton3 = QPushButton("Update Top Layers")
         pushButton3.setMinimumSize(1, 1)
         pushButton3.setGeometry(100, 50, 80, 30)  # x,y,w,h
         pushButton3.adjustSize()
         pushButton3.clicked.connect(updateStack)
         self.graphicsScene.addWidget(pushButton3)
+        """
 
         # options
         options = ['RGB', 'Red', 'Green', 'Blue']
         self.listWidget1 = optionsWidget(options=options, exclusive=True)
-        self.listWidget1.select(self.listWidget1.items[options[0]])
         self.listWidget1.setGeometry(0, 10, self.listWidget1.sizeHintForColumn(0)+5, self.listWidget1.sizeHintForRow(0)*len(options) + 5)
         self.graphicsScene.addWidget(self.listWidget1)
-        #self.listWidget1.setStyleSheet("QListWidget{background: white;} QListWidget::item{color: black;}")
 
         def onSelect1(item):
             self.scene().cubicItem.setVisible(False)
-            if item.isSelected():
-                if item.text() == 'RGB' :
-                    self.scene().cubicItem = self.graphicsScene.cubicRGB
-                elif item.text() == 'Red':
-                        self.scene().cubicItem = self.graphicsScene.cubicR
-                elif item.text() == 'Green':
-                        self.scene().cubicItem = self.graphicsScene.cubicG
-                elif item.text() == 'Blue':
-                        self.scene().cubicItem = self.graphicsScene.cubicB
+            #if item.isSelected():
+            if item.text() == 'RGB' :
+                self.scene().cubicItem = self.graphicsScene.cubicRGB
+            elif item.text() == 'Red':
+                    self.scene().cubicItem = self.graphicsScene.cubicR
+            elif item.text() == 'Green':
+                    self.scene().cubicItem = self.graphicsScene.cubicG
+            elif item.text() == 'Blue':
+                    self.scene().cubicItem = self.graphicsScene.cubicB
 
-                self.scene().cubicItem.setVisible(True)
-                self.scene().onUpdateLUT()
+            self.scene().cubicItem.setVisible(True)
+            #self.scene().onUpdateLUT()
 
-                # draw  histogram
-                self.scene().invalidate(QRectF(0.0, -self.scene().axeSize, self.scene().axeSize, self.scene().axeSize),
-                                        QGraphicsScene.BackgroundLayer)
+            # draw  histogram
+            self.scene().invalidate(QRectF(0.0, -self.scene().axeSize, self.scene().axeSize, self.scene().axeSize),
+                                    QGraphicsScene.BackgroundLayer)
 
         self.listWidget1.onSelect = onSelect1
 
+        # set initial selection to RGB
+        item = self.listWidget1.items[options[0]]
+        item.setCheckState(Qt.Checked)
+        self.listWidget1.select(item)
+    """
     def showEvent(self, e):
-        pass
-        #self.mainForm.tableView.setEnabled(False)
+        self.mainForm.tableView.setEnabled(False)
 
     def hideEvent(self, e):
-        pass
-        #self.mainForm.tableView.setEnabled(True)
-
+        self.mainForm.tableView.setEnabled(True)
+    """
     def drawBackground(self, qp, qrF):
         s = self.graphicsScene.axeSize
         if self.scene().cubicItem.histImg is not None:

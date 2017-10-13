@@ -538,7 +538,7 @@ def setDocumentImage(img):
         window.label.repaint() #update()  faster refreshing than update()
         window.label_3.repaint() #update()
         if window.histView.listWidget1.items['Original Image'].checkState() is Qt.Checked:
-            histImg = vImage(QImg=window.label.img)
+            histImg = vImage(QImg=window.label.img.getCurrentImage())
         else:
             histImg = vImage(QImg=window.label.img.mergeVisibleLayers())
         if window.histView.listWidget2.items['Color Chans'].checkState() is Qt.Checked:
@@ -936,8 +936,10 @@ def menuLayer(x, name):
             grWindow = graphicsLabForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         # redimensionable window
         grWindow.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
+
         # Curve change event handler
-        # Apply current LUT and repaint window
+        # called by curve mouse events
+        # Apply current LUT
         def f():
             l.applyToStack()
             #updateDocView()
@@ -1044,7 +1046,7 @@ def menuLayer(x, name):
             #window.label.repaint()
         grWindow.onUpdateFilter = h
         # wrapper for the right apply method
-        l.execute = lambda: l.applyFilter2D()
+        l.execute = lambda pool=None: l.applyFilter2D()
         # l.execute = lambda: l.applyLab1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
     elif name == 'actionSave_Layer_Stack':
         lastDir = window.settings.value('paths/dlgdir', '.')
@@ -1174,7 +1176,7 @@ def menuHelp(x, name):
     if name == "actionBlue_help":
         global helpWindow
         link = "Help.html"
-        if helpWindow is None:
+        if helpWindow is None:  # TODO refactor
             QDesktopServices.openUrl(QUrl(link))
             helpWindow='done'
     elif name == "actionAbout_bLUe":

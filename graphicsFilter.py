@@ -16,14 +16,14 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 from PySide2.QtCore import Qt
-from PySide2.QtWidgets import QWidget, QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout
+from PySide2.QtWidgets import QWidget, QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout, QGraphicsView
 from PySide2.QtGui import QFontMetrics
 
 from kernel import filterIndex, getKernel
 from utils import optionsWidget
 
 
-class filterForm (QWidget):
+class filterForm (QGraphicsView):
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         wdgt = filterForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
@@ -46,6 +46,7 @@ class filterForm (QWidget):
         self.img = targetImage
         self.layer = layer
         self.mainForm = mainForm
+        self.onUpdateFilter = lambda *args: 0
         self.layer.kernel = getKernel(filterIndex.UNSHARP)
         self.layer.kernelCategory = filterIndex.UNSHARP
         l = QVBoxLayout()
@@ -64,17 +65,22 @@ class filterForm (QWidget):
         self.options[sel] = True
         self.defaultRadius = 1
         self.defaultAmount = 50
+
+        # select event handler
         def onSelect1(item):
             for key in self.options:
                 self.options[key] = item is self.listWidget1.items[key]
                 if self.options[key]:
                     selkey = key
             self.layer.kernelCategory = filterDict[selkey]
+            self.sliderRadius.setEnabled(selkey==options[0] or selkey==options[2] )
+            self.radiusValue.setEnabled(self.sliderRadius.isEnabled())
+            self.sliderAmount.setEnabled(selkey==options[0])
+            self.amountValue.setEnabled(self.sliderAmount.isEnabled())
             self.layer.kernel = getKernel(self.layer.kernelCategory, self.sliderRadius.value(), self.sliderAmount.value())
             self.onUpdateFilter(self.layer.kernelCategory, self.sliderRadius.value(), self.sliderAmount.value())
 
         self.listWidget1.onSelect = onSelect1
-        l.addWidget(self.listWidget1)
 
         # radius and amount sliders
         self.sliderRadius = QSlider(Qt.Horizontal)
@@ -150,11 +156,19 @@ class filterForm (QWidget):
         self.radiusValue.setText(str('%d ' % self.sliderRadius.value()))
         self.amountValue.setText(str('%d ' % self.sliderAmount.value()))
 
+        # set initial selection to unsharp mask
+        item = self.listWidget1.items[options[0]]
+        item.setCheckState(Qt.Checked)
+        self.listWidget1.select(item)
+        l.addWidget(self.listWidget1)
+
+    """
     def showEvent(self, e):
         self.mainForm.tableView.setEnabled(False)
 
     def hideEvent(self, e):
         self.mainForm.tableView.setEnabled(True)
+    """
 
     def writeToStream(self, outStream):
         layer = self.layer

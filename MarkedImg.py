@@ -251,13 +251,13 @@ class vImage(QImage):
         """
         self.hspbBuffer = None
         self.LabBuffer = None
-        self.thumb = None
+        #self.thumb = None #TODO thumb is not a cache 12/10/17
         if hasattr(self, 'maskedImageContainer'):
             if self.maskedImageContainer is not None:
-                self.maskedImageContainer.LabBuffer = None
+                self.maskedImageContainer.cacheInvalidate()
         if hasattr(self, 'maskedThumbContainer'):
             if self.maskedThumbContainer is not None:
-                self.maskedThumbContainer.LabBuffer = None
+                self.maskedThumbContainer.cacheInvalidate()
 
     def updatePixmap(self, maskOnly=False):
         """
@@ -450,9 +450,9 @@ class vImage(QImage):
         @param stackedLUT: array of color values (in range 0..255). Shape must be (3, 255) : a line for each channel
         @param options: not used yet
         """
-        from graphicsTemp import sRGB2LabVec, Lab2sRGBVec, rgb2rgbLinearVec, rgbLinear2rgbVec
+        from graphicsTemp import Lab2sRGBVec
         # Lab mode
-        ndLabImg0 = self.getLabBuffer()
+        ndLabImg0 = self.inputImg().getLabBuffer()
 
         # apply LUTS to channels
         def scaleLabBuf(buf):
@@ -510,14 +510,13 @@ class vImage(QImage):
 
     def applyHSPB1DLUT(self, stackedLUT, options={}, pool=None):
         """
-        Applies 1D LUTS (one for each hue sat and brightness channels).
-        IMPORTANT : if useThumb is True, the transformation is applied to
-        self.thumb, else no change is made to the image until
-        all layers are updated (see QLayer.applyToStack()).
+        Applies 1D LUTS to hue, sat and brightness channels).
         @param stackedLUT: array of color values (in range 0..255) : a line for each channel
         @type stackedLUT : ndarray, shape (3, 255), dtype int
         @param options: not used yet
         @type options : dictionary
+        @param pool: multiprocessing pool : unused
+        @type pool: muliprocessing.Pool
         """
         # neutral point
         if not np.any((stackedLUT - np.vstack((range(0,256), range(0,256), range(0,256))))) :
@@ -740,7 +739,7 @@ class vImage(QImage):
                                   [1, 4,  6,  4,  1]]) / 256.0
         """
 
-        inputImage = self.inputImgFull().getCurrentImage()
+        inputImage = self.inputImg() #Full().getCurrentImage()
         currentImage = self.getCurrentImage()
         buf0 = QImageBuffer(inputImage)
         buf1 = QImageBuffer(currentImage)
@@ -1294,7 +1293,10 @@ class QLayer(vImage):
             #img.inputImgFull = self.inputImgFull
             img.name = self.name + '_getMaskedImage'
         qp.end()
-        img.cachesEnabled = False
+        # no recursive caches
+        #img.cachesEnabled = False # TODO Fix 12/10/17
+        # no thumbnails for masked images
+        img.getThumb = lambda : img # TODO Fix 12/10/17
         return img
 
     def getCurrentMaskedImage(self):
@@ -1330,12 +1332,16 @@ class QLayer(vImage):
         if self.isAdjustLayer():
             # inputImg() * (255 -mask)
             qp.setCompositionMode(QPainter.CompositionMode_DestinationOver)
+            # recursive call through inputImg()
             qp.drawImage(QRect(0, 0, img.width(), img.height()), self.inputImg())
             #img.inputImg = lambda : self.inputImg()
             #img.inputImgFull = lambda : self.inputImgFull()
             img.name = self.name +'_getcurrentMaskedImage'
         qp.end()
-        img.cachesEnabled = False
+        # no recursive caches
+        #img.cachesEnabled = False # TODO Fix 12/10/17
+        # no thumbnails for masked images
+        img.getThumb = lambda: img # TODO Fix 12/10/17
         return img
 
     def getHspbBuffer(self):
@@ -1399,6 +1405,7 @@ class QLayer(vImage):
             if layer.visible:
                 start = time()
                 layer.execute(pool=pool)
+                layer.cacheInvalidate() # TODO fix 12/10/17
                 print("%s %.2f" %(layer.name, time()-start))
             stack = layer.parentImage.layersStack
             ind = layer.getStackIndex() + 1
@@ -1409,14 +1416,14 @@ class QLayer(vImage):
                 ind += 1
             if ind < len(stack):
                 layer1 = stack[ind]
-                layer1.cacheInvalidate()
+                #layer1.cacheInvalidate() # TODO fix 12/10/17
                 applyToStack_(layer1, pool=pool)
         try:
             QApplication.setOverrideCursor(Qt.WaitCursor)
             QApplication.processEvents()
             if (not self.parentImage.useThumb or self.parentImage.useHald):
-                pool=None
-                #pool = multiprocessing.Pool(MULTIPROC_POOLSIZE)  # TODO time opt : pool is always created and used only by LUT3D; time 0.3s
+                pool = None
+                # pool = multiprocessing.Pool(MULTIPROC_POOLSIZE)  # TODO time opt : pool is always created and used only by apply3DLUT; time 0.3s
             else:
                 pool = None
             applyToStack_(self, pool=pool)

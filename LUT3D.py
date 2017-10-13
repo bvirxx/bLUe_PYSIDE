@@ -21,6 +21,7 @@ from functools import partial
 from time import time
 
 import cv2
+import gc
 import numpy as np
 from PySide2.QtCore import QDataStream, QFile, QIODevice, QTextStream
 from PySide2.QtGui import QImage
@@ -90,7 +91,7 @@ class LUT3D (object):
         self.LUT3DArray = LUT3DArray
         self.size = size
         # for convenience
-        self.step = MAXLUTRGB / (size - 1)
+        self.step = MAXLUTRGB // (size - 1)  # python 3 integer quotient
         self.contrast = lambda p : p #np.power(p,1.2)
 
     @classmethod
@@ -259,7 +260,7 @@ def LUT3DFromFactory(size=LUTSIZE):
     c = np.clip(c , 0, 255)
     return LUT3D(c, size=size)
 
-a = np.arange(LUTSIZE)
+#a = np.arange(LUTSIZE)
 #LUT3D_ORI = cartesianProduct((a,a,a)) * LUTSTEP
 LUT3DIdentity = LUT3DFromFactory()
 LUT3D_ORI = LUT3DIdentity.LUT3DArray
@@ -671,10 +672,16 @@ def hsp2rgb_ClippingInd(h,s,p, trunc=True):
 
 def hsp2rgbVec(hspImg):
     """
-    Vectorized version of hsp2rgb
+    Vectorized version of hsp2rgb.
+    We convert to HSV and we use cv2.cvtColor()
+    to convert from HSV to RGB
     @param hspImg: (n,m,3) array of hsp values
     @return: identical shape array of rgb values
     """
+    # use faster version for small images
+    if hspImg.shape[0] * hspImg.shape[1] < 1000:
+        return hsp2rgbVecSmall(hspImg)
+
     h, s, p = hspImg[:, :, 0], hspImg[:, :, 1], hspImg[:, :, 2]
 
     shape = h.shape
@@ -693,6 +700,7 @@ def hsp2rgbVec(hspImg):
     oneMinusf = 1 - f
     oneMinusMm = 1.0 - Mm
     oneMinusf2 = oneMinusf * oneMinusf
+    p2 = p * p
 
     part1 = 1.0 - f * oneMinusMm
     part1 = np.where(Mm == np.inf, f, part1)  # TODO some invalid values remain for s = 1
@@ -704,44 +712,45 @@ def hsp2rgbVec(hspImg):
 
 
     #X1 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_R * Mm2 + Perc_G * part1 + Perc_B))   # b
-    X1 = np.where(Mm == np.inf, 0, (p*p) / (Perc_R * Mm2 + Perc_G * part1 + Perc_B))  # b
+    X1 = np.where(Mm == np.inf, 0, p2 / (Perc_R * Mm2 + Perc_G * part1 + Perc_B))  # b
     #Y1 = np.where(Mm==np.inf, p / np.sqrt(Perc_R+ Perc_G * f *f), X1 * Mm)              # r
-    Y1 = np.where(Mm == np.inf, (p*p) / (Perc_R + Perc_G * f2), X1 * Mm2)  # r
+    Y1 = np.where(Mm == np.inf, p2 / (Perc_R + Perc_G * f2), X1 * Mm2)  # r
     X1=None
     #Z1 = np.where(Mm==np.inf, Y1 * f, X1 + f * (Y1 - X1))                               # g
 
     #X2 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_G * Mm2 + Perc_R * part2 + Perc_B))   # b
-    X2 = np.where(Mm == np.inf, 0, (p*p) / (Perc_G * Mm2 + Perc_R * part2 + Perc_B))  # b
+    X2 = np.where(Mm == np.inf, 0, p2 / (Perc_G * Mm2 + Perc_R * part2 + Perc_B))  # b
     #Y2 = np.where(Mm==np.inf, p / np.sqrt(Perc_G + Perc_R * (1-f) * (1-f)), X2 * Mm)    # g
-    Y2 = np.where(Mm == np.inf, (p*p) / (Perc_G + Perc_R * oneMinusf2), X2 * Mm2)  # g
+    Y2 = np.where(Mm == np.inf, p2 / (Perc_G + Perc_R * oneMinusf2), X2 * Mm2)  # g
     X2=None
     #Z2 = np.where(Mm==np.inf, Y2 * (1-f), X2 + (1 - f) * (Y2 - X2))                     # r
 
     #X3 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_G * Mm2 + Perc_B * part1 + Perc_R))   # r
-    X3 = np.where(Mm == np.inf, 0, (p*p) / (Perc_G * Mm2 + Perc_B * part1 + Perc_R))  # r
+    X3 = np.where(Mm == np.inf, 0, p2 / (Perc_G * Mm2 + Perc_B * part1 + Perc_R))  # r
     #Y3 = np.where(Mm==np.inf, p / np.sqrt(Perc_G + Perc_B * f * f), X3 * Mm)            # g
-    Y3 = np.where(Mm == np.inf, (p*p) / (Perc_G + Perc_B * f2), X3 * Mm2)  # g
+    Y3 = np.where(Mm == np.inf, p2 / (Perc_G + Perc_B * f2), X3 * Mm2)  # g
     X3=None
     #Z3 = np.where(Mm==np.inf, Y3 * f, X3 + f * (Y3 - X3))                               # b
 
+    gc.collect()
     #X4 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_B * Mm2 + Perc_G * part2 + Perc_R))   # r
-    X4 = np.where(Mm == np.inf, 0, (p*p) / (Perc_B * Mm2 + Perc_G * part2 + Perc_R))  # r
+    X4 = np.where(Mm == np.inf, 0, p2 / (Perc_B * Mm2 + Perc_G * part2 + Perc_R))  # r
     #Y4 = np.where(Mm==np.inf, p / np.sqrt(Perc_B + Perc_G * (1-f) * (1-f)), X4 * Mm)    # b
-    Y4 = np.where(Mm == np.inf, (p*p) / (Perc_B + Perc_G * oneMinusf2), X4 * Mm2)  # b
+    Y4 = np.where(Mm == np.inf, p2 / (Perc_B + Perc_G * oneMinusf2), X4 * Mm2)  # b
     X4=None
     #Z4 = np.where(Mm==np.inf, Y4 * (1 - f), X4 + (1 - f) * (Y4 - X4))                   # g
 
     #X5 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_B * Mm2 + Perc_R * part1 + Perc_G))   # g
-    X5 = np.where(Mm == np.inf, 0, (p*p) / (Perc_B * Mm2 + Perc_R * part1 + Perc_G))  # g
+    X5 = np.where(Mm == np.inf, 0, p2 / (Perc_B * Mm2 + Perc_R * part1 + Perc_G))  # g
     #Y5 = np.where(Mm==np.inf, p / np.sqrt(Perc_B + Perc_R * f * f), X5 * Mm)            # b
-    Y5 = np.where(Mm == np.inf, (p*p) / (Perc_B + Perc_R * f2), X5 * Mm2)  # b
+    Y5 = np.where(Mm == np.inf, p2 / (Perc_B + Perc_R * f2), X5 * Mm2)  # b
     X5=None
     #Z5 = np.where(Mm==np.inf, Y5 * f, X5 + f * (Y5 - X5))                               # r
 
     #X6 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_R * Mm2 + Perc_B * part2 + Perc_G))   # g
-    X6 = np.where(Mm == np.inf, 0, (p*p) / (Perc_R * Mm2 + Perc_B * part2 + Perc_G))  # g
+    X6 = np.where(Mm == np.inf, 0, p2 / (Perc_R * Mm2 + Perc_B * part2 + Perc_G))  # g
     #Y6 = np.where(Mm==np.inf, p / np.sqrt(Perc_R + Perc_B * (1-f) * (1-f)), X6 * Mm)    # r
-    Y6 = np.where(Mm == np.inf, (p*p) / (Perc_R + Perc_B * oneMinusf2), X6 * Mm2)  # r
+    Y6 = np.where(Mm == np.inf, p2 / (Perc_R + Perc_B * oneMinusf2), X6 * Mm2)  # r
     X6=None
     #Z6 = np.where(Mm==np.inf, Y6 * (1 - f), X6 + (1 - f) * (Y6 - X6))                   # b
 
@@ -779,13 +788,14 @@ def hsp2rgbVec(hspImg):
 
     return rgb.reshape(shape + (3,))
 
-def hsp2rgbVecOld(hspImg):
+def hsp2rgbVecSmall(hspImg):
     """
-    Vectorized version of hsp2rgb
+    Vectorized version of hsp2rgb. Optimized for small images.
+    Very bad performances for big images : time = 11,11 s  and memory > 6 Go
+    for 15 Mpxl.
     @param hspImg: (n,m,3) array of hsp values
     @return: identical shape array of rgb values
     """
-    # TODO optimize : time = 11,11 s   and space > 6 Go (15 Mpxl image)
     h, s, p = hspImg[:, :, 0], hspImg[:, :, 1], hspImg[:, :, 2]
 
     shape = h.shape

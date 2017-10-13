@@ -322,7 +322,7 @@ class activeNode(QGraphicsPathItem):
         #np.where(LUT3D_SHADOW[:,:,:,3]==0)
 
         # mark central node
-        c = grid.size/2
+        c = grid.size//2 # PYTHON 3 integer quotient
         if self.gridRow == c and self.gridCol == c:
             self.setPath(self.qppR)
         else :
@@ -507,9 +507,6 @@ class activeGrid(QGraphicsPathItem):
 
     def drawGrid(self):
         qpp = QPainterPath()
-        if not self.drawTrace:
-            self.setPath(qpp)
-            return
         for i in range(self.size):
             for j in range(self.size):
                 if not self.gridNodes[i][j].isSelected():
@@ -640,8 +637,8 @@ class colorPicker(QGraphicsPixmapItem):
             b.fill(0)
             buf = QImageBuffer(b)
             # (u, v) : bins indices
-            u = xyarray[:,:,0] / STEP
-            v = xyarray[:,:,1] / STEP
+            u = xyarray[:,:,0] // STEP  # python 3 integer quotient
+            v = xyarray[:,:,1] // STEP
 
             tmp=H[u,v]
             norma = np.amax(H)
@@ -780,7 +777,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         #self.LUTSize, self.LUTStep, self.graphicsScene.LUTContrast, self.graphicsScene.LUT3DArray = freshLUT3D.size, freshLUT3D.step, freshLUT3D.contrast, freshLUT3D.LUT3DArray
         self.graphicsScene.LUTSize, self.graphicsScene.LUTStep, self.graphicsScene.LUTContrast, self.graphicsScene.LUT3DArray = freshLUT3D.size, freshLUT3D.step, freshLUT3D.contrast, freshLUT3D.LUT3DArray
         # context help
-        self.help = helpClient(self, helpId="LUT3DForm")
+        helpClient(parent=self, helpId="LUT3DForm")
         # color wheel
         QImg = hueSatModel.colorWheel(size, size, cModel,  perceptualBrightness=self.defaultColorWheelBr, border=border)
         self.graphicsScene.colorWheel = colorPicker(cModel, QImg, target=self.targetImage, size=size, border=border)
@@ -834,7 +831,6 @@ class graphicsForm3DLUT(QGraphicsView) :
         # grid
         self.grid = activeGrid(self.graphicsScene.LUTSize, self.cModel, parent=self.graphicsScene.colorWheel)
         self.graphicsScene.grid = self.grid
-
         # buttons
         pushButton1 = QPushButton("Reset Grid")
         #pushButton.setObjectName("btn_reset")
@@ -885,7 +881,6 @@ class graphicsForm3DLUT(QGraphicsView) :
             if option == 'show histogram':
                 self.graphicsScene.colorWheel.showTargetHist = self.graphicsScene.options[option]
                 self.graphicsScene.colorWheel.updatePixmap()
-
         self.listWidget3.onSelect = onSelect3
 
         self.listWidget1.setGeometry(650,size+offset, 10,100)
@@ -901,11 +896,13 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.graphicsScene.addWidget(self.listWidget3)
         self.listWidget3.setStyleSheet(ss)
 
+    """
     def showEvent(self, e):
         self.mainForm.tableView.setEnabled(False)
 
     def hideEvent(self, e):
         self.mainForm.tableView.setEnabled(True)
+    """
 
     def selectGridNode(self, r, g, b):
         """

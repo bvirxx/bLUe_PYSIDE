@@ -17,7 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import numpy as np
 from math import erf, factorial
-from PySide2.QtGui import  QColor, QPainterPath, QPen, QKeyEvent
+from PySide2.QtGui import QColor, QPainterPath, QPen, QKeyEvent, QDesktopServices
 from PySide2.QtWidgets import QListWidget, QListWidgetItem, QGraphicsPathItem, QTableWidget
 from PySide2.QtCore import Qt, QPoint, QEvent, QObject, QUrl
 #from PySide2.QtWebEngine import QWebView
@@ -74,19 +74,21 @@ class helpClient(QObject):
         self.window = None
 
     def eventFilter(self, obj, event):
-        return True
-        """
         if event.type() == QEvent.KeyPress :
             if (event.key() == Qt.Key_F1) or (event.key() == Qt.Key_Help):
                 if obj.isWidgetType() :
                     widget = obj.focusWidget()
+                    link = "Help.html#%s" % obj.helpId
+                    QDesktopServices.openUrl(QUrl(link))
+                    """
                     self.window = QWebView()
                     self.window.setAttribute(Qt.WA_DeleteOnClose)
                     self.window.load(QUrl("Help.html#%s" % obj.helpId))
                     self.window.show()
+                    """
                 return True
         return False
-        """
+
 
 
 def savitzky_golay(y, window_size, order, deriv=0, rate=1):

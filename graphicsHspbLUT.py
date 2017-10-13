@@ -120,26 +120,30 @@ class graphicsHspbForm(QGraphicsView) :
                 cubicItem.reset()
             # call Curve change event handlerdefined in blue.menuLayer
             self.scene().onUpdateLUT()
-        # connected to pushButton3.clicked
 
+        # connected to pushButton3.clicked
+        """
         def updateStack():
            layer.applyToStack()
            targetImage.onImageChanged()
+        """
+
         # buttons
         pushButton1 = QPushButton("Reset Curve")
         #pushButton1.setObjectName("btn_reset_channel")
         pushButton1.setMinimumSize(1, 1)
-        pushButton1.setGeometry(100, 20, 80, 30)  # x,y,w,h
+        pushButton1.setGeometry(80, 20, 100, 30)  # x,y,w,h
         pushButton1.adjustSize()
         pushButton1.clicked.connect(onResetCurve)
         self.graphicsScene.addWidget(pushButton1)
-        pushButton2 = QPushButton("Reset All")
+        pushButton2 = QPushButton("Reset All Curves")
         #pushButton2.setObjectName("btn_reset_all")
         pushButton2.setMinimumSize(1, 1)
-        pushButton2.setGeometry(100, 50, 80, 30)  # x,y,w,h
+        pushButton2.setGeometry(80, 50, 100, 30)  # x,y,w,h
         pushButton2.adjustSize()
         pushButton2.clicked.connect(onResetAllCurves)
         self.graphicsScene.addWidget(pushButton2)
+        """
         pushButton3 = QPushButton("Update top layers")
         pushButton3.setObjectName("btn_update_top")
         pushButton3.setMinimumSize(1, 1)
@@ -147,6 +151,7 @@ class graphicsHspbForm(QGraphicsView) :
         pushButton3.adjustSize()
         pushButton3.clicked.connect(updateStack)
         self.graphicsScene.addWidget(pushButton3)
+        """
 
         # options
         options = ['H', 'S', 'B']
