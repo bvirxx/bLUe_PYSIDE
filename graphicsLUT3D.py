@@ -18,7 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
 from PySide2.QtCore import QSize
-from PySide2.QtWidgets import QAction, QFileDialog, QToolTip, QWidget, QPushButton
+from PySide2.QtWidgets import QAction, QFileDialog, QToolTip, QWidget, QPushButton, QHBoxLayout, QVBoxLayout
 from PySide2.QtGui import QPainter, QPixmap, QPolygonF,QPainterPath, QPainterPathStroker, QPen, QBrush, QColor, QPixmap
 from PySide2.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsItem, QGraphicsItemGroup, QGraphicsPathItem , QGraphicsPixmapItem, QGraphicsTextItem,  QGraphicsPolygonItem ,  QMainWindow, QLabel, QSizePolicy
 from PySide2.QtCore import Qt, QPoint, QPointF, QRect, QRectF #, QString
@@ -757,7 +757,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.cModel = cModel
         border = 20
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        self.setMinimumSize(size+80, size+200)
+        self.setMinimumSize(size+90, size+200)
         #self.setWindowFlags(Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.setBackgroundBrush(QBrush(Qt.black, Qt.SolidPattern));
@@ -800,10 +800,9 @@ class graphicsForm3DLUT(QGraphicsView) :
         px = pbModel.colorChart(self.bSliderWidth, self.bSliderHeight, cModel, self.currentHue, self.currentSat).qPixmap
         self.graphicsScene.bSlider = QGraphicsPixmapItem(px, parent = self.graphicsScene.colorWheel)
         self.graphicsScene.bSlider.setPos(QPointF(-border, self.graphicsScene.colorWheel.QImg.height()-border))
-        #self.graphicsScene.addItem(self.graphicsScene.bSlider)
         bSliderCursor = activeMarker.fromTriangle(parent=self.graphicsScene.bSlider)
-        bSliderCursor.setMoveRange(QRectF(0.0, self.graphicsScene.bSlider.pixmap().height(), self.graphicsScene.bSlider.pixmap().width(), 0.0))
-        bSliderCursor.setPos(self.graphicsScene.bSlider.pixmap().width() * self.defaultColorWheelBr, self.graphicsScene.bSlider.pixmap().height())
+        bSliderCursor.setMoveRange(QRectF(0.0, bSliderCursor.size, self.graphicsScene.bSlider.pixmap().width(), 0.0))
+        bSliderCursor.setPos(self.graphicsScene.bSlider.pixmap().width() * self.defaultColorWheelBr, bSliderCursor.size)
         # cursor event handlers
         def f2(e, p, q):
             self.currentPb = p / float(self.bSliderWidth)
@@ -831,19 +830,19 @@ class graphicsForm3DLUT(QGraphicsView) :
         # grid
         self.grid = activeGrid(self.graphicsScene.LUTSize, self.cModel, parent=self.graphicsScene.colorWheel)
         self.graphicsScene.grid = self.grid
+
         # buttons
+        hlButtons = QHBoxLayout()
         pushButton1 = QPushButton("Reset Grid")
-        #pushButton.setObjectName("btn_reset")
-        pushButton1.setMinimumSize(1,1)
-        pushButton1.setGeometry(160, size+offset, 80, 21)  # x,y,w,h
         pushButton1.clicked.connect(self.onReset)
-        self.graphicsScene.addWidget(pushButton1)
+        hlButtons.addWidget(pushButton1)
         pushButton2 = QPushButton("Save LUT")
         # pushButton.setObjectName("btn_reset")
         pushButton2.setMinimumSize(1, 1)
-        pushButton2.setGeometry(160, size + offset+25, 80, 21)  # x,y,w,h
+        #pushButton2.setGeometry(160, size + offset+25, 80, 21)  # x,y,w,h
         pushButton2.clicked.connect(self.onReset)
-        self.graphicsScene.addWidget(pushButton2)
+        hlButtons.addWidget(pushButton2)
+        hlButtons.addStretch(1)
         def saveLUT():
             lastDir = mainForm.settings.value('paths/dlgdir', '.')
             dlg = QFileDialog(mainForm, "Save Color LUT", lastDir)
@@ -858,21 +857,37 @@ class graphicsForm3DLUT(QGraphicsView) :
         pushButton2.clicked.connect(saveLUT)
 
         # options
-        self.graphicsScene.options = {'use selection': False, 'add node': True, 'select neighbors': True,
-                                      'reset removed nodes': True, 'use perceptive brightness': True}
-        self.listWidget1 = optionsWidget(options=['use image', 'use selection'], exclusive=True)
-        self.listWidget1.items['use image'].setCheckState(Qt.Checked)
+        hl =QHBoxLayout()
+        self.graphicsScene.options = {'use selection': True, 'add node':True, 'select neighbors':True,
+                                      'reset removed nodes':True, 'use perceptive brightness': True}
+        options1 = ['use image', 'use selection']
+        self.listWidget1 = optionsWidget(options=options1, exclusive=True)
+        #self.listWidget1.items['use image'].setCheckState(Qt.Checked)
         def onSelect1(item):
             self.graphicsScene.options['use selection'] = item is self.listWidget1.items['use selection']
         self.listWidget1.onSelect = onSelect1
+        hl.addWidget(self.listWidget1)
 
-        self.listWidget2 = optionsWidget(options=['add node', 'remove node'], exclusive=True)
-        self.listWidget2.select(self.listWidget2.items['add node'])
+        self.listWidget1.setFocusPolicy(Qt.NoFocus)
+        # set initial selection to 'use image'
+        item = self.listWidget1.items[options1[0]]
+        item.setCheckState(Qt.Checked)
+        self.listWidget1.select(item)
+
+        options2 = ['add node', 'remove node']
+        self.listWidget2 = optionsWidget(options=options2, exclusive=True)
+        #self.listWidget2.select(self.listWidget2.items['add node'])
         def onSelect2(item):
             self.graphicsScene.options['add node'] = item is self.listWidget2.items['add node']
         self.listWidget2.onSelect = onSelect2
+        hl.addWidget(self.listWidget2)
+        # set initial selection to add node'
+        item = self.listWidget2.items[options2[0]]
+        item.setCheckState(Qt.Checked)
+        self.listWidget2.select(item)
 
-        self.listWidget3 = optionsWidget(options=['select neighbors', 'reset removed nodes', 'show histogram'], exclusive=False)
+        options3 = ['select neighbors', 'reset removed nodes', 'show histogram']
+        self.listWidget3 = optionsWidget(options=options3, exclusive=False)
         self.listWidget3.items['select neighbors'].setCheckState(Qt.Checked)
         self.listWidget3.items['reset removed nodes'].setCheckState(Qt.Checked)
         def onSelect3(item):
@@ -882,19 +897,39 @@ class graphicsForm3DLUT(QGraphicsView) :
                 self.graphicsScene.colorWheel.showTargetHist = self.graphicsScene.options[option]
                 self.graphicsScene.colorWheel.updatePixmap()
         self.listWidget3.onSelect = onSelect3
+        hl.addWidget(self.listWidget3)
+        # set initial selection to 'select naighbors'
+        item = self.listWidget3.items[options3[0]]
+        item.setCheckState(Qt.Checked)
+        self.listWidget3.select(item)
+        container = QWidget()
+        container.setObjectName("container")
+        vl = QVBoxLayout()
+        for l in [hlButtons ,hl]:
+            vl.addLayout(l)
+        container.setLayout(vl)
 
-        self.listWidget1.setGeometry(650,size+offset, 10,100)
-        self.graphicsScene.addWidget(self.listWidget1)
-        ss = "QListWidget{background: black; selection-background-color: black; border: none;} QListWidget::item{color: white;}\
-                                      QListWidget::item::selected { background: black; border: none}"
-        self.listWidget1.setStyleSheet(ss)
-        self.listWidget1.setFocusPolicy(Qt.NoFocus)
-        self.listWidget2.setGeometry(300, size + offset, 10, 100)
-        self.graphicsScene.addWidget(self.listWidget2)
-        self.listWidget2.setStyleSheet(ss)
-        self.listWidget3.setGeometry(450, size + offset, 10, 100)
-        self.graphicsScene.addWidget(self.listWidget3)
-        self.listWidget3.setStyleSheet(ss)
+        ss = "QWidget#container{background: black} QListWidget{background-color: black} QListWidget{selection-background-color: black; border: none;font-size: 7pt}\
+                                 QListWidget::item{color: white;}\
+                                 QListWidget::item::selected{background: black; border: none}"
+
+        container.setStyleSheet(ss)
+        container.setGeometry(-offset//2, size + offset-20, size+offset, 80)
+        self.graphicsScene.addWidget(container)
+
+        for wdg in [self.listWidget1, self.listWidget2, self.listWidget3]:
+            wdg.setMinimumWidth(wdg.sizeHintForColumn(0))
+            wdg.setMinimumHeight(wdg.sizeHintForRow(0)*len(wdg.items))
+        for btn in [pushButton1, pushButton2]:
+            btn.setStyleSheet("QPushButton { margin: 1px; border-color: gray/*#0c457e*/; border-style: outset; border-radius: 3px;\
+                                border-width: 3px; color: black;\
+                                background-color: silver/*qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #2198c0, stop: 1 #0d5ca6)*/; color: white; font-size: 7pt}\
+                                QPushButton:pressed, QPushButton:hover {background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #0d5ca6, stop: 1 #2198c0);}")
+            btn.adjustSize()
+            btn.setMaximumSize(QSize(btn.width(), btn.height()))
+
+
+
 
     """
     def showEvent(self, e):

@@ -126,7 +126,7 @@ class QLayerView(QTableView) :
         self.previewOptionBox = QCheckBox('Preview')
         self.previewOptionBox.setMaximumSize(100, 30)
         self.previewOptionBox.setChecked(True)
-        l.addWidget(self.previewOptionBox)
+
         # View/Preview changed event handler
         def m(state): # Qt.Checked Qt.UnChecked
             if self.img is None:
@@ -163,7 +163,12 @@ class QLayerView(QTableView) :
         opacityLabel.setMaximumSize(100,30)
         #self.opacityLabel.setStyleSheet("QLabel {background-color: white;}")
         opacityLabel.setText("Layer opacity")
-        l.addWidget(opacityLabel)
+        hl0 = QHBoxLayout()
+        hl0.addWidget(opacityLabel)
+        # l.addWidget(opacityLabel)
+        hl0.addStretch(1)
+        hl0.addWidget(self.previewOptionBox)
+        l.addLayout(hl0)
 
         hl =  QHBoxLayout()
         self.opacityValue = QLabel()
@@ -175,12 +180,13 @@ class QLayerView(QTableView) :
         self.opacityValue.setMaximumSize(w, h)
 
         self.opacityValue.setText('100 ')
-        self.opacityValue.setStyleSheet("QLabel {background-color: white;}")
+        self.opacityValue.setStyleSheet("QLabel {background-color: white}")
         hl.addWidget(self.opacityValue)
         hl.addWidget(self.wdgt)
         l.addLayout(hl)
-        l.setContentsMargins(20,0,20,25) # left, top, right, bottom
-        self.setLayout(l)
+        l.setContentsMargins(20,0,20,0) # left, top, right, bottom
+        # the layout is set in blue.py, after the initialization of the main form.
+        self.propertyLayout = l
 
         # opacity value changed event handler
         def f():

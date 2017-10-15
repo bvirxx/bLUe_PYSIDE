@@ -499,6 +499,9 @@ scr</string>
        </property>
       </widget>
      </item>
+     <item>
+      <widget class="QWidget" name="propertyWidget" native="true"/>
+     </item>
     </layout>
    </widget>
   </widget>

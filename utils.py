@@ -47,7 +47,9 @@ class optionsWidget(QListWidget) :
             listItem.setCheckState(Qt.Unchecked)
             self.addItem(listItem)
             self.items[option] = listItem
-        self.setSizeAdjustPolicy(QListWidget.AdjustToContents)
+        #self.setSizeAdjustPolicy(QListWidget.AdjustToContents)
+        self.setMinimumWidth(self.sizeHintForColumn(0))
+        self.setMinimumHeight(self.sizeHintForRow(0)*len(options))
         self.exclusive = exclusive
         self.itemClicked.connect(self.select)
         # selection hook.

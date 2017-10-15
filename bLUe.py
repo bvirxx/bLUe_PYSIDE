@@ -962,7 +962,7 @@ def menuLayer(x, name):
         # add new layer on top of active layer
         l = window.label.img.addAdjustmentLayer(name=layerName)
         #window.tableView.setLayers(window.label.img)
-        grWindow = graphicsForm3DLUT.getNewWindow(ccm, size=800, targetImage=window.label.img, LUTSize=LUTSIZE, layer=l, parent=window, mainForm=window)
+        grWindow = graphicsForm3DLUT.getNewWindow(ccm, size=300, targetImage=window.label.img, LUTSize=LUTSIZE, layer=l, parent=window, mainForm=window)
         # LUT change event handler
         def g(options={}):
             """
@@ -1341,8 +1341,8 @@ if __name__ =='__main__':
 
     # style sheet
     app.setStyleSheet("QMainWindow, QGraphicsView, QListWidget, QMenu, QTableView {background-color: rgb(200, 200, 200)}\
-                       QMenu, QTableView { selection-background-color: blue;\
-                                            selection-color: white;}"
+                       QMenu, QTableView { selection-background-color: blue; selection-color: white;}\
+                        QWidget, QTableView, QTableView * {font-size: 9pt}"
                      )
     # status bar
     window.Label_status = QLabel()
@@ -1416,11 +1416,13 @@ if __name__ =='__main__':
     window.splitter.setHandleWidth(1)
     window.splitter.hide()
     window.viewState = 'After'
-
     action1 = QAction('cycle', None)
     action1.setShortcut(QKeySequence("Ctrl+ "))
     action1.triggered.connect(lambda: splittedWin.nextSplittedView())
     window.addAction(action1)
+
+    # init property widget for tableView
+    window.propertyWidget.setLayout(window.tableView.propertyLayout)
 
     # launch app
     sys.exit(app.exec_())

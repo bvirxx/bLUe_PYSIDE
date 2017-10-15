@@ -566,6 +566,11 @@ class vImage(QImage):
         @param options:
         @type options: dict of string:boolean pairs
         """
+        # buffers of current image and current input image
+        inputImage = self.inputImg()
+        currentImage = self.getCurrentImage()
+
+
         # get selection
         w1, w2, h1, h2 = (0.0,) * 4
         if options.get('use selection', False):
@@ -574,20 +579,22 @@ class vImage(QImage):
             wRatio, hRatio = float(w) / wF, float(h) / hF
             if self.rect is not None:
                 w1, w2, h1, h2 = int(self.rect.left() * wRatio), int(self.rect.right() * wRatio), int(self.rect.top() * hRatio), int(self.rect.bottom() * hRatio)
+            w1 , h1 = max(w1,0), max(h1, 0)
+            w2, h2 = min(w2, inputImage.width()), min(h2, inputImage.height())
             if w1>=w2 or h1>=h2:
                 msg = QMessageBox()
                 msg.setText("Empty selection\nSelect a region with the marquee tool")
                 msg.exec_()
                 return
+
         else:
             w1, w2, h1, h2 = 0, self.inputImg().width(), 0, self.inputImg().height()
-        # buffers of current image and current input image
-        inputImage = self.inputImg()
-        currentImage = self.getCurrentImage()
-        inputBuffer = QImageBuffer(inputImage)[h1:h2+1, w1:w2+1, :]
+
+        inputBuffer = QImageBuffer(inputImage)[h1:h2 + 1, w1:w2 + 1, :]
         imgBuffer = QImageBuffer(currentImage)[:, :, :]
-        ndImg0 = inputBuffer[:,:,:3]
+        ndImg0 = inputBuffer[:, :, :3]
         ndImg1 = imgBuffer[:, :, :3]
+
         # choose right interpolation method
         if (pool is not None) and (inputImage.width() * inputImage.height() > 3000000):
             interp = interpVec
