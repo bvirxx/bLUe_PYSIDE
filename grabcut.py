@@ -57,12 +57,6 @@ class segmentForm(QWidget):
         buf = QImageBuffer(layer.mask)
         buf[:,:,:] = 255
 
-    def showEvent(self, e):
-        self.mainForm.tableView.setEnabled(False)
-
-    def hideEvent(self, e):
-        self.mainForm.tableView.setEnabled(True)
-
     def execute(self):
         segmentLayer = self.targetImage.getActiveLayer()
         self.do_grabcut(segmentLayer, nb_iter=1, mode=cv2.GC_INIT_WITH_MASK, again=False)
@@ -75,16 +69,16 @@ class segmentForm(QWidget):
         @param mode:
         @param again:
         """
-        #global rect_or_mask
         inputImg = layer.inputImg()
 
         rect = layer.rect
+        # resizing coeff fitting selection rectangle with current image
+        r = inputImg.width() / layer.width()
 
         # set mask from selection rectangle, if any
-        #rectMask = np.zeros((layer.height(), layer.width()), dtype=np.uint8)
         rectMask = np.zeros((inputImg.height(), inputImg.width()), dtype=np.uint8)
         if rect is not None:
-            rectMask[rect.top():rect.bottom(), rect.left():rect.right()] = cv2.GC_PR_FGD
+            rectMask[int(rect.top()*r):int(rect.bottom()*r), int(rect.left()*r):int(rect.right()*r)] = cv2.GC_PR_FGD
         else:
             rectMask = rectMask + cv2.GC_PR_FGD
 
@@ -92,13 +86,13 @@ class segmentForm(QWidget):
         paintedMask = QImageBuffer(scaledMask)
         #paintedMask = QImageBuffer(layer.mask)
         # CAUTION: mask is initialized to 255, thus discriminant is blue=0 for FG and green=0 for BG 'cf. Blue.mouseEvent())
-        #rectMask[paintedMask[:,:,0]==0] = cv2.GC_FGD
         rectMask[(paintedMask[:, :, 0] == 0)*(paintedMask[:,:,1]==255)] = cv2.GC_FGD
         rectMask[(paintedMask[:, :, 0] == 0)*(paintedMask[:, :, 1] == 1)] = cv2.GC_PR_FGD
 
         #rectMask[paintedMask[:, :,1]==0 ] = cv2.GC_BGD
         rectMask[(paintedMask[:, :, 1] == 0) * (paintedMask[:,:,0]==255)] = cv2.GC_BGD
         rectMask[(paintedMask[:, :, 1] == 0) * (paintedMask[:, :, 0] == 1)] = cv2.GC_PR_BGD
+
         finalMask = rectMask
 
         if not((np.any(finalMask==cv2.GC_FGD) or np.any(finalMask==cv2.GC_PR_FGD)) and (np.any(finalMask==cv2.GC_BGD) or np.any(finalMask==cv2.GC_PR_BGD))):
@@ -115,18 +109,16 @@ class segmentForm(QWidget):
         t0 = time()
         #tmp =inputImg.getHspbBuffer().astype(np.uint8)
         #cv2.grabCut_mtd(tmp[:,:,:3], #QImageBuffer(inputImg)[:, :, :3],
-        cv2.grabCut_mtd(QImageBuffer(inputImg)[:, :, :3],
-        #cv2.grabCut(QImageBuffer(inputImg)[:, :, :3],
+        #cv2.grabCut_mtd(QImageBuffer(inputImg)[:, :, :3],
+        cv2.grabCut(QImageBuffer(inputImg)[:, :, :3],
                     finalMask,
                     None,#QRect2tuple(img0_r.rect),
                     bgdmodel, fgdmodel,
                     nb_iter,
                     mode)
         #print 'grabcut_mtd time :', time()-t0
-
-
         buf = QImageBuffer(scaledMask)
-        # reset image mask
+        # reset image mask to black
         buf[:,:,:3] = 0
         buf[:,:,3] = 255
 

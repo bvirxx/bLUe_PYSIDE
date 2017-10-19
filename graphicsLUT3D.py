@@ -28,11 +28,11 @@ from time import time
 from PySide2.QtGui import QImage
 from PySide2.QtWidgets import QMenu, QRubberBand
 
-from LUT3D import LUTSIZE, LUTSTEP, hsp2rgb_ClippingInd, LUT3DFromFactory, LUT3D_SHADOW, LUT3D_ORI, LUT3D
+from LUT3D import LUTSIZE, LUTSTEP, LUT3DFromFactory, LUT3D_SHADOW, LUT3D_ORI, LUT3D
 from MarkedImg import QLayer, vImage
 from colorModels import hueSatModel, pbModel
 from imgconvert import QImageBuffer
-from utils import optionsWidget, helpClient
+from utils import optionsWidget
 
 # node blocking factor
 spread = 1
@@ -747,13 +747,19 @@ class graphicsForm3DLUT(QGraphicsView) :
         """
 
         @param size: size of the color wheel
+        @type size: int
         @param targetImage:
+        @type targetImage: imImage
         @param LUTSize:
+        @type LUTSize: int
         @param layer: layer of targetImage linked to graphics form
+        @type layer : QLayer
         @param parent:
+        @type parent:
         """
         super(graphicsForm3DLUT, self).__init__(parent=parent)
-        # objectname is used by context Help
+        # context help tag
+        self.helpId = "LUT3DForm"
         self.cModel = cModel
         border = 20
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
@@ -776,8 +782,6 @@ class graphicsForm3DLUT(QGraphicsView) :
         freshLUT3D = LUT3DFromFactory(size=LUTSize)
         #self.LUTSize, self.LUTStep, self.graphicsScene.LUTContrast, self.graphicsScene.LUT3DArray = freshLUT3D.size, freshLUT3D.step, freshLUT3D.contrast, freshLUT3D.LUT3DArray
         self.graphicsScene.LUTSize, self.graphicsScene.LUTStep, self.graphicsScene.LUTContrast, self.graphicsScene.LUT3DArray = freshLUT3D.size, freshLUT3D.step, freshLUT3D.contrast, freshLUT3D.LUT3DArray
-        # context help
-        helpClient(parent=self, helpId="LUT3DForm")
         # color wheel
         QImg = hueSatModel.colorWheel(size, size, cModel,  perceptualBrightness=self.defaultColorWheelBr, border=border)
         self.graphicsScene.colorWheel = colorPicker(cModel, QImg, target=self.targetImage, size=size, border=border)
@@ -837,9 +841,6 @@ class graphicsForm3DLUT(QGraphicsView) :
         pushButton1.clicked.connect(self.onReset)
         hlButtons.addWidget(pushButton1)
         pushButton2 = QPushButton("Save LUT")
-        # pushButton.setObjectName("btn_reset")
-        pushButton2.setMinimumSize(1, 1)
-        #pushButton2.setGeometry(160, size + offset+25, 80, 21)  # x,y,w,h
         pushButton2.clicked.connect(self.onReset)
         hlButtons.addWidget(pushButton2)
         hlButtons.addStretch(1)
@@ -920,6 +921,8 @@ class graphicsForm3DLUT(QGraphicsView) :
         for wdg in [self.listWidget1, self.listWidget2, self.listWidget3]:
             wdg.setMinimumWidth(wdg.sizeHintForColumn(0))
             wdg.setMinimumHeight(wdg.sizeHintForRow(0)*len(wdg.items))
+        # We cannot change QPushButton font size alone. Instead,
+        # we must define a new style from scratch.
         for btn in [pushButton1, pushButton2]:
             btn.setStyleSheet("QPushButton { margin: 1px; border-color: gray/*#0c457e*/; border-style: outset; border-radius: 3px;\
                                 border-width: 3px; color: black;\
@@ -927,9 +930,6 @@ class graphicsForm3DLUT(QGraphicsView) :
                                 QPushButton:pressed, QPushButton:hover {background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #0d5ca6, stop: 1 #2198c0);}")
             btn.adjustSize()
             btn.setMaximumSize(QSize(btn.width(), btn.height()))
-
-
-
 
     """
     def showEvent(self, e):
@@ -1065,7 +1065,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.selected = None
         self.grid.drawGrid()
         self.scene().onUpdateScene()
-        self.layer.reset()
+        self.layer.applyToStack()
         self.layer.parentImage.window.repaint()
 
     def writeToStream(self, outStream):

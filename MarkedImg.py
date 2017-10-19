@@ -200,7 +200,7 @@ class vImage(QImage):
         or purgeThumb is True.
         The method is overridden in QLayer
         @return: image
-        @rtype: vImage
+        @rtype: QImage
         """
         if self.useHald:
             return self.getHald()
@@ -1598,7 +1598,7 @@ class QLayer(vImage):
 
     def reset(self):
         """
-        reset layer by ressetting it to imputImg
+        reset layer to inputImg
         @return:
         """
         self.setImage(self.inputImg())

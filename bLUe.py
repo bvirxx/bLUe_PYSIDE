@@ -46,7 +46,7 @@ from os import path, walk
 from os.path import isfile
 from types import MethodType
 from grabcut import segmentForm
-from PySide2.QtCore import Qt, QRect, QEvent, QDir, QUrl, QPoint, QSize
+from PySide2.QtCore import Qt, QRect, QEvent, QDir, QUrl, QPoint, QSize, QFile, QFileInfo
 from PySide2.QtGui import QPixmap, QColor, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, QPainterPath
 from PySide2.QtWidgets import QApplication, QMenu, QAction, QFileDialog, QMessageBox, \
     QMainWindow, QLabel, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen
@@ -547,7 +547,7 @@ def setDocumentImage(img):
         else:
             window.histView.mode = 'Luminosity'
             window.histView.chanColors = [Qt.gray]
-        histView = histImg.histogram(QSize(window.histView.width(), window.histView.height()-20), chans=range(3), bgColor=Qt.lightGray,
+        histView = histImg.histogram(QSize(window.histView.width(), window.histView.height()), chans=range(3), bgColor=Qt.black,
                                      chanColors=window.histView.chanColors, mode=window.histView.mode, addMode='Luminosity')
         window.histView.Label_Hist.setPixmap(QPixmap.fromImage(histView))
         window.histView.Label_Hist.repaint()#update()
@@ -1170,15 +1170,20 @@ def menuHelp(x, name):
     A single instance is created.
     Unused parameters are for the sake of symmetry
     with other menu function calls.
-    @param x:
-    @param name:
+    @param x: unused (added for symmetry with other menu function calls)
+    @param name: action name
+    @type name: string
     """
     if name == "actionBlue_help":
-        global helpWindow
-        link = "Help.html"
-        if helpWindow is None:  # TODO refactor
-            QDesktopServices.openUrl(QUrl(link))
-            helpWindow='done'
+        w = app.focusWidget()
+        link = QFileInfo('help.html').absoluteFilePath()
+        # add fragment identifier
+        # unfortunately, on Windows Qt does not pass it to the browser.
+        # cf. https://bugreports.qt.io/browse/QTBUG-14460
+        if hasattr(w, 'helpId'):
+            if w.helpId != '':
+                link = link + '#' + w.helpId
+        QDesktopServices.openUrl(QUrl(link, QUrl.TolerantMode))
     elif name == "actionAbout_bLUe":
         w, label = handleTextWindow(parent=window, title='About bLUe')
         label.setStyleSheet("background-image: url(logo.png); color: white;")
@@ -1335,9 +1340,6 @@ def updateStatus():
 # app init
 ##########
 if __name__ =='__main__':
-
-    # help Window
-    helpWindow=None
 
     # style sheet
     app.setStyleSheet("QMainWindow, QGraphicsView, QListWidget, QMenu, QTableView {background-color: rgb(200, 200, 200)}\

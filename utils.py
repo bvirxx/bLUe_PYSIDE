@@ -68,31 +68,6 @@ class optionsWidget(QListWidget) :
                     currentItem.setCheckState(Qt.Unchecked)
         self.onSelect(item)
 
-class helpClient(QObject):
-    def __init__(self, parent=None, helpId=None):
-        super(helpClient, self).__init__()
-        parent.installEventFilter(self)
-        parent.helpId = helpId
-        self.window = None
-
-    def eventFilter(self, obj, event):
-        if event.type() == QEvent.KeyPress :
-            if (event.key() == Qt.Key_F1) or (event.key() == Qt.Key_Help):
-                if obj.isWidgetType() :
-                    widget = obj.focusWidget()
-                    link = "Help.html#%s" % obj.helpId
-                    QDesktopServices.openUrl(QUrl(link))
-                    """
-                    self.window = QWebView()
-                    self.window.setAttribute(Qt.WA_DeleteOnClose)
-                    self.window.load(QUrl("Help.html#%s" % obj.helpId))
-                    self.window.show()
-                    """
-                return True
-        return False
-
-
-
 def savitzky_golay(y, window_size, order, deriv=0, rate=1):
     """
     This pure numpy implementation of the savitzky_golay filter is taken

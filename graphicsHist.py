@@ -18,35 +18,23 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
 from PySide2.QtCore import Qt, QSize
-from PySide2.QtGui import QFontMetrics
-from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout
-
-from graphicsTemp import sRGBWP
+from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout
 from utils import optionsWidget
 
 
 class histForm (QGraphicsView):
-    """
-    @classmethod
-    def getNewWindow(cls, targetImage=None, size=500, layer=None, parent=None, mainForm=None):
-        wdgt = histForm(targetImage=targetImage, size=size, layer=layer, parent=parent, mainForm=mainForm)
-        wdgt.setWindowTitle(layer.name)
-        return wdgt
-    """
-
     def __init__(self, targetImage=None, size=200, layer=None, parent=None, mainForm=None):
         super(histForm, self).__init__(parent=parent)
         self.targetImage = targetImage
-        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.setMinimumSize(size, 100)
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.img = targetImage
         self.layer = layer
-        l = QVBoxLayout()
-        l.setAlignment(Qt.AlignBottom)
-        l.setSpacing(0)
         self.Label_Hist = QLabel()
-        l.addWidget(self.Label_Hist)
+        self.Label_Hist.setScaledContents(True)
+        self.Label_Hist.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+
         self.setStyleSheet("QListWidget{background-color: rgb(200,200,200); selection-background-color: rgb(200,200,200); border: 0px; font-size: 9px}")
 
         # options
@@ -60,28 +48,32 @@ class histForm (QGraphicsView):
         self.listWidget2.item(0).setSizeHint(QSize(100, 10))
         self.listWidget2.setMaximumSize(self.listWidget2.sizeHintForColumn(0) + 5, self.listWidget2.sizeHintForRow(0) * len(options2))
 
-        self.options = { option : True for option in options1 + options2}
+        self.options = {option : True for option in options1 + options2}
         def onSelect1(item):
-            self.options[options1[0]] = item.checkState() is Qt.Checked #item is self.listWidget1.items['Original Image']
+            self.options[options1[0]] = item.checkState() is Qt.Checked
             self.targetImage.onImageChanged()
             self.Label_Hist.update()
 
         def onSelect2(item):
-            self.options[options2[0]] = item.checkState() is Qt.Checked #item is self.listWidget1.items['Original Image']
+            self.options[options2[0]] = item.checkState() is Qt.Checked
             self.targetImage.onImageChanged()
             self.Label_Hist.update()
 
         self.listWidget1.onSelect = onSelect1
         self.listWidget2.onSelect = onSelect2
 
+        # set layout
         h = QHBoxLayout()
         h.addWidget(self.listWidget1)
         h.addWidget(self.listWidget2)
-        l.addStretch(1)
+        l = QVBoxLayout()
+        l.setAlignment(Qt.AlignBottom)
+        l.setSpacing(0)
+        l.addWidget(self.Label_Hist)
+        #l.addStretch(1)
         l.addLayout(h)
-        l.addStretch(1)
-
-        l.setContentsMargins(0, 0, 0, 0)  # left, top, right, bottom
+        #l.addStretch(1)
+        l.setContentsMargins(0, 0, 0, 6)  # left, top, right, bottom
         self.setLayout(l)
 
 
