@@ -444,6 +444,7 @@ def loadImageFromFile(f):
     # load image file
     name = path.basename(f)
     img = imImage(filename=f, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile, name=name, rating=rating)
+    window.settings.setValue('paths/dlgdir', QFileInfo(f).absoluteDir().path())
     img.initThumb()
     if img.format() < 4:
         msg = QMessageBox()
@@ -984,7 +985,9 @@ def menuLayer(x, name):
     elif name == 'actionNew_segmentation_layer':
         lname = 'Segmentation'
         l = window.label.img.addSegmentationLayer(name=lname)
+        l.isClipping = True
         grWindow = segmentForm.getNewWindow(targetImage=window.label.img, layer=l, mainForm=window)
+        l.execute = lambda pool=None: l.applyGrabcut(nbIter=grWindow.nbIter)
     # Temperature
     elif name == 'actionColor_Temperature':
         lname = 'Color Temperature'
@@ -1261,7 +1264,12 @@ def savingDialog(img):
     return ret
 
 def save(img):
-    lastDir = window.settings.value('paths/dlgdir', QDir.currentPath())
+    lastDir = window.settings.value("paths/dlgdir", QDir.currentPath())
+    """
+    # pySide bug work around : value returns None when the key does not exist
+    if lastDir is None:
+        lastDir = QDir.currentPath()
+    """
     dlg = QFileDialog(window, "Save", lastDir)
     dlg.selectFile(img.filename)
     if dlg.exec_():

@@ -154,11 +154,12 @@ class QLayerView(QTableView) :
         self.previewOptionBox.stateChanged.connect(m)
 
         # opacity slider
-        self.wdgt = QSlider(Qt.Horizontal)
-        self.wdgt.setTickPosition(QSlider.TicksBelow)
-        self.wdgt.setRange(0, 100)
-        self.wdgt.setSingleStep(1)
-        self.wdgt.setSliderPosition(100)
+        self.opacitySlider = QSlider(Qt.Horizontal)
+        self.opacitySlider.setTickPosition(QSlider.TicksBelow)
+        self.opacitySlider.setRange(0, 100)
+        self.opacitySlider.setSingleStep(1)
+        self.opacitySlider.setSliderPosition(100)
+        #self.opacitySlider.setTracking(False)
         opacityLabel = QLabel()
         opacityLabel.setMaximumSize(100,30)
         #self.opacityLabel.setStyleSheet("QLabel {background-color: white;}")
@@ -182,19 +183,22 @@ class QLayerView(QTableView) :
         self.opacityValue.setText('100 ')
         self.opacityValue.setStyleSheet("QLabel {background-color: white}")
         hl.addWidget(self.opacityValue)
-        hl.addWidget(self.wdgt)
+        hl.addWidget(self.opacitySlider)
         l.addLayout(hl)
         l.setContentsMargins(20,0,20,0) # left, top, right, bottom
         # the layout is set in blue.py, after the initialization of the main form.
         self.propertyLayout = l
 
         # opacity value changed event handler
-        def f():
-            self.opacityValue.setText(str('%d ' % self.wdgt.value()))
-            self.img.getActiveLayer().setOpacity(self.wdgt.value())
+        def f1():
+            self.opacityValue.setText(str('%d ' % self.opacitySlider.value()))
+            self.img.getActiveLayer().setOpacity(self.opacitySlider.value())
+        def f2():
+            self.img.getActiveLayer().applyToStack()
             self.img.onImageChanged()
 
-        self.wdgt.valueChanged.connect(f)
+        self.opacitySlider.valueChanged.connect(f1)
+        self.opacitySlider.sliderReleased.connect(f2)
 
         # blending modes combo box
         compLabel = QLabel()
@@ -216,13 +220,15 @@ class QLayerView(QTableView) :
         l.addWidget(self.blendingModeCombo)
         for key in modes:
             self.blendingModeCombo.addItem(key, self.compositionModeDict[key])
-        def g(ind):
+        def g1(ind):
             s = self.blendingModeCombo.currentText()
             self.img.getActiveLayer().compositionMode = self.compositionModeDict[str(s)]
+        def g2(ind):
+            self.img.getActiveLayer().applyToStack()
             self.img.onImageChanged()
 
-        self.blendingModeCombo.currentIndexChanged.connect(g)
-
+        self.blendingModeCombo.currentIndexChanged.connect(g1)
+        self.blendingModeCombo.activated.connect(g2)
         # shortcut actions
         self.actionDup = QAction('Duplicate layer', None)
         self.actionDup.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_J))
@@ -461,7 +467,7 @@ class QLayerView(QTableView) :
             self.img.setActiveLayer(len(self.img.layersStack) - 1 - row)
             opacity = int(self.img.getActiveLayer().opacity * 100)
             self.opacityValue.setText(str('%d ' % opacity))
-            self.wdgt.setSliderPosition(opacity)
+            self.opacitySlider.setSliderPosition(opacity)
             compositionMode = self.img.getActiveLayer().compositionMode
             ind = self.blendingModeCombo.findData(compositionMode)
             self.blendingModeCombo.setCurrentIndex(ind)
@@ -483,7 +489,8 @@ class QLayerView(QTableView) :
             QtGui1.window.label.repaint()
         # select mask
         elif clickedIndex.column() == 2:
-            self.img.layersStack[-1-clickedIndex.row()].maskIsSelected = not self.img.layersStack[-1-clickedIndex.row()].maskIsSelected
+            cl = self.img.layersStack[-1-clickedIndex.row()]
+            cl.maskIsSelected = not cl.maskIsSelected
             # update
             layer.applyToStack()
             self.img.onImageChanged()
@@ -535,7 +542,7 @@ class QLayerView(QTableView) :
         menu.addAction(actionMaskErode)
         # Event handlers
         def f():
-            self.wdgt.show()
+            self.opacitySlider.show()
         def g(value):
             layer.setOpacity(value)
         def merge():
@@ -594,7 +601,7 @@ class QLayerView(QTableView) :
         actionMaskPaste.triggered.connect(maskPaste)
         actionMaskDilate.triggered.connect(maskDilate)
         actionMaskErode.triggered.connect(maskErode)
-        self.wdgt.valueChanged.connect(g)
+        self.opacitySlider.valueChanged.connect(g)
         menu.exec_(self.mapToGlobal(pos))
 
 
