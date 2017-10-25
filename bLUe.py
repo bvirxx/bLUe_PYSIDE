@@ -206,7 +206,7 @@ def mouseEvent(widget, event) :
                     w = abs(State['ix_begin'] - x) // r
                     h = abs(State['iy_begin'] - y) // r
                     layer.rect = QRect(x_img, y_img, w, h)
-                # drawing
+                # drawing tools
                 elif window.btnValues['drawFG'] or window.btnValues['drawBG']:
                     if layer.maskIsEnabled:
                         if layer.isSegmentLayer():
@@ -226,7 +226,7 @@ def mouseEvent(widget, event) :
                         qp.drawLine(State['x_imagePrecPos'], State['y_imagePrecPos'], tmp_x, tmp_y)
                         qp.end()
                         State['x_imagePrecPos'], State['y_imagePrecPos'] = tmp_x, tmp_y
-                        # update
+                        # update upper layers
                         i = layer.getStackIndex()
                         for l in img.layersStack[i:] :
                             l.updatePixmap(maskOnly=True)
@@ -330,11 +330,10 @@ def wheelEvent(widget,img, event):
 
 def enterEvent(widget,img, event):
     """
-    MOuse enter event handler
+    Mouse enter event handler
     @param widget:
     @param img:
     @param event:
-    @return:
     """
     if window.btnValues['drawFG'] or window.btnValues['drawBG']:
         if not QApplication.overrideCursor():
@@ -601,14 +600,14 @@ def menuFile(x, name):
             elif ret == QMessageBox.Cancel:
                 return
         lastDir = window.settings.value('paths/dlgdir', '.')
-        dlg = QFileDialog(window, "select", lastDir)
+        dlg = QFileDialog(window, "select", lastDir, "*.jpg *.jpeg *.png *.tif *.tiff *.bmp")
         if dlg.exec_():
             filenames = dlg.selectedFiles()
             newDir = dlg.directory().absolutePath()
             window.settings.setValue('paths/dlgdir', newDir)
             # update list of recent files
             filter(lambda a: a != filenames[0], window._recentFiles)
-            window._recentFiles.append(filenames[0])
+            window._recentFiles.insert(0, filenames[0])
             if len(window._recentFiles) > 10:
                 window._recentFiles.pop(0)
             window.settings.setValue('paths/recent', window._recentFiles)
@@ -1417,7 +1416,9 @@ if __name__ =='__main__':
     # init EyeDropper cursor
     window.cursor_EyeDropper = QCursor(QPixmap.fromImage(QImage(":/images/resources/Eyedropper-icon.png")))
     # init tool cursor, must be resizable
-    window.cursor_Circle_Pixmap = QPixmap.fromImage(QImage(":/images/resources/cursor_circle.png"))
+    curImg = QImage(":/images/resources/cursor_circle.png")
+    curImg.invertPixels()
+    window.cursor_Circle_Pixmap = QPixmap.fromImage(curImg)
 
     # init Before/after view and cycling action
     window.splitter.setOrientation(Qt.Horizontal)

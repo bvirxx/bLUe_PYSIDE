@@ -336,11 +336,6 @@ def conversionMatrix(Tdest, Tsource):
     N = np.dot(np.array(BradfordInverse), D)  # N= MA**-1 D
     P = np.dot(N, np.array(Bradford))         # P = N MA = MA**-1 D MA
     return P
-    """
-    Q = np.dot(np.array(sRGB2XYZInverse), P)
-    R = np.dot(Q , sRGB2XYZ)
-    return R
-    """
 
 class temperatureForm (QGraphicsView):
     @classmethod
@@ -361,7 +356,7 @@ class temperatureForm (QGraphicsView):
         l = QVBoxLayout()
         l.setAlignment(Qt.AlignBottom)
 
-        # f is defined later, but we need to declare it righjt now
+        # f is defined later, but we need to declare it right now
         def f():
             pass
 
@@ -394,7 +389,7 @@ class temperatureForm (QGraphicsView):
         self.tempValue = QLabel()
         font = self.tempValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("1000 ")
+        w = metrics.width("000000")
         h = metrics.height()
         self.tempValue.setMinimumSize(w, h)
         self.tempValue.setMaximumSize(w, h)

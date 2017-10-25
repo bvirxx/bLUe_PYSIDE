@@ -159,7 +159,7 @@ class vImage(QImage):
         if self.mask is None:
             self.mask = QImage(self.width(), self.height(), format)
             # nothing is masked
-            self.mask.fill(QColor(0, 0, 0,255))
+            self.mask.fill(QColor(128, 0, 0, 255)) # initially 0,0,0,255 keep alpha 255 TODO fix 23/10/17
         #self.updatePixmap()
         if type(self) in [QLayer]:
             vImage.updatePixmap(self)
@@ -390,9 +390,11 @@ class vImage(QImage):
             np.any(finalMask == cv2.GC_BGD) or np.any(finalMask == cv2.GC_PR_BGD))):
             reply = QMessageBox()
             reply.setText('You must select some background or foreground pixels')
-            reply.setInformativeText('Use selection rectangle or mask')
+            reply.setInformativeText('Use selection rectangle or draw mask')
             reply.setStandardButtons(QMessageBox.Ok)
             ret = reply.exec_()
+            # mask possibly modified
+            self.updatePixmap()
             return
 
         bgdmodel = np.zeros((1, 13 * 5), np.float64)  # Temporary array for the background model
@@ -452,7 +454,7 @@ class vImage(QImage):
         self.mask = scaledMask.scaled(self.width(), self.height())
         tmp = QImageBuffer(self.mask)
         tmp[:,:,3]  = np.where(tmp[:,:,1] <2, 0, 255)
-        currentImage = self.getCurrentImage()
+        currentImage = self.getCurrentImage()  # TODO 23/10/17 fix do not use getCurrentMaskedImage : lower layers modifs not forwarded
         ndImg1a = QImageBuffer(currentImage)
         # forward input image to image
         ndImg1a[:, :,:]= inputBuf
@@ -1451,12 +1453,18 @@ class QLayer(vImage):
             img.name = self.name +'_getcurrentMaskedImage'
 
         # draw layer with its current opacity and composition mode
+        # layer masked image is a blending of input and current images # TODO Fix modified 23/10/17
+        tmpImage = self.getCurrentImage().copy()  #TODO # added 25/10 mandatory to prevent thumb modif. 4th line below
+        tmpBuf = QImageBuffer(tmpImage)
+        scale = self.mask.scaled(img.width(), img.height())
+        tmpBuf1 = QImageBuffer(scale)
+        tmpBuf[:, :, 3] = tmpBuf1[:, :, 3]
         qp.setCompositionMode(self.compositionMode)
         qp.setOpacity(self.opacity)
-        qp.drawImage(QRect(0, 0, img.width(), img.height()), self.getCurrentImage())
-        # getCurrentImage() * mask - set image opacity to mask opacity
-        qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
-        qp.drawImage(QRect(0, 0, img.width(), img.height()), self.mask)
+        qp.drawImage(QRect(0, 0, img.width(), img.height()), tmpImage)
+        # set image opacity to mask opacity : propagate mask effect to upper layers (similar to hole in image)
+        #qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)  # TODO Fix modified 23/10/17
+        #qp.drawImage(QRect(0, 0, img.width(), img.height()), self.mask)
         qp.end()
         # no recursive caches
         #img.cachesEnabled = False # TODO Fix 12/10/17
@@ -1632,13 +1640,15 @@ class QLayer(vImage):
                 qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
                 # invert alpha
                 tmp = tmp.copy() # TODO 23/10/17 Fix
-                #tmpBuf = QImageBuffer(tmp)
-                #tmpBuf[:,:,3] = 255 - tmpBuf[:,:,3]
+                # make sure image buffer is copied
                 tmp.invertPixels(mode=QImage.InvertRgba)
-                tmp.invertPixels(mode=QImage.InvertRgb)
+                tmp.invertPixels(mode=QImage.InvertRgba)
+                tmpBuf = QImageBuffer(tmp)
+                #tmpBuf[:,:,3] = 255 - tmpBuf[:,:,3]
+                tmpBuf[:, :,3] = np.where(tmpBuf[:,:,3] == 0, 128, 0)
             else:
                 # draw mask as opacity mask
-                # img * mask : img opacity is set to mask opacity
+                # set image opacity to mask opacity
                 qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
             qp.drawImage(QRect(0, 0, img.width(), img.height() ), tmp)
             qp.end()
