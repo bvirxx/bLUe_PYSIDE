@@ -100,8 +100,8 @@ class QLayerView(QTableView) :
         self.setIconSize(QSize(20,15))
         self.verticalHeader().setMinimumSectionSize(-1)
         self.verticalHeader().setDefaultSectionSize(self.verticalHeader().minimumSectionSize())
-        self.horizontalHeader().setMinimumSectionSize(10)
-        self.horizontalHeader().setDefaultSectionSize(10)
+        self.horizontalHeader().setMinimumSectionSize(40)
+        self.horizontalHeader().setDefaultSectionSize(40)
         """
         self.verticalHeader().setMovable(True)
         self.verticalHeader().setDragEnabled(True)
@@ -122,7 +122,6 @@ class QLayerView(QTableView) :
         # We should use a QListWidget or a custom optionsWidget
         # (cf. utils.py) :  adding it to QVBoxLayout with mode
         # Qt.AlignBottom does not work.
-        # TODO : try setSizePolicy(QSizePolicy.Fixed , QSizePolicy.Fixed)
         self.previewOptionBox = QCheckBox('Preview')
         self.previewOptionBox.setMaximumSize(100, 30)
         self.previewOptionBox.setChecked(True)
@@ -347,9 +346,9 @@ class QLayerView(QTableView) :
             if hasattr(lay, 'inputImg'):
                 item_name = QStandardItem(name)
             else:
-                smallImg = lay#.resize(50**3)
                 # icon with very small dim causes QPainter error
                 # QPixmap.fromImage bug ?
+                smallImg = lay#.resize(50**3)
                 w,h = smallImg.width(), smallImg.height()
                 if w < h / 5 or h < w / 5:
                     item_name = QStandardItem(name)

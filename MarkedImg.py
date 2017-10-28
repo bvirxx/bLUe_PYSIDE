@@ -365,26 +365,42 @@ class vImage(QImage):
 
         # set mask from selection rectangle, if any
         rectMask = np.zeros((inputImg.height(), inputImg.width()), dtype=np.uint8)
+        debug = rectMask[int(rect.top() * r):int(rect.bottom() * r), int(rect.left() * r):int(rect.right() * r)]
         if rect is not None:
             rectMask[int(rect.top() * r):int(rect.bottom() * r),
             int(rect.left() * r):int(rect.right() * r)] = cv2.GC_PR_FGD
         else:
             rectMask = rectMask + cv2.GC_PR_FGD
-
+        # scale mask don't use scaled don't work for pixels with opacity 0
+        x = QImageBuffer(self.mask)[:, :, 3]
+        QImageBuffer(self.mask)[:, :, 3] = np.where(x == 0, 1, x)
         scaledMask = self.mask.scaled(inputImg.width(), inputImg.height())
-        paintedMask = QImageBuffer(scaledMask)
+        x = QImageBuffer(scaledMask)
+        x[:, :, 3] = np.where(x[:, :, 3]<=1, 0, x[:, :, 3])
+
+        """
+        scaledMask = inputImg.copy() #self.mask.scaled(inputImg.width(), inputImg.height())
+        x = QImageBuffer(self.mask)[:,:,3]
+        QImageBuffer(self.mask)[:, :, 3] = np.where(x==0, 1, x)
+        qp = QPainter(scaledMask)
+        qp.setCompositionMode(QPainter.CompositionMode_Source)
+        qp.drawImage(QRect(0, 0, inputImg.width(), inputImg.height()), self.mask)
+        qp.end()
+        """
+        scaledMaskBuf = QImageBuffer(scaledMask)
         # paintedMask = QImageBuffer(layer.mask)
         # CAUTION: mask is initialized to 255, thus discriminant is blue=0 for FG and green=0 for BG 'cf. Blue.mouseEvent())
-        rectMask[(paintedMask[:, :, 0] == 0) * (paintedMask[:, :, 1] == 255)] = cv2.GC_FGD
-        rectMask[(paintedMask[:, :, 0] == 0) * (paintedMask[:, :, 1] == 1)] = cv2.GC_PR_FGD
+        rectMask[(scaledMaskBuf[:, :, 0] == 0) * (scaledMaskBuf[:, :, 1] == 255)] = cv2.GC_FGD
+        rectMask[(scaledMaskBuf[:, :, 0] == 0) * (scaledMaskBuf[:, :, 1] == 1)] = cv2.GC_PR_FGD  # empty
 
         # rectMask[paintedMask[:, :,1]==0 ] = cv2.GC_BGD
-        rectMask[(paintedMask[:, :, 1] == 0) * (paintedMask[:, :, 0] == 255)] = cv2.GC_BGD
-        rectMask[(paintedMask[:, :, 1] == 0) * (paintedMask[:, :, 0] == 1)] = cv2.GC_PR_BGD
-        rectMask[(paintedMask[:, :, 3] == 0) * (paintedMask[:,:,1]==1)] = cv2.GC_BGD
+        rectMask[(scaledMaskBuf[:, :, 1] == 0) * (scaledMaskBuf[:, :, 0] == 255)] = cv2.GC_BGD
+        rectMask[(scaledMaskBuf[:, :, 1] == 0) * (scaledMaskBuf[:, :, 0] == 1)] = cv2.GC_PR_BGD  #empty
+        #rectMask[(scaledMaskBuf[:, :, 3] == 0) * (scaledMaskBuf[:,:,1]==1)] = cv2.GC_BGD  # set PR_BGD to BGD
 
         finalMask = rectMask
         finalMask_test = finalMask.copy()
+        finalMask_save = finalMask.copy()
 
         if not ((np.any(finalMask == cv2.GC_FGD) or np.any(finalMask == cv2.GC_PR_FGD)) and (
             np.any(finalMask == cv2.GC_BGD) or np.any(finalMask == cv2.GC_PR_BGD))):
@@ -425,35 +441,46 @@ class vImage(QImage):
                     mode)
         print('grabcut time : %.2f' % (time() - t1))
 
+        # build segmentation mask
         buf = QImageBuffer(scaledMask)
-        # reset image mask to black
-        buf[:, :, :3] = 0
+        # reset image mask to black, opacity 255
+        buf[:, :, :3] = 1 # don't use 0 for scaling
         buf[:, :, 3] = 255
 
-        # set opacity (255=background, 0=foreground)
-        buf[:, :, 3] = np.where((finalMask == cv2.GC_FGD) + (finalMask == cv2.GC_PR_FGD), 0, 255)
-        # dilate background
-        # kernel = np.ones((5, 5), np.uint8)
-        # buf = cv2.dilate(buf, kernel, iterations=1)
-        # buf = cv2.erode(buf, kernel, iterations=1)
+        finalMask = np.where(finalMask_save==cv2.GC_BGD, cv2.GC_BGD, finalMask)
+        finalMask = np.where(finalMask_save == cv2.GC_FGD, cv2.GC_FGD, finalMask)
 
+        # set opacity (255=background, 0=foreground)
+        # We want to keep the colors of mask pixels. Unfortunately,
+        # while drawing or scaling, Qt replaces the colors of transparent pixels by 0.
+        # So, we can't set now mask alpha channel.
+        finalOpacity = np.where((finalMask == cv2.GC_FGD) + (finalMask == cv2.GC_PR_FGD), 0, 255)
+        # set colors
         # R  G  B
         # *  0 255  background
         # *  1 255  probably background
         # * 255 0  foreground
         # * 255 1  probably foreground
-        # *
-        # set Green channel(255=foreground, 0=background, 1=PR_BGD)
-        buf[:, :, 1] = np.where(buf[:, :, 3] == 0, 255, 0)
-        buf[:, :, 1][finalMask == cv2.GC_PR_BGD] = 1
-        # set Blue channel(255=background, 0=foreground, 1=PR_FGD)
-        buf[:, :, 0] = np.where(buf[:, :, 3] == 255, 255, 0)
-        buf[:, :, 0][finalMask == cv2.GC_PR_FGD] = 1
-        # invert mask opacity
-        buf[:, :, 3] = 255 #- buf[:, :, 3]
+        # set Green channel(255=foreground, 0=BGD, 1=PR_BGD)
+        buf[:, :, 1] = np.where(finalOpacity == 0, 255, 0)
+        buf[:, :, 1][finalMask == cv2.GC_PR_BGD] = 100#1
+        # set Blue channel(255=background, 0=FGD, 1=PR_FGD)
+        buf[:, :, 0] = np.where(finalOpacity == 255, 255, 0)
+        buf[:, :, 0][finalMask == cv2.GC_PR_FGD] = 250#1
+
         self.mask = scaledMask.scaled(self.width(), self.height())
+        x = QImageBuffer(self.mask)
+        x[:, :, 3] = np.where(x[:, :, 3] <= 1, 0, x[:, :, 3])
+        """
+        qp = QPainter(self.mask)
+        qp.setCompositionMode(QPainter.CompositionMode_Source)
+        qp.drawImage(QRect(0,0, self.width(), self.height()), scaledMask)
+        qp.end()
+        """
+
         tmp = QImageBuffer(self.mask)
-        tmp[:,:,3]  = np.where(tmp[:,:,1] <2, 0, 255)
+
+        tmp[:,:,3]  = np.where(tmp[:,:,1] <2, 1, 255)  # TODO fix 27/10/17 don't use opacity 0 for scaling
         currentImage = self.getCurrentImage()  # TODO 23/10/17 fix do not use getCurrentMaskedImage : lower layers modifs not forwarded
         ndImg1a = QImageBuffer(currentImage)
         # forward input image to image
@@ -1109,22 +1136,21 @@ class mImage(vImage):
 
     def mergeVisibleLayers(self):
         """
-        Merges the current visible layers and returns the
-        resulting QImage.
+        Merges the current visible masked images and returns the
+        resulting QImage, eventually scaled to fit the image size.
         @return: image
         @rtype: QImage
         """
+        # init new image
         img = QImage(self.width(), self.height(), self.format())
-        #img.fill(QColor(0, 0, 0, 0))
         img.fill(vImage.defaultBgColor)
+        # draw layers and masks
         qp = QPainter(img)
         for layer in self.layersStack:
             if layer.visible:
                 qp.setOpacity(layer.opacity)
                 qp.setCompositionMode(layer.compositionMode)
-                #qp.drawImage(0, 0, layer)
-                #qp.drawImage(QRect(0, 0, self.width(), self.height()), layer.getCurrentImage())  # 05/10/17 added getCurrentImage to select the right stack
-                qp.drawImage(QRect(0, 0, self.width(), self.height()), layer.getCurrentMaskedImage()) # TODO modifeid 23/10/17
+                qp.drawImage(QRect(0, 0, self.width(), self.height()), layer.getCurrentMaskedImage())
                 if layer.isClipping: # TODO fix 23/10/17
                     qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
                     qp.drawImage(QRect(0, 0, img.width(), img.height()), layer.mask)
@@ -1455,10 +1481,11 @@ class QLayer(vImage):
         # draw layer with its current opacity and composition mode
         # layer masked image is a blending of input and current images # TODO Fix modified 23/10/17
         tmpImage = self.getCurrentImage().copy()  #TODO # added 25/10 mandatory to prevent thumb modif. 4th line below
-        tmpBuf = QImageBuffer(tmpImage)
-        scale = self.mask.scaled(img.width(), img.height())
-        tmpBuf1 = QImageBuffer(scale)
-        tmpBuf[:, :, 3] = tmpBuf1[:, :, 3]
+        if self.maskIsEnabled:
+            tmpBuf = QImageBuffer(tmpImage)
+            scale = self.mask.scaled(img.width(), img.height())
+            tmpBuf1 = QImageBuffer(scale)
+            tmpBuf[:, :, 3] = tmpBuf1[:, :, 3]
         qp.setCompositionMode(self.compositionMode)
         qp.setOpacity(self.opacity)
         qp.drawImage(QRect(0, 0, img.width(), img.height()), tmpImage)
@@ -1635,20 +1662,15 @@ class QLayer(vImage):
             tmp = self.mask
             qp = QPainter(img)
             if self.maskIsSelected:
-                # draw mask as color mask
-                #qp.setCompositionMode(QPainter.CompositionMode_Multiply)
+                # draw mask as color mask with opacity 128
                 qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
-                # invert alpha
-                tmp = tmp.copy() # TODO 23/10/17 Fix
-                # make sure image buffer is copied
-                tmp.invertPixels(mode=QImage.InvertRgba)
-                tmp.invertPixels(mode=QImage.InvertRgba)
+                tmp = tmp.copy()
                 tmpBuf = QImageBuffer(tmp)
-                #tmpBuf[:,:,3] = 255 - tmpBuf[:,:,3]
-                tmpBuf[:, :,3] = np.where(tmpBuf[:,:,3] == 0, 128, 0)
+                tmpBuf[:,:,3] = 128 # 255 - tmpBuf[:,:,3]
+                #tmpBuf[:, :,3] = np.where(tmpBuf[:,:,3] == 0, 128, 0)
             else:
                 # draw mask as opacity mask
-                # set image opacity to mask opacity
+                # mode DestinationIn sets image opacity to mask opacity
                 qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
             qp.drawImage(QRect(0, 0, img.width(), img.height() ), tmp)
             qp.end()

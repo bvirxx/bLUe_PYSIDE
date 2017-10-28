@@ -63,7 +63,7 @@ class CLAHEForm (QGraphicsView):
         super(CLAHEForm, self).__init__(parent=parent)
         self.targetImage = targetImage
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        self.setMinimumSize(size+100, size)  # default width 200 doesn't fit the length of option names
+        self.setMinimumSize(size, size)  # default width 200 doesn't fit the length of option names
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.img = targetImage
         self.layer = layer

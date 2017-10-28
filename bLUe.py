@@ -109,7 +109,7 @@ def paintEvent(widg, e) :
     to widg.paintEvent (cf. the function set_event_handler
     below).
     Image layers are painted in stack ascending order,
-    each with its own opacity.
+    each with its own opacity and composition mode.
     @param widg: widget
     @type widg: object with a img attribute of type mImage
     @param e: paint event
@@ -126,7 +126,7 @@ def paintEvent(widg, e) :
     qp.fillRect(QRect(0, 0, widg.width() , widg.height() ), vImage.defaultBgColor)
     # draw layers.
     # We follow the algorithm from MarkedImg.mergeVisibleLayers,
-    # but for color management we use pixmaps instead of images.
+    # but for color and masking management we use pixmaps instead of images.
     for layer in mimg.layersStack :
         if layer.visible:
             qp.setOpacity(layer.opacity)
