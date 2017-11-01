@@ -37,7 +37,7 @@ import icc
 from imgconvert import *
 from LUT3D import interpVec, rgb2hspVec, hsp2rgbVec, LUT3DIdentity, LUT3D, interpVec_
 from time import time
-from utils import savitzky_golay, channelValues
+from utils import savitzky_golay, channelValues, checkeredImage
 import graphicsHist
 # pool is created in QLayer.applyToStack()
 MULTIPROC_POOLSIZE = 4
@@ -365,7 +365,6 @@ class vImage(QImage):
 
         # set mask from selection rectangle, if any
         rectMask = np.zeros((inputImg.height(), inputImg.width()), dtype=np.uint8)
-        debug = rectMask[int(rect.top() * r):int(rect.bottom() * r), int(rect.left() * r):int(rect.right() * r)]
         if rect is not None:
             rectMask[int(rect.top() * r):int(rect.bottom() * r),
             int(rect.left() * r):int(rect.right() * r)] = cv2.GC_PR_FGD
@@ -455,12 +454,12 @@ class vImage(QImage):
         # while drawing or scaling, Qt replaces the colors of transparent pixels by 0.
         # So, we can't set now mask alpha channel.
         finalOpacity = np.where((finalMask == cv2.GC_FGD) + (finalMask == cv2.GC_PR_FGD), 0, 255)
-        # set colors
-        # R  G  B
-        # *  0 255  background
-        # *  1 255  probably background
-        # * 255 0  foreground
-        # * 255 1  probably foreground
+        # set mask colors and opacity
+        # R  G  B    A
+        # *  0 255  255   background
+        # *  1 255  255   probably background
+        # * 255 0    0    foreground
+        # * 255 1    0    probably foreground
         # set Green channel(255=foreground, 0=BGD, 1=PR_BGD)
         buf[:, :, 1] = np.where(finalOpacity == 0, 255, 0)
         buf[:, :, 1][finalMask == cv2.GC_PR_BGD] = 100#1
@@ -469,24 +468,17 @@ class vImage(QImage):
         buf[:, :, 0][finalMask == cv2.GC_PR_FGD] = 250#1
 
         self.mask = scaledMask.scaled(self.width(), self.height())
-        x = QImageBuffer(self.mask)
-        x[:, :, 3] = np.where(x[:, :, 3] <= 1, 0, x[:, :, 3])
-        """
-        qp = QPainter(self.mask)
-        qp.setCompositionMode(QPainter.CompositionMode_Source)
-        qp.drawImage(QRect(0,0, self.width(), self.height()), scaledMask)
-        qp.end()
-        """
 
         tmp = QImageBuffer(self.mask)
+        tmp[:,:,3]  = np.where(tmp[:,:,1] <=100, 1, 255)  # don't use opacity 0 for scaling
 
-        tmp[:,:,3]  = np.where(tmp[:,:,1] <2, 1, 255)  # TODO fix 27/10/17 don't use opacity 0 for scaling
         currentImage = self.getCurrentImage()  # TODO 23/10/17 fix do not use getCurrentMaskedImage : lower layers modifs not forwarded
         ndImg1a = QImageBuffer(currentImage)
         # forward input image to image
         ndImg1a[:, :,:]= inputBuf
-        tmpscaled = QImageBuffer(scaledMask)
-        ndImg1a[:,:,3] = 255 - tmpscaled[:,:,3] # TODO 23/10/17 fix
+        #tmpscaled = QImageBuffer(scaledMask)
+        #ndImg1a[:,:,3] = 255 - tmpscaled[:,:,3]
+
         # update
         self.updatePixmap()
 
@@ -1038,6 +1030,8 @@ class mImage(vImage):
         for layer in self.layersStack:
             vImage.updatePixmap(layer)
 
+    def getStackIndex(self, layer):
+        return self.layersStack.index(layer)
 
     def addLayer(self, layer, name='', index=None):
         """
@@ -1085,7 +1079,7 @@ class mImage(vImage):
 
     def addAdjustmentLayer(self, name='', index=None):
         """
-        Adds an adjustment layer to the layer stack, at
+        Add an adjustment layer to the layer stack, at
         position index (default is top of active layer)
         @param name: 
         @param index: 
@@ -1094,15 +1088,19 @@ class mImage(vImage):
         if index == None:
             # add on top of active layer
             index = self.activeLayerIndex
-        # get image from active layer
+        # set image from active layer
         layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
-        if self.useThumb :
-            layer.thumb = QLayer.fromImage(self.layersStack[index].getCurrentImage(), parentImage=self)
+        #if self.useThumb :
+            #layer.thumb = QLayer.fromImage(self.layersStack[index].getCurrentImage(), parentImage=self)
+        self.addLayer(layer, name=name, index=index + 1)
         layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getCurrentMaskedImage()
         layer.inputImgFull = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getMaskedImage()
+        layer.setImage(layer.inputImgFull(), update=False)
+        if self.useThumb:
+            layer.thumb = layer.inputImg()
         # sync caches
         layer.updatePixmap()
-        self.addLayer(layer, name=name, index=index + 1)
+
         return layer
 
     def addSegmentationLayer(self, name='', index=None):
@@ -1469,18 +1467,23 @@ class QLayer(vImage):
         #img = QLayer.fromImage(self.getCurrentImage(), parentImage=self.parentImage)
         qp = QPainter(img)
 
-        # draw lower visible layer
-        if self.isAdjustLayer() and not self.isClipping: # TODO Fix 23/10/17
-            # inputImg() * (255 -mask)
-            # composition mode must be set to Source for copying image colors and alpha channel
-            qp.setCompositionMode(QPainter.CompositionMode_Source)#DestinationOver)
-            # recursive call through inputImg()
-            qp.drawImage(QRect(0, 0, img.width(), img.height()), self.inputImg())
-            img.name = self.name +'_getcurrentMaskedImage'
+        # draw lower visible layers
+        if self.isAdjustLayer():
+            if not self.isClipping:
+                # inputImg() * (255 -mask)
+                # composition mode must be set to Source for copying image colors and alpha channel
+                qp.setCompositionMode(QPainter.CompositionMode_Source)#DestinationOver)
+                # recursive call through inputImg()
+                qp.drawImage(QRect(0, 0, img.width(), img.height()), self.inputImg())
+                img.name = self.name +'_getcurrentMaskedImage'
+            else:
+                qp.setCompositionMode(QPainter.CompositionMode_Source)
+                qp.drawImage(QRect(0, 0, img.width(), img.height()), checkeredImage(img.width(), img.height()))
 
         # draw layer with its current opacity and composition mode
-        # layer masked image is a blending of input and current images # TODO Fix modified 23/10/17
-        tmpImage = self.getCurrentImage().copy()  #TODO # added 25/10 mandatory to prevent thumb modif. 4th line below
+        # blend input with current image and mask
+        # prevent thumb modif. Cf. 4th line below
+        tmpImage = self.getCurrentImage().copy()
         if self.maskIsEnabled:
             tmpBuf = QImageBuffer(tmpImage)
             scale = self.mask.scaled(img.width(), img.height())
@@ -1662,17 +1665,25 @@ class QLayer(vImage):
             tmp = self.mask
             qp = QPainter(img)
             if self.maskIsSelected:
-                # draw mask as color mask with opacity 128
+                # draw mask as color mask with partial opacity
                 qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
                 tmp = tmp.copy()
                 tmpBuf = QImageBuffer(tmp)
-                tmpBuf[:,:,3] = 128 # 255 - tmpBuf[:,:,3]
+                if self.isClipping:
+                    tmpBuf[:,:,3] = 255 - tmpBuf[:,:,3]
+                    tmpBuf[:,:,:3] = 64
+                else:
+                    tmpBuf[:,:,3] = 128 # 255 - tmpBuf[:,:,3]
                 #tmpBuf[:, :,3] = np.where(tmpBuf[:,:,3] == 0, 128, 0)
+                qp.drawImage(QRect(0, 0, img.width(), img.height()), tmp)
             else:
                 # draw mask as opacity mask
                 # mode DestinationIn sets image opacity to mask opacity
                 qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
-            qp.drawImage(QRect(0, 0, img.width(), img.height() ), tmp)
+                qp.drawImage(QRect(0, 0, img.width(), img.height() ), tmp)
+                if self.isClipping:
+                    qp.setCompositionMode(QPainter.CompositionMode_DestinationOver)
+                    qp.drawImage(QRect(0, 0, img.width(), img.height()), checkeredImage(img.width(), img.height()))
             qp.end()
         self.qPixmap = QPixmap.fromImage(img)
 
@@ -1731,17 +1742,21 @@ class QLayer(vImage):
         self.parentImage.layersStack.pop(currentIndex)
         self.parentImage.layerView.setLayers(self.parentImage)
 
-    def setImage(self, qimg):
+    def setImage(self, qimg, update=True):
         """
-        replace the layer image with a copy of qimg.
+        copy qimg to layer.
         The layer and qimg must have identical dimension and type.
         @param qimg: QImage object
+        @type qimg: QImage
+        @param update:
+        @type update: boolean
         """
         buf1, buf2 = QImageBuffer(self), QImageBuffer(qimg)
         if buf1.shape != buf2.shape:
             raise ValueError("QLayer.setImage : new image and layer must have identical shapes")
         buf1[...] = buf2
-        self.updatePixmap()
+        if update:
+            self.updatePixmap()
 
     def reset(self):
         """

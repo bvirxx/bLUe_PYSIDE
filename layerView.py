@@ -17,7 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import cv2
 import numpy as np
-from PySide2.QtCore import QRectF, QSize, Qt
+from PySide2.QtCore import QRectF, QSize, Qt, QModelIndex
 from PySide2.QtGui import QImage, QPalette, QColor, QKeySequence, QFontMetrics, QTextOption, QPixmap, QIcon, QPainter, QStandardItem, QStandardItemModel
 from PySide2.QtWidgets import QAction, QMenu, QSlider, QStyle, QListWidget, QCheckBox, QMessageBox, QApplication
 from PySide2.QtWidgets import QComboBox, QHBoxLayout, QLabel, QTableView, QAbstractItemView, QStyledItemDelegate, QHeaderView, QVBoxLayout
@@ -135,14 +135,6 @@ class QLayerView(QTableView) :
             self.img.cacheInvalidate()
             try:
                 QApplication.setOverrideCursor(Qt.WaitCursor)
-                """
-                info = QMessageBox()
-                info.setWindowModality(Qt.ApplicationModal)
-                info.setWindowTitle('Information')
-                info.setIcon(QMessageBox.Information)
-                info.setText('Updating all layers.....Please wait')
-                info.show()
-                """
                 QtGui1.app.processEvents()
                 # update whole stack
                 self.img.layersStack[0].applyToStack()
@@ -320,7 +312,7 @@ class QLayerView(QTableView) :
         model = layerModel()
         model.setColumnCount(3)
         l = len(mImg.layersStack)
-        # row edit event handler
+        # data changed event handler : enables edition of layer name
         def f(index1, index2):
             #index1 and index2 should be equal
             # only layer name should be editable
@@ -387,40 +379,52 @@ class QLayerView(QTableView) :
         @param event:
         """
         if event.source() == self:
+            # get selected rows
             rows = set([mi.row() for mi in self.selectedIndexes()])
+            # get target row
             targetRow = self.indexAt(event.pos()).row()
-            rows.discard(targetRow)
+            # remove target from selection
+            if targetRow in rows:
+                rows.discard(targetRow)
             rows = sorted(rows)
             if not rows:
                 return
+            # if target is below last row insert at the last position
             if targetRow == -1:
                 targetRow = self.model().rowCount()
-            # insert empty row
-            for _ in range(len(rows)):
-                self.model().insertRow(targetRow)
-            # src row to target row mapping
+
+            # mapping of src (row) indices to target indices
             rowMapping = dict()
             for idx, row in enumerate(rows):
                 if row < targetRow:
                     rowMapping[row] = targetRow + idx
                 else:
                     rowMapping[row + len(rows)] = targetRow + idx
+
+            # update layerStack using rowMapping
+            rStack = self.img.layersStack[::-1]
+            # insert None items
+            for _ in range(len(rows)):
+                rStack.insert(targetRow, None)
+            # copy moved items to their final place
+            for srcRow, tgtRow in sorted(rowMapping.items()):  # python 3 iteritems->items
+                rStack[tgtRow] = rStack[srcRow]
+            # remove moved items from their initial place
+            for row in reversed(sorted(rowMapping.keys())):  # python 3 iterkeys -> keys
+                rStack.pop(row)
+            self.img.layersStack = rStack[::-1]
+
+            # update model
+            # insert empty rows
+            for _ in range(len(rows)):
+                result=self.model().insertRow(targetRow, QModelIndex())
             colCount = self.model().columnCount()
             for srcRow, tgtRow in sorted(rowMapping.items()): # python 3 iteritems->items
                 for col in range(0, colCount):
+                    # CAUTION : setItem calls the data changed event handler (cf. setLayers above)
                     self.model().setItem(tgtRow, col, self.model().takeItem(srcRow, col))
             for row in reversed(sorted(rowMapping.keys())): # python 3 iterkeys -> keys
                 self.model().removeRow(row)
-
-            rStack = self.img.layersStack[::-1]
-            for _ in range(len(rows)):
-                rStack.insert(targetRow, None)
-            for srcRow, tgtRow in sorted(rowMapping.items()): # python 3 iteritems->items
-                rStack[tgtRow] = rStack[srcRow]
-            for row in reversed(sorted(rowMapping.keys())): # python 3 iterkeys -> keys
-                rStack.pop(row)
-            self.img.layersStack = rStack[::-1]
-            #event.accept()
 
     def select(self, row, col):
         """
@@ -547,6 +551,16 @@ class QLayerView(QTableView) :
         def merge():
             layer.merge_with_layer_immediately_below()
         def colorMaskEnable():
+            # test upper layers visibility
+            pos = self.img.getStackIndex(layer)
+            for i in range(len(self.img.layersStack) - pos):
+                if self.img.layersStack[pos+1+i].visible:
+                    msg = QMessageBox()
+                    msg.setWindowTitle('Warning')
+                    msg.setIcon(QMessageBox.Warning)
+                    msg.setText("To edit mask or view mask as color mask\nswitch off the visibility of all upper layers")
+                    msg.exec_()
+                    return
             layer.maskIsEnabled = True
             layer.maskIsSelected = True
             layer.applyToStack()

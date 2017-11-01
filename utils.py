@@ -17,10 +17,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import numpy as np
 from math import erf, factorial
-from PySide2.QtGui import QColor, QPainterPath, QPen, QKeyEvent, QDesktopServices
+from PySide2.QtGui import QColor, QPainterPath, QPen, QKeyEvent, QDesktopServices, QImage, QPainter
 from PySide2.QtWidgets import QListWidget, QListWidgetItem, QGraphicsPathItem, QTableWidget
-from PySide2.QtCore import Qt, QPoint, QEvent, QObject, QUrl
+from PySide2.QtCore import Qt, QPoint, QEvent, QObject, QUrl, QRect
 #from PySide2.QtWebEngine import QWebView
+from imgconvert import QImageBuffer
 
 
 class channelValues():
@@ -66,7 +67,10 @@ class optionsWidget(QListWidget) :
                 currentItem = self.item(r)
                 if currentItem is not item:
                     currentItem.setCheckState(Qt.Unchecked)
-        self.onSelect(item)
+                else:
+                    currentItem.setCheckState(Qt.Checked)
+        if item.checkState() == Qt.Checked:
+            self.onSelect(item)
 
 def savitzky_golay(y, window_size, order, deriv=0, rate=1):
     """
@@ -104,6 +108,61 @@ def savitzky_golay(y, window_size, order, deriv=0, rate=1):
     lastvals = y[-1] + np.abs(y[-half_window-1:-1][::-1] - y[-1])
     y = np.concatenate((firstvals, y, lastvals))
     return np.convolve( m[::-1], y, mode='valid')
+
+def checkeredImage(w, h, format=QImage.Format_ARGB32):
+    image = QImage(w, h, format)
+
+    # init pattern
+    base = QImage(20, 20, format)
+    qp = QPainter(base)
+    qp.setCompositionMode(QPainter.CompositionMode_Source)
+    qp.fillRect(0, 0, 10, 10, Qt.gray)
+    qp.fillRect(10, 0, 10, 10, Qt.white)
+    qp.fillRect(0, 10, 10, 10, Qt.white)
+    qp.fillRect(10, 10, 10, 10, Qt.gray)
+    qp.end()
+
+    qp=QPainter(image)
+    qp.setCompositionMode(QPainter.CompositionMode_Source)
+
+    # draw the pattern once at 0,0
+    qp.drawImage(0, 0, base)
+
+    imageW = image.width()
+    imageH = image.height()
+    baseW = base.width()
+    baseH = base.height()
+    while ((baseW < imageW) or (baseH < imageH) ):
+        if (baseW < imageW) :
+            # Copy and draw the existing pattern to the right
+            qp.drawImage(QRect(baseW, 0, baseW, baseH), image, QRect(0, 0, baseW, baseH))
+            baseW *= 2
+        if (baseH < imageH) :
+            # Copy and draw the existing pattern to the bottom
+            qp.drawImage(QRect(0, baseH, baseW, baseH), image, QRect(0, 0, baseW, baseH))
+            # Update height of our pattern
+            baseH *= 2
+    qp.end()
+    return image
+
+def clip(image, mask, inverted=False):
+    """
+    clip an image by applying a mask to its alpha channel
+    @param image:
+    @type image:
+    @param mask:
+    @type mask:
+    @param inverted:
+    @type inverted:
+    @return:
+    @rtype:
+    """
+    bufImg = QImageBuffer(image)
+    bufMask = QImageBuffer(mask)
+    if inverted:
+        bufMask = bufMask.copy()
+        bufMask[:,:,3] = 255 - bufMask[:,:,3]
+    bufImg[:,:,3] = bufMask[:,:,3]
 
 def drawPlotGrid(axeSize):
     item = QGraphicsPathItem()
