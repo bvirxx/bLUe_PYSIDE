@@ -95,7 +95,6 @@ class vImage(QImage):
         @param profile: embedded profile (default '')
         @type profile: str
         """
-        #self.colorTransformation = None
         self.colorTransformation = icc.workToMonTransform
         # current color managed image
         self.cmImage = None
@@ -113,6 +112,7 @@ class vImage(QImage):
         # Caches
         self.cachesEnabled = True
         self.qPixmap = None
+        self.rPixmap = None
         self.hspbBuffer = None
         self.LabBuffer = None
         self.isHald = False
@@ -285,7 +285,7 @@ class vImage(QImage):
             # invalidate color managed cache
             self.cmImage = None
         # get (eventually) up to date  color managed image
-        if icc.COLOR_MANAGE: # and self.parentImage is not None vImage has no parentImage attribute
+        if icc.COLOR_MANAGE:
             if self.cmImage is None:
                 # CAUTION : reset alpha channel
                 img = convertQImage(currentImage)
@@ -294,30 +294,45 @@ class vImage(QImage):
                 buf1 = QImageBuffer(currentImage)
                 buf0[:, :, 3] = buf1[:, :, 3]
             else:
-                img = QImage(self.cmImage)
+                #img = QImage(self.cmImage)
+                img = self.cmImage
         else:
-            img = QImage(currentImage)
+            #img = QImage(currentImage)
+            img = currentImage
         # refresh cache
+        """
         if maskOnly:
-            self.cmImage = QImage(img)
-        if self.maskIsEnabled:
+            #self.cmImage = QImage(img)
+            self.cmImage = img
+        """
+        self.cmImage = img
+        def visualizeMask(img, mask):
+            img = QImage(img)
             tmp = self.mask
             qp = QPainter(img)
+            # draw mask
             if self.maskIsSelected:
                 # draw mask as color mask
                 # qp.setCompositionMode(QPainter.CompositionMode_Multiply)
                 qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
                 # invert alpha
-                tmp=tmp.copy()
+                tmp = tmp.copy()
                 tmpBuf = QImageBuffer(tmp)
-                tmpBuf[:,:,3] = 255 - tmpBuf[:,:,3]
+                tmpBuf[:, :, 3] = 255 - tmpBuf[:, :, 3]
             else:
                 # draw mask as opacity mask
                 # img * mask : img opacity is set to mask opacity
                 qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
             qp.drawImage(QRect(0, 0, img.width(), img.height()), tmp)
             qp.end()
-        self.qPixmap = QPixmap.fromImage(img)
+            return img
+        qImg = img
+        rImg = currentImage
+        if self.maskIsEnabled:
+            qImg = visualizeMask(qImg, self.mask)
+            rImg = visualizeMask(rImg, self.mask)
+        self.qPixmap = QPixmap.fromImage(qImg)
+        self.rPixmap = QPixmap.fromImage(rImg)
 
     def resetMask(self):
         # nothing is masked
@@ -1031,7 +1046,12 @@ class mImage(vImage):
             vImage.updatePixmap(layer)
 
     def getStackIndex(self, layer):
-        return self.layersStack.index(layer)
+        p = id(layer)
+        i = -1
+        for i,l in enumerate(self.layersStack):
+            if id(l) == p:
+                break
+        return i
 
     def addLayer(self, layer, name='', index=None):
         """
@@ -1443,6 +1463,45 @@ class QLayer(vImage):
         return img
 
     def getCurrentMaskedImage(self):
+        if self.parentImage.useHald:
+            return self.getHald()
+        if self.maskedThumbContainer is None:
+            # self.maskedThumbContainer = QLayer.fromImage(self.thumb, parentImage=self.parentImage)
+            self.maskedThumbContainer = QLayer.fromImage(self.getThumb(), parentImage=self.parentImage)
+        if self.maskedImageContainer is None:
+            self.maskedImageContainer = QLayer.fromImage(self, parentImage=self.parentImage)
+        if self.parentImage.useThumb:
+            img = self.maskedThumbContainer
+        else:
+            img = self.maskedImageContainer
+        # draw lower stack
+        qp = QPainter(img)
+        top = self.parentImage.getStackIndex(self)
+        if self.isClipping:
+            bottom = top
+            qp.setCompositionMode(QPainter.CompositionMode_Source)
+            qp.drawImage(QRect(0, 0, img.width(), img.height()), checkeredImage(img.width(), img.height()))
+        else:
+            bottom = 0
+        for i, layer in enumerate(self.parentImage.layersStack[bottom:top+1]):
+            if layer.visible:
+                if i == 0:
+                    qp.setCompositionMode(QPainter.CompositionMode_Source)
+                else:
+                    qp.setOpacity(layer.opacity)
+                    qp.setCompositionMode(layer.compositionMode)
+                if layer.rPixmap is not None:
+                    qp.drawPixmap(QRect(0,0,img.width(), img.height()), layer.rPixmap)
+                else:
+                    qp.drawImage(QRect(0,0,img.width(), img.height()), layer.getCurrentImage())
+        qp.end()
+        # no recursive caches
+        # img.cachesEnabled = False # TODO Fix 12/10/17
+        # no thumbnails for masked images
+        img.getThumb = lambda: img  # TODO Fix 12/10/17
+        return img
+
+    def getCurrentMaskedImageOld(self):
         """
         Recursively builds current (full/thumbnail) masked image from layer stack.
         set maskedImageContainer to self * mask + inputImg * (255 -mask) or
@@ -1471,7 +1530,7 @@ class QLayer(vImage):
         if self.isAdjustLayer():
             if not self.isClipping:
                 # inputImg() * (255 -mask)
-                # composition mode must be set to Source for copying image colors and alpha channel
+                # composition mode must be set to Source to copy image colors and alpha channel
                 qp.setCompositionMode(QPainter.CompositionMode_Source)#DestinationOver)
                 # recursive call through inputImg()
                 qp.drawImage(QRect(0, 0, img.width(), img.height()), self.inputImg())
@@ -1655,14 +1714,14 @@ class QLayer(vImage):
                 buf1 = QImageBuffer(currentImage)
                 buf0[:,:,3] = buf1[:,:,3]
             else:
-                img = QImage(self.cmImage)
+                img = self.cmImage
         else:
-            img = QImage(currentImage)
-        if maskOnly:
-            self.cmImage = QImage(img)
-        # visualizing mask
-        if self.maskIsEnabled:
-            tmp = self.mask
+            img = currentImage
+        #if maskOnly:
+        self.cmImage = img
+        def visualizeMask(img, mask):
+            img = QImage(img)
+            tmp = mask
             qp = QPainter(img)
             if self.maskIsSelected:
                 # draw mask as color mask with partial opacity
@@ -1670,22 +1729,30 @@ class QLayer(vImage):
                 tmp = tmp.copy()
                 tmpBuf = QImageBuffer(tmp)
                 if self.isClipping:
-                    tmpBuf[:,:,3] = 255 - tmpBuf[:,:,3]
-                    tmpBuf[:,:,:3] = 64
+                    tmpBuf[:, :, 3] = 255 - tmpBuf[:, :, 3]
+                    tmpBuf[:, :, :3] = 64
                 else:
-                    tmpBuf[:,:,3] = 128 # 255 - tmpBuf[:,:,3]
-                #tmpBuf[:, :,3] = np.where(tmpBuf[:,:,3] == 0, 128, 0)
+                    tmpBuf[:, :, 3] = 128  # 255 - tmpBuf[:,:,3]
+                # tmpBuf[:, :,3] = np.where(tmpBuf[:,:,3] == 0, 128, 0)
                 qp.drawImage(QRect(0, 0, img.width(), img.height()), tmp)
             else:
                 # draw mask as opacity mask
                 # mode DestinationIn sets image opacity to mask opacity
                 qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
-                qp.drawImage(QRect(0, 0, img.width(), img.height() ), tmp)
+                qp.drawImage(QRect(0, 0, img.width(), img.height()), tmp)
                 if self.isClipping:
                     qp.setCompositionMode(QPainter.CompositionMode_DestinationOver)
                     qp.drawImage(QRect(0, 0, img.width(), img.height()), checkeredImage(img.width(), img.height()))
             qp.end()
-        self.qPixmap = QPixmap.fromImage(img)
+            return img
+        qImg = img
+        rImg = currentImage
+        # visualizing mask
+        if self.maskIsEnabled:
+            qImg = visualizeMask(qImg, self.mask)
+            rImg = visualizeMask(rImg, self.mask)
+        self.qPixmap = QPixmap.fromImage(qImg)
+        self.rPixmap = QPixmap.fromImage(rImg)
 
     def getStackIndex(self):
         for i, l in enumerate(self.parentImage.layersStack):
@@ -1806,5 +1873,19 @@ def applyHaldCls(item):
     #img.apply3DLUT(lut.LUT3DArray, options={'use selection' : True})
 
 
+def seamlessCloning():
+    # Read images
+    src = cv2.imread("images/airplane.jpg")
+    dst = cv2.imread("images/sky.jpg")
 
+    # Create a rough mask around the airplane.
+    src_mask = np.zeros(src.shape, src.dtype)
+    poly = np.array([[4, 80], [30, 54], [151, 63], [254, 37], [298, 90], [272, 134], [43, 122]], np.int32)
+    cv2.fillPoly(src_mask, [poly], (255, 255, 255))
+
+    # This is where the CENTER of the airplane will be placed
+    center = (800, 100)
+
+    # Clone seamlessly.
+    output = cv2.seamlessClone(src, dst, src_mask, center, cv2.NORMAL_CLONE)
 

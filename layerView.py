@@ -15,11 +15,14 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+from PySide2 import QtGui, QtCore
+
 import cv2
 import numpy as np
 from PySide2.QtCore import QRectF, QSize, Qt, QModelIndex
 from PySide2.QtGui import QImage, QPalette, QColor, QKeySequence, QFontMetrics, QTextOption, QPixmap, QIcon, QPainter, QStandardItem, QStandardItemModel
-from PySide2.QtWidgets import QAction, QMenu, QSlider, QStyle, QListWidget, QCheckBox, QMessageBox, QApplication
+from PySide2.QtWidgets import QAction, QMenu, QSlider, QStyle, QListWidget, QCheckBox, QMessageBox, QApplication, \
+    QFileDialog
 from PySide2.QtWidgets import QComboBox, QHBoxLayout, QLabel, QTableView, QAbstractItemView, QStyledItemDelegate, QHeaderView, QVBoxLayout
 import resources_rc  # mandatory : DO NOT REMOVE !!!
 import QtGui1
@@ -423,8 +426,26 @@ class QLayerView(QTableView) :
                 for col in range(0, colCount):
                     # CAUTION : setItem calls the data changed event handler (cf. setLayers above)
                     self.model().setItem(tgtRow, col, self.model().takeItem(srcRow, col))
+            # keep track of moved items
+            movedDict = rowMapping.copy()
+            # remove moved items from their initial place
             for row in reversed(sorted(rowMapping.keys())): # python 3 iterkeys -> keys
                 self.model().removeRow(row)
+                for s, t in rowMapping.items():
+                    if t > row:
+                        movedDict[s]-=1
+            # reselect moved rows
+            sel = sorted(movedDict.values())
+            selectionModel = QtCore.QItemSelectionModel(self.model())
+            self.setSelectionModel(selectionModel)
+            index1 = self.model().index(sel[0], 1)
+            index2 = self.model().index(sel[-1], 1)
+            itemSelection = QtCore.QItemSelection(index1, index2)
+            self.selectionModel().select(itemSelection,  QtCore.QItemSelectionModel.Rows | QtCore.QItemSelectionModel.Select)
+            # multiple selection : display no window
+            if len(sel) > 1 :
+                self.currentWin.hide()
+                self.currentWin = None
 
     def select(self, row, col):
         """
@@ -447,6 +468,7 @@ class QLayerView(QTableView) :
         """
         row = clickedIndex.row()
         layer = self.img.layersStack[-1 - row]
+        self.actionDup.setEnabled(not layer.isAdjustLayer())
         # toggle layer visibility
         if clickedIndex.column() == 0 :
             # background layer is always visible
@@ -508,6 +530,7 @@ class QLayerView(QTableView) :
         layer = self.img.layersStack[-1-index.row()]
         lower = self.img.layersStack[layer.getLowerVisibleStackIndex()]
         menu = QMenu()
+        actionLoadImage = QAction('Load New Image', None)
         actionMerge = QAction('Merge Lower', None)
         # merge only adjustment layer with image layer
         if not hasattr(layer, 'inputImg') or hasattr(lower, 'inputImg'):
@@ -526,12 +549,12 @@ class QLayerView(QTableView) :
         actionOpacityMaskEnable.setCheckable(True)
         actionColorMaskEnable.setChecked(layer.maskIsSelected and layer.maskIsEnabled)
         actionOpacityMaskEnable.setChecked((not layer.maskIsSelected) and layer.maskIsEnabled)
+        menu.addAction(actionLoadImage)
         # to link actionDup with a shortcut
         # it must be set in __init__
         menu.addAction(self.actionDup)
         # don't dup adjustment layers
-        if hasattr(layer, 'inputImg'):
-            self.actionDup.setEnabled(False)
+        # self.actionDup.setEnabled(not layer.isAdjustLayer())
         menu.addAction(actionMerge)
         subMenuEnable = menu.addMenu('Enable Mask')
         subMenuEnable.addAction(actionColorMaskEnable)
@@ -548,12 +571,35 @@ class QLayerView(QTableView) :
             self.opacitySlider.show()
         def g(value):
             layer.setOpacity(value)
+        def loadImage():
+            fileName = None
+            window = QtGui1.window
+            lastDir = window.settings.value('paths/dlgdir', '.')
+            dlg = QFileDialog(window, "select", lastDir, "*.jpg *.jpeg *.png *.tif *.tiff *.bmp")
+            if dlg.exec_():
+                filenames = dlg.selectedFiles()
+                newDir = dlg.directory().absolutePath()
+                window.settings.setValue('paths/dlgdir', newDir)
+                # update list of recent files
+                filter(lambda a: a != filenames[0], window._recentFiles)
+                window._recentFiles.insert(0, filenames[0])
+                if len(window._recentFiles) > 10:
+                    window._recentFiles.pop(0)
+                window.settings.setValue('paths/recent', window._recentFiles)
+                # update menu and actions
+                from bLUe import updateMenuOpenRecent
+                updateMenuOpenRecent()
+                filename = filenames[0]
+            img = QImage(filename)
+            layer.setImage(img, update=False)
+            layer.thumb = None
+            layer.updatePixmap()
         def merge():
             layer.merge_with_layer_immediately_below()
         def colorMaskEnable():
             # test upper layers visibility
             pos = self.img.getStackIndex(layer)
-            for i in range(len(self.img.layersStack) - pos):
+            for i in range(len(self.img.layersStack) - pos - 1):
                 if self.img.layersStack[pos+1+i].visible:
                     msg = QMessageBox()
                     msg.setWindowTitle('Warning')
@@ -603,7 +649,8 @@ class QLayerView(QTableView) :
             # CAUTION dilate increases opacity (max filter), so it reduces the masked part of the image
             buf[:,:,3] = cv2.dilate(buf[:,:,3], kernel, iterations=1)
             layer.updatePixmap()
-            self.img.onImageChanged()
+            self.img.onImageChanged().connect(loadImage)
+        actionLoadImage.triggered.connect(loadImage)
         actionMerge.triggered.connect(merge)
         actionColorMaskEnable.triggered.connect(colorMaskEnable)
         actionOpacityMaskEnable.triggered.connect(opacityMaskEnable)

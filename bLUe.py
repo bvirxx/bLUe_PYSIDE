@@ -133,11 +133,11 @@ def paintEvent(widg, e) :
             qp.setCompositionMode(layer.compositionMode)
             if layer.qPixmap is not None:
                 qp.drawPixmap(QRect(mimg.xOffset,mimg.yOffset, mimg.width()*r, mimg.height()*r), # target rect
-                           layer.transfer() #layer.qPixmap
+                           layer.qPixmap #transfer() #layer.qPixmap
                          )
             else:
                 qp.drawImage(QRect(mimg.xOffset, mimg.yOffset, mimg.width() * r , mimg.height() * r ), # target rect
-                              layer  # layer.qPixmap
+                              layer.getCurrentImage()  # TODO previously layer Fix 02/11/17
                               )
     # draw selection rectangle for active layer only
     qp.setPen(QColor(0, 255, 0))
