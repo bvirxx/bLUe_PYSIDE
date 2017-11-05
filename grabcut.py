@@ -23,6 +23,8 @@ from time import time
 from PySide2.QtCore import Qt
 #from PySide2.QtGui import QHBoxLayout, QMessageBox, QPushButton, QWidget, QSizePolicy, QVBoxLayout, QColor, QPainter
 from PySide2.QtWidgets import QHBoxLayout, QMessageBox, QPushButton, QWidget, QSizePolicy, QVBoxLayout, QSpinBox, QLabel
+
+from QtGui1 import window
 from imgconvert import QImageBuffer
 
 class segmentForm(QWidget):
@@ -49,8 +51,11 @@ class segmentForm(QWidget):
         buf = QImageBuffer(layer.mask)
         buf[:, :, :] = 255
 
+        def f():
+            self.targetImage.getActiveLayer().applyToStack()
+            window.label.img.onImageChanged()
         pushButton = QPushButton('apply')
-        pushButton.clicked.connect(lambda: self.targetImage.getActiveLayer().applyToStack())
+        pushButton.clicked.connect(f)
 
         spBox = QSpinBox()
         spBox.setRange(1,10)

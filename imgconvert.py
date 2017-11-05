@@ -39,7 +39,7 @@ def ndarrayToQImage(ndimg, format=QImage.Format_ARGB32):
         raise ValueError("ndarray2QImage : array must be 3D with dtype=uint8, found ndim=%d, dtype=%s" %(ndimg.ndim, ndimg.dtype))
 
     bytePerLine = ndimg.shape[1] * ndimg.shape[2]
-    if len(ndimg.data)!=ndimg.shape[0]*bytePerLine :
+    if len(np.ravel(ndimg).data)!=ndimg.shape[0]*bytePerLine :  # TODO added ravel 5/11/17 needed by vImage.resize
         raise ValueError("ndarrayToQImage : conversion error")
     # build QImage from buffer
     qimg = QImage(ndimg.data, ndimg.shape[1], ndimg.shape[0], bytePerLine, format)

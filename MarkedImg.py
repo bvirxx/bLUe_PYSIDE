@@ -1132,16 +1132,12 @@ class mImage(vImage):
         @return: 
         """
         if index == None:
-            # add on top of active layer
+            # adding on top of active layer
             index = self.activeLayerIndex
         # set image from active layer
         layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
-        #if self.useThumb :
-            #layer.thumb = QLayer.fromImage(self.layersStack[index].getCurrentImage(), parentImage=self)
         self.addLayer(layer, name=name, index=index + 1)
         layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getCurrentMaskedImage()
-        #layer.inputImgFull = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getMaskedImage()
-        #layer.setImage(layer.inputImgFull(), update=False)
         # sync caches
         layer.updatePixmap()
         return layer
@@ -1150,9 +1146,7 @@ class mImage(vImage):
         if index == None:
             index = self.activeLayerIndex
         layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
-        #layer.inputImg = lambda : self.layersStack[layer.getLowerVisibleStackIndex()]
         layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getCurrentMaskedImage()
-        #layer.inputImgFull = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getMaskedImage()
         self.addLayer(layer, name=name, index=index + 1)
         layer.parent = self
         self.setModified(True)
@@ -1506,6 +1500,7 @@ class QLayer(vImage):
         # draw lower stack
         qp = QPainter(img)
         top = self.parentImage.getStackIndex(self)
+        bottom = top  # TODO added 5/11/17 for testing
         if self.isClipping:
             bottom = top
             qp.setCompositionMode(QPainter.CompositionMode_Source)

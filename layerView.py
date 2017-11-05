@@ -343,7 +343,7 @@ class QLayerView(QTableView) :
             else:
                 # icon with very small dim causes QPainter error
                 # QPixmap.fromImage bug ?
-                smallImg = lay#.resize(50**3)
+                smallImg = lay.resize(50 * 50)
                 w,h = smallImg.width(), smallImg.height()
                 if w < h / 5 or h < w / 5:
                     item_name = QStandardItem(name)
@@ -446,6 +446,8 @@ class QLayerView(QTableView) :
             if len(sel) > 1 :
                 self.currentWin.hide()
                 self.currentWin = None
+            elif len(sel) == 1:
+                self.img.setActiveLayer(len(self.img.layersStack) - sel[0] -1)
 
     def select(self, row, col):
         """
@@ -493,7 +495,7 @@ class QLayerView(QTableView) :
         # hide/display adjustment form
         elif clickedIndex.column() == 1 :
             # make selected layer the active layer
-            self.img.setActiveLayer(len(self.img.layersStack) - 1 - row)
+            #self.img.setActiveLayer(len(self.img.layersStack) - 1 - row)
             opacity = int(self.img.getActiveLayer().opacity * 100)
             self.opacityValue.setText(str('%d ' % opacity))
             self.opacitySlider.setSliderPosition(opacity)
@@ -507,7 +509,8 @@ class QLayerView(QTableView) :
             # update
             layer.applyToStack()
             self.img.onImageChanged()
-        # update displayed window
+        # update displayed window and active layer
+        self.img.setActiveLayer(len(self.img.layersStack) - 1 - row)
         if self.currentWin is not None:
             self.currentWin.hide()
             self.currentWin = None
