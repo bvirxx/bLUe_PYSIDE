@@ -16,11 +16,9 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-
 from PySide2.QtCore import Qt, QSize
 from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout
 from utils import optionsWidget
-
 
 class histForm (QGraphicsView):
     def __init__(self, targetImage=None, size=200, layer=None, parent=None, mainForm=None):
@@ -70,9 +68,7 @@ class histForm (QGraphicsView):
         l.setAlignment(Qt.AlignBottom)
         l.setSpacing(0)
         l.addWidget(self.Label_Hist)
-        #l.addStretch(1)
         l.addLayout(h)
-        #l.addStretch(1)
         l.setContentsMargins(0, 0, 0, 6)  # left, top, right, bottom
         self.setLayout(l)
 

@@ -69,8 +69,8 @@ class optionsWidget(QListWidget) :
                     currentItem.setCheckState(Qt.Unchecked)
                 else:
                     currentItem.setCheckState(Qt.Checked)
-        if item.checkState() == Qt.Checked:
-            self.onSelect(item)
+        # if item.checkState() == Qt.Checked: # TODO modified 5/11 : mandatory modif. for histView update when deselecting options
+        self.onSelect(item)
 
 def savitzky_golay(y, window_size, order, deriv=0, rate=1):
     """

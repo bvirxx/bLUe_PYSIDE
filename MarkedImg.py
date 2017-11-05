@@ -67,6 +67,8 @@ class vImage(QImage):
     thumbSize = 1000
 
     defaultBgColor = QColor(191, 191, 191)
+    defaultColor_UnMasked = QColor(128, 0, 0, 255)
+    defaultColor_Masked = QColor(0, 0, 0, 255)
     def __init__(self, filename=None, cv2Img=None, QImg=None, mask=None, format=QImage.Format_ARGB32,
                                             name='', colorSpace=-1, orientation=None, rating=5, meta=None, rawMetadata=[], profile=''):
         """
@@ -153,13 +155,13 @@ class vImage(QImage):
         # Format check
         if self.depth() != 32:
             raise ValueError('vImage : should be a 8 bits/channel color image')
-        # mask
+        # init mask
         self.maskIsEnabled = False
         self.maskIsSelected = False
         if self.mask is None:
             self.mask = QImage(self.width(), self.height(), format)
             # nothing is masked
-            self.mask.fill(QColor(128, 0, 0, 255)) # initially 0,0,0,255 keep alpha 255 TODO fix 23/10/17
+            self.mask.fill(self.defaultColor_UnMasked) # initially 0,0,0,255 keep alpha 255 TODO fix 23/10/17
         #self.updatePixmap()
         if type(self) in [QLayer]:
             vImage.updatePixmap(self)
@@ -365,6 +367,30 @@ class vImage(QImage):
             rszd.mask = self.mask.scaled(w, h)
         self.setModified(True)
         return rszd
+
+    def applyCloning(self):
+        img = self.inputImg()
+        bufIn = QImageBuffer(img)
+        bufIn = bufIn[:, :, :3][:, :, ::-1]
+
+        bufOut = QImageBuffer(self.getCurrentImage())
+
+
+        # Create a rough mask around the airplane.
+        src_mask = np.zeros(bufIn.shape, bufIn.dtype)
+        poly = np.array([[100, 400], [700, 400], [700, 100], [100, 100]], np.int32)
+        cv2.fillPoly(src_mask, [poly], (255, 255, 255))
+
+        # This is where the CENTER of the airplane will be placed
+        center = (400, 400)
+
+        # Clone seamlessly.
+        output = cv2.seamlessClone(bufOut[:, :, :3][:, :, ::-1], bufIn, src_mask, center,  # src dest
+                                   cv2.NORMAL_CLONE)#MONOCHROME_TRANSFER)  # cv2.MIXED_CLONE)#cv2.NORMAL_CLONE)
+
+        bufOut[:, :, :3][:, :, ::-1] = output
+        self.updatePixmap()
+
 
     def applyGrabcut(self, nbIter=2, mode=cv2.GC_INIT_WITH_MASK, again=False):
         """
@@ -711,8 +737,8 @@ class vImage(QImage):
         # get selection
         w1, w2, h1, h2 = (0.0,) * 4
         if options.get('use selection', False):
-            w, wF = self.inputImg().width(), self.inputImgFull().width()
-            h, hF = self.inputImg().height(), self.inputImgFull().height()
+            w, wF = self.getCurrentImage().width(), self.width()
+            h, hF = self.getCUrrentImage().height(), self.height()
             wRatio, hRatio = float(w) / wF, float(h) / hF
             if self.rect is not None:
                 w1, w2, h1, h2 = int(self.rect.left() * wRatio), int(self.rect.right() * wRatio), int(self.rect.top() * hRatio), int(self.rect.bottom() * hRatio)
@@ -1013,12 +1039,12 @@ class mImage(vImage):
         """
         activeLayer = self.getActiveLayer()
         #if  hasattr(activeLayer, "inputImgFull") and activeLayer.inputImgFull is not None:
-        if activeLayer.isAdjustLayer() and activeLayer.inputImgFull is not None:
+        if activeLayer.isAdjustLayer() : #and activeLayer.inputImgFull is not None:
             # layer is adjustment or segmentation : read from input image
-            return activeLayer.inputImgFull().pixel(x, y)
+            return activeLayer.inputImg().pixel(x, y)
         else:
             # read from image
-            return activeLayer.pixel(x, y)
+            return activeLayer.getCurrentImage().pixel(x, y)
 
     def cacheInvalidate(self):
         vImage.cacheInvalidate(self)
@@ -1114,13 +1140,10 @@ class mImage(vImage):
             #layer.thumb = QLayer.fromImage(self.layersStack[index].getCurrentImage(), parentImage=self)
         self.addLayer(layer, name=name, index=index + 1)
         layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getCurrentMaskedImage()
-        layer.inputImgFull = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getMaskedImage()
-        layer.setImage(layer.inputImgFull(), update=False)
-        if self.useThumb:
-            layer.thumb = layer.inputImg()
+        #layer.inputImgFull = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getMaskedImage()
+        #layer.setImage(layer.inputImgFull(), update=False)
         # sync caches
         layer.updatePixmap()
-
         return layer
 
     def addSegmentationLayer(self, name='', index=None):
@@ -1129,7 +1152,7 @@ class mImage(vImage):
         layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
         #layer.inputImg = lambda : self.layersStack[layer.getLowerVisibleStackIndex()]
         layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getCurrentMaskedImage()
-        layer.inputImgFull = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getMaskedImage()
+        #layer.inputImgFull = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getMaskedImage()
         self.addLayer(layer, name=name, index=index + 1)
         layer.parent = self
         self.setModified(True)
@@ -1155,7 +1178,7 @@ class mImage(vImage):
     def mergeVisibleLayers(self):
         """
         Merges the current visible masked images and returns the
-        resulting QImage, eventually scaled to fit the image size.
+        resulting QImage, scaled to fit the image size.
         @return: image
         @rtype: QImage
         """
@@ -1164,6 +1187,10 @@ class mImage(vImage):
         img.fill(vImage.defaultBgColor)
         # draw layers and masks
         qp = QPainter(img)
+        qp.drawImage(QRect(0, 0, self.width(), self.height()), self.layersStack[-1].getCurrentMaskedImage())
+        qp.end()
+        return img
+        """
         for layer in self.layersStack:
             if layer.visible:
                 qp.setOpacity(layer.opacity)
@@ -1174,6 +1201,7 @@ class mImage(vImage):
                     qp.drawImage(QRect(0, 0, img.width(), img.height()), layer.mask)
         qp.end()
         return img
+        """
 
     def save(self, filename, quality=-1):
         """
@@ -1424,9 +1452,9 @@ class QLayer(vImage):
             return self.getThumb()
         else:
             return self
-
+    """
     def getMaskedImage(self):
-        """
+        
         Recursively builds full masked image from layer stack.
         For non adjustment layers, sets maskedImageContainer to self * mask,
         and for adjustment layers, to self * mask + inputImgFull() * (255 - mask).
@@ -1434,7 +1462,7 @@ class QLayer(vImage):
         underlying layers. Recursion stops at the first non adjustment layer.
         @return: maskedImageContainer
         @rtype Qlayer
-        """
+        
         # allocate only once
         if self.maskedImageContainer is None:
             self.maskedImageContainer = QLayer.fromImage(self, parentImage=self.parentImage)
@@ -1461,6 +1489,7 @@ class QLayer(vImage):
         # no thumbnails for masked images
         img.getThumb = lambda : img # TODO Fix 12/10/17
         return img
+    """
 
     def getCurrentMaskedImage(self):
         if self.parentImage.useHald:
@@ -1873,19 +1902,5 @@ def applyHaldCls(item):
     #img.apply3DLUT(lut.LUT3DArray, options={'use selection' : True})
 
 
-def seamlessCloning():
-    # Read images
-    src = cv2.imread("images/airplane.jpg")
-    dst = cv2.imread("images/sky.jpg")
 
-    # Create a rough mask around the airplane.
-    src_mask = np.zeros(src.shape, src.dtype)
-    poly = np.array([[4, 80], [30, 54], [151, 63], [254, 37], [298, 90], [272, 134], [43, 122]], np.int32)
-    cv2.fillPoly(src_mask, [poly], (255, 255, 255))
-
-    # This is where the CENTER of the airplane will be placed
-    center = (800, 100)
-
-    # Clone seamlessly.
-    output = cv2.seamlessClone(src, dst, src_mask, center, cv2.NORMAL_CLONE)
 

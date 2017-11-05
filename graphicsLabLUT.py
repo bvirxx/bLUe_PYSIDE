@@ -68,7 +68,7 @@ class graphicsLabForm(QGraphicsView):
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicR = cubic
         cubic.channel = channelValues.L
-        cubic.histImg = self.scene().layer.inputImgFull().histogram(size=self.scene().axeSize,
+        cubic.histImg = self.scene().layer.inputImg().histogram(size=self.scene().axeSize,
                                                                     bgColor=self.scene().bgColor, range=(0, 1),
                                                                     chans=channelValues.L, mode='Lab')
         cubic.initFixedPoints()
@@ -76,7 +76,7 @@ class graphicsLabForm(QGraphicsView):
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicG = cubic
         cubic.channel = channelValues.a
-        cubic.histImg = self.scene().layer.inputImgFull().histogram(size=self.scene().axeSize,
+        cubic.histImg = self.scene().layer.inputImg().histogram(size=self.scene().axeSize,
                                                                     bgColor=self.scene().bgColor, range=(-100, 100),
                                                                     chans=channelValues.a, mode='Lab')
         cubic.initFixedPoints()
@@ -84,7 +84,7 @@ class graphicsLabForm(QGraphicsView):
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicB = cubic
         cubic.channel = channelValues.b
-        cubic.histImg = self.scene().layer.inputImgFull().histogram(size=self.scene().axeSize,
+        cubic.histImg = self.scene().layer.inputImg().histogram(size=self.scene().axeSize,
                                                                     bgColor=self.scene().bgColor, range=(-100, 100),
                                                                     chans=channelValues.b, mode='Lab')
         cubic.initFixedPoints()

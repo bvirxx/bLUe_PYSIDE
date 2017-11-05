@@ -17,6 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 from itertools import cycle
 
+import cv2
 from PySide2 import QtCore
 
 from PySide2.QtQml import QQmlApplicationEngine
@@ -212,17 +213,19 @@ def mouseEvent(widget, event) :
                         if layer.isSegmentLayer():
                             color = QColor(0, 255, 0, 128) if window.btnValues['drawFG'] else QColor(0, 0, 255, 128)
                         else:
-                            color = QColor(0, 0, 0, 255) if window.btnValues['drawFG'] else QColor(0, 0, 0, 0)
+                            #color = QColor(0, 0, 0, 255) if window.btnValues['drawFG'] else QColor(0, 0, 0, 0)
+                            color = vImage.defaultColor_UnMasked if window.btnValues['drawFG'] else vImage.defaultColor_Masked # TODO fix modified 5/11/17 : right colors for mask edition  see mask init in vImage
                         tmp = layer.mask
                         qp.begin(tmp)
                         # pen width
                         w = window.verticalSlider1.value() // (2*r)
-                        qp.setPen(QPen(color, 2*w))
+                        #qp.setPen(QPen(color, 2*w))
                         # composition mode source : result is source (=pen) pixel color and opacity
                         qp.setCompositionMode(qp.CompositionMode_Source)
                         tmp_x = (x - img.xOffset) // r
                         tmp_y = (y - img.yOffset) // r
                         qp.drawEllipse(tmp_x-w//2, tmp_y-w//2, w, w)
+                        qp.setPen(QPen(color, 2*w))
                         qp.drawLine(State['x_imagePrecPos'], State['y_imagePrecPos'], tmp_x, tmp_y)
                         qp.end()
                         State['x_imagePrecPos'], State['y_imagePrecPos'] = tmp_x, tmp_y
@@ -261,13 +264,14 @@ def mouseEvent(widget, event) :
                     layer.rect = QRect((min(State['ix_begin'], x) - img.xOffset) // r,
                                        (min(State['iy_begin'], y) - img.yOffset) // r,
                                        abs(State['ix_begin'] - x) // r, abs(State['iy_begin'] - y) // r)
+                    """
                 elif (window.btnValues['drawFG'] or window.btnValues['drawBG']):
                     if layer.maskIsEnabled:
                         if layer.isSegmentLayer():
                             # CAUTION: discriminant is blue=0 for FG and green=0 for BG
                             color = QColor(0, 255, 0, 128) if window.btnValues['drawFG'] else QColor(0, 0, 255, 128)
                         else:
-                            color = QColor(0, 0, 0, 255) if window.btnValues['drawFG'] else QColor(0, 0, 0, 0)
+                            color = vImage.defaultColor_UnMasked if window.btnValues['drawFG'] else vImage.defaultColor_Masked
                         tmp = layer.mask
                         qp.begin(tmp)
                         w = window.verticalSlider1.value() // (2*r)
@@ -286,6 +290,7 @@ def mouseEvent(widget, event) :
                             l.updatePixmap(maskOnly=True)
                         window.label.repaint()
                         #tmp.isModified = True
+                    """
                 else:
                     img.xOffset += (x - State['ix'])
                     img.yOffset += (y - State['iy'])
@@ -535,12 +540,14 @@ def setDocumentImage(img):
     window.histView.targetImage = window.label.img
     # image changed event handler
     def f():
-        window.label.repaint() #update()  faster refreshing than update()
-        window.label_3.repaint() #update()
+        # refresh windows (use repaint for fast update)
+        window.label.repaint()
+        window.label_3.repaint()
+        # refresh histogram window
         if window.histView.listWidget1.items['Original Image'].checkState() is Qt.Checked:
             histImg = vImage(QImg=window.label.img.getCurrentImage())
         else:
-            histImg = vImage(QImg=window.label.img.mergeVisibleLayers())
+            histImg = vImage(QImg=window.label.img.layersStack[-1].getCurrentMaskedImage())#mergeVisibleLayers())
         if window.histView.listWidget2.items['Color Chans'].checkState() is Qt.Checked:
             window.histView.mode = 'RGB'
             window.histView.chanColors = [Qt.red, Qt.green, Qt.blue]
@@ -550,7 +557,7 @@ def setDocumentImage(img):
         histView = histImg.histogram(QSize(window.histView.width(), window.histView.height()), chans=range(3), bgColor=Qt.black,
                                      chanColors=window.histView.chanColors, mode=window.histView.mode, addMode='Luminosity')
         window.histView.Label_Hist.setPixmap(QPixmap.fromImage(histView))
-        window.histView.Label_Hist.repaint()#update()
+        window.histView.Label_Hist.repaint()
 
     window.label.img.onImageChanged = f
     # before image
@@ -979,7 +986,12 @@ def menuLayer(x, name):
         # wrapper for the right apply method
         #l.execute = lambda : l.apply3DLUT(grWindow.graphicsScene.LUT3DArray, options=l.options)
         l.execute = lambda pool=None: l.apply3DLUT(grWindow.graphicsScene.LUT3DArray, options=grWindow.graphicsScene.options, pool=pool)
-        #window.tableView.setLayers(window.label.img)
+    # cloning
+    elif name == 'actionNew_Cloning_Layer':
+        lname = 'Cloning'
+        l = window.label.img.addAdjustmentLayer(name=lname)
+        grWindow = segmentForm.getNewWindow(targetImage=window.label.img, layer=l, mainForm=window)
+        l.execute = lambda pool=None: l.applyCloning()
     # segmentation grabcut
     elif name == 'actionNew_segmentation_layer':
         lname = 'Segmentation'

@@ -484,7 +484,11 @@ class QLayerView(QTableView) :
                 self.currentWin.setVisible(layer.visible)
                 if not layer.visible:
                     self.currentWin = None
-            layer.applyToStack()
+            #layer.applyToStack()
+            # update stack, starting from the next lower visible layer to ensure the updating of the current layer
+            i = layer.getLowerVisibleStackIndex()
+            if i >= 0:
+                layer.parentImage.layersStack[i].applyToStack()
             self.img.onImageChanged()
         # hide/display adjustment form
         elif clickedIndex.column() == 1 :
@@ -496,22 +500,6 @@ class QLayerView(QTableView) :
             compositionMode = self.img.getActiveLayer().compositionMode
             ind = self.blendingModeCombo.findData(compositionMode)
             self.blendingModeCombo.setCurrentIndex(ind)
-            # update displayed window
-            if self.currentWin is not None:
-                self.currentWin.hide()
-                self.currentWin=None
-            if hasattr(self.img.layersStack[-1-row], "view"):
-                if self.img.layersStack[-1-row].view is not None:
-                    self.currentWin = self.img.layersStack[-1-row].view
-            if hasattr(self.img.layersStack[-1-row], "view"):
-                if self.img.layersStack[-1-row].view is not None:
-                    self.currentWin = self.img.layersStack[-1 - row].view
-            if self.currentWin is not None:
-                self.currentWin.show()
-                # make self.currentWin the active window
-                self.currentWin.activateWindow()
-            # draw the right rectangle
-            QtGui1.window.label.repaint()
         # select mask
         elif clickedIndex.column() == 2:
             cl = self.img.layersStack[-1-clickedIndex.row()]
@@ -519,6 +507,22 @@ class QLayerView(QTableView) :
             # update
             layer.applyToStack()
             self.img.onImageChanged()
+        # update displayed window
+        if self.currentWin is not None:
+            self.currentWin.hide()
+            self.currentWin = None
+        if hasattr(self.img.layersStack[-1 - row], "view"):
+            if self.img.layersStack[-1 - row].view is not None:
+                self.currentWin = self.img.layersStack[-1 - row].view
+        if hasattr(self.img.layersStack[-1 - row], "view"):
+            if self.img.layersStack[-1 - row].view is not None:
+                self.currentWin = self.img.layersStack[-1 - row].view
+        if self.currentWin is not None:
+            self.currentWin.show()
+            # make self.currentWin the active window
+            self.currentWin.activateWindow()
+        # draw the right rectangle
+        QtGui1.window.label.repaint()
 
     def contextMenu(self, pos):
         """

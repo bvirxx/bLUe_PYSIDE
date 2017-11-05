@@ -1,4 +1,4 @@
-"""88
+"""
 This File is part of bLUe software.
 
 Copyright (C) 2017  Bernard Virot <bernard.virot@libertysurf.fr>
