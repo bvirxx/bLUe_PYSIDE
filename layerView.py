@@ -19,7 +19,7 @@ from PySide2 import QtGui, QtCore
 
 import cv2
 import numpy as np
-from PySide2.QtCore import QRectF, QSize, Qt, QModelIndex
+from PySide2.QtCore import QRectF, QSize, Qt, QModelIndex, Slot
 from PySide2.QtGui import QImage, QPalette, QColor, QKeySequence, QFontMetrics, QTextOption, QPixmap, QIcon, QPainter, QStandardItem, QStandardItemModel
 from PySide2.QtWidgets import QAction, QMenu, QSlider, QStyle, QListWidget, QCheckBox, QMessageBox, QApplication, \
     QFileDialog
@@ -50,9 +50,9 @@ class itemDelegate(QStyledItemDelegate):
         if index.column() == 2:
             if self.parent().img is not None:
                 if self.parent().img.layersStack[-1 - index.row()].maskIsSelected:
-                    text = 'M *'
+                    text = index.data() + ' *'
                 else:
-                    text = 'M  '
+                    text = index.data() + '  '
                 if self.parent().img.layersStack[-1 - index.row()].maskIsEnabled:
                     painter.save()
                     painter.setPen(Qt.red)
@@ -315,10 +315,17 @@ class QLayerView(QTableView) :
         model = layerModel()
         model.setColumnCount(3)
         l = len(mImg.layersStack)
-        # data changed event handler : enables edition of layer name
+        # dataChanged event handler : enables edition of layer name
         def f(index1, index2):
             #index1 and index2 should be equal
             # only layer name should be editable
+            # dropEvent emit dataChanged when setting item values. We must
+            # prevent these calls to f as they are possibly made with unconsistent data :
+            # dragged rows are already removed from layersStack
+            # and not yet removed from model.
+            if l != self.model().rowCount():
+                return
+            # only name is editable
             if index1.column() != 1:
                 return
             row = index1.row()
@@ -352,7 +359,13 @@ class QLayerView(QTableView) :
             # set tool tip to full name
             item_name.setToolTip(lay.name)
             items.append(item_name)
-            item_mask = QStandardItem('M')
+            if not lay.group:
+                item_mask = QStandardItem('M')
+            else:
+                if lay.getStackIndex() == min([l.getStackIndex() for l in lay.group]):
+                    item_mask = QStandardItem('M')
+                else:
+                    item_mask = QStandardItem('m')
             items.append(item_mask)
             model.appendRow(items)
 
@@ -381,11 +394,25 @@ class QLayerView(QTableView) :
         drop event handler : moving layer
         @param event:
         """
+        # remove dragged rows
+        #event.accept()
+
         if event.source() == self:
-            # get selected rows
+            # get selected rows and layers
             rows = set([mi.row() for mi in self.selectedIndexes()])
-            # get target row
+            rStack = self.img.layersStack[::-1]
+            layers = [rStack[i] for i in rows]
+            linked = any(l.group for l in layers)
+            if linked and len(rows)> 1:
+                return
+            # get target row and layer
             targetRow = self.indexAt(event.pos()).row()
+            targetLayer = rStack[targetRow]
+            if linked:
+                if layers[0].group is not targetLayer.group:
+                    return
+            if bool(targetLayer.group) != linked:
+                return
             # remove target from selection
             if targetRow in rows:
                 rows.discard(targetRow)
@@ -405,7 +432,7 @@ class QLayerView(QTableView) :
                     rowMapping[row + len(rows)] = targetRow + idx
 
             # update layerStack using rowMapping
-            rStack = self.img.layersStack[::-1]
+            #rStack = self.img.layersStack[::-1]
             # insert None items
             for _ in range(len(rows)):
                 rStack.insert(targetRow, None)
@@ -420,20 +447,25 @@ class QLayerView(QTableView) :
             # update model
             # insert empty rows
             for _ in range(len(rows)):
-                result=self.model().insertRow(targetRow, QModelIndex())
+                result = self.model().insertRow(targetRow, QModelIndex())
+            # copy moved rows to their final place
             colCount = self.model().columnCount()
             for srcRow, tgtRow in sorted(rowMapping.items()): # python 3 iteritems->items
                 for col in range(0, colCount):
                     # CAUTION : setItem calls the data changed event handler (cf. setLayers above)
                     self.model().setItem(tgtRow, col, self.model().takeItem(srcRow, col))
-            # keep track of moved items
+            # remove moved rows from their initial place and keep track of moved items
             movedDict = rowMapping.copy()
-            # remove moved items from their initial place
             for row in reversed(sorted(rowMapping.keys())): # python 3 iterkeys -> keys
                 self.model().removeRow(row)
                 for s, t in rowMapping.items():
                     if t > row:
                         movedDict[s]-=1
+            # sanity check
+            for r in range(self.model().rowCount()):
+                id = self.model().index(r, 1)
+                if id.data() != rStack[r].name:
+                    raise ValueError('Drop Error')
             # reselect moved rows
             sel = sorted(movedDict.values())
             selectionModel = QtCore.QItemSelectionModel(self.model())
@@ -534,13 +566,25 @@ class QLayerView(QTableView) :
         @type pos: QPoint
         """
         index = self.indexAt(pos)
-        layer = self.img.layersStack[-1-index.row()]
-        lower = self.img.layersStack[layer.getLowerVisibleStackIndex()]
+        layerStackIndex = len(self.img.layersStack) -1-index.row()
+        layer = self.img.layersStack[layerStackIndex]
+        lowerVisible = self.img.layersStack[layer.getLowerVisibleStackIndex()]
+        lower = self.img.layersStack[layerStackIndex - 1]  # case index == 0 doesn't matter
         menu = QMenu()
         actionLoadImage = QAction('Load New Image', None)
+        actionLinkMask = QAction('Link Mask To Lower', None)
+        if layerStackIndex == 0 or (layer.group and lower.group):
+            actionLinkMask.setEnabled(False)
+        actionUnlinkMask = QAction('Unlink Mask', None)
+        if (not layer.group):
+            actionUnlinkMask.setEnabled(False)
+        else:
+            sortedGroup = sorted([l.getStackIndex() for l in layer.group])
+            if layerStackIndex != min(sortedGroup) and layerStackIndex!= max(sortedGroup):
+                actionUnlinkMask.setEnabled(False)
         actionMerge = QAction('Merge Lower', None)
         # merge only adjustment layer with image layer
-        if not hasattr(layer, 'inputImg') or hasattr(lower, 'inputImg'):
+        if not hasattr(layer, 'inputImg') or hasattr(lowerVisible, 'inputImg'):
             actionMerge.setEnabled(False)
         actionColorMaskEnable = QAction('Color Mask', None)
         actionOpacityMaskEnable = QAction('Opacity Mask', None)
@@ -557,6 +601,8 @@ class QLayerView(QTableView) :
         actionColorMaskEnable.setChecked(layer.maskIsSelected and layer.maskIsEnabled)
         actionOpacityMaskEnable.setChecked((not layer.maskIsSelected) and layer.maskIsEnabled)
         menu.addAction(actionLoadImage)
+        menu.addAction(actionLinkMask)
+        menu.addAction(actionUnlinkMask)
         # to link actionDup with a shortcut
         # it must be set in __init__
         menu.addAction(self.actionDup)
@@ -601,6 +647,21 @@ class QLayerView(QTableView) :
             layer.setImage(img, update=False)
             layer.thumb = None
             layer.updatePixmap()
+        def linkMask():
+            layer.linkMask2Lower()
+            ind = self.model().index(index.row(), 2)
+            # CAUTION setData calls datachanged event handler (see setLayers above)
+            self.model().setData(ind, 'm')
+        def unlinkMask():
+            layer.unlinkMask()
+            ind = self.model().index(index.row(), 2)
+            # CAUTION setData calls datachanged event handler (see setLayers above)
+            self.model().setData(ind, 'M')
+            if index.row() >0:
+                indUpper = self.model().index(index.row()-1, 2)
+                # CAUTION setData calls datachanged event handler (see setLayers above)
+                self.model().setData(indUpper, 'M')
+
         def merge():
             layer.merge_with_layer_immediately_below()
         def colorMaskEnable():
@@ -658,6 +719,8 @@ class QLayerView(QTableView) :
             layer.updatePixmap()
             self.img.onImageChanged().connect(loadImage)
         actionLoadImage.triggered.connect(loadImage)
+        actionLinkMask.triggered.connect(linkMask)
+        actionUnlinkMask.triggered.connect(unlinkMask)
         actionMerge.triggered.connect(merge)
         actionColorMaskEnable.triggered.connect(colorMaskEnable)
         actionOpacityMaskEnable.triggered.connect(opacityMaskEnable)

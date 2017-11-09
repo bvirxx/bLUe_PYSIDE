@@ -37,7 +37,7 @@ import icc
 from imgconvert import *
 from LUT3D import interpVec, rgb2hspVec, hsp2rgbVec, LUT3DIdentity, LUT3D, interpVec_
 from time import time
-from utils import savitzky_golay, channelValues, checkeredImage
+from utils import savitzky_golay, channelValues, checkeredImage, color2OpacityMask
 import graphicsHist
 # pool is created in QLayer.applyToStack()
 MULTIPROC_POOLSIZE = 4
@@ -1002,8 +1002,9 @@ class mImage(vImage):
         # layerView will be set to QTableView reference
         self.layerView = None
         super(mImage, self).__init__(*args, **kwargs)
-        # add a background layer
+        # add background layer
         bgLayer = QLayer.fromImage(self, parentImage=self)
+        bgLayer.isClipping = True
         self.setModified(False)
         self.activeLayerIndex = None
         self.addLayer(bgLayer, name='background')
@@ -1137,6 +1138,7 @@ class mImage(vImage):
         # set image from active layer
         layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
         self.addLayer(layer, name=name, index=index + 1)
+        layer.linkMask2Lower()  # TODO for testing 8/11/17
         layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getCurrentMaskedImage()
         # sync caches
         layer.updatePixmap()
@@ -1392,6 +1394,7 @@ class QLayer(vImage):
         # containers are initialized (only once) in getMaskedImage and getCurrentMaskedImage
         self.maskedImageContainer = None
         self.maskedThumbContainer = None
+        self.group = []
 
     def initThumb(self):
         """
@@ -1446,50 +1449,17 @@ class QLayer(vImage):
             return self.getThumb()
         else:
             return self
-    """
-    def getMaskedImage(self):
-        
-        Recursively builds full masked image from layer stack.
-        For non adjustment layers, sets maskedImageContainer to self * mask,
-        and for adjustment layers, to self * mask + inputImgFull() * (255 - mask).
-        InputImgFull  calls getMaskedImage recursively, so masked regions show
-        underlying layers. Recursion stops at the first non adjustment layer.
-        @return: maskedImageContainer
-        @rtype Qlayer
-        
-        # allocate only once
-        if self.maskedImageContainer is None:
-            self.maskedImageContainer = QLayer.fromImage(self, parentImage=self.parentImage)
-        #img = QLayer.fromImage(self, parentImage=self.parentImage)
-        img = self.maskedImageContainer
-        qp = QPainter(img)
-        # composition mode must be set to Source for copying image colors and alpha channel
-        qp.setCompositionMode(QPainter.CompositionMode_Source)  # TODO 23/10/17 added this line
-        qp.drawImage(QRect(0, 0, img.width(), img.height()), self)
-        # self * mask
-        qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
-        qp.drawImage(QRect(0, 0, img.width(), img.height()), self.mask)
-        if self.isAdjustLayer():
-            # inputImgFull() * (255 -mask)
-            qp.setCompositionMode(QPainter.CompositionMode_DestinationOver)
-            #qp.drawImage(QRect(0, 0, img.width(), img.height()), self.inputImg())
-            qp.drawImage(QRect(0, 0, img.width(), img.height()), self.inputImgFull())
-            #img.inputImg = self.inputImg
-            #img.inputImgFull = self.inputImgFull
-            img.name = self.name + '_getMaskedImage'
-        qp.end()
-        # no recursive caches
-        #img.cachesEnabled = False # TODO Fix 12/10/17
-        # no thumbnails for masked images
-        img.getThumb = lambda : img # TODO Fix 12/10/17
-        return img
-    """
 
     def getCurrentMaskedImage(self):
+        """
+        returns current masked layer image, using
+        non color managed rPixmap.
+        @return:
+        @rtype:
+        """
         if self.parentImage.useHald:
             return self.getHald()
         if self.maskedThumbContainer is None:
-            # self.maskedThumbContainer = QLayer.fromImage(self.thumb, parentImage=self.parentImage)
             self.maskedThumbContainer = QLayer.fromImage(self.getThumb(), parentImage=self.parentImage)
         if self.maskedImageContainer is None:
             self.maskedImageContainer = QLayer.fromImage(self, parentImage=self.parentImage)
@@ -1500,7 +1470,13 @@ class QLayer(vImage):
         # draw lower stack
         qp = QPainter(img)
         top = self.parentImage.getStackIndex(self)
-        bottom = top  # TODO added 5/11/17 for testing
+        #bottom = top
+        # for adjustment layers, we must choose
+        #      1) apply transformation to all lower layers : we draw
+        #         the stack from 0 to top
+        #      2) apply transformation to next lower layer alone : we draw
+        #         the top layer only
+        #
         if self.isClipping:
             bottom = top
             qp.setCompositionMode(QPainter.CompositionMode_Source)
@@ -1704,21 +1680,19 @@ class QLayer(vImage):
 
     def updatePixmap(self, maskOnly = False):
         """
-        Updates the caches qPixmap, thumb and cmImage.
+        Updates the caches qPixmap, rPixmap and cmImage.
         The input image is that returned by getCurrentImage(), thus
         the caches are synchronized using the current image
         mode (full or preview).
-
         If maskOnly is True, cmImage is not updated.
         if maskIsEnabled is False, the mask is not shown.
         If maskIsEnabled is True, then
             - if maskIsSelected is True, the mask is drawn over
-              the layer as a color and opacity mask, with its own
-              pixel color and inverse opacity.
+              the layer as a color mask.
             - if maskIsSelected is False, the mask is drawn as an
               opacity mask, setting image opacity to that of mask
-              (mode DestinationIn). Color mask is no used.
-        NOTE : the fully masked part of the image corresponds to
+              (mode DestinationIn). Mask color is no used.
+        NOTE : the masked part of the image corresponds to
         mask opacity = 0.
         @param maskOnly: default False
         @type maskOnly: boolean
@@ -1743,7 +1717,10 @@ class QLayer(vImage):
             img = currentImage
         #if maskOnly:
         self.cmImage = img
+
         def visualizeMask(img, mask):
+            if not self.maskIsEnabled:
+                return img
             img = QImage(img)
             tmp = mask
             qp = QPainter(img)
@@ -1752,26 +1729,29 @@ class QLayer(vImage):
                 qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
                 tmp = tmp.copy()
                 tmpBuf = QImageBuffer(tmp)
+                tmpBuf[:, :, 3] = 128
+                """
                 if self.isClipping:
-                    tmpBuf[:, :, 3] = 255 - tmpBuf[:, :, 3]
-                    tmpBuf[:, :, :3] = 64
+                    tmpBuf[:, :, 3] = 128 #255 - tmpBuf[:, :, 3]  # TODO modified 6/11/17 for clipping background
+                    #tmpBuf[:, :, :3] = 64                         # TODO modified 6/11/17 for clipping background
                 else:
                     tmpBuf[:, :, 3] = 128  # 255 - tmpBuf[:,:,3]
-                # tmpBuf[:, :,3] = np.where(tmpBuf[:,:,3] == 0, 128, 0)
+                """
                 qp.drawImage(QRect(0, 0, img.width(), img.height()), tmp)
             else:
                 # draw mask as opacity mask
                 # mode DestinationIn sets image opacity to mask opacity
                 qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
-                qp.drawImage(QRect(0, 0, img.width(), img.height()), tmp)
-                if self.isClipping:
+                qp.drawImage(QRect(0, 0, img.width(), img.height()), color2OpacityMask(tmp))
+                if self.isClipping:  #TODO 6/11/17 may be we should draw checker for both selected and unselected mask
                     qp.setCompositionMode(QPainter.CompositionMode_DestinationOver)
                     qp.drawImage(QRect(0, 0, img.width(), img.height()), checkeredImage(img.width(), img.height()))
             qp.end()
             return img
+
         qImg = img
         rImg = currentImage
-        # visualizing mask
+
         if self.maskIsEnabled:
             qImg = visualizeMask(qImg, self.mask)
             rImg = visualizeMask(rImg, self.mask)
@@ -1796,6 +1776,45 @@ class QLayer(vImage):
             if self.parentImage.layersStack[i].visible:
                 return i
         return -1
+
+    def linkMask2Lower(self):
+        """
+        share mask with next lower layer
+        @return:
+        @rtype:
+        """
+        ind = self.getStackIndex()
+        if ind == 0:
+            return
+        lower = self.parentImage.layersStack[ind-1]
+        # don't link two groups
+        if self.group and lower.group:
+            return
+        if not self.group and not lower.group:
+            self.group = [self, lower]
+            lower.group = self.group
+        elif not lower.group :
+            if not any(o is lower for o in self.group):
+                self.group.append(lower)
+            lower.group  = self.group
+        elif not self.group:
+            if not any(item is self for item in lower.group):
+                lower.group.append(self)
+            self.group = lower.group
+        self.mask = lower.mask
+
+    def unlinkMask(self):
+        self.mask =self.mask.copy()
+        # remove self from group
+        for i,item in enumerate(self.group):
+            if item is self:
+                self.group.pop(i)
+                # don't keep  group with length 1
+                if len(self.group) == 1:
+                    self.group.pop(0)
+                break
+        self.group = []
+
 
     def merge_with_layer_immediately_below(self):
         """
