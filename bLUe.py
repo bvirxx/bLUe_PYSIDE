@@ -167,12 +167,13 @@ CONST_BG_COLOR = QColor(255, 0, 255, 255)
 def mouseEvent(widget, event) :
     """
     Mouse event handler for QLabel object.
-    It handles image positionning, zooming, and
+    It handles image positioning, zooming, and
     tool actions. It must be called by mousePressed,
     mouseMoved and mouseReleased. This can be done by subclassing
-    and overidding, or by dynamically assigning mouseEvent
+    and overriding, or by dynamically assigning mouseEvent
     to the former three methods (cf. the function set_event_handler
-    below)
+    below).
+    NOTE. Mouse hover generates mouse move events
     @param widget: QLabel object
     @param event: mouse event
     """
@@ -184,8 +185,10 @@ def mouseEvent(widget, event) :
     x, y = event.x(), event.y()
     # read keyboard modifiers
     modifier = QApplication.keyboardModifiers()
-    # press event
+    # mouse press event
     if event.type() == QEvent.MouseButtonPress :
+        # Mouse hover generates mouse move events.
+        # So, we use a flag pressed to only select non hovering events
         pressed=True
         if event.button() == Qt.LeftButton:
             # no move yet
@@ -198,7 +201,17 @@ def mouseEvent(widget, event) :
         clicked=False
         if pressed :
             # button pressed
-             if img.isMouseSelectable:
+            if img.isMouseSelectable:
+                # don't draw on a non visible layer
+                if window.btnValues['rectangle'] or window.btnValues['drawFG'] or window.btnValues['drawBG']:
+                    if not layer.visible:
+                        msg = QMessageBox()
+                        msg.setWindowTitle('Warning')
+                        msg.setIcon(QMessageBox.Warning)
+                        msg.setText('Select a visible layer for drawing or painting')
+                        msg.exec_()
+                        pressed = False
+                        return
                 # marquee tool
                 if window.btnValues['rectangle']:
                     # rectangle coordinates are relative to image
@@ -231,13 +244,13 @@ def mouseEvent(widget, event) :
                         State['x_imagePrecPos'], State['y_imagePrecPos'] = tmp_x, tmp_y
                         # update upper layers
                         i = layer.getStackIndex()
-                        for l in img.layersStack[i:] :
+                        for l in img.layersStack :
                             l.updatePixmap(maskOnly=True)
                         window.label.repaint()
                 else:
                     img.xOffset+=(x-State['ix'])
                     img.yOffset+=(y-State['iy'])
-             else:
+            else:
                 img.xOffset+=(x-State['ix'])
                 img.yOffset+=(y-State['iy'])
         #update current coordinates

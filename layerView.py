@@ -46,23 +46,26 @@ class itemDelegate(QStyledItemDelegate):
 
     def paint(self, painter, option, index):
         rect = QRectF(option.rect)
-        # mask column
+        layer = self.parent().img.layersStack[-1 - index.row()]
+        # mask
         if index.column() == 2:
             if self.parent().img is not None:
-                if self.parent().img.layersStack[-1 - index.row()].maskIsSelected:
+                if layer.maskIsSelected:
                     text = index.data() + ' *'
                 else:
                     text = index.data() + '  '
-                if self.parent().img.layersStack[-1 - index.row()].maskIsEnabled:
+                if layer.group:
+                    text = text + ' |'
+                if layer.maskIsEnabled:
                     painter.save()
                     painter.setPen(Qt.red)
                     painter.drawText(rect, text, QTextOption(Qt.AlignCenter))
                     painter.restore()
                     return
                 painter.drawText(rect, text, QTextOption(Qt.AlignCenter))
+        # visibility
         elif index.column() == 0:
             painter.save()
-            #painter.setPen(Qt.red)
             if option.state & QStyle.State_Selected:
                 c = option.palette.color(QPalette.Highlight)
                 painter.fillRect(rect, c)
@@ -359,13 +362,7 @@ class QLayerView(QTableView) :
             # set tool tip to full name
             item_name.setToolTip(lay.name)
             items.append(item_name)
-            if not lay.group:
-                item_mask = QStandardItem('M')
-            else:
-                if lay.getStackIndex() == min([l.getStackIndex() for l in lay.group]):
-                    item_mask = QStandardItem('M')
-                else:
-                    item_mask = QStandardItem('m')
+            item_mask = QStandardItem('m')
             items.append(item_mask)
             model.appendRow(items)
 
@@ -461,11 +458,12 @@ class QLayerView(QTableView) :
                 for s, t in rowMapping.items():
                     if t > row:
                         movedDict[s]-=1
-            # sanity check
+            ######################################### sanity check
             for r in range(self.model().rowCount()):
                 id = self.model().index(r, 1)
                 if id.data() != rStack[r].name:
                     raise ValueError('Drop Error')
+            ########################################
             # reselect moved rows
             sel = sorted(movedDict.values())
             selectionModel = QtCore.QItemSelectionModel(self.model())
@@ -565,6 +563,8 @@ class QLayerView(QTableView) :
         @param pos: event coordinates (relative to widget)
         @type pos: QPoint
         """
+        # get current selection
+        rows = set([mi.row() for mi in self.selectedIndexes()])
         index = self.indexAt(pos)
         layerStackIndex = len(self.img.layersStack) -1-index.row()
         layer = self.img.layersStack[layerStackIndex]
@@ -572,20 +572,28 @@ class QLayerView(QTableView) :
         lower = self.img.layersStack[layerStackIndex - 1]  # case index == 0 doesn't matter
         menu = QMenu()
         actionLoadImage = QAction('Load New Image', None)
-        actionLinkMask = QAction('Link Mask To Lower', None)
+        actionLinkMask = QAction('Group with Lower Layer', None)
+        actionGroup = QAction('Group Selection', None)
+        if len(rows) < 2 :
+            actionGroup.setEnabled(False)
         if layerStackIndex == 0 or (layer.group and lower.group):
             actionLinkMask.setEnabled(False)
-        actionUnlinkMask = QAction('Unlink Mask', None)
+        actionUnGroup = QAction('Ungroup', None)
+        actionUnGroup.setEnabled(bool(layer.group))
+        """
         if (not layer.group):
             actionUnlinkMask.setEnabled(False)
         else:
             sortedGroup = sorted([l.getStackIndex() for l in layer.group])
             if layerStackIndex != min(sortedGroup) and layerStackIndex!= max(sortedGroup):
                 actionUnlinkMask.setEnabled(False)
+        """
         actionMerge = QAction('Merge Lower', None)
         # merge only adjustment layer with image layer
         if not hasattr(layer, 'inputImg') or hasattr(lowerVisible, 'inputImg'):
             actionMerge.setEnabled(False)
+        # don't dup adjustment layers
+        self.actionDup.setEnabled(not layer.isAdjustLayer())
         actionColorMaskEnable = QAction('Color Mask', None)
         actionOpacityMaskEnable = QAction('Opacity Mask', None)
         actionMaskDisable = QAction('Disable Mask', None)
@@ -600,14 +608,15 @@ class QLayerView(QTableView) :
         actionOpacityMaskEnable.setCheckable(True)
         actionColorMaskEnable.setChecked(layer.maskIsSelected and layer.maskIsEnabled)
         actionOpacityMaskEnable.setChecked((not layer.maskIsSelected) and layer.maskIsEnabled)
+        # add actions to menu
         menu.addAction(actionLoadImage)
         menu.addAction(actionLinkMask)
-        menu.addAction(actionUnlinkMask)
-        # to link actionDup with a shortcut
+        menu.addAction(actionGroup)
+        menu.addAction(actionUnGroup)
+        # to link actionDup with a shortcut,
         # it must be set in __init__
         menu.addAction(self.actionDup)
-        # don't dup adjustment layers
-        # self.actionDup.setEnabled(not layer.isAdjustLayer())
+
         menu.addAction(actionMerge)
         subMenuEnable = menu.addMenu('Enable Mask')
         subMenuEnable.addAction(actionColorMaskEnable)
@@ -652,16 +661,24 @@ class QLayerView(QTableView) :
             ind = self.model().index(index.row(), 2)
             # CAUTION setData calls datachanged event handler (see setLayers above)
             self.model().setData(ind, 'm')
-        def unlinkMask():
-            layer.unlinkMask()
-            ind = self.model().index(index.row(), 2)
-            # CAUTION setData calls datachanged event handler (see setLayers above)
-            self.model().setData(ind, 'M')
-            if index.row() >0:
-                indUpper = self.model().index(index.row()-1, 2)
-                # CAUTION setData calls datachanged event handler (see setLayers above)
-                self.model().setData(indUpper, 'M')
-
+        def group():
+            rStack = self.img.layersStack[::-1]
+            layers = [rStack[i] for i in sorted(rows)]
+            if any(l.group for l in layers):
+                msg = QMessageBox()
+                msg.setWindowTitle('Warning')
+                msg.setIcon(QMessageBox.Warning)
+                msg.setText("Some layers are already grouped. Ungroup first")
+                msg.exec_()
+                return
+            mask = layers[0].mask
+            for l in layers:
+                l.group = layers
+                l.mask = mask
+        def unGroup():
+            group = layer.group.copy()
+            for l in group:
+                l.unlinkMask()
         def merge():
             layer.merge_with_layer_immediately_below()
         def colorMaskEnable():
@@ -720,7 +737,8 @@ class QLayerView(QTableView) :
             self.img.onImageChanged().connect(loadImage)
         actionLoadImage.triggered.connect(loadImage)
         actionLinkMask.triggered.connect(linkMask)
-        actionUnlinkMask.triggered.connect(unlinkMask)
+        actionGroup.triggered.connect(group)
+        actionUnGroup.triggered.connect(unGroup)
         actionMerge.triggered.connect(merge)
         actionColorMaskEnable.triggered.connect(colorMaskEnable)
         actionOpacityMaskEnable.triggered.connect(opacityMaskEnable)
