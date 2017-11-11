@@ -37,7 +37,7 @@ import icc
 from imgconvert import *
 from LUT3D import interpVec, rgb2hspVec, hsp2rgbVec, LUT3DIdentity, LUT3D, interpVec_
 from time import time
-from utils import savitzky_golay, channelValues, checkeredImage, color2OpacityMask
+from utils import savitzky_golay, channelValues, checkeredImage
 import graphicsHist
 # pool is created in QLayer.applyToStack()
 MULTIPROC_POOLSIZE = 4
@@ -67,6 +67,11 @@ class vImage(QImage):
     thumbSize = 1000
 
     defaultBgColor = QColor(191, 191, 191)
+    # default mask colors.
+    # To be able to display masks as color masks, we use the red channel to code
+    # mask opacity, instead of alpha channel.
+    # When modifying these colors, it is mandatory to
+    # modify the methods invertMask and color2opacityMask accordingly.
     defaultColor_UnMasked = QColor(128, 0, 0, 255)
     defaultColor_Masked = QColor(0, 0, 0, 255)
     def __init__(self, filename=None, cv2Img=None, QImg=None, mask=None, format=QImage.Format_ARGB32,
@@ -152,7 +157,7 @@ class vImage(QImage):
         elif cv2Img is not None:
             # builds image from buffer
             super(vImage, self).__init__(ndarrayToQImage(cv2Img, format=format))
-        # Format check
+        # check format
         if self.depth() != 32:
             raise ValueError('vImage : should be a 8 bits/channel color image')
         # init mask
@@ -336,9 +341,19 @@ class vImage(QImage):
         self.qPixmap = QPixmap.fromImage(qImg)
         self.rPixmap = QPixmap.fromImage(rImg)
 
+    def color2OpacityMask(self):
+        mask = self.mask.copy()
+        buf = QImageBuffer(mask)
+        buf[:, :, 3] = np.where(buf[:, :, 2] == 0, 0, 255)
+        return mask
+
     def resetMask(self):
         # nothing is masked
-        self.mask.fill(QColor(255, 255, 255, 255))
+        self.mask.fill(vImage.defaultColor_UnMasked)
+
+    def invertMask(self):
+        buf = QImageBuffer(self.mask)
+        buf[:, :,2] = 128 - buf[:,:,2]  #np.where(buf[:,:,2]==128, 0, 128)
 
     def resize(self, pixels, interpolation=cv2.INTER_CUBIC):
         """
@@ -1138,7 +1153,6 @@ class mImage(vImage):
         # set image from active layer
         layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
         self.addLayer(layer, name=name, index=index + 1)
-        layer.linkMask2Lower()  # TODO for testing 8/11/17
         layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getCurrentMaskedImage()
         # sync caches
         layer.updatePixmap()
@@ -1722,12 +1736,13 @@ class QLayer(vImage):
             if not self.maskIsEnabled:
                 return img
             img = QImage(img)
-            tmp = mask
+            #tmp = mask
             qp = QPainter(img)
             if self.maskIsSelected:
                 # draw mask as color mask with partial opacity
                 qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
-                tmp = tmp.copy()
+                #tmp = tmp.copy()
+                tmp =mask.copy()
                 tmpBuf = QImageBuffer(tmp)
                 tmpBuf[:, :, 3] = 128
                 """
@@ -1742,7 +1757,7 @@ class QLayer(vImage):
                 # draw mask as opacity mask
                 # mode DestinationIn sets image opacity to mask opacity
                 qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
-                qp.drawImage(QRect(0, 0, img.width(), img.height()), color2OpacityMask(tmp))
+                qp.drawImage(QRect(0, 0, img.width(), img.height()), self.color2OpacityMask())
                 if self.isClipping:  #TODO 6/11/17 may be we should draw checker for both selected and unselected mask
                     qp.setCompositionMode(QPainter.CompositionMode_DestinationOver)
                     qp.drawImage(QRect(0, 0, img.width(), img.height()), checkeredImage(img.width(), img.height()))

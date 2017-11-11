@@ -675,6 +675,8 @@ class QLayerView(QTableView) :
             for l in layers:
                 l.group = layers
                 l.mask = mask
+                l.maskIsEnabled = True
+                l.maskIsSelected = False
         def unGroup():
             group = layer.group.copy()
             for l in group:
@@ -707,13 +709,16 @@ class QLayerView(QTableView) :
             layer.applyToStack()
             self.img.onImageChanged()
         def maskInvert():
-            buf = QImageBuffer(layer.mask)
-            buf[:,:,3] = 255 - buf[:,:,3]
-            layer.applyToStack()
+            layer.invertMask()
+            # update mask stack
+            for l in self.img.layersStack:
+                l.updatePixmap(maskOnly=True)
             self.img.onImageChanged()
         def maskReset():
             layer.resetMask()
-            layer.applyToStack()
+            # update mask stack
+            for l in self.img.layersStack:
+                l.updatePixmap(maskOnly=True)
             self.img.onImageChanged()
         def maskCopy():
             QApplication.clipboard().setImage(layer.mask)
@@ -724,17 +729,19 @@ class QLayerView(QTableView) :
         def maskDilate():
             kernel = np.ones((5, 5), np.uint8)
             buf = QImageBuffer(layer.mask)
-            # CAUTION erode decreases opacity (min filter), so it extends the masked part of the image
-            buf[:, :, 3] = cv2.erode(buf[:,:,3], kernel, iterations=1)
-            layer.updatePixmap()
+            # CAUTION erode decreases values (min filter), so it extends the masked part of the image
+            buf[:, :, 2] = cv2.erode(buf[:,:,2], kernel, iterations=1)
+            for l in self.img.layersStack:
+                l.updatePixmap(maskOnly=True)
             self.img.onImageChanged()
         def maskErode():
             kernel = np.ones((5, 5), np.uint8)
             buf = QImageBuffer(layer.mask)
-            # CAUTION dilate increases opacity (max filter), so it reduces the masked part of the image
-            buf[:,:,3] = cv2.dilate(buf[:,:,3], kernel, iterations=1)
-            layer.updatePixmap()
-            self.img.onImageChanged().connect(loadImage)
+            # CAUTION dilate increases values (max filter), so it reduces the masked part of the image
+            buf[:,:,2] = cv2.dilate(buf[:,:,2], kernel, iterations=1)
+            for l in self.img.layersStack:
+                l.updatePixmap(maskOnly=True)
+            self.img.onImageChanged()
         actionLoadImage.triggered.connect(loadImage)
         actionLinkMask.triggered.connect(linkMask)
         actionGroup.triggered.connect(group)

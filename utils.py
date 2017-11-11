@@ -145,13 +145,6 @@ def checkeredImage(w, h, format=QImage.Format_ARGB32):
     qp.end()
     return image
 
-def color2OpacityMask(mask):
-    mask = mask.copy()
-    buf = QImageBuffer(mask)
-    buf[:,:,3] = np.where(buf[:,:,2]==0, 0, 255)
-    return mask
-
-
 def clip(image, mask, inverted=False):
     """
     clip an image by applying a mask to its alpha channel

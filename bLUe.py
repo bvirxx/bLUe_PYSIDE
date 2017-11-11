@@ -242,8 +242,7 @@ def mouseEvent(widget, event) :
                         qp.drawLine(State['x_imagePrecPos'], State['y_imagePrecPos'], tmp_x, tmp_y)
                         qp.end()
                         State['x_imagePrecPos'], State['y_imagePrecPos'] = tmp_x, tmp_y
-                        # update upper layers
-                        i = layer.getStackIndex()
+                        # update mask stack
                         for l in img.layersStack :
                             l.updatePixmap(maskOnly=True)
                         window.label.repaint()
@@ -588,13 +587,6 @@ def setDocumentImage(img):
     window.label.img.window = window.label
     window.label_2.img.window = window.label_2
     window.label.img.setModified(True)
-    """
-    # switch to preview mode and process stack
-    window.tableView.previewOptionBox.stateChanged.emit(Qt.Checked)
-    # updates
-    updateStatus()
-    window.label.img.onImageChanged()
-    """
 
 def updateMenuOpenRecent():
     window.menuOpen_recent.clear()
@@ -679,12 +671,6 @@ def menuFile(x, name):
             newDir = dlg.directory().absolutePath()
             window.settings.setValue('paths/dlgdir', newDir)
             LUT.writeToTextFile(filenames[0])
-        """
-        img = doc.mergeVisibleLayers()
-        # convert image to LUT3D object
-        LUT = LUT3D.HaldImage2LUT3D(img, size=33)
-        LUT.writeToTextFile('toto')
-        """
     updateEnabledActions()
     updateStatus()
 
