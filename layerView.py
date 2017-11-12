@@ -499,6 +499,11 @@ class QLayerView(QTableView) :
         @type clickedIndex: QModelIndex
         """
         row = clickedIndex.row()
+        rows = set([mi.row() for mi in self.selectedIndexes()])
+        #multiple selection : go to top of selection
+        m = min(rows)
+        if row != m :
+            clickedIndex = self.model().index(m, clickedIndex.column())
         layer = self.img.layersStack[-1 - row]
         self.actionDup.setEnabled(not layer.isAdjustLayer())
         # toggle layer visibility
@@ -565,6 +570,19 @@ class QLayerView(QTableView) :
         """
         # get current selection
         rows = set([mi.row() for mi in self.selectedIndexes()])
+        rStack = self.img.layersStack[::-1]
+        layers = [rStack[r] for r in rows]
+        group = layers[0].group
+        for l in layers:
+            # different groups
+            if l.group and group:
+                if l.group is not group:
+                    msg = QMessageBox()
+                    msg.setWindowTitle('Warning')
+                    msg.setIcon(QMessageBox.Warning)
+                    msg.setText("Select a single group")
+                    msg.exec_()
+                    return
         index = self.indexAt(pos)
         layerStackIndex = len(self.img.layersStack) -1-index.row()
         layer = self.img.layersStack[layerStackIndex]
@@ -572,22 +590,15 @@ class QLayerView(QTableView) :
         lower = self.img.layersStack[layerStackIndex - 1]  # case index == 0 doesn't matter
         menu = QMenu()
         actionLoadImage = QAction('Load New Image', None)
-        actionLinkMask = QAction('Group with Lower Layer', None)
-        actionGroup = QAction('Group Selection', None)
-        if len(rows) < 2 :
-            actionGroup.setEnabled(False)
-        if layerStackIndex == 0 or (layer.group and lower.group):
-            actionLinkMask.setEnabled(False)
+        actionGroupSelection = QAction('Group Selection', None)
+        if len(rows) < 2 or any(l.group for l in layers):
+            actionGroupSelection.setEnabled(False)
+        actionAdd2Group = QAction('Add to Group', None)
+        # Active layer is not in a group or right clicked layer is in a group
+        if not group or layer.group:
+            actionAdd2Group.setEnabled(False)
         actionUnGroup = QAction('Ungroup', None)
         actionUnGroup.setEnabled(bool(layer.group))
-        """
-        if (not layer.group):
-            actionUnlinkMask.setEnabled(False)
-        else:
-            sortedGroup = sorted([l.getStackIndex() for l in layer.group])
-            if layerStackIndex != min(sortedGroup) and layerStackIndex!= max(sortedGroup):
-                actionUnlinkMask.setEnabled(False)
-        """
         actionMerge = QAction('Merge Lower', None)
         # merge only adjustment layer with image layer
         if not hasattr(layer, 'inputImg') or hasattr(lowerVisible, 'inputImg'):
@@ -609,15 +620,12 @@ class QLayerView(QTableView) :
         actionColorMaskEnable.setChecked(layer.maskIsSelected and layer.maskIsEnabled)
         actionOpacityMaskEnable.setChecked((not layer.maskIsSelected) and layer.maskIsEnabled)
         # add actions to menu
-        menu.addAction(actionLoadImage)
-        menu.addAction(actionLinkMask)
-        menu.addAction(actionGroup)
+        # group/ungroup
+        menu.addAction(actionAdd2Group)
+        menu.addAction(actionGroupSelection)
         menu.addAction(actionUnGroup)
-        # to link actionDup with a shortcut,
-        # it must be set in __init__
-        menu.addAction(self.actionDup)
-
-        menu.addAction(actionMerge)
+        menu.addSeparator()
+        #mask
         subMenuEnable = menu.addMenu('Enable Mask')
         subMenuEnable.addAction(actionColorMaskEnable)
         subMenuEnable.addAction(actionOpacityMaskEnable)
@@ -628,6 +636,14 @@ class QLayerView(QTableView) :
         menu.addAction(actionMaskPaste)
         menu.addAction(actionMaskDilate)
         menu.addAction(actionMaskErode)
+        menu.addSeparator()
+        # miscellaneous
+        menu.addAction(actionLoadImage)
+        # to link actionDup with a shortcut,
+        # it must be set in __init__
+        menu.addAction(self.actionDup)
+        menu.addAction(actionMerge)
+
         # Event handlers
         def f():
             self.opacitySlider.show()
@@ -656,13 +672,12 @@ class QLayerView(QTableView) :
             layer.setImage(img, update=False)
             layer.thumb = None
             layer.updatePixmap()
-        def linkMask():
-            layer.linkMask2Lower()
-            ind = self.model().index(index.row(), 2)
-            # CAUTION setData calls datachanged event handler (see setLayers above)
-            self.model().setData(ind, 'm')
-        def group():
-            rStack = self.img.layersStack[::-1]
+        def add2Group():
+            layer.group = group
+            layer.mask = group[0].mask
+            layer.maskIsEnabled = True
+            layer.maskIsSelected = True
+        def groupSelection():
             layers = [rStack[i] for i in sorted(rows)]
             if any(l.group for l in layers):
                 msg = QMessageBox()
@@ -743,8 +758,8 @@ class QLayerView(QTableView) :
                 l.updatePixmap(maskOnly=True)
             self.img.onImageChanged()
         actionLoadImage.triggered.connect(loadImage)
-        actionLinkMask.triggered.connect(linkMask)
-        actionGroup.triggered.connect(group)
+        actionAdd2Group.triggered.connect(add2Group)
+        actionGroupSelection.triggered.connect(groupSelection)
         actionUnGroup.triggered.connect(unGroup)
         actionMerge.triggered.connect(merge)
         actionColorMaskEnable.triggered.connect(colorMaskEnable)

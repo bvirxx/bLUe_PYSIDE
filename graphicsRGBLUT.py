@@ -300,6 +300,7 @@ class graphicsForm(QGraphicsView) :
         self.scene().bgColor = QColor(200,200,200)#self.palette().color(self.backgroundRole()) TODO parametrize
 
         self.graphicsScene.onUpdateScene = lambda : 0
+        self.scene().onUpdateLUT = lambda : 0
 
         self.graphicsScene.axeSize = axeSize
         self.mainForm=mainForm
@@ -402,11 +403,10 @@ class graphicsForm(QGraphicsView) :
                     self.scene().cubicItem = self.graphicsScene.cubicG
             elif item.text() == 'Blue':
                     self.scene().cubicItem = self.graphicsScene.cubicB
-
+            pushButton2.setEnabled(item.text() != 'RGB')
             self.scene().cubicItem.setVisible(True)
-            #self.scene().onUpdateLUT()
-
-            # draw  histogram
+            self.scene().onUpdateLUT()
+            # redraw  histogram
             self.scene().invalidate(QRectF(0.0, -self.scene().axeSize, self.scene().axeSize, self.scene().axeSize),
                                     QGraphicsScene.BackgroundLayer)
 

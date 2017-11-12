@@ -519,6 +519,8 @@ class vImage(QImage):
         # set Green channel(255=foreground, 0=BGD, 1=PR_BGD)
         buf[:, :, 1] = np.where(finalOpacity == 0, 255, 0)
         buf[:, :, 1][finalMask == cv2.GC_PR_BGD] = 100#1
+        # set red channel (0=foreground, 255=background cf. vImage.color2opcityMask)
+        buf[:, :, 2] = np.where(finalOpacity == 0, 255, 0)
         # set Blue channel(255=background, 0=FGD, 1=PR_FGD)
         buf[:, :, 0] = np.where(finalOpacity == 255, 255, 0)
         buf[:, :, 0][finalMask == cv2.GC_PR_FGD] = 250#1
@@ -526,7 +528,7 @@ class vImage(QImage):
         self.mask = scaledMask.scaled(self.width(), self.height())
 
         tmp = QImageBuffer(self.mask)
-        tmp[:,:,3]  = np.where(tmp[:,:,1] <=100, 1, 255)  # don't use opacity 0 for scaling
+        #tmp[:,:,3]  = np.where(tmp[:,:,1] <=100, 1, 255)  # don't use opacity 0 for scaling
 
         currentImage = self.getCurrentImage()  # TODO 23/10/17 fix do not use getCurrentMaskedImage : lower layers modifs not forwarded
         ndImg1a = QImageBuffer(currentImage)
@@ -1154,6 +1156,14 @@ class mImage(vImage):
         layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
         self.addLayer(layer, name=name, index=index + 1)
         layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getCurrentMaskedImage()
+        # init thumb
+        if layer.parentImage.useThumb:
+            layer.thumb = layer.inputImg()
+        group = self.layersStack[index].group
+        if group:
+            layer.group = group
+            layer.mask = self.layersStack[index].mask
+            layer.maskIsEnabled = True
         # sync caches
         layer.updatePixmap()
         return layer
@@ -1416,7 +1426,8 @@ class QLayer(vImage):
         """
         if not self.cachesEnabled:
             return
-        self.thumb = self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio)
+        # With the Qt.SmoothTransformation flag, the scaled image format is premultiplied
+        self.thumb = self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio, Qt.SmoothTransformation).convertToFormat(QImage.Format_ARGB32, Qt.DiffuseDither|Qt.DiffuseAlphaDither)
         self.thumb.parentImage = self.parentImage
 
     def initHald(self):

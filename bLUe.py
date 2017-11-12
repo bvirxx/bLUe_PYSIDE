@@ -513,6 +513,7 @@ def openFile(f):
     # display image
     if img is not None:
         setDocumentImage(img)
+        # add starting adjusgtment layers
         addBasicAdjustmentLayers()
         # switch to preview mode and process stack
         window.tableView.previewOptionBox.stateChanged.emit(Qt.Checked)
@@ -797,32 +798,11 @@ def menuWiew(x, name):
     # togle before/after mode
     if name == 'actionShow_hide_right_window_3' :
         if window.splitter.isHidden() :
-            #window.label.hide()
-            #window.splitter.show()
-            #window.label_2.show()
-            #window.label_3.show()
             splittedWin.setSplittedView()
             window.viewState = 'Before/After'
-            """
-            if window.splitter.currentState == 'H':
-                window.label_2.img.xOffset = - window.label_3.width()
-                window.label_2.img.yOffset = window.label_3.img.yOffset
-            elif window.splitter.currentState == 'V':
-                window.label_2.img.yOffset = - window.label_3.height()
-                window.label_2.img.xOffset = window.label_3.img.xOffset
-            else:
-                window.label_2.img.xOffset, window.label_2.img.yOffset = 0, 0
-                window.label_3.hide()
-
-            if window.splitter.orientation() == Qt.Horizontal:
-                window.label_2.img.xOffset = - window.label_3.width()
-            else:
-                window.label_2.img.yOffset = - window.label_3.height()
-            window.splittedView = True
-            """
         else:
-            window.label.show()
             window.splitter.hide()
+            window.label.show()
             window.splittedView = False
             window.viewState = 'After'
     elif name == 'actionDiaporama':
@@ -942,15 +922,12 @@ def menuLayer(x, name):
             grWindow = graphicsLabForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         # redimensionable window
         grWindow.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
-
         # Curve change event handler
         # called by curve mouse events
         # Apply current LUT
         def f():
             l.applyToStack()
-            #updateDocView()
             window.label.img.onImageChanged()
-            #window.label.repaint()
         grWindow.graphicsScene.onUpdateLUT = f
 
         # wrapper for the right apply method
