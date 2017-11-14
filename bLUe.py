@@ -25,6 +25,7 @@ from PySide2.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 
 from graphicsCLAHE import CLAHEForm
 from graphicsExp import ExpForm
+from graphicsPatch import patchForm
 from utils import channelValues
 
 """
@@ -47,7 +48,7 @@ from os import path, walk
 from os.path import isfile
 from types import MethodType
 from grabcut import segmentForm
-from PySide2.QtCore import Qt, QRect, QEvent, QDir, QUrl, QPoint, QSize, QFile, QFileInfo
+from PySide2.QtCore import Qt, QRect, QEvent, QDir, QUrl, QPoint, QSize, QFile, QFileInfo, QRectF, QPointF
 from PySide2.QtGui import QPixmap, QColor, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, QPainterPath
 from PySide2.QtWidgets import QApplication, QMenu, QAction, QFileDialog, QMessageBox, \
     QMainWindow, QLabel, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen
@@ -109,7 +110,7 @@ def paintEvent(widg, e) :
     by subclassing, or by dynamically assigning paintEvent
     to widg.paintEvent (cf. the function set_event_handler
     below).
-    Image layers are painted in stack ascending order,
+    Layer qPixmaps (color managed) are painted in stack ascending order,
     each with its own opacity and composition mode.
     @param widg: widget
     @type widg: object with a img attribute of type mImage
@@ -120,37 +121,37 @@ def paintEvent(widg, e) :
     mimg = widg.img
     if mimg is None:
         return
-        #raise ValueError("paintEvent : no image set")
     r = mimg.resize_coeff(widg)
     qp.begin(widg)
-    # background
-    qp.fillRect(QRect(0, 0, widg.width() , widg.height() ), vImage.defaultBgColor)
+    # fill  background
+    qp.fillRect(QRectF(0, 0, widg.width() , widg.height() ), vImage.defaultBgColor)
     # draw layers.
-    # We follow the algorithm from MarkedImg.mergeVisibleLayers,
-    # but for color and masking management we use pixmaps instead of images.
     for layer in mimg.layersStack :
         if layer.visible:
             qp.setOpacity(layer.opacity)
             qp.setCompositionMode(layer.compositionMode)
             if layer.qPixmap is not None:
-                qp.drawPixmap(QRect(mimg.xOffset,mimg.yOffset, mimg.width()*r, mimg.height()*r), # target rect
-                           layer.qPixmap #transfer() #layer.qPixmap
+                # As offsets can be float numbers,
+                # we use QRectF instead of QRect
+                qp.drawPixmap(QRectF(mimg.xOffset, mimg.yOffset, mimg.width()*r, mimg.height()*r), # target rect
+                           layer.qPixmap, layer.qPixmap.rect()
                          )
             else:
-                qp.drawImage(QRect(mimg.xOffset, mimg.yOffset, mimg.width() * r , mimg.height() * r ), # target rect
-                              layer.getCurrentImage()  # TODO previously layer Fix 02/11/17
+                currentImage = layer.getCurrentImage()
+                qp.drawImage(QRectF(mimg.xOffset, mimg.yOffset, mimg.width() * r , mimg.height() * r ), # target rect
+                              currentImage, currentImage.rect()
                               )
     # draw selection rectangle for active layer only
-    qp.setPen(QColor(0, 255, 0))
-    if (mimg.getActiveLayer().visible) and (mimg.getActiveLayer().rect is not None ):
+    layer = mimg.getActiveLayer()
+    if (layer.visible) and (layer.rect is not None ):
+        qp.setPen(QColor(0, 255, 0))
         rect = mimg.getActiveLayer().rect
         qp.drawRect(rect.left()*r + mimg.xOffset, rect.top()*r +mimg.yOffset, rect.width()*r, rect.height()*r)
-    name = widg.objectName()
     # mark before/after views
+    name = widg.objectName()
     if name == "label_2" or name == "label_3":
         # draw filled rect
         qp.fillPath(qp.markPath, QBrush(Qt.gray))
-        #qp.drawPath(qp.markPath)
         # draw text
         qp.setPen(Qt.white)
         qp.drawText(qp.markRect, Qt.AlignCenter | Qt.AlignVCenter, "Before" if name == "label_2" else "After" )
@@ -159,7 +160,7 @@ def paintEvent(widg, e) :
 # mouse event handler for image widgets (dynamically set attribute widget.img, currently label and label_2)
 pressed=False
 clicked = True
-# Mouse coordinates recording
+# Mouse coordinates recording. Coordinates are relative to widget
 State = {'drag':False, 'drawing':False , 'tool_rect':False, 'rect_over':False, 'ix':0, 'iy':0, 'ix_begin':0, 'iy_begin':0, 'rawMask':None}
 CONST_FG_COLOR = QColor(255, 255, 255, 255)
 CONST_BG_COLOR = QColor(255, 0, 255, 255)
@@ -173,7 +174,8 @@ def mouseEvent(widget, event) :
     and overriding, or by dynamically assigning mouseEvent
     to the former three methods (cf. the function set_event_handler
     below).
-    NOTE. Mouse hover generates mouse move events
+    NOTE 1. Mouse hover generates mouse move events
+    NOTE 2. Due to wheeelEvent, xOffset and yOffset are float
     @param widget: QLabel object
     @param event: mouse event
     """
@@ -182,9 +184,10 @@ def mouseEvent(widget, event) :
     img= widget.img
     layer = img.getActiveLayer()
     r = img.resize_coeff(widget)
+    # x, y coordinates, relative to widget
     x, y = event.x(), event.y()
     # read keyboard modifiers
-    modifier = QApplication.keyboardModifiers()
+    modifiers = QApplication.keyboardModifiers()
     # mouse press event
     if event.type() == QEvent.MouseButtonPress :
         # Mouse hover generates mouse move events.
@@ -246,12 +249,39 @@ def mouseEvent(widget, event) :
                         for l in img.layersStack :
                             l.updatePixmap(maskOnly=True)
                         window.label.repaint()
+                # do shifts
                 else:
-                    img.xOffset+=(x-State['ix'])
-                    img.yOffset+=(y-State['iy'])
+                    # shift image
+                    if modifiers == Qt.NoModifier:
+                        img.xOffset+=(x-State['ix'])
+                        img.yOffset+=(y-State['iy'])
+                    # shift layer
+                    elif modifiers == Qt.ControlModifier:
+                        layer.xOffset += (x - State['ix'])
+                        layer.yOffset += (y - State['iy'])
+                        layer.updatePixmap()
+                    # shift virtual layer
+                    elif modifiers == Qt.ControlModifier | Qt.AltModifier:
+                        if layer.name == 'Cloning':
+                            layer.xAltOffset += (x - State['ix'])
+                            layer.yAltOffset += (y - State['iy'])
+                            layer.applyCloning()
+                            layer.updatePixmap()
+            # case not img.isMouseSelectable : TODO 14/11/17 do nothing ???
             else:
-                img.xOffset+=(x-State['ix'])
-                img.yOffset+=(y-State['iy'])
+                if modifiers == Qt.NoModifier:
+                    img.xOffset += (x - State['ix'])
+                    img.yOffset += (y - State['iy'])
+                elif modifiers == Qt.ControlModifier:
+                    layer.xOffset += (x - State['ix'])
+                    layer.yOffset += (y - State['iy'])
+                    layer.updatePixmap()
+                elif modifiers == Qt.ControlModifier | Qt.AltModifier:
+                    if layer.name == 'Cloning':
+                        layer.xAltOffset += (x - State['ix'])
+                        layer.yAltOffset += (y - State['iy'])
+                        layer.applyCloning()
+                        layer.updatePixmap()
         #update current coordinates
         State['ix'],State['iy']=x,y
     # mouse release event
@@ -261,51 +291,40 @@ def mouseEvent(widget, event) :
             if img.isMouseSelectable:
                 # click event
                 if clicked:
-                    # Picking color from active layer - for adjustment layers, use full image
-                    c = QColor(img.getActivePixel((State['ix']  -  img.xOffset) // r, (State['iy'] - img.yOffset) // r))
-                    #cM = QColor(img.getActiveLayer().pixel(State['ix'] // r - img.xOffset // r, State['iy'] // r - img.yOffset // r))
+                    # Picking color from active layer. Coordinates are relative to full-sized image
+                    c = img.getActivePixel((State['ix']  -  img.xOffset) / r, (State['iy'] - img.yOffset) / r)
                     red, green, blue = c.red(), c.green(), c.blue()
-                    #rM, gM, bM = cM.red(), cM.green(), cM.blue()
                     # select grid node for 3DLUT form
                     if hasattr(layer, "view") and layer.view is not None:
                         if hasattr(layer.view.widget(), 'selectGridNode'):
-                            layer.view.widget().selectGridNode(red, green, blue)#, rM, gM, bM)
-                    #window.label.repaint()
+                            layer.view.widget().selectGridNode(red, green, blue)
                 if window.btnValues['rectangle']:
-                    #layer.rect = QRect(min(State['ix_begin'], x)//r-img.xOffset//r, min(State['iy_begin'], y)//r- img.yOffset//r, abs(State['ix_begin'] - x)//r, abs(State['iy_begin'] - y)//r)
                     layer.rect = QRect((min(State['ix_begin'], x) - img.xOffset) // r,
                                        (min(State['iy_begin'], y) - img.yOffset) // r,
                                        abs(State['ix_begin'] - x) // r, abs(State['iy_begin'] - y) // r)
-                    """
-                elif (window.btnValues['drawFG'] or window.btnValues['drawBG']):
-                    if layer.maskIsEnabled:
-                        if layer.isSegmentLayer():
-                            # CAUTION: discriminant is blue=0 for FG and green=0 for BG
-                            color = QColor(0, 255, 0, 128) if window.btnValues['drawFG'] else QColor(0, 0, 255, 128)
-                        else:
-                            color = vImage.defaultColor_UnMasked if window.btnValues['drawFG'] else vImage.defaultColor_Masked
-                        tmp = layer.mask
-                        qp.begin(tmp)
-                        w = window.verticalSlider1.value() // (2*r)
-                        qp.setPen(QPen(color, 2*w))
-                        tmp_x = (x - img.xOffset) // r
-                        tmp_y = (y - img.yOffset) // r
-                        # qp.drawEllipse(tmp_x, tmp_y, 8, 8)
-                        # result is source (=pen) pixel color and opacity
-                        qp.setCompositionMode(qp.CompositionMode_Source)
-                        qp.drawEllipse(tmp_x-w//2, tmp_y-w//2, w*0.8, w*0.8)
-                        qp.drawLine(State['x_imagePrecPos'], State['y_imagePrecPos'], tmp_x, tmp_y)
-                        qp.end()
-                        #layer.updatePixmap(maskOnly=True)
-                        i = layer.getStackIndex()
-                        for l in img.layersStack[i:] :
-                            l.updatePixmap(maskOnly=True)
-                        window.label.repaint()
-                        #tmp.isModified = True
-                    """
+                    # for cloning layer init mask from rectangle
+                    if layer.name == 'Cloning':
+                        layer.mask.fill(vImage.defaultColor_Masked)
+                        qptemp=QPainter(layer.mask)
+                        qptemp.setBrush(QBrush(vImage.defaultColor_UnMasked))
+                        qptemp.drawRect(layer.rect)
+                        qptemp.end()
+                        layer.updatePixmap(maskOnly=True)
+                        #layer.center = img.full2CurrentXY((State['ix'] - img.xOffset) / r, (State['iy'] - img.yOffset) / r)
+                # do shifts
                 else:
-                    img.xOffset += (x - State['ix'])
-                    img.yOffset += (y - State['iy'])
+                    if modifiers == Qt.NoModifier:
+                        img.xOffset += (x - State['ix'])
+                        img.yOffset += (y - State['iy'])
+                    elif modifiers == Qt.ControlModifier:
+                        layer.xOffset += (x - State['ix'])
+                        layer.yOffset += (y - State['iy'])
+                    elif modifiers == Qt.ControlModifier | Qt.AltModifier:
+                        if layer.name == 'Cloning':
+                            layer.xAltOffset += (x - State['ix'])
+                            layer.yAltOffset += (y - State['iy'])
+                            layer.applyCloning()
+                            layer.updatePixmap()
     widget.repaint()
     # sync splitted views
     linked = True
@@ -331,7 +350,7 @@ def wheelEvent(widget,img, event):
     numSteps = numDegrees / 150.0
     r=img.Zoom_coeff
     img.Zoom_coeff *= (1.0 + numSteps)
-    # correct image offset to keep unchanged the image point
+    # correcting image offset to keep unchanged the image point
     # under the cursor : (pos - offset) / resize_coeff should be invariant
     img.xOffset = -pos.x() * numSteps + (1.0+numSteps)*img.xOffset
     img.yOffset = -pos.y() * numSteps + (1.0+numSteps)*img.yOffset
@@ -966,7 +985,7 @@ def menuLayer(x, name):
     elif name == 'actionNew_Cloning_Layer':
         lname = 'Cloning'
         l = window.label.img.addAdjustmentLayer(name=lname)
-        grWindow = segmentForm.getNewWindow(targetImage=window.label.img, layer=l, mainForm=window)
+        grWindow = patchForm.getNewWindow(targetImage=window.label.img, layer=l, mainForm=window)
         l.execute = lambda pool=None: l.applyCloning()
     # segmentation grabcut
     elif name == 'actionNew_segmentation_layer':

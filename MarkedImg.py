@@ -18,7 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import multiprocessing
 from functools import partial
 
-from PySide2.QtCore import Qt, QBuffer, QDataStream, QFile, QIODevice, QSize
+from PySide2.QtCore import Qt, QBuffer, QDataStream, QFile, QIODevice, QSize, QPointF, QPoint, QRectF
 
 import cv2
 from copy import copy
@@ -197,6 +197,18 @@ class vImage(QImage):
         buf1 = QImageBuffer(self.Hald)
         buf1[:,:,:]=buf0
 
+    def resize_coeff(self, widget):
+        """
+        return the current resizing coefficient, used by
+        the paint event handler to display the image.
+        This coefficient is chosen to initially (i.e. when self.Zoom_coeff = 1)
+        fill the widget.
+        @param widget: Qwidget object
+        @return: the (multiplicative) resizing coefficient
+        """
+        r_w, r_h = float(widget.width()) / self.width(), float(widget.height()) / self.height()
+        r = max(r_w, r_h)
+        return r * self.Zoom_coeff
 
     def getCurrentImage(self):
         """
@@ -215,6 +227,23 @@ class vImage(QImage):
             return self.getThumb()
         else:
             return self
+
+    def full2CurrentXY(self, x, y):
+        """
+        Maps x,y coordinates of pixel in the full image to
+        coordinates in current image.
+        @param x:
+        @type x: int or float
+        @param y:
+        @type y: int or float
+        @return:
+        @rtype: 2uple of int
+        """
+        if self.useThumb:
+            currentImg = self.getThumb()
+            x = (x * currentImg.width()) / self.width()
+            y = (y * currentImg.height()) / self.height()
+        return int(x), int(y)
 
     def getHspbBuffer(self):
         """
@@ -387,23 +416,22 @@ class vImage(QImage):
         img = self.inputImg()
         bufIn = QImageBuffer(img)
         bufIn = bufIn[:, :, :3][:, :, ::-1]
+        imgOut = self.getCurrentImage()
+        bufOut = QImageBuffer(imgOut)
+        # init white mask
+        src_mask = self.color2OpacityMask().scaled(img.width(), img.height())
+        src_maskBuf = QImageBuffer(src_mask)
+        tmp = np.where(src_maskBuf[:,:,3]==0, 255, 0)
 
-        bufOut = QImageBuffer(self.getCurrentImage())
-
-
-        # Create a rough mask around the airplane.
-        src_mask = np.zeros(bufIn.shape, bufIn.dtype)
-        poly = np.array([[100, 400], [700, 400], [700, 100], [100, 100]], np.int32)
-        cv2.fillPoly(src_mask, [poly], (255, 255, 255))
-
-        # This is where the CENTER of the airplane will be placed
-        center = (400, 400)
-
+        qp = QPainter(imgOut)
+        qp.drawImage(QRectF(self.xAltOffset, self.yAltOffset, img.width(), img.height()), img)
+        qp.end()
+        src_maskBuf = np.dstack((tmp,tmp,tmp)).astype(np.uint8)
+        self.center = self.full2CurrentXY(self.rect.left() + self.rect.width() //2, self.rect.top() + self.rect.height() //2)
         # Clone seamlessly.
-        output = cv2.seamlessClone(bufOut[:, :, :3][:, :, ::-1], bufIn, src_mask, center,  # src dest
-                                   cv2.NORMAL_CLONE)#MONOCHROME_TRANSFER)  # cv2.MIXED_CLONE)#cv2.NORMAL_CLONE)
-
-        bufOut[:, :, :3][:, :, ::-1] = output
+        #output = cv2.seamlessClone(bufOut[:, :, :3][:, :, ::-1], bufIn, src_maskBuf, self.center,  # src dest
+                                   #cv2.NORMAL_CLONE)#MONOCHROME_TRANSFER)  # cv2.MIXED_CLONE)#cv2.NORMAL_CLONE)
+        #bufOut[:, :, :3][:, :, ::-1] = output
         self.updatePixmap()
 
 
@@ -426,7 +454,7 @@ class vImage(QImage):
             int(rect.left() * r):int(rect.right() * r)] = cv2.GC_PR_FGD
         else:
             rectMask = rectMask + cv2.GC_PR_FGD
-        # scale mask don't use scaled don't work for pixels with opacity 0
+        # scale mask scaled doesn't work for pixels with opacity 0
         x = QImageBuffer(self.mask)[:, :, 3]
         QImageBuffer(self.mask)[:, :, 3] = np.where(x == 0, 1, x)
         scaledMask = self.mask.scaled(inputImg.width(), inputImg.height())
@@ -1050,29 +1078,38 @@ class mImage(vImage):
     def getActivePixel(self,x, y):
         """
         Reads pixel value from active layer. For
-        adjustment or segmentation layer, we read pixel value
-        from input full image.
-        @param x, y: coordinates of pixel
-        @return: pixel value (type QRgb : unsigned int ARGB)
+        adjustment or segmentation layers, we read the pixel value
+        from the input image.
+        @param x, y: coordinates of pixel, relative to full-sized image
+        @return: pixel color
+        @rtype: QColor
         """
+        """
+        currentImg = self.getCurrentImage()
+        # get x, y coordinates relative to current image
+        x = int((x * currentImg.width()) / self.width())
+        y = int((y * currentImg.height()) / self.height())
+        """
+        x, y = self.full2CurrentXY(x, y)
         activeLayer = self.getActiveLayer()
-        #if  hasattr(activeLayer, "inputImgFull") and activeLayer.inputImgFull is not None:
-        if activeLayer.isAdjustLayer() : #and activeLayer.inputImgFull is not None:
-            # layer is adjustment or segmentation : read from input image
-            return activeLayer.inputImg().pixel(x, y)
+        if activeLayer.isAdjustLayer() :
+            # layer is adjustment or segmentation : read from current input image
+            return activeLayer.inputImg().pixelColor(x, y)
         else:
-            # read from image
-            return activeLayer.getCurrentImage().pixel(x, y)
+            # read from current image
+            return activeLayer.getCurrentImage().pixelColor(x, y)
 
     def cacheInvalidate(self):
         vImage.cacheInvalidate(self)
         for layer in self.layersStack:
             layer.cacheInvalidate()
 
+    """
     def initThumb(self):
         vImage.initThumb(self)
         #for layer in self.layersStack:   03/10/17 prevent wrong reinit of the thumb stack when shifting from and to non color managed view in preview mode
-            #vImage.initThumb(layer)
+            #vImage.initThumb(layer)      removed 12/11/17 : useless
+    """
 
     def setThumbMode(self, value):
         if value == self.useThumb:
@@ -1301,17 +1338,6 @@ class imImage(mImage) :
         self.isMouseSelectable =True
         self.isModified = False
 
-    def resize_coeff(self, widget):
-        """
-        return the current resizing coefficient, used by
-        the paint event handler to display the image
-        @param widget: Qwidget object
-        @return: the (multiplicative) resizing coefficient
-        """
-        r_w, r_h = float(widget.width()) / self.width(), float(widget.height()) / self.height()
-        r = max(r_w, r_h)
-        return r * self.Zoom_coeff
-
     def resize(self, pixels, interpolation=cv2.INTER_CUBIC):
         """
         Resize image and layers
@@ -1419,6 +1445,10 @@ class QLayer(vImage):
         self.maskedImageContainer = None
         self.maskedThumbContainer = None
         self.group = []
+        self.xOffset, self.yOffset = 0, 0
+        self.xAltOffset, self.yAltOffset = 0, 0
+        # center is used for cloning ???
+        self.center = (0,0)
 
     def initThumb(self):
         """
@@ -1475,9 +1505,26 @@ class QLayer(vImage):
         else:
             return self
 
+    def full2CurrentXY(self, x, y):
+        """
+        Maps x,y coordinates of pixel in the full image to
+        coordinates in current image.
+        @param x:
+        @type x: int or float
+        @param y:
+        @type y: int or float
+        @return:
+        @rtype: 2uple of int
+        """
+        if self.parentImage.useThumb:
+            currentImg = self.getThumb()
+            x = (x * currentImg.width()) / self.width()
+            y = (y * currentImg.height()) / self.height()
+        return int(x), int(y)
+
     def getCurrentMaskedImage(self):
         """
-        returns current masked layer image, using
+        returns the current masked layer image, using
         non color managed rPixmap.
         @return:
         @rtype:
@@ -1501,7 +1548,6 @@ class QLayer(vImage):
         #         the stack from 0 to top
         #      2) apply transformation to next lower layer alone : we draw
         #         the top layer only
-        #
         if self.isClipping:
             bottom = top
             qp.setCompositionMode(QPainter.CompositionMode_Source)
@@ -1717,8 +1763,6 @@ class QLayer(vImage):
             - if maskIsSelected is False, the mask is drawn as an
               opacity mask, setting image opacity to that of mask
               (mode DestinationIn). Mask color is no used.
-        NOTE : the masked part of the image corresponds to
-        mask opacity = 0.
         @param maskOnly: default False
         @type maskOnly: boolean
         """
@@ -1742,13 +1786,13 @@ class QLayer(vImage):
             img = currentImage
         #if maskOnly:
         self.cmImage = img
-
         def visualizeMask(img, mask):
             if not self.maskIsEnabled:
                 return img
             img = QImage(img)
             #tmp = mask
             qp = QPainter(img)
+            qp.drawImage(QRect(0, 0, img.width(), img.height()), img)
             if self.maskIsSelected:
                 # draw mask as color mask with partial opacity
                 qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
@@ -1774,10 +1818,14 @@ class QLayer(vImage):
                     qp.drawImage(QRect(0, 0, img.width(), img.height()), checkeredImage(img.width(), img.height()))
             qp.end()
             return img
-
         qImg = img
         rImg = currentImage
-
+        # apply layer transformation
+        # missing pixels are set to QColor(0,0,0,0)
+        if self.xOffset != 0 or self.yOffset != 0:
+            x,y = self.full2CurrentXY(self.xOffset, self.yOffset)
+            qImg = qImg.copy(QRect(-x, -y, qImg.width(), qImg.height()))
+            rImg = rImg.copy(QRect(-x, -y, rImg.width(), rImg.height()))
         if self.maskIsEnabled:
             qImg = visualizeMask(qImg, self.mask)
             rImg = visualizeMask(rImg, self.mask)

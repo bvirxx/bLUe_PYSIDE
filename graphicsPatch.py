@@ -17,13 +17,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 from PySide2.QtCore import Qt
 from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QHBoxLayout
-
 from utils import optionsWidget
-
 
 class patchForm (QGraphicsView):
     @classmethod
-    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
+    def getNewWindow(cls, targetImage=None, axeSize=200, layer=None, parent=None, mainForm=None):
         wdgt = patchForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         wdgt.setWindowTitle(layer.name)
         """
@@ -76,8 +74,6 @@ class patchForm (QGraphicsView):
         l.setContentsMargins(20, 0, 20, 25)  # left, top, right, bottom
 
         self.setLayout(l)
-
-
 
         # set initial selection to unsharp mask
         item = self.listWidget1.items[options[0]]
