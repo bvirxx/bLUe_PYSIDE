@@ -412,26 +412,56 @@ class vImage(QImage):
         self.setModified(True)
         return rszd
 
-    def applyCloning(self):
-        img = self.inputImg()
-        bufIn = QImageBuffer(img)
-        bufIn = bufIn[:, :, :3][:, :, ::-1]
+    def applyCloning(self, seamless=False):
+        imgIn = self.inputImg()
+        #bufIn = QImageBuffer(imgIn)
+        #bufIn = bufIn[:, :, :3][:, :, ::-1]
         imgOut = self.getCurrentImage()
-        bufOut = QImageBuffer(imgOut)
-        # init white mask
-        src_mask = self.color2OpacityMask().scaled(img.width(), img.height())
-        src_maskBuf = QImageBuffer(src_mask)
-        tmp = np.where(src_maskBuf[:,:,3]==0, 255, 0)
-
+        # reset imgOut to ImgIn
         qp = QPainter(imgOut)
-        qp.drawImage(QRectF(self.xAltOffset, self.yAltOffset, img.width(), img.height()), img)
-        qp.end()
-        src_maskBuf = np.dstack((tmp,tmp,tmp)).astype(np.uint8)
-        self.center = self.full2CurrentXY(self.rect.left() + self.rect.width() //2, self.rect.top() + self.rect.height() //2)
-        # Clone seamlessly.
-        #output = cv2.seamlessClone(bufOut[:, :, :3][:, :, ::-1], bufIn, src_maskBuf, self.center,  # src dest
-                                   #cv2.NORMAL_CLONE)#MONOCHROME_TRANSFER)  # cv2.MIXED_CLONE)#cv2.NORMAL_CLONE)
-        #bufOut[:, :, :3][:, :, ::-1] = output
+        qp.setCompositionMode(QPainter.CompositionMode_Source)
+        qp.drawImage(QRect(0, 0, imgOut.width(), imgOut.height()), imgIn)
+        # paint shifted input image on current image
+        if not seamless and not self.cloned :
+            # translated image mut cover self.rect
+            if self.xAltOffset > self.rect.left():
+                self.xAltOffset = self.rect.left()
+            if self.xAltOffset < self.rect.right() - self.width() :
+                self.xAltOffset = self.rect.right() - self.width()
+            if self.yAltOffset > self.rect.top():
+                self.yAltOffset = self.rect.top()
+            if self.yAltOffset < self.rect.bottom() - self.height() :
+                self.yAltOffset = self.rect.bottom() - self.height()
+            x, y = self.full2CurrentXY(self.xAltOffset, self.yAltOffset)
+            # nothing is painted outside of image
+            qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
+            qp.drawImage(QRectF(x, y, imgOut.width(), imgOut.height()), imgIn)
+            qp.end()
+        # do seamless cloning
+        else:
+            qp.end()
+            masksave = self.mask.copy()
+            self.mask.fill(QColor(0,0,0,255))
+            qp = QPainter(self.mask)
+            qp.setCompositionMode(QPainter.CompositionMode_Source)
+            qp.drawImage(QRectF(-self.xAltOffset, -self.yAltOffset, self.width(), self.height()), masksave)
+            qp.end()
+            bufOut = QImageBuffer(imgOut)
+            # init white mask:
+            src_mask = self.color2OpacityMask().scaled(imgIn.width(), imgIn.height())
+            src_maskBuf = QImageBuffer(src_mask)
+            tmp = np.where(src_maskBuf[:, :, 3] == 0, 0, 255)
+            src_maskBuf = np.dstack((tmp,tmp,tmp)).astype(np.uint8)
+            # cloning center is the center of the rectangle
+            # rectangle coordinates are relative to the full sized image
+            self.center = self.full2CurrentXY(self.rect.left() + self.rect.width() //2, self.rect.top() + self.rect.height() //2)
+            # Clone seamlessly src, dst
+            output = cv2.seamlessClone(bufOut[:, :, :3][:, :, ::-1], bufOut[:, :, :3][:, :, ::-1], src_maskBuf, self.center,  # src dest
+                                       self.cloningMethod)#MONOCHROME_TRANSFER)  # cv2.MIXED_CLONE)#cv2.NORMAL_CLONE)
+            bufOut[:, :, :3][:, :, ::-1] = output
+            self.mask = masksave
+            self.cloned = True
+            #self.xAltOffset, self.yAltOffset = 0, 0
         self.updatePixmap()
 
 
@@ -1195,7 +1225,7 @@ class mImage(vImage):
         layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getCurrentMaskedImage()
         # init thumb
         if layer.parentImage.useThumb:
-            layer.thumb = layer.inputImg()
+            layer.thumb = layer.inputImg().copy()  # TODO 15/11/17 addedc copy to prevent cycles in applyCloning, function qp.drawImage()
         group = self.layersStack[index].group
         if group:
             layer.group = group
@@ -1612,7 +1642,7 @@ class QLayer(vImage):
 
         # draw layer with its current opacity and composition mode
         # blend input with current image and mask
-        # prevent thumb modif. Cf. 4th line below
+        # to prevent thumb modif. Cf. 4th line below
         tmpImage = self.getCurrentImage().copy()
         if self.maskIsEnabled:
             tmpBuf = QImageBuffer(tmpImage)
@@ -1748,6 +1778,9 @@ class QLayer(vImage):
 
     def isSegmentLayer(self):
         return 'egmentation' in self.name
+
+    def isCloningLayer(self):
+        return 'loning' in self.name
 
     def updatePixmap(self, maskOnly = False):
         """

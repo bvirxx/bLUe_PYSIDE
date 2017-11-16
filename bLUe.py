@@ -262,9 +262,10 @@ def mouseEvent(widget, event) :
                         layer.updatePixmap()
                     # shift virtual layer
                     elif modifiers == Qt.ControlModifier | Qt.AltModifier:
-                        if layer.name == 'Cloning':
+                        if layer.isCloningLayer():
                             layer.xAltOffset += (x - State['ix'])
                             layer.yAltOffset += (y - State['iy'])
+                            layer.cloned = False
                             layer.applyCloning()
                             layer.updatePixmap()
             # case not img.isMouseSelectable : TODO 14/11/17 do nothing ???
@@ -277,9 +278,10 @@ def mouseEvent(widget, event) :
                     layer.yOffset += (y - State['iy'])
                     layer.updatePixmap()
                 elif modifiers == Qt.ControlModifier | Qt.AltModifier:
-                    if layer.name == 'Cloning':
+                    if layer.isCloningLayer():
                         layer.xAltOffset += (x - State['ix'])
                         layer.yAltOffset += (y - State['iy'])
+                        layer.cloned = False
                         layer.applyCloning()
                         layer.updatePixmap()
         #update current coordinates
@@ -303,14 +305,13 @@ def mouseEvent(widget, event) :
                                        (min(State['iy_begin'], y) - img.yOffset) // r,
                                        abs(State['ix_begin'] - x) // r, abs(State['iy_begin'] - y) // r)
                     # for cloning layer init mask from rectangle
-                    if layer.name == 'Cloning':
+                    if layer.isCloningLayer():
                         layer.mask.fill(vImage.defaultColor_Masked)
                         qptemp=QPainter(layer.mask)
                         qptemp.setBrush(QBrush(vImage.defaultColor_UnMasked))
                         qptemp.drawRect(layer.rect)
                         qptemp.end()
                         layer.updatePixmap(maskOnly=True)
-                        #layer.center = img.full2CurrentXY((State['ix'] - img.xOffset) / r, (State['iy'] - img.yOffset) / r)
                 # do shifts
                 else:
                     if modifiers == Qt.NoModifier:
@@ -320,9 +321,10 @@ def mouseEvent(widget, event) :
                         layer.xOffset += (x - State['ix'])
                         layer.yOffset += (y - State['iy'])
                     elif modifiers == Qt.ControlModifier | Qt.AltModifier:
-                        if layer.name == 'Cloning':
+                        if layer.isCloningLayer():
                             layer.xAltOffset += (x - State['ix'])
                             layer.yAltOffset += (y - State['iy'])
+                            layer.cloned = False
                             layer.applyCloning()
                             layer.updatePixmap()
     widget.repaint()
@@ -987,6 +989,7 @@ def menuLayer(x, name):
         l = window.label.img.addAdjustmentLayer(name=lname)
         grWindow = patchForm.getNewWindow(targetImage=window.label.img, layer=l, mainForm=window)
         l.execute = lambda pool=None: l.applyCloning()
+        l.cloned = False
     # segmentation grabcut
     elif name == 'actionNew_segmentation_layer':
         lname = 'Segmentation'

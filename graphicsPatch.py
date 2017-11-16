@@ -15,8 +15,9 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+import cv2
 from PySide2.QtCore import Qt
-from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QHBoxLayout
+from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QHBoxLayout, QPushButton
 from utils import optionsWidget
 
 class patchForm (QGraphicsView):
@@ -48,7 +49,10 @@ class patchForm (QGraphicsView):
         l.setAlignment(Qt.AlignBottom)
 
         # options
-        options = ['Unsharp Mask', 'Sharpen', 'Gaussian Blur']
+        options_dict = {'Normal Clone':cv2.NORMAL_CLONE, 'Mixed Clone':cv2.MIXED_CLONE, 'Monochrome Transfer':cv2.MONOCHROME_TRANSFER}
+        options = list(options_dict.keys())
+
+        self.layer.cloningMethod = options_dict['Normal Clone']
 
         self.options={}
         for op in options:
@@ -57,15 +61,15 @@ class patchForm (QGraphicsView):
         sel = options[0]
         self.listWidget1.select(self.listWidget1.items[sel])
         self.options[sel] = True
-        self.defaultRadius = 1
-        self.defaultAmount = 50
 
         # select event handler
         def onSelect1(item):
             for key in self.options:
                 self.options[key] = item is self.listWidget1.items[key]
                 if self.options[key]:
-                    selkey = key
+                    self.layer.cloningMethod = options_dict[key]
+
+        self.listWidget1.onSelect = onSelect1
 
         hl = QHBoxLayout()
 
@@ -80,3 +84,11 @@ class patchForm (QGraphicsView):
         item.setCheckState(Qt.Checked)
         self.listWidget1.select(item)
         l.addWidget(self.listWidget1)
+
+        pushButton1 = QPushButton('Seamless Clone')
+        def f():
+            self.targetImage.getActiveLayer().applyCloning(seamless=True)
+        pushButton1.clicked.connect(f)
+        l.addWidget(pushButton1)
+
+
