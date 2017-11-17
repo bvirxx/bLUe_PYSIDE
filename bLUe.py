@@ -23,6 +23,7 @@ from PySide2 import QtCore
 from PySide2.QtQml import QQmlApplicationEngine
 from PySide2.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 
+from colorConv import sRGBWP
 from graphicsCLAHE import CLAHEForm
 from graphicsExp import ExpForm
 from graphicsPatch import patchForm
@@ -1001,18 +1002,16 @@ def menuLayer(x, name):
     elif name == 'actionColor_Temperature':
         lname = 'Color Temperature'
         l = window.label.img.addAdjustmentLayer(name=lname)
+        l.temperature = sRGBWP
         grWindow = temperatureForm.getNewWindow(size=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         # temperature change event handler
         def h(temperature):
             l.temperature = temperature
             l.applyToStack()
-            #updateDocView()
             window.label.img.onImageChanged()
-            #window.label.repaint()
         grWindow.onUpdateTemperature = h
         # wrapper for the right apply method
         l.execute = lambda pool=None: l.applyTemperature(l.temperature, grWindow.options)
-        # l.execute = lambda: l.applyLab1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
     elif name == 'actionContrast_Correction':
         lname = 'Contrast'
         l = window.label.img.addAdjustmentLayer(name=lname)

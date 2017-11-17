@@ -23,7 +23,7 @@ from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
 from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout
 
-from graphicsTemp import Lab2sRGBVec
+from colorConv import Lab2sRGBVec
 from imgconvert import QImageBuffer
 
 # Contrast Limited Adaptive Histogram Equalization.

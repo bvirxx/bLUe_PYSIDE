@@ -18,12 +18,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
 from MarkedImg import imImage
-from LUT3D import hsv2rgbVec, hsp2rgb, hsp2rgbVec, rgb2hsp, rgb2hspVec, hsv2rgb, \
-    rgb2hsB, rgb2hsBVec, hsp2rgbVecSmall
+from LUT3D import hsv2rgbVec, hsp2rgb, rgb2hsp, rgb2hspVec, hsv2rgb, rgb2hsB, rgb2hsBVec, hsp2rgbVecSmall
 from PySide2.QtGui import QImage
 from imgconvert import QImageBuffer
 
-class cmConverter ( object):
+class cmConverter(object):
 
     def __init__(self):
         self.cm2rgb, self.cm2rgbVec, rgb2cm, rgb2cmVec = None, None, None, None

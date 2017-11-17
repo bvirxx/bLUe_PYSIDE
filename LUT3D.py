@@ -15,17 +15,14 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-import multiprocessing
-from contextlib import closing
 from functools import partial
 from time import time
 
 import cv2
 import gc
 import numpy as np
-from PySide2.QtCore import QDataStream, QFile, QIODevice, QTextStream
+from PySide2.QtCore import QFile, QIODevice, QTextStream
 from PySide2.QtGui import QImage
-from PySide2.QtWidgets import QMessageBox
 
 from cartesian import cartesianProduct
 from imgconvert import QImageBuffer

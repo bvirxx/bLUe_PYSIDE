@@ -28,7 +28,7 @@ from PySide2.QtWidgets import QApplication, QMessageBox
 from PySide2.QtGui import QPixmap, QImage, QColor, QPainter
 from PySide2.QtCore import QRect
 
-from graphicsTemp import sRGB2LabVec, sRGBWP, Lab2sRGBVec, sRGB2XYZ, sRGB2XYZInverse, rgb2rgbLinearVec, rgbLinear2rgb, \
+from colorConv import sRGB2LabVec, sRGBWP, Lab2sRGBVec, sRGB2XYZ, sRGB2XYZInverse, rgb2rgbLinearVec, rgbLinear2rgb, \
     rgbLinear2rgbVec
 from grabcut import segmentForm
 from graphicsFilter import filterIndex
@@ -65,15 +65,15 @@ class vImage(QImage):
     """
     # max thumbSize
     thumbSize = 1000
-
+    # default colors
     defaultBgColor = QColor(191, 191, 191)
-    # default mask colors.
     # To be able to display masks as color masks, we use the red channel to code
     # mask opacity, instead of alpha channel.
     # When modifying these colors, it is mandatory to
     # modify the methods invertMask and color2opacityMask accordingly.
     defaultColor_UnMasked = QColor(128, 0, 0, 255)
     defaultColor_Masked = QColor(0, 0, 0, 255)
+
     def __init__(self, filename=None, cv2Img=None, QImg=None, mask=None, format=QImage.Format_ARGB32,
                                             name='', colorSpace=-1, orientation=None, rating=5, meta=None, rawMetadata=[], profile=''):
         """
@@ -110,19 +110,29 @@ class vImage(QImage):
         self.rect, self.mask, = None, mask
         self.filename = filename if filename is not None else ''
 
-        # modes
+        # mode flags
         self.useHald = False
         self.hald = None
+        self.isHald = False
         self.useThumb = False
-        self.thumb = None
 
-        # Caches
+        # Cache buffers
         self.cachesEnabled = True
         self.qPixmap = None
         self.rPixmap = None
         self.hspbBuffer = None
         self.LabBuffer = None
-        self.isHald = False
+
+        # preview image.
+        # Conceptually, the layer stack can be seen as
+        # the juxtaposition of two stacks:
+        #  - a stack of full size images
+        #  - a stack of thumbnails
+        # For the sake of performance, the two stacks are
+        # NOT synchronized : they are updated independently.
+        # Thus, but for its initialization, the thumbnail should NOT be computed from
+        # the full size image.
+        self.thumb = None
 
         self.onImageChanged = lambda: 0
 
@@ -173,22 +183,40 @@ class vImage(QImage):
 
     def initThumb(self):
         """
-        Inits thumbnail
-        @return: thumbnail
-        @rtype: QImage
+        Inits the image thumbnail as a scaled QImage. In contrast to
+        maskedThumbContainer, thumb is never used as an input image, thus
+        there is no need for a type yielding color space buffers.
+        However, note that, for convenience, layer thumbs own an attribute
+        parentImage set by the overridden method QLayer.initThumb.
+        """
         """
         if not self.cachesEnabled:
             return
-        self.thumb = self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio)
+        """
+        # for non adjustment layers, the thumbnail is never updated. So, we
+        # perform a high quality scaling.
+        scImg = self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        # With the Qt.SmoothTransformation flag, the scaled image format is premultiplied
+        self.thumb = scImg.convertToFormat(QImage.Format_ARGB32, Qt.DiffuseDither | Qt.DiffuseAlphaDither)
 
     def getThumb(self):
+        """
+        inits image thumbnail if needed and returns it.
+        @return: thumbnail
+        @rtype: QImage
+        """
+        """
         if not self.cachesEnabled:
             return self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio)
+        """
         if self.thumb is None:
             self.initThumb()
         return self.thumb
 
     def initHald(self):
+        """
+        Builds a hald image (as a QImage) from identity 3D LUT.
+        """
         if not self.cachesEnabled:
             return
         s = int((LUT3DIdentity.size )**(3.0/2.0)) + 1
@@ -196,6 +224,7 @@ class vImage(QImage):
         self.Hald = QImage(QSize(s,s), QImage.Format_ARGB32)
         buf1 = QImageBuffer(self.Hald)
         buf1[:,:,:]=buf0
+        buf1[:, :, 3] = 255  # TODO added 15/11/17 for coherence with the overriding function QLayer.initHald()
 
     def resize_coeff(self, widget):
         """
@@ -688,7 +717,7 @@ class vImage(QImage):
         @param stackedLUT: array of color values (in range 0..255). Shape must be (3, 255) : a line for each channel
         @param options: not used yet
         """
-        from graphicsTemp import Lab2sRGBVec
+        from colorConv import Lab2sRGBVec
         # Lab mode
         ndLabImg0 = self.inputImg().getLabBuffer()
 
@@ -1001,7 +1030,6 @@ class vImage(QImage):
         @type temperature: float
         @param options :
         @type options : dictionary
-        @return:
         """
         # neutral point
         if abs(temperature -6500) < 100:
@@ -1011,25 +1039,28 @@ class vImage(QImage):
             self.updatePixmap()
             return
         from blend import blendLuminosity
-        from graphicsTemp import bbTemperature2RGB, conversionMatrix, rgb2rgbLinearVec, rgbLinear2rgbVec
+        from colorConv import bbTemperature2RGB, conversionMatrix, rgb2rgbLinearVec, rgbLinear2rgbVec
         inputImage = self.inputImg()
         currentImage = self.getCurrentImage()
         if not options['use Chromatic Adaptation']:
             # use photo filter
-            # black body color
+            # get black body color
             r, g, b = bbTemperature2RGB(temperature)
-            filter = QImage(inputImage)
+            filter = QImage(inputImage.size(), inputImage.format())
             filter.fill(QColor(r, g, b, 255))
+            # draw image on filter using composition mode multiply
             qp = QPainter(filter)
-            # qp.setOpacity(coeff)
             qp.setCompositionMode(QPainter.CompositionMode_Multiply)
             qp.drawImage(0, 0, inputImage)
             qp.end()
-            # using perceptual brightness gives better results, unsfortunately slower
-            resImg = blendLuminosity(filter, inputImage, usePerceptual=False)
+            # correct the luminosity of the resulting image,
+            # by blending it with the inputImage in mode luminosity.
+            # We use a tuning coeff to control the amount of correction.
+            # Note that using perceptual brightness gives better results, unfortunately slower
+            resImg = blendLuminosity(filter, inputImage, usePerceptual=False, coeff=0.25)
             bufOutRGB = QImageBuffer(resImg)[:,:,:3][:,:,::-1]
         else:
-            #chromatic adaptation
+            # use chromatic adaptation
             """
             M = conversionMatrix(temperature, sRGBWP)  # input image is sRGB ref temperature D65
             buf = QImageBuffer(inputImage)[:, :, :3]
@@ -1445,7 +1476,7 @@ class QLayer(vImage):
     @classmethod
     def fromImage(cls, mImg, parentImage=None):
         layer = QLayer(QImg=mImg, parentImage=parentImage)
-        layer.parentImage=parentImage
+        layer.parentImage = parentImage
         return layer #QLayer(QImg=mImg) #mImg
 
     def __init__(self, *args, **kwargs):
@@ -1458,39 +1489,50 @@ class QLayer(vImage):
         # layer opacity is used by QPainter operations.
         # Its value must be in the range 0.0...1.0
         self.opacity = 1.0
-        # default composition mode
         self.compositionMode = QPainter.CompositionMode_SourceOver
-        self.transfer = lambda : self.qPixmap
-        # Following attributes are used by adjustment layers only
+        # The next two attributes are used by adjustment layers only.
         # wrapper for the right exec method
         self.execute = lambda pool=None: self.updatePixmap()
-        self.temperature = sRGBWP # ref temperature D65 (sRGB)
         self.options = {}
         # Following attributes (functions)  are reserved (dynamic typing for adjustment layers) and set in addAdjustmentlayer() above
             # self.inputImg : access to upper lower visible layer image or thumbnail, according to flag useThumb
             # self.inputImgFull : access to upper lower visible layer image
             # Accessing upper lower thumbnail must be done by calling inputImgFull().thumb. Using inputImg().thumb will fail if useThumb is True.
+        # actionName is used by methods graphics***.writeToStream()
         self.actionName = 'actionNull'
-        # containers are initialized (only once) in getMaskedImage and getCurrentMaskedImage
+        # containers are initialized (only once) by
+        # getCurrentMaskedImage, their type is QLayer
         self.maskedImageContainer = None
         self.maskedThumbContainer = None
+        # consecutive layers can be grouped.
+        # A group is a list of QLayer objects
         self.group = []
+        # layer offsets
         self.xOffset, self.yOffset = 0, 0
+        # layer AltOffsets are used by cloning
+        # layers to shift an image clone.
         self.xAltOffset, self.yAltOffset = 0, 0
-        # center is used for cloning ???
-        self.center = (0,0)
 
     def initThumb(self):
         """
-        Overrides vImage.initThumb.
+        Overrides vImage.initThumb, to set the parentImage attribute
+        """
         """
         if not self.cachesEnabled:
             return
+        """
+        """
+        scImg = self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         # With the Qt.SmoothTransformation flag, the scaled image format is premultiplied
-        self.thumb = self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio, Qt.SmoothTransformation).convertToFormat(QImage.Format_ARGB32, Qt.DiffuseDither|Qt.DiffuseAlphaDither)
+        self.thumb = scImg.convertToFormat(QImage.Format_ARGB32, Qt.DiffuseDither|Qt.DiffuseAlphaDither)
+        """
+        super().initThumb()
         self.thumb.parentImage = self.parentImage
 
     def initHald(self):
+        """
+        Builds a hald image (as a QImage) from identity 3D LUT.
+        """
         if not self.cachesEnabled:
             return
         s = int((LUT3DIdentity.size) ** (3.0 / 2.0)) + 1
@@ -1555,10 +1597,14 @@ class QLayer(vImage):
     def getCurrentMaskedImage(self):
         """
         returns the current masked layer image, using
-        non color managed rPixmap.
-        @return:
-        @rtype:
+        non color managed rPixmap. For convenience, mainly
+        to be able to use its color space buffers, the built image is
+        of type QLayer. It is drawn on a container image, created only once
+        and reused.
+        @return: masked image
+        @rtype: QLayer
         """
+        # init containers if needed
         if self.parentImage.useHald:
             return self.getHald()
         if self.maskedThumbContainer is None:
@@ -1569,6 +1615,8 @@ class QLayer(vImage):
             img = self.maskedThumbContainer
         else:
             img = self.maskedImageContainer
+        # no thumbnails for containers
+        img.getThumb = lambda: img  # TODO Fix 12/10/17
         # draw lower stack
         qp = QPainter(img)
         top = self.parentImage.getStackIndex(self)
@@ -1596,70 +1644,7 @@ class QLayer(vImage):
                 else:
                     qp.drawImage(QRect(0,0,img.width(), img.height()), layer.getCurrentImage())
         qp.end()
-        # no recursive caches
-        # img.cachesEnabled = False # TODO Fix 12/10/17
-        # no thumbnails for masked images
-        img.getThumb = lambda: img  # TODO Fix 12/10/17
-        return img
 
-    def getCurrentMaskedImageOld(self):
-        """
-        Recursively builds current (full/thumbnail) masked image from layer stack.
-        set maskedImageContainer to self * mask + inputImg * (255 -mask) or
-        maskedThumbContainer to self * mask + thumb * (255 - mask), according to the value
-        of the flag useThumb.
-        InputImg calls getCurrentMaskedImage recursively, so masked regions display
-        underlying layers. Recursion stops at the first non adjustment layer.
-        @return: maskedImageContainer or maskedThumbContainer
-        @rtype QLayer
-        """
-        if self.parentImage.useHald:
-            return self.getHald()
-        if self.maskedThumbContainer is None:
-            #self.maskedThumbContainer = QLayer.fromImage(self.thumb, parentImage=self.parentImage)
-            self.maskedThumbContainer = QLayer.fromImage(self.getThumb(), parentImage=self.parentImage)
-        if self.maskedImageContainer is None:
-            self.maskedImageContainer = QLayer.fromImage(self, parentImage=self.parentImage)
-        if self.parentImage.useThumb:
-            img = self.maskedThumbContainer
-        else:
-            img = self.maskedImageContainer
-        #img = QLayer.fromImage(self.getCurrentImage(), parentImage=self.parentImage)
-        qp = QPainter(img)
-
-        # draw lower visible layers
-        if self.isAdjustLayer():
-            if not self.isClipping:
-                # inputImg() * (255 -mask)
-                # composition mode must be set to Source to copy image colors and alpha channel
-                qp.setCompositionMode(QPainter.CompositionMode_Source)#DestinationOver)
-                # recursive call through inputImg()
-                qp.drawImage(QRect(0, 0, img.width(), img.height()), self.inputImg())
-                img.name = self.name +'_getcurrentMaskedImage'
-            else:
-                qp.setCompositionMode(QPainter.CompositionMode_Source)
-                qp.drawImage(QRect(0, 0, img.width(), img.height()), checkeredImage(img.width(), img.height()))
-
-        # draw layer with its current opacity and composition mode
-        # blend input with current image and mask
-        # to prevent thumb modif. Cf. 4th line below
-        tmpImage = self.getCurrentImage().copy()
-        if self.maskIsEnabled:
-            tmpBuf = QImageBuffer(tmpImage)
-            scale = self.mask.scaled(img.width(), img.height())
-            tmpBuf1 = QImageBuffer(scale)
-            tmpBuf[:, :, 3] = tmpBuf1[:, :, 3]
-        qp.setCompositionMode(self.compositionMode)
-        qp.setOpacity(self.opacity)
-        qp.drawImage(QRect(0, 0, img.width(), img.height()), tmpImage)
-        # set image opacity to mask opacity : propagate mask effect to upper layers (similar to hole in image)
-        #qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)  # TODO Fix modified 23/10/17
-        #qp.drawImage(QRect(0, 0, img.width(), img.height()), self.mask)
-        qp.end()
-        # no recursive caches
-        #img.cachesEnabled = False # TODO Fix 12/10/17
-        # no thumbnails for masked images
-        img.getThumb = lambda: img # TODO Fix 12/10/17
         return img
 
     def getHspbBuffer(self):

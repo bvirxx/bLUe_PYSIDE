@@ -22,12 +22,12 @@ from LUT3D import hsv2rgbVec, rgb2hsBVec, hsp2rgbVec
 from imgconvert import QImageBuffer
 
 
-def blendLuminosity(dest, source, usePerceptual=False):
+def blendLuminosity(dest, source, usePerceptual=False, coeff=1.0):
     """
-    Implements blending with luminosity mode, which is missing
-    in Qt.
-    The blended image retains the hue and saturation of dest, with the
-    luminosity of source.
+    Implements blending with luminosity mode,
+    which is missing in Qt.
+    The blended image retains the hue and saturation of dest,
+    with the luminosity of source.
     if usePerceptual is True we use the HSpB color model
     as intermediate color space. It gives better results, but,
     unfortunately, as opencv ignores this color space, it is slower.
@@ -36,17 +36,17 @@ def blendLuminosity(dest, source, usePerceptual=False):
     @type dest QImage
     @param source: source QImage
     @type source QImage
+    @param coeff: proportion of source luminosity retained
     @return: The blended image
     @rtype: QImage
     
     """
     sourceBuf = QImageBuffer(source)[:,:,:3]
     destBuf = QImageBuffer(dest)[:,:,:3]
-
     hsvSourceBuf = rgb2hsBVec(sourceBuf[:,:,::-1], perceptual=usePerceptual)
     hsvDestBuf = rgb2hsBVec(destBuf[:,:,::-1], perceptual=usePerceptual)
     # copy source luminosity to dest
-    hsvDestBuf[:, :, 2] = hsvSourceBuf[:,:,2]
+    hsvDestBuf[:, :, 2] = hsvSourceBuf[:, :, 2] * coeff  + hsvDestBuf[:, :, 2] * (1.0 - coeff)
     if usePerceptual:
         blendBuf = hsp2rgbVec(hsvDestBuf)
     else:
@@ -63,6 +63,8 @@ def blendColor(dest, source):
     in Qt. We use the HSpB color model as intermediate color space.
     The blended image retains the hue and saturation of source, with the
     luminosity (i.e. perceptive brightness) of dest.
+    Note blendColor and blendLuminosity are commuted versions of each other:
+    blendLuminiosity(img1, img2) = blendColor(img2, img1)
     @param dest: destination QImage
     @type dest: QImage
     @param source: source QImage
@@ -80,7 +82,7 @@ def blendColor(dest, source):
 
     img = QImage(source.size(), source.format())
     tmp = QImageBuffer(img)
-    (tmp[:, :, :3])[:, :, ::-1] = blendBuf
+    tmp[:, :, :3][:, :, ::-1] = blendBuf
     tmp[:, :, 3] = 255
 
     return img
