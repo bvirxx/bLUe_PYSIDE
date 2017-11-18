@@ -265,30 +265,6 @@ a,b,c,d = LUT3D_ORI.shape
 LUT3D_SHADOW = np.zeros((a,b,c,d+1))
 LUT3D_SHADOW[:,:,:,:3] = LUT3D_ORI
 
-def redistribute_rgb(r, g, b):
-    """
-     To keep the hue, we want to maintain the ratio of (middle-lowest)/(highest-lowest).
-    @param r:
-    @param g:
-    @param b:
-    @return:
-    """
-
-    threshold = 255.999
-    m = max(r, g, b)
-
-    if m <= threshold:
-        return int(r), int(g), int(b)
-
-    total = r + g + b
-    if total >= 3 * threshold:
-        return int(threshold), int(threshold), int(threshold)
-
-    # 3.0*m > 3.0*treshold > total
-    x = (3.0 * threshold - total) / (3.0 * m - total)
-    gray = threshold - x * m
-    return int(gray + x * r), int(gray + x * g), int(gray + x * b)
-
 def rgb2hsp(r, g, b):
     return rgb2hsB(r,g,b, perceptual=True)
 
@@ -309,11 +285,9 @@ def rgb2hsB(r, g, b, perceptual=False):
     @return: h, s, v values : 0<=h<360, 0<=s<=1, 0<=v<=1
     @rtype: float
     """
-
     cMax = max(r, g, b)
     cMin = min(r, g, b)
     delta = cMax - cMin
-
     # hue
     if delta == 0:
         H = 0.0
@@ -323,18 +297,14 @@ def rgb2hsB(r, g, b, perceptual=False):
         H = 60.0 * (2.0 + float(b-r)/delta)
     elif cMax == b:
         H = 60.0 * (4.0 + float(r-g)/delta)
-
     # saturation
     S = 0.0 if cMax == 0.0 else float(delta) / cMax
-
     # brightness
     if perceptual:
         V = np.sqrt(Perc_R * r * r + Perc_G * g * g + Perc_B * b * b)
     else:
         V = cMax
-
     V = V / 255.0
-
     assert 0<=H and H<=360 and 0<=S and S<=1 and 0<=V and V<=1, "rgb2hsv conversion error r=%d, g=%d, b=%d, h=%f, s=%f, v=%f" %(r,g,b,H,S,V)
     return H,S,V
 
@@ -346,7 +316,7 @@ def rgb2hsBVec(rgbImg, perceptual=False):
     The r, g, b components are integers in range 0..255. If perceptual is False
     (default) v = max(r,g,b)/255.0, else v = sqrt(Perc_R*r*r + Perc_G*g*g + Perc_B*b*b)
     @param rgbImg: array of r,g, b values
-    @type rgbImg: (n,m,3) array, , dtype=int or dtype=float
+    @type rgbImg: (n,m,3) array, , dtype=uint8 or dtype=int or dtype=float
     @return: identical shape array of hue,sat,brightness values (0<=h<=360, 0<=s<=1, 0<=v<=1)
     @rtype: (n,m,3) array, dtype=float
     """
@@ -359,44 +329,33 @@ def rgb2hsBVec(rgbImg, perceptual=False):
         buf[:,:,2] = pB
     return buf
 
-
-
-    r, g, b = rgbImg[:, :, 0].astype(float), rgbImg[:, :, 1].astype(float), rgbImg[:, :, 2].astype(float)
-
-    cMax = np.maximum.reduce([r, g, b])
-    cMin = np.minimum.reduce([r, g, b])
-    delta = cMax - cMin
-    old_settings = np.seterr(all='ignore')
-    H1 = 1.0 / delta
-    H1 = np.where( delta==0.0, 0.0, H1)
-    H2 = 60.0 * (g - b) * H1
-    H3 = np.where(g>=b, H2, 360 + H2)
-    H4 = 60.0 * (2.0 + (b-r)*H1)
-    H5 = 60.0 * (4.0 + (r-g)*H1)
-
-    H = np.where(delta==0.0, 0.0, np.where(cMax==r, H3, np.where(cMax==g, H4, H5)))
+def rgb2hlsVec(rgbImg):
     """
-    # hue
-    if delta == 0:
-        H = 0.0
-    elif cMax == r:
-        H = 60.0 * float(g-b)/delta if g >= b else 360 + 60.0 * float(g-b)/delta
-    elif cMax == g:
-        H = 60.0 * (2.0 + float(b-r)/delta)
-    elif cMax == b:
-        H = 60.0 * (4.0 + float(r-g)/delta)
+    With M = max(r,g,b) and m = min(r,g,b) the HLS color space uses
+    luminosity L= (M+m)/2 and saturation S = (M-m)/(M+m) if l < 0.5 and
+    S =  (M-m) / (2-(M+m)) otherwise.
+    @param rgbImg: rgbImg: array of r,g, b values
+    @type rgbImg: rgbImg: (n,m,3) array, , dtype=uint8 or dtype=int or dtype=float
+    @return: identical shape array of hue,luma, chroma values (0<=h<=360, 0<=l<=1, 0<=s<=1)
+    @rtype: (n,m,3) array, dtype=float
     """
-    #saturation
-    S = np.where(cMax==0.0, 0.0, delta / cMax)
-    # brightness
-    if perceptual:
-        V = np.sqrt(Perc_R * r * r + Perc_G * g * g + Perc_B * b * b)
-        V = V / 255.0
-    else:
-        V = cMax/255.0
-    np.seterr(**old_settings)
-    #assert 0<=H and H<=360 and 0<=S and S<=1 and 0<=V and V<=1, "rgb2hsv conversion error r=%d, g=%d, b=%d" %(r,g,b)
-    return np.dstack((H,S,V))
+    buf = cv2.cvtColor(rgbImg.astype(np.uint8), cv2.COLOR_RGB2HLS)
+    buf = buf.astype(np.float) * [2, 1.0 / 255.0, 1.0 / 255.0]  # scale to 0..360, 0..1, 0..1
+    return buf
+
+def hls2rgbVec(hlsImg):
+    """
+    With M = max(r,g,b) and m = min(r,g,b) the HLS color space uses
+    luminosity L= (M+m)/2 and saturation S = (M-m)/(M+m) if l < 0.5 and
+    S =  (M-m) / (2-(M+m)) otherwise.
+    @param hlsImg: hlsImg: hsv image array range 0..360, 0..1, 0..1
+    @type hlsImg: dtype = uint8
+    @return: identical shape array of r, g, b values in range 0..255
+    @rtype: dtype = uint8
+    """
+    buf = hlsImg * [1.0 / 2.0, 255.0, 255.0]  # scale to 0..360/2, 0..255, 0..255 (opencv convention)
+    buf = cv2.cvtColor(buf.astype(np.uint8), cv2.COLOR_HLS2RGB)
+    return buf
 
 def hsv2rgb(h,s,v):
     """
@@ -410,15 +369,12 @@ def hsv2rgb(h,s,v):
     @param v: float value in range 0..1
     @return: r,g,b integers between 0 and 255
     """
-    assert h>=0 and h<=360 and s>=0 and s<=1 and v>=0 and v<=1
-
     h = h/60.0
     i = np.floor(h)
     f = h - i
     p = v * (1.0 - s)
     q = v * (1.0 - s * f)
     t = v * ( 1.0 - s * ( 1.0 - f))
-
     if  i == 0 : # r > g > b,  r=v and s=(r-b)/r, thus b = v(1-s)=p, h = (g-b)/(r-b) gives g=v(1-s(1-h))=t
         r1, g1, b1 = v, t, p
     elif i == 1: # g > r > b
@@ -431,11 +387,9 @@ def hsv2rgb(h,s,v):
         r1, g1, b1 = t, p, v
     else : # r > b >g
         r1, g1, b1 = v, p, q
-
     r = int(r1 * 255.0)
     g = int(g1 * 255.0)
     b = int(b1 * 255.0)
-
     return r,g,b
 
 def hsv2rgbVec(hsvImg):
@@ -449,37 +403,6 @@ def hsv2rgbVec(hsvImg):
     buf = hsvImg * [1.0/2.0, 255.0, 255.0]  # scale to 0..360/2, 0..255, 0..255 (opencv convention)
     buf = cv2.cvtColor(buf.astype(np.uint8), cv2.COLOR_HSV2RGB )
     return buf
-
-    h,s,v = hsvImg[:,:,0], hsvImg[:,:,1], hsvImg[:,:,2]
-
-    shape = h.shape
-    i = (h / 60.0).astype(int)
-    f = h / 60.0 - i
-
-    q = f
-    t = 1.0 - f
-    i = np.ravel(i)
-    f = np.ravel(f)
-    i %= 6
-
-    t = np.ravel(t)
-    q = np.ravel(q)
-
-    clist = (1 - np.ravel(s) * np.vstack([np.zeros_like(f), np.ones_like(f), q, t])) * np.ravel(v)
-
-    # 0:v 1:p=v(1-s) 2:q 3:t
-    order = np.array([[0, 3, 1], [2, 0, 1], [1, 0, 3], [1, 2, 0], [3, 1, 0], [0, 1, 2]])
-    rgb = clist[order[i], np.arange(np.prod(shape))[:, None]]
-
-    """
-    clipped = np.amax(rgb, axis=1)
-    clipped = np.dstack((clipped, clipped, clipped))
-    rgb = np.where(clipped > 1, rgb / clipped, rgb)
-    """
-    rgb = (rgb * 255.0).astype(int)
-
-    return rgb.reshape(shape + (3,))
-
 
 def hsp2rgbOld(h,s,p, trunc=True):
     """
@@ -796,7 +719,9 @@ def hsp2rgbVecSmall(hspImg):
     h, s, p = hspImg[:, :, 0], hspImg[:, :, 1], hspImg[:, :, 2]
 
     shape = h.shape
-
+    # we compute the array rgbMax of brightness=max(r,g,b) values, and
+    # we apply cvtColor(hsvImg, cv2.COLOR_HSV2RGB). This mixed approach
+    # gives better performances for small images.
     h = np.ravel(h)
     s = np.ravel(s)
     p = np.ravel(p)
@@ -843,13 +768,11 @@ def hsp2rgbVecSmall(hspImg):
 
     np.seterr(**old_settings)
 
-    # stacked as lines
+    # stack as lines
     clist = np.vstack((X1, Y1, Z1, X2, Y2, Z2, X3, Y3, Z3, X4, Y4, Z4, X5, Y5, Z5, X6, Y6, Z6))
 
     clistMax = np.vstack((Y1, Y2, Y3, Y4, Y5,  Y6))
     orderMax = np.array([[0],[1],[2],[3],[4],[5]])
-
-
 
     # for hue slices 0,..,5, the corresponding 3-uple gives the line indices in clist for the r,g,b values
     order = np.array([[1, 2, 0], [5, 4, 3], [6, 7, 8], [9, 11, 10], [14, 12, 13], [16, 15, 17]])
@@ -861,57 +784,8 @@ def hsp2rgbVecSmall(hspImg):
     hsv = np.dstack((h*60,s,rgbMax)).reshape(shape + (3,)) * [0.5, 255, 255]
 
     rgb1=cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
-
     return rgb1.reshape(shape + (3,))
 
-    # advanced array indexing
-    rgb = clist[order[i], tmp]  # order[i] has shape (w*h, 3), tmp is broadcast to the same shape, thus rgb has (shape w*h, 3)
-
-    # converting invalid values to int gives indeterminate results
-    rgb[np.isnan(rgb)] = 0.0  # TODO np.inf
-
-    # for uint8 image buffer, int values > 255 are truncated to lower 8 bits
-    # rgbMask = (rgb > 1)
-    clipped = np.amax(rgb, axis=1)
-    clipped = np.dstack((clipped, clipped, clipped))
-    rgb = np.where(clipped > 1, rgb / clipped, rgb)
-    # rgb = np.clip(rgb, 0, 1.0)
-
-    rgb = (rgb * 255.0).astype(int)
-
-    return rgb.reshape(shape + (3,))
-
-
-
-"""
-def colorPicker(w,h):
-
-    img = QImage(w,h, QImage.Format_ARGB32)
-    cx=w/2
-    cy=h/2
-    for i in range(w):
-        for j in range(h):
-            i1=i-cx
-            j1=-j+cy
-            m = max(abs(i1), abs(j1))
-            hue = np.arctan2(j1,i1)*180.0/np.pi + 315
-            hue = hue - floor(hue/360.0)*360.0
-            #sat = np.sqrt(i1*i1 + j1*j1)/np.sqrt(w*w/2.0)
-            #sat = float(m) /cx
-            sat = sat = np.sqrt(i1*i1 + j1*j1)/cx
-            sat = min(1.0, sat)
-            c = QColor(*hsp2rgb(hue,sat,0.45))
-            #if i == w-1 and j == 0:#0:#h - 90:
-            if hue==0.0:
-                r=c.red()
-                g=c.green()
-                b=c.blue()
-                print hue,sat, r,g,b, i, j
-                print np.sqrt((Pr*r*r+Pg*g*g+Pb*b*b))/255.0
-            img.setPixel(i,j,c.rgb())
-    img = imImage(QImg=img)
-    return img
-"""
 def interpVec(LUT, ndImg, pool=None):
     """
     parallel version of trilinear interpolation

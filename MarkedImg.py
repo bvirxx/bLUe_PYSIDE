@@ -35,7 +35,7 @@ from graphicsFilter import filterIndex
 from icc import convertQImage
 import icc
 from imgconvert import *
-from LUT3D import interpVec, rgb2hspVec, hsp2rgbVec, LUT3DIdentity, LUT3D, interpVec_
+from colorCube import interpVec, rgb2hspVec, hsp2rgbVec, LUT3DIdentity, LUT3D, interpVec_
 from time import time
 from utils import savitzky_golay, channelValues, checkeredImage
 import graphicsHist
@@ -751,29 +751,6 @@ class vImage(QImage):
         #ndImg1a[:, :, 3] = ndImg0[:, :, 3]
         # update
         self.updatePixmap()
-        """
-        # get image buffers (RGB order on intel arch.)
-        ndImg0 = QImageBuffer(self.inputImgFull().getCurrentImage())[:, :, :3][:,:,::-1]
-        # Lab conversion
-        ndLabImg0 = sRGB2LabVec(ndImg0)
-
-        # apply LUTS to channels
-        ndLImg0 = (ndLabImg0[:,:,0]*255.0).astype(int)
-        #rList = np.array([0,1,2]) # Lab
-        #ndLabImg1 = stackedLUT[rList[np.newaxis,:], ndLabImg0]
-        LUT = stackedLUT[0,:]
-        ndLImg1 = LUT[ndLImg0] /255.0
-        ndLabImg1 = np.dstack((ndLImg1, ndLabImg0[:,:,1], ndLabImg0[:,:,2]))
-        # back sRGB conversion
-        ndsRGBImg1 = Lab2sRGBVec(ndLabImg1)
-        # clipping is mandatory here : numpy bug ?
-        ndsRGBImg1 = np.clip(ndsRGBImg1, 0, 255)
-        ndImg1 = QImageBuffer(self)[:, :, :3]
-        ndImg1[:,:,::-1] = ndsRGBImg1
-
-        # update
-        self.updatePixmap()
-        """
 
     def applyHSPB1DLUT(self, stackedLUT, options={}, pool=None):
         """
@@ -828,7 +805,7 @@ class vImage(QImage):
         Applies a 3D LUT to the current view of the image (self or self.thumb or self.hald).
         If pool is not None and the size of the current view is > 3000000, the computation is
         done in parallel on image slices.
-        @param LUT: LUT3D array (see module LUT3D.py)
+        @param LUT: LUT3D array (see module colorCube.py)
         @type LUT: 3d ndarray, dtype = int
         @param options:
         @type options: dict of string:boolean pairs
@@ -990,29 +967,6 @@ class vImage(QImage):
         @type filter: filterIndex object (enum)
         @return: 
         """
-        """
-        unsharp_kernel = - np.array([[1, 4, 6, 4, 1],
-                                    [4, 16, 24, 16, 4],
-                                    [6, 24, -476, 24, 6],
-                                    [4, 16, 24, 16, 4],
-                                    [1, 4, 6, 4, 1]]) / 256.0
-
-        sharpen_kernel = np.array([[0.0, -1.0, 0.0],
-                                  [-1.0, 5.0, -1.0],
-                                  [0.0,-1.0, 0.0]])
-
-
-        gblur1_kernel = np.array([[1, 2, 1],
-                                 [2, 4 ,2],
-                                 [1, 2, 1]]) / 16.0
-
-        gblur2_kernel = np.array([[1, 4,  6,  4,  1],
-                                  [4, 16, 24, 16, 4],
-                                  [6, 24, 36, 24, 6],
-                                  [4, 16, 24, 16, 4],
-                                  [1, 4,  6,  4,  1]]) / 256.0
-        """
-
         inputImage = self.inputImg() #Full().getCurrentImage()
         currentImage = self.getCurrentImage()
         buf0 = QImageBuffer(inputImage)
@@ -1042,8 +996,7 @@ class vImage(QImage):
         from colorConv import bbTemperature2RGB, conversionMatrix, rgb2rgbLinearVec, rgbLinear2rgbVec
         inputImage = self.inputImg()
         currentImage = self.getCurrentImage()
-        if not options['use Chromatic Adaptation']:
-            # use photo filter
+        if options['use Photo Filter']:
             # get black body color
             r, g, b = bbTemperature2RGB(temperature)
             filter = QImage(inputImage.size(), inputImage.format())
@@ -1057,21 +1010,12 @@ class vImage(QImage):
             # by blending it with the inputImage in mode luminosity.
             # We use a tuning coeff to control the amount of correction.
             # Note that using perceptual brightness gives better results, unfortunately slower
-            resImg = blendLuminosity(filter, inputImage, usePerceptual=False, coeff=0.25)
+            resImg = blendLuminosity(filter, inputImage)
             bufOutRGB = QImageBuffer(resImg)[:,:,:3][:,:,::-1]
-        else:
-            # use chromatic adaptation
-            """
+        elif options['use Chromatic Adaptation']:
             M = conversionMatrix(temperature, sRGBWP)  # input image is sRGB ref temperature D65
             buf = QImageBuffer(inputImage)[:, :, :3]
-            bufLinear = rgb2rgbLinearVec(buf)
-            resLinear = np.tensordot(bufLinear[:, :, ::-1], M, axes=(-1, -1))
-            res = rgbLinear2rgbVec(resLinear)
-            res = np.clip(res, 0, 255)
-            """
-            M = conversionMatrix(temperature, sRGBWP)  # input image is sRGB ref temperature D65
-            buf = QImageBuffer(inputImage)[:, :, :3]
-            # Unfortunately, opencv cvtColor does NOT perform gamma conversion
+            # opencv cvtColor does NOT perform gamma conversion
             # for RGB<-->XYZ cf. http://docs.opencv.org/trunk/de/d25/imgproc_color_conversions.html#color_convert_rgb_xyz.
             # Moreover, RGB-->XYZ and XYZ-->RGB matrices are not inverse transformations!
             # This yields incorrect results.

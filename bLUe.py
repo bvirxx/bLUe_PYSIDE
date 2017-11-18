@@ -60,7 +60,7 @@ from MarkedImg import imImage, metadata, vImage
 
 from graphicsRGBLUT import graphicsForm
 from graphicsLUT3D import graphicsForm3DLUT
-from LUT3D import LUTSIZE, LUT3D, LUT3DIdentity
+from colorCube import LUTSIZE, LUT3D, LUT3DIdentity
 from colorModels import cmHSP, cmHSB
 import icc
 
@@ -340,8 +340,8 @@ def mouseEvent(widget, event) :
 
 def wheelEvent(widget,img, event):
     """
-    Mouse wheel event handler for zooming
-    imImage objects.
+    Mouse wheel event handler : zooming
+    of imImage objects.
     @param widget: widget displaying image
     @param img: imImage object to display
     @param event: mouse wheel event (type QWheelEvent)
@@ -351,7 +351,7 @@ def wheelEvent(widget,img, event):
     # Most mice have a resolution of 15 degrees
     numDegrees = event.delta() / 8
     numSteps = numDegrees / 150.0
-    r=img.Zoom_coeff
+    #r=img.Zoom_coeff
     img.Zoom_coeff *= (1.0 + numSteps)
     # correcting image offset to keep unchanged the image point
     # under the cursor : (pos - offset) / resize_coeff should be invariant
@@ -374,6 +374,9 @@ def enterEvent(widget,img, event):
     @param img:
     @param event:
     """
+    if QApplication.overrideCursor():
+        # don't stack multiple cursors
+        return
     if window.btnValues['drawFG'] or window.btnValues['drawBG']:
         if not QApplication.overrideCursor():
             w = window.verticalSlider1.value()
@@ -393,23 +396,27 @@ def enterEvent(widget,img, event):
 def leaveEvent(widget,img, event):
     QApplication.restoreOverrideCursor()
 
-def set_event_handlers(widg):
+def set_event_handlers(widg, enterAndLeave=True):
     """
     Pythonic way for redefining event handlers, without
     subclassing or overridding. However, the PySide dynamic
-    ui loader needs that we set the corresponding classes as customWidget
-    (cf. file pyside_dynamicLoader.py).
+    ui loader requires that we set the corresponding classes as customWidget
+    (cf. file QtGui1.py and pyside_dynamicLoader.py).
+    if enterAndLeave is False enter and leave event handlers are not set,
+    otherwise all mouse event handlers are set.
     @param widg:
     @type widg : QObject
+    @param enterAndLeave:
+    @type enterAndLeave: boolean
     """
     widg.paintEvent = MethodType(lambda instance, e, wdg=widg: paintEvent(wdg, e), widg.__class__)
     widg.mousePressEvent = MethodType(lambda instance, e, wdg=widg : mouseEvent(wdg, e), widg.__class__)
     widg.mouseMoveEvent = MethodType(lambda instance, e, wdg=widg : mouseEvent(wdg, e), widg.__class__)
     widg.mouseReleaseEvent = MethodType(lambda instance, e, wdg=widg : mouseEvent(wdg, e), widg.__class__)
     widg.wheelEvent = MethodType(lambda instance, e, wdg=widg : wheelEvent(wdg, wdg.img, e), widg.__class__)
-    widg.enterEvent = MethodType(lambda instance, e, wdg=widg : enterEvent(wdg, wdg.img, e), widg.__class__)
-    widg.leaveEvent = MethodType(lambda instance, e, wdg=widg : leaveEvent(wdg, wdg.img, e), widg.__class__)
-    #widg.contextMenuEvent = MethodType(lambda instance, e, wdg=widg : contextMenu(wdg, e), widg.__class__)
+    if enterAndLeave:
+        widg.enterEvent = MethodType(lambda instance, e, wdg=widg : enterEvent(wdg, wdg.img, e), widg.__class__)
+        widg.leaveEvent = MethodType(lambda instance, e, wdg=widg : leaveEvent(wdg, wdg.img, e), widg.__class__)
 
 # button change event handler
 def widgetChange(widget):
@@ -1346,10 +1353,13 @@ def updateStatus():
     s = img.filename + ' ' + (' '.join(['*']*img.meta.rating))
     if img.useThumb:
         s = s + '      ' + '<font color=red><b>Preview</b></font> '
+    else:
+        # mandatory to toggle html mode
+        s = s + '      ' + '<font color=black><b> </b></font> '
     if window.viewState == 'Before/After':
         s += '&nbsp;&nbsp;Before/After : Ctrl+Space : cycle through views - Space : switch back to workspace'
     else:
-        s += '&nbsp;&nbsp;Space : switch to Before/After View'
+        s += '&nbsp;&nbsp;press Space Bar to toggle Before/After view'
     window.Label_status.setText(s)
 
 ###########
@@ -1404,8 +1414,8 @@ if __name__ =='__main__':
     window._recentFiles = window.settings.value('paths/recent', [])
 
     set_event_handlers(window.label)
-    set_event_handlers(window.label_2)
-    set_event_handlers(window.label_3)
+    set_event_handlers(window.label_2, enterAndLeave=False)
+    set_event_handlers(window.label_3, enterAndLeave=False)
 
     img=QImage(200, 200, QImage.Format_ARGB32)
     img.fill(Qt.darkGray)
@@ -1426,6 +1436,7 @@ if __name__ =='__main__':
     window.cursor_EyeDropper = QCursor(QPixmap.fromImage(QImage(":/images/resources/Eyedropper-icon.png")))
     # init tool cursor, must be resizable
     curImg = QImage(":/images/resources/cursor_circle.png")
+    # turn to white
     curImg.invertPixels()
     window.cursor_Circle_Pixmap = QPixmap.fromImage(curImg)
 

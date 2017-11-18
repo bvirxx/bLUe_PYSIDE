@@ -112,7 +112,7 @@
              </sizepolicy>
             </property>
             <property name="toolTip">
-             <string>Draw FG</string>
+             <string>Unmask/Assign FG</string>
             </property>
             <property name="accessibleName">
              <string>drawFG</string>
@@ -141,7 +141,7 @@
              </sizepolicy>
             </property>
             <property name="toolTip">
-             <string>Draw BG</string>
+             <string>Mask/Assign BG</string>
             </property>
             <property name="accessibleName">
              <string>drawBG</string>

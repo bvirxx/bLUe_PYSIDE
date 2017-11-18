@@ -28,7 +28,7 @@ from time import time
 from PySide2.QtGui import QImage
 from PySide2.QtWidgets import QMenu, QRubberBand
 
-from LUT3D import LUTSIZE, LUTSTEP, LUT3DFromFactory, LUT3D_SHADOW, LUT3D_ORI, LUT3D
+from colorCube import LUTSIZE, LUTSTEP, LUT3DFromFactory, LUT3D_SHADOW, LUT3D_ORI, LUT3D
 from MarkedImg import QLayer, vImage
 from colorModels import hueSatModel, pbModel
 from imgconvert import QImageBuffer
@@ -745,7 +745,8 @@ class graphicsForm3DLUT(QGraphicsView) :
 
     def __init__(self, cModel, targetImage=None, size=500, LUTSize = LUTSIZE, layer=None, parent=None, mainForm=None):
         """
-
+        @param cModel: color space used by colorPicker, colorWheel and colorPicker
+        @type cModel: cmConverter object
         @param size: size of the color wheel
         @type size: int
         @param targetImage:

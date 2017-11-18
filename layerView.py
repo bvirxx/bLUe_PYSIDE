@@ -146,6 +146,7 @@ class QLayerView(QTableView) :
                 self.img.layersStack[0].applyToStack()
             finally:
                 QApplication.restoreOverrideCursor()
+                QApplication.processEvents()
             QtGui1.window.label.repaint()
 
         self.previewOptionBox.stateChanged.connect(m)

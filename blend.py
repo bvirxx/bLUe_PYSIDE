@@ -15,54 +15,59 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-import numpy as np
 from PySide2.QtGui import QImage
 
-from LUT3D import hsv2rgbVec, rgb2hsBVec, hsp2rgbVec
+from colorCube import hsv2rgbVec, rgb2hsBVec, hsp2rgbVec, rgb2hlsVec, hls2rgbVec
 from imgconvert import QImageBuffer
 
-
-def blendLuminosity(dest, source, usePerceptual=False, coeff=1.0):
+def blendLuminosity(dest, source):
     """
     Implements blending with luminosity mode,
     which is missing in Qt.
     The blended image retains the hue and saturation of dest,
     with the luminosity of source.
-    if usePerceptual is True we use the HSpB color model
-    as intermediate color space. It gives better results, but,
-    unfortunately, as opencv ignores this color space, it is slower.
-   
+    We use the HLS color model:
+    see https://docs.opencv.org/3.3.0/de/d25/imgproc_color_conversions.html
+    Note blendColor and blendLuminosity are commuted versions of each other:
+    blendLuminiosity(img1, img2) = blendColor(img2, img1)
     @param dest: destination QImage
     @type dest QImage
     @param source: source QImage
     @type source QImage
     @param coeff: proportion of source luminosity retained
     @return: The blended image
-    @rtype: QImage
+    @rtype: QImage same size and format as source
     
     """
     sourceBuf = QImageBuffer(source)[:,:,:3]
     destBuf = QImageBuffer(dest)[:,:,:3]
-    hsvSourceBuf = rgb2hsBVec(sourceBuf[:,:,::-1], perceptual=usePerceptual)
-    hsvDestBuf = rgb2hsBVec(destBuf[:,:,::-1], perceptual=usePerceptual)
+    #hsvSourceBuf = rgb2hsBVec(sourceBuf[:,:,::-1], perceptual=usePerceptual)
+    hlsSourceBuf = rgb2hlsVec(sourceBuf[:, :, ::-1])
+    #hsvDestBuf = rgb2hsBVec(destBuf[:,:,::-1], perceptual=usePerceptual)
+    hlsDestBuf = rgb2hlsVec(destBuf[:, :, ::-1])
     # copy source luminosity to dest
-    hsvDestBuf[:, :, 2] = hsvSourceBuf[:, :, 2] * coeff  + hsvDestBuf[:, :, 2] * (1.0 - coeff)
+    #hsvDestBuf[:, :, 2] = hsvSourceBuf[:, :, 2] * coeff  + hsvDestBuf[:, :, 2] * (1.0 - coeff)
+    hlsDestBuf[:, :, 1] = hlsSourceBuf[:, :, 1]
+    """
     if usePerceptual:
         blendBuf = hsp2rgbVec(hsvDestBuf)
     else:
         blendBuf = hsv2rgbVec(hsvDestBuf)
+    """
+    blendBuf = hls2rgbVec(hlsDestBuf)
     img = QImage(source.size(), source.format())
     tmp=QImageBuffer(img)
     tmp[:,:,:3][:,:,::-1] = blendBuf
     tmp[:, :, 3]= 255
     return img
 
-def blendColor(dest, source):
+def blendColor(dest, source, usePerceptual=False, coeff=1.0):
     """
     Implements blending using color mode, which is missing
-    in Qt. We use the HSpB color model as intermediate color space.
+    in Qt. We use the HLS color model as intermediate color space.
     The blended image retains the hue and saturation of source, with the
-    luminosity (i.e. perceptive brightness) of dest.
+    luminosity of dest. We use the HLS color model:
+    see https://docs.opencv.org/3.3.0/de/d25/imgproc_color_conversions.html
     Note blendColor and blendLuminosity are commuted versions of each other:
     blendLuminiosity(img1, img2) = blendColor(img2, img1)
     @param dest: destination QImage
@@ -70,7 +75,8 @@ def blendColor(dest, source):
     @param source: source QImage
     @type source: QImage
     @return: The blended image
-    @rtype: QImage
+    @rtype: QImage QImage same size and format as source
+    """
     """
     sourceBuf = QImageBuffer(source)[:, :, :3]
     destBuf = QImageBuffer(dest)[:, :, :3]
@@ -84,8 +90,8 @@ def blendColor(dest, source):
     tmp = QImageBuffer(img)
     tmp[:, :, :3][:, :, ::-1] = blendBuf
     tmp[:, :, 3] = 255
-
-    return img
+    """
+    return blendLuminosity(source, dest)
 
 
 
