@@ -37,7 +37,7 @@ import icc
 from imgconvert import *
 from colorCube import interpVec, rgb2hspVec, hsp2rgbVec, LUT3DIdentity, LUT3D, interpVec_
 from time import time
-from utils import savitzky_golay, channelValues, checkeredImage
+from utils import savitzky_golay, channelValues, checkeredImage, boundingRect
 import graphicsHist
 # pool is created in QLayer.applyToStack()
 MULTIPROC_POOLSIZE = 4
@@ -175,8 +175,8 @@ class vImage(QImage):
         self.maskIsSelected = False
         if self.mask is None:
             self.mask = QImage(self.width(), self.height(), format)
-            # nothing is masked
-            self.mask.fill(self.defaultColor_UnMasked) # initially 0,0,0,255 keep alpha 255 TODO fix 23/10/17
+            # deafult : nothing is masked
+            self.mask.fill(self.defaultColor_UnMasked)
         #self.updatePixmap()
         if type(self) in [QLayer]:
             vImage.updatePixmap(self)
@@ -406,7 +406,7 @@ class vImage(QImage):
         return mask
 
     def resetMask(self):
-        # nothing is masked
+        # default : nothing is masked
         self.mask.fill(vImage.defaultColor_UnMasked)
 
     def invertMask(self):
@@ -442,55 +442,68 @@ class vImage(QImage):
         return rszd
 
     def applyCloning(self, seamless=False):
+        """
+        if seamLess is False and self.cloned is False,
+        display translations of the input image .
+        Otherwise, clone translated input to output.
+        @param seamless:
+        @type seamless: boolean
+        """
+        if self.rect is None:
+            return
+        # limit self.rect to image boundary
+        self.rect = QRect(0,0, self.width(), self.height()).intersected(self.rect)
         imgIn = self.inputImg()
-        #bufIn = QImageBuffer(imgIn)
-        #bufIn = bufIn[:, :, :3][:, :, ::-1]
         imgOut = self.getCurrentImage()
         # reset imgOut to ImgIn
         qp = QPainter(imgOut)
         qp.setCompositionMode(QPainter.CompositionMode_Source)
         qp.drawImage(QRect(0, 0, imgOut.width(), imgOut.height()), imgIn)
-        # paint shifted input image on current image
+        # draw the translated input image on imgOut
         if not seamless and not self.cloned :
-            # translated image mut cover self.rect
-            if self.xAltOffset > self.rect.left():
-                self.xAltOffset = self.rect.left()
-            if self.xAltOffset < self.rect.right() - self.width() :
-                self.xAltOffset = self.rect.right() - self.width()
-            if self.yAltOffset > self.rect.top():
-                self.yAltOffset = self.rect.top()
-            if self.yAltOffset < self.rect.bottom() - self.height() :
-                self.yAltOffset = self.rect.bottom() - self.height()
-            x, y = self.full2CurrentXY(self.xAltOffset, self.yAltOffset)
-            # nothing is painted outside of image
+            # translated image must cover self.rect
+            self.xAltOffset = max(min(self.xAltOffset, self.rect.left()), self.rect.right() - self.width())
+            self.yAltOffset = max(min(self.yAltOffset, self.rect.top()), self.rect.bottom() - self.height())
+            currentAltX, currentAltY = self.full2CurrentXY(self.xAltOffset, self.yAltOffset)
             qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
-            qp.drawImage(QRectF(x, y, imgOut.width(), imgOut.height()), imgIn)
+            qp.drawImage(QRectF(currentAltX, currentAltY, imgOut.width(), imgOut.height()), imgIn) # nothing is painted outside of image
             qp.end()
         # do seamless cloning
         else:
             qp.end()
+            # init white mask from untranslated scaled mask
+            # get scaled mask bounding rect
+            oMask = self.color2OpacityMask().scaled(imgIn.width(), imgIn.height())
+            buf = QImageBuffer(oMask)
+            tmp = np.where(buf[:, :, 3]==0, 0, 255)
+            bRect = boundingRect(tmp, 255)
+            if bRect is None:
+                # no white pixels
+                return
+            # translate mask
             masksave = self.mask.copy()
-            self.mask.fill(QColor(0,0,0,255))
+            self.mask.fill(vImage.defaultColor_Masked)
             qp = QPainter(self.mask)
             qp.setCompositionMode(QPainter.CompositionMode_Source)
             qp.drawImage(QRectF(-self.xAltOffset, -self.yAltOffset, self.width(), self.height()), masksave)
             qp.end()
+
             bufOut = QImageBuffer(imgOut)
-            # init white mask:
+            # init white mask from translated and scaled mask:
             src_mask = self.color2OpacityMask().scaled(imgIn.width(), imgIn.height())
+
+            # compute scaled rect and center
             src_maskBuf = QImageBuffer(src_mask)
             tmp = np.where(src_maskBuf[:, :, 3] == 0, 0, 255)
             src_maskBuf = np.dstack((tmp,tmp,tmp)).astype(np.uint8)
-            # cloning center is the center of the rectangle
-            # rectangle coordinates are relative to the full sized image
-            self.center = self.full2CurrentXY(self.rect.left() + self.rect.width() //2, self.rect.top() + self.rect.height() //2)
+            # cloning center is the center of bRect
+            center = (bRect.left() + bRect.width() //2, bRect.top() + bRect.height() //2)
             # Clone seamlessly src, dst
-            output = cv2.seamlessClone(bufOut[:, :, :3][:, :, ::-1], bufOut[:, :, :3][:, :, ::-1], src_maskBuf, self.center,  # src dest
-                                       self.cloningMethod)#MONOCHROME_TRANSFER)  # cv2.MIXED_CLONE)#cv2.NORMAL_CLONE)
-            bufOut[:, :, :3][:, :, ::-1] = output
+            output = cv2.seamlessClone(bufOut[:, :, :3][:, :, ::-1], bufOut[:, :, :3][:, :, ::-1], src_maskBuf, center, self.cloningMethod)
+            bufOut[:, :, :3][:, :, ::-1] = output # assign src_ maskBuf for testing
             self.mask = masksave
+            # output image is cloned
             self.cloned = True
-            #self.xAltOffset, self.yAltOffset = 0, 0
         self.updatePixmap()
 
 
@@ -819,7 +832,7 @@ class vImage(QImage):
         w1, w2, h1, h2 = (0.0,) * 4
         if options.get('use selection', False):
             w, wF = self.getCurrentImage().width(), self.width()
-            h, hF = self.getCUrrentImage().height(), self.height()
+            h, hF = self.getCurrentImage().height(), self.height()
             wRatio, hRatio = float(w) / wF, float(h) / hF
             if self.rect is not None:
                 w1, w2, h1, h2 = int(self.rect.left() * wRatio), int(self.rect.right() * wRatio), int(self.rect.top() * hRatio), int(self.rect.bottom() * hRatio)
@@ -1710,6 +1723,9 @@ class QLayer(vImage):
 
     def isCloningLayer(self):
         return 'loning' in self.name
+
+    def is3DLUTLayer(self):
+        return ('3D' in self.name) and ('LUT' in self.name)
 
     def updatePixmap(self, maskOnly = False):
         """

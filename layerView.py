@@ -606,6 +606,9 @@ class QLayerView(QTableView) :
             actionMerge.setEnabled(False)
         # don't dup adjustment layers
         self.actionDup.setEnabled(not layer.isAdjustLayer())
+        actionUnselect = QAction('Unselect All', None)
+        if layer.rect is None:
+            actionUnselect.setEnabled(False)
         actionColorMaskEnable = QAction('Color Mask', None)
         actionOpacityMaskEnable = QAction('Opacity Mask', None)
         actionMaskDisable = QAction('Disable Mask', None)
@@ -625,6 +628,8 @@ class QLayerView(QTableView) :
         menu.addAction(actionAdd2Group)
         menu.addAction(actionGroupSelection)
         menu.addAction(actionUnGroup)
+        menu.addSeparator()
+        menu.addAction(actionUnselect)
         menu.addSeparator()
         #mask
         subMenuEnable = menu.addMenu('Enable Mask')
@@ -650,6 +655,8 @@ class QLayerView(QTableView) :
             self.opacitySlider.show()
         def g(value):
             layer.setOpacity(value)
+        def unselectAll():
+            layer.rect = None
         def loadImage():
             fileName = None
             window = QtGui1.window
@@ -758,6 +765,8 @@ class QLayerView(QTableView) :
             for l in self.img.layersStack:
                 l.updatePixmap(maskOnly=True)
             self.img.onImageChanged()
+
+        actionUnselect.triggered.connect(unselectAll)
         actionLoadImage.triggered.connect(loadImage)
         actionAdd2Group.triggered.connect(add2Group)
         actionGroupSelection.triggered.connect(groupSelection)

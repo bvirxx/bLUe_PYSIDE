@@ -245,10 +245,9 @@ class activeNode(QGraphicsPathItem):
     The attribute LUTIndices holds the list of LUT indices
     matching h and s.
         """
-    # node drawing
+    # paths for node drawing
     qppE = QPainterPath()
     qppE.addEllipse(-3, -3, 6, 6)
-    # central node
     qppR = QPainterPath()
     qppR.addRect(-5, -5, 10, 10)
 
@@ -265,8 +264,6 @@ class activeNode(QGraphicsPathItem):
         grid.drawGrid()
         grid.drawTrace = False
         grid.scene().onUpdateLUT(options=grid.scene().options)
-
-
 
     def __init__(self, position, cModel, gridRow=0, gridCol=0, parent=None, grid=None):
         """
@@ -290,7 +287,6 @@ class activeNode(QGraphicsPathItem):
         self.setFlag(QGraphicsItem.ItemIsSelectable, True)
         self.setFlag(QGraphicsItem.ItemIgnoresTransformations, True)
         self.setVisible(False)
-
         # read color from color wheel.
         # Node parent is the grid and grandfather is the color wheel
         # grid is at pos (0,0) on the color wheel (colorPicker object)
@@ -377,7 +373,7 @@ class activeNode(QGraphicsPathItem):
         """
         Returns the list of grid neighbors
         @return: neighbors
-        @rtype: list
+        @rtype: list of activeNode objects
         """
         nghb = []
         if self.gridRow >0 :
@@ -489,13 +485,14 @@ class activeGrid(QGraphicsPathItem):
 
     def reset(self):
         """
-        unselect and reset all nodes to their initial position
+        unselects and resets all nodes to their initial position
         """
         for i in range(self.size):
             for j in range(self.size):
                 node = self.gridNodes[i][j]
                 node.setPos(node.initialPosition)
                 node.setSelected(False)
+                node.setVisible(False)
 
     def setElasticPos(self):
         for i in range(self.size) :
@@ -717,12 +714,11 @@ class graphicsForm3DLUT(QGraphicsView) :
     Interactive grid for 3D LUT adjustment.
     Default color model is hsp.
     """
-    # markers for grid nodes
+    # node markers
     qpp0 = activeNode.qppR
-    selectBrush = QBrush(QColor(255,255,255))
-    unselectBrush = QBrush()
     qpp1 = activeNode.qppE
-
+    selectBrush = QBrush(QColor(255, 255, 255))
+    unselectBrush = QBrush()
     # default brightness
     defaultColorWheelBr = 0.60
 
@@ -973,7 +969,6 @@ class graphicsForm3DLUT(QGraphicsView) :
         xcGrid, ycGrid = xc - border, yc -border
         #NNN = self.grid.gridNodes[int(round(ycGrid/step))][int(round(xcGrid/step))]
         NNN = self.grid.gridNodes[int(np.floor(ycGrid / step))][int(np.floor(xcGrid / step))]
-
         """
         #neighbors = [self.grid.gridNodes[j][i] for j in range(int(np.floor(y / step)) - 1, int(np.ceil( y / step)) +2) if j < w for i in range(int(np.floor(x / step))-1, int(np.ceil( x / step))+2) if i < w]
 
@@ -994,7 +989,6 @@ class graphicsForm3DLUT(QGraphicsView) :
         print 'selectgridNodehs' , h,s, NNN.hue, NNN.sat
         print 'selectGridNode', NNN.parentItem()
         """
-
         # select and mark selected node
         mode = self.graphicsScene.options['add node']
         if self.selected is not None:
@@ -1003,7 +997,6 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.selected.setSelected(True)
         self.selected.setBrush(self.selectBrush)
         self.selected.setPath(self.qpp0)
-        #self.selected.setVisible(True)
         self.selected.setVisible(mode)
         nodesToSelect = NNN.neighbors() if self.graphicsScene.options['select neighbors'] else [NNN]
         for n in nodesToSelect:

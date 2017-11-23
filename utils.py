@@ -183,6 +183,48 @@ def drawPlotGrid(axeSize):
     item.setPath(qppath)
     return item
     #self.graphicsScene.addItem(item)
+
+def boundingRect(img, pattern):
+    """
+    Given an image img, the function builds the bounding rectangle
+    of the region defined by img == pattern. If the region is empty, the function
+    returns an invalid rectangle.
+    @param img:
+    @type img: 2D array
+    @param pattern:
+    @type pattern: a.dtype
+    @return:
+    @rtype: QRect or None
+    """
+    def leftPattern(b):
+        """
+        For a 1-channel image, returns the leftmost
+        x-coordinate of max value.
+        @param b: image
+        @type b: 2D array, dtype=int or float
+        @return: leftmost x-coordinate of max value
+        @rtype: int
+        """
+        # we build the array of first occurrences of row max
+        XMin = np.argmax(b, axis=1)
+        # To exclude the rows with a max different of the global max,
+        # we assign to them a value greater than all possible indices.
+        XMin = np.where(np.diagonal(b[:, XMin])==np.max(b), XMin, np.sum(b.shape)+1)
+        return np.min(XMin)
+
+    # indicator function of the region
+    img = np.where(img==pattern, 1, 0)
+    # empty region
+    if np.max(img) == 0:
+        return None
+    # building enclosing rectangle
+    left = leftPattern(img)
+    right = img.shape[1] - 1 - leftPattern(img[::-1, ::-1])
+    top = leftPattern(img.T)
+    bottom = img.shape[0] - 1 - leftPattern(img.T[::-1, ::-1])
+    return QRect(left, top, right - left, bottom - top)
+
+
 """
 #pickle example
 saved_data = dict(outputFile, 

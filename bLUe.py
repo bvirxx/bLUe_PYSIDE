@@ -78,6 +78,7 @@ from graphicsLabLUT import graphicsLabForm
 
 from splittedView import splittedWindow
 
+
 ##################
 #  Refresh views after image processing
 #################
@@ -97,7 +98,7 @@ splittedWin = splittedWindow(window)
 # paintEvent global QPainter
 qp = QPainter()
 # stuff for Before/After marks
-qp.setFont((QFont("Arial", 10)))
+qp.font = QFont("Arial", 8)
 qp.markPath=QPainterPath()
 qp.markRect = QRect(0, 0, 50, 20)
 qp.markPath.addRoundedRect(qp.markRect, 5, 5)
@@ -118,7 +119,7 @@ def paintEvent(widg, e) :
     @param e: paint event
     """
     if not hasattr(widg, 'img'):
-        raise ValueError("paintEvent : no image attribute")
+        raise ValueError("paintEvent: no image attribute")
     mimg = widg.img
     if mimg is None:
         return
@@ -131,17 +132,13 @@ def paintEvent(widg, e) :
         if layer.visible:
             qp.setOpacity(layer.opacity)
             qp.setCompositionMode(layer.compositionMode)
+            # As offsets can be float numbers, we use QRectF instead of QRect
+            rectF = QRectF(mimg.xOffset, mimg.yOffset, mimg.width()*r, mimg.height()*r)
             if layer.qPixmap is not None:
-                # As offsets can be float numbers,
-                # we use QRectF instead of QRect
-                qp.drawPixmap(QRectF(mimg.xOffset, mimg.yOffset, mimg.width()*r, mimg.height()*r), # target rect
-                           layer.qPixmap, layer.qPixmap.rect()
-                         )
+                qp.drawPixmap(rectF, layer.qPixmap, layer.qPixmap.rect())
             else:
                 currentImage = layer.getCurrentImage()
-                qp.drawImage(QRectF(mimg.xOffset, mimg.yOffset, mimg.width() * r , mimg.height() * r ), # target rect
-                              currentImage, currentImage.rect()
-                              )
+                qp.drawImage(rectF, currentImage, currentImage.rect())
     # draw selection rectangle for active layer only
     layer = mimg.getActiveLayer()
     if (layer.visible) and (layer.rect is not None ):
@@ -155,17 +152,17 @@ def paintEvent(widg, e) :
         qp.fillPath(qp.markPath, QBrush(Qt.gray))
         # draw text
         qp.setPen(Qt.white)
+        qp.setFont(qp.font)
         qp.drawText(qp.markRect, Qt.AlignCenter | Qt.AlignVCenter, "Before" if name == "label_2" else "After" )
     qp.end()
 
-# mouse event handler for image widgets (dynamically set attribute widget.img, currently label and label_2)
+# mouse event handler for image widgets (i.e. with a dynamically set attribute widget.img of type imImage)
+# global variables used in mouseEvent
+# Recording of mouse coordinates, relative to widget
+State = {'drag':False, 'drawing':False , 'tool_rect':False, 'rect_over':False, 'ix':0, 'iy':0, 'ix_begin':0, 'iy_begin':0}
+# Recording of mouse state
 pressed=False
 clicked = True
-# Mouse coordinates recording. Coordinates are relative to widget
-State = {'drag':False, 'drawing':False , 'tool_rect':False, 'rect_over':False, 'ix':0, 'iy':0, 'ix_begin':0, 'iy_begin':0, 'rawMask':None}
-CONST_FG_COLOR = QColor(255, 255, 255, 255)
-CONST_BG_COLOR = QColor(255, 0, 255, 255)
-
 def mouseEvent(widget, event) :
     """
     Mouse event handler for QLabel object.
@@ -177,22 +174,24 @@ def mouseEvent(widget, event) :
     below).
     NOTE 1. Mouse hover generates mouse move events
     NOTE 2. Due to wheeelEvent, xOffset and yOffset are float
-    @param widget: QLabel object
+    @param widget:
+    @type widget: QLabel object with img attribute
     @param event: mouse event
+    @type event:
     """
     global pressed, clicked
     # get image and active layer
     img= widget.img
     layer = img.getActiveLayer()
     r = img.resize_coeff(widget)
-    # x, y coordinates, relative to widget
+    # x, y coordinates (relative to widget)
     x, y = event.x(), event.y()
-    # read keyboard modifiers
+    # keyboard modifiers
     modifiers = QApplication.keyboardModifiers()
     # mouse press event
     if event.type() == QEvent.MouseButtonPress :
-        # Mouse hover generates mouse move events.
-        # So, we use a flag pressed to only select non hovering events
+        # Mouse hover generates mouse move events,
+        # so, we use a flag pressed to only select non hovering events
         pressed=True
         if event.button() == Qt.LeftButton:
             # no move yet
@@ -204,7 +203,6 @@ def mouseEvent(widget, event) :
     elif event.type() == QEvent.MouseMove :
         clicked=False
         if pressed :
-            # button pressed
             if img.isMouseSelectable:
                 # don't draw on a non visible layer
                 if window.btnValues['rectangle'] or window.btnValues['drawFG'] or window.btnValues['drawBG']:
@@ -230,14 +228,11 @@ def mouseEvent(widget, event) :
                         if layer.isSegmentLayer():
                             color = QColor(0, 255, 0, 128) if window.btnValues['drawFG'] else QColor(0, 0, 255, 128)
                         else:
-                            #color = QColor(0, 0, 0, 255) if window.btnValues['drawFG'] else QColor(0, 0, 0, 0)
-                            color = vImage.defaultColor_UnMasked if window.btnValues['drawFG'] else vImage.defaultColor_Masked # TODO fix modified 5/11/17 : right colors for mask edition  see mask init in vImage
-                        tmp = layer.mask
-                        qp.begin(tmp)
-                        # pen width
+                            color = vImage.defaultColor_UnMasked if window.btnValues['drawFG'] else vImage.defaultColor_Masked
+                        qp.begin(layer.mask)
+                        # get pen width
                         w = window.verticalSlider1.value() // (2*r)
-                        #qp.setPen(QPen(color, 2*w))
-                        # composition mode source : result is source (=pen) pixel color and opacity
+                        # mode source : result is source (=pen) pixel color and opacity
                         qp.setCompositionMode(qp.CompositionMode_Source)
                         tmp_x = (x - img.xOffset) // r
                         tmp_y = (y - img.yOffset) // r
@@ -250,13 +245,13 @@ def mouseEvent(widget, event) :
                         for l in img.layersStack :
                             l.updatePixmap(maskOnly=True)
                         window.label.repaint()
-                # do shifts
+                # translations
                 else:
-                    # shift image
+                    # translate image
                     if modifiers == Qt.NoModifier:
                         img.xOffset+=(x-State['ix'])
                         img.yOffset+=(y-State['iy'])
-                    # shift layer
+                    # translate active layer only
                     elif modifiers == Qt.ControlModifier:
                         layer.xOffset += (x - State['ix'])
                         layer.yOffset += (y - State['iy'])
@@ -268,7 +263,8 @@ def mouseEvent(widget, event) :
                             layer.yAltOffset += (y - State['iy'])
                             layer.cloned = False
                             layer.applyCloning()
-                            layer.updatePixmap()
+                            #layer.updatePixmap()
+            """
             # case not img.isMouseSelectable : TODO 14/11/17 do nothing ???
             else:
                 if modifiers == Qt.NoModifier:
@@ -285,6 +281,7 @@ def mouseEvent(widget, event) :
                         layer.cloned = False
                         layer.applyCloning()
                         layer.updatePixmap()
+            """
         #update current coordinates
         State['ix'],State['iy']=x,y
     # mouse release event
@@ -298,21 +295,25 @@ def mouseEvent(widget, event) :
                     c = img.getActivePixel((State['ix']  -  img.xOffset) / r, (State['iy'] - img.yOffset) / r)
                     red, green, blue = c.red(), c.green(), c.blue()
                     # select grid node for 3DLUT form
-                    if hasattr(layer, "view") and layer.view is not None:
-                        if hasattr(layer.view.widget(), 'selectGridNode'):
+                    if layer.is3DLUTLayer():
                             layer.view.widget().selectGridNode(red, green, blue)
                 if window.btnValues['rectangle']:
+                    """
                     layer.rect = QRect((min(State['ix_begin'], x) - img.xOffset) // r,
                                        (min(State['iy_begin'], y) - img.yOffset) // r,
                                        abs(State['ix_begin'] - x) // r, abs(State['iy_begin'] - y) // r)
+                    """
                     # for cloning layer init mask from rectangle
                     if layer.isCloningLayer():
                         layer.mask.fill(vImage.defaultColor_Masked)
+                        """
                         qptemp=QPainter(layer.mask)
                         qptemp.setBrush(QBrush(vImage.defaultColor_UnMasked))
                         qptemp.drawRect(layer.rect)
                         qptemp.end()
+                        """
                         layer.updatePixmap(maskOnly=True)
+                """
                 # do shifts
                 else:
                     if modifiers == Qt.NoModifier:
@@ -328,6 +329,8 @@ def mouseEvent(widget, event) :
                             layer.cloned = False
                             layer.applyCloning()
                             layer.updatePixmap()
+                """
+    # updates
     widget.repaint()
     # sync splitted views
     linked = True
@@ -440,6 +443,8 @@ def contextMenu(pos, widget):
     @param widget:
     @return:
     """
+    pass
+    """
     qmenu = QMenu("Context menu")
     if not hasattr(widget, 'img'):
         return
@@ -456,6 +461,7 @@ def contextMenu(pos, widget):
     elif widget is window.label_3:
         print('3')
     qmenu.exec_(QCursor.pos())
+    """
 
 def loadImageFromFile(f):
     """
@@ -1195,13 +1201,17 @@ def menuHelp(x, name):
     if name == "actionBlue_help":
         w = app.focusWidget()
         link = QFileInfo('help.html').absoluteFilePath()
+        # init url
+        url = QUrl(link)
         # add fragment identifier
-        # unfortunately, on Windows Qt does not pass it to the browser.
-        # cf. https://bugreports.qt.io/browse/QTBUG-14460
         if hasattr(w, 'helpId'):
             if w.helpId != '':
-                link = link + '#' + w.helpId
-        QDesktopServices.openUrl(QUrl(link, QUrl.TolerantMode))
+                # unfortunately, on Windows Qt does not pass the fragment to the browser,
+                # so we do nothing.
+                # cf. https://bugreports.qt.io/browse/QTBUG-14460
+                pass
+                #url.setFragment(w.helpId)
+        QDesktopServices.openUrl(url)
     elif name == "actionAbout_bLUe":
         w, label = handleTextWindow(parent=window, title='About bLUe')
         label.setStyleSheet("background-image: url(logo.png); color: white;")

@@ -111,10 +111,5 @@ def cubicSplineCurve(X,Y, clippingInterval=None):
 
 
 
-#X= np.array(range(5))
-#cubicSpline(X, X, 3.5)
-
-
-
 
 

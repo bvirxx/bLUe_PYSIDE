@@ -23,12 +23,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import subprocess
 import os
 import json
-from tempfile import NamedTemporaryFile
 
 from PySide2.QtGui import QTransform
 from PySide2.QtWidgets import QMessageBox
 from os.path import isfile
-from PIL import Image
 from settings import EXIFTOOL_PATH
 
 class ExifTool(object):

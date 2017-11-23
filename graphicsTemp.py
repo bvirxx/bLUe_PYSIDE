@@ -126,3 +126,4 @@ class temperatureForm (QGraphicsView):
         self.sliderTemp.setValue(temp)
         self.update()
         return inStream
+
