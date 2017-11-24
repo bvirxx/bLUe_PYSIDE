@@ -600,6 +600,7 @@ class QLayerView(QTableView) :
             actionAdd2Group.setEnabled(False)
         actionUnGroup = QAction('Ungroup', None)
         actionUnGroup.setEnabled(bool(layer.group))
+        # multiple selection
         actionMerge = QAction('Merge Lower', None)
         # merge only adjustment layer with image layer
         if not hasattr(layer, 'inputImg') or hasattr(lowerVisible, 'inputImg'):
@@ -609,6 +610,7 @@ class QLayerView(QTableView) :
         actionUnselect = QAction('Unselect All', None)
         if layer.rect is None:
             actionUnselect.setEnabled(False)
+        actionRepositionLayer = QAction('Reposition Layer(s)', None)
         actionColorMaskEnable = QAction('Color Mask', None)
         actionOpacityMaskEnable = QAction('Opacity Mask', None)
         actionMaskDisable = QAction('Disable Mask', None)
@@ -631,25 +633,27 @@ class QLayerView(QTableView) :
         menu.addSeparator()
         menu.addAction(actionUnselect)
         menu.addSeparator()
-        #mask
-        subMenuEnable = menu.addMenu('Enable Mask')
-        subMenuEnable.addAction(actionColorMaskEnable)
-        subMenuEnable.addAction(actionOpacityMaskEnable)
-        menu.addAction(actionMaskDisable)
-        menu.addAction(actionMaskInvert)
-        menu.addAction(actionMaskReset)
-        menu.addAction(actionMaskCopy)
-        menu.addAction(actionMaskPaste)
-        menu.addAction(actionMaskDilate)
-        menu.addAction(actionMaskErode)
+        menu.addAction(actionRepositionLayer)
         menu.addSeparator()
-        # miscellaneous
-        menu.addAction(actionLoadImage)
-        # to link actionDup with a shortcut,
-        # it must be set in __init__
-        menu.addAction(self.actionDup)
-        menu.addAction(actionMerge)
-
+        #mask
+        if len(rows) == 1:
+            subMenuEnable = menu.addMenu('Enable Mask')
+            subMenuEnable.addAction(actionColorMaskEnable)
+            subMenuEnable.addAction(actionOpacityMaskEnable)
+            menu.addAction(actionMaskDisable)
+            menu.addAction(actionMaskInvert)
+            menu.addAction(actionMaskReset)
+            menu.addAction(actionMaskCopy)
+            menu.addAction(actionMaskPaste)
+            menu.addAction(actionMaskDilate)
+            menu.addAction(actionMaskErode)
+            menu.addSeparator()
+            # miscellaneous
+            menu.addAction(actionLoadImage)
+            # to link actionDup with a shortcut,
+            # it must be set in __init__
+            menu.addAction(self.actionDup)
+            menu.addAction(actionMerge)
         # Event handlers
         def f():
             self.opacitySlider.show()
@@ -657,6 +661,13 @@ class QLayerView(QTableView) :
             layer.setOpacity(value)
         def unselectAll():
             layer.rect = None
+        def RepositionLayer():
+            layer.xOffset, layer.yOffset = 0, 0
+            layer.Zoom_coeff = 1.0
+            layer.AltZoom_coeff = 1.0
+            layer.xAltOffset, layer.yAltOffset = 0, 0
+            layer.updatePixmap()
+            self.img.onImageChanged()
         def loadImage():
             fileName = None
             window = QtGui1.window
@@ -765,7 +776,7 @@ class QLayerView(QTableView) :
             for l in self.img.layersStack:
                 l.updatePixmap(maskOnly=True)
             self.img.onImageChanged()
-
+        actionRepositionLayer.triggered.connect(RepositionLayer)
         actionUnselect.triggered.connect(unselectAll)
         actionLoadImage.triggered.connect(loadImage)
         actionAdd2Group.triggered.connect(add2Group)

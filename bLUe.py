@@ -256,14 +256,13 @@ def mouseEvent(widget, event) :
                         layer.xOffset += (x - State['ix'])
                         layer.yOffset += (y - State['iy'])
                         layer.updatePixmap()
-                    # shift virtual layer
+                    # translate cloning virtual layer
                     elif modifiers == Qt.ControlModifier | Qt.AltModifier:
                         if layer.isCloningLayer():
                             layer.xAltOffset += (x - State['ix'])
                             layer.yAltOffset += (y - State['iy'])
                             layer.cloned = False
                             layer.applyCloning()
-                            #layer.updatePixmap()
             """
             # case not img.isMouseSelectable : TODO 14/11/17 do nothing ???
             else:
@@ -354,12 +353,21 @@ def wheelEvent(widget,img, event):
     # Most mice have a resolution of 15 degrees
     numDegrees = event.delta() / 8
     numSteps = numDegrees / 150.0
-    #r=img.Zoom_coeff
-    img.Zoom_coeff *= (1.0 + numSteps)
-    # correcting image offset to keep unchanged the image point
-    # under the cursor : (pos - offset) / resize_coeff should be invariant
-    img.xOffset = -pos.x() * numSteps + (1.0+numSteps)*img.xOffset
-    img.yOffset = -pos.y() * numSteps + (1.0+numSteps)*img.yOffset
+    # keyboard modifiers
+    modifiers = QApplication.keyboardModifiers()
+    layer = img.getActiveLayer()
+    if modifiers == Qt.NoModifier:
+        img.Zoom_coeff *= (1.0 + numSteps)
+        # correcting image offset to keep unchanged the image point
+        # under the cursor : (pos - offset) / resize_coeff should be invariant
+        img.xOffset = -pos.x() * numSteps + (1.0+numSteps)*img.xOffset
+        img.yOffset = -pos.y() * numSteps + (1.0+numSteps)*img.yOffset
+    elif modifiers == Qt.ControlModifier:
+        layer.Zoom_coeff *= (1.0 + numSteps)
+        layer.updatePixmap()
+    elif modifiers == Qt.ControlModifier | Qt.AltModifier:
+        layer.AltZoom_coeff *= (1.0 + numSteps)
+        layer.applyCloning()
     widget.repaint()
     # sync splitted views
     linked = True
@@ -588,7 +596,7 @@ def setDocumentImage(img):
     window.histView.targetImage = window.label.img
     # image changed event handler
     def f():
-        # refresh windows (use repaint for fast update)
+        # refresh windows (use repaint for faster update)
         window.label.repaint()
         window.label_3.repaint()
         # refresh histogram window

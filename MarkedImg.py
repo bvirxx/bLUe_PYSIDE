@@ -455,51 +455,67 @@ class vImage(QImage):
         self.rect = QRect(0,0, self.width(), self.height()).intersected(self.rect)
         imgIn = self.inputImg()
         imgOut = self.getCurrentImage()
-        # reset imgOut to ImgIn
-        qp = QPainter(imgOut)
-        qp.setCompositionMode(QPainter.CompositionMode_Source)
-        qp.drawImage(QRect(0, 0, imgOut.width(), imgOut.height()), imgIn)
-        # draw the translated input image on imgOut
+
+        # draw the translated and zoomed input image on the output image
         if not seamless and not self.cloned :
+            # reset imgOut to ImgIn
+            qp = QPainter(imgOut)
+            qp.setCompositionMode(QPainter.CompositionMode_Source)
+            qp.drawImage(QRect(0, 0, imgOut.width(), imgOut.height()), imgIn)
             # translated image must cover self.rect
-            self.xAltOffset = max(min(self.xAltOffset, self.rect.left()), self.rect.right() - self.width())
-            self.yAltOffset = max(min(self.yAltOffset, self.rect.top()), self.rect.bottom() - self.height())
+            #self.xAltOffset = max(min(self.xAltOffset, self.rect.left()), self.rect.right() - self.width())
+            #self.yAltOffset = max(min(self.yAltOffset, self.rect.top()), self.rect.bottom() - self.height())
+            # get translation relative to current Image
             currentAltX, currentAltY = self.full2CurrentXY(self.xAltOffset, self.yAltOffset)
             qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
-            qp.drawImage(QRectF(currentAltX, currentAltY, imgOut.width(), imgOut.height()), imgIn) # nothing is painted outside of image
+            qp.drawImage(QRectF(currentAltX, currentAltY, imgOut.width()*self.AltZoom_coeff, imgOut.height()*self.AltZoom_coeff), imgIn) # nothing is drawn outside of image
             qp.end()
         # do seamless cloning
         else:
-            qp.end()
+            #qp.end()
             # init white mask from untranslated scaled mask
             # get scaled mask bounding rect
             oMask = self.color2OpacityMask().scaled(imgIn.width(), imgIn.height())
             buf = QImageBuffer(oMask)
             tmp = np.where(buf[:, :, 3]==0, 0, 255)
             bRect = boundingRect(tmp, 255)
+            oMaskFull = self.color2OpacityMask()
+            bufFull = QImageBuffer(oMaskFull)
+            tmpFull = np.where(bufFull[:, :, 3] == 0, 0, 255)
+            bRectFull = boundingRect(tmpFull, 255)
             if bRect is None:
                 # no white pixels
                 return
             # translate mask
             masksave = self.mask.copy()
-            self.mask.fill(vImage.defaultColor_Masked)
+            #self.mask.fill(vImage.defaultColor_Masked)
             qp = QPainter(self.mask)
             qp.setCompositionMode(QPainter.CompositionMode_Source)
-            qp.drawImage(QRectF(-self.xAltOffset, -self.yAltOffset, self.width(), self.height()), masksave)
+            #qp.drawImage(QRectF(-self.xAltOffset, -self.yAltOffset, self.width(), self.height()), masksave)
+            #qp.drawImage(QRectF(bRectFull.left()-self.xAltOffset, bRectFull.top()-self.yAltOffset, bRectFull.width(), bRectFull.height()), masksave, bRectFull)
             qp.end()
 
             bufOut = QImageBuffer(imgOut)
             # init white mask from translated and scaled mask:
             src_mask = self.color2OpacityMask().scaled(imgIn.width(), imgIn.height())
 
-            # compute scaled rect and center
+            # compute mask bounding rect and center
             src_maskBuf = QImageBuffer(src_mask)
             tmp = np.where(src_maskBuf[:, :, 3] == 0, 0, 255)
             src_maskBuf = np.dstack((tmp,tmp,tmp)).astype(np.uint8)
             # cloning center is the center of bRect
             center = (bRect.left() + bRect.width() //2, bRect.top() + bRect.height() //2)
-            # Clone seamlessly src, dst
-            output = cv2.seamlessClone(bufOut[:, :, :3][:, :, ::-1], bufOut[:, :, :3][:, :, ::-1], src_maskBuf, center, self.cloningMethod)
+            # Clone seamlessly
+            # resized ImgOut as source
+            #ctBuf = np.ascontiguousarray(bufOut[:, :, :3][:, :, ::-1])
+            #source = cv2.resize(ctBuf, (int(self.AltZoom_coeff*imgIn.width()), int(self.AltZoom_coeff *imgIn.height())))
+            destImg = imgIn.copy()
+            destBuf = QImageBuffer(destImg)
+            output = cv2.seamlessClone(bufOut[:, :, :3][:, :, ::-1], #source,
+                                       destBuf[:, :, :3][:, :, ::-1], #bufOut[:, :, :3][:, :, ::-1],  # dest
+                                       src_maskBuf,
+                                       center, self.cloningMethod
+                                       )
             bufOut[:, :, :3][:, :, ::-1] = output # assign src_ maskBuf for testing
             self.mask = masksave
             # output image is cloned
@@ -1466,9 +1482,11 @@ class QLayer(vImage):
         self.group = []
         # layer offsets
         self.xOffset, self.yOffset = 0, 0
+        self.Zoom_coeff = 1.0
         # layer AltOffsets are used by cloning
         # layers to shift an image clone.
         self.xAltOffset, self.yAltOffset = 0, 0
+        self.AltZoom_coeff = 1.0
 
     def initThumb(self):
         """
@@ -1787,8 +1805,7 @@ class QLayer(vImage):
                 """
                 qp.drawImage(QRect(0, 0, img.width(), img.height()), tmp)
             else:
-                # draw mask as opacity mask
-                # mode DestinationIn sets image opacity to mask opacity
+                # draw mask as opacity mask : mode DestinationIn sets image opacity to mask opacity
                 qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
                 qp.drawImage(QRect(0, 0, img.width(), img.height()), self.color2OpacityMask())
                 if self.isClipping:  #TODO 6/11/17 may be we should draw checker for both selected and unselected mask
@@ -1798,12 +1815,11 @@ class QLayer(vImage):
             return img
         qImg = img
         rImg = currentImage
-        # apply layer transformation
-        # missing pixels are set to QColor(0,0,0,0)
+        # apply layer transformation. Missing pixels are set to QColor(0,0,0,0)
         if self.xOffset != 0 or self.yOffset != 0:
             x,y = self.full2CurrentXY(self.xOffset, self.yOffset)
-            qImg = qImg.copy(QRect(-x, -y, qImg.width(), qImg.height()))
-            rImg = rImg.copy(QRect(-x, -y, rImg.width(), rImg.height()))
+            qImg = qImg.copy(QRect(-x, -y, qImg.width()*self.Zoom_coeff, qImg.height()*self.Zoom_coeff))
+            rImg = rImg.copy(QRect(-x, -y, rImg.width()*self.Zoom_coeff, rImg.height()*self.Zoom_coeff))
         if self.maskIsEnabled:
             qImg = visualizeMask(qImg, self.mask)
             rImg = visualizeMask(rImg, self.mask)
