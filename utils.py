@@ -43,11 +43,13 @@ class optionsWidget(QListWidget) :
         """
         super(optionsWidget, self).__init__(parent)
         self.items = {}
+        self.options = {}
         for option in options:
             listItem = QListWidgetItem(option, self)
             listItem.setCheckState(Qt.Unchecked)
             self.addItem(listItem)
             self.items[option] = listItem
+            self.options[option] = (listItem.checkState() == Qt.Checked)
         #self.setSizeAdjustPolicy(QListWidget.AdjustToContents)
         self.setMinimumWidth(self.sizeHintForColumn(0))
         self.setMinimumHeight(self.sizeHintForRow(0)*len(options))
@@ -69,8 +71,16 @@ class optionsWidget(QListWidget) :
                     currentItem.setCheckState(Qt.Unchecked)
                 else:
                     currentItem.setCheckState(Qt.Checked)
+        for option in self.options.keys():
+            self.options[option] = (self.items[option].checkState() == Qt.Checked)
         # if item.checkState() == Qt.Checked: # TODO modified 5/11 : mandatory modif. for histView update when deselecting options
         self.onSelect(item)
+
+    def checkOption(self, name):
+        item = self.items[name]
+        item.setCheckState(Qt.Checked)
+        self.select(item)
+
 
 def savitzky_golay(y, window_size, order, deriv=0, rate=1):
     """

@@ -261,8 +261,9 @@ def mouseEvent(widget, event) :
                         if layer.isCloningLayer():
                             layer.xAltOffset += (x - State['ix'])
                             layer.yAltOffset += (y - State['iy'])
+                            layer.thumb.cloned = False
                             layer.cloned = False
-                            layer.applyCloning()
+                            layer.applyCloning(seamless=False)
             """
             # case not img.isMouseSelectable : TODO 14/11/17 do nothing ???
             else:
@@ -367,7 +368,9 @@ def wheelEvent(widget,img, event):
         layer.updatePixmap()
     elif modifiers == Qt.ControlModifier | Qt.AltModifier:
         layer.AltZoom_coeff *= (1.0 + numSteps)
-        layer.applyCloning()
+        layer.thumb.cloned = False
+        layer.cloned = False
+        layer.applyCloning(seamless=False)
     widget.repaint()
     # sync splitted views
     linked = True
@@ -624,9 +627,9 @@ def setDocumentImage(img):
     window.label_2.img.isMouseSelectable = False
     # init layer view
     window.tableView.setLayers(window.label.img)
-    window.label.repaint()
-    window.label_2.repaint()
-    window.label_3.repaint()
+    window.label.update()
+    window.label_2.update()
+    window.label_3.update()
     # used by graphicsForm3DLUT.onReset
     window.label.img.window = window.label
     window.label_2.img.window = window.label_2
@@ -1011,6 +1014,9 @@ def menuLayer(x, name):
         l = window.label.img.addAdjustmentLayer(name=lname)
         grWindow = patchForm.getNewWindow(targetImage=window.label.img, layer=l, mainForm=window)
         l.execute = lambda pool=None: l.applyCloning()
+        l.maskIsEnabled = True
+        l.maskIsSelected = True
+        l.resetMask(maskAll=True)
         l.cloned = False
     # segmentation grabcut
     elif name == 'actionNew_segmentation_layer':
