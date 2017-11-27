@@ -27,7 +27,7 @@ from colorConv import sRGBWP
 from graphicsCLAHE import CLAHEForm
 from graphicsExp import ExpForm
 from graphicsPatch import patchForm
-from utils import channelValues
+from utils import channelValues, savingDialog
 
 """
 The QtHelp module uses the CLucene indexing library
@@ -52,7 +52,7 @@ from grabcut import segmentForm
 from PySide2.QtCore import Qt, QRect, QEvent, QDir, QUrl, QPoint, QSize, QFile, QFileInfo, QRectF, QPointF
 from PySide2.QtGui import QPixmap, QColor, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, QPainterPath
 from PySide2.QtWidgets import QApplication, QMenu, QAction, QFileDialog, QMessageBox, \
-    QMainWindow, QLabel, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen
+    QMainWindow, QLabel, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QVBoxLayout, QWidget, QPushButton
 from QtGui1 import app, window
 import exiftool
 from imgconvert import *
@@ -514,7 +514,6 @@ def loadImageFromFile(f):
         msg.exec_()
         return None
     if colorSpace < 0:
-        #print 'colorspace', colorSpace
         msg = QMessageBox()
         msg.setText("Color profile missing\nAssigning sRGB profile")
         msg.exec_()
@@ -562,7 +561,8 @@ def openFile(f):
         # add starting adjusgtment layers
         addBasicAdjustmentLayers()
         # switch to preview mode and process stack
-        window.tableView.previewOptionBox.stateChanged.emit(Qt.Checked)
+        #window.tableView.previewOptionBox.stateChanged.emit(Qt.Checked)
+        window.tableView.previewOptionBox.setChecked(True)
         # updates
         updateStatus()
         window.label.img.onImageChanged()
@@ -570,7 +570,7 @@ def openFile(f):
 
 def closeFile():
     if window.label.img.isModified:
-        ret = savingDialog(window.label.img)
+        ret = saveChangeDialog(window.label.img)
         if ret == QMessageBox.Yes:
             save(window.label.img)
         elif ret == QMessageBox.Cancel:
@@ -653,7 +653,7 @@ def menuFile(x, name):
     """
     def openDlg():
         if window.label.img.isModified:
-            ret = savingDialog(window.label.img)
+            ret = saveChangeDialog(window.label.img)
             if ret == QMessageBox.Yes:
                 save(window.label.img)
             elif ret == QMessageBox.Cancel:
@@ -683,9 +683,23 @@ def menuFile(x, name):
         filename = openDlg()
         if filename is not None:
             openFile(filename)
-    # save dialog
+    # saving dialog
     elif name == 'actionSave':
-        save(window.label.img)
+        if window.label.img.useThumb:
+            msg = QMessageBox()
+            msg.setWindowTitle('Warning')
+            msg.setIcon(QMessageBox.Warning)
+            msg.setText("Uncheck Preview mode before saving")
+            msg.exec_()
+        else:
+            try:
+                save(window.label.img)
+            except ValueError as e:
+                msg = QMessageBox()
+                msg.setWindowTitle('Warning')
+                msg.setIcon(QMessageBox.Warning)
+                msg.setText(str(e))
+                msg.exec_()
     # closing dialog : close opened document
     elif name == 'actionClose':
         closeFile()
@@ -1293,7 +1307,7 @@ def initMenuAssignProfile():
     for f in PROFILES_LIST:
         window.menuAssign_profile.addAction(f[0]+" "+f[1], lambda x=f : window.execAssignProfile(x))
 
-def savingDialog(img):
+def saveChangeDialog(img):
     reply = QMessageBox()
     reply.setText("%s has been modified" % img.meta.name if len(img.meta.name) > 0 else 'unnamed image')
     reply.setInformativeText("Save your changes ?")
@@ -1303,13 +1317,16 @@ def savingDialog(img):
     return ret
 
 def save(img):
+    """
+    Image saving dialogs. The actual saving is
+    done by mImage.save(). Raises ValueError if saving fails.
+    @param img:
+    @type img: QImage
+    """
+    # get last accessed dir
     lastDir = window.settings.value("paths/dlgdir", QDir.currentPath())
-    """
-    # pySide bug work around : value returns None when the key does not exist
-    if lastDir is None:
-        lastDir = QDir.currentPath()
-    """
-    dlg = QFileDialog(window, "Save", lastDir)
+    # file dialogs
+    dlg = savingDialog(window, "Save", lastDir)
     dlg.selectFile(img.filename)
     if dlg.exec_():
         newDir = dlg.directory().absolutePath()
@@ -1318,24 +1335,24 @@ def save(img):
         if filenames:
             filename = filenames[0]
         else:
-            msg = QMessageBox()
-            msg.setWindowTitle('Warning')
-            msg.setIcon(QMessageBox.Warning)
-            msg.setText("You must select a file")
-            msg.exec_()
-            return False
+            raise ValueError("You must select a file")
         if isfile(filename):
             reply = QMessageBox()
             reply.setWindowTitle('Warning')
             reply.setIcon(QMessageBox.Warning)
-            reply.setText("File %s exists\n" % filename)
-            reply.setInformativeText("Save image as a new copy ?<br><font color='red'>CAUTION : Answering No will overwrite the file</font>")
-            reply.setStandardButtons(QMessageBox.No | QMessageBox.Yes | QMessageBox.Cancel)
-            reply.setDefaultButton(QMessageBox.Yes)
-            ret = reply.exec_()
-            if ret == QMessageBox.Cancel:
-                return False
-            elif ret == QMessageBox.Yes:
+            reply.setText("File %s already exists\n" % filename)
+            #reply.setInformativeText("Save image as a new copy ?<br><font color='red'>CAUTION : Answering No will overwrite the file</font>")
+            #reply.setStandardButtons(QMessageBox.No | QMessageBox.Yes | QMessageBox.Cancel)
+            reply.setStandardButtons(QMessageBox.Cancel)
+            accButton = QPushButton("Save as New Copy")
+            rejButton = QPushButton("OverWrite")
+            reply.addButton(accButton, QMessageBox.AcceptRole)
+            reply.addButton(rejButton, QMessageBox.RejectRole)
+            reply.setDefaultButton(accButton)
+            reply.exec_()
+            retButton = reply.clickedButton()
+            # build a new name
+            if retButton is accButton:
                 i = 0
                 base = filename
                 if '_copy' in base:
@@ -1345,17 +1362,18 @@ def save(img):
                 while isfile(filename):
                     filename = base[:-4] + flag + str(i) + base[-4:]
                     i = i+1
-        #img = window.label.img
-        # quality range 0..100
-        # Note : class vImage overrides QImage.save()
-        res = img.save(filename, quality=100)
-        if res:
-            # copy sidecar to file
-            with exiftool.ExifTool() as e:
-                e.restoreMetadata(img.filename, filename)
-        else:
-            return False
-        return True
+            # overwrite
+            elif retButton is rejButton:
+                pass
+            else:
+                raise ValueError("Saving Operation Failure")
+        quality = dlg.sliderQual.value()
+        compression = dlg.sliderComp.value()
+        img.save(filename, quality=quality, compression=compression)  #mImage.save()
+        with exiftool.ExifTool() as e:
+            e.restoreMetadata(img.filename, filename)
+    else:
+        raise ValueError("Saving Operation Failure")
 
 def close(e):
     """
@@ -1363,7 +1381,7 @@ def close(e):
     @param e: close event
     """
     if window.label.img.isModified:
-        ret = savingDialog(window.label.img)
+        ret = saveChangeDialog(window.label.img)
         if ret == QMessageBox.Save:
             save(window.label.img)
             return True

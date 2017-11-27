@@ -17,7 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 from PySide2.QtGui import QImage
 
-from colorCube import hsv2rgbVec, rgb2hsBVec, hsp2rgbVec, rgb2hlsVec, hls2rgbVec
+from colorCube import rgb2hlsVec, hls2rgbVec
 from imgconvert import QImageBuffer
 
 def blendLuminosity(dest, source):
@@ -41,19 +41,10 @@ def blendLuminosity(dest, source):
     """
     sourceBuf = QImageBuffer(source)[:,:,:3]
     destBuf = QImageBuffer(dest)[:,:,:3]
-    #hsvSourceBuf = rgb2hsBVec(sourceBuf[:,:,::-1], perceptual=usePerceptual)
     hlsSourceBuf = rgb2hlsVec(sourceBuf[:, :, ::-1])
-    #hsvDestBuf = rgb2hsBVec(destBuf[:,:,::-1], perceptual=usePerceptual)
     hlsDestBuf = rgb2hlsVec(destBuf[:, :, ::-1])
     # copy source luminosity to dest
-    #hsvDestBuf[:, :, 2] = hsvSourceBuf[:, :, 2] * coeff  + hsvDestBuf[:, :, 2] * (1.0 - coeff)
     hlsDestBuf[:, :, 1] = hlsSourceBuf[:, :, 1]
-    """
-    if usePerceptual:
-        blendBuf = hsp2rgbVec(hsvDestBuf)
-    else:
-        blendBuf = hsv2rgbVec(hsvDestBuf)
-    """
     blendBuf = hls2rgbVec(hlsDestBuf)
     img = QImage(source.size(), source.format())
     tmp=QImageBuffer(img)

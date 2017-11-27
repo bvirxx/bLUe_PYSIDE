@@ -331,9 +331,11 @@ def rgb2hsBVec(rgbImg, perceptual=False):
 
 def rgb2hlsVec(rgbImg):
     """
+    Converts RGB color space to HLS.
     With M = max(r,g,b) and m = min(r,g,b) the HLS color space uses
     luminosity L= (M+m)/2 and saturation S = (M-m)/(M+m) if l < 0.5 and
-    S =  (M-m) / (2-(M+m)) otherwise.
+    S =  (M-m) / (2-(M+m)) otherwise, (0<=h<=360, 0<=l<=1, 0<=s<=1).
+    We do not follow the opencv convention for HLS value ranges.
     @param rgbImg: rgbImg: array of r,g, b values
     @type rgbImg: rgbImg: (n,m,3) array, , dtype=uint8 or dtype=int or dtype=float
     @return: identical shape array of hue,luma, chroma values (0<=h<=360, 0<=l<=1, 0<=s<=1)
@@ -348,12 +350,14 @@ def hls2rgbVec(hlsImg):
     With M = max(r,g,b) and m = min(r,g,b) the HLS color space uses
     luminosity L= (M+m)/2 and saturation S = (M-m)/(M+m) if l < 0.5 and
     S =  (M-m) / (2-(M+m)) otherwise.
-    @param hlsImg: hlsImg: hsv image array range 0..360, 0..1, 0..1
-    @type hlsImg: dtype = uint8
+    @param hlsImg: hlsImg: hls image array range 0..360, 0..1, 0..1
+    @type hlsImg: dtype = float
     @return: identical shape array of r, g, b values in range 0..255
     @rtype: dtype = uint8
     """
-    buf = hlsImg * [1.0 / 2.0, 255.0, 255.0]  # scale to 0..360/2, 0..255, 0..255 (opencv convention)
+    # scale to 0..360/2, 0..255, 0..255 (opencv convention)
+    buf = hlsImg * [1.0 / 2.0, 255.0, 255.0]
+    # convert to rgb
     buf = cv2.cvtColor(buf.astype(np.uint8), cv2.COLOR_HLS2RGB)
     return buf
 

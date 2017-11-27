@@ -130,23 +130,19 @@ class vImage(QImage):
         #  - a stack of thumbnails
         # For the sake of performance, the two stacks are
         # NOT synchronized : they are updated independently.
-        # Thus, but for its initialization, the thumbnail should NOT be computed from
+        # Thus, after initialization, the thumbnail should NOT be computed from
         # the full size image.
         self.thumb = None
-
         self.onImageChanged = lambda: 0
-
         if meta is None:
             # init container
             self.meta = metadata()
             self.meta.name, self.meta.colorSpace, self.meta.rawMetadata, self.meta.profile, self.meta.orientation, self.meta.rating = name, colorSpace, rawMetadata, profile, orientation, rating
         else:
             self.meta = meta
-
         if (filename is None and cv2Img is None and QImg is None):
             # creates a null image
             super(vImage, self).__init__()
-
         if filename is not None:
             # loads image from file (should be a 8 bits/channel color image)
             if self.meta.orientation is not None:
@@ -985,35 +981,35 @@ class vImage(QImage):
         The method implements two algorithms for the correction of color temperature.
         1) Chromatic adaptation : linear transformation in the XYZ color space with Bradford
         cone response. cf. http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.htm
-        2) Photo filter : Blending using mode multiply
+        2) Photo filter : Blending using mode multiply, plus correction of luminosity
         @param temperature:
         @type temperature: float
         @param options :
         @type options : dictionary
         """
-        # neutral point
+        inputImage = self.inputImg()
+        currentImage = self.getCurrentImage()
+        # neutral point : forward input image and return
         if abs(temperature -6500) < 100:
-            buf0 = QImageBuffer(self.getCurrentImage())
-            buf1 = QImageBuffer(self.inputImg())
+            buf0 = QImageBuffer(currentImage)
+            buf1 = QImageBuffer(inputImage)
             buf0[:, :, :] = buf1
             self.updatePixmap()
             return
         from blend import blendLuminosity
         from colorConv import bbTemperature2RGB, conversionMatrix, rgb2rgbLinearVec, rgbLinear2rgbVec
-        inputImage = self.inputImg()
-        currentImage = self.getCurrentImage()
         if options['use Photo Filter']:
             # get black body color
             r, g, b = bbTemperature2RGB(temperature)
             filter = QImage(inputImage.size(), inputImage.format())
             filter.fill(QColor(r, g, b, 255))
-            # draw image on filter using composition mode multiply
+            # draw image on filter using mode multiply
             qp = QPainter(filter)
             qp.setCompositionMode(QPainter.CompositionMode_Multiply)
             qp.drawImage(0, 0, inputImage)
             qp.end()
             # correct the luminosity of the resulting image,
-            # by blending it with the inputImage in mode luminosity.
+            # by blending it with the inputImage, using mode luminosity.
             # We use a tuning coeff to control the amount of correction.
             # Note that using perceptual brightness gives better results, unfortunately slower
             resImg = blendLuminosity(filter, inputImage)
@@ -1246,7 +1242,7 @@ class mImage(vImage):
     def mergeVisibleLayers(self):
         """
         Merges the current visible masked images and returns the
-        resulting QImage, scaled to fit the image size.
+        resulting QImage, eventually scaled to fit the image size.
         @return: image
         @rtype: QImage
         """
@@ -1258,44 +1254,31 @@ class mImage(vImage):
         qp.drawImage(QRect(0, 0, self.width(), self.height()), self.layersStack[-1].getCurrentMaskedImage())
         qp.end()
         return img
-        """
-        for layer in self.layersStack:
-            if layer.visible:
-                qp.setOpacity(layer.opacity)
-                qp.setCompositionMode(layer.compositionMode)
-                qp.drawImage(QRect(0, 0, self.width(), self.height()), layer.getCurrentMaskedImage())
-                if layer.isClipping: # TODO fix 23/10/17
-                    qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
-                    qp.drawImage(QRect(0, 0, img.width(), img.height()), layer.mask)
-        qp.end()
-        return img
-        """
 
-    def save(self, filename, quality=-1):
+    def save(self, filename, quality=-1, compression=-1):
         """
         Builds an image from visible layers
-        and writes it to file
+        and writes it to file. If quality = -1 (default)
+        uses best available quality. Raises ValueError if
+        saving fails.
         @param filename:
         @type filename: str
-        @param quality: integer value in range 0..100
+        @param quality: integer value in range 0..100, or -1
         @type quality: int
-        @return: True if succeeded, False otherwise
         """
-        # build image to save
+        # don't save thumbnails
+        if self.useThumb:
+            return False
         img = self.mergeVisibleLayers()
-        # save to file
+        # get imagewriter, format is guessed from filename extension
         imgWriter = QImageWriter(filename)
         imgWriter.setQuality(quality)
-        if imgWriter.write(img): #img.save(filename, quality=quality):
-            #self.setModified(False) There is no safe reset to True!
-            return True
-        else:
-            msg = QMessageBox()
-            msg.setWindowTitle('Warning')
-            msg.setIcon(QMessageBox.Warning)
-            msg.setText("cannot write file %s\n%s" % (filename, imgWriter.errorString()))
-            msg.exec_()
-            return False
+        imgWriter.setCompression(compression)
+        if not imgWriter.canWrite():
+            raise ValueError("Invalid File Format")
+        if not imgWriter.write(img):
+            raise ValueError("Cannot write file")
+        self.setModified(False)
 
     def writeStackToStream(self, dataStream):
         dataStream.writeInt32(len(self.layersStack))
@@ -1548,11 +1531,10 @@ class QLayer(vImage):
 
     def getCurrentMaskedImage(self):
         """
-        returns the current masked layer image, using
-        non color managed rPixmap. For convenience, mainly
+        returns the current masked layer image, using the
+        non color managed rPixmaps. For convenience, mainly
         to be able to use its color space buffers, the built image is
-        of type QLayer. It is drawn on a container image, created only once
-        and reused.
+        of type QLayer. It is drawn on a container image, created only once.
         @return: masked image
         @rtype: QLayer
         """
@@ -1568,11 +1550,10 @@ class QLayer(vImage):
         else:
             img = self.maskedImageContainer
         # no thumbnails for containers
-        img.getThumb = lambda: img  # TODO Fix 12/10/17
+        img.getThumb = lambda: img
         # draw lower stack
         qp = QPainter(img)
         top = self.parentImage.getStackIndex(self)
-        #bottom = top
         # for adjustment layers, we must choose
         #      1) apply transformation to all lower layers : we draw
         #         the stack from 0 to top
@@ -1596,7 +1577,6 @@ class QLayer(vImage):
                 else:
                     qp.drawImage(QRect(0,0,img.width(), img.height()), layer.getCurrentImage())
         qp.end()
-
         return img
 
     def getHspbBuffer(self):
@@ -1802,6 +1782,7 @@ class QLayer(vImage):
             rImg = visualizeMask(rImg, self.mask)
         self.qPixmap = QPixmap.fromImage(qImg)
         self.rPixmap = QPixmap.fromImage(rImg)
+        self.setModified(True)
 
     def getStackIndex(self):
         for i, l in enumerate(self.parentImage.layersStack):

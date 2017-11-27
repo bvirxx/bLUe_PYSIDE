@@ -39,7 +39,6 @@ class layerModel(QStandardItemModel):
 class itemDelegate(QStyledItemDelegate):
     """
     Item painting
-
     """
     def __init__(self, parent=None):
         QStyledItemDelegate.__init__(self, parent)

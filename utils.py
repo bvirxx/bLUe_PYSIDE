@@ -18,7 +18,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 from math import erf, factorial
 from PySide2.QtGui import QColor, QPainterPath, QPen, QKeyEvent, QDesktopServices, QImage, QPainter
-from PySide2.QtWidgets import QListWidget, QListWidgetItem, QGraphicsPathItem, QTableWidget
+from PySide2.QtWidgets import QListWidget, QListWidgetItem, QGraphicsPathItem, QTableWidget, QDialog, QVBoxLayout, \
+    QFileDialog, QSlider, QWidget, QHBoxLayout, QLabel
 from PySide2.QtCore import Qt, QPoint, QEvent, QObject, QUrl, QRect
 #from PySide2.QtWebEngine import QWebView
 from imgconvert import QImageBuffer
@@ -81,6 +82,66 @@ class optionsWidget(QListWidget) :
         item.setCheckState(Qt.Checked)
         self.select(item)
 
+class savingDialog(QDialog):
+    """
+    File dialog with quality and compression sliders added.
+    We use a standard QFileDialog as a child widget and we
+    forward its methods to the top level.
+    """
+    def __init__(self, parent, text, lastDir):
+        """
+
+        @param parent:
+        @type parent: QObject
+        @param text:
+        @type text: str
+        @param lastDir:
+        @type lastDir:str
+        """
+        # QDialog __init__
+        super().__init__()
+        # File Dialog
+        self.dlg = QFileDialog(caption=text, directory=lastDir)
+        # sliders
+        self.sliderComp = QSlider(Qt.Horizontal)
+        self.sliderComp.setTickPosition(QSlider.TicksBelow)
+        self.sliderComp.setRange(0, 100)
+        self.sliderComp.setSingleStep(10)
+        self.sliderComp.setValue(100)
+        self.sliderQual = QSlider(Qt.Horizontal)
+        self.sliderQual.setTickPosition(QSlider.TicksBelow)
+        self.sliderQual.setRange(0, 100)
+        self.sliderQual.setSingleStep(10)
+        self.sliderQual.setValue(100)
+        self.dlg.setVisible(True)
+        l = QVBoxLayout()
+        h = QHBoxLayout()
+        l.addWidget(self.dlg)
+        h.addWidget(QLabel("Quality"))
+        h.addWidget(self.sliderQual)
+        h.addWidget(QLabel("Compression"))
+        h.addWidget(self.sliderComp)
+        l.addLayout(h)
+        self.setLayout(l)
+        # file dialog close event handler
+        def f():
+            self.close()
+        self.dlg.finished.connect(f)
+
+    def exec_(self):
+        # QDialog exec_
+        super().exec_()
+        # forward file dialog result
+        return self.dlg.result()
+
+    def selectFile(self, fileName):
+        self.dlg.selectFile(fileName)
+
+    def selectedFiles(self):
+        return self.dlg.selectedFiles()
+
+    def directory(self):
+        return self.dlg.directory()
 
 def savitzky_golay(y, window_size, order, deriv=0, rate=1):
     """
