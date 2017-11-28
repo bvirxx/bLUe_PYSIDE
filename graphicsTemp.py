@@ -42,34 +42,20 @@ class temperatureForm (QGraphicsView):
         self.defaultTemp = sRGBWP  # ref temperature D65
         l = QVBoxLayout()
         l.setAlignment(Qt.AlignBottom)
-
-        # f is defined later, but we need to declare it right now
-        def f():
-            pass
-
         # options
-        options = ['use Photo Filter', 'use Chromatic Adaptation']
+        options = ['Photo Filter', 'Chromatic Adaptation']
         self.listWidget1 = optionsWidget(options=options, exclusive=True)
         self.options = self.listWidget1.options
         # set initial selection
         self.listWidget1.checkOption(options[1])
-        """
-        item = self.listWidget1.items[options[1]]
-        item.setCheckState(Qt.Checked)
-        self.listWidget1.select(item)
-        """
 
-        def onSelect1(item):
-            # self.options[options[1]] = item is self.listWidget1.items[options[1]]
-            f()
-        self.listWidget1.onSelect = onSelect1
         l.addWidget(self.listWidget1)
 
         # temp slider
         self.sliderTemp = QSlider(Qt.Horizontal)
         self.sliderTemp.setTickPosition(QSlider.TicksBelow)
-        self.sliderTemp.setRange(1000, 20000)
-        self.sliderTemp.setSingleStep(200)
+        self.sliderTemp.setRange(17, 250)  # valid range for spline approximation is 1667..25000, cf. colorConv.temperature2xyWP
+        self.sliderTemp.setSingleStep(1)
 
         tempLabel = QLabel()
         tempLabel.setMaximumSize(150, 30)
@@ -92,30 +78,29 @@ class temperatureForm (QGraphicsView):
         l.setContentsMargins(10, 10, 10, 10)  # left, top, right, bottom
         self.setLayout(l)
         self.adjustSize()
-
         # temp done event handler
         def f():
             self.sliderTemp.setEnabled(False)
-            self.tempValue.setText(str('%d ' % self.sliderTemp.value()))
-            self.onUpdateTemperature(self.sliderTemp.value())
+            temp = self.sliderTemp.value()*100
+            self.tempValue.setText(str('%d ' % temp))
+            self.onUpdateTemperature(temp)
             self.sliderTemp.setEnabled(True)
-
         # temp value changed event handler
         def g():
-            self.tempValue.setText(str('%d ' % self.sliderTemp.value()))
-            #self.previewWindow.setPixmap()
+            self.tempValue.setText(str('%d ' % (self.sliderTemp.value()*100)))
 
         self.sliderTemp.valueChanged.connect(g)
         self.sliderTemp.sliderReleased.connect(f)
+        self.listWidget1.onSelect = lambda item: f()
 
-        self.sliderTemp.setValue(self.defaultTemp)
+        self.sliderTemp.setValue(self.defaultTemp//100)
 
     def writeToStream(self, outStream):
         layer = self.layer
         outStream.writeQString(layer.actionName)
         outStream.writeQString(layer.name)
         outStream.writeQString(self.listWidget1.selectedItems()[0].text())
-        outStream.writeInt32(self.sliderTemp.value())
+        outStream.writeInt32(self.sliderTemp.value()*100)
         return outStream
 
     def readFromStream(self, inStream):
@@ -127,7 +112,7 @@ class temperatureForm (QGraphicsView):
             currentItem = self.listWidget1.item(r)
             if currentItem.text() == sel:
                 self.listWidget.select(currentItem)
-        self.sliderTemp.setValue(temp)
+        self.sliderTemp.setValue(temp//100)
         self.update()
         return inStream
 

@@ -561,8 +561,8 @@ def openFile(f):
         # add starting adjusgtment layers
         addBasicAdjustmentLayers()
         # switch to preview mode and process stack
-        #window.tableView.previewOptionBox.stateChanged.emit(Qt.Checked)
         window.tableView.previewOptionBox.setChecked(True)
+        window.tableView.previewOptionBox.stateChanged.emit(Qt.Checked)
         # updates
         updateStatus()
         window.label.img.onImageChanged()

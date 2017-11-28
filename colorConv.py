@@ -76,8 +76,7 @@ Ka, Kb = 172.355, 67.038 #172.30, 67.20
 ################
 # Constants and precomputed tables for the
 # sRGB linearizing functions
-# rgbLinear2rgbVec,
-# rgb2rgbLinearVec.
+# rgbLinear2rgbVec and rgb2rgbLinearVec.
 # See https://en.wikipedia.org/wiki/SRGB
 ################
 
@@ -91,7 +90,7 @@ c = 255.0 * d
 # e is the size of the table
 e = 255 #255*255
 F = e**beta #255.0**(2*beta)
-
+# tabulated functions
 table0 = np.arange(256, dtype=np.float64)
 table1 = table0 / 255.0
 table2 = table0 / c
@@ -122,9 +121,10 @@ def rgbLinear2rgbVec(img):
     """
     Converts image from linear sRGB to sRGB.
     See https://en.wikipedia.org/wiki/SRGB
-    @param img: linear sRGB image (RGB range 0..1)
-    @type img: numpy array, dtype=np.float64)
-    @return: converted image (RGB range 0..255)
+    @param img: linear sRGB image, range 0..1
+    @type img: numpy array, dtype=float
+    @return: converted RGB image
+    @rtype: numpy array, dtype=float, range 0..255
     """
     img2 = img * d
     imgDiscretized = (img * e).astype(int)
@@ -155,16 +155,16 @@ def rgb2rgbLinear(r,g,b):
 def rgb2rgbLinearVec(img):
     """
     Converts image from sRGB to linear sRGB.
-    THe image colors are first converted to float values in range 0..1
     See https://en.wikipedia.org/wiki/SRGB
-    @param img: sRGB image (RGB range 0..255, type numpy array)
-    @return: converted image (RGB range 0..1, type numpy array dtype=np.float64)
+    @param img: RGB image, range 0..255
+    @type img: numpy array, dtype=uint8 or int or float
+    @return: converted linear RGB image, range 0..1
+    @rtype: numpy array, dtype=float
     """
-    #img1 =  table1[img[...]]
-    img2 = table2[img[...]]  # equivalent to img2 = img2 / c, faster
-    img3 = table3[img[...]]
-    #return np.where(img1 <= gammaLinearTreshold, img2, img3)
-    return np.where(img <= gammaLinearTreshold * 255.0, img2, img3)
+    img2 = table2[img[...]]  # equivalent to img2 = img / c, faster
+    img3 = table3[img[...]]  # img3 = power(img, alpha)
+    tr = gammaLinearTreshold * 255.0
+    return np.where(img <= tr, img2, img3)
 
 def sRGB2XYZVec(imgBuf):
     """
@@ -258,10 +258,11 @@ def Lab2sRGBVec(bufLab, useOpencv = True):
 def bbTemperature2RGB(temperature):
     """
     Converts Kelvin temperature to rgb values.
-    The temperature is Kelvin.
     See http://www.tannerhelland.com/4435/convert-temperature-rgb-algorithm-code
     @param temp: Kelvin temperature
-    @return: r, g, b vlaues in  range 0..255 (type int)
+    @type temp: float
+    @return: r, g, b values in  range 0..255
+    @rtype: 3-uple of int
     """
     temperature = temperature / 100.0
     if temperature <= 66 :
@@ -275,7 +276,6 @@ def bbTemperature2RGB(temperature):
         green = temperature - 60
         green = 288.1221695283 * (green**-0.0755148492)
     green = min(max(0, green), 255)
-
     if temperature >= 66:
         blue = 255
     else:
@@ -285,49 +285,72 @@ def bbTemperature2RGB(temperature):
             blue = temperature - 10
             blue = 138.5177312231 * np.log(blue) - 305.0447927307
             blue = min(max(0,blue), 255)
+    return int(red), int(green), int(blue)
 
-    return red, green, blue
+##############################################
+# Chromatic adaptation.
+# We use the approximation of the Planckian Locus by
+# a cubic spline as described in http://en.wikipedia.org/wiki/Planckian_locus#Approximation
+# combined with the cone response matrix method.
+# See https://web.stanford.edu/~sujason/ColorBalancing/adaptation.html for details
 
 def temperature2xyWP(T):
     """
     Calculates the CIE chromaticity coordinates xc, yc
     of white point from temperature (cubic spline approximation).
     see http://en.wikipedia.org/wiki/Planckian_locus#Approximation
-
-    @param T: temperature in Kelvin
+    @param T: temperature in Kelvin, range 1667..25000
+    @type T: float
     @return: xc, yc
+    @rtype: 2-uple of float
     """
 
     if T <= 4000:
         xc = -0.2661239 *(10**9) / (T**3) - 0.2343580 *(10**6) / (T**2) + 0.8776956 * (10**3) / T + 0.179910  # 1667<T<4000
     else:
         xc = - 3.0258469 *(10**9) / (T**3) + 2.1070379 *(10**6) / (T**2) + 0.2226347 * (10**3) / T + 0.240390 # 4000<T<25000
-
     if T <= 2222:
         yc = -1.1063814 * (xc**3) - 1.34811020 * (xc**2) + 2.18555832 * xc - 0.20219683  #1667<T<2222
     elif T<= 4000:
         yc = -0.9549476 *(xc**3) - 1.37418593 * (xc**2) + 2.09137015 * xc - 0.16748867  # 2222<T<4000
     else:
         yc = 3.0817580 * (xc**3) - 5.87338670 *(xc**2) + 3.75112997  * xc - 0.37001483  # 4000<T<25000
-
     return xc, yc
 
 def temperature2Rho(T):
-
-    x,y = temperature2xyWP(T)
-    L = 1.0
-    X, Y , Z = L * x / y, L, L * (1.0 - x -y ) / y
-
+    """
+    Returns the cone responses for temperature T (Kelvin).
+    see https://web.stanford.edu/~sujason/ColorBalancing/adaptation.html for details.
+    @param T: temperature (Kelvin)
+    @type T: float
+    @return: 3-uple of cone responses
+    @rtype: 3-uple of floats
+    """
+    # get CIE chromaticity coordinates of white point
+    x, y = temperature2xyWP(T)
+    L = 1.0 # arbitrary non zero constant
+    # transform in XYZ coordinates
+    X, Y , Z = L * x / y, L, L * (1.0 - x - y ) / y
     rho1, rho2, rho3 = np.dot(np.array(Bradford), np.array([X,Y,Z]).T)
-
     return rho1, rho2, rho3
 
 def conversionMatrix(Tdest, Tsource):
+    """
+    Returns the conversion matrix in the XYZ color space, from
+    Tsource to Tdest. We apply the method described in
+    https://web.stanford.edu/~sujason/ColorBalancing/adaptation.html.
+    @param Tdest: destination temperature (Kelvin)
+    @type Tdest: float
+    @param Tsource: Source temperature (Kelvin)
+    @type Tsource: float
+    @return: np array
+    @rtype: shape=(3,3), dtype=float
+    """
     rhos1, rhos2, rhos3  = temperature2Rho(Tsource)
     rhod1, rhod2, rhod3 = temperature2Rho(Tdest)
     D = np.diag((rhod1/rhos1, rhod2/rhos2, rhod3/rhos3))
-    N = np.dot(np.array(BradfordInverse), D)  # N= MA**-1 D
-    P = np.dot(N, np.array(Bradford))         # P = N MA = MA**-1 D MA
+    N = np.dot(np.array(BradfordInverse), D)  # N= (MA**-1) D
+    P = np.dot(N, np.array(Bradford))         # P = N MA = (MA**-1) D MA
     return P
 
 

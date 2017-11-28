@@ -990,7 +990,7 @@ class vImage(QImage):
         inputImage = self.inputImg()
         currentImage = self.getCurrentImage()
         # neutral point : forward input image and return
-        if abs(temperature -6500) < 100:
+        if abs(temperature -6500) < 200:
             buf0 = QImageBuffer(currentImage)
             buf1 = QImageBuffer(inputImage)
             buf0[:, :, :] = buf1
@@ -998,7 +998,7 @@ class vImage(QImage):
             return
         from blend import blendLuminosity
         from colorConv import bbTemperature2RGB, conversionMatrix, rgb2rgbLinearVec, rgbLinear2rgbVec
-        if options['use Photo Filter']:
+        if options['Photo Filter']:
             # get black body color
             r, g, b = bbTemperature2RGB(temperature)
             filter = QImage(inputImage.size(), inputImage.format())
@@ -1014,8 +1014,9 @@ class vImage(QImage):
             # Note that using perceptual brightness gives better results, unfortunately slower
             resImg = blendLuminosity(filter, inputImage)
             bufOutRGB = QImageBuffer(resImg)[:,:,:3][:,:,::-1]
-        elif options['use Chromatic Adaptation']:
-            M = conversionMatrix(temperature, sRGBWP)  # input image is sRGB ref temperature D65
+        elif options['Chromatic Adaptation']:
+            # get conversion matrix in the XYZ color space
+            M = conversionMatrix(temperature, sRGBWP)  # source is input image : sRGB, ref WP D65
             buf = QImageBuffer(inputImage)[:, :, :3]
             # opencv cvtColor does NOT perform gamma conversion
             # for RGB<-->XYZ cf. http://docs.opencv.org/trunk/de/d25/imgproc_color_conversions.html#color_convert_rgb_xyz.
@@ -1024,15 +1025,15 @@ class vImage(QImage):
             #  As a workaround, we first convert to rgbLinear,
             # and use the sRGB2XYZ and sRGB2XYZInverse matrices from
             # http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
+            # convert to RGB Linear
             bufLinear = (rgb2rgbLinearVec(buf[:,:,::-1])*255).astype(np.uint8)
             # convert to XYZ
-            #bufXYZ = cv2.cvtColor(bufLinear, cv2.COLOR_RGB2XYZ)
             bufXYZ = np.tensordot( bufLinear, sRGB2XYZ, axes=(-1,-1))
             # apply conversion matrix
             bufXYZ = np.tensordot(bufXYZ, M, axes=(-1, -1))
-            # convert back to sRGBLinear
-            #bufOutRGBLinear = cv2.cvtColor(bufXYZ.astype(np.float32), cv2.COLOR_XYZ2RGB)
+            # convert back to RGBLinear
             bufOutRGBLinear = np.tensordot(bufXYZ, sRGB2XYZInverse, axes=(-1,-1))
+            # convert back to RGB
             bufOutRGB = rgbLinear2rgbVec(bufOutRGBLinear.astype(np.float)/255.0)
             bufOutRGB = (bufOutRGB.clip(0, 255)).astype(np.uint8)
         # set output image

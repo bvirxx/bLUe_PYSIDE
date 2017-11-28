@@ -129,7 +129,6 @@ class QLayerView(QTableView) :
         # Qt.AlignBottom does not work.
         self.previewOptionBox = QCheckBox('Preview')
         self.previewOptionBox.setMaximumSize(100, 30)
-        self.previewOptionBox.setChecked(True)
 
         # View/Preview changed event handler
         def m(state): # Qt.Checked Qt.UnChecked
@@ -149,6 +148,7 @@ class QLayerView(QTableView) :
             QtGui1.window.label.repaint()
 
         self.previewOptionBox.stateChanged.connect(m)
+        self.previewOptionBox.setChecked(True) # m is not triggered
 
         # opacity slider
         self.opacitySlider = QSlider(Qt.Horizontal)
@@ -189,11 +189,11 @@ class QLayerView(QTableView) :
         # opacity value changed event handler
         def f1():
             self.opacityValue.setText(str('%d ' % self.opacitySlider.value()))
-            self.img.getActiveLayer().setOpacity(self.opacitySlider.value())
+        # slider released event handler
         def f2():
+            self.img.getActiveLayer().setOpacity(self.opacitySlider.value())
             self.img.getActiveLayer().applyToStack()
             self.img.onImageChanged()
-
         self.opacitySlider.valueChanged.connect(f1)
         self.opacitySlider.sliderReleased.connect(f2)
 
@@ -212,20 +212,18 @@ class QLayerView(QTableView) :
                                 'Hard Light':QPainter.CompositionMode_HardLight, 'Soft Light':QPainter.CompositionMode_SoftLight,
                                 'Difference':QPainter.CompositionMode_Difference, 'Exclusion':QPainter.CompositionMode_Exclusion
                                 }
-
         self.blendingModeCombo = QComboBox()
         l.addWidget(self.blendingModeCombo)
         for key in modes:
             self.blendingModeCombo.addItem(key, self.compositionModeDict[key])
-        def g1(ind):
+        # combo box item chosen event handler
+        def g(ind):
             s = self.blendingModeCombo.currentText()
             self.img.getActiveLayer().compositionMode = self.compositionModeDict[str(s)]
-        def g2(ind):
             self.img.getActiveLayer().applyToStack()
             self.img.onImageChanged()
-
-        self.blendingModeCombo.currentIndexChanged.connect(g1)
-        self.blendingModeCombo.activated.connect(g2)
+        #self.blendingModeCombo.currentIndexChanged.connect(g1)
+        self.blendingModeCombo.activated.connect(g)
         # shortcut actions
         self.actionDup = QAction('Duplicate layer', None)
         self.actionDup.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_J))
@@ -529,12 +527,10 @@ class QLayerView(QTableView) :
             self.img.onImageChanged()
         # hide/display adjustment form
         elif clickedIndex.column() == 1 :
-            # make selected layer the active layer
-            #self.img.setActiveLayer(len(self.img.layersStack) - 1 - row)
-            opacity = int(self.img.getActiveLayer().opacity * 100)
+            opacity = int(layer.opacity * 100)
             self.opacityValue.setText(str('%d ' % opacity))
             self.opacitySlider.setSliderPosition(opacity)
-            compositionMode = self.img.getActiveLayer().compositionMode
+            compositionMode = layer.compositionMode
             ind = self.blendingModeCombo.findData(compositionMode)
             self.blendingModeCombo.setCurrentIndex(ind)
         # select mask
