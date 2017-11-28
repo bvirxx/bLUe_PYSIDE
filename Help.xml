@@ -1,0 +1,359 @@
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML 5.0//EN" "../docbook-5.0/dtd/docbook.dtd">
+<book xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+	<chapter xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+		<title xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink"><productname xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">bLUe</productname> 
+		presentation</title>
+		<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">With 
+		<productname xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">bLUe</productname> 
+		you can correct and enhance the colors of your photos in a few 
+		clicks. bLUe uses adjusment layers to correct white balance, 
+		exposure, contrast, brightness, hue, saturation,...To achieve 
+		multiple corrections, you can add as many layers as you want and 
+		stack them in any order.</para>
+		<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">bLUe 
+		proposes a wide set of adjustment layers :  exposure, contrast, color 
+		temperature, filters, cloning, segmentation, 1D LUTs and 3D 
+		LUTs.</para>
+		<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">1D 
+		LUT are represented by curves. Modifications are applied to each 
+		color channel individually. As a consequence, the same correction is 
+		applied to all pixels, regardless of their color, unless you use 
+		selection tools to choose the region of the image that needs a 
+		correction.</para>
+		<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">In 
+		contrast, a 3D LUT adjustment layer is represented by a set of color 
+		nodes. Modifications are applied to each pixel according to its true 
+		color. bLUe interactively constructs a 3D LUT adjusting the exact set 
+		of colors you chose. Other colors remain unmodified : no need for 
+		complex selection tools such as lasso or magic wands.</para>
+		<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">3D 
+		LUTS are widely used by professional film makers, but the lack of 
+		interactive tools made them poorly useful for photo enhancement as 
+		the shooting conditions may vary widely from an image to another. 
+		With bLUe, in a few clicks, you select the colors to modify, the 
+		corresponding 3D LUT is automatically built and applied to the image. 
+		You can then fine tune it as you want.</para>
+		<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Any 
+		stack of adjustment layers can be saved in 
+		<productname xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">bLUe</productname> 
+		format. In addition, all adjustment layers but filters can be 
+		exported and imported in 
+		<filename xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">.cube</filename> 
+		format.</para>
+		<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink"><productname xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">bLUe</productname> 
+		also provides a slide show mode.</para>
+	</chapter>
+	<chapter xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+		<title xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Editing 
+		a photo</title>
+		<section xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+			<title xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Basic 
+			usage</title>
+			<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Open 
+			<command xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Menu 
+			File</command> and select an image file. bLUe can open usual color 
+			file formats : .jpg, .png, .tif, .bmp. Indexed and grayscale images 
+			cannot be edited. When it loads an image, bLUe saves the image 
+			metadata in a sidecar file, with the extension 
+			<filename xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">.mie</filename>.</para>
+			<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+				By default, three adjustment layers are added to the document They 
+				are shown in the 
+				<emphasis xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Layers</emphasis>
+				  right pane window. Clicking on a row displays the corresponding 
+				adjustment form:
+				<itemizedlist xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+					<listitem xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+						<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink"><emphasis xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Color 
+						Temperature</emphasis> corrects the white balance of the image, 
+						depending on the shooting conditions. Lower temperatures shift to 
+						warm colors (red), higher temperatures to cold colors (blue). Two 
+						methods of correction can be chosen : Photo Filter or Chromatic 
+						Adaptation. The second gives usually better results.</para>
+					</listitem>
+					<listitem xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+						<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink"><emphasis xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Exposure</emphasis> 
+						corrects too dark or too white images.</para>
+					</listitem>
+					<listitem xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+						<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink"><emphasis xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Contrast</emphasis> 
+						improves the local contrast of the image. Higher values for 
+						<emphasis xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Clip 
+						Limit</emphasis> increase the contrast.</para>
+					</listitem>
+				</itemizedlist>
+			</para>
+			<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Image 
+			edition should always begin by tuning these three parameters. 
+			However, they can be adjusted at any time.</para>
+			<para><emphasis xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Preview 
+			Mode</emphasis> At the bottom of the &quot;Layers&quot; window, 
+			check 
+			<command xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Preview</command> 
+			to enter the preview mode. With preview mode enabled (default), 
+			images can be displayed faster, especially for high resolution 
+			images. Uncheck <emphasis>Preview</emphasis> to display the full 
+			resolution image. Note that images are always saved with their full 
+			resolution.</para>
+		</section>
+		<section xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+			<title xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Adding 
+			adjustment Layers</title>
+			<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Choose 
+			<command xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Menu 
+			Layer</command> -&gt; 
+			<command xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">New 
+			Adjustment Layer</command>, and select a type of layer. The newly 
+			added layer is shown in the right pane window. and its name is 
+			editable. To toggle the layer visibility, click on its 
+			&quot;Eye&quot; icon.</para>
+			<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink"><command xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Layer 
+			type</command></para>
+			<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+				<itemizedlist xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+					<listitem xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+						<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink"><emphasis xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Curves 
+						RGB</emphasis> : Channel based curves in the RGB color 
+						space,</para>
+					</listitem>
+					<listitem xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+						<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink"><emphasis xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Curves 
+						HSB and Curves HSpB</emphasis> : Hue, saturation, brightness 
+						curves. The HSB color model uses the classic brightness 
+						<token xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">B 
+						= max(r, g, b)</token> . THe HSpB color model uses the 
+						<emphasis xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">perceptive</emphasis> 
+						brightness pB=sqrt(alpha*r*r+beta*g*g+gamma*b*b), where alpha, 
+						beta and gamma are constant coefficients related to the 
+						differences in perception of red, green and blue colors by the 
+						human eye.</para>
+					</listitem>
+					<listitem xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+						<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink"><emphasis xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Curves 
+						Lab</emphasis> : Channel based curves in the Lab color 
+						space.</para>
+					</listitem>
+					<listitem xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+						<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink"><emphasis xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Filter</emphasis>: 
+						Sharpen, unsharp mask and gaussian blur</para>
+					</listitem>
+					<listitem xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+						<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink"><emphasis xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">3D 
+						LUT HSB and 3D LUT HSpB</emphasis> : 3D LUT based adjustment 
+						layers. Both adjust hue and saturation and keep brightness 
+						(classic brightness for HSB layers and perceptive brightness for 
+						HSpB (see Curves HSB and curves HSpB above),</para>
+					</listitem>
+					<listitem>
+						<para><emphasis>Cloning Layer</emphasis>: Seamless replacement of 
+						a region of the image by another, for example to erase an 
+						unwanted object.</para>
+					</listitem>
+					<listitem>
+						<para><emphasis>Segmentation Layer</emphasis>: It automatically 
+						builds a mask to extract an obeject from the background.</para>
+					</listitem>
+				</itemizedlist>
+			</para>
+		</section>
+		<section xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+			<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Each 
+			layer is drawn on top of the underlying layers with its current 
+			opacity and composition mode</para>
+			<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink"><emphasis xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Layer 
+			opacity</emphasis> The layer opacity slider adjusts the opacity of 
+			the active layer.</para>
+			<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink"><emphasis xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Composition 
+			Mode</emphasis> Select a composition mode for the active layer. All 
+			standard composition modes are available, including Luminosity and 
+			Color.</para>
+			<para>Each layer owns a mask, disabled by default. It can be 
+			displayed as a color mask or an opacity mask.To enable a layer mask, 
+			<command xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Right 
+			Click -&gt; Enable Mask</command> on the layer row, and choose color 
+			or opacity mode. When the mask is enabled a red letter m is shown in 
+			the layer&apos;s row. Masks can be edited with the tool pens 
+			<command xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Mask</command> 
+			and 
+			<command xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Unmask</command>.</para>
+			<para><emphasis>Grouping layers</emphasis> Multiple consecutive 
+			adjustment layers can be grouped. A group of layers shares a unique 
+			mask, allowing simultaneous mask edition. When layers are grouped, 
+			their mask is enabled and a | character is shown near the letter m 
+			in the layer pane.</para>
+			<para>Note. If the active layer and all upper layers do not share 
+			the same group, mask modifications will not be visible immediately. 
+			Then, to view these modifications while editing the mask, switch off 
+			the visibility of all upper layers.</para>
+		</section>
+		<section xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" id="LUT3DForm">
+			<title xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Using 
+			3D LUT HSB and HSpB adjustment layers</title>
+			<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Select 
+			the layer in the &quot;Layers&quot; window, and make sure it is 
+			visible. The adjustment form displays a classical 
+			&quot;hue-saturation&quot; color wheel : the origin (neutral color) 
+			corresponds to the wheel centre, and fully saturated colors are on 
+			the periphery. All colors are displayed with the same brightness. It 
+			can be modified with the brightness slider below the color 
+			wheel.</para>
+			<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">On 
+			the left hand side image, click with the mouse a point whose color 
+			you want to change. A color node, or a set of neighbor color nodes 
+			is displayed on the form, as black circles. Each node represents a 
+			set of colors with constant hue and saturation, corresponding to the 
+			underlying color of the wheel. Node(s) can be dragged over the wheel 
+			to a position corresponding to the target colors you want to 
+			achieve. When the mouse is released, the selected colors are 
+			updated. Pixel brightness is kept unchanged.</para>
+			<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink"><emphasis xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Selecting 
+			nodes</emphasis> To select a set of nodes do one of the following 
+			:</para>
+			<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+				<itemizedlist xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+					<listitem xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+						<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Left 
+						click with the mouse pointer in an empty region of the color 
+						wheel, and drag the blue rectangular rubberband over the set of 
+						nodes to select</para>
+					</listitem>
+					<listitem xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+						<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Ctrl-click 
+						on each node to select</para>
+					</listitem>
+				</itemizedlist>
+			</para>
+			<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink"><emphasis xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Grouping 
+			nodes</emphasis> To group a set of nodes, select them and next, 
+			right click on any of the selected nodes to open the context menu 
+			and choose 
+			<command xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Group</command>.</para>
+			<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink"><emphasis xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Options</emphasis></para>
+			<itemizedlist xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+				<listitem xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+					<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink"><command xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Add 
+					node</command> : selected nodes are added to the current 
+					selection</para>
+				</listitem>
+				<listitem xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+					<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink"><command xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Remove 
+					node</command> : selected nodes are removed from the current 
+					selection</para>
+				</listitem>
+				<listitem xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+					<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink"><command xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Select 
+					neighbors</command> : the selected node and its neighbors are 
+					added to, or removed from, the current selection.</para>
+				</listitem>
+				<listitem xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+					<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink"><command xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Reset 
+					removed nodes</command> : nodes removed from the current selection 
+					are reset to their initial position and color</para>
+				</listitem>
+				<listitem xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+					<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink"><command xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Show 
+					histogram</command> : diusplay the 2D hue/saturation histogram of 
+					the image.</para>
+				</listitem>
+				<listitem xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+					<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink"><command xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Use 
+					image</command> : The transformation is applied to the whole 
+					image</para>
+				</listitem>
+				<listitem xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+					<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink"><command xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Use 
+					selection</command> : you can draw a rectangle on the image with 
+					the marquee tool and apply the transformation to the region 
+					limited by the rectangle.</para>
+				</listitem>
+			</itemizedlist>
+		</section>
+		<section xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+			<title xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Using 
+			Color Temperature adjustment layer</title>
+			<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+				Select the layer in the &quot;Layers&quot; right pane, and make 
+				sure it is visible. Two methods are available to modify the 
+				temperature of color for an image :
+				<itemizedlist xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+					<listitem xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+						<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Photo 
+						Filter : It uses a monochrome image acting as a photo 
+						filter.</para>
+					</listitem>
+					<listitem xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+						<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Chromatic 
+						Adaptation : It uses the 
+						<emphasis xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Bradford 
+						- Von Kries</emphasis> method. See 
+						<link xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html</link></para>
+					</listitem>
+				</itemizedlist>
+			</para>
+			<para>Usually, Chromatic Adaptation gives better results.</para>
+		</section>
+		<section xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+			<title xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Saving 
+			a document</title>
+			<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Images 
+			can be saved in any usual color format, indexed formats excepted. By 
+			default bLUe does not overwrite the original file : it creates a new 
+			file, with suffix 
+			<filename xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">copy**</filename> 
+			and copies back the metadata from the sidecar to the new image file. 
+			The sidecar is not deleted.</para>
+		</section>
+		<section xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+			<title xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Rating</title>
+			<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">A 
+			rating between 0 and 5 stars can be assigned to each image and saved 
+			in the sidecar as a XMP tag. Note that the rating is NOT written in 
+			the original image file. 
+			<productname xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">bLUe</productname> 
+			uses the value of the rating when playing a slide show (see Slide 
+			show below).</para>
+		</section>
+	</chapter>
+	<chapter xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+		<title xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Slide 
+		show</title>
+		<section xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+			<title xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Playing 
+			a slide show</title>
+			<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Open 
+			<command xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Menu 
+			Window -&gt; Slide show</command>, and select a folder. All 
+			<filename xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">.jpg</filename> 
+			and 
+			<filename xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">.png</filename> 
+			images from the selected folder and its subfolders are displayed in 
+			full screen mode.The slide show can be paused at any time by 
+			pressing the 
+			<command xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Escape</command> 
+			key.</para>
+			<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink"><emphasis xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Options</emphasis></para>
+			<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Several 
+			options are available via a context menu</para>
+			<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+				<itemizedlist xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+					<listitem xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+						<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink"><command xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Pause</command>: 
+						pause the slide show (shortcut 
+						<command xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Escape</command> 
+						key)</para>
+					</listitem>
+					<listitem xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+						<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink"><command xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Resume</command>: 
+						resume the previously paused slide show</para>
+					</listitem>
+					<listitem xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">
+						<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink"><command xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Rating</command>: 
+						Subsequent slide shows will not display images with 0 or 1 
+						rating.</para>
+						<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink"/>
+					</listitem>
+				</itemizedlist>
+			</para>
+		</section>
+	</chapter>
+</book>
