@@ -121,7 +121,7 @@ class CLAHEForm (QGraphicsView):
         def f():
             self.sliderClip.setEnabled(False)
             self.tempValue.setText(str("{:d}".format(self.sliderClip.value())))
-            self.onUpdateContrast(self.sliderClip.value() / 20.0)
+            self.onUpdateContrast(self.layer, self.sliderClip.value() / 20.0)
             self.sliderClip.setEnabled(True)
 
         # temp value changed event handler

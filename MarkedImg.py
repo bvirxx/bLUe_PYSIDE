@@ -16,6 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import multiprocessing
+import types
 from functools import partial
 
 from PySide2.QtCore import Qt, QBuffer, QDataStream, QFile, QIODevice, QSize, QPointF, QPoint, QRectF
@@ -433,6 +434,14 @@ class vImage(QImage):
             rszd.mask = self.mask.scaled(w, h)
         self.setModified(True)
         return rszd
+
+    def transform(self, transformation):
+        img = vImage(QImg=self.transformed(transformation))
+        img.meta = self.meta
+        img.onImageChanged = self.onImageChanged
+        img.useThumb = self.useThumb
+        img.useHald = self.useHald
+        return img
 
     def applyCloning(self, seamless=True):
         """
@@ -1063,6 +1072,18 @@ class mImage(vImage):
         self.addLayer(bgLayer, name='background')
         self.isModified = False
 
+    def transform(self, transformation):
+        img = mImage(QImg=super().transform(transformation))
+        img.meta = self.meta
+        img.onImageChanged = self.onImageChanged
+        img.useThumb = self.useThumb
+        img.useHald = self.useHald
+        stack = []
+        for layer in self.layersStack:
+            stack.append(layer.transform(transformation, img))
+        img.layersStack = stack
+        return img
+
     def getActiveLayer(self):
         """
         Returns the currently active layer.
@@ -1200,7 +1221,7 @@ class mImage(vImage):
         # set image from active layer
         layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
         self.addLayer(layer, name=name, index=index + 1)
-        layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getCurrentMaskedImage()
+        #layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getCurrentMaskedImage()
         # init thumb
         if layer.parentImage.useThumb:
             layer.thumb = layer.inputImg().copy()  # TODO 15/11/17 addedc copy to prevent cycles in applyCloning, function qp.drawImage()
@@ -1333,6 +1354,18 @@ class imImage(mImage) :
         self.isMouseSelectable =True
         self.isModified = False
 
+    def transform(self, transformation):
+        img = imImage(QImg=super().transform(transformation))
+        img.meta = self.meta
+        img.onImageChanged = self.onImageChanged
+        img.useThumb = self.useThumb
+        img.useHald = self.useHald
+        stack = []
+        for layer in self.layersStack:
+            stack.append(layer.transform(transformation, img))
+        img.layersStack = stack
+        return img
+
     def resize(self, pixels, interpolation=cv2.INTER_CUBIC):
         """
         Resize image and layers
@@ -1378,34 +1411,6 @@ class imImage(mImage) :
         self.Zoom_coeff = 1.0
         self.xOffset, self.yOffset = 0.0, 0.0
 
-    def snapshot(self):
-        """
-        Flattens image by merging all visble layers.
-        @return: flattened image
-        @rtype: imImage
-        """
-        snap = imImage(QImg=self, meta=self.meta)
-        #snap = QImage(self.width(), self.height(), QImage.Format_ARGB32)
-        snap.fill(0)
-        qp = QPainter(snap)
-        for layer in self.layersStack:
-            if layer.visible:
-                # monitor profile is applied to all pixmaps, thus we should not build
-                # images from pixmaps
-                """
-                #qp.setOpacity(layer.opacity)
-                if layer.qPixmap is not None:
-                    qp.drawPixmap(QRect(0, 0, self.width(), self.height()),  layer.transfer() )
-                else:
-                """
-                qp.setOpacity(layer.opacity)
-                qp.setCompositionMode(layer.compositionMode)
-                qp.drawImage(QRect(0, 0, self.width(), self.height()),  layer.getCurrentImage())
-        qp.end()
-        # update background layer and call updatePixmap
-        snap.layersStack[0].setImage(snap)
-        return snap
-
 class QLayer(vImage):
     @classmethod
     def fromImage(cls, mImg, parentImage=None):
@@ -1426,7 +1431,7 @@ class QLayer(vImage):
         self.compositionMode = QPainter.CompositionMode_SourceOver
         # The next two attributes are used by adjustment layers only.
         # wrapper for the right exec method
-        self.execute = lambda pool=None: self.updatePixmap()
+        self.execute = lambda l=None, pool=None: self.updatePixmap()
         self.options = {}
         # Following attributes (functions)  are reserved (dynamic typing for adjustment layers) and set in addAdjustmentlayer() above
             # self.inputImg : access to upper lower visible layer image or thumbnail, according to flag useThumb
@@ -1434,6 +1439,8 @@ class QLayer(vImage):
             # Accessing upper lower thumbnail must be done by calling inputImgFull().thumb. Using inputImg().thumb will fail if useThumb is True.
         # actionName is used by methods graphics***.writeToStream()
         self.actionName = 'actionNull'
+        # view is set by bLUe.menuLayer()
+        self.view = None
         # containers are initialized (only once) by
         # getCurrentMaskedImage, their type is QLayer
         self.maskedImageContainer = None
@@ -1448,6 +1455,19 @@ class QLayer(vImage):
         # layers to shift an image clone.
         self.xAltOffset, self.yAltOffset = 0, 0
         self.AltZoom_coeff = 1.0
+
+    def transform(self, transformation, parentImage):
+        tLayer = QLayer.fromImage(super().transform(transformation), parentImage=parentImage)
+        tLayer.name = self.name
+        tLayer.actionName = self.actionName
+        tLayer.view = self.view
+        if tLayer.view is not None:
+            tLayer.view.widget().layer = tLayer
+        if hasattr(self, "clipLimit"):
+            tLayer.clipLimit = self.clipLimit
+        tLayer.execute = self.execute
+        tLayer.mask = self.mask.transformed(transformation)
+        return tLayer
 
     def initThumb(self):
         """
@@ -1512,6 +1532,9 @@ class QLayer(vImage):
             return self.getThumb()
         else:
             return self
+
+    def inputImg(self):
+        return self.parentImage.layersStack[self.getLowerVisibleStackIndex()].getCurrentMaskedImage()
 
     def full2CurrentXY(self, x, y):
         """
@@ -1640,8 +1663,8 @@ class QLayer(vImage):
             # apply Transformation (call vImage.apply*LUT...)
             if layer.visible:
                 start = time()
-                layer.execute(pool=pool)
-                layer.cacheInvalidate() # TODO fix 12/10/17
+                layer.execute(l=layer, pool=pool)
+                layer.cacheInvalidate()
                 print("%s %.2f" %(layer.name, time()-start))
             stack = layer.parentImage.layersStack
             ind = layer.getStackIndex() + 1
@@ -1652,7 +1675,6 @@ class QLayer(vImage):
                 ind += 1
             if ind < len(stack):
                 layer1 = stack[ind]
-                #layer1.cacheInvalidate() # TODO fix 12/10/17
                 applyToStack_(layer1, pool=pool)
         try:
             QApplication.setOverrideCursor(Qt.WaitCursor)

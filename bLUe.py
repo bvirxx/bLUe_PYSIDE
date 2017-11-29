@@ -15,6 +15,7 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+import types
 from itertools import cycle
 
 import cv2
@@ -50,13 +51,14 @@ from os.path import isfile
 from types import MethodType
 from grabcut import segmentForm
 from PySide2.QtCore import Qt, QRect, QEvent, QDir, QUrl, QPoint, QSize, QFile, QFileInfo, QRectF, QPointF
-from PySide2.QtGui import QPixmap, QColor, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, QPainterPath
+from PySide2.QtGui import QPixmap, QColor, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, \
+    QPainterPath, QTransform
 from PySide2.QtWidgets import QApplication, QMenu, QAction, QFileDialog, QMessageBox, \
     QMainWindow, QLabel, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QVBoxLayout, QWidget, QPushButton
 from QtGui1 import app, window
 import exiftool
 from imgconvert import *
-from MarkedImg import imImage, metadata, vImage
+from MarkedImg import imImage, metadata, vImage, QLayer
 
 from graphicsRGBLUT import graphicsForm
 from graphicsLUT3D import graphicsForm3DLUT
@@ -446,7 +448,6 @@ def widgetChange(widget):
     elif wdgName == "verticalSlider1":
         pass
 
-
 def contextMenu(pos, widget):
     """
     Copntext menu for image QLabel
@@ -477,12 +478,17 @@ def contextMenu(pos, widget):
 def loadImageFromFile(f):
     """
     loads metadata and image from file.
+    metadata is a list of dicts with len(metadata) >=1.
+    metadata[0] contains at least 'SourceFile' : path.
+    profile is a string containing the profile binary data.
+    Currently, we do not use these data : standard profiles
+    are loaded from disk, non standard profiles are ignored.
     @param f: path to file
     @type f: str
     @return: image
     @rtype: imImage
     """
-    # metadata
+    # get metadata
     try:
         with exiftool.ExifTool() as e:
             profile, metadata = e.get_metadata(f)
@@ -532,12 +538,6 @@ def openFile(f):
     @param f: file name
     @type f: str
     """
-    # extract embedded profile and metadata, if any.
-    # metadata is a list of dicts with len(metadata) >=1.
-    # metadata[0] contains at least 'SourceFile' : path.
-    # profile is a string containing the profile binary data.
-    # Currently, we do not use these data : standard profiles
-    # are loaded from disk, non standard profiles are ignored.
     closeFile()
     img = None
     # load file
@@ -545,28 +545,26 @@ def openFile(f):
         QApplication.setOverrideCursor(Qt.WaitCursor)
         QApplication.processEvents()
         img = loadImageFromFile(f)
+        # display image
+        if img is not None:
+            setDocumentImage(img)
+            # add starting adjusgtment layers
+            addBasicAdjustmentLayers()
+            # switch to preview mode and process stack
+            window.tableView.previewOptionBox.setChecked(True)
+            window.tableView.previewOptionBox.stateChanged.emit(Qt.Checked)
+            # updates
+            updateStatus()
+            window.label.img.onImageChanged()
     except ValueError as e:
         msg = QMessageBox()
         msg.setWindowTitle('Warning')
         msg.setIcon(QMessageBox.Warning)
         msg.setText(str(e))
         msg.exec_()
-        #return
     finally:
         QApplication.restoreOverrideCursor()
         QApplication.processEvents()
-    # display image
-    if img is not None:
-        setDocumentImage(img)
-        # add starting adjusgtment layers
-        addBasicAdjustmentLayers()
-        # switch to preview mode and process stack
-        window.tableView.previewOptionBox.setChecked(True)
-        window.tableView.previewOptionBox.stateChanged.emit(Qt.Checked)
-        # updates
-        updateStatus()
-        window.label.img.onImageChanged()
-
 
 def closeFile():
     if window.label.img.isModified:
@@ -945,11 +943,8 @@ def menuImage(x, name) :
         label.setText(s)
     # snapshot
     elif name == 'actionSnap':
-        snap = img.snapshot()
-        # keep zoom and offset
-        snap.setView(*window.label_2.img.view())
-        window.label_2.img = snap
-        window.label_2.repaint()
+        tImg = img.transform(QTransform().rotate(45))
+        setDocumentImage(tImg)
     elif name in ['action0', 'action1', 'action2', 'action3', 'action4', 'action5']:
         img.meta.rating = int(name[-1:])
         updateStatus()
@@ -996,7 +991,7 @@ def menuLayer(x, name):
         elif name == 'actionCurves_HSpB':
             l.execute = lambda  pool=None: l.applyHSPB1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY(), pool=pool)
         elif name == 'actionCurves_Lab':
-            l.execute = lambda pool=None: l.applyLab1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
+            l.execute = lambda l=l, pool=None: l.applyLab1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
     # 3D LUT
     elif name in ['action3D_LUT', 'action3D_LUT_HSB']:
         # color model
@@ -1021,7 +1016,7 @@ def menuLayer(x, name):
         grWindow.graphicsScene.onUpdateLUT = g
         # wrapper for the right apply method
         #l.execute = lambda : l.apply3DLUT(grWindow.graphicsScene.LUT3DArray, options=l.options)
-        l.execute = lambda pool=None: l.apply3DLUT(grWindow.graphicsScene.LUT3DArray, options=grWindow.graphicsScene.options, pool=pool)
+        l.execute = lambda l=l, pool=None: l.apply3DLUT(grWindow.graphicsScene.LUT3DArray, options=grWindow.graphicsScene.options, pool=pool)
     # cloning
     elif name == 'actionNew_Cloning_Layer':
         lname = 'Cloning'
@@ -1038,7 +1033,7 @@ def menuLayer(x, name):
         l = window.label.img.addSegmentationLayer(name=lname)
         l.isClipping = True
         grWindow = segmentForm.getNewWindow(targetImage=window.label.img, layer=l, mainForm=window)
-        l.execute = lambda pool=None: l.applyGrabcut(nbIter=grWindow.nbIter)
+        l.execute = lambda l=l, pool=None: l.applyGrabcut(nbIter=grWindow.nbIter)
     # Temperature
     elif name == 'actionColor_Temperature':
         lname = 'Color Temperature'
@@ -1046,43 +1041,41 @@ def menuLayer(x, name):
         l.temperature = sRGBWP
         grWindow = temperatureForm.getNewWindow(size=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         # temperature change event handler
-        def h(temperature):
-            l.temperature = temperature
-            l.applyToStack()
+        def h(lay, temperature):
+            lay.temperature = temperature
+            lay.applyToStack()
             window.label.img.onImageChanged()
         grWindow.onUpdateTemperature = h
         # wrapper for the right apply method
-        l.execute = lambda pool=None: l.applyTemperature(l.temperature, grWindow.options)
+        l.execute = lambda l=l, pool=None: l.applyTemperature(l.temperature, grWindow.options)
     elif name == 'actionContrast_Correction':
         lname = 'Contrast'
         l = window.label.img.addAdjustmentLayer(name=lname)
         l.clipLimit = CLAHEForm.defaultClipLimit
         grWindow = CLAHEForm.getNewWindow(size=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         # clipLimit change event handler
-        def h(clipLimit):
-            l.clipLimit = clipLimit
-            l.applyToStack()
-            #updateDocView()
+        def h(lay, clipLimit):
+            lay.clipLimit = clipLimit
+            lay.applyToStack()
             window.label.img.onImageChanged()
-            #window.label.repaint()
         grWindow.onUpdateContrast = h
         # wrapper for the right apply method
-        l.execute = lambda pool=None: l.applyCLAHE(l.clipLimit, grWindow.options)
+        l.execute = lambda l=l, pool=None: l.applyCLAHE(l.clipLimit, grWindow.options)
     elif name == 'actionExposure_Correction':
         lname = 'Exposure'
         l = window.label.img.addAdjustmentLayer(name=lname)
         l.clipLimit = ExpForm.defaultExpCorrection
         grWindow = ExpForm.getNewWindow(size=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         # clipLimit change event handler
-        def h(clipLimit):
-            l.clipLimit = clipLimit
-            l.applyToStack()
+        def h(lay, clipLimit):
+            lay.clipLimit = clipLimit
+            lay.applyToStack()
             #updateDocView()
             window.label.img.onImageChanged()
             #window.label.repaint()
         grWindow.onUpdateExposure = h
         # wrapper for the right apply method
-        l.execute = lambda pool=None: l.applyExposure(l.clipLimit, grWindow.options)
+        l.execute = lambda l=l,  pool=None: l.applyExposure(l.clipLimit, grWindow.options)
     elif name == 'actionFilter':
         lname = 'Filter'
         l = window.label.img.addAdjustmentLayer(name=lname)
@@ -1098,7 +1091,7 @@ def menuLayer(x, name):
             #window.label.repaint()
         grWindow.onUpdateFilter = h
         # wrapper for the right apply method
-        l.execute = lambda pool=None: l.applyFilter2D()
+        l.execute = lambda l=l, pool=None: l.applyFilter2D()
         # l.execute = lambda: l.applyLab1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
     elif name == 'actionSave_Layer_Stack':
         lastDir = window.settings.value('paths/dlgdir', '.')
@@ -1156,7 +1149,7 @@ def menuLayer(x, name):
                 return
             lname = path.basename(name)
             l = window.label.img.addAdjustmentLayer(name=lname)
-            l.execute = lambda: l.apply3DLUT(LUT3DArray, {'use selection': False})
+            l.execute = lambda l=l, pool=None: l.apply3DLUT(LUT3DArray, {'use selection': False})
             window.tableView.setLayers(window.label.img)
             l.applyToStack()
             #l.apply3DLUT(LUT3DArray, {'use selection':False})

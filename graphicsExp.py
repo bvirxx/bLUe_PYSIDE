@@ -65,14 +65,14 @@ class ExpForm (QGraphicsView):
         self.setLayout(l)
         self.adjustSize()
 
-        # temp done event handler
+        # exp done event handler
         def f():
             self.sliderClip.setEnabled(False)
             self.tempValue.setText(str("{:+.1f}".format(self.sliderClip.value()*self.DefaultStep)))
-            self.onUpdateExposure(self.sliderClip.value() * self.DefaultStep)
+            self.onUpdateExposure(self.layer, self.sliderClip.value() * self.DefaultStep)
             self.sliderClip.setEnabled(True)
 
-        # temp value changed event handler
+        # exp value changed event handler
         def g():
             self.tempValue.setText(str("{:+.1f}".format(self.sliderClip.value()*self.DefaultStep)))
             #self.previewWindow.setPixmap()

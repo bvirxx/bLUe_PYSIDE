@@ -83,7 +83,7 @@ class temperatureForm (QGraphicsView):
             self.sliderTemp.setEnabled(False)
             temp = self.sliderTemp.value()*100
             self.tempValue.setText(str('%d ' % temp))
-            self.onUpdateTemperature(temp)
+            self.onUpdateTemperature(self.layer, temp)
             self.sliderTemp.setEnabled(True)
         # temp value changed event handler
         def g():

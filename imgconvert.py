@@ -18,7 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 from time import time
 
 import numpy as np
-from PySide2.QtGui import QImage
+from PySide2.QtGui import QImage, QColor
 from PIL import Image
 
 QImageFormats = {0:'invalid', 1:'mono', 2:'monoLSB', 3:'indexed8', 4:'RGB32', 5:'ARGB32',6:'ARGB32 Premultiplied',
@@ -84,17 +84,20 @@ def PilImageToQImage(pilimg) :
     """
     w, h = pilimg.width, pilimg.height
     mode = pilimg.mode
-
     if mode != 'RGB':
         raise ValueError("PilImageToQImage : wrong mode : %s" % mode)
-    # get data buffer (type str)
+    # get data buffer (type bytes)
     data = pilimg.tobytes('raw', mode)
     if len(data) != w * h * 3:
         raise ValueError("PilImageToQImage : incorrect buffer length : %d, should be %d" % (len(data), w * h * 3))
-    BytesPerLine = w * 3
-    qimFormat = QImage.Format_RGB888
-    img888 = QImage(data, w, h, BytesPerLine, qimFormat)
-    return img888.convertToFormat(QImage.Format_ARGB32)
+    qimFormat = QImage.Format_ARGB32
+    qimg = QImage(w,h, qimFormat)
+    qimg.fill(QColor(0,0,0,255))
+    buf = np.fromstring(data, dtype=np.uint8)
+    buf = buf.reshape((h,w,3))
+    qimgBuf = QImageBuffer(qimg)
+    qimgBuf[:,:,:3][:,:,::-1] = buf
+    return qimg
 
 def QImageToPilImage(qimg) :
     """
