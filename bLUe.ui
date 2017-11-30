@@ -353,7 +353,7 @@ scr</string>
     </property>
     <widget class="QMenu" name="menuOpen_recent">
      <property name="title">
-      <string>Open recent</string>
+      <string>Open Recent</string>
      </property>
      <addaction name="actionSub"/>
     </widget>
@@ -367,6 +367,7 @@ scr</string>
     <addaction name="actionOpen"/>
     <addaction name="actionSave"/>
     <addaction name="menuOpen_recent"/>
+    <addaction name="actionOpen_To_Layers"/>
     <addaction name="actionClose"/>
     <addaction name="separator"/>
     <addaction name="menuOpen_hald"/>
@@ -409,9 +410,17 @@ scr</string>
      <addaction name="action4"/>
      <addaction name="action5"/>
     </widget>
+    <widget class="QMenu" name="menuImage_Rotation">
+     <property name="title">
+      <string>Image Rotation</string>
+     </property>
+     <addaction name="action90_CW"/>
+     <addaction name="action90_CCW"/>
+     <addaction name="action180"/>
+    </widget>
     <addaction name="menuColor_settings"/>
     <addaction name="actionImage_info"/>
-    <addaction name="actionSnap"/>
+    <addaction name="menuImage_Rotation"/>
     <addaction name="menuRating"/>
    </widget>
    <widget class="QMenu" name="menuLayer">
@@ -587,14 +596,6 @@ scr</string>
     <string>profile infos</string>
    </property>
   </action>
-  <action name="actionSnap">
-   <property name="text">
-    <string>Snapshot</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+S</string>
-   </property>
-  </action>
   <action name="action3D_LUT_HSB">
    <property name="text">
     <string>3D LUT HSB</string>
@@ -724,6 +725,26 @@ scr</string>
   <action name="actionNew_Cloning_Layer">
    <property name="text">
     <string>New Cloning Layer</string>
+   </property>
+  </action>
+  <action name="action180">
+   <property name="text">
+    <string>180°</string>
+   </property>
+  </action>
+  <action name="action90_CW">
+   <property name="text">
+    <string>90) CW</string>
+   </property>
+  </action>
+  <action name="action90_CCW">
+   <property name="text">
+    <string>90° CCW</string>
+   </property>
+  </action>
+  <action name="actionOpen_To_Layers">
+   <property name="text">
+    <string>Open In Current Develop. Env.</string>
    </property>
   </action>
  </widget>

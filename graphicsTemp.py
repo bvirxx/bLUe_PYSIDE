@@ -89,6 +89,13 @@ class temperatureForm (QGraphicsView):
         def g():
             self.tempValue.setText(str('%d ' % (self.sliderTemp.value()*100)))
 
+        def h(lay, temperature):
+            lay.temperature = temperature
+            lay.applyToStack()
+            mainForm.label.img.onImageChanged()
+
+        self.onUpdateTemperature = h
+
         self.sliderTemp.valueChanged.connect(g)
         self.sliderTemp.sliderReleased.connect(f)
         self.listWidget1.onSelect = lambda item: f()

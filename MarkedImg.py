@@ -19,12 +19,13 @@ import multiprocessing
 import types
 from functools import partial
 
+import gc
 from PySide2.QtCore import Qt, QBuffer, QDataStream, QFile, QIODevice, QSize, QPointF, QPoint, QRectF
 
 import cv2
 from copy import copy
 
-from PySide2.QtGui import QImageWriter, QImageReader
+from PySide2.QtGui import QImageWriter, QImageReader, QTransform
 from PySide2.QtWidgets import QApplication, QMessageBox
 from PySide2.QtGui import QPixmap, QImage, QColor, QPainter
 from PySide2.QtCore import QRect
@@ -177,6 +178,24 @@ class vImage(QImage):
         #self.updatePixmap()
         if type(self) in [QLayer]:
             vImage.updatePixmap(self)
+
+    def setImage(self, qimg, update=True):
+        """
+        copy qimg to image. Does not update meatdata.
+        image and qimg must have identical dimensions and type.
+        @param qimg: QImage object
+        @type qimg: QImage
+        @param update:
+        @type update: boolean
+        """
+        buf1, buf2 = QImageBuffer(self), QImageBuffer(qimg)
+        if buf1.shape != buf2.shape:
+            raise ValueError("QLayer.setImage : new image and layer must have identical shapes")
+        buf1[...] = buf2
+        self.thumb = None
+        self.cacheInvalidate()
+        if update:
+            self.updatePixmap()
 
     def initThumb(self):
         """
@@ -416,6 +435,7 @@ class vImage(QImage):
         @param pixels: pixel count for the resized image
         @param interpolation method (default cv2.INTER_CUBIC)
         @return : the resized vImage
+        @rtype : vImage
         """
         ratio = self.width() / float(self.height())
         w, h = int(np.sqrt(pixels * ratio)), int(np.sqrt(pixels / ratio))
@@ -435,13 +455,18 @@ class vImage(QImage):
         self.setModified(True)
         return rszd
 
-    def transform(self, transformation):
+    def bTransformed(self, transformation):
         img = vImage(QImg=self.transformed(transformation))
         img.meta = self.meta
         img.onImageChanged = self.onImageChanged
         img.useThumb = self.useThumb
         img.useHald = self.useHald
         return img
+
+    def bResized(self, w, h):
+        transform = QTransform()
+        transform = transform.scale(w/self.width(), h/self.height())
+        return self.bTransformed(transform)
 
     def applyCloning(self, seamless=True):
         """
@@ -1072,16 +1097,17 @@ class mImage(vImage):
         self.addLayer(bgLayer, name='background')
         self.isModified = False
 
-    def transform(self, transformation):
-        img = mImage(QImg=super().transform(transformation))
+    def bTransformed(self, transformation):
+        img = mImage(QImg=super().bTransformed(transformation))
         img.meta = self.meta
         img.onImageChanged = self.onImageChanged
         img.useThumb = self.useThumb
         img.useHald = self.useHald
         stack = []
         for layer in self.layersStack:
-            stack.append(layer.transform(transformation, img))
+            stack.append(layer.bTransformed(transformation, img))
         img.layersStack = stack
+        gc.collect()
         return img
 
     def getActiveLayer(self):
@@ -1354,16 +1380,24 @@ class imImage(mImage) :
         self.isMouseSelectable =True
         self.isModified = False
 
-    def transform(self, transformation):
-        img = imImage(QImg=super().transform(transformation))
+    def bTransformed(self, transformation):
+        """
+        Applies transformation to each layer
+        @param transformation:
+        @type transformation: QTransform
+        @return:
+        @rtype: imImage
+        """
+        img = imImage(QImg=super().bTransformed(transformation))
         img.meta = self.meta
         img.onImageChanged = self.onImageChanged
         img.useThumb = self.useThumb
         img.useHald = self.useHald
         stack = []
         for layer in self.layersStack:
-            stack.append(layer.transform(transformation, img))
+            stack.append(layer.bTransformed(transformation, img))
         img.layersStack = stack
+        gc.collect()
         return img
 
     def resize(self, pixels, interpolation=cv2.INTER_CUBIC):
@@ -1372,6 +1406,7 @@ class imImage(mImage) :
         @param pixels:
         @param interpolation:
         @return: resized imImage object
+        @rtype: imImage
         """
         # resized vImage
         rszd0 = super(imImage, self).resize(pixels, interpolation=interpolation)
@@ -1456,8 +1491,17 @@ class QLayer(vImage):
         self.xAltOffset, self.yAltOffset = 0, 0
         self.AltZoom_coeff = 1.0
 
-    def transform(self, transformation, parentImage):
-        tLayer = QLayer.fromImage(super().transform(transformation), parentImage=parentImage)
+    def bTransformed(self, transformation, parentImage):
+        """
+        Applies transformation to a copy of layer and returns the copy.
+        @param transformation:
+        @type transformation: QTransform
+        @param parentImage:
+        @type parentImage: vImage
+        @return: transformed layer
+        @rtype: QLayer
+        """
+        tLayer = QLayer.fromImage(self.transformed(transformation), parentImage=parentImage)
         tLayer.name = self.name
         tLayer.actionName = self.actionName
         tLayer.view = self.view
@@ -1465,9 +1509,28 @@ class QLayer(vImage):
             tLayer.view.widget().layer = tLayer
         if hasattr(self, "clipLimit"):
             tLayer.clipLimit = self.clipLimit
+        if hasattr(self, "temperature"):
+            tLayer.temperature = self.temperature
         tLayer.execute = self.execute
         tLayer.mask = self.mask.transformed(transformation)
         return tLayer
+
+    def bResized(self,w, h, parentImage):
+        """
+        resize a copy of layer
+        @param w:
+        @type w:
+        @param h:
+        @type h:
+        @param parentImage:
+        @type parentImage:
+        @return:
+        @rtype: Qlayer
+        """
+        transform = QTransform()
+        transform = transform.scale(w / self.width(), h / self.height())
+        return self.bTransformed(transform, parentImage)
+
 
     def initThumb(self):
         """
@@ -1900,22 +1963,6 @@ class QLayer(vImage):
         self.parentImage.activeLayerIndex = ind
         self.parentImage.layersStack.pop(currentIndex)
         self.parentImage.layerView.setLayers(self.parentImage)
-
-    def setImage(self, qimg, update=True):
-        """
-        copy qimg to layer.
-        The layer and qimg must have identical dimension and type.
-        @param qimg: QImage object
-        @type qimg: QImage
-        @param update:
-        @type update: boolean
-        """
-        buf1, buf2 = QImageBuffer(self), QImageBuffer(qimg)
-        if buf1.shape != buf2.shape:
-            raise ValueError("QLayer.setImage : new image and layer must have identical shapes")
-        buf1[...] = buf2
-        if update:
-            self.updatePixmap()
 
     def reset(self):
         """

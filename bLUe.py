@@ -266,8 +266,7 @@ def mouseEvent(widget, event) :
                             layer.thumb.cloned = False
                             layer.cloned = False
                             layer.applyCloning(seamless=False)
-            """
-            # case not img.isMouseSelectable : TODO 14/11/17 do nothing ???
+            # needed to update before window
             else:
                 if modifiers == Qt.NoModifier:
                     img.xOffset += (x - State['ix'])
@@ -283,7 +282,6 @@ def mouseEvent(widget, event) :
                         layer.cloned = False
                         layer.applyCloning()
                         layer.updatePixmap()
-            """
         #update current coordinates
         State['ix'],State['iy']=x,y
     # mouse release event
@@ -602,9 +600,9 @@ def setDocumentImage(img):
         window.label_3.repaint()
         # refresh histogram window
         if window.histView.listWidget1.items['Original Image'].checkState() is Qt.Checked:
-            histImg = vImage(QImg=window.label.img.getCurrentImage())
+            histImg = window.label.img.getCurrentImage() #vImage(QImg=window.label.img.getCurrentImage())
         else:
-            histImg = vImage(QImg=window.label.img.layersStack[-1].getCurrentMaskedImage())#mergeVisibleLayers())
+            histImg = window.label.img.layersStack[-1].getCurrentMaskedImage() # vImage(QImg=window.label.img.layersStack[-1].getCurrentMaskedImage())#mergeVisibleLayers())
         if window.histView.listWidget2.items['Color Chans'].checkState() is Qt.Checked:
             window.histView.mode = 'RGB'
             window.histView.chanColors = [Qt.red, Qt.green, Qt.blue]
@@ -617,7 +615,7 @@ def setDocumentImage(img):
         window.histView.Label_Hist.repaint()
 
     window.label.img.onImageChanged = f
-    # before image
+    # before image. Stack is not copied
     window.label_2.img = imImage(QImg=img, meta=img.meta)
     # after image
     window.label_3.img = img
@@ -681,6 +679,26 @@ def menuFile(x, name):
         filename = openDlg()
         if filename is not None:
             openFile(filename)
+    elif name == 'actionOpen_To_Layers':
+        filename = openDlg()
+        if filename is not None:
+            try:
+                QApplication.setOverrideCursor(Qt.WaitCursor)
+                QApplication.processEvents()
+                img = loadImageFromFile(filename)
+                # resize stack
+                rimg = window.label.img.bResized(img.width(), img.height())
+                rimg.setImage(img)
+                rimg.meta = img.meta
+                rimg.filename = filename
+                rimg.layersStack[0].setImage(img, update=True)
+                setDocumentImage(rimg)
+                rimg.layersStack[0].applyToStack()
+                window.label.img.onImageChanged()
+            finally:
+                gc.collect()
+                QApplication.restoreOverrideCursor()
+                QApplication.processEvents()
     # saving dialog
     elif name == 'actionSave':
         if window.label.img.useThumb:
@@ -942,9 +960,17 @@ def menuImage(x, name) :
         s = s + '\n\nIf the monitor profile listed above is not the right profile\nfor your monitor, check the system settings for color management'
         label.setText(s)
     # snapshot
-    elif name == 'actionSnap':
-        tImg = img.transform(QTransform().rotate(45))
-        setDocumentImage(tImg)
+    elif name in ['action90_CW', 'action90_CCW', 'action180']:
+        try:
+            angle = 90 if name == 'action90_CW' else -90 if name == 'action90_CCW' else 180
+            QApplication.setOverrideCursor(Qt.WaitCursor)
+            QApplication.processEvents()
+            tImg = img.bTransformed(QTransform().rotate(angle))
+            setDocumentImage(tImg)
+            tImg.layersStack[0].applyToStack()
+        finally:
+            QApplication.restoreOverrideCursor()
+            QApplication.processEvents()
     elif name in ['action0', 'action1', 'action2', 'action3', 'action4', 'action5']:
         img.meta.rating = int(name[-1:])
         updateStatus()
@@ -1038,14 +1064,9 @@ def menuLayer(x, name):
     elif name == 'actionColor_Temperature':
         lname = 'Color Temperature'
         l = window.label.img.addAdjustmentLayer(name=lname)
-        l.temperature = sRGBWP
         grWindow = temperatureForm.getNewWindow(size=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
-        # temperature change event handler
-        def h(lay, temperature):
-            lay.temperature = temperature
-            lay.applyToStack()
-            window.label.img.onImageChanged()
-        grWindow.onUpdateTemperature = h
+        # default temperature
+        l.temperature = sRGBWP
         # wrapper for the right apply method
         l.execute = lambda l=l, pool=None: l.applyTemperature(l.temperature, grWindow.options)
     elif name == 'actionContrast_Correction':
