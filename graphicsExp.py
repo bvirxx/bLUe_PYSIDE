@@ -8,7 +8,7 @@ class ExpForm (QGraphicsView):
     DefaultStep = 0.1
     @classmethod
     def getNewWindow(cls, targetImage=None, size=500, layer=None, parent=None, mainForm=None):
-        wdgt = ExpForm(targetImage=targetImage, size=size, layer=layer, parent=parent, mainForm=mainForm)
+        wdgt = ExpForm(size=size, layer=layer, parent=parent, mainForm=mainForm)
         wdgt.setWindowTitle(layer.name)
         """
         pushButton = QPushButton('apply', parent=wdgt)
@@ -19,13 +19,13 @@ class ExpForm (QGraphicsView):
         """
         return wdgt
 
-    def __init__(self, targetImage=None, size=500, layer=None, parent=None, mainForm=None):
+    def __init__(self, targetImage=None, size=500, layer=None, parent=None, mainForm=None): # TODO 01/12/17 remove param targetImage
         super(ExpForm, self).__init__(parent=parent)
-        self.targetImage = targetImage
+        #self.targetImage = targetImage
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(size, size)
         self.setAttribute(Qt.WA_DeleteOnClose)
-        self.img = targetImage
+        #self.img = targetImage
         self.layer = layer
         #self.defaultClip = self.defaultClipLimit
         l = QVBoxLayout()

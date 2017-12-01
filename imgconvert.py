@@ -64,15 +64,15 @@ def QImageBuffer(qimg):
         raise ValueError("QImageBuffer : unsupported image format 1 bit per pixel")
     # Bytes per pixel
     Bpp = bpp // 8
-    # Get image buffer (sip.array of Bytes)
+    # Get image buffer
     # Calling bits() performs a deep copy of the buffer,
     # suppressing dependencies due to implicit data sharing.
     # To avoid deep copy use constBits() instead,
     # Note that constBits returns a read-only buffer.
-    ptr = qimg.bits()
+    ptr = qimg.bits()  # type memoryview, items are bytes : ptr.itemsize = 1
     #convert buffer to ndarray and reshape
     h,w = qimg.height(), qimg.width()
-    return np.asarray(ptr).reshape(h, w, Bpp)
+    return np.asarray(ptr, dtype=np.uint8).reshape(h, w, Bpp)  # specifying dtype may prevent copy of data
 
 def PilImageToQImage(pilimg) :
     """

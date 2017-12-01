@@ -28,7 +28,7 @@ from colorConv import sRGBWP
 from graphicsCLAHE import CLAHEForm
 from graphicsExp import ExpForm
 from graphicsPatch import patchForm
-from utils import channelValues, savingDialog
+from utils import savingDialog
 
 """
 The QtHelp module uses the CLucene indexing library
@@ -533,6 +533,7 @@ def addBasicAdjustmentLayers():
 
 def openFile(f):
     """
+    Top level function for file opening, called by File Menu actions
     @param f: file name
     @type f: str
     """
@@ -571,14 +572,19 @@ def closeFile():
             save(window.label.img)
         elif ret == QMessageBox.Cancel:
             return
-    # r = weakref.ref(window.label.img)
-    # print 'ref', r()
+    # watch memory leak : set weakref to image
+    #r = weakref.ref(window.label.img)
     window.label.img = defaultImImage
     window.label_2.img = defaultImImage
-    window.tableView.clear()  # setLayers(window.label.img)
+    window.label_3.img = defaultImImage
+    window.tableView.clear()
     # free (almost) all memory used by images
-    gc.collect()
-    # print 'ref', r()
+    #gc.set_debug(gc.DEBUG_LEAK)
+    ur0 = gc.collect()
+    #o = r()
+    #if r() is not None:
+        #print ('CloseFile error: image not deleted')
+        # print(gc.get_referrers(o))
     window.label.repaint()
     window.label_2.repaint()
 
@@ -600,7 +606,7 @@ def setDocumentImage(img):
         window.label_3.repaint()
         # refresh histogram window
         if window.histView.listWidget1.items['Original Image'].checkState() is Qt.Checked:
-            histImg = window.label.img.getCurrentImage() #vImage(QImg=window.label.img.getCurrentImage())
+            histImg = vImage(QImg=window.label.img.getCurrentImage()) # must be vImage : histogram method needed
         else:
             histImg = window.label.img.layersStack[-1].getCurrentMaskedImage() # vImage(QImg=window.label.img.layersStack[-1].getCurrentMaskedImage())#mergeVisibleLayers())
         if window.histView.listWidget2.items['Color Chans'].checkState() is Qt.Checked:
@@ -637,6 +643,7 @@ def updateMenuOpenRecent():
         window.menuOpen_recent.addAction(f, lambda x=f: window.execFileOpen(x))
 
 def updateEnabledActions():
+    window.actionOpen_To_Layers.setEnabled(len(window.label.img.layersStack) > 1)
     window.actionSave.setEnabled(window.label.img.isModified)
     window.actionSave_Hald_Cube.setEnabled(window.label.img.isHald)
 
@@ -691,7 +698,7 @@ def menuFile(x, name):
                 rimg.setImage(img)
                 rimg.meta = img.meta
                 rimg.filename = filename
-                rimg.layersStack[0].setImage(img, update=True)
+                rimg.layersStack[0].setImage(img)
                 setDocumentImage(rimg)
                 rimg.layersStack[0].applyToStack()
                 window.label.img.onImageChanged()
@@ -1228,6 +1235,7 @@ def menuLayer(x, name):
     # add to docking area
     window.addDockWidget(Qt.RightDockWidgetArea, dock)
     # update layer stack view
+    window.tableView.clear()
     window.tableView.setLayers(window.label.img)
 
 def menuHelp(x, name):

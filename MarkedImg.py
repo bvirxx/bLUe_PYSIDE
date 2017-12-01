@@ -179,9 +179,9 @@ class vImage(QImage):
         if type(self) in [QLayer]:
             vImage.updatePixmap(self)
 
-    def setImage(self, qimg, update=True):
+    def setImage(self, qimg):
         """
-        copy qimg to image. Does not update meatdata.
+        copy qimg to image. Does not update metadata.
         image and qimg must have identical dimensions and type.
         @param qimg: QImage object
         @type qimg: QImage
@@ -194,8 +194,7 @@ class vImage(QImage):
         buf1[...] = buf2
         self.thumb = None
         self.cacheInvalidate()
-        if update:
-            self.updatePixmap()
+        self.updatePixmap()
 
     def initThumb(self):
         """
@@ -1084,9 +1083,9 @@ class mImage(vImage):
 
     def __init__(self, *args, **kwargs):
         # as updatePixmap uses layersStack, must be before super __init__
-        self._layers = {}
+        #self._layers = {}
         self.layersStack = []
-        # layerView will be set to QTableView reference
+        # link back to QLayerView window
         self.layerView = None
         super(mImage, self).__init__(*args, **kwargs)
         # add background layer
@@ -1098,14 +1097,15 @@ class mImage(vImage):
         self.isModified = False
 
     def bTransformed(self, transformation):
-        img = mImage(QImg=super().bTransformed(transformation))
+        img = mImage(QImg=self.transformed(transformation))
         img.meta = self.meta
         img.onImageChanged = self.onImageChanged
         img.useThumb = self.useThumb
         img.useHald = self.useHald
         stack = []
         for layer in self.layersStack:
-            stack.append(layer.bTransformed(transformation, img))
+            tLayer = layer.bTransformed(transformation, img)
+            stack.append(tLayer)
         img.layersStack = stack
         gc.collect()
         return img
@@ -1382,20 +1382,21 @@ class imImage(mImage) :
 
     def bTransformed(self, transformation):
         """
-        Applies transformation to each layer
+        Returns a copy of the transformed image and stack
         @param transformation:
         @type transformation: QTransform
         @return:
         @rtype: imImage
         """
-        img = imImage(QImg=super().bTransformed(transformation))
+        img = imImage(QImg=self.transformed(transformation))
         img.meta = self.meta
         img.onImageChanged = self.onImageChanged
         img.useThumb = self.useThumb
         img.useHald = self.useHald
         stack = []
         for layer in self.layersStack:
-            stack.append(layer.bTransformed(transformation, img))
+            tLayer = layer.bTransformed(transformation, img)
+            stack.append(tLayer)
         img.layersStack = stack
         gc.collect()
         return img
@@ -1505,6 +1506,7 @@ class QLayer(vImage):
         tLayer.name = self.name
         tLayer.actionName = self.actionName
         tLayer.view = self.view
+        # link back grWindow to tLayer
         if tLayer.view is not None:
             tLayer.view.widget().layer = tLayer
         if hasattr(self, "clipLimit"):

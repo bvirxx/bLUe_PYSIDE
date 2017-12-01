@@ -15,6 +15,9 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+import weakref
+
+import gc
 from PySide2 import QtGui, QtCore
 
 import cv2
@@ -266,7 +269,6 @@ class QLayerView(QTableView) :
         else:
             self.setStatusTip('')
 
-
     def closeAdjustForms(self, delete=False):
         """
         Closes all adjust forms. If delete is True (default False),
@@ -282,13 +284,20 @@ class QLayerView(QTableView) :
             if hasattr(layer, "view"):
                 if layer.view is not None:
                     dock = layer.view
+                    # remove back link
+                    dock.widget().layer = None
                     if delete:
+                        QtGui1.window.removeDockWidget(dock)
+                        dock.widget().setAttribute(Qt.WA_DeleteOnClose)
+                        dock.widget().deleteLater()
                         dock.widget().close()
                         dock.setAttribute(Qt.WA_DeleteOnClose)
+                        dock.deleteLater()
                         dock.close()
                         layer.view = None
                     else:
                         dock.close()
+        gc.collect()
         if delete:
             self.currentWin = None
 
@@ -299,6 +308,7 @@ class QLayerView(QTableView) :
         """
         self.closeAdjustForms(delete=delete) #TODO modified 8/10/17 for merge_with_layer_immediatly_below
         self.img = None
+        self.currentWin = None
         model = layerModel()
         model.setColumnCount(3)
         self.setModel(None)
@@ -310,7 +320,8 @@ class QLayerView(QTableView) :
         @type mImg: mImage
         """
         # close open adjustment windows
-        self.closeAdjustForms()
+        #self.closeAdjustForms()
+        self.clear()  # TODO 01/12/17 switched from closeadjust to clear
         self.img=mImg
         mImg.layerView = self
         model = layerModel()
@@ -683,9 +694,8 @@ class QLayerView(QTableView) :
                 updateMenuOpenRecent()
                 filename = filenames[0]
             img = QImage(filename)
-            layer.setImage(img, update=False)
             layer.thumb = None
-            layer.updatePixmap()
+            layer.setImage(img)
         def add2Group():
             layer.group = group
             layer.mask = group[0].mask

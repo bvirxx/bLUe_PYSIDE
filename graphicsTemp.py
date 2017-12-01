@@ -27,17 +27,17 @@ from utils import optionsWidget
 class temperatureForm (QGraphicsView):
     @classmethod
     def getNewWindow(cls, targetImage=None, size=500, layer=None, parent=None, mainForm=None):
-        wdgt = temperatureForm(targetImage=targetImage, size=size, layer=layer, parent=parent, mainForm=mainForm)
+        wdgt = temperatureForm(size=size, layer=layer, parent=parent, mainForm=mainForm)
         wdgt.setWindowTitle(layer.name)
         return wdgt
 
-    def __init__(self, targetImage=None, size=500, layer=None, parent=None, mainForm=None):
+    def __init__(self, targetImage=None, size=500, layer=None, parent=None, mainForm=None): # TODO 01/12/17 remove param targetImage
         super(temperatureForm, self).__init__(parent=parent)
-        self.targetImage = targetImage
+        #self.targetImage = targetImage
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(size, size)
         self.setAttribute(Qt.WA_DeleteOnClose)
-        self.img = targetImage
+        #self.img = targetImage
         self.layer = layer
         self.defaultTemp = sRGBWP  # ref temperature D65
         l = QVBoxLayout()
