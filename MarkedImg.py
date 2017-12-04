@@ -17,6 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import multiprocessing
 import types
+import weakref
 from functools import partial
 
 import gc
@@ -108,7 +109,6 @@ class vImage(QImage):
         # current color managed image
         self.cmImage = None
         self.isModified = False
-        self.onModify = lambda : 0
         self.rect, self.mask, = None, mask
         self.filename = filename if filename is not None else ''
 
@@ -319,7 +319,6 @@ class vImage(QImage):
         @type b: boolean
         """
         self.isModified = b
-        self.onModify()
 
     def cacheInvalidate(self):
         """
@@ -1157,7 +1156,7 @@ class mImage(vImage):
     def cacheInvalidate(self):
         vImage.cacheInvalidate(self)
         for layer in self.layersStack:
-            layer.cacheInvalidate()
+            layer.cacheInvalidate()  # Qlayer doesn't inherit from mImage : it's a call to vImage.cacheInvalidate
 
     """
     def initThumb(self):
@@ -1396,6 +1395,7 @@ class imImage(mImage) :
         stack = []
         for layer in self.layersStack:
             tLayer = layer.bTransformed(transformation, img)
+            tLayer.name = tLayer.name + 'aaa'
             stack.append(tLayer)
         img.layersStack = stack
         gc.collect()
@@ -1467,7 +1467,8 @@ class QLayer(vImage):
         self.compositionMode = QPainter.CompositionMode_SourceOver
         # The next two attributes are used by adjustment layers only.
         # wrapper for the right exec method
-        self.execute = lambda l=None, pool=None: self.updatePixmap()
+        #self.execute = lambda l=None, pool=None: self.updatePixmap()
+        self.execute = lambda l=None, pool=None: l.updatePixmap() if l is not None else None
         self.options = {}
         # Following attributes (functions)  are reserved (dynamic typing for adjustment layers) and set in addAdjustmentlayer() above
             # self.inputImg : access to upper lower visible layer image or thumbnail, according to flag useThumb
@@ -1506,6 +1507,8 @@ class QLayer(vImage):
         tLayer.name = self.name
         tLayer.actionName = self.actionName
         tLayer.view = self.view
+        # cut link from old layer to graphic form
+        # self.view = None                        # TODO 04/12/17 validate
         # link back grWindow to tLayer
         if tLayer.view is not None:
             tLayer.view.widget().layer = tLayer

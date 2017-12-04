@@ -16,14 +16,11 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-from PySide2 import QtGui, QtWidgets, QtCore  # , QtUiTools #, uic
-#from PySide.QtCore import QObject
+from PySide2 import QtWidgets, QtCore
 from PySide2.QtCore import QSettings, QSize
-#from PIL.ImageCms import getProfileDescription
 import sys
 
-from PySide2.QtWebEngineWidgets import QWebEngineView
-from PySide2.QtWidgets import QApplication, QMessageBox, QLabel, QMainWindow, QGraphicsView
+from PySide2.QtWidgets import QApplication, QLabel, QMainWindow
 
 import resources_rc   # DO NOT REMOVE !!!!
 from graphicsHist import histForm
@@ -48,11 +45,7 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
         # hooks used for event slots:
         self.onWidgetChange = lambda : 0
         self.onShowContextMenu = lambda : 0
-        self.onExecMenuFile = lambda : 0
         self.onExecFileOpen = lambda : 0
-        self.onExecMenuWindow = lambda : 0
-        self.onExecMenuImage = lambda : 0
-        self.onExecMenuLayer = lambda: 0
         self.onUpdateMenuAssignProfile = lambda : 0
 
         # State recording.
@@ -82,48 +75,6 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
 
         for widget in self.findChildren(QtWidgets.QLabel):
             widget.customContextMenuRequested.connect(lambda pos, widget=widget : self.showContextMenu(pos, widget))
-
-        for action in enumerateMenuActions(self.menu_File) : # TODO replace by enumerateMenu
-            action.triggered.connect(lambda x=0, actionName=action.objectName(): self.execMenuFile(x, actionName))
-
-        for action in enumerateMenuActions(self.menuWindow) :
-            action.triggered.connect(lambda x=0, actionName=action.objectName(): self.execMenuWindow(x, actionName))
-
-        tmp = enumerateMenuActions(self.menuImage)
-        for action in tmp :# enumerateMenuActions(self.menuImage) :
-            action.triggered.connect(lambda x=0, actionName=action.objectName(): self.execMenuImage(x, actionName))
-
-        for action in enumerateMenuActions(self.menuLayer) :
-            action.triggered.connect(lambda x=0, actionName=action.objectName(): self.execMenuLayer(x, actionName))
-
-        for action in enumerateMenuActions(self.menuHelp):
-            action.triggered.connect(lambda x=0, actionName=action.objectName(): self.execMenuHelp(x, actionName))
-
-        # mouse hovered event Slots
-        #self.menuOpen_recent.menuAction().hovered.connect(lambda : self.updateMenuOpenRecent())
-        #self.menuColor_settings.menuAction().hovered.connect(lambda : self.updateMenuAssignProfile())
-
-
-    def execAssignProfile(self, x):
-        self.onExecAssignProfile(x)
-
-    def execMenuFile(self,x, name):
-        self.onExecMenuFile(x, name)
-
-    def execFileOpen(self, f):
-        self.onExecFileOpen(f)
-
-    def execMenuWindow(self, x, name):
-        self.onExecMenuWindow(x, name)
-
-    def execMenuImage(self, x, name):
-        self.onExecMenuImage(x, name)
-
-    def execMenuLayer(self, x, name):
-        self.onExecMenuLayer(x, name)
-
-    def execMenuHelp(self, x, name):
-        self.onExecMenuHelp(x, name)
 
     def showContextMenu(self, pos, widget):
         self.onShowContextMenu(pos, widget)
@@ -155,7 +106,7 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
 
     def readSettings(self):
         self.settings = QSettings("bLUe.ini", QSettings.IniFormat)
-        self.resize(self.settings.value("mainwindow/size", QSize(250, 200))) #.toSize())
+        self.resize(self.settings.value("mainwindow/size", QSize(250, 200)))
 
     def writeSettings(self):
         self.settings.sync()
@@ -220,7 +171,7 @@ def enumerateMenuActions(menu):
 
 #######
 # PySide2 : Without the next line, app is unable to load
-# imageformats dlls for reading and writing QImage objects.
+# imageformat dlls for reading and writing QImage objects.
 #######
 QtCore.QCoreApplication.addLibraryPath("D:/Python36/Lib/site-packages/PySide2/plugins")
 #######

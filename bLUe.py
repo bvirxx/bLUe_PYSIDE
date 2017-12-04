@@ -24,6 +24,7 @@ from PySide2 import QtCore
 from PySide2.QtQml import QQmlApplicationEngine
 from PySide2.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 
+import QtGui1
 from colorConv import sRGBWP
 from graphicsCLAHE import CLAHEForm
 from graphicsExp import ExpForm
@@ -58,7 +59,7 @@ from PySide2.QtWidgets import QApplication, QMenu, QAction, QFileDialog, QMessag
 from QtGui1 import app, window
 import exiftool
 from imgconvert import *
-from MarkedImg import imImage, metadata, vImage, QLayer
+from MarkedImg import imImage, metadata, vImage, QLayer, mImage
 
 from graphicsRGBLUT import graphicsForm
 from graphicsLUT3D import graphicsForm3DLUT
@@ -433,18 +434,16 @@ def set_event_handlers(widg, enterAndLeave=True):
         widg.leaveEvent = MethodType(lambda instance, e, wdg=widg : leaveEvent(wdg, wdg.img, e), widg.__class__)
 
 # button change event handler
-def widgetChange(widget):
+def widgetChange(button):
     """
-    
-    @param widget:
-    @type widget: QWidget
+    event handler for top level buttons
+    @param button:
+    @type button: QWidget
     """
-    wdgName = widget.accessibleName()
+    wdgName = button.accessibleName()
     if wdgName == "Fit_Screen" :
         window.label.img.fit_window(window.label)
         window.label.repaint()
-    elif wdgName == "verticalSlider1":
-        pass
 
 def contextMenu(pos, widget):
     """
@@ -526,9 +525,9 @@ def loadImageFromFile(f):
     return img
 
 def addBasicAdjustmentLayers():
-    menuLayer(None, 'actionColor_Temperature')
-    menuLayer(None, 'actionExposure_Correction')
-    menuLayer(None, 'actionContrast_Correction')
+    menuLayer('actionColor_Temperature')
+    menuLayer('actionExposure_Correction')
+    menuLayer('actionContrast_Correction')
     window.tableView.select(2, 1)
 
 def openFile(f):
@@ -538,7 +537,6 @@ def openFile(f):
     @type f: str
     """
     closeFile()
-    img = None
     # load file
     try :
         QApplication.setOverrideCursor(Qt.WaitCursor)
@@ -573,30 +571,24 @@ def closeFile():
         elif ret == QMessageBox.Cancel:
             return
     # watch memory leak : set weakref to image
-    #r = weakref.ref(window.label.img)
+    # r = weakref.ref(window.label.img)
+    window.tableView.clear(delete=True)
+    window.histView.targetImage = None
     window.label.img = defaultImImage
     window.label_2.img = defaultImImage
     window.label_3.img = defaultImImage
-    window.tableView.clear()
-    # free (almost) all memory used by images
-    #gc.set_debug(gc.DEBUG_LEAK)
-    ur0 = gc.collect()
-    #o = r()
-    #if r() is not None:
-        #print ('CloseFile error: image not deleted')
-        # print(gc.get_referrers(o))
-    window.label.repaint()
-    window.label_2.repaint()
+    gc.collect()
+    window.label.update()
+    window.label_2.update()
+    window.label_3.update()
 
 def setDocumentImage(img):
     """
-    display document
+    Inits GUI to display the image
     @param img: image
     @type img: imImage
-    @return: 
     """
     window.label.img = img
-    window.label.img.onModify = lambda : updateEnabledActions()
     # init histogram
     window.histView.targetImage = window.label.img
     # image changed event handler
@@ -640,17 +632,15 @@ def setDocumentImage(img):
 def updateMenuOpenRecent():
     window.menuOpen_recent.clear()
     for f in window._recentFiles :
-        window.menuOpen_recent.addAction(f, lambda x=f: window.execFileOpen(x))
+        window.menuOpen_recent.addAction(f, lambda x=f: openFile(x))
 
 def updateEnabledActions():
-    window.actionOpen_To_Layers.setEnabled(len(window.label.img.layersStack) > 1)
     window.actionSave.setEnabled(window.label.img.isModified)
     window.actionSave_Hald_Cube.setEnabled(window.label.img.isHald)
 
-def menuFile(x, name):
+def menuFile(name):
     """
-    Exec File Menu
-    @param x: dummy
+    Menu handler
     @param name: action name
     @type name: str
     """
@@ -681,31 +671,11 @@ def menuFile(x, name):
     window._recentFiles = window.settings.value('paths/recent', [])
     # update menu and actions
     updateMenuOpenRecent()
+    # load image from file
     if name in ['actionOpen', 'actionHald_from_file'] :
-        # open dialog
         filename = openDlg()
         if filename is not None:
             openFile(filename)
-    elif name == 'actionOpen_To_Layers':
-        filename = openDlg()
-        if filename is not None:
-            try:
-                QApplication.setOverrideCursor(Qt.WaitCursor)
-                QApplication.processEvents()
-                img = loadImageFromFile(filename)
-                # resize stack
-                rimg = window.label.img.bResized(img.width(), img.height())
-                rimg.setImage(img)
-                rimg.meta = img.meta
-                rimg.filename = filename
-                rimg.layersStack[0].setImage(img)
-                setDocumentImage(rimg)
-                rimg.layersStack[0].applyToStack()
-                window.label.img.onImageChanged()
-            finally:
-                gc.collect()
-                QApplication.restoreOverrideCursor()
-                QApplication.processEvents()
     # saving dialog
     elif name == 'actionSave':
         if window.label.img.useThumb:
@@ -755,7 +725,6 @@ def menuFile(x, name):
             newDir = dlg.directory().absolutePath()
             window.settings.setValue('paths/dlgdir', newDir)
             LUT.writeToTextFile(filenames[0])
-    updateEnabledActions()
     updateStatus()
 
 isSuspended= False
@@ -872,11 +841,11 @@ def playDiaporama(diaporamaGenerator, parent=None):
             raise
         app.processEvents()
 
-def menuWiew(x, name):
+def menuView(name):
     """
-    menu Init
-    @param x: dummy
+    Menu handler
     @param name: action name
+    @type name: str
     """
     # togle before/after mode
     if name == 'actionShow_hide_right_window_3' :
@@ -922,11 +891,11 @@ def menuWiew(x, name):
         playDiaporama(window.diaporamaGenerator, parent=window)
     updateStatus()
 
-def menuImage(x, name) :
+def menuImage(name) :
     """
-
-    @param x: dummy
+    Menu handler
     @param name: action name
+    @type name: str
     """
     img = window.label.img
     # display image info
@@ -984,12 +953,11 @@ def menuImage(x, name) :
         with exiftool.ExifTool() as e:
             e.writeXMPTag(img.meta.filename, 'XMP:rating', img.meta.rating)
 
-def menuLayer(x, name):
+def menuLayer(name):
     """
-
-    @param x: dummy
+    Menu handler
     @param name: action name
-    @type name: str
+    @type action: str
     """
     # curves
     axeSize = 200
@@ -1235,18 +1203,17 @@ def menuLayer(x, name):
     # add to docking area
     window.addDockWidget(Qt.RightDockWidgetArea, dock)
     # update layer stack view
-    window.tableView.clear()
     window.tableView.setLayers(window.label.img)
 
-def menuHelp(x, name):
+def menuHelp(name):
     """
+    Menu handler
     Init help browser
     A single instance is created.
     Unused parameters are for the sake of symmetry
     with other menu function calls.
-    @param x: unused (added for symmetry with other menu function calls)
     @param name: action name
-    @type name: string
+    @type name: str
     """
     if name == "actionBlue_help":
         w = app.focusWidget()
@@ -1464,15 +1431,22 @@ if __name__ =='__main__':
     # mouse hover events
     window.label.setMouseTracking(True)
 
-    # GUI Slot hooks for the main window
+    # menu event handlers
+    window.menu_File.aboutToShow.connect(updateEnabledActions)
+    window.menuLayer.aboutToShow.connect(updateEnabledActions)
+    window.menuImage.aboutToShow.connect(updateEnabledActions)
+    window.menuWindow.aboutToShow.connect(updateEnabledActions)
+    window.menuHelp.aboutToShow.connect(updateEnabledActions)
+    window.menu_File.triggered.connect(lambda a : menuFile(a.objectName()))
+    window.menuLayer.triggered.connect(lambda a : menuLayer(a.objectName()))
+    window.menuImage.triggered.connect(lambda a : menuImage(a.objectName()))
+    window.menuWindow.triggered.connect(lambda a : menuView(a.objectName()))
+    window.menuHelp.triggered.connect(lambda a : menuHelp(a.objectName()))
+
+    #  init convenience GUI hooks
     window.onWidgetChange = widgetChange
-    window.onExecMenuFile = menuFile
-    window.onExecFileOpen = openFile
-    window.onExecMenuWindow = menuWiew
-    window.onExecMenuImage = menuImage
-    window.onExecMenuLayer = menuLayer
-    window.onExecMenuHelp = menuHelp
     window.onShowContextMenu = contextMenu
+
     # load current settings
     window.readSettings()
     window._recentFiles = window.settings.value('paths/recent', [])

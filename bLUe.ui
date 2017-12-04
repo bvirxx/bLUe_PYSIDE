@@ -367,7 +367,6 @@ scr</string>
     <addaction name="actionOpen"/>
     <addaction name="actionSave"/>
     <addaction name="menuOpen_recent"/>
-    <addaction name="actionOpen_To_Layers"/>
     <addaction name="actionClose"/>
     <addaction name="separator"/>
     <addaction name="menuOpen_hald"/>

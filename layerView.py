@@ -284,9 +284,9 @@ class QLayerView(QTableView) :
             if hasattr(layer, "view"):
                 if layer.view is not None:
                     dock = layer.view
-                    # remove back link
-                    dock.widget().layer = None
                     if delete:
+                        # remove back link
+                        dock.widget().layer = None
                         QtGui1.window.removeDockWidget(dock)
                         dock.widget().setAttribute(Qt.WA_DeleteOnClose)
                         dock.widget().deleteLater()
@@ -297,13 +297,14 @@ class QLayerView(QTableView) :
                         layer.view = None
                     else:
                         dock.close()
-        gc.collect()
         if delete:
             self.currentWin = None
+            gc.collect()
 
     def clear(self, delete=True):
         """
-        Clears data
+        Resets LayerView and clears back
+        links to image
         @return: 
         """
         self.closeAdjustForms(delete=delete) #TODO modified 8/10/17 for merge_with_layer_immediatly_below
@@ -313,7 +314,7 @@ class QLayerView(QTableView) :
         model.setColumnCount(3)
         self.setModel(None)
 
-    def setLayers(self, mImg):
+    def setLayers(self, mImg, delete=False):
         """
         Displays the layer stack of mImg
         @param mImg: image
@@ -321,8 +322,8 @@ class QLayerView(QTableView) :
         """
         # close open adjustment windows
         #self.closeAdjustForms()
-        self.clear()  # TODO 01/12/17 switched from closeadjust to clear
-        self.img=mImg
+        self.clear(delete=delete)  # TODO 01/12/17 switched from closeadjust to clear
+        self.img = mImg
         mImg.layerView = self
         model = layerModel()
         model.setColumnCount(3)
@@ -557,11 +558,7 @@ class QLayerView(QTableView) :
             self.currentWin.hide()
             self.currentWin = None
         if hasattr(self.img.layersStack[-1 - row], "view"):
-            if self.img.layersStack[-1 - row].view is not None:
-                self.currentWin = self.img.layersStack[-1 - row].view
-        if hasattr(self.img.layersStack[-1 - row], "view"):
-            if self.img.layersStack[-1 - row].view is not None:
-                self.currentWin = self.img.layersStack[-1 - row].view
+            self.currentWin = self.img.layersStack[-1 - row].view
         if self.currentWin is not None:
             self.currentWin.show()
             # make self.currentWin the active window
