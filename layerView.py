@@ -15,21 +15,20 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-import weakref
-
 import gc
-from PySide2 import QtGui, QtCore
+from PySide2 import QtCore
 
 import cv2
 import numpy as np
-from PySide2.QtCore import QRectF, QSize, Qt, QModelIndex, Slot
-from PySide2.QtGui import QImage, QPalette, QColor, QKeySequence, QFontMetrics, QTextOption, QPixmap, QIcon, QPainter, QStandardItem, QStandardItemModel
-from PySide2.QtWidgets import QAction, QMenu, QSlider, QStyle, QListWidget, QCheckBox, QMessageBox, QApplication, \
-    QFileDialog
+from PySide2.QtCore import QRectF, QSize, Qt, QModelIndex
+from PySide2.QtGui import QImage, QPalette, QKeySequence, QFontMetrics, QTextOption, QPixmap, QIcon, QPainter, QStandardItem, QStandardItemModel
+from PySide2.QtWidgets import QAction, QMenu, QSlider, QStyle, QCheckBox, QMessageBox, QApplication, QFileDialog
 from PySide2.QtWidgets import QComboBox, QHBoxLayout, QLabel, QTableView, QAbstractItemView, QStyledItemDelegate, QHeaderView, QVBoxLayout
-import resources_rc  # mandatory : DO NOT REMOVE !!!
+import resources_rc  # hidden import mandatory : DO NOT REMOVE !!!
 import QtGui1
 from imgconvert import QImageBuffer
+from utils import openDlg
+
 
 class layerModel(QStandardItemModel):
 
@@ -674,22 +673,7 @@ class QLayerView(QTableView) :
         def loadImage():
             fileName = None
             window = QtGui1.window
-            lastDir = window.settings.value('paths/dlgdir', '.')
-            dlg = QFileDialog(window, "select", lastDir, "*.jpg *.jpeg *.png *.tif *.tiff *.bmp")
-            if dlg.exec_():
-                filenames = dlg.selectedFiles()
-                newDir = dlg.directory().absolutePath()
-                window.settings.setValue('paths/dlgdir', newDir)
-                # update list of recent files
-                filter(lambda a: a != filenames[0], window._recentFiles)
-                window._recentFiles.insert(0, filenames[0])
-                if len(window._recentFiles) > 10:
-                    window._recentFiles.pop(0)
-                window.settings.setValue('paths/recent', window._recentFiles)
-                # update menu and actions
-                from bLUe import updateMenuOpenRecent
-                updateMenuOpenRecent()
-                filename = filenames[0]
+            filename = openDlg(window)
             img = QImage(filename)
             layer.thumb = None
             layer.setImage(img)

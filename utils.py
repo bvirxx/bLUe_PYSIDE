@@ -16,12 +16,15 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import numpy as np
-from math import erf, factorial
-from PySide2.QtGui import QColor, QPainterPath, QPen, QKeyEvent, QDesktopServices, QImage, QPainter
-from PySide2.QtWidgets import QListWidget, QListWidgetItem, QGraphicsPathItem, QTableWidget, QDialog, QVBoxLayout, \
-    QFileDialog, QSlider, QWidget, QHBoxLayout, QLabel
-from PySide2.QtCore import Qt, QPoint, QEvent, QObject, QUrl, QRect
+from math import factorial
+from PySide2.QtGui import QColor, QPainterPath, QPen, QImage, QPainter
+from PySide2.QtWidgets import QListWidget, QListWidgetItem, QGraphicsPathItem, QDialog, QVBoxLayout, \
+    QFileDialog, QSlider, QWidget, QHBoxLayout, QLabel, QMessageBox, QPushButton
+from PySide2.QtCore import Qt, QPoint, QEvent, QObject, QUrl, QRect, QDir
 #from PySide2.QtWebEngine import QWebView
+from os.path import isfile
+
+import exiftool
 from imgconvert import QImageBuffer
 
 
@@ -29,6 +32,98 @@ class channelValues():
     RGB, Red, Green, Blue =[0,1,2], [0], [1], [2]
     HSB, Hue, Sat, Br = [0, 1, 2], [0], [1], [2]
     Lab, L, a, b = [0, 1, 2], [0], [1], [2]
+
+def saveChangeDialog(img):
+    reply = QMessageBox()
+    reply.setText("%s has been modified" % img.meta.name if len(img.meta.name) > 0 else 'unnamed image')
+    reply.setInformativeText("Save your changes ?")
+    reply.setStandardButtons(QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
+    reply.setDefaultButton(QMessageBox.Save)
+    ret = reply.exec_()
+    return ret
+
+def save(img, mainWidget):
+    """
+    Image saving dialogs. The actual saving is
+    done by mImage.save(). Raises ValueError if saving fails.
+    @param img:
+    @type img: QImage
+    """
+    # get last accessed dir
+    lastDir = mainWidget.settings.value("paths/dlgdir", QDir.currentPath())
+    # file dialogs
+    dlg = savingDialog(mainWidget, "Save", lastDir)
+    dlg.selectFile(img.filename)
+    if dlg.exec_():
+        newDir = dlg.directory().absolutePath()
+        mainWidget.settings.setValue('paths/dlgdir', newDir)
+        filenames = dlg.selectedFiles()
+        if filenames:
+            filename = filenames[0]
+        else:
+            raise ValueError("You must select a file")
+        if isfile(filename):
+            reply = QMessageBox()
+            reply.setWindowTitle('Warning')
+            reply.setIcon(QMessageBox.Warning)
+            reply.setText("File %s already exists\n" % filename)
+            #reply.setInformativeText("Save image as a new copy ?<br><font color='red'>CAUTION : Answering No will overwrite the file</font>")
+            #reply.setStandardButtons(QMessageBox.No | QMessageBox.Yes | QMessageBox.Cancel)
+            reply.setStandardButtons(QMessageBox.Cancel)
+            accButton = QPushButton("Save as New Copy")
+            rejButton = QPushButton("OverWrite")
+            reply.addButton(accButton, QMessageBox.AcceptRole)
+            reply.addButton(rejButton, QMessageBox.RejectRole)
+            reply.setDefaultButton(accButton)
+            reply.exec_()
+            retButton = reply.clickedButton()
+            # build a new name
+            if retButton is accButton:
+                i = 0
+                base = filename
+                if '_copy' in base:
+                    flag = '_'
+                else:
+                    flag = '_copy'
+                while isfile(filename):
+                    filename = base[:-4] + flag + str(i) + base[-4:]
+                    i = i+1
+            # overwrite
+            elif retButton is rejButton:
+                pass
+            else:
+                raise ValueError("Saving Operation Failure")
+        quality = dlg.sliderQual.value()
+        compression = dlg.sliderComp.value()
+        img.save(filename, quality=quality, compression=compression)  #mImage.save()
+        with exiftool.ExifTool() as e:
+            e.restoreMetadata(img.filename, filename)
+        return filename
+    else:
+        raise ValueError("Saving Operation Failure")
+
+def openDlg(mainWidget):
+    if mainWidget.label.img.isModified:
+        ret = saveChangeDialog(mainWidget.label.img)
+        if ret == QMessageBox.Yes:
+            save(mainWidget.label.img, mainWidget)
+        elif ret == QMessageBox.Cancel:
+            return
+    lastDir = mainWidget.settings.value('paths/dlgdir', '.')
+    dlg = QFileDialog(mainWidget, "select", lastDir, "*.jpg *.jpeg *.png *.tif *.tiff *.bmp")
+    if dlg.exec_():
+        filenames = dlg.selectedFiles()
+        newDir = dlg.directory().absolutePath()
+        mainWidget.settings.setValue('paths/dlgdir', newDir)
+        # update list of recent files
+        filter(lambda a: a != filenames[0], mainWidget._recentFiles)
+        mainWidget._recentFiles.insert(0, filenames[0])
+        if len(mainWidget._recentFiles) > 10:
+            mainWidget._recentFiles.pop()  # remove last item
+        mainWidget.settings.setValue('paths/recent', mainWidget._recentFiles)
+        return filenames[0]
+    else:
+        return None
 
 class optionsWidget(QListWidget) :
     """
