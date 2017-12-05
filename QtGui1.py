@@ -73,11 +73,11 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
                             )
             self.btnValues[str(button.accessibleName())] = button.isChecked()
 
-        for widget in self.findChildren(QtWidgets.QLabel):
-            widget.customContextMenuRequested.connect(lambda pos, widget=widget : self.showContextMenu(pos, widget))
+        #for widget in self.findChildren(QtWidgets.QLabel):
+            #widget.customContextMenuRequested.connect(lambda pos, widget=widget : self.showContextMenu(pos, widget))
 
-    def showContextMenu(self, pos, widget):
-        self.onShowContextMenu(pos, widget)
+    #def showContextMenu(self, pos, widget):
+        #self.onShowContextMenu(pos, widget)
 
     def handlePushButtonClicked(self, button):
         self.onWidgetChange(button)

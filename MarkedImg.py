@@ -421,6 +421,10 @@ class vImage(QImage):
         self.updatePixmap(maskOnly=True)
 
     def invertMask(self):
+        """
+        Inverts mask: masked/unmasked pixels
+        are coded by red = 0/128
+        """
         buf = QImageBuffer(self.mask)
         buf[:, :,2] = 128 - buf[:,:,2]  #np.where(buf[:,:,2]==128, 0, 128)
 
@@ -517,8 +521,8 @@ class vImage(QImage):
             center = (bRect.left() + bRect.width() //2, bRect.top() + bRect.height() //2)
             destImg = imgIn.copy()
             destBuf = QImageBuffer(destImg)
-            output = cv2.seamlessClone(bufOut[:, :, :3][:, :, ::-1], #source,
-                                       destBuf[:, :, :3][:, :, ::-1], #bufOut[:, :, :3][:, :, ::-1],  # dest
+            output = cv2.seamlessClone(bufOut[:, :, :3][:, :, ::-1],  #source
+                                       destBuf[:, :, :3][:, :, ::-1], # dest
                                        src_maskBuf,
                                        center, self.cloningMethod
                                        )

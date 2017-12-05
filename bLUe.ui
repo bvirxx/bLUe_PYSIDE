@@ -503,6 +503,9 @@ scr</string>
          <height>755</height>
         </size>
        </property>
+       <property name="contextMenuPolicy">
+        <enum>Qt::DefaultContextMenu</enum>
+       </property>
        <property name="statusTip">
         <string/>
        </property>

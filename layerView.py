@@ -249,17 +249,6 @@ class QLayerView(QTableView) :
             #self.img.setActiveLayer(index + 1)
         self.actionDup.triggered.connect(dup)
 
-    def mousePressEvent(self, e):
-        super(QLayerView, self).mousePressEvent(e)
-        self.oldMousePos = e.pos()
-
-    def mouseReleaseEvent(self, e):
-        # right button click
-        if e.pos() == self.oldMousePos:
-            if e.button() == Qt.RightButton:
-                self.contextMenu(e.pos())
-                return
-        super(QLayerView, self).mouseReleaseEvent(e)
 
     def setEnabled(self, value):
         super(QLayerView, self).setEnabled(value)
@@ -274,7 +263,6 @@ class QLayerView(QTableView) :
         the forms and their dock containers are deleted.
         @param delete:
         @type delete: boolean
-        @return: 
         """
         if self.img is None:
             return
@@ -565,12 +553,78 @@ class QLayerView(QTableView) :
         # draw the right rectangle
         QtGui1.window.label.repaint()
 
-    def contextMenu(self, pos):
+    def initContextMenu(self):
+        """
+        returns context menu
+        @return:
+        @rtype: QMenu
+        """
+        menu = QMenu()
+        menu.actionLoadImage = QAction('Load New Image', None)
+        menu.actionGroupSelection = QAction('Group Selection', None)
+        menu.actionAdd2Group = QAction('Add to Group', None)
+        # Active layer is not in a group or right clicked layer is in a group
+
+        menu.actionUnGroup = QAction('Ungroup', None)
+
+        # multiple selection
+        menu.actionMerge = QAction('Merge Lower', None)
+        # merge only adjustment layer with image layer
+
+        # don't dup adjustment layers
+
+        menu.actionUnselect = QAction('Unselect All', None)
+
+        menu.actionRepositionLayer = QAction('Reposition Layer(s)', None)
+        menu.actionColorMaskEnable = QAction('Color Mask', None)
+        menu.actionOpacityMaskEnable = QAction('Opacity Mask', None)
+        menu.actionMaskDisable = QAction('Disable Mask', None)
+        menu.actionMaskInvert = QAction('Invert Mask', None)
+        menu.actionMaskReset = QAction('Clear Mask', None)
+        menu.actionMaskCopy = QAction('Copy Mask to Clipboard', None)
+        menu.actionMaskPaste = QAction('Paste Mask', None)
+        menu.actionMaskDilate = QAction('Dilate Mask', None)
+        menu.actionMaskErode = QAction('Erode Mask', None)
+        menu.actionColorMaskEnable.setCheckable(True)
+        menu.actionOpacityMaskEnable.setCheckable(True)
+        # add actions to menu
+        # group/ungroup
+        menu.addAction(menu.actionAdd2Group)
+        menu.addAction(menu.actionGroupSelection)
+        menu.addAction(menu.actionUnGroup)
+        menu.addSeparator()
+        menu.addAction(menu.actionUnselect)
+        menu.addSeparator()
+        menu.addAction(menu.actionRepositionLayer)
+        menu.addSeparator()
+        # mask
+        menu.subMenuEnable = menu.addMenu('Enable Mask')
+        menu.subMenuEnable.addAction(menu.actionColorMaskEnable)
+        menu.subMenuEnable.addAction(menu.actionOpacityMaskEnable)
+        menu.addAction(menu.actionMaskDisable)
+        menu.addAction(menu.actionMaskInvert)
+        menu.addAction(menu.actionMaskReset)
+        menu.addAction(menu.actionMaskCopy)
+        menu.addAction(menu.actionMaskPaste)
+        menu.addAction(menu.actionMaskDilate)
+        menu.addAction(menu.actionMaskErode)
+        menu.addSeparator()
+        # miscellaneous
+        menu.addAction(menu.actionLoadImage)
+        # to link actionDup with a shortcut,
+        # it must be set in __init__
+        menu.addAction(self.actionDup)
+        menu.addAction(menu.actionMerge)
+        return menu
+
+    def contextMenuEvent(self, event):
         """
         context menu
-        @param pos: event coordinates (relative to widget)
-        @type pos: QPoint
+        @param event
+        @type event: QContextMenuEvent
         """
+        # get fresh context menu
+        self.cMenu = self.initContextMenu()
         # get current selection
         rows = set([mi.row() for mi in self.selectedIndexes()])
         rStack = self.img.layersStack[::-1]
@@ -586,76 +640,23 @@ class QLayerView(QTableView) :
                     msg.setText("Select a single group")
                     msg.exec_()
                     return
-        index = self.indexAt(pos)
-        layerStackIndex = len(self.img.layersStack) -1-index.row()
+        # get current position
+        index = self.indexAt(event.pos())
+        layerStackIndex = len(self.img.layersStack) - 1 - index.row()
         layer = self.img.layersStack[layerStackIndex]
         lowerVisible = self.img.layersStack[layer.getLowerVisibleStackIndex()]
         lower = self.img.layersStack[layerStackIndex - 1]  # case index == 0 doesn't matter
-        menu = QMenu()
-        actionLoadImage = QAction('Load New Image', None)
-        actionGroupSelection = QAction('Group Selection', None)
-        if len(rows) < 2 or any(l.group for l in layers):
-            actionGroupSelection.setEnabled(False)
-        actionAdd2Group = QAction('Add to Group', None)
-        # Active layer is not in a group or right clicked layer is in a group
-        if not group or layer.group:
-            actionAdd2Group.setEnabled(False)
-        actionUnGroup = QAction('Ungroup', None)
-        actionUnGroup.setEnabled(bool(layer.group))
-        # multiple selection
-        actionMerge = QAction('Merge Lower', None)
-        # merge only adjustment layer with image layer
-        if not hasattr(layer, 'inputImg') or hasattr(lowerVisible, 'inputImg'):
-            actionMerge.setEnabled(False)
-        # don't dup adjustment layers
+        # toggle actions
+        self.cMenu.actionGroupSelection.setEnabled(not(len(rows) < 2 or any(l.group for l in layers)))
+        self.cMenu.actionAdd2Group.setEnabled(not(group or layer.group))
+        self.cMenu.actionUnGroup.setEnabled(bool(layer.group))
+        self.cMenu.actionMerge.setEnabled(not (hasattr(layer, 'inputImg') or hasattr(lowerVisible, 'inputImg')))
         self.actionDup.setEnabled(not layer.isAdjustLayer())
-        actionUnselect = QAction('Unselect All', None)
-        if layer.rect is None:
-            actionUnselect.setEnabled(False)
-        actionRepositionLayer = QAction('Reposition Layer(s)', None)
-        actionColorMaskEnable = QAction('Color Mask', None)
-        actionOpacityMaskEnable = QAction('Opacity Mask', None)
-        actionMaskDisable = QAction('Disable Mask', None)
-        actionMaskInvert = QAction('Invert Mask', None)
-        actionMaskReset = QAction('Clear Mask', None)
-        actionMaskCopy = QAction('Copy Mask to Clipboard', None)
-        actionMaskPaste = QAction('Paste Mask', None)
-        actionMaskDilate = QAction('Dilate Mask', None)
-        actionMaskErode = QAction('Erode Mask', None)
-        actionMaskPaste.setEnabled(not QApplication.clipboard().image().isNull())
-        actionColorMaskEnable.setCheckable(True)
-        actionOpacityMaskEnable.setCheckable(True)
-        actionColorMaskEnable.setChecked(layer.maskIsSelected and layer.maskIsEnabled)
-        actionOpacityMaskEnable.setChecked((not layer.maskIsSelected) and layer.maskIsEnabled)
-        # add actions to menu
-        # group/ungroup
-        menu.addAction(actionAdd2Group)
-        menu.addAction(actionGroupSelection)
-        menu.addAction(actionUnGroup)
-        menu.addSeparator()
-        menu.addAction(actionUnselect)
-        menu.addSeparator()
-        menu.addAction(actionRepositionLayer)
-        menu.addSeparator()
-        #mask
-        if len(rows) == 1:
-            subMenuEnable = menu.addMenu('Enable Mask')
-            subMenuEnable.addAction(actionColorMaskEnable)
-            subMenuEnable.addAction(actionOpacityMaskEnable)
-            menu.addAction(actionMaskDisable)
-            menu.addAction(actionMaskInvert)
-            menu.addAction(actionMaskReset)
-            menu.addAction(actionMaskCopy)
-            menu.addAction(actionMaskPaste)
-            menu.addAction(actionMaskDilate)
-            menu.addAction(actionMaskErode)
-            menu.addSeparator()
-            # miscellaneous
-            menu.addAction(actionLoadImage)
-            # to link actionDup with a shortcut,
-            # it must be set in __init__
-            menu.addAction(self.actionDup)
-            menu.addAction(actionMerge)
+        self.cMenu.actionColorMaskEnable.setChecked(layer.maskIsSelected and layer.maskIsEnabled)
+        self.cMenu.actionOpacityMaskEnable.setChecked((not layer.maskIsSelected) and layer.maskIsEnabled)
+        self.cMenu.actionUnselect.setEnabled(layer.rect is None)
+        self.cMenu.subMenuEnable.setEnabled(len(rows)==1)
+        self.cMenu.actionMaskPaste.setEnabled(not QApplication.clipboard().image().isNull())
         # Event handlers
         def f():
             self.opacitySlider.show()
@@ -706,14 +707,17 @@ class QLayerView(QTableView) :
         def colorMaskEnable():
             # test upper layers visibility
             pos = self.img.getStackIndex(layer)
+            upperVisible = False
             for i in range(len(self.img.layersStack) - pos - 1):
                 if self.img.layersStack[pos+1+i].visible:
-                    msg = QMessageBox()
-                    msg.setWindowTitle('Warning')
-                    msg.setIcon(QMessageBox.Warning)
-                    msg.setText("To edit mask or view mask as color mask\nswitch off the visibility of all upper layers")
-                    msg.exec_()
-                    return
+                    upperVisible = True
+            if upperVisible:
+                msg = QMessageBox()
+                msg.setWindowTitle('Warning')
+                msg.setIcon(QMessageBox.Warning)
+                msg.setText("To edit mask or view mask as color mask\nswitch off the visibility of all upper layers")
+                msg.exec_()
+                return
             layer.maskIsEnabled = True
             layer.maskIsSelected = True
             layer.applyToStack()
@@ -731,8 +735,9 @@ class QLayerView(QTableView) :
         def maskInvert():
             layer.invertMask()
             # update mask stack
-            for l in self.img.layersStack:
-                l.updatePixmap(maskOnly=True)
+            layer.applyToStack()
+            #for l in self.img.layersStack:
+                #l.updatePixmap(maskOnly=True)
             self.img.onImageChanged()
         def maskReset():
             layer.resetMask()
@@ -762,23 +767,23 @@ class QLayerView(QTableView) :
             for l in self.img.layersStack:
                 l.updatePixmap(maskOnly=True)
             self.img.onImageChanged()
-        actionRepositionLayer.triggered.connect(RepositionLayer)
-        actionUnselect.triggered.connect(unselectAll)
-        actionLoadImage.triggered.connect(loadImage)
-        actionAdd2Group.triggered.connect(add2Group)
-        actionGroupSelection.triggered.connect(groupSelection)
-        actionUnGroup.triggered.connect(unGroup)
-        actionMerge.triggered.connect(merge)
-        actionColorMaskEnable.triggered.connect(colorMaskEnable)
-        actionOpacityMaskEnable.triggered.connect(opacityMaskEnable)
-        actionMaskDisable.triggered.connect(maskDisable)
-        actionMaskInvert.triggered.connect(maskInvert)
-        actionMaskReset.triggered.connect(maskReset)
-        actionMaskCopy.triggered.connect(maskCopy)
-        actionMaskPaste.triggered.connect(maskPaste)
-        actionMaskDilate.triggered.connect(maskDilate)
-        actionMaskErode.triggered.connect(maskErode)
+        self.cMenu.actionRepositionLayer.triggered.connect(RepositionLayer)
+        self.cMenu.actionUnselect.triggered.connect(unselectAll)
+        self.cMenu.actionLoadImage.triggered.connect(loadImage)
+        self.cMenu.actionAdd2Group.triggered.connect(add2Group)
+        self.cMenu.actionGroupSelection.triggered.connect(groupSelection)
+        self.cMenu.actionUnGroup.triggered.connect(unGroup)
+        self.cMenu.actionMerge.triggered.connect(merge)
+        self.cMenu.actionColorMaskEnable.triggered.connect(colorMaskEnable)
+        self.cMenu.actionOpacityMaskEnable.triggered.connect(opacityMaskEnable)
+        self.cMenu.actionMaskDisable.triggered.connect(maskDisable)
+        self.cMenu.actionMaskInvert.triggered.connect(maskInvert)
+        self.cMenu.actionMaskReset.triggered.connect(maskReset)
+        self.cMenu.actionMaskCopy.triggered.connect(maskCopy)
+        self.cMenu.actionMaskPaste.triggered.connect(maskPaste)
+        self.cMenu.actionMaskDilate.triggered.connect(maskDilate)
+        self.cMenu.actionMaskErode.triggered.connect(maskErode)
         self.opacitySlider.valueChanged.connect(g)
-        menu.exec_(self.mapToGlobal(pos))
+        self.cMenu.exec_(event.globalPos())
 
 

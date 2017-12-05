@@ -992,11 +992,12 @@ def menuLayer(name):
         lname = 'Cloning'
         l = window.label.img.addAdjustmentLayer(name=lname)
         grWindow = patchForm.getNewWindow(targetImage=window.label.img, layer=l, mainForm=window)
-        l.execute = lambda pool=None: l.applyCloning()
+        l.execute = lambda l=l, pool=None: l.applyCloning()
         l.maskIsEnabled = True
         l.maskIsSelected = True
         l.resetMask(maskAll=True)
         l.cloned = False
+        l.thumb.cloned = False
     # segmentation grabcut
     elif name == 'actionNew_segmentation_layer':
         lname = 'Segmentation'
@@ -1347,7 +1348,7 @@ if __name__ =='__main__':
 
     #  init convenience GUI hooks
     window.onWidgetChange = widgetChange
-    window.onShowContextMenu = contextMenu
+    #window.onShowContextMenu = contextMenu
 
     # load current settings
     window.readSettings()
