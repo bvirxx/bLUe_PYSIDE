@@ -52,7 +52,7 @@ import icc
 from colorConv import sRGBWP
 from graphicsCLAHE import CLAHEForm
 from graphicsExp import ExpForm
-from graphicsPatch import patchForm
+from graphicsPatch import patchForm, maskForm
 from utils import savingDialog, saveChangeDialog, save, openDlg
 
 from graphicsTemp import temperatureForm
@@ -998,6 +998,16 @@ def menuLayer(name):
         l.resetMask(maskAll=True)
         l.cloned = False
         l.thumb.cloned = False
+    elif name == 'actionNew_Knitting_Layer':
+        lname = 'Knitting'
+        l = window.label.img.addAdjustmentLayer(name=lname)
+        grWindow = maskForm.getNewWindow(targetImage=window.label.img, layer=l, mainForm=window)
+        l.execute = lambda l=l, pool=None: l.applyKnitting()
+        l.maskIsEnabled = True
+        l.maskIsSelected = True
+        l.resetMask(maskAll=True)
+        l.knitted = False
+        l.thumb.knitted = False
     # segmentation grabcut
     elif name == 'actionNew_segmentation_layer':
         lname = 'Segmentation'

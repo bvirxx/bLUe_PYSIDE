@@ -77,6 +77,50 @@ class vImage(QImage):
     defaultColor_UnMasked = QColor(128, 0, 0, 255)
     defaultColor_Masked = QColor(0, 0, 0, 255)
 
+    @classmethod
+    def color2OpacityMask(cls, mask):
+        mask = mask.copy()
+        buf = QImageBuffer(mask)
+        buf[:, :, 3] = np.where(buf[:, :, 2] == 0, 0, 255)
+        return mask
+
+    @ classmethod
+    def seamlessMerge(cls, dest, source, mask, cloningMethod):
+        """
+        Seamless merging of source into dest.
+        source must provide a mask defining
+        the region to be copied. The same mask is used to define
+        the target region in dest.
+        The dest image is modified.
+        @param dest:
+        @type dest: vImage
+        @param source:
+        @type source: vImage
+        @param cloningMethod:
+        @type cloningMethod:
+        """
+        # init white mask from scaled mask
+        src_mask = vImage.color2OpacityMask(mask).scaled(source.size())
+        buf = QImageBuffer(src_mask)
+        tmp = np.where(buf[:, :, 3] == 0, 0, 255)
+        # get scaled bounding rect
+        bRect = boundingRect(tmp, 255)
+        if bRect is None:
+            # no white pixels
+            return
+        src_maskBuf = np.dstack((tmp, tmp, tmp)).astype(np.uint8)
+        # cloning center is the center of bRect
+        center = (bRect.left() + bRect.width() // 2, bRect.top() + bRect.height() // 2)
+        sourceBuf = QImageBuffer(source)
+        destBuf = QImageBuffer(dest)
+        output = cv2.seamlessClone(sourceBuf[:, :, :3][:, :, ::-1],  # source
+                                   destBuf[:, :, :3][:, :, ::-1],  # dest
+                                   src_maskBuf,
+                                   center, cloningMethod
+                                   )
+        destBuf[:, :, :3][:, :, ::-1] = output  # assign src_ maskBuf for testing
+
+
     def __init__(self, filename=None, cv2Img=None, QImg=None, mask=None, format=QImage.Format_ARGB32,
                                             name='', colorSpace=-1, orientation=None, rating=5, meta=None, rawMetadata=[], profile=''):
         """
@@ -409,12 +453,6 @@ class vImage(QImage):
         self.qPixmap = QPixmap.fromImage(qImg)
         self.rPixmap = QPixmap.fromImage(rImg)
 
-    def color2OpacityMask(self):
-        mask = self.mask.copy()
-        buf = QImageBuffer(mask)
-        buf[:, :, 3] = np.where(buf[:, :, 2] == 0, 0, 255)
-        return mask
-
     def resetMask(self, maskAll=False):
         # default : nothing is masked
         self.mask.fill(vImage.defaultColor_Masked if maskAll else vImage.defaultColor_UnMasked)
@@ -499,38 +537,23 @@ class vImage(QImage):
             qp.end()
         # do seamless cloning
         if seamless or self.getCurrentImage().cloned:
-            #qp.end()
-            # init white mask from scaled mask
-            src_mask = self.color2OpacityMask().scaled(imgIn.width(), imgIn.height())
-            buf = QImageBuffer(src_mask)
-            tmp = np.where(buf[:, :, 3]==0, 0, 255)
-            # get scaled bounding rect
-            bRect = boundingRect(tmp, 255)
-            """
-            oMaskFull = self.color2OpacityMask()
-            bufFull = QImageBuffer(oMaskFull)
-            tmpFull = np.where(bufFull[:, :, 3] == 0, 0, 255)
-            bRectFull = boundingRect(tmpFull, 255)
-            """
-            if bRect is None:
-                # no white pixels
-                return
+            imgInc = imgIn.copy()
+            src = imgOut
+            vImage.seamlessMerge(imgInc, src, self.mask, self.cloningMethod)
             bufOut = QImageBuffer(imgOut)
-            src_maskBuf = np.dstack((tmp,tmp,tmp)).astype(np.uint8)
-            # cloning center is the center of bRect
-            center = (bRect.left() + bRect.width() //2, bRect.top() + bRect.height() //2)
-            destImg = imgIn.copy()
-            destBuf = QImageBuffer(destImg)
-            output = cv2.seamlessClone(bufOut[:, :, :3][:, :, ::-1],  #source
-                                       destBuf[:, :, :3][:, :, ::-1], # dest
-                                       src_maskBuf,
-                                       center, self.cloningMethod
-                                       )
-            bufOut[:, :, :3][:, :, ::-1] = output # assign src_ maskBuf for testing
-            # output image is cloned
-            self.getCurrentImage().cloned = True
+            bufOut[:, :, :3] = QImageBuffer(imgInc)[:,:,:3]
         self.updatePixmap()
 
+    def applyKnitting(self):
+        imgIn = self.inputImg()
+        imgOut = self.getCurrentImage()
+        imgInc = imgIn.copy()
+        #src = imgOut
+        src = self.parentImage.layersStack[self.getStackIndex() - 2].getCurrentImage()
+        vImage.seamlessMerge(imgInc, src, self.mask, self.cloningMethod)
+        bufOut = QImageBuffer(imgOut)
+        bufOut[:, :, :3] = QImageBuffer(imgInc)[:,:,:3]
+        self.updatePixmap()
 
     def applyGrabcut(self, nbIter=2, mode=cv2.GC_INIT_WITH_MASK, again=False):
         """
@@ -1859,7 +1882,7 @@ class QLayer(vImage):
             else:
                 # draw mask as opacity mask : mode DestinationIn sets image opacity to mask opacity
                 qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
-                qp.drawImage(QRect(0, 0, img.width(), img.height()), self.color2OpacityMask())
+                qp.drawImage(QRect(0, 0, img.width(), img.height()), self.color2OpacityMask(self.mask))
                 if self.isClipping:  #TODO 6/11/17 may be we should draw checker for both selected and unselected mask
                     qp.setCompositionMode(QPainter.CompositionMode_DestinationOver)
                     qp.drawImage(QRect(0, 0, img.width(), img.height()), checkeredImage(img.width(), img.height()))
