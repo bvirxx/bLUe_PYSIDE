@@ -252,7 +252,6 @@ def mouseEvent(widget, event) :
                         if layer.isCloningLayer():
                             layer.xAltOffset += (x - State['ix'])
                             layer.yAltOffset += (y - State['iy'])
-                            layer.thumb.cloned = False
                             layer.cloned = False
                             layer.applyCloning(seamless=False)
             # needed to update before window
@@ -357,7 +356,6 @@ def wheelEvent(widget,img, event):
         layer.updatePixmap()
     elif modifiers == Qt.ControlModifier | Qt.AltModifier:
         layer.AltZoom_coeff *= (1.0 + numSteps)
-        layer.thumb.cloned = False
         layer.cloned = False
         layer.applyCloning(seamless=False)
     widget.repaint()
@@ -465,8 +463,8 @@ def loadImageFromFile(f):
     loads metadata and image from file.
     metadata is a list of dicts with len(metadata) >=1.
     metadata[0] contains at least 'SourceFile' : path.
-    profile is a string containing the profile binary data.
-    Currently, we do not use these data : standard profiles
+    profile is a string containing the profile binary data,
+    currently, we do not use these data : standard profiles
     are loaded from disk, non standard profiles are ignored.
     @param f: path to file
     @type f: str
@@ -497,13 +495,12 @@ def loadImageFromFile(f):
     # load image file
     name = path.basename(f)
     img = imImage(filename=f, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile, name=name, rating=rating)
+    if img.isNull():
+        raise ValueError("Cannot read file %s" % f)
     window.settings.setValue('paths/dlgdir', QFileInfo(f).absoluteDir().path())
     img.initThumb()
-    if img.format() < 4:
-        msg = QMessageBox()
-        msg.setText("Cannot edit indexed formats\nConvert image to a non indexed mode first")
-        msg.exec_()
-        return None
+    if img.format() in [QImage.Format_Invalid, QImage.Format_Mono, QImage.Format_MonoLSB, QImage.Format_Indexed8]:
+        raise ValueError("Cannot edit indexed formats\nConvert image to a non indexed mode first")
     if colorSpace < 0:
         msg = QMessageBox()
         msg.setText("Color profile missing\nAssigning sRGB profile")
@@ -997,7 +994,6 @@ def menuLayer(name):
         l.maskIsSelected = True
         l.resetMask(maskAll=True)
         l.cloned = False
-        l.thumb.cloned = False
     elif name == 'actionNew_Knitting_Layer':
         lname = 'Knitting'
         l = window.label.img.addAdjustmentLayer(name=lname)
@@ -1007,7 +1003,6 @@ def menuLayer(name):
         l.maskIsSelected = True
         l.resetMask(maskAll=True)
         l.knitted = False
-        l.thumb.knitted = False
     # segmentation grabcut
     elif name == 'actionNew_segmentation_layer':
         lname = 'Segmentation'

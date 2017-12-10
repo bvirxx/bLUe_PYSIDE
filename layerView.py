@@ -120,18 +120,15 @@ class QLayerView(QTableView) :
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
         self.setDropIndicatorShown(True)
-
         # verticallayout
         l = QVBoxLayout()
         l.setAlignment(Qt.AlignBottom)
-
         # Preview option
         # We should use a QListWidget or a custom optionsWidget
         # (cf. utils.py) :  adding it to QVBoxLayout with mode
         # Qt.AlignBottom does not work.
         self.previewOptionBox = QCheckBox('Preview')
         self.previewOptionBox.setMaximumSize(100, 30)
-
         # View/Preview changed event handler
         def m(state): # Qt.Checked Qt.UnChecked
             if self.img is None:
@@ -139,6 +136,9 @@ class QLayerView(QTableView) :
             self.img.useThumb = (state == Qt.Checked)
             QtGui1.window.updateStatus()
             self.img.cacheInvalidate()
+            for l in self.img.layersStack:
+                l.cloned = False
+                l.knitted = False
             try:
                 QApplication.setOverrideCursor(Qt.WaitCursor)
                 QtGui1.app.processEvents()
@@ -235,7 +235,7 @@ class QLayerView(QTableView) :
             #Stack index
             index = len(self.img.layersStack) - row -1
             layer = self.img.layersStack[index]
-            if hasattr(layer, 'inputImg'):
+            if layer.isAdjustLayer():
                 return
             # add new layer to stack and set it to active
             self.img.dupLayer(index=index)
@@ -387,95 +387,93 @@ class QLayerView(QTableView) :
         """
         drop event handler : moving layer
         @param event:
+        @type event: Qevent
         """
-        # remove dragged rows
-        #event.accept()
-
-        if event.source() == self:
-            # get selected rows and layers
-            rows = set([mi.row() for mi in self.selectedIndexes()])
-            rStack = self.img.layersStack[::-1]
-            layers = [rStack[i] for i in rows]
-            linked = any(l.group for l in layers)
-            if linked and len(rows)> 1:
+        if event.source() is not self:
+            return
+        # get selected rows and layers
+        rows = set([mi.row() for mi in self.selectedIndexes()])
+        rStack = self.img.layersStack[::-1]
+        layers = [rStack[i] for i in rows]
+        linked = any(l.group for l in layers)
+        if linked and len(rows)> 1:
+            return
+        # get target row and layer
+        targetRow = self.indexAt(event.pos()).row()
+        targetLayer = rStack[targetRow]
+        if linked:
+            if layers[0].group is not targetLayer.group:
                 return
-            # get target row and layer
-            targetRow = self.indexAt(event.pos()).row()
-            targetLayer = rStack[targetRow]
-            if linked:
-                if layers[0].group is not targetLayer.group:
-                    return
-            if bool(targetLayer.group) != linked:
-                return
-            # remove target from selection
-            if targetRow in rows:
-                rows.discard(targetRow)
-            rows = sorted(rows)
-            if not rows:
-                return
-            # if target is below last row insert at the last position
-            if targetRow == -1:
-                targetRow = self.model().rowCount()
-
-            # mapping of src (row) indices to target indices
-            rowMapping = dict()
-            for idx, row in enumerate(rows):
-                if row < targetRow:
-                    rowMapping[row] = targetRow + idx
-                else:
-                    rowMapping[row + len(rows)] = targetRow + idx
-
-            # update layerStack using rowMapping
-            #rStack = self.img.layersStack[::-1]
-            # insert None items
-            for _ in range(len(rows)):
-                rStack.insert(targetRow, None)
-            # copy moved items to their final place
-            for srcRow, tgtRow in sorted(rowMapping.items()):  # python 3 iteritems->items
-                rStack[tgtRow] = rStack[srcRow]
-            # remove moved items from their initial place
-            for row in reversed(sorted(rowMapping.keys())):  # python 3 iterkeys -> keys
-                rStack.pop(row)
-            self.img.layersStack = rStack[::-1]
-
-            # update model
-            # insert empty rows
-            for _ in range(len(rows)):
-                result = self.model().insertRow(targetRow, QModelIndex())
-            # copy moved rows to their final place
-            colCount = self.model().columnCount()
-            for srcRow, tgtRow in sorted(rowMapping.items()): # python 3 iteritems->items
-                for col in range(0, colCount):
-                    # CAUTION : setItem calls the data changed event handler (cf. setLayers above)
-                    self.model().setItem(tgtRow, col, self.model().takeItem(srcRow, col))
-            # remove moved rows from their initial place and keep track of moved items
-            movedDict = rowMapping.copy()
-            for row in reversed(sorted(rowMapping.keys())): # python 3 iterkeys -> keys
-                self.model().removeRow(row)
-                for s, t in rowMapping.items():
-                    if t > row:
-                        movedDict[s]-=1
-            ######################################### sanity check
-            for r in range(self.model().rowCount()):
-                id = self.model().index(r, 1)
-                if id.data() != rStack[r].name:
-                    raise ValueError('Drop Error')
-            ########################################
-            # reselect moved rows
-            sel = sorted(movedDict.values())
-            selectionModel = QtCore.QItemSelectionModel(self.model())
-            self.setSelectionModel(selectionModel)
-            index1 = self.model().index(sel[0], 1)
-            index2 = self.model().index(sel[-1], 1)
-            itemSelection = QtCore.QItemSelection(index1, index2)
-            self.selectionModel().select(itemSelection,  QtCore.QItemSelectionModel.Rows | QtCore.QItemSelectionModel.Select)
-            # multiple selection : display no window
-            if len(sel) > 1 :
-                self.currentWin.hide()
-                self.currentWin = None
-            elif len(sel) == 1:
-                self.img.setActiveLayer(len(self.img.layersStack) - sel[0] -1)
-
+        if bool(targetLayer.group) != linked:
+            return
+        # remove target from selection
+        if targetRow in rows:
+            rows.discard(targetRow)
+        rows = sorted(rows)
+        if not rows:
+            return
+        # if target is below last row insert at the last position
+        if targetRow == -1:
+            targetRow = self.model().rowCount()
+        # mapping of src (row) indices to target indices
+        rowMapping = dict()
+        for idx, row in enumerate(rows):
+            if row < targetRow:
+                rowMapping[row] = targetRow + idx
+            else:
+                rowMapping[row + len(rows)] = targetRow + idx
+        # update layerStack using rowMapping
+        # insert None items
+        for _ in range(len(rows)):
+            rStack.insert(targetRow, None)
+        # copy moved items to their final place
+        for srcRow, tgtRow in sorted(rowMapping.items()):  # python 3 iteritems->items
+            rStack[tgtRow] = rStack[srcRow]
+        # remove moved items from their initial place
+        for row in reversed(sorted(rowMapping.keys())):  # python 3 iterkeys -> keys
+            rStack.pop(row)
+        self.img.layersStack = rStack[::-1]
+        # update model
+        # insert empty rows
+        for _ in range(len(rows)):
+            result = self.model().insertRow(targetRow, QModelIndex())
+        # copy moved rows to their final place
+        colCount = self.model().columnCount()
+        for srcRow, tgtRow in sorted(rowMapping.items()): # python 3 iteritems->items
+            for col in range(0, colCount):
+                # CAUTION : setItem calls the data changed event handler (cf. setLayers above)
+                self.model().setItem(tgtRow, col, self.model().takeItem(srcRow, col))
+        # remove moved rows from their initial place and keep track of moved items
+        movedDict = rowMapping.copy()
+        for row in reversed(sorted(rowMapping.keys())): # python 3 iterkeys -> keys
+            self.model().removeRow(row)
+            for s, t in rowMapping.items():
+                if t > row:
+                    movedDict[s]-=1
+        ######################################### sanity check
+        for r in range(self.model().rowCount()):
+            id = self.model().index(r, 1)
+            if id.data() != rStack[r].name:
+                raise ValueError('Drop Error')
+        ########################################
+        # reselect moved rows
+        sel = sorted(movedDict.values())
+        selectionModel = QtCore.QItemSelectionModel(self.model())
+        self.setSelectionModel(selectionModel)
+        index1 = self.model().index(sel[0], 1)
+        index2 = self.model().index(sel[-1], 1)
+        itemSelection = QtCore.QItemSelection(index1, index2)
+        self.selectionModel().select(itemSelection,  QtCore.QItemSelectionModel.Rows | QtCore.QItemSelectionModel.Select)
+        # multiple selection : display no window
+        if len(sel) > 1 :
+            self.currentWin.hide()
+            self.currentWin = None
+        elif len(sel) == 1:
+            self.img.setActiveLayer(len(self.img.layersStack) - sel[0] -1)
+        # update stack
+        self.img.layersStack[0].applyToStack()
+        self.img.onImageChanged()
+        
     def select(self, row, col):
         """
         select item in view
@@ -526,12 +524,7 @@ class QLayerView(QTableView) :
             self.img.onImageChanged()
         # hide/display adjustment form
         elif clickedIndex.column() == 1 :
-            opacity = int(layer.opacity * 100)
-            self.opacityValue.setText(str('%d ' % opacity))
-            self.opacitySlider.setSliderPosition(opacity)
-            compositionMode = layer.compositionMode
-            ind = self.blendingModeCombo.findData(compositionMode)
-            self.blendingModeCombo.setCurrentIndex(ind)
+            pass
         # select mask
         elif clickedIndex.column() == 2:
             cl = self.img.layersStack[-1-clickedIndex.row()]
@@ -550,6 +543,13 @@ class QLayerView(QTableView) :
             self.currentWin.show()
             # make self.currentWin the active window
             self.currentWin.activateWindow()
+        # update opacity and composition mode for current layer
+        opacity = int(layer.opacity * 100)
+        self.opacityValue.setText(str('%d ' % opacity))
+        self.opacitySlider.setSliderPosition(opacity)
+        compositionMode = layer.compositionMode
+        ind = self.blendingModeCombo.findData(compositionMode)
+        self.blendingModeCombo.setCurrentIndex(ind)
         # draw the right rectangle
         QtGui1.window.label.repaint()
 
@@ -582,7 +582,9 @@ class QLayerView(QTableView) :
         menu.actionMaskInvert = QAction('Invert Mask', None)
         menu.actionMaskReset = QAction('Clear Mask', None)
         menu.actionMaskCopy = QAction('Copy Mask to Clipboard', None)
+        menu.actionImageCopy = QAction('Copy Image to Clipboard', None)
         menu.actionMaskPaste = QAction('Paste Mask', None)
+        menu.actionImagePaste = QAction('Paste Image', None)
         menu.actionMaskDilate = QAction('Dilate Mask', None)
         menu.actionMaskErode = QAction('Erode Mask', None)
         menu.actionColorMaskEnable.setCheckable(True)
@@ -597,8 +599,12 @@ class QLayerView(QTableView) :
         menu.addSeparator()
         menu.addAction(menu.actionRepositionLayer)
         menu.addSeparator()
+        # layer
+        menu.addAction(menu.actionImageCopy)
+        menu.addAction(menu.actionImagePaste)
+        menu.addSeparator()
         # mask
-        menu.subMenuEnable = menu.addMenu('Enable Mask')
+        menu.subMenuEnable = menu.addMenu('Enable Mask As...')
         menu.subMenuEnable.addAction(menu.actionColorMaskEnable)
         menu.subMenuEnable.addAction(menu.actionOpacityMaskEnable)
         menu.addAction(menu.actionMaskDisable)
@@ -657,11 +663,10 @@ class QLayerView(QTableView) :
         self.cMenu.actionUnselect.setEnabled(layer.rect is None)
         self.cMenu.subMenuEnable.setEnabled(len(rows)==1)
         self.cMenu.actionMaskPaste.setEnabled(not QApplication.clipboard().image().isNull())
+        self.cMenu.actionImagePaste.setEnabled(not QApplication.clipboard().image().isNull())
         # Event handlers
         def f():
             self.opacitySlider.show()
-        def g(value):
-            layer.setOpacity(value)
         def unselectAll():
             layer.rect = None
         def RepositionLayer():
@@ -704,25 +709,28 @@ class QLayerView(QTableView) :
                 l.unlinkMask()
         def merge():
             layer.merge_with_layer_immediately_below()
-        def colorMaskEnable():
-            # test upper layers visibility
+        def testUpperVisibility():
             pos = self.img.getStackIndex(layer)
             upperVisible = False
             for i in range(len(self.img.layersStack) - pos - 1):
-                if self.img.layersStack[pos+1+i].visible:
+                if self.img.layersStack[pos + 1 + i].visible:
                     upperVisible = True
             if upperVisible:
                 msg = QMessageBox()
                 msg.setWindowTitle('Warning')
                 msg.setIcon(QMessageBox.Warning)
-                msg.setText("To edit mask or view mask as color mask\nswitch off the visibility of all upper layers")
+                msg.setText("To show/edit the mask switch off\nthe visibility of all upper layers")
                 msg.exec_()
-                return
+                return True
+            return False
+        def colorMaskEnable():
+            testUpperVisibility()
             layer.maskIsEnabled = True
             layer.maskIsSelected = True
             layer.applyToStack()
             self.img.onImageChanged()
         def opacityMaskEnable():
+            testUpperVisibility()
             layer.maskIsEnabled = True
             layer.maskIsSelected = False
             layer.applyToStack()
@@ -747,8 +755,34 @@ class QLayerView(QTableView) :
             self.img.onImageChanged()
         def maskCopy():
             QApplication.clipboard().setImage(layer.mask)
+        def imageCopy():
+            QApplication.clipboard().setImage(layer.getCurrentImage())
         def maskPaste():
-            layer.mask = QApplication.clipboard().image()
+            """
+            Pastes clipboard to mask and updates the stack. The clipboard image
+            is scaled if its size does not match the size of the mask
+            """
+            cb = QApplication.clipboard()
+            if not cb.image().isNull():
+                img = cb.image()
+                if img.size() == layer.mask.size():
+                    layer.mask = img
+                else:
+                    layer.mask = img.scaled(layer.mask.size())
+            layer.applyToStack()
+            self.img.onImageChanged()
+        def imagePaste():
+            """
+            Pastes clipboard to mask and updates the stack. The clipboard image
+            is scaled if its size does not match the size of the mask
+            """
+            cb = QApplication.clipboard()
+            if not cb.image().isNull():
+                srcImg = cb.image()
+                if srcImg.size() == layer.size():
+                    layer.setImage(srcImg)
+                else:
+                    layer.setImage(srcImg.scaled(layer.size()))
             layer.applyToStack()
             self.img.onImageChanged()
         def maskDilate():
@@ -781,9 +815,10 @@ class QLayerView(QTableView) :
         self.cMenu.actionMaskReset.triggered.connect(maskReset)
         self.cMenu.actionMaskCopy.triggered.connect(maskCopy)
         self.cMenu.actionMaskPaste.triggered.connect(maskPaste)
+        self.cMenu.actionImageCopy.triggered.connect(imageCopy)
+        self.cMenu.actionImagePaste.triggered.connect(imagePaste)
         self.cMenu.actionMaskDilate.triggered.connect(maskDilate)
         self.cMenu.actionMaskErode.triggered.connect(maskErode)
-        self.opacitySlider.valueChanged.connect(g)
         self.cMenu.exec_(event.globalPos())
 
 

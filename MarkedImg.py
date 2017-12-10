@@ -84,6 +84,37 @@ class vImage(QImage):
         buf[:, :, 3] = np.where(buf[:, :, 2] == 0, 0, 255)
         return mask
 
+    @classmethod
+    def visualizeMask(cls, img, mask, color=True, clipping=False):
+        # copy image
+        img = QImage(img)
+        qp = QPainter(img)
+        qp.drawImage(QRect(0, 0, img.width(), img.height()), img)
+        if color:
+            # draw mask as color mask with opacity 0.5
+            qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
+            # tmp = tmp.copy()
+            tmp = mask.copy()
+            tmpBuf = QImageBuffer(tmp)
+            tmpBuf[:, :, 3] = 128
+            """
+            if self.isClipping:
+                tmpBuf[:, :, 3] = 128 #255 - tmpBuf[:, :, 3]  # TODO modified 6/11/17 for clipping background
+                #tmpBuf[:, :, :3] = 64                         # TODO modified 6/11/17 for clipping background
+            else:
+                tmpBuf[:, :, 3] = 128  # 255 - tmpBuf[:,:,3]
+            """
+            qp.drawImage(QRect(0, 0, img.width(), img.height()), tmp)
+        else:
+            # draw mask as opacity mask : mode DestinationIn sets image opacity to mask opacity
+            qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
+            qp.drawImage(QRect(0, 0, img.width(), img.height()), vImage.color2OpacityMask(mask))
+            if clipping:  # TODO 6/11/17 may be we should draw checker for both selected and unselected mask
+                qp.setCompositionMode(QPainter.CompositionMode_DestinationOver)
+                qp.drawImage(QRect(0, 0, img.width(), img.height()), checkeredImage(img.width(), img.height()))
+        qp.end()
+        return img
+
     @ classmethod
     def seamlessMerge(cls, dest, source, mask, cloningMethod):
         """
@@ -425,31 +456,11 @@ class vImage(QImage):
             self.cmImage = img
         """
         self.cmImage = img
-        def visualizeMask(img, mask):
-            img = QImage(img)
-            tmp = self.mask
-            qp = QPainter(img)
-            # draw mask
-            if self.maskIsSelected:
-                # draw mask as color mask
-                # qp.setCompositionMode(QPainter.CompositionMode_Multiply)
-                qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
-                # invert alpha
-                tmp = tmp.copy()
-                tmpBuf = QImageBuffer(tmp)
-                tmpBuf[:, :, 3] = 255 - tmpBuf[:, :, 3]
-            else:
-                # draw mask as opacity mask
-                # img * mask : img opacity is set to mask opacity
-                qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
-            qp.drawImage(QRect(0, 0, img.width(), img.height()), tmp)
-            qp.end()
-            return img
         qImg = img
         rImg = currentImage
         if self.maskIsEnabled:
-            qImg = visualizeMask(qImg, self.mask)
-            rImg = visualizeMask(rImg, self.mask)
+            qImg = vImage.visualizeMask(qImg, self.mask, color=self.maskIsSelected, clipping=self.isClipping)
+            rImg = vImage.visualizeMask(rImg, self.mask, color=self.maskIsSelected, clipping=self.isClipping)
         self.qPixmap = QPixmap.fromImage(qImg)
         self.rPixmap = QPixmap.fromImage(rImg)
 
@@ -522,7 +533,7 @@ class vImage(QImage):
         imgIn = self.inputImg()
         imgOut = self.getCurrentImage()
         # draw the translated and zoomed input image on the output image
-        if not self.getCurrentImage().cloned :
+        if not self.cloned :
             # erase previous transformed image : reset imgOut to ImgIn
             qp = QPainter(imgOut)
             qp.setCompositionMode(QPainter.CompositionMode_Source)
@@ -536,7 +547,7 @@ class vImage(QImage):
             qp.drawRect(rect)
             qp.end()
         # do seamless cloning
-        if seamless or self.getCurrentImage().cloned:
+        if seamless or self.cloned:
             imgInc = imgIn.copy()
             src = imgOut
             vImage.seamlessMerge(imgInc, src, self.mask, self.cloningMethod)
@@ -545,10 +556,13 @@ class vImage(QImage):
         self.updatePixmap()
 
     def applyKnitting(self):
+        """
+
+
+        """
         imgIn = self.inputImg()
         imgOut = self.getCurrentImage()
         imgInc = imgIn.copy()
-        #src = imgOut
         src = self.parentImage.layersStack[self.getStackIndex() - 2].getCurrentImage()
         vImage.seamlessMerge(imgInc, src, self.mask, self.cloningMethod)
         bufOut = QImageBuffer(imgOut)
@@ -1308,7 +1322,7 @@ class mImage(vImage):
         if index == None:
             index = len(self.layersStack) - 1
         layer0 = self.layersStack[index]
-        if hasattr(layer0, 'inputImg'):
+        if layer0.isAdjustLayer():
             return
         layer1 = QLayer.fromImage(layer0, parentImage=self)
         self.addLayer(layer1, name=layer0.name, index=index+1)
@@ -1809,7 +1823,7 @@ class QLayer(vImage):
 
 
     def isAdjustLayer(self):
-        return hasattr(self, 'view')
+        return self.view is not None #hasattr(self, 'view')
 
     def isSegmentLayer(self):
         return 'egmentation' in self.name
@@ -1857,37 +1871,6 @@ class QLayer(vImage):
             img = currentImage
         #if maskOnly:
         self.cmImage = img
-        def visualizeMask(img, mask):
-            if not self.maskIsEnabled:
-                return img
-            img = QImage(img)
-            #tmp = mask
-            qp = QPainter(img)
-            qp.drawImage(QRect(0, 0, img.width(), img.height()), img)
-            if self.maskIsSelected:
-                # draw mask as color mask with partial opacity
-                qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
-                #tmp = tmp.copy()
-                tmp =mask.copy()
-                tmpBuf = QImageBuffer(tmp)
-                tmpBuf[:, :, 3] = 128
-                """
-                if self.isClipping:
-                    tmpBuf[:, :, 3] = 128 #255 - tmpBuf[:, :, 3]  # TODO modified 6/11/17 for clipping background
-                    #tmpBuf[:, :, :3] = 64                         # TODO modified 6/11/17 for clipping background
-                else:
-                    tmpBuf[:, :, 3] = 128  # 255 - tmpBuf[:,:,3]
-                """
-                qp.drawImage(QRect(0, 0, img.width(), img.height()), tmp)
-            else:
-                # draw mask as opacity mask : mode DestinationIn sets image opacity to mask opacity
-                qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
-                qp.drawImage(QRect(0, 0, img.width(), img.height()), self.color2OpacityMask(self.mask))
-                if self.isClipping:  #TODO 6/11/17 may be we should draw checker for both selected and unselected mask
-                    qp.setCompositionMode(QPainter.CompositionMode_DestinationOver)
-                    qp.drawImage(QRect(0, 0, img.width(), img.height()), checkeredImage(img.width(), img.height()))
-            qp.end()
-            return img
         qImg = img
         rImg = currentImage
         # apply layer transformation. Missing pixels are set to QColor(0,0,0,0)
@@ -1896,8 +1879,8 @@ class QLayer(vImage):
             qImg = qImg.copy(QRect(-x, -y, qImg.width()*self.Zoom_coeff, qImg.height()*self.Zoom_coeff))
             rImg = rImg.copy(QRect(-x, -y, rImg.width()*self.Zoom_coeff, rImg.height()*self.Zoom_coeff))
         if self.maskIsEnabled:
-            qImg = visualizeMask(qImg, self.mask)
-            rImg = visualizeMask(rImg, self.mask)
+            qImg = vImage.visualizeMask(qImg, self.mask, color=self.maskIsSelected, clipping=self.isClipping)
+            rImg = vImage.visualizeMask(rImg, self.mask, color=self.maskIsSelected, clipping=self.isClipping)
         self.qPixmap = QPixmap.fromImage(qImg)
         self.rPixmap = QPixmap.fromImage(rImg)
         self.setModified(True)

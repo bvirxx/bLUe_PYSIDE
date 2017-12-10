@@ -21,17 +21,13 @@ from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QHBoxLayo
 from utils import optionsWidget
 
 class patchForm (QGraphicsView):
+    """
+    Seamless cloning
+    """
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=200, layer=None, parent=None, mainForm=None):
         wdgt = patchForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         wdgt.setWindowTitle(layer.name)
-        """
-        pushButton = QPushButton('apply', parent=wdgt)
-        hLay = QHBoxLayout()
-        wdgt.setLayout(hLay)
-        hLay.addWidget(pushButton)
-        pushButton.clicked.connect(lambda: wdgt.execute())
-        """
         return wdgt
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
@@ -61,30 +57,22 @@ class patchForm (QGraphicsView):
         sel = options[0]
         self.listWidget1.select(self.listWidget1.items[sel])
         self.options[sel] = True
-
         # select event handler
         def onSelect1(item):
             for key in self.options:
                 self.options[key] = item is self.listWidget1.items[key]
                 if self.options[key]:
                     self.layer.cloningMethod = options_dict[key]
-
         self.listWidget1.onSelect = onSelect1
-
         hl = QHBoxLayout()
-
         l.addLayout(hl)
-
         l.setContentsMargins(20, 0, 20, 25)  # left, top, right, bottom
-
         self.setLayout(l)
-
-        # set initial selection to unsharp mask
+        # set initial selection to normal cloning
         item = self.listWidget1.items[options[0]]
         item.setCheckState(Qt.Checked)
         self.listWidget1.select(item)
         l.addWidget(self.listWidget1)
-
         pushButton1 = QPushButton('Seamless Clone')
         def f():
             self.targetImage.getActiveLayer().applyCloning(seamless=True)
@@ -92,17 +80,13 @@ class patchForm (QGraphicsView):
         l.addWidget(pushButton1)
 
 class maskForm (QGraphicsView):
+    """
+    Knitting form
+    """
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=200, layer=None, parent=None, mainForm=None):
         wdgt = maskForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         wdgt.setWindowTitle(layer.name)
-        """
-        pushButton = QPushButton('apply', parent=wdgt)
-        hLay = QHBoxLayout()
-        wdgt.setLayout(hLay)
-        hLay.addWidget(pushButton)
-        pushButton.clicked.connect(lambda: wdgt.execute())
-        """
         return wdgt
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
@@ -115,16 +99,12 @@ class maskForm (QGraphicsView):
         self.layer = layer
         self.mainForm = mainForm
         self.onUpdateFilter = lambda *args: 0
-
         l = QVBoxLayout()
         l.setAlignment(Qt.AlignBottom)
-
         # options
         options_dict = {'Normal Clone':cv2.NORMAL_CLONE, 'Mixed Clone':cv2.MIXED_CLONE, 'Monochrome Transfer':cv2.MONOCHROME_TRANSFER}
         options = list(options_dict.keys())
-
         self.layer.cloningMethod = options_dict['Normal Clone']
-
         self.options={}
         for op in options:
             self.options[op] = False
@@ -132,30 +112,22 @@ class maskForm (QGraphicsView):
         sel = options[0]
         self.listWidget1.select(self.listWidget1.items[sel])
         self.options[sel] = True
-
         # select event handler
         def onSelect1(item):
             for key in self.options:
                 self.options[key] = item is self.listWidget1.items[key]
                 if self.options[key]:
                     self.layer.cloningMethod = options_dict[key]
-
         self.listWidget1.onSelect = onSelect1
-
         hl = QHBoxLayout()
-
         l.addLayout(hl)
-
         l.setContentsMargins(20, 0, 20, 25)  # left, top, right, bottom
-
         self.setLayout(l)
-
-        # set initial selection to unsharp mask
+        # set initial selection to normal cloning
         item = self.listWidget1.items[options[0]]
         item.setCheckState(Qt.Checked)
         self.listWidget1.select(item)
         l.addWidget(self.listWidget1)
-
         pushButton1 = QPushButton('Seamless Knit')
         def f():
             self.targetImage.getActiveLayer().applyKnitting()
