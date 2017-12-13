@@ -46,6 +46,15 @@ class itemDelegate(QStyledItemDelegate):
         QStyledItemDelegate.__init__(self, parent)
 
     def paint(self, painter, option, index):
+        """
+        paint event handler
+        @param painter:
+        @type painter:
+        @param option:
+        @type option:
+        @param index:
+        @type index:
+        """
         rect = QRectF(option.rect)
         layer = self.parent().img.layersStack[-1 - index.row()]
         # mask
@@ -187,7 +196,6 @@ class QLayerView(QTableView) :
         l.setContentsMargins(20,0,20,0) # left, top, right, bottom
         # the layout is set in blue.py, after the initialization of the main form.
         self.propertyLayout = l
-
         # opacity value changed event handler
         def f1():
             self.opacityValue.setText(str('%d ' % self.opacitySlider.value()))
@@ -198,14 +206,12 @@ class QLayerView(QTableView) :
             self.img.onImageChanged()
         self.opacitySlider.valueChanged.connect(f1)
         self.opacitySlider.sliderReleased.connect(f2)
-
         # blending modes combo box
         compLabel = QLabel()
         compLabel.setText("Composition Mode")
         l.addWidget(compLabel)
         modes = ['Normal', 'Plus', 'Multiply', 'Screen', 'Overlay', 'Darken', 'Lighten', 'Color Dodge', 'Color Burn', 'Hard Light',
                 'Soft Light', 'Difference', 'Exclusion']
-
         self.compositionModeDict = { 'Normal':QPainter.CompositionMode_SourceOver,
                                 'Plus':QPainter.CompositionMode_Plus, 'Multiply':QPainter.CompositionMode_Multiply,
                                 'Screen':QPainter.CompositionMode_Screen, 'Overlay':QPainter.CompositionMode_Overlay,
@@ -310,6 +316,7 @@ class QLayerView(QTableView) :
         # close open adjustment windows
         #self.closeAdjustForms()
         self.clear(delete=delete)  # TODO 01/12/17 switched from closeadjust to clear
+        # double link
         self.img = mImg
         mImg.layerView = self
         model = layerModel()
@@ -319,8 +326,8 @@ class QLayerView(QTableView) :
         def f(index1, index2):
             #index1 and index2 should be equal
             # only layer name should be editable
-            # dropEvent emit dataChanged when setting item values. We must
-            # prevent these calls to f as they are possibly made with unconsistent data :
+            # dropEvent emit dataChanged when setting item values. f must
+            # return immediately from these calls, as they are possibly made with unconsistent data :
             # dragged rows are already removed from layersStack
             # and not yet removed from model.
             if l != self.model().rowCount():
@@ -362,9 +369,7 @@ class QLayerView(QTableView) :
             item_mask = QStandardItem('m')
             items.append(item_mask)
             model.appendRow(items)
-
         self.setModel(model)
-
         self.horizontalHeader().hide()
         self.verticalHeader().hide()
         header = self.horizontalHeader()
@@ -373,15 +378,27 @@ class QLayerView(QTableView) :
         header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
         # select active layer
         self.selectRow(len(mImg.layersStack) - 1 - mImg.activeLayerIndex)
-        self.update()
+        self.updateForm()
+        for item in self.img.layersStack:
+            if hasattr(item, 'sourceIndex'):
+                combo = item.view.widget().sourceCombo
+                currentText = combo.currentText()
+                combo.clear()
+                for i, x in enumerate(self.img.layersStack):
+                    item.view.widget().sourceCombo.addItem(x.name, i)
+                combo.setCurrentIndex(combo.findText(currentText))
 
-    def update(self):
+    def updateForm(self):
         activeLayer = self.img.getActiveLayer()
         if hasattr(activeLayer, 'view'):
             self.currentWin = activeLayer.view
         if self.currentWin is not None:
             self.currentWin.show()
             self.currentWin.activateWindow()
+
+    def updateRow(self, row):
+        minInd, maxInd = self.model().index(row, 0), self.model().index(row, 3)
+        self.model().dataChanged.emit(minInd, maxInd)
 
     def dropEvent(self, event):
         """
@@ -473,7 +490,7 @@ class QLayerView(QTableView) :
         # update stack
         self.img.layersStack[0].applyToStack()
         self.img.onImageChanged()
-        
+
     def select(self, row, col):
         """
         select item in view
@@ -525,13 +542,14 @@ class QLayerView(QTableView) :
         # hide/display adjustment form
         elif clickedIndex.column() == 1 :
             pass
-        # select mask
         elif clickedIndex.column() == 2:
+            pass
+            """
             cl = self.img.layersStack[-1-clickedIndex.row()]
             cl.maskIsSelected = not cl.maskIsSelected
-            # update
             layer.applyToStack()
             self.img.onImageChanged()
+            """
         # update displayed window and active layer
         self.img.setActiveLayer(len(self.img.layersStack) - 1 - row)
         if self.currentWin is not None:
@@ -820,5 +838,7 @@ class QLayerView(QTableView) :
         self.cMenu.actionMaskDilate.triggered.connect(maskDilate)
         self.cMenu.actionMaskErode.triggered.connect(maskErode)
         self.cMenu.exec_(event.globalPos())
-
+        # update table
+        for row in rows:
+            self.updateRow(row)
 

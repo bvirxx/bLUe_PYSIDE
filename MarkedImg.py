@@ -563,7 +563,7 @@ class vImage(QImage):
         imgIn = self.inputImg()
         imgOut = self.getCurrentImage()
         imgInc = imgIn.copy()
-        src = self.parentImage.layersStack[self.getStackIndex() - 2].getCurrentImage()
+        src = self.parentImage.layersStack[self.sourceIndex].getCurrentImage()
         vImage.seamlessMerge(imgInc, src, self.mask, self.cloningMethod)
         bufOut = QImageBuffer(imgOut)
         bufOut[:, :, :3] = QImageBuffer(imgInc)[:,:,:3]
@@ -1890,6 +1890,15 @@ class QLayer(vImage):
             if l is self:
                 break
         return i
+
+    def updateTableView(self, table):
+        """
+        refreshes the corresponding row in table
+        @param table:
+        @type table: QTableView
+        """
+        ind = self.getStackIndex()
+        table.updateRow(len(self.parentImage.layersStack) - 1 - ind)
 
     def getLowerVisibleStackIndex(self):
         """

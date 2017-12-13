@@ -17,7 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import cv2
 from PySide2.QtCore import Qt
-from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QHBoxLayout, QPushButton
+from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QComboBox
 from utils import optionsWidget
 
 class patchForm (QGraphicsView):
@@ -49,6 +49,7 @@ class patchForm (QGraphicsView):
         options = list(options_dict.keys())
 
         self.layer.cloningMethod = options_dict['Normal Clone']
+        self.layer.keepCloned = True
 
         self.options={}
         for op in options:
@@ -64,6 +65,25 @@ class patchForm (QGraphicsView):
                 if self.options[key]:
                     self.layer.cloningMethod = options_dict[key]
         self.listWidget1.onSelect = onSelect1
+        opList2 = ['Auto Cloning', 'Press Button To Clone']
+        self.listWidget2 = optionsWidget(options=opList2)
+        def onSelect2(item):
+            keepCloned = self.listWidget2.items[opList2[0]].checkState() == Qt.Checked
+            self.layer.keepCloned = keepCloned
+            self.layer.maskIsEnabled = not keepCloned
+            self.layer.maskIsSelected = not keepCloned
+
+        self.listWidget2.onSelect = onSelect2
+        sel = opList2[0]
+        self.listWidget2.select(self.listWidget2.items[sel])
+        pushButton1 = QPushButton('Clone')
+        # button clicked event handler
+        def f():
+            layer = self.targetImage.getActiveLayer()
+            layer.applyCloning(seamless=True)
+            layer.maskIsEnabled = False
+            layer.maskIsSelected = False
+        pushButton1.clicked.connect(f)
         hl = QHBoxLayout()
         l.addLayout(hl)
         l.setContentsMargins(20, 0, 20, 25)  # left, top, right, bottom
@@ -73,10 +93,7 @@ class patchForm (QGraphicsView):
         item.setCheckState(Qt.Checked)
         self.listWidget1.select(item)
         l.addWidget(self.listWidget1)
-        pushButton1 = QPushButton('Seamless Clone')
-        def f():
-            self.targetImage.getActiveLayer().applyCloning(seamless=True)
-        pushButton1.clicked.connect(f)
+        l.addWidget(self.listWidget2)
         l.addWidget(pushButton1)
 
 class maskForm (QGraphicsView):
@@ -99,8 +116,6 @@ class maskForm (QGraphicsView):
         self.layer = layer
         self.mainForm = mainForm
         self.onUpdateFilter = lambda *args: 0
-        l = QVBoxLayout()
-        l.setAlignment(Qt.AlignBottom)
         # options
         options_dict = {'Normal Clone':cv2.NORMAL_CLONE, 'Mixed Clone':cv2.MIXED_CLONE, 'Monochrome Transfer':cv2.MONOCHROME_TRANSFER}
         options = list(options_dict.keys())
@@ -119,7 +134,21 @@ class maskForm (QGraphicsView):
                 if self.options[key]:
                     self.layer.cloningMethod = options_dict[key]
         self.listWidget1.onSelect = onSelect1
+        self.layer.sourceIndex = 0
+        label1 = QLabel('Source')
+        self.sourceCombo = QComboBox()
+        for i, item  in enumerate(self.img.layersStack):
+            self.sourceCombo.addItem(item.name, i)
+        # combo box item chosen event handler
+        def g(ind):
+            self.layer.sourceIndex = ind
+            self.img.getActiveLayer().applyToStack()
+            self.img.onImageChanged()
         hl = QHBoxLayout()
+        hl.addWidget(label1)
+        hl.addWidget(self.sourceCombo)
+        l = QVBoxLayout()
+        l.setAlignment(Qt.AlignBottom)
         l.addLayout(hl)
         l.setContentsMargins(20, 0, 20, 25)  # left, top, right, bottom
         self.setLayout(l)

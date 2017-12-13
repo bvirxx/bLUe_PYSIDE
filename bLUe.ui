@@ -443,7 +443,6 @@ scr</string>
      <addaction name="action3D_LUT"/>
     </widget>
     <addaction name="menuNew_adjustment_layer"/>
-    <addaction name="actionNew_Knitting_Layer"/>
     <addaction name="actionNew_Cloning_Layer"/>
     <addaction name="actionNew_segmentation_layer"/>
     <addaction name="separator"/>

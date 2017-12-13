@@ -31,14 +31,16 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 """
 import sys
 from os import path, walk
-from os.path import isfile
 from types import MethodType
+
+from cv2 import NORMAL_CLONE
+
 from grabcut import segmentForm
-from PySide2.QtCore import Qt, QRect, QEvent, QDir, QUrl, QPoint, QSize, QFile, QFileInfo, QRectF
-from PySide2.QtGui import QPixmap, QColor, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, \
+from PySide2.QtCore import Qt, QRect, QEvent, QDir, QUrl, QSize, QFileInfo, QRectF
+from PySide2.QtGui import QPixmap, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, \
     QPainterPath, QTransform
 from PySide2.QtWidgets import QApplication, QMenu, QAction, QFileDialog, QMessageBox, \
-    QMainWindow, QLabel, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QVBoxLayout, QWidget, QPushButton
+    QMainWindow, QLabel, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QWidget
 from QtGui1 import app, window
 import exiftool
 from imgconvert import *
@@ -53,13 +55,12 @@ from colorConv import sRGBWP
 from graphicsCLAHE import CLAHEForm
 from graphicsExp import ExpForm
 from graphicsPatch import patchForm, maskForm
-from utils import savingDialog, saveChangeDialog, save, openDlg
+from utils import saveChangeDialog, save, openDlg
 
 from graphicsTemp import temperatureForm
 from time import sleep
 
 from re import search
-import weakref
 
 import gc
 
@@ -253,6 +254,9 @@ def mouseEvent(widget, event) :
                             layer.xAltOffset += (x - State['ix'])
                             layer.yAltOffset += (y - State['iy'])
                             layer.cloned = False
+                            if layer.keepCloned:
+                                layer.maskIsEnabled = True
+                                layer.maskIsSelected = False
                             layer.applyCloning(seamless=False)
             # needed to update before window
             else:
@@ -263,13 +267,14 @@ def mouseEvent(widget, event) :
                     layer.xOffset += (x - State['ix'])
                     layer.yOffset += (y - State['iy'])
                     layer.updatePixmap()
+                # cloning layer
                 elif modifiers == Qt.ControlModifier | Qt.AltModifier:
                     if layer.isCloningLayer():
                         layer.xAltOffset += (x - State['ix'])
                         layer.yAltOffset += (y - State['iy'])
                         layer.cloned = False
-                        layer.applyCloning()
-                        layer.updatePixmap()
+                        if layer.keepCloned:
+                            layer.applyCloning(seamless=False)
         #update current coordinates
         State['ix'],State['iy']=x,y
     # mouse release event
@@ -291,33 +296,14 @@ def mouseEvent(widget, event) :
                                        (min(State['iy_begin'], y) - img.yOffset) // r,
                                        abs(State['ix_begin'] - x) // r, abs(State['iy_begin'] - y) // r)
                     """
-                    # for cloning layer init mask from rectangle
-                    if layer.isCloningLayer():
-                        layer.mask.fill(vImage.defaultColor_Masked)
-                        """
-                        qptemp=QPainter(layer.mask)
-                        qptemp.setBrush(QBrush(vImage.defaultColor_UnMasked))
-                        qptemp.drawRect(layer.rect)
-                        qptemp.end()
-                        """
-                        layer.updatePixmap(maskOnly=True)
-                """
-                # do shifts
-                else:
-                    if modifiers == Qt.NoModifier:
-                        img.xOffset += (x - State['ix'])
-                        img.yOffset += (y - State['iy'])
-                    elif modifiers == Qt.ControlModifier:
-                        layer.xOffset += (x - State['ix'])
-                        layer.yOffset += (y - State['iy'])
-                    elif modifiers == Qt.ControlModifier | Qt.AltModifier:
-                        if layer.isCloningLayer():
-                            layer.xAltOffset += (x - State['ix'])
-                            layer.yAltOffset += (y - State['iy'])
-                            layer.cloned = False
-                            layer.applyCloning()
-                            layer.updatePixmap()
-                """
+                    # for cloning layer do cloning
+                if layer.isCloningLayer():
+                    if modifiers == Qt.ControlModifier | Qt.AltModifier:
+                        if layer.keepCloned:
+                            layer.maskIsEnabled = False
+                            layer.maskIsSelected = False
+                            layer.applyCloning(seamless=True)
+                        layer.updateTableView(window.tableView)
     # updates
     widget.repaint()
     # sync splitted views
@@ -355,9 +341,11 @@ def wheelEvent(widget,img, event):
         layer.Zoom_coeff *= (1.0 + numSteps)
         layer.updatePixmap()
     elif modifiers == Qt.ControlModifier | Qt.AltModifier:
-        layer.AltZoom_coeff *= (1.0 + numSteps)
-        layer.cloned = False
-        layer.applyCloning(seamless=False)
+        if layer.isCloningLayer():
+            layer.AltZoom_coeff *= (1.0 + numSteps)
+            layer.cloned = False
+            layer.applyCloning(seamless=layer.keepCloned)
+            #layer.updatePixmap()
     widget.repaint()
     # sync splitted views
     linked = True
@@ -951,12 +939,11 @@ def menuLayer(name):
             l.applyToStack()
             window.label.img.onImageChanged()
         grWindow.graphicsScene.onUpdateLUT = f
-
         # wrapper for the right apply method
         if name == 'actionBrightness_Contrast':
-            l.execute = lambda pool=None: l.apply1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
+            l.execute = lambda l=l, pool=None: l.apply1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
         elif name == 'actionCurves_HSpB':
-            l.execute = lambda  pool=None: l.applyHSPB1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY(), pool=pool)
+            l.execute = lambda l=l, pool=None: l.applyHSPB1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY(), pool=pool)
         elif name == 'actionCurves_Lab':
             l.execute = lambda l=l, pool=None: l.applyLab1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
     # 3D LUT
@@ -994,6 +981,9 @@ def menuLayer(name):
         l.maskIsSelected = True
         l.resetMask(maskAll=True)
         l.cloned = False
+        l.cloningMethod = NORMAL_CLONE
+        l.keepCloned = True
+    # knitting
     elif name == 'actionNew_Knitting_Layer':
         lname = 'Knitting'
         l = window.label.img.addAdjustmentLayer(name=lname)
@@ -1003,7 +993,7 @@ def menuLayer(name):
         l.maskIsSelected = True
         l.resetMask(maskAll=True)
         l.knitted = False
-    # segmentation grabcut
+    # segmentation
     elif name == 'actionNew_segmentation_layer':
         lname = 'Segmentation'
         l = window.label.img.addSegmentationLayer(name=lname)
