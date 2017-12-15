@@ -40,7 +40,7 @@ from PySide2.QtCore import Qt, QRect, QEvent, QDir, QUrl, QSize, QFileInfo, QRec
 from PySide2.QtGui import QPixmap, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, \
     QPainterPath, QTransform
 from PySide2.QtWidgets import QApplication, QMenu, QAction, QFileDialog, QMessageBox, \
-    QMainWindow, QLabel, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QWidget
+    QMainWindow, QLabel, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QWidget, QPushButton
 from QtGui1 import app, window
 import exiftool
 from imgconvert import *
@@ -55,7 +55,7 @@ from colorConv import sRGBWP
 from graphicsCLAHE import CLAHEForm
 from graphicsExp import ExpForm
 from graphicsPatch import patchForm, maskForm
-from utils import saveChangeDialog, save, openDlg
+from utils import saveChangeDialog, save, openDlg, croppingHandle
 
 from graphicsTemp import temperatureForm
 from time import sleep
@@ -87,7 +87,7 @@ def updateDocView():
 splittedWin = splittedWindow(window)
 
 ###############
-# paintEvent global QPainter
+# Global QPainter for paint event
 qp = QPainter()
 # stuff for Before/After marks
 qp.font = QFont("Arial", 8)
@@ -133,10 +133,17 @@ def paintEvent(widg, e) :
                 qp.drawImage(rectF, currentImage, currentImage.rect())
     # draw selection rectangle for active layer only
     layer = mimg.getActiveLayer()
-    if (layer.visible) and (layer.rect is not None ):
+    rect = layer.rect
+    if (layer.visible) and (rect is not None ):
         qp.setPen(QColor(0, 255, 0))
-        rect = mimg.getActiveLayer().rect
         qp.drawRect(rect.left()*r + mimg.xOffset, rect.top()*r +mimg.yOffset, rect.width()*r, rect.height()*r)
+    # draw cropping marks
+    if mimg.isCropped:
+        c = QColor(128,128,128, 128)
+        qp.fillRect(QRectF(mimg.xOffset, mimg.yOffset, window.cropButtonLeft.margin*r, mimg.height()*r ), c)
+        qp.fillRect(QRectF(mimg.xOffset + (mimg.width()-window.cropButtonRight.margin)*r, mimg.yOffset, window.cropButtonRight.margin*r, mimg.height()*r),  c)
+        qp.fillRect(QRectF(mimg.xOffset, mimg.yOffset, mimg.width() * r, window.cropButtonTop.margin * r), c)
+        qp.fillRect(QRectF(mimg.xOffset, mimg.yOffset + (mimg.height() - window.cropButtonBottom.margin) * r, mimg.width() * r, window.cropButtonBottom.margin * r), c)
     # mark before/after views
     name = widg.objectName()
     if name == "label_2" or name == "label_3":
@@ -217,10 +224,12 @@ def mouseEvent(widget, event) :
                 # drawing tools
                 elif window.btnValues['drawFG'] or window.btnValues['drawBG']:
                     if layer.maskIsEnabled:
+                        """
                         if layer.isSegmentLayer():
                             color = QColor(0, 255, 0, 128) if window.btnValues['drawFG'] else QColor(0, 0, 255, 128)
                         else:
-                            color = vImage.defaultColor_UnMasked if window.btnValues['drawFG'] else vImage.defaultColor_Masked
+                        """
+                        color = vImage.defaultColor_UnMasked if window.btnValues['drawFG'] else vImage.defaultColor_Masked
                         qp.begin(layer.mask)
                         # get pen width
                         w = window.verticalSlider1.value() // (2*r)
@@ -243,6 +252,7 @@ def mouseEvent(widget, event) :
                     if modifiers == Qt.NoModifier:
                         img.xOffset+=(x-State['ix'])
                         img.yOffset+=(y-State['iy'])
+                        setCropButtonPos(img, r)
                     # translate active layer only
                     elif modifiers == Qt.ControlModifier:
                         layer.xOffset += (x - State['ix'])
@@ -997,9 +1007,14 @@ def menuLayer(name):
     elif name == 'actionNew_segmentation_layer':
         lname = 'Segmentation'
         l = window.label.img.addSegmentationLayer(name=lname)
-        l.isClipping = True
+        l.maskIsEnabled = True
+        l.maskIsSelected = True
+        l.mask.fill(vImage.defaultColor_Invalid)
+        #l.isClipping = True
         grWindow = segmentForm.getNewWindow(targetImage=window.label.img, layer=l, mainForm=window)
         l.execute = lambda l=l, pool=None: l.applyGrabcut(nbIter=grWindow.nbIter)
+        # mask was modified
+        l.updatePixmap()
     # Temperature
     elif name == 'actionColor_Temperature':
         lname = 'Color Temperature'
@@ -1290,6 +1305,14 @@ def updateStatus():
         s += '&nbsp;&nbsp;press Space Bar to toggle Before/After view'
     window.Label_status.setText(s)
 
+def setCropButtonPos(img, r):
+    x, y = img.xOffset, img.yOffset
+    w, h = img.width()*r, img.height()*r
+    window.cropButtonLeft.move(x + window.cropButtonLeft.margin*r, y + h // 2)
+    window.cropButtonRight.move(x + w - window.cropButtonRight.margin*r, y + h // 2)
+    window.cropButtonTop.move(x + w // 2 , y + window.cropButtonTop.margin*r)
+    window.cropButtonBottom.move(x + w // 2, y + h - window.cropButtonBottom.margin*r)
+
 ###########
 # app init
 ##########
@@ -1304,6 +1327,15 @@ if __name__ =='__main__':
     window.Label_status = QLabel()
     window.statusBar().addWidget(window.Label_status)
     window.updateStatus = updateStatus
+
+    # crop buttons
+    window.cropButtonLeft = croppingHandle(role='left', parent=window.label)
+    window.cropButtonRight = croppingHandle(role='right', parent=window.label)
+    window.cropButtonTop = croppingHandle(role='top', parent=window.label)
+    window.cropButtonBottom = croppingHandle(role='bottom', parent=window.label)
+    cropButtonList = [window.cropButtonLeft, window.cropButtonRight, window.cropButtonTop, window.cropButtonBottom]
+    for b in [window.cropButtonLeft, window.cropButtonRight, window.cropButtonTop, window.cropButtonBottom]:
+        b.show()
 
     # Before/After views flag
     window.splittedView = False

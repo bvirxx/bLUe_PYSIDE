@@ -21,7 +21,6 @@ from PySide2.QtGui import QColor, QPainterPath, QPen, QImage, QPainter
 from PySide2.QtWidgets import QListWidget, QListWidgetItem, QGraphicsPathItem, QDialog, QVBoxLayout, \
     QFileDialog, QSlider, QWidget, QHBoxLayout, QLabel, QMessageBox, QPushButton
 from PySide2.QtCore import Qt, QPoint, QEvent, QObject, QUrl, QRect, QDir
-#from PySide2.QtWebEngine import QWebView
 from os.path import isfile
 
 import exiftool
@@ -176,6 +175,42 @@ class optionsWidget(QListWidget) :
         item = self.items[name]
         item.setCheckState(Qt.Checked)
         self.select(item)
+
+class croppingHandle(QPushButton):
+
+    def __init__(self, role='', parent=None):
+        super().__init__(parent=parent)
+        self.role = role
+        self.margin = 0
+
+    def mouseMoveEvent(self, event):
+        p = self.mapToParent(event.pos())
+        widg = self.parent()
+        img = widg.img
+        r = img.resize_coeff(widg)
+        if self.role == 'left':
+            if (p.x() < img.xOffset) or (p.x() > img.xOffset + img.width() * r):
+                return
+            p.setY(self.pos().y())
+            self.margin  = (p.x() - img.xOffset) // r
+        elif self.role == 'right':
+            if (p.x() < img.xOffset) or (p.x() > img.xOffset + img.width() * r):
+                return
+            p.setY(self.pos().y())
+            self.margin  = img.width() - (p.x() - img.xOffset) // r
+        elif self.role == 'top':
+            if (p.y() < img.yOffset) or (p.y() > img.yOffset + img.height() * r):
+                return
+            p.setX(self.pos().x())
+            self.margin = (p.y() - img.yOffset) // r
+        elif self.role == 'bottom':
+            if (p.y() < img.yOffset) or (p.y() > img.yOffset + img.height() * r):
+                return
+            p.setX(self.pos().x())
+            self.margin = img.height() - (p.y() - img.yOffset) // r
+        self.move(p)
+        widg.repaint()
+
 
 class savingDialog(QDialog):
     """

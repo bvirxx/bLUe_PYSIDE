@@ -46,10 +46,6 @@ class segmentForm(QWidget):
         self.targetImage = targetImage
         self.mainForm = mainForm
         self.nbIter = 1
-        layer.maskIsEnabled = True
-        layer.maskIsSelected = True
-        buf = QImageBuffer(layer.mask)
-        buf[:, :, :] = 255
 
         def f():
             self.targetImage.getActiveLayer().applyToStack()

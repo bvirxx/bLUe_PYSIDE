@@ -76,7 +76,7 @@ class vImage(QImage):
     # modify the methods invertMask and color2opacityMask accordingly.
     defaultColor_UnMasked = QColor(128, 0, 0, 255)
     defaultColor_Masked = QColor(0, 0, 0, 255)
-
+    defaultColor_Invalid = QColor(0, 99, 0, 255)
     @classmethod
     def color2OpacityMask(cls, mask):
         mask = mask.copy()
@@ -186,6 +186,7 @@ class vImage(QImage):
         self.isModified = False
         self.rect, self.mask, = None, mask
         self.filename = filename if filename is not None else ''
+        self.isCropped = True
 
         # mode flags
         self.useHald = False
@@ -248,7 +249,7 @@ class vImage(QImage):
         self.maskIsSelected = False
         if self.mask is None:
             self.mask = QImage(self.width(), self.height(), format)
-            # deafult : nothing is masked
+            # default : unmask all
             self.mask.fill(self.defaultColor_UnMasked)
         #self.updatePixmap()
         if type(self) in [QLayer]:
@@ -314,7 +315,8 @@ class vImage(QImage):
 
     def resize_coeff(self, widget):
         """
-        return the current resizing coefficient, used by
+        Normalization of self.Zoom_coeff
+        returns the current resizing coefficient, used by
         the paint event handler to display the image.
         This coefficient is chosen to initially (i.e. when self.Zoom_coeff = 1)
         fill the widget.
@@ -569,137 +571,74 @@ class vImage(QImage):
         bufOut[:, :, :3] = QImageBuffer(imgInc)[:,:,:3]
         self.updatePixmap()
 
-    def applyGrabcut(self, nbIter=2, mode=cv2.GC_INIT_WITH_MASK, again=False):
+    def applyGrabcut(self, nbIter=2, mode=cv2.GC_INIT_WITH_MASK):
         """
+        Segmentation
         @param nbIter:
+        @type nbIter: int
         @param mode:
-        @param again:
         """
         inputImg = self.inputImg()
-
         rect = self.rect
         # resizing coeff fitting selection rectangle with current image
         r = inputImg.width() / self.width()
 
-        # set mask from selection rectangle, if any
-        rectMask = np.zeros((inputImg.height(), inputImg.width()), dtype=np.uint8)
+        finalMask = np.zeros((inputImg.height(), inputImg.width()), dtype=np.uint8) + cv2.GC_BGD
+        # set pixels inside selection rectangle to PR_FGD
         if rect is not None:
-            rectMask[int(rect.top() * r):int(rect.bottom() * r),
-            int(rect.left() * r):int(rect.right() * r)] = cv2.GC_PR_FGD
+            finalMask[int(rect.top() * r):int(rect.bottom() * r), int(rect.left() * r):int(rect.right() * r)] = cv2.GC_PR_FGD
+        # add info from self.mask
+        if inputImg.size() != self.size():
+            scaledMask = self.mask.scaled(inputImg.width(), inputImg.height())
         else:
-            rectMask = rectMask + cv2.GC_PR_FGD
-        # scale mask scaled doesn't work for pixels with opacity 0
-        x = QImageBuffer(self.mask)[:, :, 3]
-        QImageBuffer(self.mask)[:, :, 3] = np.where(x == 0, 1, x)
-        scaledMask = self.mask.scaled(inputImg.width(), inputImg.height())
-        x = QImageBuffer(scaledMask)
-        x[:, :, 3] = np.where(x[:, :, 3]<=1, 0, x[:, :, 3])
-
-        """
-        scaledMask = inputImg.copy() #self.mask.scaled(inputImg.width(), inputImg.height())
-        x = QImageBuffer(self.mask)[:,:,3]
-        QImageBuffer(self.mask)[:, :, 3] = np.where(x==0, 1, x)
-        qp = QPainter(scaledMask)
-        qp.setCompositionMode(QPainter.CompositionMode_Source)
-        qp.drawImage(QRect(0, 0, inputImg.width(), inputImg.height()), self.mask)
-        qp.end()
-        """
+            scaledMask = self.mask
         scaledMaskBuf = QImageBuffer(scaledMask)
-        # paintedMask = QImageBuffer(layer.mask)
-        # CAUTION: mask is initialized to 255, thus discriminant is blue=0 for FG and green=0 for BG 'cf. Blue.mouseEvent())
-        rectMask[(scaledMaskBuf[:, :, 0] == 0) * (scaledMaskBuf[:, :, 1] == 255)] = cv2.GC_FGD
-        rectMask[(scaledMaskBuf[:, :, 0] == 0) * (scaledMaskBuf[:, :, 1] == 1)] = cv2.GC_PR_FGD  # empty
-
-        # rectMask[paintedMask[:, :,1]==0 ] = cv2.GC_BGD
-        rectMask[(scaledMaskBuf[:, :, 1] == 0) * (scaledMaskBuf[:, :, 0] == 255)] = cv2.GC_BGD
-        rectMask[(scaledMaskBuf[:, :, 1] == 0) * (scaledMaskBuf[:, :, 0] == 1)] = cv2.GC_PR_BGD  #empty
-        #rectMask[(scaledMaskBuf[:, :, 3] == 0) * (scaledMaskBuf[:,:,1]==1)] = cv2.GC_BGD  # set PR_BGD to BGD
-
-        finalMask = rectMask
+        finalMask[(scaledMaskBuf[:, :, 2] > 100 )* (scaledMaskBuf[:,:,1]!=99)] = cv2.GC_FGD
+        finalMask[(scaledMaskBuf[:,:, 2]==0) *(scaledMaskBuf[:,:,1]!=99)] = cv2.GC_BGD
         finalMask_test = finalMask.copy()
         finalMask_save = finalMask.copy()
-
+        # at least one FGD pixel and one BGD pixel
         if not ((np.any(finalMask == cv2.GC_FGD) or np.any(finalMask == cv2.GC_PR_FGD)) and (
             np.any(finalMask == cv2.GC_BGD) or np.any(finalMask == cv2.GC_PR_BGD))):
             reply = QMessageBox()
             reply.setText('You must select some background or foreground pixels')
             reply.setInformativeText('Use selection rectangle or draw mask')
             reply.setStandardButtons(QMessageBox.Ok)
-            ret = reply.exec_()
-            # mask possibly modified
-            self.updatePixmap()
+            reply.exec_()
             return
-
         bgdmodel = np.zeros((1, 13 * 5), np.float64)  # Temporary array for the background model
         fgdmodel = np.zeros((1, 13 * 5), np.float64)  # Temporary array for the foreground model
-
         t0 = time()
-        # tmp =inputImg.getHspbBuffer().astype(np.uint8)
-        # cv2.grabCut_mtd(tmp[:,:,:3], #QImageBuffer(inputImg)[:, :, :3],
-        # cv2.grabCut_mtd(QImageBuffer(inputImg)[:, :, :3],
         inputBuf = QImageBuffer(inputImg)
-
         bgdmodel_test = np.zeros((1, 13 * 5), np.float64)  # Temporary array for the background model
         fgdmodel_test = np.zeros((1, 13 * 5), np.float64)  # Temporary array for the foreground model
 
-        cv2.grabCut_mt(inputBuf[:, :, :3],
-                       finalMask,
-                       None,  # QRect2tuple(img0_r.rect),
-                    bgdmodel, fgdmodel,
-                       nbIter,
-                       mode)
+        cv2.grabCut_mt(inputBuf[:, :, :3], finalMask, None,  # QRect2tuple(img0_r.rect),
+                        bgdmodel, fgdmodel, nbIter, mode)
         print ('grabcut_mtd time : %.2f' % (time()-t0))
+        """
         t1 = time()
-        cv2.grabCut(inputBuf[:, :, :3],
-                    finalMask_test,
-                    None,  # QRect2tuple(img0_r.rect),
-                        bgdmodel_test, fgdmodel_test,
-                    nbIter,
-                    mode)
+        cv2.grabCut(inputBuf[:, :, :3], finalMask_test, None,  # QRect2tuple(img0_r.rect),
+                        bgdmodel_test, fgdmodel_test, nbIter, mode)
         print('grabcut time : %.2f' % (time() - t1))
-
-        # build segmentation mask
-        buf = QImageBuffer(scaledMask)
-        # reset image mask to black, opacity 255
-        buf[:, :, :3] = 1 # don't use 0 for scaling
-        buf[:, :, 3] = 255
-
-        finalMask = np.where(finalMask_save==cv2.GC_BGD, cv2.GC_BGD, finalMask)
-        finalMask = np.where(finalMask_save == cv2.GC_FGD, cv2.GC_FGD, finalMask)
+        """
+        # keep initial FGD and BGD pixels
+        finalMask = np.where((finalMask_save==cv2.GC_BGD) + (finalMask_save == cv2.GC_FGD), finalMask_save, finalMask)
 
         # set opacity (255=background, 0=foreground)
         # We want to keep the colors of mask pixels. Unfortunately,
         # while drawing or scaling, Qt replaces the colors of transparent pixels by 0.
         # So, we can't set now mask alpha channel.
-        finalOpacity = np.where((finalMask == cv2.GC_FGD) + (finalMask == cv2.GC_PR_FGD), 0, 255)
-        # set mask colors and opacity
-        # R  G  B    A
-        # *  0 255  255   background
-        # *  1 255  255   probably background
-        # * 255 0    0    foreground
-        # * 255 1    0    probably foreground
-        # set Green channel(255=foreground, 0=BGD, 1=PR_BGD)
-        buf[:, :, 1] = np.where(finalOpacity == 0, 255, 0)
-        buf[:, :, 1][finalMask == cv2.GC_PR_BGD] = 100#1
-        # set red channel (0=foreground, 255=background cf. vImage.color2opcityMask)
-        buf[:, :, 2] = np.where(finalOpacity == 0, 255, 0)
-        # set Blue channel(255=background, 0=FGD, 1=PR_FGD)
-        buf[:, :, 0] = np.where(finalOpacity == 255, 255, 0)
-        buf[:, :, 0][finalMask == cv2.GC_PR_FGD] = 250#1
+        finalOpacity = np.where((finalMask == cv2.GC_FGD) + (finalMask == cv2.GC_PR_FGD), 255, 0)
+        buf = QImageBuffer(scaledMask)
+        buf[:,:,2] = np.where(finalOpacity==255, 128, 0)
+        # validate mask
+        buf[:,:,1] = 0
+        if self.size() != scaledMask.size():
+            self.mask = scaledMask.scaled(self.size())
+        else:
+            self.mask = scaledMask
 
-        self.mask = scaledMask.scaled(self.width(), self.height())
-
-        tmp = QImageBuffer(self.mask)
-        #tmp[:,:,3]  = np.where(tmp[:,:,1] <=100, 1, 255)  # don't use opacity 0 for scaling
-
-        currentImage = self.getCurrentImage()  # TODO 23/10/17 fix do not use getCurrentMaskedImage : lower layers modifs not forwarded
-        ndImg1a = QImageBuffer(currentImage)
-        # forward input image to image
-        ndImg1a[:, :,:]= inputBuf
-        #tmpscaled = QImageBuffer(scaledMask)
-        #ndImg1a[:,:,3] = 255 - tmpscaled[:,:,3]
-
-        # update
         self.updatePixmap()
 
     def applyExposure(self, exposureCorrection, options):
@@ -1306,8 +1245,7 @@ class mImage(vImage):
         layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
         layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getCurrentMaskedImage()
         self.addLayer(layer, name=name, index=index + 1)
-        layer.parent = self
-        self.setModified(True)
+        layer.updatePixmap()
         return layer
 
     def dupLayer(self, index=None):
