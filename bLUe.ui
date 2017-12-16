@@ -67,7 +67,7 @@
            <x>10</x>
            <y>60</y>
            <width>34</width>
-           <height>205</height>
+           <height>345</height>
           </rect>
          </property>
          <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -75,12 +75,90 @@
            <enum>QLayout::SetDefaultConstraint</enum>
           </property>
           <item>
+           <widget class="QToolButton" name="toolButton_3">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>32</width>
+              <height>26</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>Fit screen</string>
+            </property>
+            <property name="accessibleName">
+             <string>Fit_Screen</string>
+            </property>
+            <property name="text">
+             <string>Fit
+scr</string>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
+            <property name="autoExclusive">
+             <bool>false</bool>
+            </property>
+            <property name="autoRaise">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QToolButton" name="cropButton">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>32</width>
+              <height>26</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>Crop Image</string>
+            </property>
+            <property name="accessibleName">
+             <string>Crop_Button</string>
+            </property>
+            <property name="text">
+             <string>Crop</string>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
+            <property name="checked">
+             <bool>false</bool>
+            </property>
+            <property name="autoRaise">
+             <bool>true</bool>
+            </property>
+            <property name="arrowType">
+             <enum>Qt::NoArrow</enum>
+            </property>
+           </widget>
+          </item>
+          <item>
            <widget class="QToolButton" name="toolButton_2">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>32</width>
+              <height>26</height>
+             </size>
             </property>
             <property name="toolTip">
              <string>Color Picker</string>
@@ -101,28 +179,37 @@
             <property name="autoExclusive">
              <bool>true</bool>
             </property>
+            <property name="autoRaise">
+             <bool>true</bool>
+            </property>
            </widget>
           </item>
           <item>
-           <widget class="QToolButton" name="drawFG">
+           <widget class="QToolButton" name="toolButton_6">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
+            <property name="minimumSize">
+             <size>
+              <width>32</width>
+              <height>26</height>
+             </size>
+            </property>
             <property name="toolTip">
-             <string>Unmask/Assign FG</string>
+             <string>Drag</string>
             </property>
             <property name="accessibleName">
-             <string>drawFG</string>
+             <string>drag</string>
             </property>
             <property name="text">
              <string>...</string>
             </property>
             <property name="icon">
              <iconset resource="resources.qrc">
-              <normaloff>:/images/resources/new-document-file-paper-pen-writing-icone-6977-48.png</normaloff>:/images/resources/new-document-file-paper-pen-writing-icone-6977-48.png</iconset>
+              <normaloff>:/images/resources/1472056618_cursor_drag_arrow_2.png</normaloff>:/images/resources/1472056618_cursor_drag_arrow_2.png</iconset>
             </property>
             <property name="checkable">
              <bool>true</bool>
@@ -130,33 +217,7 @@
             <property name="autoExclusive">
              <bool>true</bool>
             </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QToolButton" name="drawBG">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="toolTip">
-             <string>Mask/Assign BG</string>
-            </property>
-            <property name="accessibleName">
-             <string>drawBG</string>
-            </property>
-            <property name="text">
-             <string>...</string>
-            </property>
-            <property name="icon">
-             <iconset resource="resources.qrc">
-              <normaloff>:/images/resources/document-change-record-a-pen-to-write-text-icone-5220-48.png</normaloff>:/images/resources/document-change-record-a-pen-to-write-text-icone-5220-48.png</iconset>
-            </property>
-            <property name="checkable">
-             <bool>true</bool>
-            </property>
-            <property name="autoExclusive">
+            <property name="autoRaise">
              <bool>true</bool>
             </property>
            </widget>
@@ -168,6 +229,12 @@
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>32</width>
+              <height>26</height>
+             </size>
             </property>
             <property name="toolTip">
              <string>Marquee</string>
@@ -191,28 +258,43 @@
             <property name="autoExclusive">
              <bool>true</bool>
             </property>
+            <property name="autoRaise">
+             <bool>true</bool>
+            </property>
            </widget>
           </item>
           <item>
-           <widget class="QToolButton" name="toolButton_6">
+           <widget class="QToolButton" name="drawFG">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
+            <property name="minimumSize">
+             <size>
+              <width>32</width>
+              <height>26</height>
+             </size>
+            </property>
             <property name="toolTip">
-             <string>Drag</string>
+             <string>Unmask/Assign FG</string>
             </property>
             <property name="accessibleName">
-             <string>drag</string>
+             <string>drawFG</string>
+            </property>
+            <property name="autoFillBackground">
+             <bool>false</bool>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">QToolButton:checked{background-color:#990000}</string>
             </property>
             <property name="text">
              <string>...</string>
             </property>
             <property name="icon">
              <iconset resource="resources.qrc">
-              <normaloff>:/images/resources/1472056618_cursor_drag_arrow_2.png</normaloff>:/images/resources/1472056618_cursor_drag_arrow_2.png</iconset>
+              <normaloff>:/images/resources/new-document-file-paper-pen-writing-icone-6977-48.png</normaloff>:/images/resources/new-document-file-paper-pen-writing-icone-6977-48.png</iconset>
             </property>
             <property name="checkable">
              <bool>true</bool>
@@ -220,25 +302,40 @@
             <property name="autoExclusive">
              <bool>true</bool>
             </property>
+            <property name="autoRaise">
+             <bool>true</bool>
+            </property>
            </widget>
           </item>
           <item>
-           <widget class="QToolButton" name="toolButton_3">
+           <widget class="QToolButton" name="drawBG">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
+            <property name="minimumSize">
+             <size>
+              <width>32</width>
+              <height>26</height>
+             </size>
+            </property>
             <property name="toolTip">
-             <string>Fit screen</string>
+             <string>Mask/Assign BG</string>
             </property>
             <property name="accessibleName">
-             <string>Fit_Screen</string>
+             <string>drawBG</string>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">QToolButton:checked{background-color:#606060}</string>
             </property>
             <property name="text">
-             <string>Fit
-scr</string>
+             <string>...</string>
+            </property>
+            <property name="icon">
+             <iconset resource="resources.qrc">
+              <normaloff>:/images/resources/document-change-record-a-pen-to-write-text-icone-5220-48.png</normaloff>:/images/resources/document-change-record-a-pen-to-write-text-icone-5220-48.png</iconset>
             </property>
             <property name="checkable">
              <bool>true</bool>
@@ -246,40 +343,43 @@ scr</string>
             <property name="autoExclusive">
              <bool>true</bool>
             </property>
+            <property name="autoRaise">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QSlider" name="verticalSlider1">
+            <property name="minimumSize">
+             <size>
+              <width>10</width>
+              <height>100</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>Brush Size</string>
+            </property>
+            <property name="accessibleName">
+             <string>verticalSlider1</string>
+            </property>
+            <property name="minimum">
+             <number>2</number>
+            </property>
+            <property name="maximum">
+             <number>100</number>
+            </property>
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+            <property name="tickPosition">
+             <enum>QSlider::TicksAbove</enum>
+            </property>
+            <property name="tickInterval">
+             <number>10</number>
+            </property>
            </widget>
           </item>
          </layout>
-        </widget>
-        <widget class="QSlider" name="verticalSlider1">
-         <property name="geometry">
-          <rect>
-           <x>20</x>
-           <y>290</y>
-           <width>19</width>
-           <height>160</height>
-          </rect>
-         </property>
-         <property name="toolTip">
-          <string>Brush Size</string>
-         </property>
-         <property name="accessibleName">
-          <string>verticalSlider1</string>
-         </property>
-         <property name="minimum">
-          <number>2</number>
-         </property>
-         <property name="maximum">
-          <number>100</number>
-         </property>
-         <property name="orientation">
-          <enum>Qt::Vertical</enum>
-         </property>
-         <property name="tickPosition">
-          <enum>QSlider::TicksAbove</enum>
-         </property>
-         <property name="tickInterval">
-          <number>10</number>
-         </property>
         </widget>
        </widget>
       </item>

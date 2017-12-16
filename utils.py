@@ -19,7 +19,7 @@ import numpy as np
 from math import factorial
 from PySide2.QtGui import QColor, QPainterPath, QPen, QImage, QPainter
 from PySide2.QtWidgets import QListWidget, QListWidgetItem, QGraphicsPathItem, QDialog, QVBoxLayout, \
-    QFileDialog, QSlider, QWidget, QHBoxLayout, QLabel, QMessageBox, QPushButton
+    QFileDialog, QSlider, QWidget, QHBoxLayout, QLabel, QMessageBox, QPushButton, QToolButton
 from PySide2.QtCore import Qt, QPoint, QEvent, QObject, QUrl, QRect, QDir
 from os.path import isfile
 
@@ -176,12 +176,17 @@ class optionsWidget(QListWidget) :
         item.setCheckState(Qt.Checked)
         self.select(item)
 
-class croppingHandle(QPushButton):
+class croppingHandle(QToolButton):
 
     def __init__(self, role='', parent=None):
         super().__init__(parent=parent)
         self.role = role
         self.margin = 0
+        self.setVisible(False)
+        self.setGeometry(0,0,10,10)
+        self.setAutoFillBackground(True)
+        self.setAutoRaise(True)
+        self.setStyleSheet("QToolButton:hover {background-color:#00FF00} QToolButton {background-color:#555555}")
 
     def mouseMoveEvent(self, event):
         p = self.mapToParent(event.pos())
@@ -189,20 +194,20 @@ class croppingHandle(QPushButton):
         img = widg.img
         r = img.resize_coeff(widg)
         if self.role == 'left':
-            if (p.x() < img.xOffset) or (p.x() > img.xOffset + img.width() * r):
+            if (p.x() < img.xOffset - self.width()) or (p.x() > img.xOffset + img.width() * r):
                 return
             p.setY(self.pos().y())
-            self.margin  = (p.x() - img.xOffset) // r
+            self.margin  = (p.x() - img.xOffset+ self.width()) // r
         elif self.role == 'right':
             if (p.x() < img.xOffset) or (p.x() > img.xOffset + img.width() * r):
                 return
             p.setY(self.pos().y())
             self.margin  = img.width() - (p.x() - img.xOffset) // r
         elif self.role == 'top':
-            if (p.y() < img.yOffset) or (p.y() > img.yOffset + img.height() * r):
+            if (p.y() < img.yOffset - self.height()) or (p.y() > img.yOffset + img.height() * r):
                 return
             p.setX(self.pos().x())
-            self.margin = (p.y() - img.yOffset) // r
+            self.margin = (p.y() - img.yOffset + self.height()) // r
         elif self.role == 'bottom':
             if (p.y() < img.yOffset) or (p.y() > img.yOffset + img.height() * r):
                 return

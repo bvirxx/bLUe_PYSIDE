@@ -35,14 +35,12 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
     """
     def __init__(self, parent=None):
         super(Form1, self).__init__()
-        #self.setupUi(self)
         # load UI
         loadUi('bLUe.ui', baseinstance=self, customWidgets= {'QLayerView': QLayerView, 'QLabel': QLabel, 'histForm': histForm})
         #self = QtUiTools.QUiLoader().load("bLUe.ui", self)
 
-        # Status window updating
+        # hooks added to event slots
         self.updateStatus = lambda : 0
-        # hooks used for event slots:
         self.onWidgetChange = lambda : 0
         self.onShowContextMenu = lambda : 0
         self.onExecFileOpen = lambda : 0
@@ -51,10 +49,8 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
         # State recording.
         self.slidersValues = {}
         self.btnValues = {}
-        #self._recentFiles = []
 
-        # connections to SLOTS
-        #for slider in self.findChildren(QtGui.QSlider):
+        # connections to slots
         for slider in self.findChildren(QtWidgets.QSlider):
             slider.valueChanged.connect(
                             lambda value, slider=slider : self.handleSliderMoved(value, slider)
@@ -62,36 +58,30 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
             self.slidersValues [str(slider.accessibleName())] = slider.value()
 
         for button in self.findChildren(QtWidgets.QPushButton) :
-            button.pressed.connect(
-                            lambda button=button : self.handlePushButtonClicked(button)
+            button.toggled.connect(
+                            lambda state, button=button : self.handlePushButtonClicked(state, button)
                             )
             self.btnValues[str(button.accessibleName())] = button.isChecked()
 
         for button in self.findChildren(QtWidgets.QToolButton) :
-            button.pressed.connect(
-                            lambda button=button : self.handleToolButtonClicked(button)
+            button.toggled.connect(
+                            lambda state, button=button : self.handleToolButtonClicked(state, button)
                             )
             self.btnValues[str(button.accessibleName())] = button.isChecked()
 
-        #for widget in self.findChildren(QtWidgets.QLabel):
-            #widget.customContextMenuRequested.connect(lambda pos, widget=widget : self.showContextMenu(pos, widget))
-
-    #def showContextMenu(self, pos, widget):
-        #self.onShowContextMenu(pos, widget)
-
-    def handlePushButtonClicked(self, button):
+    def handlePushButtonClicked(self, state, button):
         self.onWidgetChange(button)
 
-    def handleToolButtonClicked(self, button):
+    def handleToolButtonClicked(self, state, button):
         """
-        button.pressed signal slot
-        mutually exclusive selection
+        button toggled signal slot.
+        Called by each checkable button modifying its state :
+        btnValues dict is updated for both non exclusive and auto exclusive
+        buttons.
         @param button:
         @type button: QButton
         """
-        for k in self.btnValues :
-            self.btnValues[k] = False
-        self.btnValues[str(button.accessibleName())] = True
+        self.btnValues[str(button.accessibleName())] = button.isChecked()
         self.onWidgetChange(button)
 
     def handleSliderMoved (self, value, slider) :

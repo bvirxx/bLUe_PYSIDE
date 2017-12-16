@@ -252,7 +252,8 @@ def mouseEvent(widget, event) :
                     if modifiers == Qt.NoModifier:
                         img.xOffset+=(x-State['ix'])
                         img.yOffset+=(y-State['iy'])
-                        setCropButtonPos(img, r)
+                        if window.btnValues['Crop_Button']:
+                            setCropButtonPos(img, r)
                     # translate active layer only
                     elif modifiers == Qt.ControlModifier:
                         layer.xOffset += (x - State['ix'])
@@ -347,6 +348,8 @@ def wheelEvent(widget,img, event):
         # under the cursor : (pos - offset) / resize_coeff should be invariant
         img.xOffset = -pos.x() * numSteps + (1.0+numSteps)*img.xOffset
         img.yOffset = -pos.y() * numSteps + (1.0+numSteps)*img.yOffset
+        if window.btnValues['Crop_Button']:
+            setCropButtonPos(img, img.resize_coeff(window.label))
     elif modifiers == Qt.ControlModifier:
         layer.Zoom_coeff *= (1.0 + numSteps)
         layer.updatePixmap()
@@ -417,7 +420,8 @@ def set_event_handlers(widg, enterAndLeave=True):
         widg.enterEvent = MethodType(lambda instance, e, wdg=widg : enterEvent(wdg, wdg.img, e), widg.__class__)
         widg.leaveEvent = MethodType(lambda instance, e, wdg=widg : leaveEvent(wdg, wdg.img, e), widg.__class__)
 
-# button change event handler
+# Event handler for top level buttons,
+# assigned to onWidgetChange
 def widgetChange(button):
     """
     event handler for top level buttons
@@ -428,6 +432,16 @@ def widgetChange(button):
     if wdgName == "Fit_Screen" :
         window.label.img.fit_window(window.label)
         window.label.repaint()
+    elif wdgName == "Crop_Button":
+        if button.isChecked():
+            setCropButtonPos(window.label.img, window.label.img.resize_coeff(window.label))
+            for b in [window.cropButtonLeft, window.cropButtonRight, window.cropButtonTop, window.cropButtonBottom]:
+                b.show()
+        else:
+            for b in [window.cropButtonLeft, window.cropButtonRight, window.cropButtonTop, window.cropButtonBottom]:
+                b.hide()
+        window.label.img.isCropped = button.isChecked()
+        window.label.repaint()
 
 def contextMenu(pos, widget):
     """
@@ -437,24 +451,6 @@ def contextMenu(pos, widget):
     @return:
     """
     pass
-    """
-    qmenu = QMenu("Context menu")
-    if not hasattr(widget, 'img'):
-        return
-
-    action1 = QAction('test', qmenu, checkable=True)
-    action1.setShortcut(QKeySequence("Ctrl+ "))
-    action1.setShortcutContext(Qt.ApplicationShortcut)
-    qmenu.addAction(action1)
-    action1.triggered[bool].connect(lambda b, widget=widget : print('toto'))
-    action1.setChecked(True)
-
-    if widget is window.label_2:
-        print('2')
-    elif widget is window.label_3:
-        print('3')
-    qmenu.exec_(QCursor.pos())
-    """
 
 def loadImageFromFile(f):
     """
@@ -1306,12 +1302,20 @@ def updateStatus():
     window.Label_status.setText(s)
 
 def setCropButtonPos(img, r):
+    """
+    Sets the four crop handles around the displayed image,
+    with their current margins.
+    @param img:
+    @type img: QImage
+    @param r: current resizing coefficient (normalized zoom coeff.)
+    @type r: float
+    """
     x, y = img.xOffset, img.yOffset
     w, h = img.width()*r, img.height()*r
-    window.cropButtonLeft.move(x + window.cropButtonLeft.margin*r, y + h // 2)
-    window.cropButtonRight.move(x + w - window.cropButtonRight.margin*r, y + h // 2)
-    window.cropButtonTop.move(x + w // 2 , y + window.cropButtonTop.margin*r)
-    window.cropButtonBottom.move(x + w // 2, y + h - window.cropButtonBottom.margin*r)
+    window.cropButtonLeft.move(x+window.cropButtonLeft.margin*r-window.cropButtonLeft.width(), y+h//2)
+    window.cropButtonRight.move(x+w-window.cropButtonRight.margin*r, y+h//2)
+    window.cropButtonTop.move(x+w//2 , y+window.cropButtonTop.margin*r-window.cropButtonTop.height())
+    window.cropButtonBottom.move(x+w//2, y+h-window.cropButtonBottom.margin*r)
 
 ###########
 # app init
@@ -1333,9 +1337,7 @@ if __name__ =='__main__':
     window.cropButtonRight = croppingHandle(role='right', parent=window.label)
     window.cropButtonTop = croppingHandle(role='top', parent=window.label)
     window.cropButtonBottom = croppingHandle(role='bottom', parent=window.label)
-    cropButtonList = [window.cropButtonLeft, window.cropButtonRight, window.cropButtonTop, window.cropButtonBottom]
-    for b in [window.cropButtonLeft, window.cropButtonRight, window.cropButtonTop, window.cropButtonBottom]:
-        b.show()
+
 
     # Before/After views flag
     window.splittedView = False
@@ -1375,7 +1377,6 @@ if __name__ =='__main__':
 
     #  init convenience GUI hooks
     window.onWidgetChange = widgetChange
-    #window.onShowContextMenu = contextMenu
 
     # load current settings
     window.readSettings()
