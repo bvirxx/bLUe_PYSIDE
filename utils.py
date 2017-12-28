@@ -178,18 +178,32 @@ class optionsWidget(QListWidget) :
 
 class croppingHandle(QToolButton):
 
-    def __init__(self, role='', parent=None):
+    def __init__(self, role='', parent=None, group=[]):
+        """
+        parent is the widget showing the image.
+        role is 'left, 'right', 'top' or 'bottom'
+        @param role:
+        @type role: str
+        @param parent:
+        @type parent: QWidget
+        """
         super().__init__(parent=parent)
         self.role = role
         self.margin = 0
+        self.group = group
         self.setVisible(False)
         self.setGeometry(0,0,10,10)
         self.setAutoFillBackground(True)
         self.setAutoRaise(True)
         self.setStyleSheet("QToolButton:hover {background-color:#00FF00} QToolButton {background-color:#555555}")
 
-    def mouseMoveEvent(self, event):
-        p = self.mapToParent(event.pos())
+    def setPosition(self, p):
+        """
+        Updates button positions and margins when a crop button is moved
+        @param p: position relative to widget
+        @type p: QPoint
+
+        """
         widg = self.parent()
         img = widg.img
         r = img.resize_coeff(widg)
@@ -197,25 +211,78 @@ class croppingHandle(QToolButton):
             if (p.x() < img.xOffset - self.width()) or (p.x() > img.xOffset + img.width() * r):
                 return
             p.setY(self.pos().y())
-            self.margin  = (p.x() - img.xOffset+ self.width()) // r
+            self.margin = (p.x() - img.xOffset + self.width()) // r
+            self.move(p)
+            self.group['topLeft'].move(p.x(), self.group['top'].pos().y())
+            self.group['bottomLeft'].move(p.x(), self.group['bottom'].pos().y())
         elif self.role == 'right':
             if (p.x() < img.xOffset) or (p.x() > img.xOffset + img.width() * r):
                 return
             p.setY(self.pos().y())
-            self.margin  = img.width() - (p.x() - img.xOffset) // r
+            self.margin = img.width() - (p.x() - img.xOffset) // r
+            self.move(p)
+            self.group['topRight'].move(p.x(), self.group['top'].pos().y())
+            self.group['bottomRight'].move(p.x(), self.group['bottom'].pos().y())
         elif self.role == 'top':
             if (p.y() < img.yOffset - self.height()) or (p.y() > img.yOffset + img.height() * r):
                 return
             p.setX(self.pos().x())
             self.margin = (p.y() - img.yOffset + self.height()) // r
+            self.move(p)
+            self.group['topLeft'].move(self.group['left'].pos().x(), p.y())
+            self.group['topRight'].move(self.group['right'].pos().x(), p.y())
         elif self.role == 'bottom':
             if (p.y() < img.yOffset) or (p.y() > img.yOffset + img.height() * r):
                 return
             p.setX(self.pos().x())
             self.margin = img.height() - (p.y() - img.yOffset) // r
-        self.move(p)
-        widg.repaint()
+            self.move(p)
+            self.group['bottomLeft'].move(self.group['left'].pos().x(), p.y())
+            self.group['bottomRight'].move(self.group['right'].pos().x(), p.y())
+        elif self.role == 'topRight':
+            ratio = img.height() / img.width()
+            p.setY(p.x() * ratio)
+            if (p.x() < img.xOffset) or (p.x() > img.xOffset + img.width() * r):
+                return
+            btn = self.group['right']
+            p1 = QPoint(p.x(), btn.pos().y())
+            btn.margin = (p1.x() - img.xOffset + btn.width()) // r
+            btn.move(p1)
+            if (p.y() < img.yOffset - btn.height()) or (p.y() > img.yOffset + img.height() * r):
+                return
+            btn = self.group['top']
+            p2 = QPoint(btn.pos().x(), p.y())
+            btn.margin = img.width() - (p2.x() - img.xOffset) // r
+            btn.move(p2)
+            self.move(QPoint(p1.x(), p2.y()))
+        elif self.role == 'topLeft':
+            w = img.width()- self.group['left'].margin - self.group['right'].margin
+            h = img.height() - self.group['top'].margin - self.group['bottom'].margin
+            p.setY((p.x() - img.xOffset)*h/w + img.yOffset)
+            if (p.x() < img.xOffset - self.width()) or (p.x() > img.xOffset + img.width() * r):
+                return
+            btn = self.group['left']
+            p1 = QPoint(p.x(), btn.pos().y())
+            btn.margin = (p1.x() - img.xOffset + btn.width()) // r
+            btn.move(p1)
+            if (p.y() < img.yOffset - btn.height()) or (p.y() > img.yOffset + img.height() * r):
+                return
+            btn = self.group['top']
+            p2 = QPoint(btn.pos().x(), p.y())
+            btn.margin = (p2.y() - img.yOffset + btn.height()) // r
+            btn.move(p2)
+            self.move(QPoint(p1.x(), p2.y()))
 
+    def mouseMoveEvent(self, event):
+        pos = self.mapToParent(event.pos())
+        oldPos = self.pos()
+        if self.role in ['left', 'right']:
+            self.setPosition(self.pos()+QPoint((pos-oldPos).x(),0))
+        elif self.role in ['top', 'bottom']:
+            self.setPosition(self.pos() + QPoint(0, (pos - oldPos).y()))
+        else:
+            self.setPosition(pos)
+        self.parent().repaint()
 
 class savingDialog(QDialog):
     """

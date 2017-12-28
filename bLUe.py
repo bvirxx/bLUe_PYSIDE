@@ -139,11 +139,26 @@ def paintEvent(widg, e) :
         qp.drawRect(rect.left()*r + mimg.xOffset, rect.top()*r +mimg.yOffset, rect.width()*r, rect.height()*r)
     # draw cropping marks
     if mimg.isCropped:
-        c = QColor(128,128,128, 128)
-        qp.fillRect(QRectF(mimg.xOffset, mimg.yOffset, window.cropButtonLeft.margin*r, mimg.height()*r ), c)
-        qp.fillRect(QRectF(mimg.xOffset + (mimg.width()-window.cropButtonRight.margin)*r, mimg.yOffset, window.cropButtonRight.margin*r, mimg.height()*r),  c)
-        qp.fillRect(QRectF(mimg.xOffset, mimg.yOffset, mimg.width() * r, window.cropButtonTop.margin * r), c)
-        qp.fillRect(QRectF(mimg.xOffset, mimg.yOffset + (mimg.height() - window.cropButtonBottom.margin) * r, mimg.width() * r, window.cropButtonBottom.margin * r), c)
+        c = QColor(128,128,128, 192)
+        lm = window.cropButtonDict['left'].margin*r
+        rm =  window.cropButtonDict['right'].margin*r
+        tm =  window.cropButtonDict['top'].margin*r
+        bm =  window.cropButtonDict['bottom'].margin*r
+        w,h = mimg.width()*r, mimg.height()*r
+        #left
+        qp.fillRect(QRectF(mimg.xOffset, mimg.yOffset, lm, h), c)
+        #top
+        qp.fillRect(QRectF(mimg.xOffset+lm, mimg.yOffset, w - lm, tm), c)
+        #right
+        qp.fillRect(QRectF(mimg.xOffset+w-rm, mimg.yOffset+tm, rm, h-tm),  c)
+        #bottom
+        qp.fillRect(QRectF(mimg.xOffset+lm, mimg.yOffset+h-bm, w-lm-rm, bm), c)
+        if True:
+            deltaX, deltaY = (w-lm-rm)//3, (h-tm-bm)//3
+            qp.drawLine(lm+mimg.xOffset, deltaY+tm+mimg.yOffset, w-rm+mimg.xOffset, deltaY+tm+mimg.yOffset)
+            qp.drawLine(lm+mimg.xOffset, 2*deltaY+tm+mimg.yOffset, w-rm+mimg.xOffset, 2*deltaY+tm+mimg.yOffset)
+            qp.drawLine(deltaX+lm+mimg.xOffset, tm+mimg.yOffset, deltaX+lm+mimg.xOffset, h-bm+mimg.yOffset)
+            qp.drawLine(2*deltaX+lm+mimg.xOffset, tm+mimg.yOffset, 2*deltaX+lm+mimg.xOffset, h-bm+mimg.yOffset)
     # mark before/after views
     name = widg.objectName()
     if name == "label_2" or name == "label_3":
@@ -435,10 +450,10 @@ def widgetChange(button):
     elif wdgName == "Crop_Button":
         if button.isChecked():
             setCropButtonPos(window.label.img, window.label.img.resize_coeff(window.label))
-            for b in [window.cropButtonLeft, window.cropButtonRight, window.cropButtonTop, window.cropButtonBottom]:
+            for b in window.cropButtonDict.values():
                 b.show()
         else:
-            for b in [window.cropButtonLeft, window.cropButtonRight, window.cropButtonTop, window.cropButtonBottom]:
+            for b in window.cropButtonDict.values():
                 b.hide()
         window.label.img.isCropped = button.isChecked()
         window.label.repaint()
@@ -1303,7 +1318,7 @@ def updateStatus():
 
 def setCropButtonPos(img, r):
     """
-    Sets the four crop handles around the displayed image,
+    Sets the 8 crop handles around the displayed image,
     with their current margins.
     @param img:
     @type img: QImage
@@ -1312,10 +1327,33 @@ def setCropButtonPos(img, r):
     """
     x, y = img.xOffset, img.yOffset
     w, h = img.width()*r, img.height()*r
-    window.cropButtonLeft.move(x+window.cropButtonLeft.margin*r-window.cropButtonLeft.width(), y+h//2)
-    window.cropButtonRight.move(x+w-window.cropButtonRight.margin*r, y+h//2)
-    window.cropButtonTop.move(x+w//2 , y+window.cropButtonTop.margin*r-window.cropButtonTop.height())
-    window.cropButtonBottom.move(x+w//2, y+h-window.cropButtonBottom.margin*r)
+    left = window.cropButtonDict['left']
+    left.move(x+left.margin*r-left.width(), y+h//2)
+    right = window.cropButtonDict['right']
+    right.move(x+w-right.margin*r, y+h//2)
+    top = window.cropButtonDict['top']
+    top.move(x+w//2 , y+top.margin*r-top.height())
+    bottom = window.cropButtonDict['bottom']
+    bottom.move(x+w//2, y+h-bottom.margin*r)
+    topLeft = window.cropButtonDict['topLeft']
+    topLeft.move(x + left.margin * r - left.width(), y+top.margin*r-top.height())
+
+def initCropButtons():
+    cropButtonLeft = croppingHandle(role='left', parent=window.label)
+    cropButtonRight = croppingHandle(role='right', parent=window.label)
+    cropButtonTop = croppingHandle(role='top', parent=window.label)
+    cropButtonBottom = croppingHandle(role='bottom', parent=window.label)
+    cropButtonTopLeft = croppingHandle(role='topLeft', parent=window.label)
+    cropButtonTopRight = croppingHandle(role='topRight', parent=window.label)
+    cropButtonBottomLeft = croppingHandle(role='bottomLeft', parent=window.label)
+    cropButtonBottomRight = croppingHandle(role='bottomRight', parent=window.label)
+
+    btnList = [cropButtonLeft, cropButtonRight, cropButtonTop, cropButtonBottom,
+               cropButtonTopLeft, cropButtonTopRight, cropButtonBottomLeft, cropButtonBottomRight]
+    btnDict = {btn.role: btn for btn in btnList}
+    for btn in btnList:
+        btn.group = btnDict
+    return btnDict
 
 ###########
 # app init
@@ -1333,11 +1371,7 @@ if __name__ =='__main__':
     window.updateStatus = updateStatus
 
     # crop buttons
-    window.cropButtonLeft = croppingHandle(role='left', parent=window.label)
-    window.cropButtonRight = croppingHandle(role='right', parent=window.label)
-    window.cropButtonTop = croppingHandle(role='top', parent=window.label)
-    window.cropButtonBottom = croppingHandle(role='bottom', parent=window.label)
-
+    window.cropButtonDict = initCropButtons()
 
     # Before/After views flag
     window.splittedView = False
@@ -1392,7 +1426,6 @@ if __name__ =='__main__':
 
     PROFILES_LIST = icc.getProfiles()
     initMenuAssignProfile()
-    #updateMenuOpenRecent()
 
     window.label.img = defaultImImage
     window.label_2.img = defaultImImage
