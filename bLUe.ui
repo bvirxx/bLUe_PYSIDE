@@ -66,8 +66,8 @@
           <rect>
            <x>10</x>
            <y>60</y>
-           <width>34</width>
-           <height>345</height>
+           <width>54</width>
+           <height>362</height>
           </rect>
          </property>
          <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -143,6 +143,25 @@ scr</string>
             </property>
             <property name="arrowType">
              <enum>Qt::NoArrow</enum>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QToolButton" name="rotateButton">
+            <property name="toolTip">
+             <string>Rotate Image</string>
+            </property>
+            <property name="accessibleName">
+             <string>Rotate_Button</string>
+            </property>
+            <property name="text">
+             <string>Rotate</string>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
+            <property name="autoRaise">
+             <bool>true</bool>
             </property>
            </widget>
           </item>
@@ -541,6 +560,8 @@ scr</string>
      <addaction name="separator"/>
      <addaction name="action3D_LUT_HSB"/>
      <addaction name="action3D_LUT"/>
+     <addaction name="separator"/>
+     <addaction name="actionGeom_Transformation"/>
     </widget>
     <addaction name="menuNew_adjustment_layer"/>
     <addaction name="actionNew_Cloning_Layer"/>
@@ -852,6 +873,11 @@ scr</string>
   <action name="actionNew_Knitting_Layer">
    <property name="text">
     <string>New Knitting Layer</string>
+   </property>
+  </action>
+  <action name="actionGeom_Transformation">
+   <property name="text">
+    <string>Geom. Transformation</string>
    </property>
   </action>
  </widget>

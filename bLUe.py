@@ -43,6 +43,7 @@ from PySide2.QtWidgets import QApplication, QMenu, QAction, QFileDialog, QMessag
     QMainWindow, QLabel, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QWidget, QPushButton
 from QtGui1 import app, window
 import exiftool
+from graphicsTransform import transForm
 from imgconvert import *
 from MarkedImg import imImage, metadata, vImage
 
@@ -55,7 +56,7 @@ from colorConv import sRGBWP
 from graphicsCLAHE import CLAHEForm
 from graphicsExp import ExpForm
 from graphicsPatch import patchForm, maskForm
-from utils import saveChangeDialog, save, openDlg, croppingHandle
+from utils import saveChangeDialog, save, openDlg, cropTool, rotatingTool
 
 from graphicsTemp import temperatureForm
 from time import sleep
@@ -140,10 +141,10 @@ def paintEvent(widg, e) :
     # draw cropping marks
     if mimg.isCropped:
         c = QColor(128,128,128, 192)
-        lm = window.cropButtonDict['left'].margin*r
-        rm =  window.cropButtonDict['right'].margin*r
-        tm =  window.cropButtonDict['top'].margin*r
-        bm =  window.cropButtonDict['bottom'].margin*r
+        lm = window.cropTool.btnDict['left'].margin*r
+        rm =  window.cropTool.btnDict['right'].margin*r
+        tm =  window.cropTool.btnDict['top'].margin*r
+        bm =  window.cropTool.btnDict['bottom'].margin*r
         w,h = mimg.width()*r, mimg.height()*r
         #left
         qp.fillRect(QRectF(mimg.xOffset, mimg.yOffset, lm, h), c)
@@ -268,7 +269,7 @@ def mouseEvent(widget, event) :
                         img.xOffset+=(x-State['ix'])
                         img.yOffset+=(y-State['iy'])
                         if window.btnValues['Crop_Button']:
-                            setCropButtonPos(img, r)
+                            window.cropTool.drawCropTool(img)
                     # translate active layer only
                     elif modifiers == Qt.ControlModifier:
                         layer.xOffset += (x - State['ix'])
@@ -364,7 +365,7 @@ def wheelEvent(widget,img, event):
         img.xOffset = -pos.x() * numSteps + (1.0+numSteps)*img.xOffset
         img.yOffset = -pos.y() * numSteps + (1.0+numSteps)*img.yOffset
         if window.btnValues['Crop_Button']:
-            setCropButtonPos(img, img.resize_coeff(window.label))
+            window.cropTool.drawCropTool(img)
     elif modifiers == Qt.ControlModifier:
         layer.Zoom_coeff *= (1.0 + numSteps)
         layer.updatePixmap()
@@ -449,14 +450,22 @@ def widgetChange(button):
         window.label.repaint()
     elif wdgName == "Crop_Button":
         if button.isChecked():
-            setCropButtonPos(window.label.img, window.label.img.resize_coeff(window.label))
-            for b in window.cropButtonDict.values():
+            window.cropTool.drawCropTool(window.label.img)
+            for b in window.cropTool.btnDict.values():
                 b.show()
         else:
-            for b in window.cropButtonDict.values():
+            for b in window.cropTool.btnDict.values():
                 b.hide()
         window.label.img.isCropped = button.isChecked()
         window.label.repaint()
+    elif wdgName == "Rotate_Button":
+        if button.isChecked():
+            window.rotatingTool.drawRotatingTool(window.label.img)
+            for b in window.rotatingTool.btnDict.values():
+                b.show()
+        else:
+            for b in window.rotatingTool.btnDict.values():
+                b.hide()
 
 def contextMenu(pos, widget):
     """
@@ -975,7 +984,7 @@ def menuLayer(name):
         # add new layer on top of active layer
         l = window.label.img.addAdjustmentLayer(name=layerName)
         #window.tableView.setLayers(window.label.img)
-        grWindow = graphicsForm3DLUT.getNewWindow(ccm, size=300, targetImage=window.label.img, LUTSize=LUTSIZE, layer=l, parent=window, mainForm=window)
+        grWindow = graphicsForm3DLUT.getNewWindow(ccm, axeSize=300, targetImage=window.label.img, LUTSize=LUTSIZE, layer=l, parent=window, mainForm=window)
         # LUT change event handler
         def g(options={}):
             """
@@ -1030,7 +1039,7 @@ def menuLayer(name):
     elif name == 'actionColor_Temperature':
         lname = 'Color Temperature'
         l = window.label.img.addAdjustmentLayer(name=lname)
-        grWindow = temperatureForm.getNewWindow(size=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
+        grWindow = temperatureForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         # default temperature
         l.temperature = sRGBWP
         # wrapper for the right apply method
@@ -1039,7 +1048,7 @@ def menuLayer(name):
         lname = 'Contrast'
         l = window.label.img.addAdjustmentLayer(name=lname)
         l.clipLimit = CLAHEForm.defaultClipLimit
-        grWindow = CLAHEForm.getNewWindow(size=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
+        grWindow = CLAHEForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         # clipLimit change event handler
         def h(lay, clipLimit):
             lay.clipLimit = clipLimit
@@ -1052,7 +1061,7 @@ def menuLayer(name):
         lname = 'Exposure'
         l = window.label.img.addAdjustmentLayer(name=lname)
         l.clipLimit = ExpForm.defaultExpCorrection
-        grWindow = ExpForm.getNewWindow(size=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
+        grWindow = ExpForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         # clipLimit change event handler
         def h(lay, clipLimit):
             lay.clipLimit = clipLimit
@@ -1063,6 +1072,12 @@ def menuLayer(name):
         grWindow.onUpdateExposure = h
         # wrapper for the right apply method
         l.execute = lambda l=l,  pool=None: l.applyExposure(l.clipLimit, grWindow.options)
+    elif name == 'actionGeom_Transformation':
+        lname = 'Geometry'
+        l = window.label.img.addAdjustmentLayer(name=lname)
+        grWindow = transForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
+        l.geoTrans = QTransform()
+        l.execute = lambda l=l, pool=None: l.applyTransForm(l.geoTrans, grWindow.options)
     elif name == 'actionFilter':
         lname = 'Filter'
         l = window.label.img.addAdjustmentLayer(name=lname)
@@ -1316,45 +1331,6 @@ def updateStatus():
         s += '&nbsp;&nbsp;press Space Bar to toggle Before/After view'
     window.Label_status.setText(s)
 
-def setCropButtonPos(img, r):
-    """
-    Sets the 8 crop handles around the displayed image,
-    with their current margins.
-    @param img:
-    @type img: QImage
-    @param r: current resizing coefficient (normalized zoom coeff.)
-    @type r: float
-    """
-    x, y = img.xOffset, img.yOffset
-    w, h = img.width()*r, img.height()*r
-    left = window.cropButtonDict['left']
-    left.move(x+left.margin*r-left.width(), y+h//2)
-    right = window.cropButtonDict['right']
-    right.move(x+w-right.margin*r, y+h//2)
-    top = window.cropButtonDict['top']
-    top.move(x+w//2 , y+top.margin*r-top.height())
-    bottom = window.cropButtonDict['bottom']
-    bottom.move(x+w//2, y+h-bottom.margin*r)
-    topLeft = window.cropButtonDict['topLeft']
-    topLeft.move(x + left.margin * r - left.width(), y+top.margin*r-top.height())
-
-def initCropButtons():
-    cropButtonLeft = croppingHandle(role='left', parent=window.label)
-    cropButtonRight = croppingHandle(role='right', parent=window.label)
-    cropButtonTop = croppingHandle(role='top', parent=window.label)
-    cropButtonBottom = croppingHandle(role='bottom', parent=window.label)
-    cropButtonTopLeft = croppingHandle(role='topLeft', parent=window.label)
-    cropButtonTopRight = croppingHandle(role='topRight', parent=window.label)
-    cropButtonBottomLeft = croppingHandle(role='bottomLeft', parent=window.label)
-    cropButtonBottomRight = croppingHandle(role='bottomRight', parent=window.label)
-
-    btnList = [cropButtonLeft, cropButtonRight, cropButtonTop, cropButtonBottom,
-               cropButtonTopLeft, cropButtonTopRight, cropButtonBottomLeft, cropButtonBottomRight]
-    btnDict = {btn.role: btn for btn in btnList}
-    for btn in btnList:
-        btn.group = btnDict
-    return btnDict
-
 ###########
 # app init
 ##########
@@ -1371,7 +1347,10 @@ if __name__ =='__main__':
     window.updateStatus = updateStatus
 
     # crop buttons
-    window.cropButtonDict = initCropButtons()
+    window.cropTool = cropTool(parent=window.label)
+
+    # rotate buttons
+    window.rotatingTool = rotatingTool(parent=window.label)
 
     # Before/After views flag
     window.splittedView = False

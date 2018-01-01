@@ -7,8 +7,8 @@ class ExpForm (QGraphicsView):
     defaultExpCorrection = 0.0
     DefaultStep = 0.1
     @classmethod
-    def getNewWindow(cls, targetImage=None, size=500, layer=None, parent=None, mainForm=None):
-        wdgt = ExpForm(size=size, layer=layer, parent=parent, mainForm=mainForm)
+    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
+        wdgt = ExpForm(axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         wdgt.setWindowTitle(layer.name)
         """
         pushButton = QPushButton('apply', parent=wdgt)
@@ -19,11 +19,11 @@ class ExpForm (QGraphicsView):
         """
         return wdgt
 
-    def __init__(self, targetImage=None, size=500, layer=None, parent=None, mainForm=None): # TODO 01/12/17 remove param targetImage
+    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None): # TODO 01/12/17 remove param targetImage
         super(ExpForm, self).__init__(parent=parent)
         #self.targetImage = targetImage
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        self.setMinimumSize(size, size)
+        self.setMinimumSize(axeSize, axeSize)
         self.setAttribute(Qt.WA_DeleteOnClose)
         #self.img = targetImage
         self.layer = layer

@@ -676,6 +676,22 @@ class vImage(QImage):
         ndImg1a[:, :, 3] = bufIn[:,:,3] # TODO 23/10/17 fix
         self.updatePixmap()
 
+    def applyTransForm(self, transformation, options):
+        transformation.rotate(45)
+        if transformation.isIdentity():
+            buf0 = QImageBuffer(self.getCurrentImage())
+            buf1 = QImageBuffer(self.inputImg())
+            buf0[:, :, :] = buf1
+            self.updatePixmap()
+            return
+
+        inImg = self.inputImg()
+        img = inImg.transformed(transformation).copy(QRect(0,0, inImg.width(), inImg.height()))
+        outBuf = QImageBuffer(self.getCurrentImage())
+        outBuf[:,:,:] = QImageBuffer(img)
+        self.updatePixmap()
+
+
     def applyCLAHE(self, clipLimit, options):
         #TODO define neutral point
 
@@ -1374,7 +1390,7 @@ class imImage(mImage) :
         stack = []
         for layer in self.layersStack:
             tLayer = layer.bTransformed(transformation, img)
-            tLayer.name = tLayer.name + 'aaa'
+            #tLayer.name = tLayer.name + 'aaa'
             stack.append(tLayer)
         img.layersStack = stack
         gc.collect()

@@ -17,10 +17,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import numpy as np
 from math import factorial
-from PySide2.QtGui import QColor, QPainterPath, QPen, QImage, QPainter
+from PySide2.QtGui import QColor, QPainterPath, QPen, QImage, QPainter, QCursor, QTransform
 from PySide2.QtWidgets import QListWidget, QListWidgetItem, QGraphicsPathItem, QDialog, QVBoxLayout, \
     QFileDialog, QSlider, QWidget, QHBoxLayout, QLabel, QMessageBox, QPushButton, QToolButton
-from PySide2.QtCore import Qt, QPoint, QEvent, QObject, QUrl, QRect, QDir
+from PySide2.QtCore import Qt, QPoint, QEvent, QObject, QUrl, QRect, QDir, QPointF
 from os.path import isfile
 
 import exiftool
@@ -177,11 +177,15 @@ class optionsWidget(QListWidget) :
         self.select(item)
 
 class croppingHandle(QToolButton):
+    """
+    Active button, draggable with mouse
 
-    def __init__(self, role='', parent=None, group=[]):
+    """
+    def __init__(self, role='', tool=None, parent=None):
         """
         parent is the widget showing the image.
-        role is 'left, 'right', 'top' or 'bottom'
+        role is 'left, 'right', 'top', 'bottom',
+        'topRight', 'topLeft', 'bottomRight', 'bottomLeft'
         @param role:
         @type role: str
         @param parent:
@@ -189,8 +193,9 @@ class croppingHandle(QToolButton):
         """
         super().__init__(parent=parent)
         self.role = role
-        self.margin = 0
-        self.group = group
+        self.margin = 0.0
+        self.group = {}
+        self.tool = tool
         self.setVisible(False)
         self.setGeometry(0,0,10,10)
         self.setAutoFillBackground(True)
@@ -199,8 +204,8 @@ class croppingHandle(QToolButton):
 
     def setPosition(self, p):
         """
-        Updates button positions and margins when a crop button is moved
-        @param p: position relative to widget
+        Updates button positions and margins
+        @param p: cursor position relative to parent widget
         @type p: QPoint
 
         """
@@ -208,70 +213,73 @@ class croppingHandle(QToolButton):
         img = widg.img
         r = img.resize_coeff(widg)
         if self.role == 'left':
+            # testing cursor outside of image
             if (p.x() < img.xOffset - self.width()) or (p.x() > img.xOffset + img.width() * r):
                 return
             p.setY(self.pos().y())
             self.margin = (p.x() - img.xOffset + self.width()) // r
-            self.move(p)
-            self.group['topLeft'].move(p.x(), self.group['top'].pos().y())
-            self.group['bottomLeft'].move(p.x(), self.group['bottom'].pos().y())
         elif self.role == 'right':
             if (p.x() < img.xOffset) or (p.x() > img.xOffset + img.width() * r):
                 return
             p.setY(self.pos().y())
-            self.margin = img.width() - (p.x() - img.xOffset) // r
-            self.move(p)
-            self.group['topRight'].move(p.x(), self.group['top'].pos().y())
-            self.group['bottomRight'].move(p.x(), self.group['bottom'].pos().y())
+            self.margin = img.width() - (p.x() - img.xOffset) / r
         elif self.role == 'top':
             if (p.y() < img.yOffset - self.height()) or (p.y() > img.yOffset + img.height() * r):
                 return
             p.setX(self.pos().x())
-            self.margin = (p.y() - img.yOffset + self.height()) // r
-            self.move(p)
-            self.group['topLeft'].move(self.group['left'].pos().x(), p.y())
-            self.group['topRight'].move(self.group['right'].pos().x(), p.y())
+            self.margin = (p.y() - img.yOffset + self.height()) / r
         elif self.role == 'bottom':
             if (p.y() < img.yOffset) or (p.y() > img.yOffset + img.height() * r):
                 return
             p.setX(self.pos().x())
-            self.margin = img.height() - (p.y() - img.yOffset) // r
-            self.move(p)
-            self.group['bottomLeft'].move(self.group['left'].pos().x(), p.y())
-            self.group['bottomRight'].move(self.group['right'].pos().x(), p.y())
+            self.margin = img.height() - (p.y() - img.yOffset) / r
+        # diagonal buttons
         elif self.role == 'topRight':
-            ratio = img.height() / img.width()
-            p.setY(p.x() * ratio)
+            btn = self.group['right']
             if (p.x() < img.xOffset) or (p.x() > img.xOffset + img.width() * r):
                 return
-            btn = self.group['right']
-            p1 = QPoint(p.x(), btn.pos().y())
-            btn.margin = (p1.x() - img.xOffset + btn.width()) // r
-            btn.move(p1)
             if (p.y() < img.yOffset - btn.height()) or (p.y() > img.yOffset + img.height() * r):
                 return
-            btn = self.group['top']
-            p2 = QPoint(btn.pos().x(), p.y())
-            btn.margin = img.width() - (p2.x() - img.xOffset) // r
-            btn.move(p2)
-            self.move(QPoint(p1.x(), p2.y()))
+            btn.margin = img.width() - (p.x() - img.xOffset) / r
+            w = img.width() - btn.margin - self.group['left'].margin
+            h = w * self.tool.formFactor
+            self.group['top'].margin = img.height() - h - self.group['bottom'].margin #btn.margin * self.tool.formFactor
         elif self.role == 'topLeft':
-            w = img.width()- self.group['left'].margin - self.group['right'].margin
-            h = img.height() - self.group['top'].margin - self.group['bottom'].margin
-            p.setY((p.x() - img.xOffset)*h/w + img.yOffset)
+            btn = self.group['left']
             if (p.x() < img.xOffset - self.width()) or (p.x() > img.xOffset + img.width() * r):
                 return
-            btn = self.group['left']
-            p1 = QPoint(p.x(), btn.pos().y())
-            btn.margin = (p1.x() - img.xOffset + btn.width()) // r
-            btn.move(p1)
             if (p.y() < img.yOffset - btn.height()) or (p.y() > img.yOffset + img.height() * r):
                 return
-            btn = self.group['top']
-            p2 = QPoint(btn.pos().x(), p.y())
-            btn.margin = (p2.y() - img.yOffset + btn.height()) // r
-            btn.move(p2)
-            self.move(QPoint(p1.x(), p2.y()))
+            btn.margin = (p.x() - img.xOffset + btn.width()) / r
+            w = img.width() - btn.margin - self.group['right'].margin
+            h = w * self.tool.formFactor
+            self.group['top'].margin = img.height() - h - self.group['bottom'].margin
+        elif self.role == 'bottomLeft':
+            btn = self.group['left']
+            if (p.x() < img.xOffset - self.width()) or (p.x() > img.xOffset + img.width() * r):
+                return
+            if (p.y() < img.yOffset - btn.height()) or (p.y() > img.yOffset + img.height() * r):
+                return
+            btn.margin = (p.x() - img.xOffset + btn.width()) / r
+            # constrained height/width ratio
+            w = img.width() - btn.margin - self.group['right'].margin
+            h = w * self.tool.formFactor
+            self.group['bottom'].margin = img.height() - h - self.group['top'].margin
+        elif self.role == 'bottomRight':
+            btn = self.group['right']
+            if (p.x() < img.xOffset - self.width()) or (p.x() > img.xOffset + img.width() * r):
+                return
+            if (p.y() < img.yOffset - btn.height()) or (p.y() > img.yOffset + img.height() * r):
+                return
+            btn.margin = img.width() - (p.x() - img.xOffset) / r
+            w = img.width() - btn.margin - self.group['left'].margin
+            h = w * self.tool.formFactor
+            self.group['bottom'].margin = img.height() - h - self.group['top'].margin
+
+    def mousePressEvent(self, event):
+        #if self.role in ['topLeft', 'topRight', 'bottomLeft', 'bottomRight']:
+        img = self.parent().img
+        self.tool.formFactor = (img.height() - self.group['top'].margin - self.group['bottom'].margin) / (img.width() - self.group['left'].margin - self.group['right'].margin)
 
     def mouseMoveEvent(self, event):
         pos = self.mapToParent(event.pos())
@@ -282,7 +290,122 @@ class croppingHandle(QToolButton):
             self.setPosition(self.pos() + QPoint(0, (pos - oldPos).y()))
         else:
             self.setPosition(pos)
+        self.tool.drawCropTool(self.parent().img)
         self.parent().repaint()
+
+class cropTool(QObject):
+
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+        cropButtonLeft = croppingHandle(role='left', tool=self, parent=parent)
+        cropButtonRight = croppingHandle(role='right', tool=self, parent=parent)
+        cropButtonTop = croppingHandle(role='top', tool=self, parent=parent)
+        cropButtonBottom = croppingHandle(role='bottom', tool=self, parent=parent)
+        cropButtonTopLeft = croppingHandle(role='topLeft', tool=self, parent=parent)
+        cropButtonTopRight = croppingHandle(role='topRight', tool=self, parent=parent)
+        cropButtonBottomLeft = croppingHandle(role='bottomLeft', tool=self, parent=parent)
+        cropButtonBottomRight = croppingHandle(role='bottomRight', tool=self, parent=parent)
+        btnList = [cropButtonLeft, cropButtonRight, cropButtonTop, cropButtonBottom,
+                   cropButtonTopLeft, cropButtonTopRight, cropButtonBottomLeft, cropButtonBottomRight]
+        self.btnDict = {btn.role: btn for btn in btnList}
+        for btn in btnList:
+            btn.group = self.btnDict
+
+        self.cRect = QRect(0, 0, 0, 0)
+
+        self.formFactor = 1.0
+
+    def drawCropTool(self, img):
+        """
+        Draws the 8 crop handles around the displayed image,
+        with their current margins.
+        @param img:
+        @type img: QImage
+        @param r: current resizing coefficient (normalized zoom coeff.)
+        @type r: float
+        """
+        r = self.parent().img.resize_coeff(self.parent())
+        left = self.btnDict['left']
+        top = self.btnDict['top']
+        bottom = self.btnDict['bottom']
+        right = self.btnDict['right']
+        self.cRect = QRect(round(left.margin), round(top.margin), img.width()-round(right.margin+left.margin), img.height()-round(bottom.margin+top.margin))
+        p = self.cRect.topLeft()*r + QPoint(img.xOffset, img.yOffset)
+        x, y = p.x(), p.y()
+        w, h = self.cRect.width()*r, self.cRect.height()*r
+        left.move(x - left.width(), y + h//2)
+        right.move(x + w, y + h//2)
+        top.move(x + w//2, y - top.height())
+        bottom.move(x + w//2, y + h)
+        topLeft = self.btnDict['topLeft']
+        topLeft.move(x - topLeft.width(), y - topLeft.height())
+        topRight = self.btnDict['topRight']
+        topRight.move(x + w, y - topRight.height())
+        bottomLeft = self.btnDict['bottomLeft']
+        bottomLeft.move(x - bottomLeft.width(), y + h)
+        bottomRight = self.btnDict['bottomRight']
+        bottomRight.move(x + w, y + h)
+
+class rotatingHandle(QToolButton):
+    def __init__(self, role=None, tool=None, parent=None):
+        super().__init__(parent=parent)
+        self.tool = tool
+        self.role=role
+        self.setVisible(False)
+        self.setGeometry(0, 0, 10, 10)
+        self.setAutoFillBackground(True)
+        self.setAutoRaise(True)
+        self.setStyleSheet("QToolButton:hover {background-color:#00FF00} QToolButton {background-color:#555555}")
+
+    def mouseMoveEvent(self, event):
+        pos = self.mapToParent(event.pos())
+        oldPos = self.pos()
+        angle = pos -oldPos
+        transformation=QTransform().rotate(angle)
+        QImg = self.transformed(transformation)
+        tImg = self.tool.img.bTransformed(QTransform().rotate(angle))
+        setDocumentImage(tImg)
+        tImg.layersStack[0].applyToStack()
+        self.tool.drawRotatingTool(self.parent().img)
+        self.parent().repaint()
+
+class rotatingTool(QObject):
+
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+        rotatingButtonLeft = rotatingHandle(role='left', tool=self, parent=parent)
+        rotatingButtonRight = rotatingHandle(role='right', tool=self, parent=parent)
+        rotatingButtonTop = rotatingHandle(role='top', tool=self, parent=parent)
+        rotatingButtonBottom = rotatingHandle(role='bottom', tool=self, parent=parent)
+        btnList = [rotatingButtonLeft, rotatingButtonRight, rotatingButtonTop, rotatingButtonBottom]
+        self.btnDict = {btn.role: btn for btn in btnList}
+        for btn in btnList:
+            btn.group = self.btnDict
+
+        self.cRect = QRect(0, 0, 0, 0)
+
+    def drawRotatingTool(self, img):
+        """
+        Draws the 8 crop handles around the displayed image,
+        with their current margins.
+        @param img:
+        @type img: QImage
+        @param r: current resizing coefficient (normalized zoom coeff.)
+        @type r: float
+        """
+        r = self.parent().img.resize_coeff(self.parent())
+        left = self.btnDict['left']
+        top = self.btnDict['top']
+        bottom = self.btnDict['bottom']
+        right = self.btnDict['right']
+        self.cRect = QRect(0, 0, img.width(), img.height())
+        p = self.cRect.topLeft()*r + QPoint(img.xOffset, img.yOffset)
+        x, y = p.x(), p.y()
+        w, h = self.cRect.width()*r, self.cRect.height()*r
+        left.move(x - left.width(), y + h//2)
+        right.move(x + w, y + h//2)
+        top.move(x + w//2, y - top.height())
+        bottom.move(x + w//2, y + h)
 
 class savingDialog(QDialog):
     """

@@ -47,8 +47,8 @@ def Clahe(imgLBuf):
 class CLAHEForm (QGraphicsView):
     defaultClipLimit = 0.25
     @classmethod
-    def getNewWindow(cls, targetImage=None, size=500, layer=None, parent=None, mainForm=None):
-        wdgt = CLAHEForm(size=size, layer=layer, parent=parent, mainForm=mainForm)
+    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
+        wdgt = CLAHEForm(axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         wdgt.setWindowTitle(layer.name)
         """
         pushButton = QPushButton('apply', parent=wdgt)
@@ -59,11 +59,11 @@ class CLAHEForm (QGraphicsView):
         """
         return wdgt
 
-    def __init__(self, targetImage=None, size=500, layer=None, parent=None, mainForm=None): # TODO 01/12/17 remove param targetImage
+    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None): # TODO 01/12/17 remove param targetImage
         super(CLAHEForm, self).__init__(parent=parent)
         #self.targetImage = targetImage
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        self.setMinimumSize(size, size)  # default width 200 doesn't fit the length of option names
+        self.setMinimumSize(axeSize, axeSize)  # default width 200 doesn't fit the length of option names
         self.setAttribute(Qt.WA_DeleteOnClose)
         #self.img = targetImage
         self.layer = layer

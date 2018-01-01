@@ -723,28 +723,28 @@ class graphicsForm3DLUT(QGraphicsView) :
     defaultColorWheelBr = 0.60
 
     @classmethod
-    def getNewWindow(cls, cModel, targetImage=None, size=500, LUTSize=LUTSIZE, layer=None, parent=None, mainForm=None):
+    def getNewWindow(cls, cModel, targetImage=None, axeSize=500, LUTSize=LUTSIZE, layer=None, parent=None, mainForm=None):
         """
         build a graphicsForm3DLUT object. The parameter size represents the size of
         the color wheel, border not included (the size of the window is adjusted).
         @param cModel
         @param targetImage
-        @param size: size of the color wheel (default 500)
+        @param axeSize: size of the color wheel (default 500)
         @param LUTSize: size of the LUT
         @param layer: layer of targetImage linked to graphics form
         @param parent: parent widget
         @return: graphicsForm3DLUT object
         """
-        newWindow = graphicsForm3DLUT(cModel, targetImage=targetImage, size=size, LUTSize=LUTSize, layer=layer, parent=parent, mainForm=mainForm)
+        newWindow = graphicsForm3DLUT(cModel, targetImage=targetImage, axeSize=axeSize, LUTSize=LUTSize, layer=layer, parent=parent, mainForm=mainForm)
         newWindow.setWindowTitle(layer.name)
         return newWindow
 
-    def __init__(self, cModel, targetImage=None, size=500, LUTSize = LUTSIZE, layer=None, parent=None, mainForm=None):
+    def __init__(self, cModel, targetImage=None, axeSize=500, LUTSize = LUTSIZE, layer=None, parent=None, mainForm=None):
         """
         @param cModel: color space used by colorPicker, colorWheel and colorPicker
         @type cModel: cmConverter object
-        @param size: size of the color wheel
-        @type size: int
+        @param axeSize: size of the color wheel
+        @type axeSize: int
         @param targetImage:
         @type targetImage: imImage
         @param LUTSize:
@@ -760,13 +760,13 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.cModel = cModel
         border = 20
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        self.setMinimumSize(size+90, size+200)
+        self.setMinimumSize(axeSize + 90, axeSize + 200)
         #self.setWindowFlags(Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.setBackgroundBrush(QBrush(Qt.black, Qt.SolidPattern));
         self.currentHue, self.currentSat, self.currentPb = 0, 0, self.defaultColorWheelBr
         self.currentR, self.currentG, self.currentB = 0,0,0
-        self.size = size
+        self.size = axeSize
         self.targetImage= targetImage
         self.layer=layer
         self.mainForm = mainForm
@@ -780,10 +780,10 @@ class graphicsForm3DLUT(QGraphicsView) :
         #self.LUTSize, self.LUTStep, self.graphicsScene.LUTContrast, self.graphicsScene.LUT3DArray = freshLUT3D.size, freshLUT3D.step, freshLUT3D.contrast, freshLUT3D.LUT3DArray
         self.graphicsScene.LUTSize, self.graphicsScene.LUTStep, self.graphicsScene.LUTContrast, self.graphicsScene.LUT3DArray = freshLUT3D.size, freshLUT3D.step, freshLUT3D.contrast, freshLUT3D.LUT3DArray
         # color wheel
-        QImg = hueSatModel.colorWheel(size, size, cModel,  perceptualBrightness=self.defaultColorWheelBr, border=border)
-        self.graphicsScene.colorWheel = colorPicker(cModel, QImg, target=self.targetImage, size=size, border=border)
+        QImg = hueSatModel.colorWheel(axeSize, axeSize, cModel, perceptualBrightness=self.defaultColorWheelBr, border=border)
+        self.graphicsScene.colorWheel = colorPicker(cModel, QImg, target=self.targetImage, size=axeSize, border=border)
         self.graphicsScene.selectMarker = activeMarker.fromCross(parent=self.graphicsScene.colorWheel)
-        self.graphicsScene.selectMarker.setPos(size/2, size/2)
+        self.graphicsScene.selectMarker.setPos(axeSize / 2, axeSize / 2)
         # color wheel event handler
         def f1(p,r,g,b):
             #self.graphicsScene.selectMarker.setPos(p)
@@ -818,7 +818,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         # status bar
         offset = 60
         self.graphicsScene.statusBar = QGraphicsTextItem()
-        self.graphicsScene.statusBar.setPos(-20, size+offset)
+        self.graphicsScene.statusBar.setPos(-20, axeSize + offset)
         self.graphicsScene.statusBar.setDefaultTextColor(QColor(255,255,255))
         self.graphicsScene.statusBar.setPlainText('')
         self.graphicsScene.addItem(self.graphicsScene.statusBar)
@@ -912,7 +912,7 @@ class graphicsForm3DLUT(QGraphicsView) :
                                  QListWidget::item::selected{background: black; border: none}"
 
         container.setStyleSheet(ss)
-        container.setGeometry(-offset//2, size + offset-20, size+offset, 80)
+        container.setGeometry(-offset // 2, axeSize + offset - 20, axeSize + offset, 80)
         self.graphicsScene.addWidget(container)
 
         for wdg in [self.listWidget1, self.listWidget2, self.listWidget3]:
