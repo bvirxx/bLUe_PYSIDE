@@ -186,7 +186,8 @@ class vImage(QImage):
         self.isModified = False
         self.rect, self.mask, = None, mask
         self.filename = filename if filename is not None else ''
-        self.isCropped = True
+        self.isCropped = False
+        self.isRuled = False
 
         # mode flags
         self.useHald = False
@@ -677,14 +678,12 @@ class vImage(QImage):
         self.updatePixmap()
 
     def applyTransForm(self, transformation, options):
-        transformation.rotate(45)
         if transformation.isIdentity():
             buf0 = QImageBuffer(self.getCurrentImage())
             buf1 = QImageBuffer(self.inputImg())
             buf0[:, :, :] = buf1
             self.updatePixmap()
             return
-
         inImg = self.inputImg()
         img = inImg.transformed(transformation).copy(QRect(0,0, inImg.width(), inImg.height()))
         outBuf = QImageBuffer(self.getCurrentImage())
@@ -1111,19 +1110,29 @@ class mImage(vImage):
         @return: The active layer
         @rtype: QLayer
         """
-        return self.layersStack[self.activeLayerIndex]
+        if self.activeLayerIndex is not None:
+            return self.layersStack[self.activeLayerIndex]
+        else:
+            return None
 
     def setActiveLayer(self, stackIndex):
         """
         Assigns stackIndex value to  activeLayerIndex and
-        updates the layer View.
+        updates the layer view and tools
         @param stackIndex: index in stack for the layer to select
         @type stackIndex: int
         @return: 
         """
+        active = self.getActiveLayer()
+        if active is not None:
+            if active.tool is not None:
+                active.tool.hideTool()
         self.activeLayerIndex = stackIndex
         if self.layerView is not None:
             self.layerView.selectRow(len(self.layersStack) - 1 - stackIndex)
+        active = self.getActiveLayer()
+        if active.tool is not None:
+            active.tool.showTool()
 
     def getActivePixel(self,x, y):
         """
@@ -1437,7 +1446,7 @@ class imImage(mImage) :
         """
         reset Zoom_coeff and offset
         @param win: 
-        @return: 
+        @type win:
         """
         self.Zoom_coeff = 1.0
         self.xOffset, self.yOffset = 0.0, 0.0
@@ -1454,8 +1463,9 @@ class QLayer(vImage):
         super(QLayer, self).__init__(*args, **kwargs)
         self.name='noname'
         self.visible = True
-        # if True, layer mask apply to undermying layers
         self.isClipping = False
+
+        self.tool = None
         # layer opacity is used by QPainter operations.
         # Its value must be in the range 0.0...1.0
         self.opacity = 1.0

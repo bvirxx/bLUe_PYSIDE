@@ -65,9 +65,9 @@
          <property name="geometry">
           <rect>
            <x>10</x>
-           <y>60</y>
+           <y>10</y>
            <width>54</width>
-           <height>362</height>
+           <height>571</height>
           </rect>
          </property>
          <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -75,34 +75,24 @@
            <enum>QLayout::SetDefaultConstraint</enum>
           </property>
           <item>
-           <widget class="QToolButton" name="toolButton_3">
+           <widget class="QToolButton" name="rulerButton">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
-            <property name="minimumSize">
-             <size>
-              <width>32</width>
-              <height>26</height>
-             </size>
-            </property>
             <property name="toolTip">
-             <string>Fit screen</string>
+             <string>Show Rulers</string>
             </property>
             <property name="accessibleName">
-             <string>Fit_Screen</string>
+             <string>Ruler_Button</string>
             </property>
             <property name="text">
-             <string>Fit
-scr</string>
+             <string>Rulers</string>
             </property>
             <property name="checkable">
              <bool>true</bool>
-            </property>
-            <property name="autoExclusive">
-             <bool>false</bool>
             </property>
             <property name="autoRaise">
              <bool>true</bool>
@@ -159,6 +149,41 @@ scr</string>
             </property>
             <property name="checkable">
              <bool>true</bool>
+            </property>
+            <property name="autoRaise">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QToolButton" name="fitButton">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>32</width>
+              <height>26</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>Fit Image To Screen</string>
+            </property>
+            <property name="accessibleName">
+             <string>Fit_Screen</string>
+            </property>
+            <property name="text">
+             <string>Fit To
+Screen</string>
+            </property>
+            <property name="checkable">
+             <bool>false</bool>
+            </property>
+            <property name="autoExclusive">
+             <bool>false</bool>
             </property>
             <property name="autoRaise">
              <bool>true</bool>

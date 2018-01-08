@@ -138,14 +138,15 @@ def paintEvent(widg, e) :
     if (layer.visible) and (rect is not None ):
         qp.setPen(QColor(0, 255, 0))
         qp.drawRect(rect.left()*r + mimg.xOffset, rect.top()*r +mimg.yOffset, rect.width()*r, rect.height()*r)
-    # draw cropping marks
+    # draw cropping marks and rulers
+    w, h = mimg.width() * r, mimg.height() * r
+    lm, rm, tm, bm = 0, 0, 0, 0
     if mimg.isCropped:
         c = QColor(128,128,128, 192)
         lm = window.cropTool.btnDict['left'].margin*r
         rm =  window.cropTool.btnDict['right'].margin*r
         tm =  window.cropTool.btnDict['top'].margin*r
         bm =  window.cropTool.btnDict['bottom'].margin*r
-        w,h = mimg.width()*r, mimg.height()*r
         #left
         qp.fillRect(QRectF(mimg.xOffset, mimg.yOffset, lm, h), c)
         #top
@@ -154,12 +155,12 @@ def paintEvent(widg, e) :
         qp.fillRect(QRectF(mimg.xOffset+w-rm, mimg.yOffset+tm, rm, h-tm),  c)
         #bottom
         qp.fillRect(QRectF(mimg.xOffset+lm, mimg.yOffset+h-bm, w-lm-rm, bm), c)
-        if True:
-            deltaX, deltaY = (w-lm-rm)//3, (h-tm-bm)//3
-            qp.drawLine(lm+mimg.xOffset, deltaY+tm+mimg.yOffset, w-rm+mimg.xOffset, deltaY+tm+mimg.yOffset)
-            qp.drawLine(lm+mimg.xOffset, 2*deltaY+tm+mimg.yOffset, w-rm+mimg.xOffset, 2*deltaY+tm+mimg.yOffset)
-            qp.drawLine(deltaX+lm+mimg.xOffset, tm+mimg.yOffset, deltaX+lm+mimg.xOffset, h-bm+mimg.yOffset)
-            qp.drawLine(2*deltaX+lm+mimg.xOffset, tm+mimg.yOffset, 2*deltaX+lm+mimg.xOffset, h-bm+mimg.yOffset)
+    if mimg.isRuled:
+        deltaX, deltaY = (w-lm-rm)//3, (h-tm-bm)//3
+        qp.drawLine(lm+mimg.xOffset, deltaY+tm+mimg.yOffset, w-rm+mimg.xOffset, deltaY+tm+mimg.yOffset)
+        qp.drawLine(lm+mimg.xOffset, 2*deltaY+tm+mimg.yOffset, w-rm+mimg.xOffset, 2*deltaY+tm+mimg.yOffset)
+        qp.drawLine(deltaX+lm+mimg.xOffset, tm+mimg.yOffset, deltaX+lm+mimg.xOffset, h-bm+mimg.yOffset)
+        qp.drawLine(2*deltaX+lm+mimg.xOffset, tm+mimg.yOffset, 2*deltaX+lm+mimg.xOffset, h-bm+mimg.yOffset)
     # mark before/after views
     name = widg.objectName()
     if name == "label_2" or name == "label_3":
@@ -444,11 +445,13 @@ def widgetChange(button):
     @param button:
     @type button: QWidget
     """
-    wdgName = button.accessibleName()
-    if wdgName == "Fit_Screen" :
+    wdgName = button.objectName()
+    if wdgName == "fitButton" :
         window.label.img.fit_window(window.label)
+        # update crop button positions
+        window.cropTool.drawCropTool(window.label.img)
         window.label.repaint()
-    elif wdgName == "Crop_Button":
+    elif wdgName == "cropButton":
         if button.isChecked():
             window.cropTool.drawCropTool(window.label.img)
             for b in window.cropTool.btnDict.values():
@@ -457,6 +460,9 @@ def widgetChange(button):
             for b in window.cropTool.btnDict.values():
                 b.hide()
         window.label.img.isCropped = button.isChecked()
+        window.label.repaint()
+    elif wdgName == "rulerButton":
+        window.label.img.isRuled = button.isChecked()
         window.label.repaint()
     elif wdgName == "Rotate_Button":
         if button.isChecked():
@@ -591,6 +597,8 @@ def setDocumentImage(img):
     @param img: image
     @type img: imImage
     """
+    window.cropButton.setChecked(False)
+    window.rulerButton.setChecked(False)
     window.label.img = img
     # init histogram
     window.histView.targetImage = window.label.img
@@ -616,9 +624,9 @@ def setDocumentImage(img):
         window.histView.Label_Hist.repaint()
 
     window.label.img.onImageChanged = f
-    # before image. Stack is not copied
+    # before image : the stack is not copied
     window.label_2.img = imImage(QImg=img, meta=img.meta)
-    # after image
+    # after image : ref to the opened document
     window.label_3.img = img
     # no mouse drawing or painting
     window.label_2.img.isMouseSelectable = False
@@ -627,7 +635,7 @@ def setDocumentImage(img):
     window.label.update()
     window.label_2.update()
     window.label_3.update()
-    # used by graphicsForm3DLUT.onReset
+    # back links used by graphicsForm3DLUT.onReset
     window.label.img.window = window.label
     window.label_2.img.window = window.label_2
     window.label.img.setModified(True)
@@ -841,6 +849,8 @@ def menuView(name):
             window.label.show()
             window.splittedView = False
             window.viewState = 'After'
+            if window.btnValues['Crop_Button']:
+                window.cropTool.drawCropTool(window.label.img)
     elif name == 'actionDiaporama':
         if hasattr(window, 'diaporamaGenerator'):
             if window.diaporamaGenerator is not None:
@@ -1077,6 +1087,7 @@ def menuLayer(name):
         l = window.label.img.addAdjustmentLayer(name=lname)
         grWindow = transForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         l.geoTrans = QTransform()
+        l.tool = rotatingTool(parent=window.label, layer=l)
         l.execute = lambda l=l, pool=None: l.applyTransForm(l.geoTrans, grWindow.options)
     elif name == 'actionFilter':
         lname = 'Filter'
@@ -1329,6 +1340,8 @@ def updateStatus():
         s += '&nbsp;&nbsp;Before/After : Ctrl+Space : cycle through views - Space : switch back to workspace'
     else:
         s += '&nbsp;&nbsp;press Space Bar to toggle Before/After view'
+    if window.label.img.isCropped:
+        s = s + '     Cropped : h/w ratio %.2f ' % window.cropTool.formFactor
     window.Label_status.setText(s)
 
 ###########
@@ -1345,12 +1358,10 @@ if __name__ =='__main__':
     window.Label_status = QLabel()
     window.statusBar().addWidget(window.Label_status)
     window.updateStatus = updateStatus
+    window.label.updateStatus = updateStatus
 
     # crop buttons
     window.cropTool = cropTool(parent=window.label)
-
-    # rotate buttons
-    window.rotatingTool = rotatingTool(parent=window.label)
 
     # Before/After views flag
     window.splittedView = False
@@ -1430,7 +1441,11 @@ if __name__ =='__main__':
     window.viewState = 'After'
     action1 = QAction('cycle', None)
     action1.setShortcut(QKeySequence("Ctrl+ "))
-    action1.triggered.connect(lambda: splittedWin.nextSplittedView())
+    def f():
+        window.viewState = 'Before/After'
+        splittedWin.nextSplittedView()
+        updateStatus()
+    action1.triggered.connect(f)
     window.addAction(action1)
 
     # init property widget for tableView

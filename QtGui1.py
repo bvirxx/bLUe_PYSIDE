@@ -58,26 +58,31 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
             self.slidersValues [str(slider.accessibleName())] = slider.value()
 
         for button in self.findChildren(QtWidgets.QPushButton) :
-            button.toggled.connect(
-                            lambda state, button=button : self.handlePushButtonClicked(state, button)
+            button.clicked.connect(
+                            lambda button=button : self.handlePushButtonClicked(button)
                             )
             self.btnValues[str(button.accessibleName())] = button.isChecked()
 
         for button in self.findChildren(QtWidgets.QToolButton) :
             button.toggled.connect(
-                            lambda state, button=button : self.handleToolButtonClicked(state, button)
+                            lambda state, button=button: self.handleToolButtonClicked(button)
                             )
+            if not button.isCheckable():
+                button.clicked.connect(
+                                lambda button=button : self.handleToolButtonClicked(button)
+                                )
             self.btnValues[str(button.accessibleName())] = button.isChecked()
 
-    def handlePushButtonClicked(self, state, button):
+    def handlePushButtonClicked(self, button):
         self.onWidgetChange(button)
 
-    def handleToolButtonClicked(self, state, button):
+    def handleToolButtonClicked(self, button):
         """
-        button toggled signal slot.
-        Called by each checkable button modifying its state :
-        btnValues dict is updated for both non exclusive and auto exclusive
-        buttons.
+        button clicked/toggled signal slot.
+        The toggled signal is triggered only by checkable buttons,
+        when the button state changes. Thus, the method is executed
+        by all auto exclusive buttons, to update the btnValues dictionary.
+        btnValues dict is updated for both non exclusive and auto exclusive buttons.
         @param button:
         @type button: QButton
         """

@@ -33,7 +33,7 @@ class splittedWindow:
 
     def setSplittedView(self):
         """
-        Init a Before/After view
+        Initializes a Before/After view
         @return:
         @rtype:
         """
@@ -43,12 +43,13 @@ class splittedWindow:
         self.mainWin.label_3.show()
         # wait for size updates
         watchDog = 0
+        from QtGui1 import app
         while not (self.mainWin.label_2.width() > 0 and self.mainWin.label_3.width() > 0):
             if watchDog >= 3:
                 break
             watchDog += 1
-            from QtGui1 import app
             app.processEvents()
+        # sync before 'label_2) with after (label_3)
         self.mainWin.label_2.img.Zoom_coeff = self.mainWin.label_3.img.Zoom_coeff
         if self.mainWin.splitter.currentState == 'H':
             self.mainWin.label_2.img.xOffset = self.mainWin.label_3.img.xOffset - self.mainWin.label_3.width()
@@ -60,6 +61,8 @@ class splittedWindow:
             # Only Before window
             self.mainWin.label_2.img.xOffset, self.mainWin.label_2.img.yOffset = self.mainWin.label_3.img.xOffset, self.mainWin.label_3.img.yOffset
             self.mainWin.label_3.hide()
+        self.mainWin.label_2.update()
+        self.mainWin.label_3.update()
 
     def nextSplittedView(self):
         """
@@ -79,7 +82,8 @@ class splittedWindow:
 
     def syncSplittedView(self, widg1, widg2, linked):
         """
-        Sync Before/After views in splitter
+        Sync Before/After views.
+        Called by the mouse event handler
         @param widg1:
         @type widg1:
         @param widg2:
@@ -91,17 +95,18 @@ class splittedWindow:
         """
         if not linked:
             return
-        # r = widg2.img.Zoom_coeff
         widg1.img.Zoom_coeff = widg2.img.Zoom_coeff
-        if self.mainWin.splitter.orientation() == Qt.Horizontal:
+        if self.mainWin.splitter.currentState == 'H':
             if widg1.objectName() == 'label_2': # dest is right
                 widg1.img.xOffset = widg2.img.xOffset - widg2.width()
             else: # dest is left
                 widg1.img.xOffset = widg2.img.xOffset + widg1.width()
             widg1.img.yOffset = widg2.img.yOffset
         else:
-            if widg1.objectName() == 'label_2': # dest is right
+            if widg1.objectName() == 'label_2':
                 widg1.img.yOffset = widg2.img.yOffset - widg2.height()
-            else: # dest is left
+            else:
                 widg1.img.yOffset = widg2.img.yOffset + widg1.height()
             widg1.img.xOffset = widg2.img.xOffset
+        self.mainWin.label_2.update()
+        self.mainWin.label_3.update()
