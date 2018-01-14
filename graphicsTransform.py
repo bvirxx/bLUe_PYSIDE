@@ -16,7 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 from PySide2.QtCore import Qt
-from PySide2.QtWidgets import QGraphicsView, QSizePolicy
+from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QSlider
 
 from utils import optionsWidget
 
@@ -42,9 +42,23 @@ class transForm (QGraphicsView):
         self.onUpdateFilter = lambda *args: 0
 
         # options
-        options = ['Photo Filter', 'Chromatic Adaptation']
-        self.listWidget1 = optionsWidget(options=options, exclusive=True)
+        optionList = ['Perspective', 'Rotation']
+        self.listWidget1 = optionsWidget(options=optionList, exclusive=True)
         self.options = self.listWidget1.options
         # set initial selection
-        self.listWidget1.checkOption(options[1])
+        self.listWidget1.checkOption(optionList[0])
+
+        # rotation slider
+        self.sliderRot = QSlider(Qt.Horizontal)
+        self.sliderRot.setTickPosition(QSlider.TicksBelow)
+        self.sliderRot.setRange(-180, 180)
+        self.sliderRot.setSingleStep(1)
+
+        l = QVBoxLayout()
+        l.setAlignment(Qt.AlignBottom)
+        l.addWidget(self.listWidget1)
+        l.addWidget(self.sliderRot)
+
+        self.setLayout(l)
+        self.adjustSize()
 

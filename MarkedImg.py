@@ -685,8 +685,11 @@ class vImage(QImage):
             self.updatePixmap()
             return
         inImg = self.inputImg()
-        img = inImg.transformed(transformation).copy(QRect(0,0, inImg.width(), inImg.height()))
+        img = inImg.transformed(transformation).copy(QRect(-self.rectTrans.x(), -self.rectTrans.y(), inImg.width(), inImg.height()))
         outBuf = QImageBuffer(self.getCurrentImage())
+        if img.isNull():
+            print('null', img.rect())
+            return
         outBuf[:,:,:] = QImageBuffer(img)
         self.updatePixmap()
 
@@ -1237,7 +1240,7 @@ class mImage(vImage):
             return
         self.layersStack.pop(index)
 
-    def addAdjustmentLayer(self, name='', index=None):
+    def addAdjustmentLayer(self, name='', role='',  index=None):
         """
         Add an adjustment layer to the layer stack, at
         position index (default is top of active layer)
@@ -1250,6 +1253,7 @@ class mImage(vImage):
             index = self.activeLayerIndex
         # set image from active layer
         layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
+        layer.role = role
         self.addLayer(layer, name=name, index=index + 1)
         #layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getCurrentMaskedImage()
         # init thumb
@@ -1268,6 +1272,7 @@ class mImage(vImage):
         if index == None:
             index = self.activeLayerIndex
         layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
+        layer.role = 'SEGMENT'
         layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getCurrentMaskedImage()
         self.addLayer(layer, name=name, index=index + 1)
         layer.updatePixmap()
@@ -1464,7 +1469,7 @@ class QLayer(vImage):
         self.name='noname'
         self.visible = True
         self.isClipping = False
-
+        self.role = kwargs.pop('role', '')
         self.tool = None
         # layer opacity is used by QPainter operations.
         # Its value must be in the range 0.0...1.0
@@ -1790,13 +1795,16 @@ class QLayer(vImage):
         return self.view is not None #hasattr(self, 'view')
 
     def isSegmentLayer(self):
-        return 'egmentation' in self.name
+        return 'SEGMENT' in self.role
 
     def isCloningLayer(self):
-        return 'loning' in self.name
+        return 'CLONING' in self.role
+
+    def isGeomLayer(self):
+        return 'GEOM' in self.role
 
     def is3DLUTLayer(self):
-        return ('3D' in self.name) and ('LUT' in self.name)
+        return '3DLUT' in self.role
 
     def updatePixmap(self, maskOnly = False):
         """

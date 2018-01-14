@@ -126,6 +126,7 @@ def paintEvent(widg, e) :
             qp.setOpacity(layer.opacity)
             qp.setCompositionMode(layer.compositionMode)
             # As offsets can be float numbers, we use QRectF instead of QRect
+            # r is relative to full resolution image, so we use mimg width and height
             rectF = QRectF(mimg.xOffset, mimg.yOffset, mimg.width()*r, mimg.height()*r)
             if layer.qPixmap is not None:
                 qp.drawPixmap(rectF, layer.qPixmap, layer.qPixmap.rect())
@@ -305,6 +306,8 @@ def mouseEvent(widget, event) :
                             layer.applyCloning(seamless=False)
         #update current coordinates
         State['ix'],State['iy']=x,y
+        if layer.isGeomLayer():
+            layer.tool.drawRotatingTool()
     # mouse release event
     elif event.type() == QEvent.MouseButtonRelease :
         pressed=False
@@ -367,6 +370,8 @@ def wheelEvent(widget,img, event):
         img.yOffset = -pos.y() * numSteps + (1.0+numSteps)*img.yOffset
         if window.btnValues['Crop_Button']:
             window.cropTool.drawCropTool(img)
+        if layer.isGeomLayer():
+            layer.tool.drawRotatingTool()
     elif modifiers == Qt.ControlModifier:
         layer.Zoom_coeff *= (1.0 + numSteps)
         layer.updatePixmap()
@@ -464,14 +469,6 @@ def widgetChange(button):
     elif wdgName == "rulerButton":
         window.label.img.isRuled = button.isChecked()
         window.label.repaint()
-    elif wdgName == "Rotate_Button":
-        if button.isChecked():
-            window.rotatingTool.drawRotatingTool(window.label.img)
-            for b in window.rotatingTool.btnDict.values():
-                b.show()
-        else:
-            for b in window.rotatingTool.btnDict.values():
-                b.hide()
 
 def contextMenu(pos, widget):
     """
@@ -992,7 +989,7 @@ def menuLayer(name):
         ccm = cmHSP if name == 'action3D_LUT' else cmHSB
         layerName = '3D LUT HSpB' if name == 'action3D_LUT' else '3D LUT HSB'
         # add new layer on top of active layer
-        l = window.label.img.addAdjustmentLayer(name=layerName)
+        l = window.label.img.addAdjustmentLayer(name=layerName, role='3DLUT')
         #window.tableView.setLayers(window.label.img)
         grWindow = graphicsForm3DLUT.getNewWindow(ccm, axeSize=300, targetImage=window.label.img, LUTSize=LUTSIZE, layer=l, parent=window, mainForm=window)
         # LUT change event handler
@@ -1014,7 +1011,7 @@ def menuLayer(name):
     # cloning
     elif name == 'actionNew_Cloning_Layer':
         lname = 'Cloning'
-        l = window.label.img.addAdjustmentLayer(name=lname)
+        l = window.label.img.addAdjustmentLayer(name=lname, role='CLONING')
         grWindow = patchForm.getNewWindow(targetImage=window.label.img, layer=l, mainForm=window)
         l.execute = lambda l=l, pool=None: l.applyCloning()
         l.maskIsEnabled = True
@@ -1026,7 +1023,7 @@ def menuLayer(name):
     # knitting
     elif name == 'actionNew_Knitting_Layer':
         lname = 'Knitting'
-        l = window.label.img.addAdjustmentLayer(name=lname)
+        l = window.label.img.addAdjustmentLayer(name=lname, role='KNITTING')
         grWindow = maskForm.getNewWindow(targetImage=window.label.img, layer=l, mainForm=window)
         l.execute = lambda l=l, pool=None: l.applyKnitting()
         l.maskIsEnabled = True
@@ -1084,10 +1081,10 @@ def menuLayer(name):
         l.execute = lambda l=l,  pool=None: l.applyExposure(l.clipLimit, grWindow.options)
     elif name == 'actionGeom_Transformation':
         lname = 'Geometry'
-        l = window.label.img.addAdjustmentLayer(name=lname)
+        l = window.label.img.addAdjustmentLayer(name=lname, role='GEOMETRY')
         grWindow = transForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         l.geoTrans = QTransform()
-        l.tool = rotatingTool(parent=window.label, layer=l)
+        l.tool = rotatingTool(parent=window.label, layer=l, form=grWindow)
         l.execute = lambda l=l, pool=None: l.applyTransForm(l.geoTrans, grWindow.options)
     elif name == 'actionFilter':
         lname = 'Filter'
