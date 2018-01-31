@@ -17,11 +17,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import numpy as np
 from math import factorial
-from PySide2.QtGui import QColor, QPainterPath, QPen, QImage, QPainter, QCursor, QTransform, QPolygonF, QPolygon, \
-    QRegion
+from PySide2.QtGui import QColor, QPainterPath, QPen, QImage, QPainter, QTransform, QPolygonF
 from PySide2.QtWidgets import QListWidget, QListWidgetItem, QGraphicsPathItem, QDialog, QVBoxLayout, \
     QFileDialog, QSlider, QWidget, QHBoxLayout, QLabel, QMessageBox, QPushButton, QToolButton
-from PySide2.QtCore import Qt, QPoint, QEvent, QObject, QUrl, QRect, QDir, QPointF
+from PySide2.QtCore import Qt, QPoint, QEvent, QObject, QUrl, QRect, QDir
 from os.path import isfile
 
 import exiftool
@@ -129,7 +128,8 @@ class optionsWidget(QListWidget) :
     """
     Displays a list of options with checkboxes.
     The choices can be mutually exclusive (default) or not
-    exclusive.
+    exclusive. Actions can be done on item selection by assigning
+    a function to onSelect. It is called after the selection of the new item.
     """
 
     def __init__(self, options=[], exclusive=True, parent=None):
@@ -384,9 +384,6 @@ class rotatingHandle(QToolButton):
         poly = self.tool.getQuad()
         T2 = QTransform()
         b = QTransform().quadToQuad(self.tool.oriQuad, poly, T2)
-        if not b:
-            print('not')
-            return
         if self.tool.form.options['Rotation']:
             T2 = QTransform().rotate(self.tool.form.sliderRot.value())
         self.tool.layer.geoTrans = T2
@@ -395,6 +392,12 @@ class rotatingHandle(QToolButton):
         self.parent().repaint()
 
 class rotatingTool(QObject):
+
+    @classmethod
+    def getNewRotatingTool(cls, parent=None, layer=None, form=None):
+        tool = rotatingTool(parent=parent, layer=layer, form=form)
+        form.tool = tool
+        return tool
 
     def __init__(self, parent=None, layer=None, form=None):
         self.layer = layer
@@ -414,6 +417,16 @@ class rotatingTool(QObject):
         self.oriQuad = self.getQuad()
         self.drawRotatingTool()
         self.showTool()
+        # rotation angle changed handler
+        def g():
+            self.drawRotatingTool()
+            poly = self.getQuad()
+            T2 = QTransform().rotate(self.form.sliderRot.value())
+            self.layer.geoTrans = T2
+            self.layer.rectTrans = poly.boundingRect()
+            self.layer.applyToStack()
+            self.parent().repaint()
+        self.form.sliderRot.valueChanged.connect(g)
 
     def showTool(self):
         for btn in self.btnDict.values():
@@ -422,6 +435,18 @@ class rotatingTool(QObject):
     def hideTool(self):
         for btn in self.btnDict.values():
             btn.hide()
+
+    def setVisible(self, value):
+        for btn in self.btnDict.values():
+            btn.setVisible(value)
+
+    def setTransform(self, transformation):
+        rect0 = QRect(0, 0, self.img.width(), self.img.height())
+        rect1 = transformation.mapRect(rect0)
+        for role,pos in zip(['topLeft', 'topRight', 'bottomLeft', 'bottomRight'], [rect1.topLeft(), rect1.topRight(), rect1.bottomLeft(), rect1.bottomRight()]):
+            self.btnDict[role].posRelImg = pos
+        self.layer.geoTrans = transformation
+        self.drawRotatingTool()
 
     def getQuad(self):
         poly = QPolygonF()

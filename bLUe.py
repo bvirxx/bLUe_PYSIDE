@@ -307,7 +307,7 @@ def mouseEvent(widget, event) :
         #update current coordinates
         State['ix'],State['iy']=x,y
         if layer.isGeomLayer():
-            layer.tool.drawRotatingTool()
+            layer.view.widget().tool.drawRotatingTool()
     # mouse release event
     elif event.type() == QEvent.MouseButtonRelease :
         pressed=False
@@ -371,7 +371,7 @@ def wheelEvent(widget,img, event):
         if window.btnValues['Crop_Button']:
             window.cropTool.drawCropTool(img)
         if layer.isGeomLayer():
-            layer.tool.drawRotatingTool()
+            layer.view.widget().tool.drawRotatingTool()
     elif modifiers == Qt.ControlModifier:
         layer.Zoom_coeff *= (1.0 + numSteps)
         layer.updatePixmap()
@@ -716,32 +716,41 @@ def menuFile(name):
             LUT.writeToTextFile(filenames[0])
     updateStatus()
 
+# global variable recording diaporama state
 isSuspended= False
+
 def playDiaporama(diaporamaGenerator, parent=None):
     """
-    Plays diaporama
-    @param diaporamaGenerator: generator of file names
-    @type  diaporamaList: list of str
+    Opens a new window and Plays a diaporama.
+    @param diaporamaGenerator: generator for file names
+    @type  diaporamaGenerator: generator
     @param parent: 
     @return: 
     """
-    newwindow = QMainWindow(parent)
-    newwindow.setAttribute(Qt.WA_DeleteOnClose)
-    newwindow.setContextMenuPolicy(Qt.CustomContextMenu)
-    newwindow.setWindowTitle(parent.tr('Slide show'))
     global isSuspended
     isSuspended = False
+    # init diaporama window
+    newWin = QMainWindow(parent)
+    newWin.setAttribute(Qt.WA_DeleteOnClose)
+    newWin.setContextMenuPolicy(Qt.CustomContextMenu)
+    newWin.setWindowTitle(parent.tr('Slide show'))
+    label = QLabel()
+    label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+    label.img = None
+    newWin.setCentralWidget(label)
+    newWin.showMaximized()
+    set_event_handlers(label)
     # Pause shortcut
     actionEsc = QAction('Pause', None)
     actionEsc.setShortcut(QKeySequence(Qt.Key_Escape))
-    newwindow.addAction(actionEsc)
+    newWin.addAction(actionEsc)
     # context menu event handler
     def h(action):
         global isSuspended
         if action.text() == 'Pause':
             isSuspended = True
         elif action.text() == 'Resume':
-            newwindow.close()
+            newWin.close()
             isSuspended = False
             playDiaporama(diaporamaGenerator, parent=window)
         elif action.text() in ['0', '1','2','3','4','5']:
@@ -765,36 +774,29 @@ def playDiaporama(diaporamaGenerator, parent=None):
             action.triggered.connect(lambda name=action : h(name))
         menu.exec_(position)
 
-    newwindow.customContextMenuRequested.connect(contextMenu)
-
-    label = QLabel()
-    label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-    label.img = None
-    newwindow.setCentralWidget(label)
-    newwindow.showMaximized()
-    set_event_handlers(label)
+    newWin.customContextMenuRequested.connect(contextMenu)
+    # play diaporama
     while True:
         if isSuspended:
-            newwindow.setWindowTitle(newwindow.windowTitle() + ' Paused')
+            newWin.setWindowTitle(newWin.windowTitle() + ' Paused')
             break
         try:
-            # test if window was closed :
-            # close = hide();delete_later()
-            if not newwindow.isVisible():
+            if not newWin.isVisible():
                 break
-            name = diaporamaGenerator.next()
+            name = next(diaporamaGenerator)
+            # search rating in metadata
+            rating = 5 # default
             try:
                 with exiftool.ExifTool() as e:
-                    rating = e.readXMPTag(name, 'XMP:rating')
-                    r = search("\d", rating)
-                    if r:
+                    rt = e.readXMPTag(name, 'XMP:rating')
+                    r = search("\d", rt)
+                    if r is not None:
                         rating = int(r.group(0))
-            except ValueError as er:
-                # No metadata found
+            except ValueError:
                 rating = 5
+            # don't display image with low rating
             if rating < 2:
                 app.processEvents()
-                #print 'skip'
                 continue
             imImg= loadImageFromFile(name)
             if label.img is not None:
@@ -804,9 +806,9 @@ def playDiaporama(diaporamaGenerator, parent=None):
             imImg.xOffset -= (imImg.width()*coeff - label.width()) / 2.0
             app.processEvents()
             if isSuspended:
-                newwindow.setWindowTitle(newwindow.windowTitle() + ' Paused')
+                newWin.setWindowTitle(newWin.windowTitle() + ' Paused')
                 break
-            newwindow.setWindowTitle(parent.tr('Slide show') + ' ' + name + ' ' + ' '.join(['*']*imImg.meta.rating))
+            newWin.setWindowTitle(parent.tr('Slide show') + ' ' + name + ' ' + ' '.join(['*']*imImg.meta.rating))
             label.img = imImg
             label.repaint()
             app.processEvents()
@@ -814,7 +816,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
             sleep(2)
             app.processEvents()
         except StopIteration:
-            newwindow.close()
+            newWin.close()
             window.diaporamaGenerator = None
             break
         except ValueError as ev:
@@ -863,17 +865,18 @@ def menuView(name):
         else:
             window.diaporamaGenerator = None
         if window.diaporamaGenerator is None:
-            lastDir = window.settings.value('paths/dlgdir', '.')
+            # start from parent dir of the last used directory
+            lastDir = path.join(window.settings.value('paths/dlgdir', '.'), path.pardir)
             dlg = QFileDialog(window, "select", lastDir)
-            dlg.setNameFilters( ['Image Files (*.jpg *.png)'])
+            dlg.setNameFilters( ['Image Files (*.jpg *.png *.tif)'])
             dlg.setFileMode(QFileDialog.Directory)
             diaporamaList = []
+            # directory dialog
             if dlg.exec_():
-                #filenames = dlg.selectedFiles()
                 newDir = dlg.directory().absolutePath()
                 window.settings.setValue('paths/dlgdir', newDir)
                 for dirpath, dirnames, filenames in walk(newDir):
-                    for filename in [f for f in filenames if (f.endswith(".jpg") or f.endswith(".png"))]:
+                    for filename in [f for f in filenames if (f.endswith(".jpg") or f.endswith(".png") or f.endswith(".tif"))]:
                         diaporamaList.append(path.join(dirpath, filename))
             def f():
                 for filename in diaporamaList:
@@ -1084,7 +1087,7 @@ def menuLayer(name):
         l = window.label.img.addAdjustmentLayer(name=lname, role='GEOMETRY')
         grWindow = transForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         l.geoTrans = QTransform()
-        l.tool = rotatingTool(parent=window.label, layer=l, form=grWindow)
+        tool = rotatingTool.getNewRotatingTool(parent=window.label, layer=l, form=grWindow)
         l.execute = lambda l=l, pool=None: l.applyTransForm(l.geoTrans, grWindow.options)
     elif name == 'actionFilter':
         lname = 'Filter'
@@ -1205,13 +1208,6 @@ def menuLayer(name):
     dock.setWindowTitle(grWindow.windowTitle())
     #dock.setAttribute(Qt.WA_DeleteOnClose)
     dock.move(900, 40)
-    # set modal : docked windows
-    # are not modal, so docking
-    # must be disabled
-    #dock.setAllowedAreas(Qt.NoDockWidgetArea)
-    #dock.setWindowModality(Qt.ApplicationModal)
-    # set ref. to the associated form
-    #dock.setStyleSheet("border: 1px solid red")
     dock.setStyleSheet("QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
     l.view = dock
     # add to docking area

@@ -16,7 +16,6 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 from functools import partial
-from time import time
 
 import cv2
 import gc
@@ -27,35 +26,22 @@ from PySide2.QtGui import QImage
 from cartesian import cartesianProduct
 from imgconvert import QImageBuffer
 
-# 3D LUT init.
-"""
-Each axis of the LUT has length LUTSIZE.
-r,g,b values are between 0 and 256.
-"""
-MAXLUTRGB = 256 # Interpolation needs that all RGB points ly strictly inside the LUT cube
-LUTSIZE = 17
+###########################################
+# 3D LUT constants
+# LUT axes have length LUTSIZE.
+# Interpolation needs that all RGB points ly strictly
+# inside the LUT cube, so r,g,b values are in the range 0..256.
+###########################################
+
+MAXLUTRGB = 256
+# LUTSIZE = 17
 LUTSIZE = 33
 LUTSTEP = MAXLUTRGB / (LUTSIZE - 1)
 
+# Weights for perceptual brightness computation
 
 """
-v = QVector3D(1.0,1.0,1.0) * 256.0 / 3.0
-LUTPROJ = [QVector3D(i/(i+j+k),j/(i+j+k),k/(i+j+k))*256 - v  for i in range(LUTSIZE) for j in range(LUTSIZE) for k in range(LUTSIZE) if gcd(i,gcd(j,k))==1]
-# LUTPROJ +v gives r,g,b colors
-orig_theta = QVector3D(0.33 - 1, 0.33,0.33).normalized()
-orth = QVector3D(0, 1.0, -1.0).normalized()
-LUTPROJ_x = [ int(QVector3D.dotProduct(V, orig_theta)) for V in LUTPROJ]
-LUTPROj_y = [ int(QVector3D.dotProduct(V, orth)) for V in LUTPROJ]
-
-LUTPROJTUPLE = [(i*LUTSTEP,j*LUTSTEP,k*LUTSTEP)  for i in range(LUTSIZE) for j in range(LUTSIZE) for k in range(LUTSIZE) if gcd(i,gcd(j,k))==1]
-LUTPROJSET = set(LUTPROJ)
-"""
-# perceptual brightness constants
-
-Perc_R = 0.299
-Perc_G = 0.587
-Perc_B = 0.114
-"""
+# usual values
 Perc_R=0.2126
 Perc_G=0.7152
 Perc_B=0.0722
@@ -65,31 +51,21 @@ Perc_R=0.2338
 Perc_G=0.6880
 Perc_B=0.0782
 
-"""
-Perc_R=0.79134178
-Perc_G=2.31839104
-Perc_B=0.25510923
-"""
-"""
-Perc_R=1.0/3.0
-Perc_G=1.0/3.0
-Perc_B=1.0/3.0
-"""
 class LUT3D (object):
     """
     Implements 3D LUT. Size should be be 2**n + 1,
     array shape (size, size, size, 3) and array values 
-    positive integers in range 00..255
+    positive integers in range 0..255
     """
     def __init__(self, LUT3DArray, size=LUTSIZE):
         # consistency check
-        if not (size & (size - 1)):
-            raise ValueError("LUT3D : size must be 2**n, found %d" % size)
+        if ((size - 1) & (size - 2)) != 0 :
+            raise ValueError("LUT3D : size should be 2**n+1, found %d" % size)
         self.LUT3DArray = LUT3DArray
         self.size = size
-        # for convenience
-        self.step = MAXLUTRGB // (size - 1)  # python 3 integer quotient
         self.contrast = lambda p : p #np.power(p,1.2)
+        # convenience attribute
+        self.step = MAXLUTRGB // (size - 1)  # python 3 : integer quotient
 
     @classmethod
     def HaldImage2LUT3D(cls, hald, size=LUTSIZE):
@@ -237,7 +213,7 @@ class LUT3D (object):
 
 def LUT3DFromFactory(size=LUTSIZE):
     """
-    Inits a LUT3D array of shape ( size, size,size, 3).
+    Inits a LUT3D array with shape ( size, size,size, 3).
     size should be 2**n +1. Most common values are 17 and 33.
     The 4th axis holds 3-uples (r,g,b) of integers evenly
     distributed in the range 0..MAXLUTRGB (edges inclusive) :

@@ -506,7 +506,7 @@ class QLayerView(QTableView) :
 
     def viewClicked(self, clickedIndex):
         """
-        Mouse click event handler.
+        Mouse clicked event handler.
         @param clickedIndex: 
         @type clickedIndex: QModelIndex
         """
@@ -533,8 +533,9 @@ class QLayerView(QTableView) :
                 self.currentWin.setVisible(layer.visible)
                 if not layer.visible:
                     self.currentWin = None
-            #layer.applyToStack()
-            # update stack, starting from the next lower visible layer to ensure the updating of the current layer
+            if layer.tool is not None:
+                layer.tool.setVisible(layer.visible)
+            # update stack, starting from the next lower visible layer to ensure update of the current layer
             i = layer.getLowerVisibleStackIndex()
             if i >= 0:
                 layer.parentImage.layersStack[i].applyToStack()
@@ -551,13 +552,14 @@ class QLayerView(QTableView) :
             self.img.onImageChanged()
             """
         # update displayed window and active layer
-        self.img.setActiveLayer(len(self.img.layersStack) - 1 - row)
+        activeStackIndex = len(self.img.layersStack) - 1 - row
+        activeLayer = self.img.setActiveLayer(activeStackIndex)
         if self.currentWin is not None:
             self.currentWin.hide()
             self.currentWin = None
-        if hasattr(self.img.layersStack[-1 - row], "view"):
-            self.currentWin = self.img.layersStack[-1 - row].view
-        if self.currentWin is not None:
+        if hasattr(self.img.layersStack[activeStackIndex], "view"):
+            self.currentWin = self.img.layersStack[activeStackIndex].view
+        if self.currentWin is not None and activeLayer.visible:
             self.currentWin.show()
             # make self.currentWin the active window
             self.currentWin.activateWindow()

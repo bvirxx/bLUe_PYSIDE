@@ -137,25 +137,6 @@
            </widget>
           </item>
           <item>
-           <widget class="QToolButton" name="rotateButton">
-            <property name="toolTip">
-             <string>Rotate Image</string>
-            </property>
-            <property name="accessibleName">
-             <string>Rotate_Button</string>
-            </property>
-            <property name="text">
-             <string>Rotate</string>
-            </property>
-            <property name="checkable">
-             <bool>true</bool>
-            </property>
-            <property name="autoRaise">
-             <bool>true</bool>
-            </property>
-           </widget>
-          </item>
-          <item>
            <widget class="QToolButton" name="fitButton">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">

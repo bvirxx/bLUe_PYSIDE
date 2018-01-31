@@ -26,7 +26,7 @@ from PySide2.QtCore import Qt, QBuffer, QDataStream, QFile, QIODevice, QSize, QP
 import cv2
 from copy import copy
 
-from PySide2.QtGui import QImageWriter, QImageReader, QTransform
+from PySide2.QtGui import QImageWriter, QImageReader, QTransform, QBrush
 from PySide2.QtWidgets import QApplication, QMessageBox
 from PySide2.QtGui import QPixmap, QImage, QColor, QPainter
 from PySide2.QtCore import QRect
@@ -920,12 +920,13 @@ class vImage(QImage):
         @return: histogram plot
         @rtype: QImage
         """
+        # type of size must be QSize
         if type(size) is int:
             size = QSize(size, size)
         # scaling factor for the bin edges
         spread = float(range[1] - range[0])
         scale = size.width() / spread
-
+        # per channel histogram function
         def drawChannelHistogram(qp, channel, buf, color):
             """
             Computes and draws the (smoothed) histogram of the image for a single channel.
@@ -937,7 +938,6 @@ class vImage(QImage):
             # even for small data size (<=250000), so we don't use it.
             # This is a numpy bug : in module function_base.py, to prevent memory error,
             # a reasonable upper bound for bins should be chosen.
-            # hist, bin_edges = np.histogram(buf0, bins='auto', density=True)
             hist, bin_edges = np.histogram(buf0, bins=100, density=True)
             # smooth hist
             hist = savitzky_golay(hist, 11, 3)
@@ -950,35 +950,27 @@ class vImage(QImage):
                 bin_lastVals = bin_edges[-1] + np.arange(p-1)
                 bin_edges = np.concatenate((bin_firstVals, bin_edges, bin_lastVals))
             # draw hist
-
-            qp.setPen(color)
-            M = max(hist)
             imgH = size.height()
+            M = max(hist)
+            lg = len(hist)
             for i, y in enumerate(hist):
                 h = int(imgH * y / M)
-                rect = QRect(int((bin_edges[i] - range[0]) * scale), max(img.height() - h, 0), int((bin_edges[i + 1] - bin_edges[i]) * scale), h)
-                qp.drawRect(rect)
-                qp.fillRect(rect, color)
-                #qp.drawRect(int((bin_edges[i] - range[0]) * scale), max(img.height() - h, 0), int((bin_edges[i + 1] - bin_edges[i]) * scale), h)
-                #qp.fillRect(int((bin_edges[i]-range[0])*scale), max(img.height()-h,0), int((bin_edges[i+1]-bin_edges[i])*scale), h, color)
-
+                rect = QRect(int((bin_edges[i] - range[0]) * scale), max(img.height() - h, 0), int((bin_edges[i + 1] - bin_edges[i] + 1) * scale), h)
+                # first and last bins are used to indicate possible clipping
+                qp.fillRect(rect, color if (i > 0 and i < lg - 1) else Qt.cyan)
         bufL = cv2.cvtColor(QImageBuffer(self)[:, :, :3], cv2.COLOR_BGR2GRAY)[..., np.newaxis]  # returns Y (YCrCb) : Y = 0.299*R + 0.587*G+0.114*B
         if mode == 'RGB':
             buf = QImageBuffer(self)[:,:,:3][:,:,::-1]  #RGB
-            #bufL = cv2.cvtColor(QImageBuffer(self)[:,:,:3], cv2.COLOR_BGR2GRAY)[...,np.newaxis] # returns Y (YCrCb) : Y = 0.299*R + 0.587*G+0.114*B
         elif mode == 'HSpB':
             buf = self.getHspbBuffer()
         elif mode == 'Lab':
             buf = self.getLabBuffer()
         elif mode =='Luminosity':
-            # convert to gray levels and add 3rd axis
-            # for compatibility with other modes.
-            #bufL = cv2.cvtColor(QImageBuffer(self)[:,:,:3], cv2.COLOR_BGR2GRAY)[...,np.newaxis] # returns Y (YCrCb) : Y = 0.299*R + 0.587*G+0.114*B
             chans = []
         img = QImage(size.width(), size.height(), QImage.Format_ARGB32)
         img.fill(bgColor)
         qp = QPainter(img)
-        qp.setOpacity(0.6)
+        qp.setOpacity(0.75)
         if type(chanColors) is QColor or type(chanColors) is Qt.GlobalColor:
             chanColors = [chanColors]*3
         for ch in chans:
@@ -1124,18 +1116,25 @@ class mImage(vImage):
         updates the layer view and tools
         @param stackIndex: index in stack for the layer to select
         @type stackIndex: int
-        @return: 
+        @return: active layer
+        @rtype: QLayer
         """
+        lgStack = len(self.layersStack)
+        if stackIndex < 0 or stackIndex >= lgStack:
+            return
+        # clean old active layer
         active = self.getActiveLayer()
         if active is not None:
             if active.tool is not None:
                 active.tool.hideTool()
+        # set new active layer
         self.activeLayerIndex = stackIndex
         if self.layerView is not None:
-            self.layerView.selectRow(len(self.layersStack) - 1 - stackIndex)
+            self.layerView.selectRow(lgStack - 1 - stackIndex)
         active = self.getActiveLayer()
-        if active.tool is not None:
+        if active.tool is not None and active.visible:
             active.tool.showTool()
+        return active
 
     def getActivePixel(self,x, y):
         """

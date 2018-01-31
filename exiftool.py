@@ -24,7 +24,8 @@ import subprocess
 import os
 import json
 
-from PySide2.QtGui import QTransform
+from PySide2.QtCore import QByteArray
+from PySide2.QtGui import QTransform, QImage
 from PySide2.QtWidgets import QMessageBox
 from os.path import isfile
 from settings import EXIFTOOL_PATH
@@ -76,46 +77,71 @@ class ExifTool(object):
         self.process.stdin.flush()
         self.process.terminate()
 
-    def execute(self, *args):
+    def execute(self, *args, ascii=True):
+        """
+        Execute the exiftool command defined by *args and returns the
+        command output.
+        @param args:
+        @type args:
+        @param ascii:
+        @type ascii:
+        @return: command output
+        @rtype: str or bytes
+        """
         args = args + ("-execute\n",)
         #self.process.stdin.write(str.join("\n", args))  Python 2.7
         self.process.stdin.write(bytearray(str.join("\n", args), 'ascii'))
         self.process.stdin.flush()
-        output = ""
+        output = bytearray()
+        # get stdout file descriptor
         fd = self.process.stdout.fileno()
-        while not output[:-2].endswith(self.sentinel):
-            output += os.read(fd, 4096).decode('ascii')
-        return output[:-len(self.sentinel)-2]
+        # encode sentinel to bytes
+        sb = self.sentinel.encode('ascii')
+        # read stdout up to sentinel
+        while not output[:-2].endswith(sb):
+            output.extend(os.read(fd, 4096))
+        # cut off sentinel and CRLF
+        output = output[:-len(self.sentinel) - 2]
+        if ascii:
+            output = str(output, encoding='ascii')
+        else:
+            output = bytes(output[:-len(self.sentinel)-2])
+        return output
 
     def writeXMPTag(self, filename, tagName, value):
         """
-        
-        @param filename: 
+        Write tag info to the sidecar (.mie) file. The sidecar is created
+        if it does not exist.
+        @param filename: image or sidecar path
         @type filename: str
         @param tagName: tag name
         @type tagName: str
         @param value: tag value
         @type value: str or number
-        @return: 
         """
         filename = filename[:-4] + '.mie'
         self.execute(*(['-%s=%s' % (tagName, value)] + [filename]))
 
     def readXMPTag(self, filename, tagName):
         """
-        Reads tag info from the sidecar (.mie) file. Despite its name, the method can read
-        any type of tag. The file extension is modified.
-        @param filename: 
-        @param tagName: 
-        @return: 
+        Read tag info from the sidecar (.mie) file. Despite its name, the method can read
+        a tag of any type. A ValueError exception is raised if the file does not exist.
+        @param filename: image or sidecar path
+        @type filename: str
+        @param tagName:
+        @type tagName: str
+        @return: tag info
+        @rtype: str
         """
         filename = filename[:-4] + '.mie'
+        if not isfile(filename):
+            raise ValueError
         res = self.execute(*(['-%s' % tagName] + [filename]))
         return res
 
     def get_metadata(self, f):
         """
-        Reads metadata from file : data are read from the sidecar 
+        Read metadata from file : data are read from the sidecar
         .mie file if it exists, otherwise data are read
         from the image file and a sidecar file is created.
         @param f: file name
@@ -141,6 +167,10 @@ class ExifTool(object):
             # write sidecar file
             self.saveMetadata(f)
         return profile, data
+
+    def get_thumbNail(self, f):
+        thumbNail = self.execute(*[ '-b', '-ThumbnailImage', f], ascii=False)
+        return QImage.fromData(QByteArray.fromRawData(bytes(thumbNail)), 'JPG')
 
     def saveMetadata(self, f):
         """
