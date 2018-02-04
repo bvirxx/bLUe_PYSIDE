@@ -220,10 +220,10 @@ class vImage(QImage):
         else:
             self.meta = meta
         if (filename is None and cv2Img is None and QImg is None):
-            # creates a null image
+            # create a null image
             super(vImage, self).__init__()
         if filename is not None:
-            # loads image from file (should be a 8 bits/channel color image)
+            # load image from file (should be a 8 bits/channel color image)
             if self.meta.orientation is not None:
                 tmp = QImage(filename, format=format).transformed(self.meta.orientation)
             else:
@@ -235,12 +235,12 @@ class vImage(QImage):
             # call to super is mandatory. Shallow copy : no harm !
             super(vImage, self).__init__(tmp)
         elif QImg is not None:
-            # builds image from QImage, shallow copy
+            # build image from QImage, shallow copy
             super(vImage, self).__init__(QImg)
             if hasattr(QImg, "meta"):
                 self.meta = copy(QImg.meta)
         elif cv2Img is not None:
-            # builds image from buffer
+            # build image from buffer
             super(vImage, self).__init__(ndarrayToQImage(cv2Img, format=format))
         # check format
         if self.depth() != 32:
@@ -487,7 +487,9 @@ class vImage(QImage):
         can choose the resizing method (default cv2.INTER_CUBIC)
         The original image is not modified.
         @param pixels: pixel count for the resized image
-        @param interpolation method (default cv2.INTER_CUBIC)
+        @type pixels: int
+        @param interpolation: interpolation method (default cv2.INTER_CUBIC)
+        @type interpolation:
         @return : the resized vImage
         @rtype : vImage
         """
@@ -498,7 +500,7 @@ class vImage(QImage):
         Buf = QImageBuffer(self)
         cv2Img = cv2.resize(Buf, (w, h), interpolation=interpolation)
         rszd = vImage(cv2Img=cv2Img, meta=copy(self.meta), format=self.format())
-        # prevents buffer from garbage collector
+        # prevent buffer from garbage collector
         rszd.dummy = cv2Img
         #resize rect and mask
         if self.rect is not None:
@@ -1312,9 +1314,9 @@ class mImage(vImage):
 
     def save(self, filename, quality=-1, compression=-1):
         """
-        Builds an image from visible layers
-        and writes it to file. If quality = -1 (default)
-        uses best available quality. Raises ValueError if
+        Build image from visible layers
+        and write it to file. If quality = -1 (default) we
+        use best available quality. Raise ValueError if
         saving fails.
         @param filename:
         @type filename: str

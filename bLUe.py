@@ -30,17 +30,25 @@ You should have received a copy of the GNU Lesser General Public License along w
 Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 """
 import sys
+import threading
+from itertools import cycle
 from os import path, walk
+from os.path import basename
+from signal import signal
 from types import MethodType
 
 from cv2 import NORMAL_CLONE
 
+import rawpy
+
 from grabcut import segmentForm
-from PySide2.QtCore import Qt, QRect, QEvent, QDir, QUrl, QSize, QFileInfo, QRectF
+from PySide2.QtCore import Qt, QRect, QEvent, QDir, QUrl, QSize, QFileInfo, QRectF, QThread, QObject, Signal, QPoint, \
+    QMimeData, QByteArray
 from PySide2.QtGui import QPixmap, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, \
-    QPainterPath, QTransform
+    QPainterPath, QTransform, QIcon, QImageReader
 from PySide2.QtWidgets import QApplication, QMenu, QAction, QFileDialog, QMessageBox, \
-    QMainWindow, QLabel, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QWidget, QPushButton
+    QMainWindow, QLabel, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QWidget, QPushButton, QListView, \
+    QListWidget, QListWidgetItem, QAbstractItemView
 from QtGui1 import app, window
 import exiftool
 from graphicsTransform import transForm
@@ -494,6 +502,8 @@ def loadImageFromFile(f):
     """
     # get metadata
     try:
+        # read metadata from sidecar (.mie) if it exists, otherwise from image file.
+        # Create sidecar if it does not exist.
         with exiftool.ExifTool() as e:
             profile, metadata = e.get_metadata(f)
     except ValueError as er:
@@ -723,9 +733,9 @@ def playDiaporama(diaporamaGenerator, parent=None):
     """
     Opens a new window and Plays a diaporama.
     @param diaporamaGenerator: generator for file names
-    @type  diaporamaGenerator: generator
-    @param parent: 
-    @return: 
+    @type  diaporamaGenerator: iterator object
+    @param parent:
+    @type parent:
     """
     global isSuspended
     isSuspended = False
@@ -773,7 +783,6 @@ def playDiaporama(diaporamaGenerator, parent=None):
             subMenuRating.addAction(action)
             action.triggered.connect(lambda name=action : h(name))
         menu.exec_(position)
-
     newWin.customContextMenuRequested.connect(contextMenu)
     # play diaporama
     while True:
@@ -819,18 +828,129 @@ def playDiaporama(diaporamaGenerator, parent=None):
             newWin.close()
             window.diaporamaGenerator = None
             break
-        except ValueError as ev:
+        except ValueError:
             continue
-        except RuntimeError as er:
-            #newwindow.close()
+        except RuntimeError:
             window.diaporamaGenerator = None
             break
         except:
-            #print "Unexpected error:", sys.exc_info()[0]
-            #newwindow.close()
             window.diaporamaGenerator = None
             raise
         app.processEvents()
+
+class loader(threading.Thread):
+    """
+    Thread class for batch loading of images
+    """
+    def __init__(self, gen, wdg):
+        super(loader, self).__init__()
+        self.fileListGen = gen
+        self.wdg = wdg
+    def run(self):
+        # next() raises a StopIteration exception when the generator ends.
+        # If this exception is unhandled by run(), it causes thread termination.
+        # If wdg internal C++ object was destroyed by main thread (form closing)
+        # a RuntimeError exception is raised and causes thread termination too.
+        # Thus, no further synchronization is needed.
+        with exiftool.ExifTool() as e:
+            while True:
+                try:
+                    filename = next(self.fileListGen)
+                    """
+                    if filename[:-4] == ".nef":
+                        rawImg = rawpy.imread(filename)
+                        buf = rawImg.postprocess()
+                    """
+                    # get orientation
+                    try:
+                        # read metadata from sidecar (.mie) if it exists, otherwise from image file.
+                        #with exiftool.ExifTool() as e:
+                        profile, metadata = e.get_metadata(filename, createsidecar=False)
+                    except ValueError:
+                        metadata = [{}]
+                    orientation = metadata[0].get("EXIF:Orientation", 0)
+                    date = metadata[0].get("EXIF:DateTimeOriginal", 'toto')
+                    transformation = exiftool.decodeExifOrientation(orientation)
+                    if transformation.isIdentity():
+                        item = QListWidgetItem(QIcon(filename), basename(filename))
+                    else:
+                        img = QImage(filename).transformed(transformation)
+                        item = QListWidgetItem(QIcon(QPixmap.fromImage(img)), basename(filename))
+                    item.setToolTip(date)
+                    item.setData(Qt.UserRole, (filename, transformation))
+                    self.wdg.addItem(item)
+                # for clean exiting we catch all exceptions and force break
+                except:
+                    break
+
+def playViewer(fileListGen, dir, parent=None):
+    """
+    Open a form and display all images from a directory.
+    The images are loaded asynchronously by a separate thread.
+    @param fileListGen: file name generator
+    @type fileListGen: generator object
+    @param parent:
+    @type parent:
+    """
+    # init form
+    newWin = QMainWindow(parent)
+    newWin.setAttribute(Qt.WA_DeleteOnClose)
+    newWin.setContextMenuPolicy(Qt.CustomContextMenu)
+    newWin.setWindowTitle(parent.tr('Image Viewer ' + dir))
+    # init viewer
+    wdg = QListWidget(parent=parent)
+    wdg.setSelectionMode(QAbstractItemView.ExtendedSelection)
+    wdg.setContextMenuPolicy(Qt.CustomContextMenu)
+    wdg.label = None
+    # handler for action copy_to_clipboard
+    def hCopy():
+        sel = wdg.selectedItems()
+        l = []
+        for item in sel:
+            # get url from path
+            l.append(QUrl.fromLocalFile(item.data(Qt.UserRole)))
+        # init clipboard data
+        q = QMimeData()
+        # set some Windows magic values for copying files from system clipboard : Don't modify
+        # 1 : copy; 2 : move
+        q.setData("Preferred DropEffect", QByteArray("2"))
+        q.setUrls(l)
+        QApplication.clipboard().clear()
+        QApplication.clipboard().setMimeData(q)
+    def hZoom():
+        sel = wdg.selectedItems()
+        l = []
+        # build list of file paths
+        for item in sel:
+            l.append(item.data(Qt.UserRole)[0])
+        if wdg.label is None:
+            wdg.label = QLabel(parent=wdg)
+            wdg.label.setMaximumSize(500,500)
+        rect = wdg.visualItemRect(sel[0])
+        labelcenter = QPoint(wdg.label.width//2, wdg.label.height()//2)
+        wdg.label.move(wdg.mapFromGlobal(QPoint(min(rect.left(), wdg.viewport().width() -500), min(rect.top(), wdg.viewport().height() -500))))
+        # get correctly oriented image
+        img = QImage(l[0]).transformed(item.data(Qt.UserRole)[1])
+        wdg.label.setPixmap(QPixmap.fromImage(img.scaled(500,500, Qt.KeepAspectRatio)))
+        wdg.label.show()
+    def showContextMenu(pos):
+        globalPos = wdg.mapToGlobal(pos)
+        myMenu = QMenu()
+        action_copy = myMenu.addAction("Copy to Clipboard", hCopy)
+        action_zoom = myMenu.addAction("Zoom", hZoom)
+        myMenu.exec_(globalPos)
+    def hChange():
+        if wdg.label is not None:
+            wdg.label.hide()
+    wdg.customContextMenuRequested.connect(showContextMenu)
+    wdg.itemSelectionChanged.connect(hChange)
+    wdg.setViewMode(QListWidget.IconMode)
+    wdg.setIconSize(QSize(150, 150))
+    newWin.setCentralWidget(wdg)
+    newWin.showMaximized()
+    # launch loader instance
+    thr = loader(fileListGen, wdg)
+    thr.start()
 
 def menuView(name):
     """
@@ -873,16 +993,36 @@ def menuView(name):
             diaporamaList = []
             # directory dialog
             if dlg.exec_():
-                newDir = dlg.directory().absolutePath()
+                newDir = dlg.selectedFiles()[0] # dlg.directory().absolutePath()
                 window.settings.setValue('paths/dlgdir', newDir)
                 for dirpath, dirnames, filenames in walk(newDir):
-                    for filename in [f for f in filenames if (f.endswith(".jpg") or f.endswith(".png") or f.endswith(".tif"))]:
+                    for filename in [f for f in filenames if
+                                f.endswith((".jpg", ".JPG", ".png", ".PNG", ".tif", ".TIF"))]:
                         diaporamaList.append(path.join(dirpath, filename))
+            """
             def f():
                 for filename in diaporamaList:
                     yield filename
-            window.diaporamaGenerator = f()
+            """
+            # cycling diaporama. Use f() for one pass diaporama.
+            window.diaporamaGenerator = cycle(diaporamaList) # f()
         playDiaporama(window.diaporamaGenerator, parent=window)
+    elif name == 'actionViewer':
+        # start from parent dir of the last used directory
+        lastDir = path.join(window.settings.value('paths/dlgdir', '.'), path.pardir)
+        dlg = QFileDialog(window, "select", lastDir)
+        dlg.setNameFilters(['Image Files (*.jpg *.png *.tif)'])
+        dlg.setFileMode(QFileDialog.Directory)
+        viewList = []
+        # directory dialog
+        if dlg.exec_():
+            newDir = dlg.selectedFiles()[0] # dlg.directory().absolutePath()
+            window.settings.setValue('paths/dlgdir', newDir)
+            for dirpath, dirnames, filenames in walk(newDir):
+                for filename in [f for f in filenames if
+                            f.endswith((".jpg", ".JPG", ".png", ".PNG", ".tif", ".TIF", ".nef", ".NEF", ".dng", ".DNG", ".cr2", ".CR2"))]:
+                    viewList.append(path.join(dirpath, filename))
+        playViewer((filename for filename in viewList), newDir, parent=window)
     updateStatus()
 
 def menuImage(name) :
@@ -908,7 +1048,7 @@ def menuImage(name) :
         if len(img.meta.profile) > 0:
             s = s +"\n\nEmbedded profile found, length %d" % len(img.meta.profile)
         s = s + "\nRating %s" % ''.join(['*']*img.meta.rating)
-        # raw meta data
+        # get raw meta data dictionary
         l = img.meta.rawMetadata
         s = s + "\n\nMETADATA :\n"
         for d in l:

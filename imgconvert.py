@@ -28,12 +28,15 @@ QImageFormats = {0:'invalid', 1:'mono', 2:'monoLSB', 3:'indexed8', 4:'RGB32', 5:
 def ndarrayToQImage(ndimg, format=QImage.Format_ARGB32):
     """
     Convert a 3D numpy ndarray to a QImage. No sanity check is
-    done concerning the compatibility between the ndarray shape and
+    done concerning the compatibility of the ndarray shape and
     the QImage format. Although the doc is unclear, it seems that the
     buffer is copied when needed.
     @param ndimg: The ndarray to be converted
+    @type ndimg: ndarray
     @param format: The QImage format (default ARGB32)
+    @tyep format:
     @return: The converted image
+    @rtype: QImage
     """
     if ndimg.ndim != 3 or ndimg.dtype != 'uint8':
         raise ValueError("ndarray2QImage : array must be 3D with dtype=uint8, found ndim=%d, dtype=%s" %(ndimg.ndim, ndimg.dtype))

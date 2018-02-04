@@ -44,7 +44,10 @@ def saveChangeDialog(img):
 def save(img, mainWidget):
     """
     Image saving dialogs. The actual saving is
-    done by mImage.save(). Raises ValueError if saving fails.
+    done by calling mImage.save(). Metadata is copied from sidecar
+    to image file. The function returns the image file name.
+    An exception ValueError is raised if saving fails.
+
     @param img:
     @type img: QImage
     """
@@ -94,7 +97,9 @@ def save(img, mainWidget):
                 raise ValueError("Saving Operation Failure")
         quality = dlg.sliderQual.value()
         compression = dlg.sliderComp.value()
+        # write image file
         img.save(filename, quality=quality, compression=compression)  #mImage.save()
+        # copy metadata to image file. The sidecar is not removed
         with exiftool.ExifTool() as e:
             e.restoreMetadata(img.filename, filename)
         return filename

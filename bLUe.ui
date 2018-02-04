@@ -504,6 +504,7 @@ Screen</string>
     <addaction name="actionShow_hide_right_window_3"/>
     <addaction name="separator"/>
     <addaction name="actionDiaporama"/>
+    <addaction name="actionViewer"/>
    </widget>
    <widget class="QMenu" name="menuImage">
     <property name="title">
@@ -686,7 +687,7 @@ Screen</string>
   </action>
   <action name="actionDiaporama">
    <property name="text">
-    <string>Slide show</string>
+    <string>Slide Show</string>
    </property>
   </action>
   <action name="actionProfile_1">
@@ -884,6 +885,11 @@ Screen</string>
   <action name="actionGeom_Transformation">
    <property name="text">
     <string>Geom. Transformation</string>
+   </property>
+  </action>
+  <action name="actionViewer">
+   <property name="text">
+    <string>Viewer</string>
    </property>
   </action>
  </widget>

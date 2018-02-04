@@ -139,15 +139,16 @@ class ExifTool(object):
         res = self.execute(*(['-%s' % tagName] + [filename]))
         return res
 
-    def get_metadata(self, f):
+    def get_metadata(self, f, createsidecar=True):
         """
         Read metadata from file : data are read from the sidecar
-        .mie file if it exists, otherwise data are read
-        from the image file and a sidecar file is created.
+        (.mie) file if it exists. Otherwise data are read
+        from the image file and the sidecar file is created if
+        createsidecar is True (default).
         @param f: file name
         @type f: str
         @return: profile, metadata
-        @rtype: 
+        @rtype: 2-uple profile: bytes, metadata: (length 1) list of dict
         """
         # Using PIL _getexif is much simpler.
         # However, exiftools is more powerful
@@ -159,13 +160,18 @@ class ExifTool(object):
         """
         fmie = f[:-4]+'.mie'
         if isfile(fmie):
+            # get profile as bytes
             profile = self.execute(*(self.extract_meta_flags + [fmie]))
+            # get data as (length 1) list of dict :
+            # execute returns a string [{aa:bb, cc:dd,...}],
+            # and json.loads deserializes it.
             data = json.loads(self.execute(*(self.flags + [fmie])))
         else:
-            profile = self.execute(*(self.extract_meta_flags + [f]))
+            profile = self.execute(*(self.extract_meta_flags + [f]), ascii=False)
             data = json.loads(self.execute(*(self.flags + [f])))
-            # write sidecar file
-            self.saveMetadata(f)
+            # create sidecar file
+            if createsidecar:
+                self.saveMetadata(f)
         return profile, data
 
     def get_thumbNail(self, f):
@@ -185,7 +191,7 @@ class ExifTool(object):
     def restoreMetadata(self, source, dest, removesidecar=False):
         """
         Copy all metadata and icc profile from sidecar .mie to image file.
-        if removesidecar is True, the sidecar file is removed after copying.
+        if removesidecar is True (default False), the sidecar file is removed after copying.
         @param source: file the image was loaded from
         @param dest: file the image is saved to
         @param removesidecar: if True remove sidecar file after restoration. Default is False
@@ -204,9 +210,11 @@ class ExifTool(object):
 def decodeExifOrientation(value):
     """
     Returns a QTransform object representing the
-    image transformation corresponding to the orientation tag value
+    image transformation corresponding to the orientation tag value.
     @param value: orientation tag
+    @type value: int
     @return: Qtransform object
+    @rtype: QTransform
     """
     # identity transformation
     tr = QTransform()
@@ -216,6 +224,8 @@ def decodeExifOrientation(value):
         pass
     elif value == 6:   # TODO complete
         tr.rotate(90)
+    elif value == 8:
+        tr.rotate(270)
     else :
         raise ValueError("decodeExifOrientation : unhandled orientation tag: %d" % value)
     return tr
