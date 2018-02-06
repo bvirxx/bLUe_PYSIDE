@@ -26,6 +26,12 @@ from os.path import isfile
 import exiftool
 from imgconvert import QImageBuffer
 
+##################
+# file extension constants
+IMAGE_FILE_EXTENSIONS = (".jpg", ".JPG", ".png", ".PNG", ".tif", ".TIF", "*.bmp", "*.BMP")
+RAW_FILE_EXTENSIONS = (".nef", ".NEF", ".dng", ".DNG", ".cr2", ".CR2")
+IMAGE_FILE_NAME_FILTER = ['Image Files (*.jpg *.png *.tif *.JPG *.PNG *.TIF)']
+#################
 
 class channelValues():
     RGB, Red, Green, Blue =[0,1,2], [0], [1], [2]
@@ -114,7 +120,7 @@ def openDlg(mainWidget):
         elif ret == QMessageBox.Cancel:
             return
     lastDir = mainWidget.settings.value('paths/dlgdir', '.')
-    dlg = QFileDialog(mainWidget, "select", lastDir, "*.jpg *.jpeg *.png *.tif *.tiff *.bmp")
+    dlg = QFileDialog(mainWidget, "select", lastDir, " *".join(IMAGE_FILE_EXTENSIONS) + " *".join(RAW_FILE_EXTENSIONS))
     if dlg.exec_():
         filenames = dlg.selectedFiles()
         newDir = dlg.directory().absolutePath()
@@ -129,6 +135,14 @@ def openDlg(mainWidget):
     else:
         return None
 
+class UDict(object):
+   def __init__(self, d1, d2):
+       self.d1, self.d2 = d1, d2
+   def __getitem__(self, item):
+       if item in self.d1:
+           return self.d1[item]
+       return self.d2[item]
+
 class optionsWidget(QListWidget) :
     """
     Displays a list of options with checkboxes.
@@ -137,7 +151,7 @@ class optionsWidget(QListWidget) :
     a function to onSelect. It is called after the selection of the new item.
     """
 
-    def __init__(self, options=[], exclusive=True, parent=None):
+    def __init__(self, options=[], exclusive=True, changed=None, parent=None):
         """
         @param options: list of strings
         @param exclusive: boolean
@@ -156,6 +170,8 @@ class optionsWidget(QListWidget) :
         self.setMinimumHeight(self.sizeHintForRow(0)*len(options))
         self.exclusive = exclusive
         self.itemClicked.connect(self.select)
+        if changed is not None:
+            self.itemClicked.connect(lambda: changed.emit())
         # selection hook.
         self.onSelect = lambda x : 0
 

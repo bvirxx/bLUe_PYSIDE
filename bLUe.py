@@ -34,7 +34,6 @@ import threading
 from itertools import cycle
 from os import path, walk
 from os.path import basename
-from signal import signal
 from types import MethodType
 
 from cv2 import NORMAL_CLONE
@@ -47,10 +46,11 @@ from PySide2.QtCore import Qt, QRect, QEvent, QDir, QUrl, QSize, QFileInfo, QRec
 from PySide2.QtGui import QPixmap, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, \
     QPainterPath, QTransform, QIcon, QImageReader
 from PySide2.QtWidgets import QApplication, QMenu, QAction, QFileDialog, QMessageBox, \
-    QMainWindow, QLabel, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QWidget, QPushButton, QListView, \
-    QListWidget, QListWidgetItem, QAbstractItemView
+    QMainWindow, QLabel, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QWidget, \
+    QListWidget, QListWidgetItem, QAbstractItemView, QStyle
 from QtGui1 import app, window
 import exiftool
+from graphicsRaw import rawForm
 from graphicsTransform import transForm
 from imgconvert import *
 from MarkedImg import imImage, metadata, vImage
@@ -64,7 +64,8 @@ from colorConv import sRGBWP
 from graphicsCLAHE import CLAHEForm
 from graphicsExp import ExpForm
 from graphicsPatch import patchForm, maskForm
-from utils import saveChangeDialog, save, openDlg, cropTool, rotatingTool
+from utils import saveChangeDialog, save, openDlg, cropTool, rotatingTool, IMAGE_FILE_NAME_FILTER, \
+    IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS
 
 from graphicsTemp import temperatureForm
 from time import sleep
@@ -81,18 +82,18 @@ from splittedView import splittedWindow
 
 
 ##################
-#  Refresh views after image processing
+#  Software Attributions
+attributions = "libraw is licensed under LGPL\nexiftool is licensed under Perl Artistic License"
 #################
 
-"""
-def updateDocView():
-    window.label.repaint()
-    window.label_3.repaint()
-"""
+#################
+# adjustment form size
+axeSize = 200
+################
+
 #########
 # init Before/After view
 #########
-
 splittedWin = splittedWindow(window)
 
 ###############
@@ -490,6 +491,7 @@ def contextMenu(pos, widget):
 def loadImageFromFile(f):
     """
     loads metadata and image from file.
+    For raw file, a default postprocessing is performed.
     metadata is a list of dicts with len(metadata) >=1.
     metadata[0] contains at least 'SourceFile' : path.
     profile is a string containing the profile binary data,
@@ -525,7 +527,16 @@ def loadImageFromFile(f):
     rating = metadata[0].get("XMP:Rating", 5)
     # load image file
     name = path.basename(f)
-    img = imImage(filename=f, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile, name=name, rating=rating)
+    ext = name[-4:]
+    if ext in list(IMAGE_FILE_EXTENSIONS):
+        img = imImage(filename=f, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile, name=name, rating=rating)
+    elif ext in list(RAW_FILE_EXTENSIONS):
+        raw = rawpy.imread(f)
+        rawSizes = raw.sizes
+        rawBuf = np.zeros((rawSizes.height, rawSizes.width, 4), dtype=np.uint8)+255
+        rawBuf[:,:,:3][:,:,::-1] = raw.postprocess()  # shape (w,h,3) dtype=uint8
+        img = imImage(cv2Img=rawBuf, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile, name=name, rating=rating)
+        img.rawImage = raw
     if img.isNull():
         raise ValueError("Cannot read file %s" % f)
     window.settings.setValue('paths/dlgdir', QFileInfo(f).absoluteDir().path())
@@ -546,12 +557,43 @@ def addBasicAdjustmentLayers():
     menuLayer('actionContrast_Correction')
     window.tableView.select(2, 1)
 
+def addRawAdjustmentLayer():
+    lname = 'Development'
+    l = window.label.img.addAdjustmentLayer(name=lname)
+    grWindow = rawForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window,
+                                            mainForm=window)
+    # wrapper for the right apply method
+    l.execute = lambda l=l, pool=None: l.applyRawPostProcessing()
+    """
+    def h(lay, clipLimit):
+        lay.clipLimit = clipLimit
+        lay.applyToStack()
+        window.label.img.onImageChanged()
+    grWindow.onUpdateDevelop = h
+    """
+    # record action name for scripting
+    l.actionName = ''
+    # dock the form
+    dock = QDockWidget(window)
+    dock.setWidget(grWindow)
+    dock.setWindowFlags(grWindow.windowFlags())
+    dock.setWindowTitle(grWindow.windowTitle())
+    # dock.setAttribute(Qt.WA_DeleteOnClose)
+    dock.move(900, 40)
+    dock.setStyleSheet("QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
+    l.view = dock
+    # add to docking area
+    window.addDockWidget(Qt.RightDockWidgetArea, dock)
+    # update layer stack view
+    window.tableView.setLayers(window.label.img)
+
 def openFile(f):
     """
     Top level function for file opening, called by File Menu actions
     @param f: file name
     @type f: str
     """
+    # close opened document, if any
     closeFile()
     # load file
     try :
@@ -561,7 +603,10 @@ def openFile(f):
         # display image
         if img is not None:
             setDocumentImage(img)
-            # add starting adjusgtment layers
+            # add development layer
+            if img.rawImage is not None:
+                addRawAdjustmentLayer()
+            # add default adjustment layers
             addBasicAdjustmentLayers()
             # switch to preview mode and process stack
             window.tableView.previewOptionBox.setChecked(True)
@@ -871,11 +916,11 @@ class loader(threading.Thread):
                     orientation = metadata[0].get("EXIF:Orientation", 0)
                     date = metadata[0].get("EXIF:DateTimeOriginal", 'toto')
                     transformation = exiftool.decodeExifOrientation(orientation)
-                    if transformation.isIdentity():
-                        item = QListWidgetItem(QIcon(filename), basename(filename))
-                    else:
-                        img = QImage(filename).transformed(transformation)
-                        item = QListWidgetItem(QIcon(QPixmap.fromImage(img)), basename(filename))
+                    # As Qt cannot laod imbedded thumbnails, we load and scale the image.
+                    pxm = QPixmap.fromImage(QImage(filename).scaled(500,500, Qt.KeepAspectRatio))
+                    if not transformation.isIdentity():
+                        pxm = pxm.transformed(transformation)
+                    item = QListWidgetItem(QIcon(pxm), basename(filename))
                     item.setToolTip(date)
                     item.setData(Qt.UserRole, (filename, transformation))
                     self.wdg.addItem(item)
@@ -926,9 +971,11 @@ def playViewer(fileListGen, dir, parent=None):
         if wdg.label is None:
             wdg.label = QLabel(parent=wdg)
             wdg.label.setMaximumSize(500,500)
+        # get selected item bounding rect (global coords)
         rect = wdg.visualItemRect(sel[0])
-        labelcenter = QPoint(wdg.label.width//2, wdg.label.height()//2)
-        wdg.label.move(wdg.mapFromGlobal(QPoint(min(rect.left(), wdg.viewport().width() -500), min(rect.top(), wdg.viewport().height() -500))))
+        # move label close to rect while keeping it visible
+        point = QPoint(min(rect.left(), wdg.viewport().width() -500), min(rect.top(), wdg.viewport().height() -500))
+        wdg.label.move(wdg.mapFromGlobal(point))
         # get correctly oriented image
         img = QImage(l[0]).transformed(item.data(Qt.UserRole)[1])
         wdg.label.setPixmap(QPixmap.fromImage(img.scaled(500,500, Qt.KeepAspectRatio)))
@@ -988,7 +1035,7 @@ def menuView(name):
             # start from parent dir of the last used directory
             lastDir = path.join(window.settings.value('paths/dlgdir', '.'), path.pardir)
             dlg = QFileDialog(window, "select", lastDir)
-            dlg.setNameFilters( ['Image Files (*.jpg *.png *.tif)'])
+            dlg.setNameFilters(IMAGE_FILE_NAME_FILTER)
             dlg.setFileMode(QFileDialog.Directory)
             diaporamaList = []
             # directory dialog
@@ -997,7 +1044,7 @@ def menuView(name):
                 window.settings.setValue('paths/dlgdir', newDir)
                 for dirpath, dirnames, filenames in walk(newDir):
                     for filename in [f for f in filenames if
-                                f.endswith((".jpg", ".JPG", ".png", ".PNG", ".tif", ".TIF"))]:
+                                f.endswith(IMAGE_FILE_EXTENSIONS)]:
                         diaporamaList.append(path.join(dirpath, filename))
             """
             def f():
@@ -1011,7 +1058,7 @@ def menuView(name):
         # start from parent dir of the last used directory
         lastDir = path.join(window.settings.value('paths/dlgdir', '.'), path.pardir)
         dlg = QFileDialog(window, "select", lastDir)
-        dlg.setNameFilters(['Image Files (*.jpg *.png *.tif)'])
+        dlg.setNameFilters(IMAGE_FILE_NAME_FILTER)
         dlg.setFileMode(QFileDialog.Directory)
         viewList = []
         # directory dialog
@@ -1020,7 +1067,7 @@ def menuView(name):
             window.settings.setValue('paths/dlgdir', newDir)
             for dirpath, dirnames, filenames in walk(newDir):
                 for filename in [f for f in filenames if
-                            f.endswith((".jpg", ".JPG", ".png", ".PNG", ".tif", ".TIF", ".nef", ".NEF", ".dng", ".DNG", ".cr2", ".CR2"))]:
+                            f.endswith(IMAGE_FILE_EXTENSIONS) or f.endswith(RAW_FILE_EXTENSIONS)]:
                     viewList.append(path.join(dirpath, filename))
         playViewer((filename for filename in viewList), newDir, parent=window)
     updateStatus()
@@ -1094,7 +1141,6 @@ def menuLayer(name):
     @type action: str
     """
     # curves
-    axeSize = 200
     if name in ['actionBrightness_Contrast', 'actionCurves_HSpB', 'actionCurves_Lab']:
         if name == 'actionBrightness_Contrast':
             layerName = 'Curves R, G, B'
@@ -1216,9 +1262,7 @@ def menuLayer(name):
         def h(lay, clipLimit):
             lay.clipLimit = clipLimit
             lay.applyToStack()
-            #updateDocView()
             window.label.img.onImageChanged()
-            #window.label.repaint()
         grWindow.onUpdateExposure = h
         # wrapper for the right apply method
         l.execute = lambda l=l,  pool=None: l.applyExposure(l.clipLimit, grWindow.options)
@@ -1383,7 +1427,9 @@ def menuHelp(name):
         w, label = handleTextWindow(parent=window, title='About bLUe')
         label.setStyleSheet("background-image: url(logo.png); color: white;")
         label.setAlignment(Qt.AlignCenter)
-        label.setText("Version 1.0")
+        label.setText("Version 1.0"+"\n"+attributions)
+        # center window on screen
+        w.setGeometry(QStyle.alignedRect(Qt.LeftToRight, Qt.AlignCenter, w.size(), app.desktop().availableGeometry()))
         w.show()
 
 def handleNewWindow(imImg=None, parent=None, title='New window', show_maximized=False, event_handler=True, scroll=False):
@@ -1428,12 +1474,13 @@ def handleTextWindow(parent=None, title=''):
     """
     Display a floating modal text window
     @param parent:
+    @type parent:
     @param title:
+    @type title:
     @return (new window, label)
     @rtype: QMainWindow, QLabel
     """
     w, label = handleNewWindow(parent=parent, title=title, event_handler=False, scroll = True)
-
     w.setFixedSize(500,500)
     label.setAlignment(Qt.AlignTop)
     w.hide()

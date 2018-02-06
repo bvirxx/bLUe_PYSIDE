@@ -29,8 +29,6 @@ class transForm (QGraphicsView):
         wdgt = transForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         wdgt.setWindowTitle(layer.name)
         return wdgt
-
-
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         super(transForm, self).__init__(parent=parent)
         self.targetImage = targetImage
@@ -66,7 +64,7 @@ class transForm (QGraphicsView):
             self.layer.applyToStack()
 
         self.listWidget1.onSelect = g
-        hl = QHBoxLayout()
+
         self.rotValue = QLabel()
         font = self.rotValue.font()
         metrics = QFontMetrics(font)
@@ -80,6 +78,8 @@ class transForm (QGraphicsView):
             self.rotValue.setText(str(self.sliderRot.value()))
 
         self.sliderRot.valueChanged.connect(f)
+
+        hl = QHBoxLayout()
         hl.addWidget(self.rotValue)
         hl.addWidget(self.sliderRot)
 

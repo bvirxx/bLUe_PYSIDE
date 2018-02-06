@@ -21,6 +21,8 @@ import weakref
 from functools import partial
 
 import gc
+
+import rawpy
 from PySide2.QtCore import Qt, QBuffer, QDataStream, QFile, QIODevice, QSize, QPointF, QPoint, QRectF
 
 import cv2
@@ -695,6 +697,22 @@ class vImage(QImage):
         outBuf[:,:,:] = QImageBuffer(img)
         self.updatePixmap()
 
+    def applyRawPostProcessing(self):
+        adjustForm = self.view.widget()
+        options = adjustForm.options
+        currentImage = self.getCurrentImage()
+        bufOut = QImageBuffer(currentImage)
+        bufOut[:,:,:3][:,:,::-1] = cv2.resize(self.parentImage.rawImage.postprocess(
+                                        exp_shift=adjustForm.expCorrection,
+                                        no_auto_bright= (not options['Auto Brightness']),
+                                        use_auto_wb=options['Auto White Balance'],
+                                        use_camera_wb=options['Camera White Balance'],
+                                        #gamma= (2.222, 4.5)  # default REC BT 709 exponent, slope
+                                        gamma=(2.4, 12.92)  # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
+                                                                                    ),
+                                        (currentImage.width(), currentImage.height())
+                                            )
+        self.updatePixmap()
 
     def applyCLAHE(self, clipLimit, options):
         #TODO define neutral point
@@ -716,7 +734,7 @@ class vImage(QImage):
         ndImg1a[:, :, :3][:,:,::-1] = sRGBBuf
         tmpBuf = QImageBuffer(inputImage)
         # forward opacity
-        ndImg1a[:, :,3] = tmpBuf[:,:,3] # TODO 23/10/17 fix
+        ndImg1a[:, :,3] = tmpBuf[:,:,3]
         self.updatePixmap()
 
     def apply1DLUT(self, stackedLUT, options={}):
@@ -1086,6 +1104,8 @@ class mImage(vImage):
         self.activeLayerIndex = None
         self.addLayer(bgLayer, name='background')
         self.isModified = False
+        # rawpy object
+        self.rawImage = None
 
     def bTransformed(self, transformation):
         img = mImage(QImg=self.transformed(transformation))
