@@ -190,7 +190,6 @@ class optionsWidget(QListWidget) :
                     currentItem.setCheckState(Qt.Checked)
         for option in self.options.keys():
             self.options[option] = (self.items[option].checkState() == Qt.Checked)
-        # if item.checkState() == Qt.Checked: # TODO modified 5/11 : mandatory modif. for histView update when deselecting options
         self.onSelect(item)
 
     def checkOption(self, name):

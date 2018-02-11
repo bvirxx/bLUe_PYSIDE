@@ -703,10 +703,11 @@ class vImage(QImage):
         currentImage = self.getCurrentImage()
         bufOut = QImageBuffer(currentImage)
         bufOut[:,:,:3][:,:,::-1] = cv2.resize(self.parentImage.rawImage.postprocess(
-                                        exp_shift=adjustForm.expCorrection,
+                                        exp_shift=2.0**adjustForm.expCorrection,
                                         no_auto_bright= (not options['Auto Brightness']),
-                                        use_auto_wb=options['Auto White Balance'],
-                                        use_camera_wb=options['Camera White Balance'],
+                                        use_auto_wb=options['Auto WB'],
+                                        use_camera_wb=options['Camera WB'],
+                                        user_wb = adjustForm.multipliers,
                                         #gamma= (2.222, 4.5)  # default REC BT 709 exponent, slope
                                         gamma=(2.4, 12.92)  # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
                                                                                     ),
@@ -1022,7 +1023,8 @@ class vImage(QImage):
         """
         The method implements two algorithms for the correction of color temperature.
         1) Chromatic adaptation : linear transformation in the XYZ color space with Bradford
-        cone response. cf. http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.htm
+        cone response. cf. http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html
+        This boils down to use multipliers in the cone response domain.
         2) Photo filter : Blending using mode multiply, plus correction of luminosity
         @param temperature:
         @type temperature: float

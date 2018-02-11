@@ -20,19 +20,21 @@ import numpy as np
 
 #######################################################################
 # This module implements temperature dependent                        #
-# conversion functions for color spaces.                              #
-# sRGB color space (illuminant D65)                                   #
-# is assumed for all input and output images.                         #
+# conversion functions in color spaces.                               #
+# sRGB color space (illuminant D65) is                                #
+# assumed for all input and output images.                            #
 #######################################################################
 
-################
+#####################
 # Conversion Matrices
-#################
-
+#####################
 # Conversion from CIE XYZ to LMS-like color space for chromatic adaptation
 # see http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html
 
 sRGBWP = 6500
+
+# According to Python and Numpy coventions, the below definitions of matrix
+# constants as lists and/or arrays set M[row_index][col_index] values.
 
 Von_Kries =  [[0.4002400,  0.7076000, -0.0808100],
               [-0.2263000, 1.1653200,  0.0457000],
@@ -50,11 +52,11 @@ BradfordInverse =  [[0.9869929, -0.1470543,  0.1599627],
                     [0.4323053,  0.5183603,  0.0492912],
                     [-0.0085287, 0.0400428,  0.9684867]]
 
-#########################
+######################################################################
 # conversion from LINEAR sRGB (D65) to XYZ and back.
 # see http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
 # and https://en.wikipedia.org/wiki/SRGB
-########################
+#######################################################################
 
 sRGB2XYZ = [[0.4124564,  0.3575761,  0.1804375],
             [0.2126729,  0.7151522,  0.0721750],
@@ -64,21 +66,21 @@ sRGB2XYZInverse = [[3.2404542, -1.5371385, -0.4985314],
                    [-0.9692660, 1.8760108,  0.0415560],
                     [0.0556434, -0.2040259, 1.0572252]]
 
-######################
+###########################################################
 # XYZ/Lab conversion :
 # D65 illuminant Xn, Yn, Zn
 # conversion constants Ka, Kb
 # See https://en.wikipedia.org/wiki/Lab_color_space
-####################
+###########################################################
 Xn, Yn, Zn = 0.95047, 1.0, 1.08883 #95.02, 100.0, 108.82 #95.047, 100.0, 108.883
 Ka, Kb = 172.355, 67.038 #172.30, 67.20
 
-################
+##########################################
 # Constants and precomputed tables for the
 # sRGB linearizing functions
 # rgbLinear2rgbVec and rgb2rgbLinearVec.
 # See https://en.wikipedia.org/wiki/SRGB
-################
+#########################################
 
 a = 0.055
 alpha = 2.4
@@ -293,22 +295,41 @@ def bbTemperature2RGB(temperature):
 # a cubic spline as described in http://en.wikipedia.org/wiki/Planckian_locus#Approximation
 # combined with the cone response matrix method.
 # See https://web.stanford.edu/~sujason/ColorBalancing/adaptation.html for details
+##################################################
+def xyWP2temperature(x, y):
+    """
+    Calculate the temperature from White point coordinates in the chromaticity
+    color space xy
+    We use spline approximation see https://en.wikipedia.org/wiki/Color_temperature#Approximation
+    @param x:
+    @type x: float
+    @param y:
+    @type y: float
+    @return: Temperature in Kelvin
+    @rtype: float
+    """
+    xe, ye = 0.3320, 0.1858
+    n = (x - xe) / (y - ye)
+    T = - 449.0 * (n**3) + 3525.0 * (n**2) - 6823.3 * n + 5520.33
+    return T
 
 def temperature2xyWP(T):
     """
-    Calculates the CIE chromaticity coordinates xc, yc
-    of white point from temperature (cubic spline approximation).
-    see http://en.wikipedia.org/wiki/Planckian_locus#Approximation
+    Calculate the CIE chromaticity coordinates xc, yc
+    of white point from temperature (use cubic spline approximation
+    Accurate for 1667<T<25000).
+    See http://en.wikipedia.org/wiki/Planckian_locus#Approximation
     @param T: temperature in Kelvin, range 1667..25000
     @type T: float
     @return: xc, yc
     @rtype: 2-uple of float
     """
-
+    # get xc
     if T <= 4000:
         xc = -0.2661239 *(10**9) / (T**3) - 0.2343580 *(10**6) / (T**2) + 0.8776956 * (10**3) / T + 0.179910  # 1667<T<4000
     else:
-        xc = - 3.0258469 *(10**9) / (T**3) + 2.1070379 *(10**6) / (T**2) + 0.2226347 * (10**3) / T + 0.240390 # 4000<T<25000
+        xc = -3.0258469 *(10**9) / (T**3) + 2.1070379 *(10**6) / (T**2) + 0.2226347 * (10**3) / T + 0.240390 # 4000<T<25000
+    # get yc
     if T <= 2222:
         yc = -1.1063814 * (xc**3) - 1.34811020 * (xc**2) + 2.18555832 * xc - 0.20219683  #1667<T<2222
     elif T<= 4000:
@@ -317,20 +338,226 @@ def temperature2xyWP(T):
         yc = 3.0817580 * (xc**3) - 5.87338670 *(xc**2) + 3.75112997  * xc - 0.37001483  # 4000<T<25000
     return xc, yc
 
+#######################################
+# The next table is taken from Wyszecki and Stiles book "Color Science", 2nd edition, p 228.
+# It records lines [(10**6/T), u, v, slope], with T = temperature, (u,v) = WP coordinates in CIEYUV, slope = isotherm slope,
+# for temperatures from 1666.66K to infinity.
+# The Robertson's method uses it as an interpolation table for converting x,y coordinates to (Temperature, Tint), and back.
+uvt = [
+        [0,  0.18006, 0.26352, -0.24341],
+        [10, 0.18066, 0.26589, -0.25479],
+        [20, 0.18133, 0.26846, -0.26876],
+        [30, 0.18208, 0.27119, -0.28539],
+        [40, 0.18293, 0.27407, -0.30470],
+        [50, 0.18388, 0.27709, -0.32675],
+        [60, 0.18494, 0.28021, -0.35156],
+        [70, 0.18611, 0.28342, -0.37915],
+        [80, 0.18740, 0.28668, -0.40955],
+        [90, 0.18880, 0.28997, -0.44278],
+        [100, 0.19032, 0.29326, -0.47888],
+        [125, 0.19462, 0.30141, -0.58204],
+        [150, 0.19962, 0.30921, -0.70471],
+        [175, 0.20525, 0.31647, -0.84901],
+        [200, 0.21142, 0.32312, -1.0182],
+        [225, 0.21807, 0.32909, -1.2168],
+        [250, 0.22511, 0.33439, -1.4512],
+        [275, 0.23247, 0.33904, -1.7298],
+        [300, 0.24010, 0.34308, -2.0637],
+        [325, 0.24792, 0.34655, -2.4681],	# Note: 0.24792 is a corrected value for the value found in W&S book as 0.24702
+        [350, 0.25591, 0.34951, -2.9641],   # cf. http://www.brucelindbloom.com/index.html?Eqn_XYZ_to_T.html
+        [375, 0.26400, 0.35200, -3.5814],
+        [400, 0.27218, 0.35407, -4.3633],
+        [425, 0.28039, 0.35577, -5.3762],
+        [450, 0.28863, 0.35714, -6.7262],
+        [475, 0.29685, 0.35823, -8.5955],
+        [500, 0.30505, 0.35907, -11.324],
+        [525, 0.31320, 0.35968, -15.628],
+        [550, 0.32129, 0.36011, -23.325],
+        [575, 0.32931, 0.36038, -40.770],
+        [600, 0.33724, 0.36051, -116.45]
+        ]
+
+def xy2uv(x,y):
+    """
+    convert from xy to Yuv color space
+    @param x:
+    @type x: float
+    @param y:
+    @type y: float
+    @return: u, v coordinates
+    @rtype: 2-uple of float
+    """
+    d = 1.5 - x + 6.0 * y
+    u, v = 2.0 * x / d , 3.0 * y / d
+    return u, v
+
+def uv2xy(u,v):
+    d = u - 4.0 * v + 2.0
+    x, y = 1.5 * u / d, v / d
+    return x, y
+
+# arbitrary scaling factor for tint values
+TintScale = -300.0
+def xy2TemperatureAndTint(x, y):
+    """
+    Convert xy coordinates to Temperature and Tint.
+    The conversion is based on the Robertson's method of interpolation
+    Tint is arbitrary scaled by TintScale = -300.0
+    @param x:
+    @type x: float
+    @param y:
+    @type y: float
+    @return: Temperature and Tint
+    @rtype: 2-uple of float
+    """
+    # arbitrary scaling factor
+    TintScale = -300.0
+    # convert to uv
+    u, v = xy2uv(x, y)
+    last_dt, last_dv, last_du = 0.0, 0.0, 0.0
+
+    for index in range(31):
+        # get unit vector of current isotherm
+        du, dv = 1.0, uvt[index][3]
+        n = np.sqrt(1.0 + dv * dv)
+        du, dv = du / n, dv / n
+        # get vector from current WP to u, v
+        uu, vv = u - uvt[index][1], v -uvt[index][2]
+        # get algebraic distance from (u,v) to current isotherm
+        dt = - uu * dv + vv * du  # (-dv, du) is a unit vector orthogonal to the isotherm
+
+        if dt <= 0 or (index == 30):
+            if index == 0:
+                raise ValueError('xy2TemperatureAndTint : Temp should not be infinity')
+            if index == 30:
+                if dt > 0:
+                    raise ValueError('xy2TemperatureAndTint : Temp should be >= 1667 K')
+            dt = -dt
+            # interpolate 1/Temp between index-1 and index
+            w = dt / (last_dt + dt)
+
+            temp = 10**6 / (w * uvt[index-1][0] + (1.0 - w) * uvt[index][0])
+
+            # interpolate unit vectors along isotherms
+            du, dv = du * (1.0 - w) + last_du * w, dv * (1.0 - w) + last_dv * w
+            n = np.sqrt(du * du + dv * dv)
+            du, dv = du / n, dv / n
+            tint = (u * du + v * dv) * TintScale
+            break
+        last_dt, last_du, last_dv = dt, du, dv
+    return temp, tint
+
+def temperatureAndTint2xy(temp, tint):
+    """
+    Convert temperature and tint to xy coordinates.
+    For tint=0.0, give the xy coordinates of WP
+    @param temp:
+    @type temp: float
+    @param tint:
+    @type tint: float
+    @return: x, y coordinates
+    @rtype: 2-uple of float
+    """
+    r = (10**6) / temp
+    # convert tint to uv space multiplicator
+    tint = tint / TintScale
+    result = (0.0, 0.0)
+    for index in range(30):
+        if (r < uvt[index + 1][0]) or (r == 29):
+            if r >= uvt[index+1][0]:
+                raise ValueError('TemperatureAndTint2xy: Temp should be >= 1667 K')
+            w = (uvt[index+1][0] - r) / (uvt[index+1][0] - uvt[index][0])
+            # interpolate WP coordinates
+            WPu = uvt[index][1] * w + uvt[index+1][1] * (1.0 - w)
+            WPv = uvt[index][2] * w + uvt[index+1][2] * (1.0 - w)
+            # interpolate isotherms
+            uu1, vv1 = 1.0, uvt[index][2]
+            uu2, vv2 = 1.0, uvt[index+1][2]
+            n1, n2 = np.sqrt(uu1*uu1 + vv1*vv1), np.sqrt(uu2*uu2 + vv2*vv2)
+            uu1, vv1 = uu1 / n1, vv1/ n1
+            uu2, vv2 = uu2 / n2, vv2 / n2
+            uu3, vv3 = w * uu1 + (1.0 - w) * uu2, w * vv1 + (1.0 - w) * vv2
+            n3 = np.sqrt(uu3 * uu3 + vv3 * vv3)
+            uu3, vv3 = uu3 / n3, vv3 / n3
+            # shift WP along isotherm according to tint
+            u, v = WPu + uu3 * tint, WPv + vv3 * tint
+            result = uv2xy(u,v)
+            break
+    return result
+
+def RGBMultipliers2Temperature(mR, mG, mB, XYZ2RGBMatrix=sRGB2XYZInverse):
+    """
+    Evaluation of the temperature and tint correction corresponding to a
+    set of 3 RGB multipliers. We consider the function f(T) = WPb/WPr giving
+    the ratio of blue over red coordinates for the white point WP(T). As f is monotonic,
+    we solve the equation f(T) = mB/mR by a simple dichotomous search.
+    The RGB space used (default sRGB) is defined by the matrix XYZ2RGBMatrix.
+    @param mR:
+    @type mR:
+    @param mG:
+    @type mG:
+    @param mB:
+    @type mB:
+    @param XYZ2RGBMatrix:
+    @type XYZ2RGBMatrix:
+    @return: the evaluated temperature and the tint correction
+    @rtype: 2-uple of float
+    """
+    # search for T
+    Tmin, Tmax = 1667.0, 15000.0
+    while (Tmax - Tmin) > 10:
+        T = (Tmin + Tmax) / 2.0
+        x, y = temperature2xyWP(T)
+        X, Y, Z = x /y , 1, (1-x-y)/y
+        r, g, b = np.dot(XYZ2RGBMatrix, [X,Y,Z])
+        if (b / r) > (mB / mR):
+            Tmax = T
+        else:
+            Tmin = T
+    # get tint correction
+    green = (g/r)*(mR/mG)
+    if green <0.2:
+        green = 0.2
+    if green > 2.5:
+        green=2.5
+    return round(T/10)*10, green
+
+def RGBMultipliers(temp, tint):
+    """
+    Calculate RGB multipliers for the development of raw files.
+    The parameter green adjusts Tint (Green-Magenta) axis
+    @param T: temperature
+    @type T: float
+    @param green: Tint adjustment
+    @type green: float
+    @return: List of 4 multipliers (RGBG)
+    @rtype: list of float
+    """
+    # WP coordinates for temp
+    x,y = temperatureAndTint2xy(temp, 0)
+    # transform to XYZ coordinates
+    X, Y, Z = x / y, 1.0, (1.0 - x - y) / y
+    # WP RGB coordinates for temp
+    m1, m2, m3 = np.dot(sRGB2XYZInverse, [X,Y,Z])
+    # green factor should be between 0.2 and 2.5
+    m2 = m2 * (1+ tint/10)
+    mi = min((m1, m2, m3))
+    m1, m2, m3 = m1 / mi, m2 / mi, m3 / mi
+    return [m1*256, m2*256, m3*256, m2*256]
+
 def temperature2Rho(T):
     """
-    Returns the cone responses for temperature T (Kelvin).
+    Returns the cone responses (multipliers) for temperature T (Kelvin).
     see https://web.stanford.edu/~sujason/ColorBalancing/adaptation.html for details.
     @param T: temperature (Kelvin)
     @type T: float
-    @return: 3-uple of cone responses
+    @return: cone responses
     @rtype: 3-uple of floats
     """
     # get CIE chromaticity coordinates of white point
     x, y = temperature2xyWP(T)
-    L = 1.0 # arbitrary non zero constant
-    # transform in XYZ coordinates
-    X, Y , Z = L * x / y, L, L * (1.0 - x - y ) / y
+    # transform to XYZ coordinates
+    X, Y , Z = x / y, 1.0, (1.0 - x - y ) / y
     rho1, rho2, rho3 = np.dot(np.array(Bradford), np.array([X,Y,Z]).T)
     return rho1, rho2, rho3
 
