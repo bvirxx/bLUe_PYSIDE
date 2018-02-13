@@ -551,11 +551,13 @@ def loadImageFromFile(f):
         img.updatePixmap()
     return img
 
-def addBasicAdjustmentLayers():
-    menuLayer('actionColor_Temperature')
-    menuLayer('actionExposure_Correction')
+def addBasicAdjustmentLayers(img):
+    if img.rawImage is None:
+        menuLayer('actionColor_Temperature')
+        menuLayer('actionExposure_Correction')
     menuLayer('actionContrast_Correction')
-    window.tableView.select(2, 1)
+    # select active layer : next to background
+    window.tableView.select(1, 1)
 
 def addRawAdjustmentLayer():
     lname = 'Development'
@@ -603,15 +605,16 @@ def openFile(f):
         # display image
         if img is not None:
             setDocumentImage(img)
+            # switch to preview mode and process stack
+            window.tableView.previewOptionBox.setChecked(True)
+            window.tableView.previewOptionBox.stateChanged.emit(Qt.Checked)
             # add development layer
             if img.rawImage is not None:
                 addRawAdjustmentLayer()
             # add default adjustment layers
-            addBasicAdjustmentLayers()
-            # switch to preview mode and process stack
-            window.tableView.previewOptionBox.setChecked(True)
-            window.tableView.previewOptionBox.stateChanged.emit(Qt.Checked)
+            addBasicAdjustmentLayers(img)
             # updates
+            img.layersStack[0].applyToStack()
             updateStatus()
             window.label.img.onImageChanged()
     except ValueError as e:

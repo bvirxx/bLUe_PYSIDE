@@ -338,11 +338,12 @@ def temperature2xyWP(T):
         yc = 3.0817580 * (xc**3) - 5.87338670 *(xc**2) + 3.75112997  * xc - 0.37001483  # 4000<T<25000
     return xc, yc
 
-#######################################
+###################################################################################################
 # The next table is taken from Wyszecki and Stiles book "Color Science", 2nd edition, p 228.
 # It records lines [(10**6/T), u, v, slope], with T = temperature, (u,v) = WP coordinates in CIEYUV, slope = isotherm slope,
 # for temperatures from 1666.66K to infinity.
-# The Robertson's method uses it as an interpolation table for converting x,y coordinates to (Temperature, Tint), and back.
+# The Robertson's method uses it as an interpolation table for converting u,v coordinates to and from (Temperature, Tint).
+###################################################################################################
 uvt = [
         [0,  0.18006, 0.26352, -0.24341],
         [10, 0.18066, 0.26589, -0.25479],
@@ -401,8 +402,9 @@ TintScale = -300.0
 def xy2TemperatureAndTint(x, y):
     """
     Convert xy coordinates to Temperature and Tint.
-    The conversion is based on the Robertson's method of interpolation
-    Tint is arbitrary scaled by TintScale = -300.0
+    The conversion is based on the Robertson's method
+    of interpolation in the uv space.
+    Tint is scaled by an arbitrary chosen factor TintScale
     @param x:
     @type x: float
     @param y:
@@ -449,8 +451,10 @@ def xy2TemperatureAndTint(x, y):
 
 def temperatureAndTint2xy(temp, tint):
     """
-    Convert temperature and tint to xy coordinates.
-    For tint=0.0, give the xy coordinates of WP
+    Convert temperature and tint to xy coordinates. The tint input is first scaled
+    by 1/TintScale
+    For tint=0.0, the function gives the xy coordinates of the white point WP(T).
+    The conversion is based on the Robertson's method of interpolation,
     @param temp:
     @type temp: float
     @param tint:
@@ -485,13 +489,51 @@ def temperatureAndTint2xy(temp, tint):
             break
     return result
 
-def RGBMultipliers2Temperature(mR, mG, mB, XYZ2RGBMatrix=sRGB2XYZInverse):
+def temperatureAndTint2RGBMultipliers(temp, tint, XYZ2RGBMatrix):
+    """
+    Convert temperature and tint to RGB multipliers used to
+    develop raw image files.
+    We compute the xy coordinates of the white point WP(T) by the Robertson's method.
+    Next, we transform these coordinates to RGB values (mR,mG,mB), using the
+    conversion matrix XYZ2RGBMatrix.
+    Multipliers are m1 = mR, m2 = mG*tint, m3 = mB. For convenience
+    the function returns the 4 values m1, m2, m3, m2, scaled to min(m1,m2,m3)=1.
+    The tint factor should br between 0.2 and 2.5
+    @param T: temperature
+    @type T: float
+    @param green: Tint factor
+    @type green: float
+    @return: List of 4 multipliers (RGBG)
+    @rtype: list of float
+    """
+    # WP coordinates for temp
+    x,y = temperatureAndTint2xy(temp, 0)
+    # transform to XYZ coordinates
+    X, Y, Z = x / y, 1.0, (1.0 - x - y) / y
+    # WP RGB coordinates
+    m1, m2, m3 = np.dot(XYZ2RGBMatrix, [X,Y,Z])
+    # apply tint correction (green-magenta shift) to G channel.
+    m2 = m2 * tint
+    mi = min((m1, m2, m3))
+    m1, m2, m3 = m1 / mi, m2 / mi, m3 / mi
+    return m1, m2, m3, m2
+
+def RGBMultipliers2TemperatureAndTint(mR, mG, mB, XYZ2RGBMatrix):
     """
     Evaluation of the temperature and tint correction corresponding to a
-    set of 3 RGB multipliers. We consider the function f(T) = WPb/WPr giving
-    the ratio of blue over red coordinates for the white point WP(T). As f is monotonic,
+    set of 3 RGB multipliers.
+    The aim is to find a temperature T with a
+    corresponding white point WP(T), and a factor tint, such that mB/mR = WPb/WPr
+    and mG*tint/mR = WpG/WPR. As mutipliers are invariant by scaling, this
+    function can be seen as the inverse function
+    of temperatureAndTint2RGBMultipliers.
+    We consider the function f(T) = WPb/WPr giving
+    the ratio of blue over red coordinates for the white point WP(T). Assuming  f is monotonic,
     we solve the equation f(T) = mB/mR by a simple dichotomous search.
-    The RGB space used (default sRGB) is defined by the matrix XYZ2RGBMatrix.
+    Then, the tint is simply defined as the factor mu verifying tint * mG/mR = WPG/WPR
+    The RGB space used is defined by the matrix XYZ2RGBMatrix.
+    Note that to be inverse functions, RGBMultipliers2Temperature and temperatureAndTint2RGBMultipliers
+    must use the same XYZ2RGBMatrix parameter.
     @param mR:
     @type mR:
     @param mG:
@@ -515,35 +557,12 @@ def RGBMultipliers2Temperature(mR, mG, mB, XYZ2RGBMatrix=sRGB2XYZInverse):
         else:
             Tmin = T
     # get tint correction
-    green = (g/r)*(mR/mG)
+    green = (r/g)*(mG/mR)
     if green <0.2:
         green = 0.2
     if green > 2.5:
         green=2.5
     return round(T/10)*10, green
-
-def RGBMultipliers(temp, tint):
-    """
-    Calculate RGB multipliers for the development of raw files.
-    The parameter green adjusts Tint (Green-Magenta) axis
-    @param T: temperature
-    @type T: float
-    @param green: Tint adjustment
-    @type green: float
-    @return: List of 4 multipliers (RGBG)
-    @rtype: list of float
-    """
-    # WP coordinates for temp
-    x,y = temperatureAndTint2xy(temp, 0)
-    # transform to XYZ coordinates
-    X, Y, Z = x / y, 1.0, (1.0 - x - y) / y
-    # WP RGB coordinates for temp
-    m1, m2, m3 = np.dot(sRGB2XYZInverse, [X,Y,Z])
-    # green factor should be between 0.2 and 2.5
-    m2 = m2 * (1+ tint/10)
-    mi = min((m1, m2, m3))
-    m1, m2, m3 = m1 / mi, m2 / mi, m3 / mi
-    return [m1*256, m2*256, m3*256, m2*256]
 
 def temperature2Rho(T):
     """

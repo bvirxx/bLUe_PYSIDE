@@ -702,17 +702,32 @@ class vImage(QImage):
         options = adjustForm.options
         currentImage = self.getCurrentImage()
         bufOut = QImageBuffer(currentImage)
-        bufOut[:,:,:3][:,:,::-1] = cv2.resize(self.parentImage.rawImage.postprocess(
+        bufOut[:, :, :3][:, :, ::-1] = cv2.resize(self.parentImage.rawImage.postprocess(
                                         exp_shift=2.0**adjustForm.expCorrection,
                                         no_auto_bright= (not options['Auto Brightness']),
                                         use_auto_wb=options['Auto WB'],
                                         use_camera_wb=options['Camera WB'],
                                         user_wb = adjustForm.multipliers,
                                         #gamma= (2.222, 4.5)  # default REC BT 709 exponent, slope
-                                        gamma=(2.4, 12.92)  # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
-                                                                                    ),
+                                        gamma=(2.4, 12.92), # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
+                                        exp_preserve_highlights = 0.8 if options['Preserve Highlights'] else 0.0,
+                                        output_bps=8),   # 8 or 16                                     ),
                                         (currentImage.width(), currentImage.height())
                                             )
+        # opencv clahe does not work on 16 bits images cf http://answers.opencv.org/question/105472/result-of-clahe-is-different-on-8-and-16-bit/
+        """
+        buf32Lab = cv2.cvtColor((buf16/65536).astype(np.float32), cv2.COLOR_RGB2Lab)
+        clipLimit=5
+        clahe = cv2.createCLAHE(clipLimit=clipLimit, tileGridSize=(8, 8))
+        clahe.setClipLimit(clipLimit)
+        res = clahe.apply(((buf32Lab[:, :, 0]*65535).astype(np.uint16)))
+        #res = (buf32Lab[:, :, 0]*65536).astype(np.uint16)
+        res = (res.astype(np.float32))/65536
+        buf32Lab[:, :, 0] = res
+
+        bufRGB32 = cv2.cvtColor(buf32Lab, cv2.COLOR_Lab2RGB)
+        bufOut[:, :, :3][:, :, ::-1] = (bufRGB32*255).astype(np.uint8)
+        """
         self.updatePixmap()
 
     def applyCLAHE(self, clipLimit, options):
@@ -722,7 +737,7 @@ class vImage(QImage):
         # get l channel
 
         LBuf = np.array(inputImage.getLabBuffer(), copy=True)
-        # apply CLAHE
+        # apply CLAHE to L channel
         clahe = cv2.createCLAHE(clipLimit=clipLimit, tileGridSize=(8, 8))
         clahe.setClipLimit(clipLimit)
         res = clahe.apply((LBuf[:,:,0] * 255.0).astype(np.uint8))
