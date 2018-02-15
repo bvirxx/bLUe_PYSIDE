@@ -32,8 +32,6 @@ class rawForm (QGraphicsView):
     """
     GUI for postprocessing of raw files
     """
-    defaultExpCorrection = 0.0
-    DefaultExpStep = 0.1
     dataChanged = QtCore.Signal()
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
@@ -49,18 +47,19 @@ class rawForm (QGraphicsView):
         return wdgt
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
-        self.expCorrection = self.defaultExpCorrection
+        self.expCorrection = 0.0
+        self.contCorrection = 0.0
         super(rawForm, self).__init__(parent=parent)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        self.setMinimumSize(axeSize, axeSize)
+        self.setMinimumSize(axeSize, axeSize+150)  # +150 to prevent scroll bars in list Widgets
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.layer = layer
         # get rawpy object
         rawpyObj = layer.parentImage.rawImage
         # get multipliers
-        multipliers = rawpyObj.camera_whitebalance
+        self.rawMultipliers = rawpyObj.camera_whitebalance
         daylight = rawpyObj.daylight_whitebalance
-        self.multipliers = [daylight[i]/multipliers[i] for i in range(3)]+[daylight[1]/multipliers[1]]
+        #self.rawMultipliers = [daylight[i] / multipliers[i] for i in range(3)] + [daylight[1] / multipliers[1]]
         # get Camera RGB - XYZ conversion matrix.
         # From rawpy doc, this matrix is constant for each camera model
         # Last row is zero for RGB cameras and non-zero for different color models (CMYG and so on) : type ndarray of shape (4,3)
@@ -74,7 +73,8 @@ class rawForm (QGraphicsView):
         # camera_whitebalance is libraw cam_mul
         # daylight_whitebalance is libraw pre_mul
         ##################################
-        self.tempCorrection, self.tintCorrection = RGBMultipliers2TemperatureAndTint(*self.multipliers[:3], rgb_xyz_matrix_inverse)
+        multipliers = [daylight[i] / self.rawMultipliers[i] for i in range(3)]
+        self.tempCorrection, self.tintCorrection = RGBMultipliers2TemperatureAndTint(*multipliers, rgb_xyz_matrix_inverse)
         # options
         optionList = ['Auto Brightness', 'Preserve Highlights', 'Auto Scale']
         self.listWidget1 = optionsWidget(options=optionList, exclusive=False, changed=self.dataChanged)
@@ -114,9 +114,9 @@ class rawForm (QGraphicsView):
             self.tempCorrection = slider2Temp(self.sliderTemp.value())
             self.tempValue.setText(str("{:.0f}".format(self.tempCorrection)))
             multipliers = temperatureAndTint2RGBMultipliers(self.tempCorrection, self.tintCorrection, rgb_xyz_matrix_inverse)
-            self.multipliers = [daylight[i] / multipliers[i] for i in range(3)] + [daylight[1] / multipliers[1]]
-            m = min(self.multipliers[:3])
-            self.multipliers = [self.multipliers[i] / m for i in range(4)]
+            self.rawMultipliers = [daylight[i] / multipliers[i] for i in range(3)] + [daylight[1] / multipliers[1]]
+            m = min(self.rawMultipliers[:3])
+            self.rawMultipliers = [self.rawMultipliers[i] / m for i in range(4)]
             self.dataChanged.emit()
             self.sliderTemp.setEnabled(True)
         # temp value changed event handler
@@ -162,9 +162,9 @@ class rawForm (QGraphicsView):
             self.tintCorrection = slider2Tint(self.sliderTint.value())
             self.tintValue.setText(str("{:+.0f}".format(slider2User(self.sliderTint.value()))))
             multipliers = temperatureAndTint2RGBMultipliers(self.tempCorrection, self.tintCorrection, rgb_xyz_matrix_inverse)
-            self.multipliers = [daylight[i] / multipliers[i] for i in range(3)] + [daylight[1] / multipliers[1]]
-            m = min(self.multipliers[:3])
-            self.multipliers = [self.multipliers[i]/m for i in range(4)]
+            self.rawMultipliers = [daylight[i] / multipliers[i] for i in range(3)] + [daylight[1] / multipliers[1]]
+            m = min(self.rawMultipliers[:3])
+            self.rawMultipliers = [self.rawMultipliers[i] / m for i in range(4)]
             self.dataChanged.emit()
             self.sliderTint.setEnabled(True)
 
@@ -220,6 +220,53 @@ class rawForm (QGraphicsView):
         self.sliderExp.setValue(exp2Slider(0.0))
         self.sliderExp.setEnabled(False)  # initially  we use auto brightness
         sliderExpUpdate()
+
+        # contrast slider
+        self.sliderCont = QSlider(Qt.Horizontal)
+        self.sliderCont.setTickPosition(QSlider.TicksBelow)
+        self.sliderCont.setRange(0, 10)
+
+        def slider2Cont(v):
+            return v
+
+        def cont2Slider(e):
+            return e
+
+        self.sliderCont.setSingleStep(1)
+
+        contLabel = QLabel()
+        contLabel.setFixedSize(55, 20)
+        contLabel.setText("Contrast")
+
+        self.contValue = QLabel()
+        font = self.contValue.font()
+        metrics = QFontMetrics(font)
+        w = metrics.width("10000")
+        h = metrics.height()
+        self.contValue.setMinimumSize(w, h)
+        self.contValue.setMaximumSize(w, h)
+        #self.contValue.setStyleSheet("QLabel {color : gray;}")
+
+        # cont done event handler
+        def contUpdate():
+            self.sliderCont.setEnabled(False)
+            # rawpy: expCorrection range is -2.0...3.0 boiling down to exp_shift range 2**(-2)=0.25...2**3=8.0
+            self.contCorrection = slider2Cont(self.sliderCont.value())
+            self.contValue.setText(str("{:+d}".format(self.contCorrection)))
+            self.dataChanged.emit()
+            self.sliderCont.setEnabled(True)
+
+        # cont value changed event handler
+        def sliderContUpdate():
+            self.contValue.setText(str("{:+d}".format(slider2Cont(self.sliderCont.value()))))
+
+        self.sliderCont.valueChanged.connect(sliderContUpdate)
+        self.sliderCont.sliderReleased.connect(contUpdate)
+        # cont init
+        self.sliderCont.setValue(cont2Slider(0.0))
+        #self.sliderCont.setEnabled(False)
+        sliderContUpdate()
+
         # data changed event handler
         def updateLayer():
             useUserWB = self.listWidget2.options["User WB"]
@@ -253,9 +300,14 @@ class rawForm (QGraphicsView):
         hl3.addWidget(tintLabel)
         hl3.addWidget(self.tintValue)
         hl3.addWidget(self.sliderTint)
+        hl4 = QHBoxLayout()
+        hl4.addWidget(contLabel)
+        hl4.addWidget(self.contValue)
+        hl4.addWidget(self.sliderCont)
         l.addLayout(hl2)
         l.addLayout(hl3)
         l.addLayout(hl1)
+        l.addLayout(hl4)
         l.setContentsMargins(20, 0, 20, 25)  # left, top, right, bottom
         l.addStretch(1)
         self.setLayout(l)

@@ -35,6 +35,7 @@ from PySide2.QtCore import QRect
 
 from colorConv import sRGB2LabVec, sRGBWP, Lab2sRGBVec, sRGB2XYZ, sRGB2XYZInverse, rgb2rgbLinearVec, rgbLinear2rgb, \
     rgbLinear2rgbVec
+from denoising import denoise
 from grabcut import segmentForm
 from graphicsFilter import filterIndex
 from icc import convertQImage
@@ -702,32 +703,45 @@ class vImage(QImage):
         options = adjustForm.options
         currentImage = self.getCurrentImage()
         bufOut = QImageBuffer(currentImage)
-        bufOut[:, :, :3][:, :, ::-1] = cv2.resize(self.parentImage.rawImage.postprocess(
+        # process raw image
+        bufpost = self.parentImage.rawImage.postprocess(
                                         exp_shift=2.0**adjustForm.expCorrection,
                                         no_auto_bright= (not options['Auto Brightness']),
                                         use_auto_wb=options['Auto WB'],
                                         use_camera_wb=options['Camera WB'],
-                                        user_wb = adjustForm.multipliers,
+                                        user_wb = adjustForm.rawMultipliers,
                                         #gamma= (2.222, 4.5)  # default REC BT 709 exponent, slope
                                         gamma=(2.4, 12.92), # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
                                         exp_preserve_highlights = 0.8 if options['Preserve Highlights'] else 0.0,
-                                        output_bps=8),   # 8 or 16                                     ),
-                                        (currentImage.width(), currentImage.height())
-                                            )
-        # opencv clahe does not work on 16 bits images cf http://answers.opencv.org/question/105472/result-of-clahe-is-different-on-8-and-16-bit/
-        """
-        buf32Lab = cv2.cvtColor((buf16/65536).astype(np.float32), cv2.COLOR_RGB2Lab)
-        clipLimit=5
-        clahe = cv2.createCLAHE(clipLimit=clipLimit, tileGridSize=(8, 8))
-        clahe.setClipLimit(clipLimit)
-        res = clahe.apply(((buf32Lab[:, :, 0]*65535).astype(np.uint16)))
-        #res = (buf32Lab[:, :, 0]*65536).astype(np.uint16)
-        res = (res.astype(np.float32))/65536
-        buf32Lab[:, :, 0] = res
+                                        output_bps=16 if adjustForm.contCorrection > 0 else 8   # 8 or 16                                     ),
+                                        )
 
-        bufRGB32 = cv2.cvtColor(buf32Lab, cv2.COLOR_Lab2RGB)
-        bufOut[:, :, :3][:, :, ::-1] = (bufRGB32*255).astype(np.uint8)
-        """
+        if adjustForm.contCorrection == 0:
+            if self.parentImage.useThumb:
+                bufpost = cv2.resize(bufpost, (currentImage.width(), currentImage.height()))
+        else:
+            buf32Lab = cv2.cvtColor(((bufpost.astype(np.float32))/65536).astype(np.float32), cv2.COLOR_RGB2Lab)
+            clahe = cv2.createCLAHE(clipLimit=adjustForm.contCorrection, tileGridSize=(8, 8))
+            clahe.setClipLimit(adjustForm.contCorrection)
+            res = clahe.apply(((buf32Lab[:, :, 0]*655.30).astype(np.uint16)))
+            #res = (buf32Lab[:, :, 0]*65536).astype(np.uint16)
+            res = (res.astype(np.float32))/655.36
+            buf32Lab[:, :, 0] = res
+            bufRGB32 = cv2.cvtColor(buf32Lab, cv2.COLOR_Lab2RGB)
+            if self.parentImage.useThumb:
+                bufpost = cv2.resize((bufRGB32*255).astype(np.uint8), (currentImage.width(), currentImage.height()))
+            else:
+                bufpost = (bufRGB32*255).astype(np.uint8)
+        # denoising
+        # opencv fastNlMeansDenoisingColored is very slow (>30s for a 15 Mpx image).
+        # we use bilateral filtering instead
+        bufpost = cv2.bilateralFilter(bufpost,
+                                      5,   # diameter of (coordinate) pixel neighborhood, 5 is the recommended value for fast processing
+                                      100, # filter std deviation sigma in color space
+                                      100  # filter std deviation sigma in coordinate space
+                                      )
+        #bufpost = cv2.fastNlMeansDenoisingColored(bufpost, None, 1, 3, 7 ,21)  # last params window sizes 7, 21 are recommended values
+        bufOut[:, :, :3][:, :, ::-1] = bufpost
         self.updatePixmap()
 
     def applyCLAHE(self, clipLimit, options):
