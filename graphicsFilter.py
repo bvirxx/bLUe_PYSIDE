@@ -16,7 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 from PySide2.QtCore import Qt
-from PySide2.QtWidgets import QWidget, QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout, QGraphicsView
+from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout, QGraphicsView
 from PySide2.QtGui import QFontMetrics
 
 from kernel import filterIndex, getKernel
@@ -28,17 +28,17 @@ class filterForm (QGraphicsView):
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         wdgt = filterForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         wdgt.setWindowTitle(layer.name)
-        """
-        pushButton = QPushButton('apply', parent=wdgt)
-        hLay = QHBoxLayout()
-        wdgt.setLayout(hLay)
-        hLay.addWidget(pushButton)
-        pushButton.clicked.connect(lambda: wdgt.execute())
-        """
         return wdgt
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         super(filterForm, self).__init__(parent=parent)
+        defaultRadius = 1
+        defaultColorSigma2 = 100.0
+        defaultPositionSigma2 = 100.0
+        defaultAmount = 50.0
+        self.radius = defaultRadius
+        self.colorSigma2 = defaultColorSigma2
+        self.positionSigma2 = defaultPositionSigma2
         self.targetImage = targetImage
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize, axeSize)
@@ -47,14 +47,14 @@ class filterForm (QGraphicsView):
         self.layer = layer
         self.mainForm = mainForm
         self.onUpdateFilter = lambda *args: 0
-        self.layer.kernel = getKernel(filterIndex.UNSHARP)
-        self.layer.kernelCategory = filterIndex.UNSHARP
+        self.kernel = getKernel(filterIndex.UNSHARP)
+        self.kernelCategory = filterIndex.UNSHARP
         l = QVBoxLayout()
         l.setAlignment(Qt.AlignBottom)
 
         # options
-        options = ['Unsharp Mask', 'Sharpen', 'Gaussian Blur']
-        filters = [ filterIndex.UNSHARP, filterIndex.SHARPEN, filterIndex.BLUR1, filterIndex.BLUR2]
+        options = ['Unsharp Mask', 'Sharpen', 'Gaussian Blur', 'Surface Blur']
+        filters = [ filterIndex.UNSHARP, filterIndex.SHARPEN, filterIndex.BLUR1, filterIndex.BLUR2, filterIndex.SURFACEBLUR]
         filterDict = dict(zip(options, filters))
         self.options={}
         for op in options:
@@ -63,40 +63,35 @@ class filterForm (QGraphicsView):
         sel = options[0]
         self.listWidget1.select(self.listWidget1.items[sel])
         self.options[sel] = True
-        self.defaultRadius = 1
-        self.defaultAmount = 50
 
-        # select event handler
+        # selection event handler
         def onSelect1(item):
             for key in self.options:
                 self.options[key] = item is self.listWidget1.items[key]
                 if self.options[key]:
                     selkey = key
-            self.layer.kernelCategory = filterDict[selkey]
+            self.kernelCategory = filterDict[selkey]
             self.sliderRadius.setEnabled(selkey==options[0] or selkey==options[2] )
             self.radiusValue.setEnabled(self.sliderRadius.isEnabled())
             self.sliderAmount.setEnabled(selkey==options[0])
             self.amountValue.setEnabled(self.sliderAmount.isEnabled())
-            self.layer.kernel = getKernel(self.layer.kernelCategory, self.sliderRadius.value(), self.sliderAmount.value())
-            self.onUpdateFilter(self.layer.kernelCategory, self.sliderRadius.value(), self.sliderAmount.value())
+            self.radius = self.sliderRadius.value()
+            self.colorSigma2 = self.sliderTone.value()
+            #self.positionSigma2 = self.sliderPositionSigma2.value()
+            self.kernel = getKernel(self.kernelCategory, self.radius, self.sliderAmount.value())
+            self.onUpdateFilter(self.kernelCategory, self.sliderRadius.value(), self.sliderAmount.value())
 
         self.listWidget1.onSelect = onSelect1
 
-        # radius and amount sliders
+        # sliders
         self.sliderRadius = QSlider(Qt.Horizontal)
-        self.sliderAmount = QSlider(Qt.Horizontal)
         self.sliderRadius.setTickPosition(QSlider.TicksBelow)
-        self.sliderAmount.setTickPosition(QSlider.TicksBelow)
         self.sliderRadius.setRange(1, 100)
         self.sliderRadius.setSingleStep(1)
-        self.sliderAmount.setRange(0, 100)
-        self.sliderAmount.setSingleStep(0.1)
         radiusLabel = QLabel()
         radiusLabel.setMaximumSize(150, 30)
         radiusLabel.setText("Radius")
-        l.addWidget(radiusLabel)
 
-        hl = QHBoxLayout()
         self.radiusValue = QLabel()
         font = self.radiusValue.font()
         metrics = QFontMetrics(font)
@@ -105,16 +100,14 @@ class filterForm (QGraphicsView):
         self.radiusValue.setMinimumSize(w, h)
         self.radiusValue.setMaximumSize(w, h)
         self.radiusValue.setStyleSheet("QLabel {background-color: white;}")
-        hl.addWidget(self.radiusValue)
-        hl.addWidget(self.sliderRadius)
-        l.addLayout(hl)
 
+        self.sliderAmount = QSlider(Qt.Horizontal)
+        self.sliderAmount.setTickPosition(QSlider.TicksBelow)
+        self.sliderAmount.setRange(0, 100)
+        self.sliderAmount.setSingleStep(1)
         amountLabel = QLabel()
         amountLabel.setMaximumSize(150, 30)
         amountLabel.setText("Amount")
-        l.addWidget(amountLabel)
-
-        hl = QHBoxLayout()
         self.amountValue = QLabel()
         font = self.radiusValue.font()
         metrics = QFontMetrics(font)
@@ -123,8 +116,39 @@ class filterForm (QGraphicsView):
         self.amountValue.setMinimumSize(w, h)
         self.amountValue.setMaximumSize(w, h)
         self.amountValue.setStyleSheet("QLabel {background-color: white;}")
+
+        self.toneValue = QLabel()
+        toneLabel = QLabel()
+        toneLabel.setMaximumSize(150, 30)
+        toneLabel.setText("Tone")
+        self.sliderTone = QSlider(Qt.Horizontal)
+        self.sliderTone.setTickPosition(QSlider.TicksBelow)
+        self.sliderTone.setRange(0, 100)
+        self.sliderTone.setSingleStep(1)
+        font = self.radiusValue.font()
+        metrics = QFontMetrics(font)
+        w = metrics.width("1000 ")
+        h = metrics.height()
+        self.toneValue.setMinimumSize(w, h)
+        self.toneValue.setMaximumSize(w, h)
+        self.toneValue.setStyleSheet("QLabel {background-color: white;}")
+
+        hl = QHBoxLayout()
+        hl.addWidget(radiusLabel)
+        hl.addWidget(self.radiusValue)
+        hl.addWidget(self.sliderRadius)
+        l.addLayout(hl)
+
+        hl = QHBoxLayout()
+        hl.addWidget(amountLabel)
         hl.addWidget(self.amountValue)
         hl.addWidget(self.sliderAmount)
+        l.addLayout(hl)
+
+        hl = QHBoxLayout()
+        hl.addWidget(toneLabel)
+        hl.addWidget(self.toneValue)
+        hl.addWidget(self.sliderTone)
         l.addLayout(hl)
 
         l.setContentsMargins(20, 0, 20, 25)  # left, top, right, bottom
@@ -136,23 +160,22 @@ class filterForm (QGraphicsView):
             self.sliderRadius.setEnabled(False)
             self.radiusValue.setText(str('%d ' % self.sliderRadius.value()))
             self.amountValue.setText(str('%d ' % self.sliderAmount.value()))
-            self.layer.kernel = getKernel(self.layer.kernelCategory, self.sliderRadius.value(), self.sliderAmount.value())
-            self.onUpdateFilter(self.layer.kernelCategory, self.sliderRadius.value(), self.sliderAmount.value())
+            self.kernel = getKernel(self.kernelCategory, self.sliderRadius.value(), self.sliderAmount.value())
+            self.onUpdateFilter(self.kernelCategory, self.sliderRadius.value(), self.sliderAmount.value())
             self.sliderRadius.setEnabled(True)
 
         # value changed event handler
         def g():
             self.radiusValue.setText(str('%d ' % self.sliderRadius.value()))
             self.amountValue.setText(str('%d ' % self.sliderAmount.value()))
-            # self.previewWindow.setPixmap()
 
         self.sliderRadius.valueChanged.connect(g)
         self.sliderRadius.sliderReleased.connect(f)
         self.sliderAmount.valueChanged.connect(g)
         self.sliderAmount.sliderReleased.connect(f)
 
-        self.sliderRadius.setValue(self.defaultRadius)
-        self.sliderAmount.setValue(self.defaultAmount)
+        self.sliderRadius.setValue(defaultRadius)
+        self.sliderAmount.setValue(defaultAmount)
         self.radiusValue.setText(str('%d ' % self.sliderRadius.value()))
         self.amountValue.setText(str('%d ' % self.sliderAmount.value()))
 
@@ -161,14 +184,6 @@ class filterForm (QGraphicsView):
         item.setCheckState(Qt.Checked)
         self.listWidget1.select(item)
         l.addWidget(self.listWidget1)
-
-    """
-    def showEvent(self, e):
-        self.mainForm.tableView.setEnabled(False)
-
-    def hideEvent(self, e):
-        self.mainForm.tableView.setEnabled(True)
-    """
 
     def writeToStream(self, outStream):
         layer = self.layer

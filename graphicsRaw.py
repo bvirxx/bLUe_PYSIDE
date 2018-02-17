@@ -19,7 +19,7 @@ import numpy as np
 from PySide2 import QtCore
 
 from PySide2.QtCore import Qt
-from PySide2.QtGui import QFontMetrics
+from PySide2.QtGui import QFontMetrics, QFont
 from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QSlider
 
 from colorConv import xyWP2temperature, sRGB2XYZ, temperature2xyWP, sRGB2XYZInverse, Bradford, BradfordInverse, \
@@ -49,9 +49,11 @@ class rawForm (QGraphicsView):
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         self.expCorrection = 0.0
         self.contCorrection = 0.0
+        self.noiseCorrection = 1.0
+        self.satCorrection = 0.5
         super(rawForm, self).__init__(parent=parent)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        self.setMinimumSize(axeSize, axeSize+150)  # +150 to prevent scroll bars in list Widgets
+        self.setMinimumSize(axeSize, axeSize+200)  # +200 to prevent scroll bars in list Widgets
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.layer = layer
         # get rawpy object
@@ -96,7 +98,7 @@ class rawForm (QGraphicsView):
         self.sliderTemp.setSingleStep(1)
 
         tempLabel = QLabel()
-        tempLabel.setFixedSize(40, 20)
+        #tempLabel.setFixedSize(40, 20)
         tempLabel.setText("Temp")
 
         self.tempValue = QLabel()
@@ -142,7 +144,7 @@ class rawForm (QGraphicsView):
         self.sliderTint.setSingleStep(1)
 
         tintLabel = QLabel()
-        tintLabel.setFixedSize(40, 20)
+        #tintLabel.setFixedSize(40, 20)
         tintLabel.setText("Tint")
 
         self.tintValue = QLabel()
@@ -190,7 +192,7 @@ class rawForm (QGraphicsView):
         self.sliderExp.setSingleStep(1)
 
         expLabel = QLabel()
-        expLabel.setFixedSize(40, 20)
+        #expLabel.setFixedSize(40, 20)
         expLabel.setText("Exp")
 
         self.expValue = QLabel()
@@ -224,7 +226,7 @@ class rawForm (QGraphicsView):
         # contrast slider
         self.sliderCont = QSlider(Qt.Horizontal)
         self.sliderCont.setTickPosition(QSlider.TicksBelow)
-        self.sliderCont.setRange(0, 10)
+        self.sliderCont.setRange(0, 20)
 
         def slider2Cont(v):
             return v
@@ -235,7 +237,7 @@ class rawForm (QGraphicsView):
         self.sliderCont.setSingleStep(1)
 
         contLabel = QLabel()
-        contLabel.setFixedSize(55, 20)
+        #contLabel.setFixedSize(55, 20)
         contLabel.setText("Contrast")
 
         self.contValue = QLabel()
@@ -250,7 +252,6 @@ class rawForm (QGraphicsView):
         # cont done event handler
         def contUpdate():
             self.sliderCont.setEnabled(False)
-            # rawpy: expCorrection range is -2.0...3.0 boiling down to exp_shift range 2**(-2)=0.25...2**3=8.0
             self.contCorrection = slider2Cont(self.sliderCont.value())
             self.contValue.setText(str("{:+d}".format(self.contCorrection)))
             self.dataChanged.emit()
@@ -267,6 +268,96 @@ class rawForm (QGraphicsView):
         #self.sliderCont.setEnabled(False)
         sliderContUpdate()
 
+        # noise reduction slider
+        self.sliderNoise = QSlider(Qt.Horizontal)
+        self.sliderNoise.setTickPosition(QSlider.TicksBelow)
+        self.sliderNoise.setRange(0, 20)
+
+        def slider2Noise(v):
+            return v
+
+        def noise2Slider(e):
+            return e
+
+        self.sliderNoise.setSingleStep(1)
+
+        noiseLabel = QLabel()
+        #noiseLabel.setFixedSize(110, 20)
+        noiseLabel.setText("Noise Reduction")
+
+        self.noiseValue = QLabel()
+        font = self.noiseValue.font()
+        metrics = QFontMetrics(font)
+        w = metrics.width("10000")
+        h = metrics.height()
+        self.noiseValue.setMinimumSize(w, h)
+        self.noiseValue.setMaximumSize(w, h)
+
+        # self.contValue.setStyleSheet("QLabel {color : gray;}")
+
+        # noise done event handler
+        def noiseUpdate():
+            self.sliderNoise.setEnabled(False)
+            self.noiseCorrection = slider2Noise(self.sliderNoise.value())
+            self.noiseValue.setText(str("{:+d}".format(slider2Noise(self.sliderNoise.value()))))
+            self.dataChanged.emit()
+            self.sliderNoise.setEnabled(True)
+
+        # noise value changed event handler
+        def sliderNoiseUpdate():
+            self.noiseValue.setText(str("{:+d}".format(slider2Noise(self.sliderNoise.value()))))
+
+        self.sliderNoise.valueChanged.connect(sliderNoiseUpdate)
+        self.sliderNoise.sliderReleased.connect(noiseUpdate)
+        # noise init
+        self.sliderNoise.setValue(noise2Slider(1.0))
+        # self.sliderCont.setEnabled(False)
+        sliderNoiseUpdate()
+
+        # saturation slider
+        self.sliderSat = QSlider(Qt.Horizontal)
+        self.sliderSat.setTickPosition(QSlider.TicksBelow)
+        self.sliderSat.setRange(0, 100)
+
+        def slider2Sat(v):
+            return v - 50 #np.math.pow(10, v / 50)
+
+        def sat2Slider(e):
+            return e + 50 #50 * np.math.log10(e)
+
+        self.sliderSat.setSingleStep(1)
+
+        satLabel = QLabel()
+        satLabel.setText("Sat")
+
+        self.satValue = QLabel()
+        font = self.satValue.font()
+        metrics = QFontMetrics(font)
+        w = metrics.width("10000")
+        h = metrics.height()
+        self.satValue.setMinimumSize(w, h)
+        self.satValue.setMaximumSize(w, h)
+        # self.contValue.setStyleSheet("QLabel {color : gray;}")
+
+        # sat done event handler
+        def satUpdate():
+            self.sliderSat.setEnabled(False)
+            self.satCorrection = slider2Sat(self.sliderSat.value())
+            self.satValue.setText(str("{:+d}".format(slider2Sat(self.sliderSat.value()))))
+            self.dataChanged.emit()
+            self.sliderSat.setEnabled(True)
+
+        # sat value changed event handler
+        def sliderSatUpdate():
+            self.satValue.setText(str("{:+d}".format(slider2Sat(self.sliderSat.value()))))
+
+        self.sliderSat.valueChanged.connect(sliderSatUpdate)
+        self.sliderSat.sliderReleased.connect(satUpdate)
+        # slider sat init
+        self.sliderSat.setValue(sat2Slider(1.0))
+        # self.sliderCont.setEnabled(False)
+        sliderSatUpdate()
+
         # data changed event handler
         def updateLayer():
             useUserWB = self.listWidget2.options["User WB"]
@@ -282,7 +373,7 @@ class rawForm (QGraphicsView):
             self.layer.applyToStack()
             self.layer.parentImage.onImageChanged()
         self.dataChanged.connect(updateLayer)
-
+        self.setStyleSheet("QListWidget, QLabel {font : 7pt;}")
         #layout
         l = QVBoxLayout()
         l.setAlignment(Qt.AlignBottom)
@@ -304,10 +395,25 @@ class rawForm (QGraphicsView):
         hl4.addWidget(contLabel)
         hl4.addWidget(self.contValue)
         hl4.addWidget(self.sliderCont)
+
+        hl7 = QHBoxLayout()
+        hl7.addWidget(satLabel)
+        hl7.addWidget(self.satValue)
+        hl7.addWidget(self.sliderSat)
+        hl5 = QHBoxLayout()
+        hl5.addWidget(self.noiseValue)
+        hl5.addWidget(self.sliderNoise)
+
+        hl6 = QHBoxLayout()
+        hl6.setAlignment(Qt.AlignHCenter)
+        hl6.addWidget(noiseLabel)
         l.addLayout(hl2)
         l.addLayout(hl3)
         l.addLayout(hl1)
         l.addLayout(hl4)
+        l.addLayout(hl7)
+        l.addLayout(hl6)
+        l.addLayout(hl5)
         l.setContentsMargins(20, 0, 20, 25)  # left, top, right, bottom
         l.addStretch(1)
         self.setLayout(l)

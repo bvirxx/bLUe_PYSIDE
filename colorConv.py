@@ -18,12 +18,19 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import cv2
 import numpy as np
 
-#######################################################################
-# This module implements temperature dependent                        #
-# conversion functions in color spaces.                               #
-# sRGB color space (illuminant D65) is                                #
-# assumed for all input and output images.                            #
-#######################################################################
+#############################################################################
+# This module implements temperature dependent                              #
+# conversion functions between color spaces.                                #
+# sRGB color space (illuminant D65) is                                      #
+# assumed for all input and output images.                                  #
+# vectorized/opencv functions:                                              #
+# sRGB2LabVec, lab2sRGBVec, XYZ2sRGBVec, sRGB2XYZVec.                       #
+# Other conversion functions are change of coordinates in                   #
+# a single RGB color space.                                                 #
+# They are located in the module colorCube.py :                             #
+# rgb2hlsVec,hls2RGBVec, hsv2RGBVec, hsp2RGBVec, hsp2RGBVecSmall,           #
+# rgb2hsBVec, rgb2hspVec                                                    #
+#############################################################################
 
 #####################
 # Conversion Matrices
@@ -172,9 +179,10 @@ def sRGB2XYZVec(imgBuf):
     """
     Conversion from sRGB to XYZ
     @param imgBuf: Array of RGB values, range 0..255
-    @return: 
+    @type imgBuf: ndarray, dtype numpy uint8
+    @return: image buffer, XYZ color space
+    @rtype: ndarray, dtype numpy float64
     """
-    #buf = QImageBuffer(img)[:, :, :3][:,:,::-1]
     bufLinear = rgb2rgbLinearVec(imgBuf)
     bufXYZ = np.tensordot(bufLinear, sRGB2XYZ, axes=(-1, -1))
     return bufXYZ
@@ -187,7 +195,6 @@ def XYZ2sRGBVec(imgBuf):
     @return: image buffer, mode sRGB, range 0..255
     @rtype: ndarray, dtype numpy.float64
     """
-    #buf = QImageBuffer(img)[:, :, :3]
     bufsRGBLinear = np.tensordot(imgBuf, sRGB2XYZInverse, axes=(-1, -1))
     bufsRGB = rgbLinear2rgbVec(bufsRGBLinear)
     return bufsRGB
@@ -195,17 +202,20 @@ def XYZ2sRGBVec(imgBuf):
 def sRGB2LabVec(bufsRGB, useOpencv = True) :
     """
     Vectorized sRGB to Lab conversion.  No clipping
-    is performed.
+    is performed. If useOpencv is True (default, faster),
+    we use opencv cvtColor.
     
     See U{https://en.wikipedia.org/wiki/Lab_color_space}
     
-    range for Lab coordinates is L:0..1, a:-86.185..98.254, b:-107.863..94.482
+    The range for Lab coordinates is L:0..1, a:-86.185..98.254, b:-107.863..94.482
     
     See U{http://stackoverflow.com/questions/19099063/what-are-the-ranges-of-coordinates-in-the-cielab-color-space}
     @param bufsRGB: image buffer, mode sRGB, range 0..255
-    @type bufsRGB: ndarray
-    @return: bufLab Image buffer mode Lab
-    @rtype: ndarray, dtype numpy.float64
+    @type bufsRGB: ndarray, dtype = numpy uint8
+    @param useOpencv:
+    @type useOpencv: boolean
+    @return: bufLab Image buffer, mode Lab
+    @rtype: ndarray, dtype numpy float64
     """
     if useOpencv :
         bufLab = cv2.cvtColor(bufsRGB, cv2.COLOR_RGB2Lab)
@@ -231,10 +241,14 @@ def sRGB2LabVec(bufsRGB, useOpencv = True) :
 def Lab2sRGBVec(bufLab, useOpencv = True):
     """
     Vectorized Lab to sRGB conversion. No clipping
-    is performed.
+    is performed. If useOpencv is True (default, faster),
+    we use opencv cvtColor.
     
     See U{https://en.wikipedia.org/wiki/Lab_color_space}
     @param bufLab: image buffer, mode Lab, range 0..1
+    @type bufLab: ndarray, dtype numpy float
+    @param useOpencv:
+    @type useOpencv: boolean
     @return: bufLab Image buffer mode sRGB, range 0..255, 
     @rtype: ndarray, dtype numpy.float64
     """
@@ -243,7 +257,6 @@ def Lab2sRGBVec(bufLab, useOpencv = True):
         # for 8 bits per channel images opencv uses L,a,b range 0..255
         tmp[:,:,0] = tmp[:,:,0] * 255.0
         tmp[:,:,1:] = tmp[:,:,1:] + 128
-        #tmp[:, :, 2] = tmp[:, :, 2] + 128
         bufsRGB = cv2.cvtColor(tmp.astype(np.uint8), cv2.COLOR_Lab2RGB)
     else:
         bufL, bufa, bufb = bufLab[:,:,0], bufLab[:,:,1], bufLab[:,:,2]

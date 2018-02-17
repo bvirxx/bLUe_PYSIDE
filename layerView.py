@@ -535,10 +535,12 @@ class QLayerView(QTableView) :
                     self.currentWin = None
             if layer.tool is not None:
                 layer.tool.setVisible(layer.visible)
-            # update stack, starting from the next lower visible layer to ensure update of the current layer
-            i = layer.getLowerVisibleStackIndex()
-            if i >= 0:
-                layer.parentImage.layersStack[i].applyToStack()
+            if layer.visible:
+                layer.applyToStack()
+            else:
+                i = layer.getUpperVisibleStackIndex()
+                if i >=0:
+                    layer.parentImage.layersStack[i].applyToStack()
             self.img.onImageChanged()
         # hide/display adjustment form
         elif clickedIndex.column() == 1 :

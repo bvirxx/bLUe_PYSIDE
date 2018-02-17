@@ -713,34 +713,58 @@ class vImage(QImage):
                                         #gamma= (2.222, 4.5)  # default REC BT 709 exponent, slope
                                         gamma=(2.4, 12.92), # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
                                         exp_preserve_highlights = 0.8 if options['Preserve Highlights'] else 0.0,
-                                        output_bps=16 if adjustForm.contCorrection > 0 else 8   # 8 or 16                                     ),
+                                        output_bps=16 if adjustForm.contCorrection > 0 else 8   # 8 or 16 bits/pixel                                    ),
                                         )
-
+        ###############################################
+        # contrast and resizing
+        ##############################################
         if adjustForm.contCorrection == 0:
+            # 8 bits image
             if self.parentImage.useThumb:
                 bufpost = cv2.resize(bufpost, (currentImage.width(), currentImage.height()))
         else:
+            # 16 bits image --> RGB float32 (range 0..1) --> Lab float32 L range 0..100 (opencv convention)
             buf32Lab = cv2.cvtColor(((bufpost.astype(np.float32))/65536).astype(np.float32), cv2.COLOR_RGB2Lab)
-            clahe = cv2.createCLAHE(clipLimit=adjustForm.contCorrection, tileGridSize=(8, 8))
-            clahe.setClipLimit(adjustForm.contCorrection)
-            res = clahe.apply(((buf32Lab[:, :, 0]*655.30).astype(np.uint16)))
-            #res = (buf32Lab[:, :, 0]*65536).astype(np.uint16)
-            res = (res.astype(np.float32))/655.36
+            clahe = cv2.createCLAHE(clipLimit=adjustForm.contCorrection/2, tileGridSize=(8, 8))
+            clahe.setClipLimit(adjustForm.contCorrection/2)
+            # convert L channel to CV_16UC1 image and apply clahe
+            res = clahe.apply(((buf32Lab[:, :, 0]*655.35).astype(np.uint16)))
+            # convert back to float32
+            res = ((res.astype(np.float32))/655.35).astype(np.float32)
             buf32Lab[:, :, 0] = res
             bufRGB32 = cv2.cvtColor(buf32Lab, cv2.COLOR_Lab2RGB)
+            # convert to uint8
             if self.parentImage.useThumb:
-                bufpost = cv2.resize((bufRGB32*255).astype(np.uint8), (currentImage.width(), currentImage.height()))
+                bufpost = cv2.resize((bufRGB32*255.0).astype(np.uint8), (currentImage.width(), currentImage.height()))
             else:
-                bufpost = (bufRGB32*255).astype(np.uint8)
+                bufpost = (bufRGB32*255.0).astype(np.uint8)
+        ################################################################
+        # saturation
+        ################################################################
+        # convert to HSV
+        bufHsB = cv2.cvtColor(bufpost, cv2.COLOR_RGB2HSV)
+        alpha = (-adjustForm.satCorrection+50.0)/50
+        # tabulate x**alpha
+        LUT = (np.power(np.array(range(256))/255, alpha) * 255).astype(np.uint8)
+        # convert saturation s to s**alpha
+        bufHsB[:,:,1] = LUT[bufHsB[:,:,1]]
+        # back to RGB
+        bufpost = cv2.cvtColor(bufHsB, cv2.COLOR_HSV2RGB)
+        ################################################################################
         # denoising
         # opencv fastNlMeansDenoisingColored is very slow (>30s for a 15 Mpx image).
-        # we use bilateral filtering instead
+        # we use bilateral filtering instead.
+        ################################################################################
         bufpost = cv2.bilateralFilter(bufpost,
-                                      5,   # diameter of (coordinate) pixel neighborhood, 5 is the recommended value for fast processing
-                                      100, # filter std deviation sigma in color space
-                                      100  # filter std deviation sigma in coordinate space
+                                      9 if self.parentImage.useThumb else 21,
+                                      # diameter of (coordinate) pixel neighborhood, 5 is the recommended value for fast processing
+                                      10 * adjustForm.noiseCorrection,
+                                      # filter std deviation sigma in color space  100 middle value
+                                      50 if self.parentImage.useThumb else 150,
+                                      # filter std deviation sigma in coordinate space  100 middle value
                                       )
-        #bufpost = cv2.fastNlMeansDenoisingColored(bufpost, None, 1, 3, 7 ,21)  # last params window sizes 7, 21 are recommended values
+        # bufpost = cv2.fastNlMeansDenoisingColored(bufpost, None, 1, 3, 7 ,21)  # last params window sizes 7, 21 are recommended values
+
         bufOut[:, :, :3][:, :, ::-1] = bufpost
         self.updatePixmap()
 
@@ -836,8 +860,10 @@ class vImage(QImage):
 
     def applyHSPB1DLUT(self, stackedLUT, options={}, pool=None):
         """
-        Applies 1D LUTS to hue, sat and brightness channels).
-        @param stackedLUT: array of color values (in range 0..255) : a line for each channel
+        Applies 1D LUTS to hue, sat and brightness channels). A 1D LUT
+        is an array of 255 color values (in range 0..255), which tabulates
+        a color curve.
+        @param stackedLUT: array of color values (in range 0..255), a line for each channel
         @type stackedLUT : ndarray, shape (3, 255), dtype int
         @param options: not used yet
         @type options : dictionary
@@ -857,16 +883,16 @@ class vImage(QImage):
         # get updated HSpB buffer for inputImg
         #self.hspbBuffer = None
         ndHSPBImg0 = self.inputImg().getHspbBuffer()   # time 2s with cache disabled for 15 Mpx
-        # apply LUTS to normalized channels
+        # apply LUTS to normalized channels (range 0..255)
         ndLImg0 = (ndHSPBImg0 * [255.0/360.0, 255.0, 255.0]).astype(int)
-        rList = np.array([0,1,2]) # HSB
+        rList = np.array([0,1,2]) # H,S,B
         ndLImg1 = stackedLUT[rList[np.newaxis,:], ndLImg0] * [360.0/255.0, 1/255.0, 1/255.0]
-        ndHSBPImg1 = ndLImg1 #np.dstack((ndLImg1[:,:,0]*360.0/255.0, ndLImg1[:,:,1]/255.0, ndLImg1[:,:,2]/255.0))
+        ndHSBPImg1 = ndLImg1
         # back to sRGB
         ndRGBImg1 = hsp2rgbVec(ndHSBPImg1)  # time 4s for 15 Mpx
         # clipping is mandatory here : numpy bug ?
         ndRGBImg1 = np.clip(ndRGBImg1, 0, 255)
-        # set current image to modified hald image
+        # set current image to modified image
         currentImage = self.getCurrentImage()
         ndImg1a = QImageBuffer(currentImage)
         ndImg1 = ndImg1a[:,:,:3]
@@ -1041,11 +1067,15 @@ class vImage(QImage):
         @type filter: filterIndex object (enum)
         @return: 
         """
-        inputImage = self.inputImg() #Full().getCurrentImage()
+        adjustForm = self.view.widget()
+        inputImage = self.inputImg()
         currentImage = self.getCurrentImage()
         buf0 = QImageBuffer(inputImage)
         buf1 = QImageBuffer(currentImage)
-        buf1[:, :, :] = cv2.filter2D(buf0, -1, self.kernel)
+        if adjustForm.kernelCategory in [filterIndex.IDENTITY, filterIndex.UNSHARP, filterIndex.SHARPEN, filterIndex.BLUR1, filterIndex.BLUR2]:
+            buf1[:, :, :] = cv2.filter2D(buf0, -1, adjustForm.kernel)
+        else:
+            buf1[:,:,:3][:,:,::-1] = cv2.bilateralFilter( buf1[:,:,:3][:,:,::-1], adjustForm.radius, adjustForm.colorSigma2, adjustForm.position.Sigma2)
         self.updatePixmap()
 
     def applyTemperature(self, temperature, options):
@@ -1735,26 +1765,12 @@ class QLayer(vImage):
 
     def getHspbBuffer(self):
         """
-        returns the image buffer in color mode HSpB.
+        Return the image buffer in color mode HSpB.
         The buffer is calculated if needed and cached.
-        @return: HSPB buffer (type ndarray)
-        """
-        """
-        if self.hspbBuffer is None:
-            if self.parentImage.useThumb or self.parentImage.useHald:
-                #self.hspbBuffer = rgb2hspVec(QImageBuffer(self.thumb)[:,:,:3][:,:,::-1])
-                #self.hspbBuffer = rgb2hspVec(QImageBuffer(self.inputImgFull().getCurrentImage())[:, :, :3][:, :, ::-1])
-                self.hspbBuffer = rgb2hspVec(QImageBuffer(self.inputImg())[:, :, :3][:, :, ::-1]) # TODO use getCurrentImage???
-            else:
-                if hasattr(self, 'inputImg'):
-                    self.hspbBuffer = rgb2hspVec(QImageBuffer(self.inputImg())[:,:,:3][:,:,::-1])
-                else:
-                    self.hspbBuffer = rgb2hspVec(QImageBuffer(self)[:, :, :3][:, :, ::-1])
-        return self.hspbBuffer
+        @return: HSPB buffer
+        @rtype: ndarray, dtype numpy float
         """
         if self.hspbBuffer is None or not self.cachesEnabled:
-            #self.thumb = None
-            # Calling QImageBuffer  needs to keep a ref to self.getCurrentImage() to protect it against garbage collector.
             img = self.getCurrentImage()
             self.hspbBuffer = rgb2hspVec(QImageBuffer(img)[:, :, :3][:, :, ::-1])
         return self.hspbBuffer
@@ -1926,16 +1942,30 @@ class QLayer(vImage):
 
     def getLowerVisibleStackIndex(self):
         """
-        Returns index of the next lower visible layer,
-        -1 if no such layer
+        Return the index of the next lower visible layer,
+        -1 if it does not exists
         @return:
+        @rtype: int
         """
         ind = self.getStackIndex()
-        i = -1
         for i in range(ind-1, -1, -1):
             if self.parentImage.layersStack[i].visible:
                 return i
         return -1
+
+    def getUpperVisibleStackIndex(self):
+        """
+        Return the index of the next upper visible layer,
+        -1 if it does not exists
+        @return:
+        @rtype:
+        """
+        ind = self.getStackIndex()
+        for i in range(ind+1, len(self.parentImage.layersStack), 1):
+            if self.parentImage.layersStack[i].visible:
+                return i
+        return -1
+
 
     def linkMask2Lower(self):
         """

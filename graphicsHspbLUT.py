@@ -32,7 +32,6 @@ computeControlPoints = True
 
 
 class graphicsHspbForm(QGraphicsView) :
-
     @classmethod
     def getNewWindow(cls, cModel=None, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         newWindow = graphicsHspbForm(cModel=cModel, targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
@@ -53,11 +52,8 @@ class graphicsHspbForm(QGraphicsView) :
         self.scene().layer = layer
         self.scene().bgColor = QColor(200,200,200)#self.palette().color(self.backgroundRole()) TODO parametrize
         self.mainForm = mainForm
-        #self.LUTXY = LUTXY
-
 
         self.graphicsScene.onUpdateScene = lambda : 0
-
         self.graphicsScene.axeSize = axeSize
 
         # axes and grid
@@ -69,21 +65,11 @@ class graphicsHspbForm(QGraphicsView) :
         #self.graphicsScene.addPath(qppath, QPen(Qt.DashLine))  #create and add QGraphicsPathItem
 
         # curves
-        """
-        cubic = cubicItem(self.graphicsScene.axeSize)
-        self.graphicsScene.addItem(cubic)
-        self.graphicsScene.cubicRGB = cubic
-        cubic.channel = Channel.RGB
-        cubic.histImg = self.scene().layer.inputImgFull().histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, channel=Channel.HSB, mode='HSpB')
-        cubic.fixedPoints = [activePoint(0, 0, parentItem=cubic),
-                                          activePoint(self.graphicsScene.axeSize / 2, -self.graphicsScene.axeSize / 2, parentItem=cubic),
-                                          activePoint(self.graphicsScene.axeSize, -self.graphicsScene.axeSize, parentItem=cubic)]
-        """
+
         cubic = cubicItem(axeSize)
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicR = cubic
         cubic.channel = channelValues.Hue
-        #cubic.histImg = self.scene().layer.inputImgFull().histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, range=(0, 360), chans=channelValues.Hue, mode='HSpB')
         cubic.histImg = self.scene().layer.histogram(size=self.scene().axeSize,
                                                                     bgColor=self.scene().bgColor, range=(0, 360),
                                                                     chans=channelValues.Hue, mode='HSpB')
@@ -121,13 +107,6 @@ class graphicsHspbForm(QGraphicsView) :
             # call Curve change event handlerdefined in blue.menuLayer
             self.scene().onUpdateLUT()
 
-        # connected to pushButton3.clicked
-        """
-        def updateStack():
-           layer.applyToStack()
-           targetImage.onImageChanged()
-        """
-
         # buttons
         pushButton1 = QPushButton("Reset Curve")
         #pushButton1.setObjectName("btn_reset_channel")
@@ -137,21 +116,11 @@ class graphicsHspbForm(QGraphicsView) :
         pushButton1.clicked.connect(onResetCurve)
         self.graphicsScene.addWidget(pushButton1)
         pushButton2 = QPushButton("Reset All Curves")
-        #pushButton2.setObjectName("btn_reset_all")
         pushButton2.setMinimumSize(1, 1)
         pushButton2.setGeometry(80, 50, 100, 30)  # x,y,w,h
         pushButton2.adjustSize()
         pushButton2.clicked.connect(onResetAllCurves)
         self.graphicsScene.addWidget(pushButton2)
-        """
-        pushButton3 = QPushButton("Update top layers")
-        pushButton3.setObjectName("btn_update_top")
-        pushButton3.setMinimumSize(1, 1)
-        pushButton3.setGeometry(100, 80, 80, 30)  # x,y,w,h
-        pushButton3.adjustSize()
-        pushButton3.clicked.connect(updateStack)
-        self.graphicsScene.addWidget(pushButton3)
-        """
 
         # options
         options = ['H', 'S', 'B']
@@ -164,7 +133,6 @@ class graphicsHspbForm(QGraphicsView) :
 
         def onSelect1(item):
             self.scene().cubicItem.setVisible(False)
-            #if item.isSelected():
             if item.text() == 'H':
                 self.scene().cubicItem = self.graphicsScene.cubicR
             elif item.text() == 'S':
@@ -173,8 +141,6 @@ class graphicsHspbForm(QGraphicsView) :
                 self.scene().cubicItem = self.graphicsScene.cubicB
 
             self.scene().cubicItem.setVisible(True)
-            # no need for update, but for color mode RGB.
-            #self.scene().onUpdateLUT()
 
             # draw  histogram
             self.scene().invalidate(QRectF(0.0, -self.scene().axeSize, self.scene().axeSize, self.scene().axeSize), QGraphicsScene.BackgroundLayer)
@@ -185,13 +151,7 @@ class graphicsHspbForm(QGraphicsView) :
         item = self.listWidget1.items[options[1]]
         item.setCheckState(Qt.Checked)
         self.listWidget1.select(item)
-    """
-    def showEvent(self, e):
-        self.mainForm.tableView.setEnabled(False)
 
-    def hideEvent(self, e):
-        self.mainForm.tableView.setEnabled(True)
-    """
     def drawBackground(self, qp, qrF):
         s = self.graphicsScene.axeSize
         if self.scene().cubicItem.histImg is not None:
