@@ -15,6 +15,8 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+from PySide2 import QtCore
+
 from PySide2.QtCore import Qt
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout, QGraphicsView
 from PySide2.QtGui import QFontMetrics
@@ -24,6 +26,7 @@ from utils import optionsWidget
 
 
 class filterForm (QGraphicsView):
+    dataChanged = QtCore.Signal()
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         wdgt = filterForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
@@ -33,12 +36,10 @@ class filterForm (QGraphicsView):
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         super(filterForm, self).__init__(parent=parent)
         defaultRadius = 1
-        defaultColorSigma2 = 100.0
-        defaultPositionSigma2 = 100.0
+        defaultTone = 100.0
         defaultAmount = 50.0
         self.radius = defaultRadius
-        self.colorSigma2 = defaultColorSigma2
-        self.positionSigma2 = defaultPositionSigma2
+        self.tone = defaultTone
         self.targetImage = targetImage
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize, axeSize)
@@ -53,17 +54,17 @@ class filterForm (QGraphicsView):
         l.setAlignment(Qt.AlignBottom)
 
         # options
-        options = ['Unsharp Mask', 'Sharpen', 'Gaussian Blur', 'Surface Blur']
-        filters = [ filterIndex.UNSHARP, filterIndex.SHARPEN, filterIndex.BLUR1, filterIndex.BLUR2, filterIndex.SURFACEBLUR]
-        filterDict = dict(zip(options, filters))
+        optionList = ['Unsharp Mask', 'Sharpen', 'Gaussian Blur', 'Surface Blur']
+        filters = [ filterIndex.UNSHARP, filterIndex.SHARPEN, filterIndex.BLUR1, filterIndex.SURFACEBLUR]
+        filterDict = dict(zip(optionList, filters))
         self.options={}
-        for op in options:
+        for op in optionList:
             self.options[op] = False
-        self.listWidget1 = optionsWidget(options=options, exclusive=True)
-        sel = options[0]
-        self.listWidget1.select(self.listWidget1.items[sel])
-        self.options[sel] = True
+        self.listWidget1 = optionsWidget(options=optionList, exclusive=True, changed=self.dataChanged)
+        # set initial selection to unsharp mask
+        self.listWidget1.checkOption(optionList[0])
 
+        """
         # selection event handler
         def onSelect1(item):
             for key in self.options:
@@ -71,17 +72,17 @@ class filterForm (QGraphicsView):
                 if self.options[key]:
                     selkey = key
             self.kernelCategory = filterDict[selkey]
-            self.sliderRadius.setEnabled(selkey==options[0] or selkey==options[2] )
+            self.sliderRadius.setEnabled(selkey==optionList[0] or selkey==optionList[2] )
             self.radiusValue.setEnabled(self.sliderRadius.isEnabled())
-            self.sliderAmount.setEnabled(selkey==options[0])
+            self.sliderAmount.setEnabled(selkey==optionList[0])
             self.amountValue.setEnabled(self.sliderAmount.isEnabled())
-            self.radius = self.sliderRadius.value()
-            self.colorSigma2 = self.sliderTone.value()
-            #self.positionSigma2 = self.sliderPositionSigma2.value()
+            self.sliderTone.setEnabled(selkey==optionList[3])
+            self.toneValue.setEnabled(self.sliderTone.isEnabled())
             self.kernel = getKernel(self.kernelCategory, self.radius, self.sliderAmount.value())
-            self.onUpdateFilter(self.kernelCategory, self.sliderRadius.value(), self.sliderAmount.value())
+            self.dataChanged.emit()
 
         self.listWidget1.onSelect = onSelect1
+        """
 
         # sliders
         self.sliderRadius = QSlider(Qt.Horizontal)
@@ -99,7 +100,7 @@ class filterForm (QGraphicsView):
         h = metrics.height()
         self.radiusValue.setMinimumSize(w, h)
         self.radiusValue.setMaximumSize(w, h)
-        self.radiusValue.setStyleSheet("QLabel {background-color: white;}")
+        #self.radiusValue.setStyleSheet("QLabel {background-color: gray;}")
 
         self.sliderAmount = QSlider(Qt.Horizontal)
         self.sliderAmount.setTickPosition(QSlider.TicksBelow)
@@ -115,7 +116,7 @@ class filterForm (QGraphicsView):
         h = metrics.height()
         self.amountValue.setMinimumSize(w, h)
         self.amountValue.setMaximumSize(w, h)
-        self.amountValue.setStyleSheet("QLabel {background-color: white;}")
+        #self.amountValue.setStyleSheet("QLabel {background-color: gray;}")
 
         self.toneValue = QLabel()
         toneLabel = QLabel()
@@ -131,8 +132,9 @@ class filterForm (QGraphicsView):
         h = metrics.height()
         self.toneValue.setMinimumSize(w, h)
         self.toneValue.setMaximumSize(w, h)
-        self.toneValue.setStyleSheet("QLabel {background-color: white;}")
+        #self.toneValue.setStyleSheet("QLabel {background-color: white;}")
 
+        l.addWidget(self.listWidget1)
         hl = QHBoxLayout()
         hl.addWidget(radiusLabel)
         hl.addWidget(self.radiusValue)
@@ -155,35 +157,61 @@ class filterForm (QGraphicsView):
 
         self.setLayout(l)
 
-        # value done event handler
-        def f():
-            self.sliderRadius.setEnabled(False)
-            self.radiusValue.setText(str('%d ' % self.sliderRadius.value()))
-            self.amountValue.setText(str('%d ' % self.sliderAmount.value()))
-            self.kernel = getKernel(self.kernelCategory, self.sliderRadius.value(), self.sliderAmount.value())
-            self.onUpdateFilter(self.kernelCategory, self.sliderRadius.value(), self.sliderAmount.value())
-            self.sliderRadius.setEnabled(True)
-
         # value changed event handler
-        def g():
+        def sliderUpdate():
             self.radiusValue.setText(str('%d ' % self.sliderRadius.value()))
             self.amountValue.setText(str('%d ' % self.sliderAmount.value()))
+            self.toneValue.setText(str('%d ' % self.sliderTone.value()))
+        # value done event handler
+        def formUpdate():
+            sR, sA, sT = self.sliderRadius.isEnabled(), self.sliderAmount.isEnabled(), self.sliderTone.isEnabled()
+            self.sliderRadius.setEnabled(False)
+            self.sliderAmount.setEnabled(False)
+            self.sliderTone.setEnabled(False)
+            self.kernel = getKernel(self.kernelCategory, self.sliderRadius.value(), self.sliderAmount.value())
+            self.tone = self.sliderTone.value()
+            sliderUpdate()
+            # self.onUpdateFilter(self.kernelCategory, self.sliderRadius.value(), self.sliderAmount.value())
+            self.dataChanged.emit()
+            self.sliderRadius.setEnabled(sR)
+            self.sliderAmount.setEnabled(sA)
+            self.sliderTone.setEnabled(sT)
 
-        self.sliderRadius.valueChanged.connect(g)
-        self.sliderRadius.sliderReleased.connect(f)
-        self.sliderAmount.valueChanged.connect(g)
-        self.sliderAmount.sliderReleased.connect(f)
+        self.sliderRadius.valueChanged.connect(sliderUpdate)
+        self.sliderRadius.sliderReleased.connect(formUpdate)
+        self.sliderAmount.valueChanged.connect(sliderUpdate)
+        self.sliderAmount.sliderReleased.connect(formUpdate)
+        self.sliderTone.valueChanged.connect(sliderUpdate)
+        self.sliderTone.sliderReleased.connect(formUpdate)
 
+        def enableSliders():
+            op = self.listWidget1.options
+            useRadius = op[optionList[0]] or op[optionList[2]] or op[optionList[3]]
+            useAmount = op[optionList[0]] or op[optionList[2]]
+            useTone = op[optionList[3]]
+            self.sliderRadius.setEnabled(useRadius)
+            self.sliderAmount.setEnabled(useAmount)
+            self.sliderTone.setEnabled(useTone)
+            self.radiusValue.setEnabled(self.sliderRadius.isEnabled())
+            self.amountValue.setEnabled(self.sliderAmount.isEnabled())
+            self.toneValue.setEnabled(self.sliderTone.isEnabled())
+            radiusLabel.setEnabled(self.sliderRadius.isEnabled())
+            amountLabel.setEnabled(self.sliderAmount.isEnabled())
+            toneLabel.setEnabled(self.sliderTone.isEnabled())
+
+        # data changed event handler
+        def updateLayer():
+            enableSliders()
+            self.layer.applyToStack()
+            self.layer.parentImage.onImageChanged()
+
+        self.dataChanged.connect(updateLayer)
+        # init
         self.sliderRadius.setValue(defaultRadius)
         self.sliderAmount.setValue(defaultAmount)
-        self.radiusValue.setText(str('%d ' % self.sliderRadius.value()))
-        self.amountValue.setText(str('%d ' % self.sliderAmount.value()))
-
-        # set initial selection to unsharp mask
-        item = self.listWidget1.items[options[0]]
-        item.setCheckState(Qt.Checked)
-        self.listWidget1.select(item)
-        l.addWidget(self.listWidget1)
+        self.sliderTone.setValue(defaultTone)
+        enableSliders()
+        sliderUpdate()
 
     def writeToStream(self, outStream):
         layer = self.layer

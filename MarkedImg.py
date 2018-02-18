@@ -1075,7 +1075,7 @@ class vImage(QImage):
         if adjustForm.kernelCategory in [filterIndex.IDENTITY, filterIndex.UNSHARP, filterIndex.SHARPEN, filterIndex.BLUR1, filterIndex.BLUR2]:
             buf1[:, :, :] = cv2.filter2D(buf0, -1, adjustForm.kernel)
         else:
-            buf1[:,:,:3][:,:,::-1] = cv2.bilateralFilter( buf1[:,:,:3][:,:,::-1], adjustForm.radius, adjustForm.colorSigma2, adjustForm.position.Sigma2)
+            buf1[:,:,:3][:,:,::-1] = cv2.bilateralFilter( buf0[:,:,:3][:,:,::-1], adjustForm.radius, 10*adjustForm.tone, 50 if self.parentImage.useThumb else 150)
         self.updatePixmap()
 
     def applyTemperature(self, temperature, options):

@@ -85,7 +85,6 @@ class rawForm (QGraphicsView):
         self.listWidget2 = optionsWidget(options=optionList, exclusive=True, changed=self.dataChanged)
         self.listWidget2.checkOption(optionList[1])
         self.options = UDict(self.listWidget1.options, self.listWidget2.options)
-        text = self.listWidget2.item(1).text()
 
         # WB sliders
         self.sliderTemp = QSlider(Qt.Horizontal)
@@ -358,18 +357,22 @@ class rawForm (QGraphicsView):
         # self.sliderCont.setEnabled(False)
         sliderSatUpdate()
 
-        # data changed event handler
-        def updateLayer():
+        def enableSliders():
             useUserWB = self.listWidget2.options["User WB"]
             useUserExp = not self.listWidget1.options["Auto Brightness"]
             self.sliderTemp.setEnabled(useUserWB)
             self.sliderTint.setEnabled(useUserWB)
             self.sliderExp.setEnabled(useUserExp)
-            color = "black" if useUserWB else "gray"
-            self.tempValue.setStyleSheet("color: %s;" % color)
-            self.tintValue.setStyleSheet("color: %s;" % color)
-            color = "black" if useUserExp else "gray"
-            self.expValue.setStyleSheet("color: %s;" % color)
+            self.tempValue.setEnabled(self.sliderTemp.isEnabled())
+            self.tintValue.setEnabled(self.sliderTint.isEnabled())
+            self.expValue.setEnabled(self.sliderExp.isEnabled())
+            self.tempLabel.setEnabled(self.sliderTemp.isEnabled())
+            self.tintLabel.setEnabled(self.sliderTint.isEnabled())
+            self.expLabel.setEnabled(self.sliderExp.isEnabled())
+
+        # data changed event handler
+        def updateLayer():
+            enableSliders()
             self.layer.applyToStack()
             self.layer.parentImage.onImageChanged()
         self.dataChanged.connect(updateLayer)
