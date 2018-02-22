@@ -35,11 +35,12 @@ class filterForm (QGraphicsView):
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         super(filterForm, self).__init__(parent=parent)
-        defaultRadius = 1
+        defaultRadius = 10
         defaultTone = 100.0
         defaultAmount = 50.0
         self.radius = defaultRadius
         self.tone = defaultTone
+        self.amount = defaultAmount
         self.targetImage = targetImage
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize, axeSize)
@@ -47,9 +48,9 @@ class filterForm (QGraphicsView):
         self.img = targetImage
         self.layer = layer
         self.mainForm = mainForm
-        self.onUpdateFilter = lambda *args: 0
-        self.kernel = getKernel(filterIndex.UNSHARP)
         self.kernelCategory = filterIndex.UNSHARP
+        self.kernel = getKernel(self.kernelCategory)
+
         l = QVBoxLayout()
         l.setAlignment(Qt.AlignBottom)
 
@@ -57,37 +58,29 @@ class filterForm (QGraphicsView):
         optionList = ['Unsharp Mask', 'Sharpen', 'Gaussian Blur', 'Surface Blur']
         filters = [ filterIndex.UNSHARP, filterIndex.SHARPEN, filterIndex.BLUR1, filterIndex.SURFACEBLUR]
         filterDict = dict(zip(optionList, filters))
+        """
         self.options={}
         for op in optionList:
             self.options[op] = False
+        """
         self.listWidget1 = optionsWidget(options=optionList, exclusive=True, changed=self.dataChanged)
         # set initial selection to unsharp mask
-        self.listWidget1.checkOption(optionList[0])
+        item = self.listWidget1.checkOption(optionList[0])
 
-        """
         # selection event handler
-        def onSelect1(item):
-            for key in self.options:
-                self.options[key] = item is self.listWidget1.items[key]
-                if self.options[key]:
-                    selkey = key
-            self.kernelCategory = filterDict[selkey]
-            self.sliderRadius.setEnabled(selkey==optionList[0] or selkey==optionList[2] )
-            self.radiusValue.setEnabled(self.sliderRadius.isEnabled())
-            self.sliderAmount.setEnabled(selkey==optionList[0])
-            self.amountValue.setEnabled(self.sliderAmount.isEnabled())
-            self.sliderTone.setEnabled(selkey==optionList[3])
-            self.toneValue.setEnabled(self.sliderTone.isEnabled())
-            self.kernel = getKernel(self.kernelCategory, self.radius, self.sliderAmount.value())
-            self.dataChanged.emit()
+        def h(item):
+            for key in self.listWidget1.options:
+                if self.listWidget1.options[key]:
+                    self.kernelCategory = filterDict[key]
+                    break
 
-        self.listWidget1.onSelect = onSelect1
-        """
+
+        self.listWidget1.onSelect = h
 
         # sliders
         self.sliderRadius = QSlider(Qt.Horizontal)
         self.sliderRadius.setTickPosition(QSlider.TicksBelow)
-        self.sliderRadius.setRange(1, 100)
+        self.sliderRadius.setRange(1, 50)
         self.sliderRadius.setSingleStep(1)
         radiusLabel = QLabel()
         radiusLabel.setMaximumSize(150, 30)
@@ -170,6 +163,8 @@ class filterForm (QGraphicsView):
             self.sliderTone.setEnabled(False)
             self.kernel = getKernel(self.kernelCategory, self.sliderRadius.value(), self.sliderAmount.value())
             self.tone = self.sliderTone.value()
+            self.radius = self.sliderRadius.value()
+            self.amount = self.sliderAmount.value()
             sliderUpdate()
             # self.onUpdateFilter(self.kernelCategory, self.sliderRadius.value(), self.sliderAmount.value())
             self.dataChanged.emit()

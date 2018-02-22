@@ -149,18 +149,29 @@ class optionsWidget(QListWidget) :
     The choices can be mutually exclusive (default) or not
     exclusive. Actions can be done on item selection by assigning
     a function to onSelect. It is called after the selection of the new item.
+    if changed is not None, the signal is emitted when an item is clicked.
     """
 
-    def __init__(self, options=[], exclusive=True, changed=None, parent=None):
+    def __init__(self, options=[], optionNames=None, exclusive=True, changed=None, parent=None):
         """
-        @param options: list of strings
-        @param exclusive: boolean
+        @param options: list of option names or dict {intern_Name : displayed_Name}
+        @type options: list of strings
+        @param exclusive
+        @type exclusive: boolean
+        @param changed: signal
+        @type changed: QSignal
+        @prama oarent:
+        @type parent: QObject
         """
         super(optionsWidget, self).__init__(parent)
+        if optionNames is None:
+            optionNames = options
+        # dict of items with keys option internal name
         self.items = {}
+        # dict of item states with keys option internal names
         self.options = {}
-        for option in options:
-            listItem = QListWidgetItem(option, self)
+        for option, name in zip(options, optionNames):
+            listItem = QListWidgetItem(name, self)
             listItem.setCheckState(Qt.Unchecked)
             self.addItem(listItem)
             self.items[option] = listItem

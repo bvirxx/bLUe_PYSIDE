@@ -65,13 +65,13 @@ BradfordInverse =  [[0.9869929, -0.1470543,  0.1599627],
 # and https://en.wikipedia.org/wiki/SRGB
 #######################################################################
 
-sRGB2XYZ = [[0.4124564,  0.3575761,  0.1804375],
-            [0.2126729,  0.7151522,  0.0721750],
-            [0.0193339,  0.1191920,  0.9503041]]
+sRGB_lin2XYZ = [[0.4124564, 0.3575761, 0.1804375],
+                [0.2126729,  0.7151522,  0.0721750],
+                [0.0193339,  0.1191920,  0.9503041]]
 
-sRGB2XYZInverse = [[3.2404542, -1.5371385, -0.4985314],
-                   [-0.9692660, 1.8760108,  0.0415560],
-                    [0.0556434, -0.2040259, 1.0572252]]
+sRGB_lin2XYZInverse = [[3.2404542, -1.5371385, -0.4985314],
+                       [-0.9692660, 1.8760108,  0.0415560],
+                       [0.0556434, -0.2040259, 1.0572252]]
 
 ###########################################################
 # XYZ/Lab conversion :
@@ -90,9 +90,9 @@ Ka, Kb = 172.355, 67.038 #172.30, 67.20
 #########################################
 
 a = 0.055
-alpha = 2.4
-beta = 1.0 / alpha
-b = (a / (1.0 + a)) ** alpha
+gamma = 2.4
+beta = 1.0 / gamma
+b = (a / (1.0 + a)) ** gamma
 d = 12.92
 c = 255.0 * d
 # tabulation of x**beta
@@ -103,7 +103,7 @@ F = e**beta #255.0**(2*beta)
 table0 = np.arange(256, dtype=np.float64)
 table1 = table0 / 255.0
 table2 = table0 / c
-table3 = np.power(table1, alpha)  # (i/255)**alpha
+table3 = np.power(table1, gamma)  # (i/255)**alpha
 # tabulation of x**beta
 table4 = np.arange(e + 1, dtype = np.float64)
 table5 = np.power(table4, beta) *(1.0+a)/F # i**beta
@@ -157,7 +157,7 @@ def rgb2rgbLinear(r,g,b):
             # consider linear
             c =  c / d
         else:
-            c = ((c+a)/(1+a))**alpha
+            c = ((c+a)/(1+a)) ** gamma
         return c
     return c2cl(r), c2cl(g), c2cl(b)
 
@@ -184,7 +184,7 @@ def sRGB2XYZVec(imgBuf):
     @rtype: ndarray, dtype numpy float64
     """
     bufLinear = rgb2rgbLinearVec(imgBuf)
-    bufXYZ = np.tensordot(bufLinear, sRGB2XYZ, axes=(-1, -1))
+    bufXYZ = np.tensordot(bufLinear, sRGB_lin2XYZ, axes=(-1, -1))
     return bufXYZ
 
 def XYZ2sRGBVec(imgBuf):
@@ -195,7 +195,7 @@ def XYZ2sRGBVec(imgBuf):
     @return: image buffer, mode sRGB, range 0..255
     @rtype: ndarray, dtype numpy.float64
     """
-    bufsRGBLinear = np.tensordot(imgBuf, sRGB2XYZInverse, axes=(-1, -1))
+    bufsRGBLinear = np.tensordot(imgBuf, sRGB_lin2XYZInverse, axes=(-1, -1))
     bufsRGB = rgbLinear2rgbVec(bufsRGBLinear)
     return bufsRGB
 
@@ -618,7 +618,7 @@ if __name__ == '__main__':
     r,g,b = bbTemperature2RGB(T)
     x,y = temperature2xyWP(T)
     L=0.7
-    r1, g1, b1 = np.dot(sRGB2XYZInverse, np.array([L*x/y, L, L* (1.0 -x - y)/y]).T)
+    r1, g1, b1 = np.dot(sRGB_lin2XYZInverse, np.array([L * x / y, L, L * (1.0 - x - y) / y]).T)
     r2, g2, b2 = rgbLinear2rgb(r1,g1,b1)
     #print r,g,b
     #print r2, g2, b2

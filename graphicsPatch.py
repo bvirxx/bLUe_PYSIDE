@@ -39,7 +39,6 @@ class patchForm (QGraphicsView):
         self.img = targetImage
         self.layer = layer
         self.mainForm = mainForm
-        self.onUpdateFilter = lambda *args: 0
 
         l = QVBoxLayout()
         l.setAlignment(Qt.AlignBottom)
@@ -115,7 +114,6 @@ class maskForm (QGraphicsView):
         self.img = targetImage
         self.layer = layer
         self.mainForm = mainForm
-        self.onUpdateFilter = lambda *args: 0
         # options
         options_dict = {'Normal Clone':cv2.NORMAL_CLONE, 'Mixed Clone':cv2.MIXED_CLONE, 'Monochrome Transfer':cv2.MONOCHROME_TRANSFER}
         options = list(options_dict.keys())

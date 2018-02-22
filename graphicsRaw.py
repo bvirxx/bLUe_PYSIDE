@@ -22,7 +22,7 @@ from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics, QFont
 from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QSlider
 
-from colorConv import xyWP2temperature, sRGB2XYZ, temperature2xyWP, sRGB2XYZInverse, Bradford, BradfordInverse, \
+from colorConv import xyWP2temperature, sRGB_lin2XYZ, temperature2xyWP, sRGB_lin2XYZInverse, Bradford, BradfordInverse, \
     temperatureAndTint2RGBMultipliers, xy2TemperatureAndTint, RGBMultipliers2TemperatureAndTint, temperatureAndTint2xy
 from utils import optionsWidget, UDict
 
@@ -107,7 +107,7 @@ class rawForm (QGraphicsView):
         h = metrics.height()
         self.tempValue.setMinimumSize(w, h)
         self.tempValue.setMaximumSize(w, h)
-        self.tempValue.setStyleSheet("QLabel {color : gray;}")
+        #self.tempValue.setStyleSheet("QLabel {color : gray;}")
 
         # temp done event handler
         def tempUpdate():
@@ -123,23 +123,20 @@ class rawForm (QGraphicsView):
         # temp value changed event handler
         def sliderTempUpdate():
             self.tempValue.setText(str("{:.0f}".format(slider2Temp(self.sliderTemp.value()))))
-
         self.sliderTemp.valueChanged.connect(sliderTempUpdate)
         self.sliderTemp.sliderReleased.connect(tempUpdate)
-        # slider Temp init
-        self.sliderTemp.setValue(round(temp2Slider(self.tempCorrection)))
-        sliderTempUpdate()
-        self.sliderTemp.setEnabled(False)  # initially we use camera WB
 
+        # tint slider
         self.sliderTint = QSlider(Qt.Horizontal)
         self.sliderTint.setTickPosition(QSlider.TicksBelow)
-        self.sliderTint.setRange(0, 100)
+        self.sliderTint.setRange(0, 185)
         def slider2Tint(v):
-            return 0.2 + 0.025 * v
+            return 0.2 + 0.0125 * v  # wanted range : 0.2..2.5
         def tint2Slider(t):
-            return (t - 0.2) / 0.025
+            return (t - 0.2) / 0.0125
+        # displayed value
         def slider2User(v):
-            return ((slider2Tint(v) - 1)*100)
+            return v - 92 # ((slider2Tint(v) - 1)*100)
         self.sliderTint.setSingleStep(1)
 
         tintLabel = QLabel()
@@ -153,7 +150,7 @@ class rawForm (QGraphicsView):
         h = metrics.height()
         self.tintValue.setMinimumSize(w, h)
         self.tintValue.setMaximumSize(w, h)
-        self.tintValue.setStyleSheet("QLabel {color : gray;}")
+        #self.tintValue.setStyleSheet("QLabel {color : gray;}")
 
         # tint done event handler
         def tintUpdate():
@@ -175,10 +172,7 @@ class rawForm (QGraphicsView):
 
         self.sliderTint.valueChanged.connect(sliderTintUpdate)
         self.sliderTint.sliderReleased.connect(tintUpdate)
-        # slider Tint init
-        self.sliderTint.setValue(round(tint2Slider(self.tintCorrection)))
-        sliderTintUpdate()
-        self.sliderTint.setEnabled(False)  # initially we use camera WB
+
 
         # exp slider
         self.sliderExp = QSlider(Qt.Horizontal)
@@ -201,7 +195,7 @@ class rawForm (QGraphicsView):
         h = metrics.height()
         self.expValue.setMinimumSize(w, h)
         self.expValue.setMaximumSize(w, h)
-        self.expValue.setStyleSheet("QLabel {color : gray;}")
+        #self.expValue.setStyleSheet("QLabel {color : gray;}")
 
         # exp done event handler
         def expUpdate():
@@ -217,10 +211,7 @@ class rawForm (QGraphicsView):
 
         self.sliderExp.valueChanged.connect(sliderExpUpdate)
         self.sliderExp.sliderReleased.connect(expUpdate)
-        # exp init
-        self.sliderExp.setValue(exp2Slider(0.0))
-        self.sliderExp.setEnabled(False)  # initially  we use auto brightness
-        sliderExpUpdate()
+
 
         # contrast slider
         self.sliderCont = QSlider(Qt.Horizontal)
@@ -262,10 +253,6 @@ class rawForm (QGraphicsView):
 
         self.sliderCont.valueChanged.connect(sliderContUpdate)
         self.sliderCont.sliderReleased.connect(contUpdate)
-        # cont init
-        self.sliderCont.setValue(cont2Slider(0.0))
-        #self.sliderCont.setEnabled(False)
-        sliderContUpdate()
 
         # noise reduction slider
         self.sliderNoise = QSlider(Qt.Horizontal)
@@ -292,8 +279,6 @@ class rawForm (QGraphicsView):
         self.noiseValue.setMinimumSize(w, h)
         self.noiseValue.setMaximumSize(w, h)
 
-        # self.contValue.setStyleSheet("QLabel {color : gray;}")
-
         # noise done event handler
         def noiseUpdate():
             self.sliderNoise.setEnabled(False)
@@ -308,10 +293,7 @@ class rawForm (QGraphicsView):
 
         self.sliderNoise.valueChanged.connect(sliderNoiseUpdate)
         self.sliderNoise.sliderReleased.connect(noiseUpdate)
-        # noise init
-        self.sliderNoise.setValue(noise2Slider(1.0))
-        # self.sliderCont.setEnabled(False)
-        sliderNoiseUpdate()
+
 
         # saturation slider
         self.sliderSat = QSlider(Qt.Horizontal)
@@ -352,10 +334,6 @@ class rawForm (QGraphicsView):
 
         self.sliderSat.valueChanged.connect(sliderSatUpdate)
         self.sliderSat.sliderReleased.connect(satUpdate)
-        # slider sat init
-        self.sliderSat.setValue(sat2Slider(1.0))
-        # self.sliderCont.setEnabled(False)
-        sliderSatUpdate()
 
         def enableSliders():
             useUserWB = self.listWidget2.options["User WB"]
@@ -366,12 +344,40 @@ class rawForm (QGraphicsView):
             self.tempValue.setEnabled(self.sliderTemp.isEnabled())
             self.tintValue.setEnabled(self.sliderTint.isEnabled())
             self.expValue.setEnabled(self.sliderExp.isEnabled())
-            self.tempLabel.setEnabled(self.sliderTemp.isEnabled())
-            self.tintLabel.setEnabled(self.sliderTint.isEnabled())
-            self.expLabel.setEnabled(self.sliderExp.isEnabled())
+            tempLabel.setEnabled(self.sliderTemp.isEnabled())
+            tintLabel.setEnabled(self.sliderTint.isEnabled())
+            expLabel.setEnabled(self.sliderExp.isEnabled())
+
+        # slider Temp init
+        self.sliderTemp.setValue(round(temp2Slider(self.tempCorrection)))
+        sliderTempUpdate()
+        #self.sliderTemp.setEnabled(False)  # initially we use camera WB
+        # slider Tint init
+        self.sliderTint.setValue(round(tint2Slider(self.tintCorrection)))
+        sliderTintUpdate()
+        #self.sliderTint.setEnabled(False)  # initially we use camera WB
+        # slider exp init
+        self.sliderExp.setValue(exp2Slider(0.0))
+        #self.sliderExp.setEnabled(False)  # initially  we use auto brightness
+        sliderExpUpdate()
+        # slider cont init
+        self.sliderCont.setValue(cont2Slider(0.0))
+        # self.sliderCont.setEnabled(False)
+        sliderContUpdate()
+        # slider noise init
+        self.sliderNoise.setValue(noise2Slider(1.0))
+        sliderNoiseUpdate()
+        # slider sat init
+        self.sliderSat.setValue(sat2Slider(1.0))
+        sliderSatUpdate()
+        enableSliders()
+
+
 
         # data changed event handler
         def updateLayer():
+            # invalidate cache
+            self.layer.postProcessCache = None
             enableSliders()
             self.layer.applyToStack()
             self.layer.parentImage.onImageChanged()

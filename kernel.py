@@ -61,13 +61,10 @@ def gaussianKernel(mu, w):
     return kernel
 
 def kernelGaussianBlur(radius):
-
     gblur_kernel = gaussianKernel(0.0, radius + 2)
-
     return gblur_kernel
 
 def kernelUnsharpMask(radius, amount):
-
     amount = amount / 100.0
     kernel = - kernelGaussianBlur(radius) * amount
     w = kernel.shape[0]
@@ -75,7 +72,6 @@ def kernelUnsharpMask(radius, amount):
     return kernel
 
 def kernelSharpen():
-
     kernel = np.array([[0.0, -1.0, 0.0],
                         [-1.0, 5.0, -1.0],
                         [0.0,-1.0, 0.0]])

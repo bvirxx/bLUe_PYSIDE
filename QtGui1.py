@@ -33,13 +33,16 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
     Main window class.
     The layout is loaded from the ui form bLUe.ui.
     """
-    def __init__(self, parent=None):
+    screenChanged = QtCore.Signal()
+    def __init__(self, app, parent=None):
         super(Form1, self).__init__()
         # load UI
         loadUi('bLUe.ui', baseinstance=self, customWidgets= {'QLayerView': QLayerView, 'QLabel': QLabel, 'histForm': histForm})
         #self = QtUiTools.QUiLoader().load("bLUe.ui", self)
 
-        # hooks added to event slots
+        self.desktop = app.desktop()
+        self.currentScreenIndex = self.desktop.screenNumber(self)
+        # hooks added to event handlers
         self.updateStatus = lambda : 0
         self.onWidgetChange = lambda : 0
         self.onShowContextMenu = lambda : 0
@@ -50,7 +53,7 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
         self.slidersValues = {}
         self.btnValues = {}
 
-        # connections to slots
+        # connections to handlers
         for slider in self.findChildren(QtWidgets.QSlider):
             slider.valueChanged.connect(
                             lambda value, slider=slider : self.handleSliderMoved(value, slider)
@@ -121,6 +124,17 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
         settings.setValue("size", 2)
         settings.endGroup()
         """
+    def moveEvent(self, event):
+        # CAUTION : dragging the window to another screen
+        # does not change screenNumber(self). Only
+        # a call to move() updates screenNumber value.
+        c = self.frameGeometry().center()
+        id =self.desktop.screenNumber(c)
+        if id != self.currentScreenIndex:
+            # screen changed
+            self.currentScreenIndex = id
+            print('moved')
+            self.screenChanged.emit()
 
     def closeEvent(self, event):
         if self.onCloseEvent(event):
@@ -149,19 +163,19 @@ def enumerateMenuActions(menu):
             actions.append(action)
     return actions
 
-########
-# QApplication and mainWindow init
-# A Python module is a singleton : the initialization code below
-# is executed only once, regardless the number of module imports.
-#######
-
 #######
 # PySide2 : Without the next line, app is unable to load
 # imageformat dlls for reading and writing QImage objects.
 #######
 QtCore.QCoreApplication.addLibraryPath("D:/Python36/Lib/site-packages/PySide2/plugins")
 #######
+
+########
+# GUI init.
+# A Python module is a singleton : the initialization code below
+# is executed only once, regardless the number of module imports.
+#######
 app = QApplication(sys.argv)
-window = Form1()
+window = Form1(app)
 
 

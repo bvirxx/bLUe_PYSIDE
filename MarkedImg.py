@@ -33,7 +33,7 @@ from PySide2.QtWidgets import QApplication, QMessageBox
 from PySide2.QtGui import QPixmap, QImage, QColor, QPainter
 from PySide2.QtCore import QRect
 
-from colorConv import sRGB2LabVec, sRGBWP, Lab2sRGBVec, sRGB2XYZ, sRGB2XYZInverse, rgb2rgbLinearVec, rgbLinear2rgb, \
+from colorConv import sRGB2LabVec, sRGBWP, Lab2sRGBVec, sRGB_lin2XYZ, sRGB_lin2XYZInverse, rgb2rgbLinearVec, rgbLinear2rgb, \
     rgbLinear2rgbVec
 from denoising import denoise
 from grabcut import segmentForm
@@ -183,6 +183,7 @@ class vImage(QImage):
         @param profile: embedded profile (default '')
         @type profile: str
         """
+        # color management : working profile is assumed as image profile
         self.colorTransformation = icc.workToMonTransform
         # current color managed image
         self.cmImage = None
@@ -278,7 +279,7 @@ class vImage(QImage):
 
     def initThumb(self):
         """
-        Inits the image thumbnail as a scaled QImage. In contrast to
+        Init the image thumbnail as (scaled) QImage. In contrast to
         maskedThumbContainer, thumb is never used as an input image, thus
         there is no need for a type yielding color space buffers.
         However, note that, for convenience, layer thumbs own an attribute
@@ -295,10 +296,6 @@ class vImage(QImage):
         inits image thumbnail if needed and returns it.
         @return: thumbnail
         @rtype: QImage
-        """
-        """
-        if not self.cachesEnabled:
-            return self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio)
         """
         if self.thumb is None:
             self.initThumb()
@@ -444,7 +441,7 @@ class vImage(QImage):
         if icc.COLOR_MANAGE:
             if self.cmImage is None:
                 # CAUTION : reset alpha channel
-                img = convertQImage(currentImage)
+                img = convertQImage(currentImage, transformation=self.colorTransformation)
                 # restore alpha
                 buf0 = QImageBuffer(img)
                 buf1 = QImageBuffer(currentImage)
@@ -704,7 +701,8 @@ class vImage(QImage):
         currentImage = self.getCurrentImage()
         bufOut = QImageBuffer(currentImage)
         # process raw image
-        bufpost = self.parentImage.rawImage.postprocess(
+        if self.postProcessCache is None:
+            bufpost = self.parentImage.rawImage.postprocess(
                                         exp_shift=2.0**adjustForm.expCorrection,
                                         no_auto_bright= (not options['Auto Brightness']),
                                         use_auto_wb=options['Auto WB'],
@@ -714,7 +712,10 @@ class vImage(QImage):
                                         gamma=(2.4, 12.92), # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
                                         exp_preserve_highlights = 0.8 if options['Preserve Highlights'] else 0.0,
                                         output_bps=16 if adjustForm.contCorrection > 0 else 8   # 8 or 16 bits/pixel                                    ),
-                                        )
+                                                            )
+            self.postProcessCache = np.copy(bufpost)
+        else:
+            bufpost = self.postProcessCache
         ###############################################
         # contrast and resizing
         ##############################################
@@ -755,15 +756,18 @@ class vImage(QImage):
         # opencv fastNlMeansDenoisingColored is very slow (>30s for a 15 Mpx image).
         # we use bilateral filtering instead.
         ################################################################################
+        """
         bufpost = cv2.bilateralFilter(bufpost,
-                                      9 if self.parentImage.useThumb else 21,
-                                      # diameter of (coordinate) pixel neighborhood, 5 is the recommended value for fast processing
-                                      10 * adjustForm.noiseCorrection,
-                                      # filter std deviation sigma in color space  100 middle value
-                                      50 if self.parentImage.useThumb else 150,
-                                      # filter std deviation sigma in coordinate space  100 middle value
+                                      9 if self.parentImage.useThumb else 15,   # 21:5.5s, 15:3.5s, diameter of
+                                                                                # (coordinate) pixel neighborhood,
+                                                                                # 5 is the recommended value for fast processing
+                                      10 * adjustForm.noiseCorrection,          # std deviation sigma
+                                                                                # in color space,  100 middle value
+                                      50 if self.parentImage.useThumb else 150, # std deviation sigma
+                                                                                # in coordinate space,  100 middle value
                                       )
-        # bufpost = cv2.fastNlMeansDenoisingColored(bufpost, None, 1, 3, 7 ,21)  # last params window sizes 7, 21 are recommended values
+        """
+        bufpost = cv2.fastNlMeansDenoisingColored(bufpost, None, 3, 3, 7 ,21)  # h, hcolor,  last params window sizes 7, 21 are recommended values
 
         bufOut[:, :, :3][:, :, ::-1] = bufpost
         self.updatePixmap()
@@ -1072,10 +1076,23 @@ class vImage(QImage):
         currentImage = self.getCurrentImage()
         buf0 = QImageBuffer(inputImage)
         buf1 = QImageBuffer(currentImage)
-        if adjustForm.kernelCategory in [filterIndex.IDENTITY, filterIndex.UNSHARP, filterIndex.SHARPEN, filterIndex.BLUR1, filterIndex.BLUR2]:
-            buf1[:, :, :] = cv2.filter2D(buf0, -1, adjustForm.kernel)
+        r = inputImage.width() / self.width()
+        if self.rect is not None:
+            rect = self.rect
+            ROI0 = buf0[int(rect.top() * r): int(rect.bottom() * r), int(rect.left() * r): int(rect.right() * r),:3]
+            # reset output image
+            buf1[:,:,:] = buf0
+            ROI1 = buf1[int(rect.top() * r): int(rect.bottom() * r), int(rect.left() * r): int(rect.right() * r),:3]
         else:
-            buf1[:,:,:3][:,:,::-1] = cv2.bilateralFilter( buf0[:,:,:3][:,:,::-1], adjustForm.radius, 10*adjustForm.tone, 50 if self.parentImage.useThumb else 150)
+            ROI0 = buf0[:,:,:3]
+            ROI1 = buf1[:,:,:3]
+        if adjustForm.kernelCategory in [filterIndex.IDENTITY, filterIndex.UNSHARP, filterIndex.SHARPEN, filterIndex.BLUR1, filterIndex.BLUR2]:
+            ROI1[:,:,:] = cv2.filter2D(ROI0, -1, adjustForm.kernel)
+        else:
+            radius = adjustForm.radius
+            if self.parentImage.useThumb:
+                radius = radius * r
+            ROI1[:,:,::-1] = cv2.bilateralFilter( ROI0[:,:,::-1], radius, 10*adjustForm.tone, 50 if self.parentImage.useThumb else 200)
         self.updatePixmap()
 
     def applyTemperature(self, temperature, options):
@@ -1131,11 +1148,11 @@ class vImage(QImage):
             # convert to RGB Linear
             bufLinear = (rgb2rgbLinearVec(buf[:,:,::-1])*255).astype(np.uint8)
             # convert to XYZ
-            bufXYZ = np.tensordot( bufLinear, sRGB2XYZ, axes=(-1,-1))
+            bufXYZ = np.tensordot(bufLinear, sRGB_lin2XYZ, axes=(-1, -1))
             # apply conversion matrix
             bufXYZ = np.tensordot(bufXYZ, M, axes=(-1, -1))
             # convert back to RGBLinear
-            bufOutRGBLinear = np.tensordot(bufXYZ, sRGB2XYZInverse, axes=(-1,-1))
+            bufOutRGBLinear = np.tensordot(bufXYZ, sRGB_lin2XYZInverse, axes=(-1, -1))
             # convert back to RGB
             bufOutRGB = rgbLinear2rgbVec(bufOutRGBLinear.astype(np.float)/255.0)
             bufOutRGB = (bufOutRGB.clip(0, 255)).astype(np.uint8)

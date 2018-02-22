@@ -81,6 +81,8 @@ from types import MethodType
 from cv2 import NORMAL_CLONE
 
 import rawpy
+from PIL.ImageCms import get_display_profile
+from PIL.ImageWin import HDC, HWND
 
 from grabcut import segmentForm
 from PySide2.QtCore import Qt, QRect, QEvent, QDir, QUrl, QSize, QFileInfo, QRectF, QThread, QObject, Signal, QPoint, \
@@ -90,7 +92,7 @@ from PySide2.QtGui import QPixmap, QPainter, QCursor, QKeySequence, QBrush, QPen
 from PySide2.QtWidgets import QApplication, QMenu, QAction, QFileDialog, QMessageBox, \
     QMainWindow, QLabel, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QWidget, \
     QListWidget, QListWidgetItem, QAbstractItemView, QStyle
-from QtGui1 import app, window
+from QtGui1 import app, window, Form1
 import exiftool
 from graphicsRaw import rawForm
 from graphicsTransform import transForm
@@ -372,13 +374,9 @@ def mouseEvent(widget, event) :
                     # select grid node for 3DLUT form
                     if layer.is3DLUTLayer():
                             layer.view.widget().selectGridNode(red, green, blue)
-                if window.btnValues['rectangle']:
-                    """
-                    layer.rect = QRect((min(State['ix_begin'], x) - img.xOffset) // r,
-                                       (min(State['iy_begin'], y) - img.yOffset) // r,
-                                       abs(State['ix_begin'] - x) // r, abs(State['iy_begin'] - y) // r)
-                    """
-                    # for cloning layer do cloning
+                    if window.btnValues['rectangle'] and (modifiers == Qt.ControlModifier):
+                        layer.rect = None  # TODO added 18/02/18 to clear selection
+                # for cloning layer do cloning
                 if layer.isCloningLayer():
                     if modifiers == Qt.ControlModifier | Qt.AltModifier:
                         if layer.keepCloned:
@@ -532,8 +530,8 @@ def contextMenu(pos, widget):
 
 def loadImageFromFile(f):
     """
-    loads metadata and image from file.
-    For raw file, a default postprocessing is performed.
+    load metadata and image from file. Return the loaded image.
+    For raw file, it is the image postprocessed with default parameters.
     metadata is a list of dicts with len(metadata) >=1.
     metadata[0] contains at least 'SourceFile' : path.
     profile is a string containing the profile binary data,
@@ -575,9 +573,12 @@ def loadImageFromFile(f):
     elif ext in list(RAW_FILE_EXTENSIONS):
         raw = rawpy.imread(f)
         rawSizes = raw.sizes
+        # init buffer with four channels (alpha channel is set to 255)
         rawBuf = np.zeros((rawSizes.height, rawSizes.width, 4), dtype=np.uint8)+255
-        rawBuf[:,:,:3][:,:,::-1] = raw.postprocess()  # shape (w,h,3) dtype=uint8
+        # postprocess raw image with default parameters taken from vImage.applyRawPostProcessing
+        rawBuf[:,:,:3][:,:,::-1] = raw.postprocess(use_camera_wb=True, gamma=(2.4, 12.92)) # sRGB (exponent, slope) cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
         img = imImage(cv2Img=rawBuf, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile, name=name, rating=rating)
+        #keep reference to rawpy object
         img.rawImage = raw
     if img.isNull():
         raise ValueError("Cannot read file %s" % f)
@@ -604,17 +605,12 @@ def addBasicAdjustmentLayers(img):
 def addRawAdjustmentLayer():
     lname = 'Development'
     l = window.label.img.addAdjustmentLayer(name=lname)
+    # cache for post processed (no sat, no contrast, no filter,...) image
+    l.postProcessCache = None
     grWindow = rawForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window,
                                             mainForm=window)
     # wrapper for the right apply method
     l.execute = lambda l=l, pool=None: l.applyRawPostProcessing()
-    """
-    def h(lay, clipLimit):
-        lay.clipLimit = clipLimit
-        lay.applyToStack()
-        window.label.img.onImageChanged()
-    grWindow.onUpdateDevelop = h
-    """
     # record action name for scripting
     l.actionName = ''
     # dock the form
@@ -719,7 +715,12 @@ def setDocumentImage(img):
                                      chanColors=window.histView.chanColors, mode=window.histView.mode, addMode='Luminosity')
         window.histView.Label_Hist.setPixmap(QPixmap.fromImage(histView))
         window.histView.Label_Hist.repaint()
-
+    ###################################
+    # init displayed images
+    # label.img : working image
+    # label_2.img  : before image (copy of the initial state of working image)
+    # label_3.img : reference to working image
+    ###################################
     window.label.img.onImageChanged = f
     # before image : the stack is not copied
     window.label_2.img = imImage(QImg=img, meta=img.meta)
@@ -743,6 +744,12 @@ def updateMenuOpenRecent():
         window.menuOpen_recent.addAction(f, lambda x=f: openFile(x))
 
 def updateEnabledActions():
+    """
+    Menu aboutToShow handler
+    @return:
+    @rtype:
+    """
+    window.actionColor_manage.setChecked(icc.COLOR_MANAGE)
     window.actionSave.setEnabled(window.label.img.isModified)
     window.actionSave_Hald_Cube.setEnabled(window.label.img.isHald)
 
@@ -1150,8 +1157,16 @@ def menuImage(name) :
         label.setText(s)
     elif name == 'actionColor_manage':
         icc.COLOR_MANAGE = window.actionColor_manage.isChecked()
-        img.updatePixmap()
-        window.label_2.img.updatePixmap()
+        try:
+            QApplication.setOverrideCursor(Qt.WaitCursor)
+            QApplication.processEvents()
+            img.updatePixmap()
+            window.label_2.img.updatePixmap()
+        finally:
+            QApplication.restoreOverrideCursor()
+            QApplication.processEvents()
+        window.label.repaint()
+        window.label_2.repaint()
     elif name == 'actionWorking_profile':
         w, label = handleTextWindow(parent=window, title='profile info')
         s = 'Working profile\n' + icc.workingProfile.info
@@ -1322,6 +1337,7 @@ def menuLayer(name):
         lname = 'Filter'
         l = window.label.img.addAdjustmentLayer(name=lname)
         grWindow = filterForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
+        """
         # temperature change event handler
         def h(category, radius, amount):
             l.kernelCategory = category
@@ -1332,6 +1348,7 @@ def menuLayer(name):
             window.label.img.onImageChanged()
             #window.label.repaint()
         grWindow.onUpdateFilter = h
+        """
         # wrapper for the right apply method
         l.execute = lambda l=l, pool=None: l.applyFilter2D()
         # l.execute = lambda: l.applyLab1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
@@ -1569,11 +1586,44 @@ def updateStatus():
         s = s + '     Cropped : h/w ratio %.2f ' % window.cropTool.formFactor
     window.Label_status.setText(s)
 
+def screenUpdate():
+    """
+    screenChanged event handler
+    """
+    qdw = window.desktop
+    screenCount = qdw.screenCount()
+    defaultScreen = qdw.screen(-1)
+    # defaultScreenRect = qdw.screenGeometry(-1)
+    # window.move(sefaultScreenRect.width(), sefaultScreenRect.top())
+    actualScreen = qdw.screen(qdw.screenNumber(window))
+    # don't color manage if screen is not the default screen
+    icc.COLOR_MANAGE = icc.COLOR_MANAGE and (actualScreen is defaultScreen)
+    window.actionColor_manage.setEnabled(icc.HAS_COLOR_MANAGE and (actualScreen is defaultScreen))
+    window.label.img.updatePixmap()
+    window.label_2.img.updatePixmap()
+    window.label.update()
+    window.label_2.update()
+
 ###########
 # app init
 ##########
 if __name__ =='__main__':
 
+    #############################################
+    # Screen detection for multiscreen environment
+    ##############################################
+
+    window.screenChanged.connect(screenUpdate)
+    qdw = window.desktop
+    screenCount = qdw.screenCount()
+    defaultScreen = qdw.screen(-1)
+    #defaultScreenRect = qdw.screenGeometry(-1)
+    #window.move(sefaultScreenRect.width(), sefaultScreenRect.top())
+    actualScreen = qdw.screen(qdw.screenNumber(window))
+    # don't color manage if screen is not the default screen
+    icc.HAS_COLOR_MANAGE = icc.HAS_COLOR_MANAGE and (actualScreen is defaultScreen)
+    icc.COLOR_MANAGE = icc.COLOR_MANAGE and (actualScreen is defaultScreen)
+    window.actionColor_manage.setEnabled(icc.HAS_COLOR_MANAGE)
     # style sheet
     app.setStyleSheet("QMainWindow, QGraphicsView, QListWidget, QMenu, QTableView {background-color: rgb(200, 200, 200)}\
                        QMenu, QTableView { selection-background-color: blue; selection-color: white;}\

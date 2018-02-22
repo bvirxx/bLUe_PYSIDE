@@ -38,8 +38,6 @@ class transForm (QGraphicsView):
         self.img = targetImage
         self.layer = layer
         self.mainForm = mainForm
-        self.onUpdateFilter = lambda *args: 0
-
         # options
         optionList = ['Perspective', 'Rotation']
         self.listWidget1 = optionsWidget(options=optionList, exclusive=True)
