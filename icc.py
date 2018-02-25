@@ -21,7 +21,7 @@ from PIL.ImageCms import getOpenProfile, get_display_profile, getProfileDescript
 
 from imgconvert import PilImageToQImage, QImageToPilImage
 
-from settings import SRGB_PROFILE_PATH
+from settings import SRGB_PROFILE_PATH, SYSTEM_PROFILE_PATH
 
 ###################
 # Color management init
@@ -37,7 +37,7 @@ try:
     # a PyCmsError exception raised if monitorProfile is invalid
     monitorProfile.info = getProfileInfo(monitorProfile)
     # get CmsProfile object and info from ICC profile name,
-    # a PyCmsError exception is raised if invalid path
+    # a PyCmsError exception is raised if the path is invalid.
     workingProfile = getOpenProfile(SRGB_PROFILE_PATH)
     workingProfile.info = getProfileInfo(workingProfile)
     # get CmsTransform object from working profile to monitor profile
@@ -61,7 +61,7 @@ except:
     workToMonTransform = None
 
 def getProfiles():
-    profileDir = "C:\Windows\System32\spool\drivers\color"
+    profileDir = SYSTEM_PROFILE_PATH
     from os import listdir
     from os.path import isfile, join
     onlyfiles = [f for f in listdir(profileDir) if isfile(join(profileDir, f)) and ('icc' in f or 'icm' in f)]

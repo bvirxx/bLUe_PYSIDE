@@ -42,6 +42,7 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
 
         self.desktop = app.desktop()
         self.currentScreenIndex = self.desktop.screenNumber(self)
+        print('init screen index', self.currentScreenIndex)
         # hooks added to event handlers
         self.updateStatus = lambda : 0
         self.onWidgetChange = lambda : 0
@@ -104,7 +105,7 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
 
     def readSettings(self):
         self.settings = QSettings("bLUe.ini", QSettings.IniFormat)
-        self.resize(self.settings.value("mainwindow/size", QSize(250, 200)))
+        #self.resize(self.settings.value("mainwindow/size", QSize(250, 200)))
 
     def writeSettings(self):
         self.settings.sync()

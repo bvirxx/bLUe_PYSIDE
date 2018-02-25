@@ -15,12 +15,14 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+from PySide2 import QtCore
+
 import numpy as np
 from math import factorial
 from PySide2.QtGui import QColor, QPainterPath, QPen, QImage, QPainter, QTransform, QPolygonF
 from PySide2.QtWidgets import QListWidget, QListWidgetItem, QGraphicsPathItem, QDialog, QVBoxLayout, \
     QFileDialog, QSlider, QWidget, QHBoxLayout, QLabel, QMessageBox, QPushButton, QToolButton
-from PySide2.QtCore import Qt, QPoint, QEvent, QObject, QUrl, QRect, QDir
+from PySide2.QtCore import Qt, QPoint, QEvent, QObject, QRect, QDir
 from os.path import isfile
 
 import exiftool
@@ -125,20 +127,17 @@ def openDlg(mainWidget):
         filenames = dlg.selectedFiles()
         newDir = dlg.directory().absolutePath()
         mainWidget.settings.setValue('paths/dlgdir', newDir)
-        # update list of recent files
-        filter(lambda a: a != filenames[0], mainWidget._recentFiles)
-        mainWidget._recentFiles.insert(0, filenames[0])
-        if len(mainWidget._recentFiles) > 10:
-            mainWidget._recentFiles.pop()  # remove last item
-        mainWidget.settings.setValue('paths/recent', mainWidget._recentFiles)
         return filenames[0]
     else:
         return None
 
 class UDict(object):
-   def __init__(self, d1, d2):
+    """
+    Union of dictionaries
+    """
+    def __init__(self, d1, d2):
        self.d1, self.d2 = d1, d2
-   def __getitem__(self, item):
+    def __getitem__(self, item):
        if item in self.d1:
            return self.d1[item]
        return self.d2[item]
@@ -182,7 +181,7 @@ class optionsWidget(QListWidget) :
         self.exclusive = exclusive
         self.itemClicked.connect(self.select)
         if changed is not None:
-            self.itemClicked.connect(lambda: changed.emit())
+            self.itemClicked.connect(changed)
         # selection hook.
         self.onSelect = lambda x : 0
 
@@ -210,7 +209,7 @@ class optionsWidget(QListWidget) :
 
 class croppingHandle(QToolButton):
     """
-    Active button, draggable with mouse
+    Active button, draggable with the mouse
 
     """
     def __init__(self, role='', tool=None, parent=None):

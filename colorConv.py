@@ -511,7 +511,7 @@ def temperatureAndTint2RGBMultipliers(temp, tint, XYZ2RGBMatrix):
     conversion matrix XYZ2RGBMatrix.
     Multipliers are m1 = mR, m2 = mG*tint, m3 = mB. For convenience
     the function returns the 4 values m1, m2, m3, m2, scaled to min(m1,m2,m3)=1.
-    The tint factor should br between 0.2 and 2.5
+    The tint factor should be between 0.2 and 2.5
     @param T: temperature
     @type T: float
     @param green: Tint factor

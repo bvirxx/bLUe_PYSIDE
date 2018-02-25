@@ -578,8 +578,11 @@ def loadImageFromFile(f):
         # postprocess raw image with default parameters taken from vImage.applyRawPostProcessing
         rawBuf[:,:,:3][:,:,::-1] = raw.postprocess(use_camera_wb=True, gamma=(2.4, 12.92)) # sRGB (exponent, slope) cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
         img = imImage(cv2Img=rawBuf, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile, name=name, rating=rating)
+        img.filename = f
         #keep reference to rawpy object
         img.rawImage = raw
+    else:
+        raise ValueError("Cannot read file %s" % f)
     if img.isNull():
         raise ValueError("Cannot read file %s" % f)
     window.settings.setValue('paths/dlgdir', QFileInfo(f).absoluteDir().path())
@@ -655,7 +658,15 @@ def openFile(f):
             img.layersStack[0].applyToStack()
             updateStatus()
             window.label.img.onImageChanged()
-    except ValueError as e:
+            # update list of recent files
+            filter(lambda a: a != f, window._recentFiles)
+            window._recentFiles.insert(0, f)
+            if len(window._recentFiles) > 10:
+                window._recentFiles.pop()  # remove last item
+            window.settings.setValue('paths/recent', window._recentFiles)
+    except (ValueError, rawpy.rawpyLibRawFatalError) as e:  # TODO 25/02/18 rawpyLibRawFatalError undefined
+        QApplication.restoreOverrideCursor()
+        QApplication.processEvents()
         msg = QMessageBox()
         msg.setWindowTitle('Warning')
         msg.setIcon(QMessageBox.Warning)
@@ -1169,12 +1180,18 @@ def menuImage(name) :
         window.label_2.repaint()
     elif name == 'actionWorking_profile':
         w, label = handleTextWindow(parent=window, title='profile info')
-        s = 'Working profile\n' + icc.workingProfile.info
-        s = s + '-------------\n' + 'Monitor profile\n'+ icc.monitorProfile.info
-        s = s + '\nNote : The working profile is the color profile currently associated\n with the opened image.'
-        s = s + '\nThe monitor profile is associated with your monitor'
-        s = s + '\nBoth profles are used in conjunction to display exact colors'
-        s = s + '\n\nIf the monitor profile listed above is not the right profile\nfor your monitor, check the system settings for color management'
+        s = 'Working profile :\n'
+        if hasattr(icc, 'workingProfile') :
+            s = s + icc.workingProfile.info
+        s = s + '-------------\n' + 'Monitor profile :\n'
+        if hasattr(icc, 'monitorProfile'):
+            s = s + icc.monitorProfile.info + '-------------\n'
+        s = s + 'Note :\nThe working profile is the color profile currently associated with the opened image.'
+        s = s + 'The monitor profile is associated with your monitor.'
+        s = s + '\nBoth profiles are used in conjunction to display exact colors. '
+        s = s + 'If one of them is missing, bLUe cannot color manage your image.'
+        s = s + '\nIf the monitor profile listed above is not the right profilefor your monitor, please check the system settings for color management'
+        label.setWordWrap(True)
         label.setText(s)
     # snapshot
     elif name in ['action90_CW', 'action90_CCW', 'action180']:
@@ -1532,7 +1549,7 @@ def handleNewWindow(imImg=None, parent=None, title='New window', show_maximized=
         newwindow.show()
     return newwindow, label
 
-def handleTextWindow(parent=None, title=''):
+def handleTextWindow(parent=None, title='', center=True):
     """
     Display a floating modal text window
     @param parent:
@@ -1542,19 +1559,21 @@ def handleTextWindow(parent=None, title=''):
     @return (new window, label)
     @rtype: QMainWindow, QLabel
     """
-    w, label = handleNewWindow(parent=parent, title=title, event_handler=False, scroll = True)
+    w, label = handleNewWindow(parent=parent, title=title, event_handler=False, scroll=True)
     w.setFixedSize(500,500)
     label.setAlignment(Qt.AlignTop)
     w.hide()
+    if center:
+        w.move(w.windowHandle().screen().geometry().center() - w.rect().center())
     w.setWindowModality(Qt.WindowModal)
     w.show()
     return w, label
-
+"""
 def initMenuAssignProfile():
     window.menuAssign_profile.clear()
     for f in PROFILES_LIST:
         window.menuAssign_profile.addAction(f[0]+" "+f[1], lambda x=f : window.execAssignProfile(x))
-
+"""
 def close(e):
     """
     app close event handler
@@ -1574,14 +1593,14 @@ def updateStatus():
     # filename and rating
     s = img.filename + ' ' + (' '.join(['*']*img.meta.rating))
     if img.useThumb:
-        s = s + '      ' + '<font color=red><b>Preview</b></font> '
+        s = s + '      ' + '<font color=red><b>&nbsp;&nbsp;&nbsp;&nbsp;Preview</b></font> '
     else:
         # mandatory to toggle html mode
-        s = s + '      ' + '<font color=black><b> </b></font> '
+        s = s + '      ' + '<font color=black><b>&nbsp;&nbsp;&nbsp;&nbsp;</b></font> '
     if window.viewState == 'Before/After':
-        s += '&nbsp;&nbsp;Before/After : Ctrl+Space : cycle through views - Space : switch back to workspace'
+        s += '&nbsp;&nbsp;&nbsp;&nbsp;Before/After : Ctrl+Space : cycle through views - Space : switch back to workspace'
     else:
-        s += '&nbsp;&nbsp;press Space Bar to toggle Before/After view'
+        s += '&nbsp;&nbsp;&nbsp;&nbsp;Press Space Bar to toggle Before/After view'
     if window.label.img.isCropped:
         s = s + '     Cropped : h/w ratio %.2f ' % window.cropTool.formFactor
     window.Label_status.setText(s)
@@ -1597,7 +1616,7 @@ def screenUpdate():
     # window.move(sefaultScreenRect.width(), sefaultScreenRect.top())
     actualScreen = qdw.screen(qdw.screenNumber(window))
     # don't color manage if screen is not the default screen
-    icc.COLOR_MANAGE = icc.COLOR_MANAGE and (actualScreen is defaultScreen)
+    icc.COLOR_MANAGE = icc.HAS_COLOR_MANAGE and (actualScreen is defaultScreen)
     window.actionColor_manage.setEnabled(icc.HAS_COLOR_MANAGE and (actualScreen is defaultScreen))
     window.label.img.updatePixmap()
     window.label_2.img.updatePixmap()
@@ -1620,10 +1639,24 @@ if __name__ =='__main__':
     #defaultScreenRect = qdw.screenGeometry(-1)
     #window.move(sefaultScreenRect.width(), sefaultScreenRect.top())
     actualScreen = qdw.screen(qdw.screenNumber(window))
+    print(actualScreen is defaultScreen)
     # don't color manage if screen is not the default screen
     icc.HAS_COLOR_MANAGE = icc.HAS_COLOR_MANAGE and (actualScreen is defaultScreen)
     icc.COLOR_MANAGE = icc.COLOR_MANAGE and (actualScreen is defaultScreen)
     window.actionColor_manage.setEnabled(icc.HAS_COLOR_MANAGE)
+
+    # splash screen
+    pixmap = QPixmap('logo.png')
+    splash = QSplashScreen(pixmap, Qt.WindowStaysOnTopHint)
+    splash.show()
+    app.processEvents()
+    splash.showMessage("Loading .", color=Qt.white, alignment=Qt.AlignCenter)
+    app.processEvents()
+    sleep(1)
+    splash.showMessage("Loading ...", color=Qt.white, alignment=Qt.AlignCenter)
+    splash.finish(window)
+    app.processEvents()
+
     # style sheet
     app.setStyleSheet("QMainWindow, QGraphicsView, QListWidget, QMenu, QTableView {background-color: rgb(200, 200, 200)}\
                        QMenu, QTableView { selection-background-color: blue; selection-color: white;}\
@@ -1644,16 +1677,6 @@ if __name__ =='__main__':
     window.histView.mode = 'Luminosity'
     window.histView.chanColors = Qt.gray #[Qt.red, Qt.green,Qt.blue]
 
-    # splash screen
-    pixmap = QPixmap('logo.png')
-    splash = QSplashScreen(pixmap, Qt.WindowStaysOnTopHint)
-    splash.show()
-    app.processEvents()
-    splash.showMessage("Loading .", color=Qt.white, alignment=Qt.AlignCenter)
-    app.processEvents()
-    sleep(1)
-    splash.showMessage("Loading ...", color=Qt.white, alignment=Qt.AlignCenter)
-    app.processEvents()
 
     # close event handler
     window.onCloseEvent = close
@@ -1688,9 +1711,6 @@ if __name__ =='__main__':
     img=QImage(200, 200, QImage.Format_ARGB32)
     img.fill(Qt.darkGray)
     defaultImImage = imImage(QImg=img, meta=metadata(name='noName'))
-
-    PROFILES_LIST = icc.getProfiles()
-    initMenuAssignProfile()
 
     window.label.img = defaultImImage
     window.label_2.img = defaultImImage

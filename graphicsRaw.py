@@ -24,6 +24,7 @@ from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QLabel, Q
 
 from colorConv import xyWP2temperature, sRGB_lin2XYZ, temperature2xyWP, sRGB_lin2XYZInverse, Bradford, BradfordInverse, \
     temperatureAndTint2RGBMultipliers, xy2TemperatureAndTint, RGBMultipliers2TemperatureAndTint, temperatureAndTint2xy
+from qrangeslider import QRangeSlider
 from utils import optionsWidget, UDict
 
 # cf https://github.com/LibRaw/LibRaw/blob/master/src/libraw_cxx.cpp
@@ -32,7 +33,7 @@ class rawForm (QGraphicsView):
     """
     GUI for postprocessing of raw files
     """
-    dataChanged = QtCore.Signal()
+    dataChanged = QtCore.Signal(bool)
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         wdgt = rawForm(axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
@@ -79,10 +80,10 @@ class rawForm (QGraphicsView):
         self.tempCorrection, self.tintCorrection = RGBMultipliers2TemperatureAndTint(*multipliers, rgb_xyz_matrix_inverse)
         # options
         optionList = ['Auto Brightness', 'Preserve Highlights', 'Auto Scale']
-        self.listWidget1 = optionsWidget(options=optionList, exclusive=False, changed=self.dataChanged)
+        self.listWidget1 = optionsWidget(options=optionList, exclusive=False, changed=lambda: self.dataChanged.emit(True))
         self.listWidget1.checkOption(optionList[0])
         optionList = ['Auto WB', 'Camera WB', 'User WB']
-        self.listWidget2 = optionsWidget(options=optionList, exclusive=True, changed=self.dataChanged)
+        self.listWidget2 = optionsWidget(options=optionList, exclusive=True, changed=lambda: self.dataChanged.emit(True))
         self.listWidget2.checkOption(optionList[1])
         self.options = UDict(self.listWidget1.options, self.listWidget2.options)
 
@@ -107,36 +108,38 @@ class rawForm (QGraphicsView):
         h = metrics.height()
         self.tempValue.setMinimumSize(w, h)
         self.tempValue.setMaximumSize(w, h)
-        #self.tempValue.setStyleSheet("QLabel {color : gray;}")
 
-        # temp done event handler
-        def tempUpdate():
-            self.sliderTemp.setEnabled(False)
+        # temp changed  event handler
+        def tempUpdate(value):
+            self.tempValue.setText(str("{:.0f}".format(slider2Temp(self.sliderTemp.value()))))
+            # move not yet terminated or value not modified
+            if self.sliderTemp.isSliderDown() or slider2Temp(value) == self.tempCorrection:
+                return
+            self.sliderTemp.valueChanged.disconnect()
+            self.sliderTemp.sliderReleased.disconnect()
             self.tempCorrection = slider2Temp(self.sliderTemp.value())
             self.tempValue.setText(str("{:.0f}".format(self.tempCorrection)))
             multipliers = temperatureAndTint2RGBMultipliers(self.tempCorrection, self.tintCorrection, rgb_xyz_matrix_inverse)
             self.rawMultipliers = [daylight[i] / multipliers[i] for i in range(3)] + [daylight[1] / multipliers[1]]
             m = min(self.rawMultipliers[:3])
             self.rawMultipliers = [self.rawMultipliers[i] / m for i in range(4)]
-            self.dataChanged.emit()
-            self.sliderTemp.setEnabled(True)
-        # temp value changed event handler
-        def sliderTempUpdate():
-            self.tempValue.setText(str("{:.0f}".format(slider2Temp(self.sliderTemp.value()))))
-        self.sliderTemp.valueChanged.connect(sliderTempUpdate)
-        self.sliderTemp.sliderReleased.connect(tempUpdate)
+            self.dataChanged.emit(True)
+            self.sliderTemp.valueChanged.connect(tempUpdate)  # send new value as parameter
+            self.sliderTemp.sliderReleased.connect(lambda: tempUpdate(self.sliderTemp.value()))  # signal has no parameter
+        self.sliderTemp.valueChanged.connect(tempUpdate)  # send new value as parameter
+        self.sliderTemp.sliderReleased.connect(lambda :tempUpdate(self.sliderTemp.value()))  # signal has no parameter
 
         # tint slider
         self.sliderTint = QSlider(Qt.Horizontal)
         self.sliderTint.setTickPosition(QSlider.TicksBelow)
-        self.sliderTint.setRange(0, 185)
+        self.sliderTint.setRange(0, 150)
         def slider2Tint(v):
-            return 0.2 + 0.0125 * v  # wanted range : 0.2..2.5
+            return 0.1 + 0.01 * v #0.2 + 0.0125 * v  # wanted range : 0.2...2.5
         def tint2Slider(t):
-            return (t - 0.2) / 0.0125
+            return (t - 0.1) / 0.01
         # displayed value
         def slider2User(v):
-            return v - 92 # ((slider2Tint(v) - 1)*100)
+            return v - 75 # ((slider2Tint(v) - 1)*100)
         self.sliderTint.setSingleStep(1)
 
         tintLabel = QLabel()
@@ -153,25 +156,23 @@ class rawForm (QGraphicsView):
         #self.tintValue.setStyleSheet("QLabel {color : gray;}")
 
         # tint done event handler
-        def tintUpdate():
-            self.sliderTint.setEnabled(False)
-            #self.tintValue.setText(str("{:+.0f}".format((self.sliderTint.value() - 1.0/self.DefaultTintStep))))
-            #self.tintCorrection = self.sliderTint.value() * self.DefaultTintStep
+        def tintUpdate(value):
+            self.tintValue.setText(str("{:.0f}".format(slider2Tint(self.sliderTint.value()))))
+            # move not yet terminated or value not modified
+            if self.sliderTint.isSliderDown() or slider2Tint(value) == self.tintCorrection:
+                return
+            self.sliderTint.valueChanged.disconnect()
+            self.sliderTint.sliderReleased.disconnect()
             self.tintCorrection = slider2Tint(self.sliderTint.value())
             self.tintValue.setText(str("{:+.0f}".format(slider2User(self.sliderTint.value()))))
             multipliers = temperatureAndTint2RGBMultipliers(self.tempCorrection, self.tintCorrection, rgb_xyz_matrix_inverse)
             self.rawMultipliers = [daylight[i] / multipliers[i] for i in range(3)] + [daylight[1] / multipliers[1]]
             m = min(self.rawMultipliers[:3])
             self.rawMultipliers = [self.rawMultipliers[i] / m for i in range(4)]
-            self.dataChanged.emit()
+            self.dataChanged.emit(True)
             self.sliderTint.setEnabled(True)
-
-        # tint value changed event handler
-        def sliderTintUpdate():
-            self.tintValue.setText(str("{:+.0f}".format(slider2User(self.sliderTint.value()))))
-
-        self.sliderTint.valueChanged.connect(sliderTintUpdate)
-        self.sliderTint.sliderReleased.connect(tintUpdate)
+        self.sliderTint.valueChanged.connect(tintUpdate)
+        self.sliderTint.sliderReleased.connect(lambda :tintUpdate(self.sliderTint.value()))  # signal has no parameter)
 
 
         # exp slider
@@ -198,19 +199,30 @@ class rawForm (QGraphicsView):
         #self.expValue.setStyleSheet("QLabel {color : gray;}")
 
         # exp done event handler
-        def expUpdate():
-            self.sliderExp.setEnabled(False)
+        def expUpdate(value):
+            self.expValue.setText(str("{:.0f}".format(slider2Exp(self.sliderExp.value()))))
+            # move not yet terminated or value not modified
+            if self.sliderExp.isSliderDown() or slider2Exp(value) == self.expCorrection:
+                return
+            self.sliderExp.valueChanged.disconnect()
+            self.sliderExp.sliderReleased.disconnect()
             # rawpy: expCorrection range is -2.0...3.0 boiling down to exp_shift range 2**(-2)=0.25...2**3=8.0
             self.expCorrection = slider2Exp(self.sliderExp.value())
             self.expValue.setText(str("{:+.1f}".format(self.expCorrection)))
-            self.dataChanged.emit()
-            self.sliderExp.setEnabled(True)
-        # exp value changed event handler
-        def sliderExpUpdate():
-            self.expValue.setText(str("{:+.1f}".format(slider2Exp(self.sliderExp.value()))))
+            self.dataChanged.emit(True)
+            self.sliderExp.valueChanged.connect(expUpdate)  # send new value as parameter
+            self.sliderExp.sliderReleased.connect(lambda: expUpdate(self.sliderExp.value()))  # signal has no parameter
+        self.sliderExp.valueChanged.connect(expUpdate)  # send new value as parameter
+        self.sliderExp.sliderReleased.connect(lambda: expUpdate(self.sliderExp.value()))  # signal has no parameter
+        # range slider
+        rs = QRangeSlider()
+        rs.setMaximumSize(16000, 10)
 
-        self.sliderExp.valueChanged.connect(sliderExpUpdate)
-        self.sliderExp.sliderReleased.connect(expUpdate)
+        rs.setRange(0, 99)
+        rs.setBackgroundStyle('background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #222, stop:1 #333);')
+        rs.handle.setStyleSheet('background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #282, stop:1 #393);')
+        self.sliderFilterRange = rs
+        rs.show()
 
 
         # contrast slider
@@ -240,19 +252,20 @@ class rawForm (QGraphicsView):
         #self.contValue.setStyleSheet("QLabel {color : gray;}")
 
         # cont done event handler
-        def contUpdate():
-            self.sliderCont.setEnabled(False)
+        def contUpdate(value):
+            self.contValue.setText(str("{:.0f}".format(slider2Cont(self.sliderCont.value()))))
+            # move not yet terminated or value not modified
+            if self.sliderCont.isSliderDown() or slider2Cont(value) == self.tempCorrection:
+                return
+            self.sliderCont.valueChanged.disconnect()
+            self.sliderCont.sliderReleased.disconnect()
             self.contCorrection = slider2Cont(self.sliderCont.value())
             self.contValue.setText(str("{:+d}".format(self.contCorrection)))
-            self.dataChanged.emit()
-            self.sliderCont.setEnabled(True)
-
-        # cont value changed event handler
-        def sliderContUpdate():
-            self.contValue.setText(str("{:+d}".format(slider2Cont(self.sliderCont.value()))))
-
-        self.sliderCont.valueChanged.connect(sliderContUpdate)
-        self.sliderCont.sliderReleased.connect(contUpdate)
+            self.dataChanged.emit(False)
+            self.sliderCont.valueChanged.connect(contUpdate)  # send new value as parameter
+            self.sliderCont.sliderReleased.connect(lambda: contUpdate(self.sliderCont.value()))  # signal has no parameter
+        self.sliderCont.valueChanged.connect(contUpdate)  # send new value as parameter
+        self.sliderCont.sliderReleased.connect(lambda: contUpdate(self.sliderCont.value()))  # signal has no parameter
 
         # noise reduction slider
         self.sliderNoise = QSlider(Qt.Horizontal)
@@ -280,20 +293,20 @@ class rawForm (QGraphicsView):
         self.noiseValue.setMaximumSize(w, h)
 
         # noise done event handler
-        def noiseUpdate():
-            self.sliderNoise.setEnabled(False)
+        def noiseUpdate(value):
+            self.noiseValue.setText(str("{:.0f}".format(slider2Noise(self.sliderNoise.value()))))
+            # move not yet terminated or value not modified
+            if self.sliderNoise.isSliderDown() or slider2Noise(value) == self.noiseCorrection:
+                return
+            self.sliderNoise.valueChanged.disconnect()
+            self.sliderNoise.sliderReleased.disconnect()
             self.noiseCorrection = slider2Noise(self.sliderNoise.value())
             self.noiseValue.setText(str("{:+d}".format(slider2Noise(self.sliderNoise.value()))))
-            self.dataChanged.emit()
-            self.sliderNoise.setEnabled(True)
-
-        # noise value changed event handler
-        def sliderNoiseUpdate():
-            self.noiseValue.setText(str("{:+d}".format(slider2Noise(self.sliderNoise.value()))))
-
-        self.sliderNoise.valueChanged.connect(sliderNoiseUpdate)
-        self.sliderNoise.sliderReleased.connect(noiseUpdate)
-
+            self.dataChanged.emit(False)
+            self.sliderNoise.valueChanged.connect(noiseUpdate)  # send new value as parameter
+            self.sliderNoise.sliderReleased.connect(lambda: noiseUpdate(self.sliderNoise.value()))  # signal has no parameter
+        self.sliderNoise.valueChanged.connect(noiseUpdate)  # send new value as parameter
+        self.sliderNoise.sliderReleased.connect(lambda: noiseUpdate(self.sliderNoise.value()))  # signal has no parameter
 
         # saturation slider
         self.sliderSat = QSlider(Qt.Horizontal)
@@ -321,19 +334,20 @@ class rawForm (QGraphicsView):
         # self.contValue.setStyleSheet("QLabel {color : gray;}")
 
         # sat done event handler
-        def satUpdate():
-            self.sliderSat.setEnabled(False)
+        def satUpdate(value):
+            self.satValue.setText(str("{:.0f}".format(slider2Sat(self.sliderSat.value()))))
+            # move not yet terminated or value not modified
+            if self.sliderSat.isSliderDown() or slider2Sat(value) == self.satCorrection:
+                return
+            self.sliderSat.valueChanged.disconnect()
+            self.sliderSat.sliderReleased.disconnect()
             self.satCorrection = slider2Sat(self.sliderSat.value())
             self.satValue.setText(str("{:+d}".format(slider2Sat(self.sliderSat.value()))))
-            self.dataChanged.emit()
-            self.sliderSat.setEnabled(True)
-
-        # sat value changed event handler
-        def sliderSatUpdate():
-            self.satValue.setText(str("{:+d}".format(slider2Sat(self.sliderSat.value()))))
-
-        self.sliderSat.valueChanged.connect(sliderSatUpdate)
-        self.sliderSat.sliderReleased.connect(satUpdate)
+            self.dataChanged.emit(False)
+            self.sliderSat.valueChanged.connect(satUpdate)  # send new value as parameter
+            self.sliderSat.sliderReleased.connect(lambda: satUpdate(self.sliderSat.value()))  # signal has no parameter
+        self.sliderSat.valueChanged.connect(satUpdate)  # send new value as parameter
+        self.sliderSat.sliderReleased.connect(lambda: satUpdate(self.sliderSat.value()))  # signal has no parameter
 
         def enableSliders():
             useUserWB = self.listWidget2.options["User WB"]
@@ -350,34 +364,31 @@ class rawForm (QGraphicsView):
 
         # slider Temp init
         self.sliderTemp.setValue(round(temp2Slider(self.tempCorrection)))
-        sliderTempUpdate()
+        self.tempValue.setText(str("{:.0f}".format(slider2Temp(self.sliderTemp.value()))))
         #self.sliderTemp.setEnabled(False)  # initially we use camera WB
         # slider Tint init
         self.sliderTint.setValue(round(tint2Slider(self.tintCorrection)))
-        sliderTintUpdate()
-        #self.sliderTint.setEnabled(False)  # initially we use camera WB
+        self.tintValue.setText(str("{:.0f}".format(slider2Tint(self.sliderTint.value()))))
         # slider exp init
         self.sliderExp.setValue(exp2Slider(0.0))
         #self.sliderExp.setEnabled(False)  # initially  we use auto brightness
-        sliderExpUpdate()
+        self.expValue.setText(str("{:.0f}".format(slider2Exp(self.sliderExp.value()))))
         # slider cont init
         self.sliderCont.setValue(cont2Slider(0.0))
         # self.sliderCont.setEnabled(False)
-        sliderContUpdate()
+        self.contValue.setText(str("{:+d}".format(slider2Cont(self.sliderCont.value()))))
         # slider noise init
         self.sliderNoise.setValue(noise2Slider(1.0))
-        sliderNoiseUpdate()
+        self.noiseValue.setText(str("{:.0f}".format(slider2Noise(self.sliderNoise.value()))))
         # slider sat init
         self.sliderSat.setValue(sat2Slider(1.0))
-        sliderSatUpdate()
+        self.satValue.setText(str("{:.0f}".format(slider2Sat(self.sliderSat.value()))))
         enableSliders()
 
-
-
         # data changed event handler
-        def updateLayer():
-            # invalidate cache
-            self.layer.postProcessCache = None
+        def updateLayer(invalidate):
+            if invalidate:
+               self.layer.postProcessCache = None
             enableSliders()
             self.layer.applyToStack()
             self.layer.parentImage.onImageChanged()
@@ -405,6 +416,8 @@ class rawForm (QGraphicsView):
         hl4.addWidget(self.contValue)
         hl4.addWidget(self.sliderCont)
 
+        hl8 = QHBoxLayout()
+        hl8.addWidget(self.sliderFilterRange)
         hl7 = QHBoxLayout()
         hl7.addWidget(satLabel)
         hl7.addWidget(self.satValue)
@@ -420,6 +433,7 @@ class rawForm (QGraphicsView):
         l.addLayout(hl3)
         l.addLayout(hl1)
         l.addLayout(hl4)
+        l.addLayout(hl8)
         l.addLayout(hl7)
         l.addLayout(hl6)
         l.addLayout(hl5)

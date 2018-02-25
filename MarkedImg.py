@@ -86,7 +86,6 @@ class vImage(QImage):
         buf = QImageBuffer(mask)
         buf[:, :, 3] = np.where(buf[:, :, 2] == 0, 0, 255)
         return mask
-
     @classmethod
     def visualizeMask(cls, img, mask, color=True, clipping=False):
         # copy image
@@ -117,7 +116,6 @@ class vImage(QImage):
                 qp.drawImage(QRect(0, 0, img.width(), img.height()), checkeredImage(img.width(), img.height()))
         qp.end()
         return img
-
     @ classmethod
     def seamlessMerge(cls, dest, source, mask, cloningMethod):
         """
@@ -160,6 +158,7 @@ class vImage(QImage):
         """
         With no parameter, builds a null image.
         Mask is disabled by default.
+        image is assumed to be in the color space sRGB : colorSpace value is used only as meta data.
         @param filename: path to file
         @type filename: str
         @param cv2Img: data buffer
@@ -172,7 +171,7 @@ class vImage(QImage):
         @type format: QImage.Format
         @param name: image name
         @type name: str
-        @param colorSpace: color space (default notSpecified)
+        @param colorSpace: color space (default : notSpecified)
         @type colorSpace: MarkedImg.colorSpace
         @param orientation: Qtransform object (default None)
         @type orientation: Qtransform 
@@ -183,7 +182,7 @@ class vImage(QImage):
         @param profile: embedded profile (default '')
         @type profile: str
         """
-        # color management : working profile is assumed as image profile
+        # color management : working profile is assumed for image
         self.colorTransformation = icc.workToMonTransform
         # current color managed image
         self.cmImage = None
@@ -209,7 +208,7 @@ class vImage(QImage):
         # preview image.
         # Conceptually, the layer stack can be seen as
         # the juxtaposition of two stacks:
-        #  - a stack of full size images
+        #  - a stack of full sized images
         #  - a stack of thumbnails
         # For the sake of performance, the two stacks are
         # NOT synchronized : they are updated independently.
@@ -700,6 +699,11 @@ class vImage(QImage):
         options = adjustForm.options
         currentImage = self.getCurrentImage()
         bufOut = QImageBuffer(currentImage)
+        if self.postProcessCache is not None:
+            if ((adjustForm.contCorrection == 0) and (self.postProcessCache.dtype==np.uint16)) or\
+                                          ((adjustForm.contCorrection > 0) and (self.postProcessCache.dtype==np.uint8)):
+                self.postProcessCache = None
+
         # process raw image
         if self.postProcessCache is None:
             bufpost = self.parentImage.rawImage.postprocess(
@@ -733,10 +737,13 @@ class vImage(QImage):
             # convert back to float32
             res = ((res.astype(np.float32))/655.35).astype(np.float32)
             buf32Lab[:, :, 0] = res
+            h = buf32Lab.shape[0]
+            test = np.array(range(h))/(2*h) + 0.5
+            buf32Lab[:, :, 0] = buf32Lab[:, :, 0] * (test[:,np.newaxis])
             bufRGB32 = cv2.cvtColor(buf32Lab, cv2.COLOR_Lab2RGB)
             # convert to uint8
             if self.parentImage.useThumb:
-                bufpost = cv2.resize((bufRGB32*255.0).astype(np.uint8), (currentImage.width(), currentImage.height()))
+                bufpost = cv2.resize((bufRGB32*255).astype(np.uint8), (currentImage.width(), currentImage.height()))
             else:
                 bufpost = (bufRGB32*255.0).astype(np.uint8)
         ################################################################
@@ -754,7 +761,7 @@ class vImage(QImage):
         ################################################################################
         # denoising
         # opencv fastNlMeansDenoisingColored is very slow (>30s for a 15 Mpx image).
-        # we use bilateral filtering instead.
+        # bilateral filtering is faster but not very accurate.
         ################################################################################
         """
         bufpost = cv2.bilateralFilter(bufpost,
@@ -767,9 +774,11 @@ class vImage(QImage):
                                                                                 # in coordinate space,  100 middle value
                                       )
         """
-        bufpost = cv2.fastNlMeansDenoisingColored(bufpost, None, 3, 3, 7 ,21)  # h, hcolor,  last params window sizes 7, 21 are recommended values
-
-        bufOut[:, :, :3][:, :, ::-1] = bufpost
+        #bufpost = cv2.fastNlMeansDenoisingColored(bufpost, None, 3, 3, 7 ,21)  # hluminance, hcolor,  last params window sizes 7, 21 are recommended values
+        noisecorr = adjustForm.noiseCorrection
+        if noisecorr > 0:
+            bufpost = cv2.fastNlMeansDenoisingColored(bufpost, None, 1+noisecorr, 1+noisecorr, 7, 21)
+            bufOut[:, :, :3][:, :, ::-1] = bufpost
         self.updatePixmap()
 
     def applyCLAHE(self, clipLimit, options):
