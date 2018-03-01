@@ -18,12 +18,13 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import multiprocessing
 import types
 import weakref
+from PySide2 import QtCore
 from functools import partial
 
 import gc
 
 import rawpy
-from PySide2.QtCore import Qt, QBuffer, QDataStream, QFile, QIODevice, QSize, QPointF, QPoint, QRectF
+from PySide2.QtCore import Qt, QBuffer, QDataStream, QFile, QIODevice, QSize, QPointF, QPoint, QRectF, QByteArray
 
 import cv2
 from copy import copy
@@ -730,6 +731,22 @@ class vImage(QImage):
         else:
             # 16 bits image --> RGB float32 (range 0..1) --> Lab float32 L range 0..100 (opencv convention)
             buf32Lab = cv2.cvtColor(((bufpost.astype(np.float32))/65536).astype(np.float32), cv2.COLOR_RGB2Lab)
+            ####################
+            # Gradual neutral density filter
+            ####################
+            if adjustForm.filterEnd > 4:
+                opacity = 1#0.25
+                s = 1 - opacity
+                h = buf32Lab.shape[0]
+                start = int(h * adjustForm.filterStart / 100)
+                end = int(h * adjustForm.filterEnd / 100)
+                test = np.array(range(end - start)) * opacity /(2.0* (end - start + 1)) + s
+                test = np.concatenate((np.zeros(start) + s, test, np.zeros(h - end) + 0.5))#1.0))
+                #buf32Lab[:, :, 0] = buf32Lab[:, :, 0] * (test[:, np.newaxis])
+                buf32Lab[:, :, 0] = np.where(buf32Lab[:, :, 0] < 50, buf32Lab[:, :, 0] * (test[:, np.newaxis]*2.0), 100 - 2.0*((1.0-test[:, np.newaxis])*(100.0-buf32Lab[:, :, 0])))
+            #####################
+            # contrast
+            #####################
             clahe = cv2.createCLAHE(clipLimit=adjustForm.contCorrection/2, tileGridSize=(8, 8))
             clahe.setClipLimit(adjustForm.contCorrection/2)
             # convert L channel to CV_16UC1 image and apply clahe
@@ -737,9 +754,7 @@ class vImage(QImage):
             # convert back to float32
             res = ((res.astype(np.float32))/655.35).astype(np.float32)
             buf32Lab[:, :, 0] = res
-            h = buf32Lab.shape[0]
-            test = np.array(range(h))/(2*h) + 0.5
-            buf32Lab[:, :, 0] = buf32Lab[:, :, 0] * (test[:,np.newaxis])
+
             bufRGB32 = cv2.cvtColor(buf32Lab, cv2.COLOR_Lab2RGB)
             # convert to uint8
             if self.parentImage.useThumb:
@@ -1422,8 +1437,7 @@ class mImage(vImage):
     def save(self, filename, quality=-1, compression=-1):
         """
         Build image from visible layers
-        and write it to file. If quality = -1 (default) we
-        use best available quality. Raise ValueError if
+        and write it to file. Raise IOError if
         saving fails.
         @param filename:
         @type filename: str
@@ -1434,14 +1448,22 @@ class mImage(vImage):
         if self.useThumb:
             return False
         img = self.mergeVisibleLayers()
-        # get imagewriter, format is guessed from filename extension
-        imgWriter = QImageWriter(filename)
-        imgWriter.setQuality(quality)
-        imgWriter.setCompression(compression)
-        if not imgWriter.canWrite():
-            raise ValueError("Invalid File Format")
-        if not imgWriter.write(img):
-            raise ValueError("Cannot write file")
+        # imagewriter and QImage.save are unusable for tif files,
+        # due to bugs in libtiff.
+        # We use opencv imwrite.
+        fileFormat = filename[-3:].upper()
+        if fileFormat == 'JPG':
+            params = [cv2.IMWRITE_JPEG_QUALITY, quality]  # quality range 0..100
+        elif fileFormat == 'PNG':
+            params = [cv2.IMWRITE_PNG_COMPRESSION, compression]  # compression range 0..9
+        elif fileFormat == 'TIF':
+            params = []
+        else:
+            raise IOError("Invalid File Format\nValid formats are jpg, png, tif ")
+        buf = QImageBuffer(img)[:,:,:3]
+        written = cv2.imwrite(filename, buf, params)
+        if not written:
+            raise IOError("Cannot write file %s " % filename)
         self.setModified(False)
 
     def writeStackToStream(self, dataStream):
@@ -1861,6 +1883,7 @@ class QLayer(vImage):
                 pool.close()
             pool = None
         finally:
+            self.parentImage.setModified(True)  #TODO 28/02/18 validate
             QApplication.restoreOverrideCursor()
             QApplication.processEvents()
 

@@ -54,16 +54,20 @@ def save(img, mainWidget):
     Image saving dialogs. The actual saving is
     done by calling mImage.save(). Metadata is copied from sidecar
     to image file. The function returns the image file name.
-    An exception ValueError is raised if saving fails.
-
+    Exception ValueError or IOError are raised if the saving fails.
     @param img:
     @type img: QImage
+    @param mainWidget:
+    @type mainWidget: QWidget
+    @return: filename
+    @rtype: str
     """
     # get last accessed dir
     lastDir = mainWidget.settings.value("paths/dlgdir", QDir.currentPath())
     # file dialogs
     dlg = savingDialog(mainWidget, "Save", lastDir)
     dlg.selectFile(img.filename)
+    dlg.dlg.currentChanged.connect(lambda f: print(f))
     if dlg.exec_():
         newDir = dlg.directory().absolutePath()
         mainWidget.settings.setValue('paths/dlgdir', newDir)
@@ -77,8 +81,6 @@ def save(img, mainWidget):
             reply.setWindowTitle('Warning')
             reply.setIcon(QMessageBox.Warning)
             reply.setText("File %s already exists\n" % filename)
-            #reply.setInformativeText("Save image as a new copy ?<br><font color='red'>CAUTION : Answering No will overwrite the file</font>")
-            #reply.setStandardButtons(QMessageBox.No | QMessageBox.Yes | QMessageBox.Cancel)
             reply.setStandardButtons(QMessageBox.Cancel)
             accButton = QPushButton("Save as New Copy")
             rejButton = QPushButton("OverWrite")
@@ -87,7 +89,7 @@ def save(img, mainWidget):
             reply.setDefaultButton(accButton)
             reply.exec_()
             retButton = reply.clickedButton()
-            # build a new name
+            # build a unique name
             if retButton is accButton:
                 i = 0
                 base = filename
@@ -103,9 +105,10 @@ def save(img, mainWidget):
                 pass
             else:
                 raise ValueError("Saving Operation Failure")
+        # get parameters
         quality = dlg.sliderQual.value()
         compression = dlg.sliderComp.value()
-        # write image file
+        # write image file : throw ValueError or IOError
         img.save(filename, quality=quality, compression=compression)  #mImage.save()
         # copy metadata to image file. The sidecar is not removed
         with exiftool.ExifTool() as e:
@@ -141,6 +144,17 @@ class UDict(object):
        if item in self.d1:
            return self.d1[item]
        return self.d2[item]
+
+class QbLUeSlider(QSlider):
+    def __init__(self, parent):
+        super(QbLUeSlider, self).__init__(parent)
+        self.setTickPosition(QSlider.NoTicks)
+        self.setMaximumSize(16777215, 10)
+        self.setStyleSheet("""QSlider::handle:horizontal {background: white; width: 10px; border: 1px solid black; border-radius: 4px; margin: -3px;}
+                              QSlider::handle:horizontal:hover {background: #DDDDFF;}""")
+
+    def setStyleSheet(self, sheet):
+        QSlider.setStyleSheet(self, self.styleSheet() + sheet)
 
 class optionsWidget(QListWidget) :
     """
@@ -511,7 +525,7 @@ class rotatingTool(QObject):
 
 class savingDialog(QDialog):
     """
-    File dialog with quality and compression sliders added.
+    File dialog with quality and compression sliders.
     We use a standard QFileDialog as a child widget and we
     forward its methods to the top level.
     """
@@ -527,19 +541,20 @@ class savingDialog(QDialog):
         """
         # QDialog __init__
         super().__init__()
+        self.setWindowTitle(text)
         # File Dialog
         self.dlg = QFileDialog(caption=text, directory=lastDir)
         # sliders
         self.sliderComp = QSlider(Qt.Horizontal)
         self.sliderComp.setTickPosition(QSlider.TicksBelow)
-        self.sliderComp.setRange(0, 100)
-        self.sliderComp.setSingleStep(10)
-        self.sliderComp.setValue(100)
+        self.sliderComp.setRange(0, 9)
+        self.sliderComp.setSingleStep(1)
+        self.sliderComp.setValue(5)
         self.sliderQual = QSlider(Qt.Horizontal)
         self.sliderQual.setTickPosition(QSlider.TicksBelow)
         self.sliderQual.setRange(0, 100)
         self.sliderQual.setSingleStep(10)
-        self.sliderQual.setValue(100)
+        self.sliderQual.setValue(90)
         self.dlg.setVisible(True)
         l = QVBoxLayout()
         h = QHBoxLayout()

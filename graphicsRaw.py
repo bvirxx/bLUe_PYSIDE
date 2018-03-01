@@ -19,40 +19,33 @@ import numpy as np
 from PySide2 import QtCore
 
 from PySide2.QtCore import Qt
-from PySide2.QtGui import QFontMetrics, QFont
+from PySide2.QtGui import QFontMetrics
 from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QSlider
 
-from colorConv import xyWP2temperature, sRGB_lin2XYZ, temperature2xyWP, sRGB_lin2XYZInverse, Bradford, BradfordInverse, \
-    temperatureAndTint2RGBMultipliers, xy2TemperatureAndTint, RGBMultipliers2TemperatureAndTint, temperatureAndTint2xy
+from colorConv import temperatureAndTint2RGBMultipliers, RGBMultipliers2TemperatureAndTint
 from qrangeslider import QRangeSlider
-from utils import optionsWidget, UDict
-
-# cf https://github.com/LibRaw/LibRaw/blob/master/src/libraw_cxx.cpp
+from utils import optionsWidget, UDict, QbLUeSlider
 
 class rawForm (QGraphicsView):
     """
     GUI for postprocessing of raw files
+    # cf https://github.com/LibRaw/LibRaw/blob/master/src/libraw_cxx.cpp
     """
     dataChanged = QtCore.Signal(bool)
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         wdgt = rawForm(axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         wdgt.setWindowTitle(layer.name)
-        """
-        pushButton = QPushButton('apply', parent=wdgt)
-        hLay = QHBoxLayout()
-        wdgt.setLayout(hLay)
-        hLay.addWidget(pushButton)
-        pushButton.clicked.connect(lambda: wdgt.execute())
-        """
         return wdgt
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
+        super(rawForm, self).__init__(parent=parent)
+        self.setStyleSheet('QRangeSlider * {border: 0px; padding: 0px; margin: 0px}')
         self.expCorrection = 0.0
         self.contCorrection = 0.0
         self.noiseCorrection = 1.0
         self.satCorrection = 0.5
-        super(rawForm, self).__init__(parent=parent)
+        self.filterStart, self.filterEnd = 0, 100
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize, axeSize+200)  # +200 to prevent scroll bars in list Widgets
         self.setAttribute(Qt.WA_DeleteOnClose)
@@ -88,8 +81,9 @@ class rawForm (QGraphicsView):
         self.options = UDict(self.listWidget1.options, self.listWidget2.options)
 
         # WB sliders
-        self.sliderTemp = QSlider(Qt.Horizontal)
-        self.sliderTemp.setTickPosition(QSlider.TicksBelow)
+        self.sliderTemp = QbLUeSlider(Qt.Horizontal)
+        self.sliderTemp.setStyleSheet("""QSlider::groove:horizontal {margin: 3px; 
+                                          background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 blue, stop:1 red);}""")
         self.sliderTemp.setRange(0,130)
         def slider2Temp(v):
             return 2000 + v*v
@@ -98,13 +92,12 @@ class rawForm (QGraphicsView):
         self.sliderTemp.setSingleStep(1)
 
         tempLabel = QLabel()
-        #tempLabel.setFixedSize(40, 20)
         tempLabel.setText("Temp")
 
         self.tempValue = QLabel()
         font = self.tempValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("1000000")
+        w = metrics.width("10000")
         h = metrics.height()
         self.tempValue.setMinimumSize(w, h)
         self.tempValue.setMaximumSize(w, h)
@@ -118,7 +111,6 @@ class rawForm (QGraphicsView):
             self.sliderTemp.valueChanged.disconnect()
             self.sliderTemp.sliderReleased.disconnect()
             self.tempCorrection = slider2Temp(self.sliderTemp.value())
-            self.tempValue.setText(str("{:.0f}".format(self.tempCorrection)))
             multipliers = temperatureAndTint2RGBMultipliers(self.tempCorrection, self.tintCorrection, rgb_xyz_matrix_inverse)
             self.rawMultipliers = [daylight[i] / multipliers[i] for i in range(3)] + [daylight[1] / multipliers[1]]
             m = min(self.rawMultipliers[:3])
@@ -130,8 +122,10 @@ class rawForm (QGraphicsView):
         self.sliderTemp.sliderReleased.connect(lambda :tempUpdate(self.sliderTemp.value()))  # signal has no parameter
 
         # tint slider
-        self.sliderTint = QSlider(Qt.Horizontal)
-        self.sliderTint.setTickPosition(QSlider.TicksBelow)
+        self.sliderTint = QbLUeSlider(Qt.Horizontal)
+        #self.sliderTint.setStyleSheet(self.sliderTint.styleSheet()+'QSlider::groove:horizontal {background: red;}')
+        self.sliderTint.setStyleSheet("""QSlider::groove:horizontal {margin: 3px; 
+                                         background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 green, stop:1 magenta);}""")
         self.sliderTint.setRange(0, 150)
         def slider2Tint(v):
             return 0.1 + 0.01 * v #0.2 + 0.0125 * v  # wanted range : 0.2...2.5
@@ -143,41 +137,39 @@ class rawForm (QGraphicsView):
         self.sliderTint.setSingleStep(1)
 
         tintLabel = QLabel()
-        #tintLabel.setFixedSize(40, 20)
         tintLabel.setText("Tint")
 
         self.tintValue = QLabel()
         font = self.tempValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("10000")
+        w = metrics.width("100")
         h = metrics.height()
         self.tintValue.setMinimumSize(w, h)
         self.tintValue.setMaximumSize(w, h)
-        #self.tintValue.setStyleSheet("QLabel {color : gray;}")
 
-        # tint done event handler
+        # tint change event handler
         def tintUpdate(value):
-            self.tintValue.setText(str("{:.0f}".format(slider2Tint(self.sliderTint.value()))))
+            self.tintValue.setText(str("{:.0f}".format(slider2User(self.sliderTint.value()))))
             # move not yet terminated or value not modified
             if self.sliderTint.isSliderDown() or slider2Tint(value) == self.tintCorrection:
                 return
             self.sliderTint.valueChanged.disconnect()
             self.sliderTint.sliderReleased.disconnect()
             self.tintCorrection = slider2Tint(self.sliderTint.value())
-            self.tintValue.setText(str("{:+.0f}".format(slider2User(self.sliderTint.value()))))
             multipliers = temperatureAndTint2RGBMultipliers(self.tempCorrection, self.tintCorrection, rgb_xyz_matrix_inverse)
             self.rawMultipliers = [daylight[i] / multipliers[i] for i in range(3)] + [daylight[1] / multipliers[1]]
             m = min(self.rawMultipliers[:3])
             self.rawMultipliers = [self.rawMultipliers[i] / m for i in range(4)]
             self.dataChanged.emit(True)
-            self.sliderTint.setEnabled(True)
+            self.sliderTint.valueChanged.connect(tintUpdate)
+            self.sliderTint.sliderReleased.connect(lambda: tintUpdate(self.sliderTint.value()))  # signal has no parameter)
         self.sliderTint.valueChanged.connect(tintUpdate)
         self.sliderTint.sliderReleased.connect(lambda :tintUpdate(self.sliderTint.value()))  # signal has no parameter)
 
-
         # exp slider
-        self.sliderExp = QSlider(Qt.Horizontal)
-        self.sliderExp.setTickPosition(QSlider.TicksBelow)
+        self.sliderExp = QbLUeSlider(Qt.Horizontal)
+        self.sliderExp.setStyleSheet("""QSlider::groove:horizontal {margin: 3px; 
+                                          background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 black, stop:1 white);}""")
         self.sliderExp.setRange(0, 100)
         def slider2Exp(v):
             return v / 20.0 - 2.0
@@ -186,21 +178,19 @@ class rawForm (QGraphicsView):
         self.sliderExp.setSingleStep(1)
 
         expLabel = QLabel()
-        #expLabel.setFixedSize(40, 20)
         expLabel.setText("Exp")
 
         self.expValue = QLabel()
         font = self.expValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("10000")
+        w = metrics.width("+1.0")
         h = metrics.height()
         self.expValue.setMinimumSize(w, h)
         self.expValue.setMaximumSize(w, h)
-        #self.expValue.setStyleSheet("QLabel {color : gray;}")
 
         # exp done event handler
         def expUpdate(value):
-            self.expValue.setText(str("{:.0f}".format(slider2Exp(self.sliderExp.value()))))
+            self.expValue.setText(str("{:.1f}".format(slider2Exp(self.sliderExp.value()))))
             # move not yet terminated or value not modified
             if self.sliderExp.isSliderDown() or slider2Exp(value) == self.expCorrection:
                 return
@@ -208,26 +198,43 @@ class rawForm (QGraphicsView):
             self.sliderExp.sliderReleased.disconnect()
             # rawpy: expCorrection range is -2.0...3.0 boiling down to exp_shift range 2**(-2)=0.25...2**3=8.0
             self.expCorrection = slider2Exp(self.sliderExp.value())
-            self.expValue.setText(str("{:+.1f}".format(self.expCorrection)))
             self.dataChanged.emit(True)
             self.sliderExp.valueChanged.connect(expUpdate)  # send new value as parameter
             self.sliderExp.sliderReleased.connect(lambda: expUpdate(self.sliderExp.value()))  # signal has no parameter
         self.sliderExp.valueChanged.connect(expUpdate)  # send new value as parameter
         self.sliderExp.sliderReleased.connect(lambda: expUpdate(self.sliderExp.value()))  # signal has no parameter
-        # range slider
+
+        # filter range slider
         rs = QRangeSlider()
         rs.setMaximumSize(16000, 10)
 
-        rs.setRange(0, 99)
-        rs.setBackgroundStyle('background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #222, stop:1 #333);')
-        rs.handle.setStyleSheet('background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #282, stop:1 #393);')
+        rs.tail.setStyleSheet('background: white; /*qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #222, stop:1 #888); margin 3px;*/')
+        rs.handle.setStyleSheet('background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 black, stop:1 white);')
+        rs.head.setStyleSheet('background: black; /*qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #999, stop:1 #222);*/')
         self.sliderFilterRange = rs
-        rs.show()
+        frLabel = QLabel()
+        frLabel.setText("Gradual Filter")
 
+        # filter range done event handler
+        def frUpdate(start, end):
+            if self.sliderFilterRange.isSliderDown() or (start == self.filterStart and end == self.filterEnd):
+                return
+            self.sliderFilterRange.startValueChanged.disconnect()
+            self.sliderFilterRange.endValueChanged.disconnect()
+            self.sliderFilterRange.rangeDone.disconnect()
+            self.filterStart, self.filterEnd = self.sliderFilterRange.getRange()
+            self.dataChanged.emit(False)
+            self.sliderFilterRange.startValueChanged.connect(frUpdate)  # send new value as parameter
+            self.sliderFilterRange.endValueChanged.connect(frUpdate)  # send new value as parameter
+            self.sliderFilterRange.rangeDone.connect(frUpdate)
+        self.sliderFilterRange.startValueChanged.connect(frUpdate)  # send new value as parameter
+        self.sliderFilterRange.endValueChanged.connect(frUpdate)  # send new value as parameter
+        self.sliderFilterRange.rangeDone.connect(frUpdate)
 
         # contrast slider
-        self.sliderCont = QSlider(Qt.Horizontal)
-        self.sliderCont.setTickPosition(QSlider.TicksBelow)
+        self.sliderCont = QbLUeSlider(Qt.Horizontal)
+        self.sliderCont.setStyleSheet("""QSlider::groove:horizontal {margin: 3px; 
+                                        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 grey, stop:1 white);}""")
         self.sliderCont.setRange(0, 20)
 
         def slider2Cont(v):
@@ -239,17 +246,15 @@ class rawForm (QGraphicsView):
         self.sliderCont.setSingleStep(1)
 
         contLabel = QLabel()
-        #contLabel.setFixedSize(55, 20)
         contLabel.setText("Contrast")
 
         self.contValue = QLabel()
         font = self.contValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("10000")
+        w = metrics.width("100")
         h = metrics.height()
         self.contValue.setMinimumSize(w, h)
         self.contValue.setMaximumSize(w, h)
-        #self.contValue.setStyleSheet("QLabel {color : gray;}")
 
         # cont done event handler
         def contUpdate(value):
@@ -268,8 +273,9 @@ class rawForm (QGraphicsView):
         self.sliderCont.sliderReleased.connect(lambda: contUpdate(self.sliderCont.value()))  # signal has no parameter
 
         # noise reduction slider
-        self.sliderNoise = QSlider(Qt.Horizontal)
-        self.sliderNoise.setTickPosition(QSlider.TicksBelow)
+        self.sliderNoise = QbLUeSlider(Qt.Horizontal)
+        self.sliderNoise.setStyleSheet("""QSlider::groove:horizontal {margin: 3px; 
+                                         background: blue /*qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 blue, stop:1 red)*/;}""")
         self.sliderNoise.setRange(0, 20)
 
         def slider2Noise(v):
@@ -287,7 +293,7 @@ class rawForm (QGraphicsView):
         self.noiseValue = QLabel()
         font = self.noiseValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("10000")
+        w = metrics.width("1000")
         h = metrics.height()
         self.noiseValue.setMinimumSize(w, h)
         self.noiseValue.setMaximumSize(w, h)
@@ -309,8 +315,9 @@ class rawForm (QGraphicsView):
         self.sliderNoise.sliderReleased.connect(lambda: noiseUpdate(self.sliderNoise.value()))  # signal has no parameter
 
         # saturation slider
-        self.sliderSat = QSlider(Qt.Horizontal)
-        self.sliderSat.setTickPosition(QSlider.TicksBelow)
+        self.sliderSat = QbLUeSlider(Qt.Horizontal)
+        self.sliderSat.setStyleSheet("""QSlider::groove:horizontal {margin: 3px; 
+                                        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #999999, stop:1 red);}""")
         self.sliderSat.setRange(0, 100)
 
         def slider2Sat(v):
@@ -327,7 +334,7 @@ class rawForm (QGraphicsView):
         self.satValue = QLabel()
         font = self.satValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("10000")
+        w = metrics.width("100")
         h = metrics.height()
         self.satValue.setMinimumSize(w, h)
         self.satValue.setMaximumSize(w, h)
@@ -368,7 +375,7 @@ class rawForm (QGraphicsView):
         #self.sliderTemp.setEnabled(False)  # initially we use camera WB
         # slider Tint init
         self.sliderTint.setValue(round(tint2Slider(self.tintCorrection)))
-        self.tintValue.setText(str("{:.0f}".format(slider2Tint(self.sliderTint.value()))))
+        self.tintValue.setText(str("{:.0f}".format(slider2User(self.sliderTint.value()))))
         # slider exp init
         self.sliderExp.setValue(exp2Slider(0.0))
         #self.sliderExp.setEnabled(False)  # initially  we use auto brightness
@@ -396,6 +403,7 @@ class rawForm (QGraphicsView):
         self.setStyleSheet("QListWidget, QLabel {font : 7pt;}")
         #layout
         l = QVBoxLayout()
+        l.setContentsMargins(8, 8, 8, 8)  # left, top, right, bottom
         l.setAlignment(Qt.AlignBottom)
         hl1 = QHBoxLayout()
         hl1.addWidget(expLabel)
@@ -417,6 +425,7 @@ class rawForm (QGraphicsView):
         hl4.addWidget(self.sliderCont)
 
         hl8 = QHBoxLayout()
+        hl8.addWidget(frLabel)
         hl8.addWidget(self.sliderFilterRange)
         hl7 = QHBoxLayout()
         hl7.addWidget(satLabel)
@@ -437,7 +446,6 @@ class rawForm (QGraphicsView):
         l.addLayout(hl7)
         l.addLayout(hl6)
         l.addLayout(hl5)
-        l.setContentsMargins(20, 0, 20, 25)  # left, top, right, bottom
         l.addStretch(1)
         self.setLayout(l)
         self.adjustSize()

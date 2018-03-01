@@ -127,7 +127,11 @@ from splittedView import splittedWindow
 
 ##################
 #  Software Attributions
-attributions = "libraw is licensed under LGPL\nexiftool is licensed under Perl Artistic License"
+attributions = """
+libraw is licensed under LGPL
+exiftool is licensed under Perl Artistic License
+QRangeSlider Copyright (c) 2011-2012, Ryan Galloway (http://rsgalloway.com)
+"""
 #################
 
 #################
@@ -528,7 +532,7 @@ def contextMenu(pos, widget):
     """
     pass
 
-def loadImageFromFile(f):
+def loadImageFromFile(f, createsidecar=True):
     """
     load metadata and image from file. Return the loaded image.
     For raw file, it is the image postprocessed with default parameters.
@@ -547,7 +551,7 @@ def loadImageFromFile(f):
         # read metadata from sidecar (.mie) if it exists, otherwise from image file.
         # Create sidecar if it does not exist.
         with exiftool.ExifTool() as e:
-            profile, metadata = e.get_metadata(f)
+            profile, metadata = e.get_metadata(f, createsidecar=createsidecar)
     except ValueError as er:
         # Default metadata and profile
         metadata = [{'SourceFile': f}]
@@ -637,7 +641,8 @@ def openFile(f):
     @type f: str
     """
     # close opened document, if any
-    closeFile()
+    if not closeFile():
+        return
     # load file
     try :
         QApplication.setOverrideCursor(Qt.WaitCursor)
@@ -664,7 +669,7 @@ def openFile(f):
             if len(window._recentFiles) > 10:
                 window._recentFiles.pop()  # remove last item
             window.settings.setValue('paths/recent', window._recentFiles)
-    except (ValueError, rawpy.rawpyLibRawFatalError) as e:  # TODO 25/02/18 rawpyLibRawFatalError undefined
+    except (ValueError, rawpy.LibRawFatalError) as e:
         QApplication.restoreOverrideCursor()
         QApplication.processEvents()
         msg = QMessageBox()
@@ -677,12 +682,32 @@ def openFile(f):
         QApplication.processEvents()
 
 def closeFile():
+    """
+    Top Level function for file closing.
+    Close the opened document and clear windows.
+    @return:
+    @rtype: boolean
+    """
     if window.label.img.isModified:
-        ret = saveChangeDialog(window.label.img)
-        if ret == QMessageBox.Yes:
-            save(window.label.img, window)
-        elif ret == QMessageBox.Cancel:
-            return
+        try:
+            ret = saveChangeDialog(window.label.img)
+            if ret == QMessageBox.Yes:
+                filename = save(window.label.img, window)
+                msg = QMessageBox()
+                msg.setWindowTitle('Information')
+                msg.setIcon(QMessageBox.Information)
+                msg.setText("%s written" % filename)
+                msg.exec_()
+            elif ret == QMessageBox.Cancel:
+                # abort closing
+                return False
+        except (ValueError, IOError) as e:
+            msg = QMessageBox()
+            msg.setWindowTitle('Warning')
+            msg.setIcon(QMessageBox.Warning)
+            msg.setText(str(e))
+            msg.exec_()
+            return False
     # watch memory leak : set weakref to image
     # r = weakref.ref(window.label.img)
     window.tableView.clear(delete=True)
@@ -694,6 +719,7 @@ def closeFile():
     window.label.update()
     window.label_2.update()
     window.label_3.update()
+    return True
 
 def setDocumentImage(img):
     """
@@ -794,7 +820,7 @@ def menuFile(name):
                 msg.setIcon(QMessageBox.Information)
                 msg.setText("%s written" % filename)
                 msg.exec_()
-            except ValueError as e:
+            except (ValueError, IOError) as e:
                 msg = QMessageBox()
                 msg.setWindowTitle('Warning')
                 msg.setIcon(QMessageBox.Warning)
@@ -839,7 +865,7 @@ isSuspended= False
 
 def playDiaporama(diaporamaGenerator, parent=None):
     """
-    Opens a new window and Plays a diaporama.
+    Open a new window and Play a diaporama.
     @param diaporamaGenerator: generator for file names
     @type  diaporamaGenerator: iterator object
     @param parent:
@@ -863,7 +889,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
     actionEsc.setShortcut(QKeySequence(Qt.Key_Escape))
     newWin.addAction(actionEsc)
     # context menu event handler
-    def h(action):
+    def contextMenuHandler(action):
         global isSuspended
         if action.text() == 'Pause':
             isSuspended = True
@@ -874,7 +900,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
         elif action.text() in ['0', '1','2','3','4','5']:
             with exiftool.ExifTool() as e:
                 e.writeXMPTag(name, 'XMP:rating', int(action.text()))
-    actionEsc.triggered.connect(lambda name=actionEsc: h(name))
+    actionEsc.triggered.connect(lambda name=actionEsc: contextMenuHandler(name))
     # context menu
     def contextMenu(position):
         menu = QMenu()
@@ -884,12 +910,12 @@ def playDiaporama(diaporamaGenerator, parent=None):
         action3.setEnabled(isSuspended)
         for action in [action1, action3]:
             menu.addAction(action)
-            action.triggered.connect(lambda name=action : h(name))
+            action.triggered.connect(lambda name=action : contextMenuHandler(name))
         subMenuRating = menu.addMenu('Rating')
         for i in range(6):
             action = QAction(str(i), None)
             subMenuRating.addAction(action)
-            action.triggered.connect(lambda name=action : h(name))
+            action.triggered.connect(lambda name=action : contextMenuHandler(name))
         menu.exec_(position)
     newWin.customContextMenuRequested.connect(contextMenu)
     # play diaporama
@@ -915,7 +941,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
             if rating < 2:
                 app.processEvents()
                 continue
-            imImg= loadImageFromFile(name)
+            imImg= loadImageFromFile(name, createsidecar=False)
             if label.img is not None:
                 imImg.Zoom_coeff = label.img.Zoom_coeff
             coeff = imImg.resize_coeff(label)

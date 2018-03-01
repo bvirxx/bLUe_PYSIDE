@@ -199,7 +199,7 @@ class ExifTool(object):
         """
         sidecar = source[:-4] + '.mie'
         if isfile(sidecar):
-            #self.execute(*(["-tagsFromFile", sidecar, "-all:all", "-overwrite_original", "-icc_profile", dest]))
+            # copy metadata from sidecar to image file
             self.execute(*(["-tagsFromFile", sidecar, "-overwrite_original", dest]))
         else:
             return False
