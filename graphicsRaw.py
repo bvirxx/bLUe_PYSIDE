@@ -43,7 +43,7 @@ class rawForm (QGraphicsView):
         self.setStyleSheet('QRangeSlider * {border: 0px; padding: 0px; margin: 0px}')
         self.expCorrection = 0.0
         self.contCorrection = 0.0
-        self.noiseCorrection = 1.0
+        self.noiseCorrection = 0
         self.satCorrection = 0.5
         self.filterStart, self.filterEnd = 0, 100
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
@@ -288,7 +288,7 @@ class rawForm (QGraphicsView):
 
         noiseLabel = QLabel()
         #noiseLabel.setFixedSize(110, 20)
-        noiseLabel.setText("Noise Reduction")
+        noiseLabel.setText("Noise Red.")
 
         self.noiseValue = QLabel()
         font = self.noiseValue.font()
@@ -342,14 +342,14 @@ class rawForm (QGraphicsView):
 
         # sat done event handler
         def satUpdate(value):
-            self.satValue.setText(str("{:.0f}".format(slider2Sat(self.sliderSat.value()))))
+            self.satValue.setText(str("{:+d}".format(slider2Sat(self.sliderSat.value()))))
             # move not yet terminated or value not modified
             if self.sliderSat.isSliderDown() or slider2Sat(value) == self.satCorrection:
                 return
             self.sliderSat.valueChanged.disconnect()
             self.sliderSat.sliderReleased.disconnect()
             self.satCorrection = slider2Sat(self.sliderSat.value())
-            self.satValue.setText(str("{:+d}".format(slider2Sat(self.sliderSat.value()))))
+            #self.satValue.setText(str("{:+d}".format(slider2Sat(self.sliderSat.value()))))
             self.dataChanged.emit(False)
             self.sliderSat.valueChanged.connect(satUpdate)  # send new value as parameter
             self.sliderSat.sliderReleased.connect(lambda: satUpdate(self.sliderSat.value()))  # signal has no parameter
@@ -377,19 +377,19 @@ class rawForm (QGraphicsView):
         self.sliderTint.setValue(round(tint2Slider(self.tintCorrection)))
         self.tintValue.setText(str("{:.0f}".format(slider2User(self.sliderTint.value()))))
         # slider exp init
-        self.sliderExp.setValue(exp2Slider(0.0))
+        self.sliderExp.setValue(exp2Slider(self.expCorrection))
         #self.sliderExp.setEnabled(False)  # initially  we use auto brightness
         self.expValue.setText(str("{:.0f}".format(slider2Exp(self.sliderExp.value()))))
         # slider cont init
-        self.sliderCont.setValue(cont2Slider(0.0))
+        self.sliderCont.setValue(cont2Slider(self.contCorrection))
         # self.sliderCont.setEnabled(False)
         self.contValue.setText(str("{:+d}".format(slider2Cont(self.sliderCont.value()))))
         # slider noise init
-        self.sliderNoise.setValue(noise2Slider(1.0))
-        self.noiseValue.setText(str("{:.0f}".format(slider2Noise(self.sliderNoise.value()))))
+        self.sliderNoise.setValue(noise2Slider(self.noiseCorrection))
+        self.noiseValue.setText(str("{:d}".format(slider2Noise(self.sliderNoise.value()))))
         # slider sat init
-        self.sliderSat.setValue(sat2Slider(1.0))
-        self.satValue.setText(str("{:.0f}".format(slider2Sat(self.sliderSat.value()))))
+        self.sliderSat.setValue(sat2Slider(self.satCorrection))
+        self.satValue.setText(str("{:+d}".format(slider2Sat(self.sliderSat.value()))))
         enableSliders()
 
         # data changed event handler
@@ -432,19 +432,15 @@ class rawForm (QGraphicsView):
         hl7.addWidget(self.satValue)
         hl7.addWidget(self.sliderSat)
         hl5 = QHBoxLayout()
+        hl5.addWidget(noiseLabel)
         hl5.addWidget(self.noiseValue)
         hl5.addWidget(self.sliderNoise)
-
-        hl6 = QHBoxLayout()
-        hl6.setAlignment(Qt.AlignHCenter)
-        hl6.addWidget(noiseLabel)
         l.addLayout(hl2)
         l.addLayout(hl3)
         l.addLayout(hl1)
         l.addLayout(hl4)
         l.addLayout(hl8)
         l.addLayout(hl7)
-        l.addLayout(hl6)
         l.addLayout(hl5)
         l.addStretch(1)
         self.setLayout(l)

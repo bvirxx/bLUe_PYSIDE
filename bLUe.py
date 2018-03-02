@@ -91,7 +91,7 @@ from PySide2.QtGui import QPixmap, QPainter, QCursor, QKeySequence, QBrush, QPen
     QPainterPath, QTransform, QIcon, QImageReader
 from PySide2.QtWidgets import QApplication, QMenu, QAction, QFileDialog, QMessageBox, \
     QMainWindow, QLabel, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QWidget, \
-    QListWidget, QListWidgetItem, QAbstractItemView, QStyle
+    QListWidget, QListWidgetItem, QAbstractItemView, QStyle, QToolTip
 from QtGui1 import app, window, Form1
 import exiftool
 from graphicsRaw import rawForm
@@ -344,7 +344,7 @@ def mouseEvent(widget, event) :
                                 layer.maskIsEnabled = True
                                 layer.maskIsSelected = False
                             layer.applyCloning(seamless=False)
-            # needed to update before window
+            # need to update before window
             else:
                 if modifiers == Qt.NoModifier:
                     img.xOffset += (x - State['ix'])
@@ -363,6 +363,14 @@ def mouseEvent(widget, event) :
                             layer.applyCloning(seamless=False)
         #update current coordinates
         State['ix'],State['iy']=x,y
+        if window.btnValues['colorPicker']:
+            tmp_x = int((x - img.xOffset) / r)
+            tmp_y = int((y - img.yOffset) / r)
+            color = QColor(layer.pixel(tmp_x, tmp_y))
+            s = ('%s  %s  %s' % (color.red(), color.green(), color.blue()))
+            QToolTip.showText(event.globalPos(), s, window, QRect(event.globalPos(), QSize(20,30)))
+
+
         if layer.isGeomLayer():
             layer.view.widget().tool.drawRotatingTool()
     # mouse release event
@@ -1628,15 +1636,16 @@ def updateStatus():
     else:
         s += '&nbsp;&nbsp;&nbsp;&nbsp;Press Space Bar to toggle Before/After view'
     if window.label.img.isCropped:
-        s = s + '     Cropped : h/w ratio %.2f ' % window.cropTool.formFactor
+        s = s + '&nbsp;&nbsp;&nbsp;&nbsp;Crop Tool : h/w ratio %.2f ' % window.cropTool.formFactor
     window.Label_status.setText(s)
 
 def screenUpdate():
     """
-    screenChanged event handler
+    screenChanged event handler. image is updated in background
     """
+    window.screenChanged.disconnect()
     qdw = window.desktop
-    screenCount = qdw.screenCount()
+    #screenCount = qdw.screenCount()
     defaultScreen = qdw.screen(-1)
     # defaultScreenRect = qdw.screenGeometry(-1)
     # window.move(sefaultScreenRect.width(), sefaultScreenRect.top())
@@ -1644,10 +1653,13 @@ def screenUpdate():
     # don't color manage if screen is not the default screen
     icc.COLOR_MANAGE = icc.HAS_COLOR_MANAGE and (actualScreen is defaultScreen)
     window.actionColor_manage.setEnabled(icc.HAS_COLOR_MANAGE and (actualScreen is defaultScreen))
-    window.label.img.updatePixmap()
-    window.label_2.img.updatePixmap()
-    window.label.update()
-    window.label_2.update()
+    def bgTask():
+        window.label.img.updatePixmap()
+        window.label_2.img.updatePixmap()
+        window.label.update()
+        window.label_2.update()
+    worker = threading.Thread(target=bgTask)
+    window.screenChanged.connect(screenUpdate)
 
 ###########
 # app init

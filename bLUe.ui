@@ -114,7 +114,7 @@
              </size>
             </property>
             <property name="toolTip">
-             <string>Crop Image</string>
+             <string>Crop Tool</string>
             </property>
             <property name="accessibleName">
              <string>Crop_Button</string>
@@ -172,7 +172,7 @@ Screen</string>
            </widget>
           </item>
           <item>
-           <widget class="QToolButton" name="toolButton_2">
+           <widget class="QToolButton" name="eyeDropper">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
               <horstretch>0</horstretch>
@@ -186,7 +186,7 @@ Screen</string>
              </size>
             </property>
             <property name="toolTip">
-             <string>Color Picker</string>
+             <string>EyeDropper Tool</string>
             </property>
             <property name="accessibleName">
              <string>colorPicker</string>
@@ -202,7 +202,7 @@ Screen</string>
              <bool>true</bool>
             </property>
             <property name="autoExclusive">
-             <bool>true</bool>
+             <bool>false</bool>
             </property>
             <property name="autoRaise">
              <bool>true</bool>
