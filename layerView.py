@@ -651,13 +651,17 @@ class QLayerView(QTableView) :
         @param event
         @type event: QContextMenuEvent
         """
+        selection = self.selectedIndexes()
+        if not selection:
+            return
         # get fresh context menu
         self.cMenu = self.initContextMenu()
         # get current selection
-        rows = set([mi.row() for mi in self.selectedIndexes()])
+        rows = set([mi.row() for mi in selection])
         rStack = self.img.layersStack[::-1]
         layers = [rStack[r] for r in rows]
-        group = layers[0].group
+        if layers:
+            group = layers[0].group
         for l in layers:
             # different groups
             if l.group and group:

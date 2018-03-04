@@ -25,7 +25,9 @@ from PySide2.QtCore import Qt
 
 
 class splittedWindow:
-
+    """
+    before/afetr viewing
+    """
     splittedViews = cycle(('H','V','B'))
 
     def __init__(self, win):
@@ -33,7 +35,7 @@ class splittedWindow:
 
     def setSplittedView(self):
         """
-        Initializes a Before/After view
+        Initialize a Before/After view
         @return:
         @rtype:
         """
@@ -49,7 +51,7 @@ class splittedWindow:
                 break
             watchDog += 1
             app.processEvents()
-        # sync before 'label_2) with after (label_3)
+        # sync before (label_2) with after (label_3)
         self.mainWin.label_2.img.Zoom_coeff = self.mainWin.label_3.img.Zoom_coeff
         if self.mainWin.splitter.currentState == 'H':
             self.mainWin.label_2.img.xOffset = self.mainWin.label_3.img.xOffset - self.mainWin.label_3.width()

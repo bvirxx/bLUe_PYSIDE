@@ -19,7 +19,7 @@ import numpy as np
 from math import erf
 
 class filterIndex():
-    IDENTITY, UNSHARP, SHARPEN, BLUR1, BLUR2, SURFACEBLUR = range(6)
+    IDENTITY, UNSHARP, SHARPEN, BLUR1, BLUR2, SURFACEBLUR, GRADUALFILTER = range(7)
 
 def phi(x, mu, sigma):
     """

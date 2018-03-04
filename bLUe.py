@@ -88,12 +88,13 @@ from grabcut import segmentForm
 from PySide2.QtCore import Qt, QRect, QEvent, QDir, QUrl, QSize, QFileInfo, QRectF, QThread, QObject, Signal, QPoint, \
     QMimeData, QByteArray
 from PySide2.QtGui import QPixmap, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, \
-    QPainterPath, QTransform, QIcon, QImageReader
+    QPainterPath, QTransform, QIcon, QImageReader, QContextMenuEvent
 from PySide2.QtWidgets import QApplication, QMenu, QAction, QFileDialog, QMessageBox, \
     QMainWindow, QLabel, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QWidget, \
     QListWidget, QListWidgetItem, QAbstractItemView, QStyle, QToolTip
 from QtGui1 import app, window, Form1
 import exiftool
+from graphicsBlendFilter import blendFilterForm
 from graphicsRaw import rawForm
 from graphicsTransform import transForm
 from imgconvert import *
@@ -253,6 +254,9 @@ def mouseEvent(widget, event) :
     @param event: mouse event
     @type event:
     """
+    if type(event) == QContextMenuEvent:
+        return
+
     global pressed, clicked
     # get image and active layer
     img= widget.img
@@ -586,9 +590,11 @@ def loadImageFromFile(f, createsidecar=True):
         raw = rawpy.imread(f)
         rawSizes = raw.sizes
         # init buffer with four channels (alpha channel is set to 255)
-        rawBuf = np.zeros((rawSizes.height, rawSizes.width, 4), dtype=np.uint8)+255
+        #rawBuf = np.zeros((rawSizes.height, rawSizes.width, 4), dtype=np.uint8)+255
         # postprocess raw image with default parameters taken from vImage.applyRawPostProcessing
-        rawBuf[:,:,:3][:,:,::-1] = raw.postprocess(use_camera_wb=True, gamma=(2.4, 12.92)) # sRGB (exponent, slope) cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
+        rawBuf = raw.postprocess(use_camera_wb=True, gamma=(2.4, 12.92)) # sRGB (exponent, slope) cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
+        rawBuf = rawBuf[:,:,::-1]
+        rawBuf = np.dstack((rawBuf, np.zeros(rawBuf.shape[:2], dtype=np.uint8)+255))
         img = imImage(cv2Img=rawBuf, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile, name=name, rating=rating)
         img.filename = f
         #keep reference to rawpy object
@@ -1388,21 +1394,15 @@ def menuLayer(name):
         lname = 'Filter'
         l = window.label.img.addAdjustmentLayer(name=lname)
         grWindow = filterForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
-        """
-        # temperature change event handler
-        def h(category, radius, amount):
-            l.kernelCategory = category
-            l.radius = radius
-            l.amount = amount
-            l.applyToStack()
-            #updateDocView()
-            window.label.img.onImageChanged()
-            #window.label.repaint()
-        grWindow.onUpdateFilter = h
-        """
         # wrapper for the right apply method
         l.execute = lambda l=l, pool=None: l.applyFilter2D()
         # l.execute = lambda: l.applyLab1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
+    elif name == 'actionGradual_Filter':
+        lname = 'Blend Filter'
+        l = window.label.img.addAdjustmentLayer(name=lname)
+        grWindow = blendFilterForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
+        # wrapper for the right apply method
+        l.execute = lambda l=l, pool=None: l.applyBlendFilter()
     elif name == 'actionSave_Layer_Stack':
         lastDir = window.settings.value('paths/dlgdir', '.')
         dlg = QFileDialog(window, "select", lastDir)

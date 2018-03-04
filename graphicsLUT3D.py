@@ -912,7 +912,8 @@ class graphicsForm3DLUT(QGraphicsView) :
                                  QListWidget::item::selected{background: black; border: none}"
 
         container.setStyleSheet(ss)
-        container.setGeometry(-offset // 2, axeSize + offset - 20, axeSize + offset, 80)
+        #container.setGeometry(-offset // 2, axeSize + offset - 20, axeSize + offset, 80)
+        container.setGeometry(-offset , axeSize + offset - 20, axeSize + offset, 80)
         self.graphicsScene.addWidget(container)
 
         for wdg in [self.listWidget1, self.listWidget2, self.listWidget3]:

@@ -217,6 +217,11 @@ class optionsWidget(QListWidget) :
         self.onSelect(item)
 
     def checkOption(self, name):
+        """
+
+        @param name: internal name of option
+        @type name: str
+        """
         item = self.items[name]
         item.setCheckState(Qt.Checked)
         self.select(item)

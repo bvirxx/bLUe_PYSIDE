@@ -567,6 +567,7 @@ Screen</string>
      <addaction name="actionCurves_HSpB"/>
      <addaction name="actionCurves_Lab"/>
      <addaction name="actionFilter"/>
+     <addaction name="actionGradual_Filter"/>
      <addaction name="separator"/>
      <addaction name="action3D_LUT_HSB"/>
      <addaction name="action3D_LUT"/>
@@ -893,6 +894,11 @@ Screen</string>
   <action name="actionViewer">
    <property name="text">
     <string>Viewer</string>
+   </property>
+  </action>
+  <action name="actionGradual_Filter">
+   <property name="text">
+    <string>Gradual Filter</string>
    </property>
   </action>
  </widget>

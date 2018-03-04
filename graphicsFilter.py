@@ -55,27 +55,13 @@ class filterForm (QGraphicsView):
         l.setAlignment(Qt.AlignBottom)
 
         # options
-        optionList = ['Unsharp Mask', 'Sharpen', 'Gaussian Blur', 'Surface Blur']
+        optionList = ['Unsharp Mask', 'Sharpen', 'Gaussian Blur', 'Surface Blur', 'Gradual Filter']
         filters = [ filterIndex.UNSHARP, filterIndex.SHARPEN, filterIndex.BLUR1, filterIndex.SURFACEBLUR]
         filterDict = dict(zip(optionList, filters))
-        """
-        self.options={}
-        for op in optionList:
-            self.options[op] = False
-        """
+
         self.listWidget1 = optionsWidget(options=optionList, exclusive=True, changed=self.dataChanged)
         # set initial selection to unsharp mask
         item = self.listWidget1.checkOption(optionList[0])
-
-        # selection event handler
-        def h(item):
-            for key in self.listWidget1.options:
-                if self.listWidget1.options[key]:
-                    self.kernelCategory = filterDict[key]
-                    break
-
-
-        self.listWidget1.onSelect = h
 
         # sliders
         self.sliderRadius = QSlider(Qt.Horizontal)
@@ -197,6 +183,10 @@ class filterForm (QGraphicsView):
         # data changed event handler
         def updateLayer():
             enableSliders()
+            for key in self.listWidget1.options:
+                if self.listWidget1.options[key]:
+                    self.kernelCategory = filterDict[key]
+                    break
             self.layer.applyToStack()
             self.layer.parentImage.onImageChanged()
 

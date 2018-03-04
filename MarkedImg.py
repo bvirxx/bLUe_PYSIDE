@@ -30,7 +30,7 @@ import cv2
 from copy import copy
 
 from PySide2.QtGui import QImageWriter, QImageReader, QTransform, QBrush
-from PySide2.QtWidgets import QApplication, QMessageBox
+from PySide2.QtWidgets import QApplication, QMessageBox, QSplitter
 from PySide2.QtGui import QPixmap, QImage, QColor, QPainter
 from PySide2.QtCore import QRect
 
@@ -316,14 +316,18 @@ class vImage(QImage):
 
     def resize_coeff(self, widget):
         """
-        Normalization of self.Zoom_coeff
-        returns the current resizing coefficient, used by
+        Normalization of self.Zoom_coeff.
+        Return the current resizing coefficient, used by
         the paint event handler to display the image.
-        This coefficient is chosen to initially (i.e. when self.Zoom_coeff = 1)
+        Note 1. This coefficient is chosen to initially (i.e. when self.Zoom_coeff = 1)
         fill the widget.
+        Note 2. To correctly manage splitted views, we use the size of the QSplitter parent
+        container instead of the size of the widget.
         @param widget: Qwidget object
         @return: the (multiplicative) resizing coefficient
         """
+        if type(widget.parent()) == QSplitter:
+            widget = widget.parent()
         r_w, r_h = float(widget.width()) / self.width(), float(widget.height()) / self.height()
         r = max(r_w, r_h)
         return r * self.Zoom_coeff
@@ -732,6 +736,7 @@ class vImage(QImage):
         if needLab:
             # 16 bits image --> RGB float32 (range 0..1) --> Lab float32 L range 0..100 (opencv convention)
             buf32Lab = cv2.cvtColor(((bufpost.astype(np.float32))/65536).astype(np.float32), cv2.COLOR_RGB2Lab)
+        """
         ####################
         # Gradual neutral density filter
         # We blend a neutral filter with density range 0.5*s...0.5 with the image b,
@@ -746,7 +751,7 @@ class vImage(QImage):
             adjustForm.sliderFilterRange.setStart(adjustForm.filterStart)
             adjustForm.sliderFilterRange.setEnd(adjustForm.filterEnd)
         if adjustForm.filterEnd > 4:
-            s = 0.4  #strongest 0
+            s = 0  #strongest 0
             opacity = 1 - s
 
             start = int(h * adjustForm.filterStart / 100.0)
@@ -757,7 +762,8 @@ class vImage(QImage):
             Lchan = buf32Lab[:, :, 0]
             buf32Lab[:, :, 0] = np.where(Lchan < 50, Lchan * (test1 * 2.0), 100.0 - 2.0 * (1.0 - test1) * (100.0 - Lchan))
             #luminosity correction
-            buf32Lab[:,:,0] = buf32Lab[:,:,0]*(1.0+0.1)
+            #buf32Lab[:,:,0] = buf32Lab[:,:,0]*(1.0+0.1)
+        """
         ###########
         # contrast.
         # Clahe performs badly on small images :
@@ -1139,8 +1145,51 @@ class vImage(QImage):
         else:
             radius = adjustForm.radius
             if self.parentImage.useThumb:
-                radius = radius * r
+                radius = int(radius * r)
             ROI1[:,:,::-1] = cv2.bilateralFilter( ROI0[:,:,::-1], radius, 10*adjustForm.tone, 50 if self.parentImage.useThumb else 200)
+        self.updatePixmap()
+
+    def applyBlendFilter(self):
+        adjustForm = self.view.widget()
+        inputImage = self.inputImg()
+        currentImage = self.getCurrentImage()
+        buf0 = QImageBuffer(inputImage)
+        buf1 = QImageBuffer(currentImage)
+        r = inputImage.width() / self.width()
+
+        ####################
+        # Gradual neutral density filter
+        # We blend a neutral filter with density range 0.5*s...0.5 with the image b,
+        # using the overlay blending mode : f(a,b) = 2*a*b if b < 0.5 else f(a,b) = 1 - 2*(1-a)(1-b)
+        ####################
+        # image --> RGB float32 (range 0..1) --> Lab float32 L range 0..100 (opencv convention)
+        buf32Lab = cv2.cvtColor(((buf0.astype(np.float32)) / 256).astype(np.float32), cv2.COLOR_BGR2Lab)
+        h = buf0.shape[0]
+        rect = getattr(self, 'rect', None)
+        if rect is not None:
+            rect = rect.intersected(QRect(0, 0, buf0.shape[1], buf0.shape[0]))
+            adjustForm.filterStart = int((rect.top() / h) * 100.0)
+            adjustForm.filterEnd = int((rect.bottom() / h) * 100.0)
+            adjustForm.sliderFilterRange.setStart(adjustForm.filterStart)
+            adjustForm.sliderFilterRange.setEnd(adjustForm.filterEnd)
+        if adjustForm.filterEnd > 4:
+            s = 0  # strongest 0
+            opacity = 1 - s
+            Lchan = buf32Lab[:, :, 0]
+            start = int(h * adjustForm.filterStart / 100.0)
+            end = int(h * adjustForm.filterEnd / 100.0)
+            test = np.array(range(end - start)) * opacity / (
+                        2.0 * max(end - start - 1, 1)) + 0.5 * s  # range 0.5*s...0.5
+            test = np.concatenate((np.zeros(start) + 0.5 * s, test, np.zeros(h - end) + 0.5))
+            test1 = test[:, np.newaxis] + np.zeros(Lchan.shape)
+
+            test1 = cv2.rotate(test1, cv2.ROTATE_180)
+            buf32Lab[:, :, 0] = np.where(Lchan < 50, Lchan * (test1 * 2.0),
+                                         100.0 - 2.0 * (1.0 - test1) * (100.0 - Lchan))
+            # luminosity correction
+            # buf32Lab[:,:,0] = buf32Lab[:,:,0]*(1.0+0.1)
+            bufRGB32 = cv2.cvtColor(buf32Lab, cv2.COLOR_Lab2RGB)
+            buf1[:,:,:3][:,:,::-1] = (bufRGB32 * 255.0).astype(np.uint8)
         self.updatePixmap()
 
     def applyTemperature(self, temperature, options):

@@ -204,6 +204,7 @@ class rawForm (QGraphicsView):
         self.sliderExp.valueChanged.connect(expUpdate)  # send new value as parameter
         self.sliderExp.sliderReleased.connect(lambda: expUpdate(self.sliderExp.value()))  # signal has no parameter
 
+        """
         # filter range slider
         rs = QRangeSlider()
         rs.setMaximumSize(16000, 10)
@@ -230,7 +231,7 @@ class rawForm (QGraphicsView):
         self.sliderFilterRange.startValueChanged.connect(frUpdate)  # send new value as parameter
         self.sliderFilterRange.endValueChanged.connect(frUpdate)  # send new value as parameter
         self.sliderFilterRange.rangeDone.connect(frUpdate)
-
+        """
         # contrast slider
         self.sliderCont = QbLUeSlider(Qt.Horizontal)
         self.sliderCont.setStyleSheet("""QSlider::groove:horizontal {margin: 3px; 
@@ -424,9 +425,9 @@ class rawForm (QGraphicsView):
         hl4.addWidget(self.contValue)
         hl4.addWidget(self.sliderCont)
 
-        hl8 = QHBoxLayout()
-        hl8.addWidget(frLabel)
-        hl8.addWidget(self.sliderFilterRange)
+        #hl8 = QHBoxLayout()
+        #hl8.addWidget(frLabel)
+        #hl8.addWidget(self.sliderFilterRange)
         hl7 = QHBoxLayout()
         hl7.addWidget(satLabel)
         hl7.addWidget(self.satValue)
@@ -439,7 +440,7 @@ class rawForm (QGraphicsView):
         l.addLayout(hl3)
         l.addLayout(hl1)
         l.addLayout(hl4)
-        l.addLayout(hl8)
+        #l.addLayout(hl8)
         l.addLayout(hl7)
         l.addLayout(hl5)
         l.addStretch(1)
