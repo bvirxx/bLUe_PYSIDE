@@ -726,13 +726,14 @@ class vImage(QImage):
                                         #gamma= (2.222, 4.5)  # default REC BT 709 exponent, slope
                                         gamma=(2.4, 12.92), # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
                                         exp_preserve_highlights = 0.8 if options['Preserve Highlights'] else 0.0,
-                                        output_bps=16
+                                        output_bps=16,
+                                        bright=adjustForm.brCorrection # default 1
                                                             )
             self.postProcessCache = np.copy(bufpost)
         else:
             bufpost = self.postProcessCache
 
-        needLab =  adjustForm.contCorrection > 0 or adjustForm.filterEnd > 4
+        needLab =  adjustForm.contCorrection > 0
         if needLab:
             # 16 bits image --> RGB float32 (range 0..1) --> Lab float32 L range 0..100 (opencv convention)
             buf32Lab = cv2.cvtColor(((bufpost.astype(np.float32))/65536).astype(np.float32), cv2.COLOR_RGB2Lab)

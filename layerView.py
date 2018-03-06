@@ -577,11 +577,12 @@ class QLayerView(QTableView) :
 
     def initContextMenu(self):
         """
-        returns context menu
+        return context menu
         @return:
         @rtype: QMenu
         """
         menu = QMenu()
+        menu.actionReset = QAction('Reset To Default', None)
         menu.actionLoadImage = QAction('Load New Image', None)
         menu.actionGroupSelection = QAction('Group Selection', None)
         menu.actionAdd2Group = QAction('Add to Group', None)
@@ -611,7 +612,9 @@ class QLayerView(QTableView) :
         menu.actionMaskErode = QAction('Erode Mask', None)
         menu.actionColorMaskEnable.setCheckable(True)
         menu.actionOpacityMaskEnable.setCheckable(True)
-        # add actions to menu
+        ####################
+        # Build menu
+        ###################
         # group/ungroup
         menu.addAction(menu.actionAdd2Group)
         menu.addAction(menu.actionGroupSelection)
@@ -643,6 +646,7 @@ class QLayerView(QTableView) :
         # it must be set in __init__
         menu.addAction(self.actionDup)
         menu.addAction(menu.actionMerge)
+        menu.addAction(menu.actionReset)
         return menu
 
     def contextMenuEvent(self, event):
@@ -827,6 +831,11 @@ class QLayerView(QTableView) :
             for l in self.img.layersStack:
                 l.updatePixmap(maskOnly=True)
             self.img.onImageChanged()
+        def layerReset():
+            view = layer.view.widget()
+            if hasattr(view, 'setDefaults'):
+                view.setDefaults()
+
         self.cMenu.actionRepositionLayer.triggered.connect(RepositionLayer)
         self.cMenu.actionUnselect.triggered.connect(unselectAll)
         self.cMenu.actionLoadImage.triggered.connect(loadImage)
@@ -845,6 +854,7 @@ class QLayerView(QTableView) :
         self.cMenu.actionImagePaste.triggered.connect(imagePaste)
         self.cMenu.actionMaskDilate.triggered.connect(maskDilate)
         self.cMenu.actionMaskErode.triggered.connect(maskErode)
+        self.cMenu.actionReset.triggered.connect(layerReset)
         self.cMenu.exec_(event.globalPos())
         # update table
         for row in rows:

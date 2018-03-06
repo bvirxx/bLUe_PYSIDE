@@ -146,7 +146,7 @@ class UDict(object):
        return self.d2[item]
 
 class QbLUeSlider(QSlider):
-    def __init__(self, parent):
+    def __init__(self, parent=None):
         super(QbLUeSlider, self).__init__(parent)
         self.setTickPosition(QSlider.NoTicks)
         self.setMaximumSize(16777215, 10)
@@ -178,12 +178,16 @@ class optionsWidget(QListWidget) :
         """
         super(optionsWidget, self).__init__(parent)
         if optionNames is None:
-            optionNames = options
+            self.extNames = options
+        else:
+            self.extNames = optionNames
+        self.intNames = options
+
         # dict of items with keys option internal name
         self.items = {}
-        # dict of item states with keys option internal names
+        # dict of item states with option internal name as key
         self.options = {}
-        for option, name in zip(options, optionNames):
+        for option, name in zip(options, self.intNames):
             listItem = QListWidgetItem(name, self)
             listItem.setCheckState(Qt.Unchecked)
             self.addItem(listItem)
@@ -225,6 +229,12 @@ class optionsWidget(QListWidget) :
         item = self.items[name]
         item.setCheckState(Qt.Checked)
         self.select(item)
+
+    def unCheckAll(self):
+        if self.exclusive:
+            return
+        for r in range(self.count()):
+            self.item(r).setCheckState(Qt.Unchecked)
 
 class croppingHandle(QToolButton):
     """

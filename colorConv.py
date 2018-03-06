@@ -466,8 +466,10 @@ def temperatureAndTint2xy(temp, tint):
     """
     Convert temperature and tint to xy coordinates. The tint input is first scaled
     by 1/TintScale
-    For tint=0.0, the function gives the xy coordinates of the white point WP(T).
-    The conversion is based on the Robertson's method of interpolation,
+    The conversion is based on the Robertson's method of interpolation.
+    For tint=0.0, the function gives the xy coordinates of the white point WP(T) :
+    Cf. also temperature2xyWP(T).
+
     @param temp:
     @type temp: float
     @param tint:
@@ -501,6 +503,16 @@ def temperatureAndTint2xy(temp, tint):
             result = uv2xy(u,v)
             break
     return result
+
+###############################################################
+# The two functions below establish the correspondance between
+# (temperature, tint) and the RGB mutipliers mR, mG, mB
+# The idea is as follow :
+# The planes mB/mR = constant in the RGB color space correspond to lines y=kx
+# in the xy color space. In this later space. Consider the point of intersection m1 of
+# the locus (white points) with the line y = kx. It gives the temperature T and
+# the tint corresponds to an homothety applied to m1, which gives the final point m.
+####################################################################
 
 def temperatureAndTint2RGBMultipliers(temp, tint, XYZ2RGBMatrix):
     """
@@ -562,7 +574,7 @@ def RGBMultipliers2TemperatureAndTint(mR, mG, mB, XYZ2RGBMatrix):
     Tmin, Tmax = 1667.0, 15000.0
     while (Tmax - Tmin) > 10:
         T = (Tmin + Tmax) / 2.0
-        x, y = temperature2xyWP(T)
+        x, y = temperature2xyWP(T)  # TODO temperature2xyWP(T) = temperatureAndTint2xy(T,0) ???
         X, Y, Z = x /y , 1, (1-x-y)/y
         r, g, b = np.dot(XYZ2RGBMatrix, [X,Y,Z])
         if (b / r) > (mB / mR):
