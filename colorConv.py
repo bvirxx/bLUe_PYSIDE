@@ -35,8 +35,11 @@ import numpy as np
 #####################
 # Conversion Matrices
 #####################
+
+############################################
 # Conversion from CIE XYZ to LMS-like color space for chromatic adaptation
 # see http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html
+#############################################
 
 sRGBWP = 6500
 
@@ -417,7 +420,7 @@ def xy2TemperatureAndTint(x, y):
     Convert xy coordinates to Temperature and Tint.
     The conversion is based on the Robertson's method
     of interpolation in the uv space.
-    Tint is scaled by an arbitrary chosen factor TintScale
+    Tint is a translation and it is scaled by an arbitrary chosen factor TintScale
     @param x:
     @type x: float
     @param y:
@@ -467,7 +470,7 @@ def temperatureAndTint2xy(temp, tint):
     Convert temperature and tint to xy coordinates. The tint input is first scaled
     by 1/TintScale
     The conversion is based on the Robertson's method of interpolation.
-    For tint=0.0, the function gives the xy coordinates of the white point WP(T) :
+    Tint is a shift : for tint=0.0, the function gives the xy coordinates of the white point WP(T) :
     Cf. also temperature2xyWP(T).
 
     @param temp:
@@ -514,7 +517,7 @@ def temperatureAndTint2xy(temp, tint):
 # the tint corresponds to an homothety applied to m1, which gives the final point m.
 ####################################################################
 
-def temperatureAndTint2RGBMultipliers(temp, tint, XYZ2RGBMatrix):
+def temperatureAndTint2RGBMultipliers(temp, tint, XYZ2RGBMatrix, version=0):
     """
     Convert temperature and tint to RGB multipliers used to
     develop raw image files.
@@ -543,6 +546,15 @@ def temperatureAndTint2RGBMultipliers(temp, tint, XYZ2RGBMatrix):
     m1, m2, m3 = m1 / mi, m2 / mi, m3 / mi
     return m1, m2, m3, m2
 
+def convertMultipliers(Tdest, Tsource, tint, m):
+    M = conversionMatrix(Tdest, Tsource)
+    m1 = M[0,0] / m[0]
+    m2 = M[1,1] / m[1] * tint
+    m3 = M[2,2] / m[2]
+    mi = min((m1, m2, m3))
+    m1, m2, m3 = m1 / mi, m2 / mi, m3 / mi
+    return m1, m2, m3, m2
+
 def RGBMultipliers2TemperatureAndTint(mR, mG, mB, XYZ2RGBMatrix):
     """
     Evaluation of the temperature and tint correction corresponding to a
@@ -555,10 +567,10 @@ def RGBMultipliers2TemperatureAndTint(mR, mG, mB, XYZ2RGBMatrix):
     We consider the function f(T) = WPb/WPr giving
     the ratio of blue over red coordinates for the white point WP(T). Assuming  f is monotonic,
     we solve the equation f(T) = mB/mR by a simple dichotomous search.
-    Then, the tint is simply defined as the factor mu verifying tint * mG/mR = WPG/WPR
+    Then, the tint is simply defined as the scaling factor mu verifying tint * mG/mR = WPG/WPR
     The RGB space used is defined by the matrix XYZ2RGBMatrix.
     Note that to be inverse functions, RGBMultipliers2Temperature and temperatureAndTint2RGBMultipliers
-    must use the same XYZ2RGBMatrix parameter.
+    must use the same XYZ2RGBMatrix.
     @param mR:
     @type mR:
     @param mG:
@@ -591,7 +603,7 @@ def RGBMultipliers2TemperatureAndTint(mR, mG, mB, XYZ2RGBMatrix):
 
 def temperature2Rho(T):
     """
-    Returns the cone responses (multipliers) for temperature T (Kelvin).
+    Return the cone responses (multipliers) for temperature T (Kelvin).
     see https://web.stanford.edu/~sujason/ColorBalancing/adaptation.html for details.
     @param T: temperature (Kelvin)
     @type T: float
@@ -602,12 +614,12 @@ def temperature2Rho(T):
     x, y = temperature2xyWP(T)
     # transform to XYZ coordinates
     X, Y , Z = x / y, 1.0, (1.0 - x - y ) / y
-    rho1, rho2, rho3 = np.dot(np.array(Bradford), np.array([X,Y,Z]).T)
+    rho1, rho2, rho3 = np.dot(np.array(Bradford), np.array([X,Y,Z]).T)  # TODO .T is useless  : sum-product over last axes. for one dimensional array a, a.T = a
     return rho1, rho2, rho3
 
 def conversionMatrix(Tdest, Tsource):
     """
-    Returns the conversion matrix in the XYZ color space, from
+    Return the conversion matrix in the XYZ color space, from
     Tsource to Tdest. We apply the method described in
     https://web.stanford.edu/~sujason/ColorBalancing/adaptation.html.
     @param Tdest: destination temperature (Kelvin)
@@ -620,8 +632,8 @@ def conversionMatrix(Tdest, Tsource):
     rhos1, rhos2, rhos3  = temperature2Rho(Tsource)
     rhod1, rhod2, rhod3 = temperature2Rho(Tdest)
     D = np.diag((rhod1/rhos1, rhod2/rhos2, rhod3/rhos3))
-    N = np.dot(np.array(BradfordInverse), D)  # N= (MA**-1) D
-    P = np.dot(N, np.array(Bradford))         # P = N MA = (MA**-1) D MA
+    N = np.dot(np.array(BradfordInverse), D)  # N= (B**-1) D
+    P = np.dot(N, np.array(Bradford))         # P = N B = (B**-1) D B
     return P
 
 

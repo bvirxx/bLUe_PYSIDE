@@ -1093,6 +1093,7 @@ class vImage(QImage):
                 rect = QRect(int((bin_edges[i] - range[0]) * scale), max(img.height() - h, 0), int((bin_edges[i + 1] - bin_edges[i] + 1) * scale), h)
                 # first and last bins are used to indicate possible clipping
                 qp.fillRect(rect, color if (i > 0 and i < lg - 1) else Qt.cyan)
+
         bufL = cv2.cvtColor(QImageBuffer(self)[:, :, :3], cv2.COLOR_BGR2GRAY)[..., np.newaxis]  # returns Y (YCrCb) : Y = 0.299*R + 0.587*G+0.114*B
         if mode == 'RGB':
             buf = QImageBuffer(self)[:,:,:3][:,:,::-1]  #RGB
@@ -1106,12 +1107,13 @@ class vImage(QImage):
         img.fill(bgColor)
         qp = QPainter(img)
         qp.setOpacity(0.75)
+        qp.setCompositionMode(QPainter.CompositionMode_Plus)
         if type(chanColors) is QColor or type(chanColors) is Qt.GlobalColor:
             chanColors = [chanColors]*3
-        for ch in chans:
-            drawChannelHistogram(qp, ch, buf, chanColors[ch])
         if mode=='Luminosity' or addMode=='Luminosity':
             drawChannelHistogram(qp, 0, bufL, Qt.darkGray)
+        for ch in chans:
+            drawChannelHistogram(qp, ch, buf, chanColors[ch])
         qp.end()
         buf = QImageBuffer(img)
         return img
