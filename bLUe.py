@@ -368,9 +368,10 @@ def mouseEvent(widget, event) :
         #update current coordinates
         State['ix'],State['iy']=x,y
         if window.btnValues['colorPicker']:
-            tmp_x = int((x - img.xOffset) / r)
-            tmp_y = int((y - img.yOffset) / r)
-            color = QColor(layer.pixel(tmp_x, tmp_y))
+            k = layer.getCurrentImage().width()/layer.width()
+            tmp_x = int((x - img.xOffset) *k / r)
+            tmp_y = int((y - img.yOffset) * k / r)
+            color = QColor(layer.getCurrentImage().pixel(tmp_x, tmp_y))
             s = ('%s  %s  %s' % (color.red(), color.green(), color.blue()))
             QToolTip.showText(event.globalPos(), s, window, QRect(event.globalPos(), QSize(20,30)))
 
@@ -758,7 +759,7 @@ def setDocumentImage(img):
             histImg = window.label.img.layersStack[-1].getCurrentMaskedImage() # vImage(QImg=window.label.img.layersStack[-1].getCurrentMaskedImage())#mergeVisibleLayers())
         if window.histView.listWidget2.items['Color Chans'].checkState() is Qt.Checked:
             window.histView.mode = 'RGB'
-            window.histView.chanColors = [Qt.red, Qt.green, Qt.blue]
+            window.histView.chanColors = [Qt.red, Qt.green, QColor(100,100,255)]
         else:
             window.histView.mode = 'Luminosity'
             window.histView.chanColors = [Qt.gray]

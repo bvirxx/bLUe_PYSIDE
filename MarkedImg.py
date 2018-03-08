@@ -1062,7 +1062,7 @@ class vImage(QImage):
         spread = float(range[1] - range[0])
         scale = size.width() / spread
         # per channel histogram function
-        def drawChannelHistogram(qp, channel, buf, color):
+        def drawChannelHistogram(painter, channel, buf, color):
             """
             Computes and draws the (smoothed) histogram of the image for a single channel.
             @ param qp: QPainter
@@ -1090,9 +1090,9 @@ class vImage(QImage):
             lg = len(hist)
             for i, y in enumerate(hist):
                 h = int(imgH * y / M)
-                rect = QRect(int((bin_edges[i] - range[0]) * scale), max(img.height() - h, 0), int((bin_edges[i + 1] - bin_edges[i] + 1) * scale), h)
-                # first and last bins are used to indicate possible clipping
-                qp.fillRect(rect, color if (i > 0 and i < lg - 1) else Qt.cyan)
+                rect = QRect(int((bin_edges[i] - range[0]) * scale), max(img.height() - h, 0), int((bin_edges[i + 1] - bin_edges[i] + 0) * scale+1), h)
+                # first and last bins are used to indicate a possible clipping
+                painter.fillRect(rect, color if (i > 0 and i < lg - 1) else Qt.cyan)
 
         bufL = cv2.cvtColor(QImageBuffer(self)[:, :, :3], cv2.COLOR_BGR2GRAY)[..., np.newaxis]  # returns Y (YCrCb) : Y = 0.299*R + 0.587*G+0.114*B
         if mode == 'RGB':
@@ -1106,16 +1106,25 @@ class vImage(QImage):
         img = QImage(size.width(), size.height(), QImage.Format_ARGB32)
         img.fill(bgColor)
         qp = QPainter(img)
-        qp.setOpacity(0.75)
-        qp.setCompositionMode(QPainter.CompositionMode_Plus)
+        qp.setOpacity(1)
         if type(chanColors) is QColor or type(chanColors) is Qt.GlobalColor:
             chanColors = [chanColors]*3
         if mode=='Luminosity' or addMode=='Luminosity':
-            drawChannelHistogram(qp, 0, bufL, Qt.darkGray)
+            drawChannelHistogram(qp, 0, bufL, Qt.gray)
+        # CompositionMode_Plus add colors to visualize superimposed histograms
+        qp.setCompositionMode(QPainter.CompositionMode_Plus)
         for ch in chans:
-            drawChannelHistogram(qp, ch, buf, chanColors[ch])
+            # to prevent artifacts, the histogram bins must be drawn
+            # using the standard composition mode source_over. So, we use
+            # a fresh QPainter.
+            tmpimg = QImage(size.width(), size.height(), QImage.Format_ARGB32)
+            tmpimg.fill(bgColor)
+            tmpqp = QPainter(tmpimg)
+            drawChannelHistogram(tmpqp, ch, buf, chanColors[ch])
+            tmpqp.end()
+            # draw the histogram on img
+            qp.drawImage(QPoint(0,0), tmpimg)
         qp.end()
-        buf = QImageBuffer(img)
         return img
 
     def applyFilter2D(self):

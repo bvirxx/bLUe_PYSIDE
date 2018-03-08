@@ -46,29 +46,35 @@ class rawForm (QGraphicsView):
         self.setMinimumSize(axeSize, axeSize+200)  # +200 to prevent scroll bars in list Widgets
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.layer = layer
-        """get rawpy object"""
-        rawpyObj = layer.parentImage.rawImage
-        self.rawMultipliers = rawpyObj.camera_whitebalance
-        daylight = rawpyObj.daylight_whitebalance
-        """
-        # get Camera RGB - XYZ conversion matrix.
-        # From rawpy doc, this matrix is constant for each camera model
-        # Last row is zero for RGB cameras and non-zero for different color models (CMYG and so on) : type ndarray of shape (4,3)
-        """
-        rgb_xyz_matrix = rawpyObj.rgb_xyz_matrix[:3,:]
-        rgb_xyz_matrix_inverse = np.linalg.inv(rgb_xyz_matrix)
-        # Color_matrix, read from file for some cameras, calculated for others, type ndarray of shape (3,4), seems to be 0.
-        # color_matrix = rawpyObj.color_matrix
-        """
+        #######################################
         # Libraw correspondances:
         # rgb_xyz_matrix is libraw cam_xyz
         # camera_whitebalance is libraw cam_mul
         # daylight_whitebalance is libraw pre_mul
-        """
-        """get temp and tint from rawpy object (as shot values)"""
-        invMultipliers = [daylight[i] / self.rawMultipliers[i] for i in range(3)]
-        self.cameraTemp, self.cameraTint = RGBMultipliers2TemperatureAndTint(*invMultipliers, rgb_xyz_matrix_inverse)
-        """options"""
+        ##########################################
+        rawpyObj = layer.parentImage.rawImage
+        # initial post processing multipliers (as shot)
+        self.rawMultipliers = rawpyObj.camera_whitebalance
+        # pre multipliers
+        daylight = rawpyObj.daylight_whitebalance
+        # convert multipliers to White Point RGB coordinates, modulo tint green correction (mult[1] = tint*WP_G)
+        cameraMultipliers = [daylight[i] / rawpyObj.camera_whitebalance[i] for i in range(3)]
+        ########################################
+        # Camera RGB -> XYZ conversion matrix:
+        # This matrix is constant for each camera model,
+        # Last row is zero for RGB cameras and non-zero for
+        # different color models (CMYG and so on), cf. rawpy and libraw docs.
+        # type ndarray, shape (4,3)
+        #########################################
+        rgb_xyz_matrix = rawpyObj.rgb_xyz_matrix[:3,:]
+        rgb_xyz_matrix_inverse = np.linalg.inv(rgb_xyz_matrix)
+        # Color_matrix, read from file for some cameras, calculated for others,
+        # type ndarray of shape (3,4), seems to be 0.
+        # color_matrix = rawpyObj.color_matrix
+        # initial temp and tint (as shot values)
+        self.cameraTemp, self.cameraTint = RGBMultipliers2TemperatureAndTint(*cameraMultipliers, rgb_xyz_matrix_inverse)
+        self.baseTint = self.cameraTint
+        # options
         optionList0 = ['Auto Brightness', 'Preserve Highlights', 'Auto Scale']
         self.listWidget1 = optionsWidget(options=optionList0, exclusive=False, changed=lambda: self.dataChanged.emit(True))
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
@@ -77,7 +83,7 @@ class rawForm (QGraphicsView):
         self.listWidget2.checkOption(self.listWidget2.intNames[1])
         self.options = UDict(self.listWidget1.options, self.listWidget2.options)
 
-        """temp slider"""
+        # temp slider
         self.sliderTemp = QbLUeSlider(Qt.Horizontal)
         self.sliderTemp.setStyleSheet("""QSlider::groove:horizontal {margin: 3px; 
                                           background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 blue, stop:1 red);}""")
@@ -97,19 +103,24 @@ class rawForm (QGraphicsView):
         self.tempValue.setMaximumSize(w, h)
         self.tempValue.setText(str("{:.0f}".format(self.slider2Temp(self.sliderTemp.value()))))
 
-        """temp changed  event handler"""
+        # temp changed  event handler
         def tempUpdate(value):
             self.tempValue.setText(str("{:.0f}".format(self.slider2Temp(self.sliderTemp.value()))))
-            """move not yet terminated or value not modified"""
+            # move not yet terminated or value not modified
             if self.sliderTemp.isSliderDown() or self.slider2Temp(value) == self.tempCorrection:
                 return
             self.sliderTemp.valueChanged.disconnect()
             self.sliderTemp.sliderReleased.disconnect()
             self.tempCorrection = self.slider2Temp(self.sliderTemp.value())
-            #multipliers = convertMultipliers(self.tempCorrection, self.cameraTemp, self.tintCorrection, rawpyObj.camera_whitebalance)  # bad
-            multipliers = temperatureAndTint2RGBMultipliers(self.tempCorrection, self.tintCorrection, rgb_xyz_matrix_inverse)
-            """Adjust the Mg multiplier to keep constant the ratio Mg/Mr"""
-            m1 = (rawpyObj.camera_whitebalance[1] / rawpyObj.camera_whitebalance[0]) * multipliers[0]
+
+            multipliers = temperatureAndTint2RGBMultipliers(self.tempCorrection, 1.0, rgb_xyz_matrix_inverse)
+            print('1/0',self.tempCorrection, self.tintCorrection, multipliers[0]*daylight[1]/(multipliers[1]*daylight[0]), rawpyObj.camera_whitebalance[1] / rawpyObj.camera_whitebalance[0])
+
+
+            #self.baseTint = multipliers[0]*daylight[1]*self.tintCorrection/(multipliers[1]*daylight[0]) * rawpyObj.camera_whitebalance[0] / rawpyObj.camera_whitebalance[1]
+            self.baseTint = cameraMultipliers[1]/cameraMultipliers[0] * multipliers[0]/ multipliers[1] * self.tintCorrection
+            # Adjust the green multiplier to keep constant the ratio Mg/Mr, modulo the correction factor self.tintCorrection
+            m1 = self.baseTint * multipliers[1]* self.tintCorrection
             multipliers = (multipliers[0], m1, multipliers[2])
             self.rawMultipliers = [daylight[i] / multipliers[i] for i in range(3)] + [daylight[1] / multipliers[1]]
             m = min(self.rawMultipliers[:3])
@@ -120,9 +131,9 @@ class rawForm (QGraphicsView):
         self.sliderTemp.valueChanged.connect(tempUpdate)  # send new value as parameter
         self.sliderTemp.sliderReleased.connect(lambda :tempUpdate(self.sliderTemp.value()))  # signal has no parameter
 
-        """tint slider"""
+        # tint slider
         self.sliderTint = QbLUeSlider(Qt.Horizontal)
-        #self.sliderTint.setStyleSheet(self.sliderTint.styleSheet()+'QSlider::groove:horizontal {background: red;}')
+        # self.sliderTint.setStyleSheet(self.sliderTint.styleSheet()+'QSlider::groove:horizontal {background: red;}')
         self.sliderTint.setStyleSheet("""QSlider::groove:horizontal {margin: 3px; 
                                          background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 green, stop:1 magenta);}""")
         self.sliderTint.setRange(0, 150)
@@ -141,7 +152,7 @@ class rawForm (QGraphicsView):
         self.tintValue.setMaximumSize(w, h)
         self.tintValue.setText(str("{:.0f}".format(self.sliderTint2User(self.sliderTint.value()))))
 
-        """tint change event handler"""
+        # tint change event handler
         def tintUpdate(value):
             self.tintValue.setText(str("{:.0f}".format(self.sliderTint2User(self.sliderTint.value()))))
             # move not yet terminated or value not modified
@@ -150,9 +161,8 @@ class rawForm (QGraphicsView):
             self.sliderTint.valueChanged.disconnect()
             self.sliderTint.sliderReleased.disconnect()
             self.tintCorrection = self.slider2Tint(self.sliderTint.value())
-            #multipliers = convertMultipliers(self.tempCorrection, self.cameraTemp, self.tintCorrection, rawpyObj.camera_whitebalance)  # Worse
             multipliers = temperatureAndTint2RGBMultipliers(self.tempCorrection, 1, rgb_xyz_matrix_inverse)
-            m1 = (rawpyObj.camera_whitebalance[1] / rawpyObj.camera_whitebalance[0]) * multipliers[0]*self.tintCorrection
+            m1 = self.baseTint * multipliers[1] *self.tintCorrection
             multipliers = (multipliers[0], m1, multipliers[2])
             self.rawMultipliers = [daylight[i] / multipliers[i] for i in range(3)] + [daylight[1] / multipliers[1]]
             m = min(self.rawMultipliers[:3])
@@ -163,7 +173,7 @@ class rawForm (QGraphicsView):
         self.sliderTint.valueChanged.connect(tintUpdate)
         self.sliderTint.sliderReleased.connect(lambda :tintUpdate(self.sliderTint.value()))  # signal has no parameter)
 
-        """exp slider"""
+        # exp slider
         self.sliderExp = QbLUeSlider(Qt.Horizontal)
         self.sliderExp.setStyleSheet("""QSlider::groove:horizontal {margin: 3px; 
                                           background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 black, stop:1 white);}""")
@@ -183,15 +193,15 @@ class rawForm (QGraphicsView):
         self.expValue.setMaximumSize(w, h)
         self.expValue.setText(str("{:.1f}".format(self.slider2Exp(self.sliderExp.value()))))
 
-        """exp done event handler"""
+        # exp done event handler
         def expUpdate(value):
             self.expValue.setText(str("{:.1f}".format(self.slider2Exp(self.sliderExp.value()))))
-            """move not yet terminated or value not modified"""
+            # move not yet terminated or value not modified
             if self.sliderExp.isSliderDown() or self.slider2Exp(value) == self.expCorrection:
                 return
             self.sliderExp.valueChanged.disconnect()
             self.sliderExp.sliderReleased.disconnect()
-            """rawpy: expCorrection range is -2.0...3.0 boiling down to exp_shift range 2**(-2)=0.25...2**3=8.0"""
+            # rawpy: expCorrection range is -2.0...3.0 boiling down to exp_shift range 2**(-2)=0.25...2**3=8.0
             self.expCorrection = self.slider2Exp(self.sliderExp.value())
             self.dataChanged.emit(True)
             self.sliderExp.valueChanged.connect(expUpdate)  # send new value as parameter
@@ -199,7 +209,7 @@ class rawForm (QGraphicsView):
         self.sliderExp.valueChanged.connect(expUpdate)  # send new value as parameter
         self.sliderExp.sliderReleased.connect(lambda: expUpdate(self.sliderExp.value()))  # signal has no parameter
 
-        """brightness slider"""
+        # brightness slider
         brSlider = QbLUeSlider(Qt.Horizontal)
         brSlider.setRange(0, 150)
 
@@ -221,7 +231,7 @@ class rawForm (QGraphicsView):
         self.brValue.setMaximumSize(w, h)
         self.brValue.setText(str("{:.1f}".format(self.brSlider2User(self.sliderBrightness.value()))))
 
-        """brightness done event handler"""
+        # brightness done event handler
         def brUpdate(value):
             self.brValue.setText(str("{:.1f}".format(self.brSlider2User(self.sliderBrightness.value()))))
             # move not yet terminated or value not modified
@@ -236,7 +246,7 @@ class rawForm (QGraphicsView):
         self.sliderBrightness.valueChanged.connect(brUpdate)  # send new value as parameter
         self.sliderBrightness.sliderReleased.connect(lambda: brUpdate(self.sliderBrightness.value()))
 
-        """contrast slider"""
+        # contrast slider
         self.sliderCont = QbLUeSlider(Qt.Horizontal)
         self.sliderCont.setStyleSheet("""QSlider::groove:horizontal {margin: 3px;
                                           background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 grey, stop:1 white);}""")
@@ -256,7 +266,7 @@ class rawForm (QGraphicsView):
         self.contValue.setMaximumSize(w, h)
         self.contValue.setText(str("{:.0f}".format(self.slider2Cont(self.sliderCont.value()))))
 
-        """cont done event handler"""
+        # cont done event handler
         def contUpdate(value):
             self.contValue.setText(str("{:.0f}".format(self.slider2Cont(self.sliderCont.value()))))
             # move not yet terminated or value not modified
@@ -272,7 +282,7 @@ class rawForm (QGraphicsView):
         self.sliderCont.valueChanged.connect(contUpdate)  # send new value as parameter
         self.sliderCont.sliderReleased.connect(lambda: contUpdate(self.sliderCont.value()))  # signal has no parameter
 
-        """noise reduction slider"""
+        # noise reduction slider
         self.sliderNoise = QbLUeSlider(Qt.Horizontal)
         self.sliderNoise.setStyleSheet("""QSlider::groove:horizontal {margin: 3px; 
                                          background: blue /*qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 blue, stop:1 red)*/;}""")
@@ -293,7 +303,7 @@ class rawForm (QGraphicsView):
         self.noiseValue.setMaximumSize(w, h)
         self.noiseValue.setText(str("{:.0f}".format(self.slider2Noise(self.sliderNoise.value()))))
 
-        """noise done event handler"""
+        # noise done event handler
         def noiseUpdate(value):
             self.noiseValue.setText(str("{:.0f}".format(self.slider2Noise(self.sliderNoise.value()))))
             # move not yet terminated or value not modified
@@ -475,7 +485,7 @@ class rawForm (QGraphicsView):
         self.listWidget2.checkOption(self.listWidget2.intNames[1])
         self.enableSliders()
         self.tempCorrection = self.cameraTemp
-        self.tintCorrection = self.cameraTint
+        self.tintCorrection = 1.0#self.cameraTint
         self.expCorrection = 0.0
         self.contCorrection = 0.0
         self.noiseCorrection = 0

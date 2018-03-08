@@ -519,8 +519,8 @@ def temperatureAndTint2xy(temp, tint):
 
 def temperatureAndTint2RGBMultipliers(temp, tint, XYZ2RGBMatrix, version=0):
     """
-    Convert temperature and tint to RGB multipliers used to
-    develop raw image files.
+    Convert temperature and tint to RGB multipliers, as White Point RGB coordinates,
+    modulo tint green correction (mG = WP_G * tint)
     We compute the xy coordinates of the white point WP(T) by the Robertson's method.
     Next, we transform these coordinates to RGB values (mR,mG,mB), using the
     conversion matrix XYZ2RGBMatrix.
@@ -558,7 +558,7 @@ def convertMultipliers(Tdest, Tsource, tint, m):
 def RGBMultipliers2TemperatureAndTint(mR, mG, mB, XYZ2RGBMatrix):
     """
     Evaluation of the temperature and tint correction corresponding to a
-    set of 3 RGB multipliers.
+    set of 3 RGB multipliers. They are interpreted as the RGB coordinates of a white point.
     The aim is to find a temperature T with a
     corresponding white point WP(T), and a factor tint, such that mB/mR = WPb/WPr
     and mG*tint/mR = WpG/WPR. As mutipliers are invariant by scaling, this
