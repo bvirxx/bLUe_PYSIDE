@@ -21,6 +21,9 @@ from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QLabel, Q
 from utils import optionsWidget
 
 class histForm (QGraphicsView):
+    """
+    histogram form
+    """
     def __init__(self, targetImage=None, size=200, layer=None, parent=None, mainForm=None):
         super(histForm, self).__init__(parent=parent)
         self.targetImage = targetImage
@@ -35,7 +38,7 @@ class histForm (QGraphicsView):
 
         self.setStyleSheet("QListWidget{background-color: rgb(200,200,200); selection-background-color: rgb(200,200,200); border: 0px; font-size: 9px}")
 
-        # options
+        # options. We want items displayed horizontally, so we make 2 lists
         options1 = ['Original Image']
         self.listWidget1 = optionsWidget(options=options1, exclusive=False)
         self.listWidget1.item(0).setSizeHint(QSize(100,10))
@@ -45,6 +48,8 @@ class histForm (QGraphicsView):
         self.listWidget2 = optionsWidget(options=options2, exclusive=False)
         self.listWidget2.item(0).setSizeHint(QSize(100, 10))
         self.listWidget2.setMaximumSize(self.listWidget2.sizeHintForColumn(0) + 5, self.listWidget2.sizeHintForRow(0) * len(options2))
+        # default: show color hists
+        self.listWidget2.item(0).setCheckState(Qt.Checked)
 
         self.options = {option : True for option in options1 + options2}
         def onSelect1(item):

@@ -677,7 +677,7 @@ def openFile(f):
             # updates
             img.layersStack[0].applyToStack()
             updateStatus()
-            window.label.img.onImageChanged()
+            # window.label.img.onImageChanged() # TODO validate suppression 09/03/18 : done by applytostack
             # update list of recent files
             filter(lambda a: a != f, window._recentFiles)
             window._recentFiles.insert(0, f)
@@ -759,12 +759,12 @@ def setDocumentImage(img):
             histImg = window.label.img.layersStack[-1].getCurrentMaskedImage() # vImage(QImg=window.label.img.layersStack[-1].getCurrentMaskedImage())#mergeVisibleLayers())
         if window.histView.listWidget2.items['Color Chans'].checkState() is Qt.Checked:
             window.histView.mode = 'RGB'
-            window.histView.chanColors = [Qt.red, Qt.green, QColor(100,100,255)]
+            window.histView.chanColors = [QColor(200,20,20), QColor(20,200,20), QColor(100,100,255)]
         else:
             window.histView.mode = 'Luminosity'
             window.histView.chanColors = [Qt.gray]
         histView = histImg.histogram(QSize(window.histView.width(), window.histView.height()), chans=range(3), bgColor=Qt.black,
-                                     chanColors=window.histView.chanColors, mode=window.histView.mode, addMode='Luminosity')
+                                     chanColors=window.histView.chanColors, mode=window.histView.mode, addMode='')
         window.histView.Label_Hist.setPixmap(QPixmap.fromImage(histView))
         window.histView.Label_Hist.repaint()
     ###################################
@@ -792,8 +792,8 @@ def setDocumentImage(img):
 
 def updateMenuOpenRecent():
     window.menuOpen_recent.clear()
-    for f in window._recentFiles :
-        window.menuOpen_recent.addAction(f, lambda x=f: openFile(x))
+    for filename in window._recentFiles :
+        window.menuOpen_recent.addAction(filename, lambda x=filename: openFile(x))
 
 def updateEnabledActions():
     """

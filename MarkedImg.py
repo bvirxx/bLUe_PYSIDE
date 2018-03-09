@@ -279,16 +279,15 @@ class vImage(QImage):
 
     def initThumb(self):
         """
-        Init the image thumbnail as (scaled) QImage. In contrast to
+        Init the image thumbnail as a (scaled) QImage. In contrast to
         maskedThumbContainer, thumb is never used as an input image, thus
         there is no need for a type yielding color space buffers.
-        However, note that, for convenience, layer thumbs own an attribute
-        parentImage set by the overridden method QLayer.initThumb.
+        Layer thumbs own an attribute parentImage set by the overridden method QLayer.initThumb.
         For non adjustment layers, the thumbnail will never be updated. So, we
         perform a high quality scaling.
         """
         scImg = self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        # With the Qt.SmoothTransformation flag, the scaled image format is premultiplied
+        # With the Qt.SmoothTransformation flag, the output image format is premultiplied
         self.thumb = scImg.convertToFormat(QImage.Format_ARGB32, Qt.DiffuseDither | Qt.DiffuseAlphaDither)
 
     def getThumb(self):
@@ -708,12 +707,6 @@ class vImage(QImage):
         options = adjustForm.options
         currentImage = self.getCurrentImage()
         bufOut = QImageBuffer(currentImage)
-        """
-        if self.postProcessCache is not None:
-            if ((adjustForm.contCorrection == 0) and (self.postProcessCache.dtype==np.uint16)) or\
-                                          ((adjustForm.contCorrection > 0) and (self.postProcessCache.dtype==np.uint8)):
-                self.postProcessCache = None
-        """
 
         # process raw image, 16 bits mode
         if self.postProcessCache is None:
@@ -787,14 +780,14 @@ class vImage(QImage):
         else:
             bufpost = (bufpost/256.0).astype(np.uint8)
         ###############
-        # saturation
+        # saturation : we apply the curve s**alpha, with alpha= 1-satCorrection/50)
         ###############
         if adjustForm.satCorrection != 0:
-            # convert to HSV
+            # convert to HSV, 0<=S<=255
             bufHsB = cv2.cvtColor(bufpost, cv2.COLOR_RGB2HSV)
-            alpha = (-adjustForm.satCorrection+50.0)/50
+            alpha = -adjustForm.satCorrection/50.0 + 1.0
             start = time()
-            # tabulate x**alpha
+            # tabulate x**alpha, 0<=x<=255
             LUT = (np.power(np.array(range(256))/255, alpha) * 255).astype(np.uint8)
             # convert saturation s to s**alpha
             bufHsB[:,:,1] = LUT[bufHsB[:,:,1]]
@@ -1040,6 +1033,7 @@ class vImage(QImage):
         """
         Plots the histogram of the image for the
         specified color mode and channels.
+        Luminosity is  Y = 0.299*R + 0.587*G + 0.114*B (YCrCb opencv mode)
         @param size: size of the histogram plot
         @type size: int or QSize
         @param bgColor: background color
@@ -1064,12 +1058,12 @@ class vImage(QImage):
         # per channel histogram function
         def drawChannelHistogram(painter, channel, buf, color):
             """
-            Computes and draws the (smoothed) histogram of the image for a single channel.
+            Compute and draw the (smoothed) histogram for a single channel.
             @ param qp: QPainter
             @param channel: channel index (BGRA (intel) or ARGB )
             """
             buf0 = buf[:,:, channel]
-            # bins='auto' sometimes causes huge number of bins ( >= 10**9) and memory error
+            # bins='auto' sometimes causes a huge number of bins ( >= 10**9) and memory error
             # even for small data size (<=250000), so we don't use it.
             # This is a numpy bug : in module function_base.py, to prevent memory error,
             # a reasonable upper bound for bins should be chosen.
@@ -1090,11 +1084,13 @@ class vImage(QImage):
             lg = len(hist)
             for i, y in enumerate(hist):
                 h = int(imgH * y / M)
-                rect = QRect(int((bin_edges[i] - range[0]) * scale), max(img.height() - h, 0), int((bin_edges[i + 1] - bin_edges[i] + 0) * scale+1), h)
-                # first and last bins are used to indicate a possible clipping
-                painter.fillRect(rect, color if (i > 0 and i < lg - 1) else Qt.cyan)
-
-        bufL = cv2.cvtColor(QImageBuffer(self)[:, :, :3], cv2.COLOR_BGR2GRAY)[..., np.newaxis]  # returns Y (YCrCb) : Y = 0.299*R + 0.587*G+0.114*B
+                rect = QRect(int((bin_edges[i] - range[0]) * scale), max(img.height() - h, 0), int((bin_edges[i + 1] - bin_edges[i]) * scale+1), h)
+                # bins at range boundaries are painted with a different color to indicate a possible clipping
+                if  bin_edges[i] == range[0] or  bin_edges[i+1] == range[1]:
+                    painter.fillRect(rect, Qt.cyan)
+                else:
+                    painter.fillRect(rect, color)
+        bufL = cv2.cvtColor(QImageBuffer(self)[:, :, :3], cv2.COLOR_BGR2GRAY)[..., np.newaxis]  # returns Y (YCrCb) : Y = 0.299*R + 0.587*G + 0.114*B
         if mode == 'RGB':
             buf = QImageBuffer(self)[:,:,:3][:,:,::-1]  #RGB
         elif mode == 'HSpB':
@@ -1116,7 +1112,7 @@ class vImage(QImage):
         for ch in chans:
             # to prevent artifacts, the histogram bins must be drawn
             # using the standard composition mode source_over. So, we use
-            # a fresh QPainter.
+            # a fresh QImage for each channel.
             tmpimg = QImage(size.width(), size.height(), QImage.Format_ARGB32)
             tmpimg.fill(bgColor)
             tmpqp = QPainter(tmpimg)
@@ -1764,23 +1760,14 @@ class QLayer(vImage):
 
     def initThumb(self):
         """
-        Overrides vImage.initThumb, to set the parentImage attribute
-        """
-        """
-        if not self.cachesEnabled:
-            return
-        """
-        """
-        scImg = self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        # With the Qt.SmoothTransformation flag, the scaled image format is premultiplied
-        self.thumb = scImg.convertToFormat(QImage.Format_ARGB32, Qt.DiffuseDither|Qt.DiffuseAlphaDither)
+        Override vImage.initThumb, to set the parentImage attribute
         """
         super().initThumb()
         self.thumb.parentImage = self.parentImage
 
     def initHald(self):
         """
-        Builds a hald image (as a QImage) from identity 3D LUT.
+        Build a hald image (as a QImage) from identity 3D LUT.
         """
         if not self.cachesEnabled:
             return
