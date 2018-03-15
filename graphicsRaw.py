@@ -20,9 +20,9 @@ from PySide2 import QtCore
 
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
-from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QFrame
-from colorConv import temperatureAndTint2RGBMultipliers, RGBMultipliers2TemperatureAndTint
-from utils import optionsWidget, UDict, QbLUeSlider
+from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBox
+from colorConv import temperatureAndTint2RGBMultipliers, RGBMultipliers2TemperatureAndTint, sRGB2XYZVec
+from utils import optionsWidget, UDict, QbLUeSlider, inversion
 
 bLueSliderDefaultColorStylesheet = """QSlider::groove:horizontal:enabled {margin: 3px; 
                                           background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 blue, stop:1 red);}
@@ -59,10 +59,13 @@ class rawForm (QGraphicsView):
         rawpyObj = layer.parentImage.rawImage
         # initial post processing multipliers (as shot)
         self.rawMultipliers = rawpyObj.camera_whitebalance
+        self.sampleMultipliers = False
+        self.samples = []
         # pre multipliers
-        daylight = rawpyObj.daylight_whitebalance
+        self.daylight = rawpyObj.daylight_whitebalance
         # convert multipliers to White Point RGB coordinates, modulo tint green correction (mult[1] = tint*WP_G)
-        cameraMultipliers = [daylight[i] / rawpyObj.camera_whitebalance[i] for i in range(3)]
+        self.cameraMultipliers = [self.daylight[i] / self.rawMultipliers[i] for i in range(3)]
+        #print ('WB', [self.daylight[i]*(10**5)/ rawpyObj.camera_whitebalance[i] for i in range(3)])
         ########################################
         # Camera RGB -> XYZ conversion matrix:
         # This matrix is constant for each camera model,
@@ -70,20 +73,25 @@ class rawForm (QGraphicsView):
         # different color models (CMYG and so on), cf. rawpy and libraw docs.
         # type ndarray, shape (4,3)
         #########################################
-        rgb_xyz_matrix = rawpyObj.rgb_xyz_matrix[:3,:]
-        rgb_xyz_matrix_inverse = np.linalg.inv(rgb_xyz_matrix)
+        self.rgb_xyz_matrix = rawpyObj.rgb_xyz_matrix[:3,:]
+        self.rgb_xyz_matrix_inverse = np.linalg.inv(self.rgb_xyz_matrix)
+        ##########################################
         # Color_matrix, read from file for some cameras, calculated for others,
         # type ndarray of shape (3,4), seems to be 0.
         # color_matrix = rawpyObj.color_matrix
+        ##########################################
         # initial temp and tint (as shot values)
-        self.cameraTemp, self.cameraTint = RGBMultipliers2TemperatureAndTint(*cameraMultipliers, rgb_xyz_matrix_inverse)
+        self.cameraTemp, self.cameraTint = RGBMultipliers2TemperatureAndTint(*self.cameraMultipliers, self.rgb_xyz_matrix_inverse)
+        # base tint correction. It depends on temperature only.
+        # We use the product baseTint * tintCorrection as the current tint adjustment,
+        # keeping tintCorrection near to 1.0
         self.baseTint = self.cameraTint
         # options
-        optionList0 = ['Auto Brightness', 'Preserve Highlights', 'Auto Scale']
+        optionList0 = ['Auto Brightness', 'Preserve Highlights']
         self.listWidget1 = optionsWidget(options=optionList0, exclusive=False, changed=lambda: self.dataChanged.emit(True))
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
-        optionList1 = ['Auto WB', 'Camera WB', 'User WB']
-        self.listWidget2 = optionsWidget(options=optionList1, exclusive=True, changed=lambda: self.dataChanged.emit(True))
+        optionList1, optionNames1 = ['Auto WB', 'Camera WB', 'User WB'], ['Auto', 'Camera (As Shot)', 'User']
+        self.listWidget2 = optionsWidget(options=optionList1, optionNames=optionNames1,  exclusive=True, changed=lambda: self.dataChanged.emit(True))
         self.listWidget2.checkOption(self.listWidget2.intNames[1])
         self.options = UDict(self.listWidget1.options, self.listWidget2.options)
 
@@ -106,33 +114,8 @@ class rawForm (QGraphicsView):
         self.tempValue.setMaximumSize(w, h)
         self.tempValue.setText(str("{:.0f}".format(self.slider2Temp(self.sliderTemp.value()))))
 
-        # temp changed  event handler
-        def tempUpdate(value):
-            self.tempValue.setText(str("{:.0f}".format(self.slider2Temp(self.sliderTemp.value()))))
-            # move not yet terminated or value not modified
-            if self.sliderTemp.isSliderDown() or self.slider2Temp(value) == self.tempCorrection:
-                return
-            self.sliderTemp.valueChanged.disconnect()
-            self.sliderTemp.sliderReleased.disconnect()
-            self.tempCorrection = self.slider2Temp(self.sliderTemp.value())
-
-            multipliers = temperatureAndTint2RGBMultipliers(self.tempCorrection, 1.0, rgb_xyz_matrix_inverse)
-            #print('1/0',self.tempCorrection, self.tintCorrection, multipliers[0]*daylight[1]/(multipliers[1]*daylight[0]), rawpyObj.camera_whitebalance[1] / rawpyObj.camera_whitebalance[0])
-
-
-            #self.baseTint = multipliers[0]*daylight[1]*self.tintCorrection/(multipliers[1]*daylight[0]) * rawpyObj.camera_whitebalance[0] / rawpyObj.camera_whitebalance[1]
-            self.baseTint = cameraMultipliers[1]/cameraMultipliers[0] * multipliers[0]/ multipliers[1] * self.tintCorrection
-            # Adjust the green multiplier to keep constant the ratio Mg/Mr, modulo the correction factor self.tintCorrection
-            m1 = self.baseTint * multipliers[1]* self.tintCorrection
-            multipliers = (multipliers[0], m1, multipliers[2])
-            self.rawMultipliers = [daylight[i] / multipliers[i] for i in range(3)] + [daylight[1] / multipliers[1]]
-            m = min(self.rawMultipliers[:3])
-            self.rawMultipliers = [self.rawMultipliers[i] / m for i in range(4)]
-            self.dataChanged.emit(True)
-            self.sliderTemp.valueChanged.connect(tempUpdate)  # send new value as parameter
-            self.sliderTemp.sliderReleased.connect(lambda: tempUpdate(self.sliderTemp.value()))  # signal has no parameter
-        self.sliderTemp.valueChanged.connect(tempUpdate)  # send new value as parameter
-        self.sliderTemp.sliderReleased.connect(lambda :tempUpdate(self.sliderTemp.value()))  # signal has no parameter
+        self.sliderTemp.valueChanged.connect(self.tempUpdate)  # send new value as parameter
+        self.sliderTemp.sliderReleased.connect(lambda :self.tempUpdate(self.sliderTemp.value()))  # signal has no parameter
 
         # tint slider
         self.sliderTint = QbLUeSlider(Qt.Horizontal)
@@ -154,38 +137,21 @@ class rawForm (QGraphicsView):
         self.tintValue.setMaximumSize(w, h)
         self.tintValue.setText(str("{:.0f}".format(self.sliderTint2User(self.sliderTint.value()))))
 
-        # tint change event handler
-        def tintUpdate(value):
-            self.tintValue.setText(str("{:.0f}".format(self.sliderTint2User(self.sliderTint.value()))))
-            # move not yet terminated or value not modified
-            if self.sliderTint.isSliderDown() or self.slider2Tint(value) == self.tintCorrection:
-                return
-            self.sliderTint.valueChanged.disconnect()
-            self.sliderTint.sliderReleased.disconnect()
-            self.tintCorrection = self.slider2Tint(self.sliderTint.value())
-            multipliers = temperatureAndTint2RGBMultipliers(self.tempCorrection, 1, rgb_xyz_matrix_inverse)
-            m1 = self.baseTint * multipliers[1] *self.tintCorrection
-            multipliers = (multipliers[0], m1, multipliers[2])
-            self.rawMultipliers = [daylight[i] / multipliers[i] for i in range(3)] + [daylight[1] / multipliers[1]]
-            m = min(self.rawMultipliers[:3])
-            self.rawMultipliers = [self.rawMultipliers[i] / m for i in range(4)]
-            self.dataChanged.emit(True)
-            self.sliderTint.valueChanged.connect(tintUpdate)
-            self.sliderTint.sliderReleased.connect(lambda: tintUpdate(self.sliderTint.value()))  # signal has no parameter)
-        self.sliderTint.valueChanged.connect(tintUpdate)
-        self.sliderTint.sliderReleased.connect(lambda :tintUpdate(self.sliderTint.value()))  # signal has no parameter)
+        self.sliderTint.valueChanged.connect(self.tintUpdate)
+        self.sliderTint.sliderReleased.connect(lambda :self.tintUpdate(self.sliderTint.value()))  # signal has no parameter)
 
         ######################
-        # Exposure and brightness are curve transformations
-        # in the LINEAR camera RGB color space.
-        # Exposure curve is y = alpha*x, brightness is similar to y = x**alpha.
+        # From libraw and dcraw sources:
+        # Exposure and brightness are curve transformations.
+        # Exposure curve is y = alpha*x, with cubic root ending, applied before demosaicing.
+        # Brightness is (similar to) y = x**alpha and part of gamma transformation from linear sRGB to RGB.
         # Exposure and brightness both dilate the histogram towards highlights.
         # Exposure dilatation is uniform (homothety), brightness dilataion is
         # maximum for the midtones and the highlghts are preserved.
         # As a consequence, normal wokflow begins with the adjustment of exposure,
-        # to fill the entire range of the histogram. Next, one adjusts the brightness
-        # to put the midtones where we want them.
-        # See https://www.cambridgeincolour.com/forums/thread653.htm for details
+        # to fill the entire range of the histogram and to adjust the highlights. Next,
+        # one adjusts the brightness to put the midtones at the level we want them to be.
+        # Cf. https://www.cambridgeincolour.com/forums/thread653.htm
         #####################
 
         # exp slider
@@ -377,7 +343,12 @@ class rawForm (QGraphicsView):
         hl1.addWidget(self.expValue)
         hl1.addWidget(self.sliderExp)
         l.addWidget(self.listWidget1)
-        l.addWidget(self.listWidget2)
+        self.listWidget2.setStyleSheet("QListWidget {border: 0px;} QListWidget::item {border: 0px; padding-left: 20px;}")
+        vl1 = QVBoxLayout()
+        vl1.addWidget(QLabel('White Balance'))
+        vl1.addWidget(self.listWidget2)
+        gb1 = QGroupBox()
+        gb1.setStyleSheet("QGroupBox {border: 1px solid gray; border-radius: 4px}")
         hl2 = QHBoxLayout()
         hl2.addWidget(self.tempLabel)
         hl2.addWidget(self.tempValue)
@@ -386,6 +357,10 @@ class rawForm (QGraphicsView):
         hl3.addWidget(self.tintLabel)
         hl3.addWidget(self.tintValue)
         hl3.addWidget(self.sliderTint)
+        vl1.addLayout(hl2)
+        vl1.addLayout(hl3)
+        gb1.setLayout(vl1)
+        l.addWidget(gb1)
         hl4 = QHBoxLayout()
         hl4.addWidget(self.contLabel)
         hl4.addWidget(self.contValue)
@@ -403,8 +378,8 @@ class rawForm (QGraphicsView):
         hl5.addWidget(noiseLabel)
         hl5.addWidget(self.noiseValue)
         hl5.addWidget(self.sliderNoise)
-        l.addLayout(hl2)
-        l.addLayout(hl3)
+        #l.addLayout(hl2)
+        #l.addLayout(hl3)
         l.addLayout(hl1)
         l.addLayout(hl8)
         # separator
@@ -419,6 +394,70 @@ class rawForm (QGraphicsView):
         self.setLayout(l)
         self.adjustSize()
         self.setDefaults()
+
+    # temp changed  event handler
+    def tempUpdate(self, value):
+        self.tempValue.setText(str("{:.0f}".format(self.slider2Temp(self.sliderTemp.value()))))
+        # move not yet terminated or value not modified
+        if self.sliderTemp.isSliderDown() or self.slider2Temp(value) == self.tempCorrection:
+            return
+        self.sliderTemp.valueChanged.disconnect()
+        self.sliderTemp.sliderReleased.disconnect()
+        self.tempCorrection = self.slider2Temp(self.sliderTemp.value())
+
+        multipliers = temperatureAndTint2RGBMultipliers(self.tempCorrection, 1.0, self.rgb_xyz_matrix_inverse)
+        # Adjust the green multiplier to keep constant the ratio Mg/Mr, modulo the correction factor self.tintCorrection
+        self.baseTint = self.cameraMultipliers[1] / self.cameraMultipliers[0] * multipliers[0] / multipliers[1] * self.tintCorrection
+        m1 = multipliers[1] * (self.baseTint * self.tintCorrection)
+        multipliers = (multipliers[0], m1, multipliers[2])
+        self.rawMultipliers = [self.daylight[i] / multipliers[i] for i in range(3)] + [self.daylight[1] / multipliers[1]]
+        m = min(self.rawMultipliers[:3])
+        self.rawMultipliers = [self.rawMultipliers[i] / m for i in range(4)]
+        self.dataChanged.emit(True)
+        self.sliderTemp.valueChanged.connect(self.tempUpdate)  # send new value as parameter
+        self.sliderTemp.sliderReleased.connect(lambda: self.tempUpdate(self.sliderTemp.value()))  # signal has no parameter
+
+    # tint change event handler
+    def tintUpdate(self, value):
+        self.tintValue.setText(str("{:.0f}".format(self.sliderTint2User(self.sliderTint.value()))))
+        # move not yet terminated or value not modified
+        if self.sliderTint.isSliderDown() or self.slider2Tint(value) == self.tintCorrection:
+            return
+        self.sliderTint.valueChanged.disconnect()
+        self.sliderTint.sliderReleased.disconnect()
+        self.tintCorrection = self.slider2Tint(self.sliderTint.value())
+        multipliers = temperatureAndTint2RGBMultipliers(self.tempCorrection, 1, self.rgb_xyz_matrix_inverse)
+        m1 = multipliers[1] * (self.baseTint* self.tintCorrection)
+        multipliers = (multipliers[0], m1, multipliers[2])
+        self.rawMultipliers = [self.daylight[i] / multipliers[i] for i in range(3)] + [
+            self.daylight[1] / multipliers[1]]
+        m = min(self.rawMultipliers[:3])
+        self.rawMultipliers = [self.rawMultipliers[i] / m for i in range(4)]
+        self.dataChanged.emit(True)
+        self.sliderTint.valueChanged.connect(self.tintUpdate)
+        self.sliderTint.sliderReleased.connect(lambda: self.tintUpdate(self.sliderTint.value()))  # signal has no parameter)
+
+    def setRawMultipliers(self, m0, m1, m2, sampling=True):
+        mi = min(m0, m1, m2)
+        m0, m1, m2 = m0/mi, m1/mi, m2/mi
+        self.rawMultipliers = [m0, m1, m2, m1]
+        # convert multipliers to White Point RGB coordinates, modulo tint green correction (mult[1] = tint*WP_G)
+        invMultipliers = [self.daylight[i] / self.rawMultipliers[i] for i in range(3)]
+        self.sliderTemp.valueChanged.disconnect()
+        self.sliderTint.valueChanged.disconnect()
+        # get temp and tint
+        temp, tint = RGBMultipliers2TemperatureAndTint(*invMultipliers, self.rgb_xyz_matrix_inverse)
+        self.baseTint = tint#
+        tint = 1.0
+        self.sliderTemp.setValue(self.temp2Slider(temp))
+        self.sliderTint.setValue(self.tint2Slider(tint))
+        self.tempValue.setText(str("{:.0f}".format(self.slider2Temp(self.sliderTemp.value()))))
+        self.tintValue.setText(str("{:.0f}".format(self.sliderTint2User(self.sliderTint.value()))))
+        self.sliderTemp.valueChanged.connect(self.tempUpdate)
+        self.sliderTint.valueChanged.connect(self.tintUpdate)
+        self.sampleMultipliers = sampling
+        self.dataChanged.emit(True)
+
 
     def updateLayer(self, invalidate):
         """
@@ -503,7 +542,7 @@ class rawForm (QGraphicsView):
         self.listWidget2.checkOption(self.listWidget2.intNames[1])
         self.enableSliders()
         self.tempCorrection = self.cameraTemp
-        self.tintCorrection = 1.0 #self.cameraTint
+        self.tintCorrection = 1.0
         self.expCorrection = 0.0
         self.contCorrection = 0.0
         self.noiseCorrection = 0

@@ -150,9 +150,8 @@ class ExifTool(object):
         @return: profile, metadata
         @rtype: 2-uple profile: bytes, metadata: (length 1) list of dict
         """
-        # Using PIL _getexif is much simpler.
+        # Using PIL _getexif is simpler.
         # However, exiftools is more powerful
-        # So, we keep exiftools
         """
         with open(f, 'rb') as fd:
             img = Image.open(fd)

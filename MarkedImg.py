@@ -15,39 +15,37 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-import multiprocessing
-import types
-import weakref
-from PySide2 import QtCore
-from functools import partial
-
 import gc
 
-import rawpy
+import itertools
 from PySide2.QtCore import Qt, QBuffer, QDataStream, QFile, QIODevice, QSize, QPointF, QPoint, QRectF, QByteArray
 
 import cv2
 from copy import copy
 
-from PySide2.QtGui import QImageWriter, QImageReader, QTransform, QBrush
+from PySide2.QtGui import QImageReader, QTransform
 from PySide2.QtWidgets import QApplication, QMessageBox, QSplitter
 from PySide2.QtGui import QPixmap, QImage, QColor, QPainter
 from PySide2.QtCore import QRect
 
 from colorConv import sRGB2LabVec, sRGBWP, Lab2sRGBVec, sRGB_lin2XYZ, sRGB_lin2XYZInverse, rgb2rgbLinearVec, rgbLinear2rgb, \
     rgbLinear2rgbVec
-from denoising import denoise
-from grabcut import segmentForm
+
 from graphicsFilter import filterIndex
 from icc import convertQImage
 import icc
 from imgconvert import *
-from colorCube import interpVec, rgb2hspVec, hsp2rgbVec, LUT3DIdentity, LUT3D, interpVec_
+from colorCube import interpMulti, rgb2hspVec, hsp2rgbVec, LUT3DIdentity, LUT3D, interpVec_
 from time import time
 from utils import savitzky_golay, channelValues, checkeredImage, boundingRect
-import graphicsHist
+
+###################
+# multi processing
 # pool is created in QLayer.applyToStack()
+from wlExample import w2d
+
 MULTIPROC_POOLSIZE = 4
+###################
 
 class ColorSpace:
     notSpecified = -1; sRGB = 1
@@ -61,32 +59,45 @@ class metadata:
 
 class vImage(QImage):
     """
-    Versatile image class.
-    This is the base class for all multi-layered and interactive image classes.
-    It gathers all image information, including meta-data.
-    A vImage holds three images: full (self), thumbnail (self.thumb) and
-    hald (self.hald) for LUT3D conversion. Note that self.thumb and self.hald are not
-    cache buffers : self, self.thumb and self.hald are initialized
-    and handled identically.
-    Each image owns a mask (disabled by default).
+    Versatile image base class.
+    This is the base class for all multi-layered and interactive image
+    and layer classes. It gathers all image information, including meta-data.
+    A vImage object holds 4 images:
+           - full (self),
+           - thumbnail (self.thumb),
+           - hald (self.hald) for LUT3D conversion,
+           - mask (self.mask, disabled by default).
+    Note : self.thumb and self.hald are not cache buffers: they are initialized
+    and handled independently of the full size image.
     """
-    # max thumbSize
-    thumbSize = 1000
-    # default colors
+    ################
+    # max thumb size
+    ################
+    thumbSize = 1500
+
+    ###############
+    # default base color, used to display semi transparent pixels
+    ###############
     defaultBgColor = QColor(191, 191, 191)
+
+    ##############
+    # default mask colors
     # To be able to display masks as color masks, we use the red channel to code
-    # mask opacity, instead of alpha channel.
+    # the mask opacity, instead of its alpha channel.
     # When modifying these colors, it is mandatory to
-    # modify the methods invertMask and color2opacityMask accordingly.
+    # modify the methods invertMask and color2OpacityMask accordingly.
+    ##############
     defaultColor_UnMasked = QColor(128, 0, 0, 255)
     defaultColor_Masked = QColor(0, 0, 0, 255)
     defaultColor_Invalid = QColor(0, 99, 0, 255)
+
     @classmethod
     def color2OpacityMask(cls, mask):
         mask = mask.copy()
         buf = QImageBuffer(mask)
         buf[:, :, 3] = np.where(buf[:, :, 2] == 0, 0, 255)
         return mask
+
     @classmethod
     def visualizeMask(cls, img, mask, color=True, clipping=False):
         # copy image
@@ -100,13 +111,6 @@ class vImage(QImage):
             tmp = mask.copy()
             tmpBuf = QImageBuffer(tmp)
             tmpBuf[:, :, 3] = 128
-            """
-            if self.isClipping:
-                tmpBuf[:, :, 3] = 128 #255 - tmpBuf[:, :, 3]  # TODO modified 6/11/17 for clipping background
-                #tmpBuf[:, :, :3] = 64                         # TODO modified 6/11/17 for clipping background
-            else:
-                tmpBuf[:, :, 3] = 128  # 255 - tmpBuf[:,:,3]
-            """
             qp.drawImage(QRect(0, 0, img.width(), img.height()), tmp)
         else:
             # draw mask as opacity mask : mode DestinationIn sets image opacity to mask opacity
@@ -117,6 +121,7 @@ class vImage(QImage):
                 qp.drawImage(QRect(0, 0, img.width(), img.height()), checkeredImage(img.width(), img.height()))
         qp.end()
         return img
+
     @ classmethod
     def seamlessMerge(cls, dest, source, mask, cloningMethod):
         """
@@ -152,7 +157,6 @@ class vImage(QImage):
                                    center, cloningMethod
                                    )
         destBuf[:, :, :3][:, :, ::-1] = output  # assign src_ maskBuf for testing
-
 
     def __init__(self, filename=None, cv2Img=None, QImg=None, mask=None, format=QImage.Format_ARGB32,
                                             name='', colorSpace=-1, orientation=None, rating=5, meta=None, rawMetadata=[], profile=''):
@@ -700,33 +704,76 @@ class vImage(QImage):
 
     def applyRawPostProcessing(self):
         """
-        Develop raw image: attribute
-        self.parentImage.rawImage is mandatory
+        Develop raw image. An Exception AttributeError is
+        raised if rawImage is not an attribute of self.parentImage
         """
+        # get adjustment form and rawImage
         adjustForm = self.view.widget()
         options = adjustForm.options
+        rawImage = getattr(self.parentImage, 'rawImage')
+        # get current layer image
         currentImage = self.getCurrentImage()
-        bufOut = QImageBuffer(currentImage)
-
-        # process raw image, 16 bits mode
+        ######################################################################################################################
+        # process raw image (16 bits mode)                        RGB ------diag(multipliers)-----------> RGB
+        # post processing pipeline (from libraw):                   |                                      |
+        # - black subtraction                                       | rawpyObj.rgb_xyz_matrix[:3,:]        | sRGB_lin2XYZ
+        # - exposure correction                                     |                                      |
+        # - white balance                                           |                                      |
+        # - demosaic                                               XYZ                                    XYZ
+        # - data scaling to use full range
+        # - conversion to output color space
+        # - gamma curve and brightness correction : gamma(imax) = 1, imax = 8*white/brightness
+        ######################################################################################################################
         if self.postProcessCache is None:
-            bufpost = self.parentImage.rawImage.postprocess(
-                                        exp_shift=2.0**adjustForm.expCorrection,
-                                        no_auto_bright= (not options['Auto Brightness']),
-                                        use_auto_wb=options['Auto WB'],
-                                        use_camera_wb=options['Camera WB'],
-                                        user_wb = adjustForm.rawMultipliers,
-                                        #gamma= (2.222, 4.5)  # default REC BT 709 exponent, slope
-                                        gamma=(2.4, 12.92), # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
-                                        exp_preserve_highlights = 0.8 if options['Preserve Highlights'] else 0.0,
-                                        output_bps=16,
-                                        bright=adjustForm.brCorrection # default 1
-                                                            )
+            # sample multipliers
+            if adjustForm.sampleMultipliers:
+                bufpost = np.empty((self.height(), self.width(), 3), dtype=np.uint16)
+                m = adjustForm.rawMultipliers
+                co = np.array([0.98, 1.02])
+                mults = itertools.product(m[0]*co, m[1]*co, m[2]*co)
+                adjustForm.samples = []
+                for i, mult in enumerate(mults):
+                    adjustForm.samples.append(mult)
+                    mult = (mult[0], mult[1], mult[2], mult[1])
+                    print(mult, '   ', m)
+                    bufpost_temp = rawImage.postprocess(
+                                            exp_shift=2.0**adjustForm.expCorrection,
+                                            no_auto_bright= (not options['Auto Brightness']),
+                                            use_auto_wb=options['Auto WB'],
+                                            use_camera_wb=False,#options['Camera WB'],
+                                            user_wb = mult,#adjustForm.rawMultipliers,
+                                            #gamma= (2.222, 4.5)  # default REC BT 709 exponent, slope
+                                            gamma=(2.4, 12.92), # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
+                                            exp_preserve_highlights = 0.8 if options['Preserve Highlights'] else 0.0,
+                                            output_bps=16,
+                                            bright=adjustForm.brCorrection# default 1
+                                            # no_auto_scale= (not options['Auto Scale']) don't use : green shift
+                                            )
+                    row = i // 3
+                    col = i % 3
+                    w, h = int(bufpost_temp.shape[1]/3), int(bufpost_temp.shape[0]/3)
+                    bufpost_temp = cv2.resize(bufpost_temp, (w, h))
+                    bufpost[row*h:(row+1)*h, col*w:(col+1)*w,: ]=bufpost_temp
+            # develop with chosen parameters
+            else:
+                bufpost = rawImage.postprocess(
+                    exp_shift=2.0 ** adjustForm.expCorrection,
+                    no_auto_bright=(not options['Auto Brightness']),
+                    use_auto_wb=options['Auto WB'],
+                    use_camera_wb=options['Camera WB'],
+                    user_wb=adjustForm.rawMultipliers,
+                    # gamma= (2.222, 4.5)  # default REC BT 709 exponent, slope
+                    gamma=(2.4, 12.92),
+                    # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
+                    exp_preserve_highlights=0.8 if options['Preserve Highlights'] else 0.0,
+                    output_bps=16,
+                    bright=adjustForm.brCorrection  # default 1
+                    # no_auto_scale= (not options['Auto Scale']) don't use : green shift
+                    )
             self.postProcessCache = np.copy(bufpost)
         else:
             bufpost = self.postProcessCache
-
-        needLab =  adjustForm.contCorrection > 0
+        needLab =  True#adjustForm.contCorrection > 0
         if needLab:
             # 16 bits image --> RGB float32 (range 0..1) --> Lab float32 L range 0..100 (opencv convention)
             buf32Lab = cv2.cvtColor(((bufpost.astype(np.float32))/65536).astype(np.float32), cv2.COLOR_RGB2Lab)
@@ -794,13 +841,25 @@ class vImage(QImage):
             print('sat time: %.5f' % (time() - start))
             # back to RGB
             bufpost = cv2.cvtColor(bufHsB, cv2.COLOR_HSV2RGB)
+            if needLab:
+                buf32Lab = cv2.cvtColor(((bufpost.astype(np.float32))/255).astype(np.float32), cv2.COLOR_RGB2Lab)
+
+
+        noisecorr = adjustForm.noiseCorrection * currentImage.width() / self.width()
+        if noisecorr > 0:
+            L = w2d(buf32Lab[:, :, 0] / 100, noisecorr/10, level=10) * 100
+            A = w2d(buf32Lab[:, :, 1] / 127, noisecorr/10, level=10) *127
+            B = w2d(buf32Lab[:, :, 2] / 127, noisecorr/10, level=10) * 127
+            buf32Lab = np.dstack((L, A, B))
+            bufRGB32 = cv2.cvtColor(buf32Lab, cv2.COLOR_Lab2RGB)
+            bufpost = (bufRGB32 * 255.0).astype(np.uint8)
 
         if self.parentImage.useThumb:
             bufpost = cv2.resize(bufpost, (currentImage.width(), currentImage.height()))
         ################################################################################
         # denoising
         # opencv fastNlMeansDenoisingColored is very slow (>30s for a 15 Mpx image).
-        # bilateral filtering is faster but not very accurate.
+        # Bilateral filtering is faster but not very accurate.
         ################################################################################
         """
         bufpost = cv2.bilateralFilter(bufpost,
@@ -813,10 +872,20 @@ class vImage(QImage):
                                                                                 # in coordinate space,  100 middle value
                                       )
         """
-        #bufpost = cv2.fastNlMeansDenoisingColored(bufpost, None, 3, 3, 7 ,21)  # hluminance, hcolor,  last params window sizes 7, 21 are recommended values
-        noisecorr = adjustForm.noiseCorrection
+        noisecorr = adjustForm.noiseCorrection * currentImage.width() / self.width()
         if noisecorr > 0:
-            bufpost = cv2.fastNlMeansDenoisingColored(bufpost, None, 1+noisecorr, 1+noisecorr, 7, 21)
+            pass
+            """
+            #bufpost = cv2.fastNlMeansDenoisingColored(bufpost, None, 1+noisecorr, 1+noisecorr, 7, 21) # hluminance, hcolor,  last params window sizes 7, 21 are recommended values
+            bufpost = cv2.bilateralFilter(bufpost,
+                                      9 if self.parentImage.useThumb else 15,  # 21:5.5s, 15:3.5s, diameter of (coordinate) pixel neighborhood,
+                                      # 5 is the recommended value for fast processing
+                                      10*(1+noisecorr),  # std deviation sigma in color space,  100 middle value
+                                      10*(1+noisecorr),  # std deviation sigma in coordinate space,  100 middle value
+                                      )
+            """
+
+        bufOut = QImageBuffer(currentImage)
         bufOut[:, :, :3][:, :, ::-1] = bufpost
         self.updatePixmap()
 
@@ -1001,7 +1070,7 @@ class vImage(QImage):
 
         # choose right interpolation method
         if (pool is not None) and (inputImage.width() * inputImage.height() > 3000000):
-            interp = interpVec
+            interp = interpMulti
         else:
             interp = interpVec_
         # apply LUT
@@ -1343,39 +1412,26 @@ class mImage(vImage):
 
     def getActivePixel(self,x, y):
         """
-        Reads pixel value from active layer. For
+        Read pixel value from active layer. For
         adjustment or segmentation layers, we read the pixel value
         from the input image.
         @param x, y: coordinates of pixel, relative to full-sized image
         @return: pixel color
         @rtype: QColor
         """
-        """
-        currentImg = self.getCurrentImage()
-        # get x, y coordinates relative to current image
-        x = int((x * currentImg.width()) / self.width())
-        y = int((y * currentImg.height()) / self.height())
-        """
         x, y = self.full2CurrentXY(x, y)
         activeLayer = self.getActiveLayer()
         if activeLayer.isAdjustLayer() :
-            # layer is adjustment or segmentation : read from current input image
+            # layer is adjustment or segmentation : read from input image
             return activeLayer.inputImg().pixelColor(x, y)
         else:
-            # read from current image
+            # read from image
             return activeLayer.getCurrentImage().pixelColor(x, y)
 
     def cacheInvalidate(self):
         vImage.cacheInvalidate(self)
         for layer in self.layersStack:
             layer.cacheInvalidate()  # Qlayer doesn't inherit from mImage : it's a call to vImage.cacheInvalidate
-
-    """
-    def initThumb(self):
-        vImage.initThumb(self)
-        #for layer in self.layersStack:   03/10/17 prevent wrong reinit of the thumb stack when shifting from and to non color managed view in preview mode
-            #vImage.initThumb(layer)      removed 12/11/17 : useless
-    """
 
     def setThumbMode(self, value):
         if value == self.useThumb:
@@ -1592,6 +1648,7 @@ class imImage(mImage) :
     """
     def __init__(self, *args, **kwargs):
         super(imImage, self).__init__(*args, **kwargs)
+        # Zoom coeff
         # Zoom_coeff = 1.0 displays an image fitting the
         # size of the current window ( NOT the actual pixels of the image).
         self.Zoom_coeff = 1.0
@@ -1979,7 +2036,6 @@ class QLayer(vImage):
             QApplication.restoreOverrideCursor()
             QApplication.processEvents()
 
-
     def isAdjustLayer(self):
         return self.view is not None #hasattr(self, 'view')
 
@@ -1994,6 +2050,9 @@ class QLayer(vImage):
 
     def is3DLUTLayer(self):
         return '3DLUT' in self.role
+
+    def isRawLayer(self):
+        return 'RAW' in self.role
 
     def updatePixmap(self, maskOnly = False):
         """

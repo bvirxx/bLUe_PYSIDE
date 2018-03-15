@@ -81,8 +81,7 @@ from types import MethodType
 from cv2 import NORMAL_CLONE
 
 import rawpy
-from PIL.ImageCms import get_display_profile
-from PIL.ImageWin import HDC, HWND
+
 
 from grabcut import segmentForm
 from PySide2.QtCore import Qt, QRect, QEvent, QDir, QUrl, QSize, QFileInfo, QRectF, QThread, QObject, Signal, QPoint, \
@@ -110,7 +109,7 @@ from graphicsCLAHE import CLAHEForm
 from graphicsExp import ExpForm
 from graphicsPatch import patchForm, maskForm
 from utils import saveChangeDialog, save, openDlg, cropTool, rotatingTool, IMAGE_FILE_NAME_FILTER, \
-    IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS
+    IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, demosaic
 
 from graphicsTemp import temperatureForm
 from time import sleep
@@ -148,6 +147,7 @@ splittedWin = splittedWindow(window)
 ###############
 # Global QPainter for paint event
 qp = QPainter()
+qp.setRenderHint(QPainter.SmoothPixmapTransform)
 # stuff for Before/After marks
 qp.font = QFont("Arial", 8)
 qp.markPath=QPainterPath()
@@ -187,7 +187,8 @@ def paintEvent(widg, e) :
             # r is relative to full resolution image, so we use mimg width and height
             rectF = QRectF(mimg.xOffset, mimg.yOffset, mimg.width()*r, mimg.height()*r)
             if layer.qPixmap is not None:
-                qp.drawPixmap(rectF, layer.qPixmap, layer.qPixmap.rect())
+                px=layer.qPixmap
+                qp.drawPixmap(rectF, px, px.rect())
             else:
                 currentImage = layer.getCurrentImage()
                 qp.drawImage(rectF, currentImage, currentImage.rect())
@@ -303,11 +304,6 @@ def mouseEvent(widget, event) :
                 # drawing tools
                 elif window.btnValues['drawFG'] or window.btnValues['drawBG']:
                     if layer.maskIsEnabled:
-                        """
-                        if layer.isSegmentLayer():
-                            color = QColor(0, 255, 0, 128) if window.btnValues['drawFG'] else QColor(0, 0, 255, 128)
-                        else:
-                        """
                         color = vImage.defaultColor_UnMasked if window.btnValues['drawFG'] else vImage.defaultColor_Masked
                         qp.begin(layer.mask)
                         # get pen width
@@ -367,32 +363,52 @@ def mouseEvent(widget, event) :
                             layer.applyCloning(seamless=False)
         #update current coordinates
         State['ix'],State['iy']=x,y
+        # Pick color from active layer. Coordinates are relative to the full-sized image
         if window.btnValues['colorPicker']:
-            k = layer.getCurrentImage().width()/layer.width()
-            tmp_x = int((x - img.xOffset) *k / r)
-            tmp_y = int((y - img.yOffset) * k / r)
-            color = QColor(layer.getCurrentImage().pixel(tmp_x, tmp_y))
+            x_img, y_img = (x - img.xOffset) / r, (y - img.yOffset) / r
+            x_img, y_img = min(int(x_img), img.width() - 1), min(int(y_img), img.height() - 1)
+            color = img.getActivePixel(x_img, y_img)                # TODO modified 12/03/18
             s = ('%s  %s  %s' % (color.red(), color.green(), color.blue()))
             QToolTip.showText(event.globalPos(), s, window, QRect(event.globalPos(), QSize(20,30)))
-
-
         if layer.isGeomLayer():
             layer.view.widget().tool.drawRotatingTool()
+    #####################
     # mouse release event
+    ####################
     elif event.type() == QEvent.MouseButtonRelease :
         pressed=False
         if event.button() == Qt.LeftButton:
             if img.isMouseSelectable:
                 # click event
                 if clicked:
-                    # Picking color from active layer. Coordinates are relative to full-sized image
-                    c = img.getActivePixel((State['ix']  -  img.xOffset) / r, (State['iy'] - img.yOffset) / r)
+                    x_img, y_img = (x - img.xOffset) / r, (y - img.yOffset) / r
+                    x_img, y_img = min(int(x_img), img.width()-1), min(int(y_img), img.height()-1)
+                    # Pick color from active layer. Coordinates are relative to the full-sized image
+                    c = img.getActivePixel(x_img, y_img)                # TODO modified 12/03/18
                     red, green, blue = c.red(), c.green(), c.blue()
                     # select grid node for 3DLUT form
                     if layer.is3DLUTLayer():
-                            layer.view.widget().selectGridNode(red, green, blue)
+                        layer.view.widget().selectGridNode(red, green, blue)
                     if window.btnValues['rectangle'] and (modifiers == Qt.ControlModifier):
-                        layer.rect = None  # TODO added 18/02/18 to clear selection
+                        layer.rect = None                               # TODO added 18/02/18 to clear selection
+                    # for raw layer, set multipliers to get selected pixel as White Point
+                    if layer.isRawLayer() and window.btnValues['colorPicker']:
+                        bufRaw = layer.parentImage.demosaic
+                        # demosaiced buffer
+                        nb = QRect(x_img-2, y_img-2, 4, 4)
+                        r = QImage.rect(layer.parentImage).intersected(nb)
+                        if not r.isEmpty():
+                            color = np.sum(bufRaw[r.top():r.bottom()+1, r.left():r.right()+1], axis=(0,1))/(r.width()*r.height())
+                        #color = bufRaw[y_img, x_img, :]
+                        color = [color[i] - layer.parentImage.rawImage.black_level_per_channel[i] for i in range(3)]
+                        form =layer.view.widget()
+                        if form.sampleMultipliers:
+                            row, col = 3*y_img//layer.height(), 3*x_img//layer.width()
+                            if form.samples:
+                                form.setRawMultipliers(*form.samples[3*col + row], sampling=False)
+                        else:
+                            form.setRawMultipliers(1/color[0], 1/color[1], 1/color[2], sampling=True)
+
                 # for cloning layer do cloning
                 if layer.isCloningLayer():
                     if modifiers == Qt.ControlModifier | Qt.AltModifier:
@@ -430,6 +446,10 @@ def wheelEvent(widget,img, event):
     layer = img.getActiveLayer()
     if modifiers == Qt.NoModifier:
         img.Zoom_coeff *= (1.0 + numSteps)
+        # max Zoom for previews
+        if img.Zoom_coeff >2:
+            img.Zoom_coeff /= (1.0 + numSteps)
+            return
         # correcting image offset to keep unchanged the image point
         # under the cursor : (pos - offset) / resize_coeff should be invariant
         img.xOffset = -pos.x() * numSteps + (1.0+numSteps)*img.xOffset
@@ -559,7 +579,9 @@ def loadImageFromFile(f, createsidecar=True):
     @return: image
     @rtype: imImage
     """
-    # get metadata
+    ###########
+    # read metadata
+    ##########
     try:
         # read metadata from sidecar (.mie) if it exists, otherwise from image file.
         # Create sidecar if it does not exist.
@@ -569,8 +591,11 @@ def loadImageFromFile(f, createsidecar=True):
         # Default metadata and profile
         metadata = [{'SourceFile': f}]
         profile = ''
-    # trying to get color space info : 1 = sRGB
-    colorSpace = metadata[0].get("EXIF:ColorSpace", -1)
+    # color space : 1=sRGB
+    if "EXIF:ColorSpace" in metadata[0].keys():
+        colorSpace = metadata[0].get("EXIF:ColorSpace")
+    else:
+        colorSpace = metadata[0].get("MakerNotes:ColorSpace", -1)
     if colorSpace < 0:
         desc_colorSpace = metadata[0].get("ICC_Profile:ProfileDescription", '')
         if isinstance(desc_colorSpace, str):# or isinstance(desc_colorSpace, unicode): python3
@@ -582,24 +607,42 @@ def loadImageFromFile(f, createsidecar=True):
     transformation = exiftool.decodeExifOrientation(orientation)
     # rating
     rating = metadata[0].get("XMP:Rating", 5)
-    # load image file
+    ############
+    # load image
+    ############
     name = path.basename(f)
     ext = name[-4:]
     if ext in list(IMAGE_FILE_EXTENSIONS):
         img = imImage(filename=f, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile, name=name, rating=rating)
     elif ext in list(RAW_FILE_EXTENSIONS):
-        raw = rawpy.imread(f)
-        rawSizes = raw.sizes
-        # init buffer with four channels (alpha channel is set to 255)
-        #rawBuf = np.zeros((rawSizes.height, rawSizes.width, 4), dtype=np.uint8)+255
-        # postprocess raw image with default parameters taken from vImage.applyRawPostProcessing
+        # imread keeps f open. Calling raw.close() deletes the raw object.
+        # We use a file buffer as a workaround.
+        #raw = rawpy.imread(f)
+        #raw.close()
+        raw = rawpy.RawPy()
+        bufio= open(f, "rb")
+        raw.open_buffer(bufio)
+        raw.unpack()
+        bufio.close()
+        # postprocess raw image with default parameters cf. vImage.applyRawPostProcessing
         rawBuf = raw.postprocess(use_camera_wb=True, gamma=(2.4, 12.92)) # sRGB (exponent, slope) cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
         rawBuf = rawBuf[:,:,::-1]
         rawBuf = np.dstack((rawBuf, np.zeros(rawBuf.shape[:2], dtype=np.uint8)+255))
         img = imImage(cv2Img=rawBuf, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile, name=name, rating=rating)
-        img.filename = f
-        #keep reference to rawpy object
+        # reference to Rawpy instance
         img.rawImage = raw
+        img.filename = f
+        #######################
+        # demosaic Bayer bitmap (we cannot access the demosaic buffer from rawpy instance)
+        ########################
+        # Bayer bitmap (16 bits)
+        img.demosaic = demosaic(raw.raw_image_visible, raw.raw_colors_visible, raw.black_level_per_channel)
+        # correct orientation
+        if orientation == 6: # 90°
+            img.demosaic = np.swapaxes(img.demosaic, 0, 1)
+        elif orientation == 8: # 270°
+            img.demosaic = np.swapaxes(img.demosaic, 0, 1)
+            img.demosaic = np.demosaic[:,::-1,:]
     else:
         raise ValueError("Cannot read file %s" % f)
     if img.isNull():
@@ -626,9 +669,9 @@ def addBasicAdjustmentLayers(img):
 
 def addRawAdjustmentLayer():
     lname = 'Development'
-    l = window.label.img.addAdjustmentLayer(name=lname)
+    l = window.label.img.addAdjustmentLayer(name=lname, role='RAW')
     # cache for post processed (no sat, no contrast, no filter,...) image
-    l.postProcessCache = None
+    #l.postProcessCache = None # TODO 12/03/18 removed
     grWindow = rawForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window,
                                             mainForm=window)
     # wrapper for the right apply method
@@ -669,7 +712,7 @@ def openFile(f):
             # switch to preview mode and process stack
             window.tableView.previewOptionBox.setChecked(True)
             window.tableView.previewOptionBox.stateChanged.emit(Qt.Checked)
-            # add development layer
+            # add development layer for raw image, and develop
             if img.rawImage is not None:
                 addRawAdjustmentLayer()
             # add default adjustment layers
@@ -1626,7 +1669,7 @@ def close(e):
 def updateStatus():
     img = window.label.img
     # filename and rating
-    s = img.filename + ' ' + (' '.join(['*']*img.meta.rating))
+    s = '&nbsp;&nbsp;&nbsp;&nbsp;' + img.filename + ' ' + (' '.join(['*']*img.meta.rating))
     if img.useThumb:
         s = s + '      ' + '<font color=red><b>&nbsp;&nbsp;&nbsp;&nbsp;Preview</b></font> '
     else:
@@ -1784,6 +1827,15 @@ if __name__ =='__main__':
 
     # init property widget for tableView
     window.propertyWidget.setLayout(window.tableView.propertyLayout)
-
+    ###################
+    # test numpy dll loading
+    #################
+    import numpy as np
+    from time import time
+    t = time()
+    dummy = np.dot([[i] for i in range(1000)], [range(1000)])
+    t = time() - t
+    if t > 0.01:
+        print('dot product time %.5f' % t)
     # launch app
     sys.exit(app.exec_())

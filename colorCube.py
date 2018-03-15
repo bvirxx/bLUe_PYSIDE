@@ -766,9 +766,10 @@ def hsp2rgbVecSmall(hspImg):
     rgb1=cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
     return rgb1.reshape(shape + (3,))
 
-def interpVec(LUT, ndImg, pool=None):
+def interpMulti(LUT, ndImg, pool=None):
     """
-    parallel version of trilinear interpolation
+    parallel version of trilinear interpolation.
+    Should be compared to the vectorized version interpVec_
     @param LUT:
     @param ndImg:
     @return:
@@ -905,7 +906,7 @@ if __name__=='__main__':
     b = np.random.randint(0,256, size=500*500*3, dtype=np.uint8)
     testImg = np.reshape(b, (500,500,3))
     interpImg = LUT3DFromFactory(33)
-    interpImg = interpVec(LUT3D_ORI, testImg)
+    interpImg = interpMulti(LUT3D_ORI, testImg)
     d = testImg - interpImg
     if (d != 0.0).any():
         pass

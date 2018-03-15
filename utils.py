@@ -15,6 +15,7 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+import cv2
 from PySide2 import QtCore
 
 import numpy as np
@@ -39,6 +40,61 @@ class channelValues():
     RGB, Red, Green, Blue =[0,1,2], [0], [1], [2]
     HSB, Hue, Sat, Br = [0, 1, 2], [0], [1], [2]
     Lab, L, a, b = [0, 1, 2], [0], [1], [2]
+
+def demosaic(raw_image_visible, raw_colors_visible, black_level_per_channel):
+    """
+    demosaic a sensor bitmap. The input array raw_image_visble has the same dimensions as the image,
+    BUT NO CHANNEL. The array raw_colors_visible (identical shape) gives the color channel (0=R, 1+G, 2=B)
+    corresponding to each point.
+    @param raw_image_visible:
+    @type raw_image_visible: nd_array, dtype uint16, shape(img_h, img_w)
+    @param raw_colors_visible:
+    @type raw_colors_visible: nd_array, dtype u1, shape(img_h, img_w)
+    @param black_level_per_channel:
+    @type black_level_per_channel: list or array, dtype= int
+    @return: demosaic array
+    @rtype: ndarray, dtype uint16, shape (img_width, img_height, 3)
+    """
+    black_level_per_channel = np.array(black_level_per_channel, dtype=np.uint16)
+    # Bayer bitmap (16 bits), subtract black level for each channel
+    if np.any(black_level_per_channel!=0):
+        bayerBuf = raw_image_visible - black_level_per_channel[raw_colors_visible]
+    else:
+        bayerBuf = raw_image_visible
+    # encode Bayer pattern to opencv constant
+    tmpdict = {0:'R', 1:'G', 2:'B'}
+    pattern = 'cv2.COLOR_BAYER_' + tmpdict[raw_colors_visible[1,1]] + tmpdict[raw_colors_visible[1,2]] + '2RGB'
+    # demosaic
+    demosaic = cv2.cvtColor(bayerBuf, eval(pattern))
+    return demosaic
+
+
+from itertools import product
+
+
+def multiply(matr_a, matr_b):
+    """Return product of an MxP matrix A with an PxN matrix B."""
+    cols, rows = len(matr_b[0]), len(matr_b)
+    resRows = xrange(len(matr_a))
+    rMatrix = [[0] * cols for _ in resRows]
+    for idx in resRows:
+        for j, k in product(xrange(cols), xrange(rows)):
+            rMatrix[idx][j] += matr_a[idx][k] * matr_b[k][j]
+    return rMatrix
+
+
+def inversion(m):
+    """
+    @param m:
+    @type m:
+    @return:
+    @rtype:
+    """
+    m1, m2, m3, m4, m5, m6, m7, m8, m9 = m.ravel()
+    inv = np.array([[m5 * m9 - m6 * m8, m3 * m8 - m2 * m9, m2 * m6 - m3 * m5],
+                    [m6 * m7 - m4 * m9, m1 * m9 - m3 * m7, m3 * m4 - m1 * m6],
+                    [m4 * m8 - m5 * m7, m2 * m7 - m1 * m8, m1 * m5 - m2 * m4]])
+    return inv / multiply(inv[0], m[:, 0])
 
 def saveChangeDialog(img):
     reply = QMessageBox()
@@ -66,7 +122,8 @@ def save(img, mainWidget):
     lastDir = mainWidget.settings.value("paths/dlgdir", QDir.currentPath())
     # file dialogs
     dlg = savingDialog(mainWidget, "Save", lastDir)
-    dlg.selectFile(img.filename)
+    # default saving format JPG
+    dlg.selectFile(img.filename[:-3] + 'JPG')
     dlg.dlg.currentChanged.connect(lambda f: print(f))
     if dlg.exec_():
         newDir = dlg.directory().absolutePath()
@@ -167,13 +224,15 @@ class optionsWidget(QListWidget) :
 
     def __init__(self, options=[], optionNames=None, exclusive=True, changed=None, parent=None):
         """
-        @param options: list of option names or dict {intern_Name : displayed_Name}
-        @type options: list of strings
-        @param exclusive
+        @param options: list of options
+        @type options: list of str
+        @param optionNames : list of displayed names corresponding to options
+        @type optionNames: lit of str
+        @param exclusive :
         @type exclusive: boolean
         @param changed: signal
         @type changed: QSignal
-        @prama oarent:
+        @param oarent:
         @type parent: QObject
         """
         super(optionsWidget, self).__init__(parent)
@@ -182,12 +241,11 @@ class optionsWidget(QListWidget) :
         else:
             self.extNames = optionNames
         self.intNames = options
-
         # dict of items with keys option internal name
         self.items = {}
         # dict of item states with option internal name as key
         self.options = {}
-        for option, name in zip(options, self.intNames):
+        for option, name in zip(self.intNames, self.extNames):
             listItem = QListWidgetItem(name, self)
             listItem.setCheckState(Qt.Unchecked)
             self.addItem(listItem)
