@@ -94,6 +94,7 @@ from PySide2.QtWidgets import QApplication, QMenu, QAction, QFileDialog, QMessag
 from QtGui1 import app, window, Form1
 import exiftool
 from graphicsBlendFilter import blendFilterForm
+from graphicsNoise import noiseForm
 from graphicsRaw import rawForm
 from graphicsTransform import transForm
 from imgconvert import *
@@ -405,7 +406,7 @@ def mouseEvent(widget, event) :
                         if form.sampleMultipliers:
                             row, col = 3*y_img//layer.height(), 3*x_img//layer.width()
                             if form.samples:
-                                form.setRawMultipliers(*form.samples[3*col + row], sampling=False)
+                                form.setRawMultipliers(*form.samples[3*row + col], sampling=False)
                         else:
                             form.setRawMultipliers(1/color[0], 1/color[1], 1/color[2], sampling=True)
 
@@ -620,10 +621,9 @@ def loadImageFromFile(f, createsidecar=True):
         #raw = rawpy.imread(f)
         #raw.close()
         raw = rawpy.RawPy()
-        bufio= open(f, "rb")
-        raw.open_buffer(bufio)
+        with open(f, "rb") as bufio:
+            raw.open_buffer(bufio)
         raw.unpack()
-        bufio.close()
         # postprocess raw image with default parameters cf. vImage.applyRawPostProcessing
         rawBuf = raw.postprocess(use_camera_wb=True, gamma=(2.4, 12.92)) # sRGB (exponent, slope) cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
         rawBuf = rawBuf[:,:,::-1]
@@ -727,7 +727,7 @@ def openFile(f):
             if len(window._recentFiles) > 10:
                 window._recentFiles.pop()  # remove last item
             window.settings.setValue('paths/recent', window._recentFiles)
-    except (ValueError, rawpy.LibRawFatalError) as e:
+    except (ValueError, IOError, rawpy.LibRawFatalError) as e:
         QApplication.restoreOverrideCursor()
         QApplication.processEvents()
         msg = QMessageBox()
@@ -1447,6 +1447,12 @@ def menuLayer(name):
         grWindow = blendFilterForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         # wrapper for the right apply method
         l.execute = lambda l=l, pool=None: l.applyBlendFilter()
+    elif name == 'actionNoise_Reduction':
+        lname='Noise Reduction'
+        l = window.label.img.addAdjustmentLayer(name=lname)
+        grWindow = noiseForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
+        # wrapper for the right apply method
+        l.execute = lambda l=l, pool=None: l.applyNoiseReduction()
     elif name == 'actionSave_Layer_Stack':
         lastDir = window.settings.value('paths/dlgdir', '.')
         dlg = QFileDialog(window, "select", lastDir)

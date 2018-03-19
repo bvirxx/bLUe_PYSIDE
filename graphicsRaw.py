@@ -24,13 +24,7 @@ from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QLabel, Q
 from colorConv import temperatureAndTint2RGBMultipliers, RGBMultipliers2TemperatureAndTint, sRGB2XYZVec
 from utils import optionsWidget, UDict, QbLUeSlider, inversion
 
-bLueSliderDefaultColorStylesheet = """QSlider::groove:horizontal:enabled {margin: 3px; 
-                                          background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 blue, stop:1 red);}
-                                       QSlider::groove:horizontal:disabled {margin: 3px; 
-                                          background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #8888FF, stop:1 #FF8888);}"""
-bLueSliderDefaultBWStylesheet = """QSlider::groove:horizontal:enabled {margin: 3px; 
-                                          background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 black, stop:1 white);}
-                                       QSlider::groove:horizontal:disabled {margin: 3px; background: #888888;}"""
+
 class rawForm (QGraphicsView):
     """
     GUI for postprocessing of raw files
@@ -97,7 +91,7 @@ class rawForm (QGraphicsView):
 
         # temp slider
         self.sliderTemp = QbLUeSlider(Qt.Horizontal)
-        self.sliderTemp.setStyleSheet(bLueSliderDefaultColorStylesheet)
+        self.sliderTemp.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
         self.sliderTemp.setRange(0,130)
 
         self.sliderTemp.setSingleStep(1)
@@ -120,7 +114,7 @@ class rawForm (QGraphicsView):
         # tint slider
         self.sliderTint = QbLUeSlider(Qt.Horizontal)
         # self.sliderTint.setStyleSheet(self.sliderTint.styleSheet()+'QSlider::groove:horizontal {background: red;}')
-        self.sliderTint.setStyleSheet(bLueSliderDefaultColorStylesheet)
+        self.sliderTint.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
         self.sliderTint.setRange(0, 150)
 
         self.sliderTint.setSingleStep(1)
@@ -156,7 +150,7 @@ class rawForm (QGraphicsView):
 
         # exp slider
         self.sliderExp = QbLUeSlider(Qt.Horizontal)
-        self.sliderExp.setStyleSheet(bLueSliderDefaultBWStylesheet)
+        self.sliderExp.setStyleSheet(QbLUeSlider.bLueSliderDefaultBWStylesheet)
         self.sliderExp.setRange(0, 100)
 
         self.sliderExp.setSingleStep(1)
@@ -195,7 +189,7 @@ class rawForm (QGraphicsView):
 
         self.sliderExp.setSingleStep(1)
 
-        brSlider.setStyleSheet(bLueSliderDefaultBWStylesheet)
+        brSlider.setStyleSheet(QbLUeSlider.bLueSliderDefaultBWStylesheet)
 
         self.sliderBrightness = brSlider
         brLabel = QLabel()
@@ -227,7 +221,7 @@ class rawForm (QGraphicsView):
 
         # contrast slider
         self.sliderCont = QbLUeSlider(Qt.Horizontal)
-        self.sliderCont.setStyleSheet(bLueSliderDefaultBWStylesheet)
+        self.sliderCont.setStyleSheet(QbLUeSlider.bLueSliderDefaultBWStylesheet)
         self.sliderCont.setRange(0, 20)
 
         self.sliderCont.setSingleStep(1)
@@ -262,7 +256,7 @@ class rawForm (QGraphicsView):
 
         # noise reduction slider
         self.sliderNoise = QbLUeSlider(Qt.Horizontal)
-        self.sliderNoise.setStyleSheet(bLueSliderDefaultColorStylesheet)
+        self.sliderNoise.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
         self.sliderNoise.setRange(0, 20)
 
         self.sliderNoise.setSingleStep(1)
@@ -290,7 +284,7 @@ class rawForm (QGraphicsView):
             self.sliderNoise.sliderReleased.disconnect()
             self.noiseCorrection = self.slider2Noise(self.sliderNoise.value())
             self.noiseValue.setText(str("{:+d}".format(self.slider2Noise(self.sliderNoise.value()))))
-            self.dataChanged.emit(False)
+            self.dataChanged.emit(True)  # TODO modified 18/03/18
             self.sliderNoise.valueChanged.connect(noiseUpdate)  # send new value as parameter
             self.sliderNoise.sliderReleased.connect(lambda: noiseUpdate(self.sliderNoise.value()))  # signal has no parameter
         self.sliderNoise.valueChanged.connect(noiseUpdate)  # send new value as parameter
@@ -298,7 +292,7 @@ class rawForm (QGraphicsView):
 
         """saturation slider"""
         self.sliderSat = QbLUeSlider(Qt.Horizontal)
-        self.sliderSat.setStyleSheet(bLueSliderDefaultColorStylesheet)
+        self.sliderSat.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
         self.sliderSat.setRange(0, 100)
 
         self.sliderSat.setSingleStep(1)
@@ -457,7 +451,6 @@ class rawForm (QGraphicsView):
         self.sliderTint.valueChanged.connect(self.tintUpdate)
         self.sampleMultipliers = sampling
         self.dataChanged.emit(True)
-
 
     def updateLayer(self, invalidate):
         """

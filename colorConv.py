@@ -204,14 +204,12 @@ def XYZ2sRGBVec(imgBuf):
 
 def sRGB2LabVec(bufsRGB, useOpencv = True) :
     """
-    Vectorized sRGB to Lab conversion.  No clipping
+    Vectorized sRGB to Lab conversion for 8 bits images only.  No clipping
     is performed. If useOpencv is True (default, faster),
     we use opencv cvtColor.
-    
     See U{https://en.wikipedia.org/wiki/Lab_color_space}
-    
+
     The range for Lab coordinates is L:0..1, a:-86.185..98.254, b:-107.863..94.482
-    
     See U{http://stackoverflow.com/questions/19099063/what-are-the-ranges-of-coordinates-in-the-cielab-color-space}
     @param bufsRGB: image buffer, mode sRGB, range 0..255
     @type bufsRGB: ndarray, dtype = numpy uint8
@@ -226,7 +224,6 @@ def sRGB2LabVec(bufsRGB, useOpencv = True) :
         # for 8 bits per channel images opencv uses L,a,b range 0..255
         bufLab[:,:,0] = bufLab[:,:,0] / 255.0
         bufLab[:,:,1:] = bufLab[:,:,1:] - 128
-        # bufLab[:, :, 2] = bufLab[:, :, 2] - 128
     else :
         oldsettings = np.seterr(all='ignore')
         bufXYZ = sRGB2XYZVec(bufsRGB) # * 100.0

@@ -580,6 +580,7 @@ Screen</string>
      <addaction name="actionCurves_Lab"/>
      <addaction name="actionFilter"/>
      <addaction name="actionGradual_Filter"/>
+     <addaction name="actionNoise_Reduction"/>
      <addaction name="separator"/>
      <addaction name="action3D_LUT_HSB"/>
      <addaction name="action3D_LUT"/>
@@ -911,6 +912,11 @@ Screen</string>
   <action name="actionGradual_Filter">
    <property name="text">
     <string>Gradual Filter</string>
+   </property>
+  </action>
+  <action name="actionNoise_Reduction">
+   <property name="text">
+    <string>Noise Reduction</string>
    </property>
   </action>
  </widget>

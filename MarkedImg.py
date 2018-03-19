@@ -42,7 +42,7 @@ from utils import savitzky_golay, channelValues, checkeredImage, boundingRect
 ###################
 # multi processing
 # pool is created in QLayer.applyToStack()
-from wlExample import w2d
+from dwtdenoise import dwtDenoise_thr
 
 MULTIPROC_POOLSIZE = 4
 ###################
@@ -702,6 +702,45 @@ class vImage(QImage):
         outBuf[:,:,:] = QImageBuffer(img)
         self.updatePixmap()
 
+    def applyNoiseReduction(self):
+        adjustForm = self.view.widget()
+        noisecorr = adjustForm.noiseCorrection
+        currentImage = self.getCurrentImage()
+        inputImage = self.inputImg()
+        if noisecorr == 0:
+            bufOut = QImageBuffer(currentImage)
+            bufOut[:, :, :3][:, :, ::-1] = QImageBuffer(currentImage)[:,:,:3]
+            self.updatePixmap()
+        buf0 = QImageBuffer(inputImage)[:, :, :3][:, :, ::-1]
+        noisecorr *= currentImage.width() / self.width()
+        if adjustForm.options['Wavelets']:
+            noisecorr *= 100
+            bufLab = cv2.cvtColor(buf0, cv2.COLOR_RGB2Lab)
+            L = dwtDenoise_thr(bufLab[:, :, 0], thr=noisecorr, thrmode='wiener', level=8 if self.parentImage.useThumb else 11)
+            A = dwtDenoise_thr(bufLab[:, :, 1], thr=noisecorr, thrmode='wiener', level=8 if self.parentImage.useThumb else 11)
+            B = dwtDenoise_thr(bufLab[:, :, 2], thr=noisecorr, thrmode='wiener', level=8 if self.parentImage.useThumb else 11)
+            #L = np.clip(L, 0, 100)
+            # A = np.clip(A, -127, 127)
+            # B = np.clip(B, -127, 127)
+            bufLab = np.dstack((L, A, B))
+            buf1 = cv2.cvtColor(bufLab.astype(np.uint8), cv2.COLOR_Lab2RGB)
+        elif adjustForm.options['Bilateral']:
+           buf1 = cv2.bilateralFilter(buf0,
+                                         9 if self.parentImage.useThumb else 15,   # 21:5.5s, 15:3.5s, diameter of
+                                                                                   # (coordinate) pixel neighborhood,
+                                                                                   # 5 is the recommended value for fast processing
+                                         10 * adjustForm.noiseCorrection,          # std deviation sigma
+                                                                                   # in color space,  100 middle value
+                                         50 if self.parentImage.useThumb else 150, # std deviation sigma
+                                                                                   # in coordinate space,  100 middle value
+                                         )
+        elif adjustForm.options['NLMeans']:
+            buf1 = cv2.fastNlMeansDenoisingColored(buf0, None, 1+noisecorr, 1+noisecorr, 7, 21) # hluminance, hcolor,  last params window sizes 7, 21 are recommended values
+
+        bufOut = QImageBuffer(currentImage)
+        bufOut[:, :, :3][:, :, ::-1] = buf1
+        self.updatePixmap()
+
     def applyRawPostProcessing(self):
         """
         Develop raw image. An Exception AttributeError is
@@ -723,14 +762,15 @@ class vImage(QImage):
         # - data scaling to use full range
         # - conversion to output color space
         # - gamma curve and brightness correction : gamma(imax) = 1, imax = 8*white/brightness
+        # ouput is CV_16UC3
         ######################################################################################################################
         if self.postProcessCache is None:
-            # sample multipliers
+            # sampling multipliers
             if adjustForm.sampleMultipliers:
                 bufpost = np.empty((self.height(), self.width(), 3), dtype=np.uint16)
                 m = adjustForm.rawMultipliers
-                co = np.array([0.98, 1.02])
-                mults = itertools.product(m[0]*co, m[1]*co, m[2]*co)
+                co = np.array([0.75, 1.0, 1.3])
+                mults = itertools.product(m[0]*co, [m[1]], m[2]*co)
                 adjustForm.samples = []
                 for i, mult in enumerate(mults):
                     adjustForm.samples.append(mult)
@@ -770,138 +810,83 @@ class vImage(QImage):
                     bright=adjustForm.brCorrection  # default 1
                     # no_auto_scale= (not options['Auto Scale']) don't use : green shift
                     )
-            self.postProcessCache = np.copy(bufpost)
+            #self.postProcessCache = np.copy(bufpost)
+            buf32Lab = cv2.cvtColor(((bufpost.astype(np.float32)) / 65536).astype(np.float32), cv2.COLOR_RGB2Lab)
+            self.postProcessCache = buf32Lab.copy()
         else:
-            bufpost = self.postProcessCache
-        needLab =  True#adjustForm.contCorrection > 0
-        if needLab:
-            # 16 bits image --> RGB float32 (range 0..1) --> Lab float32 L range 0..100 (opencv convention)
-            buf32Lab = cv2.cvtColor(((bufpost.astype(np.float32))/65536).astype(np.float32), cv2.COLOR_RGB2Lab)
-        """
-        ####################
-        # Gradual neutral density filter
-        # We blend a neutral filter with density range 0.5*s...0.5 with the image b,
-        # using the overlay blending mode : f(a,b) = 2*a*b if b < 0.5 else f(a,b) = 1 - 2*(1-a)(1-b)
-        ####################
-        h = bufpost.shape[0]
-        rect = getattr(self, 'rect', None)
-        if rect is not None:
-            rect = rect.intersected(QRect(0,0, bufpost.shape[1], bufpost.shape[0]))
-            adjustForm.filterStart = int((rect.top()/h)*100.0)
-            adjustForm.filterEnd = int((rect.bottom()/h)*100.0)
-            adjustForm.sliderFilterRange.setStart(adjustForm.filterStart)
-            adjustForm.sliderFilterRange.setEnd(adjustForm.filterEnd)
-        if adjustForm.filterEnd > 4:
-            s = 0  #strongest 0
-            opacity = 1 - s
-
-            start = int(h * adjustForm.filterStart / 100.0)
-            end = int(h * adjustForm.filterEnd / 100.0)
-            test = np.array(range(end - start)) * opacity / (2.0 * max(end - start -1, 1)) + 0.5*s  # range 0.5*s...0.5
-            test = np.concatenate((np.zeros(start) + 0.5*s, test, np.zeros(h - end) + 0.5))
-            test1 = test[:, np.newaxis]
-            Lchan = buf32Lab[:, :, 0]
-            buf32Lab[:, :, 0] = np.where(Lchan < 50, Lchan * (test1 * 2.0), 100.0 - 2.0 * (1.0 - test1) * (100.0 - Lchan))
-            #luminosity correction
-            #buf32Lab[:,:,0] = buf32Lab[:,:,0]*(1.0+0.1)
-        """
+            buf32Lab = self.postProcessCache.copy()
+        #needLab =  True#adjustForm.contCorrection > 0
+        #if needLab:
+            # CV_16UC3 --> RGB float32 (range 0..1) --> Lab float32 0<=L<=100, -127<=a<=127, -127<=b<=127 see https://docs.opencv.org/3.1.0/de/d25/imgproc_color_conversions.html
+            #buf32Lab = cv2.cvtColor(((bufpost.astype(np.float32))/65536).astype(np.float32), cv2.COLOR_RGB2Lab)
         ###########
-        # contrast.
-        # Clahe performs badly on small images :
+        # contrast (L channel)
+        # Clahe performs badly on small images, hence
         # we keep full resolution.
         ###########
         if adjustForm.contCorrection > 0:
             clahe = cv2.createCLAHE(clipLimit=adjustForm.contCorrection/2, tileGridSize=(8, 8))
             clahe.setClipLimit(adjustForm.contCorrection/2)
-            # convert L channel to CV_16UC1 image and apply clahe
+            # convert L channel to CV_16UC1 and apply clahe
             res = clahe.apply(((buf32Lab[:, :, 0]*655.35).astype(np.uint16)))
             # convert back to float32
             res = ((res.astype(np.float32))/655.35).astype(np.float32)
             buf32Lab[:, :, 0] = res
-        #############
-        # convert to uint8
-        #############
-        if needLab:
-            bufRGB32 = cv2.cvtColor(buf32Lab, cv2.COLOR_Lab2RGB)
-            bufpost = (bufRGB32*255.0).astype(np.uint8)
-        else:
-            bufpost = (bufpost/256.0).astype(np.uint8)
-        ###############
-        # saturation : we apply the curve s**alpha, with alpha= 1-satCorrection/50)
-        ###############
+        ############
+        # saturation (Lab)
+        ############
         if adjustForm.satCorrection != 0:
-            # convert to HSV, 0<=S<=255
-            bufHsB = cv2.cvtColor(bufpost, cv2.COLOR_RGB2HSV)
-            alpha = -adjustForm.satCorrection/50.0 + 1.0
-            start = time()
-            # tabulate x**alpha, 0<=x<=255
-            LUT = (np.power(np.array(range(256))/255, alpha) * 255).astype(np.uint8)
-            # convert saturation s to s**alpha
-            bufHsB[:,:,1] = LUT[bufHsB[:,:,1]]
-            print('sat time: %.5f' % (time() - start))
-            # back to RGB
-            bufpost = cv2.cvtColor(bufHsB, cv2.COLOR_HSV2RGB)
-            if needLab:
-                buf32Lab = cv2.cvtColor(((bufpost.astype(np.float32))/255).astype(np.float32), cv2.COLOR_RGB2Lab)
-
-
-        noisecorr = adjustForm.noiseCorrection * currentImage.width() / self.width()
-        if noisecorr > 0:
-            L = w2d(buf32Lab[:, :, 0] / 100, noisecorr/10, level=10) * 100
-            A = w2d(buf32Lab[:, :, 1] / 127, noisecorr/10, level=10) *127
-            B = w2d(buf32Lab[:, :, 2] / 127, noisecorr/10, level=10) * 127
-            buf32Lab = np.dstack((L, A, B))
-            bufRGB32 = cv2.cvtColor(buf32Lab, cv2.COLOR_Lab2RGB)
-            bufpost = (bufRGB32 * 255.0).astype(np.uint8)
-
+            slope = adjustForm.satCorrection/50 +1.5 # range 0.5..2.5
+            # tabulate y = slope*x for x in range -127..127
+            #LUT = (np.array(range(256)) - 127) * slope
+            #LUT = np.clip(LUT, -127, 127)
+            buf32Lab[:,:,1] *= slope #LUT[(buf32Lab[:,:,1]+127).astype(np.int)]
+            buf32Lab[:, :, 2] *= slope #= LUT[(buf32Lab[:, :, 2]+ 127).astype(np.int)]
+            buf32Lab[:, :, 1] = np.clip(buf32Lab[:,:,1], -127, 127)
+            buf32Lab[:, :, 2] = np.clip(buf32Lab[:, :, 2], -127, 127)
         if self.parentImage.useThumb:
-            bufpost = cv2.resize(bufpost, (currentImage.width(), currentImage.height()))
+            buf32Lab = cv2.resize(buf32Lab, (currentImage.width(), currentImage.height()))
+        """
         ################################################################################
         # denoising
         # opencv fastNlMeansDenoisingColored is very slow (>30s for a 15 Mpx image).
         # Bilateral filtering is faster but not very accurate.
         ################################################################################
-        """
-        bufpost = cv2.bilateralFilter(bufpost,
-                                      9 if self.parentImage.useThumb else 15,   # 21:5.5s, 15:3.5s, diameter of
-                                                                                # (coordinate) pixel neighborhood,
-                                                                                # 5 is the recommended value for fast processing
-                                      10 * adjustForm.noiseCorrection,          # std deviation sigma
-                                                                                # in color space,  100 middle value
-                                      50 if self.parentImage.useThumb else 150, # std deviation sigma
-                                                                                # in coordinate space,  100 middle value
-                                      )
-        """
         noisecorr = adjustForm.noiseCorrection * currentImage.width() / self.width()
         if noisecorr > 0:
-            pass
-            """
-            #bufpost = cv2.fastNlMeansDenoisingColored(bufpost, None, 1+noisecorr, 1+noisecorr, 7, 21) # hluminance, hcolor,  last params window sizes 7, 21 are recommended values
-            bufpost = cv2.bilateralFilter(bufpost,
-                                      9 if self.parentImage.useThumb else 15,  # 21:5.5s, 15:3.5s, diameter of (coordinate) pixel neighborhood,
-                                      # 5 is the recommended value for fast processing
-                                      10*(1+noisecorr),  # std deviation sigma in color space,  100 middle value
-                                      10*(1+noisecorr),  # std deviation sigma in coordinate space,  100 middle value
-                                      )
-            """
-
+            noisecorr = noisecorr/100
+            t = time()
+            L = dwtDenoise_thr(buf32Lab[:, :, 0] / 100, thr=noisecorr, thrmode='wiener', level=8 if self.parentImage.useThumb else 11) * 100
+            A = dwtDenoise_thr(buf32Lab[:, :, 1] / 127, thr=noisecorr*0.5, thrmode='wiener', level=8 if self.parentImage.useThumb else 11) * 127
+            B = dwtDenoise_thr(buf32Lab[:, :, 2] / 127, thr=noisecorr*0.5, thrmode='wiener', level=8 if self.parentImage.useThumb else 11) * 127
+            L = np.clip(L, 0, 100)
+            # A = np.clip(A, -127, 127)
+            # B = np.clip(B, -127, 127)
+            print('denoise %.2f' % (time() - t))
+            buf32Lab = np.dstack((L, A, B))
+        """
+        bufRGB32 = cv2.cvtColor(buf32Lab, cv2.COLOR_Lab2RGB)
+        bufpost = (bufRGB32 * 255.0).astype(np.uint8)
         bufOut = QImageBuffer(currentImage)
         bufOut[:, :, :3][:, :, ::-1] = bufpost
         self.updatePixmap()
 
     def applyCLAHE(self, clipLimit, options):
-        #TODO define neutral point
-
         inputImage = self.inputImg()
+        if clipLimit == 0:
+            currentImage = self.getCurrentImage()
+            ndImg1a = QImageBuffer(currentImage)
+            tmpBuf = QImageBuffer(inputImage)
+            ndImg1a[:, :, :] = tmpBuf
+            self.updatePixmap()
         # get l channel
-
         LBuf = np.array(inputImage.getLabBuffer(), copy=True)
         # apply CLAHE to L channel
         clahe = cv2.createCLAHE(clipLimit=clipLimit, tileGridSize=(8, 8))
         clahe.setClipLimit(clipLimit)
         res = clahe.apply((LBuf[:,:,0] * 255.0).astype(np.uint8))
         LBuf[:,:,0] = res / 255
-        sRGBBuf = Lab2sRGBVec(LBuf)
+        sRGBBuf = Lab2sRGBVec(LBuf)  #TODO use opencv cvtcolor
         # clipping is mandatory here : numpy bug ?
         #sRGBBuf = np.clip(sRGBBuf, 0, 255)
         currentImage = self.getCurrentImage()

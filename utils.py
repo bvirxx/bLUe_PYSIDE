@@ -36,6 +36,66 @@ RAW_FILE_EXTENSIONS = (".nef", ".NEF", ".dng", ".DNG", ".cr2", ".CR2")
 IMAGE_FILE_NAME_FILTER = ['Image Files (*.jpg *.png *.tif *.JPG *.PNG *.TIF)']
 #################
 
+def rolling_window(a, winsize):
+    """
+    Add a last axis to an array, filled with the values of a
+    1-dimensional sliding window
+
+    @param a: array
+    @type a: ndarray, dtype= any numeric type
+    @param winsize: size of the moving window
+    @type winsize: int
+    @return: array with last axis added
+    @rtype: ndarray
+    """
+    shape = a.shape[:-1] + (a.shape[-1] - winsize + 1, winsize)
+    strides = a.strides + (a.strides[-1],)
+    return np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
+
+def movingAverage(a, winsize):
+    """
+    Compute the moving averages of a 1D or 2D array.
+    For 1D arrays, the borders are not handled : the dimension of
+    the returned array is a.shape[0] - winsize//2.
+    For 2D arrays, the window is square (winsize*winsize), the
+    borders are handled by reflection and the returned array
+    keeps the shape of a.
+    @param a: array
+    @type a: ndarray ndims = 1 or 2
+    @param winsize: size of moving window
+    @type winsize: int
+    @return: array of moving averages
+    @rtype: ndarray, dtype = np.float32,
+    """
+    n = a.ndim
+    if n == 1:
+        return np.mean(rolling_window(a, winsize), axis=-1)
+    elif n == 2:
+        kernel = np.ones((winsize, winsize)) / (winsize * winsize)
+        return cv2.filter2D(a.astype(np.float32), -1, kernel.astype(np.float32))
+    else:
+        raise ValueError('array ndims must be 1 or 2')
+
+def variance(a, winsize):
+    """
+    Compute the moving variance of a 1D or 2D array.
+    For 1D arrays, the borders are not handled : the dimension of
+    the returned array is a.shape[0] - winsize//2.
+    For 2D arrays, the window is square (winsize*winsize), the
+    borders are handled by reflection and the returned array
+    keeps the shape of a.
+    @param a: array
+    @type a: ndarray ndims = 1 or 2
+    @param winsize: size of moving window
+    @type winsize: int
+    @return: array of moving variances
+    @rtype: ndarray, dtype = np.float32,
+    """
+    if a.ndim > 2:
+        raise ValueError('array ndims must be 1 or 2')
+    f1, f2 = movingAverage(a, winsize), movingAverage(a*a, winsize)
+    return f2 - f1*f1
+
 class channelValues():
     RGB, Red, Green, Blue =[0,1,2], [0], [1], [2]
     HSB, Hue, Sat, Br = [0, 1, 2], [0], [1], [2]
@@ -203,6 +263,14 @@ class UDict(object):
        return self.d2[item]
 
 class QbLUeSlider(QSlider):
+
+    bLueSliderDefaultColorStylesheet = """QSlider::groove:horizontal:enabled {margin: 3px; 
+                                              background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 blue, stop:1 red);}
+                                           QSlider::groove:horizontal:disabled {margin: 3px; 
+                                              background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #8888FF, stop:1 #FF8888);}"""
+    bLueSliderDefaultBWStylesheet = """QSlider::groove:horizontal:enabled {margin: 3px; 
+                                              background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 black, stop:1 white);}
+                                           QSlider::groove:horizontal:disabled {margin: 3px; background: #888888;}"""
     def __init__(self, parent=None):
         super(QbLUeSlider, self).__init__(parent)
         self.setTickPosition(QSlider.NoTicks)
@@ -810,7 +878,8 @@ def boundingRect(img, pattern):
     bottom = img.shape[0] - 1 - leftPattern(img.T[::-1, ::-1])
     return QRect(left, top, right - left, bottom - top)
 
-
+if __name__ == '__main__':
+    movingAverage(np.array(range(10000)).reshape(100,100), 3)
 """
 #pickle example
 saved_data = dict(outputFile, 
