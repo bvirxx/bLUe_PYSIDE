@@ -195,6 +195,7 @@ class vImage(QImage):
         self.rect, self.mask, = None, mask
         self.filename = filename if filename is not None else ''
         self.isCropped = False
+        self.cropTop, self.cropBottom, self.cropLeft, self.cropRight = (0,) * 4
         self.isRuled = False
 
         # mode flags
@@ -711,6 +712,7 @@ class vImage(QImage):
             bufOut = QImageBuffer(currentImage)
             bufOut[:, :, :3][:, :, ::-1] = QImageBuffer(currentImage)[:,:,:3]
             self.updatePixmap()
+            return
         buf0 = QImageBuffer(inputImage)[:, :, :3][:, :, ::-1]
         noisecorr *= currentImage.width() / self.width()
         if adjustForm.options['Wavelets']:
@@ -765,11 +767,11 @@ class vImage(QImage):
         # ouput is CV_16UC3
         ######################################################################################################################
         if self.postProcessCache is None:
-            # sampling multipliers
+            # build sample images for a set of multipliers
             if adjustForm.sampleMultipliers:
                 bufpost = np.empty((self.height(), self.width(), 3), dtype=np.uint16)
                 m = adjustForm.rawMultipliers
-                co = np.array([0.75, 1.0, 1.3])
+                co = np.array([0.85, 1.0, 1.2])
                 mults = itertools.product(m[0]*co, [m[1]], m[2]*co)
                 adjustForm.samples = []
                 for i, mult in enumerate(mults):
@@ -836,14 +838,10 @@ class vImage(QImage):
         # saturation (Lab)
         ############
         if adjustForm.satCorrection != 0:
-            slope = adjustForm.satCorrection/50 +1.5 # range 0.5..2.5
-            # tabulate y = slope*x for x in range -127..127
-            #LUT = (np.array(range(256)) - 127) * slope
-            #LUT = np.clip(LUT, -127, 127)
-            buf32Lab[:,:,1] *= slope #LUT[(buf32Lab[:,:,1]+127).astype(np.int)]
-            buf32Lab[:, :, 2] *= slope #= LUT[(buf32Lab[:, :, 2]+ 127).astype(np.int)]
-            buf32Lab[:, :, 1] = np.clip(buf32Lab[:,:,1], -127, 127)
-            buf32Lab[:, :, 2] = np.clip(buf32Lab[:, :, 2], -127, 127)
+            slope = max(0.1, adjustForm.satCorrection/25 +1) # range 0.1..3
+            # multiply a and b channels
+            buf32Lab[:,:,1:3] *= slope
+            buf32Lab[:, :, 1:3] = np.clip(buf32Lab[:,:,1:3], -127, 127)
         if self.parentImage.useThumb:
             buf32Lab = cv2.resize(buf32Lab, (currentImage.width(), currentImage.height()))
         """
@@ -1305,7 +1303,7 @@ class vImage(QImage):
             # and use the sRGB2XYZ and sRGB2XYZInverse matrices from
             # http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
             # convert to RGB Linear
-            bufLinear = (rgb2rgbLinearVec(buf[:,:,::-1])*255).astype(np.uint8)
+            bufLinear = (rgb2rgbLinearVec(buf[:,:,::-1])*255).astype(np.uint8) #TODO 20/03/18 use sRGB2XYZvec and XYZ2sRGBVec
             # convert to XYZ
             bufXYZ = np.tensordot(bufLinear, sRGB_lin2XYZ, axes=(-1, -1))
             # apply conversion matrix
@@ -1542,21 +1540,23 @@ class mImage(vImage):
 
     def mergeVisibleLayers(self):
         """
-        Merges the current visible masked images and returns the
+        Merge the current visible masked images and return the
         resulting QImage, eventually scaled to fit the image size.
         @return: image
         @rtype: QImage
         """
-        # init new image
+        # init a new image
         img = QImage(self.width(), self.height(), self.format())
+        # Image may contain transparent pixels, hence we
+        # fill the image with a background color.
         img.fill(vImage.defaultBgColor)
-        # draw layers and masks
+        # draw layers with (eventually) masked areas.
         qp = QPainter(img)
         qp.drawImage(QRect(0, 0, self.width(), self.height()), self.layersStack[-1].getCurrentMaskedImage())
         qp.end()
         return img
 
-    def save(self, filename, quality=-1, compression=-1):
+    def save(self, filename, quality=-1, compression=-1, crops=None):
         """
         Build image from visible layers
         and write it to file. Raise IOError if
@@ -1569,10 +1569,11 @@ class mImage(vImage):
         # don't save thumbnails
         if self.useThumb:
             return False
+        # get image
         img = self.mergeVisibleLayers()
         # imagewriter and QImage.save are unusable for tif files,
-        # due to bugs in libtiff.
-        # We use opencv imwrite.
+        # due to bugs in libtiff, hence
+        # we use opencv imwrite.
         fileFormat = filename[-3:].upper()
         if fileFormat == 'JPG':
             params = [cv2.IMWRITE_JPEG_QUALITY, quality]  # quality range 0..100
@@ -1582,7 +1583,9 @@ class mImage(vImage):
             params = []
         else:
             raise IOError("Invalid File Format\nValid formats are jpg, png, tif ")
-        buf = QImageBuffer(img)[:,:,:3]
+        buf = QImageBuffer(img)[:,:,:3][:,:,::-1]
+        if img.isCropped:
+            buf = buf[img.cropLeft:img.cropRight, img.cropTop:img.cropBottom,:]
         written = cv2.imwrite(filename, buf, params)
         if not written:
             raise IOError("Cannot write file %s " % filename)
@@ -1877,7 +1880,7 @@ class QLayer(vImage):
 
     def getCurrentMaskedImage(self):
         """
-        returns the current masked layer image, using the
+        return the current masked layer image, using the
         non color managed rPixmaps. For convenience, mainly
         to be able to use its color space buffers, the built image is
         of type QLayer. It is drawn on a container image, created only once.

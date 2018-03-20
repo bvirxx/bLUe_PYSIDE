@@ -131,7 +131,7 @@ def rgbLinear2rgb(r,g,b):
 
 def rgbLinear2rgbVec(img):
     """
-    Converts image from linear sRGB to sRGB.
+    Vectorized conversion from linear sRGB to sRGB.
     See https://en.wikipedia.org/wiki/SRGB
     @param img: linear sRGB image, range 0..1
     @type img: numpy array, dtype=float
@@ -180,7 +180,15 @@ def rgb2rgbLinearVec(img):
 
 def sRGB2XYZVec(imgBuf):
     """
-    Conversion from sRGB to XYZ
+    Vectorized conversion from sRGB to XYZ.
+    opencv cvtColor does NOT perform gamma conversion
+    for RGB<-->XYZ cf. http://docs.opencv.org/trunk/de/d25/imgproc_color_conversions.html#color_convert_rgb_xyz.
+    Moreover, RGB-->XYZ and XYZ-->RGB matrices are not inverse transformations!
+    This yields incorrect results.
+    As a workaround, we first convert to rgbLinear,
+    and use the sRGB_lin2XYZ and sRGB_lin2XYZInverse matrices from
+    to convert to RGB Linear.
+    See U{http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html}
     @param imgBuf: Array of RGB values, range 0..255
     @type imgBuf: ndarray, dtype numpy uint8
     @return: image buffer, XYZ color space
@@ -192,7 +200,15 @@ def sRGB2XYZVec(imgBuf):
 
 def XYZ2sRGBVec(imgBuf):
     """
-    Vectorized XYZ to sRGB conversion.
+    Vectorized conversion from XYZ to sRGB.
+    opencv cvtColor does NOT perform gamma conversion
+    for RGB<-->XYZ cf. http://docs.opencv.org/trunk/de/d25/imgproc_color_conversions.html#color_convert_rgb_xyz.
+    Moreover, RGB-->XYZ and XYZ-->RGB matrices are not inverse transformations!
+    This yields incorrect results.
+    As a workaround, we first convert to rgbLinear,
+    and use the sRGB_lin2XYZ and sRGB_lin2XYZInverse matrices from
+    convert to RGB Linear.
+    See U{http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html}
     @param imgBuf: image buffer, mode XYZ
     @type imgBuf: ndarray
     @return: image buffer, mode sRGB, range 0..255
@@ -206,7 +222,8 @@ def sRGB2LabVec(bufsRGB, useOpencv = True) :
     """
     Vectorized sRGB to Lab conversion for 8 bits images only.  No clipping
     is performed. If useOpencv is True (default, faster),
-    we use opencv cvtColor.
+    we use opencv cvtColor (Note that it seems to perform
+    linearizations, in contrast to sRGB <---> XYZ conversions)
     See U{https://en.wikipedia.org/wiki/Lab_color_space}
 
     The range for Lab coordinates is L:0..1, a:-86.185..98.254, b:-107.863..94.482

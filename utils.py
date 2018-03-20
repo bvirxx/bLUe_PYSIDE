@@ -26,6 +26,8 @@ from PySide2.QtWidgets import QListWidget, QListWidgetItem, QGraphicsPathItem, Q
 from PySide2.QtCore import Qt, QPoint, QEvent, QObject, QRect, QDir
 from os.path import isfile
 
+from numpy.lib.stride_tricks import as_strided
+
 import exiftool
 from imgconvert import QImageBuffer
 
@@ -52,6 +54,38 @@ def rolling_window(a, winsize):
     strides = a.strides + (a.strides[-1],)
     return np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
 
+def strides_2d(a, r, linear=True):
+    """
+    Compute the 2D moving windows of an array
+
+    U{https://gist.github.com/thengineer/10024511}
+
+    @param a: 2D array
+    @type a: ndarray, ndims=2
+    @param r: window sizes
+    @type r: 2-uple of int
+    @param linear:
+    @type linear: boolean
+    @return: array of moving windows
+    @rtype: ndarray
+    """
+    ax = np.zeros(shape=(a.shape[0] + 2 * r[0], a.shape[1] + 2 * r[1]))
+    ax[r[0]:ax.shape[0] - r[0], r[1]:ax.shape[1] - r[1]] = a
+    # reflection mode :  ...2,1,0,1,2...
+    for i in range(r[0]):
+        i = (i+1) % a.shape[0] - 1 # cycle through rows if r[0] >= a.shape[0]
+        ax[r[0]-i-1, r[1]:-r[1]]= a[i+1,:]  # copy rows a[1,:]... to  ax[r[0]-1,:]...
+        ax[i-r[0], r[1]:-r[1]] = a[-i-2,:]  # copy rows a[-2,:]... to  ax[-r[0],:]...
+    for i in range(r[1]):
+        ax[:, r[1]-i-1] = ax[:, r[1]+i+1]   # copy cols ax[:,r[1]+1]... to  ax[:,r[1]-1]...
+        ax[:, i-r[1]] = ax[:, -i-2-r[1]]    # copy cols ax[:,-r[1]-2]... to  ax[:,-r[1]]...
+    #ax[r[0]:ax.shape[0] - r[0], r[1]:ax.shape[1] - r[1]] = a
+    shape = a.shape + (1 + 2 * r[0], 1 + 2 * r[1]) # concatenation of  t-uples
+    strides = ax.strides + ax.strides # concatenation of t-uples
+    s = as_strided(ax, shape=shape, strides=strides)
+    return s.reshape(a.shape + (shape[2] * shape[3],)) if linear else s
+
+
 def movingAverage(a, winsize):
     """
     Compute the moving averages of a 1D or 2D array.
@@ -71,12 +105,12 @@ def movingAverage(a, winsize):
     if n == 1:
         return np.mean(rolling_window(a, winsize), axis=-1)
     elif n == 2:
-        kernel = np.ones((winsize, winsize)) / (winsize * winsize)
+        kernel = np.ones((winsize, winsize), dtype=np.float32) / (winsize * winsize)
         return cv2.filter2D(a.astype(np.float32), -1, kernel.astype(np.float32))
     else:
         raise ValueError('array ndims must be 1 or 2')
 
-def variance(a, winsize):
+def movingVariance(a, winsize):
     """
     Compute the moving variance of a 1D or 2D array.
     For 1D arrays, the borders are not handled : the dimension of
@@ -93,7 +127,12 @@ def variance(a, winsize):
     """
     if a.ndim > 2:
         raise ValueError('array ndims must be 1 or 2')
-    f1, f2 = movingAverage(a, winsize), movingAverage(a*a, winsize)
+    a = a - np.mean(a)
+    r = int((winsize-1)/2)
+    b = strides_2d(a, (r,r))
+    f1 = np.mean(b, axis=-1)  #movingAverage(a, winsize), movingAverage(a*a, winsize)
+    b = strides_2d(a*a, (r, r))
+    f2 = np.mean(b, axis=-1)
     return f2 - f1*f1
 
 class channelValues():
@@ -467,6 +506,7 @@ class croppingHandle(QToolButton):
                 return
             self.group['right'].margin = rMargin
             self.group['bottom'].margin = bMargin
+        img.cropLeft, img.cropRight, img.cropTop, img.cropBottom = lMargin, rMargin, tMargin, bMargin
 
     def mousePressEvent(self, event):
         img = self.parent().img
@@ -879,7 +919,8 @@ def boundingRect(img, pattern):
     return QRect(left, top, right - left, bottom - top)
 
 if __name__ == '__main__':
-    movingAverage(np.array(range(10000)).reshape(100,100), 3)
+    a= np.array(range(100)).reshape(10,10)
+    print(strides_2d(a, (1,1))[1,0])
 """
 #pickle example
 saved_data = dict(outputFile, 

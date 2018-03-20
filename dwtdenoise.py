@@ -17,7 +17,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import numpy as np
 import pywt
-from utils import movingAverage
+from utils import movingAverage, movingVariance
+
 
 def dwtDenoise_thr(imArray, thr=1.0, thrmode='hard', wavelet='haar', level=1):
     """
@@ -27,14 +28,15 @@ def dwtDenoise_thr(imArray, thr=1.0, thrmode='hard', wavelet='haar', level=1):
        2 - soft threshod
        3 - Local Wiener Filter described in
             M. Mihcak, I. Kozintsev, K. Ramchandran, and P. Moulin,
-           "Low-complexity image denoising based on statistical
-           modeling of wavelet coefficients," IEEE Signal Processing
-           Letters, vol. 6, 1999, pp. 300-303.
+            "Low-complexity image denoising based on statistical
+            modeling of wavelet coefficients," IEEE Signal Processing
+            Letters, vol. 6, 1999, pp. 300-303.
+
            Our implementation  follows the lines of J. Fridrich's paper:
             Fridrich, "Digital Image Forensics," IEEE Signal Processing
-           Magazine, vol. 26, 2009, pp. 26-37.
-           See also https://github.com/stefanv for a similar approach, differing in
-           the computation of the filter coefficients.
+            Magazine, vol. 26, 2009, pp. 26-37.
+           See also U{https://github.com/stefanv} for a similar approach, differing in
+           the final computation of the filter coefficients.
     @param imArray: image
     @type imArray: ndarray, shape(w,h), dtype= float
     @param thr: filtering threshold parameter A larger value should result in a smoother output.
@@ -48,34 +50,47 @@ def dwtDenoise_thr(imArray, thr=1.0, thrmode='hard', wavelet='haar', level=1):
     @return: the denoised image
     @rtype: ndarray same shape as imArray
     """
-    # DWT coeffs is a list coeffs[0] : array and for i>=1, coeffs[i] : dict of arrays/t-uple of arrays for wavedec2
-    # For all arrays, ndims = imArray.ndims
+    # coeffs is the list of DWT coefficients : coeffs[0] : array and for i>=1, coeffs[i] : dict of arrays(wavedecn),
+    # or t-uple of arrays (wavedec2)
+    # For each array a, a.ndims = imArray.ndims
     coeffs=pywt.wavedecn(imArray, wavelet, level=level)
-    # stack all arrays from coeffs in a single ndims-dimensional array
-    a, s = pywt.coeffs_to_array(coeffs)
-    # mask approximation coefficients
-    mask = np.ones(a.shape, dtype = np.bool)
-    mask[s[0][0],s[0][1]] = False
-    # hard threshold
-    if thrmode == 'hard':
-        a[mask] = np.where(np.abs(a[mask])<thr, 0, a[mask])
-        coeffs = pywt.array_to_coeffs(a, s)
-    # soft threshold: h = (|y| - thr) * sgn(y) / y
-    elif thrmode == 'soft':
-        a[mask] = np.where(np.abs(a[mask]) <= thr, 0, (np.sign(a[mask])) * (np.abs(a[mask])-thr))
-        coeffs = pywt.array_to_coeffs(a, s)
-    else:
+    if thrmode == 'hard' or thrmode == 'soft':
+        # stack all arrays from coeffs in a single ndims-dimensional array
+        a, s = pywt.coeffs_to_array(coeffs)  # a:array, s:strides
+        # keep details coefficients only
+        mask = np.ones(a.shape, dtype = np.bool)
+        mask[s[0][0],s[0][1]] = False
+        # hard threshold: cut coeffs under thr
+        if thrmode == 'hard':
+            a[mask] = np.where(np.abs(a[mask])<thr, 0, a[mask])
+            coeffs = pywt.array_to_coeffs(a, s)
+        # soft threshold: filter h = max(0, (|a| - thr)) * sgn(a) / a
+        elif thrmode == 'soft':
+            a[mask] = np.where(np.abs(a[mask]) <= thr, 0, (np.sign(a[mask])) * (np.abs(a[mask])-thr))
+            coeffs = pywt.array_to_coeffs(a, s)
+    else:  # local Wiener Filter
+
+        imV = movingVariance(imArray.astype(np.float), 9)
+        imV[imArray > 200]=np.inf
+        x = np.argmin(imV)
+        x_u = np.unravel_index(x, imV.shape)
+        print('argmin', x_u, imV[x_u])
+
+        a, s = pywt.coeffs_to_array(coeffs)  # a:array, s:strides
+        coefV = movingVariance(a, 9)
+        y = np.argmin(coefV)
+        y_u = np.unravel_index(y, imV.shape)
+        print('argmin coeff', y_u, imV[y_u])
+
         thr = thr/100
         win_sizes = (3, 5, 7, 9)
-        nY2_est = np.empty(a.shape, dtype=float)
-        nY2_est.fill(np.inf)
         for all_coeff in coeffs[1:]:
             # ith all coeff is a 3_uple of arrays for level maxlevel - i
             nY2_est = np.empty(all_coeff['ad'].shape, dtype=float)
             nY2_est.fill(np.inf)
             for coeff in all_coeff.values():
                 for win_size in win_sizes:
-                    nY2 = movingAverage(coeff * coeff, win_size)
+                    nY2 = movingVariance(coeff, win_size)  #movingAverage(coeff*coeff, win_size)
                     minmask = (nY2 < nY2_est)
                     nY2_est[minmask] = nY2[minmask]
                 # The Wiener Estimator for a noisy signal Y with

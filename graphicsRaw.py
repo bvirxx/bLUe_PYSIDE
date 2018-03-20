@@ -510,10 +510,10 @@ class rawForm (QGraphicsView):
         return e
 
     def slider2Sat(self, v):
-        return v - 50  # np.math.pow(10, v / 50)
+        return v - 50
 
     def sat2Slider(self, e):
-        return e + 50  # 50 * np.math.log10(e)
+        return e + 50
 
     def enableSliders(self):
         useUserWB = self.listWidget2.options["User WB"]

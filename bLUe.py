@@ -409,7 +409,6 @@ def mouseEvent(widget, event) :
                                 form.setRawMultipliers(*form.samples[3*row + col], sampling=False)
                         else:
                             form.setRawMultipliers(1/color[0], 1/color[1], 1/color[2], sampling=True)
-
                 # for cloning layer do cloning
                 if layer.isCloningLayer():
                     if modifiers == Qt.ControlModifier | Qt.AltModifier:
