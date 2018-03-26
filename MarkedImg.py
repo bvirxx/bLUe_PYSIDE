@@ -32,6 +32,7 @@ from colorConv import sRGB2LabVec, sRGBWP, Lab2sRGBVec, sRGB_lin2XYZ, sRGB_lin2X
     rgbLinear2rgbVec
 
 from graphicsFilter import filterIndex
+from histogram import stretchHist
 from icc import convertQImage
 import icc
 from imgconvert import *
@@ -42,7 +43,7 @@ from utils import savitzky_golay, channelValues, checkeredImage, boundingRect
 ###################
 # multi processing
 # pool is created in QLayer.applyToStack()
-from dwtdenoise import dwtDenoise_thr
+from dwtdenoise import dwtDenoiseChan
 
 MULTIPROC_POOLSIZE = 4
 ###################
@@ -710,7 +711,7 @@ class vImage(QImage):
         inputImage = self.inputImg()
         if noisecorr == 0:
             bufOut = QImageBuffer(currentImage)
-            bufOut[:, :, :3][:, :, ::-1] = QImageBuffer(currentImage)[:,:,:3]
+            bufOut[:, :, :3] = QImageBuffer(currentImage)[:,:,:3]
             self.updatePixmap()
             return
         buf0 = QImageBuffer(inputImage)[:, :, :3][:, :, ::-1]
@@ -718,9 +719,9 @@ class vImage(QImage):
         if adjustForm.options['Wavelets']:
             noisecorr *= 100
             bufLab = cv2.cvtColor(buf0, cv2.COLOR_RGB2Lab)
-            L = dwtDenoise_thr(bufLab[:, :, 0], thr=noisecorr, thrmode='wiener', level=8 if self.parentImage.useThumb else 11)
-            A = dwtDenoise_thr(bufLab[:, :, 1], thr=noisecorr, thrmode='wiener', level=8 if self.parentImage.useThumb else 11)
-            B = dwtDenoise_thr(bufLab[:, :, 2], thr=noisecorr, thrmode='wiener', level=8 if self.parentImage.useThumb else 11)
+            L = dwtDenoiseChan(bufLab, chan=0, thr=noisecorr, thrmode='wiener', level=8 if self.parentImage.useThumb else 11)
+            A = dwtDenoiseChan(bufLab, chan=1, thr=noisecorr, thrmode='wiener', level=8 if self.parentImage.useThumb else 11)
+            B = dwtDenoiseChan(bufLab, chan=2, thr=noisecorr, thrmode='wiener', level=8 if self.parentImage.useThumb else 11)
             #L = np.clip(L, 0, 100)
             # A = np.clip(A, -127, 127)
             # B = np.clip(B, -127, 127)
@@ -807,7 +808,7 @@ class vImage(QImage):
                     # gamma= (2.222, 4.5)  # default REC BT 709 exponent, slope
                     gamma=(2.4, 12.92),
                     # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
-                    exp_preserve_highlights=0.8 if options['Preserve Highlights'] else 0.0,
+                    exp_preserve_highlights=1.0 if options['Preserve Highlights'] else 0.0,
                     output_bps=16,
                     bright=adjustForm.brCorrection  # default 1
                     # no_auto_scale= (not options['Auto Scale']) don't use : green shift
@@ -865,16 +866,23 @@ class vImage(QImage):
         """
         bufRGB32 = cv2.cvtColor(buf32Lab, cv2.COLOR_Lab2RGB)
         bufpost = (bufRGB32 * 255.0).astype(np.uint8)
+
+        ##########test
+        bufLab = cv2.cvtColor(bufpost, cv2.COLOR_RGB2LAB)
+        stretchHist(bufLab[:, :, 0], 0.05)
+        bufpost[:, :, :3] = cv2.cvtColor(bufLab.astype(np.uint8), cv2.COLOR_LAB2RGB)
+
         bufOut = QImageBuffer(currentImage)
         bufOut[:, :, :3][:, :, ::-1] = bufpost
         self.updatePixmap()
 
     def applyCLAHE(self, clipLimit, options):
         inputImage = self.inputImg()
-        if clipLimit == 0:
-            currentImage = self.getCurrentImage()
-            ndImg1a = QImageBuffer(currentImage)
-            tmpBuf = QImageBuffer(inputImage)
+        currentImage = self.getCurrentImage()
+        ndImg1a = QImageBuffer(currentImage)
+        tmpBuf = QImageBuffer(inputImage)
+        # neutral point
+        if clipLimit < 0.1:
             ndImg1a[:, :, :] = tmpBuf
             self.updatePixmap()
         # get l channel
@@ -884,9 +892,8 @@ class vImage(QImage):
         clahe.setClipLimit(clipLimit)
         res = clahe.apply((LBuf[:,:,0] * 255.0).astype(np.uint8))
         LBuf[:,:,0] = res / 255
-        sRGBBuf = Lab2sRGBVec(LBuf)  #TODO use opencv cvtcolor
-        # clipping is mandatory here : numpy bug ?
-        #sRGBBuf = np.clip(sRGBBuf, 0, 255)
+        # back to RGB
+        sRGBBuf = Lab2sRGBVec(LBuf)  # use opencv cvtColor
         currentImage = self.getCurrentImage()
         ndImg1a = QImageBuffer(currentImage)
         ndImg1a[:, :, :3][:,:,::-1] = sRGBBuf
@@ -1083,7 +1090,7 @@ class vImage(QImage):
 
     def histogram(self, size=QSize(200, 200), bgColor=Qt.white, range =(0,255), chans=channelValues.RGB, chanColors=Qt.gray, mode='RGB', addMode=''):
         """
-        Plots the histogram of the image for the
+        Plot histogram for the
         specified color mode and channels.
         Luminosity is  Y = 0.299*R + 0.587*G + 0.114*B (YCrCb opencv mode)
         @param size: size of the histogram plot

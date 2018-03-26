@@ -218,7 +218,7 @@ def XYZ2sRGBVec(imgBuf):
     bufsRGB = rgbLinear2rgbVec(bufsRGBLinear)
     return bufsRGB
 
-def sRGB2LabVec(bufsRGB, useOpencv = True) :
+def sRGB2LabVec(bufsRGB, useOpencv=True) :
     """
     Vectorized sRGB to Lab conversion for 8 bits images only.  No clipping
     is performed. If useOpencv is True (default, faster),

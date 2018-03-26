@@ -56,7 +56,12 @@ def rolling_window(a, winsize):
 
 def strides_2d(a, r, linear=True):
     """
-    Compute the 2D moving windows of an array
+    Compute the 2D moving windows of an array. The size of the windows
+    is h=2*r[0]+1, w=2*r[1]+1, they are centered at the given array item
+    and completed by reflection at borders if needed. If linear is True, the
+    windows are reshaped as 1D arrays, otherwise they are left unchanged.
+    The output array keeps the shape and dtype of a.
+    The original idea is taken from
 
     U{https://gist.github.com/thengineer/10024511}
 
@@ -67,50 +72,65 @@ def strides_2d(a, r, linear=True):
     @param linear:
     @type linear: boolean
     @return: array of moving windows
-    @rtype: ndarray
+    @rtype: ndarray, shape=a.shape, dtype=a.dtype
     """
-    ax = np.zeros(shape=(a.shape[0] + 2 * r[0], a.shape[1] + 2 * r[1]))
+    ax = np.zeros(shape=(a.shape[0] + 2 * r[0], a.shape[1] + 2 * r[1]), dtype=a.dtype)
     ax[r[0]:ax.shape[0] - r[0], r[1]:ax.shape[1] - r[1]] = a
-    # reflection mode :  ...2,1,0,1,2...
+    # reflection mode for rows:  ...2,1,0,1,2...
     for i in range(r[0]):
-        i = (i+1) % a.shape[0] - 1 # cycle through rows if r[0] >= a.shape[0]
-        ax[r[0]-i-1, r[1]:-r[1]]= a[i+1,:]  # copy rows a[1,:]... to  ax[r[0]-1,:]...
-        ax[i-r[0], r[1]:-r[1]] = a[-i-2,:]  # copy rows a[-2,:]... to  ax[-r[0],:]...
-    for i in range(r[1]):
-        ax[:, r[1]-i-1] = ax[:, r[1]+i+1]   # copy cols ax[:,r[1]+1]... to  ax[:,r[1]-1]...
-        ax[:, i-r[1]] = ax[:, -i-2-r[1]]    # copy cols ax[:,-r[1]-2]... to  ax[:,-r[1]]...
-    #ax[r[0]:ax.shape[0] - r[0], r[1]:ax.shape[1] - r[1]] = a
-    shape = a.shape + (1 + 2 * r[0], 1 + 2 * r[1]) # concatenation of  t-uples
-    strides = ax.strides + ax.strides # concatenation of t-uples
+        imod = (i+1) % a.shape[0] - 1 # cycle through rows if r[0] >= a.shape[0]
+        ax[r[0]-i-1, r[1]:-r[1]]= a[imod+1,:]  # copy rows a[1,:]... to  ax[r[0]-1,:]...
+        ax[i-r[0], r[1]:-r[1]] = a[-imod-2,:]  # copy rows a[-2,:]... to  ax[-r[0],:]...
+    #ax[:r[0],r[1]:-r[1]] = a[::-1,:][-r[0]-1:-1,:]
+    #ax[-r[0]:,r[1]:-r[1]] = a[::-1,:][1:r[0]+1,:]
+    # reflection mode for cols: cf rows
+    ax[:,:r[1]] = ax[:,::-1][:,-2*r[1]-1:-r[1]-1]
+    ax[:,-r[1]:] = ax[:,::-1][:,r[1]+1:2*r[1]+1]
+    # add two new axes and strides for the windows
+    shape = a.shape + (1 + 2 * r[0], 1 + 2 * r[1]) # concatenate t-uples
+    strides = ax.strides + ax.strides # concatenate t-uples
     s = as_strided(ax, shape=shape, strides=strides)
+    # reshape
     return s.reshape(a.shape + (shape[2] * shape[3],)) if linear else s
 
-
-def movingAverage(a, winsize):
+def movingAverage(a, winsize, version='kernel'):
     """
     Compute the moving averages of a 1D or 2D array.
     For 1D arrays, the borders are not handled : the dimension of
     the returned array is a.shape[0] - winsize//2.
     For 2D arrays, the window is square (winsize*winsize), the
     borders are handled by reflection and the returned array
-    keeps the shape of a.
+    keeps the shape of a. For 2D arrays, if version='kernel' (default)
+    we use the opencv function filter2D to compute the moving average. It is
+    fast but suffers from a lack of precision. If version = 'strides',
+    we perform a direct and more precise computation,
+    using 64 bits floating numbers.
     @param a: array
     @type a: ndarray ndims = 1 or 2
     @param winsize: size of moving window
     @type winsize: int
+    @param version: 'kernel' or 'strides'
+    @type version: str
     @return: array of moving averages
-    @rtype: ndarray, dtype = np.float32,
+    @rtype: ndarray, dtype = np.float32 if a.ndims==2 and version=='kernel', otherwise
+            a.dtype (int types are cast to np.float64)
     """
     n = a.ndim
     if n == 1:
         return np.mean(rolling_window(a, winsize), axis=-1)
     elif n == 2:
-        kernel = np.ones((winsize, winsize), dtype=np.float32) / (winsize * winsize)
-        return cv2.filter2D(a.astype(np.float32), -1, kernel.astype(np.float32))
+        if version == 'kernel':
+            kernel = np.ones((winsize, winsize), dtype=np.float32) / (winsize * winsize)
+            return cv2.filter2D(a.astype(np.float32), -1, kernel.astype(np.float32))
+        else:
+            r = int((winsize - 1) / 2)
+            b = strides_2d(a, (r, r), linear=False)
+            m = np.mean(b, axis=(-2,-1))
+            return m
     else:
         raise ValueError('array ndims must be 1 or 2')
 
-def movingVariance(a, winsize):
+def movingVariance(a, winsize, version='kernel'):
     """
     Compute the moving variance of a 1D or 2D array.
     For 1D arrays, the borders are not handled : the dimension of
@@ -123,17 +143,27 @@ def movingVariance(a, winsize):
     @param winsize: size of moving window
     @type winsize: int
     @return: array of moving variances
-    @rtype: ndarray, dtype = np.float32,
+    @rtype: ndarray, dtype = np.float32 or np.float64
     """
     if a.ndim > 2:
         raise ValueError('array ndims must be 1 or 2')
-    a = a - np.mean(a)
-    r = int((winsize-1)/2)
-    b = strides_2d(a, (r,r))
-    f1 = np.mean(b, axis=-1)  #movingAverage(a, winsize), movingAverage(a*a, winsize)
-    b = strides_2d(a*a, (r, r))
-    f2 = np.mean(b, axis=-1)
-    return f2 - f1*f1
+    #a = a - np.mean(a)
+    if version == 'kernel':
+        a = a.astype(np.float32)
+        f1 = movingAverage(a, winsize, version=version)
+        f2 = movingAverage(a * a, winsize, version=version)
+        return f2 - f1 * f1
+    else:
+        a = a.astype(np.float64)
+        """
+        r = int((winsize - 1) / 2)
+        b = strides_2d(a, (r, r))
+        return np.var(b, axis=-1)
+        """
+        # faster than np.var !!!
+        f1 = movingAverage(a, winsize, version=version)
+        f2 = movingAverage(a*a, winsize, version=version)
+        return f2-f1*f1
 
 class channelValues():
     RGB, Red, Green, Blue =[0,1,2], [0], [1], [2]
@@ -769,7 +799,7 @@ class savingDialog(QDialog):
 def savitzky_golay(y, window_size, order, deriv=0, rate=1):
     """
     This pure numpy implementation of the savitzky_golay filter is taken
-    from http://stackoverflow.com/questions/22988882/how-to-smooth-a-curve-in-python
+    from U{http://stackoverflow.com/questions/22988882/how-to-smooth-a-curve-in-python}
     Many thanks to elviuz.
     @param y: data (type numpy array)
     @param window_size:
@@ -778,7 +808,6 @@ def savitzky_golay(y, window_size, order, deriv=0, rate=1):
     @param rate:
     @return: smoothed data array
     """
-
     try:
         window_size = np.abs(np.int(window_size))
         order = np.abs(np.int(order))
@@ -919,8 +948,10 @@ def boundingRect(img, pattern):
     return QRect(left, top, right - left, bottom - top)
 
 if __name__ == '__main__':
-    a= np.array(range(100)).reshape(10,10)
-    print(strides_2d(a, (1,1))[1,0])
+    a= np.array((1,)*100, dtype=int).reshape(10,10)
+    #b=strides_2d(a, (11,11))
+    m = movingVariance(a,7)
+    print(m)
 """
 #pickle example
 saved_data = dict(outputFile, 

@@ -80,6 +80,7 @@ from types import MethodType
 
 from cv2 import NORMAL_CLONE
 
+import cv2
 import rawpy
 
 
@@ -97,6 +98,7 @@ from graphicsBlendFilter import blendFilterForm
 from graphicsNoise import noiseForm
 from graphicsRaw import rawForm
 from graphicsTransform import transForm
+from histogram import valleys, stretchHist
 from imgconvert import *
 from MarkedImg import imImage, metadata, vImage
 
@@ -641,7 +643,7 @@ def loadImageFromFile(f, createsidecar=True):
             img.demosaic = np.swapaxes(img.demosaic, 0, 1)
         elif orientation == 8: # 270°
             img.demosaic = np.swapaxes(img.demosaic, 0, 1)
-            img.demosaic = np.demosaic[:,::-1,:]
+            img.demosaic = img.demosaic[:,::-1,:]
     else:
         raise ValueError("Cannot read file %s" % f)
     if img.isNull():
@@ -719,7 +721,7 @@ def openFile(f):
             # updates
             img.layersStack[0].applyToStack()
             updateStatus()
-            # window.label.img.onImageChanged() # TODO validate suppression 09/03/18 : done by applytostack
+            window.label.img.onImageChanged() # TODO mandatory because applyToStack may do nothing
             # update list of recent files
             filter(lambda a: a != f, window._recentFiles)
             window._recentFiles.insert(0, f)
@@ -794,7 +796,7 @@ def setDocumentImage(img):
         # refresh windows (use repaint for faster update)
         window.label.repaint()
         window.label_3.repaint()
-        # refresh histogram window
+        # recompute and display histogram
         if window.histView.listWidget1.items['Original Image'].checkState() is Qt.Checked:
             histImg = vImage(QImg=window.label.img.getCurrentImage()) # must be vImage : histogram method needed
         else:
@@ -809,6 +811,9 @@ def setDocumentImage(img):
                                      chanColors=window.histView.chanColors, mode=window.histView.mode, addMode='')
         window.histView.Label_Hist.setPixmap(QPixmap.fromImage(histView))
         window.histView.Label_Hist.repaint()
+        window.label.img.layersStack[-1].updatePixmap()
+        window.label.repaint()
+
     ###################################
     # init displayed images
     # label.img : working image
