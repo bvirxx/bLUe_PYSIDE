@@ -98,7 +98,7 @@ from graphicsBlendFilter import blendFilterForm
 from graphicsNoise import noiseForm
 from graphicsRaw import rawForm
 from graphicsTransform import transForm
-from histogram import valleys, stretchHist
+from histogram import valleys, warpHistogram
 from imgconvert import *
 from MarkedImg import imImage, metadata, vImage
 

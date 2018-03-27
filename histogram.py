@@ -15,23 +15,28 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-
+########################################################################################################################
+# This module implements a (nearly) automatic histogram stretching and warping
+# algorithm, well suited for multimodal histograms.
+# It is based on a paper from Grundland M., A. Dodgson N. (2006) AUTOMATIC CONTRAST ENHANCEMENT BY HISTOGRAM WARPING.
+# In: Wojciechowski K., Smolka B., Palus H., Kozera R., Skarbek W., Noakes L. (eds) Computer Vision and
+# Graphics. Computational Imaging and Vision, vol 32. Springer, Dordrecht
+#########################################################################################################################
 import numpy as np
 
 from imgconvert import QImageBuffer
 
 def distribution(hist, bins):
     """
-    Interpolate the distribution ("density") of an image, given its histogram,
-    i.e. compute the list [Proba(image=k) for k in range(256)].
-    We attribute equal probabilities to all points in the same bin.
-    (Cf. the equivalent function interpHist above)
+    This function Interpolates the distribution ("density") of an image, given its histogram.
+    It computes the list of Proba(image=k) for k in range(256).
+    The interpolation attributes equal probabilities to all points in the same bin.
     @param hist:
     @type hist:
     @param bins:
     @type bins:
-    @return:
-    @rtype:
+    @return: The interpolated distribution
+    @rtype: list
     """
     dist = []
     for i in range(256):
@@ -53,10 +58,11 @@ def distribution(hist, bins):
         print('distribution', np.sum(dist))
     return dist
 
-def gaussianDist(x, hist, bins, h):
+def gaussianDistribution(x, hist, bins, h):
     """
-    build the approximation of the histogram hist
+    Build a kernel density estimation for the distribution (hist, bins)
     by a mixture of gaussian variables. The parameter x is in range 0..255
+    and h is the bandwidth.
     @param img:
     @type img:
     @param x:
@@ -78,44 +84,22 @@ def gaussianDist(x, hist, bins, h):
     dx = np.sum(expx)
     return dx
 
-def CDF(x, hist, bins, h, gaussian=False):
-    """
-    return the value of the CDF of the gaussian approximation of the histogram hist at point x.
-    x is an integer in range 0..255
-    @param x:
-    @type x:
-    @param hist:
-    @type hist:
-    @param bins:
-    @type bins:
-    @param h:
-    @type h:
-    @return:
-    @rtype:
-    """
-    if gaussian:
-        value = np.sum([gaussianDist(y, hist, bins, h) for y in range(int(x))]) / 256
-    else:
-        value = np.sum([distribution(hist, bins)[y] for y in range(int(x))]) / 256
-    print ('CDF', x, value)
-    return value
-
 def distWins(hist, bins, delta):
     """
-    Return the list of 2*delta windows in hist distribution
+    Return the sorted list of the windows of (probability) width 2*delta
+    for the distribution (hist,bins).
     @param hist:
     @type hist:
     @param bins:
     @type bins:
     @param delta:
     @type delta:
-    @return:
+    @return: the list of 3-uples (j, k, i) corresponding to the windows (k+j, k, k+i), j is < 0
     @rtype:
     """
     # get CDF
-    F = np.cumsum(hist*(bins[1:] - bins[:-1]))
-    #F = np.cumsum(distribution(hist, bins))
-    m, M = np.argmax(F> delta), np.argmax(F>1-delta)
+    F = np.cumsum(hist * (bins[1:] - bins[:-1]))
+    # F = np.cumsum(distribution(hist, bins))
     def histDistBin(k):
         i, j = 1, -1
         while  F[k+i] - F[k] < delta and k+i < len(F)-1:
@@ -123,14 +107,15 @@ def distWins(hist, bins, delta):
         while F[k] - F[k+j]< delta and k+j > 0:
             j -= 1
         return j, k, i
+    # cut the delta-queues of distribution.
+    m, M = np.argmax(F > delta), np.argmax(F > 1 - delta)
     return [histDistBin(k) for k in range(m, M)]
 
 def valleys(imgBuf, delta):
     """
-    Search for valleys in histogram distribution. A valley is a
-    window of width 2*delta, whose central point is the minimum value.
-    The function returns the list of the central points of the valleys,
-    completed with the two values 0 and 255.
+    Search for valleys (local minima) in the distribution of the image histogram. A valley is a
+    window of (probability) width 2*delta, whose central point gives the minimum value.
+    The function returns the ordered list of these local minima in 2nd and 3rd quartiles, completed by the two values 0 and 255.
 
     @param imgBuf:
     @type imgBuf:
@@ -154,10 +139,9 @@ def valleys(imgBuf, delta):
 def interpolationSpline(a, b, d):
     """
     Build a transformation curve T from [0,1] onto itself,
-    as piecewise rational quadratic interpolation to a set of (a[k], b[k]) 2D-points.
-    d[k] controls the slope of the segments: if 0<=d[k]<1 the kth segment
-    compresses the corresponding portion of the histogram, if d[k] > 1 it is stretched.
-    The function returns the list of T[k] values for k in range(256).
+    as a piecewise rational quadratic interpolation to a set of (a[k], b[k]) 2D-points (nodes).
+    d[k] controls the slope at the node points. The function returns
+     the list of T[k] values for k in range(256).
     The 3 parameter lists maust ahave the same length.
     @param a:
     @type a:
@@ -174,60 +158,66 @@ def interpolationSpline(a, b, d):
     # for each i, get smallest a[j] > x[i]
     k = np.argmax(tmp, axis=0) # a[k[i]-1]<= x[i] < a[k[i]] if k[i] > 0, and x[i] out of a[0],..a[-1] otherwise
     k = np.where(k == 0, len(a)-1, k)
-
     r = (b[k] - b[k-1])/(a[k]-a[k-1])
     t = (x-a[k-1])/(a[k]-a[k-1])
     assert np.all(t>=0)
     assert np.all(t<=1)
-
     T = b[k-1] + (r[k]*t*t + d[k-1]*(1-t)*t)*(b[k]-b[k-1]) / (r[k]+(d[k]+d[k-1] - 2*r[k])*(1-t)*t)
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    ax.plot(T)
-    ax.plot([i/256 for i in range(256)])
+    ax.plot(T*256)
+    ax.plot([i for i in range(256)])
+    ax.plot(a*256, b*256, 'ro')
+    ax.plot(a*256, a*256, 'bo')
     fig.savefig('temp.png')
     return T
 
-def stretchHist(imgBuf, delta):
+def warpHistogram(imgBuf, valleyAperture=0.01, warp=0):
     """
-
-    @param imgBuf:
-    @type imgBuf:
-    @param delta:
-    @type delta:
-    @return:
-    @rtype:
+    Stretch and warp the distribution of imgBuf.
+    The parameter delta controls the (probability) width
+    of histogram valleys: it should be >0 and < 0.5
+    @param imgBuf: single channel image (luminance), values in 0..255
+    @type imgBuf: ndarray, shape(h,w), dtype=uint8 (or int in range 0..255)
+    @param valleyAperture:
+    @type valleyAperture:
+    @return: transformed image.
+    @rtype: ndarray same shape as imgBuf, dtype=np.int
+    """
+    # build the histogram and get valleys
+    V, hist, bins = valleys(imgBuf, valleyAperture)
     """
     n = np.prod(imgBuf.shape)
-    # build histogram and get valleys
-    V, hist, bins = valleys(imgBuf, delta)
-    F = np.cumsum(hist)
-    F1, F2 = np.argmax(F > 1/4), np.argmax(F>3/4)
+    cs = np.cumsum(hist)
+    F1, F2 = np.argmax(cs > 1/4), np.argmax(cs>3/4)
     h = 0.7816774 / np.power(n, 1/7) * (F2 - F1)/256
+    """
     V = V/255.0
+    # get the centers of the intervals between valleys.
     a = (V[1:] + V[:-1]) / 2
     a = np.concatenate(([0.0], a, [1.0])) # len(a) = len(V) + 1
-    # get CDF
+    # get CDF of distribution
     CDF = np.cumsum(np.array(distribution(hist, bins)))
     def F(x):
-        #return CDF(x*255, hist, bins, h)
         return CDF[int(x*255)]
     b = a.copy()
-    """
-    b[-1]=250/255
-    # warp midpoints
+    # move b[k]'s to equalize the histogram.
+    # s controls the move
+    s = warp
     for k in range(1, len(V)):
         b[k] = (F(V[k]) - F(a[k])) * V[k-1] + (F(a[k]) - F(V[k-1])) * V[k]
-        b[k] = b[k] / (F(V[k]) - F(V[k-1]))
-    """
-    d=np.array([0.2]*4 + [0.2]*256)
+        b[k] = b[k] / (F(V[k]) - F(V[k-1]))*s  + a[k]*(1-s)
+    # curve slopes at nodes (a[k], b[k]).
+    # They control stretching.
+    d=np.array([0.3]*2 + [1] + [0]*256)
+    # build transformation curve.
     T = interpolationSpline(a, b, d)
-    imgBuf[:,:]= T[(imgBuf.astype(np.int))]*255.0
+    return T[(imgBuf.astype(np.int))]*255.0
 
 
 if __name__ == '__main__':
     img = (np.array(range(1000*800))/800000).reshape(1000, 800)
-    print(gaussianDist(img))
+    print(gaussianDistribution(img))

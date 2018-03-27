@@ -32,7 +32,7 @@ from colorConv import sRGB2LabVec, sRGBWP, Lab2sRGBVec, sRGB_lin2XYZ, sRGB_lin2X
     rgbLinear2rgbVec
 
 from graphicsFilter import filterIndex
-from histogram import stretchHist
+from histogram import warpHistogram
 from icc import convertQImage
 import icc
 from imgconvert import *
@@ -814,6 +814,7 @@ class vImage(QImage):
                     # no_auto_scale= (not options['Auto Scale']) don't use : green shift
                     )
             #self.postProcessCache = np.copy(bufpost)
+            # CV_16UC3 --> RGB float32 (range 0..1) --> Lab float32 0<=L<=100, -127<=a<=127, -127<=b<=127 see https://docs.opencv.org/3.1.0/de/d25/imgproc_color_conversions.html
             buf32Lab = cv2.cvtColor(((bufpost.astype(np.float32)) / 65536).astype(np.float32), cv2.COLOR_RGB2Lab)
             self.postProcessCache = buf32Lab.copy()
         else:
@@ -823,11 +824,17 @@ class vImage(QImage):
             # CV_16UC3 --> RGB float32 (range 0..1) --> Lab float32 0<=L<=100, -127<=a<=127, -127<=b<=127 see https://docs.opencv.org/3.1.0/de/d25/imgproc_color_conversions.html
             #buf32Lab = cv2.cvtColor(((bufpost.astype(np.float32))/65536).astype(np.float32), cv2.COLOR_RGB2Lab)
         ###########
-        # contrast (L channel)
-        # Clahe performs badly on small images, hence
-        # we keep full resolution.
+        # contrast enhancement (L channel)
+        # We apply a (nearly) automatic histogram stretching and warping
+        # algorithm, well suited for multimodal histograms.
         ###########
         if adjustForm.contCorrection > 0:
+            # warp must be in range 0..1.
+            # warp = 0 means that no additional warping is done, but
+            # the histogram is always stretched.
+            warp = max(0, (adjustForm.contCorrection -1)) / 10
+            buf32Lab[:,:,0] = warpHistogram(buf32Lab[:, :, 0] * 255 / 100, valleyAperture=0.05, warp=warp) * 100 / 255
+            """
             clahe = cv2.createCLAHE(clipLimit=adjustForm.contCorrection/2, tileGridSize=(8, 8))
             clahe.setClipLimit(adjustForm.contCorrection/2)
             # convert L channel to CV_16UC1 and apply clahe
@@ -835,14 +842,30 @@ class vImage(QImage):
             # convert back to float32
             res = ((res.astype(np.float32))/655.35).astype(np.float32)
             buf32Lab[:, :, 0] = res
+            """
         ############
         # saturation (Lab)
         ############
-        if adjustForm.satCorrection != 0:
+        if True and adjustForm.satCorrection != 0:
             slope = max(0.1, adjustForm.satCorrection/25 +1) # range 0.1..3
             # multiply a and b channels
             buf32Lab[:,:,1:3] *= slope
             buf32Lab[:, :, 1:3] = np.clip(buf32Lab[:,:,1:3], -127, 127)
+        ###############
+        # vibrance (HsV)
+        ##############
+        if False and adjustForm.satCorrection != 0:
+            # convert to HSV
+            bufpost = cv2.cvtColor(buf32Lab, cv2.COLOR_LAB2RGB)
+            bufHsB = cv2.cvtColor(bufpost, cv2.COLOR_RGB2HSV) # saturation in range 0..1
+            alpha = (-adjustForm.satCorrection + 50.0) / 50
+            # tabulate x**alpha
+            LUT = np.power(np.array(range(256)) / 255, alpha)
+            # convert saturation s to s**alpha
+            bufHsB[:, :, 1] = LUT[(bufHsB[:, :, 1]*255).astype(int)]
+            # back to RGB
+            bufpost = cv2.cvtColor(bufHsB, cv2.COLOR_HSV2RGB)
+            buf32Lab = cv2.cvtColor(bufpost, cv2.COLOR_RGB2Lab)
         if self.parentImage.useThumb:
             buf32Lab = cv2.resize(buf32Lab, (currentImage.width(), currentImage.height()))
         """
@@ -867,10 +890,6 @@ class vImage(QImage):
         bufRGB32 = cv2.cvtColor(buf32Lab, cv2.COLOR_Lab2RGB)
         bufpost = (bufRGB32 * 255.0).astype(np.uint8)
 
-        ##########test
-        bufLab = cv2.cvtColor(bufpost, cv2.COLOR_RGB2LAB)
-        stretchHist(bufLab[:, :, 0], 0.05)
-        bufpost[:, :, :3] = cv2.cvtColor(bufLab.astype(np.uint8), cv2.COLOR_LAB2RGB)
 
         bufOut = QImageBuffer(currentImage)
         bufOut[:, :, :3][:, :, ::-1] = bufpost

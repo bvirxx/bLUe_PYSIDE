@@ -254,6 +254,7 @@ class rawForm (QGraphicsView):
         self.sliderCont.valueChanged.connect(contUpdate)  # send new value as parameter
         self.sliderCont.sliderReleased.connect(lambda: contUpdate(self.sliderCont.value()))  # signal has no parameter
 
+        """
         # noise reduction slider
         self.sliderNoise = QbLUeSlider(Qt.Horizontal)
         self.sliderNoise.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
@@ -289,8 +290,8 @@ class rawForm (QGraphicsView):
             self.sliderNoise.sliderReleased.connect(lambda: noiseUpdate(self.sliderNoise.value()))  # signal has no parameter
         self.sliderNoise.valueChanged.connect(noiseUpdate)  # send new value as parameter
         self.sliderNoise.sliderReleased.connect(lambda: noiseUpdate(self.sliderNoise.value()))  # signal has no parameter
-
-        """saturation slider"""
+        """
+        # saturation slider
         self.sliderSat = QbLUeSlider(Qt.Horizontal)
         self.sliderSat.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
         self.sliderSat.setRange(0, 100)
@@ -368,10 +369,10 @@ class rawForm (QGraphicsView):
         hl7.addWidget(satLabel)
         hl7.addWidget(self.satValue)
         hl7.addWidget(self.sliderSat)
-        hl5 = QHBoxLayout()
-        hl5.addWidget(noiseLabel)
-        hl5.addWidget(self.noiseValue)
-        hl5.addWidget(self.sliderNoise)
+        #hl5 = QHBoxLayout()
+        #hl5.addWidget(noiseLabel)
+        #hl5.addWidget(self.noiseValue)
+        #hl5.addWidget(self.sliderNoise)
         #l.addLayout(hl2)
         #l.addLayout(hl3)
         l.addLayout(hl1)
@@ -383,7 +384,7 @@ class rawForm (QGraphicsView):
         l.addWidget(sep)
         l.addLayout(hl4)
         l.addLayout(hl7)
-        l.addLayout(hl5)
+        #l.addLayout(hl5)
         l.addStretch(1)
         self.setLayout(l)
         self.adjustSize()
@@ -503,11 +504,14 @@ class rawForm (QGraphicsView):
     def brSlider2User(self, v):
         return (v - 50)
 
+    """
+
     def slider2Noise(self, v):
         return v
 
     def noise2Slider(self, e):
         return e
+    """
 
     def slider2Sat(self, v):
         return v - 50
@@ -537,8 +541,8 @@ class rawForm (QGraphicsView):
         self.tempCorrection = self.cameraTemp
         self.tintCorrection = 1.0
         self.expCorrection = 0.0
-        self.contCorrection = 0.0
-        self.noiseCorrection = 0
+        self.contCorrection = 5.0
+        #self.noiseCorrection = 0
         self.satCorrection = 0.0
         self.brCorrection = 1.0
         self.dataChanged.disconnect()
@@ -547,7 +551,7 @@ class rawForm (QGraphicsView):
         self.sliderExp.setValue(self.exp2Slider(self.expCorrection))
         self.sliderCont.setValue(self.cont2Slider(self.contCorrection))
         self.sliderBrightness.setValue(self.br2Slider(self.brCorrection))
-        self.sliderNoise.setValue(self.noise2Slider(self.noiseCorrection))
+        #self.sliderNoise.setValue(self.noise2Slider(self.noiseCorrection))
         self.sliderSat.setValue(self.sat2Slider(self.satCorrection))
         self.dataChanged.connect(self.updateLayer)
         self.dataChanged.emit(True)
