@@ -18,12 +18,14 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import gc
 
 import itertools
+from PySide2 import QtCore
+
 from PySide2.QtCore import Qt, QBuffer, QDataStream, QFile, QIODevice, QSize, QPointF, QPoint, QRectF, QByteArray
 
 import cv2
 from copy import copy
 
-from PySide2.QtGui import QImageReader, QTransform
+from PySide2.QtGui import QImageReader, QTransform, QBrush
 from PySide2.QtWidgets import QApplication, QMessageBox, QSplitter
 from PySide2.QtGui import QPixmap, QImage, QColor, QPainter
 from PySide2.QtCore import QRect
@@ -38,7 +40,7 @@ import icc
 from imgconvert import *
 from colorCube import interpMulti, rgb2hspVec, hsp2rgbVec, LUT3DIdentity, LUT3D, interpVec_
 from time import time
-from utils import savitzky_golay, channelValues, checkeredImage, boundingRect
+from utils import SavitzkyGolay, channelValues, checkeredImage, boundingRect
 
 ###################
 # multi processing
@@ -409,7 +411,8 @@ class vImage(QImage):
 
     def cacheInvalidate(self):
         """
-        Invalidates buffers.
+        Invalidate cache buffers. The method is
+        called by applyToStack for each layer after layer.execute
         """
         self.hspbBuffer = None
         self.LabBuffer = None
@@ -722,9 +725,9 @@ class vImage(QImage):
             L = dwtDenoiseChan(bufLab, chan=0, thr=noisecorr, thrmode='wiener', level=8 if self.parentImage.useThumb else 11)
             A = dwtDenoiseChan(bufLab, chan=1, thr=noisecorr, thrmode='wiener', level=8 if self.parentImage.useThumb else 11)
             B = dwtDenoiseChan(bufLab, chan=2, thr=noisecorr, thrmode='wiener', level=8 if self.parentImage.useThumb else 11)
-            #L = np.clip(L, 0, 100)
-            # A = np.clip(A, -127, 127)
-            # B = np.clip(B, -127, 127)
+            L = np.clip(L, 0, 255)
+            A = np.clip(A, 0,255)
+            B = np.clip(B, 0,255)
             bufLab = np.dstack((L, A, B))
             buf1 = cv2.cvtColor(bufLab.astype(np.uint8), cv2.COLOR_Lab2RGB)
         elif adjustForm.options['Bilateral']:
@@ -780,16 +783,16 @@ class vImage(QImage):
                     mult = (mult[0], mult[1], mult[2], mult[1])
                     print(mult, '   ', m)
                     bufpost_temp = rawImage.postprocess(
-                                            exp_shift=2.0**adjustForm.expCorrection,
+                                            exp_shift=2.0**adjustForm.expCorrection if not options['Auto Brightness'] else 0,
                                             no_auto_bright= (not options['Auto Brightness']),
                                             use_auto_wb=options['Auto WB'],
                                             use_camera_wb=False,#options['Camera WB'],
                                             user_wb = mult,#adjustForm.rawMultipliers,
                                             #gamma= (2.222, 4.5)  # default REC BT 709 exponent, slope
                                             gamma=(2.4, 12.92), # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
-                                            exp_preserve_highlights = 0.8 if options['Preserve Highlights'] else 0.0,
+                                            exp_preserve_highlights = 1.0 if options['Preserve Highlights'] else 0.0,
                                             output_bps=16,
-                                            bright=adjustForm.brCorrection# default 1
+                                            bright=adjustForm.brCorrection  # default 1
                                             # no_auto_scale= (not options['Auto Scale']) don't use : green shift
                                             )
                     row = i // 3
@@ -797,10 +800,10 @@ class vImage(QImage):
                     w, h = int(bufpost_temp.shape[1]/3), int(bufpost_temp.shape[0]/3)
                     bufpost_temp = cv2.resize(bufpost_temp, (w, h))
                     bufpost[row*h:(row+1)*h, col*w:(col+1)*w,: ]=bufpost_temp
-            # develop with chosen parameters
+            # develop
             else:
                 bufpost = rawImage.postprocess(
-                    exp_shift=2.0 ** adjustForm.expCorrection,
+                    exp_shift=2.0 ** adjustForm.expCorrection if not options['Auto Brightness'] else 0,
                     no_auto_bright=(not options['Auto Brightness']),
                     use_auto_wb=options['Auto WB'],
                     use_camera_wb=options['Camera WB'],
@@ -813,12 +816,14 @@ class vImage(QImage):
                     bright=adjustForm.brCorrection  # default 1
                     # no_auto_scale= (not options['Auto Scale']) don't use : green shift
                     )
-            #self.postProcessCache = np.copy(bufpost)
+            self.postProcessCache = np.copy(bufpost)
             # CV_16UC3 --> RGB float32 (range 0..1) --> Lab float32 0<=L<=100, -127<=a<=127, -127<=b<=127 see https://docs.opencv.org/3.1.0/de/d25/imgproc_color_conversions.html
-            buf32Lab = cv2.cvtColor(((bufpost.astype(np.float32)) / 65536).astype(np.float32), cv2.COLOR_RGB2Lab)
-            self.postProcessCache = buf32Lab.copy()
+            #buf32Lab = cv2.cvtColor(((bufpost.astype(np.float32)) / 65536).astype(np.float32), cv2.COLOR_RGB2Lab)
+            #self.postProcessCache = buf32Lab.copy()
         else:
-            buf32Lab = self.postProcessCache.copy()
+            bufpost = self.postProcessCache.copy()
+
+        """
         #needLab =  True#adjustForm.contCorrection > 0
         #if needLab:
             # CV_16UC3 --> RGB float32 (range 0..1) --> Lab float32 0<=L<=100, -127<=a<=127, -127<=b<=127 see https://docs.opencv.org/3.1.0/de/d25/imgproc_color_conversions.html
@@ -834,29 +839,21 @@ class vImage(QImage):
             # the histogram is always stretched.
             warp = max(0, (adjustForm.contCorrection -1)) / 10
             buf32Lab[:,:,0] = warpHistogram(buf32Lab[:, :, 0] * 255 / 100, valleyAperture=0.05, warp=warp) * 100 / 255
-            """
-            clahe = cv2.createCLAHE(clipLimit=adjustForm.contCorrection/2, tileGridSize=(8, 8))
-            clahe.setClipLimit(adjustForm.contCorrection/2)
-            # convert L channel to CV_16UC1 and apply clahe
-            res = clahe.apply(((buf32Lab[:, :, 0]*655.35).astype(np.uint16)))
-            # convert back to float32
-            res = ((res.astype(np.float32))/655.35).astype(np.float32)
-            buf32Lab[:, :, 0] = res
-            """
         ############
         # saturation (Lab)
         ############
-        if True and adjustForm.satCorrection != 0:
+        if False and adjustForm.satCorrection != 0:
             slope = max(0.1, adjustForm.satCorrection/25 +1) # range 0.1..3
             # multiply a and b channels
             buf32Lab[:,:,1:3] *= slope
             buf32Lab[:, :, 1:3] = np.clip(buf32Lab[:,:,1:3], -127, 127)
+        """
+        bufpost = (bufpost.astype(np.float32)/256).astype(np.uint8)
         ###############
-        # vibrance (HsV)
+        # Saturation (HsV)
         ##############
-        if False and adjustForm.satCorrection != 0:
+        if True and adjustForm.satCorrection != 0:
             # convert to HSV
-            bufpost = cv2.cvtColor(buf32Lab, cv2.COLOR_LAB2RGB)
             bufHsB = cv2.cvtColor(bufpost, cv2.COLOR_RGB2HSV) # saturation in range 0..1
             alpha = (-adjustForm.satCorrection + 50.0) / 50
             # tabulate x**alpha
@@ -865,9 +862,9 @@ class vImage(QImage):
             bufHsB[:, :, 1] = LUT[(bufHsB[:, :, 1]*255).astype(int)]
             # back to RGB
             bufpost = cv2.cvtColor(bufHsB, cv2.COLOR_HSV2RGB)
-            buf32Lab = cv2.cvtColor(bufpost, cv2.COLOR_RGB2Lab)
+            #buf32Lab = cv2.cvtColor(bufpost, cv2.COLOR_RGB2Lab)
         if self.parentImage.useThumb:
-            buf32Lab = cv2.resize(buf32Lab, (currentImage.width(), currentImage.height()))
+            bufpost = cv2.resize(bufpost, (currentImage.width(), currentImage.height()))
         """
         ################################################################################
         # denoising
@@ -887,15 +884,24 @@ class vImage(QImage):
             print('denoise %.2f' % (time() - t))
             buf32Lab = np.dstack((L, A, B))
         """
-        bufRGB32 = cv2.cvtColor(buf32Lab, cv2.COLOR_Lab2RGB)
-        bufpost = (bufRGB32 * 255.0).astype(np.uint8)
+        #bufRGB32 = cv2.cvtColor(buf32Lab, cv2.COLOR_Lab2RGB)
+        #bufpost = (bufRGB32 * 255.0).astype(np.uint8)
 
 
         bufOut = QImageBuffer(currentImage)
         bufOut[:, :, :3][:, :, ::-1] = bufpost
         self.updatePixmap()
 
-    def applyCLAHE(self, clipLimit, options):
+    def applyCLAHE(self, clipLimit, options, version='HSV'):
+        """
+
+        @param clipLimit:
+        @type clipLimit:
+        @param options:
+        @type options:
+        @param version:
+        @type version:
+        """
         inputImage = self.inputImg()
         currentImage = self.getCurrentImage()
         ndImg1a = QImageBuffer(currentImage)
@@ -904,15 +910,25 @@ class vImage(QImage):
         if clipLimit < 0.1:
             ndImg1a[:, :, :] = tmpBuf
             self.updatePixmap()
-        # get l channel
-        LBuf = np.array(inputImage.getLabBuffer(), copy=True)
-        # apply CLAHE to L channel
-        clahe = cv2.createCLAHE(clipLimit=clipLimit, tileGridSize=(8, 8))
-        clahe.setClipLimit(clipLimit)
-        res = clahe.apply((LBuf[:,:,0] * 255.0).astype(np.uint8))
-        LBuf[:,:,0] = res / 255
-        # back to RGB
-        sRGBBuf = Lab2sRGBVec(LBuf)  # use opencv cvtColor
+        if version=='Lab':
+            # get l channel
+            LBuf = np.array(inputImage.getLabBuffer(), copy=True)
+            # apply CLAHE to L channel
+            clahe = cv2.createCLAHE(clipLimit=clipLimit, tileGridSize=(8, 8))
+            clahe.setClipLimit(clipLimit)
+            res = clahe.apply((LBuf[:,:,0] * 255.0).astype(np.uint8))
+            LBuf[:,:,0] = res / 255
+            # back to RGB
+            sRGBBuf = Lab2sRGBVec(LBuf)  # use opencv cvtColor
+        else:
+            # convert to HSV
+            HSVBuf = cv2.cvtColor(tmpBuf[:,:,:3], cv2.COLOR_BGR2HSV)
+            clahe = cv2.createCLAHE(clipLimit=clipLimit, tileGridSize=(8, 8))
+            clahe.setClipLimit(clipLimit)
+            res = clahe.apply((HSVBuf[:, :, 2]).astype(np.uint8))
+            HSVBuf[:, :, 2] = res
+            # back to RGB
+            sRGBBuf = cv2.cvtColor(HSVBuf, cv2.COLOR_HSV2RGB)
         currentImage = self.getCurrentImage()
         ndImg1a = QImageBuffer(currentImage)
         ndImg1a[:, :, :3][:,:,::-1] = sRGBBuf
@@ -1146,16 +1162,18 @@ class vImage(QImage):
             # This is a numpy bug : in module function_base.py, to prevent memory error,
             # a reasonable upper bound for bins should be chosen.
             hist, bin_edges = np.histogram(buf0, bins=100, density=True)
-            # smooth hist
-            hist = savitzky_golay(hist, 11, 3)
+            # smooth the histogram, first and last bins excepted for a better visualization of possible clipping.
+            hist = np.concatenate(([hist[0]], SavitzkyGolay.filter(hist[1:-1]), [hist[-1]]))
+            """
             p = len(hist) - len(bin_edges)
-            # P > 1 iff hist was padded by savitzky_golay filter
-            # then, we pad bin_edges accordingly
+            # if P > 1, the histogram was padded by the savitzky_golay filter:
+            # we pad bin_edges accordingly
             if p >1:
                 p = p /2 +1
                 bin_firstVals = (bin_edges[0] - np.arange(p))[::-1]
                 bin_lastVals = bin_edges[-1] + np.arange(p-1)
                 bin_edges = np.concatenate((bin_firstVals, bin_edges, bin_lastVals))
+            """
             # draw hist
             imgH = size.height()
             M = max(hist)
@@ -1163,11 +1181,18 @@ class vImage(QImage):
             for i, y in enumerate(hist):
                 h = int(imgH * y / M)
                 rect = QRect(int((bin_edges[i] - range[0]) * scale), max(img.height() - h, 0), int((bin_edges[i + 1] - bin_edges[i]) * scale+1), h)
-                # bins at range boundaries are painted with a different color to indicate a possible clipping
-                if  bin_edges[i] == range[0] or  bin_edges[i+1] == range[1]:
-                    painter.fillRect(rect, Qt.cyan)
-                else:
-                    painter.fillRect(rect, color)
+                painter.fillRect(rect, color)
+                # clipping indicators
+                if i == 0 or i == len(hist)-1:
+                    # clipping threshold 0.01
+                    percent = hist[i] * (bin_edges[i+1]-bin_edges[i])
+                    if percent > 0.02:
+                        left = bin_edges[0 if i==0 else -1] - (10 if i>0 else 0)
+                        nonlocal gPercent
+                        gPercent = min(gPercent, np.clip((0.05 - percent) / 0.03, 0, 1))
+                        painter.fillRect(left, 0, 10, 10, QColor(255, 255*gPercent, 0))
+        # green percent for clipping indicators
+        gPercent = 1.0
         bufL = cv2.cvtColor(QImageBuffer(self)[:, :, :3], cv2.COLOR_BGR2GRAY)[..., np.newaxis]  # returns Y (YCrCb) : Y = 0.299*R + 0.587*G + 0.114*B
         if mode == 'RGB':
             buf = QImageBuffer(self)[:,:,:3][:,:,::-1]  #RGB
@@ -1438,9 +1463,13 @@ class mImage(vImage):
             return activeLayer.getCurrentImage().pixelColor(x, y)
 
     def cacheInvalidate(self):
+        """
+        Invalidate cache buffers. The method is
+        called by applyToStack for each layer after layer.execute
+        """
         vImage.cacheInvalidate(self)
         for layer in self.layersStack:
-            layer.cacheInvalidate()  # Qlayer doesn't inherit from mImage : it's a call to vImage.cacheInvalidate
+            layer.cacheInvalidate()  # As Qlayer doesn't inherit from mImage, we call vImage.cacheInvalidate(layer)
 
     def setThumbMode(self, value):
         if value == self.useThumb:

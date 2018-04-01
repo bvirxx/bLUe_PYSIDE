@@ -796,41 +796,43 @@ class savingDialog(QDialog):
     def directory(self):
         return self.dlg.directory()
 
-def savitzky_golay(y, window_size, order, deriv=0, rate=1):
+class SavitzkyGolay:
     """
-    This pure numpy implementation of the savitzky_golay filter is taken
+    Savitzky-Golay Filter.
+    This is a pure numpy implementation of the Savitzky_Golay filter. It is taken
     from U{http://stackoverflow.com/questions/22988882/how-to-smooth-a-curve-in-python}
     Many thanks to elviuz.
-    @param y: data (type numpy array)
-    @param window_size:
-    @param order:
-    @param deriv:
-    @param rate:
-    @return: smoothed data array
     """
-    try:
-        window_size = np.abs(np.int(window_size))
-        order = np.abs(np.int(order))
-    except ValueError :
-        raise ValueError("window_size and order have to be of type int")
-    if window_size % 2 != 1 or window_size < 1:
-        raise TypeError("window_size size must be a positive odd number")
-    if window_size < order + 2:
-        raise TypeError("window_size is too small for the polynomials order")
-
-    order_range = range(order+1)
-    half_window = (window_size -1) // 2
-
-    # precompute coefficients
-    b = np.mat([[k**i for i in order_range] for k in range(-half_window, half_window+1)])
-    m = np.linalg.pinv(b).A[deriv] * rate**deriv * factorial(deriv)
-
-    # pad the signal at the extremes with
-    # values taken from the signal itself
-    firstvals = y[0] - np.abs( y[1:half_window+1][::-1] - y[0] )
-    lastvals = y[-1] + np.abs(y[-half_window-1:-1][::-1] - y[-1])
-    y = np.concatenate((firstvals, y, lastvals))
-    return np.convolve( m[::-1], y, mode='valid')
+    window_size = 11   # must be odd
+    order = 3
+    deriv = 0
+    rate = 1
+    kernel = None
+    @classmethod
+    def getKernel(cls):
+        if cls.kernel is None:
+            order_range = range(cls.order + 1)
+            half_window = (cls.window_size - 1) // 2
+            # compute the array m of filter coefficients
+            b = np.mat([[k ** i for i in order_range] for k in range(-half_window, half_window + 1)])
+            cls.kernel = np.linalg.pinv(b).A[cls.deriv] * cls.rate ** cls.deriv * factorial(cls.deriv)
+        return cls.kernel
+    @classmethod
+    def filter(cls, y):
+        """
+        @param y: data
+        @type y: 1D ndarray, dtype = float
+        @return: the filtered data array
+        """
+        kernel = cls.getKernel()
+        half_window = (cls.window_size -1) // 2
+        # pad the signal at the extremes with values taken from the signal itself
+        firstvals = y[0] - np.abs( y[1:half_window+1][::-1] - y[0] )
+        lastvals = y[-1] + np.abs(y[-half_window-1:-1][::-1] - y[-1])
+        y = np.concatenate((firstvals, y, lastvals))
+        #y = np.concatenate(([0]*half_window, y, [0]*half_window))
+        # apply filter
+        return np.convolve( kernel[::-1], y, mode='valid')
 
 def checkeredImage(w, h, format=QImage.Format_ARGB32):
     image = QImage(w, h, format)

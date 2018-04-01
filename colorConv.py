@@ -225,7 +225,6 @@ def sRGB2LabVec(bufsRGB, useOpencv=True) :
     we use opencv cvtColor (Note that it seems to perform
     linearizations, in contrast to sRGB <---> XYZ conversions)
     See U{https://en.wikipedia.org/wiki/Lab_color_space}
-
     The range for Lab coordinates is L:0..1, a:-86.185..98.254, b:-107.863..94.482
     See U{http://stackoverflow.com/questions/19099063/what-are-the-ranges-of-coordinates-in-the-cielab-color-space}
     @param bufsRGB: image buffer, mode sRGB, range 0..255

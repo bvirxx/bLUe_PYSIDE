@@ -81,9 +81,10 @@ class rawForm (QGraphicsView):
         # keeping tintCorrection near to 1.0
         self.baseTint = self.cameraTint
         # options
-        optionList0 = ['Auto Brightness', 'Preserve Highlights']
-        self.listWidget1 = optionsWidget(options=optionList0, exclusive=False, changed=lambda: self.dataChanged.emit(True))
+        optionList0, optionNames0 = ['Auto Brightness', 'Preserve Highlights'], ['Auto Exposure', 'Preserve Highlights']
+        self.listWidget1 = optionsWidget(options=optionList0, optionNames=optionNames0, exclusive=False, changed=lambda: self.dataChanged.emit(True))
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
+        self.listWidget1.checkOption(self.listWidget1.intNames[1])
         optionList1, optionNames1 = ['Auto WB', 'Camera WB', 'User WB'], ['Auto', 'Camera (As Shot)', 'User']
         self.listWidget2 = optionsWidget(options=optionList1, optionNames=optionNames1,  exclusive=True, changed=lambda: self.dataChanged.emit(True))
         self.listWidget2.checkOption(self.listWidget2.intNames[1])
@@ -536,6 +537,7 @@ class rawForm (QGraphicsView):
         self.listWidget1.unCheckAll()
         self.listWidget2.unCheckAll()
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
+        self.listWidget1.checkOption(self.listWidget1.intNames[1])
         self.listWidget2.checkOption(self.listWidget2.intNames[1])
         self.enableSliders()
         self.tempCorrection = self.cameraTemp
