@@ -213,6 +213,7 @@ class vImage(QImage):
         self.rPixmap = None
         self.hspbBuffer = None
         self.LabBuffer = None
+        self.HSVBuffer = None
 
         # preview image.
         # Conceptually, the layer stack can be seen as
@@ -376,30 +377,40 @@ class vImage(QImage):
 
     def getHspbBuffer(self):
         """
-        returns the image buffer in color mode HSpB.
+        return the image buffer in color mode HSpB.
         The buffer is recalculated if needed and cached.
-        The method is overridden in QLayer
         @return: HSPB buffer 
         @rtype: ndarray
         """
         #inputImage = self.inputImgFull().getCurrentImage()
-        if self.hspbBuffer is None:
+        if self.hspbBuffer is None  or not self.cachesEnabled:
             currentImage = self.getCurrentImage()
             self.hspbBuffer = rgb2hspVec(QImageBuffer(currentImage)[:,:,:3][:,:,::-1])
         return self.hspbBuffer
 
     def getLabBuffer(self):
         """
-        returns the image buffer in color mode Lab.
+        return the image buffer in color mode Lab.
         The buffer is calculated if needed and cached.
-        The method is overridden in QLayer
         @return: Lab buffer 
-        @rtype: numpy ndarray, dtype numpy.float64
+        @rtype: numpy ndarray, dtype np.float
         """
-        if self.LabBuffer is None:
+        if self.LabBuffer is None  or not self.cachesEnabled:
             currentImage = self.getCurrentImage()
             self.LabBuffer = sRGB2LabVec(QImageBuffer(currentImage)[:, :, :3][:, :, ::-1])
         return self.LabBuffer
+
+    def getHSVBuffer(self):
+        """
+        return the image buffer in color mode HSV.
+        The buffer is calculated if needed and cached.
+        @return: HSV buffer
+        @rtype: numpy ndarray, dtype np.float
+        """
+        if self.HSVBuffer is None  or not self.cachesEnabled:
+            currentImage = self.getCurrentImage()
+            self.HSVBuffer = cv2.cvtColor(QImageBuffer(currentImage)[:, :, :3], cv2.COLOR_BGR2HSV)
+        return self.HSVBuffer
 
     def setModified(self, b):
         """
@@ -412,11 +423,11 @@ class vImage(QImage):
     def cacheInvalidate(self):
         """
         Invalidate cache buffers. The method is
-        called by applyToStack for each layer after layer.execute
+        called in applyToStack for each layer after layer.execute
         """
         self.hspbBuffer = None
         self.LabBuffer = None
-        #self.thumb = None #TODO thumb is not a cache 12/10/17
+        self.HSVBuffer = None
         if hasattr(self, 'maskedImageContainer'):
             if self.maskedImageContainer is not None:
                 self.maskedImageContainer.cacheInvalidate()
@@ -538,7 +549,7 @@ class vImage(QImage):
 
     def applyCloning(self, seamless=True):
         """
-        The function draws the translated and zoomed
+        Draw the translated and zoomed
         input image on the output image.
         if seamless and self.cloned are both False,
         no seamless cloning is done.
@@ -547,6 +558,7 @@ class vImage(QImage):
         @param seamless:
         @type seamless: boolean
         """
+        # TODO 02/04/18 called multiple times, cacheInvalidate should be called!!
         imgIn = self.inputImg()
         imgOut = self.getCurrentImage()
         # draw the translated and zoomed input image on the output image
@@ -770,10 +782,11 @@ class vImage(QImage):
         # - gamma curve and brightness correction : gamma(imax) = 1, imax = 8*white/brightness
         # ouput is CV_16UC3
         ######################################################################################################################
+        # postProcessCache is reset to None by graphicsRaw.updateLayer (graphicsRaw.dataChanged event handler)
         if self.postProcessCache is None:
             # build sample images for a set of multipliers
             if adjustForm.sampleMultipliers:
-                bufpost = np.empty((self.height(), self.width(), 3), dtype=np.uint16)
+                bufpost16 = np.empty((self.height(), self.width(), 3), dtype=np.uint16)
                 m = adjustForm.rawMultipliers
                 co = np.array([0.85, 1.0, 1.2])
                 mults = itertools.product(m[0]*co, [m[1]], m[2]*co)
@@ -799,38 +812,35 @@ class vImage(QImage):
                     col = i % 3
                     w, h = int(bufpost_temp.shape[1]/3), int(bufpost_temp.shape[0]/3)
                     bufpost_temp = cv2.resize(bufpost_temp, (w, h))
-                    bufpost[row*h:(row+1)*h, col*w:(col+1)*w,: ]=bufpost_temp
+                    bufpost16[row*h:(row+1)*h, col*w:(col+1)*w,: ]=bufpost_temp
             # develop
             else:
-                bufpost = rawImage.postprocess(
+                bufpost16 = rawImage.postprocess(
                     exp_shift=2.0 ** adjustForm.expCorrection if not options['Auto Brightness'] else 0,
                     no_auto_bright=(not options['Auto Brightness']),
                     use_auto_wb=options['Auto WB'],
                     use_camera_wb=options['Camera WB'],
                     user_wb=adjustForm.rawMultipliers,
                     # gamma= (2.222, 4.5)  # default REC BT 709 exponent, slope
-                    gamma=(2.4, 12.92),
-                    # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
+                    gamma=(2.4, 12.92), # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
                     exp_preserve_highlights=1.0 if options['Preserve Highlights'] else 0.0,
                     output_bps=16,
                     bright=adjustForm.brCorrection  # default 1
                     # no_auto_scale= (not options['Auto Scale']) don't use : green shift
                     )
-            self.postProcessCache = np.copy(bufpost)
-            # CV_16UC3 --> RGB float32 (range 0..1) --> Lab float32 0<=L<=100, -127<=a<=127, -127<=b<=127 see https://docs.opencv.org/3.1.0/de/d25/imgproc_color_conversions.html
-            #buf32Lab = cv2.cvtColor(((bufpost.astype(np.float32)) / 65536).astype(np.float32), cv2.COLOR_RGB2Lab)
+            bufHSV_CV32 = cv2.cvtColor(((bufpost16.astype(np.float32)) / 65536).astype(np.float32), cv2.COLOR_RGB2HSV)
+            # cache buffers
+            self.postProcessCache = np.copy(bufpost16)
+            self.bufCache_HSV_CV32 = bufHSV_CV32.copy()
             #self.postProcessCache = buf32Lab.copy()
         else:
-            bufpost = self.postProcessCache.copy()
+            # restore buffers
+            bufpost16 = self.postProcessCache.copy()
+            bufHSV_CV32 = self.bufCache_HSV_CV32.copy()
 
-        """
-        #needLab =  True#adjustForm.contCorrection > 0
-        #if needLab:
-            # CV_16UC3 --> RGB float32 (range 0..1) --> Lab float32 0<=L<=100, -127<=a<=127, -127<=b<=127 see https://docs.opencv.org/3.1.0/de/d25/imgproc_color_conversions.html
-            #buf32Lab = cv2.cvtColor(((bufpost.astype(np.float32))/65536).astype(np.float32), cv2.COLOR_RGB2Lab)
         ###########
-        # contrast enhancement (L channel)
-        # We apply a (nearly) automatic histogram stretching and warping
+        # contrast and saturation enhancement (V channel).
+        # We apply a (nearly) automatic histogram equalization
         # algorithm, well suited for multimodal histograms.
         ###########
         if adjustForm.contCorrection > 0:
@@ -838,7 +848,15 @@ class vImage(QImage):
             # warp = 0 means that no additional warping is done, but
             # the histogram is always stretched.
             warp = max(0, (adjustForm.contCorrection -1)) / 10
-            buf32Lab[:,:,0] = warpHistogram(buf32Lab[:, :, 0] * 255 / 100, valleyAperture=0.05, warp=warp) * 100 / 255
+            bufHSV_CV32[:,:,2] = warpHistogram(bufHSV_CV32[:, :, 2], valleyAperture=0.05, warp=warp)
+        if adjustForm.satCorrection != 0:
+            alpha = (-adjustForm.satCorrection + 50.0) / 50
+            # tabulate x**alpha
+            LUT = np.power(np.array(range(256)) / 255, alpha)
+            # convert saturation s to s**alpha
+            bufHSV_CV32[:, :, 1] = LUT[(bufHSV_CV32[:, :, 1] * 255).astype(int)]
+        # back to RGB
+        bufpost16 = (cv2.cvtColor(bufHSV_CV32, cv2.COLOR_HSV2RGB)*65535).astype(np.uint16)
         ############
         # saturation (Lab)
         ############
@@ -847,22 +865,12 @@ class vImage(QImage):
             # multiply a and b channels
             buf32Lab[:,:,1:3] *= slope
             buf32Lab[:, :, 1:3] = np.clip(buf32Lab[:,:,1:3], -127, 127)
-        """
-        bufpost = (bufpost.astype(np.float32)/256).astype(np.uint8)
-        ###############
-        # Saturation (HsV)
-        ##############
-        if True and adjustForm.satCorrection != 0:
-            # convert to HSV
-            bufHsB = cv2.cvtColor(bufpost, cv2.COLOR_RGB2HSV) # saturation in range 0..1
-            alpha = (-adjustForm.satCorrection + 50.0) / 50
-            # tabulate x**alpha
-            LUT = np.power(np.array(range(256)) / 255, alpha)
-            # convert saturation s to s**alpha
-            bufHsB[:, :, 1] = LUT[(bufHsB[:, :, 1]*255).astype(int)]
-            # back to RGB
-            bufpost = cv2.cvtColor(bufHsB, cv2.COLOR_HSV2RGB)
-            #buf32Lab = cv2.cvtColor(bufpost, cv2.COLOR_RGB2Lab)
+
+        #############################
+        # Conversion to 8 bits/channel
+        #############################
+        bufpost = (bufpost16.astype(np.float32)/256).astype(np.uint8)
+
         if self.parentImage.useThumb:
             bufpost = cv2.resize(bufpost, (currentImage.width(), currentImage.height()))
         """
@@ -894,7 +902,9 @@ class vImage(QImage):
 
     def applyCLAHE(self, clipLimit, options, version='HSV'):
         """
-
+        CLAHE algorithm. If version is 'HSV' (default) the
+        image is converted to HSV and the V channel is used.
+        Otherwise, The Lab color space is used.
         @param clipLimit:
         @type clipLimit:
         @param options:
@@ -903,37 +913,34 @@ class vImage(QImage):
         @type version:
         """
         inputImage = self.inputImg()
+        tmpBuf = QImageBuffer(inputImage)
         currentImage = self.getCurrentImage()
         ndImg1a = QImageBuffer(currentImage)
-        tmpBuf = QImageBuffer(inputImage)
-        # neutral point
+        # neutral point : forward changes
         if clipLimit < 0.1:
             ndImg1a[:, :, :] = tmpBuf
             self.updatePixmap()
+            return
+        clahe = cv2.createCLAHE(clipLimit=clipLimit, tileGridSize=(8, 8))
+        clahe.setClipLimit(clipLimit)
         if version=='Lab':
             # get l channel
-            LBuf = np.array(inputImage.getLabBuffer(), copy=True)
-            # apply CLAHE to L channel
-            clahe = cv2.createCLAHE(clipLimit=clipLimit, tileGridSize=(8, 8))
-            clahe.setClipLimit(clipLimit)
+            LBuf = inputImage.getLabBuffer().copy()
+            # apply CLAHE to the L channel
             res = clahe.apply((LBuf[:,:,0] * 255.0).astype(np.uint8))
             LBuf[:,:,0] = res / 255
             # back to RGB
             sRGBBuf = Lab2sRGBVec(LBuf)  # use opencv cvtColor
         else:
-            # convert to HSV
-            HSVBuf = cv2.cvtColor(tmpBuf[:,:,:3], cv2.COLOR_BGR2HSV)
-            clahe = cv2.createCLAHE(clipLimit=clipLimit, tileGridSize=(8, 8))
-            clahe.setClipLimit(clipLimit)
-            res = clahe.apply((HSVBuf[:, :, 2]).astype(np.uint8))
+            # get HSV buffer
+            HSVBuf = inputImage.getHSVBuffer().copy()
+            # apply clahe to the V channel
+            res = clahe.apply((HSVBuf[:, :, 2]))
             HSVBuf[:, :, 2] = res
             # back to RGB
             sRGBBuf = cv2.cvtColor(HSVBuf, cv2.COLOR_HSV2RGB)
-        currentImage = self.getCurrentImage()
-        ndImg1a = QImageBuffer(currentImage)
         ndImg1a[:, :, :3][:,:,::-1] = sRGBBuf
-        tmpBuf = QImageBuffer(inputImage)
-        # forward opacity
+        # forward opacity changes
         ndImg1a[:, :,3] = tmpBuf[:,:,3]
         self.updatePixmap()
 
@@ -1982,43 +1989,30 @@ class QLayer(vImage):
                     qp.drawImage(QRect(0,0,img.width(), img.height()), layer.getCurrentImage())
         qp.end()
         return img
-
+    """
     def getHspbBuffer(self):
-        """
+        
         Return the image buffer in color mode HSpB.
         The buffer is calculated if needed and cached.
         @return: HSPB buffer
         @rtype: ndarray, dtype numpy float
-        """
+        
         if self.hspbBuffer is None or not self.cachesEnabled:
             img = self.getCurrentImage()
             self.hspbBuffer = rgb2hspVec(QImageBuffer(img)[:, :, :3][:, :, ::-1])
         return self.hspbBuffer
 
     def getLabBuffer(self):
-        """
+        
         returns the image buffer in color mode Lab.
         The buffer is calculated if needed and cached.
         @return: Lab buffer (type ndarray)
-        """
-        """
-        if self.LabBuffer is None:
-            if self.parentImage.useThumb:
-                #self.LabBuffer = sRGB2LabVec(QImageBuffer(self.inputImgFull().getCurrentImage())[:, :, :3][:, :, ::-1])
-                #self.LabBuffer = sRGB2LabVec(QImageBuffer(self.inputImg())[:, :, :3][:, :, ::-1])  # TODO verify getcurrenmaskedimage is right here
-                self.LabBuffer = sRGB2LabVec(QImageBuffer(self.getCurrentImage())[:, :, :3][:, :, ::-1])
-            else:
-                if hasattr(self, 'inputImg'):
-                    self.LabBuffer = sRGB2LabVec(QImageBuffer(self.inputImg())[:,:,:3][:,:,::-1])
-                else:
-                    self.LabBuffer = sRGB2LabVec(QImageBuffer(self)[:, :, :3][:, :, ::-1])
-        """
+        
         if self.LabBuffer is None or not self.cachesEnabled:
-            #self.thumb = None
-            # Calling QImageBuffer  needs to keep a ref to self.getCurrentImage() to protect it against garbage collector.
             img = self.getCurrentImage()
             self.LabBuffer = sRGB2LabVec(QImageBuffer(img)[:, :, :3][:, :, ::-1])
         return self.LabBuffer
+    """
 
     def applyToStack(self):
         """
@@ -2058,12 +2052,9 @@ class QLayer(vImage):
             self.parentImage.setModified(True)  #TODO 28/02/18 validate
             QApplication.restoreOverrideCursor()
             QApplication.processEvents()
-
+    """
     def applyToStackIter(self):
-        """
-        iterative version of applyToStack
-        @return:
-        """
+        #iterative version of applyToStack
         stack = self.parentImage.layersStack
         ind = self.getStackIndex() + 1
         try:
@@ -2078,7 +2069,7 @@ class QLayer(vImage):
         finally:
             QApplication.restoreOverrideCursor()
             QApplication.processEvents()
-
+    """
     def isAdjustLayer(self):
         return self.view is not None #hasattr(self, 'view')
 

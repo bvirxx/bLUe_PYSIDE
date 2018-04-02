@@ -25,9 +25,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 
 from imgconvert import QImageBuffer
+from utils import distribution
 
+"""
 def distribution(hist, bins):
-    """
+    
     This function Interpolates the distribution ("density") of an image, given its histogram.
     It computes the list of Proba(image=k) for k in range(256).
     The interpolation attributes equal probabilities to all points in the same bin.
@@ -37,7 +39,7 @@ def distribution(hist, bins):
     @type bins:
     @return: The interpolated distribution
     @rtype: list
-    """
+
     dist = []
     for i in range(256):
         r = np.argmax(bins > i)  # if r>0 bins[r-1]<= i <bins[r]
@@ -57,6 +59,7 @@ def distribution(hist, bins):
     if np.sum(dist) != 1:
         print('distribution', np.sum(dist))
     return dist
+"""
 
 def gaussianDistribution(x, hist, bins, h):
     """
@@ -84,31 +87,27 @@ def gaussianDistribution(x, hist, bins, h):
     dx = np.sum(expx)
     return dx
 
-def distWins(hist, bins, delta):
+def distWins(CDF, delta):
     """
     Return the sorted list of the windows of (probability) width 2*delta
-    for the distribution (hist,bins).
-    @param hist:
-    @type hist:
-    @param bins:
-    @type bins:
-    @param delta:
-    @type delta:
-    @return: the list of 3-uples (j, k, i) corresponding to the windows (k+j, k, k+i), j is < 0
+    for the distribution (hist,bins). Parameter delta should be in range 0..0.5 : 0<delta<0.5
+    @param CDF: CDF table
+    @type CDF: ndarray, shape (256,), dtype=np.float
+    @param delta: window half width
+    @type delta: float
+    @return: the list of 3-uples (j, k, i) corresponding to the windows (k+j, k, k+i), Note j is < 0
     @rtype:
     """
-    # get CDF
-    F = np.cumsum(hist * (bins[1:] - bins[:-1]))
-    # F = np.cumsum(distribution(hist, bins))
     def histDistBin(k):
+        # search for a window of (probability) width 2*delta, centered at k.
         i, j = 1, -1
-        while  F[k+i] - F[k] < delta and k+i < len(F)-1:
+        while  CDF[k + i] - CDF[k] < delta and k+i < len(CDF)-1:
             i += 1
-        while F[k] - F[k+j]< delta and k+j > 0:
+        while CDF[k] - CDF[k + j]< delta and k+j > 0:
             j -= 1
         return j, k, i
     # cut the delta-queues of distribution.
-    m, M = np.argmax(F > delta), np.argmax(F > 1 - delta)
+    m, M = np.argmax(CDF > delta), np.argmax(CDF > 1 - delta)
     return [histDistBin(k) for k in range(m, M)]
 
 def valleys(imgBuf, delta):
@@ -125,16 +124,18 @@ def valleys(imgBuf, delta):
     @rtype:
     """
     hist, bins = np.histogram(imgBuf, bins=100, density=True)
+
+    dist = distribution(hist, bins, 255)
     V = []
     # get windows
-    hDB = distWins(hist, bins, delta)
+    hDB = distWins(dist.CDFTable, delta)
     # search for valleys
     for j, k, i in hDB:
-        if np.all([(hist[l] > hist[k]) for l in range(k+j, k)]) and np.all([(hist[l] > hist[k]) for l in range(k+1, k+i+1)]) :
+        if np.all([(dist.DTable[l] > dist.DTable[k]) for l in range(k+j, k)]) and np.all([(dist.DTable[l] > dist.DTable[k]) for l in range(k+1, k+i+1)]) :
             V.append(k)
     #V = [0.0]+V+[255.0]
     V = np.array(V, dtype=np.float)
-    return V, hist, bins
+    return V, dist
 
 def interpolationSpline(a, b, d):
     """
@@ -190,35 +191,24 @@ def warpHistogram(imgBuf, valleyAperture=0.01, warp=0):
     Stretch and warp the distribution of imgBuf.
     The parameter delta controls the (probability) width
     of histogram valleys: it should be >0 and < 0.5
-    @param imgBuf: single channel image (luminance), values in 0..255
-    @type imgBuf: ndarray, shape(h,w), dtype=uint8 (or int in range 0..255)
+    @param imgBuf: single channel image (luminance), range 0..1
+    @type imgBuf: ndarray, shape(h,w), dtype=uint8 or int or float
     @param valleyAperture:
     @type valleyAperture:
-    @return: transformed image.
-    @rtype: ndarray same shape as imgBuf, dtype=np.int
+    @return: transformed image channel, range 0..1
+    @rtype: ndarray same shape as imgBuf, dtype=np.flaot,
     """
     ###################
     # outlier threshold
     tau = 0.01
     ###################
     # get valleys and histogram
-    V0, hist, bins = valleys(imgBuf, valleyAperture)                    # len(V0) = K-1 is the count of valleys
+    V0, dist = valleys(imgBuf*255, valleyAperture)                    # len(V0) = K-1 is the count of valleys
     print('valleys ', V0)
     V0 = V0/255
-    # tabulate CDF as array, shape=(256,)
-    CDFTable = np.cumsum(np.array(distribution(hist, bins)))
-    # convenience CDF, x is a float in range 0..1
-    def F(x):
-        return CDFTable[int(x * 255)]
-    # convenience vectorized CDF, x is an array of floats in range 0..1
-    def FVec(x):
-        return CDFTable[(x * 255).astype(np.int)]
-    # inverse CDF, x is a float or an array of floats in range 0..1, the returned values are converted to range 0..1
-    def FInv(x):
-        y = np.argmax(CDFTable[:, np.newaxis] > x, axis=0)
-        M = np.argmax((CDFTable / CDFTable[-1]) == 1.0)
-        y = np.where(x == 1, M, y)
-        return y / 255
+    # discard black/white images
+    if dist.FInv(0) == dist.FInv(1):
+        raise ValueError('Image is uniform: no contrast correction possible')
     # add the distribution end points to the valley array,
     # and calculate the array of modeCenters.
     # each interval [V[k-1], V[k] is called a mode.
@@ -226,7 +216,7 @@ def warpHistogram(imgBuf, valleyAperture=0.01, warp=0):
     # (background and foreground for example).
     # The center points of modeCenters partition the pixel range in regions and
     # each region will be transformed by a single quadratic spline.
-    V0 = np.concatenate((FInv(0), V0, FInv(1)))
+    V0 = np.concatenate((dist.FInv(0), V0, dist.FInv(1)))
     modeCenters = (V0[1:] + V0[:-1]) / 2
     # init the array of data points
     a = np.zeros(len(V0)+3, dtype=np.float)                      # len(a) = K+2
@@ -237,7 +227,7 @@ def warpHistogram(imgBuf, valleyAperture=0.01, warp=0):
     # init the array of mappings a[k]-->b[k], add end points
     # and map dynamic range to [0, 1]
     b = a.copy()
-    a[0], a[1], a[-2], a[-1] = FInv(0), FInv(tau), FInv(1-tau), FInv(1)
+    a[0], a[1], a[-2], a[-1] = dist.FInv(0), dist.FInv(tau), dist.FInv(1-tau), dist.FInv(1)
     b[0], b[1], b[-2], b[-1] = 0, tau, 1 - tau, 1
     # discard outliers
     if a[1]<=a[0] or a[1]>=a[2]:
@@ -250,8 +240,8 @@ def warpHistogram(imgBuf, valleyAperture=0.01, warp=0):
     # s controls the move
     s = warp
     for k in range(2, len(b)-2):                                # 2..K-1
-        b[k] = (F(V[k]) - F(a[k])) * V[k-1] + (F(a[k]) - F(V[k-1])) * V[k]
-        b[k] = b[k] / (F(V[k]) - F(V[k-1]))*s  + a[k]*(1-s)     # F(V[k]) - F(V[k-1] >= valleyAperture
+        b[k] = (dist.F(V[k]) - dist.F(a[k])) * V[k-1] + (dist.F(a[k]) - dist.F(V[k-1])) * V[k]
+        b[k] = b[k] / (dist.F(V[k]) - dist.F(V[k-1]))*s  + a[k]*(1-s)     # F(V[k]) - F(V[k-1] >= valleyAperture
     if np.min(b[1:] - b[:-1]) < 0:
         raise ValueError('warpHistogram : array b must be non decreasing')
 
@@ -260,15 +250,15 @@ def warpHistogram(imgBuf, valleyAperture=0.01, warp=0):
     bPlus = np.concatenate((bPlus, [0.0]))
     bMinus = np.concatenate( ([0.0], bPlus[:-1]))               # bMinus[k] = (b[k] + b[k-1]) / 2 , k>=1
 
-    tmpMid = (FVec(a[:-1]) + FVec(a[1:]))/2                     # tmpMid[k] = (F(a[k]) + F(a[k+1]) / 2
-    aPlus = FInv(tmpMid)                                        # aPLus[k] = FInv( (F(a[k] + F(a[k+1])) / 2 )
+    tmpMid = (dist.FVec(a[:-1]) + dist.FVec(a[1:]))/2                     # tmpMid[k] = (F(a[k]) + F(a[k+1]) / 2
+    aPlus = dist.FInv(tmpMid)                                        # aPLus[k] = FInv( (F(a[k] + F(a[k+1])) / 2 )
     aPlus = np.concatenate((aPlus, [1.0]))
     aMinus = np.concatenate(([0.0], aPlus[:-1]))                # aMinus[k] = FInv( (F(a[k] + F(a[k-1])) / 2 ), k>=1
     eps = np.finfo(np.float64).eps
 
-    alpha = (FVec(a[1:-1]) - FVec(a[:-2])) /(FVec(a[2:]) - FVec(a[:-2]))
+    alpha = (dist.FVec(a[1:-1]) - dist.FVec(a[:-2])) /(dist.FVec(a[2:]) - dist.FVec(a[:-2]))
     alpha = np.concatenate(([0], alpha))                       # alpha[k] = (F(a[k]) - F(a[k-1])/(F(a[k+1]) - F(a[k-1]), K-1>=k>=1
-    beta = (FVec(a[2:]) - FVec(a[1:-1])) / (FVec(a[2:]) - FVec(a[:-2]))
+    beta = (dist.FVec(a[2:]) - dist.FVec(a[1:-1])) / (dist.FVec(a[2:]) - dist.FVec(a[:-2]))
     beta = np.concatenate(([0], beta))                         # beta[k] = (F(a[k+1] - F(a[k])/(F(a[k+1]) - F([a[k-1])), K-1>=k>=1
     print('a', a)
     print('b', b)
@@ -290,8 +280,7 @@ def warpHistogram(imgBuf, valleyAperture=0.01, warp=0):
     # build the transformation curve.
     T = interpolationSpline(a, b, d)
     # apply the transformation to the image
-    return T[(imgBuf.astype(np.int))]*255.0
-
+    return T[(imgBuf*255).astype(np.int)]
 
 if __name__ == '__main__':
     img = (np.array(range(1000*800))/800000).reshape(1000, 800)

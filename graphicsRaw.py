@@ -81,7 +81,7 @@ class rawForm (QGraphicsView):
         # keeping tintCorrection near to 1.0
         self.baseTint = self.cameraTint
         # options
-        optionList0, optionNames0 = ['Auto Brightness', 'Preserve Highlights'], ['Auto Exposure', 'Preserve Highlights']
+        optionList0, optionNames0 = ['Auto Brightness', 'Preserve Highlights'], ['Auto Enhance', 'Preserve Highlights']
         self.listWidget1 = optionsWidget(options=optionList0, optionNames=optionNames0, exclusive=False, changed=lambda: self.dataChanged.emit(True))
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
         self.listWidget1.checkOption(self.listWidget1.intNames[1])
@@ -454,11 +454,16 @@ class rawForm (QGraphicsView):
         self.sampleMultipliers = sampling
         self.dataChanged.emit(True)
 
-    def updateLayer(self, invalidate):
+    def updateLayer(self, cacheInvalidate):
         """
-        data changed event handler
+        data changed event handler. If cacheInvalidate is True,
+        the postprocessing cache is reset to None, to enforce
+        a new raw postprocessing.
+        @param cacheInvalidate:
+        @type invalidate: boolean
         """
-        if invalidate:
+        if cacheInvalidate:
+            # force raw postprocessing
             self.layer.postProcessCache = None
         self.enableSliders()
         self.layer.applyToStack()

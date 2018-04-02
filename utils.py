@@ -38,6 +38,84 @@ RAW_FILE_EXTENSIONS = (".nef", ".NEF", ".dng", ".DNG", ".cr2", ".CR2")
 IMAGE_FILE_NAME_FILTER = ['Image Files (*.jpg *.png *.tif *.JPG *.PNG *.TIF)']
 #################
 
+class distribution(object):
+    def __init__(self, hist, bins, maxVal):
+        self.maxVal = maxVal
+        self.setDistribution(hist=hist, bins=bins, maxVal=maxVal)
+
+    def setDistribution(self, hist=[], bins=[], maxVal=255):
+        """
+        The distribution on range(maxVal) is estimated from the histogram.
+        It is not smoothed: all integers in the same bin get equal probabilities.
+        All bins should be between 0 and maxVal.
+
+        @param support: the support
+        @type support: list of consecutive integers
+        @param hist: histogram
+        @type hist: list
+        @param bins: histogram bins
+        @type bins: list
+        """
+        self.maxVal = maxVal
+        dist = []
+        for i in range(maxVal+1):
+            r = np.argmax(bins > i)  # if r>0 bins[r-1]<= i <bins[r]
+            # if r==0, i< bins[0] or i >= bins[-1], however the last bin is a
+            # closed interval, so we must correct r if i = bins[-1]
+            if r == 0:
+                if i > bins[-1] or i < bins[0]:
+                    dist += [0.0]
+                    continue
+                else:
+                    r = len(bins) - 1
+            # calculate the number n of integers contained in the bin.
+            lg = bins[r] - bins[r - 1]
+            n = np.floor(bins[r]) - np.ceil(bins[r - 1]) + (
+                1 if (np.floor(bins[r]) != bins[r] or r == len(bins) - 1) else 0)
+            # suppose equal probabilities for all these integers
+            dist += [hist[r - 1] * lg / n]
+        if np.abs(np.sum(dist) - 1) > 0.00000001:
+            raise ValueError('setDistribution : invalid distribution')
+        self.DTable = dist
+        self.CDFTable= np.cumsum(dist)
+
+    def F(self, x):
+        """
+        Calculate the distribution CDF.
+        For convenience, the argument x is normalized to 0..1
+        @param x:
+        @type x: float
+        @return: CDF(x)
+        @rtype: float
+        """
+        s = self.maxVal
+        return self.CDFTable[int(x * s)]
+
+    def FVec(self, x):
+        """
+        Vectorized form of the CDF function.
+        @param x:
+        @type x:
+        @return:
+        @rtype:
+        """
+        s = self.maxVal
+        return self.CDFTable[(x * s).astype(np.int)]
+
+    def FInv(self, x):
+        """
+        Inverse CDF. For convenience the argument x and the
+        returned value are normalized to 0..1
+        @param x:
+        @type x: float or array of loat
+        @return:
+        @rtype: float or array of float
+        """
+        y = np.argmax(self.CDFTable[:, np.newaxis] > x, axis=0)
+        M = np.argmax((self.CDFTable / self.CDFTable[-1]) == 1.0)
+        y = np.where(x == 1, M, y)
+        return y / 255
+
 def rolling_window(a, winsize):
     """
     Add a last axis to an array, filled with the values of a

@@ -1330,7 +1330,7 @@ def menuLayer(name):
             l.applyToStack()
             window.label.img.onImageChanged()
         grWindow.graphicsScene.onUpdateLUT = f
-        # wrapper for the right apply method
+        # wrapper for the right applyXXX method
         if name == 'actionBrightness_Contrast':
             l.execute = lambda l=l, pool=None: l.apply1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
         elif name == 'actionCurves_HSpB':
