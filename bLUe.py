@@ -803,7 +803,7 @@ def setDocumentImage(img):
             histImg = window.label.img.layersStack[-1].getCurrentMaskedImage() # vImage(QImg=window.label.img.layersStack[-1].getCurrentMaskedImage())#mergeVisibleLayers())
         if window.histView.listWidget2.items['Color Chans'].checkState() is Qt.Checked:
             window.histView.mode = 'RGB'
-            window.histView.chanColors = [QColor(200,20,20), QColor(20,200,20), QColor(100,100,255)]
+            window.histView.chanColors = [QColor(180,20,20,225), QColor(20,180,20,225), QColor(100,100,180,225)]
         else:
             window.histView.mode = 'Luminosity'
             window.histView.chanColors = [Qt.gray]

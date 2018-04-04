@@ -821,14 +821,16 @@ class vImage(QImage):
                     use_auto_wb=options['Auto WB'],
                     use_camera_wb=options['Camera WB'],
                     user_wb=adjustForm.rawMultipliers,
-                    # gamma= (2.222, 4.5)  # default REC BT 709 exponent, slope
+                    #gamma= (2.222, 4.5),  # default REC BT 709 exponent, slope
                     gamma=(2.4, 12.92), # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
                     exp_preserve_highlights=1.0 if options['Preserve Highlights'] else 0.0,
                     output_bps=16,
-                    bright=adjustForm.brCorrection  # default 1
-                    # no_auto_scale= (not options['Auto Scale']) don't use : green shift
+                    bright=adjustForm.brCorrection,  # default 1
+                    highlight_mode=0,
+                    no_auto_scale=False# (not options['Auto Scale']) don't use : green shift
                     )
             bufHSV_CV32 = cv2.cvtColor(((bufpost16.astype(np.float32)) / 65536).astype(np.float32), cv2.COLOR_RGB2HSV)
+            #bufHSV_CV32[:,:,2] = bufHSV_CV32[:,:,2].clip(0,0.995)
             # cache buffers
             self.postProcessCache = np.copy(bufpost16)
             self.bufCache_HSV_CV32 = bufHSV_CV32.copy()
@@ -869,7 +871,7 @@ class vImage(QImage):
         #############################
         # Conversion to 8 bits/channel
         #############################
-        bufpost = (bufpost16.astype(np.float32)/256).astype(np.uint8)
+        bufpost = (bufpost16.astype(np.float32)/256).astype(int).astype(np.uint8)
 
         if self.parentImage.useThumb:
             bufpost = cv2.resize(bufpost, (currentImage.width(), currentImage.height()))
@@ -1218,7 +1220,7 @@ class vImage(QImage):
         if mode=='Luminosity' or addMode=='Luminosity':
             drawChannelHistogram(qp, 0, bufL, Qt.gray)
         # CompositionMode_Plus add colors to visualize superimposed histograms
-        qp.setCompositionMode(QPainter.CompositionMode_Plus)
+        qp.setCompositionMode(QPainter.CompositionMode_Lighten)
         for ch in chans:
             # to prevent artifacts, the histogram bins must be drawn
             # using the standard composition mode source_over. So, we use
@@ -1301,7 +1303,7 @@ class vImage(QImage):
             test = np.concatenate((np.zeros(start) + 0.5 * s, test, np.zeros(h - end) + 0.5))
             test1 = test[:, np.newaxis] + np.zeros(Lchan.shape)
 
-            test1 = cv2.rotate(test1, cv2.ROTATE_180)
+            #test1 = cv2.rotate(test1, cv2.ROTATE_180)
             buf32Lab[:, :, 0] = np.where(Lchan < 50, Lchan * (test1 * 2.0),
                                          100.0 - 2.0 * (1.0 - test1) * (100.0 - Lchan))
             # luminosity correction
