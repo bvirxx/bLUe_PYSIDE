@@ -21,65 +21,68 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 # It is based on a paper from Grundland M., A. Dodgson N. (2006) AUTOMATIC CONTRAST ENHANCEMENT BY HISTOGRAM WARPING.
 # In: Wojciechowski K., Smolka B., Palus H., Kozera R., Skarbek W., Noakes L. (eds) Computer Vision and
 # Graphics. Computational Imaging and Vision, vol 32. Springer, Dordrecht
+# https://link.springer.com/chapter/10.1007/1-4020-4179-9_42
 #########################################################################################################################
 import numpy as np
 
 class distribution(object):
-    def __init__(self, hist, bins, maxVal=0):
-        self.setDistribution(hist=hist, bins=bins, maxVal=maxVal)
+    def __init__(self, hist, bins):
+        self.setDistribution(hist=hist, bins=bins)
+        # plot curve
+        import matplotlib
+        matplotlib.use('Agg')
+        import matplotlib.pyplot as plt
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        T = [self.F(k / 512) for k in range(513)]
+        ax.plot(T)
+        ax.plot([self.DTable[int(k/2)]*100 for k in range(511)])
+        fig.savefig('temp.png')
+        return
 
-    def setDistribution(self, hist=[], bins=[], maxVal=0):
+    def setDistribution(self, hist=[], bins=[]):
         """
-        The distribution is estimated from the histogram. If maxVal is -0 (default), the distribution
-        represents the probablities of each bin. If maxVal is a positive integer,
-        the distribution represents the probabilities of all successive integers in the range 0..ceil(maxVal).
-        It is not smoothed: all integers in the same bin get equal probabilities.
-        All bins should be between 0 and maxVal.
+        The distribution is estimated from the histogram and
+        it is not smoothed.
         @param hist: histogram
         @type hist: list
         @param bins: histogram bins
         @type bins: list
         """
-        if maxVal == 0:
-            self.maxVal = bins[-1]
-            self.DTable=hist * (bins[1:]-bins[:-1])
-        else:
-            self.maxVal = max(maxVal, np.ceil(bins[-1]))
-            dist = []
-            for i in range(maxVal+1):
-                r = np.argmax(bins > i)  # if r>0 bins[r-1]<= i <bins[r]
-                # if r==0, i< bins[0] or i >= bins[-1], however the last bin is a
-                # closed interval, so we must correct r if i = bins[-1]
-                if r == 0:
-                    if i > bins[-1] or i < bins[0]:
-                        dist += [0.0]
-                        continue
-                    else:
-                        r = len(bins) - 1
-                # calculate the number n of integers contained in the bin.
-                lg = bins[r] - bins[r - 1]
-                n = np.floor(bins[r]) - np.ceil(bins[r - 1]) + (
-                    1 if (np.floor(bins[r]) != bins[r] or r == len(bins) - 1) else 0)
-                # suppose equal probabilities for all these integers
-                dist += [hist[r - 1] * lg / n]
-            self.DTable = dist
+        maxVal = len(hist)
+        self.bins = bins
+        self.hist = hist
+        # tables of bin probabiliiies and CDF
+        self.DTable = hist * (bins[1:] - bins[:-1])
         self.CDFTable= np.cumsum(self.DTable)
+        # sanity check
         if np.abs(self.CDFTable[-1] - 1.0) > 0.00000001:
             raise ValueError('setDistribution: invalid distribution')
         # renormalize to correct eventual floating point precision problems
-        self.CDFTabel = self.CDFTable/self.CDFTable[-1]
+        self.CDFTable = self.CDFTable/self.CDFTable[-1]
 
     def F(self, x):
         """
-        Calculate the distribution CDF.
-        For convenience, the argument x is normalized to 0..1
+        Interpolated distribution CDF.
+        The argument x represents a normalized value between 0 and 1.
         @param x:
         @type x: float
         @return: CDF(x)
         @rtype: float
         """
-        s = self.maxVal
-        return self.CDFTable[int(x * s)]
+        b = self.bins
+        h = self.hist
+        # map x to data range b[0]..b[-1]
+        spread = b[-1] - b[0]
+        xb = x * spread + b[0]
+        # add sentinels and find the bin containing xb
+        h1 = np.concatenate(([0.0], h, [0]))
+        b1 = np.concatenate(([b[0]-1], b, [b[-1]+1]))
+        k = np.argmax(b1 > xb)                                                         # 2<=k<=len(b)+1 and b1[k-1]<=xb<b1[k]
+        cs1 = np.cumsum(h1*(b1[1:]-b1[:1]))
+        cs1 = cs1 / cs1[-1]
+
+        return cs1[k-2] +  h1[min(k-1, len(h1)-1)] * (xb - b1[k-1])
 
     def FVec(self, x):
         """
@@ -89,10 +92,19 @@ class distribution(object):
         @return:
         @rtype:
         """
-        s = self.maxVal
-        return self.CDFTable[(x * s).astype(np.int)]
+        b = self.bins
+        h = self.hist
+        spread = b[-1] - b[0]
+        xb = x * spread + b[0]
+        # add sentinels
+        h1 = np.concatenate(([0.0], h, [0]))
+        b1 = np.concatenate(([b[0] - 1], b, [b[-1] + 1]))
+        cs1 = np.cumsum(h1 * (b1[1:] - b1[:1]))
+        cs1 = cs1 / cs1[-1]
+        k = np.argmax(b1[:, np.newaxis] > xb, axis=0)                      # 2 <= k and b1[k-1] <= xb < b1[k]
+        return cs1[k-2] + h1[np.minimum(k-1, len(h1)-1)] * (xb - b1[k-1])
 
-    def FInvVec(self, x):
+    def FInv(self, x):
         """
         Inverse CDF. For convenience the argument x and the
         returned values are normalized to 0..1.
@@ -104,12 +116,16 @@ class distribution(object):
         @return:
         @rtype: array of float
         """
-        y = np.argmax(self.CDFTable[:, np.newaxis] >= x, axis=0)
-        #M = np.argmax((self.CDFTable / self.CDFTable[-1]) == 1.0)  # TODO useless if CDFTable is renormalized
-        #y = np.where(x == 1, M, y)
-        return y / self.maxVal
+        a, b = 0,1
+        while b - a > 0.00001:
+            m = (a+b)/2
+            if self.F(m) > x:
+                b = m
+            else:
+                a = m
+        return m
 
-    def FInv(self, x):
+    def FInvVec(self, x):
         """
         Convenience CDF function with scalar argument and value.
         Inverse CDF. For convenience the argument x and the
@@ -122,11 +138,14 @@ class distribution(object):
         @return:
         @rtype: float
         """
-        y = self.FInvVec(x)
-        if y.shape !=(1,):
-            raise ValueError('Distribution FInv : argument is not a scalar')
-        return y[0]
-
+        if np.isscalar(x):
+            x = np.array([x])
+        a, b = 0, 1
+        while np.any((b - a) > 0.0001):
+            m = (a + b) / 2
+            a = np.where( self.FVec(m) > x, a, m)
+            b = np.where( self.FVec(m) > x, m, b)
+        return m
 
 def gaussianDistribution(x, hist, bins, h):
     """
@@ -165,22 +184,16 @@ def distWins(dist, delta):
     @return: the list of 3-uples (j, k, i) corresponding to the windows (k+j, k, k+i), Note j is < 0
     @rtype: list
     """
-    mv = dist.maxVal
+    bins = dist.bins
+    mv = len(bins) - 1
+    centers = (bins[1:] + bins[:-1])/2
     def histDistBin(k):
-        """
-        # search for a window of (probability) width 2*delta, centered at k.
-        i, j = 1, -1
-        while  CDF[k + i] - CDF[k] < delta and k+i < len(CDF)-1:
-            i += 1
-        while CDF[k] - CDF[k + j]< delta and k+j > 0:
-            j -= 1
-        """
         j, i = dist.FInv(dist.F(k / mv) - delta) * mv - k, dist.FInv(dist.F(k / mv) + delta) * mv - k
         return int(j), k, int(i)
     # cut the delta-queues of distribution.
-    #m, M = dist.FInv(delta) * mv, dist.FInv(1 - delta) * mv
-    kRange = [k for k in range(mv+1) if dist.F(k/mv) > delta and dist.F(k/mv) < 1 - delta]
-    return [histDistBin(k) for k in kRange]
+    m, M = int(dist.FInv(delta) * mv), int(dist.FInv(1 - delta) * mv)
+    #kRange = [k for k in range(mv+1) if dist.F(k/mv) > delta and dist.F(k/mv) < 1 - delta]
+    return [histDistBin(k) for k in range(m, M+1)]
 
 def valleys(imgBuf, delta):
     """
@@ -188,8 +201,7 @@ def valleys(imgBuf, delta):
     window of (probability) width 2*delta, whose central point gives the minimum value.
     The function returns the ordered list of these local minima and a distribution object
     representing the distribution of image data.
-    Note. In contrast to Grundland and Dodgson U{https://link.springer.com/chapter/10.1007/1-4020-4179-9_42},
-    a valley may contain other (higher) local minima.
+    Note. In contrast to Grundland and Dodgson a valley may contain other (higher) local minima.
 
     @param imgBuf: image buffer, one single channel, range 0..255
     @type imgBuf: ndarray, dtype uint8 or int or float
@@ -201,7 +213,7 @@ def valleys(imgBuf, delta):
     # build image histogram and init distribution
     hist, bins = np.histogram(imgBuf, bins=256, range=(0,255), density=True)
     #hist, bins = np.histogram(imgBuf, bins=100, range=(0, 255), density=True)
-    dist = distribution(hist, bins, 255)
+    dist = distribution(hist, bins)
     # get windows
     hDB = distWins(dist, delta)
     # search for valleys
