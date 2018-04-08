@@ -95,12 +95,11 @@ def cubicSplineCurve(X,Y, clippingInterval=None):
     """
     m, M = np.min(X) , np.max(X)
     step = (M - m) / 255.0
-    xValues = np.array([i*step + m for i in range(256)])
+    xValues = np.fromiter((i*step + m for i in range(256)), dtype=np.float)  # TODO validate modif 09/04/18
     #xValues = np.arange(np.min(X),np.max(X))
     deltaX1, R = coeff(X, Y)
     def f(v):
         return cubicSpline(X,Y, deltaX1, R, v)
-    #yValues = np.array(map(f, list(xValues)))
     yValues = np.fromiter(map(f, list(xValues)), dtype = np.float) # python 3 map returns an  iterator, not a list
     if clippingInterval is not None:
         minY, maxY = clippingInterval[0], clippingInterval[1]

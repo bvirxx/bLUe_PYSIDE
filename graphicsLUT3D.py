@@ -28,7 +28,7 @@ from time import time
 from PySide2.QtGui import QImage
 from PySide2.QtWidgets import QMenu, QRubberBand
 
-from colorCube import LUTSIZE, LUTSTEP, LUT3DFromFactory, LUT3D_SHADOW, LUT3D_ORI, LUT3D
+from colorCube import LUTSIZE, LUTSTEP, LUT3D_SHADOW, LUT3D_ORI, LUT3D
 from MarkedImg import QLayer, vImage
 from colorModels import hueSatModel, pbModel
 from imgconvert import QImageBuffer
@@ -776,7 +776,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.graphicsScene = QGraphicsScene()
         self.setScene(self.graphicsScene)
         # LUT
-        freshLUT3D = LUT3DFromFactory(size=LUTSize)
+        freshLUT3D = LUT3D.LUT3DFromFactory(size=LUTSize)
         #self.LUTSize, self.LUTStep, self.graphicsScene.LUTContrast, self.graphicsScene.LUT3DArray = freshLUT3D.size, freshLUT3D.step, freshLUT3D.contrast, freshLUT3D.LUT3DArray
         self.graphicsScene.LUTSize, self.graphicsScene.LUTStep, self.graphicsScene.LUTContrast, self.graphicsScene.LUT3DArray = freshLUT3D.size, freshLUT3D.step, freshLUT3D.contrast, freshLUT3D.LUT3DArray
         # color wheel
@@ -1049,7 +1049,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         reset grid and LUT
         """
         # get a fresh LUT
-        self.graphicsScene.LUT3DArray = LUT3DFromFactory(size=self.graphicsScene.LUTSize).LUT3DArray
+        self.graphicsScene.LUT3DArray = LUT3D.LUT3DFromFactory(size=self.graphicsScene.LUTSize).LUT3DArray
         # explode all node groups
         groupList = [item for item in self.grid.childItems() if type(item) is nodeGroup]
         for item in groupList:

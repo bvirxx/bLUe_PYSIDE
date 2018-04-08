@@ -84,10 +84,10 @@ def strides_2d(a, r, linear=True):
         ax[i-r[0], r[1]:-r[1]] = a[-imod-2,:]  # copy rows a[-2,:]... to  ax[-r[0],:]...
     #ax[:r[0],r[1]:-r[1]] = a[::-1,:][-r[0]-1:-1,:]
     #ax[-r[0]:,r[1]:-r[1]] = a[::-1,:][1:r[0]+1,:]
-    # reflection mode for cols: cf rows
+    # reflection mode for cols: cf rows above
     ax[:,:r[1]] = ax[:,::-1][:,-2*r[1]-1:-r[1]-1]
     ax[:,-r[1]:] = ax[:,::-1][:,r[1]+1:2*r[1]+1]
-    # add two new axes and strides for the windows
+    # add two axes and strides for the windows
     shape = a.shape + (1 + 2 * r[0], 1 + 2 * r[1]) # concatenate t-uples
     strides = ax.strides + ax.strides # concatenate t-uples
     s = as_strided(ax, shape=shape, strides=strides)
@@ -156,11 +156,6 @@ def movingVariance(a, winsize, version='kernel'):
         return f2 - f1 * f1
     else:
         a = a.astype(np.float64)
-        """
-        r = int((winsize - 1) / 2)
-        b = strides_2d(a, (r, r))
-        return np.var(b, axis=-1)
-        """
         # faster than np.var !!!
         f1 = movingAverage(a, winsize, version=version)
         f2 = movingAverage(a*a, winsize, version=version)
@@ -946,7 +941,7 @@ def boundingRect(img, pattern):
     return QRect(left, top, right - left, bottom - top)
 
 if __name__ == '__main__':
-    a= np.array((1,)*100, dtype=int).reshape(10,10)
+    a= np.ones(dtype=int).reshape(10,10)
     #b=strides_2d(a, (11,11))
     m = movingVariance(a,7)
     print(m)

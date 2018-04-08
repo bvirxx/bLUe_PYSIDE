@@ -20,132 +20,184 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 # algorithm, well suited for multimodal histograms.
 # It is based on a paper from Grundland M., A. Dodgson N. (2006) AUTOMATIC CONTRAST ENHANCEMENT BY HISTOGRAM WARPING.
 # In: Wojciechowski K., Smolka B., Palus H., Kozera R., Skarbek W., Noakes L. (eds) Computer Vision and
-# Graphics. Computational Imaging and Vision, vol 32. Springer, Dordrecht
+# Graphics. Computational Imaging and Vision, vol 32. Springer, Dordrecht.
 # https://link.springer.com/chapter/10.1007/1-4020-4179-9_42
+# However, in contrast with this paper we do not use a mixture gaussian estimation for the density of the distribution, due to a
+# too high computational cost. We simply keep the discrete distribution given by the histogram, and the corresponding CDF is
+# taken constant on each bin. Valleys are found as local minima of the discrete distribution, by an exhaustive search among
+# the maxVal+1 possible points.
+# Our method can also be viewed as pre-discretizing the image, to an integer type (8 bits, 16bits...) before
+# applying the contrast correction. The algorithm is simplified and the speedup is consequent.
 #########################################################################################################################
 import numpy as np
 
-class distribution(object):
-    def __init__(self, hist, bins):
-        self.setDistribution(hist=hist, bins=bins)
+class dstb(object):
+    """
+    Discrete distributions over an interval 0...maxVal of positive
+    integers, estimated from an histogram partition of the interval.
+    For contiuous distributions, 1/maxVal ca be viewed as  the size
+    of a discretization mesh.
+    """
+    interpolateCDF = True
+    plotDist = True
+    def __init__(self, hist, bins, maxVal=0):
+        self.DTable, self.CDFTable = self.setDist(hist=hist, bins=bins, maxVal=maxVal)
+        self.bins = bins
+        self.hist = hist
         # plot curve
-        import matplotlib
-        matplotlib.use('Agg')
-        import matplotlib.pyplot as plt
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        T = [self.F(k / 512) for k in range(513)]
-        ax.plot(T)
-        ax.plot([self.DTable[int(k/2)]*100 for k in range(511)])
-        fig.savefig('temp.png')
-        return
+        if self.plotDist:
+            import matplotlib
+            matplotlib.use('Agg')
+            import matplotlib.pyplot as plt
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            T = [self.F(k / 256) for k in range(257)]
+            TInv = [self.FInv(k / 256) for k in range(257)]
+            ax.plot(T, markersize=1, linestyle='', marker='o', color='r')
+            ax.plot(TInv, markersize=1, linestyle='', marker='o', color='b')
+            #ax.plot(Tdummy, markersize=1, linestyle=None, marker='X')
+            ax.plot([self.DTable[k]*100 for k in range(len(self.DTable))])
+            fig.savefig('tempdist.png')
 
-    def setDistribution(self, hist=[], bins=[]):
+    def setDist(self, hist=[], bins=[], maxVal=0):
         """
-        The distribution is estimated from the histogram and
-        it is not smoothed.
+        The distribution is estimated from the histogram. If maxVal is 0 (default), the distribution
+        represents the probablities of each bin. If maxVal is a positive integer,
+        the distribution represents the probabilities of all successive integers in the range 0..ceil(maxVal).
+        It is not smoothed: all integers in the same bin get equal probabilities.
+        All bins should be between 0 and maxVal.
         @param hist: histogram
         @type hist: list
         @param bins: histogram bins
         @type bins: list
         """
-        maxVal = len(hist)
-        self.bins = bins
-        self.hist = hist
-        # tables of bin probabiliiies and CDF
-        self.DTable = hist * (bins[1:] - bins[:-1])
-        self.CDFTable= np.cumsum(self.DTable)
-        # sanity check
-        if np.abs(self.CDFTable[-1] - 1.0) > 0.00000001:
+        if maxVal == 0:
+            self.maxVal = bins[-1]                                          # len(self.DTable) = maxVal + 1
+            self.DTable = hist * (bins[1:]-bins[:-1])
+        else:
+            self.maxVal = max(maxVal, np.ceil(bins[-1]))
+            dist = []
+            for i in range(maxVal+1):
+                r = np.argmax(bins > i)  # if r>0 bins[r-1]<= i <bins[r]
+                # if r==0, i< bins[0] or i >= bins[-1], however the last bin is a
+                # closed interval, so we must correct r if i = bins[-1]
+                if r == 0:
+                    if i > bins[-1] or i < bins[0]:
+                        dist += [0.0]
+                        continue
+                    else:
+                        r = len(bins) - 1
+                # calculate the number n of integers contained in the bin.
+                lg = bins[r] - bins[r - 1]
+                n = np.floor(bins[r]) - np.ceil(bins[r - 1]) + (
+                    1 if (np.floor(bins[r]) != bins[r] or r == len(bins) - 1) else 0)
+                # assign equal probabilities to all these integers
+                dist += [hist[r - 1] * lg / n]
+            DTable = dist
+        CDFTable= np.cumsum(DTable)                             # len(CDFTable) = len(DTable) = maxVal + 1
+        if np.abs(CDFTable[-1] - 1) > 0.00000001:
             raise ValueError('setDistribution: invalid distribution')
-        # renormalize to correct eventual floating point precision problems
-        self.CDFTable = self.CDFTable/self.CDFTable[-1]
+        return DTable, CDFTable
 
     def F(self, x):
         """
-        Interpolated distribution CDF.
-        The argument x represents a normalized value between 0 and 1.
+        Calculate the CDF.
+        For convenience, the argument x is normalized to 0..1.
+        We have CDF(x) = Proba(int i: i <= x*maxVal).  for all
+        integers k = 0..maxVal, CDF(k/s) = CDFTable(k); If interpolate
+        is False (default) the CDF is constant on the intervals [k/s, (k+1)/s[,
+        otherwise its value is interpolated between CDF(k/s) and CDF((k+1)/s.
         @param x:
         @type x: float
+        @param interpolate:
+        @type interpolate: boolean
         @return: CDF(x)
         @rtype: float
         """
-        b = self.bins
-        h = self.hist
-        # map x to data range b[0]..b[-1]
-        spread = b[-1] - b[0]
-        xb = x * spread + b[0]
-        # add sentinels and find the bin containing xb
-        h1 = np.concatenate(([0.0], h, [0]))
-        b1 = np.concatenate(([b[0]-1], b, [b[-1]+1]))
-        k = np.argmax(b1 > xb)                                                         # 2<=k<=len(b)+1 and b1[k-1]<=xb<b1[k]
-        cs1 = np.cumsum(h1*(b1[1:]-b1[:1]))
-        cs1 = cs1 / cs1[-1]
-
-        return cs1[k-2] +  h1[min(k-1, len(h1)-1)] * (xb - b1[k-1])
+        if not np.isscalar(x):
+            raise ValueError('dstb.F : argument is not a scalar')
+        s = self.maxVal
+        xs = x*s
+        k1 = int(xs)
+        v1 = self.CDFTable[k1]
+        if (k1 < s) and self.interpolateCDF:
+            k2 = k1 + 1
+            v2 = self.CDFTable[k2]
+            return (k2 - xs) * v1 + (xs - k1) * v2
+        return v1 #self.CDFTable[int(x * s)]
 
     def FVec(self, x):
         """
-        Vectorized form of the CDF function.
-        @param x:
-        @type x:
-        @return:
-        @rtype:
+        Vectorized version of the CDF function F.
+        @param x: array of arguments
+        @type x: ndarray, dtype float
+        @param interpolate:
+        @type interpolate: boolean
+        @return: array of CDF(x) values
+        @rtype: ndarray, dtype=np.float,  same shape as x
         """
-        b = self.bins
-        h = self.hist
-        spread = b[-1] - b[0]
-        xb = x * spread + b[0]
-        # add sentinels
-        h1 = np.concatenate(([0.0], h, [0]))
-        b1 = np.concatenate(([b[0] - 1], b, [b[-1] + 1]))
-        cs1 = np.cumsum(h1 * (b1[1:] - b1[:1]))
-        cs1 = cs1 / cs1[-1]
-        k = np.argmax(b1[:, np.newaxis] > xb, axis=0)                      # 2 <= k and b1[k-1] <= xb < b1[k]
-        return cs1[k-2] + h1[np.minimum(k-1, len(h1)-1)] * (xb - b1[k-1])
-
-    def FInv(self, x):
-        """
-        Inverse CDF. For convenience the argument x and the
-        returned values are normalized to 0..1.
-        FInv(x) is the smallest integer y s.t. F(y/maxVal) >= x
-        As F is not strictly increasing, FInv is not the
-        inverse fonction of F.
-        @param x:
-        @type x: float or array of loat
-        @return:
-        @rtype: array of float
-        """
-        a, b = 0,1
-        while b - a > 0.00001:
-            m = (a+b)/2
-            if self.F(m) > x:
-                b = m
-            else:
-                a = m
-        return m
+        s = self.maxVal
+        xs = x * s
+        k1 = xs.astype(np.int)
+        v1 = self.CDFTable[k1]
+        if self.interpolateCDF:
+            k2 = np.minimum(k1+1, s)
+            v2 = self.CDFTable[k2]
+            return (k2 - xs) * v1 + (xs - k1) * v2
+        return v1
 
     def FInvVec(self, x):
         """
-        Convenience CDF function with scalar argument and value.
-        Inverse CDF. For convenience the argument x and the
+        Inverse CDF. The argument x and the
         returned value are normalized to 0..1.
-        FInv(x) is the smallest integer y s.t. F(y/maxVal) >= x
-        As F is not strictly increasing, FInv is not the
-        inverse fonction of F.
+        Finv(x) = k/maxVal, with k the smallest integer s. t. CDFTable[k] >= x.
+        Note. As F is neither continuous nor strictly increasing, FInv is not the
+        mathematical inverse function of F.
+        @param x:
+        @type x: float or array of float
+        @param interpolate:
+        @type interpolate: boolean
+        @return:
+        @rtype: array of float
+        """
+        if np.isscalar(x):
+            raise ValueError('dstb.FInvVec : argument is scalar')
+        s = self.maxVal
+        FVec = self.FVec
+        xs = x * s
+        # get the smallest integer k s.t. CDFTable[k] >= x
+        k1 = np.argmax(self.CDFTable[:, np.newaxis] >= x, axis=0)
+        # prevent eventual floating point precision pb
+        M = np.argmax((self.CDFTable / self.CDFTable[-1]) == 1.0)
+        k1 = np.where(x == 1, M, k1)
+        k1overs = k1/s
+        # interpolation
+        if self.interpolateCDF:
+            # ignore floating point errors
+            old_settings = np.seterr(all='ignore')
+            k2 = np.maximum(k1 - 1, 0)
+            k2overs = k2/s
+            k3 = (FVec(k1overs) -x) * k2 + (x - FVec(k2overs)) * k1
+            k4 = k3 /(FVec(k1overs)-FVec(k2overs))
+            #
+            k1 = np.where(np.isfinite(k4), k4, k1 )
+            k1overs = k1/s
+            np.seterr(**old_settings)
+        return k1overs
+
+    def FInv(self, x):
+        """
+        Convenience inverse CDF function with scalar argument and value.
+        Inverse CDF. For convenience the argument x and the
+        returned value are normalized to 0..1
         @param x:
         @type x: float
         @return:
         @rtype: float
         """
-        if np.isscalar(x):
-            x = np.array([x])
-        a, b = 0, 1
-        while np.any((b - a) > 0.0001):
-            m = (a + b) / 2
-            a = np.where( self.FVec(m) > x, a, m)
-            b = np.where( self.FVec(m) > x, m, b)
-        return m
+        if not np.isscalar(x):
+            raise ValueError('Distribution FInv : argument is not a scalar')
+        return self.FInvVec(np.array([x]))[0]
 
 def gaussianDistribution(x, hist, bins, h):
     """
@@ -165,8 +217,8 @@ def gaussianDistribution(x, hist, bins, h):
     @return:
     @rtype:
     """
-    dist = distribution(hist, bins)
-    values = np.array(range(256), dtype=np.float)/256
+    dist = dstb(hist, bins)
+    values = np.arange(256, dtype=np.float)/256
     valuesx = x/256 -values
     valuesx = - valuesx*valuesx/(2*h*h)
     expx = np.exp(valuesx)/ (h*np.sqrt(2*np.pi)) * dist
@@ -175,33 +227,44 @@ def gaussianDistribution(x, hist, bins, h):
 
 def distWins(dist, delta):
     """
-    Return the sorted list of the windows of (probability) width 2*delta
+    Return the sorted list of the windows of (probability) width >= 2*delta
     for a disribution dist. Parameter delta should be in range 0..0.5.
     @param dist: distribution
     @type dist: distribution object
-    @param delta: half width for windows
+    @param delta: half probablity width of window
     @type delta: float
     @return: the list of 3-uples (j, k, i) corresponding to the windows (k+j, k, k+i), Note j is < 0
     @rtype: list
     """
-    bins = dist.bins
-    mv = len(bins) - 1
-    centers = (bins[1:] + bins[:-1])/2
-    def histDistBin(k):
-        j, i = dist.FInv(dist.F(k / mv) - delta) * mv - k, dist.FInv(dist.F(k / mv) + delta) * mv - k
-        return int(j), k, int(i)
-    # cut the delta-queues of distribution.
-    m, M = int(dist.FInv(delta) * mv), int(dist.FInv(1 - delta) * mv)
-    #kRange = [k for k in range(mv+1) if dist.F(k/mv) > delta and dist.F(k/mv) < 1 - delta]
-    return [histDistBin(k) for k in range(m, M+1)]
+    mv = dist.maxVal
+    CDF = dist.CDFTable
+    W = []
+    for k in range(mv+1):
+        # search for a window of (probability) width >= 2*delta, centered at k.
+        foundi, foundj = False, False
+        i, j = 1, -1
+        while  k+i < len(CDF)-1:
+            if CDF[k + i] - CDF[k] >= delta:
+                foundi=True
+                break
+            i += 1
+        while  k+j > 0:
+            if CDF[k] - CDF[k + j] >= delta:
+                foundj = True
+                break
+            j -= 1
+        if foundi and foundj:
+            W.append((j, k, i))
+    return W
 
 def valleys(imgBuf, delta):
     """
     Search for valleys (local minima) in the distribution of the image. A valley is a
-    window of (probability) width 2*delta, whose central point gives the minimum value.
+    window of (probability) width 2*delta, whose central point gives its minimum value.
     The function returns the ordered list of these local minima and a distribution object
     representing the distribution of image data.
-    Note. In contrast to Grundland and Dodgson a valley may contain other (higher) local minima.
+    Note. In contrast to Grundland and Dodgson U{https://link.springer.com/chapter/10.1007/1-4020-4179-9_42},
+    a valley may contain other (higher) local minima.
 
     @param imgBuf: image buffer, one single channel, range 0..255
     @type imgBuf: ndarray, dtype uint8 or int or float
@@ -212,75 +275,83 @@ def valleys(imgBuf, delta):
     """
     # build image histogram and init distribution
     hist, bins = np.histogram(imgBuf, bins=256, range=(0,255), density=True)
-    #hist, bins = np.histogram(imgBuf, bins=100, range=(0, 255), density=True)
-    dist = distribution(hist, bins)
-    # get windows
+    dist = dstb(hist, bins, 255)
+    # get candidate windows
     hDB = distWins(dist, delta)
     # search for valleys
     V = []
+    DTable = dist.DTable
     for j, k, i in hDB:
-        if np.all([(dist.DTable[l] > dist.DTable[k]) for l in range(k+j, k)]) and np.all([(dist.DTable[l] > dist.DTable[k]) for l in range(k+1, k+i+1)]) :
+        if np.all([(DTable[l] > DTable[k]) for l in range(k+j, k)]) and np.all([(DTable[l] > DTable[k]) for l in range(k+1, k+i+1)]) :
             V.append(k)
-    V = np.array(V, dtype=np.float)
+    V = np.fromiter(V, dtype=np.float, count=len(V))
     return V, dist
 
-def interpolationSpline(a, b, d):
+def interpolationSpline(a, b, d, plot=False):
     """
     Build a monotonic transformation curve T from [0,1] onto b[0], b[-1],
     as a piecewise rational quadratic interpolation spline to a set of (a[k], b[k]) 2D nodes.
-    Coefficients d[k] are the slopes at nodes. The function returns
-    the list of T[k/255] for k in range(256).
+    Coefficients d[k] are the slopes at nodes. The function returns a tabulation of T as
+    a list of T[k/255] for k in range(256).
     a and b must be non decreasing sequences in range 0..1, with a strictly increasing.
-    The 3 parameter lists must have the same length.
-    for k < a[0], T[k]=b[0] and, for k > a[-1], T[k]=b[-1]
-    @param a:
-    @type a:
-    @param b:
-    @type b:
-    @param d:
-    @type d:
-    @return:
-    @rtype:
+    The 3 lists must have the same length.
+    Note. for k < a[0], T[k]=b[0] and, for k > a[-1], T[k]=b[-1]
+    @param a: x-ccordiantes for nodes
+    @type a: ndarray, dtype np.float
+    @param b: y-coordinates for nodes
+    @type b: ndarray, dtype np.float
+    @param d: slopes at nodes
+    @type d: ndarray, dtype np.float
+    @return: Spline table
+    @rtype: ndarray, dtype np.float
     """
     if np.min(a[1:] - a[:-1]) <= 0:
         raise ValueError('InterpolationSpline : a must be strictly increasing')
-    x = np.array(range(256), dtype=np.float)/255
+    # x-coordinate range
+    x = np.arange(256, dtype=np.float)/255
     x = np.clip(x, a[0], a[-1])
-    tmp = np.array([[(a[j]> x[i]) for i in range(len(x))] for j in range(len(a))])
-    # for each i, get smallest j s.t. a[j] > x[i]
+    #find  node intervals containing x : for each i, get smallest j s.t. a[j] > x[i]
+    tmp = np.fromiter(((a[j]> x[i]) for j in range(len(a)) for i in range(len(x))), dtype=bool)
+    tmp = tmp.reshape(len(a), len(x))
     k = np.argmax(tmp, axis=0)                     # a[k[i]-1]<= x[i] < a[k[i]] if k[i] > 0, and x[i] out of a[0],..a[-1] otherwise
-    # k = np.where(k == 0, len(a)-1, k)
     k = np.where(x >= a[-1], len(a) - 1, k)
-    #r = (b[k] - b[k-1])/(a[k]-a[k-1])
-    r = (b[1:] - b[:-1]) / (a[1:] - a[:-1])       # r[k] = (b[k] - b[k-1]) / (a[k] - a[k-1])
+    r = (b[1:] - b[:-1]) / (a[1:] - a[:-1])        # r[k] = (b[k] - b[k-1]) / (a[k] - a[k-1])
     r = np.concatenate(([0], r))
-    t = (x-a[k-1])/(a[k]-a[k-1])                  # t[k] = (x - a[k-1]) / (a[k] - a[k-1]) for x in a[k-1]..a[k]
+    t = (x-a[k-1])/(a[k]-a[k-1])                   # t[k] = (x - a[k-1]) / (a[k] - a[k-1]) for x in a[k-1]..a[k]
+    # sanity check
     assert np.all(t>=0)
     assert np.all(t<=1)
+    # calculate spline table
     T = b[k-1] + (r[k]*t*t + d[k-1]*(1-t)*t)*(b[k]-b[k-1]) / (r[k]+(d[k]+d[k-1] - 2*r[k])*(1-t)*t)
-    # plot curve
-    import matplotlib
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    M = np.int(a[-1]*255)
-    ax.plot(T*255)
-    ax.plot([i for i in range(256)])
-    ax.plot(a*255, b*255, 'ro')
-    #ax.plot(a*255, a*255, 'bo')
-    fig.savefig('temp.png')
+    if plot:
+        import matplotlib
+        matplotlib.use('Agg')
+        import matplotlib.pyplot as plt
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        M = np.int(a[-1]*255)
+        ax.plot(T*255)
+        ax.plot([i for i in range(256)])
+        ax.plot(a*255, b*255, 'ro')
+        #ax.plot(a*255, a*255, 'bo')
+        fig.savefig('temp.png')
     return T
 
-def warpHistogram(imgBuf, valleyAperture=0.01, warp=0):
+def warpHistogram(imgBuf, valleyAperture=0.01, warp=1.0):
     """
-    Stretch and warp the distribution of imgBuf.
-    The parameter valleyAperture controls the (probability) width
-    of histogram valleys: it should be > 0 and < 0.5
+    Stretch and warp the distribution of imgBuf to enhance the contrast.
+    We mainly use the algorithm proposed by  Grundland and Dodgson
+    Cf. U{https://link.springer.com/chapter/10.1007/1-4020-4179-9_42},
+    with a supplementary correction for skies.
+    The parameter valleyAperture is the (probability) width
+    of histogram valleys: it should be > 0 and < 0.5, and warp controls
+    the correction level : ikt should be between 0 (no correction and 1 (full correction).
     @param imgBuf: single channel image (luminance), range 0..1
     @type imgBuf: ndarray, shape(h,w), dtype=uint8 or int or float
     @param valleyAperture:
     @type valleyAperture: float
+    @param warp:
+    @type warp: float
     @return: transformed image channel, range 0..1
     @rtype: ndarray same shape as imgBuf, dtype=np.flaot,
     """
@@ -288,11 +359,11 @@ def warpHistogram(imgBuf, valleyAperture=0.01, warp=0):
     # outlier threshold
     tau = 0.01
     ###################
-    # get valleys and distribution instance
+    # get valleys and distribution object
     V0, dist = valleys(imgBuf*255, valleyAperture)                    # len(V0) = K-1 is the valley count
     V0 = V0/255
     # discard all black and all white images
-    if dist.FInvVec(0) == dist.FInvVec(1):
+    if dist.FInv(0) == dist.FInv(1):
         raise ValueError('Image is uniform: no contrast correction possible')
     # add the distribution end points to the valley array,
     # and calculate the array of modeCenters.
@@ -301,7 +372,7 @@ def warpHistogram(imgBuf, valleyAperture=0.01, warp=0):
     # (background and foreground for example).
     # The center points of mode intervals partition the pixel range in regions and
     # each region will be transformed by a single quadratic spline.
-    V0 = np.concatenate((dist.FInvVec(0), V0, dist.FInvVec(1)))
+    V0 = np.concatenate(([dist.FInv(0)], V0, [dist.FInv(1)]))
     modeCenters = (V0[1:] + V0[:-1]) / 2
     # init the array of data points
     a = np.zeros(len(V0)+3, dtype=np.float)                      # len(a) = K+2
@@ -376,9 +447,15 @@ def warpHistogram(imgBuf, valleyAperture=0.01, warp=0):
     #imgBuf = TH[(imgBuf * 255).astype(np.int)]
     """
     # build and apply the transformation.
-    T = interpolationSpline(a, b, d)
-    return T[(imgBuf*255).astype(np.int)]
+    T = interpolationSpline(a, b, d, plot=True)
+    im = imgBuf*255
+    im1 = (imgBuf*255).astype(np.int)
+    im2 = np.minimum(im1+1, 255)
+    B1 = T[im1]
+    B2 = T[im2]
+    return (im2 - im) * B1 + (im - im1) * B2
+    #return T[(imgBuf*255).astype(np.int)]
 
 if __name__ == '__main__':
-    img = (np.array(range(1000*800))/800000).reshape(1000, 800)
+    img = (np.arange(1000*800, dtype=np.float)/800000).reshape(1000, 800)
     print(gaussianDistribution(img))

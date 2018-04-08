@@ -854,7 +854,7 @@ class vImage(QImage):
         if adjustForm.satCorrection != 0:
             alpha = (-adjustForm.satCorrection + 50.0) / 50
             # tabulate x**alpha
-            LUT = np.power(np.array(range(256)) / 255, alpha)
+            LUT = np.power(np.arange(256) / 255, alpha)
             # convert saturation s to s**alpha
             bufHSV_CV32[:, :, 1] = LUT[(bufHSV_CV32[:, :, 1] * 255).astype(int)]
         # back to RGB
@@ -1298,7 +1298,7 @@ class vImage(QImage):
             Lchan = buf32Lab[:, :, 0]
             start = int(h * adjustForm.filterStart / 100.0)
             end = int(h * adjustForm.filterEnd / 100.0)
-            test = np.array(range(end - start)) * opacity / (
+            test = np.arange(end - start) * opacity / (
                         2.0 * max(end - start - 1, 1)) + 0.5 * s  # range 0.5*s...0.5
             test = np.concatenate((np.zeros(start) + 0.5 * s, test, np.zeros(h - end) + 0.5))
             test1 = test[:, np.newaxis] + np.zeros(Lchan.shape)
