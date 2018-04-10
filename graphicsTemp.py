@@ -15,53 +15,50 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-
+from PySide2 import QtCore
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
 from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout
 
 from colorConv import sRGBWP
-from utils import optionsWidget
+from utils import optionsWidget, QbLUeSlider
 
 
 class temperatureForm (QGraphicsView):
+
+    dataChanged = QtCore.Signal()
+
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         wdgt = temperatureForm(axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         wdgt.setWindowTitle(layer.name)
         return wdgt
-
-    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None): # TODO 01/12/17 remove param targetImage
+    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         super(temperatureForm, self).__init__(parent=parent)
-        #self.targetImage = targetImage
+        self.setStyleSheet('QRangeSlider * {border: 0px; padding: 0px; margin: 0px}')
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize, axeSize)
         self.setAttribute(Qt.WA_DeleteOnClose)
-        #self.img = targetImage
         self.layer = layer
-        self.defaultTemp = sRGBWP  # ref temperature D65
-        l = QVBoxLayout()
-        l.setAlignment(Qt.AlignBottom)
-        # options
-        options = ['Photo Filter', 'Chromatic Adaptation']
-        self.listWidget1 = optionsWidget(options=options, exclusive=True)
-        self.options = self.listWidget1.options
-        # set initial selection
-        self.listWidget1.checkOption(options[1])
 
-        l.addWidget(self.listWidget1)
+        self.defaultTemp = sRGBWP  # ref temperature D65
+
+        # options
+        optionList, optionNames = ['Photo Filter', 'Chromatic Adaptation'], ['Photo Filter', 'Chromatic Adaptation']
+        self.listWidget1 = optionsWidget(options=optionList, optionNames=optionNames, exclusive=True, changed=lambda: self.dataChanged.emit())
+        self.listWidget1.checkOption(self.listWidget1.intNames[1])
+        self.options = self.listWidget1.options
 
         # temp slider
-        self.sliderTemp = QSlider(Qt.Horizontal)
-        self.sliderTemp.setTickPosition(QSlider.TicksBelow)
+        self.sliderTemp = QbLUeSlider(Qt.Horizontal)
+        self.sliderTemp.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
         self.sliderTemp.setRange(17, 250)  # valid range for spline approximation is 1667..25000, cf. colorConv.temperature2xyWP
         self.sliderTemp.setSingleStep(1)
 
         tempLabel = QLabel()
         tempLabel.setMaximumSize(150, 30)
         tempLabel.setText("Color temperature")
-        l.addWidget(tempLabel)
-        hl = QHBoxLayout()
+
         self.tempValue = QLabel()
         font = self.tempValue.font()
         metrics = QFontMetrics(font)
@@ -69,38 +66,64 @@ class temperatureForm (QGraphicsView):
         h = metrics.height()
         self.tempValue.setMinimumSize(w, h)
         self.tempValue.setMaximumSize(w, h)
-        self.tempValue.setStyleSheet("QLabel {background-color: white;}")
+        self.tempValue.setText(str("{:d}".format(self.sliderTemp2User(self.sliderTemp.value()))))
+
+        # temp change event handler
+        def tempUpdate(value):
+            self.tempValue.setText(str("{:d}".format(self.sliderTemp2User(value))))
+            # move not yet terminated or value not modified
+            if self.sliderTemp.isSliderDown() or self.slider2Temp(value) == self.tempCorrection:
+                return
+            self.sliderTemp.valueChanged.disconnect()
+            self.sliderTemp.sliderReleased.disconnect()
+            self.tempCorrection = self.slider2Temp(value)
+            self.dataChanged.emit()
+            self.sliderTemp.valueChanged.connect(tempUpdate)
+            self.sliderTemp.sliderReleased.connect(lambda: tempUpdate(self.sliderTemp.value()))
+        self.sliderTemp.valueChanged.connect(tempUpdate)
+        self.sliderTemp.sliderReleased.connect(lambda: tempUpdate(self.sliderTemp.value()))
+
+        l = QVBoxLayout()
+        l.setAlignment(Qt.AlignBottom)
+        l.addWidget(self.listWidget1)
+        l.addWidget(tempLabel)
+        hl = QHBoxLayout()
         hl.addWidget(self.tempValue)
         hl.addWidget(self.sliderTemp)
         l.addLayout(hl)
-        l.addStretch(1)
-        #l.setContentsMargins(20, 0, 20, 25)  # left, top, right, bottom
-        l.setContentsMargins(10, 10, 10, 10)  # left, top, right, bottom
         self.setLayout(l)
         self.adjustSize()
-        # temp done event handler
-        def f():
-            self.sliderTemp.setEnabled(False)
-            temp = self.sliderTemp.value()*100
-            self.tempValue.setText(str('%d ' % temp))
-            self.onUpdateTemperature(self.layer, temp)
-            self.sliderTemp.setEnabled(True)
-        # temp value changed event handler
-        def g():
-            self.tempValue.setText(str('%d ' % (self.sliderTemp.value()*100)))
+        self.dataChanged.connect(self.updateLayer)
+        self.setStyleSheet("QListWidget, QLabel {font : 7pt;}")
+        self.setDefaults()
 
-        def h(lay, temperature):
-            lay.temperature = temperature
-            lay.applyToStack()
-            mainForm.label.img.onImageChanged()
+    def enableSliders(self):
+        self.sliderTemp.setEnabled(True)
 
-        self.onUpdateTemperature = h
+    def setDefaults(self):
+        self.listWidget1.unCheckAll()
+        self.listWidget1.checkOption(self.listWidget1.intNames[0])
+        self.enableSliders()
+        self.tempCorrection = 6500
+        self.sliderTemp.setValue(round(self.temp2Slider(self.tempCorrection)))
+        self.dataChanged.emit()
 
-        self.sliderTemp.valueChanged.connect(g)
-        self.sliderTemp.sliderReleased.connect(f)
-        self.listWidget1.onSelect = lambda item: f()
+    def updateLayer(self):
+        """
+        data changed event handler.
+        """
+        self.enableSliders()
+        self.layer.applyToStack()
+        self.layer.parentImage.onImageChanged()
 
-        self.sliderTemp.setValue(self.defaultTemp//100)
+    def slider2Temp(self, v):
+        return v * 100
+
+    def temp2Slider(self, v):
+        return int(v /100)
+
+    def sliderTemp2User(selfself, v):
+        return v * 100
 
     def writeToStream(self, outStream):
         layer = self.layer

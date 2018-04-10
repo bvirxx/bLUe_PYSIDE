@@ -15,143 +15,244 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-from time import time
-
-import cv2
 import numpy as np
+from PySide2 import QtCore
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
 from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout
 
-from colorConv import Lab2sRGBVec
-from imgconvert import QImageBuffer
 
 # Contrast Limited Adaptive Histogram Equalization.
-from utils import optionsWidget
+from utils import optionsWidget, QbLUeSlider, UDict
 
-"""
-def Clahe(imgLBuf):
-    #UNUSED
-    start = time()
-    clahe = cv2.createCLAHE(clipLimit=4.0, tileGridSize=(8, 8))
-    clahe.setClipLimit(0.8)
-    res = clahe.apply((imgLBuf[:,:,0]*255.0).astype(np.uint8))
-    imgLBuf[:,:,0] = res.astype(np.float) / 255
-    return imgLBuf
-    ndsRGBImg1 = Lab2sRGBVec(imgLBuf)
-    # clipping is mandatory here : numpy bug ?
-    ndsRGBImg1 = np.clip(ndsRGBImg1, 0, 255)
-    print("clahe %.2f" % (time() - start))
-    return ndsRGBImg
-"""
+
 class CLAHEForm (QGraphicsView):
-    defaultClipLimit = 0.25
+
+    dataChanged = QtCore.Signal()
+
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         wdgt = CLAHEForm(axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         wdgt.setWindowTitle(layer.name)
-        """
-        pushButton = QPushButton('apply', parent=wdgt)
-        hLay = QHBoxLayout()
-        wdgt.setLayout(hLay)
-        hLay.addWidget(pushButton)
-        pushButton.clicked.connect(lambda: wdgt.execute())
-        """
         return wdgt
-
-    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None): # TODO 01/12/17 remove param targetImage
+    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         super(CLAHEForm, self).__init__(parent=parent)
-        #self.targetImage = targetImage
+        self.setStyleSheet('QRangeSlider * {border: 0px; padding: 0px; margin: 0px}')
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        self.setMinimumSize(axeSize, axeSize)  # default width 200 doesn't fit the length of option names
+        self.setMinimumSize(axeSize, axeSize)
         self.setAttribute(Qt.WA_DeleteOnClose)
-        #self.img = targetImage
         self.layer = layer
-        #self.defaultClip = self.defaultClipLimit
-        l = QVBoxLayout()
-        l.setAlignment(Qt.AlignBottom)
-
-        # f is defined later, but we need to declare it righjt now
-        def f():
-            pass
 
         # options
-        self.options = None
-        """
-        self.options = {'use Chromatic Adaptation': True}
-        options = ['use Photo Filter', 'use Chromatic Adaptation']
-        self.listWidget1 = optionsWidget(options=options, exclusive=True)
-        self.listWidget1.select(self.listWidget1.items['use Chromatic Adaptation'])
-        self.listWidget1.setMaximumSize(self.listWidget1.sizeHintForColumn(0) + 5, self.listWidget1.sizeHintForRow(0) * len(options) + 5)
-        def onSelect1(item):
-            self.options['use Chromatic Adaptation'] = item is self.listWidget1.items['use Chromatic Adaptation']
-            f()
-        self.listWidget1.onSelect = onSelect1
-        l.addWidget(self.listWidget1)
-        """
+        optionList1, optionNames1 = ['Multi-Mode', 'CLAHE'], ['Multi-Mode Contrast', 'CLAHE']
+        self.listWidget1 = optionsWidget(options=optionList1, optionNames=optionNames1, exclusive=True, changed=lambda: self.dataChanged.emit())
+        self.listWidget1.checkOption(self.listWidget1.intNames[0])
+        self.listWidget1.setStyleSheet("QListWidget {border: 0px;} QListWidget::item {border: 0px; padding-left: 0px;}")
+        optionList2, optionNames2 = ['High'], ['Preserve Highlights']
+        self.listWidget2 = optionsWidget(options=optionList2, optionNames=optionNames2, exclusive=False, changed=lambda: self.dataChanged.emit())
+        self.listWidget2.checkOption(self.listWidget2.intNames[0])
+        self.listWidget2.setStyleSheet("QListWidget {border: 0px;} QListWidget::item {border: 0px; padding-left: 0px;}")
+        self.options = UDict(self.listWidget1.options, self.listWidget2.options)
 
-        # clipLimit slider
-        self.sliderClip = QSlider(Qt.Horizontal)
-        self.sliderClip.setTickPosition(QSlider.TicksBelow)
-        self.sliderClip.setRange(1, 50)
-        self.sliderClip.setSingleStep(1)
+        # contrast slider
+        self.sliderContrast = QbLUeSlider(Qt.Horizontal)
+        self.sliderContrast.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
+        self.sliderContrast.setRange(0, 10)
+        self.sliderContrast.setSingleStep(1)
 
-        tempLabel = QLabel()
-        tempLabel.setMaximumSize(150, 30)
-        tempLabel.setText("Clip Limit")
-        l.addWidget(tempLabel)
-        hl = QHBoxLayout()
-        self.tempValue = QLabel()
-        font = self.tempValue.font()
+        contrastLabel = QLabel()
+        contrastLabel.setMaximumSize(150, 30)
+        contrastLabel.setText("Contrast Level")
+
+        self.contrastValue = QLabel()
+        font = self.contrastValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("1000 ")
+        w = metrics.width("1000")
         h = metrics.height()
-        self.tempValue.setMinimumSize(w, h)
-        self.tempValue.setMaximumSize(w, h)
-        self.tempValue.setStyleSheet("QLabel {background-color: white;}")
-        hl.addWidget(self.tempValue)
-        hl.addWidget(self.sliderClip)
+        self.contrastValue.setMinimumSize(w, h)
+        self.contrastValue.setMaximumSize(w, h)
+        self.contrastValue.setText(str("{:d}".format(self.sliderContrast.value())))
+
+        # contrast changed  event handler
+        def contrastUpdate(value):
+            self.contrastValue.setText(str("{:d}".format(self.sliderContrast.value())))
+            # move not yet terminated or value not modified
+            if self.sliderContrast.isSliderDown() or self.slider2Contrast(value) == self.contrastCorrection:
+                return
+            self.sliderContrast.valueChanged.disconnect()
+            self.sliderContrast.sliderReleased.disconnect()
+            self.contrastCorrection = self.slider2Contrast(self.sliderContrast.value())
+            self.dataChanged.emit()
+            self.sliderContrast.valueChanged.connect(contrastUpdate)
+            self.sliderContrast.sliderReleased.connect(lambda: contrastUpdate(self.sliderContrast.value()))
+
+        self.sliderContrast.valueChanged.connect(contrastUpdate)
+        self.sliderContrast.sliderReleased.connect(lambda: contrastUpdate(self.sliderContrast.value()))
+
+        # saturation slider
+
+        self.sliderSaturation = QbLUeSlider(Qt.Horizontal)
+        self.sliderSaturation.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
+        self.sliderSaturation.setRange(0, 10)
+        self.sliderSaturation.setSingleStep(1)
+
+        saturationLabel = QLabel()
+        saturationLabel.setMaximumSize(150, 30)
+        saturationLabel.setText("Saturation")
+
+        self.saturationValue = QLabel()
+        font = self.saturationValue.font()
+        metrics = QFontMetrics(font)
+        w = metrics.width("1000")
+        h = metrics.height()
+        self.saturationValue.setMinimumSize(w, h)
+        self.saturationValue.setMaximumSize(w, h)
+        self.saturationValue.setText(str("{:+d}".format(self.sliderContrast.value())))
+
+        # saturation changed  event handler
+        def saturationUpdate(value):
+            self.saturationValue.setText(str("{:+d}".format(int(self.slidersaturation2User(self.sliderSaturation.value())))))
+            # move not yet terminated or value not modified
+            if self.sliderSaturation.isSliderDown() or self.slider2Saturation(value) == self.satCorrection:
+                return
+            self.sliderSaturation.valueChanged.disconnect()
+            self.sliderSaturation.sliderReleased.disconnect()
+            self.satCorrection = self.slider2Saturation(self.sliderSaturation.value())
+            self.dataChanged.emit()
+            self.sliderSaturation.valueChanged.connect(saturationUpdate)
+            self.sliderSaturation.sliderReleased.connect(lambda: saturationUpdate(self.sliderSaturation.value()))
+        self.sliderSaturation.valueChanged.connect(saturationUpdate)
+        self.sliderSaturation.sliderReleased.connect(lambda: saturationUpdate(self.sliderSaturation.value()))
+
+        # brightness slider
+
+        self.sliderBrightness = QbLUeSlider(Qt.Horizontal)
+        self.sliderBrightness.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
+        self.sliderBrightness.setRange(0, 10)
+        self.sliderBrightness.setSingleStep(1)
+
+        brightnessLabel = QLabel()
+        brightnessLabel.setMaximumSize(150, 30)
+        brightnessLabel.setText("Brightness")
+
+        self.brightnessValue = QLabel()
+        font = self.brightnessValue.font()
+        metrics = QFontMetrics(font)
+        w = metrics.width("1000")
+        h = metrics.height()
+        self.brightnessValue.setMinimumSize(w, h)
+        self.brightnessValue.setMaximumSize(w, h)
+        self.brightnessValue.setText(str("{:+d}".format(self.sliderContrast.value())))
+
+        # brightness changed  event handler
+        def brightnessUpdate(value):
+            self.brightnessValue.setText(str("{:+d}".format(int(self.sliderBrightness2User(self.sliderBrightness.value())))))
+            # move not yet terminated or value not modified
+            if self.sliderBrightness.isSliderDown() or self.slider2Brightness(value) == self.brightnessCorrection:
+                return
+            self.sliderBrightness.valueChanged.disconnect()
+            self.sliderBrightness.sliderReleased.disconnect()
+            self.brightnessCorrection = self.slider2Brightness(self.sliderBrightness.value())
+            self.dataChanged.emit()
+            self.sliderBrightness.valueChanged.connect(brightnessUpdate)
+            self.sliderBrightness.sliderReleased.connect(lambda: brightnessUpdate(self.sliderBrightness.value()))
+
+        self.sliderBrightness.valueChanged.connect(brightnessUpdate)
+        self.sliderBrightness.sliderReleased.connect(lambda: brightnessUpdate(self.sliderBrightness.value()))
+
+        l = QVBoxLayout()
+        l.setAlignment(Qt.AlignBottom)
+        l.addWidget(self.listWidget1)
+        l.addWidget(self.listWidget2)
+        l.addWidget(contrastLabel)
+        hl = QHBoxLayout()
+        hl.addWidget(self.contrastValue)
+        hl.addWidget(self.sliderContrast)
         l.addLayout(hl)
-        l.setContentsMargins(20, 0, 20, 25)  # left, top, right, bottom
-        l.addStretch(1)
+        l.addWidget(saturationLabel)
+        hl2 = QHBoxLayout()
+        hl2.addWidget(self.saturationValue)
+        hl2.addWidget(self.sliderSaturation)
+        l.addLayout(hl2)
+        l.addWidget(brightnessLabel)
+        hl3 = QHBoxLayout()
+        hl3.addWidget(self.brightnessValue)
+        hl3.addWidget(self.sliderBrightness)
+        l.addLayout(hl3)
         self.setLayout(l)
         self.adjustSize()
+        self.dataChanged.connect(self.updateLayer)
+        self.setStyleSheet("QListWidget, QLabel {font : 7pt;}")
+        self.setDefaults()
 
-        # temp done event handler
-        def f():
-            self.sliderClip.setEnabled(False)
-            self.tempValue.setText(str("{:d}".format(self.sliderClip.value())))
-            self.onUpdateContrast(self.layer, self.sliderClip.value() / 20.0)
-            self.sliderClip.setEnabled(True)
+    def enableSliders(self):
+        self.sliderContrast.setEnabled(True)
+        self.sliderSaturation.setEnabled(True)
+        self.sliderBrightness.setEnabled(True)
 
-        # temp value changed event handler
-        def g():
-            self.tempValue.setText(str("{:d}".format(self.sliderClip.value())))
-            #self.previewWindow.setPixmap()
+    def setDefaults(self):
+        self.listWidget1.unCheckAll()
+        self.listWidget1.checkOption(self.listWidget1.intNames[0])
+        self.listWidget2.unCheckAll()
+        self.listWidget2.checkOption(self.listWidget2.intNames[0])
+        self.enableSliders()
+        self.contrastCorrection = 0.0
+        self.sliderContrast.setValue(round(self.contrast2Slider(self.contrastCorrection)))
+        self.satCorrection = 0.0
+        self.sliderSaturation.setValue(round(self.saturation2Slider(self.satCorrection)))
+        self.brightnessCorrection = 0.0
+        self.sliderBrightness.setValue(round(self.brightness2Slider(self.brightnessCorrection)))
+        self.dataChanged.emit()
 
-        self.sliderClip.valueChanged.connect(g)
-        self.sliderClip.sliderReleased.connect(f)
+    def updateLayer(self):
+        """
+        data changed event handler.
+        """
+        self.enableSliders()
+        self.layer.applyToStack()
+        self.layer.parentImage.onImageChanged()
 
-        self.sliderClip.setValue(self.defaultClipLimit * 20)
-        self.tempValue.setText(str("{:d}".format(int(self.defaultClipLimit * 20))))
+    def slider2Contrast(self, v):
+        return v / 10
 
-        def writeToStream(self, outStream):
-            layer = self.layer
-            outStream.writeQString(layer.actionName)
-            outStream.writeQString(layer.name)
-            outStream.writeQString(self.listWidget1.selectedItems()[0].text())
-            outStream.writeInt32(self.sliderClip.value())
-            return outStream
+    def contrast2Slider(self, v):
+        return v * 10
 
-        def readFromStream(self, inStream):
-            actionName = inStream.readQString()
-            name = inStream.readQString()
-            sel = inStream.readQString()
-            temp = inStream.readInt32()
-            for r in range(self.listWidget1.count()):
-                currentItem = self.listWidget1.item(r)
-                if currentItem.text() == sel:
-                    self.listWidget.select(currentItem)
-            self.sliderClip.setValue(temp)
-            self.update()
-            return inStream
+    def slider2Saturation(self, v):
+        return v / 10 - 0.5
+
+    def saturation2Slider(self, v):
+        return v * 10 + 5
+
+    def slidersaturation2User(selfself, v):
+        return v - 5.0
+
+    def slider2Brightness(self, v):
+        return v / 10 - 0.5
+
+    def brightness2Slider(self, v):
+        return v * 10 + 5
+
+    def sliderBrightness2User(selfself, v):
+        return v - 5.0
+
+    def writeToStream(self, outStream):
+        layer = self.layer
+        outStream.writeQString(layer.actionName)
+        outStream.writeQString(layer.name)
+        outStream.writeQString(self.listWidget1.selectedItems()[0].text())
+        outStream.writeInt32(self.sliderContrast.value())
+        return outStream
+
+    def readFromStream(self, inStream):
+        actionName = inStream.readQString()
+        name = inStream.readQString()
+        sel = inStream.readQString()
+        temp = inStream.readInt32()
+        for r in range(self.listWidget1.count()):
+            currentItem = self.listWidget1.item(r)
+            if currentItem.text() == sel:
+                self.listWidget.select(currentItem)
+        self.sliderContrast.setValue(temp)
+        self.update()
+        return inStream

@@ -44,7 +44,7 @@ import numpy as np
 sRGBWP = 6500
 
 # According to Python and Numpy coventions, the below definitions of matrix
-# constants as lists and/or arrays set M[row_index][col_index] values.
+# constants as lists and/or arrays give M[row_index][col_index] values.
 
 Von_Kries =  [[0.4002400,  0.7076000, -0.0808100],
               [-0.2263000, 1.1653200,  0.0457000],
@@ -54,7 +54,7 @@ Von_KriesInverse =  [[1.8599364, -1.1293816,  0.2198974],
                      [0.3611914,  0.6388125, -0.0000064],
                      [0.0000000,  0.0000000,  1.0890636]]
 
-Bradford =  [[0.8951000,  0.2664000, -0.1614000],  #photoshop and best
+Bradford =  [[0.8951000,  0.2664000, -0.1614000],               #photoshop and best
              [-0.7502000, 1.7135000,  0.0367000],
              [0.0389000,  -0.0685000, 1.0296000]]
 
@@ -63,7 +63,7 @@ BradfordInverse =  [[0.9869929, -0.1470543,  0.1599627],
                     [-0.0085287, 0.0400428,  0.9684867]]
 
 ######################################################################
-# conversion from LINEAR sRGB (D65) to XYZ and back.
+# conversion matrices from LINEAR sRGB (D65) to XYZ and back.
 # see http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
 # and https://en.wikipedia.org/wiki/SRGB
 #######################################################################
@@ -113,7 +113,7 @@ table5 = np.power(table4, beta) *(1.0+a)/F # i**beta
 
 def rgbLinear2rgb(r,g,b):
     """
-    Conversion from linear sRGB to sRGB.
+    Conversion from linear RGB to sRGB.
     All values are in range 0..1.
     
     @param r:
@@ -131,9 +131,9 @@ def rgbLinear2rgb(r,g,b):
 
 def rgbLinear2rgbVec(img):
     """
-    Vectorized conversion from linear sRGB to sRGB.
-    See https://en.wikipedia.org/wiki/SRGB
-    @param img: linear sRGB image, range 0..1
+    Vectorized conversion from linear RGB to sRGB.
+    See U{https://en.wikipedia.org/wiki/SRGB}
+    @param img: linear RGB image, range 0..1
     @type img: numpy array, dtype=float
     @return: converted RGB image
     @rtype: numpy array, dtype=float, range 0..255
@@ -180,15 +180,15 @@ def rgb2rgbLinearVec(img):
 
 def sRGB2XYZVec(imgBuf):
     """
-    Vectorized conversion from sRGB to XYZ.
+    Vectorized conversion from sRGB to XYZ (D65).
     opencv cvtColor does NOT perform gamma conversion
-    for RGB<-->XYZ cf. http://docs.opencv.org/trunk/de/d25/imgproc_color_conversions.html#color_convert_rgb_xyz.
+    for RGB<-->XYZ cf.
+    U{http://docs.opencv.org/trunk/de/d25/imgproc_color_conversions.html#color_convert_rgb_xyz}.
     Moreover, RGB-->XYZ and XYZ-->RGB matrices are not inverse transformations!
     This yields incorrect results.
     As a workaround, we first convert to rgbLinear,
-    and use the sRGB_lin2XYZ and sRGB_lin2XYZInverse matrices from
-    to convert to RGB Linear.
-    See U{http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html}
+    and next use the conversion matrices from
+    U{http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html}
     @param imgBuf: Array of RGB values, range 0..255
     @type imgBuf: ndarray, dtype numpy uint8
     @return: image buffer, XYZ color space
@@ -200,20 +200,24 @@ def sRGB2XYZVec(imgBuf):
 
 def XYZ2sRGBVec(imgBuf):
     """
-    Vectorized conversion from XYZ to sRGB.
+    Vectorized conversion from XYZ to sRGB (D65).
     opencv cvtColor does NOT perform gamma conversion
-    for RGB<-->XYZ cf. http://docs.opencv.org/trunk/de/d25/imgproc_color_conversions.html#color_convert_rgb_xyz.
+    for RGB<-->XYZ, cf.
+    U{http://docs.opencv.org/trunk/de/d25/imgproc_color_conversions.html#color_convert_rgb_xyz}.
     Moreover, RGB-->XYZ and XYZ-->RGB matrices are not inverse transformations!
-    This yields incorrect results.
-    As a workaround, we first convert to rgbLinear,
-    and use the sRGB_lin2XYZ and sRGB_lin2XYZInverse matrices from
-    convert to RGB Linear.
-    See U{http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html}
-    @param imgBuf: image buffer, mode XYZ
+    This yields incorrect results. As a workaround, we first convert to rgbLinear,
+    and next use the sRGB <--> XYZ conversion matrices from
+    U{http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html}
+    @param imgBuf: image buffer,  XYZ color space
     @type imgBuf: ndarray
     @return: image buffer, mode sRGB, range 0..255
     @rtype: ndarray, dtype numpy.float64
     """
+    # test fot out of gamut image
+    M = np.max(imgBuf[:,:,1])
+    if M > 1:
+        imgBuf = imgBuf / M
+        print('XYZ2sRGBVecwarning : Y channel max %.5f' % M)
     bufsRGBLinear = np.tensordot(imgBuf, sRGB_lin2XYZInverse, axes=(-1, -1))
     bufsRGB = rgbLinear2rgbVec(bufsRGBLinear)
     return bufsRGB

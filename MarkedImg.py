@@ -30,8 +30,9 @@ from PySide2.QtWidgets import QApplication, QMessageBox, QSplitter
 from PySide2.QtGui import QPixmap, QImage, QColor, QPainter
 from PySide2.QtCore import QRect
 
-from colorConv import sRGB2LabVec, sRGBWP, Lab2sRGBVec, sRGB_lin2XYZ, sRGB_lin2XYZInverse, rgb2rgbLinearVec, rgbLinear2rgb, \
-    rgbLinear2rgbVec
+from colorConv import sRGB2LabVec, sRGBWP, Lab2sRGBVec, sRGB_lin2XYZ, sRGB_lin2XYZInverse, rgb2rgbLinearVec, \
+    rgbLinear2rgb, \
+    rgbLinear2rgbVec, XYZ2sRGBVec, sRGB2XYZVec
 
 from graphicsFilter import filterIndex
 from histogram import warpHistogram
@@ -392,7 +393,7 @@ class vImage(QImage):
         """
         return the image buffer in color mode Lab.
         The buffer is calculated if needed and cached.
-        @return: Lab buffer 
+        @return: Lab buffer, L range is 0..1, a, b range are -128..+128
         @rtype: numpy ndarray, dtype np.float
         """
         if self.LabBuffer is None  or not self.cachesEnabled:
@@ -404,6 +405,7 @@ class vImage(QImage):
         """
         return the image buffer in color mode HSV.
         The buffer is calculated if needed and cached.
+        H,S, V ranges are 0..255 (opencv convention for 8 bits images)
         @return: HSV buffer
         @rtype: numpy ndarray, dtype np.float
         """
@@ -850,7 +852,7 @@ class vImage(QImage):
             # warp = 0 means that no additional warping is done, but
             # the histogram is always stretched.
             warp = max(0, (adjustForm.contCorrection -1)) / 10
-            bufHSV_CV32[:,:,2] = warpHistogram(bufHSV_CV32[:, :, 2], valleyAperture=0.05, warp=warp)
+            bufHSV_CV32[:,:,2] = warpHistogram(bufHSV_CV32[:, :, 2], valleyAperture=0.05, warp=warp, preserveHigh=options['High'])
         if adjustForm.satCorrection != 0:
             alpha = (-adjustForm.satCorrection + 50.0) / 50
             # tabulate x**alpha
@@ -902,43 +904,78 @@ class vImage(QImage):
         bufOut[:, :, :3][:, :, ::-1] = bufpost
         self.updatePixmap()
 
-    def applyCLAHE(self, clipLimit, options, version='HSV'):
+    def applyContrast(self, version='HSV'):
         """
-        CLAHE algorithm. If version is 'HSV' (default) the
-        image is converted to HSV and the V channel is used.
-        Otherwise, The Lab color space is used.
-        @param clipLimit:
-        @type clipLimit:
-        @param options:
-        @type options:
+        Contrast, saturation, brightness corrections.
+        If version is 'HSV' (default), the
+        image is converted to HSV and the correction is applied to
+        the S and V channels. Otherwise, the Lab color space is used.
         @param version:
         @type version:
         """
+        adjustForm = self.view.widget()
+        options = adjustForm.options
+        contrastCorrection = adjustForm.contrastCorrection
+        satCorrection = adjustForm.satCorrection
+        brightnessCorrection = adjustForm.brightnessCorrection
         inputImage = self.inputImg()
         tmpBuf = QImageBuffer(inputImage)
         currentImage = self.getCurrentImage()
         ndImg1a = QImageBuffer(currentImage)
         # neutral point : forward changes
-        if clipLimit < 0.1:
+        if contrastCorrection == 0 and satCorrection == 0 and brightnessCorrection == 0:
             ndImg1a[:, :, :] = tmpBuf
             self.updatePixmap()
             return
-        clahe = cv2.createCLAHE(clipLimit=clipLimit, tileGridSize=(8, 8))
-        clahe.setClipLimit(clipLimit)
         if version=='Lab':
-            # get l channel
+            # get l channel, range is 0..1
             LBuf = inputImage.getLabBuffer().copy()
-            # apply CLAHE to the L channel
-            res = clahe.apply((LBuf[:,:,0] * 255.0).astype(np.uint8))
-            LBuf[:,:,0] = res / 255
+            if brightnessCorrection != 0:
+                alpha = (-adjustForm.brightnessCorrection + 1.0)
+                # tabulate x**alpha
+                LUT = np.power(np.arange(256) / 255, alpha)
+                # convert L to L**alpha
+                LBuf[:, :, 0] = LUT[LBuf[:, :, 0]]
+            if contrastCorrection >0:
+                if options['CLAHE']:
+                    clahe = cv2.createCLAHE(clipLimit=contrastCorrection, tileGridSize=(8, 8))
+                    clahe.setClipLimit(contrastCorrection)
+                    res = clahe.apply((LBuf[:,:,0] * 255.0).astype(np.uint8)) /255
+                else:
+                    res = warpHistogram(LBuf[:,:,0], warp=contrastCorrection, preserveHigh=options['High'])
+                LBuf[:,:,0] = res
+            if satCorrection != 0:
+                slope = max(0.1, adjustForm.satCorrection / 25 + 1)  # range 0.1..3
+                # multiply a and b channels
+                LBuf[:, :, 1:3] *= slope
+                LBuf[:, :, 1:3] = np.clip(LBuf[:, :, 1:3], -127, 127)
             # back to RGB
             sRGBBuf = Lab2sRGBVec(LBuf)  # use opencv cvtColor
         else:
-            # get HSV buffer
+            # get HSV buffer, H, S, V ranges are 0..255
             HSVBuf = inputImage.getHSVBuffer().copy()
-            # apply clahe to the V channel
-            res = clahe.apply((HSVBuf[:, :, 2]))
-            HSVBuf[:, :, 2] = res
+            if brightnessCorrection != 0:
+                alpha = (-adjustForm.brightnessCorrection + 1.0)
+                # tabulate x**alpha
+                LUT = np.power(np.arange(256) / 255, alpha) * 255
+                # convert V to V**alpha
+                HSVBuf[:, :, 2] = LUT[HSVBuf[:, :, 2]]
+            if contrastCorrection > 0:
+                if options['CLAHE']:
+                    clahe = cv2.createCLAHE(clipLimit=contrastCorrection, tileGridSize=(8, 8))
+                    clahe.setClipLimit(contrastCorrection)
+                    res = clahe.apply((HSVBuf[:, :, 2]))
+                else:
+                    buf32 = HSVBuf[:,:,2].astype(np.float)/255
+                    res = warpHistogram(buf32, warp=contrastCorrection)
+                    res = (res*255).astype(np.uint8)
+                HSVBuf[:, :, 2] = res
+            if satCorrection != 0:
+                alpha = (-adjustForm.satCorrection + 1.0)
+                # tabulate x**alpha
+                LUT = np.power(np.arange(256) / 255, alpha) * 255
+                # convert saturation s to s**alpha
+                HSVBuf[:, :, 1] = LUT[HSVBuf[:, :, 1]]
             # back to RGB
             sRGBBuf = cv2.cvtColor(HSVBuf, cv2.COLOR_HSV2RGB)
         ndImg1a[:, :, :3][:,:,::-1] = sRGBBuf
@@ -1134,9 +1171,9 @@ class vImage(QImage):
 
     def histogram(self, size=QSize(200, 200), bgColor=Qt.white, range =(0,255), chans=channelValues.RGB, chanColors=Qt.gray, mode='RGB', addMode=''):
         """
-        Plot histogram for the
+        Plot histogram with the
         specified color mode and channels.
-        Luminosity is  Y = 0.299*R + 0.587*G + 0.114*B (YCrCb opencv mode)
+        Luminosity is  Y = 0.299*R + 0.587*G + 0.114*B (YCrCb opencv color space)
         @param size: size of the histogram plot
         @type size: int or QSize
         @param bgColor: background color
@@ -1152,7 +1189,7 @@ class vImage(QImage):
         @return: histogram plot
         @rtype: QImage
         """
-        # type of size must be QSize
+        # convert size to QSize
         if type(size) is int:
             size = QSize(size, size)
         # scaling factor for the bin edges
@@ -1160,29 +1197,17 @@ class vImage(QImage):
         scale = size.width() / spread
         # per channel histogram function
         def drawChannelHistogram(painter, channel, buf, color):
-            """
-            Compute and draw the (smoothed) histogram for a single channel.
-            @ param qp: QPainter
-            @param channel: channel index (BGRA (intel) or ARGB )
-            """
+            #Compute and draw the (smoothed) histogram for a single channel.
+            #param qp: QPainter
+            #param channel: channel index (BGRA (intel) or ARGB )
             buf0 = buf[:,:, channel]
             # bins='auto' sometimes causes a huge number of bins ( >= 10**9) and memory error
             # even for small data size (<=250000), so we don't use it.
-            # This is a numpy bug : in module function_base.py, to prevent memory error,
-            # a reasonable upper bound for bins should be chosen.
+            # This is a numpy bug : in the module function_base.py
+            # a reasonable upper bound for bins should be chosen to prevent memory error.
             hist, bin_edges = np.histogram(buf0, bins=100, density=True)
-            # smooth the histogram, first and last bins excepted for a better visualization of possible clipping.
+            # smooth the histogram, first and last bins excepted for a better visualization of clipping.
             hist = np.concatenate(([hist[0]], SavitzkyGolay.filter(hist[1:-1]), [hist[-1]]))
-            """
-            p = len(hist) - len(bin_edges)
-            # if P > 1, the histogram was padded by the savitzky_golay filter:
-            # we pad bin_edges accordingly
-            if p >1:
-                p = p /2 +1
-                bin_firstVals = (bin_edges[0] - np.arange(p))[::-1]
-                bin_lastVals = bin_edges[-1] + np.arange(p-1)
-                bin_edges = np.concatenate((bin_firstVals, bin_edges, bin_lastVals))
-            """
             # draw hist
             imgH = size.height()
             M = max(hist)
@@ -1193,10 +1218,14 @@ class vImage(QImage):
                 painter.fillRect(rect, color)
                 # clipping indicators
                 if i == 0 or i == len(hist)-1:
-                    # clipping threshold 0.01
+                    left = bin_edges[0 if i == 0 else -1]
+                    if left > 0 and left < 255:
+                        continue
+                    left =  left - (10 if i > 0 else 0)
+                    clipping_threshold = 0.02
                     percent = hist[i] * (bin_edges[i+1]-bin_edges[i])
-                    if percent > 0.02:
-                        left = bin_edges[0 if i==0 else -1] - (10 if i>0 else 0)
+                    if percent > clipping_threshold:
+                        # calculate the color of the indicator according to percent value
                         nonlocal gPercent
                         gPercent = min(gPercent, np.clip((0.05 - percent) / 0.03, 0, 1))
                         painter.fillRect(left, 0, 10, 10, QColor(255, 255*gPercent, 0))
@@ -1312,22 +1341,25 @@ class vImage(QImage):
             buf1[:,:,:3][:,:,::-1] = (bufRGB32 * 255.0).astype(np.uint8)
         self.updatePixmap()
 
-    def applyTemperature(self, temperature, options):
+    def applyTemperature(self):
         """
         The method implements two algorithms for the correction of color temperature.
-        1) Chromatic adaptation : linear transformation in the XYZ color space with Bradford
+        - Chromatic adaptation : linear transformation in the XYZ color space with Bradford
         cone response. cf. http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html
         This boils down to use multipliers in the cone response domain.
-        2) Photo filter : Blending using mode multiply, plus correction of luminosity
+        - Photo filter : Blending using mode multiply, plus correction of luminosity
         @param temperature:
         @type temperature: float
         @param options :
         @type options : dictionary
         """
+        adjustForm = self.view.widget()
+        options = adjustForm.options
+        temperature = adjustForm.tempCorrection
         inputImage = self.inputImg()
         currentImage = self.getCurrentImage()
         # neutral point : forward input image and return
-        if abs(temperature -6500) < 200:
+        if abs(temperature - 6500) < 200:
             buf0 = QImageBuffer(currentImage)
             buf1 = QImageBuffer(inputImage)
             buf0[:, :, :] = buf1
@@ -1352,26 +1384,15 @@ class vImage(QImage):
             resImg = blendLuminosity(filter, inputImage)
             bufOutRGB = QImageBuffer(resImg)[:,:,:3][:,:,::-1]
         elif options['Chromatic Adaptation']:
-            # get conversion matrix in the XYZ color space
+            # get conversion matrix in XYZ color space
             M = conversionMatrix(temperature, sRGBWP)  # source is input image : sRGB, ref WP D65
             buf = QImageBuffer(inputImage)[:, :, :3]
-            # opencv cvtColor does NOT perform gamma conversion
-            # for RGB<-->XYZ cf. http://docs.opencv.org/trunk/de/d25/imgproc_color_conversions.html#color_convert_rgb_xyz.
-            # Moreover, RGB-->XYZ and XYZ-->RGB matrices are not inverse transformations!
-            # This yields incorrect results.
-            #  As a workaround, we first convert to rgbLinear,
-            # and use the sRGB2XYZ and sRGB2XYZInverse matrices from
-            # http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
-            # convert to RGB Linear
-            bufLinear = (rgb2rgbLinearVec(buf[:,:,::-1])*255).astype(np.uint8) #TODO 20/03/18 use sRGB2XYZvec and XYZ2sRGBVec
             # convert to XYZ
-            bufXYZ = np.tensordot(bufLinear, sRGB_lin2XYZ, axes=(-1, -1))
+            bufXYZ = sRGB2XYZVec(buf[:,:,::-1])             #np.tensordot(bufLinear, sRGB_lin2XYZ, axes=(-1, -1))
             # apply conversion matrix
             bufXYZ = np.tensordot(bufXYZ, M, axes=(-1, -1))
-            # convert back to RGBLinear
-            bufOutRGBLinear = np.tensordot(bufXYZ, sRGB_lin2XYZInverse, axes=(-1, -1))
             # convert back to RGB
-            bufOutRGB = rgbLinear2rgbVec(bufOutRGBLinear.astype(np.float)/255.0)
+            bufOutRGB = XYZ2sRGBVec(bufXYZ)
             bufOutRGB = (bufOutRGB.clip(0, 255)).astype(np.uint8)
         # set output image
         bufOut = QImageBuffer(currentImage)[:,:,:3]

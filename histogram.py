@@ -38,8 +38,14 @@ class dstb(object):
     For contiuous distributions, 1/maxVal ca be viewed as  the size
     of a discretization mesh.
     """
-    interpolateCDF = True
+    interpolateCDF = False
     plotDist = True
+
+    @classmethod
+    def FromImage(cls, imgBuf):
+        hist, bins = np.histogram(imgBuf, bins=256, range=(0, 255), density=True)
+        return  dstb(hist, bins, 255)
+
     def __init__(self, hist, bins, maxVal=0):
         self.DTable, self.CDFTable = self.setDist(hist=hist, bins=bins, maxVal=maxVal)
         self.bins = bins
@@ -58,6 +64,7 @@ class dstb(object):
             #ax.plot(Tdummy, markersize=1, linestyle=None, marker='X')
             ax.plot([self.DTable[k]*100 for k in range(len(self.DTable))])
             fig.savefig('tempdist.png')
+            plt.close()
 
     def setDist(self, hist=[], bins=[], maxVal=0):
         """
@@ -149,8 +156,10 @@ class dstb(object):
     def FInvVec(self, x):
         """
         Inverse CDF. The argument x and the
-        returned value are normalized to 0..1.
-        Finv(x) = k/maxVal, with k the smallest integer s. t. CDFTable[k] >= x.
+        returned value are normalized to 0..1. if interpolateCDF is False,
+        Finv(x) = k/maxVal, with k the smallest integer s. t.
+        CDFTable[k] >= x if x > 0 and CDFTable[k+1] > 0  if x = 0.
+        if interpolateCDFis True
         Note. As F is neither continuous nor strictly increasing, FInv is not the
         mathematical inverse function of F.
         @param x:
@@ -161,29 +170,34 @@ class dstb(object):
         @rtype: array of float
         """
         if np.isscalar(x):
-            raise ValueError('dstb.FInvVec : argument is scalar')
+            raise ValueError('dstb.FInvVec : argument is a scalar')
         s = self.maxVal
+        CDFTable = self.CDFTable
         FVec = self.FVec
         xs = x * s
         # get the smallest integer k s.t. CDFTable[k] >= x
-        k1 = np.argmax(self.CDFTable[:, np.newaxis] >= x, axis=0)
-        # prevent eventual floating point precision pb
-        M = np.argmax((self.CDFTable / self.CDFTable[-1]) == 1.0)
-        k1 = np.where(x == 1, M, k1)
-        k1overs = k1/s
+        k1 = np.argmax(CDFTable[:, np.newaxis] >= x, axis=0)
+        # CDFTable[-1] should be equal to 1. However, we try to prevent an eventual error
+        # caused by a floating point precision pb : k is 0 if 1 >= x > CDFTable[-1]
+        M = np.argmax((CDFTable / CDFTable[-1]) == 1.0)
+        k1 = np.where(x > CDFTable[-1], M, k1)
+        # CDFTable[k1] is >= x, we increase
+        # k1 to get CDFTTable[k1+1] > 0
+        m = np.argmax(CDFTable > 0)
+        k1 = np.maximum(k1, m-1)
+        k1_over_s = k1/s
         # interpolation
         if self.interpolateCDF:
-            # ignore floating point errors
-            old_settings = np.seterr(all='ignore')
-            k2 = np.maximum(k1 - 1, 0)
-            k2overs = k2/s
-            k3 = (FVec(k1overs) -x) * k2 + (x - FVec(k2overs)) * k1
-            k4 = k3 /(FVec(k1overs)-FVec(k2overs))
-            #
+            k2 = np.maximum(k1 - 1, 0)                                                   # FVec(k2_over_s) = CDFTable[k1-1] <= x <= CDFTable[k1]
+            #k3 = (FVec(k1_over_s) -x) * k2 + (x - FVec(k2overs)) * k1
+            k3 = (CDFTable[k1] - x) * k2 + (x - CDFTable[k2]) * k1
+            # ignore floating point warnings
+            # old_settings = np.seterr(all='ignore')
+            k4 = k3 /(CDFTable[k1]-CDFTable[k2])
+            # np.seterr(**old_settings)
             k1 = np.where(np.isfinite(k4), k4, k1 )
-            k1overs = k1/s
-            np.seterr(**old_settings)
-        return k1overs
+            k1_over_s = k1/s
+        return k1_over_s
 
     def FInv(self, x):
         """
@@ -196,8 +210,8 @@ class dstb(object):
         @rtype: float
         """
         if not np.isscalar(x):
-            raise ValueError('Distribution FInv : argument is not a scalar')
-        return self.FInvVec(np.array([x]))[0]
+            raise ValueError('dstb.FInv : argument is not a scalar')
+        return np.asscalar(self.FInvVec(np.array([x])))
 
 def gaussianDistribution(x, hist, bins, h):
     """
@@ -296,7 +310,7 @@ def interpolationSpline(a, b, d, plot=False):
     a and b must be non decreasing sequences in range 0..1, with a strictly increasing.
     The 3 lists must have the same length.
     Note. for k < a[0], T[k]=b[0] and, for k > a[-1], T[k]=b[-1]
-    @param a: x-ccordiantes for nodes
+    @param a: x-coordiantes for nodes
     @type a: ndarray, dtype np.float
     @param b: y-coordinates for nodes
     @type b: ndarray, dtype np.float
@@ -306,7 +320,7 @@ def interpolationSpline(a, b, d, plot=False):
     @rtype: ndarray, dtype np.float
     """
     if np.min(a[1:] - a[:-1]) <= 0:
-        raise ValueError('InterpolationSpline : a must be strictly increasing')
+        raise ValueError('histogram.InterpolationSpline : a must be strictly increasing')
     # x-coordinate range
     x = np.arange(256, dtype=np.float)/255
     x = np.clip(x, a[0], a[-1])
@@ -321,7 +335,7 @@ def interpolationSpline(a, b, d, plot=False):
     # sanity check
     assert np.all(t>=0)
     assert np.all(t<=1)
-    # calculate spline table
+    # tabulate spline
     T = b[k-1] + (r[k]*t*t + d[k-1]*(1-t)*t)*(b[k]-b[k-1]) / (r[k]+(d[k]+d[k-1] - 2*r[k])*(1-t)*t)
     if plot:
         import matplotlib
@@ -335,9 +349,10 @@ def interpolationSpline(a, b, d, plot=False):
         ax.plot(a*255, b*255, 'ro')
         #ax.plot(a*255, a*255, 'bo')
         fig.savefig('temp.png')
+        plt.close()
     return T
 
-def warpHistogram(imgBuf, valleyAperture=0.01, warp=1.0):
+def warpHistogram(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True):
     """
     Stretch and warp the distribution of imgBuf to enhance the contrast.
     We mainly use the algorithm proposed by  Grundland and Dodgson
@@ -352,6 +367,8 @@ def warpHistogram(imgBuf, valleyAperture=0.01, warp=1.0):
     @type valleyAperture: float
     @param warp:
     @type warp: float
+    @param preserveHigh:
+    @type preserveHigh: boolean
     @return: transformed image channel, range 0..1
     @rtype: ndarray same shape as imgBuf, dtype=np.flaot,
     """
@@ -362,11 +379,11 @@ def warpHistogram(imgBuf, valleyAperture=0.01, warp=1.0):
     # get valleys and distribution object
     V0, dist = valleys(imgBuf*255, valleyAperture)                    # len(V0) = K-1 is the valley count
     V0 = V0/255
-    # discard all black and all white images
-    if dist.FInv(0) == dist.FInv(1):
-        raise ValueError('Image is uniform: no contrast correction possible')
+    # discard images with a too narrow dynamic range
+    if dist.FInv(1) - dist.FInv(0) < 0.01:
+        raise ValueError('warphistogram: dynamic range too narrow')
     # add the distribution end points to the valley array,
-    # and calculate the array of modeCenters.
+    # and calculate the array of mode centers :
     # each interval [V[k-1], V[k] is called a mode.
     # Modes are viewed as groups of objects with similar lighting conditions,
     # (background and foreground for example).
@@ -430,14 +447,15 @@ def warpHistogram(imgBuf, valleyAperture=0.01, warp=1.0):
     d = np.where(d==np.NaN, 1.0, d)
     d=np.clip(d, 0.25, 5)
     # highlights correction (sky)
-    skyInd = np.argmax(a > 0.75*a[-1])
-    #if a[-3] > 0.75*a[-1]:  # may be V0[-2]>=0.75*V0[-1]??
-    b[-1]=0.98
-    for i in range(len(b) - skyInd - 1):
-        b[-i-2]= min(np.power(a[-i-2], 0.30), b[-i-1]) - 0.02
-    b[skyInd-1] = np.power(b[skyInd-1], 0.9)
-    d[skyInd:] = 0.2
-    d[-1]=2
+    if preserveHigh:
+        skyInd = np.argmax(a > 0.75*a[-1])
+        #if a[-3] > 0.75*a[-1]:  # may be V0[-2]>=0.75*V0[-1]??
+        b[-1]=0.98
+        for i in range(len(b) - skyInd - 1):
+            b[-i-2]= min(np.power(a[-i-2], 0.30), b[-i-1]) - 0.02
+        b[skyInd-1] = np.power(b[skyInd-1], 0.9)
+        d[skyInd:] = 0.2
+        d[-1]=2
     """
     s = a[-3]
     sq = np.power(s, 0.35)
@@ -446,16 +464,19 @@ def warpHistogram(imgBuf, valleyAperture=0.01, warp=1.0):
     T = T[(TH*255).astype(np.int)]
     #imgBuf = TH[(imgBuf * 255).astype(np.int)]
     """
-    # build and apply the transformation.
+    # build and apply the spline.
     T = interpolationSpline(a, b, d, plot=True)
     im = imgBuf*255
-    im1 = (imgBuf*255).astype(np.int)
-    im2 = np.minimum(im1+1, 255)
+    im1 = im.astype(np.int)
+    im2 = im1+1 # np.minimum(im1+1, 255)
     B1 = T[im1]
-    B2 = T[im2]
-    return (im2 - im) * B1 + (im - im1) * B2
+    B2 = T[np.minimum(im2, 255)]
+    # interpolate B1, B2
+    return np.clip((im2 - im) * B1 + (im - im1) * B2, 0 , 1)
     #return T[(imgBuf*255).astype(np.int)]
 
 if __name__ == '__main__':
     img = (np.arange(1000*800, dtype=np.float)/800000).reshape(1000, 800)
-    print(gaussianDistribution(img))
+    img = np.zeros((1000, 800))
+    dist = dstb.FromImage(img)
+    print('ici')

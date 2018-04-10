@@ -94,7 +94,6 @@ class rawForm (QGraphicsView):
         self.sliderTemp = QbLUeSlider(Qt.Horizontal)
         self.sliderTemp.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
         self.sliderTemp.setRange(0,130)
-
         self.sliderTemp.setSingleStep(1)
 
         self.tempLabel = QLabel()
@@ -176,13 +175,13 @@ class rawForm (QGraphicsView):
                 return
             self.sliderExp.valueChanged.disconnect()
             self.sliderExp.sliderReleased.disconnect()
-            # rawpy: expCorrection range is -2.0...3.0 boiling down to exp_shift range 2**(-2)=0.25...2**3=8.0
+            # rawpy: expCorrection range is -2.0...3.0, boiling down to exp_shift range 2**(-2)=0.25...2**3=8.0
             self.expCorrection = self.slider2Exp(self.sliderExp.value())
             self.dataChanged.emit(True)
             self.sliderExp.valueChanged.connect(expUpdate)  # send new value as parameter
             self.sliderExp.sliderReleased.connect(lambda: expUpdate(self.sliderExp.value()))  # signal has no parameter
         self.sliderExp.valueChanged.connect(expUpdate)  # send new value as parameter
-        self.sliderExp.sliderReleased.connect(lambda: expUpdate(self.sliderExp.value()))  # signal has no parameter
+        self.sliderExp.sliderReleased.connect(lambda: expUpdate(self.sliderExp.value()))      # signal has no parameter
 
         # brightness slider
         brSlider = QbLUeSlider(Qt.Horizontal)

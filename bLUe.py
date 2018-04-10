@@ -662,8 +662,8 @@ def loadImageFromFile(f, createsidecar=True):
 
 def addBasicAdjustmentLayers(img):
     if img.rawImage is None:
-        menuLayer('actionColor_Temperature')
-        menuLayer('actionExposure_Correction')
+        #menuLayer('actionColor_Temperature')
+        #menuLayer('actionExposure_Correction')
         menuLayer('actionContrast_Correction')
     # select active layer : top row
     window.tableView.select(0, 1)
@@ -1401,14 +1401,11 @@ def menuLayer(name):
         lname = 'Color Temperature'
         l = window.label.img.addAdjustmentLayer(name=lname)
         grWindow = temperatureForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
-        # default temperature
-        l.temperature = sRGBWP
         # wrapper for the right apply method
-        l.execute = lambda l=l, pool=None: l.applyTemperature(l.temperature, grWindow.options)
+        l.execute = lambda l=l, pool=None: l.applyTemperature()
     elif name == 'actionContrast_Correction':
-        lname = 'Contrast'
+        lname = 'Enhancement'
         l = window.label.img.addAdjustmentLayer(name=lname)
-        l.clipLimit = CLAHEForm.defaultClipLimit
         grWindow = CLAHEForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         # clipLimit change event handler
         def h(lay, clipLimit):
@@ -1417,7 +1414,7 @@ def menuLayer(name):
             window.label.img.onImageChanged()
         grWindow.onUpdateContrast = h
         # wrapper for the right apply method
-        l.execute = lambda l=l, pool=None: l.applyCLAHE(l.clipLimit, grWindow.options)
+        l.execute = lambda l=l, pool=None: l.applyContrast()
     elif name == 'actionExposure_Correction':
         lname = 'Exposure'
         l = window.label.img.addAdjustmentLayer(name=lname)

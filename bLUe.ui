@@ -571,8 +571,8 @@ Screen</string>
      <property name="title">
       <string>New Adjustment Layer</string>
      </property>
-     <addaction name="actionColor_Temperature"/>
      <addaction name="actionContrast_Correction"/>
+     <addaction name="actionColor_Temperature"/>
      <addaction name="actionExposure_Correction"/>
      <addaction name="separator"/>
      <addaction name="actionBrightness_Contrast"/>
@@ -861,7 +861,7 @@ Screen</string>
   </action>
   <action name="actionContrast_Correction">
    <property name="text">
-    <string>Contrast Correction</string>
+    <string>Enhancement</string>
    </property>
   </action>
   <action name="actionExposure_Correction">
