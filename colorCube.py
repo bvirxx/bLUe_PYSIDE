@@ -286,11 +286,10 @@ def rgb2hsB(r, g, b, perceptual=False):
 def rgb2hsBVec(rgbImg, perceptual=False):
     """
     Vectorized version of rgb2hsB.
-    transforms the red, green ,blue r, g, b components of a color
-    into hue, saturation, brightness h, s, v. (Cf. schema in file colors.docx)
+    RGB-->HSV color space transformation
     The r, g, b components are integers in range 0..255. If perceptual is False
-    (default) v = max(r,g,b)/255.0, else v = sqrt(Perc_R*r*r + Perc_G*g*g + Perc_B*b*b)
-    @param rgbImg: array of r,g, b values
+    (default) V = max(r,g,b)/255.0, else V = sqrt(Perc_R*r*r + Perc_G*g*g + Perc_B*b*b) / 255
+    @param rgbImg: RGB image range 0..255
     @type rgbImg: (n,m,3) array, , dtype=uint8 or dtype=int or dtype=float
     @return: identical shape array of hue,sat,brightness values (0<=h<=360, 0<=s<=1, 0<=v<=1)
     @rtype: (n,m,3) array, dtype=float
@@ -383,101 +382,6 @@ def hsv2rgbVec(hsvImg):
     buf = cv2.cvtColor(buf.astype(np.uint8), cv2.COLOR_HSV2RGB )
     return buf
 
-def hsp2rgbOld(h,s,p, trunc=True):
-    """
-    Transform the hue, saturation and perceptual brightness h, s, p components of a color
-    into red, green, blue values.
-    @param h: float value in range 0..360
-    @param s: float value in range 0..1
-    @param p: float value in range 0..1
-    @return: r,g,b integers between 0 and 255
-    """
-
-    h = h /60.0
-    i = np.floor(h) # TODO put into code
-    f = h - i
-
-    if s == 1.0:
-        if h < 1.0 :  # r > g > b=0
-            h = h # f
-            r = np.sqrt(p * p / (Perc_R + Perc_G * h * h))
-            g = r * h
-            b = 0.0
-        elif h < 2.0:  # g>r>b=0
-            h = (-h + 2.0) # 1-f
-            g = np.sqrt(p * p / (Perc_G + Perc_R * h * h))
-            r = g * h
-            b = 0.0
-        elif h < 3.0: # g>b>r=0
-            h = (h - 2.0) # f
-            g = np.sqrt(p * p / (Perc_G + Perc_B * h * h))
-            b = g * h
-            r = 0.0
-        elif h < 4.0 : # b>g>r=0
-            h = (-h + 4.0) #1 - f
-            b = np.sqrt(p * p / (Perc_B + Perc_G * h * h))
-            g = b * h
-            r = 0.0
-        elif h < 5.0 :  # b>r>g=0
-            h = (h - 4.0) # f
-            b = np.sqrt(p * p / (Perc_B + Perc_R * h * h))
-            r = b * h
-            g = 0.0
-        else : # r>b>g=0
-            h = (-h + 6.0) # 1 -f
-            r = np.sqrt(p * p / (Perc_R + Perc_B * h * h))
-            b = r * h
-            g = 0.0
-    else:  # s !=1
-        Mm = 1.0 / (1.0 - s)  #Mm >= 1
-        if h < 1.0 :  # r > g > b
-            h = h#/60.0
-            part = 1.0 + h * (Mm - 1.0)  # part >=1 part = g/b
-            b = p / np.sqrt(Perc_R * Mm * Mm + Perc_G * part * part + Perc_B)  # b<=p
-            r = b * Mm
-            g = b + h * (r - b)
-        elif h < 2.0: #g>r>b
-            h = (-h + 2.0)
-            part = 1.0 + h * (Mm - 1.0) #part = r/b
-            b = p / np.sqrt(Perc_G * Mm * Mm + Perc_R * part * part + Perc_B)
-            g = b * Mm
-            r = b + h * (g - b)
-        elif h < 3.0: # g>b>r
-            h = (h - 2.0)
-            part = 1.0 + h * (Mm - 1.0) # part = b/r
-            r = p / np.sqrt(Perc_G * Mm * Mm + Perc_B * part * part + Perc_R)
-            g = r * Mm
-            b = r + h * (g - r)
-        elif h < 4.0: # b>g>r
-            h = (-h + 4.0)
-            part = 1.0 + h * (Mm - 1.0)
-            r = p / np.sqrt(Perc_B * Mm * Mm + Perc_G * part * part + Perc_R)
-            b = r * Mm
-            g = r  + h * (b - r)
-        elif h < 5.0: # b>r>g
-            h = (h - 4.0)
-            part = 1.0 + h * (Mm - 1.0)
-            g = p / np.sqrt(Perc_B * Mm * Mm + Perc_R * part * part + Perc_G)
-            b = g * Mm
-            r = g + h * (b - g)
-        else: # r>b>g
-            h = (-h + 6.0)
-            part = 1.0 + h * (Mm - 1.0)
-            g = p / np.sqrt(Perc_R * Mm * Mm + Perc_B * part * part + Perc_G)
-            r = g * Mm
-            b = g + h * (r - g)
-
-    if r<0 or g<0 or b<0 :
-        pass
-        #print 'neg value found', h,s,p, r,g,b
-
-    pc= Perc_R * r * r + Perc_G * g * g + Perc_B * b * b
-    assert abs(p*p - pc)<= 0.000001, 'hsp2rgb error'
-    if trunc:
-        return min(255,int(round(r*255))), min(255,int(round(g*255))), min(255, int(round(b*255)))
-    else:
-        return int(round(r * 255)), int(round(g * 255)), int(round(b * 255))
-
 def hsp2rgb(h, s, p):
     return hsp2rgb_ClippingInd(h,s,p)[:3]
 
@@ -552,22 +456,14 @@ def hsp2rgb_ClippingInd(h,s,p, trunc=True):
             g = p / np.sqrt(Perc_R * Mm * Mm + Perc_B * part * part + Perc_G)
             r = g * Mm
             b = g + (1-f) * (r - g)
-
-    if r<0 or g<0 or b<0 :
-        pass
-        #print 'neg value found', h,s,p, r,g,b
-
     pc= Perc_R * r * r + Perc_G * g * g + Perc_B * b * b
-    assert abs(p*p - pc)<= 0.000001, 'hsp2rgb error'
+    # sanity check
+    assert abs(p*p - pc)<= 0.000001, 'colorCube.py:  hsp2rgb conversion error'
     M = max(r, g, b)
-    #clippingInd = (max(r,g,b) > 1.0)
     if trunc:
         if M > 1:
             r, g, b = r / M, g / M, b / M
-        #return min(255,int(round(r*255.0))), min(255,int(round(g*255.0))), min(255, int(round(b*255.0))), (M > 1)
     return int(round(r * 255.0)), int(round(g * 255.0)), int(round(b * 255.0)), (M > 1)
-    #else:
-        #return int(round(r * 255)), int(round(g * 255)), int(round(b * 255)), ( M > 1)
 
 def hsp2rgbVec(hspImg):
     """
@@ -577,10 +473,11 @@ def hsp2rgbVec(hspImg):
     @param hspImg: (n,m,3) array of hsp values
     @return: identical shape array of rgb values
     """
+    """
     # use faster version for small images
     if hspImg.shape[0] * hspImg.shape[1] < 1000:
         return hsp2rgbVecSmall(hspImg)
-
+    """
     h, s, p = hspImg[:, :, 0], hspImg[:, :, 1], hspImg[:, :, 2]
 
     shape = h.shape
@@ -687,14 +584,15 @@ def hsp2rgbVec(hspImg):
 
     return rgb.reshape(shape + (3,))
 
+"""
 def hsp2rgbVecSmall(hspImg):
-    """
+    
     Vectorized version of hsp2rgb. Optimized for small images.
     Very bad performances for big images : time = 11,11 s  and memory > 6 Go
-    for 15 Mpxl.
+    for a 15 Mpx image
     @param hspImg: (n,m,3) array of hsp values
     @return: identical shape array of rgb values
-    """
+    
     h, s, p = hspImg[:, :, 0], hspImg[:, :, 1], hspImg[:, :, 2]
 
     shape = h.shape
@@ -723,47 +621,48 @@ def hsp2rgbVecSmall(hspImg):
 
     X1 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_R * Mm2 + Perc_G * part1 + Perc_B))   # b
     Y1 = np.where(Mm==np.inf, p / np.sqrt(Perc_R+ Perc_G * f *f), X1 * Mm)              # r
-    Z1 = np.where(Mm==np.inf, Y1 * f, X1 + f * (Y1 - X1))                               # g
+    #Z1 = np.where(Mm==np.inf, Y1 * f, X1 + f * (Y1 - X1))                               # g  # TODO 12/04/18 validate removal of Zi, clist, order 
 
     X2 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_G * Mm2 + Perc_R * part2 + Perc_B))   # b
     Y2 = np.where(Mm==np.inf, p / np.sqrt(Perc_G + Perc_R * (1-f) * (1-f)), X2 * Mm)    # g
-    Z2 = np.where(Mm==np.inf, Y2 * (1-f), X2 + (1 - f) * (Y2 - X2))                     # r
+    #Z2 = np.where(Mm==np.inf, Y2 * (1-f), X2 + (1 - f) * (Y2 - X2))                     # r
 
     X3 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_G * Mm2 + Perc_B * part1 + Perc_R))   # r
     Y3 = np.where(Mm==np.inf, p / np.sqrt(Perc_G + Perc_B * f * f), X3 * Mm)            # g
-    Z3 = np.where(Mm==np.inf, Y3 * f, X3 + f * (Y3 - X3))                               # b
+    #Z3 = np.where(Mm==np.inf, Y3 * f, X3 + f * (Y3 - X3))                               # b
 
     X4 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_B * Mm2 + Perc_G * part2 + Perc_R))   # r
     Y4 = np.where(Mm==np.inf, p / np.sqrt(Perc_B + Perc_G * (1-f) * (1-f)), X4 * Mm)    # b
-    Z4 = np.where(Mm==np.inf, Y4 * (1 - f), X4 + (1 - f) * (Y4 - X4))                   # g
+    #Z4 = np.where(Mm==np.inf, Y4 * (1 - f), X4 + (1 - f) * (Y4 - X4))                   # g
 
     X5 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_B * Mm2 + Perc_R * part1 + Perc_G))   # g
     Y5 = np.where(Mm==np.inf, p / np.sqrt(Perc_B + Perc_R * f * f), X5 * Mm)            # b
-    Z5 = np.where(Mm==np.inf, Y5 * f, X5 + f * (Y5 - X5))                               # r
+    #Z5 = np.where(Mm==np.inf, Y5 * f, X5 + f * (Y5 - X5))                               # r
 
     X6 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_R * Mm2 + Perc_B * part2 + Perc_G))   # g
     Y6 = np.where(Mm==np.inf, p / np.sqrt(Perc_R + Perc_B * (1-f) * (1-f)), X6 * Mm)    # r
-    Z6 = np.where(Mm==np.inf, Y6 * (1 - f), X6 + (1 - f) * (Y6 - X6))                   # b
+    #Z6 = np.where(Mm==np.inf, Y6 * (1 - f), X6 + (1 - f) * (Y6 - X6))                   # b
 
     np.seterr(**old_settings)
 
     # stack as lines
-    clist = np.vstack((X1, Y1, Z1, X2, Y2, Z2, X3, Y3, Z3, X4, Y4, Z4, X5, Y5, Z5, X6, Y6, Z6))
+    #clist = np.vstack((X1, Y1, Z1, X2, Y2, Z2, X3, Y3, Z3, X4, Y4, Z4, X5, Y5, Z5, X6, Y6, Z6))
 
     clistMax = np.vstack((Y1, Y2, Y3, Y4, Y5,  Y6))
     orderMax = np.array([[0],[1],[2],[3],[4],[5]])
 
     # for hue slices 0,..,5, the corresponding 3-uple gives the line indices in clist for the r,g,b values
-    order = np.array([[1, 2, 0], [5, 4, 3], [6, 7, 8], [9, 11, 10], [14, 12, 13], [16, 15, 17]])
+    #order = np.array([[1, 2, 0], [5, 4, 3], [6, 7, 8], [9, 11, 10], [14, 12, 13], [16, 15, 17]])
 
     tmp = np.arange(np.prod(shape))[:, None]
 
     rgbMax = clistMax[orderMax[i], tmp][:,0]
-    rgbMax=rgbMax.clip(0,1)
+    rgbMax = rgbMax.clip(0,1)
     hsv = np.dstack((h*60,s,rgbMax)).reshape(shape + (3,)) * [0.5, 255, 255]
 
     rgb1=cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
     return rgb1.reshape(shape + (3,))
+"""
 
 def interpMulti(LUT, ndImg, pool=None):
     """

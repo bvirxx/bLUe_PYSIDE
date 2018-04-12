@@ -149,7 +149,7 @@ class QLayerView(QTableView) :
                 l.cloned = False
                 l.knitted = False
             try:
-                QApplication.setOverrideCursor(Qt.WaitCursor)
+                QApplication.setOverrideCursor(Qt.WaitCursor) #TODO 18/04/18 waitcursor is called by applytostack?
                 QtGui1.app.processEvents()
                 # update whole stack
                 self.img.layersStack[0].applyToStack()

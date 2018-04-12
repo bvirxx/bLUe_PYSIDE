@@ -26,10 +26,9 @@ from settings import SRGB_PROFILE_PATH, SYSTEM_PROFILE_PATH
 ###################
 # Color management init
 ###################
-# global flags
+# global flags, set in the try block below
 COLOR_MANAGE = False  # no color management
-HAS_COLOR_MANAGE = False # menu action will be disabled
-
+HAS_COLOR_MANAGE = False # menu action "color manage" will be disabled
 try:
     # get CmsProfile object, None if profile not known
     monitorProfile = get_display_profile()
@@ -40,9 +39,8 @@ try:
     # a PyCmsError exception is raised if the path is invalid.
     workingProfile = getOpenProfile(SRGB_PROFILE_PATH)
     workingProfile.info = getProfileInfo(workingProfile)
-    # get CmsTransform object from working profile to monitor profile
-    workToMonTransform = buildTransformFromOpenProfiles(workingProfile, monitorProfile, "RGB", "RGB",
-                                                        renderingIntent=INTENT_RELATIVE_COLORIMETRIC)
+    # init CmsTransform object : working profile ---> monitor profile
+    workToMonTransform = buildTransformFromOpenProfiles(workingProfile, monitorProfile, "RGB", "RGB", renderingIntent=INTENT_RELATIVE_COLORIMETRIC)
     workToMonTransform.fromProfile = workingProfile
     workToMonTransform.toProfile = monitorProfile
     """
@@ -55,8 +53,8 @@ try:
     HAS_COLOR_MANAGE = True
 except:
     COLOR_MANAGE = False
-    # profile(s) missing : we will
-    # definitely disable menu action.
+    # profile(s) missing : we
+    # definitely disable menu action "color manage".
     HAS_COLOR_MANAGE = False
     workToMonTransform = None
 
@@ -82,7 +80,7 @@ def convertQImage(image, transformation=None):
     @rtype: QImage
     """
     if transformation is not None:
-        # conversion to the PIL context
+        # convert to the PIL context and transform
         converted_image = applyTransform(QImageToPilImage(image), transformation, 0)  # time 0.65s for full res.
         image.colorTransformation = transformation
         return PilImageToQImage(converted_image)

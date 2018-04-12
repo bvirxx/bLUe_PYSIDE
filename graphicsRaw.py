@@ -15,6 +15,8 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+from math import log
+
 import numpy as np
 from PySide2 import QtCore
 
@@ -156,7 +158,7 @@ class rawForm (QGraphicsView):
         self.sliderExp.setSingleStep(1)
 
         self.expLabel = QLabel()
-        self.expLabel.setText("Exp")
+        self.expLabel.setText("Exp.")
 
         self.expValue = QLabel()
         font = self.expValue.font()
@@ -185,7 +187,7 @@ class rawForm (QGraphicsView):
 
         # brightness slider
         brSlider = QbLUeSlider(Qt.Horizontal)
-        brSlider.setRange(0, 150)
+        brSlider.setRange(1, 101)
 
         self.sliderExp.setSingleStep(1)
 
@@ -193,7 +195,7 @@ class rawForm (QGraphicsView):
 
         self.sliderBrightness = brSlider
         brLabel = QLabel()
-        brLabel.setText("Brightness")
+        brLabel.setText("Bright.")
 
         self.brValue = QLabel()
         font = self.expValue.font()
@@ -202,11 +204,11 @@ class rawForm (QGraphicsView):
         h = metrics.height()
         self.brValue.setMinimumSize(w, h)
         self.brValue.setMaximumSize(w, h)
-        self.brValue.setText(str("{:.1f}".format(self.brSlider2User(self.sliderBrightness.value()))))
+        self.brValue.setText(str("{:+d}".format(int(self.brSlider2User(self.sliderBrightness.value())))))
 
         # brightness done event handler
         def brUpdate(value):
-            self.brValue.setText(str("{:.1f}".format(self.brSlider2User(self.sliderBrightness.value()))))
+            self.brValue.setText(str("{:+d}".format(int(self.brSlider2User(self.sliderBrightness.value())))))
             # move not yet terminated or value not modified
             if self.sliderBrightness.isSliderDown() or self.slider2Br(value) == self.brCorrection:
                 return
@@ -227,7 +229,7 @@ class rawForm (QGraphicsView):
         self.sliderCont.setSingleStep(1)
 
         self.contLabel = QLabel()
-        self.contLabel.setText("Contrast")
+        self.contLabel.setText("Cont.")
 
         self.contValue = QLabel()
         font = self.contValue.font()
@@ -254,43 +256,6 @@ class rawForm (QGraphicsView):
         self.sliderCont.valueChanged.connect(contUpdate)  # send new value as parameter
         self.sliderCont.sliderReleased.connect(lambda: contUpdate(self.sliderCont.value()))  # signal has no parameter
 
-        """
-        # noise reduction slider
-        self.sliderNoise = QbLUeSlider(Qt.Horizontal)
-        self.sliderNoise.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
-        self.sliderNoise.setRange(0, 20)
-
-        self.sliderNoise.setSingleStep(1)
-
-        noiseLabel = QLabel()
-        #noiseLabel.setFixedSize(110, 20)
-        noiseLabel.setText("Noise Red.")
-
-        self.noiseValue = QLabel()
-        font = self.noiseValue.font()
-        metrics = QFontMetrics(font)
-        w = metrics.width("1000")
-        h = metrics.height()
-        self.noiseValue.setMinimumSize(w, h)
-        self.noiseValue.setMaximumSize(w, h)
-        self.noiseValue.setText(str("{:.0f}".format(self.slider2Noise(self.sliderNoise.value()))))
-
-        # noise done event handler
-        def noiseUpdate(value):
-            self.noiseValue.setText(str("{:.0f}".format(self.slider2Noise(self.sliderNoise.value()))))
-            # move not yet terminated or value not modified
-            if self.sliderNoise.isSliderDown() or self.slider2Noise(value) == self.noiseCorrection:
-                return
-            self.sliderNoise.valueChanged.disconnect()
-            self.sliderNoise.sliderReleased.disconnect()
-            self.noiseCorrection = self.slider2Noise(self.sliderNoise.value())
-            self.noiseValue.setText(str("{:+d}".format(self.slider2Noise(self.sliderNoise.value()))))
-            self.dataChanged.emit(True)  # TODO modified 18/03/18
-            self.sliderNoise.valueChanged.connect(noiseUpdate)  # send new value as parameter
-            self.sliderNoise.sliderReleased.connect(lambda: noiseUpdate(self.sliderNoise.value()))  # signal has no parameter
-        self.sliderNoise.valueChanged.connect(noiseUpdate)  # send new value as parameter
-        self.sliderNoise.sliderReleased.connect(lambda: noiseUpdate(self.sliderNoise.value()))  # signal has no parameter
-        """
         # saturation slider
         self.sliderSat = QbLUeSlider(Qt.Horizontal)
         self.sliderSat.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
@@ -299,12 +264,12 @@ class rawForm (QGraphicsView):
         self.sliderSat.setSingleStep(1)
 
         satLabel = QLabel()
-        satLabel.setText("Sat")
+        satLabel.setText("Sat.")
 
         self.satValue = QLabel()
         font = self.satValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("100")
+        w = metrics.width("+10")
         h = metrics.height()
         self.satValue.setMinimumSize(w, h)
         self.satValue.setMaximumSize(w, h)
@@ -501,10 +466,10 @@ class rawForm (QGraphicsView):
         return e
 
     def slider2Br(self, v):
-        return v/50
+        return (np.power(3, v/50) - 1) / 2
 
-    def br2Slider(self, e):
-        return int(round(50.0 * e))
+    def br2Slider(self, v):
+        return 50 * log(2*v + 1, 3) #int(round(50.0 * e))
 
     def brSlider2User(self, v):
         return (v - 50)

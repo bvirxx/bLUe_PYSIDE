@@ -191,7 +191,7 @@ class vImage(QImage):
         @param profile: embedded profile (default '')
         @type profile: str
         """
-        # color management : working profile is assumed for image
+        # color management : we assume working profile is image profile
         self.colorTransformation = icc.workToMonTransform
         # current color managed image
         self.cmImage = None
@@ -467,7 +467,7 @@ class vImage(QImage):
             if self.cmImage is None:
                 # CAUTION : reset alpha channel
                 img = convertQImage(currentImage, transformation=self.colorTransformation)
-                # restore alpha
+                # copy  alpha channel
                 buf0 = QImageBuffer(img)
                 buf1 = QImageBuffer(currentImage)
                 buf0[:, :, 3] = buf1[:, :, 3]
@@ -807,7 +807,7 @@ class vImage(QImage):
                                             gamma=(2.4, 12.92), # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
                                             exp_preserve_highlights = 1.0 if options['Preserve Highlights'] else 0.0,
                                             output_bps=16,
-                                            bright=adjustForm.brCorrection  # default 1
+                                            bright = adjustForm.brCorrection  # default 1
                                             # no_auto_scale= (not options['Auto Scale']) don't use : green shift
                                             )
                     row = i // 3
@@ -827,7 +827,7 @@ class vImage(QImage):
                     gamma=(2.4, 12.92), # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
                     exp_preserve_highlights=1.0 if options['Preserve Highlights'] else 0.0,
                     output_bps=16,
-                    bright=adjustForm.brCorrection,  # default 1
+                    bright = adjustForm.brCorrection,  # > 0, default 1
                     highlight_mode=0,
                     no_auto_scale=False# (not options['Auto Scale']) don't use : green shift
                     )
@@ -852,7 +852,7 @@ class vImage(QImage):
             # warp = 0 means that no additional warping is done, but
             # the histogram is always stretched.
             warp = max(0, (adjustForm.contCorrection -1)) / 10
-            bufHSV_CV32[:,:,2] = warpHistogram(bufHSV_CV32[:, :, 2], valleyAperture=0.05, warp=warp, preserveHigh=options['High'])
+            bufHSV_CV32[:,:,2] = warpHistogram(bufHSV_CV32[:, :, 2], valleyAperture=0.05, warp=warp, preserveHigh=options['Preserve Highlights'])
         if adjustForm.satCorrection != 0:
             alpha = (-adjustForm.satCorrection + 50.0) / 50
             # tabulate x**alpha
@@ -1105,16 +1105,14 @@ class vImage(QImage):
         Applies a 3D LUT to the current view of the image (self or self.thumb or self.hald).
         If pool is not None and the size of the current view is > 3000000, the computation is
         done in parallel on image slices.
-        @param LUT: LUT3D array (see module colorCube.py)
+        @param LUT: LUT3D array (see colorCube.py)
         @type LUT: 3d ndarray, dtype = int
         @param options:
         @type options: dict of string:boolean pairs
         """
-        # buffers of current image and current input image
+        # get buffers
         inputImage = self.inputImg()
         currentImage = self.getCurrentImage()
-
-
         # get selection
         w1, w2, h1, h2 = (0.0,) * 4
         if options.get('use selection', False):
@@ -1130,30 +1128,19 @@ class vImage(QImage):
                 msg.setText("Empty selection\nSelect a region with the marquee tool")
                 msg.exec_()
                 return
-
         else:
             w1, w2, h1, h2 = 0, self.inputImg().width(), 0, self.inputImg().height()
-
         inputBuffer = QImageBuffer(inputImage)[h1:h2 + 1, w1:w2 + 1, :]
         imgBuffer = QImageBuffer(currentImage)[:, :, :]
         ndImg0 = inputBuffer[:, :, :3]
         ndImg1 = imgBuffer[:, :, :3]
-
-        # choose right interpolation method
+        # choose the right interpolation method
         if (pool is not None) and (inputImage.width() * inputImage.height() > 3000000):
             interp = interpMulti
         else:
             interp = interpVec_
         # apply LUT
-        start=time()
         ndImg1[h1:h2 + 1, w1:w2 + 1, :] = interp(LUT, ndImg0, pool=pool)
-        end=time()
-        #print 'Apply3DLUT time %.2f' % (end-start)
-        # propagate mask ????
-        #currentImage.mask = self.inputImgFull().getCurrentImage().mask
-        #self.mask = self.inputImgFull().mask
-        # alpha propagation
-        #ndImg1a[:, :, 3] = ndImg0a[:, :, 3]
         self.updatePixmap()
 
     def applyHald(self, hald, pool=None):
@@ -1655,7 +1642,7 @@ class mImage(vImage):
         if self.useThumb:
             return False
         # get image
-        img = self.mergeVisibleLayers()
+        img = self.mergeVisibleLayers() #self.layersStack[-1].rPixmap.toImage()  TODO 11/04/18 reset
         # imagewriter and QImage.save are unusable for tif files,
         # due to bugs in libtiff, hence
         # we use opencv imwrite.
@@ -1668,10 +1655,10 @@ class mImage(vImage):
             params = []
         else:
             raise IOError("Invalid File Format\nValid formats are jpg, png, tif ")
-        buf = QImageBuffer(img)[:,:,:3][:,:,::-1]
-        if img.isCropped:
+        buf = QImageBuffer(img)[:,:,:3]
+        if self.isCropped:
             buf = buf[img.cropLeft:img.cropRight, img.cropTop:img.cropBottom,:]
-        written = cv2.imwrite(filename, buf, params)
+        written = cv2.imwrite(filename, buf, params)  #BGR order
         if not written:
             raise IOError("Cannot write file %s " % filename)
         self.setModified(False)
@@ -2146,7 +2133,6 @@ class QLayer(vImage):
                 img = self.cmImage
         else:
             img = currentImage
-        #if maskOnly:
         self.cmImage = img
         qImg = img
         rImg = currentImage

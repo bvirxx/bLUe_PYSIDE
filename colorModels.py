@@ -18,17 +18,23 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
 from MarkedImg import imImage
-from colorCube import hsv2rgbVec, hsp2rgb, rgb2hsp, rgb2hspVec, hsv2rgb, rgb2hsB, rgb2hsBVec, hsp2rgbVecSmall
+from colorCube import hsv2rgbVec, hsp2rgb, rgb2hsp, rgb2hspVec, hsv2rgb, rgb2hsB, rgb2hsBVec, hsp2rgbVec
 from PySide2.QtGui import QImage
 from imgconvert import QImageBuffer
 
 class cmConverter(object):
+    """
+    Gather conversion functions for color space<-->RGB
+    """
 
     def __init__(self):
-        self.cm2rgb, self.cm2rgbVec, rgb2cm, rgb2cmVec = None, None, None, None
+        self.cm2rgb, self.cm2rgbVec, rgb2cm, rgb2cmVec = (None,)*4
 
+##########################################
+# init color converters for HSpB and HSB
+#########################################
 cmHSP = cmConverter()
-cmHSP.cm2rgb, cmHSP.cm2rgbVec, cmHSP.rgb2cm, cmHSP.rgb2cmVec = hsp2rgb, hsp2rgbVecSmall, rgb2hsp, rgb2hspVec
+cmHSP.cm2rgb, cmHSP.cm2rgbVec, cmHSP.rgb2cm, cmHSP.rgb2cmVec = hsp2rgb, hsp2rgbVec, rgb2hsp, rgb2hspVec  #TODO 12/04/18 replace hsp2rgbVecSmall by hsp2rgbVec
 
 cmHSB = cmConverter()
 cmHSB.cm2rgb, cmHSB.cm2rgbVec, cmHSB.rgb2cm, cmHSB.rgb2cmVec = hsv2rgb, hsv2rgbVec, rgb2hsB, rgb2hsBVec

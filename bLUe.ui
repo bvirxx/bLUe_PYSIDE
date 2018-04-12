@@ -572,6 +572,8 @@ Screen</string>
       <string>New Adjustment Layer</string>
      </property>
      <addaction name="actionContrast_Correction"/>
+     <addaction name="action3D_LUT_HSB"/>
+     <addaction name="action3D_LUT"/>
      <addaction name="actionColor_Temperature"/>
      <addaction name="actionExposure_Correction"/>
      <addaction name="separator"/>
@@ -581,9 +583,6 @@ Screen</string>
      <addaction name="actionFilter"/>
      <addaction name="actionGradual_Filter"/>
      <addaction name="actionNoise_Reduction"/>
-     <addaction name="separator"/>
-     <addaction name="action3D_LUT_HSB"/>
-     <addaction name="action3D_LUT"/>
      <addaction name="separator"/>
      <addaction name="actionGeom_Transformation"/>
     </widget>
@@ -745,7 +744,7 @@ Screen</string>
   </action>
   <action name="action3D_LUT_HSB">
    <property name="text">
-    <string>3D LUT HSB</string>
+    <string>3D LUT HSV</string>
    </property>
   </action>
   <action name="actionColor_Temperature">
@@ -861,7 +860,7 @@ Screen</string>
   </action>
   <action name="actionContrast_Correction">
    <property name="text">
-    <string>Enhancement</string>
+    <string>Global Enhancement</string>
    </property>
   </action>
   <action name="actionExposure_Correction">

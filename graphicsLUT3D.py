@@ -18,12 +18,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
 from PySide2.QtCore import QSize
-from PySide2.QtWidgets import QAction, QFileDialog, QToolTip, QWidget, QPushButton, QHBoxLayout, QVBoxLayout
+from PySide2.QtWidgets import QAction, QFileDialog, QToolTip, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, \
+    QApplication
 from PySide2.QtGui import QPainter, QPixmap, QPolygonF,QPainterPath, QPainterPathStroker, QPen, QBrush, QColor, QPixmap
 from PySide2.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsItem, QGraphicsItemGroup, QGraphicsPathItem , QGraphicsPixmapItem, QGraphicsTextItem,  QGraphicsPolygonItem ,  QMainWindow, QLabel, QSizePolicy
 from PySide2.QtCore import Qt, QPoint, QPointF, QRect, QRectF #, QString
 import numpy as np
-from time import time
 
 from PySide2.QtGui import QImage
 from PySide2.QtWidgets import QMenu, QRubberBand
@@ -36,7 +36,6 @@ from utils import optionsWidget
 
 # node blocking factor
 spread = 1
-
 
 class index(object):
     """
@@ -453,24 +452,26 @@ class activeNode(QGraphicsPathItem):
         menu.exec_(event.screenPos())
 
 class activeGrid(QGraphicsPathItem):
+
     selectionList =[]
 
     def __init__(self, size, cModel, parent=None):
         """
 
-        @param size: number of nodes in each dim.
+        @param size: node count in each dim.
         @param parent:
         """
         super(activeGrid, self).__init__()
         self.setParentItem(parent)
         self.size = size
-        # grid step
-        #self.step = (parent.QImg.width() - 1) / float((self.size - 1))
         # parent should be the color wheel. step is the unitary coordinate increment
         # between consecutive nodes in each direction
         self.step = parent.size / float((self.size -1))
         self.setPos(0,0)
-        self.gridNodes = [[activeNode(QPointF(i*self.step,j*self.step), cModel, gridRow=j, gridCol=i, parent=self, grid=self) for i in range(self.size)] for j in range(self.size)]
+        # np.fromiter does not handle dtype object, so we cannot use a generator
+        self.gridNodes = [[activeNode(QPointF(i*self.step,j*self.step), cModel, gridRow=j, gridCol=i, parent=self, grid=self)
+                           for i in range(self.size)]
+                           for j in range(self.size)]
         self.drawTrace = False
         self.drawGrid()
         self.selectedGroup = None
@@ -478,14 +479,13 @@ class activeGrid(QGraphicsPathItem):
 
     def paint(self, qpainter, options, widget):
         qpainter.save()
-        #qpainter.setBrush(QBrush(QColor(255, 255, 255)))
         qpainter.setPen(QPen(QColor(255,255,255), 1, Qt.DotLine, Qt.RoundCap))
         qpainter.drawPath(self.path())
         qpainter.restore()
 
     def reset(self):
         """
-        unselects and resets all nodes to their initial position
+        unselect and reset all nodes to their initial position
         """
         for i in range(self.size):
             for j in range(self.size):
@@ -735,9 +735,15 @@ class graphicsForm3DLUT(QGraphicsView) :
         @param parent: parent widget
         @return: graphicsForm3DLUT object
         """
-        newWindow = graphicsForm3DLUT(cModel, targetImage=targetImage, axeSize=axeSize, LUTSize=LUTSize, layer=layer, parent=parent, mainForm=mainForm)
-        newWindow.setWindowTitle(layer.name)
-        return newWindow
+        try:
+            QApplication.setOverrideCursor(Qt.WaitCursor)
+            QApplication.processEvents()
+            newWindow = graphicsForm3DLUT(cModel, targetImage=targetImage, axeSize=axeSize, LUTSize=LUTSize, layer=layer, parent=parent, mainForm=mainForm)
+            newWindow.setWindowTitle(layer.name)
+            return newWindow
+        finally:
+            QApplication.restoreOverrideCursor()
+            QApplication.processEvents()
 
     def __init__(self, cModel, targetImage=None, axeSize=500, LUTSize = LUTSIZE, layer=None, parent=None, mainForm=None):
         """
@@ -777,7 +783,6 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.setScene(self.graphicsScene)
         # LUT
         freshLUT3D = LUT3D.LUT3DFromFactory(size=LUTSize)
-        #self.LUTSize, self.LUTStep, self.graphicsScene.LUTContrast, self.graphicsScene.LUT3DArray = freshLUT3D.size, freshLUT3D.step, freshLUT3D.contrast, freshLUT3D.LUT3DArray
         self.graphicsScene.LUTSize, self.graphicsScene.LUTStep, self.graphicsScene.LUTContrast, self.graphicsScene.LUT3DArray = freshLUT3D.size, freshLUT3D.step, freshLUT3D.contrast, freshLUT3D.LUT3DArray
         # color wheel
         QImg = hueSatModel.colorWheel(axeSize, axeSize, cModel, perceptualBrightness=self.defaultColorWheelBr, border=border)

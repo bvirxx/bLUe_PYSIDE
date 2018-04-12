@@ -723,11 +723,12 @@ def openFile(f):
             updateStatus()
             window.label.img.onImageChanged() # TODO mandatory because applyToStack may do nothing
             # update list of recent files
-            filter(lambda a: a != f, window._recentFiles)
-            window._recentFiles.insert(0, f)
-            if len(window._recentFiles) > 10:
-                window._recentFiles.pop()  # remove last item
-            window.settings.setValue('paths/recent', window._recentFiles)
+            recentFiles = window.settings.value('paths/recent', [])
+            recentFiles = list(filter(lambda a: a != f, recentFiles))
+            recentFiles.insert(0, f)
+            if len(recentFiles) > 10:
+                recentFiles.pop()
+            window.settings.setValue('paths/recent', recentFiles)
     except (ValueError, IOError, rawpy.LibRawFatalError) as e:
         QApplication.restoreOverrideCursor()
         QApplication.processEvents()
@@ -838,8 +839,14 @@ def setDocumentImage(img):
     window.label.img.setModified(True)
 
 def updateMenuOpenRecent():
+    """
+    Update the list of recent files displayed
+    in the QMenu menuOpen_recent, and init
+    the corresponding actions
+    """
     window.menuOpen_recent.clear()
-    for filename in window._recentFiles :
+    recentFiles = window.settings.value('paths/recent', [])
+    for filename in recentFiles :
         window.menuOpen_recent.addAction(filename, lambda x=filename: openFile(x))
 
 def updateEnabledActions():
@@ -858,9 +865,6 @@ def menuFile(name):
     @param name: action name
     @type name: str
     """
-    window._recentFiles = window.settings.value('paths/recent', [])
-    # update menu and actions
-    #updateMenuOpenRecent()
     # load image from file
     if name in ['actionOpen', 'actionHald_from_file'] :
         filename = openDlg(window)
@@ -1341,26 +1345,17 @@ def menuLayer(name):
     elif name in ['action3D_LUT', 'action3D_LUT_HSB']:
         # color model
         ccm = cmHSP if name == 'action3D_LUT' else cmHSB
-        layerName = '3D LUT HSpB' if name == 'action3D_LUT' else '3D LUT HSB'
-        # add new layer on top of active layer
+        layerName = '3D LUT HSpB' if name == 'action3D_LUT' else '3D LUT HSV'
         l = window.label.img.addAdjustmentLayer(name=layerName, role='3DLUT')
-        #window.tableView.setLayers(window.label.img)
         grWindow = graphicsForm3DLUT.getNewWindow(ccm, axeSize=300, targetImage=window.label.img, LUTSize=LUTSIZE, layer=l, parent=window, mainForm=window)
         # LUT change event handler
         def g(options={}):
-            """
-            Apply current 3D LUT and repaint window
-            @param options: dictionary of options
-            """
-            #l.options = options
+            #Apply current 3D LUT and repaint window
+            #param options: dictionary of options
             l.applyToStack()
             window.label.img.onImageChanged()
-            #updateDocView()
-            #l.apply3DLUT(grWindow.graphicsScene.LUT3D, options=options)
-            #window.label.repaint()
         grWindow.graphicsScene.onUpdateLUT = g
         # wrapper for the right apply method
-        #l.execute = lambda : l.apply3DLUT(grWindow.graphicsScene.LUT3DArray, options=l.options)
         l.execute = lambda l=l, pool=None: l.apply3DLUT(grWindow.graphicsScene.LUT3DArray, options=grWindow.graphicsScene.options, pool=pool)
     # cloning
     elif name == 'actionNew_Cloning_Layer':
@@ -1791,7 +1786,7 @@ if __name__ =='__main__':
 
     # load current settings
     window.readSettings()
-    window._recentFiles = window.settings.value('paths/recent', [])
+    # window._recentFiles = window.settings.value('paths/recent', []) # TODO validate removing 10/04/18
 
     set_event_handlers(window.label)
     set_event_handlers(window.label_2, enterAndLeave=False)
