@@ -15,6 +15,8 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+import gc
+from time import time
 
 import numpy as np
 from MarkedImg import imImage
@@ -51,44 +53,26 @@ class hueSatModel (imImage):
     @classmethod
     def colorWheel(cls, w, h, cModel, perceptualBrightness=pb, border=0.0):
         """
-        Build a hue, sat color chart imImage. All image pixels have the same
-        (perceptual) brightness (default 0.45).
+        Build a (hue, sat) color chart. All image pixels have the same
+        (perceptual) brightness.
         @param w: image width
         @param h: image height
         @param cModel: color model (cmConverter object)
         @param perceptualBrightness: brightness of image pixels
         @return: imImage
         """
-        w+= 2*border
-        h+= 2*border
+        w += 2*border
+        h += 2*border
         # uninitialized ARGB image
         img = hueSatModel(w, h, cModel, perceptualBrightness=perceptualBrightness)
         img.border = border
-        # image buffer (BGRA order) dtype=uint8
         imgBuf = QImageBuffer(img)
-
         # set alpha channel
         imgBuf[:,:,3] = 255
-        # RGB buffer
+        # get RGB buffer
         imgBuf=imgBuf[:,:,:3][:,:,::-1]
 
-        clipping = np.zeros(imgBuf.shape, dtype=int)
-
-        """
-        for i in range(w):
-            for j in range(h):
-                i1 = i - cx
-                j1 = -j + cy
-                hue = np.arctan2(j1, i1) * radian2degree + cls.rotation
-                hue = hue - floor(hue / 360.0) * 360.0
-                #assert hue >= 0 and hue <= 360
-                sat = np.sqrt(i1 * i1 + j1 * j1) / cx
-                sat = min(1.0, sat)
-                # r,g,b values
-                #c = hsp2rgb(hue, sat, perceptualBrightness, trunc=False)
-                img.hsArray[j,i,:]=(hue,sat, perceptualBrightness)
-        """
-        #coord = np.array([[[i, -j] for i in range(w)] for j in range(h)])
+        # init array of grid (cartesian) coordinates
         coord = np.dstack(np.meshgrid(np.arange(w), - np.arange(h)))
 
         # center  : i1 = i - cx, j1 = -j + cy
@@ -96,19 +80,30 @@ class hueSatModel (imImage):
         cy = h / 2
         coord = coord + np.array([-cx, cy])
 
-        # set hue, sat from polar coordinates
+        # set hue and sat as polar coordinates.
         # arctan2 values are in range -pi, pi
         hue = np.arctan2(coord[:,:,1], coord[:,:,0]) * (180.0 / np.pi) + cls.rotation
-        # range 0..360
+        # hue range 0..360, sat range 0..1
         hue = hue - np.floor(hue / 360.0) * 360.0
         sat = np.linalg.norm(coord, axis=2 ,ord=2) / (cx - border)
         sat = np.minimum(sat, 1.0)
+        # stack of image buffers, one for each brightness
+        hsBuf = np.dstack((hue, sat))[np.newaxis,:]                  #1,340,340, 2
+        hsBuf = np.tile(hsBuf, (101,1,1,1))                          #101,340,340,2
+        pArray = np.arange(101, dtype=np.float)/100.0
+        pBuf = np.tile(pArray[:,np.newaxis, np.newaxis], (1,h, w)) # 101,340,340
+        hspBuf = np.stack((hsBuf[:,:,:,0], hsBuf[:,:,:,1], pBuf), axis=-1)
+        img.rgbBuf = cModel.cm2rgbVec(hspBuf)                        #101, 340, 340, 3
+        p = int(perceptualBrightness * 100.0)
+        img.hsArray = hspBuf[p,...]
+        imgBuf[:,:,:] = img.rgbBuf[p,...]
+        hsBuf, pArray, pBuf, hspBuf = (None,)*4
+        gc.collect()
 
-        # fixed perceptual brightness
-        pb = np.zeros(hue.shape) + perceptualBrightness
+        # image buffer, HSpB color space, constant perceptual brightness
+        #pb = np.zeros(hue.shape) + perceptualBrightness
+        #img.hsArray = np.dstack((hue, sat, pb))
 
-        # image buffer using HSP color model
-        img.hsArray = np.dstack((hue, sat, pb))
 
         """
         if sat <= 1.0 :
@@ -124,7 +119,7 @@ class hueSatModel (imImage):
             imgBuf[j, i] = 0 #np.clip(c, 0, 255)
         """
         #imgBuf[:,:,:] = ccm2rgbVec(img.hsArray)
-        imgBuf[:, :, :] = cModel.cm2rgbVec(img.hsArray)
+        #imgBuf[:, :, :] = cModel.cm2rgbVec(img.hsArray)
 
         #As node colors are read from img,
         # image should not be mangled

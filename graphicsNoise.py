@@ -45,14 +45,13 @@ class noiseForm (QGraphicsView):
         optionList= ['Wavelets', 'Bilateral', 'NLMeans']
         self.listWidget1 = optionsWidget(options=optionList, exclusive=True, changed=lambda: self.dataChanged.emit(True))
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
-        self.options = self.listWidget1.options
-
+        self.options = self.listWidget1.option
 
         # threshold slider
         self.sliderThr = QbLUeSlider(Qt.Horizontal)
         self.sliderThr.setStyleSheet(QbLUeSlider.bLueSliderDefaultBWStylesheet)
         self.sliderThr.setTickPosition(QSlider.TicksBelow)
-        self.sliderThr.setRange(0,100)
+        self.sliderThr.setRange(0,10)
         self.sliderThr.setSingleStep(1)
 
         self.sliderThr.valueChanged.connect(self.thrUpdate)

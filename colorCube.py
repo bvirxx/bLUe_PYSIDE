@@ -378,9 +378,15 @@ def hsv2rgbVec(hsvImg):
     @param hsvImg: hsv image array range 0..360, 0..1, 0..1
     @return: rgb image array
     """
-    buf = hsvImg * [1.0/2.0, 255.0, 255.0]  # scale to 0..360/2, 0..255, 0..255 (opencv convention)
-    buf = cv2.cvtColor(buf.astype(np.uint8), cv2.COLOR_HSV2RGB )
-    return buf
+    flatten = (hsvImg.ndim > 3)
+    if flatten :
+        s = hsvImg.shape
+        hsvImg = hsvImg.reshape(np.prod(s[:-1]), 1, s[-1])
+    hsvImg = hsvImg * [1.0 / 2.0, 255.0, 255.0]  # scale to 0..360/2, 0..255, 0..255 (opencv convention)
+    rgbImg = cv2.cvtColor(hsvImg.astype(np.uint8), cv2.COLOR_HSV2RGB )
+    if flatten:
+        rgbImg = rgbImg.reshape(s)
+    return rgbImg
 
 def hsp2rgb(h, s, p):
     return hsp2rgb_ClippingInd(h,s,p)[:3]
@@ -478,7 +484,7 @@ def hsp2rgbVec(hspImg):
     if hspImg.shape[0] * hspImg.shape[1] < 1000:
         return hsp2rgbVecSmall(hspImg)
     """
-    h, s, p = hspImg[:, :, 0], hspImg[:, :, 1], hspImg[:, :, 2]
+    h, s, p = hspImg[..., 0], hspImg[..., 1], hspImg[..., 2]
 
     shape = h.shape
 
@@ -561,12 +567,13 @@ def hsp2rgbVec(hspImg):
     rgbMax = clistMax[orderMax[i], tmp][:,0]
     rgbMax = np.sqrt(rgbMax)
     rgbMax=rgbMax.clip(0,1)
-    hsv = np.dstack((h*60,s,rgbMax)).reshape(shape + (3,)) * [0.5, 255, 255]
-
+    #hsv = np.dstack((h*60,s,rgbMax)).reshape(shape + (3,)) * [0.5, 255, 255]
+    hsv = np.dstack((h * 60, s, rgbMax)) * [0.5, 255, 255]
     rgb1=cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
 
     return rgb1.reshape(shape + (3,))
 
+    """
     # advanced array indexing
     rgb = clist[order[i], tmp]  # order[i] has shape (w*h, 3), tmp is broadcast to the same shape, thus rgb has (shape w*h, 3)
 
@@ -583,17 +590,17 @@ def hsp2rgbVec(hspImg):
     rgb = (rgb * 255.0).astype(int)
 
     return rgb.reshape(shape + (3,))
+    """
 
-"""
 def hsp2rgbVecSmall(hspImg):
-    
+    """
     Vectorized version of hsp2rgb. Optimized for small images.
     Very bad performances for big images : time = 11,11 s  and memory > 6 Go
     for a 15 Mpx image
     @param hspImg: (n,m,3) array of hsp values
     @return: identical shape array of rgb values
-    
-    h, s, p = hspImg[:, :, 0], hspImg[:, :, 1], hspImg[:, :, 2]
+    """
+    h, s, p = hspImg[..., 0], hspImg[..., 1], hspImg[..., 2]
 
     shape = h.shape
     # we compute the array rgbMax of brightness=max(r,g,b) values, and
@@ -662,7 +669,7 @@ def hsp2rgbVecSmall(hspImg):
 
     rgb1=cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
     return rgb1.reshape(shape + (3,))
-"""
+
 
 def interpMulti(LUT, ndImg, pool=None):
     """

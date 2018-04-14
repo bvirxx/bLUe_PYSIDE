@@ -39,10 +39,9 @@ spread = 1
 
 class index(object):
     """
-    An index object represents a 4-uple (p,i,j, k).
+    An index object represents a 4-uple (p, i, j, k).
     p is a perceived brightness
-    and i, j, k are indices in the LUT3D
-    table.
+    and i, j, k are indices in the LUT3D table.
     A set of index objects contains unique (i, j, k) 3-uples
     """
     def __init__(self, p, i, j ,k):
@@ -287,34 +286,34 @@ class activeNode(QGraphicsPathItem):
         self.setFlag(QGraphicsItem.ItemIgnoresTransformations, True)
         self.setVisible(False)
         # read color from color wheel.
-        # Node parent is the grid and grandfather is the color wheel
+        # Node parent is the grid, and grandfather is the color wheel
         # grid is at pos (0,0) on the color wheel (colorPicker object)
         # Color wheel has a non null offset for border.
         p = position - parent.parentItem().offset()
         scene = parent.scene()
         c = QColor(scene.colorWheel.QImg.pixel(p.toPoint()))
         self.r, self.g, self.b, _ = c.getRgb()
-        self.hue, self.sat, self.pB = self.cModel.rgb2cm(self.r, self.g, self.b)#, perceptual=True)
+        self.hue, self.sat, self.pB = self.cModel.rgb2cm(self.r, self.g, self.b)
         # modified colors
         self.rM, self.gM, self.bM = self.r, self.g, self.b
 
-
-        # list of LUT vertices bound to node
-        # vectorization of self.LUTIndices = [(r / LUTSTEP, g / LUTSTEP, b / LUTSTEP) for (r, g, b) in [hsp2rgb(self.hue, self.sat, p / 100.0) for p in range(101)]]
-        # to match hsp2rgbVec parameter type, an axis is added before computation and removed after
-        tmp = self.cModel.cm2rgbVec(np.array([(self.hue, self.sat, p / 100.0) for p in range(101)]) [:, None])
-        #self.LUTIndices = tmp[:, 0] / LUTSTEP
+        # build the list of LUT vertices bound to the node:  # TODO modified 13/04/18, validate
+        # we convert the list of HSpB coord. (self.hue, self.sat, p) to RGB values
+        # and find the nearest neighbors vertices in the 3D LUT
+        tmp = np.zeros((101,1,3), dtype=np.float)
+        tmp[:,0,:2] = self.hue, self.sat
+        tmp[:,0,2] = np.arange(101, dtype=np.float) / 100.0
+        tmp = scene.colorWheel.QImg.rgbBuf[:,p.toPoint().y(), p.toPoint().x()].astype(np.float)[:,None] #self.cModel.cm2rgbVec(tmp)
+        #tmp = self.cModel.cm2rgbVec(np.array([(self.hue, self.sat, p / 100.0) for p in range(101)]) [:, None])
         self.LUTIndices = np.round(tmp[:,0]/float(LUTSTEP)).astype(int)
         clipped = [ (i,j,k) for i,j,k in self.LUTIndices if  i < LUTSIZE - 2 and j < LUTSIZE - 2 and k < LUTSIZE - 2]
         clipped.extend( [tuple(self.LUTIndices[len(clipped)])] if len(clipped) < len(self.LUTIndices) else [] )
-        #self.LUTIndices = set(clipped)
-        #self.LUTIndices = clipped
+        # remove duplicate vertices
         self.LUTIndices = set([index(p/100.0, i, j, k) for p, (i, j, k) in enumerate(clipped)])
         for x in self.LUTIndices:
             #LUT3D_SHADOW[i,j,k][3]=1
             (i, j, k) = x.ind
             LUT3D_SHADOW[max(i-spread,0):i+spread+1,max(j-spread,0):j+spread+1, max(k-spread,0):k+spread+1,3] = 1
-        #np.where(LUT3D_SHADOW[:,:,:,3]==0)
 
         # mark central node
         c = grid.size//2 # PYTHON 3 integer quotient
@@ -349,7 +348,7 @@ class activeNode(QGraphicsPathItem):
         # A neihborhood of the vertex is built and the corresponding values
         # in the LUT are shifted by the same vector, defined by the position of the
         # node on the color wheel. The transformation keeps hue and saturation.
-        # The new (perceptive) brightness is computed from the original brightness of the vertex,
+        # The new (perceptual) brightness is computed from the original brightness of the vertex,
         # using the contrast function.
         contrast = self.scene().LUTContrast
         for x in self.LUTIndices:
@@ -357,7 +356,7 @@ class activeNode(QGraphicsPathItem):
             p=x.p
             nbghd = LUT3D_ORI[max(k-spread,0):k+spread+1, max(j-spread,0):j+spread+1, max(i-spread,0):i+spread+1, ::-1]
             trgNbghd = self.scene().LUT3DArray[max(k-spread,0):k+spread+1, max(j-spread,0):j+spread+1, max(i-spread,0):i+spread+1, ::-1]
-            trgNbghd[...] = np.clip(nbghd + (np.array(self.cModel.cm2rgb(hue, sat, contrast(p))) - LUT3D_ORI[k, j , i, ::-1]), 0, 255)
+            trgNbghd[...] = np.clip(nbghd + (np.array(self.cModel.cm2rgb(hue, sat, contrast(p))) - LUT3D_ORI[k, j, i, ::-1]), 0, 255)
             #self.scene().LUT3D[max(k-spread,0):k+spread+1, max(j-spread,0):j+spread+1, max(i-spread,0):i+spread+1, ::-1] = np.clip(LUT3D_ORI[max(k-spread,0):k+spread+1, max(j-spread,0):j+spread+1, max(i-spread,0):i+spread+1, ::-1] + (np.array(hsp2rgb(hue, sat, contrast(p))) - LUT3D_ORI[k, j , i,::-1]),0,255)
 
     def gridPos(self):
