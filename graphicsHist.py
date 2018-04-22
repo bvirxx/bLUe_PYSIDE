@@ -17,12 +17,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 from PySide2.QtCore import Qt, QSize
-from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout
+from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QWidget
 from utils import optionsWidget
 
-class histForm (QGraphicsView):
+class histForm (QWidget):
     """
-    histogram form
+    Form for displaying histograms
     """
     def __init__(self, targetImage=None, size=200, layer=None, parent=None, mainForm=None):
         super(histForm, self).__init__(parent=parent)
@@ -35,10 +35,9 @@ class histForm (QGraphicsView):
         self.Label_Hist = QLabel()
         self.Label_Hist.setScaledContents(True)
         self.Label_Hist.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-
         self.setStyleSheet("QListWidget{background-color: rgb(200,200,200); selection-background-color: rgb(200,200,200); border: 0px; font-size: 9px}")
 
-        # options. We want items displayed horizontally, so we make 2 lists
+        # options. We want the items displayed horizontally, so we make 2 lists
         options1 = ['Original Image']
         self.listWidget1 = optionsWidget(options=options1, exclusive=False)
         self.listWidget1.item(0).setSizeHint(QSize(100,10))
@@ -65,16 +64,15 @@ class histForm (QGraphicsView):
         self.listWidget1.onSelect = onSelect1
         self.listWidget2.onSelect = onSelect2
 
-        # set layout
+        # layout
         h = QHBoxLayout()
         h.addWidget(self.listWidget1)
         h.addWidget(self.listWidget2)
         l = QVBoxLayout()
-        l.setAlignment(Qt.AlignBottom)
-        l.setSpacing(0)
+        l.setAlignment(Qt.AlignTop)
         l.addWidget(self.Label_Hist)
         l.addLayout(h)
-        l.setContentsMargins(0, 0, 0, 6)  # left, top, right, bottom
+        l.setContentsMargins(0, 0, 0, 2)  # left, top, right, bottom
         self.setLayout(l)
 
 

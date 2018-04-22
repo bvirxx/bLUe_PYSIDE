@@ -33,7 +33,7 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
     Main window class.
     The layout is loaded from the ui form bLUe.ui.
     """
-    screenChanged = QtCore.Signal()
+    screenChanged = QtCore.Signal(int)
     def __init__(self, app, parent=None):
         super(Form1, self).__init__()
         # load UI
@@ -126,16 +126,17 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
         settings.endGroup()
         """
     def moveEvent(self, event):
+        super(Form1,self).moveEvent(event)
+        # detect screen changes
         # CAUTION : dragging the window to another screen
-        # does not change screenNumber(self). Only
+        # does not change screenNumber. Only
         # a call to move() updates screenNumber value.
         c = self.frameGeometry().center()
         id =self.desktop.screenNumber(c)
         if id != self.currentScreenIndex:
             # screen changed
             self.currentScreenIndex = id
-            print('moved')
-            self.screenChanged.emit()
+            self.screenChanged.emit(id)
 
     def closeEvent(self, event):
         if self.onCloseEvent(event):

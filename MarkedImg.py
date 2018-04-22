@@ -18,9 +18,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import gc
 
 import itertools
-from PySide2 import QtCore
 
-from PySide2.QtCore import Qt, QBuffer, QDataStream, QFile, QIODevice, QSize, QPointF, QPoint, QRectF, QByteArray
+from PySide2.QtCore import Qt, QDataStream, QFile, QIODevice, QSize, QPointF, QPoint, QRectF
 
 import cv2
 from copy import copy
@@ -30,14 +29,12 @@ from PySide2.QtWidgets import QApplication, QMessageBox, QSplitter
 from PySide2.QtGui import QPixmap, QImage, QColor, QPainter
 from PySide2.QtCore import QRect
 
-from colorConv import sRGB2LabVec, sRGBWP, Lab2sRGBVec, sRGB_lin2XYZ, sRGB_lin2XYZInverse, rgb2rgbLinearVec, \
-    rgbLinear2rgb, \
+from colorConv import sRGB2LabVec, sRGBWP, Lab2sRGBVec, rgb2rgbLinearVec, \
     rgbLinear2rgbVec, XYZ2sRGBVec, sRGB2XYZVec
 
 from graphicsFilter import filterIndex
-from histogram import warpHistogram
-from icc import convertQImage
-import icc
+from histogram import warpHistogram, valleys, dstb
+from colorManagement import icc, convertQImage
 from imgconvert import *
 from colorCube import interpMulti, rgb2hspVec, hsp2rgbVec, LUT3DIdentity, LUT3D, interpVec_
 from time import time
@@ -803,8 +800,8 @@ class vImage(QImage):
                                             use_auto_wb=options['Auto WB'],
                                             use_camera_wb=False,#options['Camera WB'],
                                             user_wb = mult,#adjustForm.rawMultipliers,
-                                            #gamma= (2.222, 4.5)  # default REC BT 709 exponent, slope
-                                            gamma=(2.4, 12.92), # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
+                                            gamma= (2.222, 4.5),  # default REC BT 709 exponent, slope #TODO modified 15/04/18
+                                            #gamma=(2.4, 12.92), # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
                                             exp_preserve_highlights = 1.0 if options['Preserve Highlights'] else 0.0,
                                             output_bps=16,
                                             bright = adjustForm.brCorrection  # default 1
@@ -823,8 +820,8 @@ class vImage(QImage):
                     use_auto_wb=options['Auto WB'],
                     use_camera_wb=options['Camera WB'],
                     user_wb=adjustForm.rawMultipliers,
-                    #gamma= (2.222, 4.5),  # default REC BT 709 exponent, slope
-                    gamma=(2.4, 12.92), # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
+                    gamma= (2.222, 4.5),  # default REC BT 709 exponent, slope #TODO modified 15/04/18
+                    #gamma=(2.4, 12.92), # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
                     exp_preserve_highlights=1.0 if options['Preserve Highlights'] else 0.0,
                     output_bps=16,
                     bright = adjustForm.brCorrection,  # > 0, default 1

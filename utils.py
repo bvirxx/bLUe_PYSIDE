@@ -169,7 +169,7 @@ class channelValues():
 def demosaic(raw_image_visible, raw_colors_visible, black_level_per_channel):
     """
     demosaic a sensor bitmap. The input array raw_image_visble has the same dimensions as the image,
-    BUT NO CHANNEL. The array raw_colors_visible (identical shape) gives the color channel (0=R, 1+G, 2=B)
+    BUT NO channel. The array raw_colors_visible (identical shape) gives the color channel (0=R, 1=G, 2=B)
     corresponding to each point.
     @param raw_image_visible:
     @type raw_image_visible: nd_array, dtype uint16, shape(img_h, img_w)
@@ -369,7 +369,7 @@ class optionsWidget(QListWidget) :
         else:
             self.extNames = optionNames
         self.intNames = options
-        # dict of items with keys option internal name
+        # dict of items with option internal name as keys
         self.items = {}
         # dict of item states with option internal name as key
         self.options = {}
@@ -379,8 +379,7 @@ class optionsWidget(QListWidget) :
             self.addItem(listItem)
             self.items[option] = listItem
             self.options[option] = (listItem.checkState() == Qt.Checked)
-        #self.setSizeAdjustPolicy(QListWidget.AdjustToContents)
-        self.setMinimumWidth(self.sizeHintForColumn(0))
+        #self.setMinimumWidth(self.sizeHintForColumn(0)) # TODO 18/04/18 validate cancellation to improve graphicsLUT3D
         self.setMinimumHeight(self.sizeHintForRow(0)*len(options))
         self.exclusive = exclusive
         self.itemClicked.connect(self.select)

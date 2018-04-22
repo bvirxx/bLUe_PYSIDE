@@ -39,9 +39,10 @@ spread = 1
 
 class index(object):
     """
-    An index object represents a 4-uple (p, i, j, k).
-    p is a perceived brightness
-    and i, j, k are indices in the LUT3D table.
+    the class index is designed to handle sets of
+    4-dim coordinates.
+    An index object represents a 4-uple (p, i, j, k),
+    i, j, k are indices in a 3D LUT and p is the corresponding brightness.
     A set of index objects contains unique (i, j, k) 3-uples
     """
     def __init__(self, p, i, j ,k):
@@ -837,14 +838,10 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.graphicsScene.grid = self.grid
 
         # buttons
-        hlButtons = QHBoxLayout()
         pushButton1 = QPushButton("Reset Grid")
         pushButton1.clicked.connect(self.onReset)
-        hlButtons.addWidget(pushButton1)
         pushButton2 = QPushButton("Save LUT")
         pushButton2.clicked.connect(self.onReset)
-        hlButtons.addWidget(pushButton2)
-        hlButtons.addStretch(1)
         def saveLUT():
             lastDir = mainForm.settings.value('paths/dlgdir', '.')
             dlg = QFileDialog(mainForm, "Save Color LUT", lastDir)
@@ -859,16 +856,13 @@ class graphicsForm3DLUT(QGraphicsView) :
         pushButton2.clicked.connect(saveLUT)
 
         # options
-        hl =QHBoxLayout()
         self.graphicsScene.options = {'use selection': True, 'add node':True, 'select neighbors':True,
                                       'reset removed nodes':True, 'use perceptive brightness': True}
         options1 = ['use image', 'use selection']
         self.listWidget1 = optionsWidget(options=options1, exclusive=True)
-        #self.listWidget1.items['use image'].setCheckState(Qt.Checked)
         def onSelect1(item):
             self.graphicsScene.options['use selection'] = item is self.listWidget1.items['use selection']
         self.listWidget1.onSelect = onSelect1
-        hl.addWidget(self.listWidget1)
 
         self.listWidget1.setFocusPolicy(Qt.NoFocus)
         # set initial selection to 'use image'
@@ -878,18 +872,16 @@ class graphicsForm3DLUT(QGraphicsView) :
 
         options2 = ['add node', 'remove node']
         self.listWidget2 = optionsWidget(options=options2, exclusive=True)
-        #self.listWidget2.select(self.listWidget2.items['add node'])
         def onSelect2(item):
             self.graphicsScene.options['add node'] = item is self.listWidget2.items['add node']
         self.listWidget2.onSelect = onSelect2
-        hl.addWidget(self.listWidget2)
         # set initial selection to add node'
         item = self.listWidget2.items[options2[0]]
         item.setCheckState(Qt.Checked)
         self.listWidget2.select(item)
 
-        options3 = ['select neighbors', 'reset removed nodes', 'show histogram']
-        self.listWidget3 = optionsWidget(options=options3, exclusive=False)
+        options3, optionNames3 = ['select neighbors', 'reset removed nodes', 'show histogram'], ['select neighbors', 'reset removed', 'show histogram']
+        self.listWidget3 = optionsWidget(options=options3, optionNames= optionNames3, exclusive=False)
         self.listWidget3.items['select neighbors'].setCheckState(Qt.Checked)
         self.listWidget3.items['reset removed nodes'].setCheckState(Qt.Checked)
         def onSelect3(item):
@@ -899,30 +891,39 @@ class graphicsForm3DLUT(QGraphicsView) :
                 self.graphicsScene.colorWheel.showTargetHist = self.graphicsScene.options[option]
                 self.graphicsScene.colorWheel.updatePixmap()
         self.listWidget3.onSelect = onSelect3
-        hl.addWidget(self.listWidget3)
         # set initial selection to 'select naighbors'
         item = self.listWidget3.items[options3[0]]
         item.setCheckState(Qt.Checked)
         self.listWidget3.select(item)
-        container = QWidget()
-        container.setObjectName("container")
+
+        # layouts
+        hlButtons = QHBoxLayout()
+        hlButtons.addWidget(pushButton1)
+        hlButtons.addWidget(pushButton2)
+        #hlButtons.addStretch(1)
+        hl = QHBoxLayout()
+        #hl.setAlignment(Qt.AlignHCenter)
+        hl.addWidget(self.listWidget1)
+        hl.addWidget(self.listWidget2)
+        hl.addWidget(self.listWidget3)
         vl = QVBoxLayout()
         for l in [hlButtons ,hl]:
             vl.addLayout(l)
+        # QWidget container for adding buttons and options to graphicsScene
+        container = QWidget()
+        container.setObjectName("container")
         container.setLayout(vl)
-
         ss = "QWidget#container{background: black} QListWidget{background-color: black} QListWidget{selection-background-color: black; border: none;font-size: 7pt}\
                                  QListWidget::item{color: white;}\
                                  QListWidget::item::selected{background: black; border: none}"
-
         container.setStyleSheet(ss)
-        #container.setGeometry(-offset // 2, axeSize + offset - 20, axeSize + offset, 80)
-        container.setGeometry(-offset , axeSize + offset - 20, axeSize + offset, 80)
-        self.graphicsScene.addWidget(container)
-
         for wdg in [self.listWidget1, self.listWidget2, self.listWidget3]:
             wdg.setMinimumWidth(wdg.sizeHintForColumn(0))
             wdg.setMinimumHeight(wdg.sizeHintForRow(0)*len(wdg.items))
+        container.setGeometry(-offset//2, axeSize + offset - 20, axeSize + offset, 20)
+        self.graphicsScene.addWidget(container)
+        # set minimum width and height for option lists
+
         # We cannot change QPushButton font size alone. Instead,
         # we must define a new style from scratch.
         for btn in [pushButton1, pushButton2]:
@@ -931,15 +932,7 @@ class graphicsForm3DLUT(QGraphicsView) :
                                 background-color: silver/*qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #2198c0, stop: 1 #0d5ca6)*/; color: white; font-size: 7pt}\
                                 QPushButton:pressed, QPushButton:hover {background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #0d5ca6, stop: 1 #2198c0);}")
             btn.adjustSize()
-            btn.setMaximumSize(QSize(btn.width(), btn.height()))
-
-    """
-    def showEvent(self, e):
-        self.mainForm.tableView.setEnabled(False)
-
-    def hideEvent(self, e):
-        self.mainForm.tableView.setEnabled(True)
-    """
+            btn.setMaximumSize(QSize(btn.width()+4, btn.height()+4))
 
     def selectGridNode(self, r, g, b):
         """

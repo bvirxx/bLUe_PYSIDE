@@ -79,26 +79,23 @@ from os.path import basename
 from types import MethodType
 
 from cv2 import NORMAL_CLONE
-
-import cv2
 import rawpy
 
 
 from grabcut import segmentForm
-from PySide2.QtCore import Qt, QRect, QEvent, QDir, QUrl, QSize, QFileInfo, QRectF, QThread, QObject, Signal, QPoint, \
+from PySide2.QtCore import Qt, QRect, QEvent, QUrl, QSize, QFileInfo, QRectF, QThread, QObject, QPoint, \
     QMimeData, QByteArray
 from PySide2.QtGui import QPixmap, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, \
-    QPainterPath, QTransform, QIcon, QImageReader, QContextMenuEvent
+    QPainterPath, QTransform, QIcon, QContextMenuEvent, QGuiApplication
 from PySide2.QtWidgets import QApplication, QMenu, QAction, QFileDialog, QMessageBox, \
     QMainWindow, QLabel, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QWidget, \
-    QListWidget, QListWidgetItem, QAbstractItemView, QStyle, QToolTip
-from QtGui1 import app, window, Form1
+    QListWidget, QListWidgetItem, QAbstractItemView, QStyle, QToolTip, QHBoxLayout, QVBoxLayout
+from QtGui1 import app, window
 import exiftool
 from graphicsBlendFilter import blendFilterForm
 from graphicsNoise import noiseForm
 from graphicsRaw import rawForm
 from graphicsTransform import transForm
-from histogram import valleys, warpHistogram
 from imgconvert import *
 from MarkedImg import imImage, metadata, vImage
 
@@ -106,8 +103,7 @@ from graphicsRGBLUT import graphicsForm
 from graphicsLUT3D import graphicsForm3DLUT
 from colorCube import LUTSIZE, LUT3D, LUT3DIdentity
 from colorModels import cmHSP, cmHSB
-import icc
-from colorConv import sRGBWP
+from colorManagement import icc
 from graphicsCLAHE import CLAHEForm
 from graphicsExp import ExpForm
 from graphicsPatch import patchForm, maskForm
@@ -617,26 +613,28 @@ def loadImageFromFile(f, createsidecar=True):
     if ext in list(IMAGE_FILE_EXTENSIONS):
         img = imImage(filename=f, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile, name=name, rating=rating)
     elif ext in list(RAW_FILE_EXTENSIONS):
-        # imread keeps f open. Calling raw.close() deletes the raw object.
-        # We use a file buffer as a workaround.
-        #raw = rawpy.imread(f)
-        #raw.close()
+        # load raw image file
+        # rawpy.imread keeps f open. Calling raw.close() deletes the raw object.
+        # As a workaround we use a file buffer .
         raw = rawpy.RawPy()
         with open(f, "rb") as bufio:
             raw.open_buffer(bufio)
         raw.unpack()
-        # postprocess raw image with default parameters cf. vImage.applyRawPostProcessing
-        rawBuf = raw.postprocess(use_camera_wb=True, gamma=(2.4, 12.92)) # sRGB (exponent, slope) cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
-        rawBuf = rawBuf[:,:,::-1]
-        rawBuf = np.dstack((rawBuf, np.zeros(rawBuf.shape[:2], dtype=np.uint8)+255))
+        # postprocess raw image with default parameters (cf. vImage.applyRawPostProcessing)
+        rawBuf = raw.postprocess(use_camera_wb=True)
+        # build Qimage
+        rawBuf = np.dstack((rawBuf[:,:,::-1], np.zeros(rawBuf.shape[:2], dtype=np.uint8)+255))
         img = imImage(cv2Img=rawBuf, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile, name=name, rating=rating)
-        # reference to Rawpy instance
+        # keep references to file and RawPy instance
         img.rawImage = raw
         img.filename = f
-        #######################
-        # demosaic Bayer bitmap (we cannot access the demosaic buffer from rawpy instance)
-        ########################
-        # Bayer bitmap (16 bits)
+        #######################################
+        # Reconstruct the demosaic Bayer bitmap :
+        # it is needed to calculate the multipliers corresponding
+        # to a user white point and we cannot access the
+        # rawpy native demosaic buffer from RawPy instance
+        #######################################
+        # get 16 bits Bayer bitmap
         img.demosaic = demosaic(raw.raw_image_visible, raw.raw_colors_visible, raw.black_level_per_channel)
         # correct orientation
         if orientation == 6: # 90°
@@ -653,8 +651,12 @@ def loadImageFromFile(f, createsidecar=True):
     if img.format() in [QImage.Format_Invalid, QImage.Format_Mono, QImage.Format_MonoLSB, QImage.Format_Indexed8]:
         raise ValueError("Cannot edit indexed formats\nConvert image to a non indexed mode first")
     if colorSpace < 0:
-        msg = QMessageBox()
-        msg.setText("Color profile missing\nAssigning sRGB profile")
+        # setOverrideCursor does not work correctly for a MessageBox :
+        # may be a Qt Bug, cf. https://bugreports.qt.io/browse/QTBUG-42117
+        QApplication.changeOverrideCursor(QCursor(Qt.ArrowCursor))
+        QApplication.processEvents()
+        msg = QMessageBox(parent=window)
+        msg.setText("Color profile missing\nAssigning sRGB")
         msg.exec_()
         img.meta.colorSpace = 1
         img.updatePixmap()
@@ -669,10 +671,12 @@ def addBasicAdjustmentLayers(img):
     window.tableView.select(0, 1)
 
 def addRawAdjustmentLayer():
+    """
+    Add a development layer to the layer stack
+
+    """
     lname = 'Development'
     l = window.label.img.addAdjustmentLayer(name=lname, role='RAW')
-    # cache for post processed (no sat, no contrast, no filter,...) image
-    #l.postProcessCache = None # TODO 12/03/18 removed
     grWindow = rawForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window,
                                             mainForm=window)
     # wrapper for the right apply method
@@ -684,7 +688,6 @@ def addRawAdjustmentLayer():
     dock.setWidget(grWindow)
     dock.setWindowFlags(grWindow.windowFlags())
     dock.setWindowTitle(grWindow.windowTitle())
-    # dock.setAttribute(Qt.WA_DeleteOnClose)
     dock.move(900, 40)
     dock.setStyleSheet("QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
     l.view = dock
@@ -1270,6 +1273,7 @@ def menuImage(name) :
             QApplication.processEvents()
         window.label.repaint()
         window.label_2.repaint()
+        updateStatus()
     elif name == 'actionWorking_profile':
         w, label = handleTextWindow(parent=window, title='profile info')
         s = 'Working profile :\n'
@@ -1279,10 +1283,10 @@ def menuImage(name) :
         if hasattr(icc, 'monitorProfile'):
             s = s + icc.monitorProfile.info + '-------------\n'
         s = s + 'Note :\nThe working profile is the color profile currently associated with the opened image.'
-        s = s + 'The monitor profile is associated with your monitor.'
+        s = s + 'The monitor profile should correspond to your monitor.'
         s = s + '\nBoth profiles are used in conjunction to display exact colors. '
         s = s + 'If one of them is missing, bLUe cannot color manage your image.'
-        s = s + '\nIf the monitor profile listed above is not the right profilefor your monitor, please check the system settings for color management'
+        s = s + '\nIf the monitor profile listed above is not the right profile for your monitor, please check the system settings for color management'
         label.setWordWrap(True)
         label.setText(s)
     # snapshot
@@ -1644,7 +1648,10 @@ def handleTextWindow(parent=None, title='', center=True):
     label.setAlignment(Qt.AlignTop)
     w.hide()
     if center:
-        w.move(w.windowHandle().screen().geometry().center() - w.rect().center())
+        # center to the parent current screen
+        pw = w.parent()
+        pw = w if pw is None else pw
+        w.move(pw.windowHandle().screen().geometry().center() - w.rect().center())
     w.setWindowModality(Qt.WindowModal)
     w.show()
     return w, label
@@ -1669,36 +1676,42 @@ def close(e):
     return True
 
 def updateStatus():
+    """
+    Display current status
+
+    """
     img = window.label.img
     # filename and rating
-    s = '&nbsp;&nbsp;&nbsp;&nbsp;' + img.filename + ' ' + (' '.join(['*']*img.meta.rating))
+    s = '&nbsp;&nbsp;&nbsp;&nbsp;' + img.filename + '&nbsp;&nbsp;&nbsp;&nbsp;' + (' '.join(['*']*img.meta.rating))
+    # color management
+    s = s + '&nbsp;&nbsp;&nbsp;&nbsp;CM : ' + ('On' if icc.COLOR_MANAGE else 'Off')
+    # Preview
     if img.useThumb:
-        s = s + '      ' + '<font color=red><b>&nbsp;&nbsp;&nbsp;&nbsp;Preview</b></font> '
+        s = s + '<font color=red><b>&nbsp;&nbsp;&nbsp;&nbsp;Preview</b></font> '
     else:
         # mandatory to toggle html mode
-        s = s + '      ' + '<font color=black><b>&nbsp;&nbsp;&nbsp;&nbsp;</b></font> '
+        s = s + '<font color=black><b>&nbsp;&nbsp;&nbsp;&nbsp;</b></font> '
+    # Before/After
     if window.viewState == 'Before/After':
         s += '&nbsp;&nbsp;&nbsp;&nbsp;Before/After : Ctrl+Space : cycle through views - Space : switch back to workspace'
     else:
         s += '&nbsp;&nbsp;&nbsp;&nbsp;Press Space Bar to toggle Before/After view'
+    # cropping
     if window.label.img.isCropped:
         s = s + '&nbsp;&nbsp;&nbsp;&nbsp;Crop Tool : h/w ratio %.2f ' % window.cropTool.formFactor
     window.Label_status.setText(s)
 
-def screenUpdate():
+def screenUpdate(newScreenIndex):
     """
     screenChanged event handler. image is updated in background
     """
     window.screenChanged.disconnect()
-    qdw = window.desktop
-    #screenCount = qdw.screenCount()
-    defaultScreen = qdw.screen(-1)
-    # defaultScreenRect = qdw.screenGeometry(-1)
-    # window.move(sefaultScreenRect.width(), sefaultScreenRect.top())
-    actualScreen = qdw.screen(qdw.screenNumber(window))
+    icc.configure(qscreen=window.desktop.screen(newScreenIndex).windowHandle().screen())
     # don't color manage if screen is not the default screen
-    icc.COLOR_MANAGE = icc.HAS_COLOR_MANAGE and (actualScreen is defaultScreen)
-    window.actionColor_manage.setEnabled(icc.HAS_COLOR_MANAGE and (actualScreen is defaultScreen))
+    current_state = icc.HAS_COLOR_MANAGE and (actualScreen is defaultScreen)
+    icc.COLOR_MANAGE = current_state
+    window.actionColor_manage.setEnabled(current_state)
+    updateStatus()
     def bgTask():
         window.label.img.updatePixmap()
         window.label_2.img.updatePixmap()
@@ -1715,19 +1728,14 @@ if __name__ =='__main__':
     #############################################
     # Screen detection for multiscreen environment
     ##############################################
-
+    # get list of available screens (type QScreen)
+    window.li = QGuiApplication.screens()
     window.screenChanged.connect(screenUpdate)
+    # get QDesktopWidget
     qdw = window.desktop
-    screenCount = qdw.screenCount()
+    # get widget representations of screens
     defaultScreen = qdw.screen(-1)
-    #defaultScreenRect = qdw.screenGeometry(-1)
-    #window.move(sefaultScreenRect.width(), sefaultScreenRect.top())
     actualScreen = qdw.screen(qdw.screenNumber(window))
-    print(actualScreen is defaultScreen)
-    # don't color manage if screen is not the default screen
-    icc.HAS_COLOR_MANAGE = icc.HAS_COLOR_MANAGE and (actualScreen is defaultScreen)
-    icc.COLOR_MANAGE = icc.COLOR_MANAGE and (actualScreen is defaultScreen)
-    window.actionColor_manage.setEnabled(icc.HAS_COLOR_MANAGE)
 
     # splash screen
     pixmap = QPixmap('logo.png')
@@ -1740,6 +1748,9 @@ if __name__ =='__main__':
     splash.showMessage("Loading ...", color=Qt.white, alignment=Qt.AlignCenter)
     splash.finish(window)
     app.processEvents()
+
+    # title
+    window.setWindowTitle('bLUe')
 
     # style sheet
     app.setStyleSheet("QMainWindow, QGraphicsView, QListWidget, QMenu, QTableView {background-color: rgb(200, 200, 200)}\
@@ -1829,6 +1840,40 @@ if __name__ =='__main__':
 
     # init property widget for tableView
     window.propertyWidget.setLayout(window.tableView.propertyLayout)
+
+    # reinit the dockWidgetContents layout to
+    # nest it in a QHboxLayout containing a (left) stretch
+    tmpV = QVBoxLayout()
+    while window.dockWidgetContents.layout().count() != 0:
+        w = window.dockWidgetContents.layout().itemAt(0).widget()
+        tmpV.addWidget(w)
+        if w.objectName() == 'histView':
+            tmpV.addSpacing(20)
+    tmpH = QHBoxLayout()
+    tmpH.addStretch(100)
+    tmpH.addLayout(tmpV)
+    tmpH.setContentsMargins(0,0,10,0)
+    tmpV.setContentsMargins(0,0,10,0)
+    # to remove the current layout we reparent it to
+    # an unreferenced widget.
+    QWidget().setLayout(window.dockWidgetContents.layout())
+    # set the new layout
+    window.dockWidgetContents.setLayout(tmpH)
+
+    ################################
+    # color magement configuration
+    # must be done after showing window
+    ################################
+    c = window.frameGeometry().center()
+    id = window.desktop.screenNumber(c)
+    icc.configure(qscreen=window.desktop.screen(id).windowHandle().screen())
+    # don't color manage if current screen is not the default screen
+    icc.HAS_COLOR_MANAGE = icc.HAS_COLOR_MANAGE and (actualScreen is defaultScreen)
+    icc.COLOR_MANAGE = icc.COLOR_MANAGE and (actualScreen is defaultScreen)
+    window.actionColor_manage.setEnabled(icc.HAS_COLOR_MANAGE)
+
+    updateStatus()
+
     ###################
     # test numpy dll loading
     #################

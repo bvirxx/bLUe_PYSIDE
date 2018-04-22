@@ -82,8 +82,8 @@ class rawForm (QGraphicsView):
         # We use the product baseTint * tintCorrection as the current tint adjustment,
         # keeping tintCorrection near to 1.0
         self.baseTint = self.cameraTint
-        # options
-        optionList0, optionNames0 = ['Auto Brightness', 'Preserve Highlights'], ['Auto Enhance', 'Preserve Highlights']
+        # options : it turns out that the most accurate description for the 'Auto Brightness' option of rawpy.postprocess is 'Auto Expose'
+        optionList0, optionNames0 = ['Auto Brightness', 'Preserve Highlights'], ['Auto Expose', 'Preserve Highlights']
         self.listWidget1 = optionsWidget(options=optionList0, optionNames=optionNames0, exclusive=False, changed=lambda: self.dataChanged.emit(True))
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
         self.listWidget1.checkOption(self.listWidget1.intNames[1])
