@@ -92,6 +92,40 @@ class rawForm (QGraphicsView):
         self.listWidget2.checkOption(self.listWidget2.intNames[1])
         self.options = UDict(self.listWidget1.options, self.listWidget2.options)
 
+        # highlight correction slider
+        self.sliderHigh= QbLUeSlider(Qt.Horizontal)
+        self.sliderHigh.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
+        self.sliderHigh.setRange(0, 9)
+        self.sliderHigh.setSingleStep(1)
+
+        self.highLabel = QLabel()
+        self.highLabel.setText("High. ")
+
+        self.highValue = QLabel()
+        font = self.highValue.font()
+        metrics = QFontMetrics(font)
+        w = metrics.width("100")
+        h = metrics.height()
+        self.highValue.setMinimumSize(w, h)
+        self.highValue.setMaximumSize(w, h)
+        self.highValue.setText(str("{:.0f}".format(self.sliderHigh.value())))
+
+        # highlight update event handler
+        def highUpdate(value):
+            self.highValue.setText(str("{:+d}".format(int(self.sliderHigh.value()))))
+            # move not yet terminated or value not modified
+            if self.sliderHigh.isSliderDown() or self.sliderHigh.value() == self.highCorrection:
+                return
+            self.sliderHigh.valueChanged.disconnect()
+            self.sliderHigh.sliderReleased.disconnect()
+            self.highCorrection = self.sliderHigh.value()
+            self.dataChanged.emit(True)
+            self.sliderHigh.sliderReleased.connect(lambda: highUpdate(self.sliderHigh.value()))
+            self.sliderHigh.valueChanged.connect(highUpdate)  # send new value as parameter
+
+        self.sliderHigh.valueChanged.connect(highUpdate)  # send new value as parameter
+        self.sliderHigh.sliderReleased.connect(lambda: highUpdate(self.sliderHigh.value()))
+
         # temp slider
         self.sliderTemp = QbLUeSlider(Qt.Horizontal)
         self.sliderTemp.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
@@ -290,7 +324,6 @@ class rawForm (QGraphicsView):
         self.sliderSat.valueChanged.connect(satUpdate)  # send new value as parameter
         self.sliderSat.sliderReleased.connect(lambda: satUpdate(self.sliderSat.value()))  # signal has no parameter
 
-
         self.dataChanged.connect(self.updateLayer)
         self.setStyleSheet("QListWidget, QLabel {font : 7pt;}")
 
@@ -325,7 +358,6 @@ class rawForm (QGraphicsView):
         hl4.addWidget(self.contLabel)
         hl4.addWidget(self.contValue)
         hl4.addWidget(self.sliderCont)
-
         hl8 = QHBoxLayout()
         hl8.addWidget(brLabel)
         hl8.addWidget(self.brValue)
@@ -341,6 +373,11 @@ class rawForm (QGraphicsView):
         #l.addLayout(hl2)
         #l.addLayout(hl3)
         l.addLayout(hl1)
+        hl10 = QHBoxLayout()
+        hl10.addWidget(self.highLabel)
+        hl10.addWidget(self.highValue)
+        hl10.addWidget(self.sliderHigh)
+        l.addLayout(hl10)
         l.addLayout(hl8)
         # separator
         sep = QFrame()
@@ -495,12 +532,15 @@ class rawForm (QGraphicsView):
         self.sliderTemp.setEnabled(useUserWB)
         self.sliderTint.setEnabled(useUserWB)
         self.sliderExp.setEnabled(useUserExp)
+        self.sliderHigh.setEnabled(useUserExp)
         self.tempValue.setEnabled(self.sliderTemp.isEnabled())
         self.tintValue.setEnabled(self.sliderTint.isEnabled())
         self.expValue.setEnabled(self.sliderExp.isEnabled())
+        self.highValue.setEnabled(self.sliderHigh.isEnabled())
         self.tempLabel.setEnabled(self.sliderTemp.isEnabled())
         self.tintLabel.setEnabled(self.sliderTint.isEnabled())
         self.expLabel.setEnabled(self.sliderExp.isEnabled())
+        self.highLabel.setEnabled(self.sliderHigh.isEnabled())
 
     def setDefaults(self):
         self.listWidget1.unCheckAll()
@@ -512,6 +552,7 @@ class rawForm (QGraphicsView):
         self.tempCorrection = self.cameraTemp
         self.tintCorrection = 1.0
         self.expCorrection = 0.0
+        self.highCorrection = 0
         self.contCorrection = 5.0
         #self.noiseCorrection = 0
         self.satCorrection = 0.0
@@ -520,6 +561,7 @@ class rawForm (QGraphicsView):
         self.sliderTemp.setValue(round(self.temp2Slider(self.tempCorrection)))
         self.sliderTint.setValue(round(self.tint2Slider(self.tintCorrection)))
         self.sliderExp.setValue(self.exp2Slider(self.expCorrection))
+        self.sliderHigh.setValue(self.expCorrection)
         self.sliderCont.setValue(self.cont2Slider(self.contCorrection))
         self.sliderBrightness.setValue(self.br2Slider(self.brCorrection))
         #self.sliderNoise.setValue(self.noise2Slider(self.noiseCorrection))

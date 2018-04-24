@@ -15,36 +15,31 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-import numpy as np
 from PySide2 import QtCore
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
-from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout
-
-
-# Contrast Limited Adaptive Histogram Equalization.
+from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout, QGroupBox
 from utils import optionsWidget, QbLUeSlider, UDict
 
-
-class CLAHEForm (QGraphicsView):
+class CoBrSatForm (QGraphicsView):
 
     dataChanged = QtCore.Signal()
 
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
-        wdgt = CLAHEForm(axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
+        wdgt = CoBrSatForm(axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         wdgt.setWindowTitle(layer.name)
         return wdgt
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
-        super(CLAHEForm, self).__init__(parent=parent)
+        super(CoBrSatForm, self).__init__(parent=parent)
         self.setStyleSheet('QRangeSlider * {border: 0px; padding: 0px; margin: 0px}')
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        self.setMinimumSize(axeSize, axeSize)
+        self.setMinimumSize(axeSize, axeSize+100)
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.layer = layer
 
         # options
-        optionList1, optionNames1 = ['Multi-Mode', 'CLAHE'], ['Multi-Mode Contrast', 'CLAHE']
+        optionList1, optionNames1 = ['Multi-Mode', 'CLAHE'], ['Multi-Mode', 'CLAHE']
         self.listWidget1 = optionsWidget(options=optionList1, optionNames=optionNames1, exclusive=True, changed=lambda: self.dataChanged.emit())
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
         self.listWidget1.setStyleSheet("QListWidget {border: 0px;} QListWidget::item {border: 0px; padding-left: 0px;}")
@@ -161,8 +156,16 @@ class CLAHEForm (QGraphicsView):
         self.sliderBrightness.sliderReleased.connect(lambda: brightnessUpdate(self.sliderBrightness.value()))
 
         l = QVBoxLayout()
-        l.setAlignment(Qt.AlignBottom)
-        l.addWidget(self.listWidget1)
+        l.setAlignment(Qt.AlignTop)
+        gb1 = QGroupBox()
+        gb1.setStyleSheet("QGroupBox {border: 1px solid gray; border-radius: 4px}")
+        l1 = QVBoxLayout()
+        ct = QLabel()
+        ct.setText('Contrast')
+        l1.addWidget(ct)
+        l1.addWidget(self.listWidget1)
+        gb1.setLayout(l1)
+        l.addWidget(gb1)
         l.addWidget(self.listWidget2)
         l.addWidget(contrastLabel)
         hl = QHBoxLayout()

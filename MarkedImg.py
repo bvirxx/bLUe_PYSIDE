@@ -18,6 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import gc
 
 import itertools
+from os.path import isfile
 
 from PySide2.QtCore import Qt, QDataStream, QFile, QIODevice, QSize, QPointF, QPoint, QRectF
 
@@ -234,6 +235,8 @@ class vImage(QImage):
             # create a null image
             super(vImage, self).__init__()
         if filename is not None:
+            if not isfile(filename):
+                raise ValueError('Cannot find file %s' % filename)
             # load image from file (should be a 8 bits/channel color image)
             if self.meta.orientation is not None:
                 tmp = QImage(filename, format=format).transformed(self.meta.orientation)
@@ -802,9 +805,10 @@ class vImage(QImage):
                                             user_wb = mult,#adjustForm.rawMultipliers,
                                             gamma= (2.222, 4.5),  # default REC BT 709 exponent, slope #TODO modified 15/04/18
                                             #gamma=(2.4, 12.92), # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
-                                            exp_preserve_highlights = 1.0 if options['Preserve Highlights'] else 0.0,
+                                            exp_preserve_highlights = 0.8,#1.0 if options['Preserve Highlights'] else 0.0,
                                             output_bps=16,
-                                            bright = adjustForm.brCorrection  # default 1
+                                            bright=adjustForm.brCorrection,  # default 1
+                                            hightlightmode=adjustForm.highCorrection
                                             # no_auto_scale= (not options['Auto Scale']) don't use : green shift
                                             )
                     row = i // 3
@@ -822,11 +826,11 @@ class vImage(QImage):
                     user_wb=adjustForm.rawMultipliers,
                     gamma= (2.222, 4.5),  # default REC BT 709 exponent, slope #TODO modified 15/04/18
                     #gamma=(2.4, 12.92), # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
-                    exp_preserve_highlights=1.0 if options['Preserve Highlights'] else 0.0,
+                    exp_preserve_highlights=0.8, #1.0 if options['Preserve Highlights'] else 0.0,
                     output_bps=16,
-                    bright = adjustForm.brCorrection,  # > 0, default 1
-                    highlight_mode=0,
-                    no_auto_scale=False# (not options['Auto Scale']) don't use : green shift
+                    bright=adjustForm.brCorrection,  # > 0, default 1
+                    highlight_mode=adjustForm.highCorrection,
+                    #no_auto_scale=False# (not options['Auto Scale']) don't use : green shift
                     )
             bufHSV_CV32 = cv2.cvtColor(((bufpost16.astype(np.float32)) / 65536).astype(np.float32), cv2.COLOR_RGB2HSV)
             #bufHSV_CV32[:,:,2] = bufHSV_CV32[:,:,2].clip(0,0.995)
@@ -849,7 +853,7 @@ class vImage(QImage):
             # warp = 0 means that no additional warping is done, but
             # the histogram is always stretched.
             warp = max(0, (adjustForm.contCorrection -1)) / 10
-            bufHSV_CV32[:,:,2] = warpHistogram(bufHSV_CV32[:, :, 2], valleyAperture=0.05, warp=warp, preserveHigh=options['Preserve Highlights'])
+            bufHSV_CV32[:,:,2] = warpHistogram(bufHSV_CV32[:, :, 2], valleyAperture=0.05, warp=warp, preserveHigh=False)#options['Preserve Highlights'])
         if adjustForm.satCorrection != 0:
             alpha = (-adjustForm.satCorrection + 50.0) / 50
             # tabulate x**alpha
@@ -1180,21 +1184,23 @@ class vImage(QImage):
         spread = float(range[1] - range[0])
         scale = size.width() / spread
         # per channel histogram function
-        def drawChannelHistogram(painter, channel, buf, color):
+        #def drawChannelHistogram(painter, channel, buf, color):
+        def drawChannelHistogram(painter, hist, bin_edges, M, color):
             #Compute and draw the (smoothed) histogram for a single channel.
-            #param qp: QPainter
+            #param painter: QPainter
             #param channel: channel index (BGRA (intel) or ARGB )
-            buf0 = buf[:,:, channel]
+            #param buf: image data
+            #buf0 = buf[:,:, channel]
             # bins='auto' sometimes causes a huge number of bins ( >= 10**9) and memory error
             # even for small data size (<=250000), so we don't use it.
             # This is a numpy bug : in the module function_base.py
             # a reasonable upper bound for bins should be chosen to prevent memory error.
-            hist, bin_edges = np.histogram(buf0, bins=100, density=True)
+            #hist, bin_edges = np.histogram(buf0, bins=100, density=True)
             # smooth the histogram, first and last bins excepted for a better visualization of clipping.
             hist = np.concatenate(([hist[0]], SavitzkyGolay.filter(hist[1:-1]), [hist[-1]]))
             # draw hist
             imgH = size.height()
-            M = max(hist)
+            #M = max(hist)
             lg = len(hist)
             for i, y in enumerate(hist):
                 h = int(imgH * y / M)
@@ -1227,24 +1233,34 @@ class vImage(QImage):
         img = QImage(size.width(), size.height(), QImage.Format_ARGB32)
         img.fill(bgColor)
         qp = QPainter(img)
-        qp.setOpacity(1)
         if type(chanColors) is QColor or type(chanColors) is Qt.GlobalColor:
             chanColors = [chanColors]*3
         if mode=='Luminosity' or addMode=='Luminosity':
-            drawChannelHistogram(qp, 0, bufL, Qt.gray)
-        # CompositionMode_Plus add colors to visualize superimposed histograms
-        qp.setCompositionMode(QPainter.CompositionMode_Lighten)
-        for ch in chans:
+            hist, bin_edges = np.histogram(bufL, bins=100, density=True)
+            M = max(hist[1:-1])
+            drawChannelHistogram(qp, hist, bin_edges, M, Qt.gray)
+        #qp.setCompositionMode(QPainter.CompositionMode_Plus)
+        hist_L, bin_edges_L, M_L = [0]*len(chans), [0]*len(chans), [0]*len(chans)
+        for i,ch in enumerate(chans):
+            buf0 = buf[:, :, ch]
+            hist_L[i], bin_edges_L[i] = np.histogram(buf0, bins=100, density=True)
+            M_L[i] = max(hist_L[i][1:-1])
             # to prevent artifacts, the histogram bins must be drawn
-            # using the standard composition mode source_over. So, we use
+            # using the composition mode source_over. So, we use
             # a fresh QImage for each channel.
-            tmpimg = QImage(size.width(), size.height(), QImage.Format_ARGB32)
+            tmpimg = QImage(size, QImage.Format_ARGB32)
             tmpimg.fill(bgColor)
             tmpqp = QPainter(tmpimg)
-            drawChannelHistogram(tmpqp, ch, buf, chanColors[ch])
+            drawChannelHistogram(tmpqp, hist_L[i], bin_edges_L[i], M_L[i], chanColors[ch])
             tmpqp.end()
-            # draw the histogram on img
+            # add the channnel hist to img
             qp.drawImage(QPoint(0,0), tmpimg)
+            # subsequent images are added with composition mode Plus
+            qp.setCompositionMode(QPainter.CompositionMode_Plus)
+        buf = QImageBuffer(img)
+        # if len(chans) > 1, clip gray area to improve the aspect of the histogram
+        if len(chans) > 1 :
+            buf[:,:,:3] = np.where(np.min(buf, axis=-1)[:,:,np.newaxis]>=100, np.array((100,100,100))[np.newaxis, np.newaxis,:], buf[:,:,:3] )
         qp.end()
         return img
 

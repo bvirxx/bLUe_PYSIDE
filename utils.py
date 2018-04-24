@@ -897,7 +897,6 @@ def drawPlotGrid(axeSize):
         qppath.lineTo(axeSize, -a)
     item.setPath(qppath)
     return item
-    #self.graphicsScene.addItem(item)
 
 def boundingRect(img, pattern):
     """

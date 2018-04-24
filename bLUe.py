@@ -104,7 +104,7 @@ from graphicsLUT3D import graphicsForm3DLUT
 from colorCube import LUTSIZE, LUT3D, LUT3DIdentity
 from colorModels import cmHSP, cmHSB
 from colorManagement import icc
-from graphicsCLAHE import CLAHEForm
+from graphicsCoBrSat import CoBrSatForm
 from graphicsExp import ExpForm
 from graphicsPatch import patchForm, maskForm
 from utils import saveChangeDialog, save, openDlg, cropTool, rotatingTool, IMAGE_FILE_NAME_FILTER, \
@@ -724,7 +724,7 @@ def openFile(f):
             # updates
             img.layersStack[0].applyToStack()
             updateStatus()
-            window.label.img.onImageChanged() # TODO mandatory because applyToStack may do nothing
+            # window.label.img.onImageChanged() # TODO 23/04/18 validate removing mandatory because applyToStack may do nothing
             # update list of recent files
             recentFiles = window.settings.value('paths/recent', [])
             recentFiles = list(filter(lambda a: a != f, recentFiles))
@@ -807,7 +807,7 @@ def setDocumentImage(img):
             histImg = window.label.img.layersStack[-1].getCurrentMaskedImage() # vImage(QImg=window.label.img.layersStack[-1].getCurrentMaskedImage())#mergeVisibleLayers())
         if window.histView.listWidget2.items['Color Chans'].checkState() is Qt.Checked:
             window.histView.mode = 'RGB'
-            window.histView.chanColors = [QColor(180,20,20,225), QColor(20,180,20,225), QColor(100,100,180,225)]
+            window.histView.chanColors = [QColor(255,0,0), QColor(0,255,0), QColor(10,10,255)]
         else:
             window.histView.mode = 'Luminosity'
             window.histView.chanColors = [Qt.gray]
@@ -1074,7 +1074,7 @@ class loader(threading.Thread):
                     orientation = metadata[0].get("EXIF:Orientation", 0)
                     date = metadata[0].get("EXIF:DateTimeOriginal", 'toto')
                     transformation = exiftool.decodeExifOrientation(orientation)
-                    # As Qt cannot laod imbedded thumbnails, we load and scale the image.
+                    # As Qt cannot load imbedded thumbnails, we load and scale the image.
                     pxm = QPixmap.fromImage(QImage(filename).scaled(500,500, Qt.KeepAspectRatio))
                     if not transformation.isIdentity():
                         pxm = pxm.transformed(transformation)
@@ -1276,16 +1276,16 @@ def menuImage(name) :
         updateStatus()
     elif name == 'actionWorking_profile':
         w, label = handleTextWindow(parent=window, title='profile info')
-        s = 'Working profile :\n'
-        if hasattr(icc, 'workingProfile') :
+        s = 'Working Profile : '
+        if icc.workingProfile is not None:
             s = s + icc.workingProfile.info
-        s = s + '-------------\n' + 'Monitor profile :\n'
-        if hasattr(icc, 'monitorProfile'):
+        s = s + '-------------\n' + 'Monitor Profile : '
+        if icc.monitorProfile is not None:
             s = s + icc.monitorProfile.info + '-------------\n'
-        s = s + 'Note :\nThe working profile is the color profile currently associated with the opened image.'
+        s = s + 'Note :\nThe working profile is the color profile assigned to the image.'
         s = s + 'The monitor profile should correspond to your monitor.'
         s = s + '\nBoth profiles are used in conjunction to display exact colors. '
-        s = s + 'If one of them is missing, bLUe cannot color manage your image.'
+        s = s + 'If one of them is missing, bLUe cannot color manage the image.'
         s = s + '\nIf the monitor profile listed above is not the right profile for your monitor, please check the system settings for color management'
         label.setWordWrap(True)
         label.setText(s)
@@ -1403,9 +1403,9 @@ def menuLayer(name):
         # wrapper for the right apply method
         l.execute = lambda l=l, pool=None: l.applyTemperature()
     elif name == 'actionContrast_Correction':
-        lname = 'Enhancement'
+        lname = 'Cont. Sat. Br.'
         l = window.label.img.addAdjustmentLayer(name=lname)
-        grWindow = CLAHEForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
+        grWindow = CoBrSatForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         # clipLimit change event handler
         def h(lay, clipLimit):
             lay.clipLimit = clipLimit
@@ -1703,40 +1703,29 @@ def updateStatus():
 
 def screenUpdate(newScreenIndex):
     """
-    screenChanged event handler. image is updated in background
+    screenChanged event handler. The image is updated in background
     """
     window.screenChanged.disconnect()
-    icc.configure(qscreen=window.desktop.screen(newScreenIndex).windowHandle().screen())
-    # don't color manage if screen is not the default screen
-    current_state = icc.HAS_COLOR_MANAGE and (actualScreen is defaultScreen)
-    icc.COLOR_MANAGE = current_state
-    window.actionColor_manage.setEnabled(current_state)
+    icc.configure(qscreen=window.dktp.screen(newScreenIndex).windowHandle().screen())
+    window.actionColor_manage.setEnabled(icc.HAS_COLOR_MANAGE)
+    window.actionColor_manage.setChecked(icc.COLOR_MANAGE)
     updateStatus()
+    # launch a bg task for image update
     def bgTask():
         window.label.img.updatePixmap()
         window.label_2.img.updatePixmap()
         window.label.update()
         window.label_2.update()
-    worker = threading.Thread(target=bgTask)
+    threading.Thread(target=bgTask)
     window.screenChanged.connect(screenUpdate)
 
 ###########
 # app init
 ##########
 if __name__ =='__main__':
-
-    #############################################
-    # Screen detection for multiscreen environment
-    ##############################################
-    # get list of available screens (type QScreen)
-    window.li = QGuiApplication.screens()
-    window.screenChanged.connect(screenUpdate)
-    # get QDesktopWidget
-    qdw = window.desktop
-    # get widget representations of screens
-    defaultScreen = qdw.screen(-1)
-    actualScreen = qdw.screen(qdw.screenNumber(window))
-
+    # dktp and currentScreenIndex attributes are needed for screen management
+    window.dktp = app.desktop()
+    window.currentScreenIndex = 0
     # splash screen
     pixmap = QPixmap('logo.png')
     splash = QSplashScreen(pixmap, Qt.WindowStaysOnTopHint)
@@ -1864,14 +1853,15 @@ if __name__ =='__main__':
     # color magement configuration
     # must be done after showing window
     ################################
+    window.screenChanged.connect(screenUpdate)
+    # screen detection
     c = window.frameGeometry().center()
-    id = window.desktop.screenNumber(c)
-    icc.configure(qscreen=window.desktop.screen(id).windowHandle().screen())
-    # don't color manage if current screen is not the default screen
-    icc.HAS_COLOR_MANAGE = icc.HAS_COLOR_MANAGE and (actualScreen is defaultScreen)
-    icc.COLOR_MANAGE = icc.COLOR_MANAGE and (actualScreen is defaultScreen)
+    id = window.dktp.screenNumber(c)
+    window.currentScreenIndex = id
+    icc.configure(qscreen=window.dktp.screen(id).windowHandle().screen())
+    icc.COLOR_MANAGE = icc.HAS_COLOR_MANAGE
     window.actionColor_manage.setEnabled(icc.HAS_COLOR_MANAGE)
-
+    window.actionColor_manage.setChecked(icc.COLOR_MANAGE)
     updateStatus()
 
     ###################

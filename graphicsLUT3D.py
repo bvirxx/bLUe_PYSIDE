@@ -628,7 +628,7 @@ class colorPicker(QGraphicsPixmapItem):
 
             H, xedges, yedges = np.histogram2d(xyarray[:,:,0].ravel(), xyarray[:,:,1].ravel(), bins=[np.arange(0,maxVal+STEP, STEP), np.arange(0,maxVal+STEP, STEP)], normed=True)
 
-            a = vImage(QImg.copy())
+            a = vImage(QImg=QImg.copy())
             a.meta = QImg.meta
             b = QImage(a.width(), a.height(), QImage.Format_ARGB32)
             b.fill(0)

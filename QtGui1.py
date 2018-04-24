@@ -39,21 +39,15 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
         # load UI
         loadUi('bLUe.ui', baseinstance=self, customWidgets= {'QLayerView': QLayerView, 'QLabel': QLabel, 'histForm': histForm})
         #self = QtUiTools.QUiLoader().load("bLUe.ui", self)
-
-        self.desktop = app.desktop()
-        self.currentScreenIndex = self.desktop.screenNumber(self)
-        print('init screen index', self.currentScreenIndex)
         # hooks added to event handlers
         self.updateStatus = lambda : 0
         self.onWidgetChange = lambda : 0
         self.onShowContextMenu = lambda : 0
         self.onExecFileOpen = lambda : 0
         self.onUpdateMenuAssignProfile = lambda : 0
-
         # State recording.
         self.slidersValues = {}
         self.btnValues = {}
-
         # connections to handlers
         for slider in self.findChildren(QtWidgets.QSlider):
             slider.valueChanged.connect(
@@ -132,7 +126,7 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
         # does not change screenNumber. Only
         # a call to move() updates screenNumber value.
         c = self.frameGeometry().center()
-        id =self.desktop.screenNumber(c)
+        id =self.dktp.screenNumber(c)
         if id != self.currentScreenIndex:
             # screen changed
             self.currentScreenIndex = id

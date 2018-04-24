@@ -32,15 +32,15 @@ from imgconvert import PilImageToQImage, QImageToPilImage
 from settings import SRGB_PROFILE_PATH, SYSTEM_PROFILE_PATH
 
 class icc:
+    HAS_COLOR_MANAGE = False  # menu action "color manage" will be disabled
     COLOR_MANAGE = False  # no color management
-    HAS_COLOR_MANAGE = False # menu action "color manage" will be disabled
     monitorProfile, workingProfile, workToMonTransform = None, None, None
     @classmethod
     def configure(cls, qscreen=None):
         try:
-            # get CmsProfile object, None if profile not known
+            # get monitor profile as CmsProfile object, None if profile not found
             if qscreen is not None:
-                device = win32api.EnumDisplayDevices(Device=None, DevNum=0)
+                #device = win32api.EnumDisplayDevices(Device=None, DevNum=0)
                 #dc = win32gui.CreateDC(device.DeviceName, None, None)
                 dc = win32gui.CreateDC(qscreen.name(), None, None)
                 cls.monitorProfile = get_display_profile(HDC(dc))
@@ -49,8 +49,7 @@ class icc:
             # get profile info (type str).
             # a PyCmsError exception raised if monitorProfile is invalid
             cls.monitorProfile.info = getProfileInfo(cls.monitorProfile)
-            # get CmsProfile object and info from ICC profile name,
-            # a PyCmsError exception is raised if the path is invalid.
+            # get working profile
             cls.workingProfile = getOpenProfile(SRGB_PROFILE_PATH)
             cls.workingProfile.info = getProfileInfo(cls.workingProfile)
             # init CmsTransform object : working profile ---> monitor profile
@@ -64,12 +63,11 @@ class icc:
                         INTENT_SATURATION            = 2 (ImageCms.INTENT_SATURATION)
                         INTENT_ABSOLUTE_COLORIMETRIC = 3 (ImageCms.INTENT_ABSOLUTE_COLORIMETRIC)
             """
-            cls.HAS_COLOR_MANAGE = True
-            cls.COLOR_MANAGE = cls.HAS_COLOR_MANAGE and (cls.monitorProfile is not None)
+            cls.HAS_COLOR_MANAGE = (cls.monitorProfile is not None) and (cls.workingProfile is not None) and (cls.workToMonTransform is not None)
+            cls.COLOR_MANAGE = cls.HAS_COLOR_MANAGE and cls.COLOR_MANAGE
         except:
             cls.COLOR_MANAGE = False
-            # profile(s) missing : we
-            # definitely disable menu action "color manage".
+            # profile(s) missing : we will disable menu action "color manage".
             cls.HAS_COLOR_MANAGE = False
             cls.workToMonTransform = None
 

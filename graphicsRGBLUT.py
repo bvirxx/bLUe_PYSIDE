@@ -17,7 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 from PySide2.QtCore import QRect
-from PySide2.QtGui import  QPainterPath, QPainterPathStroker, QPen, QBrush, QColor
+from PySide2.QtGui import  QPainterPath, QPainterPathStroker, QPen, QColor
 from PySide2.QtCore import Qt, QPoint, QPointF, QRectF
 import numpy as np
 from PySide2.QtGui import QPolygonF

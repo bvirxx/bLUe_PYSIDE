@@ -43,7 +43,6 @@ class graphicsLabForm(QGraphicsView):
         super(graphicsLabForm, self).__init__(parent=parent)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize + 60, axeSize + 140)
-        # self.setWindowFlags(Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_DeleteOnClose)
         # self.setBackgroundBrush(QBrush(Qt.black, Qt.SolidPattern))
         # self.bgPixmap = QPixmap.fromImage(hueSatModel.colorWheel(size, size, cModel))

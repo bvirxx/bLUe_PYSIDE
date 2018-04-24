@@ -26,11 +26,6 @@ from PySide2.QtCore import Qt, QRectF
 from graphicsRGBLUT import cubicItem
 from utils import optionsWidget, channelValues, drawPlotGrid
 
-strokeWidth = 3
-controlPoints =[]
-computeControlPoints = True
-
-
 class graphicsHspbForm(QGraphicsView) :
     @classmethod
     def getNewWindow(cls, cModel=None, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
@@ -60,12 +55,8 @@ class graphicsHspbForm(QGraphicsView) :
         item = drawPlotGrid(axeSize)
         self.graphicsScene.addItem(item)
 
-        self.graphicsScene.addItem(item)
-
-        #self.graphicsScene.addPath(qppath, QPen(Qt.DashLine))  #create and add QGraphicsPathItem
-
         # curves
-
+        # hue
         cubic = cubicItem(axeSize)
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicR = cubic
@@ -74,12 +65,14 @@ class graphicsHspbForm(QGraphicsView) :
                                                                     bgColor=self.scene().bgColor, range=(0, 360),
                                                                     chans=channelValues.Hue, mode='HSpB')
         cubic.initFixedPoints()
+        # sat
         cubic = cubicItem(self.graphicsScene.axeSize)
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicG = cubic
         cubic.channel = channelValues.Sat
         cubic.histImg = self.scene().layer.histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, range=(0,1), chans=channelValues.Sat, mode='HSpB')
         cubic.initFixedPoints()
+        # brightness
         cubic = cubicItem(self.graphicsScene.axeSize)
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicB = cubic
@@ -155,7 +148,6 @@ class graphicsHspbForm(QGraphicsView) :
     def drawBackground(self, qp, qrF):
         s = self.graphicsScene.axeSize
         if self.scene().cubicItem.histImg is not None:
-            #qp.drawPixmap(QRect(0,-s, s, s), QPixmap.fromImage(self.scene().cubicItem.histImg))
             qp.drawImage(QRect(0, -s, s, s), self.scene().cubicItem.histImg)
 
     def writeToStream(self, outStream):
