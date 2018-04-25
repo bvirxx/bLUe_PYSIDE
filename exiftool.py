@@ -62,7 +62,7 @@ class ExifTool(object):
             msg = QMessageBox()
             msg.setText("cannot execute exiftool :\nset EXIFTOOL_PATH in file settings.py")
             msg.exec_()
-            exit()
+            exit() # TODO 25/04/18 close app gracefully
         return self
 
     def  __exit__(self, exc_type, exc_value, traceback):

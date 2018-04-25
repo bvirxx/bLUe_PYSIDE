@@ -992,11 +992,8 @@ class vImage(QImage):
         @param options: not used yet
         @type options : dictionary
         """
-        #inputImage = self.inputImgFull().getCurrentImage()
         inputImage = self.inputImg()
         currentImage = self.getCurrentImage()
-        #ndImg0 = QImageBuffer(inputImage)[:, :, :3]
-        #ndImg1 = QImageBuffer(currentImage)[:, :, :3]
         # get image buffers (BGR order on intel arch.)
         ndImg0a = QImageBuffer(inputImage)
         ndImg1a = QImageBuffer(currentImage)
@@ -1005,9 +1002,6 @@ class vImage(QImage):
         # apply LUTS to channels
         rList = np.array([2,1,0]) #BGR
         ndImg1[:, :, :]= stackedLUT[rList[np.newaxis,:], ndImg0]
-        # alpha propagation
-        #ndImg1a[:,:,3] = ndImg0a[:,:,3]
-        # update
         self.updatePixmap()
 
     def applyLab1DLUT(self, stackedLUT, options={}):
@@ -1019,35 +1013,26 @@ class vImage(QImage):
         from colorConv import Lab2sRGBVec
         # Lab mode
         ndLabImg0 = self.inputImg().getLabBuffer()
-
         # apply LUTS to channels
         def scaleLabBuf(buf):
             buf = buf + [0.0, 128.0, 128.0]
-            buf = buf * [255.0, 1.0, 1.0]# [255.0, 255.0/210.0, 255.0/210.0]
+            buf = buf * [255.0, 1.0, 1.0]
             return buf
         def scaleBackLabBuf(buf):
-            #buf = np.dstack((buf[:, :, 0] / 255.0, buf[:, :, 1] * (210.0/255.0), buf[:, :, 2] * (210.0/ 255.0)))
-            buf = np.dstack((buf[:, :, 0] / 255.0, buf[:, :, 1] , buf[:, :, 2] ))
+            buf = buf / [255.0, 1.0, 1.0]
             buf = buf - [0.0, 128.0, 128.0]
             return buf
-        ndLImg0 = scaleLabBuf(ndLabImg0).astype(int)  #TODO problem here with astype(int) conversion
-        #ndLImg0 = (ndLabImg0 * [1.0, 255.0, 255.0]).astype(int)
+        ndLImg0 = scaleLabBuf(ndLabImg0).astype(int)
         rList = np.array([0, 1, 2])  # Lab
         ndLabImg1 = stackedLUT[rList[np.newaxis, :], ndLImg0]
-        # LUT = stackedLUT[2,:]
-        # ndLImg1 = stackedLUT[ndLImg0]
-        ndLabImg1 = scaleBackLabBuf(ndLabImg1) #np.dstack((ndLabImg1[:, :, 0] / 255.0, ndLabImg1[:, :, 1] * (210.0/255.0), ndLabImg1[:, :, 2] * (210.0/ 255.0)))
+        ndLabImg1 = scaleBackLabBuf(ndLabImg1)
         # back sRGB conversion
         ndsRGBImg1 = Lab2sRGBVec(ndLabImg1)
-        # clipping is mandatory here : numpy bug ?
-        ndsRGBImg1 = np.clip(ndsRGBImg1, 0, 255)
+        ndsRGBImg1 = np.clip(ndsRGBImg1, 0, 255)  # mandatory
         currentImage = self.getCurrentImage()
         ndImg1a = QImageBuffer(currentImage)[:, :, :3]
         ndImg1 = ndImg1a[:,:,:3]
         ndImg1[:, :, ::-1] = ndsRGBImg1
-        # alpha propagation
-        #ndImg0 = QImageBuffer(self.InputImg())
-        #ndImg1a[:, :, 3] = ndImg0[:, :, 3]
         # update
         self.updatePixmap()
 
@@ -1070,11 +1055,6 @@ class vImage(QImage):
             buf2[:,:,:] = buf1
             self.updatePixmap()
             return
-        # enter hald mode
-        #self.parentImage.useHald = True
-
-        # get updated HSpB buffer for inputImg
-        #self.hspbBuffer = None
         ndHSPBImg0 = self.inputImg().getHspbBuffer()   # time 2s with cache disabled for 15 Mpx
         # apply LUTS to normalized channels (range 0..255)
         ndLImg0 = (ndHSPBImg0 * [255.0/360.0, 255.0, 255.0]).astype(int)
@@ -1083,21 +1063,12 @@ class vImage(QImage):
         ndHSBPImg1 = ndLImg1
         # back to sRGB
         ndRGBImg1 = hsp2rgbVec(ndHSBPImg1)  # time 4s for 15 Mpx
-        # clipping is mandatory here : numpy bug ?
-        ndRGBImg1 = np.clip(ndRGBImg1, 0, 255)
+        ndRGBImg1 = np.clip(ndRGBImg1, 0, 255)  # mandatory
         # set current image to modified image
         currentImage = self.getCurrentImage()
         ndImg1a = QImageBuffer(currentImage)
         ndImg1 = ndImg1a[:,:,:3]
         ndImg1[:,:,::-1] = ndRGBImg1
-
-        """
-        Mode useHald is slower : Overhead 2s for 15Mpx
-        # apply transformation in mode useHald
-        outputHald = self.getCurrentImage()
-        self.parentImage.useHald = False
-        self.applyHald(outputHald, pool=pool)
-        """
         # update
         self.updatePixmap()
 
@@ -1146,7 +1117,7 @@ class vImage(QImage):
 
     def applyHald(self, hald, pool=None):
         """
-        Converts a hald image to a 3DLUT object and applies
+        Convert a hald image to a 3DLUT object and applies
         the 3D LUT to the current view, using a pool of parallel processes if
         pool is not None.
         @param hald: hald image
@@ -1239,7 +1210,6 @@ class vImage(QImage):
             hist, bin_edges = np.histogram(bufL, bins=100, density=True)
             M = max(hist[1:-1])
             drawChannelHistogram(qp, hist, bin_edges, M, Qt.gray)
-        #qp.setCompositionMode(QPainter.CompositionMode_Plus)
         hist_L, bin_edges_L, M_L = [0]*len(chans), [0]*len(chans), [0]*len(chans)
         for i,ch in enumerate(chans):
             buf0 = buf[:, :, ch]
@@ -1257,22 +1227,16 @@ class vImage(QImage):
             qp.drawImage(QPoint(0,0), tmpimg)
             # subsequent images are added with composition mode Plus
             qp.setCompositionMode(QPainter.CompositionMode_Plus)
+        qp.end()
         buf = QImageBuffer(img)
         # if len(chans) > 1, clip gray area to improve the aspect of the histogram
         if len(chans) > 1 :
             buf[:,:,:3] = np.where(np.min(buf, axis=-1)[:,:,np.newaxis]>=100, np.array((100,100,100))[np.newaxis, np.newaxis,:], buf[:,:,:3] )
-        qp.end()
         return img
 
     def applyFilter2D(self):
         """
-        Applies 2D kernel. Available kernels are
-        sharpen, unsharp, gaussian_blur
-        @param radius: filter radius
-        @type radius: float
-        @param filter: filter type
-        @type filter: filterIndex object (enum)
-        @return: 
+        Apply 2D kernel.
         """
         adjustForm = self.view.widget()
         inputImage = self.inputImg()
@@ -1299,19 +1263,19 @@ class vImage(QImage):
         self.updatePixmap()
 
     def applyBlendFilter(self):
+        """
+        Apply a gradual neutral density filter
+        """
         adjustForm = self.view.widget()
         inputImage = self.inputImg()
         currentImage = self.getCurrentImage()
         buf0 = QImageBuffer(inputImage)
         buf1 = QImageBuffer(currentImage)
         r = inputImage.width() / self.width()
-
         ####################
-        # Gradual neutral density filter
         # We blend a neutral filter with density range 0.5*s...0.5 with the image b,
-        # using the overlay blending mode : f(a,b) = 2*a*b if b < 0.5 else f(a,b) = 1 - 2*(1-a)(1-b)
+        # using blending mode overlay : f(a,b) = 2*a*b if b < 0.5 else f(a,b) = 1 - 2*(1-a)(1-b)
         ####################
-        # image --> RGB float32 (range 0..1) --> Lab float32 L range 0..100 (opencv convention)
         buf32Lab = cv2.cvtColor(((buf0.astype(np.float32)) / 256).astype(np.float32), cv2.COLOR_BGR2Lab)
         h = buf0.shape[0]
         rect = getattr(self, 'rect', None)

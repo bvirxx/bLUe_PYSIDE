@@ -22,10 +22,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import sys
 if getattr( sys, 'frozen', False ) :
     # running in a bundle
-    EXIFTOOL_PATH = 'exiftool(-k)'
+    EXIFTOOL_PATH = 'bin\exiftool.exe'
+    print ('path', EXIFTOOL_PATH)
 else :
     # running live
-    EXIFTOOL_PATH = "C:\standalone\exiftool\exiftool(-k)"
+    EXIFTOOL_PATH = "C:\standalone\exiftool\exiftool.exe"
 ###########################
 
 ###########################

@@ -39,7 +39,7 @@ class dstb(object):
     of a discretization mesh.
     """
     interpolateCDF = False
-    plotDist = True
+    plotDist = False
 
     @classmethod
     def FromImage(cls, imgBuf):
@@ -51,6 +51,7 @@ class dstb(object):
         self.bins = bins
         self.hist = hist
         # plot curve
+        """
         if self.plotDist:
             import matplotlib
             matplotlib.use('Agg')
@@ -65,6 +66,7 @@ class dstb(object):
             ax.plot([self.DTable[k]*100 for k in range(len(self.DTable))])
             fig.savefig('tempdist.png')
             plt.close()
+        """
 
     def setDist(self, hist=[], bins=[], maxVal=0):
         """
@@ -337,8 +339,9 @@ def interpolationSpline(a, b, d, plot=False):
     assert np.all(t<=1)
     # tabulate spline
     T = b[k-1] + (r[k]*t*t + d[k-1]*(1-t)*t)*(b[k]-b[k-1]) / (r[k]+(d[k]+d[k-1] - 2*r[k])*(1-t)*t)
+    """
     if plot:
-        import matplotlib
+        #import matplotlib
         matplotlib.use('Agg')
         import matplotlib.pyplot as plt
         fig = plt.figure()
@@ -350,6 +353,7 @@ def interpolationSpline(a, b, d, plot=False):
         #ax.plot(a*255, a*255, 'bo')
         fig.savefig('temp.png')
         plt.close()
+    """
     return T
 
 def warpHistogram(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True):
