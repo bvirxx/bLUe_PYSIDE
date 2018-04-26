@@ -21,7 +21,7 @@ import sys
 if getattr( sys, 'frozen', False ) :
     # running in a bundle
     EXIFTOOL_PATH = 'bin\exiftool.exe'
-else:
+else :
     # running live
     EXIFTOOL_PATH = "C:\standalone\exiftool\exiftool.exe"
 
