@@ -16,22 +16,16 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-
-###########################
 # Path to the exiftool executable
 import sys
 if getattr( sys, 'frozen', False ) :
     # running in a bundle
     EXIFTOOL_PATH = 'bin\exiftool.exe'
-    print ('path', EXIFTOOL_PATH)
 else :
     # running live
     EXIFTOOL_PATH = "C:\standalone\exiftool\exiftool.exe"
-###########################
 
-###########################
-# Paths to installed profiles
-SYSTEM_PROFILE_PATH = "C:\Windows\System32\spool\drivers\color"
-ADOBE_RGB_PROFILE_PATH = SYSTEM_PROFILE_PATH + "\AdobeRGB1998.icc"
-SRGB_PROFILE_PATH = SYSTEM_PROFILE_PATH + "\sRGB Color Space Profile.icm"
-#############################
+# Paths to system profiles
+SYSTEM_PROFILE_DIR = "C:\Windows\System32\spool\drivers\color"
+ADOBE_RGB_PROFILE_PATH = SYSTEM_PROFILE_DIR + "\AdobeRGB1998.icc"
+SRGB_PROFILE_PATH = SYSTEM_PROFILE_DIR + "\sRGB Color Space Profile.icm"
