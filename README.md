@@ -28,4 +28,4 @@ bindings, can take advantage of the GUI.
 
 LICENSE
 
- This project is licensed under the LGPL 3
+ This project is licensed under the LGPL V 3
