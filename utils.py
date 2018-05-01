@@ -15,8 +15,8 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+import ctypes
 import cv2
-from PySide2 import QtCore
 
 import numpy as np
 from math import factorial
@@ -38,6 +38,24 @@ IMAGE_FILE_EXTENSIONS = (".jpg", ".JPG", ".png", ".PNG", ".tif", ".TIF", "*.bmp"
 RAW_FILE_EXTENSIONS = (".nef", ".NEF", ".dng", ".DNG", ".cr2", ".CR2")
 IMAGE_FILE_NAME_FILTER = ['Image Files (*.jpg *.png *.tif *.JPG *.PNG *.TIF)']
 #################
+
+def hideConsole():
+    """
+    Hides the console window
+    """
+    whnd = ctypes.windll.kernel32.GetConsoleWindow()
+    if whnd != 0:
+        ctypes.windll.user32.ShowWindow(whnd, 0)
+        ctypes.windll.kernel32.CloseHandle(whnd)
+
+def showConsole():
+    """
+    Shows the console window
+    """
+    whnd = ctypes.windll.kernel32.GetConsoleWindow()
+    if whnd != 0:
+        ctypes.windll.user32.ShowWindow(whnd, 1)
+        ctypes.windll.kernel32.CloseHandle(whnd)
 
 def rolling_window(a, winsize):
     """
@@ -217,6 +235,13 @@ def inversion(m):
     return inv / multiply(inv[0], m[:, 0])
 
 def saveChangeDialog(img):
+    """
+    Save/discard dialog. Returns the chosen button.
+    @param img: image to save
+    @type img: vImage
+    @return:
+    @rtype: QMessageBox.StandardButton
+    """
     reply = QMessageBox()
     reply.setText("%s has been modified" % img.meta.name if len(img.meta.name) > 0 else 'unnamed image')
     reply.setInformativeText("Save your changes ?")
@@ -225,10 +250,10 @@ def saveChangeDialog(img):
     ret = reply.exec_()
     return ret
 
-def save(img, mainWidget):
+def saveDlg(img, mainWidget):
     """
     Image saving dialogs. The actual saving is
-    done by calling mImage.save(). Metadata is copied from sidecar
+    done by mImage.save(). Metadata is copied from sidecar
     to image file. The function returns the image file name.
     Exception ValueError or IOError are raised if the saving fails.
     @param img:
@@ -239,7 +264,7 @@ def save(img, mainWidget):
     @rtype: str
     """
     # get last accessed dir
-    lastDir = mainWidget.settings.value("paths/dlgdir", QDir.currentPath())
+    lastDir = str(mainWidget.settings.value("paths/dlgdir", QDir.currentPath()))
     # file dialogs
     dlg = savingDialog(mainWidget, "Save", lastDir)
     # default saving format JPG
@@ -298,10 +323,10 @@ def openDlg(mainWidget):
     if mainWidget.label.img.isModified:
         ret = saveChangeDialog(mainWidget.label.img)
         if ret == QMessageBox.Yes:
-            save(mainWidget.label.img, mainWidget)
+            saveDlg(mainWidget.label.img, mainWidget)
         elif ret == QMessageBox.Cancel:
             return
-    lastDir = mainWidget.settings.value('paths/dlgdir', '.')
+    lastDir = str(mainWidget.settings.value('paths/dlgdir', '.'))
     dlg = QFileDialog(mainWidget, "select", lastDir, " *".join(IMAGE_FILE_EXTENSIONS) + " *".join(RAW_FILE_EXTENSIONS))
     if dlg.exec_():
         filenames = dlg.selectedFiles()

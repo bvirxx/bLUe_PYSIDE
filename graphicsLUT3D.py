@@ -830,7 +830,7 @@ class graphicsForm3DLUT(QGraphicsView) :
 
         self.displayStatus()
 
-        self.graphicsScene.onUpdateScene = lambda : 0  # TODO never used, suppress
+        self.graphicsScene.onUpdateScene = lambda : 0  # TODO never used, remove
         #self.setRenderHints(QPainter.Antialiasing | QPainter.SmoothPixmapTransform)
 
         # grid
@@ -843,7 +843,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         pushButton2 = QPushButton("Save LUT")
         pushButton2.clicked.connect(self.onReset)
         def saveLUT():
-            lastDir = mainForm.settings.value('paths/dlgdir', '.')
+            lastDir = str(mainForm.settings.value('paths/dlgdir', '.'))
             dlg = QFileDialog(mainForm, "Save Color LUT", lastDir)
             dlg.setNameFilter('*.cube')
             dlg.setDefaultSuffix('cube')

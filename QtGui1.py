@@ -15,9 +15,10 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+import os
 
 from PySide2 import QtWidgets, QtCore
-from PySide2.QtCore import QSettings, QSize
+from PySide2.QtCore import QSettings
 import sys
 
 from PySide2.QtWidgets import QApplication, QLabel, QMainWindow
@@ -26,6 +27,7 @@ import resources_rc   # DO NOT REMOVE !!!!
 from graphicsHist import histForm
 from layerView import QLayerView
 from pyside_dynamicLoader import loadUi
+from utils import hideConsole, showConsole
 
 
 class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
@@ -98,27 +100,12 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
         self.onWidgetChange(slider)
 
     def readSettings(self):
+        # init a Qsettings instance bound to the file bLUe.ini
         self.settings = QSettings("bLUe.ini", QSettings.IniFormat)
-        #self.resize(self.settings.value("mainwindow/size", QSize(250, 200)))
 
     def writeSettings(self):
         self.settings.sync()
-        """
-        settings = QSettings("bLUe.ini", QSettings.IniFormat);
 
-        print settings.value('paths/dlgdir', 'novalue').toString()
-        return
-        settings = QSettings("bLUe.ini", QSettings.IniFormat);
-
-        settings.beginGroup("mainwindow")
-        settings.setValue("size", self.size())
-        settings.endGroup()
-
-        settings.beginGroup("text")
-        settings.setValue("font", 1 )
-        settings.setValue("size", 2)
-        settings.endGroup()
-        """
     def moveEvent(self, event):
         super(Form1,self).moveEvent(event)
         # detect screen changes
@@ -133,18 +120,21 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
             self.screenChanged.emit(id)
 
     def closeEvent(self, event):
-        if self.onCloseEvent(event):
+        if self.onCloseEvent():
             #close
             event.accept()
         else:
+            # don't close
             event.ignore()
             return
         self.writeSettings()
+        if getattr(sys, 'frozen', False):
+            showConsole()
         super(Form1, self).closeEvent(event)
 
 def enumerateMenuActions(menu):
     """
-    recursively builds   the list of actions contained in a menu
+    recursively builds the list of actions contained in a menu
     and all its submenus.
     @param menu: Qmenu object
     @return: list of actions
@@ -159,18 +149,22 @@ def enumerateMenuActions(menu):
             actions.append(action)
     return actions
 
-#######
-# PySide2 : Without the next line, app is unable to load
-# imageformat dlls for reading and writing QImage objects.
-#######
-QtCore.QCoreApplication.addLibraryPath("D:/Python36/Lib/site-packages/PySide2/plugins")
-#######
+########################
+# Add plugin path to library path : mandatory to enable
+# the loading of imageformat dlls for reading and writing QImage objects.
+#######################
+plugin_path = os.path.join(os.path.dirname(QtCore.__file__), "plugins")
+QtCore.QCoreApplication.addLibraryPath(plugin_path)
 
-########
-# GUI init.
-# A Python module is a singleton : the initialization code below
-# is executed only once, regardless the number of module imports.
-#######
+######################
+# Hide console for frozen app
+#####################
+if getattr(sys, 'frozen', False):
+    hideConsole()
+
+######################
+# launch app and init main form
+#####################
 app = QApplication(sys.argv)
 window = Form1(app)
 

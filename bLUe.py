@@ -127,12 +127,11 @@ from types import MethodType
 from cv2 import NORMAL_CLONE
 import rawpy
 
-
 from grabcut import segmentForm
-from PySide2.QtCore import Qt, QRect, QEvent, QUrl, QSize, QFileInfo, QRectF, QThread, QObject, QPoint, \
+from PySide2.QtCore import Qt, QRect, QEvent, QUrl, QSize, QFileInfo, QRectF, QObject, QPoint, \
     QMimeData, QByteArray
 from PySide2.QtGui import QPixmap, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, \
-    QPainterPath, QTransform, QIcon, QContextMenuEvent, QGuiApplication
+    QPainterPath, QTransform, QIcon, QContextMenuEvent
 from PySide2.QtWidgets import QApplication, QMenu, QAction, QFileDialog, QMessageBox, \
     QMainWindow, QLabel, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QWidget, \
     QListWidget, QListWidgetItem, QAbstractItemView, QStyle, QToolTip, QHBoxLayout, QVBoxLayout
@@ -153,16 +152,13 @@ from colorManagement import icc
 from graphicsCoBrSat import CoBrSatForm
 from graphicsExp import ExpForm
 from graphicsPatch import patchForm, maskForm
-from utils import saveChangeDialog, save, openDlg, cropTool, rotatingTool, IMAGE_FILE_NAME_FILTER, \
+from utils import saveChangeDialog, saveDlg, openDlg, cropTool, rotatingTool, IMAGE_FILE_NAME_FILTER, \
     IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, demosaic
 
 from graphicsTemp import temperatureForm
 from time import sleep
-
 from re import search
-
 import gc
-
 from graphicsFilter import filterForm
 from graphicsHspbLUT import graphicsHspbForm
 from graphicsLabLUT import graphicsLabForm
@@ -192,7 +188,6 @@ splittedWin = splittedWindow(window)
 ###############
 # Global QPainter for paint event
 qp = QPainter()
-qp.setRenderHint(QPainter.SmoothPixmapTransform)
 # stuff for Before/After marks
 qp.font = QFont("Arial", 8)
 qp.markPath=QPainterPath()
@@ -221,6 +216,7 @@ def paintEvent(widg, e) :
         return
     r = mimg.resize_coeff(widg)
     qp.begin(widg)
+    qp.setRenderHint(QPainter.SmoothPixmapTransform)
     # fill  background
     qp.fillRect(QRectF(0, 0, widg.width() , widg.height() ), vImage.defaultBgColor)
     # draw layers.
@@ -552,7 +548,7 @@ def leaveEvent(widget,img, event):
 
 def set_event_handlers(widg, enterAndLeave=True):
     """
-    Pythonic way for redefining event handlers, without
+    Pythonic redefinition of event handlers, without
     subclassing or overridding. However, the PySide dynamic
     ui loader requires that we set the corresponding classes as customWidget
     (cf. file QtGui1.py and pyside_dynamicLoader.py).
@@ -611,7 +607,7 @@ def contextMenu(pos, widget):
 
 def loadImageFromFile(f, createsidecar=True):
     """
-    load metadata and image from file. Return the loaded image.
+    loads metadata and image from file. Return the loaded image.
     For raw file, it is the image postprocessed with default parameters.
     metadata is a list of dicts with len(metadata) >=1.
     metadata[0] contains at least 'SourceFile' : path.
@@ -718,7 +714,7 @@ def addBasicAdjustmentLayers(img):
 
 def addRawAdjustmentLayer():
     """
-    Add a development layer to the layer stack
+    Adds a development layer to the layer stack
 
     """
     lname = 'Development'
@@ -744,7 +740,7 @@ def addRawAdjustmentLayer():
 
 def openFile(f):
     """
-    Top level function for file opening, called by File Menu actions
+    Top level function for file opening, used by File Menu actions
     @param f: file name
     @type f: str
     """
@@ -772,7 +768,7 @@ def openFile(f):
             updateStatus()
             # window.label.img.onImageChanged() # TODO 23/04/18 validate removing mandatory because applyToStack may do nothing
             # update list of recent files
-            recentFiles = window.settings.value('paths/recent', [])
+            recentFiles = list(window.settings.value('paths/recent', []))
             recentFiles = list(filter(lambda a: a != f, recentFiles))
             recentFiles.insert(0, f)
             if len(recentFiles) > 10:
@@ -793,30 +789,12 @@ def openFile(f):
 def closeFile():
     """
     Top Level function for file closing.
-    Close the opened document and clear windows.
+    Closes the opened document and clears windows.
     @return:
     @rtype: boolean
     """
-    if window.label.img.isModified:
-        try:
-            ret = saveChangeDialog(window.label.img)
-            if ret == QMessageBox.Yes:
-                filename = save(window.label.img, window)
-                msg = QMessageBox()
-                msg.setWindowTitle('Information')
-                msg.setIcon(QMessageBox.Information)
-                msg.setText("%s written" % filename)
-                msg.exec_()
-            elif ret == QMessageBox.Cancel:
-                # abort closing
-                return False
-        except (ValueError, IOError) as e:
-            msg = QMessageBox()
-            msg.setWindowTitle('Warning')
-            msg.setIcon(QMessageBox.Warning)
-            msg.setText(str(e))
-            msg.exec_()
-            return False
+    if not canClose():
+        return False
     # watch memory leak : set weakref to image
     # r = weakref.ref(window.label.img)
     window.tableView.clear(delete=True)
@@ -832,7 +810,7 @@ def closeFile():
 
 def setDocumentImage(img):
     """
-    Inits GUI to display the image
+    Inits GUI to display the current document
     @param img: image
     @type img: imImage
     """
@@ -894,7 +872,7 @@ def updateMenuOpenRecent():
     the corresponding actions
     """
     window.menuOpen_recent.clear()
-    recentFiles = window.settings.value('paths/recent', [])
+    recentFiles = list(window.settings.value('paths/recent', []))
     for filename in recentFiles :
         window.menuOpen_recent.addAction(filename, lambda x=filename: openFile(x))
 
@@ -929,7 +907,7 @@ def menuFile(name):
             msg.exec_()
         else:
             try:
-                filename = save(window.label.img, window)
+                filename = saveDlg(window.label.img, window)
                 msg = QMessageBox()
                 msg.setWindowTitle('Information')
                 msg.setIcon(QMessageBox.Information)
@@ -964,7 +942,7 @@ def menuFile(name):
         # convert image to LUT3D object
         LUT = LUT3D.HaldImage2LUT3D(img, size=33)
         # open file and save
-        lastDir = window.settings.value('paths/dlgdir', '.')
+        lastDir = str(window.settings.value('paths/dlgdir', '.'))
         dlg = QFileDialog(window, "select", lastDir)
         dlg.setNameFilter('*.cube')
         dlg.setDefaultSuffix('cube')
@@ -1232,7 +1210,7 @@ def menuView(name):
             window.diaporamaGenerator = None
         if window.diaporamaGenerator is None:
             # start from parent dir of the last used directory
-            lastDir = path.join(window.settings.value('paths/dlgdir', '.'), path.pardir)
+            lastDir = path.join(str(window.settings.value('paths/dlgdir', '.')), path.pardir)
             dlg = QFileDialog(window, "select", lastDir)
             dlg.setNameFilters(IMAGE_FILE_NAME_FILTER)
             dlg.setFileMode(QFileDialog.Directory)
@@ -1255,7 +1233,7 @@ def menuView(name):
         playDiaporama(window.diaporamaGenerator, parent=window)
     elif name == 'actionViewer':
         # start from parent dir of the last used directory
-        lastDir = path.join(window.settings.value('paths/dlgdir', '.'), path.pardir)
+        lastDir = path.join(str(window.settings.value('paths/dlgdir', '.')), path.pardir)
         dlg = QFileDialog(window, "select", lastDir)
         dlg.setNameFilters(IMAGE_FILE_NAME_FILTER)
         dlg.setFileMode(QFileDialog.Directory)
@@ -1491,7 +1469,7 @@ def menuLayer(name):
         # wrapper for the right apply method
         l.execute = lambda l=l, pool=None: l.applyNoiseReduction()
     elif name == 'actionSave_Layer_Stack':
-        lastDir = window.settings.value('paths/dlgdir', '.')
+        lastDir = str(window.settings.value('paths/dlgdir', '.'))
         dlg = QFileDialog(window, "select", lastDir)
         dlg.setNameFilter('*.sba')
         dlg.setDefaultSuffix('sba')
@@ -1502,7 +1480,7 @@ def menuLayer(name):
             window.label.img.saveStackToFile(filenames[0])
             return
     elif name == 'actionLoad_Layer_Stack':
-        lastDir = window.settings.value('paths/dlgdir', '.')
+        lastDir = str(window.settings.value('paths/dlgdir', '.'))
         dlg = QFileDialog(window, "select", lastDir)
         dlg.setNameFilter('*.sba')
         dlg.setDefaultSuffix('sba')
@@ -1565,7 +1543,7 @@ def menuLayer(name):
             # convert image to LUT3D object
             LUT = LUT3D.HaldImage2LUT3D(img, size=33)
             # open file and save
-            lastDir = window.settings.value('paths/dlgdir', '.')
+            lastDir = str(window.settings.value('paths/dlgdir', '.'))
             dlg = QFileDialog(window, "select", lastDir)
             dlg.setNameFilter('*.cube')
             dlg.setDefaultSuffix('cube')
@@ -1692,23 +1670,35 @@ def handleTextWindow(parent=None, title='', center=True):
     w.setWindowModality(Qt.WindowModal)
     w.show()
     return w, label
-"""
-def initMenuAssignProfile():
-    window.menuAssign_profile.clear()
-    for f in PROFILES_LIST:
-        window.menuAssign_profile.addAction(f[0]+" "+f[1], lambda x=f : window.execAssignProfile(x))
-"""
-def close(e):
+
+def canClose():
     """
-    app close event handler
-    @param e: close event
+    Saves the current image. Returns True if success.
+    @return:
+    @rtype: boolean
     """
     if window.label.img.isModified:
-        ret = saveChangeDialog(window.label.img)
-        if ret == QMessageBox.Save:
-            save(window.label.img, window)
-            return True
-        elif ret == QMessageBox.Cancel:
+        try:
+            # save/discard dialog
+            ret = saveChangeDialog(window.label.img)
+            if ret == QMessageBox.Save:
+                # save dialog
+                filename = saveDlg(window.label.img, window)
+                # confirm saving
+                msg = QMessageBox()
+                msg.setWindowTitle('Information')
+                msg.setIcon(QMessageBox.Information)
+                msg.setText("%s written" % filename)
+                msg.exec_()
+                return True
+            elif ret == QMessageBox.Cancel:
+                return False
+        except (ValueError, IOError) as e:
+            msg = QMessageBox()
+            msg.setWindowTitle('Warning')
+            msg.setIcon(QMessageBox.Warning)
+            msg.setText(str(e))
+            msg.exec_()
             return False
     return True
 
@@ -1757,10 +1747,10 @@ def screenUpdate(newScreenIndex):
     window.screenChanged.connect(screenUpdate)
 
 ###########
-# app init
-##########
+# app
+###########
 if __name__ =='__main__':
-    # dktp and currentScreenIndex attributes are needed for screen management
+    # add dynamic attributes dktp and currentScreenIndex, used for screen management
     window.dktp = app.desktop()
     window.currentScreenIndex = 0
     # splash screen
@@ -1774,10 +1764,8 @@ if __name__ =='__main__':
     splash.showMessage("Loading ...", color=Qt.white, alignment=Qt.AlignCenter)
     splash.finish(window)
     app.processEvents()
-
     # title
     window.setWindowTitle('bLUe')
-
     # style sheet
     app.setStyleSheet("QMainWindow, QGraphicsView, QListWidget, QMenu, QTableView {background-color: rgb(200, 200, 200)}\
                        QMenu, QTableView { selection-background-color: blue; selection-color: white;}\
@@ -1798,9 +1786,8 @@ if __name__ =='__main__':
     window.histView.mode = 'Luminosity'
     window.histView.chanColors = Qt.gray #[Qt.red, Qt.green,Qt.blue]
 
-
     # close event handler
-    window.onCloseEvent = close
+    window.onCloseEvent = canClose
 
     # mouse hover events
     window.label.setMouseTracking(True)
