@@ -17,7 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 Qt5 is licensed under the LGPL version 3,
 Pyside2 is licensed under the LGPL version 2.1
-exiftool Copyright © 2013-2016, Phil Harvey
+exiftool Copyright © 2013-2016, Phil Harvey.exiftool is licensed under thePerl Artistic License
 The Python Imaging Library (PIL) is
 
     Copyright © 1997-2011 by Secret Labs AB
@@ -123,10 +123,8 @@ from itertools import cycle
 from os import path, walk
 from os.path import basename
 from types import MethodType
-
 from cv2 import NORMAL_CLONE
 import rawpy
-
 from grabcut import segmentForm
 from PySide2.QtCore import Qt, QRect, QEvent, QUrl, QSize, QFileInfo, QRectF, QObject, QPoint, \
     QMimeData, QByteArray
@@ -143,7 +141,6 @@ from graphicsRaw import rawForm
 from graphicsTransform import transForm
 from imgconvert import *
 from MarkedImg import imImage, metadata, vImage
-
 from graphicsRGBLUT import graphicsForm
 from graphicsLUT3D import graphicsForm3DLUT
 from colorCube import LUTSIZE, LUT3D, LUT3DIdentity
@@ -154,7 +151,6 @@ from graphicsExp import ExpForm
 from graphicsPatch import patchForm, maskForm
 from utils import saveChangeDialog, saveDlg, openDlg, cropTool, rotatingTool, IMAGE_FILE_NAME_FILTER, \
     IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, demosaic
-
 from graphicsTemp import temperatureForm
 from time import sleep
 from re import search
@@ -162,23 +158,29 @@ import gc
 from graphicsFilter import filterForm
 from graphicsHspbLUT import graphicsHspbForm
 from graphicsLabLUT import graphicsLabForm
-
 from splittedView import splittedWindow
 
 
 ##################
 #  Software Attributions
 attributions = """
-libraw is licensed under LGPL
-exiftool is licensed under Perl Artistic License
-QRangeSlider Copyright (c) 2011-2012, Ryan Galloway (http://rsgalloway.com)
+exiftool Copyright © 2013-2016, Phil Harvey
+QRangeSlider Copyright (c) 2011-2012, Ryan Galloway
+Pillow Copyright © 2010-2018 by Alex Clark and contributors
+libraw Copyright (C) 2008-2018 
+rawpy Copyright (c) 2014 Maik Riechert
 """
 #################
 
-#################
+################
+#  Version
+VERSION = "v.0.1-alpha"
+###############
+
+###############
 # adjustment form size
 axeSize = 200
-################
+##############
 
 #########
 # init Before/After view
@@ -1602,17 +1604,17 @@ def menuHelp(name):
                 #url.setFragment(w.helpId)
         QDesktopServices.openUrl(url)
     elif name == "actionAbout_bLUe":
-        w, label = handleTextWindow(parent=window, title='About bLUe')
+        w, label = handleTextWindow(parent=window, title='About bLUe', center=False)
         label.setStyleSheet("background-image: url(logo.png); color: white;")
         label.setAlignment(Qt.AlignCenter)
-        label.setText("Version 1.0"+"\n"+attributions)
+        label.setText(VERSION + "\n"+attributions)
         # center window on screen
         w.setGeometry(QStyle.alignedRect(Qt.LeftToRight, Qt.AlignCenter, w.size(), app.desktop().availableGeometry()))
         w.show()
 
 def handleNewWindow(imImg=None, parent=None, title='New window', show_maximized=False, event_handler=True, scroll=False):
     """
-    Show a floating window containing a QLabel object. It can be used
+    Shows a floating window containing a QLabel object. It can be used
     to display text or image. If the parameter event_handler is True (default)
     the QLabel object redefines its handlers for paint and mouse events to display
     the image imImg
@@ -1650,7 +1652,7 @@ def handleNewWindow(imImg=None, parent=None, title='New window', show_maximized=
 
 def handleTextWindow(parent=None, title='', center=True):
     """
-    Display a floating modal text window
+    Displays a floating modal text window
     @param parent:
     @type parent:
     @param title:
