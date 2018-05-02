@@ -51,8 +51,6 @@ class blendFilterForm (QGraphicsView):
         self.mainForm = mainForm
         self.kernelCategory = filterIndex.UNSHARP
         self.kernel = getKernel(self.kernelCategory)
-
-
         # options
         optionList = ['Gradual Top', 'Gradual Bottom', 'None']
         filters = [blendFilterIndex.GRADUALTB, blendFilterIndex.GRADUALBT, blendFilterIndex.GRADUALNONE]

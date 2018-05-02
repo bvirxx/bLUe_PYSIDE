@@ -169,6 +169,8 @@ QRangeSlider Copyright (c) 2011-2012, Ryan Galloway
 Pillow Copyright © 2010-2018 by Alex Clark and contributors
 libraw Copyright (C) 2008-2018 
 rawpy Copyright (c) 2014 Maik Riechert
+seamlessClone and CLAHE are Opencv3 functions
+grabCut is a parallel version of an Opencv3 function
 """
 #################
 

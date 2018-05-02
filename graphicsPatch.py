@@ -22,7 +22,7 @@ from utils import optionsWidget
 
 class patchForm (QGraphicsView):
     """
-    Seamless cloning
+    Seamless cloning form
     """
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=200, layer=None, parent=None, mainForm=None):

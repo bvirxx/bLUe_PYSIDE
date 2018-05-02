@@ -189,7 +189,7 @@ class vImage(QImage):
         @param profile: embedded profile (default '')
         @type profile: str
         """
-        # color management : we assume working profile is image profile
+        # color management : we assume the working profile is the image profile
         self.colorTransformation = icc.workToMonTransform
         # current color managed image
         self.cmImage = None
@@ -272,7 +272,7 @@ class vImage(QImage):
 
     def setImage(self, qimg):
         """
-        copy qimg to image. Does not update metadata.
+        copies qimg to image. Does not update metadata.
         image and qimg must have identical dimensions and type.
         @param qimg: QImage object
         @type qimg: QImage
@@ -289,7 +289,7 @@ class vImage(QImage):
 
     def initThumb(self):
         """
-        Init the image thumbnail as a (scaled) QImage. In contrast to
+        Inits the image thumbnail as a (scaled) QImage. In contrast to
         maskedThumbContainer, thumb is never used as an input image, thus
         there is no need for a type yielding color space buffers.
         Layer thumbs own an attribute parentImage set by the overridden method QLayer.initThumb.
@@ -551,7 +551,7 @@ class vImage(QImage):
 
     def applyCloning(self, seamless=True):
         """
-        Draw the translated and zoomed
+        Draws the translated and zoomed
         input image on the output image.
         if seamless and self.cloned are both False,
         no seamless cloning is done.
@@ -1254,8 +1254,10 @@ class vImage(QImage):
             ROI0 = buf0[:,:,:3]
             ROI1 = buf1[:,:,:3]
         if adjustForm.kernelCategory in [filterIndex.IDENTITY, filterIndex.UNSHARP, filterIndex.SHARPEN, filterIndex.BLUR1, filterIndex.BLUR2]:
+            # kernel filter
             ROI1[:,:,:] = cv2.filter2D(ROI0, -1, adjustForm.kernel)
         else:
+            # bilateral filter
             radius = adjustForm.radius
             if self.parentImage.useThumb:
                 radius = int(radius * r)

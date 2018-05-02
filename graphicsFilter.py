@@ -55,7 +55,7 @@ class filterForm (QGraphicsView):
         l.setAlignment(Qt.AlignBottom)
 
         # options
-        optionList = ['Unsharp Mask', 'Sharpen', 'Gaussian Blur', 'Surface Blur', 'Gradual Filter']
+        optionList = ['Unsharp Mask', 'Sharpen', 'Gaussian Blur', 'Surface Blur']
         filters = [ filterIndex.UNSHARP, filterIndex.SHARPEN, filterIndex.BLUR1, filterIndex.SURFACEBLUR]
         filterDict = dict(zip(optionList, filters))
 

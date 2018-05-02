@@ -758,7 +758,7 @@ Screen</string>
   </action>
   <action name="actionColor_Temperature">
    <property name="text">
-    <string>Color Correction</string>
+    <string>Color Temperature</string>
    </property>
   </action>
   <action name="actionNew_segmentation_layer">
@@ -869,12 +869,12 @@ Screen</string>
   </action>
   <action name="actionContrast_Correction">
    <property name="text">
-    <string>Global Enhancement</string>
+    <string>Cont/Sat/Bright</string>
    </property>
   </action>
   <action name="actionExposure_Correction">
    <property name="text">
-    <string>Exposure Correction</string>
+    <string>Exposure</string>
    </property>
   </action>
   <action name="actionNew_Cloning_Layer">
