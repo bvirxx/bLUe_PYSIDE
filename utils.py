@@ -234,6 +234,30 @@ def inversion(m):
                     [m4 * m8 - m5 * m7, m2 * m7 - m1 * m8, m1 * m5 - m2 * m4]])
     return inv / multiply(inv[0], m[:, 0])
 
+def dlgInfo(text):
+    """
+    Shows a simple information dialog.
+    @param text:
+    @type text: str
+    """
+    msg = QMessageBox()
+    msg.setWindowTitle('Information')
+    msg.setIcon(QMessageBox.Information)
+    msg.setText(text)
+    msg.exec_()
+
+def dlgWarn(text):
+    """
+    Shows a simple warning dialog.
+    @param text:
+    @type text:
+    """
+    msg = QMessageBox()
+    msg.setWindowTitle('Warning')
+    msg.setIcon(QMessageBox.Warning)
+    msg.setText(text)
+    msg.exec_()
+
 def saveChangeDialog(img):
     """
     Save/discard dialog. Returns the chosen button.
@@ -323,9 +347,15 @@ def openDlg(mainWidget):
     if mainWidget.label.img.isModified:
         ret = saveChangeDialog(mainWidget.label.img)
         if ret == QMessageBox.Yes:
-            saveDlg(mainWidget.label.img, mainWidget)
+            try:
+                saveDlg(mainWidget.label.img, mainWidget)
+            except (ValueError, IOError) as e:
+                dlgWarn(str(e))
+                return
         elif ret == QMessageBox.Cancel:
             return
+    # don't ask again for saving
+    mainWidget.label.img.isModified = False
     lastDir = str(mainWidget.settings.value('paths/dlgdir', '.'))
     dlg = QFileDialog(mainWidget, "select", lastDir, " *".join(IMAGE_FILE_EXTENSIONS) + " *".join(RAW_FILE_EXTENSIONS))
     if dlg.exec_():

@@ -24,8 +24,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 # https://link.springer.com/chapter/10.1007/1-4020-4179-9_42
 # However, in contrast with this paper we do not use a mixture gaussian estimation for the density of the distribution, due to a
 # too high computational cost. We simply keep the discrete distribution given by the histogram, and the corresponding CDF is
-# taken constant on each bin. Valleys are found as local minima of the discrete distribution, by an exhaustive search among
-# the maxVal+1 possible points.
+# taken constant on each bin. Valleys are found as local minima of the discrete distribution, by an exhaustive search.
 # Our method can also be viewed as pre-discretizing the image, to an integer type (8 bits, 16bits...) before
 # applying the contrast correction. The algorithm is simplified and the speedup is consequent.
 #########################################################################################################################
@@ -33,9 +32,9 @@ import numpy as np
 
 class dstb(object):
     """
-    Discrete distributions over an interval 0...maxVal of positive
+    Represents a discrete distribution over an interval 0...maxVal of positive
     integers, estimated from an histogram partition of the interval.
-    For contiuous distributions, 1/maxVal ca be viewed as  the size
+    For continuous distributions, 1/maxVal ca be viewed as  the size
     of a discretization mesh.
     """
     interpolateCDF = False
@@ -104,6 +103,7 @@ class dstb(object):
                 dist += [hist[r - 1] * lg / n]
             DTable = dist
         CDFTable= np.cumsum(DTable)                             # len(CDFTable) = len(DTable) = maxVal + 1
+        # sanity check
         if np.abs(CDFTable[-1] - 1) > 0.00000001:
             raise ValueError('setDistribution: invalid distribution')
         return DTable, CDFTable
@@ -137,7 +137,7 @@ class dstb(object):
 
     def FVec(self, x):
         """
-        Vectorized version of the CDF function F.
+        Vectorized version of the CDF function.
         @param x: array of arguments
         @type x: ndarray, dtype float
         @param interpolate:
@@ -217,21 +217,19 @@ class dstb(object):
 
 def gaussianDistribution(x, hist, bins, h):
     """
-    Build a kernel density estimation for the distribution (hist, bins)
-    by a mixture of gaussian variables. The parameter x is in range 0..255
+    Computes the kernel density estimation at point x, by a mixture of gaussian variables
+    for the distribution (hist, bins). The parameter x is in range 0..256
     and h is the bandwidth.
-    @param img:
-    @type img:
-    @param x:
-    @type x:
-    @param hist:
-    @type hist:
-    @param bins:
-    @type bins:
-    @param h:
-    @type h:
-    @return:
-    @rtype:
+    @param x: x-value for estimation
+    @type x: float, range 0..256
+    @param hist: histogram
+    @type hist: ndarray
+    @param bins: bins of histogram
+    @type bins: ndarray
+    @param h: bandwidth
+    @type h: float
+    @return: density estimation value at x
+    @rtype: float
     """
     dist = dstb(hist, bins)
     values = np.arange(256, dtype=np.float)/256
@@ -243,7 +241,7 @@ def gaussianDistribution(x, hist, bins, h):
 
 def distWins(dist, delta):
     """
-    Return the sorted list of the windows of (probability) width >= 2*delta
+    Returns the sorted list of the windows of (probability) width >= 2*delta
     for a disribution dist. Parameter delta should be in range 0..0.5.
     @param dist: distribution
     @type dist: distribution object
@@ -275,7 +273,7 @@ def distWins(dist, delta):
 
 def valleys(imgBuf, delta):
     """
-    Search for valleys (local minima) in the distribution of the image. A valley is a
+    Searchs for valleys (local minima) in the distribution of the image. A valley is a
     window of (probability) width 2*delta, whose central point gives its minimum value.
     The function returns the ordered list of these local minima and a distribution object
     representing the distribution of image data.
@@ -305,7 +303,7 @@ def valleys(imgBuf, delta):
 
 def interpolationSpline(a, b, d, plot=False):
     """
-    Build a monotonic transformation curve T from [0,1] onto b[0], b[-1],
+    Builds a monotonic transformation curve T from [0,1] onto b[0], b[-1],
     as a piecewise rational quadratic interpolation spline to a set of (a[k], b[k]) 2D nodes.
     Coefficients d[k] are the slopes at nodes. The function returns a tabulation of T as
     a list of T[k/255] for k in range(256).
@@ -358,13 +356,14 @@ def interpolationSpline(a, b, d, plot=False):
 
 def warpHistogram(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True):
     """
-    Stretch and warp the distribution of imgBuf to enhance the contrast.
+    Stretchs and warps the distribution of imgBuf to enhance the contrast.
     We mainly use the algorithm proposed by  Grundland and Dodgson
     Cf. U{https://link.springer.com/chapter/10.1007/1-4020-4179-9_42},
     with a supplementary correction for skies.
     The parameter valleyAperture is the (probability) width
-    of histogram valleys: it should be > 0 and < 0.5, and warp controls
-    the correction level : ikt should be between 0 (no correction and 1 (full correction).
+    of histogram valleys: it should be > 0 and < 0.5. The parameter warp controls
+    the correction level : it should be between 0 (no correction and 1 (full correction).
+    If preserveHigh is True (default) a final correction is applied to preserve highlights.
     @param imgBuf: single channel image (luminance), range 0..1
     @type imgBuf: ndarray, shape(h,w), dtype=uint8 or int or float
     @param valleyAperture:
@@ -450,7 +449,7 @@ def warpHistogram(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True):
     d[-1] = (1-bMinus[-1])/ (1 -aMinus[-1])                      # d[K+1] = (1 - bMinus[K+1]) / ((1-aMinus[K+1])
     d = np.where(d==np.NaN, 1.0, d)
     d=np.clip(d, 0.25, 5)
-    # highlights correction (sky)
+    # highlights correction (e.g. sky)
     if preserveHigh:
         skyInd = np.argmax(a > 0.75*a[-1])
         #if a[-3] > 0.75*a[-1]:  # may be V0[-2]>=0.75*V0[-1]??

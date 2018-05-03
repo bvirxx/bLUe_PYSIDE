@@ -97,7 +97,7 @@ class patchForm (QGraphicsView):
 
 class maskForm (QGraphicsView):
     """
-    Knitting form
+    Knitting form (cloning an imported image)
     """
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=200, layer=None, parent=None, mainForm=None):

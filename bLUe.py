@@ -140,7 +140,7 @@ from graphicsNoise import noiseForm
 from graphicsRaw import rawForm
 from graphicsTransform import transForm
 from imgconvert import *
-from MarkedImg import imImage, metadata, vImage
+from MarkedImg import imImage, metadata, vImage, QLayer
 from graphicsRGBLUT import graphicsForm
 from graphicsLUT3D import graphicsForm3DLUT
 from colorCube import LUTSIZE, LUT3D, LUT3DIdentity
@@ -150,7 +150,7 @@ from graphicsCoBrSat import CoBrSatForm
 from graphicsExp import ExpForm
 from graphicsPatch import patchForm, maskForm
 from utils import saveChangeDialog, saveDlg, openDlg, cropTool, rotatingTool, IMAGE_FILE_NAME_FILTER, \
-    IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, demosaic
+    IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, demosaic, dlgWarn, dlgInfo
 from graphicsTemp import temperatureForm
 from time import sleep
 from re import search
@@ -611,8 +611,8 @@ def contextMenu(pos, widget):
 
 def loadImageFromFile(f, createsidecar=True):
     """
-    loads metadata and image from file. Return the loaded image.
-    For raw file, it is the image postprocessed with default parameters.
+    loads an imImage (metadata and image) from file. Returns the loaded imImage :
+    For a raw file, it is the image postprocessed with default parameters.
     metadata is a list of dicts with len(metadata) >=1.
     metadata[0] contains at least 'SourceFile' : path.
     profile is a string containing the profile binary data,
@@ -904,25 +904,13 @@ def menuFile(name):
     # saving dialog
     elif name == 'actionSave':
         if window.label.img.useThumb:
-            msg = QMessageBox()
-            msg.setWindowTitle('Warning')
-            msg.setIcon(QMessageBox.Warning)
-            msg.setText("Uncheck Preview mode before saving")
-            msg.exec_()
+            dlgWarn("Uncheck Preview mode before saving")
         else:
             try:
                 filename = saveDlg(window.label.img, window)
-                msg = QMessageBox()
-                msg.setWindowTitle('Information')
-                msg.setIcon(QMessageBox.Information)
-                msg.setText("%s written" % filename)
-                msg.exec_()
+                dlgInfo("%s written" % filename)
             except (ValueError, IOError) as e:
-                msg = QMessageBox()
-                msg.setWindowTitle('Warning')
-                msg.setIcon(QMessageBox.Warning)
-                msg.setText(str(e))
-                msg.exec_()
+                dlgWarn(str(e))
     # closing dialog : close opened document
     elif name == 'actionClose':
         closeFile()
@@ -1392,16 +1380,6 @@ def menuLayer(name):
         l.cloned = False
         l.cloningMethod = NORMAL_CLONE
         l.keepCloned = True
-    # knitting
-    elif name == 'actionNew_Knitting_Layer':
-        lname = 'Knitting'
-        l = window.label.img.addAdjustmentLayer(name=lname, role='KNITTING')
-        grWindow = maskForm.getNewWindow(targetImage=window.label.img, layer=l, mainForm=window)
-        l.execute = lambda l=l, pool=None: l.applyKnitting()
-        l.maskIsEnabled = True
-        l.maskIsSelected = True
-        l.resetMask(maskAll=True)
-        l.knitted = False
     # segmentation
     elif name == 'actionNew_segmentation_layer':
         lname = 'Segmentation'
@@ -1414,6 +1392,27 @@ def menuLayer(name):
         l.execute = lambda l=l, pool=None: l.applyGrabcut(nbIter=grWindow.nbIter)
         # mask was modified
         l.updatePixmap()
+    # loads an image
+    elif name == 'actionNew_Image_Layer':
+        filename = openDlg(window)
+        img = window.label.img
+        imgNew = QImage(filename)
+        if imgNew.isNull():
+            dlgWarn("Cannot load %s: " % filename)
+            return
+        size = img.size()
+        sizeNew = imgNew.size()
+        if sizeNew != size:
+            imgNew = imgNew.scaled(size)
+            dlgInfo("Image will be resized")
+        l = QLayer(QImg=imgNew, parentImage=window.label.img)
+        l.isClipping = False
+        img.addLayer(l, name=path.basename(filename))
+        l.updatePixmap()
+        l.actioname = name
+        # update layer stack view
+        window.tableView.setLayers(window.label.img)
+        return
     # Temperature
     elif name == 'actionColor_Temperature':
         lname = 'Color Temperature'

@@ -39,7 +39,7 @@ from colorManagement import icc, convertQImage
 from imgconvert import *
 from colorCube import interpMulti, rgb2hspVec, hsp2rgbVec, LUT3DIdentity, LUT3D, interpVec_
 from time import time
-from utils import SavitzkyGolay, channelValues, checkeredImage, boundingRect
+from utils import SavitzkyGolay, channelValues, checkeredImage, boundingRect, dlgWarn
 
 ###################
 # multi processing
@@ -95,6 +95,13 @@ class vImage(QImage):
 
     @classmethod
     def color2OpacityMask(cls, mask):
+        """
+        Converts color mask to opacity mask
+        @param mask: color mask
+        @type mask: QImage
+        @return: opacity mask
+        @rtype: QImage
+        """
         mask = mask.copy()
         buf = QImageBuffer(mask)
         buf[:, :, 3] = np.where(buf[:, :, 2] == 0, 0, 255)
@@ -128,26 +135,29 @@ class vImage(QImage):
     def seamlessMerge(cls, dest, source, mask, cloningMethod):
         """
         Seamless merging of source into dest.
-        source must provide a mask defining
-        the region to be copied. The same mask is used to define
-        the target region in dest.
+        mask is a color mask.
         The dest image is modified.
         @param dest:
         @type dest: vImage
         @param source:
         @type source: vImage
+        @param mask: color mask
+        @type mask: QImage
         @param cloningMethod:
         @type cloningMethod:
         """
-        # init white mask from scaled mask
+        # scale mask to source size and convert to opacity mask
         src_mask = vImage.color2OpacityMask(mask).scaled(source.size())
         buf = QImageBuffer(src_mask)
         tmp = np.where(buf[:, :, 3] == 0, 0, 255)
         # get scaled bounding rect
         bRect = boundingRect(tmp, 255)
+        # test for masked pixels
         if bRect is None:
             # no white pixels
+            dlgWarn("seamlessMerge : no masked pixel found")
             return
+        # set white mask
         src_maskBuf = np.dstack((tmp, tmp, tmp)).astype(np.uint8)
         # cloning center is the center of bRect
         center = (bRect.left() + bRect.width() // 2, bRect.top() + bRect.height() // 2)
@@ -968,7 +978,7 @@ class vImage(QImage):
                     res = clahe.apply((HSVBuf[:, :, 2]))
                 else:
                     buf32 = HSVBuf[:,:,2].astype(np.float)/255
-                    res = warpHistogram(buf32, warp=contrastCorrection)
+                    res = warpHistogram(buf32, warp=contrastCorrection, preserveHigh=options['High'])  #TODO preserveHigh added 02/05/18 validate
                     res = (res*255).astype(np.uint8)
                 HSVBuf[:, :, 2] = res
             if satCorrection != 0:
@@ -1367,14 +1377,13 @@ class vImage(QImage):
 
 class mImage(vImage):
     """
-    Multi-layer image. A mImage object holds at least a background
+    Multi-layer image. A mImage holds at least a background
     layer. All layers share the same metadata object. To correctly render a
     mImage, widgets must override their paint event handler.
     """
 
     def __init__(self, *args, **kwargs):
         # as updatePixmap uses layersStack, must be before super __init__
-        #self._layers = {}
         self.layersStack = []
         # link back to QLayerView window
         self.layerView = None
@@ -1518,7 +1527,7 @@ class mImage(vImage):
         if index==None:
             if self.activeLayerIndex is not None:
                 # add on top of active layer if any
-                index = self.activeLayerIndex
+                index = self.activeLayerIndex + 1 #TODO +1 added 03/05/18 validate
             else:
                 # empty stack
                 index = 0
@@ -1549,10 +1558,9 @@ class mImage(vImage):
         layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
         layer.role = role
         self.addLayer(layer, name=name, index=index + 1)
-        #layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getCurrentMaskedImage()
         # init thumb
         if layer.parentImage.useThumb:
-            layer.thumb = layer.inputImg().copy()  # TODO 15/11/17 addedc copy to prevent cycles in applyCloning, function qp.drawImage()
+            layer.thumb = layer.inputImg().copy()
         group = self.layersStack[index].group
         if group:
             layer.group = group
@@ -1768,7 +1776,7 @@ class QLayer(vImage):
     def fromImage(cls, mImg, parentImage=None):
         layer = QLayer(QImg=mImg, parentImage=parentImage)
         layer.parentImage = parentImage
-        return layer #QLayer(QImg=mImg) #mImg
+        return layer
 
     def __init__(self, *args, **kwargs):
         self.parentImage = kwargs.pop('parentImage', None)
