@@ -766,7 +766,12 @@ def openFile(f):
             updateStatus()
             # window.label.img.onImageChanged() # TODO 23/04/18 validate removing mandatory because applyToStack may do nothing
             # update list of recent files
-            recentFiles = list(window.settings.value('paths/recent', []))
+            recentFiles = window.settings.value('paths/recent', [])
+            # settings.values returns a str or a list of str,
+            # depending on the count of items. May be a Pyside2 bug
+            # in QVariant conversion.
+            if type(recentFiles) is str:
+                recentFiles = [recentFiles]
             recentFiles = list(filter(lambda a: a != f, recentFiles))
             recentFiles.insert(0, f)
             if len(recentFiles) > 10:
@@ -866,7 +871,12 @@ def updateMenuOpenRecent():
     the corresponding actions
     """
     window.menuOpen_recent.clear()
-    recentFiles = list(window.settings.value('paths/recent', []))
+    recentFiles = window.settings.value('paths/recent', [])
+    # settings.values returns a str or a list of str,
+    # depending on the count of items. May be a Pyside2 bug
+    # in QVariant conversion.
+    if type(recentFiles) is str:
+        recentFiles = [recentFiles]
     for filename in recentFiles :
         window.menuOpen_recent.addAction(filename, lambda x=filename: openFile(x))
 

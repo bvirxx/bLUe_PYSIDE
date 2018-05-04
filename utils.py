@@ -17,7 +17,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import ctypes
 import cv2
-
 import numpy as np
 from math import factorial
 from PySide2.QtGui import QColor, QPainterPath, QPen, QImage, QPainter, QTransform, QPolygonF
@@ -26,7 +25,6 @@ from PySide2.QtWidgets import QListWidget, QListWidgetItem, QGraphicsPathItem, Q
 from PySide2.QtCore import Qt, QPoint, QObject, QRect, QDir
 from os.path import isfile
 from itertools import product
-
 from numpy.lib.stride_tricks import as_strided
 from imgconvert import QImageBuffer
 

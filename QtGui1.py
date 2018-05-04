@@ -158,8 +158,9 @@ QtCore.QCoreApplication.addLibraryPath(plugin_path)
 
 ######################
 # Hide console for frozen app
+# Pass an argument to program to keep console showing
 #####################
-if getattr(sys, 'frozen', False):
+if getattr(sys, 'frozen', False) and len(sys.argv) <= 1:
     hideConsole()
 
 ######################
