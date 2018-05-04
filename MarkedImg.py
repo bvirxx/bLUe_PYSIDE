@@ -30,6 +30,7 @@ from PySide2.QtWidgets import QApplication, QMessageBox, QSplitter
 from PySide2.QtGui import QPixmap, QImage, QColor, QPainter
 from PySide2.QtCore import QRect
 
+import exiftool
 from colorConv import sRGB2LabVec, sRGBWP, Lab2sRGBVec, rgb2rgbLinearVec, \
     rgbLinear2rgbVec, XYZ2sRGBVec, sRGB2XYZVec
 
@@ -639,11 +640,7 @@ class vImage(QImage):
         # at least one FGD pixel and one BGD pixel
         if not ((np.any(finalMask == cv2.GC_FGD) or np.any(finalMask == cv2.GC_PR_FGD)) and (
             np.any(finalMask == cv2.GC_BGD) or np.any(finalMask == cv2.GC_PR_BGD))):
-            reply = QMessageBox()
-            reply.setText('You must select some background or foreground pixels')
-            reply.setInformativeText('Use selection rectangle or draw mask')
-            reply.setStandardButtons(QMessageBox.Ok)
-            reply.exec_()
+            dlgWarn('You must select some background or foreground pixels', info='Use selection rectangle or draw mask')
             return
         bgdmodel = np.zeros((1, 13 * 5), np.float64)  # Temporary array for the background model
         fgdmodel = np.zeros((1, 13 * 5), np.float64)  # Temporary array for the foreground model
@@ -1106,9 +1103,7 @@ class vImage(QImage):
             w1 , h1 = max(w1,0), max(h1, 0)
             w2, h2 = min(w2, inputImage.width()), min(h2, inputImage.height())
             if w1>=w2 or h1>=h2:
-                msg = QMessageBox()
-                msg.setText("Empty selection\nSelect a region with the marquee tool")
-                msg.exec_()
+                dlgWarn("Empty selection\nSelect a region with the marquee tool")
                 return
         else:
             w1, w2, h1, h2 = 0, self.inputImg().width(), 0, self.inputImg().height()
@@ -1381,6 +1376,17 @@ class mImage(vImage):
     layer. All layers share the same metadata object. To correctly render a
     mImage, widgets must override their paint event handler.
     """
+    @classmethod
+    def restoreMeta(cls, srcFile, destFile):
+        """
+        # copy metadata from sidecar to image file. The sidecar is not removed
+        @param srcFile: source image or sidecar (the extension is replaced by .mie)
+        @type srcFile: str
+        @param destFile: image file
+        @type destFile: str
+        """
+        with exiftool.ExifTool() as e:
+            e.restoreMetadata(srcFile, destFile)
 
     def __init__(self, *args, **kwargs):
         # as updatePixmap uses layersStack, must be before super __init__
@@ -1617,9 +1623,9 @@ class mImage(vImage):
 
     def save(self, filename, quality=-1, compression=-1, crops=None):
         """
-        Build image from visible layers
-        and write it to file. Raise IOError if
-        saving fails.
+        Builds image from visible layers
+        and writes it to file. Raise IOError if
+        saving fails. Overrides QImage.save()
         @param filename:
         @type filename: str
         @param quality: integer value in range 0..100, or -1
@@ -1629,7 +1635,7 @@ class mImage(vImage):
         if self.useThumb:
             return False
         # get image
-        img = self.mergeVisibleLayers() #self.layersStack[-1].rPixmap.toImage()  TODO 11/04/18 reset
+        img = self.mergeVisibleLayers() #self.layersStack[-1].rPixmap.toImage()  TODO 11/04/18 validate
         # imagewriter and QImage.save are unusable for tif files,
         # due to bugs in libtiff, hence
         # we use opencv imwrite.
@@ -2215,13 +2221,10 @@ class QLayer(vImage):
                 break
         self.group = []
 
-
     def merge_with_layer_immediately_below(self):
         """
         Merges a layer with the next lower visible layer. Does nothing
         if mode is preview or the target layer is an adjustment layer.
-        @return:
-        @rtype:
         """
         if not hasattr(self, 'inputImg'):
             return
@@ -2231,10 +2234,8 @@ class QLayer(vImage):
             return
         target = self.parentImage.layersStack[ind]
         if hasattr(target, 'inputImg') or self.parentImage.useThumb:
-            msgBox = QMessageBox()
-            msgBox.setText("Cannot Merge layers")
-            msgBox.setInformativeText("Uncheck Preview first" if self.parentImage.useThumb else "Target layer must be background or image" )
-            msgBox.exec()
+            info = "Uncheck Preview first" if self.parentImage.useThumb else "Target layer must be background or image"
+            dlgWarn("Cannot Merge layers", info=info)
             return
         #update stack
         self.parentImage.layersStack[0].applyToStack()
@@ -2245,7 +2246,6 @@ class QLayer(vImage):
         qp.setOpacity(self.opacity)
         qp.drawImage(QRect(0,0,self.width(), self.height()), self)
         target.updatePixmap()
-
         self.parentImage.layerView.clear(delete=False)
         currentIndex = self.getStackIndex()
         self.parentImage.activeLayerIndex = ind

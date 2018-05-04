@@ -29,6 +29,7 @@ from PySide2.QtGui import QTransform, QImage
 from PySide2.QtWidgets import QMessageBox
 from os.path import isfile
 from settings import EXIFTOOL_PATH
+from utils import dlgWarn
 
 class ExifTool(object):
     """
@@ -59,9 +60,7 @@ class ExifTool(object):
                                         stdin =subprocess.PIPE, stdout =subprocess.PIPE, stderr =subprocess.STDOUT
                                        )
         except OSError:
-            msg = QMessageBox()
-            msg.setText("cannot execute exiftool :\nset EXIFTOOL_PATH in file settings.py")
-            msg.exec_()
+            dlgWarn("cannot execute exiftool :\nset EXIFTOOL_PATH in settings.py")
             exit() # TODO 25/04/18 close app gracefully
         return self
 

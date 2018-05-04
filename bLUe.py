@@ -331,11 +331,7 @@ def mouseEvent(widget, event) :
                 # don't draw on a non visible layer
                 if window.btnValues['rectangle'] or window.btnValues['drawFG'] or window.btnValues['drawBG']:
                     if not layer.visible:
-                        msg = QMessageBox()
-                        msg.setWindowTitle('Warning')
-                        msg.setIcon(QMessageBox.Warning)
-                        msg.setText('Select a visible layer for drawing or painting')
-                        msg.exec_()
+                        dlgWarn('Select a visible layer for drawing or painting')
                         pressed = False
                         return
                 # marquee tool
@@ -701,9 +697,7 @@ def loadImageFromFile(f, createsidecar=True):
         # may be a Qt Bug, cf. https://bugreports.qt.io/browse/QTBUG-42117
         QApplication.changeOverrideCursor(QCursor(Qt.ArrowCursor))
         QApplication.processEvents()
-        msg = QMessageBox(parent=window)
-        msg.setText("Color profile missing\nAssigning sRGB")
-        msg.exec_()
+        dlgInfo("Color profile missing\nAssigning sRGB")
         img.meta.colorSpace = 1
         img.updatePixmap()
     return img
@@ -781,11 +775,7 @@ def openFile(f):
     except (ValueError, IOError, rawpy.LibRawFatalError) as e:
         QApplication.restoreOverrideCursor()
         QApplication.processEvents()
-        msg = QMessageBox()
-        msg.setWindowTitle('Warning')
-        msg.setIcon(QMessageBox.Warning)
-        msg.setText(str(e))
-        msg.exec_()
+        dlgWarn(str(e))
     finally:
         QApplication.restoreOverrideCursor()
         QApplication.processEvents()
@@ -1519,11 +1509,7 @@ def menuLayer(name):
             try:
                 LUT3DArray, size = LUT3D.readFromTextFile(name)
             except (ValueError, IOError) as e:
-                reply = QMessageBox()
-                reply.setText('Unable to load 3D LUT')
-                reply.setInformativeText(str(e))
-                reply.setStandardButtons(QMessageBox.Ok)
-                ret = reply.exec_()
+                dlgWarn('Unable to load 3D LUT', info=str(e))
                 return
             lname = path.basename(name)
             l = window.label.img.addAdjustmentLayer(name=lname)
@@ -1688,20 +1674,12 @@ def canClose():
                 # save dialog
                 filename = saveDlg(window.label.img, window)
                 # confirm saving
-                msg = QMessageBox()
-                msg.setWindowTitle('Information')
-                msg.setIcon(QMessageBox.Information)
-                msg.setText("%s written" % filename)
-                msg.exec_()
+                dlgInfo("%s written" % filename)
                 return True
             elif ret == QMessageBox.Cancel:
                 return False
         except (ValueError, IOError) as e:
-            msg = QMessageBox()
-            msg.setWindowTitle('Warning')
-            msg.setIcon(QMessageBox.Warning)
-            msg.setText(str(e))
-            msg.exec_()
+            dlgWarn(str(e))
             return False
     return True
 

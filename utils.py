@@ -28,8 +28,6 @@ from os.path import isfile
 from itertools import product
 
 from numpy.lib.stride_tricks import as_strided
-
-import exiftool
 from imgconvert import QImageBuffer
 
 ##################
@@ -234,28 +232,34 @@ def inversion(m):
                     [m4 * m8 - m5 * m7, m2 * m7 - m1 * m8, m1 * m5 - m2 * m4]])
     return inv / multiply(inv[0], m[:, 0])
 
-def dlgInfo(text):
+def dlgInfo(text, info=''):
     """
     Shows a simple information dialog.
     @param text:
     @type text: str
+    @param info:
+    @type info: str
     """
     msg = QMessageBox()
     msg.setWindowTitle('Information')
     msg.setIcon(QMessageBox.Information)
     msg.setText(text)
+    msg.setInformativeText(info)
     msg.exec_()
 
-def dlgWarn(text):
+def dlgWarn(text, info=''):
     """
     Shows a simple warning dialog.
     @param text:
-    @type text:
+    @type text: str
+    @param info:
+    @type info: str
     """
     msg = QMessageBox()
     msg.setWindowTitle('Warning')
     msg.setIcon(QMessageBox.Warning)
     msg.setText(text)
+    msg.setInformativeText(info)
     msg.exec_()
 
 def saveChangeDialog(img):
@@ -335,10 +339,9 @@ def saveDlg(img, mainWidget):
         quality = dlg.sliderQual.value()
         compression = dlg.sliderComp.value()
         # write image file : throw ValueError or IOError
-        img.save(filename, quality=quality, compression=compression)  #mImage.save()
+        img.save(filename, quality=quality, compression=compression)
         # copy metadata to image file. The sidecar is not removed
-        with exiftool.ExifTool() as e:
-            e.restoreMetadata(img.filename, filename)
+        img.restoreMeta(img.filename, filename)
         return filename
     else:
         raise ValueError("Saving Operation Failure")

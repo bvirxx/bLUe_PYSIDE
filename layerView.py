@@ -27,7 +27,7 @@ from PySide2.QtWidgets import QComboBox, QHBoxLayout, QLabel, QTableView, QAbstr
 import resources_rc  # hidden import mandatory : DO NOT REMOVE !!!
 import QtGui1
 from imgconvert import QImageBuffer
-from utils import openDlg
+from utils import openDlg, dlgWarn
 
 
 class layerModel(QStandardItemModel):
@@ -670,11 +670,7 @@ class QLayerView(QTableView) :
             # different groups
             if l.group and group:
                 if l.group is not group:
-                    msg = QMessageBox()
-                    msg.setWindowTitle('Warning')
-                    msg.setIcon(QMessageBox.Warning)
-                    msg.setText("Select a single group")
-                    msg.exec_()
+                    dlgWarn("Select a single group")
                     return
         # get current position
         index = self.indexAt(event.pos())
@@ -721,11 +717,7 @@ class QLayerView(QTableView) :
         def groupSelection():
             layers = [rStack[i] for i in sorted(rows)]
             if any(l.group for l in layers):
-                msg = QMessageBox()
-                msg.setWindowTitle('Warning')
-                msg.setIcon(QMessageBox.Warning)
-                msg.setText("Some layers are already grouped. Ungroup first")
-                msg.exec_()
+                dlgWarn("Some layers are already grouped. Ungroup first")
                 return
             mask = layers[0].mask
             for l in layers:
@@ -746,11 +738,7 @@ class QLayerView(QTableView) :
                 if self.img.layersStack[pos + 1 + i].visible:
                     upperVisible = True
             if upperVisible:
-                msg = QMessageBox()
-                msg.setWindowTitle('Warning')
-                msg.setIcon(QMessageBox.Warning)
-                msg.setText("To show/edit the mask switch off\nthe visibility of all upper layers")
-                msg.exec_()
+                dlgWarn("To show/edit the mask switch off\nthe visibility of all upper layers")
                 return True
             return False
         def colorMaskEnable():
