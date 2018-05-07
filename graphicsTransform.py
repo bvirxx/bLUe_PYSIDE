@@ -55,12 +55,15 @@ class transForm (QGraphicsView):
         self.sliderRot.setEnabled(self.options['Rotation'])
         # option changed handler
         def g(item):
+            self.tool.setOriQuad()
             if self.options['Perspective']:
-                self.tool.setTransform(self.layer.geoTrans)
+                pass
+                #self.tool.setTransform(self.layer.geoTrans)
             else:
-                self.tool.setTransform(QTransform())
+                pass
+                #self.tool.setTransform(QTransform())
             self.sliderRot.setEnabled(self.options['Rotation'])
-            self.tool.setVisible(True)#not self.options['Rotation'])
+            self.tool.setVisible(True)
             self.layer.applyToStack()
 
         self.listWidget1.onSelect = g

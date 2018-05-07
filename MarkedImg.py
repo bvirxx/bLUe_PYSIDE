@@ -714,19 +714,27 @@ class vImage(QImage):
         ndImg1a[:, :, 3] = bufIn[:,:,3] # TODO 23/10/17 fix
         self.updatePixmap()
 
-    def applyTransForm(self, transformation, options):
+    def applyTransForm(self, T, options):
+        """
+        Applies the geometric transformation T
+        @param T:
+        @type T: QTransform
+        @param options:
+        @type options:
+        """
         # neutral point
-        if transformation.isIdentity():
+        if T.isIdentity():
             buf0 = QImageBuffer(self.getCurrentImage())
             buf1 = QImageBuffer(self.inputImg())
             buf0[:, :, :] = buf1
             self.updatePixmap()
             return
         inImg = self.inputImg()
-        # apply transformation and copy
-        img = inImg.transformed(transformation).copy(QRect(-self.rectTrans.x(), -self.rectTrans.y(), inImg.width(), inImg.height()))
+        # apply the transformation and re-translate the transformed image
+        # so that the resulting transformation is T and NOT that given by QImage.trueMatrix()
+        img = inImg.transformed(T).copy(QRect(-self.rectTrans.x(), -self.rectTrans.y(), inImg.width(), inImg.height()))
         if img.isNull():
-            print('applyTransform : null image')
+            print('applyTransform : transformation fails')
             return
         outBuf = QImageBuffer(self.getCurrentImage())
         outBuf[:,:,:] = QImageBuffer(img)

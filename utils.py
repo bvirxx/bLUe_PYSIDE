@@ -658,64 +658,76 @@ class cropTool(QObject):
 
 class rotatingHandle(QToolButton):
     """
-    Active button for geometric transformations
+    Active button for interactive geometric transformations
     """
     def __init__(self, role=None, tool=None, pos=QPoint(0,0), parent=None):
         super().__init__(parent=parent)
         self.group = None
         self.tool = tool
         self.role=role
-        # set coordinates relative to full resolution image
+        # set coordinates (relative to the full resolution image)
         self.posRelImg_ori = pos
         self.posRelImg = pos
-        # resizingCoeff is set by mousePressEvent
-        self.resizingCoeff = None
         self.setVisible(False)
-        self.setGeometry(0, 0, 20, 20)
+        self.setGeometry(0, 0, 12, 12)
         self.setAutoFillBackground(True)
         self.setAutoRaise(True)
         self.setStyleSheet("QToolButton:hover {background-color:#00FF00} QToolButton {background-color:#AA0000}")
 
     def mousePressEvent(self, event):
-        self.resizingCoeff = self.tool.layer.parentImage.resize_coeff(self.tool.parent())
-
-    def mouseMoveEvent(self, event):
         """
-        Handle move event handler
+        Mouse press event handler: sets the tool resizing
+        coefficient for the current move.
         @param event:
         @type event:
         """
+        widget = self.tool.parent()
+        # get the current resizing coeff.
+        self.tool.resizingCoeff = self.tool.layer.parentImage.resize_coeff(widget)
+
+    def mouseMoveEvent(self, event):
+        """
+        Mouse move event handler : sets the transformation
+        @param event:
+        @type event:
+        """
+        img = self.tool.layer.parentImage
         curimg = self.tool.layer.getCurrentImage()
         w, h = curimg.width(), curimg.height()
         s = w / self.tool.img.width()
-        # get coordinates relative to parent ( window.label)
+        # mouse coordinates, relative to parent widget
         pos = self.mapToParent(event.pos())
-        img = self.tool.layer.parentImage
-        r = self.resizingCoeff
-        # get handle coordinates relative to the full resolution image
-        p = pos - QPoint(img.xOffset, img.yOffset)
-        self.posRelImg = p / r
+        # update posRelImg with the mousecoordinates, relative to the full resolution image
+        r = self.tool.resizingCoeff
+        self.posRelImg = (pos - QPoint(img.xOffset, img.yOffset)) / r
+        # get the updated quad
         poly = self.tool.getQuad()
+        # build the transformation
         T = QTransform()
+        # map the quads to current image coordinates
+        D = QMatrix().scale(s, s)
+        DInv = QMatrix().scale(1/s, 1/s)
+        q1, q2 = D.map(self.tool.oriQuad), D.map(poly)
         if self.tool.form.options['Perspective']:
-            D = QMatrix().scale(s,s)
-            q1,q2 = D.map(self.tool.oriQuad), D.map(poly)
             res = QTransform().quadToQuad(q1, q2, T)
             if not res:
-                print('mouseMoveEvent no transformation')
+                print('rotating Handle : no possible transformation')
                 return
-            self.tool.layer.rectTrans = q2.boundingRect()
-            self.tool.layer.polyTrans = q2
         elif self.tool.form.options['Rotation']:
-            center = QPoint(img.width(), img.height()) / 2
-            s = img.getCurrentImage().width() / img.width()
-            v = self.posRelImg - center
-            v0 = self.posRelImg_ori - center
+            center = self.tool.getQuad().boundingRect().center()
+            v = QPointF(self.posRelImg.x() - center.x(), self.posRelImg.y() - center.y())
+            v0 = QPointF(self.posRelImg_ori.x() - center.x(), self.posRelImg_ori.y() - center.y())
             theta = (np.arctan2(v.y(), v.x()) - np.arctan2(v0.y(), v0.x()))* 180.0/np.pi
-            T = QTransform().rotate(theta)
+            # copy geoTrans_ori
+            T = QTransform(self.tool.geoTrans_ori)
+            T.translate(center.x()*s, center.y()*s).rotate(theta).translate(-center.x()*s,-center.y()*s) #QTransform().rotate(theta)
+            q2 = T.map(q1)
+            q3 = DInv.map(q2)
+            for i, role in enumerate(['topLeft', 'topRight', 'bottomRight', 'bottomLeft']):
+                self.tool.btnDict[role].posRelImg = q3.at(i)
         self.tool.setTransform(T, movedBtn=[self.role])
         # get the bounding rect of poly
-        #self.tool.layer.rectTrans = poly.boundingRect()
+        self.tool.layer.rectTrans = q2.boundingRect()
         self.tool.layer.applyToStack()
         self.parent().repaint()
 
@@ -730,6 +742,8 @@ class rotatingTool(QObject):
         self.form.tool = self
         self.img = layer.parentImage
         w,h = self.img.width(), self.img.height()
+        # resizingCoeff is set by mousePressEvent
+        #self.resizingCoeff = None
         super().__init__(parent=parent)
         # init buttons
         rotatingButtonLeft = rotatingHandle(role='topLeft', tool=self, pos=QPoint(0,0), parent=parent)
@@ -745,8 +759,10 @@ class rotatingTool(QObject):
         # get initial positions of buttons
         # (coordinates are relative to full size image)
         self.oriQuad = self.getQuad()
+        self.geoTrans_ori = QTransform()
+        # dynamic attributes
         self.layer.rectTrans = self.oriQuad.boundingRect()
-        self.layer.polyTrans = self.oriQuad
+        #self.layer.polyTrans = self.oriQuad
         # draw buttons
         self.drawRotatingTool()
         self.showTool()
@@ -774,6 +790,11 @@ class rotatingTool(QObject):
     def setVisible(self, value):
         for btn in self.btnDict.values():
             btn.setVisible(value)
+
+    def setOriQuad(self):
+        for i,role in enumerate(['topLeft', 'topRight', 'bottomRight', 'bottomLeft']):
+            self.btnDict[role].posRelImg_ori = self.getQuad().at(i)
+        self.geoTrans_ori = self.layer.geoTrans
 
     def setTransform(self, transformation, movedBtn=['topLeft', 'topRight', 'bottomLeft', 'bottomRight']):
         """
@@ -837,7 +858,6 @@ class rotatingTool(QObject):
         # w, h = self.cRect.width()*r, self.cRect.height()*r
         bottomLeft.move(x + bottomLeft.posRelImg.x()*r, y - bottomLeft.height() + bottomLeft.posRelImg.y()*r)
         bottomRight.move(x - bottomRight.width() + bottomRight.posRelImg.x()*r, y - bottomRight.height() + bottomRight.posRelImg.y()*r)
-        #bottomRight.move(x+self.layer.polyTrans.at(2).x()*r, y+self.layer.polyTrans.at(2).y()*r)
         topLeft.move(x + topLeft.posRelImg.x()*r, y + topLeft.posRelImg.y()*r)
         topRight.move(x - topRight.width() + topRight.posRelImg.x()*r, y + topRight.posRelImg.y()*r)
 
