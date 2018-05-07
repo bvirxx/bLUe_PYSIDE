@@ -244,7 +244,7 @@ class vImage(QImage):
             self.meta = meta
         if (filename is None and cv2Img is None and QImg is None):
             # create a null image
-            super(vImage, self).__init__()
+            super().__init__()
         if filename is not None:
             if not isfile(filename):
                 raise ValueError('Cannot find file %s' % filename)
@@ -258,15 +258,15 @@ class vImage(QImage):
             if tmp.isNull():
                 raise ValueError('Cannot load %s\nSupported image formats\n%s' % (filename, QImageReader.supportedImageFormats()))
             # call to super is mandatory. Shallow copy : no harm !
-            super(vImage, self).__init__(tmp)
+            super().__init__(tmp)
         elif QImg is not None:
             # build image from QImage, shallow copy
-            super(vImage, self).__init__(QImg)
+            super().__init__(QImg)
             if hasattr(QImg, "meta"):
                 self.meta = copy(QImg.meta)
         elif cv2Img is not None:
             # build image from buffer
-            super(vImage, self).__init__(ndarrayToQImage(cv2Img, format=format))
+            super().__init__(ndarrayToQImage(cv2Img, format=format))
         # check format
         if self.depth() != 32:
             raise ValueError('vImage : should be a 8 bits/channel color image')
@@ -337,14 +337,16 @@ class vImage(QImage):
     def resize_coeff(self, widget):
         """
         Normalization of self.Zoom_coeff.
-        Return the current resizing coefficient, used by
-        the paint event handler to display the image.
+        Returns the current resizing coefficient, as used by
+        the widget paint event handler to display the image.
         Note 1. This coefficient is chosen to initially (i.e. when self.Zoom_coeff = 1)
         fill the widget.
         Note 2. To correctly manage splitted views, we use the size of the QSplitter parent
         container instead of the size of the widget.
-        @param widget: Qwidget object
+        @param widget:
+        @tyep widget: Qwidget
         @return: the (multiplicative) resizing coefficient
+        @rtype: float
         """
         if type(widget.parent()) == QSplitter:
             widget = widget.parent()
@@ -713,6 +715,7 @@ class vImage(QImage):
         self.updatePixmap()
 
     def applyTransForm(self, transformation, options):
+        # neutral point
         if transformation.isIdentity():
             buf0 = QImageBuffer(self.getCurrentImage())
             buf1 = QImageBuffer(self.inputImg())
@@ -720,11 +723,12 @@ class vImage(QImage):
             self.updatePixmap()
             return
         inImg = self.inputImg()
+        # apply transformation and copy
         img = inImg.transformed(transformation).copy(QRect(-self.rectTrans.x(), -self.rectTrans.y(), inImg.width(), inImg.height()))
-        outBuf = QImageBuffer(self.getCurrentImage())
         if img.isNull():
-            print('null', img.rect())
+            print('applyTransform : null image')
             return
+        outBuf = QImageBuffer(self.getCurrentImage())
         outBuf[:,:,:] = QImageBuffer(img)
         self.updatePixmap()
 
@@ -1393,7 +1397,7 @@ class mImage(vImage):
         self.layersStack = []
         # link back to QLayerView window
         self.layerView = None
-        super(mImage, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         # add background layer
         bgLayer = QLayer.fromImage(self, parentImage=self)
         bgLayer.isClipping = True
@@ -1700,7 +1704,7 @@ class imImage(mImage) :
     Interactive multi-layer image
     """
     def __init__(self, *args, **kwargs):
-        super(imImage, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         # Zoom coeff
         # Zoom_coeff = 1.0 displays an image fitting the
         # size of the current window ( NOT the actual pixels of the image).
@@ -1740,7 +1744,7 @@ class imImage(mImage) :
         @rtype: imImage
         """
         # resized vImage
-        rszd0 = super(imImage, self).resize(pixels, interpolation=interpolation)
+        rszd0 = super().resize(pixels, interpolation=interpolation)
         # resized imImage
         rszd = imImage(QImg=rszd0,meta=copy(self.meta))
         rszd.rect = rszd0.rect
@@ -1785,26 +1789,21 @@ class QLayer(vImage):
         return layer
 
     def __init__(self, *args, **kwargs):
-        self.parentImage = kwargs.pop('parentImage', None)
-        super(QLayer, self).__init__(*args, **kwargs)
         self.name='noname'
         self.visible = True
         self.isClipping = False
         self.role = kwargs.pop('role', '')
         self.tool = None
+        self.parentImage = kwargs.pop('parentImage', None)
         # layer opacity is used by QPainter operations.
         # Its value must be in the range 0.0...1.0
         self.opacity = 1.0
         self.compositionMode = QPainter.CompositionMode_SourceOver
         # The next two attributes are used by adjustment layers only.
         # wrapper for the right exec method
-        #self.execute = lambda l=None, pool=None: self.updatePixmap()
+        # self.execute = lambda l=None, pool=None: self.updatePixmap()
         self.execute = lambda l=None, pool=None: l.updatePixmap() if l is not None else None
         self.options = {}
-        # Following attributes (functions)  are reserved (dynamic typing for adjustment layers) and set in addAdjustmentlayer() above
-            # self.inputImg : access to upper lower visible layer image or thumbnail, according to flag useThumb
-            # self.inputImgFull : access to upper lower visible layer image
-            # Accessing upper lower thumbnail must be done by calling inputImgFull().thumb. Using inputImg().thumb will fail if useThumb is True.
         # actionName is used by methods graphics***.writeToStream()
         self.actionName = 'actionNull'
         # view is set by bLUe.menuLayer()
@@ -1823,6 +1822,7 @@ class QLayer(vImage):
         # layers to shift an image clone.
         self.xAltOffset, self.yAltOffset = 0, 0
         self.AltZoom_coeff = 1.0
+        super().__init__(*args, **kwargs)
 
     def bTransformed(self, transformation, parentImage):
         """

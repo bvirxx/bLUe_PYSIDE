@@ -34,7 +34,7 @@ class filterForm (QGraphicsView):
         return wdgt
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
-        super(filterForm, self).__init__(parent=parent)
+        super().__init__(parent=parent)
         defaultRadius = 10
         defaultTone = 100.0
         defaultAmount = 50.0

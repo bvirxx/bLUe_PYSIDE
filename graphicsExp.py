@@ -20,7 +20,7 @@ class ExpForm (QGraphicsView):
         return wdgt
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None): # TODO 01/12/17 remove param targetImage
-        super(ExpForm, self).__init__(parent=parent)
+        super().__init__(parent=parent)
         #self.targetImage = targetImage
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize, axeSize)

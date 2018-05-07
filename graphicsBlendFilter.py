@@ -37,7 +37,7 @@ class blendFilterForm (QGraphicsView):
         return wdgt
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
-        super(blendFilterForm, self).__init__(parent=parent)
+        super().__init__(parent=parent)
         self.defaultFilterStart = 0
         self.defaultFilterEnd = 99
         self.filterStart = self.defaultFilterStart

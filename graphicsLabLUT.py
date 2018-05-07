@@ -40,7 +40,7 @@ class graphicsLabForm(QGraphicsView):
         return newWindow
 
     def __init__(self, cModel=None, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
-        super(graphicsLabForm, self).__init__(parent=parent)
+        super().__init__(parent=parent)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize + 60, axeSize + 140)
         self.setAttribute(Qt.WA_DeleteOnClose)

@@ -23,7 +23,9 @@ from utils import optionsWidget
 
 
 class transForm (QGraphicsView):
-
+    """
+    Geometric transformation form
+    """
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=200, layer=None, parent=None, mainForm=None):
         wdgt = transForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
@@ -58,7 +60,7 @@ class transForm (QGraphicsView):
             else:
                 self.tool.setTransform(QTransform())
             self.sliderRot.setEnabled(self.options['Rotation'])
-            self.tool.setVisible(not self.options['Rotation'])
+            self.tool.setVisible(True)#not self.options['Rotation'])
             self.layer.applyToStack()
 
         self.listWidget1.onSelect = g

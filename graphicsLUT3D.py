@@ -93,7 +93,7 @@ class nodeGroup(QGraphicsItemGroup):
             group.removeFromGroup(item)
 
     def __init__(self, grid=None, position=QPointF(), parent=None):
-        super(nodeGroup, self).__init__(parent=parent)
+        super().__init__(parent=parent)
         self.setFlag(QGraphicsItem.ItemIsSelectable, True)
         self.grid = grid
         self.mouseIsPressed = False
@@ -104,12 +104,12 @@ class nodeGroup(QGraphicsItemGroup):
 
     def addToGroup(self, item):
         item.setSelected(False)
-        super(nodeGroup, self).addToGroup(item)
+        super().addToGroup(item)
         # set item position
         #item.setPos(item.initialPosition - self.initialPosition)
 
     def mousePressEvent(self,e):
-        super(nodeGroup, self).mousePressEvent(e)
+        super().mousePressEvent(e)
         self.mouseIsPressed = True
         # draw links to neighbors
         self.grid.drawTrace = True
@@ -122,7 +122,7 @@ class nodeGroup(QGraphicsItemGroup):
         self.grid.drawGrid()
 
     def mouseReleaseEvent(self, e):
-        super(nodeGroup, self).mouseReleaseEvent(e)
+        super().mouseReleaseEvent(e)
         #click event
         """
         if not self.mouseIsMoved:
@@ -275,7 +275,7 @@ class activeNode(QGraphicsPathItem):
         @param parent: parent item
         @param grid: owner grid
         """
-        super(activeNode, self).__init__()
+        super().__init__()
         self.setParentItem(parent)
         self.cModel = cModel
         self.mouseIsPressed = False
@@ -423,7 +423,7 @@ class activeNode(QGraphicsPathItem):
         # super Press select node
         #print [(i,j,k) for i,j,k in zip(np.where(LUT3D_SHADOW[:, :, :, 3] == 0)[0], np.where(LUT3D_SHADOW[:, :, :, 3] == 0)[1], np.where(LUT3D_SHADOW[:, :, :, 3] == 0)[2] )if i >1 and j > 1 and k > 1 and i<31 and j < 31 and k < 31]
         self.mouseIsPressed = True
-        super(activeNode, self).mousePressEvent(e)
+        super().mousePressEvent(e)
 
     def mouseMoveEvent(self, e):
         self.mouseIsMoved = True
@@ -438,7 +438,7 @@ class activeNode(QGraphicsPathItem):
         self.mouseIsPressed = False
         self.mouseIsMoved = False
         self.grid.drawTrace = False
-        super(activeNode, self).mouseReleaseEvent(e)
+        super().mouseReleaseEvent(e)
 
     def contextMenuEvent(self, event):
         menu = QMenu()
@@ -461,7 +461,7 @@ class activeGrid(QGraphicsPathItem):
         @param size: node count in each dim.
         @param parent:
         """
-        super(activeGrid, self).__init__()
+        super().__init__()
         self.setParentItem(parent)
         self.size = size
         # parent should be the color wheel. step is the unitary coordinate increment
@@ -567,7 +567,7 @@ class activeMarker(QGraphicsPolygonItem):
         return item
 
     def __init__(self, *args, **kwargs):
-        super(activeMarker, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.onMouseMove, self.onMouseRelease  = lambda e, x,y: 0, lambda e, x,y: 0
         self.moveRange = QRectF(0.0, 0.0, 0.0, 0.0)
 
@@ -646,7 +646,7 @@ class colorPicker(QGraphicsPixmapItem):
             self.targetHist = b
             self.showTargetHist = False
 
-        super(colorPicker, self).__init__(self.QImg.qPixmap)
+        super().__init__(self.QImg.qPixmap)
         self.setPixmap(self.QImg.qPixmap)
         self.setOffset(QPointF(-border, -border))
 
@@ -663,7 +663,7 @@ class colorPicker(QGraphicsPixmapItem):
             qp.end()
             pxmap = pxmap1
         #self.QImg.qPixmap = pxmap  # QPixmap.fromImage(a)
-        super(colorPicker, self).setPixmap(pxmap)
+        super().setPixmap(pxmap)
 
     def updatePixmap(self):
         """
@@ -760,7 +760,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         @param parent:
         @type parent:
         """
-        super(graphicsForm3DLUT, self).__init__(parent=parent)
+        super().__init__(parent=parent)
         # context help tag
         self.helpId = "LUT3DForm"
         self.cModel = cModel

@@ -19,10 +19,10 @@ import ctypes
 import cv2
 import numpy as np
 from math import factorial
-from PySide2.QtGui import QColor, QPainterPath, QPen, QImage, QPainter, QTransform, QPolygonF
+from PySide2.QtGui import QColor, QPainterPath, QPen, QImage, QPainter, QTransform, QPolygonF, QMatrix
 from PySide2.QtWidgets import QListWidget, QListWidgetItem, QGraphicsPathItem, QDialog, QVBoxLayout, \
     QFileDialog, QSlider, QWidget, QHBoxLayout, QLabel, QMessageBox, QPushButton, QToolButton
-from PySide2.QtCore import Qt, QPoint, QObject, QRect, QDir
+from PySide2.QtCore import Qt, QPoint, QObject, QRect, QDir, QPointF, QRectF
 from os.path import isfile
 from itertools import product
 from numpy.lib.stride_tricks import as_strided
@@ -622,9 +622,7 @@ class cropTool(QObject):
         self.btnDict = {btn.role: btn for btn in btnList}
         for btn in btnList:
             btn.group = self.btnDict
-
-        self.cRect = QRect(0, 0, 0, 0)
-
+        #self.cRect = QRect(0, 0, 0, 0)
         self.formFactor = 1.0
 
     def drawCropTool(self, img):
@@ -641,10 +639,10 @@ class cropTool(QObject):
         top = self.btnDict['top']
         bottom = self.btnDict['bottom']
         right = self.btnDict['right']
-        self.cRect = QRect(round(left.margin), round(top.margin), img.width()-round(right.margin+left.margin), img.height()-round(bottom.margin+top.margin))
-        p = self.cRect.topLeft()*r + QPoint(img.xOffset, img.yOffset)
+        cRect = QRect(round(left.margin), round(top.margin), img.width()-round(right.margin+left.margin), img.height()-round(bottom.margin+top.margin))
+        p = cRect.topLeft()*r + QPoint(img.xOffset, img.yOffset)
         x, y = p.x(), p.y()
-        w, h = self.cRect.width()*r, self.cRect.height()*r
+        w, h = cRect.width()*r, self.cRect.height()*r
         left.move(x - left.width(), y + h//2)
         right.move(x + w, y + h//2)
         top.move(x + w//2, y - top.height())
@@ -659,11 +657,19 @@ class cropTool(QObject):
         bottomRight.move(x + w, y + h)
 
 class rotatingHandle(QToolButton):
+    """
+    Active button for geometric transformations
+    """
     def __init__(self, role=None, tool=None, pos=QPoint(0,0), parent=None):
         super().__init__(parent=parent)
+        self.group = None
         self.tool = tool
         self.role=role
+        # set coordinates relative to full resolution image
+        self.posRelImg_ori = pos
         self.posRelImg = pos
+        # resizingCoeff is set by mousePressEvent
+        self.resizingCoeff = None
         self.setVisible(False)
         self.setGeometry(0, 0, 20, 20)
         self.setAutoFillBackground(True)
@@ -674,50 +680,77 @@ class rotatingHandle(QToolButton):
         self.resizingCoeff = self.tool.layer.parentImage.resize_coeff(self.tool.parent())
 
     def mouseMoveEvent(self, event):
+        """
+        Handle move event handler
+        @param event:
+        @type event:
+        """
+        curimg = self.tool.layer.getCurrentImage()
+        w, h = curimg.width(), curimg.height()
+        s = w / self.tool.img.width()
+        # get coordinates relative to parent ( window.label)
         pos = self.mapToParent(event.pos())
         img = self.tool.layer.parentImage
         r = self.resizingCoeff
-        # get coordinates relative to full resolution image
+        # get handle coordinates relative to the full resolution image
         p = pos - QPoint(img.xOffset, img.yOffset)
-        self.posRelImg = QPoint(p.x()/r, p.y()/r)
-
-        self.tool.drawRotatingTool()
+        self.posRelImg = p / r
         poly = self.tool.getQuad()
-        T2 = QTransform()
-        b = QTransform().quadToQuad(self.tool.oriQuad, poly, T2)
-        if self.tool.form.options['Rotation']:
-            T2 = QTransform().rotate(self.tool.form.sliderRot.value())
-        self.tool.layer.geoTrans = T2
-        self.tool.layer.rectTrans = poly.boundingRect()
+        T = QTransform()
+        if self.tool.form.options['Perspective']:
+            D = QMatrix().scale(s,s)
+            q1,q2 = D.map(self.tool.oriQuad), D.map(poly)
+            res = QTransform().quadToQuad(q1, q2, T)
+            if not res:
+                print('mouseMoveEvent no transformation')
+                return
+            self.tool.layer.rectTrans = q2.boundingRect()
+            self.tool.layer.polyTrans = q2
+        elif self.tool.form.options['Rotation']:
+            center = QPoint(img.width(), img.height()) / 2
+            s = img.getCurrentImage().width() / img.width()
+            v = self.posRelImg - center
+            v0 = self.posRelImg_ori - center
+            theta = (np.arctan2(v.y(), v.x()) - np.arctan2(v0.y(), v0.x()))* 180.0/np.pi
+            T = QTransform().rotate(theta)
+        self.tool.setTransform(T, movedBtn=[self.role])
+        # get the bounding rect of poly
+        #self.tool.layer.rectTrans = poly.boundingRect()
         self.tool.layer.applyToStack()
         self.parent().repaint()
 
 class rotatingTool(QObject):
-
-    @classmethod
-    def getNewRotatingTool(cls, parent=None, layer=None, form=None):
-        tool = rotatingTool(parent=parent, layer=layer, form=form)
-        form.tool = tool
-        return tool
-
+    """
+    Transformation tool
+    """
     def __init__(self, parent=None, layer=None, form=None):
         self.layer = layer
         self.form = form
-        self.img=layer.parentImage
+        # dynamic attribute
+        self.form.tool = self
+        self.img = layer.parentImage
         w,h = self.img.width(), self.img.height()
         super().__init__(parent=parent)
+        # init buttons
         rotatingButtonLeft = rotatingHandle(role='topLeft', tool=self, pos=QPoint(0,0), parent=parent)
         rotatingButtonRight = rotatingHandle(role='topRight', tool=self, pos=QPoint(w,0), parent=parent)
         rotatingButtonTop = rotatingHandle(role='bottomLeft', tool=self, pos=QPoint(0,h), parent=parent)
         rotatingButtonBottom = rotatingHandle(role='bottomRight', tool=self, pos=QPoint(w,h), parent=parent)
+        # init button dictionary
         btnList = [rotatingButtonLeft, rotatingButtonRight, rotatingButtonTop, rotatingButtonBottom]
         self.btnDict = {btn.role: btn for btn in btnList}
+        # link buttons to BtnDict
         for btn in btnList:
             btn.group = self.btnDict
-        self.cRect = QRect(0, 0, 0, 0)
+        # get initial positions of buttons
+        # (coordinates are relative to full size image)
         self.oriQuad = self.getQuad()
+        self.layer.rectTrans = self.oriQuad.boundingRect()
+        self.layer.polyTrans = self.oriQuad
+        # draw buttons
         self.drawRotatingTool()
         self.showTool()
+        """
         # rotation angle changed handler
         def g():
             self.drawRotatingTool()
@@ -728,6 +761,7 @@ class rotatingTool(QObject):
             self.layer.applyToStack()
             self.parent().repaint()
         self.form.sliderRot.valueChanged.connect(g)
+        """
 
     def showTool(self):
         for btn in self.btnDict.values():
@@ -741,42 +775,69 @@ class rotatingTool(QObject):
         for btn in self.btnDict.values():
             btn.setVisible(value)
 
-    def setTransform(self, transformation):
-        rect0 = QRect(0, 0, self.img.width(), self.img.height())
-        rect1 = transformation.mapRect(rect0)
-        for role,pos in zip(['topLeft', 'topRight', 'bottomLeft', 'bottomRight'], [rect1.topLeft(), rect1.topRight(), rect1.bottomLeft(), rect1.bottomRight()]):
-            self.btnDict[role].posRelImg = pos
+    def setTransform(self, transformation, movedBtn=['topLeft', 'topRight', 'bottomLeft', 'bottomRight']):
+        """
+        Sets layer.geoTrans to transformation and draws the tool handles
+        at the corners of the transformed image.
+        @param transformation:
+        @type transformation: QTransform
+        """
+        curimg = self.layer.getCurrentImage()
+        w, h = curimg.width(), curimg.height()
+        s = w / self.img.width()
+        parent = self.parent()
+        r = parent.img.resize_coeff(parent)
         self.layer.geoTrans = transformation
+        # get the actual transformation applied to current image
+        trueTransformation = QImage.trueMatrix(transformation , w/s, h/s)
+        rect0 = QRectF(0, 0, w, h)
+        rect1 = trueTransformation.mapRect(QRectF(0,0,w/s,h/s))
+        cRect = self.layer.rectTrans
+        # get coordinates (relative to widget) of image corners
+        p = cRect.topLeft() + QPoint(self.img.xOffset, self.img.yOffset)
+        x, y = p.x(), p.y()
+        for role,pos in zip(['topLeft', 'topRight', 'bottomLeft', 'bottomRight'], [rect0.topLeft(), rect0.topRight(), rect0.bottomLeft(), rect0.bottomRight()]):
+            # get transformed coordinates relative to the bounding rect of the transformed image
+            if role in movedBtn:
+                pass
+                #self.btnDict['role'].move(p+self.btnDict['role'].posRelImg*r)
+                #self.btnDict[role].posRelImg = trueTransformation.map(pos) / s
         self.drawRotatingTool()
 
     def getQuad(self):
+        """
+        Returns the current quad defined by the 4 handles.
+        Coordinates are relative to the full size image
+        @return:
+        @rtype: QPolygonF
+        """
         poly = QPolygonF()
         s = self.img.getCurrentImage().width() / self.img.width()
         for role in ['topLeft', 'topRight', 'bottomRight', 'bottomLeft']:
-            poly.append(self.btnDict[role].posRelImg * s)
+            poly.append(self.btnDict[role].posRelImg) #*s)
         return poly
 
     def drawRotatingTool(self):
         """
-        Draws the 4 handles around the displayed image,
+        Draws the 4 handles at the cormers of  the displayed image,
         at their current position
-        @param img:
-        @type img: QImage
-        @param r: current resizing coefficient (normalized zoom coeff.)
-        @type r: float
         """
-        r = self.parent().img.resize_coeff(self.parent())
+        # get parent widget
+        parent = self.parent()
+        r = parent.img.resize_coeff(parent)
         topLeft = self.btnDict['topLeft']
         topRight = self.btnDict['topRight']
         bottomLeft = self.btnDict['bottomLeft']
         bottomRight = self.btnDict['bottomRight']
-        self.cRect = QRect(0, 0, self.img.width(), self.img.height())
-        # get coordinates of image topLeft point (relative to widget)
-        p = self.cRect.topLeft() + QPoint(self.img.xOffset, self.img.yOffset)
+        # get the bounding rect of the transformed image
+        cRect = self.layer.rectTrans
+        # get coordinates (relative to widget) of image corners
+        p =  cRect.topLeft()*0 + QPoint(self.img.xOffset, self.img.yOffset)  #TODO r added 07/05/18
         x, y = p.x(), p.y()
-        w, h = self.cRect.width()*r, self.cRect.height()*r
+        # w, h = self.cRect.width()*r, self.cRect.height()*r
         bottomLeft.move(x + bottomLeft.posRelImg.x()*r, y - bottomLeft.height() + bottomLeft.posRelImg.y()*r)
         bottomRight.move(x - bottomRight.width() + bottomRight.posRelImg.x()*r, y - bottomRight.height() + bottomRight.posRelImg.y()*r)
+        #bottomRight.move(x+self.layer.polyTrans.at(2).x()*r, y+self.layer.polyTrans.at(2).y()*r)
         topLeft.move(x + topLeft.posRelImg.x()*r, y + topLeft.posRelImg.y()*r)
         topRight.move(x - topRight.width() + topRight.posRelImg.x()*r, y + topRight.posRelImg.y()*r)
 

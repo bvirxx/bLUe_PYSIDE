@@ -139,7 +139,7 @@ class Ui_Form(object):
 
 class Element(QtWidgets.QGroupBox):
     def __init__(self, parent, main):
-        super(Element, self).__init__(parent)
+        super().__init__(parent)
         self.main = main
 
     def setStyleSheet(self, style):
@@ -171,7 +171,7 @@ FONT_SIZE = 6
 class Head(Element):
     """area before the handle"""
     def __init__(self, parent, main):
-        super(Head, self).__init__(parent, main)
+        super().__init__(parent, main)
 
     def drawText(self, event, qp):
         qp.setPen(self.textColor())
@@ -181,7 +181,7 @@ class Head(Element):
 
 class Tail(Element):
     def __init__(self, parent, main):
-        super(Tail, self).__init__(parent, main)
+        super().__init__(parent, main)
 
     def drawText(self, event, qp):
         qp.setPen(self.textColor())
@@ -191,7 +191,7 @@ class Tail(Element):
 class Handle(Element):
     """handle area"""
     def __init__(self, parent, main):
-        super(Handle, self).__init__(parent, main)
+        super().__init__(parent, main)
 
     def drawText(self, event, qp):
         qp.setPen(self.textColor())
@@ -289,7 +289,7 @@ class QRangeSlider(QtWidgets.QWidget, Ui_Form):
     _SPLIT_END = 2
 
     def __init__(self, parent=None):
-        super(QRangeSlider, self).__init__(parent)
+        super().__init__(parent)
         self.setupUi(self)
         #self.setMouseTracking(False)
         self.setMouseTracking(True)

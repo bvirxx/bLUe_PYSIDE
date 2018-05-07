@@ -25,7 +25,7 @@ class histForm (QWidget):
     Form for displaying histograms
     """
     def __init__(self, targetImage=None, size=200, layer=None, parent=None, mainForm=None):
-        super(histForm, self).__init__(parent=parent)
+        super().__init__(parent=parent)
         self.targetImage = targetImage
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.setMinimumSize(size, 100)

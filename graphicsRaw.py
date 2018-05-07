@@ -40,7 +40,7 @@ class rawForm (QGraphicsView):
         return wdgt
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
-        super(rawForm, self).__init__(parent=parent)
+        super().__init__(parent=parent)
         self.setStyleSheet('QRangeSlider * {border: 0px; padding: 0px; margin: 0px}')
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize, axeSize+200)  # +200 to prevent scroll bars in list Widgets
