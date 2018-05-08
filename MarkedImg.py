@@ -18,9 +18,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import gc
 
 import itertools
+
+from PySide2 import QtCore
 from os.path import isfile
 
-from PySide2.QtCore import Qt, QDataStream, QFile, QIODevice, QSize, QPointF, QPoint, QRectF
+from PySide2.QtCore import Qt, QDataStream, QFile, QIODevice, QSize, QPointF, QPoint, QRectF, QObject
 
 import cv2
 from copy import copy
@@ -40,7 +42,7 @@ from colorManagement import icc, convertQImage
 from imgconvert import *
 from colorCube import interpMulti, rgb2hspVec, hsp2rgbVec, LUT3DIdentity, LUT3D, interpVec_
 from time import time
-from utils import SavitzkyGolay, channelValues, checkeredImage, boundingRect, dlgWarn
+from utils import SavitzkyGolay, channelValues, checkeredImage, boundingRect, dlgWarn, baseSignals
 
 ###################
 # multi processing
@@ -1790,6 +1792,7 @@ class imImage(mImage) :
         self.xOffset, self.yOffset = 0.0, 0.0
 
 class QLayer(vImage):
+
     @classmethod
     def fromImage(cls, mImg, parentImage=None):
         layer = QLayer(QImg=mImg, parentImage=parentImage)
@@ -1799,6 +1802,7 @@ class QLayer(vImage):
     def __init__(self, *args, **kwargs):
         self.name='noname'
         self.visible = True
+        self.signals = baseSignals()
         self.isClipping = False
         self.role = kwargs.pop('role', '')
         self.tool = None
@@ -1831,6 +1835,15 @@ class QLayer(vImage):
         self.xAltOffset, self.yAltOffset = 0, 0
         self.AltZoom_coeff = 1.0
         super().__init__(*args, **kwargs)
+
+    def setVisible(self, value):
+        """
+        Sets self.visible to value and emit visibilityChanged
+        @param value:
+        @type value: bool
+        """
+        self.visible = value
+        self.signals.visibilityChanged.emit(value)
 
     def bTransformed(self, transformation, parentImage):
         """
@@ -1874,7 +1887,6 @@ class QLayer(vImage):
         transform = QTransform()
         transform = transform.scale(w / self.width(), h / self.height())
         return self.bTransformed(transform, parentImage)
-
 
     def initThumb(self):
         """

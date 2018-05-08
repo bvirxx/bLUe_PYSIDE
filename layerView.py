@@ -523,7 +523,8 @@ class QLayerView(QTableView) :
             # background layer is always visible
             if row == len(self.img.layersStack) - 1:
                 return
-            layer.visible = not(layer.visible)
+            #layer.visible = not(layer.visible)
+            layer.setVisible(not(layer.visible))
             # update visibility icon
             if layer.visible:
                 self.model().setData(clickedIndex, QIcon(":/images/resources/eye-icon.png") ,Qt.DecorationRole)

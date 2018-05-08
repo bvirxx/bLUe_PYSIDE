@@ -19,6 +19,8 @@ import ctypes
 import cv2
 import numpy as np
 from math import factorial
+
+from PySide2 import QtCore
 from PySide2.QtGui import QColor, QPainterPath, QPen, QImage, QPainter, QTransform, QPolygonF, QMatrix
 from PySide2.QtWidgets import QListWidget, QListWidgetItem, QGraphicsPathItem, QDialog, QVBoxLayout, \
     QFileDialog, QSlider, QWidget, QHBoxLayout, QLabel, QMessageBox, QPushButton, QToolButton
@@ -34,6 +36,9 @@ IMAGE_FILE_EXTENSIONS = (".jpg", ".JPG", ".png", ".PNG", ".tif", ".TIF", "*.bmp"
 RAW_FILE_EXTENSIONS = (".nef", ".NEF", ".dng", ".DNG", ".cr2", ".CR2")
 IMAGE_FILE_NAME_FILTER = ['Image Files (*.jpg *.png *.tif *.JPG *.PNG *.TIF)']
 #################
+
+class baseSignals(QObject):
+    visibilityChanged = QtCore.Signal(bool)
 
 def hideConsole():
     """
@@ -410,13 +415,13 @@ class optionsWidget(QListWidget) :
         """
         @param options: list of options
         @type options: list of str
-        @param optionNames : list of displayed names corresponding to options
-        @type optionNames: lit of str
-        @param exclusive :
-        @type exclusive: boolean
+        @param optionNames: list of displayed names corresponding to options
+        @type optionNames: list of str
+        @param exclusive:
+        @type exclusive: bool
         @param changed: signal
         @type changed: QSignal
-        @param oarent:
+        @param parent:
         @type parent: QObject
         """
         super(optionsWidget, self).__init__(parent)
@@ -666,8 +671,8 @@ class rotatingHandle(QToolButton):
         self.tool = tool
         self.role=role
         # set coordinates (relative to the full resolution image)
-        self.posRelImg_ori = pos
-        self.posRelImg = pos
+        self.posRelImg_ori = pos  # with base transformation
+        self.posRelImg = pos # with current transformation
         self.setVisible(False)
         self.setGeometry(0, 0, 12, 12)
         self.setAutoFillBackground(True)
@@ -699,6 +704,7 @@ class rotatingHandle(QToolButton):
         pos = self.mapToParent(event.pos())
         # update posRelImg with the mousecoordinates, relative to the full resolution image
         r = self.tool.resizingCoeff
+        posRelImg_save = self.posRelImg
         self.posRelImg = (pos - QPoint(img.xOffset, img.yOffset)) / r
         # get the updated quad
         poly = self.tool.getQuad()
@@ -707,8 +713,8 @@ class rotatingHandle(QToolButton):
         # map the quads to current image coordinates
         D = QMatrix().scale(s, s)
         DInv = QMatrix().scale(1/s, 1/s)
-        q1, q2 = D.map(self.tool.oriQuad), D.map(poly)
-        if self.tool.form.options['Perspective']:
+        q1, q2 = D.map(self.tool.fullRectQuad), D.map(poly)
+        if self.tool.form.options['Free']:
             res = QTransform().quadToQuad(q1, q2, T)
             if not res:
                 print('rotating Handle : no possible transformation')
@@ -725,7 +731,16 @@ class rotatingHandle(QToolButton):
             q3 = DInv.map(q2)
             for i, role in enumerate(['topLeft', 'topRight', 'bottomRight', 'bottomLeft']):
                 self.tool.btnDict[role].posRelImg = q3.at(i)
-        self.tool.setTransform(T, movedBtn=[self.role])
+        elif self.tool.form.options['Translation']:
+            # copy geoTrans_ori
+            T = QTransform(self.tool.geoTrans_ori)
+            p = (QPointF(self.posRelImg) - QPointF(posRelImg_save)) * s
+            T.translate(p.x(), p.y())
+            q2 = T.map(q1)
+            q3 = DInv.map(q2)
+            for i, role in enumerate(['topLeft', 'topRight', 'bottomRight', 'bottomLeft']):
+                self.tool.btnDict[role].posRelImg = q3.at(i)
+        self.tool.setTransform(T)
         # get the bounding rect of poly
         self.tool.layer.rectTrans = q2.boundingRect()
         self.tool.layer.applyToStack()
@@ -733,19 +748,37 @@ class rotatingHandle(QToolButton):
 
 class rotatingTool(QObject):
     """
-    Transformation tool
+    Provides interactive modifications of a base geometric transformation.
+    When applied to an image ABCD, a transformation T
+    acts in the image coordinate system, and the resulting image A'B'C'D' is
+    translated by -(A'B'C'D').boundingRect().topLeft().
+    A'B'C'D' is represented by a QPolygonF instance (cf. the method getQuad).
+    Intercative modifications of a base transformation
     """
     def __init__(self, parent=None, layer=None, form=None):
+        """
+        Inits a rotatingTool instance and adds it to the parent widget
+        @param parent: parent widget
+        @type parent: QWidget
+        @param layer: image layer
+        @type layer: QLayer
+        @param form: GUI form
+        @type form: transform
+        """
         self.layer = layer
-        self.form = form
-        # dynamic attribute
-        self.form.tool = self
+        self.layer.signals.visibilityChanged.connect(self.setVisible)
         self.img = layer.parentImage
+        self.form = form
+        # next attribute is the base transformation, to be modified by the tool.
+        # initially it is identity, and it records the current transformation at
+        # each change of type (rotation, translation,perspective,..)
+        self.geoTrans_ori = QTransform()
+        # dynamic attributes
+        self.form.tool = self
+        self.layer.geoTrans = QTransform()  # current transformation
         w,h = self.img.width(), self.img.height()
-        # resizingCoeff is set by mousePressEvent
-        #self.resizingCoeff = None
         super().__init__(parent=parent)
-        # init buttons
+        # init tool buttons. The parameter pos is relative to the full size image.
         rotatingButtonLeft = rotatingHandle(role='topLeft', tool=self, pos=QPoint(0,0), parent=parent)
         rotatingButtonRight = rotatingHandle(role='topRight', tool=self, pos=QPoint(w,0), parent=parent)
         rotatingButtonTop = rotatingHandle(role='bottomLeft', tool=self, pos=QPoint(0,h), parent=parent)
@@ -756,28 +789,16 @@ class rotatingTool(QObject):
         # link buttons to BtnDict
         for btn in btnList:
             btn.group = self.btnDict
-        # get initial positions of buttons
-        # (coordinates are relative to full size image)
-        self.oriQuad = self.getQuad()
-        self.geoTrans_ori = QTransform()
-        # dynamic attributes
-        self.layer.rectTrans = self.oriQuad.boundingRect()
-        #self.layer.polyTrans = self.oriQuad
+        # initial full image rect as a (constant) QPolygonF
+        self.fullRectQuad = self.getQuad()
+
+        # dynamic attribute : bounding rect of the current transformed image
+        # It is the bounding rect of T(full_size_image), WITHOUT any compensation
+        # for unwanted translations (cf. QImage.trueMatrix())
+        self.layer.rectTrans = self.fullRectQuad.boundingRect()
         # draw buttons
-        self.drawRotatingTool()
+        self.moveRotatingTool()
         self.showTool()
-        """
-        # rotation angle changed handler
-        def g():
-            self.drawRotatingTool()
-            poly = self.getQuad()
-            T2 = QTransform().rotate(self.form.sliderRot.value())
-            self.layer.geoTrans = T2
-            self.layer.rectTrans = poly.boundingRect()
-            self.layer.applyToStack()
-            self.parent().repaint()
-        self.form.sliderRot.valueChanged.connect(g)
-        """
 
     def showTool(self):
         for btn in self.btnDict.values():
@@ -791,24 +812,29 @@ class rotatingTool(QObject):
         for btn in self.btnDict.values():
             btn.setVisible(value)
 
-    def setOriQuad(self):
-        for i,role in enumerate(['topLeft', 'topRight', 'bottomRight', 'bottomLeft']):
+    def setBaseTransform(self):
+        """
+        Sets the base transformation
+        """
+        for i,role in enumerate(['topLeft', 'topRight', 'bottomRight', 'bottomLeft']):  # order matters
             self.btnDict[role].posRelImg_ori = self.getQuad().at(i)
         self.geoTrans_ori = self.layer.geoTrans
 
-    def setTransform(self, transformation, movedBtn=['topLeft', 'topRight', 'bottomLeft', 'bottomRight']):
+    def setTransform(self, transformation):
         """
-        Sets layer.geoTrans to transformation and draws the tool handles
-        at the corners of the transformed image.
+        Sets layer.geoTrans to transformation and redraws the tool
         @param transformation:
         @type transformation: QTransform
+        """
         """
         curimg = self.layer.getCurrentImage()
         w, h = curimg.width(), curimg.height()
         s = w / self.img.width()
         parent = self.parent()
         r = parent.img.resize_coeff(parent)
+        """
         self.layer.geoTrans = transformation
+        """
         # get the actual transformation applied to current image
         trueTransformation = QImage.trueMatrix(transformation , w/s, h/s)
         rect0 = QRectF(0, 0, w, h)
@@ -823,25 +849,27 @@ class rotatingTool(QObject):
                 pass
                 #self.btnDict['role'].move(p+self.btnDict['role'].posRelImg*r)
                 #self.btnDict[role].posRelImg = trueTransformation.map(pos) / s
-        self.drawRotatingTool()
+        """
+        self.moveRotatingTool()
 
     def getQuad(self):
         """
-        Returns the current quad defined by the 4 handles.
+        Returns the current quad, as defined by the 4 buttons.
         Coordinates are relative to the full size image
         @return:
         @rtype: QPolygonF
         """
         poly = QPolygonF()
-        s = self.img.getCurrentImage().width() / self.img.width()
         for role in ['topLeft', 'topRight', 'bottomRight', 'bottomLeft']:
-            poly.append(self.btnDict[role].posRelImg) #*s)
+            poly.append(self.btnDict[role].posRelImg)
         return poly
 
-    def drawRotatingTool(self):
+    def moveRotatingTool(self):
         """
-        Draws the 4 handles at the cormers of  the displayed image,
-        at their current position
+        Moves the tool buttons to the vertices of  the displayed image.
+        Should be called every time that posRelImg is changed or the
+        image zooming coeff. or position in widget
+        are modified (cf. blue.mouseEvent and blue.wheelEvent)
         """
         # get parent widget
         parent = self.parent()
@@ -850,16 +878,24 @@ class rotatingTool(QObject):
         topRight = self.btnDict['topRight']
         bottomLeft = self.btnDict['bottomLeft']
         bottomRight = self.btnDict['bottomRight']
-        # get the bounding rect of the transformed image
-        cRect = self.layer.rectTrans
-        # get coordinates (relative to widget) of image corners
-        p =  cRect.topLeft()*0 + QPoint(self.img.xOffset, self.img.yOffset)  #TODO r added 07/05/18
+        # move buttons to image vertices : coordinates are relative to parent widget
+        p = QPoint(self.img.xOffset, self.img.yOffset)
         x, y = p.x(), p.y()
-        # w, h = self.cRect.width()*r, self.cRect.height()*r
         bottomLeft.move(x + bottomLeft.posRelImg.x()*r, y - bottomLeft.height() + bottomLeft.posRelImg.y()*r)
         bottomRight.move(x - bottomRight.width() + bottomRight.posRelImg.x()*r, y - bottomRight.height() + bottomRight.posRelImg.y()*r)
         topLeft.move(x + topLeft.posRelImg.x()*r, y + topLeft.posRelImg.y()*r)
         topRight.move(x - topRight.width() + topRight.posRelImg.x()*r, y + topRight.posRelImg.y()*r)
+
+    def resetTrans(self):
+        self.geoTrans_ori = QTransform()
+        self.layer.geoTrans = QTransform()
+        w, h = self.img.width(), self.img.height()
+        for role, pos in zip(['topLeft', 'topRight', 'bottomRight', 'bottomLeft'], [QPoint(0,0), QPoint(w,0), QPoint(w,h), QPoint(0,h)]):
+            self.btnDict[role].posRelImg = pos
+            self.btnDict[role].posRelImg_ori = pos
+        self.moveRotatingTool()
+        self.layer.applyToStack()
+        self.parent().repaint()
 
 class savingDialog(QDialog):
     """

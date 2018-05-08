@@ -294,7 +294,7 @@ def mouseEvent(widget, event) :
     to the former three methods (cf. the function set_event_handler
     below).
     NOTE 1. Mouse hover generates mouse move events
-    NOTE 2. Due to wheeelEvent, xOffset and yOffset are float
+    NOTE 2. Due to wheeelEvent, xOffset and yOffset are float numbers
     @param widget:
     @type widget: QLabel object with img attribute
     @param event: mouse event
@@ -412,7 +412,7 @@ def mouseEvent(widget, event) :
             s = ('%s  %s  %s' % (color.red(), color.green(), color.blue()))
             QToolTip.showText(event.globalPos(), s, window, QRect(event.globalPos(), QSize(20,30)))
         if layer.isGeomLayer():
-            layer.view.widget().tool.drawRotatingTool()
+            layer.view.widget().tool.moveRotatingTool()
     #####################
     # mouse release event
     ####################
@@ -497,7 +497,7 @@ def wheelEvent(widget,img, event):
         if window.btnValues['Crop_Button']:
             window.cropTool.drawCropTool(img)
         if layer.isGeomLayer():
-            layer.view.widget().tool.drawRotatingTool()
+            layer.view.widget().tool.moveRotatingTool()
     elif modifiers == Qt.ControlModifier:
         layer.Zoom_coeff *= (1.0 + numSteps)
         layer.updatePixmap()
@@ -1446,11 +1446,12 @@ def menuLayer(name):
         # wrapper for the right apply method
         l.execute = lambda l=l,  pool=None: l.applyExposure(l.clipLimit, grWindow.options)
     elif name == 'actionGeom_Transformation':
-        lname = 'Geometry'
+        lname = 'Transformation'
         l = window.label.img.addAdjustmentLayer(name=lname, role='GEOMETRY')
         grWindow = transForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         l.geoTrans = QTransform()
-        tool = rotatingTool(parent=window.label, layer=l, form=grWindow)
+        # add rotatingTool instance to parent widget
+        rotatingTool(parent=window.label, layer=l, form=grWindow)
         l.execute = lambda l=l, pool=None: l.applyTransForm(l.geoTrans, grWindow.options)
     elif name == 'actionFilter':
         lname = 'Filter'

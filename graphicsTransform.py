@@ -17,7 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics, QTransform
-from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout
+from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout, QPushButton
 
 from utils import optionsWidget
 
@@ -41,57 +41,30 @@ class transForm (QGraphicsView):
         self.layer = layer
         self.mainForm = mainForm
         # options
-        optionList = ['Perspective', 'Rotation']
-        self.listWidget1 = optionsWidget(options=optionList, exclusive=True)
+        optionList, optionNames = ['Free', 'Rotation', 'Translation'], ['Free Transformation', 'Rotation', 'Translation']
+        self.listWidget1 = optionsWidget(options=optionList, optionNames=optionNames, exclusive=True)
         self.options = self.listWidget1.options
         # set initial selection to Perspective
         self.listWidget1.checkOption(optionList[0])
 
-        # angle slider
-        self.sliderRot = QSlider(Qt.Horizontal)
-        self.sliderRot.setTickPosition(QSlider.TicksBelow)
-        self.sliderRot.setRange(-180, 180)
-        self.sliderRot.setSingleStep(1)
-        self.sliderRot.setEnabled(self.options['Rotation'])
         # option changed handler
         def g(item):
-            self.tool.setOriQuad()
-            if self.options['Perspective']:
-                pass
-                #self.tool.setTransform(self.layer.geoTrans)
-            else:
-                pass
-                #self.tool.setTransform(QTransform())
-            self.sliderRot.setEnabled(self.options['Rotation'])
-            self.tool.setVisible(True)
+            self.tool.setBaseTransform()
+            #self.tool.setVisible(True)
             self.layer.applyToStack()
 
         self.listWidget1.onSelect = g
 
-        self.rotValue = QLabel()
-        font = self.rotValue.font()
-        metrics = QFontMetrics(font)
-        w = metrics.width("000000")
-        h = metrics.height()
-        self.rotValue.setMinimumSize(w, h)
-        self.rotValue.setMaximumSize(w, h)
-        self.rotValue.setStyleSheet("QLabel {background-color: white;}")
-
+        pushButton1 = QPushButton('Reset')
         def f():
-            self.rotValue.setText(str(self.sliderRot.value()))
+            self.tool.resetTrans()
+        pushButton1.clicked.connect(f)
 
-        self.sliderRot.valueChanged.connect(f)
-
-        hl = QHBoxLayout()
-        hl.addWidget(self.rotValue)
-        hl.addWidget(self.sliderRot)
-
+        # layout
         l = QVBoxLayout()
-        l.setAlignment(Qt.AlignBottom)
+        l.setAlignment(Qt.AlignTop)
         l.addWidget(self.listWidget1)
-        l.addLayout(hl)
-        l.addStretch(1)
-
+        l.addWidget(pushButton1)
         self.setLayout(l)
         self.adjustSize()
 

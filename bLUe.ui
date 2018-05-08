@@ -910,7 +910,7 @@ Screen</string>
   </action>
   <action name="actionGeom_Transformation">
    <property name="text">
-    <string>Geom. Transformation</string>
+    <string>Transformation</string>
    </property>
   </action>
   <action name="actionViewer">
