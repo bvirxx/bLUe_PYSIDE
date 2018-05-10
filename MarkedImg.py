@@ -27,7 +27,7 @@ from PySide2.QtCore import Qt, QDataStream, QFile, QIODevice, QSize, QPointF, QP
 import cv2
 from copy import copy
 
-from PySide2.QtGui import QImageReader, QTransform, QBrush
+from PySide2.QtGui import QImageReader, QTransform, QBrush, QMatrix
 from PySide2.QtWidgets import QApplication, QMessageBox, QSplitter
 from PySide2.QtGui import QPixmap, QImage, QColor, QPainter
 from PySide2.QtCore import QRect
@@ -716,14 +716,25 @@ class vImage(QImage):
         ndImg1a[:, :, 3] = bufIn[:,:,3] # TODO 23/10/17 fix
         self.updatePixmap()
 
-    def applyTransForm(self, T, options):
+    def applyTransForm(self, options):
         """
         Applies the geometric transformation T
-        @param T:
-        @type T: QTransform
         @param options:
         @type options:
         """
+        inImg = self.inputImg()
+        w, h = inImg.width(), inImg.height()
+        s = w / self.width()
+        D = QTransform().scale(s, s)
+        DInv = QTransform().scale(1/s, 1/s)
+        # map Quads to the current image coordinate system
+        q1, q2 = D.map(self.sourceQuad), D.map(self.targetQuad)
+        # build transformation
+        T = QTransform()
+        res = QTransform().quadToQuad(q1, q2, T)
+        if not res:
+            print('applyTransform : no possible transformation')
+            return
         # neutral point
         if T.isIdentity():
             buf0 = QImageBuffer(self.getCurrentImage())
@@ -731,10 +742,12 @@ class vImage(QImage):
             buf0[:, :, :] = buf1
             self.updatePixmap()
             return
-        inImg = self.inputImg()
+        # get the bounding rect of the transformed image (in the full size image coordinate system)
+        # (Avoid the conversion of QTransforms to QMatrix4x4 and matrix product)
+        rectTrans = DInv.map(T.map(D.map(QImage.rect(self)))).boundingRect()
         # apply the transformation and re-translate the transformed image
         # so that the resulting transformation is T and NOT that given by QImage.trueMatrix()
-        img = inImg.transformed(T).copy(QRect(-self.rectTrans.x(), -self.rectTrans.y(), inImg.width(), inImg.height()))
+        img = inImg.transformed(T).copy(QRect(-rectTrans.x()*s, -rectTrans.y()*s, w, h))
         if img.isNull():
             print('applyTransform : transformation fails')
             return

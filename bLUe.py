@@ -1449,10 +1449,9 @@ def menuLayer(name):
         lname = 'Transformation'
         l = window.label.img.addAdjustmentLayer(name=lname, role='GEOMETRY')
         grWindow = transForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
-        l.geoTrans = QTransform()
         # add rotatingTool instance to parent widget
         rotatingTool(parent=window.label, layer=l, form=grWindow)
-        l.execute = lambda l=l, pool=None: l.applyTransForm(l.geoTrans, grWindow.options)
+        l.execute = lambda l=l, pool=None: l.applyTransForm(grWindow.options)
     elif name == 'actionFilter':
         lname = 'Filter'
         l = window.label.img.addAdjustmentLayer(name=lname)

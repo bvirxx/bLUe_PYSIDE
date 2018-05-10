@@ -157,7 +157,6 @@ class QLayerView(QTableView) :
                 QApplication.restoreOverrideCursor()
                 QApplication.processEvents()
             QtGui1.window.label.repaint()
-
         self.previewOptionBox.stateChanged.connect(m)
         self.previewOptionBox.setChecked(True) # m is not triggered
 
