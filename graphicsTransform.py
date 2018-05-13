@@ -64,7 +64,11 @@ class transForm (QGraphicsView):
         l = QVBoxLayout()
         l.setAlignment(Qt.AlignTop)
         l.addWidget(self.listWidget1)
+        l.addWidget(QLabel('Ctrl+Alt+Drag to change the\ninitial positions of buttons'))
         l.addWidget(pushButton1)
         self.setLayout(l)
         self.adjustSize()
+
+class imageForm(transForm):
+    pass
 

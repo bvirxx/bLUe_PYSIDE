@@ -138,7 +138,7 @@ import exiftool
 from graphicsBlendFilter import blendFilterForm
 from graphicsNoise import noiseForm
 from graphicsRaw import rawForm
-from graphicsTransform import transForm
+from graphicsTransform import transForm, imageForm
 from imgconvert import *
 from MarkedImg import imImage, metadata, vImage, QLayer
 from graphicsRGBLUT import graphicsForm
@@ -1394,25 +1394,21 @@ def menuLayer(name):
         l.updatePixmap()
     # loads an image
     elif name == 'actionNew_Image_Layer':
-        filename = openDlg(window)
+        filename = openDlg(window, ask=False)
+        if filename is None:
+            return
         img = window.label.img
         imgNew = QImage(filename)
         if imgNew.isNull():
             dlgWarn("Cannot load %s: " % filename)
             return
-        size = img.size()
-        sizeNew = imgNew.size()
-        if sizeNew != size:
-            imgNew = imgNew.scaled(size)
-            dlgInfo("Image will be resized")
-        l = QLayer(QImg=imgNew, parentImage=window.label.img)
-        l.isClipping = False
-        img.addLayer(l, name=path.basename(filename))
-        l.updatePixmap()
+        lname = path.basename(filename)
+        l = window.label.img.addAdjustmentLayer(name=lname, sourceImg=imgNew, role='GEOMETRY')
+        grWindow = imageForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
+        # add transformation tool to parent widget
+        rotatingTool(parent=window.label, layer=l, form=grWindow)
+        l.execute = lambda l=l, pool=None: l.applyImage(grWindow.options)
         l.actioname = name
-        # update layer stack view
-        window.tableView.setLayers(window.label.img)
-        return
     # Temperature
     elif name == 'actionColor_Temperature':
         lname = 'Color Temperature'
@@ -1449,7 +1445,7 @@ def menuLayer(name):
         lname = 'Transformation'
         l = window.label.img.addAdjustmentLayer(name=lname, role='GEOMETRY')
         grWindow = transForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
-        # add rotatingTool instance to parent widget
+        # add transformation tool to parent widget
         rotatingTool(parent=window.label, layer=l, form=grWindow)
         l.execute = lambda l=l, pool=None: l.applyTransForm(grWindow.options)
     elif name == 'actionFilter':

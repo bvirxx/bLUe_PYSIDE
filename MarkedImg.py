@@ -302,7 +302,7 @@ class vImage(QImage):
 
     def initThumb(self):
         """
-        Inits the image thumbnail as a (scaled) QImage. In contrast to
+        Inits the image thumbnail as a QImage. In contrast to
         maskedThumbContainer, thumb is never used as an input image, thus
         there is no need for a type yielding color space buffers.
         Layer thumbs own an attribute parentImage set by the overridden method QLayer.initThumb.
@@ -756,6 +756,9 @@ class vImage(QImage):
         outBuf = QImageBuffer(self.getCurrentImage())
         outBuf[:,:,:] = QImageBuffer(img)
         self.updatePixmap()
+
+    def applyImage(self, options):
+        self.applyTransForm(options)
 
     def applyNoiseReduction(self):
         adjustForm = self.view.widget()
@@ -1578,7 +1581,7 @@ class mImage(vImage):
             return
         self.layersStack.pop(index)
 
-    def addAdjustmentLayer(self, name='', role='',  index=None):
+    def addAdjustmentLayer(self, name='', role='',  index=None, sourceImg=None):
         """
         Add an adjustment layer to the layer stack, at
         position index (default is top of active layer)
@@ -1589,8 +1592,12 @@ class mImage(vImage):
         if index == None:
             # adding on top of active layer
             index = self.activeLayerIndex
-        # set image from active layer
-        layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
+        if sourceImg is None:
+            # set image from active layer
+            layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
+        else:
+            # image layer :
+            layer = QLayerImage.fromImage(self.layersStack[index], parentImage=self, sourceImg=sourceImg)
         layer.role = role
         self.addLayer(layer, name=name, index=index + 1)
         # init thumb
@@ -2307,6 +2314,21 @@ class QLayer(vImage):
         if hasattr(self, 'view'):
             self.view.widget().readFromStream(dataStream)
         return dataStream
+
+class QLayerImage(QLayer):
+    @classmethod
+    def fromImage(cls, mImg, parentImage=None, sourceImg=None):
+        layer = QLayerImage(QImg=mImg, parentImage=parentImage)
+        layer.parentImage = parentImage
+        layer.sourceImg = sourceImg
+        return layer
+
+    def __init__(self, *args, **kwargs):
+        self.sourceImg = QImage()
+        super().__init__(*args, **kwargs)
+
+    def inputImg(self):
+        return self.sourceImg.scaled(self.getCurrentImage().size())
 
 def apply3DLUTSliceCls(LUT, inputBuffer, imgBuffer, s ):
 

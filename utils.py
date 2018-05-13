@@ -349,8 +349,17 @@ def saveDlg(img, mainWidget):
     else:
         raise ValueError("Saving Operation Failure")
 
-def openDlg(mainWidget):
-    if mainWidget.label.img.isModified:
+def openDlg(mainWidget, ask=True):
+    """
+    Returns a file name or None.
+    @param mainWidget:
+    @type mainWidget:
+    @param ask:
+    @type ask:
+    @return:
+    @rtype:
+    """
+    if ask and mainWidget.label.img.isModified:
         ret = saveChangeDialog(mainWidget.label.img)
         if ret == QMessageBox.Yes:
             try:
@@ -369,8 +378,6 @@ def openDlg(mainWidget):
         newDir = dlg.directory().absolutePath()
         mainWidget.settings.setValue('paths/dlgdir', newDir)
         return filenames[0]
-    else:
-        return None
 
 class UDict(object):
     """
@@ -517,6 +524,7 @@ class croppingHandle(QToolButton):
         widg = self.parent()
         img = widg.img
         r = img.resize_coeff(widg)
+        lMargin, rMargin, tMargin, bMargin = img.cropLeft, img.cropRight, img.cropTop, img.cropBottom
         # middle buttons
         if self.role == 'left':
             margin = (p.x() - img.xOffset + self.width()) / r
@@ -644,7 +652,7 @@ class cropTool(QObject):
         cRect = QRect(round(left.margin), round(top.margin), img.width()-round(right.margin+left.margin), img.height()-round(bottom.margin+top.margin))
         p = cRect.topLeft()*r + QPoint(img.xOffset, img.yOffset)
         x, y = p.x(), p.y()
-        w, h = cRect.width()*r, self.cRect.height()*r
+        w, h = cRect.width()*r, cRect.height()*r
         left.move(x - left.width(), y + h//2)
         right.move(x + w, y + h//2)
         top.move(x + w//2, y - top.height())
