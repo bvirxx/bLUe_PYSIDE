@@ -678,8 +678,9 @@ class rotatingHandle(QToolButton):
         self.tool = tool
         self.role=role
         # set coordinates (relative to the full resolution image)
-        self.posRelImg_ori = pos  # initial pos (with base transformation done)
-        self.posRelImg = pos # current pos (with current transformation done)
+        self.posRelImg_ori = pos  # starting pos, never modified if a transformation is in progress (cf. rotatingTool.getSourceQuad)
+        self.posRelImg = pos # current pos (cf. rotatingTool.getTargetQuad)
+        self.posRelImg_frozen = pos # starting pos for the current type of transformation
         self.setVisible(False)
         self.setGeometry(0, 0, 12, 12)
         self.setAutoFillBackground(True)
@@ -699,7 +700,7 @@ class rotatingHandle(QToolButton):
 
     def mouseMoveEvent(self, event):
         """
-        Mouse move event handler : sets the transformation
+        Mouse move event handler
         @param event:
         @type event:
         """
@@ -708,51 +709,42 @@ class rotatingHandle(QToolButton):
         pos = self.mapToParent(event.pos())
         img = self.tool.layer.parentImage
         r = self.tool.resizingCoeff
+        self.posRelImg = (pos - QPoint(img.xOffset, img.yOffset)) / r
         if modifiers == Qt.ControlModifier | Qt.AltModifier:
-            if not self.tool.layer.geoTrans.isIdentity():
+            if self.tool.isModified():
                 dlgWarn("A transformation is in progress", "Reset first")
                 return
-            # move to the new starting  position and return
-            self.posRelImg_ori = (pos - QPoint(img.xOffset, img.yOffset)) / r
-            self.posRelImg = self.posRelImg_ori
+            # update the new starting  position
+            self.posRelImg_ori = self.posRelImg #(pos - QPoint(img.xOffset, img.yOffset)) / r
+            self.posRelImg_frozen = self.posRelImg
             self.tool.moveRotatingTool()
-            self.tool.startButtonQuad = self.tool.getQuad()
             self.tool.parent().repaint()
             return
         curimg = self.tool.layer.getCurrentImage()
         w, h = curimg.width(), curimg.height()
         s = w / self.tool.img.width()
-        # update posRelImg with the mousecoordinates, relative to the full resolution image
-        posRelImg_save = self.posRelImg
-        self.posRelImg = (pos - QPoint(img.xOffset, img.yOffset)) / r
-        # get the new quad
         if self.tool.form.options['Free']:
-            self.tool.layer.targetQuad = self.tool.getQuad()
+            pass
         elif self.tool.form.options['Rotation']:
-            center = self.tool.getQuad().boundingRect().center()
+            center = self.tool.getTargetQuad().boundingRect().center()
             v = QPointF(self.posRelImg.x() - center.x(), self.posRelImg.y() - center.y())
-            v0 = QPointF(self.posRelImg_ori.x() - center.x(), self.posRelImg_ori.y() - center.y())
+            v0 = QPointF(self.posRelImg_frozen.x() - center.x(), self.posRelImg_frozen.y() - center.y())
             theta = (np.arctan2(v.y(), v.x()) - np.arctan2(v0.y(), v0.x()))* 180.0/np.pi
-            # copy geoTrans_ori
-            T = QTransform(self.tool.geoTrans_ori)
-            T.translate(center.x()*s, center.y()*s).rotate(theta).translate(-center.x()*s,-center.y()*s) #QTransform().rotate(theta)
-            q2 = T.map(q1)
-            q3 = DInv.map(q2)
+            T = QTransform()#self.tool.geoTrans_ori)
+            T.translate(center.x(), center.y()).rotate(theta).translate(-center.x(),-center.y())
+            q = T.map(self.tool.getFrozenQuad())
             for i, role in enumerate(['topLeft', 'topRight', 'bottomRight', 'bottomLeft']):
-                self.tool.btnDict[role].posRelImg = q3.at(i)
+                self.tool.btnDict[role].posRelImg = q.at(i)
         elif self.tool.form.options['Translation']:
-            # copy geoTrans_ori
-            T = QTransform(self.tool.geoTrans_ori)
-            p = (QPointF(self.posRelImg) - QPointF(posRelImg_save)) * s
+            # translation vector (coordinates are relative to the full size image)
+            p = QPointF(self.posRelImg) - QPointF(self.posRelImg_frozen)
+            T = QTransform()
             T.translate(p.x(), p.y())
-            q2 = T.map(q1)
-            q3 = DInv.map(q2)
+            q = T.map(self.tool.getFrozenQuad())
             for i, role in enumerate(['topLeft', 'topRight', 'bottomRight', 'bottomLeft']):
-                self.tool.btnDict[role].posRelImg = q3.at(i)
+                self.tool.btnDict[role].posRelImg = q.at(i)
         self.tool.moveRotatingTool()
-        #self.tool.setTransform(T)
-        # get the bounding rect of poly, coordinates are relative to the full size image
-        #self.tool.layer.rectTrans = DInv.map(T.map(D.map(QImage.rect(img)))).boundingRect() #q2.boundingRect()
+        self.tool.modified = True
         self.tool.layer.applyToStack()
         self.parent().repaint()
 
@@ -762,8 +754,10 @@ class rotatingTool(QObject):
     When applied to an image ABCD, a transformation T
     acts in the image coordinate system, and the resulting image A'B'C'D' is
     translated by -(A'B'C'D').boundingRect().topLeft().
-    A'B'C'D' is represented by a QPolygonF instance (cf. the method getQuad).
-    Intercative modifications of a base transformation
+    A'B'C'D' is represented by a QPolygonF instance (cf. the methods getSourceQuad and getTargetQuad).
+    Different types of transformations can be performed in a cumulative way.
+    The tool buttons can be positioned anywhere in the image : this can be useful
+    in particular for perspective correction.
     """
     def __init__(self, parent=None, layer=None, form=None):
         """
@@ -775,14 +769,11 @@ class rotatingTool(QObject):
         @param form: GUI form
         @type form: transform
         """
+        self.modified = False
         self.layer = layer
         self.layer.signals.visibilityChanged.connect(self.setVisible)
         self.img = layer.parentImage
         self.form = form
-        # next attribute is the base transformation, to be modified by the tool.
-        # initially it is identity, and it records the current transformation at
-        # each change of type (rotation, translation,perspective,..)
-        self.geoTrans_ori = QTransform()
         # dynamic attributes
         self.form.tool = self
         w,h = self.img.width(), self.img.height()
@@ -795,11 +786,9 @@ class rotatingTool(QObject):
         # init button dictionary
         btnList = [rotatingButtonLeft, rotatingButtonRight, rotatingButtonTop, rotatingButtonBottom]
         self.btnDict = {btn.role: btn for btn in btnList}
-        # dynamic attribute (coordinates are relative to the full size image)
-        self.layer.sourceQuad = self.getQuad()
-        # dynamic attribute
-        self.layer.targetQuad = self.layer.sourceQuad
         self.moveRotatingTool()
+        # dynamic attribute
+        self.layer.tool = self
         self.showTool()
 
     def showTool(self):
@@ -816,13 +805,17 @@ class rotatingTool(QObject):
 
     def setBaseTransform(self):
         """
-        Sets the base transformation
+        Save the current quad as starting quad
+        for the current type of transformation
         """
-        for i,role in enumerate(['topLeft', 'topRight', 'bottomRight', 'bottomLeft']):  # order matters
-            self.btnDict[role].posRelImg_ori = self.getQuad().at(i)
-        self.geoTrans_ori = self.layer.geoTrans
+        q = self.getTargetQuad()
+        for i, role in enumerate(['topLeft', 'topRight', 'bottomRight', 'bottomLeft']):
+            self.btnDict[role].posRelImg_frozen = q.at(i)
 
-    def getQuad(self):
+    def isModified(self):
+        return self.modified
+
+    def getTargetQuad(self):
         """
         Returns the current quad, as defined by the 4 buttons.
         Coordinates are relative to the full size image
@@ -833,6 +826,33 @@ class rotatingTool(QObject):
         for role in ['topLeft', 'topRight', 'bottomRight', 'bottomLeft']:
             poly.append(self.btnDict[role].posRelImg)
         return poly
+
+    def getSourceQuad(self):
+        """
+        Returns the starting quad for the transformation in progress
+        @return:
+        @rtype: QPolygonF
+        """
+        poly = QPolygonF()
+        for role in ['topLeft', 'topRight', 'bottomRight', 'bottomLeft']:
+            poly.append(self.btnDict[role].posRelImg_ori)
+        return poly
+
+    def getFrozenQuad(self):
+        """
+        Returns the starting quad for the current type of transformation
+        @return:
+        @rtype: QPolygonF
+        """
+        poly = QPolygonF()
+        for role in ['topLeft', 'topRight', 'bottomRight', 'bottomLeft']:
+            poly.append(self.btnDict[role].posRelImg_frozen)
+        return poly
+
+    def restore(self):
+        for i, role in enumerate(['topLeft', 'topRight', 'bottomRight', 'bottomLeft']):  # order matters
+            self.btnDict[role].posRelImg = self.targetQuad_old.at(i)
+        self.moveRotatingTool()
 
     def moveRotatingTool(self):
         """
@@ -848,7 +868,7 @@ class rotatingTool(QObject):
         topRight = self.btnDict['topRight']
         bottomLeft = self.btnDict['bottomLeft']
         bottomRight = self.btnDict['bottomRight']
-        # move buttons to image vertices : coordinates are relative to parent widget
+        # move buttons : coordinates are relative to parent widget
         p = QPoint(self.img.xOffset, self.img.yOffset)
         x, y = p.x(), p.y()
         bottomLeft.move(x + bottomLeft.posRelImg.x()*r, y - bottomLeft.height() + bottomLeft.posRelImg.y()*r)
@@ -857,13 +877,14 @@ class rotatingTool(QObject):
         topRight.move(x - topRight.width() + topRight.posRelImg.x()*r, y + topRight.posRelImg.y()*r)
 
     def resetTrans(self):
+        self.modified = False
         w, h = self.img.width(), self.img.height()
         for role, pos in zip(['topLeft', 'topRight', 'bottomRight', 'bottomLeft'], [QPoint(0,0), QPoint(w,0), QPoint(w,h), QPoint(0,h)]):
             self.btnDict[role].posRelImg = pos
             self.btnDict[role].posRelImg_ori = pos
+            self.btnDict[role].posRelImg_frozen = pos
         self.moveRotatingTool()
-        self.layer.sourceQuad = self.getQuad()
-        self.layer.targetQuad = self.layer.sourceQuad
+        #self.frozenQuad = self.getTargetQuad()
         self.layer.applyToStack()
         self.parent().repaint()
 

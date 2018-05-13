@@ -728,12 +728,13 @@ class vImage(QImage):
         D = QTransform().scale(s, s)
         DInv = QTransform().scale(1/s, 1/s)
         # map Quads to the current image coordinate system
-        q1, q2 = D.map(self.sourceQuad), D.map(self.targetQuad)
+        q1, q2 = D.map(self.tool.getSourceQuad()), D.map(self.tool.getTargetQuad())
         # build transformation
         T = QTransform()
         res = QTransform().quadToQuad(q1, q2, T)
         if not res:
             print('applyTransform : no possible transformation')
+            self.tool.restore()
             return
         # neutral point
         if T.isIdentity():
@@ -750,6 +751,7 @@ class vImage(QImage):
         img = inImg.transformed(T).copy(QRect(-rectTrans.x()*s, -rectTrans.y()*s, w, h))
         if img.isNull():
             print('applyTransform : transformation fails')
+            self.tool.restore()
             return
         outBuf = QImageBuffer(self.getCurrentImage())
         outBuf[:,:,:] = QImageBuffer(img)
