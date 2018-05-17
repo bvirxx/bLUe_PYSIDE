@@ -66,8 +66,8 @@
           <rect>
            <x>10</x>
            <y>10</y>
-           <width>54</width>
-           <height>571</height>
+           <width>76</width>
+           <height>841</height>
           </rect>
          </property>
          <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -81,6 +81,18 @@
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>50</width>
+              <height>25</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>50</width>
+              <height>30</height>
+             </size>
             </property>
             <property name="toolTip">
              <string>Show Rulers</string>
@@ -109,8 +121,14 @@
             </property>
             <property name="minimumSize">
              <size>
-              <width>32</width>
-              <height>26</height>
+              <width>50</width>
+              <height>25</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>50</width>
+              <height>30</height>
              </size>
             </property>
             <property name="toolTip">
@@ -146,8 +164,14 @@
             </property>
             <property name="minimumSize">
              <size>
-              <width>32</width>
-              <height>26</height>
+              <width>50</width>
+              <height>40</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>50</width>
+              <height>40</height>
              </size>
             </property>
             <property name="toolTip">
@@ -181,8 +205,14 @@ Screen</string>
             </property>
             <property name="minimumSize">
              <size>
-              <width>32</width>
-              <height>26</height>
+              <width>50</width>
+              <height>25</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>50</width>
+              <height>30</height>
              </size>
             </property>
             <property name="toolTip">
@@ -219,8 +249,14 @@ Screen</string>
             </property>
             <property name="minimumSize">
              <size>
-              <width>32</width>
+              <width>50</width>
               <height>26</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>50</width>
+              <height>30</height>
              </size>
             </property>
             <property name="toolTip">
@@ -248,129 +284,160 @@ Screen</string>
            </widget>
           </item>
           <item>
-           <widget class="QToolButton" name="rectangle">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
+           <widget class="QGroupBox" name="groupBox">
             <property name="minimumSize">
              <size>
-              <width>32</width>
-              <height>26</height>
+              <width>50</width>
+              <height>90</height>
              </size>
             </property>
-            <property name="toolTip">
-             <string>Marquee</string>
-            </property>
-            <property name="whatsThis">
-             <string>marquee</string>
-            </property>
-            <property name="accessibleName">
-             <string>rectangle</string>
-            </property>
-            <property name="text">
-             <string>...</string>
-            </property>
-            <property name="icon">
-             <iconset resource="resources.qrc">
-              <normaloff>:/images/resources/rectangle-icone-3783-48.png</normaloff>:/images/resources/rectangle-icone-3783-48.png</iconset>
-            </property>
-            <property name="checkable">
-             <bool>true</bool>
-            </property>
-            <property name="autoExclusive">
-             <bool>true</bool>
-            </property>
-            <property name="autoRaise">
-             <bool>true</bool>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QToolButton" name="drawFG">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="minimumSize">
+            <property name="maximumSize">
              <size>
-              <width>32</width>
-              <height>26</height>
+              <width>50</width>
+              <height>120</height>
              </size>
             </property>
-            <property name="toolTip">
-             <string>Unmask/Assign FG</string>
+            <property name="title">
+             <string>Select</string>
             </property>
-            <property name="accessibleName">
-             <string>drawFG</string>
-            </property>
-            <property name="autoFillBackground">
-             <bool>false</bool>
-            </property>
-            <property name="styleSheet">
-             <string notr="true">QToolButton:checked{background-color:#990000}</string>
-            </property>
-            <property name="text">
-             <string>...</string>
-            </property>
-            <property name="icon">
-             <iconset resource="resources.qrc">
-              <normaloff>:/images/resources/new-document-file-paper-pen-writing-icone-6977-48.png</normaloff>:/images/resources/new-document-file-paper-pen-writing-icone-6977-48.png</iconset>
-            </property>
-            <property name="checkable">
-             <bool>true</bool>
-            </property>
-            <property name="autoExclusive">
-             <bool>true</bool>
-            </property>
-            <property name="autoRaise">
-             <bool>true</bool>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QToolButton" name="drawBG">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="minimumSize">
-             <size>
-              <width>32</width>
-              <height>26</height>
-             </size>
-            </property>
-            <property name="toolTip">
-             <string>Mask/Assign BG</string>
-            </property>
-            <property name="accessibleName">
-             <string>drawBG</string>
-            </property>
-            <property name="styleSheet">
-             <string notr="true">QToolButton:checked{background-color:#606060}</string>
-            </property>
-            <property name="text">
-             <string>...</string>
-            </property>
-            <property name="icon">
-             <iconset resource="resources.qrc">
-              <normaloff>:/images/resources/document-change-record-a-pen-to-write-text-icone-5220-48.png</normaloff>:/images/resources/document-change-record-a-pen-to-write-text-icone-5220-48.png</iconset>
-            </property>
-            <property name="checkable">
-             <bool>true</bool>
-            </property>
-            <property name="autoExclusive">
-             <bool>true</bool>
-            </property>
-            <property name="autoRaise">
-             <bool>true</bool>
-            </property>
+            <widget class="QWidget" name="layoutWidget">
+             <property name="geometry">
+              <rect>
+               <x>10</x>
+               <y>20</y>
+               <width>34</width>
+               <height>94</height>
+              </rect>
+             </property>
+             <layout class="QVBoxLayout" name="verticalLayout">
+              <item>
+               <widget class="QToolButton" name="rectangle">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="minimumSize">
+                 <size>
+                  <width>32</width>
+                  <height>26</height>
+                 </size>
+                </property>
+                <property name="toolTip">
+                 <string>Marquee</string>
+                </property>
+                <property name="whatsThis">
+                 <string>marquee</string>
+                </property>
+                <property name="accessibleName">
+                 <string>rectangle</string>
+                </property>
+                <property name="text">
+                 <string>...</string>
+                </property>
+                <property name="icon">
+                 <iconset resource="resources.qrc">
+                  <normaloff>:/images/resources/rectangle-icone-3783-48.png</normaloff>:/images/resources/rectangle-icone-3783-48.png</iconset>
+                </property>
+                <property name="checkable">
+                 <bool>true</bool>
+                </property>
+                <property name="autoExclusive">
+                 <bool>true</bool>
+                </property>
+                <property name="autoRaise">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QToolButton" name="drawFG">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="minimumSize">
+                 <size>
+                  <width>32</width>
+                  <height>26</height>
+                 </size>
+                </property>
+                <property name="toolTip">
+                 <string>Unmask/Assign FG</string>
+                </property>
+                <property name="accessibleName">
+                 <string>drawFG</string>
+                </property>
+                <property name="autoFillBackground">
+                 <bool>false</bool>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">QToolButton:checked{background-color:#990000}</string>
+                </property>
+                <property name="text">
+                 <string>...</string>
+                </property>
+                <property name="icon">
+                 <iconset resource="resources.qrc">
+                  <normaloff>:/images/resources/new-document-file-paper-pen-writing-icone-6977-48.png</normaloff>:/images/resources/new-document-file-paper-pen-writing-icone-6977-48.png</iconset>
+                </property>
+                <property name="checkable">
+                 <bool>true</bool>
+                </property>
+                <property name="autoExclusive">
+                 <bool>true</bool>
+                </property>
+                <property name="autoRaise">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QToolButton" name="drawBG">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="minimumSize">
+                 <size>
+                  <width>32</width>
+                  <height>26</height>
+                 </size>
+                </property>
+                <property name="toolTip">
+                 <string>Mask/Assign BG</string>
+                </property>
+                <property name="accessibleName">
+                 <string>drawBG</string>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">QToolButton:checked{background-color:#606060}</string>
+                </property>
+                <property name="text">
+                 <string>...</string>
+                </property>
+                <property name="icon">
+                 <iconset resource="resources.qrc">
+                  <normaloff>:/images/resources/document-change-record-a-pen-to-write-text-icone-5220-48.png</normaloff>:/images/resources/document-change-record-a-pen-to-write-text-icone-5220-48.png</iconset>
+                </property>
+                <property name="checkable">
+                 <bool>true</bool>
+                </property>
+                <property name="autoExclusive">
+                 <bool>true</bool>
+                </property>
+                <property name="autoRaise">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
            </widget>
           </item>
           <item>

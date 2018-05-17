@@ -49,15 +49,15 @@ class transForm (QGraphicsView):
 
         # option changed handler
         def g(item):
-            self.tool.setBaseTransform()
-            #self.tool.setVisible(True)
+            self.layer.tool.setBaseTransform()
+            #self.layer.tool.setVisible(True)
             self.layer.applyToStack()
 
         self.listWidget1.onSelect = g
 
         pushButton1 = QPushButton('Reset')
         def f():
-            self.tool.resetTrans()
+            self.layer.tool.resetTrans()
         pushButton1.clicked.connect(f)
 
         # layout

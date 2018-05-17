@@ -20,10 +20,12 @@ from PySide2.QtCore import Qt
 from PySide2.QtWidgets import QHBoxLayout, QPushButton, QWidget, QSizePolicy, QVBoxLayout, QSpinBox, QLabel
 
 from QtGui1 import window
+from utils import optionsWidget
+
 
 class segmentForm(QWidget):
     """
-    Segmentation layer form
+    Form for segmentation (grabcut)
     """
     @classmethod
     def getNewWindow(cls, targetImage=None, layer=None, mainForm=None):
@@ -36,7 +38,7 @@ class segmentForm(QWidget):
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(200, 200)
         self.setAttribute(Qt.WA_DeleteOnClose)
-
+        self.layer = layer
         self.targetImage = targetImage
         self.mainForm = mainForm
         self.nbIter = 1
@@ -55,17 +57,34 @@ class segmentForm(QWidget):
         spBoxLabel = QLabel()
         spBoxLabel.setText('Iterations')
 
+        optionList1, optionNames1 = ['Clipping Layer'], ['Clipping Layer']
+        self.listWidget1 = optionsWidget(options=optionList1, optionNames=optionNames1, exclusive=False)
+        self.options = self.listWidget1.options
+        # set initial selection to Clipping
+        self.listWidget1.checkOption(optionList1[0])
+        # option changed handler
+        def g(item):
+            self.layer.isClipping = self.options['Clipping Layer']
+            self.layer.applyToStack()
+        self.listWidget1.onSelect = g
+
+        hint = 'Select some background and/or\nforeground pixels with the selection tools\nand apply'
+        self.statusLabel = QLabel(text=hint)
         hLay = QHBoxLayout()
         hLay.addWidget(spBoxLabel)
         hLay.addWidget(spBox)
         hLay.addStretch(1)
 
+        h2 = QHBoxLayout()
+        h2.addWidget(self.listWidget1)
+
         vLay = QVBoxLayout()
         vLay.setAlignment(Qt.AlignTop)
         vLay.setContentsMargins(20, 8, 20, 25)  # left, top, right, bottom
         vLay.addLayout(hLay)
+        vLay.addLayout(h2)
+        vLay.addWidget(self.statusLabel)
         vLay.addWidget(pushButton)
-
         self.setLayout(vLay)
 
 

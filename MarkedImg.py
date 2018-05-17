@@ -255,7 +255,7 @@ class vImage(QImage):
                 tmp = QImage(filename, format=format).transformed(self.meta.orientation)
             else:
                 tmp = QImage(filename, format=format)
-            # ensure format is format !!
+            # ensure format is format: JPEG are loaded with format RGB32 !!
             tmp = tmp.convertToFormat(format)
             if tmp.isNull():
                 raise ValueError('Cannot load %s\nSupported image formats\n%s' % (filename, QImageReader.supportedImageFormats()))
@@ -552,6 +552,14 @@ class vImage(QImage):
         return rszd
 
     def bTransformed(self, transformation):
+        """
+        Applies transformation and returns a copy
+        of the transformed image.
+        @param transformation:
+        @type transformation: QTransform
+        @return:
+        @rtype: vImage
+        """
         img = vImage(QImg=self.transformed(transformation))
         img.meta = self.meta
         img.onImageChanged = self.onImageChanged
@@ -626,7 +634,7 @@ class vImage(QImage):
         rect = self.rect
         # resizing coeff fitting selection rectangle with current image
         r = inputImg.width() / self.width()
-
+        hint = 'Select some background and/or\nforeground\n pixels with the selection tools\nand apply'
         finalMask = np.zeros((inputImg.height(), inputImg.width()), dtype=np.uint8) + cv2.GC_BGD
         # set pixels inside selection rectangle to PR_FGD
         if rect is not None:
@@ -668,9 +676,10 @@ class vImage(QImage):
         # set opacity (255=background, 0=foreground)
         # We want to keep the colors of mask pixels. Unfortunately,
         # while drawing or scaling, Qt replaces the colors of transparent pixels by 0.
-        # So, we can't set now mask alpha channel.
+        # So, we can't set now the mask alpha channel.
         finalOpacity = np.where((finalMask == cv2.GC_FGD) + (finalMask == cv2.GC_PR_FGD), 255, 0)
         buf = QImageBuffer(scaledMask)
+        # set the red channel
         buf[:,:,2] = np.where(finalOpacity==255, 128, 0)
         # validate mask
         buf[:,:,1] = 0
@@ -678,7 +687,11 @@ class vImage(QImage):
             self.mask = scaledMask.scaled(self.size())
         else:
             self.mask = scaledMask
-
+        if self.layer.maskIsSelected:
+            hint = 'To view only the selection\ndo: Enable mask as Opacity Mask\nin the Layer context menu '
+        else:
+            hint = ''
+        self.statusLabel.settext(hint)
         self.updatePixmap()
 
     def applyExposure(self, exposureCorrection, options):
@@ -723,6 +736,8 @@ class vImage(QImage):
         @type options:
         """
         inImg = self.inputImg()
+        outImg = self.getCurrentImage()
+        buf0 = QImageBuffer(outImg)
         w, h = inImg.width(), inImg.height()
         s = w / self.width()
         D = QTransform().scale(s, s)
@@ -738,8 +753,7 @@ class vImage(QImage):
             return
         # neutral point
         if T.isIdentity():
-            buf0 = QImageBuffer(self.getCurrentImage())
-            buf1 = QImageBuffer(self.inputImg())
+            buf1 = QImageBuffer(inImg)
             buf0[:, :, :] = buf1
             self.updatePixmap()
             return
@@ -748,13 +762,13 @@ class vImage(QImage):
         rectTrans = DInv.map(T.map(D.map(QImage.rect(self)))).boundingRect()
         # apply the transformation and re-translate the transformed image
         # so that the resulting transformation is T and NOT that given by QImage.trueMatrix()
-        img = inImg.transformed(T).copy(QRect(-rectTrans.x()*s, -rectTrans.y()*s, w, h))
+        dummy = inImg.transformed(T)
+        img = (inImg.transformed(T)).copy(QRect(-rectTrans.x()*s, -rectTrans.y()*s, w, h))
         if img.isNull():
             print('applyTransform : transformation fails')
             self.tool.restore()
             return
-        outBuf = QImageBuffer(self.getCurrentImage())
-        outBuf[:,:,:] = QImageBuffer(img)
+        buf0[:,:,:] = QImageBuffer(img)
         self.updatePixmap()
 
     def applyImage(self, options):
@@ -1437,6 +1451,14 @@ class mImage(vImage):
         self.rawImage = None
 
     def bTransformed(self, transformation):
+        """
+        Applies transformation and returns a copy
+        of the transformed image and stack.
+        @param transformation:
+        @type transformation: Qtransform
+        @return:
+        @rtype: mimage
+        """
         img = mImage(QImg=self.transformed(transformation))
         img.meta = self.meta
         img.onImageChanged = self.onImageChanged
@@ -1747,7 +1769,8 @@ class imImage(mImage) :
 
     def bTransformed(self, transformation):
         """
-        Returns a copy of the transformed image and stack
+        Applies transformation and returns a copy
+        of the transformed image and stack.
         @param transformation:
         @type transformation: QTransform
         @return:
@@ -1858,6 +1881,30 @@ class QLayer(vImage):
         self.AltZoom_coeff = 1.0
         super().__init__(*args, **kwargs)
 
+    def addTool(self, tool):
+        """
+        Adds tool to layer
+        @param tool:
+        @type tool: rotatingTool
+        """
+        self.tool = tool
+        tool.modified = False
+        tool.layer = self
+        try:
+            tool.layer.signals.visibilityChanged.disconnect()
+        except:
+            pass
+        tool.layer.signals.visibilityChanged.connect(tool.setVisible)
+        tool.img = self.parentImage
+        self.modified = False
+        w, h = tool.img.width(), tool.img.height()
+        for role, pos in zip(['topLeft', 'topRight', 'bottomRight', 'bottomLeft'],
+                             [QPoint(0, 0), QPoint(w, 0), QPoint(w, h), QPoint(0, h)]):
+            tool.btnDict[role].posRelImg = pos
+            tool.btnDict[role].posRelImg_ori = pos
+            tool.btnDict[role].posRelImg_frozen = pos
+        tool.moveRotatingTool()
+
     def setVisible(self, value):
         """
         Sets self.visible to value and emit visibilityChanged
@@ -1878,6 +1925,10 @@ class QLayer(vImage):
         @rtype: QLayer
         """
         tLayer = QLayer.fromImage(self.transformed(transformation), parentImage=parentImage)
+        # add dynamic attributes
+        for a in self.__dict__.keys():
+            if a not in tLayer.__dict__.keys():
+                tLayer.__dict__[a] = self.__dict__[a]
         tLayer.name = self.name
         tLayer.actionName = self.actionName
         tLayer.view = self.view
@@ -1886,12 +1937,9 @@ class QLayer(vImage):
         # link back grWindow to tLayer
         if tLayer.view is not None:
             tLayer.view.widget().layer = tLayer
-        if hasattr(self, "clipLimit"):
-            tLayer.clipLimit = self.clipLimit
-        if hasattr(self, "temperature"):
-            tLayer.temperature = self.temperature
         tLayer.execute = self.execute
         tLayer.mask = self.mask.transformed(transformation)
+        tLayer.maskIsEnabled, tLayer.maskIsSelected = self.maskIsEnabled, self.maskIsSelected
         return tLayer
 
     def bResized(self,w, h, parentImage):
@@ -1987,10 +2035,13 @@ class QLayer(vImage):
 
     def getCurrentMaskedImage(self):
         """
-        return the current masked layer image, using the
-        non color managed rPixmaps. For convenience, mainly
-        to be able to use its color space buffers, the built image is
-        of type QLayer. It is drawn on a container image, created only once.
+        Reduces the layer stack up to self (self included),
+        taking into account the masks. if self.isClipping is True
+        self.mask applies to all lower layers and to self only otherwise.
+        The method uses the non color managed rPixmaps to build the masked image.
+        For convenience, mainly to be able to use its color space buffers,
+        the built image is of type QLayer. It is drawn on a container image,
+        created only once.
         @return: masked image
         @rtype: QLayer
         """
@@ -2019,8 +2070,9 @@ class QLayer(vImage):
             bottom = top
             qp.setCompositionMode(QPainter.CompositionMode_Source)
             qp.drawImage(QRect(0, 0, img.width(), img.height()), checkeredImage(img.width(), img.height()))
-        else:
-            bottom = 0
+        else:  # TODO added 14/05/18 validate
+            ind = self.getLowerClippingStackIndex()
+            bottom = max(0, ind)
         for i, layer in enumerate(self.parentImage.layersStack[bottom:top+1]):
             if layer.visible:
                 if i == 0:
@@ -2034,30 +2086,6 @@ class QLayer(vImage):
                     qp.drawImage(QRect(0,0,img.width(), img.height()), layer.getCurrentImage())
         qp.end()
         return img
-    """
-    def getHspbBuffer(self):
-        
-        Return the image buffer in color mode HSpB.
-        The buffer is calculated if needed and cached.
-        @return: HSPB buffer
-        @rtype: ndarray, dtype numpy float
-        
-        if self.hspbBuffer is None or not self.cachesEnabled:
-            img = self.getCurrentImage()
-            self.hspbBuffer = rgb2hspVec(QImageBuffer(img)[:, :, :3][:, :, ::-1])
-        return self.hspbBuffer
-
-    def getLabBuffer(self):
-        
-        returns the image buffer in color mode Lab.
-        The buffer is calculated if needed and cached.
-        @return: Lab buffer (type ndarray)
-        
-        if self.LabBuffer is None or not self.cachesEnabled:
-            img = self.getCurrentImage()
-            self.LabBuffer = sRGB2LabVec(QImageBuffer(img)[:, :, :3][:, :, ::-1])
-        return self.LabBuffer
-    """
 
     def applyToStack(self):
         """
@@ -2200,7 +2228,7 @@ class QLayer(vImage):
 
     def getLowerVisibleStackIndex(self):
         """
-        Return the index of the next lower visible layer,
+        Returns the index of the next lower visible layer,
         -1 if it does not exists
         @return:
         @rtype: int
@@ -2213,10 +2241,10 @@ class QLayer(vImage):
 
     def getUpperVisibleStackIndex(self):
         """
-        Return the index of the next upper visible layer,
+        Returns the index of the next upper visible layer,
         -1 if it does not exists
         @return:
-        @rtype:
+        @rtype: int
         """
         ind = self.getStackIndex()
         for i in range(ind+1, len(self.parentImage.layersStack), 1):
@@ -2224,6 +2252,19 @@ class QLayer(vImage):
                 return i
         return -1
 
+    def getLowerClippingStackIndex(self):
+        """
+         Returns the index of the next lower clipping layer,
+        -1 if it does not exists
+
+        @return:
+        @rtype: int
+        """
+        ind = self.getStackIndex()
+        for i in range(ind + 1, len(self.parentImage.layersStack), 1):
+            if self.parentImage.layersStack[i].isClipping:
+                return i
+        return -1
 
     def linkMask2Lower(self):
         """
@@ -2327,7 +2368,55 @@ class QLayerImage(QLayer):
         self.sourceImg = QImage()
         super().__init__(*args, **kwargs)
 
+    def bTransformed(self, transformation, parentImage):
+        """
+        Applies transformation to a copy of layer and returns the copy.
+        @param transformation:
+        @type transformation: QTransform
+        @param parentImage:
+        @type parentImage: vImage
+        @return: transformed layer
+        @rtype: QLayerImage
+        """
+        tLayer = QLayerImage.fromImage(self.transformed(transformation), parentImage=parentImage, sourceImg=self.sourceImg.transformed(transformation))
+        # add dynamic attributes
+        for a in self.__dict__.keys():
+            av = tLayer.__dict__.get(a, None)
+            if av is None or av == '':
+                tLayer.__dict__[a] = self.__dict__[a]
+        # link back grWindow to tLayer
+        if tLayer.view is not None:
+            tLayer.view.widget().layer = tLayer
+        if tLayer.tool is not None:
+            tLayer.tool.layer = tLayer
+            tLayer.tool.img = tLayer.parentImage
+        tLayer.execute = self.execute
+        tLayer.mask = self.mask.transformed(transformation)
+        tLayer.maskIsEnabled, tLayer.maskIsSelected = self.maskIsEnabled, self.maskIsSelected
+        return tLayer
+
+    def bResized(self,w, h, parentImage):
+        """
+        resize a copy of layer
+        @param w:
+        @type w:
+        @param h:
+        @type h:
+        @param parentImage:
+        @type parentImage:
+        @return:
+        @rtype: Qlayer
+        """
+        transform = QTransform()
+        transform = transform.scale(w / self.width(), h / self.height())
+        return self.bTransformed(transform, parentImage)
+
     def inputImg(self):
+        """
+        Overrides QLayer.inputImg()
+        @return:
+        @rtype: QImage
+        """
         return self.sourceImg.scaled(self.getCurrentImage().size())
 
 def apply3DLUTSliceCls(LUT, inputBuffer, imgBuffer, s ):

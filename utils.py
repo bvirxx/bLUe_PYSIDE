@@ -439,7 +439,7 @@ class optionsWidget(QListWidget) :
         self.intNames = options
         # dict of items with option internal name as keys
         self.items = {}
-        # dict of item states with option internal name as key
+        # dict of item states (True, False) with option internal name as key
         self.options = {}
         for option, name in zip(self.intNames, self.extNames):
             listItem = QListWidgetItem(name, self)
@@ -717,6 +717,7 @@ class rotatingHandle(QToolButton):
         pos = self.mapToParent(event.pos())
         img = self.tool.layer.parentImage
         r = self.tool.resizingCoeff
+        self.tool.targetQuad_old = self.tool.getTargetQuad()  # TODO added 15/05/18 validate
         self.posRelImg = (pos - QPoint(img.xOffset, img.yOffset)) / r
         if modifiers == Qt.ControlModifier | Qt.AltModifier:
             if self.tool.isModified():
@@ -731,9 +732,10 @@ class rotatingHandle(QToolButton):
         curimg = self.tool.layer.getCurrentImage()
         w, h = curimg.width(), curimg.height()
         s = w / self.tool.img.width()
-        if self.tool.form.options['Free']:
+        form = self.tool.getForm()
+        if form.options['Free']:
             pass
-        elif self.tool.form.options['Rotation']:
+        elif form.options['Rotation']:
             center = self.tool.getTargetQuad().boundingRect().center()
             v = QPointF(self.posRelImg.x() - center.x(), self.posRelImg.y() - center.y())
             v0 = QPointF(self.posRelImg_frozen.x() - center.x(), self.posRelImg_frozen.y() - center.y())
@@ -743,7 +745,7 @@ class rotatingHandle(QToolButton):
             q = T.map(self.tool.getFrozenQuad())
             for i, role in enumerate(['topLeft', 'topRight', 'bottomRight', 'bottomLeft']):
                 self.tool.btnDict[role].posRelImg = q.at(i)
-        elif self.tool.form.options['Translation']:
+        elif form.options['Translation']:
             # translation vector (coordinates are relative to the full size image)
             p = QPointF(self.posRelImg) - QPointF(self.posRelImg_frozen)
             T = QTransform()
@@ -779,13 +781,18 @@ class rotatingTool(QObject):
         """
         self.modified = False
         self.layer = layer
-        self.layer.signals.visibilityChanged.connect(self.setVisible)
-        self.img = layer.parentImage
-        self.form = form
-        # dynamic attributes
-        self.form.tool = self
-        w,h = self.img.width(), self.img.height()
+        #self.form = form
+        # dynamic attribute
+        #if self.form is not None:
+            #self.form.tool = self
         super().__init__(parent=parent)
+        if self.layer is None:
+            w, h = 1.0, 1.0
+        else:
+            self.layer.tool = self
+            self.img = layer.parentImage
+            self.layer.signals.visibilityChanged.connect(self.setVisible)
+            w, h = self.img.width(), self.img.height()
         # init tool buttons. The parameter pos is relative to the full size image.
         rotatingButtonLeft = rotatingHandle(role='topLeft', tool=self, pos=QPoint(0,0), parent=parent)
         rotatingButtonRight = rotatingHandle(role='topRight', tool=self, pos=QPoint(w,0), parent=parent)
@@ -794,10 +801,8 @@ class rotatingTool(QObject):
         # init button dictionary
         btnList = [rotatingButtonLeft, rotatingButtonRight, rotatingButtonTop, rotatingButtonBottom]
         self.btnDict = {btn.role: btn for btn in btnList}
-        self.moveRotatingTool()
-        # dynamic attribute
-        self.layer.tool = self
-        self.showTool()
+        if self.layer is not None:
+            self.moveRotatingTool()
 
     def showTool(self):
         for btn in self.btnDict.values():
@@ -810,6 +815,12 @@ class rotatingTool(QObject):
     def setVisible(self, value):
         for btn in self.btnDict.values():
             btn.setVisible(value)
+
+    def getForm(self):
+        if self.layer is not None:
+            if self.layer.view is not None:
+                return self.layer.view.widget()
+        return None
 
     def setBaseTransform(self):
         """

@@ -738,7 +738,7 @@ class QLayerView(QTableView) :
                 if self.img.layersStack[pos + 1 + i].visible:
                     upperVisible = True
             if upperVisible:
-                dlgWarn("To show/edit the mask switch off\nthe visibility of all upper layers")
+                dlgWarn("To show or to edit the mask switch off\nthe visibility of all upper layers")
                 return True
             return False
         def colorMaskEnable():

@@ -176,7 +176,7 @@ grabCut is a parallel version of an Opencv3 function
 
 ################
 #  Version
-VERSION = "v.0.1-alpha"
+VERSION = "v.0.3-alpha"
 ###############
 
 ###############
@@ -412,7 +412,8 @@ def mouseEvent(widget, event) :
             s = ('%s  %s  %s' % (color.red(), color.green(), color.blue()))
             QToolTip.showText(event.globalPos(), s, window, QRect(event.globalPos(), QSize(20,30)))
         if layer.isGeomLayer():
-            layer.view.widget().tool.moveRotatingTool()
+            #layer.view.widget().tool.moveRotatingTool()
+            layer.tool.moveRotatingTool()
     #####################
     # mouse release event
     ####################
@@ -497,7 +498,8 @@ def wheelEvent(widget,img, event):
         if window.btnValues['Crop_Button']:
             window.cropTool.drawCropTool(img)
         if layer.isGeomLayer():
-            layer.view.widget().tool.moveRotatingTool()
+            #layer.view.widget().tool.moveRotatingTool()
+            layer.tool.moveRotatingTool()
     elif modifiers == Qt.ControlModifier:
         layer.Zoom_coeff *= (1.0 + numSteps)
         layer.updatePixmap()
@@ -1397,8 +1399,8 @@ def menuLayer(name):
         filename = openDlg(window, ask=False)
         if filename is None:
             return
-        img = window.label.img
-        imgNew = QImage(filename)
+        # load image from file, alpha channel is mandatory for applyTransform()
+        imgNew = QImage(filename).convertToFormat(QImage.Format_ARGB32)  # QImage(filename, QImage.Format_ARGB32) does not work !
         if imgNew.isNull():
             dlgWarn("Cannot load %s: " % filename)
             return
@@ -1406,7 +1408,9 @@ def menuLayer(name):
         l = window.label.img.addAdjustmentLayer(name=lname, sourceImg=imgNew, role='GEOMETRY')
         grWindow = imageForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         # add transformation tool to parent widget
-        rotatingTool(parent=window.label, layer=l, form=grWindow)
+        tool = rotatingTool(parent=window.label)#, layer=l, form=grWindow)
+        l.addTool(tool)
+        tool.showTool()
         l.execute = lambda l=l, pool=None: l.applyImage(grWindow.options)
         l.actioname = name
     # Temperature
@@ -1446,7 +1450,9 @@ def menuLayer(name):
         l = window.label.img.addAdjustmentLayer(name=lname, role='GEOMETRY')
         grWindow = transForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         # add transformation tool to parent widget
-        rotatingTool(parent=window.label, layer=l, form=grWindow)
+        tool = rotatingTool(parent=window.label)#, layer=l, form=grWindow)
+        l.addTool(tool)
+        tool.showTool()
         l.execute = lambda l=l, pool=None: l.applyTransForm(grWindow.options)
     elif name == 'actionFilter':
         lname = 'Filter'
