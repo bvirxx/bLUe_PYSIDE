@@ -399,6 +399,9 @@ class QbLUeSlider(QSlider):
     bLueSliderDefaultBWStylesheet = """QSlider::groove:horizontal:enabled {margin: 3px; 
                                               background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 black, stop:1 white);}
                                            QSlider::groove:horizontal:disabled {margin: 3px; background: #888888;}"""
+    bLueSliderDefaultIBWStylesheet = """QSlider::groove:horizontal:enabled {margin: 3px; 
+                                                  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 gray, stop:1 black);}
+                                               QSlider::groove:horizontal:disabled {margin: 3px; background: #888888;}"""
     def __init__(self, parent=None):
         super(QbLUeSlider, self).__init__(parent)
         self.setTickPosition(QSlider.NoTicks)

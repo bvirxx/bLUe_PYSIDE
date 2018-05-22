@@ -36,8 +36,8 @@ def buildLUT(curve):  #unused
     a curve. The LUT values are interpolated between consecutive curve points.
     x-coordinates of points are assumed to be sorted in ascending order.
     y-coordinates of points are flipped to reflect y-axis orientation.
-    @param curve: list of QPOINTF objects
-    @return: list of 256 integer values, between 0 and 255.
+    @param curve: list of QPointF
+    @return: list of 256 integer values, in range 0..255.
     """
     # add sentinels
     S1 = QPointF(-1, curve[0].y())
@@ -278,8 +278,10 @@ class cubicItem(QGraphicsPathItem) :
         self.updateLUTXY()
         return self
 
-
 class graphicsForm(QGraphicsView) :
+    """
+    RGB curve form
+    """
 
     @classmethod
     def getNewWindow(cls, cModel=None, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
@@ -291,13 +293,12 @@ class graphicsForm(QGraphicsView) :
         super(graphicsForm, self).__init__(parent=parent)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize + 60, axeSize + 140)
-        #self.setWindowFlags(Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.graphicsScene = QGraphicsScene()
         self.setScene(self.graphicsScene)
         self.scene().targetImage = targetImage
         self.scene().layer = layer
-        self.scene().bgColor = QColor(200,200,200)#self.palette().color(self.backgroundRole()) TODO parametrize
+        self.scene().bgColor = QColor(200,200,200)
 
         self.graphicsScene.onUpdateScene = lambda : 0
         self.scene().onUpdateLUT = lambda : 0
@@ -308,14 +309,12 @@ class graphicsForm(QGraphicsView) :
         item = drawPlotGrid(axeSize)
         self.graphicsScene.addItem(item)
 
-        self.graphicsScene.addItem(item)
-
         # curves
         cubic = cubicItem(axeSize)
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicRGB = cubic
         cubic.channel = channelValues.RGB
-        cubic.histImg = self.scene().layer.inputImg().histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, chans=channelValues.RGB)
+        cubic.histImg = self.scene().layer.inputImg().histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, chans=[], mode='Luminosity')
         cubic.initFixedPoints()
         cubic = cubicItem(axeSize)
         self.graphicsScene.addItem(cubic)

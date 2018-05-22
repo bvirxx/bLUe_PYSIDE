@@ -644,7 +644,7 @@ Screen</string>
      <addaction name="actionColor_Temperature"/>
      <addaction name="actionExposure_Correction"/>
      <addaction name="separator"/>
-     <addaction name="actionBrightness_Contrast"/>
+     <addaction name="actionCurves_RGB"/>
      <addaction name="actionCurves_HSpB"/>
      <addaction name="actionCurves_Lab"/>
      <addaction name="actionFilter"/>
@@ -793,7 +793,7 @@ Screen</string>
     <string>Image info</string>
    </property>
   </action>
-  <action name="actionBrightness_Contrast">
+  <action name="actionCurves_RGB">
    <property name="text">
     <string>Curves RGB</string>
    </property>
@@ -937,7 +937,7 @@ Screen</string>
   </action>
   <action name="actionContrast_Correction">
    <property name="text">
-    <string>Cont/Sat/Bright</string>
+    <string>Cont/Bright/Sat</string>
    </property>
   </action>
   <action name="actionExposure_Correction">

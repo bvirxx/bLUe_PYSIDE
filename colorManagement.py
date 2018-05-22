@@ -81,7 +81,8 @@ class icc:
         try:
             if qscreen is not None:
                 dc = win32gui.CreateDC(qscreen.name(), None, None)
-                monitorProfile = get_display_profile(HDC(dc))
+                monitorProfile = get_display_profile(dc)    # TODO modified 21/05/18 -- #HDC(dc))
+                                                            # cf. imageCms.get_display_profile_win32 v5.1.0 patch
             else:
                 monitorProfile = get_display_profile()
         except :
@@ -90,7 +91,7 @@ class icc:
 
 def convertQImage(image, transformation=None):
     """
-    Apply a Cms transformation to a QImage and returns the transformed image.
+    Applies a Cms transformation to a QImage and returns the transformed image.
     If transformation is None, the input image is returned
     @param image: image
     @type image: QImage

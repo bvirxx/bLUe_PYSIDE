@@ -19,16 +19,15 @@ import gc
 
 import itertools
 
-from PySide2 import QtCore
 from os.path import isfile
 
-from PySide2.QtCore import Qt, QDataStream, QFile, QIODevice, QSize, QPointF, QPoint, QRectF, QObject
+from PySide2.QtCore import Qt, QDataStream, QFile, QIODevice, QSize, QPointF, QPoint, QRectF
 
 import cv2
 from copy import copy
 
-from PySide2.QtGui import QImageReader, QTransform, QBrush, QMatrix
-from PySide2.QtWidgets import QApplication, QMessageBox, QSplitter
+from PySide2.QtGui import QImageReader, QTransform
+from PySide2.QtWidgets import QApplication, QSplitter
 from PySide2.QtGui import QPixmap, QImage, QColor, QPainter
 from PySide2.QtCore import QRect
 
@@ -37,20 +36,13 @@ from colorConv import sRGB2LabVec, sRGBWP, Lab2sRGBVec, rgb2rgbLinearVec, \
     rgbLinear2rgbVec, XYZ2sRGBVec, sRGB2XYZVec
 
 from graphicsFilter import filterIndex
-from histogram import warpHistogram, valleys, dstb
+from histogram import warpHistogram
 from colorManagement import icc, convertQImage
 from imgconvert import *
 from colorCube import interpMulti, rgb2hspVec, hsp2rgbVec, LUT3DIdentity, LUT3D, interpVec_
 from time import time
 from utils import SavitzkyGolay, channelValues, checkeredImage, boundingRect, dlgWarn, baseSignals
-
-###################
-# multi processing
-# pool is created in QLayer.applyToStack()
 from dwtdenoise import dwtDenoiseChan
-
-MULTIPROC_POOLSIZE = 4
-###################
 
 class ColorSpace:
     notSpecified = -1; sRGB = 1
@@ -64,9 +56,9 @@ class metadata:
 
 class vImage(QImage):
     """
-    Versatile image base class.
+    Versatile image class.
     This is the base class for all multi-layered and interactive image
-    and layer classes. It gathers all image information, including meta-data.
+    classes, and for layer classes. It gathers all image information, including meta-data.
     A vImage object holds 4 images:
            - full (self),
            - thumbnail (self.thumb),
@@ -454,7 +446,7 @@ class vImage(QImage):
 
     def updatePixmap(self, maskOnly=False):
         """
-        Updates the caches qPixmap, thumb and cmImage.
+        Updates the qPixmap, thumb and cmImage caches.
         The image is that returned by getCurrentImage(), thus
         the caches are synchronized using the current image
         mode (full or preview).
@@ -524,7 +516,7 @@ class vImage(QImage):
         """
         Resizes an image while keeping its aspect ratio. We use
         the opencv function cv2.resize() to perform the resizing operation, so we
-        can choose the resizing method (default cv2.INTER_CUBIC)
+        can choose among several interpolation methods (default cv2.INTER_CUBIC).
         The original image is not modified.
         @param pixels: pixel count for the resized image
         @type pixels: int
@@ -546,7 +538,6 @@ class vImage(QImage):
         if self.rect is not None:
             rszd.rect = QRect(self.rect.left() * hom, self.rect.top() * hom, self.rect.width() * hom, self.rect.height() * hom)
         if self.mask is not None:
-            # tmp.mask=cv2.resize(self.mask, (w,h), interpolation=cv2.INTER_NEAREST )
             rszd.mask = self.mask.scaled(w, h)
         self.setModified(True)
         return rszd
@@ -1445,7 +1436,7 @@ class mImage(vImage):
         bgLayer.isClipping = True
         self.setModified(False)
         self.activeLayerIndex = None
-        self.addLayer(bgLayer, name='background')
+        self.addLayer(bgLayer, name='Background')
         self.isModified = False
         # rawpy object
         self.rawImage = None

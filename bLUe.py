@@ -166,6 +166,9 @@ from splittedView import splittedWindow
 attributions = """
 exiftool Copyright © 2013-2016, Phil Harvey
 QRangeSlider Copyright (c) 2011-2012, Ryan Galloway
+The Python Imaging Library (PIL) is
+    Copyright © 1997-2011 by Secret Labs AB
+    Copyright © 1995-2011 by Fredrik Lundh
 Pillow Copyright © 2010-2018 by Alex Clark and contributors
 libraw Copyright (C) 2008-2018 
 rawpy Copyright (c) 2014 Maik Riechert
@@ -1323,21 +1326,24 @@ def menuLayer(name):
     @type action: str
     """
     # curves
-    if name in ['actionBrightness_Contrast', 'actionCurves_HSpB', 'actionCurves_Lab']:
-        if name == 'actionBrightness_Contrast':
+    if name in ['actionCurves_RGB', 'actionCurves_HSpB', 'actionCurves_Lab']:
+        if name == 'actionCurves_RGB':
             layerName = 'Curves R, G, B'
+            form = graphicsForm
         elif name == 'actionCurves_HSpB':
             layerName = 'Curves H, S, pB'
+            form = graphicsHspbForm
         elif name == 'actionCurves_Lab':
             layerName = 'Curves L, a, b'
+            form = graphicsLabForm
         # add new layer on top of active layer
         l = window.label.img.addAdjustmentLayer(name=layerName)
-        if name == 'actionBrightness_Contrast':
-            grWindow=graphicsForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
-        elif name == 'actionCurves_HSpB':
-            grWindow = graphicsHspbForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
-        elif name == 'actionCurves_Lab':
-            grWindow = graphicsLabForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
+        #if name == 'actionCurves_RGB':
+        grWindow=form.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
+        #elif name == 'actionCurves_HSpB':
+            #grWindow = graphicsHspbForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
+        #elif name == 'actionCurves_Lab':
+            #grWindow = graphicsLabForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         # redimensionable window
         grWindow.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
         # Curve change event handler
@@ -1348,7 +1354,7 @@ def menuLayer(name):
             window.label.img.onImageChanged()
         grWindow.graphicsScene.onUpdateLUT = f
         # wrapper for the right applyXXX method
-        if name == 'actionBrightness_Contrast':
+        if name == 'actionCurves_RGB':
             l.execute = lambda l=l, pool=None: l.apply1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
         elif name == 'actionCurves_HSpB':
             l.execute = lambda l=l, pool=None: l.applyHSPB1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY(), pool=pool)
@@ -1421,8 +1427,7 @@ def menuLayer(name):
         # wrapper for the right apply method
         l.execute = lambda l=l, pool=None: l.applyTemperature()
     elif name == 'actionContrast_Correction':
-        lname = 'Cont. Sat. Br.'
-        l = window.label.img.addAdjustmentLayer(name=lname)
+        l = window.label.img.addAdjustmentLayer(name=CoBrSatForm.layerTitle)
         grWindow = CoBrSatForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         # clipLimit change event handler
         def h(lay, clipLimit):
@@ -1750,13 +1755,13 @@ if __name__ =='__main__':
     pixmap = QPixmap('logo.png')
     splash = QSplashScreen(pixmap, Qt.WindowStaysOnTopHint)
     splash.show()
-    app.processEvents()
     splash.showMessage("Loading .", color=Qt.white, alignment=Qt.AlignCenter)
     app.processEvents()
     sleep(1)
-    splash.showMessage("Loading ...", color=Qt.white, alignment=Qt.AlignCenter)
-    splash.finish(window)
+    splash.showMessage(attributions, color=Qt.white, alignment=Qt.AlignCenter)
     app.processEvents()
+    sleep(1)
+    splash.finish(window)
     # title
     window.setWindowTitle('bLUe')
     # style sheet
@@ -1891,5 +1896,8 @@ if __name__ =='__main__':
     t = time() - t
     if t > 0.01:
         print('dot product time %.5f' % t)
+
+    ###############
     # launch app
+    ###############
     sys.exit(app.exec_())

@@ -18,12 +18,13 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 from PySide2 import QtCore
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
-from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout, QGroupBox
+from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QGroupBox
 from utils import optionsWidget, QbLUeSlider, UDict
 
 class CoBrSatForm (QGraphicsView):
 
     dataChanged = QtCore.Signal()
+    layerTitle = "Cont/Bright/Sat"
 
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
@@ -51,7 +52,7 @@ class CoBrSatForm (QGraphicsView):
 
         # contrast slider
         self.sliderContrast = QbLUeSlider(Qt.Horizontal)
-        self.sliderContrast.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
+        self.sliderContrast.setStyleSheet(QbLUeSlider.bLueSliderDefaultIBWStylesheet)
         self.sliderContrast.setRange(0, 10)
         self.sliderContrast.setSingleStep(1)
 
@@ -62,7 +63,7 @@ class CoBrSatForm (QGraphicsView):
         self.contrastValue = QLabel()
         font = self.contrastValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("1000")
+        w = metrics.width("100")
         h = metrics.height()
         self.contrastValue.setMinimumSize(w, h)
         self.contrastValue.setMaximumSize(w, h)
@@ -85,7 +86,6 @@ class CoBrSatForm (QGraphicsView):
         self.sliderContrast.sliderReleased.connect(lambda: contrastUpdate(self.sliderContrast.value()))
 
         # saturation slider
-
         self.sliderSaturation = QbLUeSlider(Qt.Horizontal)
         self.sliderSaturation.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
         self.sliderSaturation.setRange(0, 10)
@@ -98,7 +98,7 @@ class CoBrSatForm (QGraphicsView):
         self.saturationValue = QLabel()
         font = self.saturationValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("1000")
+        w = metrics.width("100")
         h = metrics.height()
         self.saturationValue.setMinimumSize(w, h)
         self.saturationValue.setMaximumSize(w, h)
@@ -120,9 +120,8 @@ class CoBrSatForm (QGraphicsView):
         self.sliderSaturation.sliderReleased.connect(lambda: saturationUpdate(self.sliderSaturation.value()))
 
         # brightness slider
-
         self.sliderBrightness = QbLUeSlider(Qt.Horizontal)
-        self.sliderBrightness.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
+        self.sliderBrightness.setStyleSheet(QbLUeSlider.bLueSliderDefaultBWStylesheet)
         self.sliderBrightness.setRange(0, 10)
         self.sliderBrightness.setSingleStep(1)
 
@@ -133,7 +132,7 @@ class CoBrSatForm (QGraphicsView):
         self.brightnessValue = QLabel()
         font = self.brightnessValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("1000")
+        w = metrics.width("100")
         h = metrics.height()
         self.brightnessValue.setMinimumSize(w, h)
         self.brightnessValue.setMaximumSize(w, h)
@@ -155,6 +154,7 @@ class CoBrSatForm (QGraphicsView):
         self.sliderBrightness.valueChanged.connect(brightnessUpdate)
         self.sliderBrightness.sliderReleased.connect(lambda: brightnessUpdate(self.sliderBrightness.value()))
 
+        # layout
         l = QVBoxLayout()
         l.setAlignment(Qt.AlignTop)
         gb1 = QGroupBox()
@@ -172,16 +172,16 @@ class CoBrSatForm (QGraphicsView):
         hl.addWidget(self.contrastValue)
         hl.addWidget(self.sliderContrast)
         l.addLayout(hl)
-        l.addWidget(saturationLabel)
-        hl2 = QHBoxLayout()
-        hl2.addWidget(self.saturationValue)
-        hl2.addWidget(self.sliderSaturation)
-        l.addLayout(hl2)
         l.addWidget(brightnessLabel)
         hl3 = QHBoxLayout()
         hl3.addWidget(self.brightnessValue)
         hl3.addWidget(self.sliderBrightness)
         l.addLayout(hl3)
+        l.addWidget(saturationLabel)
+        hl2 = QHBoxLayout()
+        hl2.addWidget(self.saturationValue)
+        hl2.addWidget(self.sliderSaturation)
+        l.addLayout(hl2)
         self.setLayout(l)
         self.adjustSize()
         self.dataChanged.connect(self.updateLayer)
