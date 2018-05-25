@@ -16,52 +16,24 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-import sys
-
 from PySide2.QtCore import QRect
-from PySide2.QtWidgets import QSizePolicy, QGraphicsView, QGraphicsScene, QPushButton
+from PySide2.QtWidgets import QSizePolicy, QGraphicsScene, QPushButton
 from PySide2.QtGui import  QColor, QPixmap
 from PySide2.QtCore import Qt, QRectF
 
-from graphicsRGBLUT import cubicItem
-
+from graphicsLUT import cubicItem, graphicsCurveForm
 from utils import optionsWidget, channelValues, drawPlotGrid
 
-strokeWidth = 3
-controlPoints = []
-computeControlPoints = True
-
-
-class graphicsLabForm(QGraphicsView):
+class graphicsLabForm(graphicsCurveForm):
+    strokeWidth = 3
     @classmethod
-    def getNewWindow(cls, cModel=None, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
-        newWindow = graphicsLabForm(cModel=cModel, targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
+    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
+        newWindow = graphicsLabForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         newWindow.setWindowTitle(layer.name)
         return newWindow
 
-    def __init__(self, cModel=None, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
-        super().__init__(parent=parent)
-        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        self.setMinimumSize(axeSize + 60, axeSize + 140)
-        self.setAttribute(Qt.WA_DeleteOnClose)
-        # self.setBackgroundBrush(QBrush(Qt.black, Qt.SolidPattern))
-        # self.bgPixmap = QPixmap.fromImage(hueSatModel.colorWheel(size, size, cModel))
-        self.graphicsScene = QGraphicsScene()
-        self.setScene(self.graphicsScene)
-        self.scene().targetImage = targetImage
-        self.scene().layer = layer
-        self.scene().bgColor = QColor(200, 200, 200)  # self.palette().color(self.backgroundRole()) TODO parametrize
-
-        self.graphicsScene.onUpdateScene = lambda: 0
-
-        self.graphicsScene.axeSize = axeSize
-        self.mainForm=mainForm
-        # axes and grid
-        item = drawPlotGrid(axeSize)
-        self.graphicsScene.addItem(item)
-
-        # self.graphicsScene.addPath(qppath, QPen(Qt.DashLine))  #create and add QGraphicsPathItem
-
+    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
+        super().__init__(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         # curves
         cubic = cubicItem(axeSize)
         self.graphicsScene.addItem(cubic)
@@ -96,7 +68,10 @@ class graphicsLabForm(QGraphicsView):
             Reset the selected curve
             """
             self.scene().cubicItem.reset()
-            self.scene().onUpdateLUT()
+            #self.scene().onUpdateLUT()
+            l = self.scene().layer
+            l.applyToStack()
+            l.parentImage.onImageChanged()
 
         def onResetAllCurves():
             """
@@ -104,7 +79,10 @@ class graphicsLabForm(QGraphicsView):
             """
             for cubicItem in [self.graphicsScene.cubicR, self.graphicsScene.cubicG, self.graphicsScene.cubicB]:
                 cubicItem.reset()
-            self.scene().onUpdateLUT()
+            #self.scene().onUpdateLUT()
+            l = self.scene().layer
+            l.applyToStack()
+            l.parentImage.onImageChanged()
         """
         def updateStack():
             layer.applyToStack()

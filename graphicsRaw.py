@@ -16,16 +16,13 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 from math import log
-
 import numpy as np
 from PySide2 import QtCore
-
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
 from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBox
-from colorConv import temperatureAndTint2RGBMultipliers, RGBMultipliers2TemperatureAndTint, sRGB2XYZVec
-from utils import optionsWidget, UDict, QbLUeSlider, inversion
-
+from colorConv import temperatureAndTint2RGBMultipliers, RGBMultipliers2TemperatureAndTint
+from utils import optionsWidget, UDict, QbLUeSlider
 
 class rawForm (QGraphicsView):
     """
@@ -391,6 +388,20 @@ class rawForm (QGraphicsView):
         self.setLayout(l)
         self.adjustSize()
         self.setDefaults()
+
+    def setContrastSpline(self, a, b, d, T):
+        """
+        Updates and displays the contrast spline
+        @param a:
+        @type a:
+        @param b:
+        @type b:
+        @param d:
+        @type d:
+        @param T:
+        @type T:
+        """
+        pass
 
     # temp changed  event handler
     def tempUpdate(self, value):

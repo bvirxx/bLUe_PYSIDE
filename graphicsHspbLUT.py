@@ -15,46 +15,23 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-
-import sys
-
 from PySide2.QtCore import QRect
-from PySide2.QtWidgets import QGraphicsView, QGraphicsScene, QSizePolicy, QPushButton
+from PySide2.QtWidgets import QGraphicsScene, QSizePolicy, QPushButton
 from PySide2.QtGui import QColor
 from PySide2.QtCore import Qt, QRectF
 
-from graphicsRGBLUT import cubicItem
+from graphicsLUT import cubicItem, graphicsCurveForm
 from utils import optionsWidget, channelValues, drawPlotGrid
 
-class graphicsHspbForm(QGraphicsView) :
+class graphicsHspbForm(graphicsCurveForm) :
     @classmethod
-    def getNewWindow(cls, cModel=None, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
-        newWindow = graphicsHspbForm(cModel=cModel, targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
+    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
+        newWindow = graphicsHspbForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         newWindow.setWindowTitle(layer.name)
         return newWindow
 
-    def __init__(self, cModel=None, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
-        super().__init__(parent=parent)
-        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        self.setMinimumSize(axeSize + 60, axeSize + 140)
-        #self.setWindowFlags(Qt.WindowStaysOnTopHint)
-        self.setAttribute(Qt.WA_DeleteOnClose)
-        #self.setBackgroundBrush(QBrush(Qt.black, Qt.SolidPattern))
-        #self.bgPixmap = QPixmap.fromImage(hueSatModel.colorWheel(size, size, cModel))
-        self.graphicsScene = QGraphicsScene()
-        self.setScene(self.graphicsScene)
-        self.scene().targetImage = targetImage
-        self.scene().layer = layer
-        self.scene().bgColor = QColor(200,200,200)#self.palette().color(self.backgroundRole()) TODO parametrize
-        self.mainForm = mainForm
-
-        self.graphicsScene.onUpdateScene = lambda : 0
-        self.graphicsScene.axeSize = axeSize
-
-        # axes and grid
-        item = drawPlotGrid(axeSize)
-        self.graphicsScene.addItem(item)
-
+    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
+        super().__init__(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         # curves
         # hue
         cubic = cubicItem(axeSize)
@@ -89,7 +66,10 @@ class graphicsHspbForm(QGraphicsView) :
             """
             self.scene().cubicItem.reset()
             # call Curve change event handler, defined in blue.menuLayer
-            self.scene().onUpdateLUT()
+            #self.scene().onUpdateLUT()
+            l = self.scene().layer
+            l.applyToStack()
+            l.parentImage.onImageChanged()
 
         def onResetAllCurves():
             """
@@ -98,7 +78,10 @@ class graphicsHspbForm(QGraphicsView) :
             for cubicItem in [self.graphicsScene.cubicR, self.graphicsScene.cubicG, self.graphicsScene.cubicB]:
                 cubicItem.reset()
             # call Curve change event handlerdefined in blue.menuLayer
-            self.scene().onUpdateLUT()
+            #self.scene().onUpdateLUT()
+            l = self.scene().layer
+            l.applyToStack()
+            l.parentImage.onImageChanged()
 
         # buttons
         pushButton1 = QPushButton("Reset Curve")

@@ -1066,6 +1066,14 @@ def clip(image, mask, inverted=False):
     bufImg[:,:,3] = bufMask[:,:,3]
 
 def drawPlotGrid(axeSize):
+    """
+    Rerturns a QGraphicsPathItem initialized with
+    a square grid.
+    @param axeSize:
+    @type axeSize:
+    @return:
+    @rtype: QGraphicsPathItem
+    """
     item = QGraphicsPathItem()
     item.setPen(QPen(QColor(255, 0, 0), 1, Qt.DashLine))
     qppath = QPainterPath()

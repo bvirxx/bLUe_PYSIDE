@@ -20,9 +20,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 from PySide2.QtCore import QSize
 from PySide2.QtWidgets import QAction, QFileDialog, QToolTip, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, \
     QApplication
-from PySide2.QtGui import QPainter, QPixmap, QPolygonF,QPainterPath, QPainterPathStroker, QPen, QBrush, QColor, QPixmap
+from PySide2.QtGui import QPainter, QPolygonF,QPainterPath, QPen, QBrush, QColor, QPixmap
 from PySide2.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsItem, QGraphicsItemGroup, QGraphicsPathItem , QGraphicsPixmapItem, QGraphicsTextItem,  QGraphicsPolygonItem ,  QMainWindow, QLabel, QSizePolicy
-from PySide2.QtCore import Qt, QPoint, QPointF, QRect, QRectF #, QString
+from PySide2.QtCore import Qt, QPointF, QRect, QRectF
 import numpy as np
 
 from PySide2.QtGui import QImage
@@ -149,7 +149,10 @@ class nodeGroup(QGraphicsItemGroup):
             for i in self.childItems():
                 i.setState(i.pos())
             self.grid.drawGrid()
-            self.scene().onUpdateLUT(options=self.scene().options)
+            #self.scene().onUpdateLUT(options=self.scene().options)
+            l = self.scene().layer
+            l.applyToStack()
+            l.parentImage.onImageChanged()
         self.mouseIsPressed = False
         self.mouseIsMoved = False
 
@@ -171,7 +174,10 @@ class nodeGroup(QGraphicsItemGroup):
             self.grid.drawGrid()
             for i in self.childItems():
                 i.setState(i.pos())
-            self.scene().onUpdateLUT(options=self.scene().options)
+            #self.scene().onUpdateLUT(options=self.scene().options)
+            l = self.scene().layer
+            l.applyToStack()
+            l.parentImage.onImageChanged()
         actionScaleUp.triggered.connect(f2)
         # scale down
         actionScaleDown = QAction('scale down', None)
@@ -181,7 +187,10 @@ class nodeGroup(QGraphicsItemGroup):
             self.grid.drawGrid()
             for i in self.childItems():
                 i.setState(i.pos())
-            self.scene().onUpdateLUT(options=self.scene().options)
+            #self.scene().onUpdateLUT(options=self.scene().options)
+            l = self.scene().layer
+            l.applyToStack()
+            l.parentImage.onImageChanged()
         actionScaleDown.triggered.connect(f3)
         # rotate cw
         actionRotateCW = QAction('rotate CW', None)
@@ -191,7 +200,10 @@ class nodeGroup(QGraphicsItemGroup):
             self.grid.drawGrid()
             for i in self.childItems():
                 i.setState(i.pos())
-            self.scene().onUpdateLUT(options=self.scene().options)
+            #self.scene().onUpdateLUT(options=self.scene().options)
+            l = self.scene().layer
+            l.applyToStack()
+            l.parentImage.onImageChanged()
         actionRotateCW.triggered.connect(f4)
         # rotate ccw
         actionRotateCCW = QAction('rotate CCW', None)
@@ -201,7 +213,10 @@ class nodeGroup(QGraphicsItemGroup):
             self.grid.drawGrid()
             for i in self.childItems():
                 i.setState(i.pos())
-            self.scene().onUpdateLUT(options=self.scene().options)
+            #self.scene().onUpdateLUT(options=self.scene().options)
+            l = self.scene().layer
+            l.applyToStack()
+            l.parentImage.onImageChanged()
         actionRotateCCW.triggered.connect(f5)
 
         menu.exec_(event.screenPos())
@@ -262,7 +277,10 @@ class activeNode(QGraphicsPathItem):
         grid.drawTrace = True
         grid.drawGrid()
         grid.drawTrace = False
-        grid.scene().onUpdateLUT(options=grid.scene().options)
+        #grid.scene().onUpdateLUT(options=grid.scene().options)
+        l = grid.scene().layer
+        l.applyToStack()
+        l.parentImage.onImageChanged()
 
     def __init__(self, position, cModel, gridRow=0, gridCol=0, parent=None, grid=None):
         """
@@ -434,7 +452,10 @@ class activeNode(QGraphicsPathItem):
     def mouseReleaseEvent(self, e):
         self.setState(self.pos())
         if self.mouseIsMoved:
-            self.scene().onUpdateLUT(options=self.scene().options)
+            #self.scene().onUpdateLUT(options=self.scene().options)
+            l = self.scene().layer
+            l.applyToStack()
+            l.parentImage.onImageChanged()
         self.mouseIsPressed = False
         self.mouseIsMoved = False
         self.grid.drawTrace = False
@@ -712,7 +733,7 @@ class colorPicker(QGraphicsPixmapItem):
 class graphicsForm3DLUT(QGraphicsView) :
     """
     Interactive grid for 3D LUT adjustment.
-    Default color model is hsp.
+    Default color model is hspB.
     """
     # node markers
     qpp0 = activeNode.qppR
@@ -774,13 +795,14 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.currentR, self.currentG, self.currentB = 0,0,0
         self.size = axeSize
         self.targetImage= targetImage
-        self.layer=layer
+        self.layer=layer  # TODO 25/05/18 remove and instead use self.graphicsScene.layer below
         self.mainForm = mainForm
         # currently selected grid node
         self.selected = None
         #self.bgPixmap = QPixmap.fromImage(self.QImg)
         self.graphicsScene = QGraphicsScene()
         self.setScene(self.graphicsScene)
+        self.graphicsScene.layer = layer
         # LUT
         freshLUT3D = LUT3D.LUT3DFromFactory(size=LUTSize)
         self.graphicsScene.LUTSize, self.graphicsScene.LUTStep, self.graphicsScene.LUTContrast, self.graphicsScene.LUT3DArray = freshLUT3D.size, freshLUT3D.step, freshLUT3D.contrast, freshLUT3D.LUT3DArray
@@ -830,7 +852,6 @@ class graphicsForm3DLUT(QGraphicsView) :
 
         self.displayStatus()
 
-        self.graphicsScene.onUpdateScene = lambda : 0  # TODO never used, remove
         #self.setRenderHints(QPainter.Antialiasing | QPainter.SmoothPixmapTransform)
 
         # grid
@@ -1056,7 +1077,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.grid.reset()
         self.selected = None
         self.grid.drawGrid()
-        self.scene().onUpdateScene()
+        #self.scene().onUpdateScene() # TODO 24/05/18 validate suppression
         self.layer.applyToStack()
         self.layer.parentImage.window.repaint()
 

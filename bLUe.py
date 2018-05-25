@@ -1346,6 +1346,7 @@ def menuLayer(name):
             #grWindow = graphicsLabForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         # redimensionable window
         grWindow.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
+        """
         # Curve change event handler
         # called by curve mouse events
         # Apply current LUT
@@ -1353,6 +1354,7 @@ def menuLayer(name):
             l.applyToStack()
             window.label.img.onImageChanged()
         grWindow.graphicsScene.onUpdateLUT = f
+        """
         # wrapper for the right applyXXX method
         if name == 'actionCurves_RGB':
             l.execute = lambda l=l, pool=None: l.apply1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
@@ -1367,13 +1369,13 @@ def menuLayer(name):
         layerName = '3D LUT HSpB' if name == 'action3D_LUT' else '3D LUT HSV'
         l = window.label.img.addAdjustmentLayer(name=layerName, role='3DLUT')
         grWindow = graphicsForm3DLUT.getNewWindow(ccm, axeSize=300, targetImage=window.label.img, LUTSize=LUTSIZE, layer=l, parent=window, mainForm=window)
+        """
         # LUT change event handler
         def g(options={}):
-            #Apply current 3D LUT and repaint window
-            #param options: dictionary of options
             l.applyToStack()
             window.label.img.onImageChanged()
         grWindow.graphicsScene.onUpdateLUT = g
+        """
         # wrapper for the right apply method
         l.execute = lambda l=l, pool=None: l.apply3DLUT(grWindow.graphicsScene.LUT3DArray, options=grWindow.graphicsScene.options, pool=pool)
     # cloning

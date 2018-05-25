@@ -30,6 +30,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #########################################################################################################################
 import numpy as np
 
+from spline import interpolationQuadSpline
+
+
 class dstb(object):
     """
     Represents a discrete distribution over an interval 0...maxVal of positive
@@ -273,7 +276,7 @@ def distWins(dist, delta):
 
 def valleys(imgBuf, delta):
     """
-    Searchs for valleys (local minima) in the distribution of the image. A valley is a
+    Searches for valleys (local minima) in the distribution of the image. A valley is a
     window of (probability) width 2*delta, whose central point gives its minimum value.
     The function returns the ordered list of these local minima and a distribution object
     representing the distribution of image data.
@@ -301,62 +304,9 @@ def valleys(imgBuf, delta):
     V = np.fromiter(V, dtype=np.float, count=len(V))
     return V, dist
 
-def interpolationSpline(a, b, d, plot=False):
-    """
-    Builds a monotonic transformation curve T from [0,1] onto b[0], b[-1],
-    as a piecewise rational quadratic interpolation spline to a set of (a[k], b[k]) 2D nodes.
-    Coefficients d[k] are the slopes at nodes. The function returns a tabulation of T as
-    a list of T[k/255] for k in range(256).
-    a and b must be non decreasing sequences in range 0..1, with a strictly increasing.
-    The 3 lists must have the same length.
-    Note. for k < a[0], T[k]=b[0] and, for k > a[-1], T[k]=b[-1]
-    @param a: x-coordiantes for nodes
-    @type a: ndarray, dtype np.float
-    @param b: y-coordinates for nodes
-    @type b: ndarray, dtype np.float
-    @param d: slopes at nodes
-    @type d: ndarray, dtype np.float
-    @return: Spline table
-    @rtype: ndarray, dtype np.float
-    """
-    if np.min(a[1:] - a[:-1]) <= 0:
-        raise ValueError('histogram.InterpolationSpline : a must be strictly increasing')
-    # x-coordinate range
-    x = np.arange(256, dtype=np.float)/255
-    x = np.clip(x, a[0], a[-1])
-    #find  node intervals containing x : for each i, get smallest j s.t. a[j] > x[i]
-    tmp = np.fromiter(((a[j]> x[i]) for j in range(len(a)) for i in range(len(x))), dtype=bool)
-    tmp = tmp.reshape(len(a), len(x))
-    k = np.argmax(tmp, axis=0)                     # a[k[i]-1]<= x[i] < a[k[i]] if k[i] > 0, and x[i] out of a[0],..a[-1] otherwise
-    k = np.where(x >= a[-1], len(a) - 1, k)
-    r = (b[1:] - b[:-1]) / (a[1:] - a[:-1])        # r[k] = (b[k] - b[k-1]) / (a[k] - a[k-1])
-    r = np.concatenate(([0], r))
-    t = (x-a[k-1])/(a[k]-a[k-1])                   # t[k] = (x - a[k-1]) / (a[k] - a[k-1]) for x in a[k-1]..a[k]
-    # sanity check
-    assert np.all(t>=0)
-    assert np.all(t<=1)
-    # tabulate spline
-    T = b[k-1] + (r[k]*t*t + d[k-1]*(1-t)*t)*(b[k]-b[k-1]) / (r[k]+(d[k]+d[k-1] - 2*r[k])*(1-t)*t)
-    """
-    if plot:
-        #import matplotlib
-        matplotlib.use('Agg')
-        import matplotlib.pyplot as plt
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        M = np.int(a[-1]*255)
-        ax.plot(T*255)
-        ax.plot([i for i in range(256)])
-        ax.plot(a*255, b*255, 'ro')
-        #ax.plot(a*255, a*255, 'bo')
-        fig.savefig('temp.png')
-        plt.close()
-    """
-    return T
-
 def warpHistogram(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True):
     """
-    Stretchs and warps the distribution of imgBuf to enhance the contrast.
+    Stretches and warps the distribution of imgBuf to enhance the contrast.
     We mainly use the algorithm proposed by  Grundland and Dodgson
     Cf. U{https://link.springer.com/chapter/10.1007/1-4020-4179-9_42},
     with a supplementary correction for skies.
@@ -372,8 +322,8 @@ def warpHistogram(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True):
     @type warp: float
     @param preserveHigh:
     @type preserveHigh: boolean
-    @return: transformed image channel, range 0..1
-    @rtype: ndarray same shape as imgBuf, dtype=np.flaot,
+    @return: the transformed image channel, range 0..1 and the quadratic spline
+    @rtype: ndarray same shape as imgBuf, dtype=np.float, ndarray, ndarray, ndarray, ndarray
     """
     ###################
     # outlier threshold
@@ -432,7 +382,7 @@ def warpHistogram(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True):
     aPlus = dist.FInvVec(tmpMid)                                # aPLus[k] = FInv( (F(a[k] + F(a[k+1])) / 2 )
     aPlus = np.concatenate((aPlus, [1.0]))
     aMinus = np.concatenate(([0.0], aPlus[:-1]))                # aMinus[k] = FInv( (F(a[k] + F(a[k-1])) / 2 ), k>=1
-    eps = np.finfo(np.float64).eps
+    #eps = np.finfo(np.float64).eps
 
     alpha = (dist.FVec(a[1:-1]) - dist.FVec(a[:-2])) /(dist.FVec(a[2:]) - dist.FVec(a[:-2]))
     alpha = np.concatenate(([0], alpha))                       # alpha[k] = (F(a[k]) - F(a[k-1])/(F(a[k+1]) - F(a[k-1]), K-1>=k>=1
@@ -459,27 +409,17 @@ def warpHistogram(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True):
         b[skyInd-1] = np.power(b[skyInd-1], 0.9)
         d[skyInd:] = 0.2
         d[-1]=2
-    """
-    s = a[-3]
-    sq = np.power(s, 0.35)
-    TH = interpolationSpline(np.array([0, s, 1]), np.array([0, sq, 0.995]), np.array([1, 0.3, 2]))
-    # apply the transformation to the image
-    T = T[(TH*255).astype(np.int)]
-    #imgBuf = TH[(imgBuf * 255).astype(np.int)]
-    """
     # build and apply the spline.
-    T = interpolationSpline(a, b, d, plot=True)
+    T = interpolationQuadSpline(a, b, d, plot=True)
     im = imgBuf*255
     im1 = im.astype(np.int)
-    im2 = im1+1 # np.minimum(im1+1, 255)
+    im2 = im1+1
     B1 = T[im1]
     B2 = T[np.minimum(im2, 255)]
     # interpolate B1, B2
-    return np.clip((im2 - im) * B1 + (im - im1) * B2, 0 , 1)
-    #return T[(imgBuf*255).astype(np.int)]
+    return np.clip((im2 - im) * B1 + (im - im1) * B2, 0, 1),a, b, d, T
 
 if __name__ == '__main__':
     img = (np.arange(1000*800, dtype=np.float)/800000).reshape(1000, 800)
     img = np.zeros((1000, 800))
     dist = dstb.FromImage(img)
-    print('ici')

@@ -19,6 +19,8 @@ from PySide2 import QtCore
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
 from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QGroupBox
+
+from graphicsLUT import graphicsQuadricForm
 from utils import optionsWidget, QbLUeSlider, UDict
 
 class CoBrSatForm (QGraphicsView):
@@ -187,6 +189,23 @@ class CoBrSatForm (QGraphicsView):
         self.dataChanged.connect(self.updateLayer)
         self.setStyleSheet("QListWidget, QLabel {font : 7pt;}")
         self.setDefaults()
+
+    def setContrastSpline(self, a, b, d, T):
+        """
+        Updates and displays the contrast spline
+        @param a:
+        @type a:
+        @param b:
+        @type b:
+        @param d:
+        @type d:
+        @param T:
+        @type T:
+        """
+        axeSize = 500
+        form = graphicsQuadricForm.getNewWindow(targetImage=None, axeSize=axeSize, layer=self.layer, parent=None, mainForm=None)
+        form.graphicsScene.quadricB.setCurve(a*axeSize,b*axeSize,d,T*axeSize)
+        form.show()
 
     def enableSliders(self):
         self.sliderContrast.setEnabled(True)

@@ -36,6 +36,7 @@ from colorConv import sRGB2LabVec, sRGBWP, Lab2sRGBVec, rgb2rgbLinearVec, \
     rgbLinear2rgbVec, XYZ2sRGBVec, sRGB2XYZVec
 
 from graphicsFilter import filterIndex
+from graphicsLUT import graphicsQuadricForm
 from histogram import warpHistogram
 from colorManagement import icc, convertQImage
 from imgconvert import *
@@ -897,7 +898,8 @@ class vImage(QImage):
             # warp = 0 means that no additional warping is done, but
             # the histogram is always stretched.
             warp = max(0, (adjustForm.contCorrection -1)) / 10
-            bufHSV_CV32[:,:,2] = warpHistogram(bufHSV_CV32[:, :, 2], valleyAperture=0.05, warp=warp, preserveHigh=False)#options['Preserve Highlights'])
+            bufHSV_CV32[:,:,2],a,b,d,T = warpHistogram(bufHSV_CV32[:, :, 2], valleyAperture=0.05, warp=warp, preserveHigh=False)#options['Preserve Highlights'])
+            self.getGraphicsForm().setContrastSpline(a, b, d, T)
         if adjustForm.satCorrection != 0:
             alpha = (-adjustForm.satCorrection + 50.0) / 50
             # tabulate x**alpha
@@ -906,6 +908,7 @@ class vImage(QImage):
             bufHSV_CV32[:, :, 1] = LUT[(bufHSV_CV32[:, :, 1] * 255).astype(int)]
         # back to RGB
         bufpost16 = (cv2.cvtColor(bufHSV_CV32, cv2.COLOR_HSV2RGB)*65535).astype(np.uint16)
+        """
         ############
         # saturation (Lab)
         ############
@@ -914,7 +917,7 @@ class vImage(QImage):
             # multiply a and b channels
             buf32Lab[:,:,1:3] *= slope
             buf32Lab[:, :, 1:3] = np.clip(buf32Lab[:,:,1:3], -127, 127)
-
+        """
         #############################
         # Conversion to 8 bits/channel
         #############################
@@ -987,7 +990,8 @@ class vImage(QImage):
                     clahe.setClipLimit(contrastCorrection)
                     res = clahe.apply((LBuf[:,:,0] * 255.0).astype(np.uint8)) /255
                 else:
-                    res = warpHistogram(LBuf[:,:,0], warp=contrastCorrection, preserveHigh=options['High'])
+                    res,a,b,d,T = warpHistogram(LBuf[:,:,0], warp=contrastCorrection, preserveHigh=options['High'])
+                    self.getGraphicsForm().setContrastSpline(a, b, d, T)
                 LBuf[:,:,0] = res
             if satCorrection != 0:
                 slope = max(0.1, adjustForm.satCorrection / 25 + 1)  # range 0.1..3
@@ -1012,8 +1016,9 @@ class vImage(QImage):
                     res = clahe.apply((HSVBuf[:, :, 2]))
                 else:
                     buf32 = HSVBuf[:,:,2].astype(np.float)/255
-                    res = warpHistogram(buf32, warp=contrastCorrection, preserveHigh=options['High'])  #TODO preserveHigh added 02/05/18 validate
+                    res,a,b,d,T = warpHistogram(buf32, warp=contrastCorrection, preserveHigh=options['High'])  #TODO preserveHigh added 02/05/18 validate
                     res = (res*255).astype(np.uint8)
+                    self.getGraphicsForm().setContrastSpline(a,b,d,T)
                 HSVBuf[:, :, 2] = res
             if satCorrection != 0:
                 alpha = (-adjustForm.satCorrection + 1.0)
@@ -1854,7 +1859,7 @@ class QLayer(vImage):
         self.options = {}
         # actionName is used by methods graphics***.writeToStream()
         self.actionName = 'actionNull'
-        # view is set by bLUe.menuLayer()
+        # associated form : view is set by bLUe.menuLayer()
         self.view = None
         # containers are initialized (only once) by
         # getCurrentMaskedImage, their type is QLayer
@@ -1871,6 +1876,9 @@ class QLayer(vImage):
         self.xAltOffset, self.yAltOffset = 0, 0
         self.AltZoom_coeff = 1.0
         super().__init__(*args, **kwargs)
+
+    def getGraphicsForm(self):
+        return self.view.widget()
 
     def addTool(self, tool):
         """
