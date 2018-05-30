@@ -16,7 +16,6 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 from functools import partial
-
 import cv2
 import gc
 import numpy as np
@@ -24,6 +23,7 @@ from PySide2.QtCore import QFile, QIODevice, QTextStream
 from PySide2.QtGui import QImage
 
 from cartesian import cartesianProduct
+from debug import tdec
 from imgconvert import QImageBuffer
 
 ###########################################
@@ -57,19 +57,10 @@ class LUT3D (object):
     array shape is (s, s, s, 3) and array values
     are positive integers in range 0..255
     """
-    def __init__(self, LUT3DArray, size=LUTSIZE):
-        # sanity check
-        if ((size - 1) & (size - 2)) != 0 :
-            raise ValueError("LUT3D : size should be 2**n+1, found %d" % size)
-        self.LUT3DArray = LUT3DArray
-        self.size = size
-        self.contrast = lambda p : p #np.power(p,1.2)
-        self.step = MAXLUTRGB // (size - 1)  # python 3 : integer quotient
-
     @classmethod
     def LUT3DFromFactory(cls, size=LUTSIZE):
         """
-        Init a LUT3D object with shape (size, size,size, 3).
+        Initializes a LUT3D object with shape (size, size,size, 3).
         size should be 2**n +1. Most common values are 17 and 33.
         The 4th axis holds 3-uples (r,g,b) of integers evenly
         distributed in the range 0..MAXLUTRGB (edges included) :
@@ -79,13 +70,14 @@ class LUT3D (object):
         down to identity : for all i,j,k in the range 0..255,
         trilinear(i//step, j//step, k//step) = (i,j,k).
         @param size: integer value (should be 2**n+1)
+        @type size : int
         @return: 3D LUT table
         @rtype: LUT3D object shape (size, size, size, 3), dtype=int
         """
         step = MAXLUTRGB / (size - 1)
         a = np.arange(size, dtype=np.float) * step  # TODO 09/04/18 validate dtype
         c = cartesianProduct((a, a, a))
-        # clip for the sake of consistency with Hald images
+        # clip to range 0..255 for the sake of consistency with Hald images
         c = np.clip(c, 0, 255)
         return LUT3D(c, size=size)
 
@@ -108,7 +100,6 @@ class LUT3D (object):
         LUT = np.zeros((size, size, size, 3), dtype=int) + 255
         LUT[:,:,:,:] = buf[:,:,:,::-1]
         return LUT3D(LUT, size=size)
-
     @classmethod
     def HaldBuffer2LUT3D(cls, haldBuff, size=LUTSIZE):
         buf = haldBuff
@@ -119,33 +110,6 @@ class LUT3D (object):
         LUT = np.zeros((size, size, size, 3), dtype=int) + 255
         LUT[:, :, :, :] = buf[:, :, :, ::-1]
         return LUT3D(LUT, size=size)
-
-    def getHaldImage(self, w, h):
-        """
-        Converts a LUT3D object to an image buffer (numpy array). 
-        The (self.size-1)**3 *3 first bytes of the buffer are
-        
-        [ LUT3DArray[r,g,b][::-1] for r in range(self.size-1) for g in range(self.size-1) for b in range(self.size-1) ]
-        
-       The remainings bytes are padded with 0.
-       Example: LUT3DIdentity.getHaldImage(w, h) returns an identity hald image of size (w,h) padded with 0.
-       w*h must be greater than LUTSIZE^^3
-       
-        Note that the buffer is in BGR order, suitable for direct conversion to a QImage and that 
-        the b value increases fastest (i.e. from a byte to the next). 
-        @param w: image width
-        @type w: int
-        @param h: image height
-        @type h: int
-        @return: numpy array shape=(h,w,3), dtype=np.uint8
-        """
-        buf = np.zeros((w*h*3), dtype = np.uint8) # + 255
-        s = self.size# - 1
-        count = (s**3) *3 # TODO clip LUT array to 0,255 ?
-        buf[:count] = self.LUT3DArray[:,:,:,::-1].ravel() #self.LUT3DArray[:s,:s,:s,::-1].ravel()
-        buf = buf.reshape(h, w, 3)
-        return buf
-
     @classmethod
     def readFromTextStream(cls, inStream):
         #header
@@ -176,7 +140,6 @@ class LUT3D (object):
            raise ValueError('LUT size does not match line count')
         buf = buf.reshape(size,size,size,3)
         return buf, size
-
     @classmethod
     def readFromTextFile(cls, filename):
         """
@@ -196,7 +159,6 @@ class LUT3D (object):
         LUT3DArray = LUT3DArray.astype(int)
         LUT3DArray = LUT3DArray.transpose(2,1,0, 3)
         return LUT3DArray, size
-
     @classmethod
     def readFromHaldFile(cls, filename):
         img = QImage(filename)
@@ -206,6 +168,41 @@ class LUT3D (object):
         buf = buf.reshape(s-1, s-1,s-1,3)
         LUT.LUT3DArray[:s-1,:s-1,:s-1] = buf
         return LUT.LUT3DArray
+
+    def __init__(self, LUT3DArray, size=LUTSIZE):
+        # sanity check
+        if ((size - 1) & (size - 2)) != 0:
+            raise ValueError("LUT3D : size should be 2**n+1, found %d" % size)
+        self.LUT3DArray = LUT3DArray
+        self.size = size
+        self.contrast = lambda p: p  # np.power(p,1.2)
+        self.step = MAXLUTRGB // (size - 1)  # python 3 : integer quotient
+
+    def getHaldImage(self, w, h):
+        """
+        Converts a LUT3D object to an image buffer (numpy array).
+        The (self.size-1)**3 *3 first bytes of the buffer are
+
+        [ LUT3DArray[r,g,b][::-1] for r in range(self.size-1) for g in range(self.size-1) for b in range(self.size-1) ]
+
+       The remainings bytes are padded with 0.
+       Example: LUT3DIdentity.getHaldImage(w, h) returns an identity hald image of size (w,h) padded with 0.
+       w*h must be greater than LUTSIZE^^3
+
+        Note that the buffer is in BGR order, suitable for direct conversion to a QImage and that
+        the b value increases fastest (i.e. from a byte to the next).
+        @param w: image width
+        @type w: int
+        @param h: image height
+        @type h: int
+        @return: numpy array shape=(h,w,3), dtype=np.uint8
+        """
+        buf = np.zeros((w * h * 3), dtype=np.uint8)  # + 255
+        s = self.size  # - 1
+        count = (s ** 3) * 3  # TODO clip LUT array to 0,255 ?
+        buf[:count] = self.LUT3DArray[:, :, :, ::-1].ravel()  # self.LUT3DArray[:s,:s,:s,::-1].ravel()
+        buf = buf.reshape(h, w, 3)
+        return buf
 
     def writeToTextStream(self, outStream):
         """
@@ -233,7 +230,9 @@ class LUT3D (object):
         self.writeToTextStream(textStream)
         qf.close()
 
-
+#####################################
+# Initializes constant identity LUT3D
+#####################################
 LUT3DIdentity = LUT3D.LUT3DFromFactory()
 LUT3D_ORI = LUT3DIdentity.LUT3DArray
 a,b,c,d = LUT3D_ORI.shape
@@ -319,18 +318,21 @@ def rgb2hlsVec(rgbImg):
     buf = buf.astype(np.float) * [2, 1.0 / 255.0, 1.0 / 255.0]  # scale to 0..360, 0..1, 0..1
     return buf
 
-def hls2rgbVec(hlsImg):
+def hls2rgbVec(hlsImg, cvRange=False):
     """
     With M = max(r,g,b) and m = min(r,g,b) the HLS color space uses
     luminosity L= (M+m)/2 and saturation S = (M-m)/(M+m) if l < 0.5 and
     S =  (M-m) / (2-(M+m)) otherwise.
-    @param hlsImg: hlsImg: hls image array range 0..360, 0..1, 0..1
+    If cvRange is True the input array must follow the
+    opencv conventions : ranges 0..180, 0..255, 0..255, otherwise ranges are 0..360, 0..1, 0..1
+    @param hlsImg: hlsImg: hls image array
     @type hlsImg: dtype = float
     @return: identical shape array of r, g, b values in range 0..255
     @rtype: dtype = uint8
     """
-    # scale to 0..360/2, 0..255, 0..255 (opencv convention)
-    buf = hlsImg * [1.0 / 2.0, 255.0, 255.0]
+    # scale to 0..180, 0..255, 0..255 (opencv convention)
+    if not cvRange:
+        buf = hlsImg * [1.0 / 2.0, 255.0, 255.0]
     # convert to rgb
     buf = cv2.cvtColor(buf.astype(np.uint8), cv2.COLOR_HLS2RGB)
     return buf
@@ -370,19 +372,23 @@ def hsv2rgb(h,s,v):
     b = int(b1 * 255.0)
     return r,g,b
 
-def hsv2rgbVec(hsvImg):
+def hsv2rgbVec(hsvImg, cvRange=False):
     """
     Vectorized version of hsv2rgb.
-    Transform the hue, saturation and brightness h, s, v components of a color
-    into red, green, blue values.
-    @param hsvImg: hsv image array range 0..360, 0..1, 0..1
-    @return: rgb image array
+    Transforms the hue, saturation and brightness h, s, v components of a color
+    into red, green, blue values. If cvRange is True the input array must follow the
+    opencv conventions : ranges 0..180, 0..255, 0..255, otherwise ranges are 0..360, 0..1, 0..1
+    @param hsvImg: hsv image array
+    @type hsvImg: ndarray dtype=np.float
+    @return: rgb image array range 0..255
+    @rtype: ndarray dtype=np.uint8
     """
     flatten = (hsvImg.ndim > 3)
     if flatten :
         s = hsvImg.shape
         hsvImg = hsvImg.reshape(np.prod(s[:-1]), 1, s[-1])
-    hsvImg = hsvImg * [1.0 / 2.0, 255.0, 255.0]  # scale to 0..360/2, 0..255, 0..255 (opencv convention)
+    if not cvRange:
+        hsvImg = hsvImg * [0.5, 255.0, 255.0]  # scale to 0..180, 0..255, 0..255 (opencv convention)
     rgbImg = cv2.cvtColor(hsvImg.astype(np.uint8), cv2.COLOR_HSV2RGB )
     if flatten:
         rgbImg = rgbImg.reshape(s)
@@ -393,7 +399,7 @@ def hsp2rgb(h, s, p):
 
 def hsp2rgb_ClippingInd(h,s,p, trunc=True):
     """
-    Transform the hue, saturation and perceptual brightness components of a color
+    Transforms the hue, saturation and perceptual brightness components of a color
     into red, green, blue values.
     @param h: float value in range 0..360
     @param s: float value in range 0..1
@@ -474,15 +480,12 @@ def hsp2rgb_ClippingInd(h,s,p, trunc=True):
 def hsp2rgbVec(hspImg):
     """
     Vectorized version of hsp2rgb.
-    We convert to HSV and we use cv2.cvtColor()
+    We first convert to HSV and next we use cv2.cvtColor()
     to convert from HSV to RGB
-    @param hspImg: (n,m,3) array of hsp values
-    @return: identical shape array of rgb values
-    """
-    """
-    # use faster version for small images
-    if hspImg.shape[0] * hspImg.shape[1] < 1000:
-        return hsp2rgbVecSmall(hspImg)
+    @param hspImg: (n,m,3) array of H, S, pB values, range H:0..360, S:0..1, pB:0..1
+    @type hspImg: ndarray dtype=np.float
+    @return: identical shape array of RGB values
+    @rtype: ndarray dtype=np.float
     """
     h, s, p = hspImg[..., 0], hspImg[..., 1], hspImg[..., 2]
 
@@ -511,86 +514,50 @@ def hsp2rgbVec(hspImg):
 
     part1 = part1 * part1
     part2 = part2 * part2
-
-
-    #X1 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_R * Mm2 + Perc_G * part1 + Perc_B))   # b
-    X1 = np.where(Mm == np.inf, 0, p2 / (Perc_R * Mm2 + Perc_G * part1 + Perc_B))  # b
-    #Y1 = np.where(Mm==np.inf, p / np.sqrt(Perc_R+ Perc_G * f *f), X1 * Mm)              # r
-    Y1 = np.where(Mm == np.inf, p2 / (Perc_R + Perc_G * f2), X1 * Mm2)  # r
+    # In each of the 6 regions defined by j=i+1, Yj=max(R,G,B)**2
+    X1 = np.where(Mm == np.inf, 0, p2 / (Perc_R * Mm2 + Perc_G * part1 + Perc_B))        # b
+    Y1 = np.where(Mm == np.inf, p2 / (Perc_R + Perc_G * f2), X1 * Mm2)                   # r
     X1=None
-    #Z1 = np.where(Mm==np.inf, Y1 * f, X1 + f * (Y1 - X1))                               # g
 
-    #X2 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_G * Mm2 + Perc_R * part2 + Perc_B))   # b
-    X2 = np.where(Mm == np.inf, 0, p2 / (Perc_G * Mm2 + Perc_R * part2 + Perc_B))  # b
-    #Y2 = np.where(Mm==np.inf, p / np.sqrt(Perc_G + Perc_R * (1-f) * (1-f)), X2 * Mm)    # g
-    Y2 = np.where(Mm == np.inf, p2 / (Perc_G + Perc_R * oneMinusf2), X2 * Mm2)  # g
+    X2 = np.where(Mm == np.inf, 0, p2 / (Perc_G * Mm2 + Perc_R * part2 + Perc_B))        # b
+    Y2 = np.where(Mm == np.inf, p2 / (Perc_G + Perc_R * oneMinusf2), X2 * Mm2)           # g
     X2=None
-    #Z2 = np.where(Mm==np.inf, Y2 * (1-f), X2 + (1 - f) * (Y2 - X2))                     # r
 
-    #X3 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_G * Mm2 + Perc_B * part1 + Perc_R))   # r
-    X3 = np.where(Mm == np.inf, 0, p2 / (Perc_G * Mm2 + Perc_B * part1 + Perc_R))  # r
-    #Y3 = np.where(Mm==np.inf, p / np.sqrt(Perc_G + Perc_B * f * f), X3 * Mm)            # g
-    Y3 = np.where(Mm == np.inf, p2 / (Perc_G + Perc_B * f2), X3 * Mm2)  # g
+    X3 = np.where(Mm == np.inf, 0, p2 / (Perc_G * Mm2 + Perc_B * part1 + Perc_R))        # r
+    Y3 = np.where(Mm == np.inf, p2 / (Perc_G + Perc_B * f2), X3 * Mm2)                   # g
     X3=None
-    #Z3 = np.where(Mm==np.inf, Y3 * f, X3 + f * (Y3 - X3))                               # b
 
     gc.collect()
-    #X4 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_B * Mm2 + Perc_G * part2 + Perc_R))   # r
-    X4 = np.where(Mm == np.inf, 0, p2 / (Perc_B * Mm2 + Perc_G * part2 + Perc_R))  # r
-    #Y4 = np.where(Mm==np.inf, p / np.sqrt(Perc_B + Perc_G * (1-f) * (1-f)), X4 * Mm)    # b
-    Y4 = np.where(Mm == np.inf, p2 / (Perc_B + Perc_G * oneMinusf2), X4 * Mm2)  # b
+
+    X4 = np.where(Mm == np.inf, 0, p2 / (Perc_B * Mm2 + Perc_G * part2 + Perc_R))        # r
+    Y4 = np.where(Mm == np.inf, p2 / (Perc_B + Perc_G * oneMinusf2), X4 * Mm2)           # b
     X4=None
-    #Z4 = np.where(Mm==np.inf, Y4 * (1 - f), X4 + (1 - f) * (Y4 - X4))                   # g
 
-    #X5 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_B * Mm2 + Perc_R * part1 + Perc_G))   # g
-    X5 = np.where(Mm == np.inf, 0, p2 / (Perc_B * Mm2 + Perc_R * part1 + Perc_G))  # g
-    #Y5 = np.where(Mm==np.inf, p / np.sqrt(Perc_B + Perc_R * f * f), X5 * Mm)            # b
-    Y5 = np.where(Mm == np.inf, p2 / (Perc_B + Perc_R * f2), X5 * Mm2)  # b
+    X5 = np.where(Mm == np.inf, 0, p2 / (Perc_B * Mm2 + Perc_R * part1 + Perc_G))        # g
+    Y5 = np.where(Mm == np.inf, p2 / (Perc_B + Perc_R * f2), X5 * Mm2)                   # b
     X5=None
-    #Z5 = np.where(Mm==np.inf, Y5 * f, X5 + f * (Y5 - X5))                               # r
 
-    #X6 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_R * Mm2 + Perc_B * part2 + Perc_G))   # g
-    X6 = np.where(Mm == np.inf, 0, p2 / (Perc_R * Mm2 + Perc_B * part2 + Perc_G))  # g
-    #Y6 = np.where(Mm==np.inf, p / np.sqrt(Perc_R + Perc_B * (1-f) * (1-f)), X6 * Mm)    # r
-    Y6 = np.where(Mm == np.inf, p2 / (Perc_R + Perc_B * oneMinusf2), X6 * Mm2)  # r
+    X6 = np.where(Mm == np.inf, 0, p2 / (Perc_R * Mm2 + Perc_B * part2 + Perc_G))        # g
+    Y6 = np.where(Mm == np.inf, p2 / (Perc_R + Perc_B * oneMinusf2), X6 * Mm2)           # r
     X6=None
-    #Z6 = np.where(Mm==np.inf, Y6 * (1 - f), X6 + (1 - f) * (Y6 - X6))                   # b
+
+    gc.collect()
 
     np.seterr(**old_settings)
-    # stacked as lines
-    clistMax = np.vstack((Y1, Y2, Y3, Y4, Y5,  Y6))
+    # stack as rows
+    clistMax = np.vstack((Y1, Y2, Y3, Y4, Y5, Y6))
 
-    orderMax = np.array([[0],[1],[2],[3],[4],[5]])
+    orderMax= np.arange(6)
+    tmp = np.arange(np.prod(shape))
 
-    tmp = np.arange(np.prod(shape))[:, None]
-
-    rgbMax = clistMax[orderMax[i], tmp][:,0]
+    rgbMax = clistMax[orderMax[i], tmp]
     rgbMax = np.sqrt(rgbMax)
-    rgbMax=rgbMax.clip(0,1)
-    #hsv = np.dstack((h*60,s,rgbMax)).reshape(shape + (3,)) * [0.5, 255, 255]
-    hsv = np.dstack((h * 60, s, rgbMax)) * [0.5, 255, 255]
+    # in place clipping
+    np.clip(rgbMax, 0, 1, out=rgbMax)
+    hsv = np.dstack((h, s, rgbMax))
+    hsv *=  [30.0, 255.0, 255.0]
     rgb1=cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
-
     return rgb1.reshape(shape + (3,))
-
-    """
-    # advanced array indexing
-    rgb = clist[order[i], tmp]  # order[i] has shape (w*h, 3), tmp is broadcast to the same shape, thus rgb has (shape w*h, 3)
-
-    # converting invalid values to int gives indeterminate results
-    rgb[np.isnan(rgb)] = 0.0  # TODO np.inf
-
-    # for uint8 image buffer, int values > 255 are truncated to lower 8 bits
-    # rgbMask = (rgb > 1)
-    clipped = np.amax(rgb, axis=1)
-    clipped = np.dstack((clipped, clipped, clipped))
-    rgb = np.where(clipped > 1, rgb / clipped, rgb)
-    # rgb = np.clip(rgb, 0, 1.0)
-
-    rgb = (rgb * 255.0).astype(int)
-
-    return rgb.reshape(shape + (3,))
-    """
 
 def hsp2rgbVecSmall(hspImg):
     """

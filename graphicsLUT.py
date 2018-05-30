@@ -16,7 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import numpy as np
-from PySide2.QtGui import QPainterPathStroker
+from PySide2.QtGui import QPainterPathStroker, QBrush
 from PySide2.QtCore import QRect, QPointF, QPoint
 from PySide2.QtWidgets import QGraphicsView, QGraphicsScene, QSizePolicy, QPushButton, QGraphicsPathItem
 from PySide2.QtGui import QColor, QPen, QPainterPath, QPolygonF
@@ -92,11 +92,12 @@ class activePoint(QGraphicsPathItem):
             x = min(max(x, self.xmin), self.xmax)
             y = min(max(y, self.ymin), self.ymax)
         self.setPos(x, y)
+        self.scene().cubicItem.fixedPoints.sort(key=lambda p: p.scenePos().x())
         self.scene().cubicItem.updatePath()
 
     def mouseReleaseEvent(self, e):
-        cubicItem = self.scene().cubicItem
-        cubicItem.fixedPoints.sort(key=lambda p : p.scenePos().x())
+        item = self.scene().cubicItem
+        #item.fixedPoints.sort(key=lambda p : p.scenePos().x())
         x, y = e.scenePos().x(), e.scenePos().y()
         if self.rect is not None:
             x = min(max(x, self.xmin), self.xmax)
@@ -107,14 +108,11 @@ class activePoint(QGraphicsPathItem):
         if self.clicked:
             if self.persistent:
                 return
-            cubicItem.fixedPoints.remove(self)
+            item.fixedPoints.remove(self)
             sc.removeItem(self)
             return
         self.scene().cubicItem.updatePath()
         self.scene().cubicItem.updateLUTXY()
-        # The curve change event handler is
-        # defined in blue.py : Apply current LUT to stack and repaint window
-        #self.scene().onUpdateLUT()
         l = self.scene().layer
         l.applyToStack()
         l.parentImage.onImageChanged()
@@ -148,24 +146,26 @@ class activeTangent(QGraphicsPathItem):
         if e.lastPos() == e.pos():
             print('tangent click')
 
-class cubicItem(QGraphicsPathItem) :
+class cubicSpline(QGraphicsPathItem) :
     """
     Interactive cubic spline. Control points
     can be moved, added and removed with the mouse,
     while updating the corresponding 1D-LUT.
     """
-    strokeWidth = 3
+    strokeWidth = 2
+    penWidth = 2
+    brushColor = Qt.darkGray
 
     def __init__(self, size, fixedPoints=[], parentItem=None):
         """
-        Inits a cubicItem with an empty set of control points and
+        Inits a cubicSpline with an empty set of control points and
         an empty curve
         @param size: initial path size
         @type size: int
         @param parentItem:
         @type parentItem: object
         """
-        super(cubicItem, self).__init__()
+        super().__init__()
         self.setParentItem(parentItem)
         self.qpp = QPainterPath()
         self.size = size
@@ -182,10 +182,12 @@ class cubicItem(QGraphicsPathItem) :
         self.fixedPoints = fixedPoints
         # curve
         self.spline = []
-        # 1D LUT : identity
+        # 1D LUT : array of 256 int in range 0..255
         self.LUTXY = np.arange(256)
         self.channel = channelValues.RGB
         self.histImg = None
+        # set item pen
+        self.setPen(QPen(QBrush(self.brushColor), self.penWidth))
 
     def initFixedPoints(self):
         axeSize=self.size
@@ -199,9 +201,7 @@ class cubicItem(QGraphicsPathItem) :
         Sync the LUT with the spline
         """
         scale = 255.0 / self.size
-        LUT = []
-        LUT.extend([int((-p.y()) * scale) for p in self.spline])
-        self.LUTXY = np.array(LUT)
+        self.LUTXY = np.array([int((-p.y()) * scale) for p in self.spline])
 
     def updatePath(self):
         """
@@ -233,7 +233,7 @@ class cubicItem(QGraphicsPathItem) :
             qpp.addPolygon(polygon)
             # stroke path
             stroker = QPainterPathStroker()
-            stroker.setWidth(3)
+            stroker.setWidth(self.strokeWidth)
             mboundingPath = stroker.createStroke(qpp)
             self.setPath(mboundingPath)
         except:
@@ -250,7 +250,7 @@ class cubicItem(QGraphicsPathItem) :
 
     def mouseReleaseEvent(self, e):
         """
-        Add a control point to the curve
+        if click, add a control point to the curve
         @param e:
         """
         self.selected = False
@@ -265,9 +265,9 @@ class cubicItem(QGraphicsPathItem) :
 
     def getStackedLUTXY(self):
         """
-        Returns the 3-channel LUT (A 1-row LUT for each channel)
+        Returns the  LUT (A row LUT for each channel)
         @return: LUT
-        @rtype: ndarray, shape (3,n)
+        @rtype: ndarray, shape (3,n), dtype=
         """
         if self.channel == channelValues.RGB:
             return np.vstack((self.LUTXY, self.LUTXY, self.LUTXY))
@@ -450,7 +450,7 @@ class QuadricItem(QGraphicsPathItem) :
     """
     Interactive quadratic spline.
     """
-    strokeWidth = 3
+    strokeWidth = 2
 
     def __init__(self, size, fixedPoints=[], parentItem=None):
         """

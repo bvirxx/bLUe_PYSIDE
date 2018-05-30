@@ -18,8 +18,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 from time import time
 
 import numpy as np
+from PIL.ImageQt import ImageQt
 from PySide2.QtGui import QImage, QColor
 from PIL import Image
+
+from debug import tdec
 
 QImageFormats = {0:'invalid', 1:'mono', 2:'monoLSB', 3:'indexed8', 4:'RGB32', 5:'ARGB32',6:'ARGB32 Premultiplied',
                  7:'RGB16', 8:'ARGB8565 Premultiplied', 9:'RGB666',10:'ARGB6666 Premultiplied', 11:'RGB555', 12:'ARGB8555 Premultiplied',
@@ -83,21 +86,7 @@ def PilImageToQImage(pilimg) :
     @return: QImage, format QImage.Format_ARGB32
     @rtype: QImage
     """
-    # return ImageQt(pilimg)  # TODO 21/05/18 test
-    w, h, mode = pilimg.width, pilimg.height, pilimg.mode
-    if mode != 'RGB':
-        raise ValueError("PilImageToQImage : wrong mode : %s" % mode)
-    # get data buffer (type bytes)
-    data = pilimg.tobytes('raw', mode)
-    if len(data) != w * h * 3:
-        raise ValueError("PilImageToQImage : incorrect buffer length : %d, should be %d" % (len(data), w * h * 3))
-    qimFormat = QImage.Format_ARGB32
-    qimg = QImage(w,h, qimFormat)
-    qimgBuf = QImageBuffer(qimg)
-    qimgBuf[:, :, :3][:, :, ::-1] = (np.fromstring(data, dtype=np.uint8)).reshape(h,w,3)
-    # set alpha channel
-    qimgBuf[:, :, 3] = 255
-    return qimg
+    return ImageQt(pilimg)
 
 def QImageToPilImage(qimg) :
     """
@@ -110,8 +99,7 @@ def QImageToPilImage(qimg) :
     a = QImageBuffer(qimg)
     if (qimg.format() == QImage.Format_ARGB32) or (qimg.format() == QImage.Format_RGB32):
         # convert pixels from BGRA or BGRX to RGB
-        a = a[:,:,:3][:,:,::-1]
+        a = np.ascontiguousarray(a[:,:,:3][:,:,::-1]) #ascontiguousarray is mandatory to speed up Image.fromArray (x3)
     else :
         raise ValueError("QImageToPilImage : unrecognized format : %s" %qimg.Format())
-    w, h = qimg.width(), qimg.height()
-    return Image.frombytes('RGB', (w,h), a.tobytes())
+    return Image.fromarray(a)

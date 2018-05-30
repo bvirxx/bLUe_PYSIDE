@@ -87,14 +87,17 @@ def interpolationQuadSpline(a, b, d, plot=False):
 
 def coeff(X, Y):
     """
-    Given the arrays of X and Y coordinates with the same size N, we compute the coefficients
-    deltaX1 and R of the N-1 cubic polynoms.
-    Polynom Pi is Pi(t) = t * Y[i+1] + (1-t)*Y[i] + deltaX1[i] * deltaX1[i] * (P(t) * R[i+1] + P(1-t) * R[i])/6.0,
+    Given two arrays of X and Y coordinates with the same size N, the method computes the coefficients
+    deltaX1 and R of the N-1 cubic polynomials.
+    Polynomial Pi is Pi(t) = t * Y[i+1] + (1-t)*Y[i] + deltaX1[i] * deltaX1[i] * (P(t) * R[i+1] + P(1-t) * R[i])/6.0,
     where t = (x - X[i]) / deltaX1[i] and P(t) = t**3 - t.
     If 2 points have identical x-coordinates, a ValueError exception is raised.
-    @param X: X ccordinates of points (array)
-    @param y: Y coordinates of points (array)
+    @param X: X ccordinates of points
+    @type X: ndarray, dtype=float
+    @param Y: Y coordinates of points
+    @type Y: ndarray, dtype=np.float
     @return: deltaX1 and R arrays of size N-1 and N respectively
+    @rtype: ndarray, dtype=np.float
     """
     old_settings = np.seterr(all='ignore')
     deltaX1 = X[1:] - X[:-1]
@@ -115,11 +118,33 @@ def coeff(X, Y):
         R[i] = (W[i] - deltaX1[i] * R[i+1]) / deltaX2[i]
     return deltaX1, R
 
-def cubicSpline(X, Y, deltaX1, R, v):
+def cubicSpline(X, Y, V):
+    """
+    Calculates the y-coordinates corresponding to the x-coordinates V for
+    the cubic spline defined by the control points zip(X,Y).
+    A ValueError exception is raised if the X values are not distinct.
+    @param X: x-coordinates of control points, sorted in increasing order
+    @type X: ndarray, dtype=np.float
+    @param Y: y-coordinates of control points
+    @type Y: ndarray, dtype=np.float
+    @param V: x-coordinates of spline points
+    @type V: ndarray, dtype=np.float
+    @return: y-coordinates of the spline points
+    @rtype: ndarray, dtype=np.float
+    """
     def P(t):
         return t**3 - t
-    i = bisect.bisect(X, v)
-    i = i-1
+    deltaX1, R = coeff(X,Y)  # raises ValueError if two X values are equal
+    #i = bisect.bisect(X, v)
+    i = np.searchsorted(X, V, side='right') - 1
+    isave = i
+    i = np.clip(i,0, len(Y)-2)
+    t = (V - X[i]) / deltaX1[i]
+    values = t * Y[i+1] + (1-t)*Y[i] + deltaX1[i] * deltaX1[i] * (P(t) * R[i+1] + P(1-t) * R[i])/6.0
+    values = np.where(isave>len(Y)-2, Y[-1], values)
+    values = np.where(isave<0, Y[0], values)
+    return values
+    """
     if i < 0 :
         return Y[0]
     elif i > len(Y)-2:
@@ -128,31 +153,29 @@ def cubicSpline(X, Y, deltaX1, R, v):
     t = (v - X[i]) / deltaX1[i]
     value = t * Y[i+1] + (1-t)*Y[i] + deltaX1[i] * deltaX1[i] * (P(t) * R[i+1] + P(1-t) * R[i])/6.0
     return value
+    """
 
 def interpolationCubSpline(X, Y, clippingInterval=None):
     """
     Interpolates a set of 2D points by a cubic spline.
-    The returned list has exactly 256 sampling points. 
+    The returned list has exactly 256 sampling points.
+    A ValueError exception is raised if the X values are not distinct.
     @param X: x-coordinates of points
     @type X: list of float
     @param Y: y-coordinates of points
     @type Y: list of float
     @param clippingInterval: min and max values for spline y-values
     @type clippingInterval: 2-uple-like of float values
-    @return: the cubic spline
+    @return: the interpolated cubic spline
     @rtype: list of QPointF (length 256)
     """
     m, M = np.min(X) , np.max(X)
     step = (M - m) / 255.0
-    xValues = np.fromiter((i*step + m for i in range(256)), dtype=np.float)
-    deltaX1, R = coeff(X, Y)
-    def f(v):
-        return cubicSpline(X,Y, deltaX1, R, v)
-    yValues = np.fromiter(map(f, list(xValues)), dtype = np.float)
+    xValues = np.arange(256) * step + m
+    yValues = cubicSpline(X, Y, xValues)
     if clippingInterval is not None:
         minY, maxY = clippingInterval[0], clippingInterval[1]
-    yValues = np.clip(yValues, minY, maxY)
-    # return [QPointF(xValues[i], yValues[i]) for i in range(len(xValues))]
+        yValues = np.clip(yValues, minY, maxY)
     return [QPointF(x,y) for x,y in zip(xValues, yValues)]
 
 

@@ -16,6 +16,8 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import ctypes
+import time
+
 import cv2
 import numpy as np
 from math import factorial
@@ -25,6 +27,7 @@ from PySide2.QtGui import QColor, QPainterPath, QPen, QImage, QPainter, QTransfo
 from PySide2.QtWidgets import QListWidget, QListWidgetItem, QGraphicsPathItem, QDialog, QVBoxLayout, \
     QFileDialog, QSlider, QWidget, QHBoxLayout, QLabel, QMessageBox, QPushButton, QToolButton, QApplication
 from PySide2.QtCore import Qt, QPoint, QObject, QRect, QDir, QPointF, QRectF
+from PySide2.support.signature.inspect import getframeinfo, currentframe
 from os.path import isfile
 from itertools import product
 from numpy.lib.stride_tricks import as_strided
@@ -418,7 +421,7 @@ class optionsWidget(QListWidget) :
     The choices can be mutually exclusive (default) or not
     exclusive. Actions can be done on item selection by assigning
     a function to onSelect. It is called after the selection of the new item.
-    if changed is not None, the signal is emitted when an item is clicked.
+    if changed is not None, the corresponding signal is emitted when an item is clicked.
     """
 
     def __init__(self, options=[], optionNames=None, exclusive=True, changed=None, parent=None):
@@ -434,7 +437,7 @@ class optionsWidget(QListWidget) :
         @param parent:
         @type parent: QObject
         """
-        super(optionsWidget, self).__init__(parent)
+        super().__init__(parent)
         if optionNames is None:
             self.extNames = options
         else:
@@ -450,7 +453,7 @@ class optionsWidget(QListWidget) :
             self.addItem(listItem)
             self.items[option] = listItem
             self.options[option] = (listItem.checkState() == Qt.Checked)
-        #self.setMinimumWidth(self.sizeHintForColumn(0)) # TODO 18/04/18 validate cancellation to improve graphicsLUT3D
+        #self.setMinimumWidth(self.sizeHintForColumn(0)) # TODO 18/04/18 validate suppression to improve graphicsLUT3D
         self.setMinimumHeight(self.sizeHintForRow(0)*len(options))
         self.exclusive = exclusive
         self.itemClicked.connect(self.select)

@@ -17,144 +17,127 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 from PySide2.QtCore import QRect
-from PySide2.QtGui import  QColor
 from PySide2.QtCore import Qt, QRectF
-from PySide2.QtWidgets import QPushButton, QGraphicsView, QGraphicsScene, QSizePolicy
+from PySide2.QtWidgets import QPushButton, QGraphicsScene
 
-from graphicsLUT import cubicItem, graphicsCurveForm
-from utils import optionsWidget, channelValues, drawPlotGrid
+from graphicsLUT import cubicSpline, graphicsCurveForm
+from utils import optionsWidget, channelValues
 
 class graphicsForm(graphicsCurveForm) :
     """
-    RGB curve form
+    Form for interactive RGB curves
     """
     @classmethod
-    def getNewWindow(cls, cModel=None, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
-        newWindow = graphicsForm(cModel=cModel, targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
+    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
+        newWindow = graphicsForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         newWindow.setWindowTitle(layer.name)
         return newWindow
 
-    def __init__(self, cModel=None, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
+    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         super().__init__(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
-        # curves
-        cubic = cubicItem(axeSize)
+        # Brightness curve
+        cubic = cubicSpline(axeSize)
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicRGB = cubic
         cubic.channel = channelValues.RGB
         cubic.histImg = self.scene().layer.inputImg().histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, chans=[], mode='Luminosity')
         cubic.initFixedPoints()
-        cubic = cubicItem(axeSize)
+        # Red curve
+        cubic = cubicSpline(axeSize)
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicR = cubic
         cubic.channel = channelValues.Red
         cubic.histImg = self.scene().layer.inputImg().histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, chans=channelValues.Red)
         cubic.initFixedPoints()
-        cubic = cubicItem(axeSize)
+        # Green curve
+        cubic = cubicSpline(axeSize)
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicG = cubic
         cubic.channel = channelValues.Green
         cubic.histImg = self.scene().layer.inputImg().histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, chans=channelValues.Green)
         cubic.initFixedPoints()
-        cubic = cubicItem(axeSize)
+        # Blue curve
+        cubic = cubicSpline(axeSize)
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicB = cubic
         cubic.channel = channelValues.Blue
         cubic.histImg = self.scene().layer.inputImg().histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, chans=channelValues.Blue)
         cubic.initFixedPoints()
-        # set current
+        # set current curve to brightness
         self.scene().cubicItem = self.graphicsScene.cubicRGB
         self.scene().cubicItem.setVisible(True)
 
-        def onResetCurve():
-            """
-            Reset the selected curve
-            """
-            self.scene().cubicItem.reset()
-            #self.scene().onUpdateLUT()
-            l = self.scene().layer
-            l.applyToStack()
-            l.parentImage.onImageChanged()
-
-        def onResetAllCurves():
-            """
-            Reset all curves
-            """
-            for cubicItem in [self.graphicsScene.cubicR, self.graphicsScene.cubicG, self.graphicsScene.cubicB]:
-                cubicItem.reset()
-            # call Curve change event handlerdefined in blue.menuLayer
-            #self.scene().onUpdateLUT()
-            l = self.scene().layer
-            l.applyToStack()
-            l.parentImage.onImageChanged()
-
         # buttons
-        pushButton1 = QPushButton("Reset Curve")
-        pushButton1.setMinimumSize(1, 1)
-        pushButton1.setGeometry(80, 20, 100, 30)  # x,y,w,h
+        pushButton1 = QPushButton("Reset Current")
+        pushButton1.move(100,20)
         pushButton1.adjustSize()
-        pushButton1.clicked.connect(onResetCurve)
+        pushButton1.clicked.connect(self.onResetCurve)
         self.graphicsScene.addWidget(pushButton1)
-        pushButton2 = QPushButton("Reset All Curves")
-        # pushButton2.setObjectName("btn_reset_all")
-        pushButton2.setMinimumSize(1, 1)
-        pushButton2.setGeometry(80, 50, 100, 30)  # x,y,w,h
+        pushButton2 = QPushButton("Reset R,G,B")
+        pushButton2.move(100, 50)
         pushButton2.adjustSize()
-        pushButton2.clicked.connect(onResetAllCurves)
+        pushButton2.clicked.connect(self.onResetAllCurves)
         self.graphicsScene.addWidget(pushButton2)
-        """
-        pushButton3 = QPushButton("Update Top Layers")
-        pushButton3.setMinimumSize(1, 1)
-        pushButton3.setGeometry(100, 50, 80, 30)  # x,y,w,h
-        pushButton3.adjustSize()
-        pushButton3.clicked.connect(updateStack)
-        self.graphicsScene.addWidget(pushButton3)
-        """
 
         # options
         options = ['RGB', 'Red', 'Green', 'Blue']
         self.listWidget1 = optionsWidget(options=options, exclusive=True)
         self.listWidget1.setGeometry(0, 10, self.listWidget1.sizeHintForColumn(0)+5, self.listWidget1.sizeHintForRow(0)*len(options) + 5)
         self.graphicsScene.addWidget(self.listWidget1)
-
+        # selection changed handler
+        curves = [self.graphicsScene.cubicRGB, self.graphicsScene.cubicR, self.graphicsScene.cubicG, self.graphicsScene.cubicB]
+        curveDict = dict(zip(options, curves))
         def onSelect1(item):
             self.scene().cubicItem.setVisible(False)
-            #if item.isSelected():
-            if item.text() == 'RGB' :
-                self.scene().cubicItem = self.graphicsScene.cubicRGB
-            elif item.text() == 'Red':
-                    self.scene().cubicItem = self.graphicsScene.cubicR
-            elif item.text() == 'Green':
-                    self.scene().cubicItem = self.graphicsScene.cubicG
-            elif item.text() == 'Blue':
-                    self.scene().cubicItem = self.graphicsScene.cubicB
+            self.scene().cubicItem = curveDict[item.text()]
             pushButton2.setEnabled(item.text() != 'RGB')
             self.scene().cubicItem.setVisible(True)
-            #self.scene().onUpdateLUT()
             l = self.scene().layer
             l.applyToStack()
             l.parentImage.onImageChanged()
-            # redraw  histogram
+            # Force redraw histogram
             self.scene().invalidate(QRectF(0.0, -self.scene().axeSize, self.scene().axeSize, self.scene().axeSize),
                                     QGraphicsScene.BackgroundLayer)
-
         self.listWidget1.onSelect = onSelect1
-
         # set initial selection to RGB
         item = self.listWidget1.items[options[0]]
         item.setCheckState(Qt.Checked)
         self.listWidget1.select(item)
-    """
-    def showEvent(self, e):
-        self.mainForm.tableView.setEnabled(False)
 
-    def hideEvent(self, e):
-        self.mainForm.tableView.setEnabled(True)
-    """
     def drawBackground(self, qp, qrF):
+        """
+        Overrides QGraphicsView.drawBackground
+        @param qp:
+        @type qp: QPainter
+        @param qrF:
+        @type qrF: QRectF
+        """
+        super().drawBackground(qp, qrF)
         s = self.graphicsScene.axeSize
         if self.scene().cubicItem.histImg is not None:
-            #qp.drawPixmap(QRect(0,-s, s, s), QPixmap.fromImage(self.scene().cubicItem.histImg))
             qp.drawImage(QRect(0, -s, s, s), self.scene().cubicItem.histImg)
+
+    def onResetCurve(self):
+        """
+        Button event handler
+        Reset the selected curve
+        """
+        self.scene().cubicItem.reset()
+        # self.scene().onUpdateLUT()
+        l = self.scene().layer
+        l.applyToStack()
+        l.parentImage.onImageChanged()
+
+    def onResetAllCurves(self):
+        """
+        Button event handler
+        Reset all curves
+        """
+        for cubicItem in [self.graphicsScene.cubicR, self.graphicsScene.cubicG, self.graphicsScene.cubicB]:
+            cubicItem.reset()
+        l = self.scene().layer
+        l.applyToStack()
+        l.parentImage.onImageChanged()
 
     def writeToStream(self, outStream):
         """

@@ -19,6 +19,8 @@ import gc
 
 import itertools
 
+from PySide2.support.signature import inspect
+from PySide2.support.signature.inspect import getframeinfo, currentframe
 from os.path import isfile
 
 from PySide2.QtCore import Qt, QDataStream, QFile, QIODevice, QSize, QPointF, QPoint, QRectF
@@ -34,13 +36,14 @@ from PySide2.QtCore import QRect
 import exiftool
 from colorConv import sRGB2LabVec, sRGBWP, Lab2sRGBVec, rgb2rgbLinearVec, \
     rgbLinear2rgbVec, XYZ2sRGBVec, sRGB2XYZVec
+from debug import tdec
 
 from graphicsFilter import filterIndex
 from graphicsLUT import graphicsQuadricForm
 from histogram import warpHistogram
 from colorManagement import icc, convertQImage
 from imgconvert import *
-from colorCube import interpMulti, rgb2hspVec, hsp2rgbVec, LUT3DIdentity, LUT3D, interpVec_
+from colorCube import interpMulti, rgb2hspVec, hsp2rgbVec, LUT3DIdentity, LUT3D, interpVec_, hsv2rgbVec
 from time import time
 from utils import SavitzkyGolay, channelValues, checkeredImage, boundingRect, dlgWarn, baseSignals
 from dwtdenoise import dwtDenoiseChan
@@ -399,9 +402,9 @@ class vImage(QImage):
 
     def getLabBuffer(self):
         """
-        return the image buffer in color mode Lab.
-        The buffer is calculated if needed and cached.
-        @return: Lab buffer, L range is 0..1, a, b range are -128..+128
+        returns the image buffer in color mode Lab.
+        The buffer is recalculated if needed and cached.
+        @return: Lab buffer, L range is 0..1, a, b ranges are -128..+128
         @rtype: numpy ndarray, dtype np.float
         """
         if self.LabBuffer is None  or not self.cachesEnabled:
@@ -411,9 +414,9 @@ class vImage(QImage):
 
     def getHSVBuffer(self):
         """
-        return the image buffer in color mode HSV.
+        returns the image buffer in color mode HSV.
         The buffer is calculated if needed and cached.
-        H,S, V ranges are 0..255 (opencv convention for 8 bits images)
+        H,S,V ranges are 0..255 (opencv convention for 8 bits images)
         @return: HSV buffer
         @rtype: numpy ndarray, dtype np.float
         """
@@ -444,7 +447,7 @@ class vImage(QImage):
         if hasattr(self, 'maskedThumbContainer'):
             if self.maskedThumbContainer is not None:
                 self.maskedThumbContainer.cacheInvalidate()
-
+    @tdec
     def updatePixmap(self, maskOnly=False):
         """
         Updates the qPixmap, thumb and cmImage caches.
@@ -466,7 +469,7 @@ class vImage(QImage):
         @param maskOnly: default False
         @type maskOnly: boolean
         """
-        currentImage = self.getCurrentImage() #vImage.getCurrentImage(self)   modified 03/10/17
+        currentImage = self.getCurrentImage()
         if not maskOnly:
             # invalidate color managed cache
             self.cmImage = None
@@ -1035,12 +1038,19 @@ class vImage(QImage):
 
     def apply1DLUT(self, stackedLUT, options={}):
         """
-        Applies 1D LUTS (one for each channel)
-        @param stackedLUT: array of color values (in range 0..255) : a line for each channel
-        @type stackedLUT : ndarray, shape (3, 255), dtype int
+        Applies 1D LUTS to RGB channels (one for each channel)
+        @param stackedLUT: array of color values (in range 0..255) : a row for each channel
+        @type stackedLUT : ndarray, shape (3, 256) dtype int
         @param options: not used yet
         @type options : dictionary
         """
+        # neutral point
+        if not np.any(stackedLUT - np.arange(256)):  # last dims are equal : broadcast is working
+            buf1 = QImageBuffer(self.inputImg())
+            buf2 = QImageBuffer(self.getCurrentImage())
+            buf2[:, :, :] = buf1
+            self.updatePixmap()
+            return
         inputImage = self.inputImg()
         currentImage = self.getCurrentImage()
         # get image buffers (BGR order on intel arch.)
@@ -1050,74 +1060,120 @@ class vImage(QImage):
         ndImg1 = ndImg1a[:, :, :3]
         # apply LUTS to channels
         rList = np.array([2,1,0]) #BGR
-        ndImg1[:, :, :]= stackedLUT[rList[np.newaxis,:], ndImg0]
+        ndImg1[:, :, :]= stackedLUT[rList, ndImg0]  # last dims are equal : broadcast works
         self.updatePixmap()
 
     def applyLab1DLUT(self, stackedLUT, options={}):
         """
-        Applies 1D LUTS (one for each L,a,b channel)
-        @param stackedLUT: array of color values (in range 0..255). Shape must be (3, 255) : a line for each channel
+        Applies 1D LUTS (one row for each L,a,b channel)
+        @param stackedLUT: array of color values (in range 0..255). Shape must be (3, 255) : a row for each channel
+        @type stackedLUT: ndarray shape=(3,256) dtype=int or float
         @param options: not used yet
         """
+        # neutral point
+        if not np.any(stackedLUT - np.arange(256)):  # last dims are equal : broadcast is working
+            buf1 = QImageBuffer(self.inputImg())
+            buf2 = QImageBuffer(self.getCurrentImage())
+            buf2[:, :, :] = buf1
+            self.updatePixmap()
+            return
         from colorConv import Lab2sRGBVec
-        # Lab mode
-        ndLabImg0 = self.inputImg().getLabBuffer()
-        # apply LUTS to channels
+        # convert LUT to float to speed up  buffer conversions
+        stackedLUT = stackedLUT.astype(np.float)
+        # get a copy of the Lab input buffer
+        ndLabImg0 = (self.inputImg().getLabBuffer())#.copy()
+        # conversion functions
         def scaleLabBuf(buf):
-            buf = buf + [0.0, 128.0, 128.0]
-            buf = buf * [255.0, 1.0, 1.0]
+            buf = buf + [0.0, 128.0, 128.0]  # copy is mandatory here to avoid the corruption of the cached Lab buffer
+            buf[:,:,0] *= 255.0
             return buf
         def scaleBackLabBuf(buf):
-            buf = buf / [255.0, 1.0, 1.0]
-            buf = buf - [0.0, 128.0, 128.0]
+            buf = buf - [0.0, 128.0, 128.0] # no copy needed here, but seems faster than in place operation!
+            buf[:,:,0] /= 255.0
             return buf
         ndLImg0 = scaleLabBuf(ndLabImg0).astype(int)
-        rList = np.array([0, 1, 2])  # Lab
-        ndLabImg1 = stackedLUT[rList[np.newaxis, :], ndLImg0]
+        # apply LUTS to channels
+        rList = np.array([0, 1, 2])  # L,a,b
+        ndLabImg1 = stackedLUT[rList, ndLImg0] # last dims are equal : broadcast works
         ndLabImg1 = scaleBackLabBuf(ndLabImg1)
         # back sRGB conversion
         ndsRGBImg1 = Lab2sRGBVec(ndLabImg1)
-        ndsRGBImg1 = np.clip(ndsRGBImg1, 0, 255)  # mandatory
+        # in place clipping
+        np.clip(ndsRGBImg1, 0, 255, out=ndsRGBImg1)  # mandatory
         currentImage = self.getCurrentImage()
-        ndImg1a = QImageBuffer(currentImage)[:, :, :3]
-        ndImg1 = ndImg1a[:,:,:3]
-        ndImg1[:, :, ::-1] = ndsRGBImg1
+        ndImg1 = QImageBuffer(currentImage)
+        ndImg1[:, :, :3][:, :, ::-1] = ndsRGBImg1
         # update
         self.updatePixmap()
 
     def applyHSPB1DLUT(self, stackedLUT, options={}, pool=None):
         """
-        Applies 1D LUTS to hue, sat and brightness channels). A 1D LUT
-        is an array of 255 color values (in range 0..255), which tabulates
-        a color curve.
-        @param stackedLUT: array of color values (in range 0..255), a line for each channel
-        @type stackedLUT : ndarray, shape (3, 255), dtype int
+        Applies 1D LUTS to hue, sat and brightness channels.
+        @param stackedLUT: array of color values (in range 0..255), a row for each channel
+        @type stackedLUT : ndarray shape=(3,256) dtype=int or float
         @param options: not used yet
         @type options : dictionary
         @param pool: multiprocessing pool : unused
         @type pool: muliprocessing.Pool
         """
         # neutral point
-        if not np.any((stackedLUT - np.vstack((range(0,256), range(0,256), range(0,256))))) :
+        if not np.any(stackedLUT - np.arange(256)):  # last dims are equal : broadcast is working
             buf1 = QImageBuffer(self.inputImg())
             buf2=QImageBuffer(self.getCurrentImage())
             buf2[:,:,:] = buf1
             self.updatePixmap()
             return
         ndHSPBImg0 = self.inputImg().getHspbBuffer()   # time 2s with cache disabled for 15 Mpx
+        #ndHSPBImg0 = self.getMaskedCurrentContainer().getHspbBuffer()
         # apply LUTS to normalized channels (range 0..255)
         ndLImg0 = (ndHSPBImg0 * [255.0/360.0, 255.0, 255.0]).astype(int)
         rList = np.array([0,1,2]) # H,S,B
-        ndLImg1 = stackedLUT[rList[np.newaxis,:], ndLImg0] * [360.0/255.0, 1/255.0, 1/255.0]
-        ndHSBPImg1 = ndLImg1
+        ndHSBPImg1 = stackedLUT[rList, ndLImg0] * [360.0/255.0, 1/255.0, 1/255.0]
         # back to sRGB
         ndRGBImg1 = hsp2rgbVec(ndHSBPImg1)  # time 4s for 15 Mpx
-        ndRGBImg1 = np.clip(ndRGBImg1, 0, 255)  # mandatory
+        # in place clipping
+        np.clip(ndRGBImg1, 0, 255, out=ndRGBImg1)  # mandatory
         # set current image to modified image
         currentImage = self.getCurrentImage()
         ndImg1a = QImageBuffer(currentImage)
-        ndImg1 = ndImg1a[:,:,:3]
-        ndImg1[:,:,::-1] = ndRGBImg1
+        ndImg1a[:, :, :3][:,:,::-1] = ndRGBImg1
+        # update
+        self.updatePixmap()
+
+    def applyHSV1DLUT(self, stackedLUT, options={}, pool=None):
+        """
+        Applies 1D LUTS to hue, sat and brightness channels.
+        @param stackedLUT: array of color values (in range 0..255), a row for each channel
+        @type stackedLUT : ndarray shape=(3,256) dtype=int or float
+        @param options: not used yet
+        @type options : dictionary
+        @param pool: multiprocessing pool : unused
+        @type pool: muliprocessing.Pool
+        """
+        # neutral point
+        if not np.any(stackedLUT - np.arange(256)):  # last dims are equal : broadcast is working
+            buf1 = QImageBuffer(self.inputImg())
+            buf2=QImageBuffer(self.getCurrentImage())
+            buf2[:,:,:] = buf1
+            self.updatePixmap()
+            return
+        # convert LUT to float to speed up  buffer conversions
+        stackedLUT = stackedLUT.astype(np.float)
+        # get HSV buffer, range H: 0..180, S:0..255 V:0..255
+        HSVImg0 = self.inputImg().getHSVBuffer()
+        #HSVImg0 = self.getMaskedCurrentContainer().getHSVBuffer()
+        HSVImg0 = HSVImg0.astype(int)
+        # apply LUTS
+        rList = np.array([0,1,2]) # H,S,V
+        HSVImg1 = stackedLUT[rList, HSVImg0]
+        # back to sRGB
+        RGBImg1 = hsv2rgbVec(HSVImg1, cvRange=True)
+        # in place clipping
+        np.clip(RGBImg1, 0, 255, out=RGBImg1)  # mandatory
+        # set current image to modified image
+        currentImage = self.getCurrentImage()
+        ndImg1a = QImageBuffer(currentImage)
+        ndImg1a[:, :, :3][:,:,::-1] = RGBImg1
         # update
         self.updatePixmap()
 
@@ -2013,6 +2069,12 @@ class QLayer(vImage):
             return self
 
     def inputImg(self):
+        """
+        Updates and returns maskedImageContainer, maskedThumbContainer
+        @return:
+        @rtype: Qlayer
+        """
+        # TODO 29/05/18 optimize to avoid useless updates of containers (add a valid flag to each container and invalidate it in cacheInvalidate())
         return self.parentImage.layersStack[self.getLowerVisibleStackIndex()].getCurrentMaskedImage()
 
     def full2CurrentXY(self, x, y):

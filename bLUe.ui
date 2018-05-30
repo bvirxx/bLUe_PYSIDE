@@ -849,7 +849,7 @@ Screen</string>
   </action>
   <action name="actionCurves_HSpB">
    <property name="text">
-    <string>Curves HSpB</string>
+    <string>Curves HSV</string>
    </property>
   </action>
   <action name="actionCurves_Lab">

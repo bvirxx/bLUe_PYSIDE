@@ -21,6 +21,8 @@ import win32gui
 from PIL.ImageCms import getOpenProfile, get_display_profile, getProfileDescription, getProfileInfo, \
     buildTransformFromOpenProfiles, applyTransform, INTENT_RELATIVE_COLORIMETRIC, INTENT_PERCEPTUAL
 from PIL.ImageWin import HDC
+
+from debug import tdec
 from imgconvert import PilImageToQImage, QImageToPilImage
 from settings import SRGB_PROFILE_PATH, SYSTEM_PROFILE_DIR
 
@@ -102,7 +104,7 @@ def convertQImage(image, transformation=None):
     """
     if transformation is not None:
         # convert to the PIL context and apply transformation
-        converted_image = applyTransform(QImageToPilImage(image), transformation, 0)  # time 0.65s for a 15 Mpx image.
+        converted_image = applyTransform(QImageToPilImage(image), transformation, 0)  # time 0.85s for a 15 Mpx image.
         # image.colorTransformation = transformation  # TODO 27/04/18 validate deletion
         return PilImageToQImage(converted_image)
     else :

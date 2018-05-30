@@ -232,7 +232,7 @@ def sRGB2LabVec(bufsRGB, useOpencv=True) :
     The range for Lab coordinates is L:0..1, a:-86.185..98.254, b:-107.863..94.482
     See U{http://stackoverflow.com/questions/19099063/what-are-the-ranges-of-coordinates-in-the-cielab-color-space}
     @param bufsRGB: image buffer, mode sRGB, range 0..255
-    @type bufsRGB: ndarray, dtype = numpy uint8
+    @type bufsRGB: ndarray, dtype=np.uint8
     @param useOpencv:
     @type useOpencv: boolean
     @return: bufLab Image buffer, mode Lab
@@ -242,8 +242,8 @@ def sRGB2LabVec(bufsRGB, useOpencv=True) :
         bufLab = cv2.cvtColor(bufsRGB, cv2.COLOR_RGB2Lab)
         bufLab = bufLab.astype(np.float)
         # for 8 bits per channel images opencv uses L,a,b range 0..255
-        bufLab[:,:,0] = bufLab[:,:,0] / 255.0
-        bufLab[:,:,1:] = bufLab[:,:,1:] - 128
+        bufLab[:,:,0] /= 255.0
+        bufLab[:,:,1:] -= 128
     else :
         oldsettings = np.seterr(all='ignore')
         bufXYZ = sRGB2XYZVec(bufsRGB) # * 100.0
@@ -269,14 +269,13 @@ def Lab2sRGBVec(bufLab, useOpencv = True):
     @type bufLab: ndarray, dtype numpy float
     @param useOpencv:
     @type useOpencv: boolean
-    @return: bufLab Image buffer mode sRGB, range 0..255, 
-    @rtype: ndarray, dtype numpy.float64
+    @return: Image buffer mode sRGB, range 0..255,
+    @rtype: ndarray, dtype=np.uint8
     """
     if useOpencv:
-        tmp = bufLab.copy()
         # for 8 bits per channel images opencv uses L,a,b range 0..255
-        tmp[:,:,0] = tmp[:,:,0] * 255.0
-        tmp[:,:,1:] = tmp[:,:,1:] + 128
+        tmp = bufLab + [0.0, 128.0, 128.0]
+        tmp[:,:,0] *= 255.0
         bufsRGB = cv2.cvtColor(tmp.astype(np.uint8), cv2.COLOR_Lab2RGB)
     else:
         bufL, bufa, bufb = bufLab[:,:,0], bufLab[:,:,1], bufLab[:,:,2]

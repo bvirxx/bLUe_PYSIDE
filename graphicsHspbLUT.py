@@ -16,12 +16,11 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 from PySide2.QtCore import QRect
-from PySide2.QtWidgets import QGraphicsScene, QSizePolicy, QPushButton
-from PySide2.QtGui import QColor
+from PySide2.QtWidgets import QGraphicsScene, QPushButton
 from PySide2.QtCore import Qt, QRectF
 
-from graphicsLUT import cubicItem, graphicsCurveForm
-from utils import optionsWidget, channelValues, drawPlotGrid
+from graphicsLUT import cubicSpline, graphicsCurveForm
+from utils import optionsWidget, channelValues
 
 class graphicsHspbForm(graphicsCurveForm) :
     @classmethod
@@ -32,9 +31,8 @@ class graphicsHspbForm(graphicsCurveForm) :
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         super().__init__(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
-        # curves
-        # hue
-        cubic = cubicItem(axeSize)
+        # hue curve
+        cubic = cubicSpline(axeSize)
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicR = cubic
         cubic.channel = channelValues.Hue
@@ -42,87 +40,52 @@ class graphicsHspbForm(graphicsCurveForm) :
                                                                     bgColor=self.scene().bgColor, range=(0, 360),
                                                                     chans=channelValues.Hue, mode='HSpB')
         cubic.initFixedPoints()
-        # sat
-        cubic = cubicItem(self.graphicsScene.axeSize)
+        # sat curve
+        cubic = cubicSpline(self.graphicsScene.axeSize)
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicG = cubic
         cubic.channel = channelValues.Sat
         cubic.histImg = self.scene().layer.histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, range=(0,1), chans=channelValues.Sat, mode='HSpB')
         cubic.initFixedPoints()
-        # brightness
-        cubic = cubicItem(self.graphicsScene.axeSize)
+        # brightness curve
+        cubic = cubicSpline(self.graphicsScene.axeSize)
         self.graphicsScene.addItem(cubic)
         self.graphicsScene.cubicB = cubic
         cubic.channel = channelValues.Br
         cubic.histImg = self.scene().layer.histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, range=(0,1), chans=channelValues.Br, mode='HSpB')
         cubic.initFixedPoints()
-        # set current
+        # set current curve
         self.scene().cubicItem = self.graphicsScene.cubicB
         self.scene().cubicItem.setVisible(True)
 
-        def onResetCurve():
-            """
-            Reset the selected curve
-            """
-            self.scene().cubicItem.reset()
-            # call Curve change event handler, defined in blue.menuLayer
-            #self.scene().onUpdateLUT()
-            l = self.scene().layer
-            l.applyToStack()
-            l.parentImage.onImageChanged()
-
-        def onResetAllCurves():
-            """
-            Reset all curves
-            """
-            for cubicItem in [self.graphicsScene.cubicR, self.graphicsScene.cubicG, self.graphicsScene.cubicB]:
-                cubicItem.reset()
-            # call Curve change event handlerdefined in blue.menuLayer
-            #self.scene().onUpdateLUT()
-            l = self.scene().layer
-            l.applyToStack()
-            l.parentImage.onImageChanged()
-
         # buttons
-        pushButton1 = QPushButton("Reset Curve")
-        #pushButton1.setObjectName("btn_reset_channel")
-        pushButton1.setMinimumSize(1, 1)
-        pushButton1.setGeometry(80, 20, 100, 30)  # x,y,w,h
+        pushButton1 = QPushButton("Reset Current")
+        pushButton1.move(100, 20)
         pushButton1.adjustSize()
-        pushButton1.clicked.connect(onResetCurve)
+        pushButton1.clicked.connect(self.onResetCurve)
         self.graphicsScene.addWidget(pushButton1)
-        pushButton2 = QPushButton("Reset All Curves")
-        pushButton2.setMinimumSize(1, 1)
-        pushButton2.setGeometry(80, 50, 100, 30)  # x,y,w,h
+        pushButton2 = QPushButton("Reset All")
+        pushButton2.move(100, 50)
         pushButton2.adjustSize()
-        pushButton2.clicked.connect(onResetAllCurves)
+        pushButton2.clicked.connect(self.onResetAllCurves)
         self.graphicsScene.addWidget(pushButton2)
-
         # options
         options = ['H', 'S', 'B']
         self.listWidget1 = optionsWidget(options=options, exclusive=True)
         self.listWidget1.setGeometry(0, 10, self.listWidget1.sizeHintForColumn(0) + 5, self.listWidget1.sizeHintForRow(0) * len(options) + 5)
         self.graphicsScene.addWidget(self.listWidget1)
 
-        # self.options is for convenience only
-        self.options = {option: True for option in options}
-
+        # selection changed handler
+        curves = [self.graphicsScene.cubicR, self.graphicsScene.cubicG, self.graphicsScene.cubicB]
+        curveDict = dict(zip(options, curves))
         def onSelect1(item):
             self.scene().cubicItem.setVisible(False)
-            if item.text() == 'H':
-                self.scene().cubicItem = self.graphicsScene.cubicR
-            elif item.text() == 'S':
-                self.scene().cubicItem = self.graphicsScene.cubicG
-            elif item.text() == 'B':
-                self.scene().cubicItem = self.graphicsScene.cubicB
-
+            self.scene().cubicItem = curveDict[item.text()]
             self.scene().cubicItem.setVisible(True)
-
             # draw  histogram
             self.scene().invalidate(QRectF(0.0, -self.scene().axeSize, self.scene().axeSize, self.scene().axeSize), QGraphicsScene.BackgroundLayer)
 
         self.listWidget1.onSelect = onSelect1
-
         # set initial selection to Saturation
         item = self.listWidget1.items[options[1]]
         item.setCheckState(Qt.Checked)
@@ -132,6 +95,27 @@ class graphicsHspbForm(graphicsCurveForm) :
         s = self.graphicsScene.axeSize
         if self.scene().cubicItem.histImg is not None:
             qp.drawImage(QRect(0, -s, s, s), self.scene().cubicItem.histImg)
+
+    def onResetCurve(self):
+        """
+        Button event handler
+        Reset the selected curve
+        """
+        self.scene().cubicItem.reset()
+        l = self.scene().layer
+        l.applyToStack()
+        l.parentImage.onImageChanged()
+
+    def onResetAllCurves(self):
+        """
+        Button event handler
+        Reset all curves
+        """
+        for cubicItem in [self.graphicsScene.cubicR, self.graphicsScene.cubicG, self.graphicsScene.cubicB]:
+            cubicItem.reset()
+        l = self.scene().layer
+        l.applyToStack()
+        l.parentImage.onImageChanged()
 
     def writeToStream(self, outStream):
         layer = self.scene().layer

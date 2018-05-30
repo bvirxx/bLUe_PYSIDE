@@ -1328,38 +1328,22 @@ def menuLayer(name):
     # curves
     if name in ['actionCurves_RGB', 'actionCurves_HSpB', 'actionCurves_Lab']:
         if name == 'actionCurves_RGB':
-            layerName = 'Curves R, G, B'
+            layerName = 'RGB'
             form = graphicsForm
         elif name == 'actionCurves_HSpB':
-            layerName = 'Curves H, S, pB'
+            layerName = 'HSV'
             form = graphicsHspbForm
         elif name == 'actionCurves_Lab':
-            layerName = 'Curves L, a, b'
+            layerName = 'Lab'
             form = graphicsLabForm
         # add new layer on top of active layer
         l = window.label.img.addAdjustmentLayer(name=layerName)
-        #if name == 'actionCurves_RGB':
         grWindow=form.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
-        #elif name == 'actionCurves_HSpB':
-            #grWindow = graphicsHspbForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
-        #elif name == 'actionCurves_Lab':
-            #grWindow = graphicsLabForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
-        # redimensionable window
-        grWindow.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
-        """
-        # Curve change event handler
-        # called by curve mouse events
-        # Apply current LUT
-        def f():
-            l.applyToStack()
-            window.label.img.onImageChanged()
-        grWindow.graphicsScene.onUpdateLUT = f
-        """
         # wrapper for the right applyXXX method
         if name == 'actionCurves_RGB':
             l.execute = lambda l=l, pool=None: l.apply1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
         elif name == 'actionCurves_HSpB':
-            l.execute = lambda l=l, pool=None: l.applyHSPB1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY(), pool=pool)
+            l.execute = lambda l=l, pool=None: l.applyHSV1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY(), pool=pool)
         elif name == 'actionCurves_Lab':
             l.execute = lambda l=l, pool=None: l.applyLab1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
     # 3D LUT
@@ -1369,13 +1353,6 @@ def menuLayer(name):
         layerName = '3D LUT HSpB' if name == 'action3D_LUT' else '3D LUT HSV'
         l = window.label.img.addAdjustmentLayer(name=layerName, role='3DLUT')
         grWindow = graphicsForm3DLUT.getNewWindow(ccm, axeSize=300, targetImage=window.label.img, LUTSize=LUTSIZE, layer=l, parent=window, mainForm=window)
-        """
-        # LUT change event handler
-        def g(options={}):
-            l.applyToStack()
-            window.label.img.onImageChanged()
-        grWindow.graphicsScene.onUpdateLUT = g
-        """
         # wrapper for the right apply method
         l.execute = lambda l=l, pool=None: l.apply3DLUT(grWindow.graphicsScene.LUT3DArray, options=grWindow.graphicsScene.options, pool=pool)
     # cloning
@@ -1567,6 +1544,7 @@ def menuLayer(name):
             # restore doc
             doc.removeLayer(1)
             doc.layersStack[0].applyToStack()
+    # unknown action
     else:
         return
     # record action name for scripting
@@ -1764,12 +1742,12 @@ if __name__ =='__main__':
     app.processEvents()
     sleep(1)
     splash.finish(window)
-    # title
+    # app title
     window.setWindowTitle('bLUe')
-    # style sheet
+    # app style sheet
     app.setStyleSheet("QMainWindow, QGraphicsView, QListWidget, QMenu, QTableView {background-color: rgb(200, 200, 200)}\
                        QMenu, QTableView { selection-background-color: blue; selection-color: white;}\
-                        QWidget, QTableView, QTableView * {font-size: 9pt}"
+                        QWidget, QTableView, QTableView * {font-size: 9pt} QPushButton {font-size: 6pt}"
                      )
     # status bar
     window.Label_status = QLabel()
