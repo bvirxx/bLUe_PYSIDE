@@ -1013,10 +1013,14 @@ class SavitzkyGolay:
         # apply filter
         return np.convolve( kernel[::-1], y, mode='valid')
 
-def checkeredImage(w, h, format=QImage.Format_ARGB32):
-    image = QImage(w, h, format)
-
-    # init pattern
+def checkeredImage(format=QImage.Format_ARGB32):
+    """
+    Returns a 20x20 checker
+    @param format:
+    @type format:
+    @return: checker
+    @rtype: QImage
+    """
     base = QImage(20, 20, format)
     qp = QPainter(base)
     qp.setCompositionMode(QPainter.CompositionMode_Source)
@@ -1025,17 +1029,13 @@ def checkeredImage(w, h, format=QImage.Format_ARGB32):
     qp.fillRect(0, 10, 10, 10, Qt.white)
     qp.fillRect(10, 10, 10, 10, Qt.gray)
     qp.end()
-
+    return base
     qp=QPainter(image)
     qp.setCompositionMode(QPainter.CompositionMode_Source)
-
     # draw the pattern once at 0,0
     qp.drawImage(0, 0, base)
-
-    imageW = image.width()
-    imageH = image.height()
-    baseW = base.width()
-    baseH = base.height()
+    imageW, imageH = image.width(), image.height()
+    baseW, baseH = base.width(), base.height()
     while ((baseW < imageW) or (baseH < imageH) ):
         if (baseW < imageW) :
             # Copy and draw the existing pattern to the right

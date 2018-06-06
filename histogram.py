@@ -304,26 +304,27 @@ def valleys(imgBuf, delta):
     V = np.fromiter(V, dtype=np.float, count=len(V))
     return V, dist
 
-def warpHistogram(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True):
+def autoQuadSpline(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True):
     """
-    Stretches and warps the distribution of imgBuf to enhance the contrast.
+    Calculates a quadratic spline from ImgBuf histogram, for automatic
+    contrats enhancement.
     We mainly use the algorithm proposed by  Grundland and Dodgson
     Cf. U{https://link.springer.com/chapter/10.1007/1-4020-4179-9_42},
-    with a supplementary correction for skies.
+    with a supplementary correction for highlights.
     The parameter valleyAperture is the (probability) width
     of histogram valleys: it should be > 0 and < 0.5. The parameter warp controls
     the correction level : it should be between 0 (no correction and 1 (full correction).
     If preserveHigh is True (default) a final correction is applied to preserve highlights.
-    @param imgBuf: single channel image (luminance), range 0..1
-    @type imgBuf: ndarray, shape(h,w), dtype=uint8 or int or float
+    @param imgBuf:
+    @type imgBuf:
     @param valleyAperture:
-    @type valleyAperture: float
-    @param warp:
-    @type warp: float
-    @param preserveHigh:
+    @type valleyAperture:
+    @param warp: control the amplitude of the control point moves
+    @type warp: float, range 0..1
+    @param preserveHigh: final highlight correction
     @type preserveHigh: boolean
-    @return: the transformed image channel, range 0..1 and the quadratic spline
-    @rtype: ndarray same shape as imgBuf, dtype=np.float, ndarray, ndarray, ndarray, ndarray
+    @return: x-coordinates, y-coordinates, tangent slopes, spline array (tabulation)
+    @rtype: ndarray dtype=float, ranges 0..1
     """
     ###################
     # outlier threshold
@@ -399,18 +400,49 @@ def warpHistogram(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True):
     d[-1] = (1-bMinus[-1])/ (1 -aMinus[-1])                      # d[K+1] = (1 - bMinus[K+1]) / ((1-aMinus[K+1])
     d = np.where(d==np.NaN, 1.0, d)
     d=np.clip(d, 0.25, 5)
-    # highlights correction (e.g. sky)
+    # highlights correction
     if preserveHigh:
         skyInd = np.argmax(a > 0.75*a[-1])
         #if a[-3] > 0.75*a[-1]:  # may be V0[-2]>=0.75*V0[-1]??
         b[-1]=0.98
-        for i in range(len(b) - skyInd - 1):
+        for i in range(len(b) - skyInd - 1):  # TODO 31/05/18 skyInd is array, should be int
             b[-i-2]= min(np.power(a[-i-2], 0.30), b[-i-1]) - 0.02
         b[skyInd-1] = np.power(b[skyInd-1], 0.9)
         d[skyInd:] = 0.2
         d[-1]=2
     # build and apply the spline.
     T = interpolationQuadSpline(a, b, d, plot=True)
+    return a, b, d, T
+
+def warpHistogram(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True, spline=None):
+    """
+    Stretches and warps the distribution of imgBuf to enhance the contrast.
+    If a spline is given, it is applied to imgBuf, otherwise an "automatic"
+    spline is deduced from the image histogram. We mainly use the algorithm
+    proposed by Grundland and Dodgson,
+    Cf. U{https://link.springer.com/chapter/10.1007/1-4020-4179-9_42},
+    with a supplementary correction for highlights.
+    The parameter valleyAperture is the (probability) width
+    of histogram valleys: it should be > 0 and < 0.5. The parameter warp controls
+    the correction level : it should be between 0 (no correction and 1 (full correction).
+    If preserveHigh is True (default) a final correction is applied to preserve highlights.
+    @param imgBuf: single channel image (luminance), range 0..1
+    @type imgBuf: ndarray, shape(h,w), dtype=uint8 or int or float
+    @param valleyAperture:
+    @type valleyAperture: float
+    @param warp:
+    @type warp: float
+    @param preserveHigh:
+    @type preserveHigh: boolean
+    @param spline: spline, range 0..256 --> 0..1
+    @type spline: activeSpline
+    @return: the transformed image channel, range 0..1 and the quadratic spline
+    @rtype: image ndarray same shape as imgBuf, dtype=np.float, a, b, T are in range 0..1
+    """
+    if spline is None:
+        a, b, d, T = autoQuadSpline(imgBuf, valleyAperture=valleyAperture, warp=warp, preserveHigh=preserveHigh)
+    else:
+        a, b, d, T = [p.x() for p in spline.fixedPoints], [p.y() for p in spline.fixedPoints], spline.fixedTangents, spline.LUTXY/256
     im = imgBuf*255
     im1 = im.astype(np.int)
     im2 = im1+1

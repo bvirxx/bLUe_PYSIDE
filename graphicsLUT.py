@@ -22,39 +22,29 @@ from PySide2.QtWidgets import QGraphicsView, QGraphicsScene, QSizePolicy, QPushB
 from PySide2.QtGui import QColor, QPen, QPainterPath, QPolygonF
 from PySide2.QtCore import Qt, QRectF
 
+from debug import tdec
 from spline import interpolationCubSpline, interpolationQuadSpline
 from utils import optionsWidget, channelValues, drawPlotGrid
 
-def buildLUT(curve):  #unused
-    """
-    Build the LUT from a list of QPOINTF objects, representing
-    a curve. The LUT values are interpolated between consecutive curve points.
-    x-coordinates of points are assumed to be sorted in ascending order.
-    y-coordinates of points are flipped to reflect y-axis orientation.
-    @param curve: list of QPointF
-    @return: list of 256 integer values, in range 0..255.
-    """
-    # add sentinels
-    S1 = QPointF(-1, curve[0].y())
-    S2 = QPointF(256, curve[-1].y())
-    curve = [S1] + curve + [S2]
-
-    LUTX = [p.x() for p in curve]
-    LUTY = [p.y() for p in curve]
-
-    #build LUTXY table
-    LUTXY = -np.interp(range(256), LUTX, LUTY)
-    LUTXY = np.around(LUTXY).astype(int)
-    LUTXY = np.clip(LUTXY, 0, 255)
-    return LUTXY
+##########################################################################################
+# GUI for interactive construction of 1D-LUTs.
+# 1D-LUT are calculated as interpolation splines for a set of control points.
+# Control points and splines are implemented as QGraphicsPathItem instances in a QGraphicsScene.
+# Mouse event handlers are reimplemented to provide full control (move range, removing,...)
+# Classes : activePoint
+#           activeTangent
+#           activeSpline, activeCubicSpline, activeQuadricSpline
+#           graphicsCurveForm, graphicsCubicForm, graphicsQuadricForm
+###########################################################################################
 
 class activePoint(QGraphicsPathItem):
     """
-    Interactive point
+    Interactive (movable and removable) control point for a spline in a scene
     """
     def __init__(self, x,y, persistent=False, rect=None, parentItem=None):
         """
-        Interactive point. Persistent activePoints cannot be removed
+        Interactive control point for the scene current spline.
+        Persistent activePoints cannot be removed
         by mouse click (default is non persistent). If rect is not None,
         the moves of the point are restricted to rect.
         @param x: initial x-coordinate
@@ -67,6 +57,8 @@ class activePoint(QGraphicsPathItem):
         @type parentItem: object
         """
         super(activePoint, self).__init__()
+        self.tangent = None  # used for qudratic spline
+        self.setAcceptHoverEvents(True)
         self.setParentItem(parentItem)
         self.persistent = persistent
         self.rect = rect
@@ -76,9 +68,9 @@ class activePoint(QGraphicsPathItem):
             y = min(max(y, self.ymin), self.ymax)
         self.setPos(QPointF(x,y))
         self.clicked = False
-        self.moveStart=QPointF()
         self.setPen(QPen(QColor(255, 255, 255), 2))
         qpp = QPainterPath()
+        # coordinates are relative to activePoint
         qpp.addEllipse(-4,-4, 8, 8)
         self.setPath(qpp)
 
@@ -92,10 +84,18 @@ class activePoint(QGraphicsPathItem):
             x = min(max(x, self.xmin), self.xmax)
             y = min(max(y, self.ymin), self.ymax)
         self.setPos(x, y)
+        if self.tangent is not None:
+            controlPoint, contactPoint = self.tangent.controlPoint, self.tangent.contactPoint
+            v = controlPoint - contactPoint
+            contactPoint = QPointF(x,y)
+            self.tangent.contactPoint = contactPoint
+            self.tangent.controlPoint = contactPoint + v
+            self.tangent.setPos(contactPoint)
         self.scene().cubicItem.fixedPoints.sort(key=lambda p: p.scenePos().x())
         self.scene().cubicItem.updatePath()
 
     def mouseReleaseEvent(self, e):
+        # get scene current spline
         item = self.scene().cubicItem
         #item.fixedPoints.sort(key=lambda p : p.scenePos().x())
         x, y = e.scenePos().x(), e.scenePos().y()
@@ -114,43 +114,85 @@ class activePoint(QGraphicsPathItem):
         self.scene().cubicItem.updatePath()
         self.scene().cubicItem.updateLUTXY()
         l = self.scene().layer
-        l.applyToStack()
+        l.applyToStack()  # call warpHistogram()
         l.parentImage.onImageChanged()
+
+    def hoverEnterEvent(self, *args, **kwargs):
+        self.setPen(QPen(QColor(0, 255, 0), 2))
+        self.update()
+
+    def hoverLeaveEvent(self, *args, **kwargs):
+        self.setPen(QPen(QColor(255, 255, 255), 2))
+        self.update()
 
 class activeTangent(QGraphicsPathItem):
     """
     Interactive tangent
     """
+    strokeWidth = 2
+    penWidth = 2
+    brushColor = Qt.darkGray
+
     def __init__(self, controlPoint=QPointF(), contactPoint=QPointF(), parentItem=None):
         super().__init__()
         self.setParentItem(parentItem)
+        self.setAcceptHoverEvents(True)
         self.controlPoint = controlPoint
         self.contactPoint = contactPoint
-        self.updatePath()
+        self.setPos(contactPoint)
+        qpp = QPainterPath()
+        # coordinates are relative to activeTangent object
+        qpp.moveTo(0,0)
+        qpp.lineTo((controlPoint - contactPoint))
+        qpp.addEllipse(controlPoint - contactPoint, 5.0, 5.0)
+        self.setPath(qpp)
+        self.setZValue(-1)
+        # set item pen
+        self.setPen(QPen(QBrush(self.brushColor), self.penWidth))
 
     def updatePath(self):
         qpp = QPainterPath()
-        #qpp.addEllipse(self.controlPoint, 5.0, 5.0)
-        qpp.moveTo(self.controlPoint)
-        qpp.lineTo(self.contactPoint)
+        # coordinates are relative to activeTangent object
+        qpp.moveTo(0, 0)
+        qpp.lineTo((self.controlPoint - self.contactPoint))
+        qpp.addEllipse(self.controlPoint - self.contactPoint, 5.0, 5.0)
         self.setPath(qpp)
 
     def mousePressEvent(self, e):
         pass
 
     def mouseMoveEvent(self, e):
-        self.controlPoint = e.pos()
-        # updateScene()
+        newPos = e.scenePos()
+        if abs(self.contactPoint.x() - newPos.x())< 5:
+            return
+        slope = - (self.contactPoint.y() - newPos.y()) / (self.contactPoint.x() - newPos.x())
+        if slope > 20 or slope < 0:
+            return
+        self.controlPoint = newPos
+        # update tangent path
+        self.updatePath()
+        # update spline
+        self.scene().cubicItem.updatePath()
 
     def mouseReleaseEvent(self, e):
-        if e.lastPos() == e.pos():
-            print('tangent click')
+        self.scene().cubicItem.updatePath()
+        self.scene().cubicItem.updateLUTXY()
+        l = self.scene().layer
+        l.applyToStack()  # call warpHistogram()
+        l.parentImage.onImageChanged()
 
-class cubicSpline(QGraphicsPathItem) :
+    def hoverEnterEvent(self, *args, **kwargs):
+        self.savedPen = self.pen()
+        self.setPen(QPen(QColor(0, 255, 0), 2))
+        self.update()
+
+    def hoverLeaveEvent(self, *args, **kwargs):
+        self.setPen(self.savedPen)
+        self.update()
+
+class activeSpline(QGraphicsPathItem):
     """
-    Interactive cubic spline. Control points
-    can be moved, added and removed with the mouse,
-    while updating the corresponding 1D-LUT.
+    Base class for interactive splines.
     """
     strokeWidth = 2
     penWidth = 2
@@ -167,22 +209,22 @@ class cubicSpline(QGraphicsPathItem) :
         """
         super().__init__()
         self.setParentItem(parentItem)
-        self.qpp = QPainterPath()
+        qpp = QPainterPath()
         self.size = size
         # initial curve : diagonal
-        self.qpp.lineTo(QPoint(size, -size))
+        qpp.lineTo(QPoint(size, -size))
         # stroke curve
-        stroker=QPainterPathStroker()
+        stroker = QPainterPathStroker()
         stroker.setWidth(self.strokeWidth)
-        self.mboundingPath = stroker.createStroke(self.qpp)
+        self.mboundingPath = stroker.createStroke(qpp)
         self.setPath(self.mboundingPath)
-        self.clicked=QPoint(0,0)
-        self.selected = False
+        self.clicked = False
+        #self.selected = False
         self.setVisible(False)
         self.fixedPoints = fixedPoints
-        # curve
+        # self.spline is the list of QPointF instances to plot (scene coordinates)
         self.spline = []
-        # 1D LUT : array of 256 int in range 0..255
+        # self.LUTXY is the 1D LUT : range 0..255 --> 0..255, type ndarray, dtype=int, size=256
         self.LUTXY = np.arange(256)
         self.channel = channelValues.RGB
         self.histImg = None
@@ -203,12 +245,42 @@ class cubicSpline(QGraphicsPathItem) :
         scale = 255.0 / self.size
         self.LUTXY = np.array([int((-p.y()) * scale) for p in self.spline])
 
+    def writeToStream(self, outStream):
+        outStream.writeInt32(self.size)
+        outStream.writeInt32(len(self.fixedPoints))
+        for point in self.fixedPoints:
+            outStream << point.scenePos()
+        return outStream
+
+    def readFromStream(self, inStream):
+        size = inStream.readInt32()
+        count = inStream.readInt32()
+        for point in self.childItems():
+            self.scene().removeItem(point)
+        self.fixedPoints = []
+        for i in range(count):
+            point = QPointF()
+            inStream >> point
+            self.fixedPoints.append(activePoint(point.x(), point.y(), parentItem=self))
+        self.updatePath()
+        self.updateLUTXY()
+        return self
+
+class activeCubicSpline(activeSpline) :
+    """
+    Interactive cubic spline. Control points can be :
+        - added by a mouse click on the curve,
+        - moved with the mouse (cf. activePoint.mouseMoveEvent())
+        - removed by a mouse click on the point (cf. activePoint.mouseReleaseEvent())
+    """
     def updatePath(self):
         """
-        Calculates and displays the spline.
+        Updates and displays the spline. Should be called after
+        each control point or tangent modification : see
+        activePoint and activeTangent mouse event handlers
         """
-        qpp = QPainterPath()
-        # add boundary points if needed
+        # add ending control points, if needed,
+        # to get full range 0..self.size
         X = [item.x() for item in self.fixedPoints]
         Y = [item.y() for item in self.fixedPoints]
         X0, X1 = X[0], X[-1]
@@ -221,15 +293,19 @@ class cubicSpline(QGraphicsPathItem) :
         if X[-1] < self.size:
             X.append(self.size)
             Y.append(Y3)
-        # interpolationCubSpline raises an exception if two points have identical x-coordinates
+        # interpolate
         try:
+            # interpolationCubSpline raises an exception if two points have identical x-coordinates
             self.spline = interpolationCubSpline(np.array(X), np.array(Y), clippingInterval= [-self.scene().axeSize, 0])
+            # set the curve constant outside ]X0..X1[
             for P in self.spline:
                 if P.x() < X0:
                     P.setY(Y0)
                 elif P.x() > X1:
                     P.setY(Y1)
+            # build path
             polygon = QPolygonF(self.spline)
+            qpp = QPainterPath()
             qpp.addPolygon(polygon)
             # stroke path
             stroker = QPainterPathStroker()
@@ -240,22 +316,21 @@ class cubicSpline(QGraphicsPathItem) :
             pass
 
     def mousePressEvent(self, e):
-        self.beginMouseMove = e.pos()
-        self.selected= True
+        self.clicked = True
+        #self.selected= True
 
     def mouseMoveEvent(self, e):
-        pass
+        self.clicked = False
         #self.updatePath()
         #updateScene(self.scene())
 
     def mouseReleaseEvent(self, e):
         """
         if click, add a control point to the curve
-        @param e:
         """
-        self.selected = False
+        #self.selected = False
         # click event
-        if self.beginMouseMove == e.pos():
+        if self.clicked:
             #add point
             p=e.pos()
             a=activePoint(p.x(), p.y(), parentItem=self)
@@ -275,235 +350,31 @@ class cubicSpline(QGraphicsPathItem) :
             return np.vstack((self.scene().cubicR.LUTXY, self.scene().cubicG.LUTXY, self.scene().cubicB.LUTXY))
 
     def reset(self):
-        self.clicked = QPoint(0, 0)
-        self.selected = False
         for point in self.childItems():
             self.scene().removeItem(point)
         self.initFixedPoints()
         #calculate spline
         self.updatePath()
-        LUT = range(256)
-        self.LUTXY = np.array(LUT)  # buildLUT(LUT)
+        self.LUTXY = np.arange(256)
 
-    def writeToStream(self, outStream):
-        outStream.writeInt32(self.size)
-        outStream.writeInt32(len(self.fixedPoints))
-        for point in self.fixedPoints:
-            outStream << point.scenePos()
-        return outStream
-
-    def readFromStream(self, inStream):
-        size = inStream.readInt32()
-        count = inStream.readInt32()
-        for point in self.childItems():
-            self.scene().removeItem(point)
-        self.fixedPoints = []
-        for i in range(count):
-            point = QPointF()
-            inStream >> point
-            self.fixedPoints.append(activePoint(point.x(), point.y(), parentItem=self))
-        #cubic = cubicItem(size, fixedPoints=fixedPoints)
-        #self.fixedPoints = fixedPoints
-        self.updatePath()
-        self.updateLUTXY()
-        return self
-
-class graphicsCurveForm(QGraphicsView):
+class activeQuadricSpline(activeSpline) :
     """
-    Base class for all interactive curve forms
+    Interactive quadratic spline. Control points can be :
+        - added by a mouse click on the curve,
+        - moved with the mouse (cf. activePoint.mouseMoveEvent())
+        - removed by a mouse click on the point (cf. activePoint.mouseReleaseEvent())
     """
-    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
-        super().__init__(parent=parent)
-        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        self.setMinimumSize(axeSize + 60, axeSize + 140)
-        self.setAttribute(Qt.WA_DeleteOnClose)
-        self.graphicsScene = QGraphicsScene()
-        self.setScene(self.graphicsScene)
-        self.scene().targetImage = targetImage
-        self.scene().layer = layer
-        self.scene().bgColor = QColor(200,200,200)
-        self.mainForm = mainForm
-        self.graphicsScene.axeSize = axeSize
-        # add axes and grid to the scene
-        item = drawPlotGrid(axeSize)
-        self.graphicsScene.addItem(item)
-
-class graphicsCubicForm(graphicsCurveForm) :
-    @classmethod
-    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
-        newWindow = graphicsCubicForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
-        newWindow.setWindowTitle(layer.name)
-        return newWindow
-
-    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
-        super().__init__(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
-        # curve
-        cubic = cubicItem(self.graphicsScene.axeSize)
-        self.graphicsScene.addItem(cubic)
-        self.graphicsScene.cubicB = cubic
-        cubic.channel = channelValues.Br
-        cubic.histImg = self.scene().layer.histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, range=(0,1), chans=channelValues.Br, mode='Luminosity')
-        cubic.initFixedPoints()
-        # set current curve
-        self.scene().cubicItem = self.graphicsScene.cubicB
-        self.scene().cubicItem.setVisible(True)
-
-        def onResetCurve():
-            """
-            Reset the selected curve
-            """
-            self.scene().cubicItem.reset()
-            #self.scene().onUpdateLUT()
-            l = self.scene().layer
-            l.applyToStack()
-            l.parentImage.onImageChanged()
-
-        def onResetAllCurves():
-            """
-            Reset all curves
-            """
-            for cubicItem in [self.graphicsScene.cubicR, self.graphicsScene.cubicG, self.graphicsScene.cubicB]:
-                cubicItem.reset()
-            # call Curve change event handlerdefined in blue.menuLayer
-            #self.scene().onUpdateLUT()
-            l = self.scene().layer
-            l.applyToStack()
-            l.parentImage.onImageChanged()
-
-        # buttons
-        pushButton1 = QPushButton("Reset Curve")
-        #pushButton1.setObjectName("btn_reset_channel")
-        pushButton1.setMinimumSize(1, 1)
-        pushButton1.setGeometry(80, 20, 100, 30)  # x,y,w,h
-        pushButton1.adjustSize()
-        pushButton1.clicked.connect(onResetCurve)
-        self.graphicsScene.addWidget(pushButton1)
-        pushButton2 = QPushButton("Reset All Curves")
-        pushButton2.setMinimumSize(1, 1)
-        pushButton2.setGeometry(80, 50, 100, 30)  # x,y,w,h
-        pushButton2.adjustSize()
-        pushButton2.clicked.connect(onResetAllCurves)
-        self.graphicsScene.addWidget(pushButton2)
-
-        # options
-        options = ['H', 'S', 'B']
-        self.listWidget1 = optionsWidget(options=options, exclusive=True)
-        self.listWidget1.setGeometry(0, 10, self.listWidget1.sizeHintForColumn(0) + 5, self.listWidget1.sizeHintForRow(0) * len(options) + 5)
-        self.graphicsScene.addWidget(self.listWidget1)
-
-        # self.options is for convenience only
-        self.options = {option: True for option in options}
-
-        def onSelect1(item):
-            self.scene().cubicItem.setVisible(False)
-            if item.text() == 'H':
-                self.scene().cubicItem = self.graphicsScene.cubicR
-            elif item.text() == 'S':
-                self.scene().cubicItem = self.graphicsScene.cubicG
-            elif item.text() == 'B':
-                self.scene().cubicItem = self.graphicsScene.cubicB
-
-            self.scene().cubicItem.setVisible(True)
-
-            # draw  histogram
-            self.scene().invalidate(QRectF(0.0, -self.scene().axeSize, self.scene().axeSize, self.scene().axeSize), QGraphicsScene.BackgroundLayer)
-
-        self.listWidget1.onSelect = onSelect1
-
-        # set initial selection to Saturation
-        item = self.listWidget1.items[options[1]]
-        item.setCheckState(Qt.Checked)
-        self.listWidget1.select(item)
-
-    def drawBackground(self, qp, qrF):
-        s = self.graphicsScene.axeSize
-        if self.scene().cubicItem.histImg is not None:
-            qp.drawImage(QRect(0, -s, s, s), self.scene().cubicItem.histImg)
-
-    def writeToStream(self, outStream):
-        layer = self.scene().layer
-        outStream.writeQString(layer.actionName)
-        outStream.writeQString(layer.name)
-        if layer.actionName in ['actionBrightness_Contrast', 'actionCurves_HSpB', 'actionCurves_Lab']:
-            outStream.writeQString(self.listWidget1.selectedItems()[0].text())
-            self.graphicsScene.cubicR.writeToStream(outStream)
-            self.graphicsScene.cubicG.writeToStream(outStream)
-            self.graphicsScene.cubicB.writeToStream(outStream)
-        return outStream
-
-    def readFromStream(self, inStream):
-        actionName = inStream.readQString()
-        name = inStream.readQString()
-        sel = inStream.readQString()
-        cubics = []
-        # for i in range(3):
-        # cubic = cubicItem.readFromStream(inStream)
-        # cubics.append(cubic)
-        # kwargs = dict(zip(['cubicR', 'cubicG', 'cubicB'], cubics))
-        # self.setEntries(sel=sel, **kwargs)
-        self.graphicsScene.cubicR.readFromStream(inStream)
-        self.graphicsScene.cubicG.readFromStream(inStream)
-        self.graphicsScene.cubicB.readFromStream(inStream)
-        return inStream
-
-class QuadricItem(QGraphicsPathItem) :
-    """
-    Interactive quadratic spline.
-    """
-    strokeWidth = 2
-
-    def __init__(self, size, fixedPoints=[], parentItem=None):
-        """
-        Builds a spline with an empty set of fixed points
-        @param size: initial path size
-        @type size: int
-        @param parentItem:
-        @type parentItem: object
-        """
-        super().__init__()
-        self.setParentItem(parentItem)
-        self.qpp = QPainterPath()
-        self.size = size
-        # initial curve : diagonal
-        self.qpp.lineTo(QPoint(size, -size))
-        # stroke curve
-        stroker=QPainterPathStroker()
-        stroker.setWidth(self.strokeWidth)
-        self.mboundingPath = stroker.createStroke(self.qpp)
-        self.setPath(self.mboundingPath)
-        #self.clicked=QPoint(0,0)
-        #self.selected = False
-        self.setVisible(False)
-        self.fixedPoints = fixedPoints
-        # curve
-        self.spline = []
-        # 1D-LUT : identity
-        self.LUTXY = np.array(range(256))
-        self.channel = channelValues.RGB
-        self.histImg = None
-
-    def initFixedPoints(self):
-        axeSize = self.size
-        rect = QRectF(0.0, -axeSize, axeSize, axeSize)
-        self.fixedPoints = [activePoint(0, 0, persistent=True, rect=rect, parentItem=self),
-                            activePoint(axeSize / 2, -axeSize / 2, rect=rect, parentItem=self),
-                            activePoint(axeSize, -axeSize, persistent=True, rect=rect, parentItem=self)]
-        #self.fixedTangents = [activeTangent(cp.pos(), -cp.pos(), parentItem=self) for cp in self.fixedPoints]
-
-    def updateLUTXY(self):
-        """
-        Sync the LUT with the spline
-        """
-        scale = 255.0 / self.size
-        LUT = []
-        LUT.extend([int((-p.y()) * scale) for p in self.spline])
-        self.LUTXY = np.array(LUT)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fixedTangents = []
 
     def updatePath(self, calculate=True):
         """
-        Calculates and displays the spline.
+        Calculates (if calculate=true) and displays the spline.
+        Called on activePoint and activeTangent mouse event
+        @param calculate:
+        @type calculate: bool
         """
-        qpp = QPainterPath()
         # add boundary points if needed
         X = [item.x() for item in self.fixedPoints]
         Y = [item.y() for item in self.fixedPoints]
@@ -517,7 +388,12 @@ class QuadricItem(QGraphicsPathItem) :
         if X[-1] < self.size:
             X.append(self.size)
             Y.append(Y3)
-        d = np.array([1.0] * len(X))
+        #d = np.array([1.0] * len(X))
+        # calculate the array of slopes
+        d = [item.controlPoint - item.contactPoint for item in self.fixedTangents]
+        d1 = - np.array(list(map(lambda a : a.y(), d)))
+        d2 = np.array(list(map(lambda a : a.x(), d)))
+        d = d1 / d2
         try:
             if calculate:
                 T = interpolationQuadSpline(np.array(X)/self.size, -np.array(Y)/self.size, d) * self.size
@@ -528,6 +404,7 @@ class QuadricItem(QGraphicsPathItem) :
                 elif P.x() > X1:
                     P.setY(Y1)
             polygon = QPolygonF(self.spline)
+            qpp = QPainterPath()
             qpp.addPolygon(polygon)
             # stroke path
             stroker = QPainterPathStroker()
@@ -538,21 +415,47 @@ class QuadricItem(QGraphicsPathItem) :
             print(str(e))
 
     def setCurve(self, a, b, d, T):
+        """
+        Initialises the spline and the LUT.
+        a, b, d must have identical sizes
+        @param a: x-ccoordinates of control points
+        @type a:
+        @param b: y-coordinates of control points
+        @type b:
+        @param d: tangent slopes
+        @type d:
+        @param T: spline array
+        @type T: ndarray
+        """
         self.a, self.b, self.d, self.T = a, b, d, T
         rect = QRectF(0.0, -self.size, self.size, self.size)
-        alpha=10.0
+        # half tangent length and orientation
+        alpha = [50.0] * len(d)
+        # choose backward orientation for the last tangent
+        alpha[-1] = - alpha[-1]
+        for item in self.fixedPoints:
+            self.scene().removeItem(item)
+        for item in self.fixedTangents:
+            self.scene().removeItem(item)
         self.fixedPoints = [activePoint(x, -y, rect=rect, parentItem=self) for x,y in zip(a,b)]
-        self.fixedtangents = [activeTangent(controlPoint=QPointF(x+alpha, -y-alpha*p), contactPoint=QPointF(x,-y), parentItem=self) for x,y,p in zip(a,b,d)]
+        # tangent normalization
+        n = np.sqrt(1 + d * d)
+        alpha = alpha / n
+        self.fixedTangents = [activeTangent(controlPoint=QPointF(x+alpha[i], -y-alpha[i]*p), contactPoint=QPointF(x,-y), parentItem=self)
+                              for i,(x,y,p) in enumerate(zip(a,b,d))]
+        # link contact point to tangent
+        for i1, i2 in zip(self.fixedPoints, self.fixedTangents):
+            i1.tangent = i2
         self.spline = [QPointF(x,y) for x, y in zip(np.arange(256)*(self.size/255), -T)]
-        self.updatePath(calculate=False)
+        self.updatePath(calculate=False) # don't recalculate the spline!
         self.updateLUTXY()
 
     def mousePressEvent(self, e):
-        self.beginMouseMove = e.pos()
+        self.clicked = True
         #self.selected= True
 
     def mouseMoveEvent(self, e):
-        pass
+        self.clicked = False
         #self.updatePath()
         #updateScene(self.scene())
 
@@ -563,7 +466,7 @@ class QuadricItem(QGraphicsPathItem) :
         """
         #self.selected = False
         # click event
-        if self.beginMouseMove == e.pos():
+        if self.clicked:
             #add point
             p=e.pos()
             a=activePoint(p.x(), p.y(), parentItem=self)
@@ -596,50 +499,55 @@ class QuadricItem(QGraphicsPathItem) :
         LUT = range(256)
         self.LUTXY = np.array(LUT)  # buildLUT(LUT)
         """
-
-    def writeToStream(self, outStream):
-        outStream.writeInt32(self.size)
-        outStream.writeInt32(len(self.fixedPoints))
-        for point in self.fixedPoints:
-            outStream << point.scenePos()
-        return outStream
-
-    def readFromStream(self, inStream):
-        size = inStream.readInt32()
-        count = inStream.readInt32()
-        for point in self.childItems():
-            self.scene().removeItem(point)
-        self.fixedPoints = []
-        for i in range(count):
-            point = QPointF()
-            inStream >> point
-            self.fixedPoints.append(activePoint(point.x(), point.y(), parentItem=self))
-        self.updatePath()
-        self.updateLUTXY()
-        return self
+class graphicsCurveForm(QGraphicsView):
+    """
+    Base class for interactive curve forms
+    """
+    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
+        super().__init__(parent=parent)
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        self.setMinimumSize(axeSize + 60, axeSize + 140)
+        self.setAttribute(Qt.WA_DeleteOnClose)
+        graphicsScene = QGraphicsScene()
+        self.setScene(graphicsScene)
+        graphicsScene.targetImage = targetImage
+        graphicsScene.layer = layer
+        graphicsScene.bgColor = QColor(200,200,200)
+        self.mainForm = mainForm
+        graphicsScene.axeSize = axeSize
+        # add axes and grid
+        item = drawPlotGrid(axeSize)
+        graphicsScene.addItem(item)
 
 class graphicsQuadricForm(graphicsCurveForm) :
     """
-    Form for interactive quadratic splines
+    Form for interactive quadratic splines.
+    Dynamic attributes are added to the scene in order
+    to provide links to arbitrary graphics items:
+        self.scene().cubicItem : current active curve
+        self.scene().targetImage
+        self.scene().layer
+        self.scene().bgColor
     """
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         newWindow = graphicsQuadricForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         newWindow.setWindowTitle(layer.name)
         return newWindow
-
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         super().__init__(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
+        graphicsScene = self.scene()
         # curve
-        quadric = QuadricItem(self.graphicsScene.axeSize)
-        self.graphicsScene.addItem(quadric)
-        self.graphicsScene.quadricB = quadric
+        quadric = activeQuadricSpline(graphicsScene.axeSize)
+        graphicsScene.addItem(quadric)
+        graphicsScene.quadricB = quadric
         quadric.channel = channelValues.Br
-        quadric.histImg = self.scene().layer.histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, range=(0,1), chans=channelValues.Br, mode='Luminosity')
+        quadric.histImg = self.scene().layer.histogram(size=graphicsScene.axeSize, bgColor=graphicsScene.bgColor,
+                                                       range=(0,1), chans=channelValues.Br, mode='Luminosity')
         quadric.initFixedPoints()
-        # set current
-        self.scene().cubicItem = self.graphicsScene.quadricB
-        self.scene().cubicItem.setVisible(True)
+        # set current curve
+        graphicsScene.cubicItem = graphicsScene.quadricB
+        graphicsScene.cubicItem.setVisible(True)
 
         def onResetCurve():
             """
@@ -656,22 +564,24 @@ class graphicsQuadricForm(graphicsCurveForm) :
         pushButton1.setGeometry(10, 20, 100, 30)  # x,y,w,h
         pushButton1.adjustSize()
         pushButton1.clicked.connect(onResetCurve)
-        self.graphicsScene.addWidget(pushButton1)
+        graphicsScene.addWidget(pushButton1)
 
     def drawBackground(self, qp, qrF):
-        s = self.graphicsScene.axeSize
-        if self.scene().cubicItem.histImg is not None:
-            qp.drawImage(QRect(0, -s, s, s), self.scene().cubicItem.histImg)
+        graphicsScene = self.scene()
+        s = graphicsScene.axeSize
+        if graphicsScene.cubicItem.histImg is not None:
+            qp.drawImage(QRect(0, -s, s, s), graphicsScene.cubicItem.histImg)
 
     def writeToStream(self, outStream):
-        layer = self.scene().layer
+        graphicsScene = self.scene()
+        layer = graphicsScene.layer
         outStream.writeQString(layer.actionName)
         outStream.writeQString(layer.name)
         if layer.actionName in ['actionBrightness_Contrast', 'actionCurves_HSpB', 'actionCurves_Lab']:
             outStream.writeQString(self.listWidget1.selectedItems()[0].text())
-            self.graphicsScene.quadricR.writeToStream(outStream)
-            self.graphicsScene.quadricG.writeToStream(outStream)
-            self.graphicsScene.quadricB.writeToStream(outStream)
+            graphicsScene.quadricR.writeToStream(outStream)
+            graphicsScene.quadricG.writeToStream(outStream)
+            graphicsScene.quadricB.writeToStream(outStream)
         return outStream
 
     def readFromStream(self, inStream):
@@ -684,7 +594,8 @@ class graphicsQuadricForm(graphicsCurveForm) :
         # cubics.append(cubic)
         # kwargs = dict(zip(['cubicR', 'cubicG', 'cubicB'], cubics))
         # self.setEntries(sel=sel, **kwargs)
-        self.graphicsScene.quadricR.readFromStream(inStream)
-        self.graphicsScene.quadricG.readFromStream(inStream)
-        self.graphicsScene.quadricB.readFromStream(inStream)
+        graphicsScene = self.scene()
+        graphicsScene.quadricR.readFromStream(inStream)
+        graphicsScene.quadricG.readFromStream(inStream)
+        graphicsScene.quadricB.readFromStream(inStream)
         return inStream

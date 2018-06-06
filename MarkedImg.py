@@ -28,7 +28,7 @@ from PySide2.QtCore import Qt, QDataStream, QFile, QIODevice, QSize, QPointF, QP
 import cv2
 from copy import copy
 
-from PySide2.QtGui import QImageReader, QTransform
+from PySide2.QtGui import QImageReader, QTransform, QBrush
 from PySide2.QtWidgets import QApplication, QSplitter
 from PySide2.QtGui import QPixmap, QImage, QColor, QPainter
 from PySide2.QtCore import QRect
@@ -125,8 +125,10 @@ class vImage(QImage):
             qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
             qp.drawImage(QRect(0, 0, img.width(), img.height()), vImage.color2OpacityMask(mask))
             if clipping:  # TODO 6/11/17 may be we should draw checker for both selected and unselected mask
+                # draw checker
                 qp.setCompositionMode(QPainter.CompositionMode_DestinationOver)
-                qp.drawImage(QRect(0, 0, img.width(), img.height()), checkeredImage(img.width(), img.height()))
+                qp.setBrush(QBrush(checkeredImage()))
+                qp.drawRect(QRect(0, 0, img.width(), img.height()))  # 0.26s for 15Mpx
         qp.end()
         return img
 
@@ -957,7 +959,7 @@ class vImage(QImage):
 
     def applyContrast(self, version='HSV'):
         """
-        Contrast, saturation, brightness corrections.
+        Applies contrast saturation and brightness corrections.
         If version is 'HSV' (default), the
         image is converted to HSV and the correction is applied to
         the S and V channels. Otherwise, the Lab color space is used.
@@ -978,6 +980,7 @@ class vImage(QImage):
             ndImg1a[:, :, :] = tmpBuf
             self.updatePixmap()
             return
+        # Lab mode
         if version=='Lab':
             # get l channel, range is 0..1
             LBuf = inputImage.getLabBuffer().copy()
@@ -988,23 +991,30 @@ class vImage(QImage):
                 # convert L to L**alpha
                 LBuf[:, :, 0] = LUT[LBuf[:, :, 0]]
             if contrastCorrection >0:
+                # CLAHE
                 if options['CLAHE']:
                     clahe = cv2.createCLAHE(clipLimit=contrastCorrection, tileGridSize=(8, 8))
                     clahe.setClipLimit(contrastCorrection)
                     res = clahe.apply((LBuf[:,:,0] * 255.0).astype(np.uint8)) /255
+                # multimode
                 else:
-                    res,a,b,d,T = warpHistogram(LBuf[:,:,0], warp=contrastCorrection, preserveHigh=options['High'])
-                    self.getGraphicsForm().setContrastSpline(a, b, d, T)
+                    res,a,b,d,T = warpHistogram(LBuf[:,:,0], warp=contrastCorrection, preserveHigh=options['High'],
+                                                spline = None if self.autoSpline else self.getMmcSpline())
+                    # show the spline
+                    if self.autoSpline :
+                        self.getGraphicsForm().setContrastSpline(a, b, d, T)
+                        self.autoSpline = False #mmcSpline = self.getGraphicsForm().scene().cubicItem # caution : msileading name for a quadratic spline !
                 LBuf[:,:,0] = res
             if satCorrection != 0:
-                slope = max(0.1, adjustForm.satCorrection / 25 + 1)  # range 0.1..3
+                slope = max(0.1, adjustForm.satCorrection / 25 + 1)  # ran# show the splinege 0.1..3
                 # multiply a and b channels
                 LBuf[:, :, 1:3] *= slope
                 LBuf[:, :, 1:3] = np.clip(LBuf[:, :, 1:3], -127, 127)
             # back to RGB
             sRGBBuf = Lab2sRGBVec(LBuf)  # use opencv cvtColor
+        # HSV mode
         else:
-            # get HSV buffer, H, S, V ranges are 0..255
+            # get HSV buffer, H, S, V are in range 0..255
             HSVBuf = inputImage.getHSVBuffer().copy()
             if brightnessCorrection != 0:
                 alpha = (-adjustForm.brightnessCorrection + 1.0)
@@ -1019,9 +1029,13 @@ class vImage(QImage):
                     res = clahe.apply((HSVBuf[:, :, 2]))
                 else:
                     buf32 = HSVBuf[:,:,2].astype(np.float)/255
-                    res,a,b,d,T = warpHistogram(buf32, warp=contrastCorrection, preserveHigh=options['High'])  #TODO preserveHigh added 02/05/18 validate
-                    res = (res*255).astype(np.uint8)
-                    self.getGraphicsForm().setContrastSpline(a,b,d,T)
+                    res,a,b,d,T = warpHistogram(buf32, warp=contrastCorrection, preserveHigh=options['High'],
+                                                spline=None if self.autoSpline else self.getMmcSpline())
+                    res = (res*255.0).astype(np.uint8)
+                    # show the spline
+                    if self.autoSpline:
+                        self.getGraphicsForm().setContrastSpline(a, b, d, T)
+                        self.autoSpline = False #mmcSpline = self.getGraphicsForm().contrastForm.scene().cubicItem # caution : msileading name for a quadratic spline !
                 HSVBuf[:, :, 2] = res
             if satCorrection != 0:
                 alpha = (-adjustForm.satCorrection + 1.0)
@@ -1035,11 +1049,11 @@ class vImage(QImage):
         # forward opacity changes
         ndImg1a[:, :,3] = tmpBuf[:,:,3]
         self.updatePixmap()
-
+    @tdec
     def apply1DLUT(self, stackedLUT, options={}):
         """
         Applies 1D LUTS to RGB channels (one for each channel)
-        @param stackedLUT: array of color values (in range 0..255) : a row for each channel
+        @param stackedLUT: array of color values (in range 0..255) : a row for each RGB channel
         @type stackedLUT : ndarray, shape (3, 256) dtype int
         @param options: not used yet
         @type options : dictionary
@@ -1059,10 +1073,13 @@ class vImage(QImage):
         ndImg0 = ndImg0a[:,:,:3]
         ndImg1 = ndImg1a[:, :, :3]
         # apply LUTS to channels
-        rList = np.array([2,1,0]) #BGR
-        ndImg1[:, :, :]= stackedLUT[rList, ndImg0]  # last dims are equal : broadcast works
+        #rList = np.array([2,1,0]) #BGR
+        s = ndImg0[:,:,0].shape
+        for c in range(3): # 0.36s for 15Mpx
+            ndImg1[:, :, c] = np.take(stackedLUT[2-c,:], ndImg0[:,:,c].reshape((-1,))).reshape(s)
+        # ndImg1[:, :, :] = stackedLUT[rList, ndImg0]  # last dims of index arrays are equal : broadcast works. slower 0.66s for 15Mpx
         self.updatePixmap()
-
+    @tdec
     def applyLab1DLUT(self, stackedLUT, options={}):
         """
         Applies 1D LUTS (one row for each L,a,b channel)
@@ -1091,10 +1108,14 @@ class vImage(QImage):
             buf = buf - [0.0, 128.0, 128.0] # no copy needed here, but seems faster than in place operation!
             buf[:,:,0] /= 255.0
             return buf
-        ndLImg0 = scaleLabBuf(ndLabImg0).astype(int)
+        ndLImg0 = scaleLabBuf(ndLabImg0).astype(np.uint8)
         # apply LUTS to channels
-        rList = np.array([0, 1, 2])  # L,a,b
-        ndLabImg1 = stackedLUT[rList, ndLImg0] # last dims are equal : broadcast works
+        #rList = np.array([0, 1, 2])  # L,a,b
+        s = ndLImg0[:, :, 0].shape
+        ndLabImg1 = np.zeros(ndLImg0.shape, dtype=np.uint8)
+        for c in range(3):  # 0.43s for 15Mpx
+            ndLabImg1[:, :, c] = np.take(stackedLUT[c, :], ndLImg0[:, :, c].reshape((-1,))).reshape(s)
+        #ndLabImg1 = stackedLUT[rList, ndLImg0] # last dims are equal : broadcast works
         ndLabImg1 = scaleBackLabBuf(ndLabImg1)
         # back sRGB conversion
         ndsRGBImg1 = Lab2sRGBVec(ndLabImg1)
@@ -1105,7 +1126,7 @@ class vImage(QImage):
         ndImg1[:, :, :3][:, :, ::-1] = ndsRGBImg1
         # update
         self.updatePixmap()
-
+    @tdec
     def applyHSPB1DLUT(self, stackedLUT, options={}, pool=None):
         """
         Applies 1D LUTS to hue, sat and brightness channels.
@@ -1126,9 +1147,13 @@ class vImage(QImage):
         ndHSPBImg0 = self.inputImg().getHspbBuffer()   # time 2s with cache disabled for 15 Mpx
         #ndHSPBImg0 = self.getMaskedCurrentContainer().getHspbBuffer()
         # apply LUTS to normalized channels (range 0..255)
-        ndLImg0 = (ndHSPBImg0 * [255.0/360.0, 255.0, 255.0]).astype(int)
-        rList = np.array([0,1,2]) # H,S,B
-        ndHSBPImg1 = stackedLUT[rList, ndLImg0] * [360.0/255.0, 1/255.0, 1/255.0]
+        ndLImg0 = (ndHSPBImg0 * [255.0/360.0, 255.0, 255.0]).astype(np.uint8)
+        #rList = np.array([0,1,2]) # H,S,B
+        ndHSBPImg1 = np.zeros(ndLImg0.shape, dtype=np.uint8)
+        s = ndLImg0[:, :, 0].shape
+        for c in range(3):  # 0.36s for 15Mpx
+            ndHSBPImg1[:, :, c] = np.take(stackedLUT[c, :], ndLImg0[:, :, c].reshape((-1,))).reshape(s)
+        # ndHSBPImg1 = stackedLUT[rList, ndLImg0] * [360.0/255.0, 1/255.0, 1/255.0]
         # back to sRGB
         ndRGBImg1 = hsp2rgbVec(ndHSBPImg1)  # time 4s for 15 Mpx
         # in place clipping
@@ -1139,7 +1164,7 @@ class vImage(QImage):
         ndImg1a[:, :, :3][:,:,::-1] = ndRGBImg1
         # update
         self.updatePixmap()
-
+    @tdec
     def applyHSV1DLUT(self, stackedLUT, options={}, pool=None):
         """
         Applies 1D LUTS to hue, sat and brightness channels.
@@ -1162,10 +1187,14 @@ class vImage(QImage):
         # get HSV buffer, range H: 0..180, S:0..255 V:0..255
         HSVImg0 = self.inputImg().getHSVBuffer()
         #HSVImg0 = self.getMaskedCurrentContainer().getHSVBuffer()
-        HSVImg0 = HSVImg0.astype(int)
+        HSVImg0 = HSVImg0.astype(np.uint8)
         # apply LUTS
-        rList = np.array([0,1,2]) # H,S,V
-        HSVImg1 = stackedLUT[rList, HSVImg0]
+        HSVImg1 = np.zeros(HSVImg0.shape, dtype=np.uint8)
+        #rList = np.array([0,1,2]) # H,S,V
+        s = HSVImg0[:, :, 0].shape
+        for c in range(3):  # 0.43s for 15Mpx
+            HSVImg1[:, :, c] = np.take(stackedLUT[c, :], HSVImg0[:, :, c].reshape((-1,))).reshape(s)
+        #HSVImg1 = stackedLUT[rList, HSVImg0]
         # back to sRGB
         RGBImg1 = hsv2rgbVec(HSVImg1, cvRange=True)
         # in place clipping
@@ -1674,6 +1703,8 @@ class mImage(vImage):
             layer = QLayerImage.fromImage(self.layersStack[index], parentImage=self, sourceImg=sourceImg)
         layer.role = role
         self.addLayer(layer, name=name, index=index + 1)
+        if role == 'CONTRAST':
+            layer.autoSpline = True
         # init thumb
         if layer.parentImage.useThumb:
             layer.thumb = layer.inputImg().copy()
@@ -1934,7 +1965,24 @@ class QLayer(vImage):
         super().__init__(*args, **kwargs)
 
     def getGraphicsForm(self):
+        """
+        Returns the graphics form associated to the layer
+        @return:
+        @rtype: QWidget
+        """
         return self.view.widget()
+
+    def getMmcSpline(self):
+        """
+        Returns the spline used for multimode contrast
+        correction if it is initialized and None otherwise.
+        @return:
+        @rtype: activeSpline
+        """
+        grf = self.getGraphicsForm()
+        if grf.contrastForm is not None:
+            return grf.contrastForm.scene().cubicItem
+        return None
 
     def addTool(self, tool):
         """
@@ -2129,8 +2177,10 @@ class QLayer(vImage):
         #         the top layer only
         if self.isClipping:
             bottom = top
+            # draw checker
+            qp.setBrush(QBrush(checkeredImage()))
             qp.setCompositionMode(QPainter.CompositionMode_Source)
-            qp.drawImage(QRect(0, 0, img.width(), img.height()), checkeredImage(img.width(), img.height()))
+            qp.drawRect(QRect(0,0, img.width(), img.height()))  # 0.26s for 15Mpx
         else:  # TODO added 14/05/18 validate
             ind = self.getLowerClippingStackIndex()
             bottom = max(0, ind)

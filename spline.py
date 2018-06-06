@@ -104,7 +104,7 @@ def coeff(X, Y):
     deltaY1 = Y[1:] - Y[:-1]
     D1= deltaY1 / deltaX1
     np.seterr(**old_settings)
-    if np.isnan(D1).any() or (D1==np.inf).any() or (D1==-np.inf).any():
+    if not np.isfinite(D1).all():
         raise ValueError()
     deltaX2 = np.zeros((X.shape[0]-1,))
     deltaX2[1:] = 2.0 * (X[2:] - X[:-2])  #tangent
@@ -121,7 +121,7 @@ def coeff(X, Y):
 def cubicSpline(X, Y, V):
     """
     Calculates the y-coordinates corresponding to the x-coordinates V for
-    the cubic spline defined by the control points zip(X,Y).
+    the cubic spline interpolating the control points zip(X,Y).
     A ValueError exception is raised if the X values are not distinct.
     @param X: x-coordinates of control points, sorted in increasing order
     @type X: ndarray, dtype=np.float
@@ -135,7 +135,6 @@ def cubicSpline(X, Y, V):
     def P(t):
         return t**3 - t
     deltaX1, R = coeff(X,Y)  # raises ValueError if two X values are equal
-    #i = bisect.bisect(X, v)
     i = np.searchsorted(X, V, side='right') - 1
     isave = i
     i = np.clip(i,0, len(Y)-2)
@@ -144,28 +143,19 @@ def cubicSpline(X, Y, V):
     values = np.where(isave>len(Y)-2, Y[-1], values)
     values = np.where(isave<0, Y[0], values)
     return values
-    """
-    if i < 0 :
-        return Y[0]
-    elif i > len(Y)-2:
-        return Y[-1]
-    #  0<=i<=N-2
-    t = (v - X[i]) / deltaX1[i]
-    value = t * Y[i+1] + (1-t)*Y[i] + deltaX1[i] * deltaX1[i] * (P(t) * R[i+1] + P(1-t) * R[i])/6.0
-    return value
-    """
 
 def interpolationCubSpline(X, Y, clippingInterval=None):
     """
     Interpolates a set of 2D points by a cubic spline.
-    The returned list has exactly 256 sampling points.
+    The spline has exactly 256 sampling points.
+    X and Y must have equal sizes.
     A ValueError exception is raised if the X values are not distinct.
     @param X: x-coordinates of points
     @type X: list of float
     @param Y: y-coordinates of points
     @type Y: list of float
-    @param clippingInterval: min and max values for spline y-values
-    @type clippingInterval: 2-uple-like of float values
+    @param clippingInterval: min and max values for the spline y-values
+    @type clippingInterval: 2-uple of float
     @return: the interpolated cubic spline
     @rtype: list of QPointF (length 256)
     """

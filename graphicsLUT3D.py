@@ -795,7 +795,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.currentR, self.currentG, self.currentB = 0,0,0
         self.size = axeSize
         self.targetImage= targetImage
-        self.layer=layer  # TODO 25/05/18 remove and instead use self.graphicsScene.layer below
+        self.layer=layer  # TODO 25/05/18 remove and instead use graphicsScene.layer below
         self.mainForm = mainForm
         # currently selected grid node
         self.selected = None

@@ -40,7 +40,8 @@ class CoBrSatForm (QGraphicsView):
         self.setMinimumSize(axeSize, axeSize+100)
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.layer = layer
-
+        # contrast spline viewer
+        self.contrastForm = None
         # options
         optionList1, optionNames1 = ['Multi-Mode', 'CLAHE'], ['Multi-Mode', 'CLAHE']
         self.listWidget1 = optionsWidget(options=optionList1, optionNames=optionNames1, exclusive=True, changed=lambda: self.dataChanged.emit())
@@ -80,6 +81,8 @@ class CoBrSatForm (QGraphicsView):
             self.sliderContrast.valueChanged.disconnect()
             self.sliderContrast.sliderReleased.disconnect()
             self.contrastCorrection = self.slider2Contrast(self.sliderContrast.value())
+            # force recalculating the spline
+            self.layer.autoSpline = True
             self.dataChanged.emit()
             self.sliderContrast.valueChanged.connect(contrastUpdate)
             self.sliderContrast.sliderReleased.connect(lambda: contrastUpdate(self.sliderContrast.value()))
@@ -193,17 +196,23 @@ class CoBrSatForm (QGraphicsView):
     def setContrastSpline(self, a, b, d, T):
         """
         Updates and displays the contrast spline
-        @param a:
+        @param a: x_ccordinates
         @type a:
-        @param b:
+        @param b: y-coordinates
         @type b:
-        @param d:
+        @param d: tangent slopes
         @type d:
-        @param T:
-        @type T:
+        @param T: spline
+        @type T: ndarray dtype=float
         """
         axeSize = 500
-        form = graphicsQuadricForm.getNewWindow(targetImage=None, axeSize=axeSize, layer=self.layer, parent=None, mainForm=None)
+        if self.contrastForm is None:
+            form = graphicsQuadricForm.getNewWindow(targetImage=None, axeSize=axeSize, layer=self.layer, parent=None, mainForm=None)
+            form.setWindowFlags(Qt.WindowStaysOnTopHint)
+            form.setAttribute(Qt.WA_DeleteOnClose, on=False)
+            self.contrastForm = form
+        else:
+            form = self.contrastForm
         form.graphicsScene.quadricB.setCurve(a*axeSize,b*axeSize,d,T*axeSize)
         form.show()
 

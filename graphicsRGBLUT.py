@@ -20,7 +20,7 @@ from PySide2.QtCore import QRect
 from PySide2.QtCore import Qt, QRectF
 from PySide2.QtWidgets import QPushButton, QGraphicsScene
 
-from graphicsLUT import cubicSpline, graphicsCurveForm
+from graphicsLUT import activeCubicSpline, graphicsCurveForm
 from utils import optionsWidget, channelValues
 
 class graphicsForm(graphicsCurveForm) :
@@ -32,60 +32,60 @@ class graphicsForm(graphicsCurveForm) :
         newWindow = graphicsForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         newWindow.setWindowTitle(layer.name)
         return newWindow
-
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         super().__init__(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         # Brightness curve
-        cubic = cubicSpline(axeSize)
-        self.graphicsScene.addItem(cubic)
-        self.graphicsScene.cubicRGB = cubic
+        cubic = activeCubicSpline(axeSize)
+        graphicsScene = self.scene()
+        graphicsScene.addItem(cubic)
+        graphicsScene.cubicRGB = cubic
         cubic.channel = channelValues.RGB
-        cubic.histImg = self.scene().layer.inputImg().histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, chans=[], mode='Luminosity')
+        cubic.histImg = self.scene().layer.inputImg().histogram(size=graphicsScene.axeSize, bgColor=graphicsScene.bgColor, chans=[], mode='Luminosity')
         cubic.initFixedPoints()
         # Red curve
-        cubic = cubicSpline(axeSize)
-        self.graphicsScene.addItem(cubic)
-        self.graphicsScene.cubicR = cubic
+        cubic = activeCubicSpline(axeSize)
+        graphicsScene.addItem(cubic)
+        graphicsScene.cubicR = cubic
         cubic.channel = channelValues.Red
-        cubic.histImg = self.scene().layer.inputImg().histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, chans=channelValues.Red)
+        cubic.histImg = self.scene().layer.inputImg().histogram(size=graphicsScene.axeSize, bgColor=graphicsScene.bgColor, chans=channelValues.Red)
         cubic.initFixedPoints()
         # Green curve
-        cubic = cubicSpline(axeSize)
-        self.graphicsScene.addItem(cubic)
-        self.graphicsScene.cubicG = cubic
+        cubic = activeCubicSpline(axeSize)
+        graphicsScene.addItem(cubic)
+        graphicsScene.cubicG = cubic
         cubic.channel = channelValues.Green
-        cubic.histImg = self.scene().layer.inputImg().histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, chans=channelValues.Green)
+        cubic.histImg = self.scene().layer.inputImg().histogram(size=graphicsScene.axeSize, bgColor=graphicsScene.bgColor, chans=channelValues.Green)
         cubic.initFixedPoints()
         # Blue curve
-        cubic = cubicSpline(axeSize)
-        self.graphicsScene.addItem(cubic)
-        self.graphicsScene.cubicB = cubic
+        cubic = activeCubicSpline(axeSize)
+        graphicsScene.addItem(cubic)
+        graphicsScene.cubicB = cubic
         cubic.channel = channelValues.Blue
-        cubic.histImg = self.scene().layer.inputImg().histogram(size=self.scene().axeSize, bgColor=self.scene().bgColor, chans=channelValues.Blue)
+        cubic.histImg = self.scene().layer.inputImg().histogram(size=graphicsScene.axeSize, bgColor=graphicsScene.bgColor, chans=channelValues.Blue)
         cubic.initFixedPoints()
         # set current curve to brightness
-        self.scene().cubicItem = self.graphicsScene.cubicRGB
-        self.scene().cubicItem.setVisible(True)
+        graphicsScene.cubicItem = graphicsScene.cubicRGB
+        graphicsScene.cubicItem.setVisible(True)
 
         # buttons
         pushButton1 = QPushButton("Reset Current")
         pushButton1.move(100,20)
         pushButton1.adjustSize()
         pushButton1.clicked.connect(self.onResetCurve)
-        self.graphicsScene.addWidget(pushButton1)
+        graphicsScene.addWidget(pushButton1)
         pushButton2 = QPushButton("Reset R,G,B")
         pushButton2.move(100, 50)
         pushButton2.adjustSize()
         pushButton2.clicked.connect(self.onResetAllCurves)
-        self.graphicsScene.addWidget(pushButton2)
+        graphicsScene.addWidget(pushButton2)
 
         # options
         options = ['RGB', 'Red', 'Green', 'Blue']
         self.listWidget1 = optionsWidget(options=options, exclusive=True)
         self.listWidget1.setGeometry(0, 10, self.listWidget1.sizeHintForColumn(0)+5, self.listWidget1.sizeHintForRow(0)*len(options) + 5)
-        self.graphicsScene.addWidget(self.listWidget1)
+        graphicsScene.addWidget(self.listWidget1)
         # selection changed handler
-        curves = [self.graphicsScene.cubicRGB, self.graphicsScene.cubicR, self.graphicsScene.cubicG, self.graphicsScene.cubicB]
+        curves = [graphicsScene.cubicRGB, graphicsScene.cubicR, graphicsScene.cubicG, graphicsScene.cubicB]
         curveDict = dict(zip(options, curves))
         def onSelect1(item):
             self.scene().cubicItem.setVisible(False)
@@ -113,18 +113,20 @@ class graphicsForm(graphicsCurveForm) :
         @type qrF: QRectF
         """
         super().drawBackground(qp, qrF)
-        s = self.graphicsScene.axeSize
-        if self.scene().cubicItem.histImg is not None:
-            qp.drawImage(QRect(0, -s, s, s), self.scene().cubicItem.histImg)
+        graphicsScene = self.scene()
+        s = graphicsScene.axeSize
+        if graphicsScene.cubicItem.histImg is not None:
+            qp.drawImage(QRect(0, -s, s, s), graphicsScene.cubicItem.histImg)
 
     def onResetCurve(self):
         """
         Button event handler
         Reset the selected curve
         """
-        self.scene().cubicItem.reset()
+        graphicsScene = self.scene()
+        graphicsScene.cubicItem.reset()
         # self.scene().onUpdateLUT()
-        l = self.scene().layer
+        l = graphicsScene.layer
         l.applyToStack()
         l.parentImage.onImageChanged()
 
@@ -133,9 +135,10 @@ class graphicsForm(graphicsCurveForm) :
         Button event handler
         Reset all curves
         """
-        for cubicItem in [self.graphicsScene.cubicR, self.graphicsScene.cubicG, self.graphicsScene.cubicB]:
+        graphicsScene = self.scene()
+        for cubicItem in [graphicsScene.cubicR, graphicsScene.cubicG, graphicsScene.cubicB]:
             cubicItem.reset()
-        l = self.scene().layer
+        l = graphicsScene.layer
         l.applyToStack()
         l.parentImage.onImageChanged()
 
@@ -147,25 +150,27 @@ class graphicsForm(graphicsCurveForm) :
         @return:
         @rtype: QDataStream
         """
-        layer = self.scene().layer
+        graphicsScene = self.scene()
+        layer = graphicsScene.layer
         outStream.writeQString(layer.actionName)
         outStream.writeQString(layer.name)
         if layer.actionName in ['actionBrightness_Contrast', 'actionCurves_HSpB', 'actionCurves_Lab']:
             outStream.writeQString(self.listWidget1.selectedItems()[0].text())
-            self.graphicsScene.cubicRGB.writeToStream(outStream)
-            self.graphicsScene.cubicR.writeToStream(outStream)
-            self.graphicsScene.cubicG.writeToStream(outStream)
-            self.graphicsScene.cubicB.writeToStream(outStream)
+            graphicsScene.cubicRGB.writeToStream(outStream)
+            graphicsScene.cubicR.writeToStream(outStream)
+            graphicsScene.cubicG.writeToStream(outStream)
+            graphicsScene.cubicB.writeToStream(outStream)
         return outStream
 
     def readFromStream(self, inStream):
         actionName = inStream.readQString()
         name = inStream.readQString()
         sel = inStream.readQString()
-        self.graphicsScene.cubicRGB.readFromStream(inStream)
-        self.graphicsScene.cubicR.readFromStream(inStream)
-        self.graphicsScene.cubicG.readFromStream(inStream)
-        self.graphicsScene.cubicB.readFromStream(inStream)
+        graphicsScene = self.scene()
+        graphicsScene.cubicRGB.readFromStream(inStream)
+        graphicsScene.cubicR.readFromStream(inStream)
+        graphicsScene.cubicG.readFromStream(inStream)
+        graphicsScene.cubicB.readFromStream(inStream)
         return inStream
 
 

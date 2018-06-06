@@ -1341,11 +1341,11 @@ def menuLayer(name):
         grWindow=form.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         # wrapper for the right applyXXX method
         if name == 'actionCurves_RGB':
-            l.execute = lambda l=l, pool=None: l.apply1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
+            l.execute = lambda l=l, pool=None: l.apply1DLUT(grWindow.scene().cubicItem.getStackedLUTXY())
         elif name == 'actionCurves_HSpB':
-            l.execute = lambda l=l, pool=None: l.applyHSV1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY(), pool=pool)
+            l.execute = lambda l=l, pool=None: l.applyHSV1DLUT(grWindow.scene().cubicItem.getStackedLUTXY(), pool=pool)
         elif name == 'actionCurves_Lab':
-            l.execute = lambda l=l, pool=None: l.applyLab1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
+            l.execute = lambda l=l, pool=None: l.applyLab1DLUT(grWindow.scene().cubicItem.getStackedLUTXY())
     # 3D LUT
     elif name in ['action3D_LUT', 'action3D_LUT_HSB']:
         # color model
@@ -1354,7 +1354,7 @@ def menuLayer(name):
         l = window.label.img.addAdjustmentLayer(name=layerName, role='3DLUT')
         grWindow = graphicsForm3DLUT.getNewWindow(ccm, axeSize=300, targetImage=window.label.img, LUTSize=LUTSIZE, layer=l, parent=window, mainForm=window)
         # wrapper for the right apply method
-        l.execute = lambda l=l, pool=None: l.apply3DLUT(grWindow.graphicsScene.LUT3DArray, options=grWindow.graphicsScene.options, pool=pool)
+        l.execute = lambda l=l, pool=None: l.apply3DLUT(grWindow.scene().LUT3DArray, options=grWindow.scene().options, pool=pool)
     # cloning
     elif name == 'actionNew_Cloning_Layer':
         lname = 'Cloning'
@@ -1406,7 +1406,7 @@ def menuLayer(name):
         # wrapper for the right apply method
         l.execute = lambda l=l, pool=None: l.applyTemperature()
     elif name == 'actionContrast_Correction':
-        l = window.label.img.addAdjustmentLayer(name=CoBrSatForm.layerTitle)
+        l = window.label.img.addAdjustmentLayer(name=CoBrSatForm.layerTitle, role='CONTRAST')
         grWindow = CoBrSatForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         # clipLimit change event handler
         def h(lay, clipLimit):
@@ -1444,7 +1444,6 @@ def menuLayer(name):
         grWindow = filterForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         # wrapper for the right apply method
         l.execute = lambda l=l, pool=None: l.applyFilter2D()
-        # l.execute = lambda: l.applyLab1DLUT(grWindow.graphicsScene.cubicItem.getStackedLUTXY())
     elif name == 'actionGradual_Filter':
         lname = 'Blend Filter'
         l = window.label.img.addAdjustmentLayer(name=lname)
