@@ -210,11 +210,12 @@ class CoBrSatForm (QGraphicsView):
             form = graphicsQuadricForm.getNewWindow(targetImage=None, axeSize=axeSize, layer=self.layer, parent=None, mainForm=None)
             form.setWindowFlags(Qt.WindowStaysOnTopHint)
             form.setAttribute(Qt.WA_DeleteOnClose, on=False)
+            form.setWindowTitle('Contrast curve')
             self.contrastForm = form
         else:
             form = self.contrastForm
-        form.graphicsScene.quadricB.setCurve(a*axeSize,b*axeSize,d,T*axeSize)
-        form.show()
+        form.scene().quadricB.setCurve(a*axeSize,b*axeSize,d,T*axeSize)
+        form.showNormal()
 
     def enableSliders(self):
         self.sliderContrast.setEnabled(True)

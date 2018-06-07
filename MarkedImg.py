@@ -61,8 +61,9 @@ class metadata:
 class vImage(QImage):
     """
     Versatile image class.
-    This is the base class for all multi-layered and interactive image
-    classes, and for layer classes. It gathers all image information, including meta-data.
+    This is the base class for multi-layered and interactive image
+    classes, and for layer classes. It gathers all image information,
+    including meta-data.
     A vImage object holds 4 images:
            - full (self),
            - thumbnail (self.thumb),
@@ -72,7 +73,8 @@ class vImage(QImage):
     and handled independently of the full size image.
     """
     ################
-    # max thumb size
+    # max thumb size :
+    # max(thimb.width(), thumb.height()) <= thumbsize
     ################
     thumbSize = 1500
 
@@ -193,7 +195,7 @@ class vImage(QImage):
         @type colorSpace: MarkedImg.colorSpace
         @param orientation: Qtransform object (default None)
         @type orientation: Qtransform 
-        @param meta: meta data (default None)
+        @param meta: metadata instance (default None)
         @type meta: MarkedImg.metadata
         @param rawMetadata: list of dictionaries (default [])
         @type rawMetadata: list of dictionaries
@@ -201,9 +203,9 @@ class vImage(QImage):
         @type profile: str
         """
         # color management : we assume the working profile is the image profile
-        self.colorTransformation = icc.workToMonTransform
+        # self.colorTransformation = icc.workToMonTransform
         # current color managed image
-        self.cmImage = None
+        # self.cmImage = None
         self.isModified = False
         self.rect, self.mask, = None, mask
         self.filename = filename if filename is not None else ''
@@ -232,12 +234,12 @@ class vImage(QImage):
         #  - a stack of thumbnails
         # For the sake of performance, the two stacks are
         # NOT synchronized : they are updated independently.
-        # Thus, after initialization, the thumbnail should NOT be computed from
-        # the full size image.
+        # Thus, after initialization, the thumbnail should
+        # NOT be calculated from the full size image.
         self.thumb = None
         self.onImageChanged = lambda: 0
         if meta is None:
-            # init container
+            # init metadata container
             self.meta = metadata()
             self.meta.name, self.meta.colorSpace, self.meta.rawMetadata, self.meta.profile, self.meta.orientation, self.meta.rating = name, colorSpace, rawMetadata, profile, orientation, rating
         else:
@@ -278,8 +280,9 @@ class vImage(QImage):
             # default : unmask all
             self.mask.fill(self.defaultColor_UnMasked)
         #self.updatePixmap()
-        if type(self) in [QLayer]:
-            vImage.updatePixmap(self)
+        if type(self) in [QLayer]: # [QLayer, QPresentationLayer]:  TODO 07/06/18 validate modif 
+            #vImage.updatePixmap(self)
+            self.updatePixmap()
 
     def setImage(self, qimg):
         """
@@ -449,10 +452,10 @@ class vImage(QImage):
         if hasattr(self, 'maskedThumbContainer'):
             if self.maskedThumbContainer is not None:
                 self.maskedThumbContainer.cacheInvalidate()
-    @tdec
+
     def updatePixmap(self, maskOnly=False):
         """
-        Updates the qPixmap, thumb and cmImage caches.
+        Updates the qPixmap, rPixmap, thumb and cmImage caches.
         The image is that returned by getCurrentImage(), thus
         the caches are synchronized using the current image
         mode (full or preview).
@@ -472,11 +475,12 @@ class vImage(QImage):
         @type maskOnly: boolean
         """
         currentImage = self.getCurrentImage()
+        """
         if not maskOnly:
             # invalidate color managed cache
             self.cmImage = None
-        # get (eventually) up to date  color managed image
-        if icc.COLOR_MANAGE:
+        # get current image and apply color management if self is the presentation layer
+        if icc.COLOR_MANAGE and getattr(self, 'role', None) == 'presentation':
             if self.cmImage is None:
                 # CAUTION : reset alpha channel
                 img = convertQImage(currentImage, transformation=self.colorTransformation)
@@ -491,18 +495,17 @@ class vImage(QImage):
             #img = QImage(currentImage)
             img = currentImage
         # refresh cache
-        """
         if maskOnly:
             #self.cmImage = QImage(img)
             self.cmImage = img
-        """
         self.cmImage = img
         qImg = img
+        """
         rImg = currentImage
         if self.maskIsEnabled:
-            qImg = vImage.visualizeMask(qImg, self.mask, color=self.maskIsSelected, clipping=self.isClipping)
+            #qImg = vImage.visualizeMask(qImg, self.mask, color=self.maskIsSelected, clipping=self.isClipping)
             rImg = vImage.visualizeMask(rImg, self.mask, color=self.maskIsSelected, clipping=self.isClipping)
-        self.qPixmap = QPixmap.fromImage(qImg)
+        #self.qPixmap = QPixmap.fromImage(qImg)
         self.rPixmap = QPixmap.fromImage(rImg)
 
     def resetMask(self, maskAll=False):
@@ -568,6 +571,15 @@ class vImage(QImage):
         transform = QTransform()
         transform = transform.scale(w/self.width(), h/self.height())
         return self.bTransformed(transform)
+
+    def applyNone(self):
+        """
+        Pass through
+        """
+        bufIn = QImageBuffer(self.inputImg())
+        bufOut = QImageBuffer(self.getCurrentImage())
+        bufOut[:,:,:] = bufIn
+        self.updatePixmap()
 
     def applyCloning(self, seamless=True):
         """
@@ -1049,7 +1061,7 @@ class vImage(QImage):
         # forward opacity changes
         ndImg1a[:, :,3] = tmpBuf[:,:,3]
         self.updatePixmap()
-    @tdec
+
     def apply1DLUT(self, stackedLUT, options={}):
         """
         Applies 1D LUTS to RGB channels (one for each channel)
@@ -1079,7 +1091,7 @@ class vImage(QImage):
             ndImg1[:, :, c] = np.take(stackedLUT[2-c,:], ndImg0[:,:,c].reshape((-1,))).reshape(s)
         # ndImg1[:, :, :] = stackedLUT[rList, ndImg0]  # last dims of index arrays are equal : broadcast works. slower 0.66s for 15Mpx
         self.updatePixmap()
-    @tdec
+
     def applyLab1DLUT(self, stackedLUT, options={}):
         """
         Applies 1D LUTS (one row for each L,a,b channel)
@@ -1126,7 +1138,7 @@ class vImage(QImage):
         ndImg1[:, :, :3][:, :, ::-1] = ndsRGBImg1
         # update
         self.updatePixmap()
-    @tdec
+
     def applyHSPB1DLUT(self, stackedLUT, options={}, pool=None):
         """
         Applies 1D LUTS to hue, sat and brightness channels.
@@ -1164,7 +1176,7 @@ class vImage(QImage):
         ndImg1a[:, :, :3][:,:,::-1] = ndRGBImg1
         # update
         self.updatePixmap()
-    @tdec
+
     def applyHSV1DLUT(self, stackedLUT, options={}, pool=None):
         """
         Applies 1D LUTS to hue, sat and brightness channels.
@@ -1499,9 +1511,12 @@ class vImage(QImage):
 
 class mImage(vImage):
     """
-    Multi-layer image. A mImage holds at least a background
-    layer. All layers share the same metadata object. To correctly render a
-    mImage, widgets must override their paint event handler.
+    Multi-layer image : base class for editable images.
+    A mImage holds a presentation layer
+    for color management and a stack containing at least a
+    background layer. All layers share the same metadata instance.
+    To correctly render a mImage, widgets should override their
+    paint event handler.
     """
     @classmethod
     def restoreMeta(cls, srcFile, destFile):
@@ -1516,17 +1531,27 @@ class mImage(vImage):
             e.restoreMetadata(srcFile, destFile)
 
     def __init__(self, *args, **kwargs):
-        # as updatePixmap uses layersStack, must be before super __init__
+        # as updatePixmap uses layersStack, must be
+        # before the call to super(). __init__
         self.layersStack = []
         # link back to QLayerView window
         self.layerView = None
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)  # must be done before prLayer init.
         # add background layer
         bgLayer = QLayer.fromImage(self, parentImage=self)
         bgLayer.isClipping = True
         self.setModified(False)
         self.activeLayerIndex = None
         self.addLayer(bgLayer, name='Background')
+        # color management : we assume that the image profile is the working profile
+        self.colorTransformation = icc.workToMonTransform
+        # add presentation layer
+        prLayer = QPresentationLayer(QImg=self, parentImage=self)
+        prLayer.name = 'presentation'
+        prLayer.role ='presentation'
+        prLayer.execute = lambda l=prLayer, pool=None: prLayer.applyNone()
+        prLayer.updatePixmap() # mandatory here as vImage init. can't do it
+        self.prLayer = prLayer
         self.isModified = False
         # rawpy object
         self.rawImage = None
@@ -1626,11 +1651,13 @@ class mImage(vImage):
 
     def updatePixmap(self):
         """
+        Updates all pixmaps
         Overrides vImage.updatePixmap()
         """
         vImage.updatePixmap(self)
         for layer in self.layersStack:
             vImage.updatePixmap(layer)
+        self.prLayer.updatePixmap()
 
     def getStackIndex(self, layer):
         p = id(layer)
@@ -1664,7 +1691,7 @@ class mImage(vImage):
             layer = QLayer(QImg=self)
             layer.fill(Qt.white)
         layer.name = trialname
-        layer.parentImage = self
+        #layer.parentImage = self # TODO 07/06/18 validate suppression
         if index==None:
             if self.activeLayerIndex is not None:
                 # add on top of active layer if any
@@ -1838,11 +1865,12 @@ class mImage(vImage):
 
 class imImage(mImage) :
     """
-    Interactive multi-layer image
+    Zoomable and draggable multi-layer image :
+    this is the base class for bLUe documents
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Zoom coeff
+        # Zoom coeff :
         # Zoom_coeff = 1.0 displays an image fitting the
         # size of the current window ( NOT the actual pixels of the image).
         self.Zoom_coeff = 1.0
@@ -2232,6 +2260,8 @@ class QLayer(vImage):
             if pool is not None:
                 pool.close()
             pool = None
+            # update the presentation layer
+            self.parentImage.prLayer.execute(l=None, pool=None)
         finally:
             self.parentImage.setModified(True)  #TODO 28/02/18 validate
             QApplication.restoreOverrideCursor()
@@ -2290,11 +2320,12 @@ class QLayer(vImage):
         @type maskOnly: boolean
         """
         currentImage = self.getCurrentImage()
+        """
         if not maskOnly:
             # invalidate color managed cache
             self.cmImage = None
-        # get (eventually) up to date  color managed image
-        if icc.COLOR_MANAGE and self.parentImage is not None:
+        # get current image and apply color management if self is the presentation layer
+        if icc.COLOR_MANAGE and self.parentImage is not None and getattr(self, 'role', None) == 'presentation':
             # layer color model is parent image color model
             if self.cmImage is None:
                 # CAUTION : reset alpha channel
@@ -2309,20 +2340,27 @@ class QLayer(vImage):
             img = currentImage
         self.cmImage = img
         qImg = img
+        """
         rImg = currentImage
         # apply layer transformation. Missing pixels are set to QColor(0,0,0,0)
         if self.xOffset != 0 or self.yOffset != 0:
             x,y = self.full2CurrentXY(self.xOffset, self.yOffset)
-            qImg = qImg.copy(QRect(-x, -y, qImg.width()*self.Zoom_coeff, qImg.height()*self.Zoom_coeff))
+            #qImg = qImg.copy(QRect(-x, -y, qImg.width()*self.Zoom_coeff, qImg.height()*self.Zoom_coeff))
             rImg = rImg.copy(QRect(-x, -y, rImg.width()*self.Zoom_coeff, rImg.height()*self.Zoom_coeff))
         if self.maskIsEnabled:
-            qImg = vImage.visualizeMask(qImg, self.mask, color=self.maskIsSelected, clipping=self.isClipping)
+            #qImg = vImage.visualizeMask(qImg, self.mask, color=self.maskIsSelected, clipping=self.isClipping)
             rImg = vImage.visualizeMask(rImg, self.mask, color=self.maskIsSelected, clipping=self.isClipping)
-        self.qPixmap = QPixmap.fromImage(qImg)
+        #self.qPixmap = QPixmap.fromImage(qImg)
         self.rPixmap = QPixmap.fromImage(rImg)
         self.setModified(True)
 
     def getStackIndex(self):
+        """
+        Returns layer index in the stack, len(stack) - 1 if
+        the layer is not in the stack.
+        @return:
+        @rtype: int
+        """
         for i, l in enumerate(self.parentImage.layersStack):
             if l is self:
                 break
@@ -2467,6 +2505,72 @@ class QLayer(vImage):
             self.view.widget().readFromStream(dataStream)
         return dataStream
 
+class QPresentationLayer(QLayer):
+    """
+    A presentation layer is used for color management. It is simply an
+    adjustment layer that does nothing. It does not belong to the layer stack :
+    conceptually, it is "above" the stack, so its output is the composition of
+    all stacked layers. It is the sole color managed layer. It holds a cmImage
+    attribute caching the current color managed image.
+    """
+
+    def __init__(self, *args, **kwargs):
+        self.cmImage = None
+        super().__init__(*args, **kwargs)
+
+    def inputImg(self):
+        return self.parentImage.layersStack[-1].getCurrentMaskedImage()
+
+    def updatePixmap(self, maskOnly = False):
+        """
+        Updates the caches qPixmap, rPixmap and cmImage.
+        The input image is that returned by getCurrentImage(), thus
+        the caches are synchronized using the current image
+        mode (full or preview).
+        If maskOnly is True, cmImage is not updated.
+        if maskIsEnabled is False, the mask is not shown.
+        If maskIsEnabled is True, then
+            - if maskIsSelected is True, the mask is drawn over
+              the layer as a color mask.
+            - if maskIsSelected is False, the mask is drawn as an
+              opacity mask, setting image opacity to that of mask
+              (mode DestinationIn). Mask color is no used.
+        @param maskOnly: default False
+        @type maskOnly: boolean
+        """
+        currentImage = self.getCurrentImage()
+        if not maskOnly:
+            # invalidate color managed cache
+            self.cmImage = None
+        # get current image and apply color management if self is the presentation layer
+        if icc.COLOR_MANAGE and self.parentImage is not None and getattr(self, 'role', None) == 'presentation':
+            # layer color model is parent image color model
+            if self.cmImage is None:
+                # CAUTION : reset alpha channel
+                img = convertQImage(currentImage, transformation=self.parentImage.colorTransformation)  # time 0.66 s for 15 Mpx.
+                # restore alpha
+                buf0 = QImageBuffer(img)
+                buf1 = QImageBuffer(currentImage)
+                buf0[:,:,3] = buf1[:,:,3]
+            else:
+                img = self.cmImage
+        else:
+            img = currentImage
+        self.cmImage = img
+        qImg = img
+        rImg = currentImage
+        # apply layer transformation. Missing pixels are set to QColor(0,0,0,0)
+        if self.xOffset != 0 or self.yOffset != 0:
+            x,y = self.full2CurrentXY(self.xOffset, self.yOffset)
+            qImg = qImg.copy(QRect(-x, -y, qImg.width()*self.Zoom_coeff, qImg.height()*self.Zoom_coeff))
+            rImg = rImg.copy(QRect(-x, -y, rImg.width()*self.Zoom_coeff, rImg.height()*self.Zoom_coeff))
+        if self.maskIsEnabled:
+            #qImg = vImage.visualizeMask(qImg, self.mask, color=self.maskIsSelected, clipping=self.isClipping)
+            rImg = vImage.visualizeMask(rImg, self.mask, color=self.maskIsSelected, clipping=self.isClipping)
+        self.qPixmap = QPixmap.fromImage(qImg)
+        self.rPixmap = QPixmap.fromImage(rImg)
+        self.setModified(True)
+
 class QLayerImage(QLayer):
     @classmethod
     def fromImage(cls, mImg, parentImage=None, sourceImg=None):
@@ -2541,7 +2645,6 @@ def apply3DLUTSliceCls(LUT, inputBuffer, imgBuffer, s ):
     ndImg1[s[1], s[0], :] = interpVec_(LUT, ndImg0)
     end = time()
     #print 'Apply3DLUT time %.2f' % (end - start)
-
 
 def applyHaldCls(item):
     """

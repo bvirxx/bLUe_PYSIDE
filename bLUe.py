@@ -226,20 +226,28 @@ def paintEvent(widg, e) :
     qp.setRenderHint(QPainter.SmoothPixmapTransform)
     # fill  background
     qp.fillRect(QRectF(0, 0, widg.width() , widg.height() ), vImage.defaultBgColor)
-    # draw layers.
+    # draw the presentation layer.
+    # As offsets can be float numbers, we use QRectF instead of QRect
+    # r is relative to full resolution image, so we use mimg width and height
+    rectF = QRectF(mimg.xOffset, mimg.yOffset, mimg.width() * r, mimg.height() * r)
+    """
     for layer in mimg.layersStack :
         if layer.visible:
             qp.setOpacity(layer.opacity)
             qp.setCompositionMode(layer.compositionMode)
-            # As offsets can be float numbers, we use QRectF instead of QRect
-            # r is relative to full resolution image, so we use mimg width and height
-            rectF = QRectF(mimg.xOffset, mimg.yOffset, mimg.width()*r, mimg.height()*r)
             if layer.qPixmap is not None:
                 px=layer.qPixmap
                 qp.drawPixmap(rectF, px, px.rect())
             else:
                 currentImage = layer.getCurrentImage()
                 qp.drawImage(rectF, currentImage, currentImage.rect())
+    """
+    px = mimg.prLayer.qPixmap
+    if px is not None:
+        qp.drawPixmap(rectF, px, px.rect())
+    else:
+        currentImage = mimg.prLayer.getCurrentImage()
+        qp.drawImage(rectF, currentImage, QImage.rect(currentImage))  # vImage.rect() is overwritten
     # draw selection rectangle for active layer only
     layer = mimg.getActiveLayer()
     rect = layer.rect
@@ -1864,17 +1872,6 @@ if __name__ =='__main__':
     window.actionColor_manage.setEnabled(icc.HAS_COLOR_MANAGE)
     window.actionColor_manage.setChecked(icc.COLOR_MANAGE)
     updateStatus()
-
-    ###################
-    # test numpy dll loading
-    #################
-    import numpy as np
-    from time import time
-    t = time()
-    dummy = np.dot([[i] for i in range(1000)], [range(1000)])
-    t = time() - t
-    if t > 0.01:
-        print('dot product time %.5f' % t)
 
     ###############
     # launch app

@@ -542,8 +542,8 @@ class graphicsQuadricForm(graphicsCurveForm) :
         graphicsScene.addItem(quadric)
         graphicsScene.quadricB = quadric
         quadric.channel = channelValues.Br
-        quadric.histImg = self.scene().layer.histogram(size=graphicsScene.axeSize, bgColor=graphicsScene.bgColor,
-                                                       range=(0,1), chans=channelValues.Br, mode='Luminosity')
+        quadric.histImg = graphicsScene.layer.histogram(size=graphicsScene.axeSize, bgColor=graphicsScene.bgColor,
+                                                       range=(0,255), chans=channelValues.Br, mode='Luminosity')
         quadric.initFixedPoints()
         # set current curve
         graphicsScene.cubicItem = graphicsScene.quadricB
