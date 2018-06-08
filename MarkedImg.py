@@ -280,7 +280,7 @@ class vImage(QImage):
             # default : unmask all
             self.mask.fill(self.defaultColor_UnMasked)
         #self.updatePixmap()
-        if type(self) in [QLayer]: # [QLayer, QPresentationLayer]:  TODO 07/06/18 validate modif 
+        if type(self) in [QLayer]: # [QLayer, QPresentationLayer]:  TODO 07/06/18 validate modif
             #vImage.updatePixmap(self)
             self.updatePixmap()
 
@@ -2251,19 +2251,23 @@ class QLayer(vImage):
         try:
             QApplication.setOverrideCursor(Qt.WaitCursor)
             QApplication.processEvents()
+            """
             if (not self.parentImage.useThumb or self.parentImage.useHald):
                 pool = None
                 # pool = multiprocessing.Pool(MULTIPROC_POOLSIZE)  # TODO time opt : pool is always created and used only by apply3DLUT; time 0.3s
             else:
                 pool = None
-            applyToStack_(self, pool=pool)
+            """
+            applyToStack_(self, pool=None)
+            """
             if pool is not None:
                 pool.close()
             pool = None
+            """
             # update the presentation layer
             self.parentImage.prLayer.execute(l=None, pool=None)
         finally:
-            self.parentImage.setModified(True)  #TODO 28/02/18 validate
+            self.parentImage.setModified(True)
             QApplication.restoreOverrideCursor()
             QApplication.processEvents()
     """

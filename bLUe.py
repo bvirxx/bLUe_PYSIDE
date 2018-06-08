@@ -491,8 +491,7 @@ def wheelEvent(widget,img, event):
     pos = event.pos()
     # delta unit is 1/8 of degree
     # Most mice have a resolution of 15 degrees
-    numDegrees = event.delta() / 8
-    numSteps = numDegrees / 150.0
+    numSteps = event.delta() / 1200.0
     # keyboard modifiers
     modifiers = QApplication.keyboardModifiers()
     layer = img.getActiveLayer()

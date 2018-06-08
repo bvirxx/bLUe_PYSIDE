@@ -20,6 +20,7 @@ from PySide2.QtCore import QRect
 from PySide2.QtCore import Qt, QRectF
 from PySide2.QtWidgets import QPushButton, QGraphicsScene
 
+from debug import tdec
 from graphicsLUT import activeCubicSpline, graphicsCurveForm
 from utils import optionsWidget, channelValues
 

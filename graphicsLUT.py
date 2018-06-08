@@ -518,6 +518,27 @@ class graphicsCurveForm(QGraphicsView):
         # add axes and grid
         item = drawPlotGrid(axeSize)
         graphicsScene.addItem(item)
+        # default WhatsThis for interactive curves
+        self.setWhatsThis(
+"""
+Drag control points with the mouse
+Add a control point by clicking on the curve
+Remove a control point by clicking it
+Zoom with the mouse wheel
+"""                      )
+
+    def wheelEvent(self, e):
+        """
+        Overrides QGraphicsView wheelEvent
+        Zoom the scene
+        @param e:
+        @type e:
+        """
+        pos = e.pos()
+        # delta unit is 1/8 of degree
+        # Most mice have a resolution of 15 degrees
+        numSteps = 1 + e.delta() / 1200.0
+        self.scale(numSteps, numSteps)
 
 class graphicsQuadricForm(graphicsCurveForm) :
     """

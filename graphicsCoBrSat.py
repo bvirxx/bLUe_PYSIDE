@@ -192,6 +192,16 @@ class CoBrSatForm (QGraphicsView):
         self.dataChanged.connect(self.updateLayer)
         self.setStyleSheet("QListWidget, QLabel {font : 7pt;}")
         self.setDefaults()
+        self.setWhatsThis(
+"""
+Brightness and saturation are increased or decreased using the corresponding sliders.
+
+Contrast is enhanced using one of these two methods:
+  - CLAHE : increases the local contrast
+  - Multi-Mode : increases the local contrast and the contrast between regions in the image
+For both methods the contrast slider controls the level of the correction
+"""
+                        )
 
     def setContrastSpline(self, a, b, d, T):
         """
