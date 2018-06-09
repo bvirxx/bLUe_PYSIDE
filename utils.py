@@ -537,21 +537,25 @@ class croppingHandle(QToolButton):
             if margin < 0 or margin >= img.width() - self.tool.btnDict['right'].margin:
                 return
             self.margin = margin
+            lMargin = margin
         elif self.role == 'right':
             margin = img.width() - (p.x() - img.xOffset) / r
             if margin < 0 or margin >= img.width() - self.tool.btnDict['left'].margin:
                 return
             self.margin = margin
+            rMargin = margin
         elif self.role == 'top':
             margin = (p.y() - img.yOffset + self.height()) / r
             if margin < 0 or margin >= img.height() - self.tool.btnDict['bottom'].margin:
                 return
             self.margin = margin
+            tMargin = margin
         elif self.role == 'bottom':
             margin = img.height() - (p.y() - img.yOffset) / r
             if margin < 0 or margin >= img.height() - self.tool.btnDict['top'].margin:
                 return
             self.margin = margin
+            bMargin = margin
         # angle buttons
         elif self.role == 'topRight':
             rMargin = img.width() - (p.x() - img.xOffset) / r

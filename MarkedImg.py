@@ -340,19 +340,20 @@ class vImage(QImage):
     def resize_coeff(self, widget):
         """
         Normalization of self.Zoom_coeff.
-        Returns the current resizing coefficient, as used by
+        Returns the current resizing coefficient used by
         the widget paint event handler to display the image.
-        Note 1. This coefficient is chosen to initially (i.e. when self.Zoom_coeff = 1)
+        The coefficient is chosen to initially (i.e. when self.Zoom_coeff = 1)
         fill the widget.
-        Note 2. To correctly manage splitted views, we use the size of the QSplitter parent
+        For splitted views we use the size of the QSplitter parent
         container instead of the size of the widget.
         @param widget:
         @tyep widget: Qwidget
         @return: the (multiplicative) resizing coefficient
         @rtype: float
         """
-        if type(widget.parent()) == QSplitter:
-            widget = widget.parent()
+        wp = widget.parent()
+        if type(wp) == QSplitter:
+            widget = wp
         r_w, r_h = float(widget.width()) / self.width(), float(widget.height()) / self.height()
         r = max(r_w, r_h)
         return r * self.Zoom_coeff
@@ -1773,7 +1774,7 @@ class mImage(vImage):
 
     def mergeVisibleLayers(self):
         """
-        Merge the current visible masked images and return the
+        Merges the visible masked images and returns the
         resulting QImage, eventually scaled to fit the image size.
         @return: image
         @rtype: QImage
@@ -1802,8 +1803,11 @@ class mImage(vImage):
         # don't save thumbnails
         if self.useThumb:
             return False
-        # get image
-        img = self.mergeVisibleLayers() #self.layersStack[-1].rPixmap.toImage()  TODO 11/04/18 validate
+        # get the final image from the presentation layer.
+        # It is important to note that this image is
+        # NOT color managed (only the pixmap prLayer.qPixmap
+        # is color managed)
+        img = self.prLayer.getCurrentImage() # self.mergeVisibleLayers()
         # imagewriter and QImage.save are unusable for tif files,
         # due to bugs in libtiff, hence
         # we use opencv imwrite.
@@ -1818,11 +1822,15 @@ class mImage(vImage):
             raise IOError("Invalid File Format\nValid formats are jpg, png, tif ")
         buf = QImageBuffer(img)[:,:,:3]
         if self.isCropped:
-            buf = buf[img.cropLeft:img.cropRight, img.cropTop:img.cropBottom,:]
+            # make slices
+            w, h = self.width(), self.height()
+            w1, w2 = int(self.cropLeft), w - int(self.cropRight)
+            h1, h2 = int(self.cropTop), h - int(self.cropBottom)
+            buf = buf[h1:h2, w1:w2,:]
         written = cv2.imwrite(filename, buf, params)  #BGR order
         if not written:
             raise IOError("Cannot write file %s " % filename)
-        self.setModified(False)
+        # self.setModified(False) # cannot be reset if the image is modified again
 
     def writeStackToStream(self, dataStream):
         dataStream.writeInt32(len(self.layersStack))

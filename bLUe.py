@@ -148,7 +148,7 @@ from colorModels import cmHSP, cmHSB
 from colorManagement import icc
 from graphicsCoBrSat import CoBrSatForm
 from graphicsExp import ExpForm
-from graphicsPatch import patchForm, maskForm
+from graphicsPatch import patchForm
 from utils import saveChangeDialog, saveDlg, openDlg, cropTool, rotatingTool, IMAGE_FILE_NAME_FILTER, \
     IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, demosaic, dlgWarn, dlgInfo
 from graphicsTemp import temperatureForm
@@ -192,70 +192,62 @@ axeSize = 200
 #########
 splittedWin = splittedWindow(window)
 
-###############
-# Global QPainter for paint event
+################################
+# unbound event handlers.
+# They can be bound  dynamically
+# to specific widgets (e.g. QLabels)
+# to interact with images
+################################
+
+# init global QPainter for paint event (CAUTION non thread safe approach!)
 qp = QPainter()
 # stuff for Before/After marks
 qp.font = QFont("Arial", 8)
 qp.markPath=QPainterPath()
 qp.markRect = QRect(0, 0, 50, 20)
 qp.markPath.addRoundedRect(qp.markRect, 5, 5)
-##############
+
 
 def paintEvent(widg, e) :
     """
-    Paint event handler for widgets displaying a mImage object.
-    The widget must have a valid img attribute of type QImage.
-    The handler should override the paintEvent method of widg. This can be done
-    by subclassing, or by dynamically assigning paintEvent
-    to widg.paintEvent (cf. the function set_event_handler
-    below).
-    Layer qPixmaps (color managed) are painted in stack ascending order,
-    each with its own opacity and composition mode.
+    Paint event handler.
+    The handler displays a vImage object in a Qlabel, with
+    current offset and zooming coefficient.
+    The widget must have a valid img attribute of type vImage.
+    The handler should be used override the paintEvent method of widg. This can be done
+    by subclassing (not directly compatible with Qt Designer) or by assigning paintEvent
+    to widg.paintEvent (cf. the function set_event_handler below).
     @param widg: widget
-    @type widg: object with a img attribute of type mImage
+    @type widg: object with a img attribute of type vImage
     @param e: paint event
     """
-    if not hasattr(widg, 'img'):
-        raise ValueError("paintEvent: no image attribute")
-    mimg = widg.img
+    mimg = getattr(widg, 'img', None)
     if mimg is None:
         return
     r = mimg.resize_coeff(widg)
     qp.begin(widg)
+    # smooth painting
     qp.setRenderHint(QPainter.SmoothPixmapTransform)
-    # fill  background
-    qp.fillRect(QRectF(0, 0, widg.width() , widg.height() ), vImage.defaultBgColor)
+    # fill background
+    qp.fillRect(QRect(0, 0, widg.width() , widg.height() ), vImage.defaultBgColor)
     # draw the presentation layer.
     # As offsets can be float numbers, we use QRectF instead of QRect
-    # r is relative to full resolution image, so we use mimg width and height
-    rectF = QRectF(mimg.xOffset, mimg.yOffset, mimg.width() * r, mimg.height() * r)
-    """
-    for layer in mimg.layersStack :
-        if layer.visible:
-            qp.setOpacity(layer.opacity)
-            qp.setCompositionMode(layer.compositionMode)
-            if layer.qPixmap is not None:
-                px=layer.qPixmap
-                qp.drawPixmap(rectF, px, px.rect())
-            else:
-                currentImage = layer.getCurrentImage()
-                qp.drawImage(rectF, currentImage, currentImage.rect())
-    """
+    # r is relative to the full resolution image, so we use mimg width and height
+    w, h = mimg.width() * r, mimg.height() * r
+    rectF = QRectF(mimg.xOffset, mimg.yOffset, w, h)
     px = mimg.prLayer.qPixmap
     if px is not None:
         qp.drawPixmap(rectF, px, px.rect())
     else:
         currentImage = mimg.prLayer.getCurrentImage()
-        qp.drawImage(rectF, currentImage, QImage.rect(currentImage))  # vImage.rect() is overwritten
-    # draw selection rectangle for active layer only
+        qp.drawImage(rectF, currentImage, QImage.rect(currentImage))  # CAUTION : vImage.rect() is overwritten by attribute rect
+    # draw selection rectangle for the active layer only
     layer = mimg.getActiveLayer()
     rect = layer.rect
     if (layer.visible) and (rect is not None ):
         qp.setPen(QColor(0, 255, 0))
         qp.drawRect(rect.left()*r + mimg.xOffset, rect.top()*r +mimg.yOffset, rect.width()*r, rect.height()*r)
-    # draw cropping marks and rulers
-    w, h = mimg.width() * r, mimg.height() * r
+    # cropping marks
     lm, rm, tm, bm = 0, 0, 0, 0
     if mimg.isCropped:
         c = QColor(128,128,128, 192)
@@ -271,6 +263,7 @@ def paintEvent(widg, e) :
         qp.fillRect(QRectF(mimg.xOffset+w-rm, mimg.yOffset+tm, rm, h-tm),  c)
         #bottom
         qp.fillRect(QRectF(mimg.xOffset+lm, mimg.yOffset+h-bm, w-lm-rm, bm), c)
+    # rulers
     if mimg.isRuled:
         deltaX, deltaY = (w-lm-rm)//3, (h-tm-bm)//3
         qp.drawLine(lm+mimg.xOffset, deltaY+tm+mimg.yOffset, w-rm+mimg.xOffset, deltaY+tm+mimg.yOffset)
@@ -288,33 +281,32 @@ def paintEvent(widg, e) :
         qp.drawText(qp.markRect, Qt.AlignCenter | Qt.AlignVCenter, "Before" if name == "label_2" else "After" )
     qp.end()
 
-# mouse event handler for image widgets (i.e. with a dynamically set attribute widget.img of type imImage)
-# global variables used in mouseEvent
-# Recording of mouse coordinates, relative to widget
-State = {'drag':False, 'drawing':False , 'tool_rect':False, 'rect_over':False, 'ix':0, 'iy':0, 'ix_begin':0, 'iy_begin':0}
-# Recording of mouse state
+# global variables used in mouseEvent. CAUTION:  non thread safe
+# Recording of state and mouse coordinates (relative to widget)
+State = {'ix':0, 'iy':0, 'ix_begin':0, 'iy_begin':0} #{'drag':False, 'drawing':False , 'tool_rect':False, 'rect_over':False,
 pressed=False
 clicked = True
-def mouseEvent(widget, event) :
+def mouseEvent(widget, event) :  # TODO split in 3 handlers
     """
-    Mouse event handler for QLabel object.
+    Mouse event handler.
+    The handler implements mouse actions on a vImage
+    displayed in a Qlabel.
     It handles image positioning, zooming, and
     tool actions. It must be called by mousePressed,
-    mouseMoved and mouseReleased. This can be done by subclassing
-    and overriding, or by dynamically assigning mouseEvent
-    to the former three methods (cf. the function set_event_handler
-    below).
+    mouseMoved and mouseReleased of the QLabel. This can be done by
+    subclassing (not directly compatible with Qt Designer) or by
+    dynamically assigning mouseEvent to the former three methods
+    (cf. the function set_event_handler below).
     NOTE 1. Mouse hover generates mouse move events
     NOTE 2. Due to wheeelEvent, xOffset and yOffset are float numbers
     @param widget:
-    @type widget: QLabel object with img attribute
+    @type widget: QLabel object with img attribute of type mImage
     @param event: mouse event
     @type event:
     """
+    global pressed, clicked
     if type(event) == QContextMenuEvent:
         return
-
-    global pressed, clicked
     # get image and active layer
     img= widget.img
     layer = img.getActiveLayer()
@@ -323,10 +315,13 @@ def mouseEvent(widget, event) :
     x, y = event.x(), event.y()
     # keyboard modifiers
     modifiers = QApplication.keyboardModifiers()
+    eventType = event.type()
+    ###################
     # mouse press event
-    if event.type() == QEvent.MouseButtonPress :
+    ###################
+    if eventType == QEvent.MouseButtonPress :
         # Mouse hover generates mouse move events,
-        # so, we use a flag pressed to only select non hovering events
+        # so, we set pressed to only select non hovering events
         pressed=True
         if event.button() == Qt.LeftButton:
             # no move yet
@@ -334,85 +329,90 @@ def mouseEvent(widget, event) :
         State['ix'], State['iy'] = x, y
         State['ix_begin'], State['iy_begin'] = x, y
         State['x_imagePrecPos'], State['y_imagePrecPos'] = (x - img.xOffset) // r, (y - img.yOffset) // r
+        return  # no update needed
+    ##################
     # mouse move event
-    elif event.type() == QEvent.MouseMove :
+    ##################
+    elif eventType == QEvent.MouseMove :
+        # skip hover events
+        if not pressed:
+            return
         clicked=False
-        if pressed :
-            if img.isMouseSelectable:
-                # don't draw on a non visible layer
-                if window.btnValues['rectangle'] or window.btnValues['drawFG'] or window.btnValues['drawBG']:
-                    if not layer.visible:
-                        dlgWarn('Select a visible layer for drawing or painting')
-                        pressed = False
-                        return
-                # marquee tool
-                if window.btnValues['rectangle']:
-                    # rectangle coordinates are relative to image
-                    x_img = (min(State['ix_begin'], x) - img.xOffset) // r
-                    y_img = (min(State['iy_begin'], y) - img.yOffset) // r
-                    w = abs(State['ix_begin'] - x) // r
-                    h = abs(State['iy_begin'] - y) // r
-                    layer.rect = QRect(x_img, y_img, w, h)
-                # drawing tools
-                elif window.btnValues['drawFG'] or window.btnValues['drawBG']:
-                    if layer.maskIsEnabled:
-                        color = vImage.defaultColor_UnMasked if window.btnValues['drawFG'] else vImage.defaultColor_Masked
-                        qp.begin(layer.mask)
-                        # get pen width
-                        w = window.verticalSlider1.value() // (2*r)
-                        # mode source : result is source (=pen) pixel color and opacity
-                        qp.setCompositionMode(qp.CompositionMode_Source)
-                        tmp_x = (x - img.xOffset) // r
-                        tmp_y = (y - img.yOffset) // r
-                        qp.drawEllipse(tmp_x-w//2, tmp_y-w//2, w, w)
-                        qp.setPen(QPen(color, 2*w))
-                        qp.drawLine(State['x_imagePrecPos'], State['y_imagePrecPos'], tmp_x, tmp_y)
-                        qp.end()
-                        State['x_imagePrecPos'], State['y_imagePrecPos'] = tmp_x, tmp_y
-                        # update mask stack
-                        for l in img.layersStack :
-                            l.updatePixmap(maskOnly=True)
-                        window.label.repaint()
-                # translations
-                else:
-                    # translate image
-                    if modifiers == Qt.NoModifier:
-                        img.xOffset+=(x-State['ix'])
-                        img.yOffset+=(y-State['iy'])
-                        if window.btnValues['Crop_Button']:
-                            window.cropTool.drawCropTool(img)
-                    # translate active layer only
-                    elif modifiers == Qt.ControlModifier:
-                        layer.xOffset += (x - State['ix'])
-                        layer.yOffset += (y - State['iy'])
-                        layer.updatePixmap()
-                    # translate cloning virtual layer
-                    elif modifiers == Qt.ControlModifier | Qt.AltModifier:
-                        if layer.isCloningLayer():
-                            layer.xAltOffset += (x - State['ix'])
-                            layer.yAltOffset += (y - State['iy'])
-                            layer.cloned = False
-                            if layer.keepCloned:
-                                layer.maskIsEnabled = True
-                                layer.maskIsSelected = False
-                            layer.applyCloning(seamless=False)
-            # need to update before window
+        if img.isMouseSelectable:
+            # don't draw on a non visible layer
+            if window.btnValues['rectangle'] or window.btnValues['drawFG'] or window.btnValues['drawBG']:
+                if not layer.visible:
+                    dlgWarn('Select a visible layer for drawing or painting')
+                    pressed = False
+                    return
+            # marquee tool
+            if window.btnValues['rectangle']:
+                # rectangle coordinates are relative to image
+                x_img = (min(State['ix_begin'], x) - img.xOffset) // r
+                y_img = (min(State['iy_begin'], y) - img.yOffset) // r
+                w = abs(State['ix_begin'] - x) // r
+                h = abs(State['iy_begin'] - y) // r
+                layer.rect = QRect(x_img, y_img, w, h)
+            # drawing tools
+            elif window.btnValues['drawFG'] or window.btnValues['drawBG']:
+                if layer.maskIsEnabled:
+                    color = vImage.defaultColor_UnMasked if window.btnValues['drawFG'] else vImage.defaultColor_Masked
+                    qp.begin(layer.mask)
+                    # get pen width
+                    w = window.verticalSlider1.value() // (2*r)
+                    # mode source : result is source (=pen) pixel color and opacity
+                    qp.setCompositionMode(qp.CompositionMode_Source)
+                    tmp_x = (x - img.xOffset) // r
+                    tmp_y = (y - img.yOffset) // r
+                    qp.drawEllipse(tmp_x-w//2, tmp_y-w//2, w, w)
+                    qp.setPen(QPen(color, 2*w))
+                    qp.drawLine(State['x_imagePrecPos'], State['y_imagePrecPos'], tmp_x, tmp_y)
+                    qp.end()
+                    State['x_imagePrecPos'], State['y_imagePrecPos'] = tmp_x, tmp_y
+                    # update mask stack
+                    for l in img.layersStack :
+                        l.updatePixmap(maskOnly=True)
+                    window.label.repaint()
+            # translations
             else:
+                # translate image
                 if modifiers == Qt.NoModifier:
-                    img.xOffset += (x - State['ix'])
-                    img.yOffset += (y - State['iy'])
+                    img.xOffset+=(x-State['ix'])
+                    img.yOffset+=(y-State['iy'])
+                    if window.btnValues['Crop_Button']:
+                        window.cropTool.drawCropTool(img)
+                # translate active layer only
                 elif modifiers == Qt.ControlModifier:
                     layer.xOffset += (x - State['ix'])
                     layer.yOffset += (y - State['iy'])
                     layer.updatePixmap()
-                # cloning layer
+                # translate cloning virtual layer
                 elif modifiers == Qt.ControlModifier | Qt.AltModifier:
                     if layer.isCloningLayer():
                         layer.xAltOffset += (x - State['ix'])
                         layer.yAltOffset += (y - State['iy'])
                         layer.cloned = False
                         if layer.keepCloned:
-                            layer.applyCloning(seamless=False)
+                            layer.maskIsEnabled = True
+                            layer.maskIsSelected = False
+                        layer.applyCloning(seamless=False)
+        # need to update before window
+        else:
+            if modifiers == Qt.NoModifier:
+                img.xOffset += (x - State['ix'])
+                img.yOffset += (y - State['iy'])
+            elif modifiers == Qt.ControlModifier:
+                layer.xOffset += (x - State['ix'])
+                layer.yOffset += (y - State['iy'])
+                layer.updatePixmap()
+            # cloning layer
+            elif modifiers == Qt.ControlModifier | Qt.AltModifier:
+                if layer.isCloningLayer():
+                    layer.xAltOffset += (x - State['ix'])
+                    layer.yAltOffset += (y - State['iy'])
+                    layer.cloned = False
+                    if layer.keepCloned:
+                        layer.applyCloning(seamless=False)
         #update current coordinates
         State['ix'],State['iy']=x,y
         # Pick color from active layer. Coordinates are relative to the full-sized image
@@ -428,7 +428,7 @@ def mouseEvent(widget, event) :
     #####################
     # mouse release event
     ####################
-    elif event.type() == QEvent.MouseButtonRelease :
+    elif eventType == QEvent.MouseButtonRelease :
         pressed=False
         if event.button() == Qt.LeftButton:
             if img.isMouseSelectable:
