@@ -16,6 +16,9 @@
     <verstretch>0</verstretch>
    </sizepolicy>
   </property>
+  <property name="focusPolicy">
+   <enum>Qt::ClickFocus</enum>
+  </property>
   <property name="windowTitle">
    <string>MainWindow</string>
   </property>
@@ -94,6 +97,9 @@
               <height>30</height>
              </size>
             </property>
+            <property name="focusPolicy">
+             <enum>Qt::ClickFocus</enum>
+            </property>
             <property name="toolTip">
              <string>Show Rulers</string>
             </property>
@@ -130,6 +136,9 @@
               <width>50</width>
               <height>30</height>
              </size>
+            </property>
+            <property name="focusPolicy">
+             <enum>Qt::ClickFocus</enum>
             </property>
             <property name="toolTip">
              <string>Crop Tool</string>
@@ -174,6 +183,9 @@
               <height>40</height>
              </size>
             </property>
+            <property name="focusPolicy">
+             <enum>Qt::ClickFocus</enum>
+            </property>
             <property name="toolTip">
              <string>Fit Image To Screen</string>
             </property>
@@ -214,6 +226,9 @@ Screen</string>
               <width>50</width>
               <height>30</height>
              </size>
+            </property>
+            <property name="focusPolicy">
+             <enum>Qt::ClickFocus</enum>
             </property>
             <property name="toolTip">
              <string>EyeDropper Tool</string>
@@ -258,6 +273,9 @@ Screen</string>
               <width>50</width>
               <height>30</height>
              </size>
+            </property>
+            <property name="focusPolicy">
+             <enum>Qt::ClickFocus</enum>
             </property>
             <property name="toolTip">
              <string>Drag</string>
@@ -324,6 +342,9 @@ Screen</string>
                   <height>26</height>
                  </size>
                 </property>
+                <property name="focusPolicy">
+                 <enum>Qt::ClickFocus</enum>
+                </property>
                 <property name="toolTip">
                  <string>Marquee</string>
                 </property>
@@ -364,6 +385,9 @@ Screen</string>
                   <width>32</width>
                   <height>26</height>
                  </size>
+                </property>
+                <property name="focusPolicy">
+                 <enum>Qt::ClickFocus</enum>
                 </property>
                 <property name="toolTip">
                  <string>Unmask/Assign FG</string>
@@ -408,6 +432,9 @@ Screen</string>
                   <width>32</width>
                   <height>26</height>
                  </size>
+                </property>
+                <property name="focusPolicy">
+                 <enum>Qt::ClickFocus</enum>
                 </property>
                 <property name="toolTip">
                  <string>Mask/Assign BG</string>

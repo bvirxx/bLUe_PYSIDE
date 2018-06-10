@@ -21,12 +21,16 @@ from PySide2.QtGui import QFontMetrics
 from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QGroupBox
 
 from graphicsLUT import graphicsQuadricForm
-from utils import optionsWidget, QbLUeSlider, UDict
+from utils import optionsWidget, QbLUeSlider, UDict, QbLUeLabel
+
 
 class CoBrSatForm (QGraphicsView):
 
     dataChanged = QtCore.Signal()
     layerTitle = "Cont/Bright/Sat"
+    contrastDefault = 0.0
+    brightnessDefault = 0.0
+    saturationDefault = 0.0
 
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
@@ -59,9 +63,10 @@ class CoBrSatForm (QGraphicsView):
         self.sliderContrast.setRange(0, 10)
         self.sliderContrast.setSingleStep(1)
 
-        contrastLabel = QLabel()
+        contrastLabel = QbLUeLabel()
         contrastLabel.setMaximumSize(150, 30)
         contrastLabel.setText("Contrast Level")
+        contrastLabel.doubleClicked.connect(lambda: self.sliderContrast.setValue(self.contrast2Slider(self.contrastDefault)))
 
         self.contrastValue = QLabel()
         font = self.contrastValue.font()
@@ -96,9 +101,10 @@ class CoBrSatForm (QGraphicsView):
         self.sliderSaturation.setRange(0, 10)
         self.sliderSaturation.setSingleStep(1)
 
-        saturationLabel = QLabel()
+        saturationLabel = QbLUeLabel()
         saturationLabel.setMaximumSize(150, 30)
         saturationLabel.setText("Saturation")
+        saturationLabel.doubleClicked.connect(lambda: self.sliderSaturation.setValue(self.saturation2Slider(self.saturationDefault)))
 
         self.saturationValue = QLabel()
         font = self.saturationValue.font()
@@ -130,9 +136,10 @@ class CoBrSatForm (QGraphicsView):
         self.sliderBrightness.setRange(0, 10)
         self.sliderBrightness.setSingleStep(1)
 
-        brightnessLabel = QLabel()
+        brightnessLabel = QbLUeLabel()
         brightnessLabel.setMaximumSize(150, 30)
         brightnessLabel.setText("Brightness")
+        brightnessLabel.doubleClicked.connect(lambda : self.sliderBrightness.setValue(self.brightness2Slider(self.brightnessDefault)))
 
         self.brightnessValue = QLabel()
         font = self.brightnessValue.font()
@@ -197,9 +204,11 @@ class CoBrSatForm (QGraphicsView):
 Brightness and saturation are increased or decreased using the corresponding sliders.
 
 Contrast is enhanced using one of these two methods:
-  - CLAHE : increases the local contrast
-  - Multi-Mode : increases the local contrast and the contrast between regions in the image
-For both methods the contrast slider controls the level of the correction
+  - CLAHE : increases the local contrast.
+  - Multi-Mode : increases the local contrast and the contrast between regions of the image.
+For both methods the contrast slider controls the level of the correction.
+
+Sliders can be reset to their default value by double clicking the name of the slider.
 """
                         )
 
@@ -238,11 +247,11 @@ For both methods the contrast slider controls the level of the correction
         self.listWidget2.unCheckAll()
         self.listWidget2.checkOption(self.listWidget2.intNames[0])
         self.enableSliders()
-        self.contrastCorrection = 0.0
+        self.contrastCorrection = self.contrastDefault
         self.sliderContrast.setValue(round(self.contrast2Slider(self.contrastCorrection)))
-        self.satCorrection = 0.0
+        self.satCorrection = self.saturationDefault
         self.sliderSaturation.setValue(round(self.saturation2Slider(self.satCorrection)))
-        self.brightnessCorrection = 0.0
+        self.brightnessCorrection = self.brightnessDefault
         self.sliderBrightness.setValue(round(self.brightness2Slider(self.brightnessCorrection)))
         self.dataChanged.emit()
 

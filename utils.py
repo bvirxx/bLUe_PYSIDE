@@ -394,7 +394,9 @@ class UDict(object):
        return self.d2[item]
 
 class QbLUeSlider(QSlider):
-
+    """
+    Enhanced QSlider
+    """
     bLueSliderDefaultColorStylesheet = """QSlider::groove:horizontal:enabled {margin: 3px; 
                                               background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 blue, stop:1 red);}
                                            QSlider::groove:horizontal:disabled {margin: 3px; 
@@ -414,6 +416,15 @@ class QbLUeSlider(QSlider):
 
     def setStyleSheet(self, sheet):
         QSlider.setStyleSheet(self, self.styleSheet() + sheet)
+
+class QbLUeLabel(QLabel):
+    """
+    Emit a signal when double clicked
+    """
+    doubleClicked = QtCore.Signal()
+
+    def mouseDoubleClickEvent(self, e):
+        self.doubleClicked.emit()
 
 class optionsWidget(QListWidget) :
     """
@@ -569,10 +580,10 @@ class croppingHandle(QToolButton):
             self.tool.btnDict['right'].margin = rMargin
             self.tool.btnDict['top'].margin = tMargin
         elif self.role == 'topLeft':
-            lBtn = self.self.tool.btnDict['left']
+            lBtn = self.tool.btnDict['left']
             lMargin = (p.x() - img.xOffset + lBtn.width()) / r
-            rMargin = self.self.tool.btnDict['right'].margin
-            bMargin = self.self.tool.btnDict['bottom'].margin
+            rMargin = self.tool.btnDict['right'].margin
+            bMargin = self.tool.btnDict['bottom'].margin
             w = img.width() - lMargin - rMargin
             h = w * self.tool.formFactor
             tMargin = img.height() - h - bMargin
@@ -647,7 +658,7 @@ class cropTool(QObject):
 
     def drawCropTool(self, img):
         """
-        Draws the 8 crop handles around the displayed image,
+        Draws the 8 crop buttons around the displayed image,
         with their current margins.
         @param img:
         @type img: QImage

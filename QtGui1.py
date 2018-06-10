@@ -18,7 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import os
 
 from PySide2 import QtWidgets, QtCore
-from PySide2.QtCore import QSettings
+from PySide2.QtCore import QSettings, Qt
 import sys
 
 from PySide2.QtWidgets import QApplication, QLabel, QMainWindow
@@ -50,7 +50,7 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
         # State recording.
         self.slidersValues = {}
         self.btnValues = {}
-        # connections to handlers
+        # connect slider and button signals to handlers
         for slider in self.findChildren(QtWidgets.QSlider):
             slider.valueChanged.connect(
                             lambda value, slider=slider : self.handleSliderMoved(value, slider)
@@ -58,31 +58,40 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
             self.slidersValues [str(slider.accessibleName())] = slider.value()
 
         for button in self.findChildren(QtWidgets.QPushButton) :
+            # signal clicked has a default argument checked=False,
+            # so we consume all args passed
             button.clicked.connect(
-                            lambda button=button : self.handlePushButtonClicked(button)
+                            lambda *args, button=button : self.handlePushButtonClicked(button)
                             )
             self.btnValues[str(button.accessibleName())] = button.isChecked()
 
         for button in self.findChildren(QtWidgets.QToolButton) :
             button.toggled.connect(
-                            lambda state, button=button: self.handleToolButtonClicked(button)
+                            lambda state, button=button : self.handleToolButtonClicked(button)
                             )
             if not button.isCheckable():
+                # signal clicked has a default argument checked=False
+                # so we consume all args passed.
                 button.clicked.connect(
-                                lambda button=button : self.handleToolButtonClicked(button)
+                                lambda *args, button=button : self.handleToolButtonClicked(button)
                                 )
             self.btnValues[str(button.accessibleName())] = button.isChecked()
 
     def handlePushButtonClicked(self, button):
+        """
+        button clicked/toggled signal slot.
+        @param button:
+        @type button:
+        """
         self.onWidgetChange(button)
 
     def handleToolButtonClicked(self, button):
         """
         button clicked/toggled signal slot.
         The toggled signal is triggered only by checkable buttons,
-        when the button state changes. Thus, the method is executed
-        by all auto exclusive buttons, to update the btnValues dictionary.
-        btnValues dict is updated for both non exclusive and auto exclusive buttons.
+        when the button state changes. Thus, the method is called
+        by all auto exclusive buttons in a group to correctly update
+        the btnValues dictionary.
         @param button:
         @type button: QButton
         """
@@ -91,7 +100,7 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
 
     def handleSliderMoved (self, value, slider) :
         """
-        Slider.valueChanged event handler
+        Slider valueChanged slot
         @param value:
         @param slider:
         @type slider : QSlider

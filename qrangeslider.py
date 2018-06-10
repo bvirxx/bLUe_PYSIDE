@@ -15,7 +15,9 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-QRangeSlider
+###############################
+QRangeSlider copyright notice
+##############################
 
 Copyright (c) 2011-2012, Ryan Galloway (http://rsgalloway.com)
 All rights reserved.

@@ -196,7 +196,7 @@ splittedWin = splittedWindow(window)
 # unbound event handlers.
 # They can be bound  dynamically
 # to specific widgets (e.g. QLabels)
-# to interact with images
+# to provide interactions with images
 ################################
 
 # init global QPainter for paint event (CAUTION non thread safe approach!)
@@ -206,7 +206,6 @@ qp.font = QFont("Arial", 8)
 qp.markPath=QPainterPath()
 qp.markRect = QRect(0, 0, 50, 20)
 qp.markPath.addRoundedRect(qp.markRect, 5, 5)
-
 
 def paintEvent(widg, e) :
     """
@@ -281,7 +280,7 @@ def paintEvent(widg, e) :
         qp.drawText(qp.markRect, Qt.AlignCenter | Qt.AlignVCenter, "Before" if name == "label_2" else "After" )
     qp.end()
 
-# global variables used in mouseEvent. CAUTION:  non thread safe
+# global variables used in mouseEvent. CAUTION:  non thread safe approach
 # Recording of state and mouse coordinates (relative to widget)
 State = {'ix':0, 'iy':0, 'ix_begin':0, 'iy_begin':0} #{'drag':False, 'drawing':False , 'tool_rect':False, 'rect_over':False,
 pressed=False
@@ -292,8 +291,8 @@ def mouseEvent(widget, event) :  # TODO split in 3 handlers
     The handler implements mouse actions on a vImage
     displayed in a Qlabel.
     It handles image positioning, zooming, and
-    tool actions. It must be called by mousePressed,
-    mouseMoved and mouseReleased of the QLabel. This can be done by
+    tool actions. It must be called by the mousePressed,
+    mouseMoved and mouseReleased methods of the QLabel. This can be done by
     subclassing (not directly compatible with Qt Designer) or by
     dynamically assigning mouseEvent to the former three methods
     (cf. the function set_event_handler below).
@@ -373,20 +372,20 @@ def mouseEvent(widget, event) :  # TODO split in 3 handlers
                     for l in img.layersStack :
                         l.updatePixmap(maskOnly=True)
                     window.label.repaint()
-            # translations
+            # drag
             else:
-                # translate image
+                # drag image
                 if modifiers == Qt.NoModifier:
                     img.xOffset+=(x-State['ix'])
                     img.yOffset+=(y-State['iy'])
                     if window.btnValues['Crop_Button']:
                         window.cropTool.drawCropTool(img)
-                # translate active layer only
+                # drag active layer only
                 elif modifiers == Qt.ControlModifier:
                     layer.xOffset += (x - State['ix'])
                     layer.yOffset += (y - State['iy'])
                     layer.updatePixmap()
-                # translate cloning virtual layer
+                # drag cloning virtual layer
                 elif modifiers == Qt.ControlModifier | Qt.AltModifier:
                     if layer.isCloningLayer():
                         layer.xAltOffset += (x - State['ix'])
@@ -483,7 +482,7 @@ def mouseEvent(widget, event) :  # TODO split in 3 handlers
 def wheelEvent(widget,img, event):
     """
     Mouse wheel event handler : zooming
-    of imImage objects.
+    for imImage objects.
     @param widget: widget displaying image
     @param img: imImage object to display
     @param event: mouse wheel event (type QWheelEvent)
@@ -501,7 +500,7 @@ def wheelEvent(widget,img, event):
         if img.Zoom_coeff >2:
             img.Zoom_coeff /= (1.0 + numSteps)
             return
-        # correcting image offset to keep unchanged the image point
+        # correct image offset to keep unchanged the image point
         # under the cursor : (pos - offset) / resize_coeff should be invariant
         img.xOffset = -pos.x() * numSteps + (1.0+numSteps)*img.xOffset
         img.yOffset = -pos.y() * numSteps + (1.0+numSteps)*img.yOffset
@@ -580,11 +579,10 @@ def set_event_handlers(widg, enterAndLeave=True):
         widg.enterEvent = MethodType(lambda instance, e, wdg=widg : enterEvent(wdg, wdg.img, e), widg.__class__)
         widg.leaveEvent = MethodType(lambda instance, e, wdg=widg : leaveEvent(wdg, wdg.img, e), widg.__class__)
 
-# Event handler for top level buttons,
-# assigned to onWidgetChange
 def widgetChange(button):
     """
-    event handler for top level buttons
+    called by all main form button and slider slots (cf. QtGui1.py)
+
     @param button:
     @type button: QWidget
     """
@@ -1198,6 +1196,7 @@ def menuView(name):
             window.viewState = 'After'
             if window.btnValues['Crop_Button']:
                 window.cropTool.drawCropTool(window.label.img)
+    # slide show
     elif name == 'actionDiaporama':
         if hasattr(window, 'diaporamaGenerator'):
             if window.diaporamaGenerator is not None:
@@ -1227,14 +1226,9 @@ def menuView(name):
                     for filename in [f for f in filenames if
                                 f.endswith(IMAGE_FILE_EXTENSIONS)]:
                         diaporamaList.append(path.join(dirpath, filename))
-            """
-            def f():
-                for filename in diaporamaList:
-                    yield filename
-            """
-            # cycling diaporama. Use f() for one pass diaporama.
-            window.diaporamaGenerator = cycle(diaporamaList) # f()
+            window.diaporamaGenerator = cycle(diaporamaList)
         playDiaporama(window.diaporamaGenerator, parent=window)
+    # image viewer
     elif name == 'actionViewer':
         # start from parent dir of the last used directory
         lastDir = path.join(str(window.settings.value('paths/dlgdir', '.')), path.pardir)
@@ -1250,7 +1244,7 @@ def menuView(name):
                 for filename in [f for f in filenames if
                             f.endswith(IMAGE_FILE_EXTENSIONS) or f.endswith(RAW_FILE_EXTENSIONS)]:
                     viewList.append(path.join(dirpath, filename))
-        playViewer((filename for filename in viewList), newDir, parent=window)
+            playViewer((filename for filename in viewList), newDir, parent=window)
     updateStatus()
 
 def menuImage(name) :
@@ -1761,8 +1755,36 @@ if __name__ =='__main__':
     window.updateStatus = updateStatus
     window.label.updateStatus = updateStatus
 
-    # crop buttons
+    # crop tool
     window.cropTool = cropTool(parent=window.label)
+
+    #whatsThis
+    window.cropButton.setWhatsThis("""To crop drag a gray curtain on either side using the 8 small square buttons around the image""")
+    window.rulerButton.setWhatsThis("""Draw horizontal and vertical rulers over the image""")
+    window.fitButton.setWhatsThis("""Reset the image size to the window size""")
+    window.eyeDropper.setWhatsThis("""Color picker\n Click on the image to sample pixel colors""")
+    window.toolButton_6.setWhatsThis("""Drag\n left button : drag the whole image\n Ctrl+Left button : drag the active layer only""")
+    window.rectangle.setWhatsThis(
+"""Marquee Tool/Selection Rectangle
+Draw a selection rectangle on the active layer.
+For a segmentation layer all pixels outside the rectangle are set to background.
+"""
+                                )
+    window.drawFG.setWhatsThis(
+"""
+Foreground/Unmask
+  Paint on the active layer to unmask a previously masked region or to select foreground pixels (segmentation layer only)
+  
+  Use the 'Brush Size' slider below to choose the size of the tool. 
+"""                             )
+    window.drawBG.setWhatsThis(
+"""
+Background/Mask
+  Paint on the active layer to mask a region or to select background pixels (segmentation layer only)
+  
+  Use the 'Brush Size' slider below to choose the size of the tool. 
+"""                             )
+    window.verticalSlider1.setWhatsThis("""Set the diameter of the painting brush""")
 
     # Before/After views flag
     window.splittedView = False
@@ -1773,10 +1795,10 @@ if __name__ =='__main__':
     # close event handler
     window.onCloseEvent = canClose
 
-    # mouse hover events
+    # watch mouse hover events
     window.label.setMouseTracking(True)
 
-    # menu event handlers
+    # connect menu event handlers
     window.menu_File.aboutToShow.connect(updateEnabledActions)
     window.menuLayer.aboutToShow.connect(updateEnabledActions)
     window.menuImage.aboutToShow.connect(updateEnabledActions)
@@ -1789,7 +1811,7 @@ if __name__ =='__main__':
     window.menuWindow.triggered.connect(lambda a : menuView(a.objectName()))
     window.menuHelp.triggered.connect(lambda a : menuHelp(a.objectName()))
 
-    #  init convenience GUI hooks
+    #  called by all main form button and slider slots (cf. QtGui1.py)
     window.onWidgetChange = widgetChange
 
     # load current settings
