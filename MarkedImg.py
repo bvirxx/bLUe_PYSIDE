@@ -993,7 +993,7 @@ class vImage(QImage):
             ndImg1a[:, :, :] = tmpBuf
             self.updatePixmap()
             return
-        # Lab mode
+        # Lab mode, slower than HSV
         if version=='Lab':
             # get l channel, range is 0..1
             LBuf = inputImage.getLabBuffer().copy()
@@ -1014,7 +1014,7 @@ class vImage(QImage):
                     res,a,b,d,T = warpHistogram(LBuf[:,:,0], warp=contrastCorrection, preserveHigh=options['High'],
                                                 spline = None if self.autoSpline else self.getMmcSpline())
                     # show the spline
-                    if self.autoSpline :
+                    if self.autoSpline and options['manualCurve']:
                         self.getGraphicsForm().setContrastSpline(a, b, d, T)
                         self.autoSpline = False #mmcSpline = self.getGraphicsForm().scene().cubicItem # caution : msileading name for a quadratic spline !
                 LBuf[:,:,0] = res
@@ -1046,7 +1046,7 @@ class vImage(QImage):
                                                 spline=None if self.autoSpline else self.getMmcSpline())
                     res = (res*255.0).astype(np.uint8)
                     # show the spline
-                    if self.autoSpline:
+                    if self.autoSpline and options['manualCurve']:
                         self.getGraphicsForm().setContrastSpline(a, b, d, T)
                         self.autoSpline = False #mmcSpline = self.getGraphicsForm().contrastForm.scene().cubicItem # caution : msileading name for a quadratic spline !
                 HSVBuf[:, :, 2] = res
@@ -1055,7 +1055,7 @@ class vImage(QImage):
                 # tabulate x**alpha
                 LUT = np.power(np.arange(256) / 255, alpha) * 255
                 # convert saturation s to s**alpha
-                HSVBuf[:, :, 1] = LUT[HSVBuf[:, :, 1]]
+                HSVBuf[:, :, 1] = LUT[HSVBuf[:, :, 1]]  # faster than take
             # back to RGB
             sRGBBuf = cv2.cvtColor(HSVBuf, cv2.COLOR_HSV2RGB)
         ndImg1a[:, :, :3][:,:,::-1] = sRGBBuf
@@ -1731,6 +1731,7 @@ class mImage(vImage):
             layer = QLayerImage.fromImage(self.layersStack[index], parentImage=self, sourceImg=sourceImg)
         layer.role = role
         self.addLayer(layer, name=name, index=index + 1)
+        # add autoSpline attribute to contrast layer only
         if role == 'CONTRAST':
             layer.autoSpline = True
         # init thumb

@@ -426,6 +426,19 @@ class QbLUeLabel(QLabel):
     def mouseDoubleClickEvent(self, e):
         self.doubleClicked.emit()
 
+class optionsWidgetItem(QListWidgetItem):
+    def __init__(self, *args, intName='',**kwargs, ):
+        super().__init__(*args, **kwargs)
+        self._internalName = intName
+
+    @property
+    def internalName(self):
+        return self._internalName
+
+    def setInternalName(self, name):
+        self._internalName = name
+
+
 class optionsWidget(QListWidget) :
     """
     Displays a list of options with checkboxes.
@@ -443,8 +456,8 @@ class optionsWidget(QListWidget) :
         @type optionNames: list of str
         @param exclusive:
         @type exclusive: bool
-        @param changed: signal
-        @type changed: QSignal
+        @param changed: SLOT for itemclicked signal
+        @type changed: function
         @param parent:
         @type parent: QObject
         """
@@ -458,12 +471,12 @@ class optionsWidget(QListWidget) :
         self.items = {}
         # dict of item states (True, False) with option internal name as key
         self.options = {}
-        for option, name in zip(self.intNames, self.extNames):
-            listItem = QListWidgetItem(name, self)
+        for intName, name in zip(self.intNames, self.extNames):
+            listItem = optionsWidgetItem(name, self, intName=intName)
             listItem.setCheckState(Qt.Unchecked)
             self.addItem(listItem)
-            self.items[option] = listItem
-            self.options[option] = (listItem.checkState() == Qt.Checked)
+            self.items[intName] = listItem
+            self.options[intName] = (listItem.checkState() == Qt.Checked)
         #self.setMinimumWidth(self.sizeHintForColumn(0)) # TODO 18/04/18 validate suppression to improve graphicsLUT3D
         self.setMinimumHeight(self.sizeHintForRow(0)*len(options))
         self.exclusive = exclusive

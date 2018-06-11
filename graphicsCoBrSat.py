@@ -51,8 +51,13 @@ class CoBrSatForm (QGraphicsView):
         self.listWidget1 = optionsWidget(options=optionList1, optionNames=optionNames1, exclusive=True, changed=lambda: self.dataChanged.emit())
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
         self.listWidget1.setStyleSheet("QListWidget {border: 0px;} QListWidget::item {border: 0px; padding-left: 0px;}")
-        optionList2, optionNames2 = ['High'], ['Preserve Highlights']
-        self.listWidget2 = optionsWidget(options=optionList2, optionNames=optionNames2, exclusive=False, changed=lambda: self.dataChanged.emit())
+        optionList2, optionNames2 = ['High', 'manualCurve'], ['Preserve Highlights', 'Show Contrast Curve']
+        def optionList2Change(item):
+            if item.internalName == 'High':
+                # force to recalculate the spline
+                self.layer.autoSpline = True
+            self.dataChanged.emit()
+        self.listWidget2 = optionsWidget(options=optionList2, optionNames=optionNames2, exclusive=False, changed=optionList2Change)
         self.listWidget2.checkOption(self.listWidget2.intNames[0])
         self.listWidget2.setStyleSheet("QListWidget {border: 0px;} QListWidget::item {border: 0px; padding-left: 0px;}")
         self.options = UDict(self.listWidget1.options, self.listWidget2.options)
@@ -86,7 +91,7 @@ class CoBrSatForm (QGraphicsView):
             self.sliderContrast.valueChanged.disconnect()
             self.sliderContrast.sliderReleased.disconnect()
             self.contrastCorrection = self.slider2Contrast(self.sliderContrast.value())
-            # force recalculating the spline
+            # force to recalculate the spline
             self.layer.autoSpline = True
             self.dataChanged.emit()
             self.sliderContrast.valueChanged.connect(contrastUpdate)
@@ -211,7 +216,6 @@ For both methods the contrast slider controls the level of the correction.
 Sliders can be reset to their default value by double clicking the name of the slider.
 """
                         )
-
     def setContrastSpline(self, a, b, d, T):
         """
         Updates and displays the contrast spline
@@ -262,6 +266,20 @@ Sliders can be reset to their default value by double clicking the name of the s
         self.enableSliders()
         self.layer.applyToStack()
         self.layer.parentImage.onImageChanged()
+        # enable/disable options relative to multi-mode
+        for intname in ['High', 'manualCurve']:
+            item = self.listWidget2.items[intname]
+            if self.options['Multi-Mode']:
+                item.setFlags(item.flags() | Qt.ItemIsEnabled)
+            else:
+                item.setFlags(item.flags() & ~Qt.ItemIsEnabled)
+        cf = self.contrastForm
+        if cf is None:
+            return
+        if self.options['manualCurve']:
+            cf.showNormal()
+        else:
+            cf.hide()
 
     def slider2Contrast(self, v):
         return v / 10

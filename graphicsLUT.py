@@ -57,7 +57,7 @@ class activePoint(QGraphicsPathItem):
         @type parentItem: object
         """
         super(activePoint, self).__init__()
-        self.tangent = None  # used for qudratic spline
+        self.tangent = None  # link to tangent : used only by qudratic spline
         self.setAcceptHoverEvents(True)
         self.setParentItem(parentItem)
         self.persistent = persistent
@@ -109,6 +109,11 @@ class activePoint(QGraphicsPathItem):
             if self.persistent:
                 return
             item.fixedPoints.remove(self)
+            # remove tangent if any
+            fxdtg = getattr(item, 'fixedTangents', None)
+            if fxdtg:
+                fxdtg.remove(self.tangent)
+                sc.removeItem(self.tangent)
             sc.removeItem(self)
             return
         self.scene().cubicItem.updatePath()
@@ -364,6 +369,7 @@ class activeQuadricSpline(activeSpline) :
         - moved with the mouse (cf. activePoint.mouseMoveEvent())
         - removed by a mouse click on the point (cf. activePoint.mouseReleaseEvent())
     """
+    halfTgLen = 50.0
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fixedTangents = []
@@ -430,7 +436,7 @@ class activeQuadricSpline(activeSpline) :
         self.a, self.b, self.d, self.T = a, b, d, T
         rect = QRectF(0.0, -self.size, self.size, self.size)
         # half tangent length and orientation
-        alpha = [50.0] * len(d)
+        alpha = [self.halfTgLen] * len(d)
         # choose backward orientation for the last tangent
         alpha[-1] = - alpha[-1]
         for item in self.fixedPoints:
@@ -469,10 +475,12 @@ class activeQuadricSpline(activeSpline) :
         if self.clicked:
             #add point
             p=e.pos()
-            a=activePoint(p.x(), p.y(), parentItem=self)
+            a = activePoint(p.x(), p.y(), parentItem=self)
             self.fixedPoints.append(a)
-            self.fixedPoints.sort(key=lambda z : z.scenePos().x())
-            #self.scene().addItem(a)
+            self.fixedPoints.sort(key=lambda z: z.scenePos().x())
+            t = activeTangent(controlPoint=p+QPointF(0.7,-0.7) * self.halfTgLen, contactPoint=p, parentItem=self)
+            a.tangent = t
+            self.fixedTangents.insert(self.fixedPoints.index(a), t)
             self.updatePath()
 
     def getStackedLUTXY(self):

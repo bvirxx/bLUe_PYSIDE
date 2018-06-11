@@ -30,6 +30,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #########################################################################################################################
 import numpy as np
 
+from debug import tdec
 from spline import interpolationQuadSpline
 
 
@@ -447,9 +448,12 @@ def warpHistogram(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True, spli
     im1 = im.astype(np.int)
     im2 = im1+1
     B1 = T[im1]
-    B2 = T[np.minimum(im2, 255)]
+    # extrapolate T to handle eventual value 256 in im2
+    T1 = np.hstack((T, [T[-1]]))
+    B2 = T1[im2] # clearer but slower : T[np.minimum(im2, 255)]
     # interpolate B1, B2
-    return np.clip((im2 - im) * B1 + (im - im1) * B2, 0, 1),a, b, d, T
+    B = (im2 - im) * B1 + (im - im1) * B2
+    return np.clip(B, 0, 1, out=B), a, b, d, T
 
 if __name__ == '__main__':
     img = (np.arange(1000*800, dtype=np.float)/800000).reshape(1000, 800)
