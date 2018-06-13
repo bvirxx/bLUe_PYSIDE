@@ -344,6 +344,10 @@ def mouseEvent(widget, event) :  # TODO split in 3 handlers
                     dlgWarn('Select a visible layer for drawing or painting')
                     pressed = False
                     return
+                elif not window.btnValues['rectangle'] and not layer.maskIsEnabled:
+                    dlgWarn('Enable the mask before painting')
+                    pressed = False
+                    return
             # marquee tool
             if window.btnValues['rectangle']:
                 # rectangle coordinates are relative to image
@@ -358,7 +362,7 @@ def mouseEvent(widget, event) :  # TODO split in 3 handlers
                     color = vImage.defaultColor_UnMasked if window.btnValues['drawFG'] else vImage.defaultColor_Masked
                     qp.begin(layer.mask)
                     # get pen width
-                    w = window.verticalSlider1.value() // (2*r)
+                    w = window.verticalSlider1.value() // (2 * r)
                     # mode source : result is source (=pen) pixel color and opacity
                     qp.setCompositionMode(qp.CompositionMode_Source)
                     tmp_x = (x - img.xOffset) // r
@@ -368,11 +372,13 @@ def mouseEvent(widget, event) :  # TODO split in 3 handlers
                     qp.drawLine(State['x_imagePrecPos'], State['y_imagePrecPos'], tmp_x, tmp_y)
                     qp.end()
                     State['x_imagePrecPos'], State['y_imagePrecPos'] = tmp_x, tmp_y
-                    # update mask stack
-                    for l in img.layersStack :
-                        l.updatePixmap(maskOnly=True)
+                    # update upper stack
+                    # should be layer.updateStack() if any upper layer visible : too slow
+                    layer.updatePixmap(maskOnly=True)
+                    img.prLayer.applyNone()
+                    img.prLayer.updatePixmap(maskOnly=True)
                     window.label.repaint()
-            # drag
+            # dragBtn or arrow
             else:
                 # drag image
                 if modifiers == Qt.NoModifier:
@@ -391,11 +397,10 @@ def mouseEvent(widget, event) :  # TODO split in 3 handlers
                         layer.xAltOffset += (x - State['ix'])
                         layer.yAltOffset += (y - State['iy'])
                         layer.cloned = False
-                        if layer.keepCloned:
-                            layer.maskIsEnabled = True
-                            layer.maskIsSelected = False
+                        layer.maskIsEnabled = True
+                        layer.maskIsSelected = False
                         layer.applyCloning(seamless=False)
-        # need to update before window
+        # not mouse selectable widget : probably before window alone !
         else:
             if modifiers == Qt.NoModifier:
                 img.xOffset += (x - State['ix'])
@@ -404,14 +409,6 @@ def mouseEvent(widget, event) :  # TODO split in 3 handlers
                 layer.xOffset += (x - State['ix'])
                 layer.yOffset += (y - State['iy'])
                 layer.updatePixmap()
-            # cloning layer
-            elif modifiers == Qt.ControlModifier | Qt.AltModifier:
-                if layer.isCloningLayer():
-                    layer.xAltOffset += (x - State['ix'])
-                    layer.yAltOffset += (y - State['iy'])
-                    layer.cloned = False
-                    if layer.keepCloned:
-                        layer.applyCloning(seamless=False)
         #update current coordinates
         State['ix'],State['iy']=x,y
         # Pick color from active layer. Coordinates are relative to the full-sized image
@@ -430,6 +427,10 @@ def mouseEvent(widget, event) :  # TODO split in 3 handlers
     elif eventType == QEvent.MouseButtonRelease :
         pressed=False
         if event.button() == Qt.LeftButton:
+            if layer.maskIsEnabled \
+                    and layer.getUpperVisibleStackIndex() != -1\
+                    and window.btnValues['drawFG'] or window.btnValues['drawBG']:
+                layer.applyToStack()
             if img.isMouseSelectable:
                 # click event
                 if clicked:
@@ -460,13 +461,14 @@ def mouseEvent(widget, event) :  # TODO split in 3 handlers
                                 form.setRawMultipliers(*form.samples[3*row + col], sampling=False)
                         else:
                             form.setRawMultipliers(1/color[0], 1/color[1], 1/color[2], sampling=True)
-                # for cloning layer do cloning
+                # cloning layer : do cloning
                 if layer.isCloningLayer():
                     if modifiers == Qt.ControlModifier | Qt.AltModifier:
                         if layer.keepCloned:
                             layer.maskIsEnabled = False
-                            layer.maskIsSelected = False
+                            layer.maskisSelected = False
                             layer.applyCloning(seamless=True)
+                        # update mask status in the table of layers
                         layer.updateTableView(window.tableView)
     # updates
     widget.repaint()
@@ -1547,6 +1549,9 @@ def menuLayer(name):
     # unknown action
     else:
         return
+    # adding a new layer may modify the resulting image
+    # (cf. actionNew_Image_Layer), so we update the presentation layer
+    window.label.img.prLayer.update()
     # record action name for scripting
     l.actionName = name
     # dock the form
@@ -1763,7 +1768,7 @@ if __name__ =='__main__':
     window.rulerButton.setWhatsThis("""Draw horizontal and vertical rulers over the image""")
     window.fitButton.setWhatsThis("""Reset the image size to the window size""")
     window.eyeDropper.setWhatsThis("""Color picker\n Click on the image to sample pixel colors""")
-    window.toolButton_6.setWhatsThis("""Drag\n left button : drag the whole image\n Ctrl+Left button : drag the active layer only""")
+    window.dragBtn.setWhatsThis("""Drag\n left button : drag the whole image\n Ctrl+Left button : drag the active layer only""")
     window.rectangle.setWhatsThis(
 """Marquee Tool/Selection Rectangle
 Draw a selection rectangle on the active layer.

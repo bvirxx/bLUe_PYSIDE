@@ -211,7 +211,10 @@ Brightness and saturation are increased or decreased using the corresponding sli
 Contrast is enhanced using one of these two methods:
   - CLAHE : increases the local contrast.
   - Multi-Mode : increases the local contrast and the contrast between regions of the image.
-For both methods the contrast slider controls the level of the correction.
+For both methods the correction is calculated automatically; the contrast slider controls \
+the level of the correction.
+
+With Multi-Mode enabled, use option Show Contrast Curve to modify the correction curve.
 
 Sliders can be reset to their default value by double clicking the name of the slider.
 """

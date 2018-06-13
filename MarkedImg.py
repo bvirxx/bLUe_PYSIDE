@@ -117,7 +117,6 @@ class vImage(QImage):
         if color:
             # draw mask as color mask with opacity 0.5
             qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
-            # tmp = tmp.copy()
             tmp = mask.copy()
             tmpBuf = QImageBuffer(tmp)
             tmpBuf[:, :, 3] = 128
@@ -272,7 +271,7 @@ class vImage(QImage):
         # check format
         if self.depth() != 32:
             raise ValueError('vImage : should be a 8 bits/channel color image')
-        # init mask
+        # mask
         self.maskIsEnabled = False
         self.maskIsSelected = False
         if self.mask is None:
@@ -433,7 +432,7 @@ class vImage(QImage):
 
     def setModified(self, b):
         """
-        Sets the flag isModified and calls handler.
+        Sets the flag
         @param b: flag
         @type b: boolean
         """
@@ -593,7 +592,7 @@ class vImage(QImage):
         @param seamless:
         @type seamless: boolean
         """
-        # TODO 02/04/18 called multiple times, cacheInvalidate should be called!!
+        # TODO 02/04/18 called multiple times by mouse events, cacheInvalidate should be called!!
         imgIn = self.inputImg()
         imgOut = self.getCurrentImage()
         # draw the translated and zoomed input image on the output image
@@ -608,21 +607,30 @@ class vImage(QImage):
             qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
             rect = QRectF(currentAltX, currentAltY, imgOut.width()*self.AltZoom_coeff, imgOut.height()*self.AltZoom_coeff)
             qp.drawImage(rect, imgIn)
-            qp.drawRect(rect)
+            qp.drawRect(rect)  # usage ?
             qp.end()
         # do seamless cloning
         if seamless or self.cloned:
-            imgInc = imgIn.copy()
-            src = imgOut
-            vImage.seamlessMerge(imgInc, src, self.mask, self.cloningMethod)
-            bufOut = QImageBuffer(imgOut)
-            bufOut[:, :, :3] = QImageBuffer(imgInc)[:,:,:3]
+            try:
+                QApplication.setOverrideCursor(Qt.WaitCursor)
+                QApplication.processEvents()
+                imgInc = imgIn.copy()
+                src = imgOut
+                vImage.seamlessMerge(imgInc, src, self.mask, self.cloningMethod)
+                bufOut = QImageBuffer(imgOut)
+                bufOut[:, :, :3] = QImageBuffer(imgInc)[:,:,:3]
+            finally:
+                self.parentImage.setModified(True)
+                QApplication.restoreOverrideCursor()
+                QApplication.processEvents()
         self.updatePixmap()
+        # the presentation layer must be updated here because
+        # applyCloning is called directly by mouse events.
+        self.parentImage.prLayer.update()
 
     def applyKnitting(self):
         """
-
-
+        Knitting
         """
         imgIn = self.inputImg()
         imgOut = self.getCurrentImage()
@@ -741,10 +749,13 @@ class vImage(QImage):
 
     def applyTransForm(self, options):
         """
-        Applies the geometric transformation T
+        Applies the geometric transformation defined by source and target quads
         @param options:
         @type options:
         """
+        if self.maskIsEnabled:
+            dlgWarn("A masked layer cannot be transformed.\nDisable the mask")
+            return
         inImg = self.inputImg()
         outImg = self.getCurrentImage()
         buf0 = QImageBuffer(outImg)
@@ -752,11 +763,12 @@ class vImage(QImage):
         s = w / self.width()
         D = QTransform().scale(s, s)
         DInv = QTransform().scale(1/s, 1/s)
+        q1Full, q2Full = self.tool.getSourceQuad(), self.tool.getTargetQuad()
         # map Quads to the current image coordinate system
-        q1, q2 = D.map(self.tool.getSourceQuad()), D.map(self.tool.getTargetQuad())
+        q1, q2 = D.map(q1Full), D.map(q2Full)
         # build transformation
         T = QTransform()
-        res = QTransform().quadToQuad(q1, q2, T)
+        res = QTransform.quadToQuad(q1, q2, T)
         if not res:
             print('applyTransform : no possible transformation')
             self.tool.restore()
@@ -772,7 +784,7 @@ class vImage(QImage):
         rectTrans = DInv.map(T.map(D.map(QImage.rect(self)))).boundingRect()
         # apply the transformation and re-translate the transformed image
         # so that the resulting transformation is T and NOT that given by QImage.trueMatrix()
-        dummy = inImg.transformed(T)
+        #dummy = inImg.transformed(T)
         img = (inImg.transformed(T)).copy(QRect(-rectTrans.x()*s, -rectTrans.y()*s, w, h))
         if img.isNull():
             print('applyTransform : transformation fails')
@@ -964,8 +976,6 @@ class vImage(QImage):
         """
         #bufRGB32 = cv2.cvtColor(buf32Lab, cv2.COLOR_Lab2RGB)
         #bufpost = (bufRGB32 * 255.0).astype(np.uint8)
-
-
         bufOut = QImageBuffer(currentImage)
         bufOut[:, :, :3][:, :, ::-1] = bufpost
         self.updatePixmap()
@@ -1048,7 +1058,7 @@ class vImage(QImage):
                     # show the spline
                     if self.autoSpline and options['manualCurve']:
                         self.getGraphicsForm().setContrastSpline(a, b, d, T)
-                        self.autoSpline = False #mmcSpline = self.getGraphicsForm().contrastForm.scene().cubicItem # caution : msileading name for a quadratic spline !
+                        self.autoSpline = False
                 HSVBuf[:, :, 2] = res
             if satCorrection != 0:
                 alpha = (-adjustForm.satCorrection + 1.0)
@@ -2583,6 +2593,10 @@ class QPresentationLayer(QLayer):
         self.qPixmap = QPixmap.fromImage(qImg)
         self.rPixmap = QPixmap.fromImage(rImg)
         self.setModified(True)
+
+    def update(self):
+        self.applyNone()
+        # self.updatePixmap() done by applyNone()
 
 class QLayerImage(QLayer):
     @classmethod

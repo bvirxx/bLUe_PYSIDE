@@ -16,8 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 from PySide2.QtCore import Qt
-from PySide2.QtGui import QFontMetrics, QTransform
-from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout, QPushButton
+from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout,  QLabel, QPushButton
 
 from utils import optionsWidget
 
@@ -46,20 +45,16 @@ class transForm (QGraphicsView):
         self.options = self.listWidget1.options
         # set initial selection to Perspective
         self.listWidget1.checkOption(optionList[0])
-
         # option changed handler
         def g(item):
             self.layer.tool.setBaseTransform()
             #self.layer.tool.setVisible(True)
             self.layer.applyToStack()
-
         self.listWidget1.onSelect = g
-
         pushButton1 = QPushButton('Reset')
         def f():
             self.layer.tool.resetTrans()
         pushButton1.clicked.connect(f)
-
         # layout
         l = QVBoxLayout()
         l.setAlignment(Qt.AlignTop)
@@ -68,6 +63,11 @@ class transForm (QGraphicsView):
         l.addWidget(pushButton1)
         self.setLayout(l)
         self.adjustSize()
+        self.setWhatsThis(
+"""
+Geometric transformation :
+  Choose a transformation type and drag either corner of the image using the small square red button.
+""")
 
 class imageForm(transForm):
     pass

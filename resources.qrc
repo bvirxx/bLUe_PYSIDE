@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="images">
+    <file>resources/Mouse_pointer_small.png</file>
     <file>resources/eye-icon.png</file>
     <file>resources/eye-icon-strike.png</file>
     <file>resources/fgbg_small.jpg</file>

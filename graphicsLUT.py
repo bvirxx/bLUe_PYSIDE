@@ -577,6 +577,14 @@ class graphicsQuadricForm(graphicsCurveForm) :
         # set current curve
         graphicsScene.cubicItem = graphicsScene.quadricB
         graphicsScene.cubicItem.setVisible(True)
+        self.setWhatsThis(
+"""
+Drag control points and tangents with the mouse.
+Add a control point by clicking on the curve.
+Remove a control point by clicking it.
+Zoom with the mouse wheel.
+"""
+                           )
 
         def onResetCurve():
             """

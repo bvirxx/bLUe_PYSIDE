@@ -252,10 +252,13 @@ Screen</string>
             <property name="autoRaise">
              <bool>true</bool>
             </property>
+            <attribute name="buttonGroup">
+             <string notr="true">buttonGroup</string>
+            </attribute>
            </widget>
           </item>
           <item>
-           <widget class="QToolButton" name="toolButton_6">
+           <widget class="QToolButton" name="dragBtn">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
               <horstretch>0</horstretch>
@@ -278,7 +281,7 @@ Screen</string>
              <enum>Qt::ClickFocus</enum>
             </property>
             <property name="toolTip">
-             <string>Drag</string>
+             <string>Drag Tool</string>
             </property>
             <property name="accessibleName">
              <string>drag</string>
@@ -299,6 +302,53 @@ Screen</string>
             <property name="autoRaise">
              <bool>true</bool>
             </property>
+            <property name="arrowType">
+             <enum>Qt::NoArrow</enum>
+            </property>
+            <attribute name="buttonGroup">
+             <string notr="true">buttonGroup</string>
+            </attribute>
+           </widget>
+          </item>
+          <item>
+           <widget class="QToolButton" name="toolButton">
+            <property name="minimumSize">
+             <size>
+              <width>50</width>
+              <height>26</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>50</width>
+              <height>30</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>Pointer Tool</string>
+            </property>
+            <property name="accessibleName">
+             <string>pointer</string>
+            </property>
+            <property name="text">
+             <string>...</string>
+            </property>
+            <property name="icon">
+             <iconset resource="resources.qrc">
+              <normaloff>:/images/resources/Mouse_pointer_small.png</normaloff>:/images/resources/Mouse_pointer_small.png</iconset>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
+            <property name="autoExclusive">
+             <bool>true</bool>
+            </property>
+            <property name="autoRaise">
+             <bool>true</bool>
+            </property>
+            <attribute name="buttonGroup">
+             <string notr="true">buttonGroup</string>
+            </attribute>
            </widget>
           </item>
           <item>
@@ -346,7 +396,7 @@ Screen</string>
                  <enum>Qt::ClickFocus</enum>
                 </property>
                 <property name="toolTip">
-                 <string>Marquee</string>
+                 <string>Marquee Tool</string>
                 </property>
                 <property name="whatsThis">
                  <string>marquee</string>
@@ -370,6 +420,9 @@ Screen</string>
                 <property name="autoRaise">
                  <bool>true</bool>
                 </property>
+                <attribute name="buttonGroup">
+                 <string notr="true">buttonGroup</string>
+                </attribute>
                </widget>
               </item>
               <item>
@@ -390,7 +443,7 @@ Screen</string>
                  <enum>Qt::ClickFocus</enum>
                 </property>
                 <property name="toolTip">
-                 <string>Unmask/Assign FG</string>
+                 <string>Unmask/FG Brush</string>
                 </property>
                 <property name="accessibleName">
                  <string>drawFG</string>
@@ -417,6 +470,9 @@ Screen</string>
                 <property name="autoRaise">
                  <bool>true</bool>
                 </property>
+                <attribute name="buttonGroup">
+                 <string notr="true">buttonGroup</string>
+                </attribute>
                </widget>
               </item>
               <item>
@@ -437,7 +493,7 @@ Screen</string>
                  <enum>Qt::ClickFocus</enum>
                 </property>
                 <property name="toolTip">
-                 <string>Mask/Assign BG</string>
+                 <string>Mask/ BG Brush</string>
                 </property>
                 <property name="accessibleName">
                  <string>drawBG</string>
@@ -461,6 +517,9 @@ Screen</string>
                 <property name="autoRaise">
                  <bool>true</bool>
                 </property>
+                <attribute name="buttonGroup">
+                 <string notr="true">buttonGroup</string>
+                </attribute>
                </widget>
               </item>
              </layout>
@@ -1044,4 +1103,7 @@ Screen</string>
   <include location="resources.qrc"/>
  </resources>
  <connections/>
+ <buttongroups>
+  <buttongroup name="buttonGroup"/>
+ </buttongroups>
 </ui>

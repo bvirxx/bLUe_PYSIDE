@@ -67,11 +67,10 @@ class patchForm (QGraphicsView):
         opList2 = ['Auto Cloning', 'Press Button To Clone']
         self.listWidget2 = optionsWidget(options=opList2)
         def onSelect2(item):
-            keepCloned = self.listWidget2.items[opList2[0]].checkState() == Qt.Checked
+            keepCloned = self.listWidget2.options[opList2[0]]
             self.layer.keepCloned = keepCloned
             self.layer.maskIsEnabled = not keepCloned
             self.layer.maskIsSelected = not keepCloned
-
         self.listWidget2.onSelect = onSelect2
         sel = opList2[0]
         self.listWidget2.select(self.listWidget2.items[sel])
@@ -94,6 +93,17 @@ class patchForm (QGraphicsView):
         l.addWidget(self.listWidget1)
         l.addWidget(self.listWidget2)
         l.addWidget(pushButton1)
+        self.setWhatsThis(
+"""
+Seamless replacement of a region of the image by another region from the same image (e.g. to erase an object):
+(GUI for the opencv function seamlessClone).
+   1) Select the Unmask/FG tool and paint the pixels to erase;
+   2) Select the drag tool and while pressing Ctrl-Alt on the keyboard drag the image to change the painted region;
+   3) Release the mouse.
+   4) If mode is not Auto Cloning click the Clone button to start the cloning.
+Note that seamless cloning is a slow operation.
+"""
+                        )
 
 class maskForm (QGraphicsView):
     """

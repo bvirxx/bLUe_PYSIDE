@@ -253,7 +253,17 @@ class QLayerView(QTableView) :
             #self.img.setActiveLayer(index + 1)
             #self.img.setActiveLayer(index + 1)
         self.actionDup.triggered.connect(dup)
-
+        self.setWhatsThis(
+"""
+To toggle the layer visibility click on the Eye icon.
+To add a mask use the context menu to enable it and paint pixels with the Mask/Unmask tools found in the left pane.
+For color mask mode : 
+    grey pixels are masked,
+    reddish pixels are unmasked.
+Note that upper visible layers slow down mask edition.
+You can drag and drop layers to change their order.
+"""
+        )
 
     def setEnabled(self, value):
         super(QLayerView, self).setEnabled(value)
@@ -741,8 +751,9 @@ class QLayerView(QTableView) :
             for i in range(len(self.img.layersStack) - pos - 1):
                 if self.img.layersStack[pos + 1 + i].visible:
                     upperVisible = True
+                    break
             if upperVisible:
-                dlgWarn("To show or to edit the mask switch off\nthe visibility of all upper layers")
+                dlgWarn("Upper visible layers slow down mask edition")
                 return True
             return False
         def colorMaskEnable():
