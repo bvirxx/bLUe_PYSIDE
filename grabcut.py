@@ -22,7 +22,6 @@ from PySide2.QtWidgets import QHBoxLayout, QPushButton, QWidget, QSizePolicy, QV
 from QtGui1 import window
 from utils import optionsWidget
 
-
 class segmentForm(QWidget):
     """
     Form for segmentation (grabcut)
@@ -60,8 +59,6 @@ class segmentForm(QWidget):
         optionList1, optionNames1 = ['Clipping Layer'], ['Clipping Layer']
         self.listWidget1 = optionsWidget(options=optionList1, optionNames=optionNames1, exclusive=False)
         self.options = self.listWidget1.options
-        # set initial selection to Clipping
-        self.listWidget1.checkOption(optionList1[0])
         # option changed handler
         def g(item):
             self.layer.isClipping = self.options['Clipping Layer']
@@ -86,6 +83,14 @@ class segmentForm(QWidget):
         vLay.addWidget(self.statusLabel)
         vLay.addWidget(pushButton)
         self.setLayout(vLay)
+        self.setDefaults()
+
+    def setDefaults(self): #TODO 13/06/18 put all initial connect in setDefaults to minimize updates
+        self.listWidget1.unCheckAll()
+        # initially the layer is not ciipping to show the image to segment.
+        self.listWidget1.checkOption(self.listWidget1.intNames[0])
+        self.layer.isClipping = True
+
 
 
 

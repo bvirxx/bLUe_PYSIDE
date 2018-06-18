@@ -18,7 +18,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import cv2
 from PySide2.QtCore import Qt
 from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QComboBox
-from utils import optionsWidget
+
+from MarkedImg import vImage
+from imgconvert import QImageBuffer
+from utils import optionsWidget, dlgWarn
+
 
 class patchForm (QGraphicsView):
     """
@@ -39,17 +43,16 @@ class patchForm (QGraphicsView):
         self.img = targetImage
         self.layer = layer
         self.mainForm = mainForm
-
-        l = QVBoxLayout()
-        l.setAlignment(Qt.AlignBottom)
-
         # options
         options_dict = {'Normal Clone':cv2.NORMAL_CLONE, 'Mixed Clone':cv2.MIXED_CLONE, 'Monochrome Transfer':cv2.MONOCHROME_TRANSFER}
         options = list(options_dict.keys())
-
         self.layer.cloningMethod = options_dict['Normal Clone']
-        self.layer.keepCloned = True
-
+        self.layer.maskIsEnabled = True
+        self.layer.maskIsSelected = True
+        # mask all pixels
+        self.layer.resetMask(maskAll=True)
+        self.layer.autoclone = False
+        self.layer.cloningMethod = cv2.NORMAL_CLONE
         self.options={}
         for op in options:
             self.options[op] = False
@@ -64,6 +67,11 @@ class patchForm (QGraphicsView):
                 if self.options[key]:
                     self.layer.cloningMethod = options_dict[key]
         self.listWidget1.onSelect = onSelect1
+        # set initial selection to normal cloning
+        item = self.listWidget1.items[options[0]]
+        item.setCheckState(Qt.Checked)
+        self.listWidget1.select(item)
+        """
         opList2 = ['Auto Cloning', 'Press Button To Clone']
         self.listWidget2 = optionsWidget(options=opList2)
         def onSelect2(item):
@@ -72,27 +80,47 @@ class patchForm (QGraphicsView):
             self.layer.maskIsEnabled = not keepCloned
             self.layer.maskIsSelected = not keepCloned
         self.listWidget2.onSelect = onSelect2
-        sel = opList2[0]
+        sel = opList2[1]
         self.listWidget2.select(self.listWidget2.items[sel])
+        """
         pushButton1 = QPushButton('Clone')
         # button clicked event handler
         def f():
-            layer = self.targetImage.getActiveLayer()
+            layer = self.layer
+            if vImage.isAllMasked(layer.mask):
+                dlgWarn('Nothing to clone: unmask some pixels')
+                return
+            if layer.xAltOffset == 0.0 and layer.yAltOffset == 0.0:
+                dlgWarn('Nothing to clone: Ctr+Alt+Drag the image ')
+                return
             layer.applyCloning(seamless=True)
-            layer.maskIsEnabled = False
-            layer.maskIsSelected = False
+            layer.parentImage.onImageChanged()
+            #layer.maskIsEnabled = False # done in onselect2
+            #layer.maskIsSelected = False
         pushButton1.clicked.connect(f)
+        pushButton2 = QPushButton('Reset')
+        def g():
+            layer = self.layer
+            # mask all pixels
+            layer.resetMask(maskAll=True)
+            layer.maskIsSelected = True
+            # reset clone layer
+            layer.xAltOffset, layer.yAltOffset = 0.0, 0.0
+            layer.AltZoom_coeff = 1.0
+            layer.applyCloning(seamless=False)
+            layer.parentImage.onImageChanged()
+        pushButton2.clicked.connect(g)
+        # layout
+        l = QVBoxLayout()
+        l.setAlignment(Qt.AlignBottom)
         hl = QHBoxLayout()
         l.addLayout(hl)
         l.setContentsMargins(20, 0, 20, 25)  # left, top, right, bottom
         self.setLayout(l)
-        # set initial selection to normal cloning
-        item = self.listWidget1.items[options[0]]
-        item.setCheckState(Qt.Checked)
-        self.listWidget1.select(item)
         l.addWidget(self.listWidget1)
-        l.addWidget(self.listWidget2)
+        # l.addWidget(self.listWidget2)
         l.addWidget(pushButton1)
+        l.addWidget(pushButton2)
         self.setWhatsThis(
 """
 Seamless replacement of a region of the image by another region from the same image (e.g. to erase an object):
@@ -100,11 +128,9 @@ Seamless replacement of a region of the image by another region from the same im
    1) Select the Unmask/FG tool and paint the pixels to erase;
    2) Select the drag tool and while pressing Ctrl-Alt on the keyboard drag the image to change the painted region;
    3) Release the mouse.
-   4) If mode is not Auto Cloning click the Clone button to start the cloning.
-Note that seamless cloning is a slow operation.
+   4) Click the Clone button to start the cloning (may be slow). 
 """
                         )
-
 class maskForm (QGraphicsView):
     """
     Knitting form (cloning an imported image)

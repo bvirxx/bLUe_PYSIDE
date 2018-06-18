@@ -1126,12 +1126,12 @@ def drawPlotGrid(axeSize):
 def boundingRect(img, pattern):
     """
     Given an image img, the function builds the bounding rectangle
-    of the region defined by img == pattern. If the region is empty, the function
+    of the region defined by (img == pattern). If the region is empty, the function
     returns an invalid rectangle.
     @param img:
     @type img: 2D array
     @param pattern:
-    @type pattern: a.dtype
+    @type pattern: img.dtype
     @return:
     @rtype: QRect or None
     """
@@ -1150,13 +1150,12 @@ def boundingRect(img, pattern):
         # we assign to them a value greater than all possible indices.
         XMin = np.where(np.diagonal(b[:, XMin])==np.max(b), XMin, np.sum(b.shape)+1)
         return np.min(XMin)
-
     # indicator function of the region
     img = np.where(img==pattern, 1, 0)
     # empty region
     if np.max(img) == 0:
         return None
-    # building enclosing rectangle
+    # build the enclosing rectangle
     left = leftPattern(img)
     right = img.shape[1] - 1 - leftPattern(img[::-1, ::-1])
     top = leftPattern(img.T)

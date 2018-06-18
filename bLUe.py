@@ -123,7 +123,6 @@ from itertools import cycle
 from os import path, walk
 from os.path import basename
 from types import MethodType
-from cv2 import NORMAL_CLONE
 import rawpy
 from grabcut import segmentForm
 from PySide2.QtCore import Qt, QRect, QEvent, QUrl, QSize, QFileInfo, QRectF, QObject, QPoint, \
@@ -226,7 +225,7 @@ def paintEvent(widg, e) :
     r = mimg.resize_coeff(widg)
     qp.begin(widg)
     # smooth painting
-    qp.setRenderHint(QPainter.SmoothPixmapTransform)
+    qp.setRenderHint(QPainter.SmoothPixmapTransform)  # TODO useless
     # fill background
     qp.fillRect(QRect(0, 0, widg.width() , widg.height() ), vImage.defaultBgColor)
     # draw the presentation layer.
@@ -350,7 +349,7 @@ def mouseEvent(widget, event) :  # TODO split in 3 handlers
                     return
             # marquee tool
             if window.btnValues['rectangle']:
-                # rectangle coordinates are relative to image
+                # rectangle coordinates are relative to full image
                 x_img = (min(State['ix_begin'], x) - img.xOffset) // r
                 y_img = (min(State['iy_begin'], y) - img.yOffset) // r
                 w = abs(State['ix_begin'] - x) // r
@@ -396,7 +395,7 @@ def mouseEvent(widget, event) :  # TODO split in 3 handlers
                     if layer.isCloningLayer():
                         layer.xAltOffset += (x - State['ix'])
                         layer.yAltOffset += (y - State['iy'])
-                        layer.cloned = False
+                        layer.autoclone = False
                         layer.maskIsEnabled = True
                         layer.maskIsSelected = False
                         layer.applyCloning(seamless=False)
@@ -461,15 +460,17 @@ def mouseEvent(widget, event) :  # TODO split in 3 handlers
                                 form.setRawMultipliers(*form.samples[3*row + col], sampling=False)
                         else:
                             form.setRawMultipliers(1/color[0], 1/color[1], 1/color[2], sampling=True)
-                # cloning layer : do cloning
+                """
+                # cloning layer
                 if layer.isCloningLayer():
                     if modifiers == Qt.ControlModifier | Qt.AltModifier:
                         if layer.keepCloned:
                             layer.maskIsEnabled = False
                             layer.maskisSelected = False
-                            layer.applyCloning(seamless=True)
+                            layer.applyCloning(seamless=False)
                         # update mask status in the table of layers
                         layer.updateTableView(window.tableView)
+                """
     # updates
     widget.repaint()
     # sync splitted views
@@ -517,8 +518,8 @@ def wheelEvent(widget,img, event):
     elif modifiers == Qt.ControlModifier | Qt.AltModifier:
         if layer.isCloningLayer():
             layer.AltZoom_coeff *= (1.0 + numSteps)
-            layer.cloned = False
-            layer.applyCloning(seamless=layer.keepCloned)
+            layer.autoclone = False
+            layer.applyCloning(seamless=False)
             #layer.updatePixmap()
     widget.repaint()
     # sync splitted views
@@ -776,7 +777,6 @@ def openFile(f):
             # updates
             img.layersStack[0].applyToStack()
             updateStatus()
-            # window.label.img.onImageChanged() # TODO 23/04/18 validate removing mandatory because applyToStack may do nothing
             # update list of recent files
             recentFiles = window.settings.value('paths/recent', [])
             # settings.values returns a str or a list of str,
@@ -850,8 +850,8 @@ def setDocumentImage(img):
                                      chanColors=window.histView.chanColors, mode=window.histView.mode, addMode='')
         window.histView.Label_Hist.setPixmap(QPixmap.fromImage(histView))
         window.histView.Label_Hist.repaint()
-        window.label.img.layersStack[-1].updatePixmap()
-        window.label.repaint()
+        # window.label.img.layersStack[-1].updatePixmap()  # TODO 17/06/18 useless?
+        # window.label.repaint()                           # TODO 17/06/18 useless?
 
     ###################################
     # init displayed images
@@ -1363,25 +1363,15 @@ def menuLayer(name):
         lname = 'Cloning'
         l = window.label.img.addAdjustmentLayer(name=lname, role='CLONING')
         grWindow = patchForm.getNewWindow(targetImage=window.label.img, layer=l, mainForm=window)
-        l.execute = lambda l=l, pool=None: l.applyCloning()
-        l.maskIsEnabled = True
-        l.maskIsSelected = True
-        l.resetMask(maskAll=True)
-        l.cloned = False
-        l.cloningMethod = NORMAL_CLONE
-        l.keepCloned = True
+        l.execute = lambda l=l, pool=None: l.applyCloning(seamless=l.autoclone)
     # segmentation
     elif name == 'actionNew_segmentation_layer':
         lname = 'Segmentation'
         l = window.label.img.addSegmentationLayer(name=lname)
-        l.maskIsEnabled = True
-        l.maskIsSelected = True
-        l.mask.fill(vImage.defaultColor_Invalid)
-        #l.isClipping = True
         grWindow = segmentForm.getNewWindow(targetImage=window.label.img, layer=l, mainForm=window)
         l.execute = lambda l=l, pool=None: l.applyGrabcut(nbIter=grWindow.nbIter)
         # mask was modified
-        l.updatePixmap()
+        #l.updatePixmap()
     # loads an image
     elif name == 'actionNew_Image_Layer':
         filename = openDlg(window, ask=False)

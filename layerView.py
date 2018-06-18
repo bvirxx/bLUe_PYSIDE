@@ -139,14 +139,14 @@ class QLayerView(QTableView) :
         self.previewOptionBox = QCheckBox('Preview')
         self.previewOptionBox.setMaximumSize(100, 30)
         # View/Preview changed event handler
-        def m(state): # Qt.Checked Qt.UnChecked
+        def m(state): # state : Qt.Checked Qt.UnChecked
             if self.img is None:
                 return
             self.img.useThumb = (state == Qt.Checked)
             QtGui1.window.updateStatus()
             self.img.cacheInvalidate()
             for l in self.img.layersStack:
-                l.cloned = False
+                l.autoclone = True  # auto update cloning layers
                 l.knitted = False
             try:
                 QApplication.setOverrideCursor(Qt.WaitCursor) #TODO 18/04/18 waitcursor is called by applytostack?
@@ -154,6 +154,9 @@ class QLayerView(QTableView) :
                 # update whole stack
                 self.img.layersStack[0].applyToStack()
             finally:
+                for l in self.img.layersStack:
+                    l.autoclone = False  # reset flags
+                    l.knitted = False
                 QApplication.restoreOverrideCursor()
                 QApplication.processEvents()
             QtGui1.window.label.repaint()

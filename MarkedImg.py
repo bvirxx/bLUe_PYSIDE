@@ -23,7 +23,7 @@ from PySide2.support.signature import inspect
 from PySide2.support.signature.inspect import getframeinfo, currentframe
 from os.path import isfile
 
-from PySide2.QtCore import Qt, QDataStream, QFile, QIODevice, QSize, QPointF, QPoint, QRectF
+from PySide2.QtCore import Qt, QDataStream, QFile, QIODevice, QSize, QPointF, QPoint, QRectF, QMargins
 
 import cv2
 from copy import copy
@@ -69,7 +69,7 @@ class vImage(QImage):
            - thumbnail (self.thumb),
            - hald (self.hald) for LUT3D conversion,
            - mask (self.mask, disabled by default).
-    Note : self.thumb and self.hald are not cache buffers: they are initialized
+    Note : for performance self.thumb and self.hald are not synchronized with the image: they are initialized
     and handled independently of the full size image.
     """
     ################
@@ -81,7 +81,7 @@ class vImage(QImage):
     ###############
     # default base color, used to display semi transparent pixels
     ###############
-    defaultBgColor = QColor(191, 191, 191)
+    defaultBgColor = QColor(191, 191, 191,255)
 
     ##############
     # default mask colors
@@ -97,23 +97,37 @@ class vImage(QImage):
     @classmethod
     def color2OpacityMask(cls, mask):
         """
-        Converts color mask to opacity mask
-        @param mask: color mask
+        Sets opacity channel from red channel (alpha = 0 if R==0 else 255),
+        leaving other channels unchanged.
+        @param mask: mask
         @type mask: QImage
         @return: opacity mask
         @rtype: QImage
         """
         mask = mask.copy()
         buf = QImageBuffer(mask)
+        # set alpha channel from red channel
         buf[:, :, 3] = np.where(buf[:, :, 2] == 0, 0, 255)
         return mask
-
+    @ classmethod
+    def isAllMasked(cls, mask):
+        buf = QImageBuffer(mask)
+        if np.any(buf[:, :, 2] == cls.defaultColor_UnMasked.red()):
+            return False
+        return True
     @classmethod
-    def visualizeMask(cls, img, mask, color=True, clipping=False):
+    def isAllUnmasked(cls, mask):
+        buf = QImageBuffer(mask)
+        if np.any(buf[:, :, 2] == cls.defaultColor_Masked.red()):
+            return False
+        return True
+    @classmethod
+    def visualizeMask(cls, img, mask, color=True, clipping=False, copy=True):
         # copy image
-        img = QImage(img)
+        if copy:
+            img = QImage(img)
         qp = QPainter(img)
-        qp.drawImage(QRect(0, 0, img.width(), img.height()), img)
+        qp.drawImage(QRect(0, 0, img.width(), img.height()), img) # TODO useless
         if color:
             # draw mask as color mask with opacity 0.5
             qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
@@ -124,8 +138,11 @@ class vImage(QImage):
         else:
             # draw mask as opacity mask : mode DestinationIn sets image opacity to mask opacity
             qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
-            qp.drawImage(QRect(0, 0, img.width(), img.height()), vImage.color2OpacityMask(mask))
-            if clipping:  # TODO 6/11/17 may be we should draw checker for both selected and unselected mask
+            omask = vImage.color2OpacityMask(mask)
+            obuf = QImageBuffer(omask)
+            np.maximum(1, obuf[:,:,3], out=obuf[:,:,3])
+            qp.drawImage(QRect(0, 0, img.width(), img.height()), omask)
+            if False:#clipping:  # TODO 6/11/17 may be we should draw checker for both selected and unselected mask
                 # draw checker
                 qp.setCompositionMode(QPainter.CompositionMode_DestinationOver)
                 qp.setBrush(QBrush(checkeredImage()))
@@ -136,7 +153,7 @@ class vImage(QImage):
     @ classmethod
     def seamlessMerge(cls, dest, source, mask, cloningMethod):
         """
-        Seamless merging of source into dest.
+        Seamless cloning of source into dest
         mask is a color mask.
         The dest image is modified.
         @param dest:
@@ -152,24 +169,32 @@ class vImage(QImage):
         src_mask = vImage.color2OpacityMask(mask).scaled(source.size())
         buf = QImageBuffer(src_mask)
         tmp = np.where(buf[:, :, 3] == 0, 0, 255)
-        # get scaled bounding rect
-        bRect = boundingRect(tmp, 255)
-        # test for masked pixels
+        # get src_mask bounding rect dilated by margin.
+        # All rectangle coordinates are relative to src_mask
+        margin = 100
+        oRect = boundingRect(tmp, 255)
+        bRect = oRect + QMargins(margin, margin, margin, margin)
+        inRect = bRect & QImage.rect(src_mask)
+        # look for masked pixels
         if bRect is None:
             # no white pixels
             dlgWarn("seamlessMerge : no masked pixel found")
             return
         # set white mask
-        src_maskBuf = np.dstack((tmp, tmp, tmp)).astype(np.uint8)
-        # cloning center is the center of bRect
-        center = (bRect.left() + bRect.width() // 2, bRect.top() + bRect.height() // 2)
-        sourceBuf = QImageBuffer(source)
-        destBuf = QImageBuffer(dest)
+        bt, bb, bl, br = inRect.top(), inRect.bottom(), inRect.left(), inRect.right()
+        src_maskBuf = np.dstack((tmp, tmp, tmp)).astype(np.uint8)[bt:bb+1,bl:br+1,:]
+        #center = (bl + bRect.width() // 2, bt + bRect.height() // 2)
+        sourceBuf = QImageBuffer(source)[bt:bb+1,bl:br+1,:]
+        destBuf = QImageBuffer(dest)[bt:bb+1,bl:br+1,:]
+        # The cloning center is the center of oRect. We look for its coordinates
+        # relative to inRect
+        center = (oRect.width()//2 + oRect.left() - inRect.left() , oRect.height()//2 + oRect.top() - inRect.top())
         output = cv2.seamlessClone(sourceBuf[:, :, :3][:, :, ::-1],  # source
-                                   destBuf[:, :, :3][:, :, ::-1],  # dest
+                                   destBuf[:, :, :3][:, :, ::-1],    # dest
                                    src_maskBuf,
                                    center, cloningMethod
                                    )
+        # copy output into dest
         destBuf[:, :, :3][:, :, ::-1] = output  # assign src_ maskBuf for testing
 
     def __init__(self, filename=None, cv2Img=None, QImg=None, mask=None, format=QImage.Format_ARGB32,
@@ -509,7 +534,13 @@ class vImage(QImage):
         self.rPixmap = QPixmap.fromImage(rImg)
 
     def resetMask(self, maskAll=False):
-        # default : nothing is masked
+        """
+        Reinits the mask : all pixels are masked or all
+        pixels are shown.
+        By default all pixels are shown.
+        @param maskAll:
+        @type maskAll: boolean
+        """
         self.mask.fill(vImage.defaultColor_Masked if maskAll else vImage.defaultColor_UnMasked)
         self.updatePixmap(maskOnly=True)
 
@@ -583,34 +614,30 @@ class vImage(QImage):
 
     def applyCloning(self, seamless=True):
         """
-        Draws the translated and zoomed
-        input image on the output image.
-        if seamless and self.cloned are both False,
-        no seamless cloning is done.
-        Otherwise, a seamless cloning to the non masked region
-        of the output image is done.
+
+
         @param seamless:
         @type seamless: boolean
         """
         # TODO 02/04/18 called multiple times by mouse events, cacheInvalidate should be called!!
         imgIn = self.inputImg()
+        pxIn = QPixmap.fromImage(imgIn)
         imgOut = self.getCurrentImage()
         # draw the translated and zoomed input image on the output image
-        if not self.cloned :
-            # erase previous transformed image : reset imgOut to ImgIn
-            qp = QPainter(imgOut)
-            qp.setCompositionMode(QPainter.CompositionMode_Source)
-            qp.drawImage(QRect(0, 0, imgOut.width(), imgOut.height()), imgIn)
-            # get translation relative to current Image
-            currentAltX, currentAltY = self.full2CurrentXY(self.xAltOffset, self.yAltOffset)
-            # draw translated and zoomed input image (nothing is drawn outside of dest. image)
-            qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
-            rect = QRectF(currentAltX, currentAltY, imgOut.width()*self.AltZoom_coeff, imgOut.height()*self.AltZoom_coeff)
-            qp.drawImage(rect, imgIn)
-            qp.drawRect(rect)  # usage ?
-            qp.end()
+        #if not self.cloned :
+        # erase previous transformed image : reset imgOut to ImgIn
+        qp = QPainter(imgOut)
+        qp.setCompositionMode(QPainter.CompositionMode_Source)
+        qp.drawPixmap(QRect(0, 0, imgOut.width(), imgOut.height()), pxIn, pxIn.rect())
+        # get translation relative to current Image
+        currentAltX, currentAltY = self.full2CurrentXY(self.xAltOffset, self.yAltOffset)
+        # draw translated and zoomed input image (nothing is drawn outside of dest. image)
+        qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
+        rect = QRectF(currentAltX, currentAltY, imgOut.width()*self.AltZoom_coeff, imgOut.height()*self.AltZoom_coeff)
+        qp.drawPixmap(rect, pxIn, pxIn.rect())
+        qp.end()
         # do seamless cloning
-        if seamless or self.cloned:
+        if seamless:
             try:
                 QApplication.setOverrideCursor(Qt.WaitCursor)
                 QApplication.processEvents()
@@ -625,7 +652,7 @@ class vImage(QImage):
                 QApplication.processEvents()
         self.updatePixmap()
         # the presentation layer must be updated here because
-        # applyCloning is called directly by mouse events.
+        # applyCloning is called directly (mouse and Clone button events).
         self.parentImage.prLayer.update()
 
     def applyKnitting(self):
@@ -652,7 +679,7 @@ class vImage(QImage):
         rect = self.rect
         # resizing coeff fitting selection rectangle with current image
         r = inputImg.width() / self.width()
-        hint = 'Select some background and/or\nforeground\n pixels with the selection tools\nand apply'
+        # prepare FG/BG mask
         finalMask = np.zeros((inputImg.height(), inputImg.width()), dtype=np.uint8) + cv2.GC_BGD
         # set pixels inside selection rectangle to PR_FGD
         if rect is not None:
@@ -705,11 +732,14 @@ class vImage(QImage):
             self.mask = scaledMask.scaled(self.size())
         else:
             self.mask = scaledMask
-        if self.layer.maskIsSelected:
+        """
+        if self.maskIsSelected:
             hint = 'To view only the selection\ndo: Enable mask as Opacity Mask\nin the Layer context menu '
         else:
             hint = ''
         self.statusLabel.settext(hint)
+        """
+        self.isClipping = True
         self.updatePixmap()
 
     def applyExposure(self, exposureCorrection, options):
@@ -1761,8 +1791,11 @@ class mImage(vImage):
             index = self.activeLayerIndex
         layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
         layer.role = 'SEGMENT'
-        layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getCurrentMaskedImage()
+        layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getCurrentMaskedImage() # TODO 13/06/18 is it different from other layers?
         self.addLayer(layer, name=name, index=index + 1)
+        layer.maskIsEnabled = True
+        layer.maskIsSelected = True
+        layer.mask.fill(vImage.defaultColor_Invalid)
         layer.updatePixmap()
         return layer
 
@@ -2005,8 +2038,7 @@ class QLayer(vImage):
         # layer offsets
         self.xOffset, self.yOffset = 0, 0
         self.Zoom_coeff = 1.0
-        # layer AltOffsets are used by cloning
-        # layers to shift an image clone.
+        # clone dup layer shift and zoom  relative to current layer
         self.xAltOffset, self.yAltOffset = 0, 0
         self.AltZoom_coeff = 1.0
         super().__init__(*args, **kwargs)
@@ -2191,7 +2223,7 @@ class QLayer(vImage):
 
     def getCurrentMaskedImage(self):
         """
-        Reduces the layer stack up to self (self included),
+        Reduces the layer stack up to self (included),
         taking into account the masks. if self.isClipping is True
         self.mask applies to all lower layers and to self only otherwise.
         The method uses the non color managed rPixmaps to build the masked image.
@@ -2217,20 +2249,7 @@ class QLayer(vImage):
         # draw lower stack
         qp = QPainter(img)
         top = self.parentImage.getStackIndex(self)
-        # for adjustment layers, we must choose
-        #      1) apply transformation to all lower layers : we draw
-        #         the stack from 0 to top
-        #      2) apply transformation to next lower layer alone : we draw
-        #         the top layer only
-        if self.isClipping:
-            bottom = top
-            # draw checker
-            qp.setBrush(QBrush(checkeredImage()))
-            qp.setCompositionMode(QPainter.CompositionMode_Source)
-            qp.drawRect(QRect(0,0, img.width(), img.height()))  # 0.26s for 15Mpx
-        else:  # TODO added 14/05/18 validate
-            ind = self.getLowerClippingStackIndex()
-            bottom = max(0, ind)
+        bottom = 0
         for i, layer in enumerate(self.parentImage.layersStack[bottom:top+1]):
             if layer.visible:
                 if i == 0:
@@ -2243,6 +2262,16 @@ class QLayer(vImage):
                 else:
                     qp.drawImage(QRect(0,0,img.width(), img.height()), layer.getCurrentImage())
         qp.end()
+        if self.isClipping and self.maskIsEnabled:
+            mask = self.mask.scaled(img.width(), img.height())  # vImage.color2OpacityMask(self.mask)
+            img = vImage.visualizeMask(img, mask, color=False, clipping=False, copy=False)
+            """
+            # reduce destination opacity by alpha of the mask
+            qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
+            mask = self.mask.scale(img.width(), img.height()) #vImage.color2OpacityMask(self.mask)
+            qp.drawImage(QRectF(0,0, img.width(), img.height()), mask)
+            """
+            buf = QImageBuffer(img)
         return img
 
     def applyToStack(self):
@@ -2327,11 +2356,7 @@ class QLayer(vImage):
 
     def updatePixmap(self, maskOnly = False):
         """
-        Updates the caches qPixmap, rPixmap and cmImage.
-        The input image is that returned by getCurrentImage(), thus
-        the caches are synchronized using the current image
-        mode (full or preview).
-        If maskOnly is True, cmImage is not updated.
+        Updates the cached rPixmap.
         if maskIsEnabled is False, the mask is not shown.
         If maskIsEnabled is True, then
             - if maskIsSelected is True, the mask is drawn over
@@ -2339,41 +2364,16 @@ class QLayer(vImage):
             - if maskIsSelected is False, the mask is drawn as an
               opacity mask, setting image opacity to that of mask
               (mode DestinationIn). Mask color is no used.
-        @param maskOnly: default False
+        @param maskOnly: not used yet
         @type maskOnly: boolean
         """
-        currentImage = self.getCurrentImage()
-        """
-        if not maskOnly:
-            # invalidate color managed cache
-            self.cmImage = None
-        # get current image and apply color management if self is the presentation layer
-        if icc.COLOR_MANAGE and self.parentImage is not None and getattr(self, 'role', None) == 'presentation':
-            # layer color model is parent image color model
-            if self.cmImage is None:
-                # CAUTION : reset alpha channel
-                img = convertQImage(currentImage, transformation=self.parentImage.colorTransformation)  # time 0.7 s for full res.
-                # restore alpha
-                buf0 = QImageBuffer(img)
-                buf1 = QImageBuffer(currentImage)
-                buf0[:,:,3] = buf1[:,:,3]
-            else:
-                img = self.cmImage
-        else:
-            img = currentImage
-        self.cmImage = img
-        qImg = img
-        """
-        rImg = currentImage
+        rImg = self.getCurrentImage()
         # apply layer transformation. Missing pixels are set to QColor(0,0,0,0)
         if self.xOffset != 0 or self.yOffset != 0:
             x,y = self.full2CurrentXY(self.xOffset, self.yOffset)
-            #qImg = qImg.copy(QRect(-x, -y, qImg.width()*self.Zoom_coeff, qImg.height()*self.Zoom_coeff))
             rImg = rImg.copy(QRect(-x, -y, rImg.width()*self.Zoom_coeff, rImg.height()*self.Zoom_coeff))
         if self.maskIsEnabled:
-            #qImg = vImage.visualizeMask(qImg, self.mask, color=self.maskIsSelected, clipping=self.isClipping)
             rImg = vImage.visualizeMask(rImg, self.mask, color=self.maskIsSelected, clipping=self.isClipping)
-        #self.qPixmap = QPixmap.fromImage(qImg)
         self.rPixmap = QPixmap.fromImage(rImg)
         self.setModified(True)
 
@@ -2571,7 +2571,8 @@ class QPresentationLayer(QLayer):
             if self.cmImage is None:
                 # CAUTION : reset alpha channel
                 img = convertQImage(currentImage, transformation=self.parentImage.colorTransformation)  # time 0.66 s for 15 Mpx.
-                # restore alpha
+                # preserve alpha channel
+                img = img.convertToFormat(currentImage.format()) #TODO 14/06/18 convertToFormat is mandatory to get ARGB instead of RGB images
                 buf0 = QImageBuffer(img)
                 buf1 = QImageBuffer(currentImage)
                 buf0[:,:,3] = buf1[:,:,3]

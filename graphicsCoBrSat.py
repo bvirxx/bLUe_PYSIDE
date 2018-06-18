@@ -248,7 +248,7 @@ Sliders can be reset to their default value by double clicking the name of the s
         self.sliderSaturation.setEnabled(True)
         self.sliderBrightness.setEnabled(True)
 
-    def setDefaults(self):
+    def setDefaults(self):  #TODO 13/06/18 put all initial connect in setDefaults to minimize updates
         self.listWidget1.unCheckAll()
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
         self.listWidget2.unCheckAll()

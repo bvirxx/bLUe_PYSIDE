@@ -21,6 +21,7 @@ import win32gui
 from PIL.ImageCms import getOpenProfile, get_display_profile, getProfileDescription, getProfileInfo, \
     buildTransformFromOpenProfiles, applyTransform, INTENT_RELATIVE_COLORIMETRIC, INTENT_PERCEPTUAL
 from PIL.ImageWin import HDC
+from PySide2.QtGui import QImage
 
 from debug import tdec
 from imgconvert import PilImageToQImage, QImageToPilImage
@@ -94,7 +95,8 @@ class icc:
 def convertQImage(image, transformation=None):
     """
     Applies a Cms transformation to a QImage and returns the transformed image.
-    If transformation is None, the input image is returned
+    If transformation is None, the input image is returned.
+    Caution: The alpha chanel is not preserved.
     @param image: image
     @type image: QImage
     @param transformation : Cms transformation
@@ -105,7 +107,6 @@ def convertQImage(image, transformation=None):
     if transformation is not None:
         # convert to the PIL context and apply transformation
         converted_image = applyTransform(QImageToPilImage(image), transformation, 0)  # time 0.85s for a 15 Mpx image.
-        # image.colorTransformation = transformation  # TODO 27/04/18 validate deletion
         return PilImageToQImage(converted_image)
     else :
         return image
