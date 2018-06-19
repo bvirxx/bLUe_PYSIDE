@@ -41,13 +41,11 @@ class segmentForm(QWidget):
         self.targetImage = targetImage
         self.mainForm = mainForm
         self.nbIter = 1
-
         def f():
             self.targetImage.getActiveLayer().applyToStack()
             window.label.img.onImageChanged()
         pushButton = QPushButton('apply')
         pushButton.clicked.connect(f)
-
         spBox = QSpinBox()
         spBox.setRange(1,10)
         def f(iter):
@@ -64,32 +62,32 @@ class segmentForm(QWidget):
             self.layer.isClipping = self.options['Clipping Layer']
             self.layer.applyToStack()
         self.listWidget1.onSelect = g
-
-        hint = 'Select some background and/or\nforeground pixels with the selection tools\nand apply'
-        self.statusLabel = QLabel(text=hint)
+        # layout
         hLay = QHBoxLayout()
         hLay.addWidget(spBoxLabel)
         hLay.addWidget(spBox)
         hLay.addStretch(1)
-
         h2 = QHBoxLayout()
         h2.addWidget(self.listWidget1)
-
         vLay = QVBoxLayout()
         vLay.setAlignment(Qt.AlignTop)
         vLay.setContentsMargins(20, 8, 20, 25)  # left, top, right, bottom
         vLay.addLayout(hLay)
         vLay.addLayout(h2)
-        vLay.addWidget(self.statusLabel)
         vLay.addWidget(pushButton)
         self.setLayout(vLay)
         self.setDefaults()
+        self.setWhatsThis(
+"""Select the region to extract with the rectangle Marquee Tool and click the Apply button.
+
+"""
+                        )
 
     def setDefaults(self): #TODO 13/06/18 put all initial connect in setDefaults to minimize updates
         self.listWidget1.unCheckAll()
         # initially the layer is not ciipping to show the image to segment.
-        self.listWidget1.checkOption(self.listWidget1.intNames[0])
-        self.layer.isClipping = True
+        # self.listWidget1.checkOption(self.listWidget1.intNames[0])
+        # self.layer.isClipping = True
 
 
 

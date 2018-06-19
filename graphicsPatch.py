@@ -124,11 +124,9 @@ class patchForm (QGraphicsView):
         self.setWhatsThis(
 """
 Seamless replacement of a region of the image by another region from the same image (e.g. to erase an object):
-(GUI for the opencv function seamlessClone).
-   1) Select the Unmask/FG tool and paint the pixels to erase;
-   2) Select the drag tool and while pressing Ctrl-Alt on the keyboard drag the image to change the painted region;
-   3) Release the mouse.
-   4) Click the Clone button to start the cloning (may be slow). 
+   1) Select the Unmask/FG tool and paint the pixels to erase (Use the Mask/BG tool to adjust if needed);
+   2) Select the drag tool and while pressing Ctrl-Alt on the keyboard drag the image shown in the painted area;
+When done click the Clone button to start the cloning. 
 """
                         )
 class maskForm (QGraphicsView):

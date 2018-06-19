@@ -287,7 +287,7 @@ def saveChangeDialog(img):
 def saveDlg(img, mainWidget):
     """
     Image saving dialogs. The actual saving is
-    done by mImage.save(). Metadata is copied from sidecar
+    done by a call to mImage.save(). Metadata is copied from sidecar
     to image file. The function returns the image file name.
     Exception ValueError or IOError are raised if the saving fails.
     @param img:
@@ -344,7 +344,7 @@ def saveDlg(img, mainWidget):
         # get parameters
         quality = dlg.sliderQual.value()
         compression = dlg.sliderComp.value()
-        # write image file : throw ValueError or IOError
+        # call mImage.save to write image file : throw ValueError or IOError
         img.save(filename, quality=quality, compression=compression)
         # copy metadata to image file. The sidecar is not removed
         img.restoreMeta(img.filename, filename)

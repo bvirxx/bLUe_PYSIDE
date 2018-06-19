@@ -127,20 +127,17 @@ class vImage(QImage):
         if copy:
             img = QImage(img)
         qp = QPainter(img)
-        qp.drawImage(QRect(0, 0, img.width(), img.height()), img) # TODO useless
+        # qp.drawImage(QRect(0, 0, img.width(), img.height()), img) # TODO validate suppression 19/06/18
         if color:
             # draw mask as color mask with opacity 0.5
             qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
-            tmp = mask.copy()
-            tmpBuf = QImageBuffer(tmp)
-            tmpBuf[:, :, 3] = 128
-            qp.drawImage(QRect(0, 0, img.width(), img.height()), tmp)
+            qp.setOpacity(0.5)
+            qp.drawImage(QRect(0, 0, img.width(), img.height()), mask)
         else:
-            # draw mask as opacity mask : mode DestinationIn sets image opacity to mask opacity
+            # draw mask as opacity mask :
+            # mode DestinationIn (set image opacity to mask opacity)
             qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
             omask = vImage.color2OpacityMask(mask)
-            obuf = QImageBuffer(omask)
-            np.maximum(1, obuf[:,:,3], out=obuf[:,:,3])
             qp.drawImage(QRect(0, 0, img.width(), img.height()), omask)
             if False:#clipping:  # TODO 6/11/17 may be we should draw checker for both selected and unselected mask
                 # draw checker
@@ -149,7 +146,6 @@ class vImage(QImage):
                 qp.drawRect(QRect(0, 0, img.width(), img.height()))  # 0.26s for 15Mpx
         qp.end()
         return img
-
     @ classmethod
     def seamlessMerge(cls, dest, source, mask, cloningMethod):
         """
@@ -679,24 +675,29 @@ class vImage(QImage):
         rect = self.rect
         # resizing coeff fitting selection rectangle with current image
         r = inputImg.width() / self.width()
-        # prepare FG/BG mask
-        finalMask = np.zeros((inputImg.height(), inputImg.width()), dtype=np.uint8) + cv2.GC_BGD
-        # set pixels inside selection rectangle to PR_FGD
+        # mask
         if rect is not None:
+            # inside : PR_FGD, outside BGD
+            finalMask = np.zeros((inputImg.height(), inputImg.width()), dtype=np.uint8) + cv2.GC_BGD
             finalMask[int(rect.top() * r):int(rect.bottom() * r), int(rect.left() * r):int(rect.right() * r)] = cv2.GC_PR_FGD
+        else:
+            # all : PR_BGD
+            finalMask = np.zeros((inputImg.height(), inputImg.width()), dtype=np.uint8) + cv2.GC_PR_BGD
         # add info from self.mask
         if inputImg.size() != self.size():
             scaledMask = self.mask.scaled(inputImg.width(), inputImg.height())
         else:
             scaledMask = self.mask
         scaledMaskBuf = QImageBuffer(scaledMask)
-        finalMask[(scaledMaskBuf[:, :, 2] > 100 )* (scaledMaskBuf[:,:,1]!=99)] = cv2.GC_FGD
+        # Only actually painted pixels of the mask should be considered
+        finalMask[(scaledMaskBuf[:, :, 2] > 100 )* (scaledMaskBuf[:,:,1]!=99)] = cv2.GC_FGD  # 99=defaultColorInvalid R=128 unmasked R=0 masked
         finalMask[(scaledMaskBuf[:,:, 2]==0) *(scaledMaskBuf[:,:,1]!=99)] = cv2.GC_BGD
-        finalMask_test = finalMask.copy()
+        # save a copy of the mask
         finalMask_save = finalMask.copy()
-        # at least one FGD pixel and one BGD pixel
-        if not ((np.any(finalMask == cv2.GC_FGD) or np.any(finalMask == cv2.GC_PR_FGD)) and (
-            np.any(finalMask == cv2.GC_BGD) or np.any(finalMask == cv2.GC_PR_BGD))):
+        # mandatory : at least one (FGD or PR_FGD)  pixel and one (BGD or PR_BGD) pixel
+        if not ((np.any(finalMask == cv2.GC_FGD) or np.any(finalMask == cv2.GC_PR_FGD))
+                and
+                (np.any(finalMask == cv2.GC_BGD) or np.any(finalMask == cv2.GC_PR_BGD))):
             dlgWarn('You must select some background or foreground pixels', info='Use selection rectangle or draw mask')
             return
         bgdmodel = np.zeros((1, 13 * 5), np.float64)  # Temporary array for the background model
@@ -705,7 +706,7 @@ class vImage(QImage):
         inputBuf = QImageBuffer(inputImg)
         bgdmodel_test = np.zeros((1, 13 * 5), np.float64)  # Temporary array for the background model
         fgdmodel_test = np.zeros((1, 13 * 5), np.float64)  # Temporary array for the foreground model
-
+        # segmentation
         cv2.grabCut_mt(inputBuf[:, :, :3], finalMask, None,  # QRect2tuple(img0_r.rect),
                         bgdmodel, fgdmodel, nbIter, mode)
         print ('grabcut_mtd time : %.2f' % (time()-t0))
@@ -726,8 +727,8 @@ class vImage(QImage):
         buf = QImageBuffer(scaledMask)
         # set the red channel
         buf[:,:,2] = np.where(finalOpacity==255, 128, 0)
-        # validate mask
-        buf[:,:,1] = 0
+        # allow to shrink FGD
+        buf[:,:,1] = np.where(buf[:,:,2]==128, 99, 0)
         if self.size() != scaledMask.size():
             self.mask = scaledMask.scaled(self.size())
         else:
@@ -740,6 +741,10 @@ class vImage(QImage):
         self.statusLabel.settext(hint)
         """
         self.isClipping = True
+        formOptions = self.view.widget().listWidget1
+        name = formOptions.intNames[0]
+        item = formOptions.items[name]
+        item.setCheckState(Qt.Checked)
         self.updatePixmap()
 
     def applyExposure(self, exposureCorrection, options):
@@ -1795,6 +1800,8 @@ class mImage(vImage):
         self.addLayer(layer, name=name, index=index + 1)
         layer.maskIsEnabled = True
         layer.maskIsSelected = True
+        # mask pixels are not yet painted as FG or BG
+        # so we mark them as invalid
         layer.mask.fill(vImage.defaultColor_Invalid)
         layer.updatePixmap()
         return layer
@@ -1849,22 +1856,25 @@ class mImage(vImage):
             return False
         # get the final image from the presentation layer.
         # It is important to note that this image is
-        # NOT color managed (only the pixmap prLayer.qPixmap
+        # NOT color managed (prLayer.qPixmap only
         # is color managed)
         img = self.prLayer.getCurrentImage() # self.mergeVisibleLayers()
         # imagewriter and QImage.save are unusable for tif files,
         # due to bugs in libtiff, hence
         # we use opencv imwrite.
         fileFormat = filename[-3:].upper()
+        buf = QImageBuffer(img)
         if fileFormat == 'JPG':
+            buf = buf[:, :, :3] # TODO added 19/06/18
             params = [cv2.IMWRITE_JPEG_QUALITY, quality]  # quality range 0..100
         elif fileFormat == 'PNG':
             params = [cv2.IMWRITE_PNG_COMPRESSION, compression]  # compression range 0..9
         elif fileFormat == 'TIF':
+            buf = buf[:, :, :3]  # TODO added 19/06/18
             params = []
         else:
             raise IOError("Invalid File Format\nValid formats are jpg, png, tif ")
-        buf = QImageBuffer(img)[:,:,:3]
+        #buf = QImageBuffer(img)[:,:,:3] # TODO validate suppression 18/06/18
         if self.isCropped:
             # make slices
             w, h = self.width(), self.height()
@@ -2271,7 +2281,6 @@ class QLayer(vImage):
             mask = self.mask.scale(img.width(), img.height()) #vImage.color2OpacityMask(self.mask)
             qp.drawImage(QRectF(0,0, img.width(), img.height()), mask)
             """
-            buf = QImageBuffer(img)
         return img
 
     def applyToStack(self):

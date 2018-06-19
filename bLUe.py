@@ -375,7 +375,7 @@ def mouseEvent(widget, event) :  # TODO split in 3 handlers
                     # should be layer.updateStack() if any upper layer visible : too slow
                     layer.updatePixmap(maskOnly=True)
                     img.prLayer.applyNone()
-                    img.prLayer.updatePixmap(maskOnly=True)
+                    # img.prLayer.updatePixmap(maskOnly=True) # TODO called by applyNone 19/06/18
                     window.label.repaint()
             # dragBtn or arrow
             else:
@@ -428,7 +428,7 @@ def mouseEvent(widget, event) :  # TODO split in 3 handlers
         if event.button() == Qt.LeftButton:
             if layer.maskIsEnabled \
                     and layer.getUpperVisibleStackIndex() != -1\
-                    and window.btnValues['drawFG'] or window.btnValues['drawBG']:
+                    and (window.btnValues['drawFG'] or window.btnValues['drawBG']):
                 layer.applyToStack()
             if img.isMouseSelectable:
                 # click event
