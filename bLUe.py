@@ -312,7 +312,7 @@ def mouseEvent(widget, event) :  # TODO split in 3 handlers
     # x, y coordinates (relative to widget)
     x, y = event.x(), event.y()
     # keyboard modifiers
-    modifiers = QApplication.keyboardModifiers()
+    modifiers = app.keyboardModifiers()
     eventType = event.type()
     ###################
     # mouse press event
@@ -358,7 +358,10 @@ def mouseEvent(widget, event) :  # TODO split in 3 handlers
             # drawing tools
             elif window.btnValues['drawFG'] or window.btnValues['drawBG']:
                 if layer.maskIsEnabled:
-                    color = vImage.defaultColor_UnMasked if window.btnValues['drawFG'] else vImage.defaultColor_Masked
+                    if modifiers == Qt.NoModifier:
+                        color = vImage.defaultColor_UnMasked if window.btnValues['drawFG'] else vImage.defaultColor_Masked
+                    else:
+                        color = vImage.defaultColor_UnMasked_Invalid if window.btnValues['drawFG'] else vImage.defaultColor_Invalid
                     qp.begin(layer.mask)
                     # get pen width
                     w = window.verticalSlider1.value() // (2 * r)

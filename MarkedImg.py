@@ -93,6 +93,7 @@ class vImage(QImage):
     defaultColor_UnMasked = QColor(128, 0, 0, 255)
     defaultColor_Masked = QColor(0, 0, 0, 255)
     defaultColor_Invalid = QColor(0, 99, 0, 255)
+    defaultColor_UnMasked_Invalid = QColor(128, 99, 0, 255)
 
     @classmethod
     def color2OpacityMask(cls, mask):
@@ -146,6 +147,20 @@ class vImage(QImage):
                 qp.drawRect(QRect(0, 0, img.width(), img.height()))  # 0.26s for 15Mpx
         qp.end()
         return img
+    @classmethod
+    def maskDilate(cls, mask, iterations=1):
+        mask = mask.copy()
+        kernel = np.ones((5, 5), np.uint8)
+        # CAUTION erode decreases values (min filter), so it extends the masked part of the image
+        mask[:, :, 2] = cv2.erode(mask[:, :, 2], kernel, iterations=iterations)
+        return mask
+    @classmethod
+    def maskErode(cls, mask,iterations=1):
+        mask = mask.copy()
+        kernel = np.ones((5, 5), np.uint8)
+        # CAUTION dilate increases values (max filter), so it reduces the masked part of the image
+        mask[:, :, 2] = cv2.dilate(mask[:, :, 2], kernel, iterations=iterations)
+        return mask
     @ classmethod
     def seamlessMerge(cls, dest, source, mask, cloningMethod):
         """
@@ -684,6 +699,9 @@ class vImage(QImage):
             # all : PR_BGD
             finalMask = np.zeros((inputImg.height(), inputImg.width()), dtype=np.uint8) + cv2.GC_PR_BGD
         # add info from self.mask
+        # initially (before any painting with BG/FG tools and before first call to applygrabcut)
+        # all mask pixels are marked as invalid. Painting a pixel marks it as valid, Ctrl+paint
+        # switches it to invalid. Only valid pixel info is added to finalMask.
         if inputImg.size() != self.size():
             scaledMask = self.mask.scaled(inputImg.width(), inputImg.height())
         else:
@@ -716,7 +734,7 @@ class vImage(QImage):
                         bgdmodel_test, fgdmodel_test, nbIter, mode)
         print('grabcut time : %.2f' % (time() - t1))
         """
-        # keep initial FGD and BGD pixels
+        # keep unmodified initial FGD and BGD pixels
         finalMask = np.where((finalMask_save==cv2.GC_BGD) + (finalMask_save == cv2.GC_FGD), finalMask_save, finalMask)
 
         # set opacity (255=background, 0=foreground)
@@ -727,19 +745,20 @@ class vImage(QImage):
         buf = QImageBuffer(scaledMask)
         # set the red channel
         buf[:,:,2] = np.where(finalOpacity==255, 128, 0)
-        # allow to shrink FGD
-        buf[:,:,1] = np.where(buf[:,:,2]==128, 99, 0)
+        invalidate_contour = True
+        if invalidate_contour:
+            ebuf = vImage.maskErode(buf, iterations=2)
+            mask = np.logical_and(buf[:, :, 2] == 0, ebuf[:, :, 2] == 128)
+            buf[:, :, 1][mask] = 99
+            buf[:,:,1][~mask] = 0
+        else:
+            # invalidate PR_FGD and PR_BGD pixels, validate others
+            buf[:,:,1] = np.where((finalMask!=cv2.GC_FGD) * (finalMask!=cv2.GC_BGD), 99, 0)
         if self.size() != scaledMask.size():
             self.mask = scaledMask.scaled(self.size())
         else:
             self.mask = scaledMask
-        """
-        if self.maskIsSelected:
-            hint = 'To view only the selection\ndo: Enable mask as Opacity Mask\nin the Layer context menu '
-        else:
-            hint = ''
-        self.statusLabel.settext(hint)
-        """
+
         self.isClipping = True
         formOptions = self.view.widget().listWidget1
         name = formOptions.intNames[0]
@@ -1803,6 +1822,7 @@ class mImage(vImage):
         # mask pixels are not yet painted as FG or BG
         # so we mark them as invalid
         layer.mask.fill(vImage.defaultColor_Invalid)
+        layer.paintedMask = layer.mask.copy()
         layer.updatePixmap()
         return layer
 
