@@ -78,8 +78,11 @@ class segmentForm(QWidget):
         self.setLayout(vLay)
         self.setDefaults()
         self.setWhatsThis(
-"""Select the region to extract with the rectangle Marquee Tool and click the Apply button.
-
+""" Object extraction  
+  Select the object to extract with the rectangle Marquee Tool. Next, click the Apply button. 
+  Correct (roughly) if needed the foreground (FG) and the background (BG) regions using the FG and BG tools (Ctrl to undo) and click again the Apply button.
+  By default the mask is displayed as a color mask. To view it as an opacity mask, right click on the Segmentation layer row in the right pane and check Enable Mask As > Opacity Mask in the context menu.
+  Note. To keep the transparent background save the image in format png or tiff.
 """
                         )
 

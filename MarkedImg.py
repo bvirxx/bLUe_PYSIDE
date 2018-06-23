@@ -149,6 +149,16 @@ class vImage(QImage):
         return img
     @classmethod
     def maskDilate(cls, mask, iterations=1):
+        """
+        Copy the mask and increases the masked region by applying
+        a 5x5 min filter.
+        @param mask:
+        @type mask: ndarray RGB channels
+        @param iterations: kernal iteartion count
+        @type iterations: int
+        @return: the dialted mask
+        @rtype:
+        """
         mask = mask.copy()
         kernel = np.ones((5, 5), np.uint8)
         # CAUTION erode decreases values (min filter), so it extends the masked part of the image
@@ -156,9 +166,19 @@ class vImage(QImage):
         return mask
     @classmethod
     def maskErode(cls, mask,iterations=1):
+        """
+        Copy the mask and reduces the masked region by applying
+        a 5x5 max filter.
+        @param mask:
+        @type mask: ndarray BGR channels
+        @param iterations: kernel iteration count
+        @type iterations: int
+        @return: the eroded mask
+        @rtype: ndarray
+        """
         mask = mask.copy()
         kernel = np.ones((5, 5), np.uint8)
-        # CAUTION dilate increases values (max filter), so it reduces the masked part of the image
+        # CAUTION dilate increases values (max filter), so it reduces the masked region of the image
         mask[:, :, 2] = cv2.dilate(mask[:, :, 2], kernel, iterations=iterations)
         return mask
     @ classmethod
@@ -661,6 +681,8 @@ class vImage(QImage):
                 self.parentImage.setModified(True)
                 QApplication.restoreOverrideCursor()
                 QApplication.processEvents()
+        # forward the alpha channel
+        # TODO 23/06/18 forward ?
         self.updatePixmap()
         # the presentation layer must be updated here because
         # applyCloning is called directly (mouse and Clone button events).
@@ -701,7 +723,7 @@ class vImage(QImage):
         # add info from self.mask
         # initially (before any painting with BG/FG tools and before first call to applygrabcut)
         # all mask pixels are marked as invalid. Painting a pixel marks it as valid, Ctrl+paint
-        # switches it to invalid. Only valid pixel info is added to finalMask.
+        # switches it to invalid. Only valid pixel info is added to finalMask, fixing them as FG or BG
         if inputImg.size() != self.size():
             scaledMask = self.mask.scaled(inputImg.width(), inputImg.height())
         else:
@@ -734,7 +756,7 @@ class vImage(QImage):
                         bgdmodel_test, fgdmodel_test, nbIter, mode)
         print('grabcut time : %.2f' % (time() - t1))
         """
-        # keep unmodified initial FGD and BGD pixels
+        # keep unmodified initial FGD and BGD pixels : #TODO 22/06/18 alraedy done by the function grabcut
         finalMask = np.where((finalMask_save==cv2.GC_BGD) + (finalMask_save == cv2.GC_FGD), finalMask_save, finalMask)
 
         # set opacity (255=background, 0=foreground)
@@ -743,13 +765,18 @@ class vImage(QImage):
         # So, we can't set now the mask alpha channel.
         finalOpacity = np.where((finalMask == cv2.GC_FGD) + (finalMask == cv2.GC_PR_FGD), 255, 0)
         buf = QImageBuffer(scaledMask)
-        # set the red channel
+        # set the red channel of the mask
         buf[:,:,2] = np.where(finalOpacity==255, 128, 0)
-        invalidate_contour = True
+        invalidate_contour = True  # always True for testing purpose
+        # without manual corrections, only the contour region may be updated
+        # by further calls to applyGrabcut()
         if invalidate_contour:
-            ebuf = vImage.maskErode(buf, iterations=2)
-            mask = np.logical_and(buf[:, :, 2] == 0, ebuf[:, :, 2] == 128)
-            buf[:, :, 1][mask] = 99
+            # build a boolean mask : mask is True iff the pixel belongs to the contour
+            ebuf = vImage.maskErode(buf, iterations=8)
+            dbuf = vImage.maskDilate(buf, iterations=8)
+            mask = ((buf[:, :, 2] == 0) & (ebuf[:, :, 2] == 128)) | ((buf[:, :, 2] == 128) & (dbuf[:, :, 2] == 0))
+            # mark contour pixels as invalid and others as valid : the contour only can be modified
+            buf[:, :,1][mask] = 99
             buf[:,:,1][~mask] = 0
         else:
             # invalidate PR_FGD and PR_BGD pixels, validate others
@@ -758,18 +785,21 @@ class vImage(QImage):
             self.mask = scaledMask.scaled(self.size())
         else:
             self.mask = scaledMask
-
+        # Set clipping mode for better viewing
         self.isClipping = True
+        # check option clipping
         formOptions = self.view.widget().listWidget1
         name = formOptions.intNames[0]
         item = formOptions.items[name]
         item.setCheckState(Qt.Checked)
+        # forward the alpha channel
+        # TODO 23/06/18 forward ?
         self.updatePixmap()
 
     def applyExposure(self, exposureCorrection, options):
         """
         Apply exposure correction 2**exposureCorrection
-        to linearized RGB channels.
+        to the linearized RGB channels.
 
         @param exposureCorrection:
         @type exposureCorrection: float
@@ -797,8 +827,8 @@ class vImage(QImage):
         currentImage = self.getCurrentImage()
         ndImg1a = QImageBuffer(currentImage)
         ndImg1a[:, :, :3][:, :, ::-1] = buf
-        # forward opacity
-        ndImg1a[:, :, 3] = bufIn[:,:,3] # TODO 23/10/17 fix
+        # forward the alpha channel
+        ndImg1a[:, :, 3] = bufIn[:,:,3]
         self.updatePixmap()
 
     def applyTransForm(self, options):
@@ -860,7 +890,8 @@ class vImage(QImage):
             bufOut[:, :, :3] = QImageBuffer(currentImage)[:,:,:3]
             self.updatePixmap()
             return
-        buf0 = QImageBuffer(inputImage)[:, :, :3][:, :, ::-1]
+        buf01 = QImageBuffer(inputImage)
+        buf0 = buf01[:, :, :3][:, :, ::-1]
         noisecorr *= currentImage.width() / self.width()
         if adjustForm.options['Wavelets']:
             noisecorr *= 100
@@ -888,6 +919,8 @@ class vImage(QImage):
 
         bufOut = QImageBuffer(currentImage)
         bufOut[:, :, :3][:, :, ::-1] = buf1
+        # forward the alpha channel
+        bufOut[:,:,3] = buf01[:,:,3]
         self.updatePixmap()
 
     def applyRawPostProcessing(self):
@@ -1032,6 +1065,7 @@ class vImage(QImage):
         #bufpost = (bufRGB32 * 255.0).astype(np.uint8)
         bufOut = QImageBuffer(currentImage)
         bufOut[:, :, :3][:, :, ::-1] = bufpost
+        # base layer : no need to forward the alpha channel
         self.updatePixmap()
 
     def applyContrast(self, version='HSV'):
@@ -1123,7 +1157,7 @@ class vImage(QImage):
             # back to RGB
             sRGBBuf = cv2.cvtColor(HSVBuf, cv2.COLOR_HSV2RGB)
         ndImg1a[:, :, :3][:,:,::-1] = sRGBBuf
-        # forward opacity changes
+        # forward the alpha channel
         ndImg1a[:, :,3] = tmpBuf[:,:,3]
         self.updatePixmap()
 
@@ -1155,6 +1189,8 @@ class vImage(QImage):
         for c in range(3): # 0.36s for 15Mpx
             ndImg1[:, :, c] = np.take(stackedLUT[2-c,:], ndImg0[:,:,c].reshape((-1,))).reshape(s)
         # ndImg1[:, :, :] = stackedLUT[rList, ndImg0]  # last dims of index arrays are equal : broadcast works. slower 0.66s for 15Mpx
+        # forward the alpha channel
+        ndImg1a[:,:,3] = ndImg0a[:,:,3]
         self.updatePixmap()
 
     def applyLab1DLUT(self, stackedLUT, options={}):
@@ -1174,8 +1210,9 @@ class vImage(QImage):
         from colorConv import Lab2sRGBVec
         # convert LUT to float to speed up  buffer conversions
         stackedLUT = stackedLUT.astype(np.float)
-        # get a copy of the Lab input buffer
-        ndLabImg0 = (self.inputImg().getLabBuffer())#.copy()
+        # get the Lab input buffer
+        Img0 = self.inputImg()
+        ndLabImg0 = Img0.getLabBuffer() #.copy()
         # conversion functions
         def scaleLabBuf(buf):
             buf = buf + [0.0, 128.0, 128.0]  # copy is mandatory here to avoid the corruption of the cached Lab buffer
@@ -1201,6 +1238,9 @@ class vImage(QImage):
         currentImage = self.getCurrentImage()
         ndImg1 = QImageBuffer(currentImage)
         ndImg1[:, :, :3][:, :, ::-1] = ndsRGBImg1
+        # forward the alpha channel
+        ndImg0 = QImageBuffer(Img0)
+        ndImg1[:,:,3] = ndImg0[:,:,3]
         # update
         self.updatePixmap()
 
@@ -1221,8 +1261,8 @@ class vImage(QImage):
             buf2[:,:,:] = buf1
             self.updatePixmap()
             return
-        ndHSPBImg0 = self.inputImg().getHspbBuffer()   # time 2s with cache disabled for 15 Mpx
-        #ndHSPBImg0 = self.getMaskedCurrentContainer().getHspbBuffer()
+        Img0 = self.inputImg()
+        ndHSPBImg0 = Img0.getHspbBuffer()   # time 2s with cache disabled for 15 Mpx
         # apply LUTS to normalized channels (range 0..255)
         ndLImg0 = (ndHSPBImg0 * [255.0/360.0, 255.0, 255.0]).astype(np.uint8)
         #rList = np.array([0,1,2]) # H,S,B
@@ -1239,6 +1279,9 @@ class vImage(QImage):
         currentImage = self.getCurrentImage()
         ndImg1a = QImageBuffer(currentImage)
         ndImg1a[:, :, :3][:,:,::-1] = ndRGBImg1
+        # forward the alpha channel
+        ndImg0 = QImageBuffer(Img0)
+        ndImg1a[:,:,3] = ndImg0[:,:,3]
         # update
         self.updatePixmap()
 
@@ -1262,7 +1305,8 @@ class vImage(QImage):
         # convert LUT to float to speed up  buffer conversions
         stackedLUT = stackedLUT.astype(np.float)
         # get HSV buffer, range H: 0..180, S:0..255 V:0..255
-        HSVImg0 = self.inputImg().getHSVBuffer()
+        Img0 = self.inputImg()
+        HSVImg0 = Img0.getHSVBuffer()
         #HSVImg0 = self.getMaskedCurrentContainer().getHSVBuffer()
         HSVImg0 = HSVImg0.astype(np.uint8)
         # apply LUTS
@@ -1280,6 +1324,9 @@ class vImage(QImage):
         currentImage = self.getCurrentImage()
         ndImg1a = QImageBuffer(currentImage)
         ndImg1a[:, :, :3][:,:,::-1] = RGBImg1
+        # forward the alpha channel
+        ndImg0 = QImageBuffer(Img0)
+        ndImg1a[:,:,3] = ndImg0[:,:,3]
         # update
         self.updatePixmap()
 
@@ -1322,6 +1369,8 @@ class vImage(QImage):
             interp = interpVec_
         # apply LUT
         ndImg1[h1:h2 + 1, w1:w2 + 1, :] = interp(LUT, ndImg0, pool=pool)
+        # forward the alpha channel
+        imgBuffer[:,:,3] = inputBuffer[:,:,3]
         self.updatePixmap()
 
     def applyHald(self, hald, pool=None):
@@ -1471,6 +1520,8 @@ class vImage(QImage):
             if self.parentImage.useThumb:
                 radius = int(radius * r)
             ROI1[:,:,::-1] = cv2.bilateralFilter( ROI0[:,:,::-1], radius, 10*adjustForm.tone, 50 if self.parentImage.useThumb else 200)
+        # forward the alpha channel
+        buf1[:,:,3] = buf0[:,:,3]
         self.updatePixmap()
 
     def applyBlendFilter(self):
@@ -1514,6 +1565,8 @@ class vImage(QImage):
             # buf32Lab[:,:,0] = buf32Lab[:,:,0]*(1.0+0.1)
             bufRGB32 = cv2.cvtColor(buf32Lab, cv2.COLOR_Lab2RGB)
             buf1[:,:,:3][:,:,::-1] = (bufRGB32 * 255.0).astype(np.uint8)
+        # forward the alpha channel
+        buf1[:,:,3] = buf0[:,:,3]
         self.updatePixmap()
 
     def applyTemperature(self):
@@ -1532,11 +1585,11 @@ class vImage(QImage):
         options = adjustForm.options
         temperature = adjustForm.tempCorrection
         inputImage = self.inputImg()
+        buf1 = QImageBuffer(inputImage)
         currentImage = self.getCurrentImage()
         # neutral point : forward input image and return
         if abs(temperature - 6500) < 200:
             buf0 = QImageBuffer(currentImage)
-            buf1 = QImageBuffer(inputImage)
             buf0[:, :, :] = buf1
             self.updatePixmap()
             return
@@ -1570,8 +1623,11 @@ class vImage(QImage):
             bufOutRGB = XYZ2sRGBVec(bufXYZ)
             bufOutRGB = (bufOutRGB.clip(0, 255)).astype(np.uint8)
         # set output image
-        bufOut = QImageBuffer(currentImage)[:,:,:3]
+        bufOut0 = QImageBuffer(currentImage)
+        bufOut = bufOut0[:,:,:3]
         bufOut[:, :, ::-1] = bufOutRGB
+        # forward the alpha channel
+        bufOut0[:,:,3] = buf1[:,:,3]
         self.updatePixmap()
 
 class mImage(vImage):
@@ -2291,16 +2347,20 @@ class QLayer(vImage):
                     qp.drawPixmap(QRect(0,0,img.width(), img.height()), layer.rPixmap)
                 else:
                     qp.drawImage(QRect(0,0,img.width(), img.height()), layer.getCurrentImage())
+                # clipping
+                if layer.isClipping and layer.maskIsEnabled: #TODO modified 23/06/18
+                    # draw mask as opacity mask
+                    # mode DestinationIn (set dest opacity to source opacity)
+                    qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
+                    omask = vImage.color2OpacityMask(layer.mask)
+                    qp.drawImage(QRect(0, 0, img.width(), img.height()), omask)
         qp.end()
-        if self.isClipping and self.maskIsEnabled:
+        """
+        if self.isClipping and self.maskIsEnabled: #TODO modified 23/06/18
             mask = self.mask.scaled(img.width(), img.height())  # vImage.color2OpacityMask(self.mask)
             img = vImage.visualizeMask(img, mask, color=False, clipping=False, copy=False)
-            """
-            # reduce destination opacity by alpha of the mask
-            qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
-            mask = self.mask.scale(img.width(), img.height()) #vImage.color2OpacityMask(self.mask)
-            qp.drawImage(QRectF(0,0, img.width(), img.height()), mask)
-            """
+        """
+        buf = QImageBuffer(img)
         return img
 
     def applyToStack(self):
@@ -2427,6 +2487,18 @@ class QLayer(vImage):
         ind = self.getStackIndex()
         table.updateRow(len(self.parentImage.layersStack) - 1 - ind)
 
+    def getTopVisibleStackIndex(self):
+        """
+        Returns the index of the top visible layer
+        @return:
+        @rtype:
+        """
+        stack = self.parentImage.layersStack
+        lg = len(stack)
+        for i in range(lg-1, -1, -1):
+            if stack[i].visible:
+                return i
+        return -1
     def getLowerVisibleStackIndex(self):
         """
         Returns the index of the next lower visible layer,
@@ -2435,8 +2507,9 @@ class QLayer(vImage):
         @rtype: int
         """
         ind = self.getStackIndex()
+        stack = self.parentImage.layersStack
         for i in range(ind-1, -1, -1):
-            if self.parentImage.layersStack[i].visible:
+            if stack[i].visible:
                 return i
         return -1
 
@@ -2448,8 +2521,10 @@ class QLayer(vImage):
         @rtype: int
         """
         ind = self.getStackIndex()
-        for i in range(ind+1, len(self.parentImage.layersStack), 1):
-            if self.parentImage.layersStack[i].visible:
+        stack = self.parentImage.layersStack
+        lg = len(stack)
+        for i in range(ind+1, lg, 1):
+            if stack[i].visible:
                 return i
         return -1
 
@@ -2571,7 +2646,7 @@ class QPresentationLayer(QLayer):
         super().__init__(*args, **kwargs)
 
     def inputImg(self):
-        return self.parentImage.layersStack[-1].getCurrentMaskedImage()
+        return self.parentImage.layersStack[self.getTopVisibleStackIndex()].getCurrentMaskedImage()
 
     def updatePixmap(self, maskOnly = False):
         """
