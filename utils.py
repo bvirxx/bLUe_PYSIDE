@@ -23,11 +23,10 @@ import numpy as np
 from math import factorial
 
 from PySide2 import QtCore
-from PySide2.QtGui import QColor, QPainterPath, QPen, QImage, QPainter, QTransform, QPolygonF, QMatrix
+from PySide2.QtGui import QColor, QPainterPath, QPen, QImage, QPainter, QTransform, QPolygonF
 from PySide2.QtWidgets import QListWidget, QListWidgetItem, QGraphicsPathItem, QDialog, QVBoxLayout, \
     QFileDialog, QSlider, QWidget, QHBoxLayout, QLabel, QMessageBox, QPushButton, QToolButton, QApplication
-from PySide2.QtCore import Qt, QPoint, QObject, QRect, QDir, QPointF, QRectF
-from PySide2.support.signature.inspect import getframeinfo, currentframe
+from PySide2.QtCore import Qt, QPoint, QObject, QRect, QDir, QPointF
 from os.path import isfile
 from itertools import product
 from numpy.lib.stride_tricks import as_strided
@@ -445,7 +444,7 @@ class optionsWidget(QListWidget) :
     The choices can be mutually exclusive (default) or not
     exclusive. Actions can be done on item selection by assigning
     a function to onSelect. It is called after the selection of the new item.
-    if changed is not None, the corresponding signal is emitted when an item is clicked.
+    if changed is not None, it is called when an item is clicked.
     """
 
     def __init__(self, options=[], optionNames=None, exclusive=True, changed=None, parent=None):
@@ -486,12 +485,19 @@ class optionsWidget(QListWidget) :
         # selection hook.
         self.onSelect = lambda x : 0
 
-    def select(self, item):
+    def select(self, item, callOnSelect=True):
         """
-        Item clicked event handler
+        Item clicked event handler. It updates the states of the items and
+        the dict of options. Next, if callOnSelect is True, onSelect is called.
         @param item:
         @type item: QListWidgetItem
+        @param callOnSelect:
+        @type callOnSelect: bool
         """
+        # Update item states:
+        # if exclusive, clicking on an item should turn it
+        # into (or keep it) checked. Otherwise, there is nothing to do
+        # since select is called after the item state has changed.
         if self.exclusive:
             for r in range(self.count()):
                 currentItem = self.item(r)
@@ -499,19 +505,30 @@ class optionsWidget(QListWidget) :
                     currentItem.setCheckState(Qt.Unchecked)
                 else:
                     currentItem.setCheckState(Qt.Checked)
+        # update options dict
         for option in self.options.keys():
             self.options[option] = (self.items[option].checkState() == Qt.Checked)
-        self.onSelect(item)
+        if callOnSelect:
+            self.onSelect(item)
 
-    def checkOption(self, name):
+    def checkOption(self, name, checked=True, callOnSelect=True):
         """
-
+        Check or (for non exclusive options only) uncheck an item.
+        Next, if callOnSelect is True, onSelect is called.
+        A ValueError exception is raised  if an attempt is done to
+        uncheck an item in a list of mutually exclusive options.
         @param name: internal name of option
         @type name: str
+        @param checked: check/uncheck flag
+        @type checked: bool
+        @param callOnSelect:
+        @type callOnSelect: bool
         """
         item = self.items[name]
-        item.setCheckState(Qt.Checked)
-        self.select(item)
+        if not checked and self.exclusive:
+            raise ValueError('For mutually exclusive options, unchecking is not possible. Please, check another item')
+        item.setCheckState(Qt.Checked if checked else Qt.Unchecked)
+        self.select(item, callOnSelect=callOnSelect)
 
     def unCheckAll(self):
         if self.exclusive:

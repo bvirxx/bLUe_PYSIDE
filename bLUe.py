@@ -1375,8 +1375,8 @@ def menuLayer(name):
         l.execute = lambda l=l, pool=None: l.applyGrabcut(nbIter=grWindow.nbIter)
         # mask was modified
         #l.updatePixmap()
-    # loads an image
-    elif name == 'actionNew_Image_Layer':
+    # loads an image from file
+    elif name == 'actionLoad_Image_from_File': #'actionNew_Image_Layer':
         filename = openDlg(window, ask=False)
         if filename is None:
             return
@@ -1390,6 +1390,22 @@ def menuLayer(name):
         grWindow = imageForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         # add transformation tool to parent widget
         tool = rotatingTool(parent=window.label)#, layer=l, form=grWindow)
+        l.addTool(tool)
+        tool.showTool()
+        l.execute = lambda l=l, pool=None: l.applyImage(grWindow.options)
+        l.actioname = name
+    # empty new image
+    elif name == 'actionNew_Layer':
+        img = window.label.img
+        w, h = img.width(), img.height()
+        imgNew = QImage(w, h, QImage.Format_ARGB32)
+        imgNew.fill(Qt.black)
+        lname = 'Image'
+        l = window.label.img.addAdjustmentLayer(name=lname, sourceImg=imgNew, role='GEOMETRY')
+        grWindow = imageForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window,
+                                          mainForm=window)
+        # add transformation tool to parent widget
+        tool = rotatingTool(parent=window.label)  # , layer=l, form=grWindow)
         l.addTool(tool)
         tool.showTool()
         l.execute = lambda l=l, pool=None: l.applyImage(grWindow.options)

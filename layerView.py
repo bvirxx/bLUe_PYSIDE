@@ -792,7 +792,7 @@ You can drag and drop layers to change their order.
         def maskCopy():
             QApplication.clipboard().setImage(layer.mask)
         def imageCopy():
-            QApplication.clipboard().setImage(layer.getCurrentImage())
+            QApplication.clipboard().setImage(layer.getCurrentMaskedImage())
         def maskPaste():
             """
             Pastes clipboard to mask and updates the stack. The clipboard image

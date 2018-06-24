@@ -348,6 +348,9 @@ class vImage(QImage):
         @param update:
         @type update: boolean
         """
+        # image layer
+        if getattr(self, 'sourceImg', None) is not None:
+            self.sourceImg = qimg.copy()
         buf1, buf2 = QImageBuffer(self), QImageBuffer(qimg)
         if buf1.shape != buf2.shape:
             raise ValueError("QLayer.setImage : new image and layer must have identical shapes")
@@ -708,6 +711,8 @@ class vImage(QImage):
         @type nbIter: int
         @param mode:
         """
+        form = self.view.widget()
+        formOptions = form.listWidget1
         inputImg = self.inputImg()
         rect = self.rect
         # resizing coeff fitting selection rectangle with current image
@@ -767,17 +772,25 @@ class vImage(QImage):
         buf = QImageBuffer(scaledMask)
         # set the red channel of the mask
         buf[:,:,2] = np.where(finalOpacity==255, 128, 0)
-        invalidate_contour = True  # always True for testing purpose
-        # without manual corrections, only the contour region may be updated
-        # by further calls to applyGrabcut()
+        invalidate_contour = True  # always True (for testing purpose)
         if invalidate_contour:
-            # build a boolean mask : mask is True iff the pixel belongs to the contour
-            ebuf = vImage.maskErode(buf, iterations=8)
-            dbuf = vImage.maskDilate(buf, iterations=8)
-            mask = ((buf[:, :, 2] == 0) & (ebuf[:, :, 2] == 128)) | ((buf[:, :, 2] == 128) & (dbuf[:, :, 2] == 0))
+            # without manual corrections, only the contour region may be updated
+            # by further calls to applyGrabcut()
+            # build the contour as a boolean mask : cbMask is True iff the pixel belongs to the contour
+            maxIterations = 8
+            ebuf = vImage.maskErode(buf, iterations=maxIterations)
+            dbuf = vImage.maskDilate(buf, iterations=maxIterations)
+            cbMask = ((buf[:, :, 2] == 0) & (ebuf[:, :, 2] == 128)) | ((buf[:, :, 2] == 128) & (dbuf[:, :, 2] == 0))
             # mark contour pixels as invalid and others as valid : the contour only can be modified
-            buf[:, :,1][mask] = 99
-            buf[:,:,1][~mask] = 0
+            # Unlike in the case of integer index arrays, in the boolean case, the result is a 1-D array
+            # containing all the elements in the indexed array corresponding to all the true elements in the boolean array.
+            buf[:, :,1][cbMask] = 99
+            buf[:,:,1][~cbMask] = 0
+            # dilate the mask to remove background dithering
+            # iterations should be <= maxIterations
+            dbuf = vImage.maskDilate(buf, iterations=min(form.contourMargin, maxIterations))
+            innerCbMask = ((buf[:, :, 2] == 128) & (dbuf[:, :, 2] == 0))
+            buf[:, :, 2][innerCbMask] = 0
         else:
             # invalidate PR_FGD and PR_BGD pixels, validate others
             buf[:,:,1] = np.where((finalMask!=cv2.GC_FGD) * (finalMask!=cv2.GC_BGD), 99, 0)
@@ -786,12 +799,15 @@ class vImage(QImage):
         else:
             self.mask = scaledMask
         # Set clipping mode for better viewing
-        self.isClipping = True
+        name = formOptions.intNames[0]
+        self.isClipping = form.start or formOptions.options[name]
+        form.start = False
         # check option clipping
-        formOptions = self.view.widget().listWidget1
         name = formOptions.intNames[0]
         item = formOptions.items[name]
-        item.setCheckState(Qt.Checked)
+        formOptions.checkOption(name, checked=self.isClipping, callOnSelect=False)
+        #item.setCheckState(Qt.Checked if self.isClipping else Qt.Unchecked)
+        #formOptions.options[name] = True if self.isClipping else False
         # forward the alpha channel
         # TODO 23/06/18 forward ?
         self.updatePixmap()
