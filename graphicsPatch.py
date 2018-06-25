@@ -17,14 +17,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import cv2
 from PySide2.QtCore import Qt
-from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QComboBox
-
+from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QComboBox, QWidget
 from MarkedImg import vImage
-from imgconvert import QImageBuffer
 from utils import optionsWidget, dlgWarn
 
 
-class patchForm (QGraphicsView):
+class patchForm (QWidget): #(QGraphicsView): TODO Modified 25/06/18 validate
     """
     Seamless cloning form
     """
@@ -129,7 +127,7 @@ Seamless replacement of a region of the image by another region from the same im
 When done click the Clone button to start the cloning. 
 """
                         )
-class maskForm (QGraphicsView):
+class maskForm (QWidget): #(QGraphicsView): TODO modified 25/06/18 validate
     """
     Knitting form (cloning an imported image)
     """

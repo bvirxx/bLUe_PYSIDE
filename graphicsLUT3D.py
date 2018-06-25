@@ -430,9 +430,9 @@ class activeNode(QGraphicsPathItem):
         # substract all forces pulling items together
         weight = 50.0
         for item in self.neighbors():
-            vec = self.mapToItem(item, 0, 0);
-            xvel -= vec.x() / weight;
-            yvel -= vec.y() / weight;
+            vec = self.mapToItem(item, 0, 0)
+            xvel -= vec.x() / weight
+            yvel -= vec.y() / weight
         if abs(xvel) < 0.1 and abs(yvel) < 0.1 :
             xvel = yvel = 0
         self.newPos = self.pos() + QPointF(xvel, yvel)
@@ -790,7 +790,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.setMinimumSize(axeSize + 90, axeSize + 200)
         #self.setWindowFlags(Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_DeleteOnClose)
-        self.setBackgroundBrush(QBrush(Qt.black, Qt.SolidPattern));
+        self.setBackgroundBrush(QBrush(Qt.black, Qt.SolidPattern))
         self.currentHue, self.currentSat, self.currentPb = 0, 0, self.defaultColorWheelBr
         self.currentR, self.currentG, self.currentB = 0,0,0
         self.size = axeSize

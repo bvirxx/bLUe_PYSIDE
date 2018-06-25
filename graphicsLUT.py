@@ -203,7 +203,7 @@ class activeSpline(QGraphicsPathItem):
     penWidth = 2
     brushColor = Qt.darkGray
 
-    def __init__(self, size, fixedPoints=[], parentItem=None):
+    def __init__(self, size, fixedPoints=None, parentItem=None):
         """
         Inits a cubicSpline with an empty set of control points and
         an empty curve
@@ -213,6 +213,8 @@ class activeSpline(QGraphicsPathItem):
         @type parentItem: object
         """
         super().__init__()
+        if fixedPoints is None:
+            fixedPoints = []
         self.setParentItem(parentItem)
         qpp = QPainterPath()
         self.size = size
@@ -446,7 +448,7 @@ class activeQuadricSpline(activeSpline) :
         self.fixedPoints = [activePoint(x, -y, rect=rect, parentItem=self) for x,y in zip(a,b)]
         # tangent normalization
         n = np.sqrt(1 + d * d)
-        alpha = alpha / n
+        alpha = alpha / n  # convert the list to a ndarray
         self.fixedTangents = [activeTangent(controlPoint=QPointF(x+alpha[i], -y-alpha[i]*p), contactPoint=QPointF(x,-y), parentItem=self)
                               for i,(x,y,p) in enumerate(zip(a,b,d))]
         # link contact point to tangent

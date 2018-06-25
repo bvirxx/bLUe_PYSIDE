@@ -18,15 +18,37 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 from PySide2 import QtCore
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
-from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QGroupBox
+from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QGroupBox, QWidget
 
 from graphicsLUT import graphicsQuadricForm
 from utils import optionsWidget, QbLUeSlider, UDict, QbLUeLabel
 
+class CoBrSatForm(QWidget):
+    """
+    Contrast-Brightness-Saturation adjustment form
+    Methods                          Attributes
+        getNewWindow                     brightnessCorrection
+        __init__                         brightnessDefault
+        setContrastSpline                brightnessValue
+        enableSliders                    contrastCorrection
+        setDefaults                      contrastDefault
+        updateLayer                      contrastForm
+        slider2Contrast                  contrastValue
+        contrast2Slider                  dataChanged
+        slider2Saturation                layer
+        saturation2Slider                layerTitle
+        slidersaturation2User            listWidget1
+        slider2Brightness                listWidget2
+        brightness2Slider                options
+        sliderBrightness2User            satCorrection
+        writeToStream                    saturationDefault
+        readFromStream                   saturationValue
+                                         sliderBrightness
+                                         sliderContrast
+                                         sliderSaturation
+    """
 
-class CoBrSatForm (QGraphicsView):
-
-    dataChanged = QtCore.Signal()
+    dataChanged = QtCore.Signal()  # CAUTION : All signal connections are supposed to be direct (not queued) by default.
     layerTitle = "Cont/Bright/Sat"
     contrastDefault = 0.0
     brightnessDefault = 0.0
@@ -37,6 +59,39 @@ class CoBrSatForm (QGraphicsView):
         wdgt = CoBrSatForm(axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         wdgt.setWindowTitle(layer.name)
         return wdgt
+
+    @classmethod
+    def slider2Contrast(cls, v):
+        return v / 10
+
+    @classmethod
+    def contrast2Slider(cls, v):
+        return v * 10
+
+    @classmethod
+    def slider2Saturation(cls, v):
+        return v / 10 - 0.5
+
+    @classmethod
+    def saturation2Slider(cls, v):
+        return v * 10 + 5
+
+    @classmethod
+    def slidersaturation2User(cls, v):
+        return v - 5.0
+
+    @classmethod
+    def slider2Brightness(cls, v):
+        return v / 10 - 0.5
+
+    @classmethod
+    def brightness2Slider(cls, v):
+        return v * 10 + 5
+
+    @classmethod
+    def sliderBrightness2User(cls, v):
+        return v - 5.0
+
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         super().__init__(parent=parent)
         self.setStyleSheet('QRangeSlider * {border: 0px; padding: 0px; margin: 0px}')
@@ -82,7 +137,7 @@ class CoBrSatForm (QGraphicsView):
         self.contrastValue.setMaximumSize(w, h)
         self.contrastValue.setText(str("{:d}".format(self.sliderContrast.value())))
 
-        # contrast changed  event handler
+        # contrast changed  event handler.
         def contrastUpdate(value):
             self.contrastValue.setText(str("{:d}".format(self.sliderContrast.value())))
             # move not yet terminated or value not modified
@@ -171,6 +226,16 @@ class CoBrSatForm (QGraphicsView):
         self.sliderBrightness.valueChanged.connect(brightnessUpdate)
         self.sliderBrightness.sliderReleased.connect(lambda: brightnessUpdate(self.sliderBrightness.value()))
 
+        # dataChanged must be connected to updateLayer in __init__
+        # otherwise disconnecting in setDefaults raises an exception
+        self.dataChanged.connect(self.updateLayer)
+
+        # attributes initialized in setDefaults, declared here
+        # for the sake of correctness
+        self.contrastCorrection = None
+        self.satCorrection = None
+        self.brightnessCorrection = None
+
         # layout
         l = QVBoxLayout()
         l.setAlignment(Qt.AlignTop)
@@ -201,7 +266,6 @@ class CoBrSatForm (QGraphicsView):
         l.addLayout(hl2)
         self.setLayout(l)
         self.adjustSize()
-        self.dataChanged.connect(self.updateLayer)
         self.setStyleSheet("QListWidget, QLabel {font : 7pt;}")
         self.setDefaults()
         self.setWhatsThis(
@@ -218,11 +282,12 @@ With Multi-Mode enabled, use option Show Contrast Curve to modify the correction
 
 Sliders can be reset to their default value by double clicking the name of the slider.
 """
-                        )
+                        )  # end setWhatsThis
+
     def setContrastSpline(self, a, b, d, T):
         """
         Updates and displays the contrast spline
-        @param a: x_ccordinates
+        @param a: x_coordinates
         @type a:
         @param b: y-coordinates
         @type b:
@@ -248,7 +313,9 @@ Sliders can be reset to their default value by double clicking the name of the s
         self.sliderSaturation.setEnabled(True)
         self.sliderBrightness.setEnabled(True)
 
-    def setDefaults(self):  #TODO 13/06/18 put all initial connect in setDefaults to minimize updates
+    def setDefaults(self):
+        # prevent multiple updates
+        self.dataChanged.disconnect(self.updateLayer)
         self.listWidget1.unCheckAll()
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
         self.listWidget2.unCheckAll()
@@ -260,7 +327,11 @@ Sliders can be reset to their default value by double clicking the name of the s
         self.sliderSaturation.setValue(round(self.saturation2Slider(self.satCorrection)))
         self.brightnessCorrection = self.brightnessDefault
         self.sliderBrightness.setValue(round(self.brightness2Slider(self.brightnessCorrection)))
+        self.dataChanged.connect(self.updateLayer)
         self.dataChanged.emit()
+
+    def reset(self):
+        self.setDefaults()
 
     def updateLayer(self):
         """
@@ -283,30 +354,6 @@ Sliders can be reset to their default value by double clicking the name of the s
             cf.showNormal()
         else:
             cf.hide()
-
-    def slider2Contrast(self, v):
-        return v / 10
-
-    def contrast2Slider(self, v):
-        return v * 10
-
-    def slider2Saturation(self, v):
-        return v / 10 - 0.5
-
-    def saturation2Slider(self, v):
-        return v * 10 + 5
-
-    def slidersaturation2User(selfself, v):
-        return v - 5.0
-
-    def slider2Brightness(self, v):
-        return v / 10 - 0.5
-
-    def brightness2Slider(self, v):
-        return v * 10 + 5
-
-    def sliderBrightness2User(selfself, v):
-        return v - 5.0
 
     def writeToStream(self, outStream):
         layer = self.layer

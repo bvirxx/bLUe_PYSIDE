@@ -454,6 +454,8 @@ def mouseEvent(widget, event) :  # TODO split in 3 handlers
                         r = QImage.rect(layer.parentImage).intersected(nb)
                         if not r.isEmpty():
                             color = np.sum(bufRaw[r.top():r.bottom()+1, r.left():r.right()+1], axis=(0,1))/(r.width()*r.height())
+                        else:
+                            color = bufRaw[y_img, x_img, :]  # TODO added 25/06/18 to avoid uninit. color validate
                         #color = bufRaw[y_img, x_img, :]
                         color = [color[i] - layer.parentImage.rawImage.black_level_per_channel[i] for i in range(3)]
                         form =layer.view.widget()

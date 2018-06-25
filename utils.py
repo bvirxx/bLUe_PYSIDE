@@ -447,7 +447,7 @@ class optionsWidget(QListWidget) :
     if changed is not None, it is called when an item is clicked.
     """
 
-    def __init__(self, options=[], optionNames=None, exclusive=True, changed=None, parent=None):
+    def __init__(self, options=None, optionNames=None, exclusive=True, changed=None, parent=None):
         """
         @param options: list of options
         @type options: list of str
@@ -461,6 +461,8 @@ class optionsWidget(QListWidget) :
         @type parent: QObject
         """
         super().__init__(parent)
+        if options is None:
+            options = []
         if optionNames is None:
             self.extNames = options
         else:
@@ -692,8 +694,6 @@ class cropTool(QObject):
         with their current margins.
         @param img:
         @type img: QImage
-        @param r: current resizing coefficient (normalized zoom coeff.)
-        @type r: float
         """
         r = self.parent().img.resize_coeff(self.parent())
         left = self.btnDict['left']

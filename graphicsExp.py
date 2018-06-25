@@ -1,9 +1,9 @@
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
-from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout, QGraphicsView
+from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout, QWidget
 
 
-class ExpForm (QGraphicsView):
+class ExpForm (QWidget): # (QGraphicsView): TODO modified 25/06/18 validate
     defaultExpCorrection = 0.0
     DefaultStep = 0.1
     @classmethod

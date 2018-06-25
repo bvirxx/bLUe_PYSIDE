@@ -18,8 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 from PySide2 import QtCore
 
 from PySide2.QtCore import Qt
-from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout, QGraphicsView
-from PySide2.QtGui import QFontMetrics
+from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QWidget
 
 from kernel import filterIndex, getKernel
 from qrangeslider import QRangeSlider
@@ -28,7 +27,7 @@ from utils import optionsWidget
 class blendFilterIndex:
     GRADUALBT, GRADUALTB, GRADUALNONE= range(3)
 
-class blendFilterForm (QGraphicsView):
+class blendFilterForm (QWidget): #(QGraphicsView): TODO modified 25/06/18 validate
     dataChanged = QtCore.Signal()
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):

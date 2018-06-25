@@ -229,7 +229,7 @@ class vImage(QImage):
         destBuf[:, :, :3][:, :, ::-1] = output  # assign src_ maskBuf for testing
 
     def __init__(self, filename=None, cv2Img=None, QImg=None, mask=None, format=QImage.Format_ARGB32,
-                                            name='', colorSpace=-1, orientation=None, rating=5, meta=None, rawMetadata=[], profile=''):
+                 name='', colorSpace=-1, orientation=None, rating=5, meta=None, rawMetadata=None, profile=''):
         """
         With no parameter, builds a null image.
         Mask is disabled by default.
@@ -261,6 +261,8 @@ class vImage(QImage):
         # self.colorTransformation = icc.workToMonTransform
         # current color managed image
         # self.cmImage = None
+        if rawMetadata is None:
+            rawMetadata = []
         self.isModified = False
         self.rect, self.mask, = None, mask
         self.filename = filename if filename is not None else ''
@@ -345,8 +347,6 @@ class vImage(QImage):
         image and qimg must have identical dimensions and type.
         @param qimg: QImage object
         @type qimg: QImage
-        @param update:
-        @type update: boolean
         """
         # image layer
         if getattr(self, 'sourceImg', None) is not None:
@@ -1177,7 +1177,7 @@ class vImage(QImage):
         ndImg1a[:, :,3] = tmpBuf[:,:,3]
         self.updatePixmap()
 
-    def apply1DLUT(self, stackedLUT, options={}):
+    def apply1DLUT(self, stackedLUT, options=None):
         """
         Applies 1D LUTS to RGB channels (one for each channel)
         @param stackedLUT: array of color values (in range 0..255) : a row for each RGB channel
@@ -1186,6 +1186,8 @@ class vImage(QImage):
         @type options : dictionary
         """
         # neutral point
+        if options is None:
+            options = {}
         if not np.any(stackedLUT - np.arange(256)):  # last dims are equal : broadcast is working
             buf1 = QImageBuffer(self.inputImg())
             buf2 = QImageBuffer(self.getCurrentImage())
@@ -1209,7 +1211,7 @@ class vImage(QImage):
         ndImg1a[:,:,3] = ndImg0a[:,:,3]
         self.updatePixmap()
 
-    def applyLab1DLUT(self, stackedLUT, options={}):
+    def applyLab1DLUT(self, stackedLUT, options=None):
         """
         Applies 1D LUTS (one row for each L,a,b channel)
         @param stackedLUT: array of color values (in range 0..255). Shape must be (3, 255) : a row for each channel
@@ -1217,6 +1219,8 @@ class vImage(QImage):
         @param options: not used yet
         """
         # neutral point
+        if options is None:
+            options = {}
         if not np.any(stackedLUT - np.arange(256)):  # last dims are equal : broadcast is working
             buf1 = QImageBuffer(self.inputImg())
             buf2 = QImageBuffer(self.getCurrentImage())
@@ -1260,7 +1264,7 @@ class vImage(QImage):
         # update
         self.updatePixmap()
 
-    def applyHSPB1DLUT(self, stackedLUT, options={}, pool=None):
+    def applyHSPB1DLUT(self, stackedLUT, options=None, pool=None):
         """
         Applies 1D LUTS to hue, sat and brightness channels.
         @param stackedLUT: array of color values (in range 0..255), a row for each channel
@@ -1271,6 +1275,8 @@ class vImage(QImage):
         @type pool: muliprocessing.Pool
         """
         # neutral point
+        if options is None:
+            options = {}
         if not np.any(stackedLUT - np.arange(256)):  # last dims are equal : broadcast is working
             buf1 = QImageBuffer(self.inputImg())
             buf2=QImageBuffer(self.getCurrentImage())
@@ -1301,7 +1307,7 @@ class vImage(QImage):
         # update
         self.updatePixmap()
 
-    def applyHSV1DLUT(self, stackedLUT, options={}, pool=None):
+    def applyHSV1DLUT(self, stackedLUT, options=None, pool=None):
         """
         Applies 1D LUTS to hue, sat and brightness channels.
         @param stackedLUT: array of color values (in range 0..255), a row for each channel
@@ -1312,6 +1318,8 @@ class vImage(QImage):
         @type pool: muliprocessing.Pool
         """
         # neutral point
+        if options is None:
+            options = {}
         if not np.any(stackedLUT - np.arange(256)):  # last dims are equal : broadcast is working
             buf1 = QImageBuffer(self.inputImg())
             buf2=QImageBuffer(self.getCurrentImage())
@@ -1346,7 +1354,7 @@ class vImage(QImage):
         # update
         self.updatePixmap()
 
-    def apply3DLUT(self, LUT, options={}, pool=None):
+    def apply3DLUT(self, LUT, options=None, pool=None):
         """
         Applies a 3D LUT to the current view of the image (self or self.thumb or self.hald).
         If pool is not None and the size of the current view is > 3000000, the computation is
@@ -1357,6 +1365,8 @@ class vImage(QImage):
         @type options: dict of string:boolean pairs
         """
         # get buffers
+        if options is None:
+            options = {}
         inputImage = self.inputImg()
         currentImage = self.getCurrentImage()
         # get selection
@@ -1454,7 +1464,7 @@ class vImage(QImage):
                 # clipping indicators
                 if i == 0 or i == len(hist)-1:
                     left = bin_edges[0 if i == 0 else -1]
-                    if left > 0 and left < 255:
+                    if 0 < left < 255:
                         continue
                     left =  left - (10 if i > 0 else 0)
                     clipping_threshold = 0.02
@@ -1592,10 +1602,6 @@ class vImage(QImage):
         cone response. cf. http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html
         This boils down to use multipliers in the cone response domain.
         - Photo filter : Blending using mode multiply, plus correction of luminosity
-        @param temperature:
-        @type temperature: float
-        @param options :
-        @type options : dictionary
         """
         adjustForm = self.view.widget()
         options = adjustForm.options
@@ -1829,7 +1835,7 @@ class mImage(vImage):
             layer.fill(Qt.white)
         layer.name = trialname
         #layer.parentImage = self # TODO 07/06/18 validate suppression
-        if index==None:
+        if index is None:
             if self.activeLayerIndex is not None:
                 # add on top of active layer if any
                 index = self.activeLayerIndex + 1 #TODO +1 added 03/05/18 validate
@@ -1856,7 +1862,7 @@ class mImage(vImage):
         @param index: 
         @return: 
         """
-        if index == None:
+        if index is None:
             # adding on top of active layer
             index = self.activeLayerIndex
         if sourceImg is None:
@@ -1883,7 +1889,7 @@ class mImage(vImage):
         return layer
 
     def addSegmentationLayer(self, name='', index=None):
-        if index == None:
+        if index is None:
             index = self.activeLayerIndex
         layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
         layer.role = 'SEGMENT'
@@ -1907,7 +1913,7 @@ class mImage(vImage):
         @type index: int
         @return: 
         """
-        if index == None:
+        if index is None:
             index = len(self.layersStack) - 1
         layer0 = self.layersStack[index]
         if layer0.isAdjustLayer():
@@ -2798,8 +2804,6 @@ def applyHaldCls(item):
     """
     Transforms a hald image into a 3DLUT object and applies
     the 3D LUT to the current view of self.
-    @param hald: hald image
-    @type hald: QImage
     """
     # QImageBuffer(l.hald), QImageBuffer(l.inputImg()), QImageBuffer(l.getCurrentImage()), s
     lut = LUT3D.HaldBuffer2LUT3D(item[0])

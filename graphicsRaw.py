@@ -20,11 +20,11 @@ import numpy as np
 from PySide2 import QtCore
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
-from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBox
+from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBox, QWidget
 from colorConv import temperatureAndTint2RGBMultipliers, RGBMultipliers2TemperatureAndTint
 from utils import optionsWidget, UDict, QbLUeSlider
 
-class rawForm (QGraphicsView):
+class rawForm (QWidget): #(QGraphicsView): TODO Modified 25/06/18 validate
     """
     GUI for postprocessing of raw files
     # cf https://github.com/LibRaw/LibRaw/blob/master/src/libraw_cxx.cpp

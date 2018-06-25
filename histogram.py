@@ -71,7 +71,7 @@ class dstb(object):
             plt.close()
         """
 
-    def setDist(self, hist=[], bins=[], maxVal=0):
+    def setDist(self, hist=None, bins=None, maxVal=0):
         """
         The distribution is estimated from the histogram. If maxVal is 0 (default), the distribution
         represents the probablities of each bin. If maxVal is a positive integer,
@@ -83,6 +83,10 @@ class dstb(object):
         @param bins: histogram bins
         @type bins: list
         """
+        if bins is None:
+            bins = []
+        if hist is None:
+            hist = []
         if maxVal == 0:
             self.maxVal = bins[-1]                                          # len(self.DTable) = maxVal + 1
             self.DTable = hist * (bins[1:]-bins[:-1])
@@ -122,8 +126,6 @@ class dstb(object):
         otherwise its value is interpolated between CDF(k/s) and CDF((k+1)/s.
         @param x:
         @type x: float
-        @param interpolate:
-        @type interpolate: boolean
         @return: CDF(x)
         @rtype: float
         """
@@ -144,8 +146,6 @@ class dstb(object):
         Vectorized version of the CDF function.
         @param x: array of arguments
         @type x: ndarray, dtype float
-        @param interpolate:
-        @type interpolate: boolean
         @return: array of CDF(x) values
         @rtype: ndarray, dtype=np.float,  same shape as x
         """
@@ -170,8 +170,6 @@ class dstb(object):
         mathematical inverse function of F.
         @param x:
         @type x: float or array of float
-        @param interpolate:
-        @type interpolate: boolean
         @return:
         @rtype: array of float
         """

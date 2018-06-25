@@ -18,14 +18,14 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 from PySide2 import QtCore
 
 from PySide2.QtCore import Qt
-from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout, QGraphicsView
+from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout, QWidget
 from PySide2.QtGui import QFontMetrics
 
 from kernel import filterIndex, getKernel
 from utils import optionsWidget
 
 
-class filterForm (QGraphicsView):
+class filterForm (QWidget): # (QGraphicsView): TODO modified 25/06/18 validate
     dataChanged = QtCore.Signal()
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):

@@ -19,12 +19,12 @@ from PySide2 import QtCore
 
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
-from PySide2.QtWidgets import QGraphicsView, QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout
+from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout, QWidget
 
 from utils import optionsWidget, QbLUeSlider
 
 
-class noiseForm (QGraphicsView):
+class noiseForm (QWidget): # (QGraphicsView): TODO modified 25/06/18 validate
     dataChanged = QtCore.Signal(bool)
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):

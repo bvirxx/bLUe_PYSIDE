@@ -24,7 +24,7 @@ from utils import optionsWidget
 
 class segmentForm(QWidget):
     """
-    Form for segmentation (grabcut)
+    Segmentation (grabcut) form
     """
     dataChanged = QtCore.Signal()
     layerTitle = "Segmentation"
@@ -105,23 +105,25 @@ class segmentForm(QWidget):
   To get a smoother contour increase the value of the Contour Margin and click the Apply Button.
   By default the mask is displayed as a color mask. To view it as an opacity mask, right click on the Segmentation layer row in the right pane and check Enable Mask As > Opacity Mask in the context menu.
   To copy the object to a new image layer use the right pane Context Menu : Copy Image to Clipboard and, next, Paste Image.
-  When done, toggle off the visibility of the segmentation layer.
+  When done, don't forget to toggle off the visibility of the segmentation layer.
 """
                         )  # end setWhatsThis
 
-    def setDefaults(self): #TODO 13/06/18 put all initial connect in setDefaults to minimize updates
+    def setDefaults(self):
+        self.dataChanged.disconnect(self.updateLayer)
         self.listWidget1.unCheckAll()
         self.spBox.setValue(self.iterDefault)
         self.spBox1.setValue(self.contourMarginDefault)
         self.start = True
+        self.dataChanged.connect(self.updateLayer)
         self.dataChanged.emit()
-        # initially the layer is not ciipping to show the image to segment.
-        # self.listWidget1.checkOption(self.listWidget1.intNames[0])
-        # self.layer.isClipping = True
 
     def updateLayer(self):
         self.nbIter = self.spBox.value()
         self.contourMargin = self.spBox1.value()
+
+    def reset(self):
+        self.setDefaults()
 
 
 
