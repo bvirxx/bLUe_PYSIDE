@@ -51,8 +51,8 @@ class blendFilterForm (QWidget): #(QGraphicsView): TODO modified 25/06/18 valida
         self.kernelCategory = filterIndex.UNSHARP
         self.kernel = getKernel(self.kernelCategory)
         # options
-        optionList = ['Gradual Top', 'Gradual Bottom', 'None']
-        filters = [blendFilterIndex.GRADUALTB, blendFilterIndex.GRADUALBT, blendFilterIndex.GRADUALNONE]
+        optionList = ['Gradual Top', 'Gradual Bottom'] #, 'None']
+        filters = [blendFilterIndex.GRADUALTB, blendFilterIndex.GRADUALBT] #, blendFilterIndex.GRADUALNONE]
         filterDict = dict(zip(optionList, filters))
 
         self.listWidget1 = optionsWidget(options=optionList, exclusive=True, changed=self.dataChanged)
@@ -68,8 +68,7 @@ class blendFilterForm (QWidget): #(QGraphicsView): TODO modified 25/06/18 valida
         rs.head.setStyleSheet(
             'background: black; /*qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #999, stop:1 #222);*/')
         self.sliderFilterRange = rs
-        frLabel = QLabel()
-        frLabel.setText("Gradual Filter")
+        frLabel = QLabel('Top To Bottom')
 
         # filter range done event handler
         def frUpdate(start, end):
@@ -103,8 +102,6 @@ class blendFilterForm (QWidget): #(QGraphicsView): TODO modified 25/06/18 valida
         l = QVBoxLayout()
         l.setAlignment(Qt.AlignBottom)
         l.addWidget(self.listWidget1)
-        # sliders
-        frLabel =QLabel('Top TO Bottom')
         hl8 = QHBoxLayout()
         hl8.addWidget(frLabel)
         hl8.addWidget(self.sliderFilterRange)
@@ -115,16 +112,17 @@ class blendFilterForm (QWidget): #(QGraphicsView): TODO modified 25/06/18 valida
 
         self.setLayout(l)
 
+        self.setWhatsThis(
+"""
+ Gradual neutral filter. 
+   It mimics the classical gradual gray filter often used by photographers to darken the sky.
+   Use the range slider to control the regions of maximum and minimum intensities.
+"""
+                        ) # end setWhatsThis
 
-        def enableSliders():
-            op = self.listWidget1.options
+        self.setDefaults()
 
-
-        # init
-        enableSliders()
-        self.setForm()
-
-    def setForm(self, name1='Gradual Top', start=0, end=0, orientation=0):
+    def setDefaults(self, name1='Gradual Top', start=0, end=0, orientation=0):
         self.defaultFilterStart = start
         self.defaultFilterEnd = end
         self.sliderFilterRange.setRange(start, end)

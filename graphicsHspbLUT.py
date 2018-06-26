@@ -23,6 +23,9 @@ from graphicsLUT import activeCubicSpline, graphicsCurveForm
 from utils import optionsWidget, channelValues
 
 class graphicsHspbForm(graphicsCurveForm) :
+    """
+    Form for HSV/HSpB curves
+    """
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         newWindow = graphicsHspbForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
@@ -94,6 +97,7 @@ class graphicsHspbForm(graphicsCurveForm) :
         item = self.listWidget1.items[options[1]]
         item.setCheckState(Qt.Checked)
         self.listWidget1.select(item)
+        self.setWhatsThis("""HSV curves""" + self.whatsThis())
 
     def drawBackground(self, qp, qrF):
         graphicsScene = self.scene()

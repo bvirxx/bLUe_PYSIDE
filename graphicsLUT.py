@@ -531,11 +531,11 @@ class graphicsCurveForm(QGraphicsView):
         # default WhatsThis for interactive curves
         self.setWhatsThis(
 """
-Drag control points with the mouse
-Add a control point by clicking on the curve
-Remove a control point by clicking it
-Zoom with the mouse wheel
-"""                      )
+Drag control points with the mouse.
+Add a control point by clicking on the curve.
+Remove a control point by clicking it.
+Zoom with the mouse wheel.
+"""                      )  # end setWhatsThis
 
     def wheelEvent(self, e):
         """

@@ -37,6 +37,7 @@ import exiftool
 from colorConv import sRGB2LabVec, sRGBWP, Lab2sRGBVec, rgb2rgbLinearVec, \
     rgbLinear2rgbVec, XYZ2sRGBVec, sRGB2XYZVec
 from debug import tdec
+from graphicsBlendFilter import blendFilterIndex
 
 from graphicsFilter import filterIndex
 from graphicsLUT import graphicsQuadricForm
@@ -570,8 +571,7 @@ class vImage(QImage):
     def resetMask(self, maskAll=False):
         """
         Reinits the mask : all pixels are masked or all
-        pixels are shown.
-        By default all pixels are shown.
+        pixels are unmasked (default).
         @param maskAll:
         @type maskAll: boolean
         """
@@ -714,6 +714,14 @@ class vImage(QImage):
         form = self.view.widget()
         formOptions = form.listWidget1
         inputImg = self.inputImg()
+        # grabcut is done only by clicking the Apply button of segmentForm
+        if self.noSegment:
+            inBuf = QImageBuffer(inputImg)
+            outputImg = self.getCurrentImage()
+            outBuf = QImageBuffer(outputImg)
+            outBuf[:,:,:] = inBuf
+            self.updatePixmap()
+            return
         rect = self.rect
         # resizing coeff fitting selection rectangle with current image
         r = inputImg.width() / self.width()
@@ -1565,6 +1573,7 @@ class vImage(QImage):
         # using blending mode overlay : f(a,b) = 2*a*b if b < 0.5 else f(a,b) = 1 - 2*(1-a)(1-b)
         ####################
         buf32Lab = cv2.cvtColor(((buf0.astype(np.float32)) / 256).astype(np.float32), cv2.COLOR_BGR2Lab)
+        # get height of current image
         h = buf0.shape[0]
         rect = getattr(self, 'rect', None)
         if rect is not None:
@@ -1574,17 +1583,23 @@ class vImage(QImage):
             adjustForm.sliderFilterRange.setStart(adjustForm.filterStart)
             adjustForm.sliderFilterRange.setEnd(adjustForm.filterEnd)
         if adjustForm.filterEnd > 4:
+            # build the filter as a 1D array of size h
             s = 0  # strongest 0
             opacity = 1 - s
-            Lchan = buf32Lab[:, :, 0]
-            start = int(h * adjustForm.filterStart / 100.0)
-            end = int(h * adjustForm.filterEnd / 100.0)
+            if adjustForm.kernelCategory ==  blendFilterIndex.GRADUALNONE:
+                start, end = 0 , h -1
+            else:
+                start = int(h * adjustForm.filterStart / 100.0)
+                end = int(h * adjustForm.filterEnd / 100.0)
             test = np.arange(end - start) * opacity / (
                         2.0 * max(end - start - 1, 1)) + 0.5 * s  # range 0.5*s...0.5
             test = np.concatenate((np.zeros(start) + 0.5 * s, test, np.zeros(h - end) + 0.5))
+            if adjustForm.kernelCategory == blendFilterIndex.GRADUALBT:
+                # rotate filter 180°
+                test = test[::-1]
+            # blend the filter with the image
+            Lchan = buf32Lab[:, :, 0]
             test1 = test[:, np.newaxis] + np.zeros(Lchan.shape)
-
-            #test1 = cv2.rotate(test1, cv2.ROTATE_180)
             buf32Lab[:, :, 0] = np.where(Lchan < 50, Lchan * (test1 * 2.0),
                                          100.0 - 2.0 * (1.0 - test1) * (100.0 - Lchan))
             # luminosity correction
@@ -1901,6 +1916,11 @@ class mImage(vImage):
         # so we mark them as invalid
         layer.mask.fill(vImage.defaultColor_Invalid)
         layer.paintedMask = layer.mask.copy()
+        # add noSegment flag. It blocks/allows the execution of grabcut algorithm
+        # in applyGrabcut : if True, further stack updates
+        # do not redo the segmentation. The flag is toggled by the Apply Button
+        # slot of segmentForm.
+        layer.noSegment = False
         layer.updatePixmap()
         return layer
 

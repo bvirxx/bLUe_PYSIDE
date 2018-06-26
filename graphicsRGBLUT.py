@@ -104,6 +104,7 @@ class graphicsForm(graphicsCurveForm) :
         item = self.listWidget1.items[options[0]]
         item.setCheckState(Qt.Checked)
         self.listWidget1.select(item)
+        self.setWhatsThis("""RGB curves""" + self.whatsThis())
 
     def drawBackground(self, qp, qrF):
         """

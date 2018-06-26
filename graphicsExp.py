@@ -28,12 +28,6 @@ class ExpForm (QWidget): # (QGraphicsView): TODO modified 25/06/18 validate
         #self.img = targetImage
         self.layer = layer
         #self.defaultClip = self.defaultClipLimit
-        l = QVBoxLayout()
-        l.setAlignment(Qt.AlignBottom)
-
-        # f is defined later, but we need to declare it righjt now
-        def f():
-            pass
 
         # options
         self.options = None
@@ -47,8 +41,7 @@ class ExpForm (QWidget): # (QGraphicsView): TODO modified 25/06/18 validate
         tempLabel = QLabel()
         tempLabel.setMaximumSize(150, 30)
         tempLabel.setText("Exposure Correction")
-        l.addWidget(tempLabel)
-        hl = QHBoxLayout()
+
         self.tempValue = QLabel()
         font = self.tempValue.font()
         metrics = QFontMetrics(font)
@@ -57,13 +50,6 @@ class ExpForm (QWidget): # (QGraphicsView): TODO modified 25/06/18 validate
         self.tempValue.setMinimumSize(w, h)
         self.tempValue.setMaximumSize(w, h)
         self.tempValue.setStyleSheet("QLabel {background-color: white;}")
-        hl.addWidget(self.tempValue)
-        hl.addWidget(self.sliderClip)
-        l.addLayout(hl)
-        l.setContentsMargins(20, 0, 20, 25)  # left, top, right, bottom
-        l.addStretch(1)
-        self.setLayout(l)
-        self.adjustSize()
 
         # exp done event handler
         def f():
@@ -75,7 +61,6 @@ class ExpForm (QWidget): # (QGraphicsView): TODO modified 25/06/18 validate
         # exp value changed event handler
         def g():
             self.tempValue.setText(str("{:+.1f}".format(self.sliderClip.value()*self.DefaultStep)))
-            #self.previewWindow.setPixmap()
 
         self.sliderClip.valueChanged.connect(g)
         self.sliderClip.sliderReleased.connect(f)
@@ -83,23 +68,40 @@ class ExpForm (QWidget): # (QGraphicsView): TODO modified 25/06/18 validate
         self.sliderClip.setValue(self.defaultExpCorrection / self.DefaultStep)
         self.tempValue.setText(str("{:+.1f}".format(self.defaultExpCorrection )))
 
-        def writeToStream(self, outStream):
-            layer = self.layer
-            outStream.writeQString(layer.actionName)
-            outStream.writeQString(layer.name)
-            outStream.writeQString(self.listWidget1.selectedItems()[0].text())
-            outStream.writeInt32(self.sliderClip.value())
-            return outStream
+        #layout
+        l = QVBoxLayout()
+        l.setAlignment(Qt.AlignBottom)
+        l.addWidget(tempLabel)
+        hl = QHBoxLayout()
+        hl.addWidget(self.tempValue)
+        hl.addWidget(self.sliderClip)
+        l.addLayout(hl)
+        l.setContentsMargins(20, 0, 20, 25)  # left, top, right, bottom
+        l.addStretch(1)
+        self.setLayout(l)
+        self.adjustSize()
+        self.setWhatsThis(
+"""Exposure correction
+"""
+                         )  # end setWhatsThis
 
-        def readFromStream(self, inStream):
-            actionName = inStream.readQString()
-            name = inStream.readQString()
-            sel = inStream.readQString()
-            temp = inStream.readInt32()
-            for r in range(self.listWidget1.count()):
-                currentItem = self.listWidget1.item(r)
-                if currentItem.text() == sel:
-                    self.listWidget.select(currentItem)
-            self.sliderClip.setValue(temp)
-            self.update()
-            return inStream
+    def writeToStream(self, outStream):
+        layer = self.layer
+        outStream.writeQString(layer.actionName)
+        outStream.writeQString(layer.name)
+        outStream.writeQString(self.listWidget1.selectedItems()[0].text())
+        outStream.writeInt32(self.sliderClip.value())
+        return outStream
+
+    def readFromStream(self, inStream):
+        actionName = inStream.readQString()
+        name = inStream.readQString()
+        sel = inStream.readQString()
+        temp = inStream.readInt32()
+        for r in range(self.listWidget1.count()):
+            currentItem = self.listWidget1.item(r)
+            if currentItem.text() == sel:
+                self.listWidget.select(currentItem)
+        self.sliderClip.setValue(temp)
+        self.update()
+        return inStream

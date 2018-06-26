@@ -25,7 +25,7 @@ from kernel import filterIndex, getKernel
 from utils import optionsWidget
 
 
-class filterForm (QWidget): # (QGraphicsView): TODO modified 25/06/18 validate
+class filterForm (QWidget):
     dataChanged = QtCore.Signal()
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
@@ -51,26 +51,23 @@ class filterForm (QWidget): # (QGraphicsView): TODO modified 25/06/18 validate
         self.kernelCategory = filterIndex.UNSHARP
         self.kernel = getKernel(self.kernelCategory)
 
-        l = QVBoxLayout()
-        l.setAlignment(Qt.AlignBottom)
-
         # options
-        optionList = ['Unsharp Mask', 'Sharpen', 'Gaussian Blur', 'Surface Blur']
+        self.optionList = ['Unsharp Mask', 'Sharpen', 'Gaussian Blur', 'Surface Blur']
         filters = [ filterIndex.UNSHARP, filterIndex.SHARPEN, filterIndex.BLUR1, filterIndex.SURFACEBLUR]
-        filterDict = dict(zip(optionList, filters))
+        self.filterDict = dict(zip(self.optionList, filters))
 
-        self.listWidget1 = optionsWidget(options=optionList, exclusive=True, changed=self.dataChanged)
+        self.listWidget1 = optionsWidget(options=self.optionList, exclusive=True, changed=self.dataChanged)
         # set initial selection to unsharp mask
-        item = self.listWidget1.checkOption(optionList[0])
+        item = self.listWidget1.checkOption(self.optionList[0])
 
         # sliders
         self.sliderRadius = QSlider(Qt.Horizontal)
         self.sliderRadius.setTickPosition(QSlider.TicksBelow)
         self.sliderRadius.setRange(1, 50)
         self.sliderRadius.setSingleStep(1)
-        radiusLabel = QLabel()
-        radiusLabel.setMaximumSize(150, 30)
-        radiusLabel.setText("Radius")
+        self.radiusLabel = QLabel()
+        self.radiusLabel.setMaximumSize(150, 30)
+        self.radiusLabel.setText("Radius")
 
         self.radiusValue = QLabel()
         font = self.radiusValue.font()
@@ -85,9 +82,9 @@ class filterForm (QWidget): # (QGraphicsView): TODO modified 25/06/18 validate
         self.sliderAmount.setTickPosition(QSlider.TicksBelow)
         self.sliderAmount.setRange(0, 100)
         self.sliderAmount.setSingleStep(1)
-        amountLabel = QLabel()
-        amountLabel.setMaximumSize(150, 30)
-        amountLabel.setText("Amount")
+        self.amountLabel = QLabel()
+        self.amountLabel.setMaximumSize(150, 30)
+        self.amountLabel.setText("Amount")
         self.amountValue = QLabel()
         font = self.radiusValue.font()
         metrics = QFontMetrics(font)
@@ -98,9 +95,9 @@ class filterForm (QWidget): # (QGraphicsView): TODO modified 25/06/18 validate
         #self.amountValue.setStyleSheet("QLabel {background-color: gray;}")
 
         self.toneValue = QLabel()
-        toneLabel = QLabel()
-        toneLabel.setMaximumSize(150, 30)
-        toneLabel.setText("Tone")
+        self.toneLabel = QLabel()
+        self.toneLabel.setMaximumSize(150, 30)
+        self.toneLabel.setText("Tone")
         self.sliderTone = QSlider(Qt.Horizontal)
         self.sliderTone.setTickPosition(QSlider.TicksBelow)
         self.sliderTone.setRange(0, 100)
@@ -113,27 +110,26 @@ class filterForm (QWidget): # (QGraphicsView): TODO modified 25/06/18 validate
         self.toneValue.setMaximumSize(w, h)
         #self.toneValue.setStyleSheet("QLabel {background-color: white;}")
 
+        # layout
+        l = QVBoxLayout()
+        l.setAlignment(Qt.AlignBottom)
         l.addWidget(self.listWidget1)
         hl = QHBoxLayout()
-        hl.addWidget(radiusLabel)
+        hl.addWidget(self.radiusLabel)
         hl.addWidget(self.radiusValue)
         hl.addWidget(self.sliderRadius)
         l.addLayout(hl)
-
         hl = QHBoxLayout()
-        hl.addWidget(amountLabel)
+        hl.addWidget(self.amountLabel)
         hl.addWidget(self.amountValue)
         hl.addWidget(self.sliderAmount)
         l.addLayout(hl)
-
         hl = QHBoxLayout()
-        hl.addWidget(toneLabel)
+        hl.addWidget(self.toneLabel)
         hl.addWidget(self.toneValue)
         hl.addWidget(self.sliderTone)
         l.addLayout(hl)
-
         l.setContentsMargins(20, 0, 20, 25)  # left, top, right, bottom
-
         self.setLayout(l)
 
         # value changed event handler
@@ -165,38 +161,46 @@ class filterForm (QWidget): # (QGraphicsView): TODO modified 25/06/18 validate
         self.sliderTone.valueChanged.connect(sliderUpdate)
         self.sliderTone.sliderReleased.connect(formUpdate)
 
-        def enableSliders():
-            op = self.listWidget1.options
-            useRadius = op[optionList[0]] or op[optionList[2]] or op[optionList[3]]
-            useAmount = op[optionList[0]] or op[optionList[2]]
-            useTone = op[optionList[3]]
-            self.sliderRadius.setEnabled(useRadius)
-            self.sliderAmount.setEnabled(useAmount)
-            self.sliderTone.setEnabled(useTone)
-            self.radiusValue.setEnabled(self.sliderRadius.isEnabled())
-            self.amountValue.setEnabled(self.sliderAmount.isEnabled())
-            self.toneValue.setEnabled(self.sliderTone.isEnabled())
-            radiusLabel.setEnabled(self.sliderRadius.isEnabled())
-            amountLabel.setEnabled(self.sliderAmount.isEnabled())
-            toneLabel.setEnabled(self.sliderTone.isEnabled())
-
-        # data changed event handler
-        def updateLayer():
-            enableSliders()
-            for key in self.listWidget1.options:
-                if self.listWidget1.options[key]:
-                    self.kernelCategory = filterDict[key]
-                    break
-            self.layer.applyToStack()
-            self.layer.parentImage.onImageChanged()
-
-        self.dataChanged.connect(updateLayer)
+        self.dataChanged.connect(self.updateLayer)
         # init
         self.sliderRadius.setValue(defaultRadius)
         self.sliderAmount.setValue(defaultAmount)
         self.sliderTone.setValue(defaultTone)
-        enableSliders()
+        self.enableSliders()
         sliderUpdate()
+        self.setWhatsThis(
+"""
+   Unsharp Mask and Sharpen Mask are useful to sharpen an image.
+   Gaussian Blur and Surface Blur are used to blur an image. In contrast to Gaussian Blur, the Surface Blur filter preserves edges.
+"""
+                        )  # end setWhatsThis
+
+    def updateLayer(self):
+        """
+        dataChanged Slot
+        """
+        self.enableSliders()
+        for key in self.listWidget1.options:
+            if self.listWidget1.options[key]:
+                self.kernelCategory = self.filterDict[key]
+                break
+        self.layer.applyToStack()
+        self.layer.parentImage.onImageChanged()
+
+    def enableSliders(self):
+        op = self.listWidget1.options
+        useRadius = op[self.optionList[0]] or op[self.optionList[2]] or op[self.optionList[3]]
+        useAmount = op[self.optionList[0]] or op[self.optionList[2]]
+        useTone = op[self.optionList[3]]
+        self.sliderRadius.setEnabled(useRadius)
+        self.sliderAmount.setEnabled(useAmount)
+        self.sliderTone.setEnabled(useTone)
+        self.radiusValue.setEnabled(self.sliderRadius.isEnabled())
+        self.amountValue.setEnabled(self.sliderAmount.isEnabled())
+        self.toneValue.setEnabled(self.sliderTone.isEnabled())
+        self.radiusLabel.setEnabled(self.sliderRadius.isEnabled())
+        self.amountLabel.setEnabled(self.sliderAmount.isEnabled())
+        self.toneLabel.setEnabled(self.sliderTone.isEnabled())
 
     def writeToStream(self, outStream):
         layer = self.layer

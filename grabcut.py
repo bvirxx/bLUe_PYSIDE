@@ -19,12 +19,28 @@ from PySide2 import QtCore
 from PySide2.QtCore import Qt
 from PySide2.QtWidgets import QHBoxLayout, QPushButton, QWidget, QSizePolicy, QVBoxLayout, QSpinBox, QLabel
 
+from MarkedImg import vImage
 from QtGui1 import window
 from utils import optionsWidget
 
 class segmentForm(QWidget):
     """
     Segmentation (grabcut) form
+
+        Methods                          Attributes
+            getNewWindow                     contourMargin
+            __init__                         contourMarginDefault
+            setDefaults                      dataChanged
+            updateLayer                      iterDefault
+            reset                            layer
+                                             layerTitle
+                                             listWidget1
+                                             nbIter
+                                             options
+                                             spBox
+                                             spBox1
+                                             start
+
     """
     dataChanged = QtCore.Signal()
     layerTitle = "Segmentation"
@@ -32,52 +48,73 @@ class segmentForm(QWidget):
     contourMarginDefault = 1
     @classmethod
     def getNewWindow(cls, targetImage=None, layer=None, mainForm=None):
-        wdgt = segmentForm(targetImage=targetImage, layer=layer, mainForm=mainForm)
+        wdgt = segmentForm(layer=layer)
         return wdgt
 
-    def __init__(self, targetImage=None, layer=None, mainForm=None):
+    def __init__(self, layer=None):
         super(segmentForm, self).__init__()
         self.setWindowTitle('grabcut')
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(200, 200)
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.layer = layer
-        self.targetImage = targetImage
-        self.mainForm = mainForm
-        self.dataChanged.connect(self.updateLayer)
-        def f():
-            self.targetImage.getActiveLayer().applyToStack()
-            window.label.img.onImageChanged()
+
         pushButton = QPushButton('apply')
+        # apply button slot
+        def f():
+            self.layer.noSegment = False
+            self.layer.applyToStack()
+            window.label.img.onImageChanged()
+            # do manual segmentation only
+            layer.noSegment = True
         pushButton.clicked.connect(f)
+
+        pushButton1 = QPushButton('Reset')
+        pushButton1.clicked.connect(lambda : self.reset())
+
         self.spBox = QSpinBox()
         self.spBox.setRange(1,10)
-        def f(iter):
+        # spBox Slot
+        def f2(iterCount):
             self.spBox.valueChanged.disconnect()
             self.dataChanged.emit()
-            self.spBox.valueChanged.connect(f)
-        self.spBox.valueChanged.connect(f)
+            self.spBox.valueChanged.connect(f2)
+        self.spBox.valueChanged.connect(f2)
         spBoxLabel = QLabel()
         spBoxLabel.setText('Iterations')
+
         self.spBox1 = QSpinBox()
         self.spBox1.setRange(0, 20)
         spBox1Label = QLabel()
         spBox1Label.setText('Contour Margin')
-        def f1(iter):
+        # spBox1 slot
+        def f1(margin):
             self.spBox1.valueChanged.disconnect()
             self.dataChanged.emit()
             self.spBox1.valueChanged.connect(f1)
         self.spBox1.valueChanged.connect(f1)
+
         # options
         optionList1, optionNames1 = ['Clipping Layer'], ['Clipping Layer']
         self.listWidget1 = optionsWidget(options=optionList1, optionNames=optionNames1, exclusive=False)
         self.options = self.listWidget1.options
-        # option changed handler
+        # option changed slot
         def g(item):
             self.layer.isClipping = self.options['Clipping Layer']
             self.layer.applyToStack()
             self.layer.parentImage.onImageChanged()
         self.listWidget1.onSelect = g
+
+        # dataChanged must be connected to updateLayer in __init__
+        # otherwise disconnecting in setDefaults raises an exception
+        self.dataChanged.connect(self.updateLayer)
+
+        # attributes initialized in setDefaults, declared here
+        # for the sake of correctness
+        self.start = None
+        self.nbIter = None
+        self.contourMargin = None
+
         # layout
         hLay = QHBoxLayout()
         hLay.addWidget(spBoxLabel)
@@ -95,7 +132,10 @@ class segmentForm(QWidget):
         vLay.addLayout(hLay)
         vLay.addLayout(hLay1)
         vLay.addLayout(h2)
-        vLay.addWidget(pushButton)
+        h3 = QHBoxLayout()
+        h3.addWidget(pushButton)
+        h3.addWidget(pushButton1)
+        vLay.addLayout(h3)
         self.setLayout(vLay)
         self.setDefaults()
         self.setWhatsThis(
@@ -104,8 +144,8 @@ class segmentForm(QWidget):
   Correct (roughly) if needed the foreground (FG) and the background (BG) regions using the FG and BG tools (Ctrl to undo) and click again the Apply button.
   To get a smoother contour increase the value of the Contour Margin and click the Apply Button.
   By default the mask is displayed as a color mask. To view it as an opacity mask, right click on the Segmentation layer row in the right pane and check Enable Mask As > Opacity Mask in the context menu.
-  To copy the object to a new image layer use the right pane Context Menu : Copy Image to Clipboard and, next, Paste Image.
-  When done, don't forget to toggle off the visibility of the segmentation layer.
+  Use the same context menu to copy/paste the object to a new image layer or the mask to another layer.
+  
 """
                         )  # end setWhatsThis
 
@@ -123,7 +163,17 @@ class segmentForm(QWidget):
         self.contourMargin = self.spBox1.value()
 
     def reset(self):
+        layer = self.layer
+        layer.maskIsEnabled = True
+        layer.maskIsSelected = True
+        # mask pixels are not yet painted as FG or BG
+        # so we mark them as invalid
+        layer.mask.fill(vImage.defaultColor_Invalid)
+        layer.paintedMask = layer.mask.copy()
+        layer.isClipping = False
         self.setDefaults()
+        layer.updatePixmap()
+
 
 
 
