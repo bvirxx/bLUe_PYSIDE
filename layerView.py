@@ -720,7 +720,7 @@ You can drag and drop layers to change their order.
             layer.updatePixmap()
             self.img.onImageChanged()
         def loadImage():
-            fileName = None
+            return # TODO 26/06/18 action to remove from menu? replaced by new image layer
             window = QtGui1.window
             filename = openDlg(window)
             img = QImage(filename)

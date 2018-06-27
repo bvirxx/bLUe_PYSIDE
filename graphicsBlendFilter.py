@@ -51,11 +51,11 @@ class blendFilterForm (QWidget): #(QGraphicsView): TODO modified 25/06/18 valida
         self.kernelCategory = filterIndex.UNSHARP
         self.kernel = getKernel(self.kernelCategory)
         # options
-        optionList = ['Gradual Top', 'Gradual Bottom'] #, 'None']
+        optionList, optionNames = ['Gradual Top', 'Gradual Bottom'], ['Top To Bottom', 'Bottom To Top']
         filters = [blendFilterIndex.GRADUALTB, blendFilterIndex.GRADUALBT] #, blendFilterIndex.GRADUALNONE]
         filterDict = dict(zip(optionList, filters))
 
-        self.listWidget1 = optionsWidget(options=optionList, exclusive=True, changed=self.dataChanged)
+        self.listWidget1 = optionsWidget(options=optionList, optionNames=optionNames, exclusive=True, changed=self.dataChanged)
         # set initial selection to gradual top
         self.listWidget1.checkOption(optionList[0])
 
@@ -68,7 +68,7 @@ class blendFilterForm (QWidget): #(QGraphicsView): TODO modified 25/06/18 valida
         rs.head.setStyleSheet(
             'background: black; /*qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #999, stop:1 #222);*/')
         self.sliderFilterRange = rs
-        frLabel = QLabel('Top To Bottom')
+        frLabel = QLabel('Range')
 
         # filter range done event handler
         def frUpdate(start, end):
@@ -89,7 +89,7 @@ class blendFilterForm (QWidget): #(QGraphicsView): TODO modified 25/06/18 valida
 
         # data changed event handler
         def updateLayer():
-            enableSliders()
+            #enableSliders()
             for key in self.listWidget1.options:
                 if self.listWidget1.options[key]:
                     self.kernelCategory = filterDict[key]
@@ -98,25 +98,21 @@ class blendFilterForm (QWidget): #(QGraphicsView): TODO modified 25/06/18 valida
             self.layer.parentImage.onImageChanged()
 
         self.dataChanged.connect(updateLayer)
-
+        # layout
         l = QVBoxLayout()
         l.setAlignment(Qt.AlignBottom)
         l.addWidget(self.listWidget1)
         hl8 = QHBoxLayout()
         hl8.addWidget(frLabel)
         hl8.addWidget(self.sliderFilterRange)
-
         l.addLayout(hl8)
-
         l.setContentsMargins(20, 0, 20, 25)  # left, top, right, bottom
-
         self.setLayout(l)
 
         self.setWhatsThis(
-"""
- Gradual neutral filter. 
+"""Gradual neutral filter. 
    It mimics the classical gradual gray filter often used by photographers to darken the sky.
-   Use the range slider to control the regions of maximum and minimum intensities.
+   To control the regions of maximum and minimum intensities use the Range slider.
 """
                         ) # end setWhatsThis
 

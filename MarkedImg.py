@@ -1039,8 +1039,12 @@ class vImage(QImage):
             # warp = 0 means that no additional warping is done, but
             # the histogram is always stretched.
             warp = max(0, (adjustForm.contCorrection -1)) / 10
-            bufHSV_CV32[:,:,2],a,b,d,T = warpHistogram(bufHSV_CV32[:, :, 2], valleyAperture=0.05, warp=warp, preserveHigh=False)#options['Preserve Highlights'])
-            self.getGraphicsForm().setContrastSpline(a, b, d, T)
+            bufHSV_CV32[:,:,2],a,b,d,T = warpHistogram(bufHSV_CV32[:, :, 2], valleyAperture=0.05, warp=warp, preserveHigh=False,
+                                                       spline=None if self.autoSpline else self.getMmcSpline()) #preserveHigh=options['Preserve Highlights'])
+            # show the spline
+            if self.autoSpline and options['manualCurve']:
+                self.getGraphicsForm().setContrastSpline(a, b, d, T)
+                self.autoSpline = False
         if adjustForm.satCorrection != 0:
             alpha = (-adjustForm.satCorrection + 50.0) / 50
             # tabulate x**alpha
@@ -1138,7 +1142,7 @@ class vImage(QImage):
                     # show the spline
                     if self.autoSpline and options['manualCurve']:
                         self.getGraphicsForm().setContrastSpline(a, b, d, T)
-                        self.autoSpline = False #mmcSpline = self.getGraphicsForm().scene().cubicItem # caution : msileading name for a quadratic spline !
+                        self.autoSpline = False #mmcSpline = self.getGraphicsForm().scene().cubicItem # caution : misleading name for a quadratic spline !
                 LBuf[:,:,0] = res
             if satCorrection != 0:
                 slope = max(0.1, adjustForm.satCorrection / 25 + 1)  # ran# show the splinege 0.1..3
@@ -1575,6 +1579,7 @@ class vImage(QImage):
         buf32Lab = cv2.cvtColor(((buf0.astype(np.float32)) / 256).astype(np.float32), cv2.COLOR_BGR2Lab)
         # get height of current image
         h = buf0.shape[0]
+        """
         rect = getattr(self, 'rect', None)
         if rect is not None:
             rect = rect.intersected(QRect(0, 0, buf0.shape[1], buf0.shape[0]))
@@ -1582,6 +1587,7 @@ class vImage(QImage):
             adjustForm.filterEnd = int((rect.bottom() / h) * 100.0)
             adjustForm.sliderFilterRange.setStart(adjustForm.filterStart)
             adjustForm.sliderFilterRange.setEnd(adjustForm.filterEnd)
+        """
         if adjustForm.filterEnd > 4:
             # build the filter as a 1D array of size h
             s = 0  # strongest 0
@@ -1889,7 +1895,7 @@ class mImage(vImage):
         layer.role = role
         self.addLayer(layer, name=name, index=index + 1)
         # add autoSpline attribute to contrast layer only
-        if role == 'CONTRAST':
+        if role in ['CONTRAST', 'RAW']:
             layer.autoSpline = True
         # init thumb
         if layer.parentImage.useThumb:
@@ -2013,7 +2019,7 @@ class mImage(vImage):
             """
             dataStream.writeQString(layer.actionName)
         for layer in self.layersStack:
-            if hasattr(layer, 'view'):
+            if getattr(layer, 'view', None) is not None:
                 layer.view.widget().writeToStream(dataStream)
 
     def readStackFromStream(self, dataStream):

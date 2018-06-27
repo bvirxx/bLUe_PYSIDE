@@ -22,6 +22,7 @@ from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBox, QWidget
 from colorConv import temperatureAndTint2RGBMultipliers, RGBMultipliers2TemperatureAndTint
+from graphicsLUT import graphicsQuadricForm
 from utils import optionsWidget, UDict, QbLUeSlider
 
 class rawForm (QWidget): #(QGraphicsView): TODO Modified 25/06/18 validate
@@ -35,6 +36,67 @@ class rawForm (QWidget): #(QGraphicsView): TODO Modified 25/06/18 validate
         wdgt = rawForm(axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         wdgt.setWindowTitle(layer.name)
         return wdgt
+
+    @classmethod
+    def slider2Temp(cls, v):
+        return 2000 + v * v
+
+    @classmethod
+    def temp2Slider(cls, T):
+        return np.sqrt(T - 2000)
+
+    @classmethod
+    def slider2Tint(cls, v):
+        return 0.1 + 0.0125 * v  # 0.2 + 0.0125 * v  # wanted range : 0.2...2.5
+        # coeff = (self.tempCorrection / 4000 - 1) * 1.2 # experimental formula
+        # eturn coeff + 0.01*v
+
+    @classmethod
+    def tint2Slider(cls, t):
+        return (t - 0.1) / 0.0125
+        # coeff = (self.tempCorrection / 4000 - 1) * 1.2 # experimental formula
+        # return (t-coeff)/0.01
+        # displayed value
+
+    @classmethod
+    def sliderTint2User(cls, v):
+        return v - 75  # ((slider2Tint(v) - 1)*100)
+
+    @classmethod
+    def slider2Exp(cls, v):
+        return v / 20.0 - 2.0
+
+    @classmethod
+    def exp2Slider(cls, e):
+        return round((e + 2.0) * 20.0)
+
+    @classmethod
+    def slider2Cont(cls, v):
+        return v
+
+    @classmethod
+    def cont2Slider(cls, e):
+        return e
+
+    @classmethod
+    def slider2Br(cls, v):
+        return (np.power(3, v/50) - 1) / 2
+
+    @classmethod
+    def br2Slider(cls, v):
+        return 50 * log(2*v + 1, 3) #int(round(50.0 * e))
+
+    @classmethod
+    def brSlider2User(cls, v):
+        return (v - 50)
+
+    @classmethod
+    def slider2Sat(cls, v):
+        return v - 50
+
+    @classmethod
+    def sat2Slider(cls, e):
+        return e + 50
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         super().__init__(parent=parent)
@@ -79,8 +141,14 @@ class rawForm (QWidget): #(QGraphicsView): TODO Modified 25/06/18 validate
         # We use the product baseTint * tintCorrection as the current tint adjustment,
         # keeping tintCorrection near to 1.0
         self.baseTint = self.cameraTint
+        # attributes initialized in setDefaults, declared here
+        # for the sake of correctness
+        self.tempCorrection, self.tintCorrection, self.expCorrection, self.highCorrection,\
+                                                   self.contCorrection, self.satCorrection, self.brCorrection = [None] * 7
+        # contrast spline view, initialized in setContrastSpline
+        self.contrastForm = None
         # options : it turns out that the most accurate description for the 'Auto Brightness' option of rawpy.postprocess is 'Auto Expose'
-        optionList0, optionNames0 = ['Auto Brightness', 'Preserve Highlights'], ['Auto Expose', 'Preserve Highlights']
+        optionList0, optionNames0 = ['Auto Brightness', 'Preserve Highlights', 'manualCurve'], ['Auto Expose', 'Preserve Highlights', 'Show Contrast Curve']
         self.listWidget1 = optionsWidget(options=optionList0, optionNames=optionNames0, exclusive=False, changed=lambda: self.dataChanged.emit(True))
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
         self.listWidget1.checkOption(self.listWidget1.intNames[1])
@@ -388,6 +456,12 @@ class rawForm (QWidget): #(QGraphicsView): TODO Modified 25/06/18 validate
         self.setLayout(l)
         self.adjustSize()
         self.setDefaults()
+        self.setWhatsThis(
+"""Development of raw files
+Contrast enhancement is based on an automatic algorithm well suited to multi-mode histograms. \
+However, the correction curve can be edited manually by checking the option Show Contrast Curve. 
+"""
+                        ) # end of setWhatsThis
 
     def setContrastSpline(self, a, b, d, T):
         """
@@ -401,7 +475,18 @@ class rawForm (QWidget): #(QGraphicsView): TODO Modified 25/06/18 validate
         @param T:
         @type T:
         """
-        pass
+        axeSize = 500
+        if self.contrastForm is None:
+            form = graphicsQuadricForm.getNewWindow(targetImage=None, axeSize=axeSize, layer=self.layer, parent=None,
+                                                    mainForm=None)
+            form.setWindowFlags(Qt.WindowStaysOnTopHint)
+            form.setAttribute(Qt.WA_DeleteOnClose, on=False)
+            form.setWindowTitle('Contrast Curve')
+            self.contrastForm = form
+        else:
+            form = self.contrastForm
+        form.scene().quadricB.setCurve(a * axeSize, b * axeSize, d, T * axeSize)
+        form.showNormal()
 
     # temp changed  event handler
     def tempUpdate(self, value):
@@ -472,7 +557,7 @@ class rawForm (QWidget): #(QGraphicsView): TODO Modified 25/06/18 validate
         the postprocessing cache is reset to None, to enforce
         a new raw postprocessing.
         @param cacheInvalidate:
-        @type invalidate: boolean
+        @type cacheInvalidate: boolean
         """
         if cacheInvalidate:
             # force raw postprocessing
@@ -480,62 +565,6 @@ class rawForm (QWidget): #(QGraphicsView): TODO Modified 25/06/18 validate
         self.enableSliders()
         self.layer.applyToStack()
         self.layer.parentImage.onImageChanged()
-
-    def slider2Temp(self, v):
-        return 2000 + v * v
-
-    def temp2Slider(self, T):
-        return np.sqrt(T - 2000)
-
-    def slider2Tint(self, v):
-        return 0.1 + 0.0125 * v  # 0.2 + 0.0125 * v  # wanted range : 0.2...2.5
-        # coeff = (self.tempCorrection / 4000 - 1) * 1.2 # experimental formula
-        # eturn coeff + 0.01*v
-
-    def tint2Slider(self, t):
-        return (t - 0.1) / 0.0125
-        # coeff = (self.tempCorrection / 4000 - 1) * 1.2 # experimental formula
-        # return (t-coeff)/0.01
-        # displayed value
-
-    def sliderTint2User(self, v):
-        return v - 75  # ((slider2Tint(v) - 1)*100)
-
-    def slider2Exp(self, v):
-        return v / 20.0 - 2.0
-
-    def exp2Slider(self, e):
-        return round((e + 2.0) * 20.0)
-
-    def slider2Cont(self, v):
-        return v
-
-    def cont2Slider(self, e):
-        return e
-
-    def slider2Br(self, v):
-        return (np.power(3, v/50) - 1) / 2
-
-    def br2Slider(self, v):
-        return 50 * log(2*v + 1, 3) #int(round(50.0 * e))
-
-    def brSlider2User(self, v):
-        return (v - 50)
-
-    """
-
-    def slider2Noise(self, v):
-        return v
-
-    def noise2Slider(self, e):
-        return e
-    """
-
-    def slider2Sat(self, v):
-        return v - 50
-
-    def sat2Slider(self, e):
-        return e + 50
 
     def enableSliders(self):
         useUserWB = self.listWidget2.options["User WB"]

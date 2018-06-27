@@ -1459,7 +1459,7 @@ def menuLayer(name):
         # wrapper for the right apply method
         l.execute = lambda l=l, pool=None: l.applyFilter2D()
     elif name == 'actionGradual_Filter':
-        lname = 'Blend Filter'
+        lname = 'Gradual Filter'
         l = window.label.img.addAdjustmentLayer(name=lname)
         grWindow = blendFilterForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         # wrapper for the right apply method
@@ -1471,6 +1471,7 @@ def menuLayer(name):
         # wrapper for the right apply method
         l.execute = lambda l=l, pool=None: l.applyNoiseReduction()
     elif name == 'actionSave_Layer_Stack':
+        return # TODO 26/0618 review
         lastDir = str(window.settings.value('paths/dlgdir', '.'))
         dlg = QFileDialog(window, "select", lastDir)
         dlg.setNameFilter('*.sba')
@@ -1482,6 +1483,7 @@ def menuLayer(name):
             window.label.img.saveStackToFile(filenames[0])
             return
     elif name == 'actionLoad_Layer_Stack':
+        return # TODO 26/06/18 review
         lastDir = str(window.settings.value('paths/dlgdir', '.'))
         dlg = QFileDialog(window, "select", lastDir)
         dlg.setNameFilter('*.sba')
@@ -1510,11 +1512,6 @@ def menuLayer(name):
             window.settings.setValue('paths/dlgdir', newDir)
             filenames = dlg.selectedFiles()
             name = filenames[0]
-            """
-            if name[-4:] == '.png':
-                LUT3DArray = LUT3D.readFromHaldFile(name)
-            else :
-            """
             try:
                 LUT3DArray, size = LUT3D.readFromTextFile(name)
             except (ValueError, IOError) as e:
@@ -1525,9 +1522,9 @@ def menuLayer(name):
             l.execute = lambda l=l, pool=None: l.apply3DLUT(LUT3DArray, {'use selection': False})
             window.tableView.setLayers(window.label.img)
             l.applyToStack()
-            #l.apply3DLUT(LUT3DArray, {'use selection':False})
         return
     elif name == 'actionSave_Layer_Stack_as_LUT_Cube':
+        return # TODO review 26/06/18
         doc = window.label.img
         buf = LUT3DIdentity.getHaldImage(doc.width(), doc.height())
         try:
@@ -1552,11 +1549,11 @@ def menuLayer(name):
                 newDir = dlg.directory().absolutePath()
                 window.settings.setValue('paths/dlgdir', newDir)
                 LUT.writeToTextFile(filenames[0])
-            return
         finally:
             # restore doc
             doc.removeLayer(1)
             doc.layersStack[0].applyToStack()
+            return
     # unknown action
     else:
         return

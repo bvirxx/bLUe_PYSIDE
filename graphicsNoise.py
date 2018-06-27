@@ -23,7 +23,6 @@ from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLa
 
 from utils import optionsWidget, QbLUeSlider
 
-
 class noiseForm (QWidget): # (QGraphicsView): TODO modified 25/06/18 validate
     dataChanged = QtCore.Signal(bool)
     @classmethod
@@ -40,6 +39,9 @@ class noiseForm (QWidget): # (QGraphicsView): TODO modified 25/06/18 validate
         self.setAttribute(Qt.WA_DeleteOnClose)
         #self.img = targetImage
         self.layer = layer
+        # attribute initialized in setDefaults
+        # defined here for the sake of correctness
+        self.noiseCorrection = 0
 
         # options
         optionList= ['Wavelets', 'Bilateral', 'NLMeans']
@@ -71,7 +73,7 @@ class noiseForm (QWidget): # (QGraphicsView): TODO modified 25/06/18 validate
         self.thrValue.setText(str("{:.0f}".format(self.slider2Thr(self.sliderThr.value()))))
         self.dataChanged.connect(self.updateLayer)
         self.setStyleSheet("QListWidget, QLabel {font : 7pt;}")
-
+        # layout
         l = QVBoxLayout()
         l.setAlignment(Qt.AlignBottom)
         l.addWidget(self.listWidget1)
@@ -85,6 +87,12 @@ class noiseForm (QWidget): # (QGraphicsView): TODO modified 25/06/18 validate
         self.setLayout(l)
         self.adjustSize()
         self.setDefaults()
+        self.setWhatsThis(
+"""Noise Reduction
+   Bilateral Filtering is the fastest method.
+   NLMeans (Non Local Means) and Wavelets are slower, but they usually give better results.
+"""
+                        )  # end of setWhatsThis
 
     def setDefaults(self):
         self.listWidget1.unCheckAll()

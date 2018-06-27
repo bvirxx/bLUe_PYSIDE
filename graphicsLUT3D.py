@@ -18,10 +18,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
 from PySide2.QtCore import QSize
-from PySide2.QtWidgets import QAction, QFileDialog, QToolTip, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, \
-    QApplication
+from PySide2.QtWidgets import QAction, QFileDialog, QToolTip, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, QApplication
 from PySide2.QtGui import QPainter, QPolygonF,QPainterPath, QPen, QBrush, QColor, QPixmap
-from PySide2.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsItem, QGraphicsItemGroup, QGraphicsPathItem , QGraphicsPixmapItem, QGraphicsTextItem,  QGraphicsPolygonItem ,  QMainWindow, QLabel, QSizePolicy
+from PySide2.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsItem, QGraphicsItemGroup, QGraphicsPathItem,\
+    QGraphicsPixmapItem, QGraphicsTextItem,  QGraphicsPolygonItem , QSizePolicy
 from PySide2.QtCore import Qt, QPointF, QRect, QRectF
 import numpy as np
 
@@ -415,16 +415,16 @@ class activeNode(QGraphicsPathItem):
         # sum up all forces pushing item away
         xvel, yvel = 0.0, 0.0
         for i in range(self.grid.size):
-            if abs(i-self.gridRow) > 50 and abs(j-self.gridCol) > 50:
-                continue
             for j in range(self.grid.size):
+                if abs(i - self.gridRow) > 50 and abs(j - self.gridCol) > 50:
+                    continue
                 item = self.grid.gridNodes[i][j]
                 # Vec(item,self)
                 vec = self.mapToItem(item, 0, 0)
                 dx = vec.x()
                 dy = vec.y()
                 l = 2.0 * (dx * dx + dy * dy)
-                if (l > 0) :
+                if l > 0 :
                     xvel += (dx * 1.0) / l
                     yvel += (dy * 1.0) / l
         # substract all forces pulling items together
@@ -561,30 +561,24 @@ class activeMarker(QGraphicsPolygonItem):
 
     @classmethod
     def fromTriangle(cls, parent=None):
-        size = 10
         color = QColor(255, 255, 255)
-
         item = activeMarker(parent=parent)
         item.setPolygon(cls.triangle)
         item.setPen(QPen(color))
         item.setBrush(QBrush(color))
         # set move range to parent bounding rect
         item.moveRange = item.parentItem().boundingRect().bottomRight()
-
         return item
 
     @classmethod
     def fromCross(cls, parent=None):
-        size = 10
         color = QColor(0, 0, 0)
-
         item = activeMarker(parent=parent)
         item.setPolygon(cls.cross)
         item.setPen(QPen(color))
         item.setBrush(QBrush(color))
         # set move range to parent bounding rect
         item.moveRange = item.parentItem().boundingRect().bottomRight()
-
         return item
 
     def __init__(self, *args, **kwargs):
@@ -638,7 +632,7 @@ class colorPicker(QGraphicsPixmapItem):
             self.size = min(QImg.width(), QImg.heigth()) - 2 * border
         else:
             self.size = size
-
+        self.origin = 0  # used in mouse event handlers TODO added 26/06/18 validate
         # target histogram
         self.targetHist = None
         if target is not None:
@@ -667,13 +661,12 @@ class colorPicker(QGraphicsPixmapItem):
             self.targetHist = b
             self.showTargetHist = False
 
-        super().__init__(self.QImg.qPixmap)
-        self.setPixmap(self.QImg.qPixmap)
+        super().__init__(self.QImg.rPixmap)  #TODO qPixmap-->rPixmap 26/06/18
+        self.setPixmap(self.QImg.rPixmap) #TODO qPixmap-->rPixmap 26/06/18
         self.setOffset(QPointF(-border, -border))
 
-        self.onMouseRelease = lambda x, y, z : 0
+        self.onMouseRelease = lambda p, x, y, z : 0  # TODO 27/06/18 p added validate
         self.rubberBand = None
-
 
     def setPixmap(self, pxmap):
         # paint the histogram onto the pixmap
@@ -691,7 +684,7 @@ class colorPicker(QGraphicsPixmapItem):
         Convenience method
         @return: 
         """
-        self.setPixmap(self.QImg.qPixmap)
+        self.setPixmap(self.QImg.rPixmap) #TODO qPixmap-->rPixmap 26/06/18
 
     def mousePressEvent(self, e):
         #super(colorPicker, self).mousePressEvent(e)
@@ -732,8 +725,34 @@ class colorPicker(QGraphicsPixmapItem):
 
 class graphicsForm3DLUT(QGraphicsView) :
     """
-    Interactive grid for 3D LUT adjustment.
-    Default color model is hspB.
+    Form for 3D LUT editing.
+
+    Methods                         Attributes
+        getNewWindow                     bSliderHeight
+        __init__                         bSliderWidth
+        selectGridNode                   cModel
+        displayStatus                    currentB
+        bSliderUpdate                    currentG
+        onSelectGridNode                 currentHue
+        onReset                          currentPb
+        writeToStream                    currentR
+        readFromStream                   currentSat
+                                         defaultColorWheelBr
+                                         graphicsScene
+                                         grid
+                                         helpId
+                                         layer
+                                         listWidget1
+                                         listWidget2
+                                         listWidget3
+                                         mainForm
+                                         qpp0
+                                         qpp1
+                                         selectBrush
+                                         selected
+                                         size
+                                         targetImage
+                                         unselectBrush
     """
     # node markers
     qpp0 = activeNode.qppR
@@ -825,7 +844,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         # Brightness slider
         self.bSliderHeight = 20
         self.bSliderWidth = self.graphicsScene.colorWheel.QImg.width()
-        px = pbModel.colorChart(self.bSliderWidth, self.bSliderHeight, cModel, self.currentHue, self.currentSat).qPixmap
+        px = pbModel.colorChart(self.bSliderWidth, self.bSliderHeight, cModel, self.currentHue, self.currentSat).rPixmap #TODO qPixmap-->rPixmap 26/06/18
         self.graphicsScene.bSlider = QGraphicsPixmapItem(px, parent = self.graphicsScene.colorWheel)
         self.graphicsScene.bSlider.setPos(QPointF(-border, self.graphicsScene.colorWheel.QImg.height()-border))
         bSliderCursor = activeMarker.fromTriangle(parent=self.graphicsScene.bSlider)
@@ -839,7 +858,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         def f3(e, p, q):
             self.currentPb = p / float(self.bSliderWidth)
             self.graphicsScene.colorWheel.QImg.setPb(self.currentPb)
-            self.graphicsScene.colorWheel.setPixmap(self.graphicsScene.colorWheel.QImg.qPixmap)
+            self.graphicsScene.colorWheel.setPixmap(self.graphicsScene.colorWheel.QImg.rPixmap) #TODO qPixmap-->rPixmap 26/06/18
             self.displayStatus()
         bSliderCursor.onMouseRelease = f3
         # status bar
@@ -954,17 +973,34 @@ class graphicsForm3DLUT(QGraphicsView) :
                                 QPushButton:pressed, QPushButton:hover {background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #0d5ca6, stop: 1 #2198c0);}")
             btn.adjustSize()
             btn.setMaximumSize(QSize(btn.width()+4, btn.height()+4))
+        self.setWhatsThis(
+""" 3D LUT Editor
+   Sample the color of one or several pixels with mouse clicks on the image. The corresponding nodes are displayed \
+as small black circles on the color wheel. To modify the color of a node drag it with the mouse to a new position on \
+the wheel. Several nodes can be moved simultaneously by grouping them. 
+   To group several nodes :
+        1 - select them with the mouse : while pressing the mouse left button, drag a rubber band around the nodes to select;
+        2 - next, right click any one of the selected nodes and choose group from the context menu which opens.
+    To remove unwanted nodes:
+        1 - check the option Remove Node;
+        2 -  ungroup;
+        3 - on the image, click the pixels to remove.
+"""
+
+                          ) # end of setWhatsThis
 
     def selectGridNode(self, r, g, b):
         """
         select the nearest grid nodes corresponding to r,g,b values.
-        @param r,g,b : color
+        @param r: color
+        @param g: color
+        @param b: color
         """
         #w = self.grid.size
         w = self.graphicsScene.LUTStep
 
         # surrounding cube
-        LUTNeighborhood = [(i,j,k) for i in [r/w, (r/w)+1] for j in [g/w, (g/w)+1] for k in [b/w, (b/w)+1]]
+        # LUTNeighborhood = [(i,j,k) for i in [r/w, (r/w)+1] for j in [g/w, (g/w)+1] for k in [b/w, (b/w)+1]]
 
         #reset previous selected marker
         if self.selected is not None:
@@ -988,26 +1024,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         xcGrid, ycGrid = xc - border, yc -border
         #NNN = self.grid.gridNodes[int(round(ycGrid/step))][int(round(xcGrid/step))]
         NNN = self.grid.gridNodes[int(np.floor(ycGrid / step))][int(np.floor(xcGrid / step))]
-        """
-        #neighbors = [self.grid.gridNodes[j][i] for j in range(int(np.floor(y / step)) - 1, int(np.ceil( y / step)) +2) if j < w for i in range(int(np.floor(x / step))-1, int(np.ceil( x / step))+2) if i < w]
 
-        neighbors = [self.grid.gridNodes[int(round(y/step))+c][int(round(x/step))+a] for (x,y) in xyNeighborhood
-                                           for a in [-2,-1,0,1,2,3] if (int(round(x/step))+a >=0 and int(round(x/step))+a < w)
-                                            for c in [-2,-1,0,1,2,3] if (int(round(y/step))+c >=0 and int(round(y/step))+c < w) ]
-        neighbors.sort(key=lambda n : (n.gridPos().x() -xc) * (n.gridPos().x() -xc) + (n.gridPos().y() -yc) * (n.gridPos().y() -yc))
-
-        boundIndices =[]
-        for n in neighbors:
-            boundIndices.extend([tuple(l.ind) for l in n.LUTIndices])
-
-        print 'bound', set(LUTNeighborhood).isdisjoint(boundIndices)
-
-        #NNN = neighbors[0]
-
-        print 'selectgridnode rgb', r,g,b ,rM,gM,bM,NNN.r, NNN.g, NNN.b, NNN.rM, NNN.gM, NNN.bM
-        print 'selectgridNodehs' , h,s, NNN.hue, NNN.sat
-        print 'selectGridNode', NNN.parentItem()
-        """
         # select and mark selected node
         mode = self.graphicsScene.options['add node']
         if self.selected is not None:
@@ -1025,21 +1042,6 @@ class graphicsForm3DLUT(QGraphicsView) :
                     n.parentItem().removeFromGroup(n)
                 n.setPos(n.initialPos)
                 n.setState(n.initialPos)
-        """
-        if mode == '':
-            self.selected.setSelected(True)
-        elif mode == 'add':
-            if self.grid.selectedGroup is None:
-                self.grid.selectionList = [self]
-                self.grid.selectedGroup = nodeGroup(grid=self.grid, position=NNN.pos(), parent=self.grid)
-                self.grid.selectedGroup.setFlag(QGraphicsItem.ItemIsSelectable, True)
-                self.grid.selectedGroup.setFlag(QGraphicsItem.ItemIsMovable, True)
-                self.grid.selectedGroup.setSelected(True)
-                #self.grid.selectedGroup.setPos(NNN.pos())
-            for i in neighbors:
-                if i.parentItem() is self.grid:
-                    self.grid.selectedGroup.addToGroup(i)
-        """
         #update status
         self.onSelectGridNode(h,s)
 
@@ -1055,7 +1057,7 @@ class graphicsForm3DLUT(QGraphicsView) :
 
     def bSliderUpdate(self):
         # self.currentHue, self.currentSat = h, s
-        px = pbModel.colorChart(self.bSliderWidth, self.bSliderHeight, self.cModel, self.currentHue, self.currentSat).qPixmap
+        px = pbModel.colorChart(self.bSliderWidth, self.bSliderHeight, self.cModel, self.currentHue, self.currentSat).rPixmap #TODO qPixmap-->rPixmap 26/06/18
         self.graphicsScene.bSlider.setPixmap(px)
 
     def onSelectGridNode(self, h, s):
@@ -1087,9 +1089,9 @@ class graphicsForm3DLUT(QGraphicsView) :
         outStream.writeQString(layer.name)
         outStream.writeInt32(self.graphicsScene.LUTSize)
         outStream.writeInt32(self.graphicsScene.LUTStep)
-        bytes = self.graphicsScene.LUT3DArray.tostring()
-        outStream.writeInt32(len(bytes))
-        outStream.writeRawData(bytes)
+        byteData = self.graphicsScene.LUT3DArray.tostring()
+        outStream.writeInt32(len(byteData))
+        outStream.writeRawData(byteData)
         return outStream
 
     def readFromStream(self, inStream):
@@ -1098,7 +1100,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         size = inStream.readInt32()
         self.graphicsScene.LUTsize = size
         self.graphicsScene.LUTstep = inStream.readInt32()
-        len=inStream.readInt32()
-        bytes = inStream.readRawData(len)
-        self.graphicsScene.LUT3DArray = np.fromstring(bytes, dtype=int).reshape((size, size, size, 3))
+        l = inStream.readInt32()
+        byteData = inStream.readRawData(l)
+        self.graphicsScene.LUT3DArray = np.fromstring(byteData, dtype=int).reshape((size, size, size, 3))
         return inStream

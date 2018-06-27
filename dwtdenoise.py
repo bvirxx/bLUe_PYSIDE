@@ -54,6 +54,7 @@ def dwtDenoiseChan(image, chan=0, thr=1.0, thrmode='hard', wavelet='haar', level
 
     """
     imArray = image[:,:,chan]
+    w,h = imArray.shape[1], imArray.shape[0]
     #imArray = 2 * np.sqrt(imArray + 3 / 8)
     # coeffs is the list of DWT coefficients :
     # coeffs[0] : array and for i>=1, coeffs[i] : dict of arrays(wavedecn),
@@ -109,14 +110,12 @@ def dwtDenoiseChan(image, chan=0, thr=1.0, thrmode='hard', wavelet='haar', level
                 coeff *= np.where(nY2_est> thr, 1.0-thr/nY2_est, 0)
     # inverse DWT
     imArray = pywt.waverecn(coeffs, wavelet)
-    return imArray
+    # waverecn sometimes returns a possibly padded array
+    return imArray[:h, :w]
 
 def dwtDenoise(image, thr=1.0, thrmode='hard', wavelet='haar', level=1):
     for chan in image.shape[2]:
         image[:,:,chan] = dwtDenoiseChan(image, chan=chan, thr=thr, thrmode=thrmode, wavelet=wavelet, level=level)
 
 if __name__== '__main__':
-   #out=dwt_denoise(np.array(range(10000)).reshape(100,100), 'db1',1)
-   #print(out)
-   #w2d("toto.jpg",1,'db1',10)
    dwtDenoiseChan(np.arange(10000).reshape(100, 100), wavelet='haar', level=3)

@@ -359,7 +359,8 @@ Sliders can be reset to their default value by double clicking the name of the s
         layer = self.layer
         outStream.writeQString(layer.actionName)
         outStream.writeQString(layer.name)
-        outStream.writeQString(self.listWidget1.selectedItems()[0].text())
+        for item in self.listWidget1.selectedItems():
+            outStream.writeQString(item.text())
         outStream.writeInt32(self.sliderContrast.value())
         return outStream
 
