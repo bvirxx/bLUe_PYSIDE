@@ -349,6 +349,8 @@ class rawForm (QWidget): #(QGraphicsView): TODO Modified 25/06/18 validate
             self.sliderCont.sliderReleased.disconnect()
             self.contCorrection = self.slider2Cont(self.sliderCont.value())
             self.contValue.setText(str("{:+d}".format(self.contCorrection)))
+            # force to recalculate the spline
+            self.layer.autoSpline = True
             self.dataChanged.emit(False)
             self.sliderCont.valueChanged.connect(contUpdate)  # send new value as parameter
             self.sliderCont.sliderReleased.connect(lambda: contUpdate(self.sliderCont.value()))  # signal has no parameter
