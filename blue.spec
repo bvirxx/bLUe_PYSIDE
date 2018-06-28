@@ -13,7 +13,7 @@ a = Analysis(['bLUe.py'],
              hiddenimports=['PySide2.QtXml', 'pywt._extensions._cwt'],
              hookspath=[],
              runtime_hooks=[],
-             excludes=['PyQt5.QtCore'],
+             excludes=['PyQt5.QtCore', 'PyQt5.QtGui', 'PyQt5.Qt', 'PIL.ImageQt', 'PySide2.QtQuick', 'PySide2.QtWebEngineWidgets'],  # the last 2 modules are added for qmake failure to find qml install
              win_no_prefer_redirects=False,
              win_private_assemblies=False,
              cipher=block_cipher)
@@ -27,7 +27,7 @@ exe = EXE(pyz,
           strip=False,
           upx=True,
           icon='logo.ico',
-          console=True )
+          console=False )
 coll = COLLECT(exe,
                a.binaries,
                a.zipfiles,

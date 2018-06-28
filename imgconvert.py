@@ -18,9 +18,17 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 from time import time
 
 import numpy as np
-from PIL.ImageQt import ImageQt
+from compat import ImageQt
 from PySide2.QtGui import QImage, QColor
 from PIL import Image
+"""
+from PyQt5.QtCore import QCoreApplication
+app = QCoreApplication([])
+# For Python 2 print would give <PyQt4.QtCore.QStringList
+# object at 0x....>", so we need to convert each element separately
+str = getattr(__builtins__, 'unicode', str);  # for Python 2
+print([str(p) for p in app.libraryPaths()])
+"""
 
 from debug import tdec
 
@@ -86,6 +94,7 @@ def PilImageToQImage(pilimg) :
     @return: QImage, format QImage.Format_ARGB32
     @rtype: QImage
     """
+    ################ revert
     return ImageQt(pilimg)
 
 def QImageToPilImage(qimg) :

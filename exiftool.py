@@ -26,7 +26,6 @@ import json
 
 from PySide2.QtCore import QByteArray
 from PySide2.QtGui import QTransform, QImage
-from PySide2.QtWidgets import QMessageBox
 from os.path import isfile
 from settings import EXIFTOOL_PATH
 from utils import dlgWarn
@@ -55,9 +54,16 @@ class ExifTool(object):
         @return: 
         """
         try:
+            # hide sub-window to prevent flashing console
+            # when the program is freezed by PyInstaller with
+            # console=False
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = subprocess.SW_HIDE
             self.process = subprocess.Popen(
                                         [self.executable, "-stay_open", "True",  "-@", "-"],
-                                        stdin =subprocess.PIPE, stdout =subprocess.PIPE, stderr =subprocess.STDOUT
+                                        stdin =subprocess.PIPE, stdout =subprocess.PIPE, stderr =subprocess.STDOUT,
+                                        startupinfo=startupinfo
                                        )
         except OSError:
             dlgWarn("cannot execute exiftool :\nset EXIFTOOL_PATH in settings.py")
