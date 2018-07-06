@@ -1,4 +1,5 @@
-pySide version 4-4.11.4
-PyQwt-5.2.1
-Pillow-3.4.2
+numpy 1.13.1+mkl
+pySide2 5.9.6
+Pillow 5.1.0
+rawpy 0.10.1
 opencv 3

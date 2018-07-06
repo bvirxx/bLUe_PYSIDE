@@ -68,7 +68,7 @@ class LUT3D (object):
         LUT3DArray(i, j, k) = (i*step, j*step, k*step).
         Note that, with that initial LUT array, trilinear interpolation boils
         down to identity : for all i,j,k in the range 0..255,
-        trilinear(i//step, j//step, k//step) = (i,j,k).
+        trilinear(i//step, j//step, k//step) = (i,j,k). See also the NOTE below.
         @param size: integer value (should be 2**n+1)
         @type size : int
         @return: 3D LUT table
@@ -77,7 +77,8 @@ class LUT3D (object):
         step = MAXLUTRGB / (size - 1)
         a = np.arange(size, dtype=np.float) * step  # TODO 09/04/18 validate dtype
         c = cartesianProduct((a, a, a))
-        # clip to range 0..255 for the sake of consistency with Hald images
+        # clip to range 0..255 for the sake of consistency with Hald images.
+        # NOTE: trilinear interpolation applied to this clipped LUT is NOT exact identity.
         c = np.clip(c, 0, 255)
         return LUT3D(c, size=size)
 
@@ -668,19 +669,20 @@ def interpMulti(LUT, ndImg, pool=None):
 def interpVec_(LUT, ndImg, pool=None):
     """
     Vectorized version of trilinear interpolation
-    Cf. file trilinear.docx for details
+    (Cf. file trilinear.docx for details).
     Convert an RGB image using a 3D LUT. The output image is interpolated from the LUT.
-    It has the same dimensions and type as the input image.
+    It has the same dimensions as the input image.
     @param LUT: 3D LUT array
-    @param ndImg: image array
+    @type LUT: ndarray, dtype=np.float
+    @param ndImg: image array, RGB channels
+    @type ndImg: ndarray dtype=np.uint8
     @return: RGB image with same dimensions as the input image
+    @rtype: ndarray dtype=np.float
     """
-    # bounding unit cube coordinates for (r, g, b)/LUTSTEP
+    #  Calculate the coordinates of the bounding unit cube for (r, g, b)/LUTSTEP
     ndImgF = ndImg / float(LUTSTEP)
-    #a=np.floor(ndImgF).astype(int)  TODO validate modif 09/04/18
-    a = ndImgF.astype(int)
+    a = ndImgF.astype(np.uint16)
     aplus1 = a + 1
-
 
     # RGB channels
     r0, g0, b0 = a[:,:,0], a[:,:,1], a[:,:,2]
@@ -699,6 +701,7 @@ def interpVec_(LUT, ndImg, pool=None):
     # interpolate
     alpha =  ndImgF[:,:,1] - g0
     alpha=np.dstack((alpha, alpha, alpha))
+    #alpha = alpha[:,:,np.newaxis] # broadcasting tested slower
 
     I11Value = ndImg11 + alpha * (ndImg13 - ndImg11)  #oneMinusAlpha * ndImg11 + alpha * ndImg13
     I12Value = ndImg10 + alpha * (ndImg12 - ndImg10)  #oneMinusAlpha * ndImg10 + alpha * ndImg12
@@ -707,28 +710,30 @@ def interpVec_(LUT, ndImg, pool=None):
 
     beta = ndImgF[:,:,0] - r0
     beta = np.dstack((beta, beta, beta))
+    #beta = beta[:,:,np.newaxis] # broadcasting tested slower
 
     I1Value = I12Value + beta * (I11Value - I12Value) #oneMinusBeta * I12Value + beta * I11Value
     I2Value = I22Value + beta * (I21Value - I22Value) #oneMinusBeta * I22Value + beta * I21Value
 
     gamma = ndImgF[:,:,2] - b0
     gamma = np.dstack((gamma, gamma, gamma))
+    #gamma = gamma[:,:,np.newaxis]  # broadcasting tested slower
 
-    IValue =  I2Value + gamma * (I1Value - I2Value)  #(1 - gamma) * I2Value + gamma * I1Value
-
+    IValue = I2Value + gamma * (I1Value - I2Value)  #(1 - gamma) * I2Value + gamma * I1Value
     return IValue
 
-
 if __name__=='__main__':
+    size = 4000
     # random ints in range 0 <= x < 256
-    b = np.random.randint(0,256, size=500*500*3, dtype=np.uint8)
-    testImg = np.reshape(b, (500,500,3))
-    interpImg = LUT3D.LUT3DFromFactory(size=33)
-    interpImg = interpMulti(LUT3D_ORI, testImg)
+    b = np.random.randint(0,256, size=size*size*3, dtype=np.uint8)
+    testImg = np.reshape(b, (size,size,3))
+    interpImg = interpVec_(LUT3D_ORI, testImg)
     d = testImg - interpImg
+    # Values different from 0 in d are caused
+    # by LUT3D_ORI being clipped to 255. (Cf. LUT3DFromFactory above).
     if (d != 0.0).any():
-        pass
-        #print "interpolation error"
+        print ("max deviation : ", np.max(np.abs(d)))
+
 
 
 

@@ -35,6 +35,7 @@ class temperatureForm (QWidget): #(QGraphicsView): TODO modified 25/06/18 valida
         return wdgt
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         super().__init__(parent=parent)
+        self.tempCorrection = 6500
         self.setStyleSheet('QRangeSlider * {border: 0px; padding: 0px; margin: 0px}')
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize, axeSize)
@@ -104,7 +105,6 @@ class temperatureForm (QWidget): #(QGraphicsView): TODO modified 25/06/18 valida
         self.listWidget1.unCheckAll()
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
         self.enableSliders()
-        self.tempCorrection = 6500
         self.sliderTemp.setValue(round(self.temp2Slider(self.tempCorrection)))
         self.dataChanged.emit()
 

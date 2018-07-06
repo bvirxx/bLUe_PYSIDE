@@ -140,6 +140,7 @@ class activeTangent(QGraphicsPathItem):
 
     def __init__(self, controlPoint=QPointF(), contactPoint=QPointF(), parentItem=None):
         super().__init__()
+        self.savedPen = self.pen()
         self.setParentItem(parentItem)
         self.setAcceptHoverEvents(True)
         self.controlPoint = controlPoint
@@ -187,7 +188,6 @@ class activeTangent(QGraphicsPathItem):
         l.parentImage.onImageChanged()
 
     def hoverEnterEvent(self, *args, **kwargs):
-        self.savedPen = self.pen()
         self.setPen(QPen(QColor(0, 255, 0), 2))
         self.update()
 
@@ -374,6 +374,7 @@ class activeQuadricSpline(activeSpline) :
     halfTgLen = 50.0
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.a, self.b, self.d, self.T = a, b, d, T
         self.fixedTangents = []
 
     def updatePath(self, calculate=True):
@@ -435,7 +436,6 @@ class activeQuadricSpline(activeSpline) :
         @param T: spline array
         @type T: ndarray
         """
-        self.a, self.b, self.d, self.T = a, b, d, T
         rect = QRectF(0.0, -self.size, self.size, self.size)
         # half tangent length and orientation
         alpha = [self.halfTgLen] * len(d)

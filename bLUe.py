@@ -117,6 +117,7 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
+import multiprocessing
 import sys
 import threading
 from itertools import cycle
@@ -128,18 +129,18 @@ from grabcut import segmentForm
 from PySide2.QtCore import Qt, QRect, QEvent, QUrl, QSize, QFileInfo, QRectF, QObject, QPoint, \
     QMimeData, QByteArray
 from PySide2.QtGui import QPixmap, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, \
-    QPainterPath, QTransform, QIcon, QContextMenuEvent
+    QPainterPath, QTransform, QContextMenuEvent
 from PySide2.QtWidgets import QApplication, QMenu, QAction, QFileDialog, QMessageBox, \
     QMainWindow, QLabel, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QWidget, \
-    QListWidget, QListWidgetItem, QAbstractItemView, QStyle, QToolTip, QHBoxLayout, QVBoxLayout
-from QtGui1 import app, window
+    QListWidget, QAbstractItemView, QStyle, QToolTip, QHBoxLayout, QVBoxLayout
+from QtGui1 import app, window, rootWidget
 import exiftool
 from graphicsBlendFilter import blendFilterForm
 from graphicsNoise import noiseForm
 from graphicsRaw import rawForm
 from graphicsTransform import transForm, imageForm
 from imgconvert import *
-from MarkedImg import imImage, metadata, vImage, QLayer
+from MarkedImg import imImage, metadataBag, vImage
 from graphicsRGBLUT import graphicsForm
 from graphicsLUT3D import graphicsForm3DLUT
 from colorCube import LUTSIZE, LUT3D, LUT3DIdentity
@@ -149,7 +150,7 @@ from graphicsCoBrSat import CoBrSatForm
 from graphicsExp import ExpForm
 from graphicsPatch import patchForm
 from utils import saveChangeDialog, saveDlg, openDlg, cropTool, rotatingTool, IMAGE_FILE_NAME_FILTER, \
-    IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, demosaic, dlgWarn, dlgInfo
+    IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, demosaic, dlgWarn, dlgInfo, loader
 from graphicsTemp import temperatureForm
 from time import sleep
 from re import search
@@ -176,24 +177,24 @@ grabCut is a parallel version of an Opencv3 function
 """
 #################
 
-################
+##############
 #  Version
-VERSION = "v.0.3-alpha"
-###############
+VERSION = "v1.0-beta"
+##############
 
-###############
+##############
 # adjustment form size
 axeSize = 200
 ##############
 
-#########
-# init Before/After view
-#########
-splittedWin = splittedWindow(window)
+##############
+# multiprocessing pool
+pool = None
+##############
 
 ################################
-# unbound event handlers.
-# They can be bound  dynamically
+# unbound generic event handlers.
+# They should be bound  dynamically
 # to specific widgets (e.g. QLabels)
 # to provide interactions with images
 ################################
@@ -242,7 +243,7 @@ def paintEvent(widg, e) :
     # draw selection rectangle for the active layer only
     layer = mimg.getActiveLayer()
     rect = layer.rect
-    if (layer.visible) and (rect is not None ):
+    if layer.visible and (rect is not None ):
         qp.setPen(QColor(0, 255, 0))
         qp.drawRect(rect.left()*r + mimg.xOffset, rect.top()*r +mimg.yOffset, rect.width()*r, rect.height()*r)
     # cropping marks
@@ -634,6 +635,8 @@ def loadImageFromFile(f, createsidecar=True):
     are loaded from disk, non standard profiles are ignored.
     @param f: path to file
     @type f: str
+    @param createsidecar:
+    @type createsidecar: boolean
     @return: image
     @rtype: imImage
     """
@@ -851,7 +854,7 @@ def setDocumentImage(img):
         else:
             window.histView.mode = 'Luminosity'
             window.histView.chanColors = [Qt.gray]
-        histView = histImg.histogram(QSize(window.histView.width(), window.histView.height()), chans=range(3), bgColor=Qt.black,
+        histView = histImg.histogram(QSize(window.histView.width(), window.histView.height()), chans=list(range(3)), bgColor=Qt.black,  # TODO 03/07/18 list added
                                      chanColors=window.histView.chanColors, mode=window.histView.mode, addMode='')
         window.histView.Label_Hist.setPixmap(QPixmap.fromImage(histView))
         window.histView.Label_Hist.repaint()
@@ -967,7 +970,7 @@ isSuspended= False
 
 def playDiaporama(diaporamaGenerator, parent=None):
     """
-    Open a new window and Play a diaporama.
+    Open a new window and play a slide show.
     @param diaporamaGenerator: generator for file names
     @type  diaporamaGenerator: iterator object
     @param parent:
@@ -984,9 +987,10 @@ def playDiaporama(diaporamaGenerator, parent=None):
     label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
     label.img = None
     newWin.setCentralWidget(label)
-    newWin.showMaximized()
+    #newWin.showMaximized()
+    newWin.showFullScreen()
     set_event_handlers(label)
-    # Pause shortcut
+    # Pause key shortcut
     actionEsc = QAction('Pause', None)
     actionEsc.setShortcut(QKeySequence(Qt.Key_Escape))
     newWin.addAction(actionEsc)
@@ -995,29 +999,40 @@ def playDiaporama(diaporamaGenerator, parent=None):
         global isSuspended
         if action.text() == 'Pause':
             isSuspended = True
+            # quit full screen mode
+            newWin.showMaximized()
+        elif action.text() == 'Full Screen':
+            if action.isChecked():
+                newWin.showFullScreen()
+            else:
+                newWin.showMaximized()
         elif action.text() == 'Resume':
             newWin.close()
             isSuspended = False
             playDiaporama(diaporamaGenerator, parent=window)
+        # rating : the tag is written to the .mie file; the file is
+        # created if needed.
         elif action.text() in ['0', '1','2','3','4','5']:
             with exiftool.ExifTool() as e:
                 e.writeXMPTag(name, 'XMP:rating', int(action.text()))
-    actionEsc.triggered.connect(lambda name=actionEsc: contextMenuHandler(name))
+    actionEsc.triggered.connect(lambda checked=False, name=actionEsc: contextMenuHandler(name))  # named arg checked is sent
     # context menu
     def contextMenu(position):
         menu = QMenu()
-        action1 = QAction('Pause', None)
-        action1.setEnabled(not isSuspended)
+        actionEsc.setEnabled(not isSuspended)
+        action2 = QAction('Full Screen', None)
+        action2.setCheckable(True)
+        action2.setChecked(newWin.windowState() & Qt.WindowFullScreen)
         action3 = QAction('Resume', None)
         action3.setEnabled(isSuspended)
-        for action in [action1, action3]:
+        for action in [actionEsc, action2, action3]:
             menu.addAction(action)
-            action.triggered.connect(lambda name=action : contextMenuHandler(name))
+            action.triggered.connect(lambda checked=False, name=action : contextMenuHandler(name)) # named arg checked is sent
         subMenuRating = menu.addMenu('Rating')
         for i in range(6):
             action = QAction(str(i), None)
             subMenuRating.addAction(action)
-            action.triggered.connect(lambda name=action : contextMenuHandler(name))
+            action.triggered.connect(lambda checked=False, name=action : contextMenuHandler(name)) # named arg checked is sent
         menu.exec_(position)
     newWin.customContextMenuRequested.connect(contextMenu)
     # play diaporama
@@ -1073,53 +1088,24 @@ def playDiaporama(diaporamaGenerator, parent=None):
             window.diaporamaGenerator = None
             raise
         app.processEvents()
-
-class loader(threading.Thread):
-    """
-    Thread class for batch loading of images
-    """
-    def __init__(self, gen, wdg):
-        super(loader, self).__init__()
-        self.fileListGen = gen
-        self.wdg = wdg
-    def run(self):
-        # next() raises a StopIteration exception when the generator ends.
-        # If this exception is unhandled by run(), it causes thread termination.
-        # If wdg internal C++ object was destroyed by main thread (form closing)
-        # a RuntimeError exception is raised and causes thread termination too.
-        # Thus, no further synchronization is needed.
-        with exiftool.ExifTool() as e:
-            while True:
-                try:
-                    filename = next(self.fileListGen)
-                    # get orientation
-                    try:
-                        # read metadata from sidecar (.mie) if it exists, otherwise from image file.
-                        #with exiftool.ExifTool() as e:
-                        profile, metadata = e.get_metadata(filename, createsidecar=False)
-                    except ValueError:
-                        metadata = [{}]
-                    orientation = metadata[0].get("EXIF:Orientation", 0)
-                    date = metadata[0].get("EXIF:DateTimeOriginal", 'toto')
-                    transformation = exiftool.decodeExifOrientation(orientation)
-                    # As Qt cannot load imbedded thumbnails, we load and scale the image.
-                    pxm = QPixmap.fromImage(QImage(filename).scaled(500,500, Qt.KeepAspectRatio))
-                    if not transformation.isIdentity():
-                        pxm = pxm.transformed(transformation)
-                    item = QListWidgetItem(QIcon(pxm), basename(filename))
-                    item.setToolTip(date)
-                    item.setData(Qt.UserRole, (filename, transformation))
-                    self.wdg.addItem(item)
-                # for clean exiting we catch all exceptions and force break
-                except:
-                    break
+    newWin.setToolTip("Esc to exit full screen mode")
+    newWin.setWhatsThis(
+""" Slide Show
+The diaporama cycles through the starting directory and its subfolders to display images. \
+Photos rated 0 or 1 star are not shown. By default, all photos are rated 5 stars.
+Hit the Esc key to exit full screen mode and pause. Use the Context Menu for rating and resuming. \
+The rating is saved in the .mie sidecar and the image file is not modified.
+"""
+                      )  # end of setWhatsThis
 
 def playViewer(fileListGen, dir, parent=None):
     """
-    Open a form and display all images from a directory.
+    Opens a window and displayS all images from a directory.
     The images are loaded asynchronously by a separate thread.
     @param fileListGen: file name generator
     @type fileListGen: generator object
+    @param dir:
+    @type dir:
     @param parent:
     @type parent:
     """
@@ -1221,7 +1207,7 @@ def menuView(name):
         if window.diaporamaGenerator is None:
             # start from parent dir of the last used directory
             lastDir = path.join(str(window.settings.value('paths/dlgdir', '.')), path.pardir)
-            dlg = QFileDialog(window, "select", lastDir)
+            dlg = QFileDialog(window, "Select a folder to start the diaporama", lastDir)
             dlg.setNameFilters(IMAGE_FILE_NAME_FILTER)
             dlg.setFileMode(QFileDialog.Directory)
             diaporamaList = []
@@ -1329,9 +1315,9 @@ def menuImage(name) :
 
 def menuLayer(name):
     """
-    Menu handler
+    Menu Layer handler
     @param name: action name
-    @type action: str
+    @type name: str
     """
     # curves
     if name in ['actionCurves_RGB', 'actionCurves_HSpB', 'actionCurves_Lab']:
@@ -1361,8 +1347,11 @@ def menuLayer(name):
         layerName = '3D LUT HSpB' if name == 'action3D_LUT' else '3D LUT HSV'
         l = window.label.img.addAdjustmentLayer(name=layerName, role='3DLUT')
         grWindow = graphicsForm3DLUT.getNewWindow(ccm, axeSize=300, targetImage=window.label.img, LUTSize=LUTSIZE, layer=l, parent=window, mainForm=window)
-        # wrapper for the right apply method
-        l.execute = lambda l=l, pool=None: l.apply3DLUT(grWindow.scene().LUT3DArray, options=grWindow.scene().options, pool=pool)
+        # init pool only once
+        global pool
+        if pool is None:
+            pool = multiprocessing.Pool(4)
+        l.execute = lambda l=l, pool=pool: l.apply3DLUT(grWindow.scene().LUT3DArray, options=grWindow.scene().options, pool=pool)
     # cloning
     elif name == 'actionNew_Cloning_Layer':
         lname = 'Cloning'
@@ -1471,7 +1460,7 @@ def menuLayer(name):
         # wrapper for the right apply method
         l.execute = lambda l=l, pool=None: l.applyNoiseReduction()
     elif name == 'actionSave_Layer_Stack':
-        return # TODO 26/0618 review
+        return # TODO 26/06/18 should be reviewed
         lastDir = str(window.settings.value('paths/dlgdir', '.'))
         dlg = QFileDialog(window, "select", lastDir)
         dlg.setNameFilter('*.sba')
@@ -1483,7 +1472,7 @@ def menuLayer(name):
             window.label.img.saveStackToFile(filenames[0])
             return
     elif name == 'actionLoad_Layer_Stack':
-        return # TODO 26/06/18 review
+        return # TODO 26/06/18 should be reviewedreview
         lastDir = str(window.settings.value('paths/dlgdir', '.'))
         dlg = QFileDialog(window, "select", lastDir)
         dlg.setNameFilter('*.sba')
@@ -1524,7 +1513,7 @@ def menuLayer(name):
             l.applyToStack()
         return
     elif name == 'actionSave_Layer_Stack_as_LUT_Cube':
-        return # TODO review 26/06/18
+        return # TODO should be reviewed 26/06/18
         doc = window.label.img
         buf = LUT3DIdentity.getHaldImage(doc.width(), doc.height())
         try:
@@ -1606,7 +1595,7 @@ def menuHelp(name):
         label.setAlignment(Qt.AlignCenter)
         label.setText(VERSION + "\n"+attributions)
         # center window on screen
-        w.setGeometry(QStyle.alignedRect(Qt.LeftToRight, Qt.AlignCenter, w.size(), app.desktop().availableGeometry()))
+        w.setGeometry(QStyle.alignedRect(Qt.LeftToRight, Qt.AlignCenter, w.size(), rootWidget.availableGeometry())) # TODO changed app.desktop() to rootWidget 05/07/18
         w.show()
 
 def handleNewWindow(imImg=None, parent=None, title='New window', show_maximized=False, event_handler=True, scroll=False):
@@ -1622,6 +1611,8 @@ def handleNewWindow(imImg=None, parent=None, title='New window', show_maximized=
     @param show_maximized:
     @param event_handler:
     @type event_handler: boolean
+    @param scroll:
+    @type scroll:
     @return: new window, label
     @rtype: QMainWindow, QLabel
     """
@@ -1654,6 +1645,8 @@ def handleTextWindow(parent=None, title='', center=True):
     @type parent:
     @param title:
     @type title:
+    @param center:
+    @type center:
     @return (new window, label)
     @rtype: QMainWindow, QLabel
     """
@@ -1724,7 +1717,7 @@ def screenUpdate(newScreenIndex):
     screenChanged event handler. The image is updated in background
     """
     window.screenChanged.disconnect()
-    icc.configure(qscreen=window.dktp.screen(newScreenIndex).windowHandle().screen())
+    icc.configure(qscreen=rootWidget.screen(newScreenIndex).windowHandle().screen())  # TODO changed self.dktp to rootWidget 05/07/18 validate
     window.actionColor_manage.setEnabled(icc.HAS_COLOR_MANAGE)
     window.actionColor_manage.setChecked(icc.COLOR_MANAGE)
     updateStatus()
@@ -1742,8 +1735,7 @@ def screenUpdate(newScreenIndex):
 ###########
 if __name__ =='__main__':
     # add dynamic attributes dktp and currentScreenIndex, used for screen management
-    window.dktp = app.desktop()
-    window.currentScreenIndex = 0
+    # window.dktp = app.desktop() # TODO removed 05/07/18 validate
     # splash screen
     pixmap = QPixmap('logo.png')
     splash = QSplashScreen(pixmap, Qt.WindowStaysOnTopHint)
@@ -1762,6 +1754,10 @@ if __name__ =='__main__':
                        QMenu, QTableView { selection-background-color: blue; selection-color: white;}\
                         QWidget, QTableView, QTableView * {font-size: 9pt} QPushButton {font-size: 6pt}"
                      )
+
+    # Before/After view
+    splittedWin = splittedWindow(window)
+
     # status bar
     window.Label_status = QLabel()
     window.statusBar().addWidget(window.Label_status)
@@ -1828,8 +1824,7 @@ Background/Mask
     window.onWidgetChange = widgetChange
 
     # load current settings
-    window.readSettings()
-    # window._recentFiles = window.settings.value('paths/recent', []) # TODO validate removing 10/04/18
+    #window.readSettings() # TODO validate removing 05/07/18
 
     set_event_handlers(window.label)
     set_event_handlers(window.label_2, enterAndLeave=False)
@@ -1837,7 +1832,7 @@ Background/Mask
 
     img=QImage(200, 200, QImage.Format_ARGB32)
     img.fill(Qt.darkGray)
-    defaultImImage = imImage(QImg=img, meta=metadata(name='noName'))
+    defaultImImage = imImage(QImg=img, meta=metadataBag(name='noName'))
 
     window.label.img = defaultImImage
     window.label_2.img = defaultImImage
@@ -1899,9 +1894,9 @@ Background/Mask
     window.screenChanged.connect(screenUpdate)
     # screen detection
     c = window.frameGeometry().center()
-    id = window.dktp.screenNumber(c)
-    window.currentScreenIndex = id
-    icc.configure(qscreen=window.dktp.screen(id).windowHandle().screen())
+    scn = rootWidget.screenNumber(c) # TODO changed window.dktp to rootWidget 05/07/18 validate
+    window.currentScreenIndex = scn
+    icc.configure(qscreen=rootWidget.screen(scn).windowHandle().screen()) # TODO changed window.dktp to rootWidget 05/07/18 validate
     icc.COLOR_MANAGE = icc.HAS_COLOR_MANAGE
     window.actionColor_manage.setEnabled(icc.HAS_COLOR_MANAGE)
     window.actionColor_manage.setChecked(icc.COLOR_MANAGE)

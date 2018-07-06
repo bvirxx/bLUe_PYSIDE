@@ -50,6 +50,7 @@ class dstb(object):
         return  dstb(hist, bins, 255)
 
     def __init__(self, hist, bins, maxVal=0):
+        self.maxVal = max(maxVal, np.ceil(bins[-1]))
         self.DTable, self.CDFTable = self.setDist(hist=hist, bins=bins, maxVal=maxVal)
         self.bins = bins
         self.hist = hist
@@ -91,7 +92,6 @@ class dstb(object):
             self.maxVal = bins[-1]                                          # len(self.DTable) = maxVal + 1
             self.DTable = hist * (bins[1:]-bins[:-1])
         else:
-            self.maxVal = max(maxVal, np.ceil(bins[-1]))
             dist = []
             for i in range(maxVal+1):
                 r = np.argmax(bins > i)  # if r>0 bins[r-1]<= i <bins[r]

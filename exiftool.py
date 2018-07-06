@@ -19,6 +19,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 # the code of the class ExifTool was taken
 # from the Stackoverflow answer http://stackoverflow.com/questions/10075115/call-exiftool-from-a-python-script
 # We gratefully acknowledge the contribution of the author.
+# startupinfo was added to prevent subprocess from opening a window. This is
+# needed when the application is freezed with Pyinstaller
 
 import subprocess
 import os
@@ -67,7 +69,7 @@ class ExifTool(object):
                                        )
         except OSError:
             dlgWarn("cannot execute exiftool :\nset EXIFTOOL_PATH in settings.py")
-            exit() # TODO 25/04/18 close app gracefully
+            exit()
         return self
 
     def  __exit__(self, exc_type, exc_value, traceback):
@@ -115,7 +117,7 @@ class ExifTool(object):
 
     def writeXMPTag(self, filename, tagName, value):
         """
-        Write tag info to the sidecar (.mie) file. The sidecar is created
+        Writes tag info to the sidecar (.mie) file. The sidecar is created
         if it does not exist.
         @param filename: image or sidecar path
         @type filename: str
@@ -129,7 +131,7 @@ class ExifTool(object):
 
     def readXMPTag(self, filename, tagName):
         """
-        Read tag info from the sidecar (.mie) file. Despite its name, the method can read
+        Reads tag info from the sidecar (.mie) file. Despite its name, the method can read
         a tag of any type. A ValueError exception is raised if the file does not exist.
         @param filename: image or sidecar path
         @type filename: str
@@ -156,7 +158,7 @@ class ExifTool(object):
         @rtype: 2-uple profile: bytes, metadata: (length 1) list of dict
         """
         # Using PIL _getexif is simpler.
-        # However, exiftools is more powerful
+        # However, exiftool is much more powerful
         """
         with open(f, 'rb') as fd:
             img = Image.open(fd)
@@ -178,8 +180,8 @@ class ExifTool(object):
                 self.saveMetadata(f)
         return profile, data
 
-    def get_thumbNail(self, f):
-        thumbNail = self.execute(*[ '-b', '-ThumbnailImage', f], ascii=False)
+    def get_thumbNail(self, f, thumbname='ThumbnailImage'):
+        thumbNail = self.execute(*[ '-b', '-'+thumbname, f], ascii=False)
         return QImage.fromData(QByteArray.fromRawData(bytes(thumbNail)), 'JPG')
 
     def saveMetadata(self, f):

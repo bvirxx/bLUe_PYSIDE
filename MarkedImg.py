@@ -52,7 +52,7 @@ from dwtdenoise import dwtDenoiseChan
 class ColorSpace:
     notSpecified = -1; sRGB = 1
 
-class metadata:
+class metadataBag:
     """
     Container for vImage meta data
     """
@@ -252,7 +252,7 @@ class vImage(QImage):
         @param orientation: Qtransform object (default None)
         @type orientation: Qtransform 
         @param meta: metadata instance (default None)
-        @type meta: MarkedImg.metadata
+        @type meta: MarkedImg.metadataBag
         @param rawMetadata: list of dictionaries (default [])
         @type rawMetadata: list of dictionaries
         @param profile: embedded profile (default '')
@@ -298,7 +298,7 @@ class vImage(QImage):
         self.onImageChanged = lambda: 0
         if meta is None:
             # init metadata container
-            self.meta = metadata()
+            self.meta = metadataBag()
             self.meta.name, self.meta.colorSpace, self.meta.rawMetadata, self.meta.profile, self.meta.orientation, self.meta.rating = name, colorSpace, rawMetadata, profile, orientation, rating
         else:
             self.meta = meta
@@ -351,7 +351,7 @@ class vImage(QImage):
         """
         # image layer
         if getattr(self, 'sourceImg', None) is not None:
-            self.sourceImg = qimg.copy()
+            pass
         buf1, buf2 = QImageBuffer(self), QImageBuffer(qimg)
         if buf1.shape != buf2.shape:
             raise ValueError("QLayer.setImage : new image and layer must have identical shapes")
@@ -391,7 +391,6 @@ class vImage(QImage):
             return
         s = int((LUT3DIdentity.size )**(3.0/2.0)) + 1
         buf0 = LUT3DIdentity.getHaldImage(s, s)
-        self.Hald = QImage(QSize(s,s), QImage.Format_ARGB32)
         buf1 = QImageBuffer(self.Hald)
         buf1[:,:,:]=buf0
         buf1[:, :, 3] = 255  # TODO added 15/11/17 for coherence with the overriding function QLayer.initHald()
@@ -808,7 +807,6 @@ class vImage(QImage):
             self.mask = scaledMask
         # Set clipping mode for better viewing
         name = formOptions.intNames[0]
-        self.isClipping = form.start or formOptions.options[name]
         form.start = False
         # check option clipping
         name = formOptions.intNames[0]
@@ -1021,8 +1019,6 @@ class vImage(QImage):
             bufHSV_CV32 = cv2.cvtColor(((bufpost16.astype(np.float32)) / 65536).astype(np.float32), cv2.COLOR_RGB2HSV)
             #bufHSV_CV32[:,:,2] = bufHSV_CV32[:,:,2].clip(0,0.995)
             # cache buffers
-            self.postProcessCache = np.copy(bufpost16)
-            self.bufCache_HSV_CV32 = bufHSV_CV32.copy()
             #self.postProcessCache = buf32Lab.copy()
         else:
             # restore buffers
@@ -1044,7 +1040,6 @@ class vImage(QImage):
             # show the spline
             if self.autoSpline and options['manualCurve']:
                 self.getGraphicsForm().setContrastSpline(a, b, d, T)
-                self.autoSpline = False
         if adjustForm.satCorrection != 0:
             alpha = (-adjustForm.satCorrection + 50.0) / 50
             # tabulate x**alpha
@@ -1174,7 +1169,6 @@ class vImage(QImage):
                     # show the spline
                     if self.autoSpline and options['manualCurve']:
                         self.getGraphicsForm().setContrastSpline(a, b, d, T)
-                        self.autoSpline = False
                 HSVBuf[:, :, 2] = res
             if satCorrection != 0:
                 alpha = (-adjustForm.satCorrection + 1.0)
@@ -2142,6 +2136,7 @@ class QLayer(vImage):
         return layer
 
     def __init__(self, *args, **kwargs):
+        self.modified = False
         self.name='noname'
         self.visible = True
         self.signals = baseSignals()
@@ -2212,7 +2207,6 @@ class QLayer(vImage):
             pass
         tool.layer.signals.visibilityChanged.connect(tool.setVisible)
         tool.img = self.parentImage
-        self.modified = False
         w, h = tool.img.width(), tool.img.height()
         for role, pos in zip(['topLeft', 'topRight', 'bottomRight', 'bottomLeft'],
                              [QPoint(0, 0), QPoint(w, 0), QPoint(w, h), QPoint(0, h)]):
@@ -2420,7 +2414,7 @@ class QLayer(vImage):
             # apply Transformation (call vImage.apply*LUT...)
             if layer.visible:
                 start = time()
-                layer.execute(l=layer, pool=pool)
+                layer.execute(l=layer)#, pool=pool) use default pool
                 layer.cacheInvalidate()
                 print("%s %.2f" %(layer.name, time()-start))
             stack = layer.parentImage.layersStack

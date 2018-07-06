@@ -20,9 +20,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 # Before/After View
 #########
 from itertools import cycle
-
 from PySide2.QtCore import Qt
-
 
 class splittedWindow:
     """

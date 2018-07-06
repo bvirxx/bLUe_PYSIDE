@@ -25,10 +25,11 @@ from colorConv import temperatureAndTint2RGBMultipliers, RGBMultipliers2Temperat
 from graphicsLUT import graphicsQuadricForm
 from utils import optionsWidget, UDict, QbLUeSlider
 
-class rawForm (QWidget): #(QGraphicsView): TODO Modified 25/06/18 validate
+class rawForm (QWidget):
     """
-    GUI for postprocessing of raw files
-    # cf https://github.com/LibRaw/LibRaw/blob/master/src/libraw_cxx.cpp
+    GUI for postprocessing raw files.
+    We use rawPy, the Python wrapper to Libraw.
+    cf https://github.com/LibRaw/LibRaw/blob/master/src/libraw_cxx.cpp
     """
     dataChanged = QtCore.Signal(bool)
     @classmethod

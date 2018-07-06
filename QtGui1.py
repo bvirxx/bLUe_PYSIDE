@@ -18,39 +18,39 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import os
 
 from PySide2 import QtWidgets, QtCore
-from PySide2.QtCore import QSettings, Qt
+from PySide2.QtCore import QSettings
 import sys
 
 from PySide2.QtWidgets import QApplication, QLabel, QMainWindow
 
-import resources_rc   # DO NOT REMOVE !!!!
+import resources_rc   # MANDATORY - DO NOT REMOVE !!!!
 from graphicsHist import histForm
 from layerView import QLayerView
 from pyside_dynamicLoader import loadUi
 from utils import hideConsole, showConsole
 
-
-class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
+class Form1(QMainWindow):
     """
     Main window class.
-    The layout is loaded from the ui form bLUe.ui.
+    The form is loaded from bLUe.ui.
     """
+    # screen changed signal
     screenChanged = QtCore.Signal(int)
-    def __init__(self, app, parent=None):
+    def __init__(self): # app, parent=None):  # TODO 05/07/18 validate app and parent removing
         super(Form1, self).__init__()
-        # load UI
+        # load .ui file
+        self.settings = QSettings("bLUe.ini", QSettings.IniFormat)
+        # we presume that the form will be shown first on screen 0;
+        # No detection possible before it is effectively shown !
+        self.currentScreenIndex = 0
         loadUi('bLUe.ui', baseinstance=self, customWidgets= {'QLayerView': QLayerView, 'QLabel': QLabel, 'histForm': histForm})
-        #self = QtUiTools.QUiLoader().load("bLUe.ui", self)
-        # hooks added to event handlers
-        self.updateStatus = lambda : 0
-        self.onWidgetChange = lambda : 0
-        self.onShowContextMenu = lambda : 0
-        self.onExecFileOpen = lambda : 0
-        self.onUpdateMenuAssignProfile = lambda : 0
+        # hook called by event slots
+        # should be redefined later
+        self.onWidgetChange = lambda b : None
         # State recording.
         self.slidersValues = {}
         self.btnValues = {}
-        # connect slider and button signals to handlers
+        # connect slider and button signals to slots
         for slider in self.findChildren(QtWidgets.QSlider):
             slider.valueChanged.connect(
                             lambda value, slider=slider : self.handleSliderMoved(value, slider)
@@ -108,25 +108,25 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
         self.slidersValues[slider.accessibleName()] = value
         self.onWidgetChange(slider)
 
-    def readSettings(self):
-        # init a Qsettings instance bound to the file bLUe.ini
-        self.settings = QSettings("bLUe.ini", QSettings.IniFormat)
-
-    def writeSettings(self):
-        self.settings.sync()
-
     def moveEvent(self, event):
+        """
+        Dragging the window to another screen
+        does not change screenNumber : only
+        a call to move() updates screenNumber.
+        As a workaround we override moveEvent.
+        The signal screenChanged is emitted
+        when a screen change is detected.
+        @param event:
+        @type event:
+        """
         super(Form1,self).moveEvent(event)
         # detect screen changes
-        # CAUTION : dragging the window to another screen
-        # does not change screenNumber. Only
-        # a call to move() updates screenNumber value.
         c = self.frameGeometry().center()
-        id =self.dktp.screenNumber(c)
-        if id != self.currentScreenIndex:
-            # screen changed
-            self.currentScreenIndex = id
-            self.screenChanged.emit(id)
+        sn = rootWidget.screenNumber(c)
+        if sn != self.currentScreenIndex:
+            # screen changed detected
+            self.currentScreenIndex = sn # TODO line added 05/07/18 validate
+            self.screenChanged.emit(sn)
 
     def closeEvent(self, event):
         if self.onCloseEvent():
@@ -136,15 +136,15 @@ class Form1(QMainWindow):#, Ui_MainWindow): #QtGui.QMainWindow):
             # don't close
             event.ignore()
             return
-        self.writeSettings()
+        self.settings.sync()
         if getattr(sys, 'frozen', False):
             showConsole()
         super(Form1, self).closeEvent(event)
 
 def enumerateMenuActions(menu):
     """
-    recursively builds the list of actions contained in a menu
-    and all its submenus.
+    Recursively builds the list of actions contained in a menu
+    and in its submenus.
     @param menu: Qmenu object
     @return: list of actions
     """
@@ -176,6 +176,7 @@ if getattr(sys, 'frozen', False) and len(sys.argv) <= 1:
 # launch app and init main form
 #####################
 app = QApplication(sys.argv)
-window = Form1(app)
+rootWidget = app.desktop()
+window = Form1()
 
 

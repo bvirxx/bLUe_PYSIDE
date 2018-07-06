@@ -100,28 +100,31 @@ class Filter(QtCore.QObject):
 
 class Ui_Form(object):
     """default range slider form"""
+
+    def __init__(self):
+        self.gridLayout = QtWidgets.QGridLayout(Form)
+        self._splitter = QtWidgets.QSplitter(Form)
+        self._head = QtWidgets.QGroupBox(self._splitter)
+        self._handle = QtWidgets.QGroupBox(self._splitter)
+        self._tail = QtWidgets.QGroupBox(self._splitter)
+
     def setupUi(self, Form):
         Form.setObjectName("QRangeSlider")
         Form.resize(300, 10)
         Form.setStyleSheet(DEFAULT_CSS)
-        self.gridLayout = QtWidgets.QGridLayout(Form)
         self.gridLayout.setContentsMargins(0, 0, 0, 0)
         self.gridLayout.setSpacing(0)
         self.gridLayout.setObjectName("gridLayout")
-        self._splitter = QtWidgets.QSplitter(Form)
         # QT Bug workaround to show hover events on the handle (trigger polish)
         self._splitter.setStyleSheet("QSplitterHandle:hover {}  QSplitter::handle:hover {background-color:red;}")
         self._splitter.setMinimumSize(QtCore.QSize(0, 0))
         self._splitter.setMaximumSize(QtCore.QSize(16777215, 16777215))
         self._splitter.setOrientation(QtCore.Qt.Horizontal)
         self._splitter.setObjectName("splitter")
-        self._head = QtWidgets.QGroupBox(self._splitter)
         self._head.setTitle("")
         self._head.setObjectName("Head")
-        self._handle = QtWidgets.QGroupBox(self._splitter)
         self._handle.setTitle("")
         self._handle.setObjectName("Span")
-        self._tail = QtWidgets.QGroupBox(self._splitter)
         self._tail.setTitle("")
         self._tail.setObjectName("Tail")
         self.gridLayout.addWidget(self._splitter, 0, 0, 1, 1)

@@ -16,6 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import ctypes
+import threading
 import time
 
 import cv2
@@ -23,13 +24,15 @@ import numpy as np
 from math import factorial
 
 from PySide2 import QtCore
-from PySide2.QtGui import QColor, QPainterPath, QPen, QImage, QPainter, QTransform, QPolygonF
+from PySide2.QtGui import QColor, QPainterPath, QPen, QImage, QPainter, QTransform, QPolygonF, QPixmap, QIcon
 from PySide2.QtWidgets import QListWidget, QListWidgetItem, QGraphicsPathItem, QDialog, QVBoxLayout, \
     QFileDialog, QSlider, QWidget, QHBoxLayout, QLabel, QMessageBox, QPushButton, QToolButton, QApplication
 from PySide2.QtCore import Qt, QPoint, QObject, QRect, QDir, QPointF
-from os.path import isfile
+from os.path import isfile, basename
 from itertools import product
 from numpy.lib.stride_tricks import as_strided
+
+import exiftool
 from imgconvert import QImageBuffer
 
 ##################
@@ -1093,6 +1096,51 @@ def checkeredImage(format=QImage.Format_ARGB32):
             baseH *= 2
     qp.end()
     return image
+
+class loader(threading.Thread):
+    """
+    Thread class for batch loading of images
+    """
+    def __init__(self, gen, wdg):
+        super(loader, self).__init__()
+        self.fileListGen = gen
+        self.wdg = wdg
+    def run(self):
+        # next() raises a StopIteration exception when the generator ends.
+        # If this exception is unhandled by run(), it causes thread termination.
+        # If wdg internal C++ object was destroyed by main thread (form closing)
+        # a RuntimeError exception is raised and causes thread termination too.
+        # Thus, no further synchronization is needed.
+        with exiftool.ExifTool() as e:
+            while True:
+                try:
+                    filename = next(self.fileListGen)
+                    # get orientation
+                    try:
+                        # read metadata from sidecar (.mie) if it exists, otherwise from image file.
+                        profile, metadata = e.get_metadata(filename, createsidecar=False)
+                    except ValueError:
+                        metadata = [{}]
+                    orientation = metadata[0].get("EXIF:Orientation", 0)
+                    date = metadata[0].get("EXIF:DateTimeOriginal", '???')
+                    transformation = exiftool.decodeExifOrientation(orientation)
+                    #pxm = QPixmap.fromImage(QImage(filename).scaled(500,500, Qt.KeepAspectRatio))
+                    img = e.get_thumbNail(filename, thumbname='PreviewImage')
+                    if img.isNull():
+                        img = e.get_thumbNail(filename, thumbname='ThumbnailImage')
+                    pxm = QPixmap.fromImage(img)
+                    if not transformation.isIdentity():
+                        pxm = pxm.transformed(transformation)
+                    item = QListWidgetItem(QIcon(pxm), basename(filename))
+                    item.setToolTip(date)
+                    item.setData(Qt.UserRole, (filename, transformation))
+                    self.wdg.addItem(item)
+                # for clean exiting we catch all exceptions and force break
+                except OSError as e:
+                    print("I/O error({0}): {1}".format(e.errno, e.strerror))
+                    raise
+                except:
+                    break
 
 def clip(image, mask, inverted=False):
     """
