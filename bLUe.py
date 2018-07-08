@@ -163,6 +163,8 @@ from splittedView import splittedWindow
 
 ##################
 #  Software Attributions
+from viewer import playDiaporama, playViewer
+
 attributions = """
 exiftool Copyright © 2013-2016, Phil Harvey
 QRangeSlider Copyright (c) 2011-2012, Ryan Galloway
@@ -590,7 +592,7 @@ def set_event_handlers(widg, enterAndLeave=True):
 
 def widgetChange(button):
     """
-    called by all main form button and slider slots (cf. QtGui1.py)
+    called by all main form button and slider slots (cf. QtGui1.py onWidgetChange)
 
     @param button:
     @type button: QWidget
@@ -645,10 +647,10 @@ def loadImageFromFile(f, createsidecar=True):
     ##########
     try:
         # read metadata from sidecar (.mie) if it exists, otherwise from image file.
-        # Create sidecar if it does not exist.
+        # The sidecar is created if it does not exist and createsidecar is True.
         with exiftool.ExifTool() as e:
             profile, metadata = e.get_metadata(f, createsidecar=createsidecar)
-    except ValueError as er:
+    except ValueError:
         # Default metadata and profile
         metadata = [{'SourceFile': f}]
         profile = ''
@@ -918,7 +920,9 @@ def menuFile(name):
     """
     # load image from file
     if name in ['actionOpen', 'actionHald_from_file'] :
+        # get file name from dialog
         filename = openDlg(window)
+        # open file
         if filename is not None:
             openFile(filename)
     # saving dialog
@@ -964,212 +968,6 @@ def menuFile(name):
             window.settings.setValue('paths/dlgdir', newDir)
             LUT.writeToTextFile(filenames[0])
     updateStatus()
-
-# global variable recording diaporama state
-isSuspended= False
-
-def playDiaporama(diaporamaGenerator, parent=None):
-    """
-    Open a new window and play a slide show.
-    @param diaporamaGenerator: generator for file names
-    @type  diaporamaGenerator: iterator object
-    @param parent:
-    @type parent:
-    """
-    global isSuspended
-    isSuspended = False
-    # init diaporama window
-    newWin = QMainWindow(parent)
-    newWin.setAttribute(Qt.WA_DeleteOnClose)
-    newWin.setContextMenuPolicy(Qt.CustomContextMenu)
-    newWin.setWindowTitle(parent.tr('Slide show'))
-    label = QLabel()
-    label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-    label.img = None
-    newWin.setCentralWidget(label)
-    #newWin.showMaximized()
-    newWin.showFullScreen()
-    set_event_handlers(label)
-    # Pause key shortcut
-    actionEsc = QAction('Pause', None)
-    actionEsc.setShortcut(QKeySequence(Qt.Key_Escape))
-    newWin.addAction(actionEsc)
-    # context menu event handler
-    def contextMenuHandler(action):
-        global isSuspended
-        if action.text() == 'Pause':
-            isSuspended = True
-            # quit full screen mode
-            newWin.showMaximized()
-        elif action.text() == 'Full Screen':
-            if action.isChecked():
-                newWin.showFullScreen()
-            else:
-                newWin.showMaximized()
-        elif action.text() == 'Resume':
-            newWin.close()
-            isSuspended = False
-            playDiaporama(diaporamaGenerator, parent=window)
-        # rating : the tag is written to the .mie file; the file is
-        # created if needed.
-        elif action.text() in ['0', '1','2','3','4','5']:
-            with exiftool.ExifTool() as e:
-                e.writeXMPTag(name, 'XMP:rating', int(action.text()))
-    actionEsc.triggered.connect(lambda checked=False, name=actionEsc: contextMenuHandler(name))  # named arg checked is sent
-    # context menu
-    def contextMenu(position):
-        menu = QMenu()
-        actionEsc.setEnabled(not isSuspended)
-        action2 = QAction('Full Screen', None)
-        action2.setCheckable(True)
-        action2.setChecked(newWin.windowState() & Qt.WindowFullScreen)
-        action3 = QAction('Resume', None)
-        action3.setEnabled(isSuspended)
-        for action in [actionEsc, action2, action3]:
-            menu.addAction(action)
-            action.triggered.connect(lambda checked=False, name=action : contextMenuHandler(name)) # named arg checked is sent
-        subMenuRating = menu.addMenu('Rating')
-        for i in range(6):
-            action = QAction(str(i), None)
-            subMenuRating.addAction(action)
-            action.triggered.connect(lambda checked=False, name=action : contextMenuHandler(name)) # named arg checked is sent
-        menu.exec_(position)
-    newWin.customContextMenuRequested.connect(contextMenu)
-    # play diaporama
-    while True:
-        if isSuspended:
-            newWin.setWindowTitle(newWin.windowTitle() + ' Paused')
-            break
-        try:
-            if not newWin.isVisible():
-                break
-            name = next(diaporamaGenerator)
-            # search rating in metadata
-            rating = 5 # default
-            try:
-                with exiftool.ExifTool() as e:
-                    rt = e.readXMPTag(name, 'XMP:rating')
-                    r = search("\d", rt)
-                    if r is not None:
-                        rating = int(r.group(0))
-            except ValueError:
-                rating = 5
-            # don't display image with low rating
-            if rating < 2:
-                app.processEvents()
-                continue
-            imImg= loadImageFromFile(name, createsidecar=False)
-            if label.img is not None:
-                imImg.Zoom_coeff = label.img.Zoom_coeff
-            coeff = imImg.resize_coeff(label)
-            imImg.yOffset -= (imImg.height()*coeff - label.height()) / 2.0
-            imImg.xOffset -= (imImg.width()*coeff - label.width()) / 2.0
-            app.processEvents()
-            if isSuspended:
-                newWin.setWindowTitle(newWin.windowTitle() + ' Paused')
-                break
-            newWin.setWindowTitle(parent.tr('Slide show') + ' ' + name + ' ' + ' '.join(['*']*imImg.meta.rating))
-            label.img = imImg
-            label.repaint()
-            app.processEvents()
-            gc.collect()
-            sleep(2)
-            app.processEvents()
-        except StopIteration:
-            newWin.close()
-            window.diaporamaGenerator = None
-            break
-        except ValueError:
-            continue
-        except RuntimeError:
-            window.diaporamaGenerator = None
-            break
-        except:
-            window.diaporamaGenerator = None
-            raise
-        app.processEvents()
-    newWin.setToolTip("Esc to exit full screen mode")
-    newWin.setWhatsThis(
-""" Slide Show
-The diaporama cycles through the starting directory and its subfolders to display images. \
-Photos rated 0 or 1 star are not shown. By default, all photos are rated 5 stars.
-Hit the Esc key to exit full screen mode and pause. Use the Context Menu for rating and resuming. \
-The rating is saved in the .mie sidecar and the image file is not modified.
-"""
-                      )  # end of setWhatsThis
-
-def playViewer(fileListGen, dir, parent=None):
-    """
-    Opens a window and displayS all images from a directory.
-    The images are loaded asynchronously by a separate thread.
-    @param fileListGen: file name generator
-    @type fileListGen: generator object
-    @param dir:
-    @type dir:
-    @param parent:
-    @type parent:
-    """
-    # init form
-    newWin = QMainWindow(parent)
-    newWin.setAttribute(Qt.WA_DeleteOnClose)
-    newWin.setContextMenuPolicy(Qt.CustomContextMenu)
-    newWin.setWindowTitle(parent.tr('Image Viewer ' + dir))
-    # init viewer
-    wdg = QListWidget(parent=parent)
-    wdg.setSelectionMode(QAbstractItemView.ExtendedSelection)
-    wdg.setContextMenuPolicy(Qt.CustomContextMenu)
-    wdg.label = None
-    # handler for action copy_to_clipboard
-    def hCopy():
-        sel = wdg.selectedItems()
-        l = []
-        for item in sel:
-            # get url from path
-            l.append(QUrl.fromLocalFile(item.data(Qt.UserRole)))
-        # init clipboard data
-        q = QMimeData()
-        # set some Windows magic values for copying files from system clipboard : Don't modify
-        # 1 : copy; 2 : move
-        q.setData("Preferred DropEffect", QByteArray("2"))
-        q.setUrls(l)
-        QApplication.clipboard().clear()
-        QApplication.clipboard().setMimeData(q)
-    def hZoom():
-        sel = wdg.selectedItems()
-        l = []
-        # build list of file paths
-        for item in sel:
-            l.append(item.data(Qt.UserRole)[0])
-        if wdg.label is None:
-            wdg.label = QLabel(parent=wdg)
-            wdg.label.setMaximumSize(500,500)
-        # get selected item bounding rect (global coords)
-        rect = wdg.visualItemRect(sel[0])
-        # move label close to rect while keeping it visible
-        point = QPoint(min(rect.left(), wdg.viewport().width() -500), min(rect.top(), wdg.viewport().height() -500))
-        wdg.label.move(wdg.mapFromGlobal(point))
-        # get correctly oriented image
-        img = QImage(l[0]).transformed(item.data(Qt.UserRole)[1])
-        wdg.label.setPixmap(QPixmap.fromImage(img.scaled(500,500, Qt.KeepAspectRatio)))
-        wdg.label.show()
-    def showContextMenu(pos):
-        globalPos = wdg.mapToGlobal(pos)
-        myMenu = QMenu()
-        action_copy = myMenu.addAction("Copy to Clipboard", hCopy)
-        action_zoom = myMenu.addAction("Zoom", hZoom)
-        myMenu.exec_(globalPos)
-    def hChange():
-        if wdg.label is not None:
-            wdg.label.hide()
-    wdg.customContextMenuRequested.connect(showContextMenu)
-    wdg.itemSelectionChanged.connect(hChange)
-    wdg.setViewMode(QListWidget.IconMode)
-    wdg.setIconSize(QSize(150, 150))
-    newWin.setCentralWidget(wdg)
-    newWin.showMaximized()
-    # launch loader instance
-    thr = loader(fileListGen, wdg)
-    thr.start()
 
 def menuView(name):
     """

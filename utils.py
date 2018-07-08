@@ -23,11 +23,12 @@ import cv2
 import numpy as np
 from math import factorial
 
+from PySide2.QtCore import QByteArray
 from PySide2 import QtCore
 from PySide2.QtGui import QColor, QPainterPath, QPen, QImage, QPainter, QTransform, QPolygonF, QPixmap, QIcon
 from PySide2.QtWidgets import QListWidget, QListWidgetItem, QGraphicsPathItem, QDialog, QVBoxLayout, \
     QFileDialog, QSlider, QWidget, QHBoxLayout, QLabel, QMessageBox, QPushButton, QToolButton, QApplication
-from PySide2.QtCore import Qt, QPoint, QObject, QRect, QDir, QPointF
+from PySide2.QtCore import Qt, QPoint, QObject, QRect, QDir, QPointF, QBuffer, QIODevice
 from os.path import isfile, basename
 from itertools import product
 from numpy.lib.stride_tricks import as_strided
@@ -293,7 +294,7 @@ def saveDlg(img, mainWidget):
     to image file. The function returns the image file name.
     Exception ValueError or IOError are raised if the saving fails.
     @param img:
-    @type img: QImage
+    @type img: vImage
     @param mainWidget:
     @type mainWidget: QWidget
     @return: filename
@@ -347,9 +348,9 @@ def saveDlg(img, mainWidget):
         quality = dlg.sliderQual.value()
         compression = dlg.sliderComp.value()
         # call mImage.save to write image file : throw ValueError or IOError
-        img.save(filename, quality=quality, compression=compression)
-        # copy metadata to image file. The sidecar is not removed
-        img.restoreMeta(img.filename, filename)
+        thumb = img.save(filename, quality=quality, compression=compression)
+        thumb.save('a.jpg')
+        img.restoreMeta(img.filename, filename, thumbnail='a.jpg')
         return filename
     else:
         raise ValueError("Saving Operation Failure")
@@ -1121,18 +1122,24 @@ class loader(threading.Thread):
                         profile, metadata = e.get_metadata(filename, createsidecar=False)
                     except ValueError:
                         metadata = [{}]
-                    orientation = metadata[0].get("EXIF:Orientation", 0)
+                    # get image info
+                    orientation = metadata[0].get("EXIF:Orientation", 1)
                     date = metadata[0].get("EXIF:DateTimeOriginal", '???')
+                    rating = metadata[0].get("XMP:Rating", 5)
+                    rating = ''.join(['*']*int(rating))
                     transformation = exiftool.decodeExifOrientation(orientation)
-                    #pxm = QPixmap.fromImage(QImage(filename).scaled(500,500, Qt.KeepAspectRatio))
-                    img = e.get_thumbNail(filename, thumbname='PreviewImage')
+                    img = e.get_thumbNail(filename, thumbname='ThumbnailImage')
                     if img.isNull():
-                        img = e.get_thumbNail(filename, thumbname='ThumbnailImage')
+                        img = e.get_thumbNail(filename, thumbname='PreviewImage')  # the order is important : for jpeg PreviewImage is full sized !
+                    # remove possible black borders, except for .NEF
+                    if filename[-3:] not in ['nef', 'NEF']:
+                        bBorder = 7
+                        img = img.copy(QRect(0,bBorder, img.width(), img.height()-2*bBorder))
                     pxm = QPixmap.fromImage(img)
                     if not transformation.isIdentity():
                         pxm = pxm.transformed(transformation)
-                    item = QListWidgetItem(QIcon(pxm), basename(filename))
-                    item.setToolTip(date)
+                    item = QListWidgetItem(QIcon(pxm), basename(filename)+ '\n' + rating)
+                    item.setToolTip(date + ' ' + rating)
                     item.setData(Qt.UserRole, (filename, transformation))
                     self.wdg.addItem(item)
                 # for clean exiting we catch all exceptions and force break

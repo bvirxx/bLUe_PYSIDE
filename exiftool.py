@@ -84,29 +84,35 @@ class ExifTool(object):
         self.process.stdin.flush()
         self.process.terminate()
 
-    def execute(self, *args, ascii=True):
+    def execute(self, *args, inData=None, ascii=True):
         """
-        Execute the exiftool command defined by *args and returns the
+        Executes the exiftool command defined by *args and returns the
         command output.
         @param args:
         @type args:
+        @param indata: data sent to exiftool stdin
+        @type inData: bytearray
         @param ascii:
         @type ascii:
         @return: command output
         @rtype: str or bytes
         """
         args = args + ("-execute\n",)
-        #self.process.stdin.write(str.join("\n", args))  Python 2.7
-        self.process.stdin.write(bytearray(str.join("\n", args), 'ascii'))
-        self.process.stdin.flush()
+        stdin = self.process.stdin
+        stdin.write(bytearray(str.join("\n", args), 'ascii'))
+        stdin.flush()
+        if inData is not None:
+            stdin.write(inData)
+            stdin.flush()
+            return None
         output = bytearray()
-        # get stdout file descriptor
-        fd = self.process.stdout.fileno()
+        # get stdout and stdin file descriptors
+        fdout = self.process.stdout.fileno()
         # encode sentinel to bytes
         sb = self.sentinel.encode('ascii')
         # read stdout up to sentinel
         while not output[:-2].endswith(sb):
-            output.extend(os.read(fd, 4096))
+            output.extend(os.read(fdout, 4096))
         # cut off sentinel and CRLF
         output = output[:-len(self.sentinel) - 2]
         if ascii:
@@ -115,19 +121,46 @@ class ExifTool(object):
             output = bytes(output[:-len(self.sentinel)-2])
         return output
 
+    def writeThumbnail(self, filename, thumbnail):
+        """
+        Writes a bytearray containing thumbnail data to an image
+        or sidecar file. Thumbnail should be a valid jpeg image
+        160x120 or 120x160.
+        @param filename: path to image or sidecar file
+        @type filename: str
+        @param thumbnail: path to thumbnail jpg file
+        @type thumbnail: str
+        """
+        self.execute(*(['-%s<=%s' % ('ThumbnailImage', thumbnail)] + [filename]))
+        #self.execute(*([filename] + ['-%s<=-' % 'thumbnailimage']), inData=bytes)
+
+    def writeOrientation(self, filename, value):
+        """
+        Writes orientation to file (image or sidecar)
+        @param filename: destination file
+        @type filename: str
+        @param value: orientation code (range 1..8)
+        @type value: str
+        """
+        self.execute(*(['-%s=%s' % ('Orientation', value)] + ['-n'] + [filename]))
+
     def writeXMPTag(self, filename, tagName, value):
         """
-        Writes tag info to the sidecar (.mie) file. The sidecar is created
-        if it does not exist.
-        @param filename: image or sidecar path
+        Writes tag info to the sidecar (.mie) file. If the sidecar
+        does not exist it is created from the image file.
+        @param filename: image file name
         @type filename: str
         @param tagName: tag name
         @type tagName: str
         @param value: tag value
         @type value: str or number
         """
-        filename = filename[:-4] + '.mie'
-        self.execute(*(['-%s=%s' % (tagName, value)] + [filename]))
+        fmie = filename[:-4] + '.mie'
+        # if sidecar does not exist create it
+        if not isfile(fmie):
+            self.saveMetadata(filename)
+        # write tag to sidecar
+        self.execute(*(['-%s=%s' % (tagName, value)] + [fmie]))
 
     def readXMPTag(self, filename, tagName):
         """
@@ -148,7 +181,7 @@ class ExifTool(object):
 
     def get_metadata(self, f, createsidecar=True):
         """
-        Read metadata from file : data are read from the sidecar
+        Reads metadata from file : data are read from the sidecar
         (.mie) file if it exists. Otherwise data are read
         from the image file and the sidecar file is created if
         createsidecar is True (default).
@@ -181,17 +214,16 @@ class ExifTool(object):
         return profile, data
 
     def get_thumbNail(self, f, thumbname='ThumbnailImage'):
-        thumbNail = self.execute(*[ '-b', '-'+thumbname, f], ascii=False)
+        thumbNail = self.execute(*[ '-b', '-m', '-'+thumbname, f], ascii=False)  # -m disables output of warnings
         return QImage.fromData(QByteArray.fromRawData(bytes(thumbNail)), 'JPG')
 
     def saveMetadata(self, f):
         """
-        save all metadata and icc profile to sidecar .mie file
-        @param f: file name to process
+        saves all metadata and icc profile to sidecar (.mie) file.
+        An existing sidecar is overwritten.
+        @param f: image file to process
+        @type f: str
         """
-        #temp = NamedTemporaryFile(delete=False)
-        #temp.close()
-        #self.execute(*(["-tagsFromFile", f, "-all:all", "-overwrite_original", "-icc_profile", f[:-4] + ".mie"]))
         self.execute(*(["-tagsFromFile", f, "-overwrite_original", f[:-4] + ".mie"]))
 
     def restoreMetadata(self, source, dest, removesidecar=False):
@@ -229,9 +261,9 @@ def decodeExifOrientation(value):
     elif value == 1 :
         pass
     elif value == 6:   # TODO complete
-        tr.rotate(90)
+        tr.rotate(90)  # clockwise
     elif value == 8:
-        tr.rotate(270)
+        tr.rotate(-90) # counterclockwise
     else :
         raise ValueError("decodeExifOrientation : unhandled orientation tag: %d" % value)
     return tr

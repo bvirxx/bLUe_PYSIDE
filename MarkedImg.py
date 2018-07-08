@@ -1677,17 +1677,26 @@ class mImage(vImage):
     paint event handler.
     """
     @classmethod
-    def restoreMeta(cls, srcFile, destFile):
+    def restoreMeta(cls, srcFile, destFile, defaultorientation=True, thumbnail=None):
         """
-        # copy metadata from sidecar to image file. The sidecar is not removed
-        @param srcFile: source image or sidecar (the extension is replaced by .mie)
+        # copy metadata from sidecar to image file. The sidecar is not removed.
+        If defaultorientaion is True the orientaion of the destination file is
+        set to "no change" (1). This way, saved images are shown as they were edited.
+        @param srcFile: source image or sidecar (the extension is replaced by .mie).
         @type srcFile: str
         @param destFile: image file
         @type destFile: str
+        @param defaultorientation
+        @type defaultorientation: bool
+        @param thumbnail: thumbnail data
+        @type thumbnail: bytearray
         """
         with exiftool.ExifTool() as e:
             e.restoreMetadata(srcFile, destFile)
-
+            if defaultorientation:
+                e.writeOrientation(destFile, '1')
+            if thumbnail is not None:
+                    e.writeThumbnail(destFile, thumbnail)
     def __init__(self, *args, **kwargs):
         # as updatePixmap uses layersStack, must be
         # before the call to super(). __init__
@@ -1963,15 +1972,18 @@ class mImage(vImage):
         """
         Builds image from visible layers
         and writes it to file. Raise IOError if
-        saving fails. Overrides QImage.save()
+        saving fails. Overrides QImage.save().
+        A thumbnail of standard size 160x120 or 120x160 is returned.
         @param filename:
         @type filename: str
         @param quality: integer value in range 0..100, or -1
         @type quality: int
+        @return: thumbnail of the saved image
+        @rtype: QImage
         """
         # don't save thumbnails
         if self.useThumb:
-            return False
+            return None
         # get the final image from the presentation layer.
         # It is important to note that this image is
         # NOT color managed (prLayer.qPixmap only
@@ -1992,17 +2004,27 @@ class mImage(vImage):
             params = []
         else:
             raise IOError("Invalid File Format\nValid formats are jpg, png, tif ")
-        #buf = QImageBuffer(img)[:,:,:3] # TODO validate suppression 18/06/18
         if self.isCropped:
             # make slices
             w, h = self.width(), self.height()
             w1, w2 = int(self.cropLeft), w - int(self.cropRight)
             h1, h2 = int(self.cropTop), h - int(self.cropBottom)
             buf = buf[h1:h2, w1:w2,:]
+        # build thumbnail from (evenyually) cropped image
+        # choose thumb size
+        wf, hf = buf.shape[1], buf.shape[0]
+        if wf > hf:
+            wt, ht = 160, 120
+        else:
+            wt, ht = 120, 160
+        thumb = ndarrayToQImage(np.ascontiguousarray(buf[:,:,:3][:,:,::-1]), format=QImage.Format_RGB888).scaled(wt,ht, Qt.KeepAspectRatio)
+        #wr, hr = thumb.width(), thumb.height()
+        #thumb = thumb.copy(QRect((wr-wt)//2,(hr-ht)//2, wt, ht))
         written = cv2.imwrite(filename, buf, params)  #BGR order
         if not written:
             raise IOError("Cannot write file %s " % filename)
         # self.setModified(False) # cannot be reset if the image is modified again
+        return thumb
 
     def writeStackToStream(self, dataStream):
         dataStream.writeInt32(len(self.layersStack))

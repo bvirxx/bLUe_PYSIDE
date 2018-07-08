@@ -1075,7 +1075,7 @@ Screen</string>
   </action>
   <action name="actionViewer">
    <property name="text">
-    <string>Viewer</string>
+    <string>Library Viewer</string>
    </property>
   </action>
   <action name="actionGradual_Filter">

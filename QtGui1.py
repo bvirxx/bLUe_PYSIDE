@@ -172,11 +172,16 @@ QtCore.QCoreApplication.addLibraryPath(plugin_path)
 if getattr(sys, 'frozen', False) and len(sys.argv) <= 1:
     hideConsole()
 
-######################
-# launch app and init main form
-#####################
+############
+# launch app
+############
 app = QApplication(sys.argv)
+# get root widget for screen management
 rootWidget = app.desktop()
+
+################3
+# init main form
 window = Form1()
+#################
 
 
