@@ -16,8 +16,10 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import ctypes
+import os
 import threading
 import time
+from tempfile import mktemp
 
 import cv2
 import numpy as np
@@ -347,10 +349,14 @@ def saveDlg(img, mainWidget):
         # get parameters
         quality = dlg.sliderQual.value()
         compression = dlg.sliderComp.value()
-        # call mImage.save to write image file : throw ValueError or IOError
+        # call mImage.save to write image to file : throw ValueError or IOError
         thumb = img.save(filename, quality=quality, compression=compression)
-        thumb.save('a.jpg')
-        img.restoreMeta(img.filename, filename, thumbnail='a.jpg')
+        tempFilename = mktemp('.jpg')
+        # save jpg to temp file
+        thumb.save(tempFilename)
+        # copy temp file to image file
+        img.restoreMeta(img.filename, filename, thumbfile=tempFilename)
+        os.remove(tempFilename)
         return filename
     else:
         raise ValueError("Saving Operation Failure")
@@ -1128,9 +1134,10 @@ class loader(threading.Thread):
                     rating = metadata[0].get("XMP:Rating", 5)
                     rating = ''.join(['*']*int(rating))
                     transformation = exiftool.decodeExifOrientation(orientation)
-                    img = e.get_thumbNail(filename, thumbname='ThumbnailImage')
+                    img = e.get_thumbNail(filename, thumbname='thumbnailimage')
                     if img.isNull():
-                        img = e.get_thumbNail(filename, thumbname='PreviewImage')  # the order is important : for jpeg PreviewImage is full sized !
+                        pass
+                        #img = e.get_thumbNail(filename, thumbname='PreviewImage')  # the order is important : for jpeg PreviewImage is full sized !
                     # remove possible black borders, except for .NEF
                     if filename[-3:] not in ['nef', 'NEF']:
                         bBorder = 7

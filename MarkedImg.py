@@ -1677,7 +1677,7 @@ class mImage(vImage):
     paint event handler.
     """
     @classmethod
-    def restoreMeta(cls, srcFile, destFile, defaultorientation=True, thumbnail=None):
+    def restoreMeta(cls, srcFile, destFile, defaultorientation=True, thumbfile=None):
         """
         # copy metadata from sidecar to image file. The sidecar is not removed.
         If defaultorientaion is True the orientaion of the destination file is
@@ -1695,8 +1695,8 @@ class mImage(vImage):
             e.restoreMetadata(srcFile, destFile)
             if defaultorientation:
                 e.writeOrientation(destFile, '1')
-            if thumbnail is not None:
-                    e.writeThumbnail(destFile, thumbnail)
+            if thumbfile is not None:
+                    e.writeThumbnail(destFile, thumbfile)
     def __init__(self, *args, **kwargs):
         # as updatePixmap uses layersStack, must be
         # before the call to super(). __init__
