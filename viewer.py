@@ -16,19 +16,22 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import gc
-from os.path import basename
+from os import walk, path, listdir
+
+from PySide2 import QtGui
+from os.path import basename, isfile
 from re import search
 from time import sleep
 
 from PySide2.QtCore import Qt, QUrl, QMimeData, QByteArray, QPoint, QSize
-from PySide2.QtGui import QKeySequence, QImage, QPixmap
+from PySide2.QtGui import QKeySequence, QImage, QPixmap, QWindow, QDrag
 from PySide2.QtWidgets import QMainWindow, QLabel, QSizePolicy, QAction, QMenu, QListWidget, QAbstractItemView, \
-    QApplication
+    QApplication, QDockWidget
 
 import exiftool
 from QtGui1 import app, window
 from imgconvert import QImageBuffer
-from utils import loader
+from utils import loader, IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS
 
 # global variable recording diaporama state
 isSuspended = False
@@ -170,14 +173,33 @@ def playDiaporama(diaporamaGenerator, parent=None):
         """
     )  # end of setWhatsThis
 
-def playViewer(fileListGen, dir, parent=None):
+class dragQListWidget(QListWidget):
+    """
+    This Class is used by playViewer instead of QListWidget.
+    It reimplements mousePressEvent and init
+    a convenient QMimeData object for drag and drop events.
+    """
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            drag= QDrag(self)
+            mimeData = QMimeData()
+            item = self.itemAt(event.pos())
+            mimeData.setText(item.data(Qt.UserRole)[0])  # should be path to file
+            drag.setMimeData(mimeData)
+            # set dragging pixmap
+            drag.setPixmap(item.icon().pixmap(QSize(160, 120)))
+            # roughly center the cursor relative to pixmap
+            drag.setHotSpot(QPoint(60,60))
+            dropAction = drag.exec_()
+
+def playViewer(dir, parent=None):
     """
     Opens a window and displays all images from a folder.
     The images are loaded asynchronously by a separate thread.
-    @param fileListGen: file name generator
+    @param fileListGen: generator of paths to files
     @type fileListGen: generator object
-    @param dir:
-    @type dir:
+    @param dir: root dir
+    @type dir: str
     @param parent:
     @type parent:
     """
@@ -187,13 +209,28 @@ def playViewer(fileListGen, dir, parent=None):
     newWin.setContextMenuPolicy(Qt.CustomContextMenu)
     newWin.setWindowTitle(parent.tr('Library Viewer ' + dir))
     # init viewer
-    wdg = QListWidget(parent=parent)
-    wdg.setSelectionMode(QAbstractItemView.ExtendedSelection)
-    wdg.setContextMenuPolicy(Qt.CustomContextMenu)
-    wdg.label = None
+    listWdg = dragQListWidget(parent=parent)
+    listWdg.setWrapping(False)
+    listWdg.setSelectionMode(QAbstractItemView.ExtendedSelection)
+    listWdg.setContextMenuPolicy(Qt.CustomContextMenu)
+    listWdg.label = None
+    actionSub = QAction('SubFolders', None)
+    actionSub.setCheckable(True)
+    actionSub.setChecked(False)
+    # build generator:
+    def doGen(withsub=False):
+        if withsub:
+            # browse the directory and its subfolders
+            fileListGen = (path.join(dirpath, filename) for  (dirpath, dirnames, filenames) in walk(dir) for filename in filenames  if
+                         filename.endswith(IMAGE_FILE_EXTENSIONS) or filename.endswith(RAW_FILE_EXTENSIONS))
+        else:
+            fileListGen = (path.join(dir, filename) for filename in listdir(dir) if
+                           isfile(path.join(dir, filename)) and (filename.endswith(IMAGE_FILE_EXTENSIONS) or filename.endswith(RAW_FILE_EXTENSIONS)))
+        return fileListGen
+    fileListGen = doGen()
     # slot for action copy_to_clipboard
     def hCopy():
-        sel = wdg.selectedItems()
+        sel = listWdg.selectedItems()
         l = []
         for item in sel:
             # get url from path
@@ -208,29 +245,31 @@ def playViewer(fileListGen, dir, parent=None):
         QApplication.clipboard().setMimeData(q)
     # slot for action zoom
     def hZoom():
-        sel = wdg.selectedItems()
+        sel = listWdg.selectedItems()
+        if not sel:
+            return
         l = []
-        # build list of file paths
+        # build the list of file paths
         for item in sel:
             l.append(item.data(Qt.UserRole)[0])
-        if wdg.label is None:
-            wdg.label = QLabel(parent=wdg)
-            wdg.label.setMaximumSize(500, 500)
+        if listWdg.label is None:
+            listWdg.label = QLabel(parent=listWdg)
+            listWdg.label.setMaximumSize(500, 500)
         # get selected item bounding rect (global coords)
-        rect = wdg.visualItemRect(sel[0])
+        rect = listWdg.visualItemRect(sel[0])
         # move label close to rect while keeping it visible
-        point = QPoint(min(rect.left(), wdg.viewport().width() - 500), min(rect.top(), wdg.viewport().height() - 500))
-        wdg.label.move(wdg.mapFromGlobal(point))
+        point = QPoint(min(rect.left(), listWdg.viewport().width() - 500), min(rect.top(), listWdg.viewport().height() - 500))
+        listWdg.label.move(listWdg.mapFromGlobal(point))
         # get correctly oriented image
         img = QImage(l[0]).transformed(item.data(Qt.UserRole)[1])
         img = img.scaled(500, 500, Qt.KeepAspectRatio)
-        wdg.label.setPixmap(QPixmap.fromImage(img))
-        wdg.label.show()
+        listWdg.label.setPixmap(QPixmap.fromImage(img))
+        listWdg.label.show()
     # slot for action rating
     def setRating(action):
         # rating : the tag is written into the .mie file; the file is
         # created if needed.
-        sel = wdg.selectedItems()
+        sel = listWdg.selectedItems()
         if action.text() in ['0', '1', '2', '3', '4', '5']:
             with exiftool.ExifTool() as e:
                 value = int(action.text())
@@ -238,12 +277,21 @@ def playViewer(fileListGen, dir, parent=None):
                     filename = item.data(Qt.UserRole)[0]
                     e.writeXMPTag(filename, 'XMP:rating', value)
                     item.setText(basename(filename) + '\n' + ''.join(['*']*value))
+    # slot for subfolders browsing
+    def hSubfolders(action):
+        listWdg.clear()
+        fileListGen = doGen(withsub=action.isChecked())
+        # launch loader instance
+        thr = loader(fileListGen, listWdg)
+        thr.start()
+    actionSub.triggered.connect( lambda checked=False, action=actionSub: hSubfolders(action))  # named arg checked is sent
     # context menu
     def contextMenu(pos):
-        globalPos = wdg.mapToGlobal(pos)
+        globalPos = listWdg.mapToGlobal(pos)
         menu = QMenu()
         menu.addAction("Copy to Clipboard", hCopy)
         menu.addAction("Zoom", hZoom)
+        menu.addAction(actionSub)
         subMenuRating = menu.addMenu('Rating')
         for i in range(6):
             action = QAction(str(i), None)
@@ -253,20 +301,31 @@ def playViewer(fileListGen, dir, parent=None):
         menu.exec_(globalPos)
     # selection change
     def hChange():
-        if wdg.label is not None:
-            wdg.label.hide()
-    wdg.customContextMenuRequested.connect(contextMenu)
-    wdg.itemSelectionChanged.connect(hChange)
-    wdg.setViewMode(QListWidget.IconMode)
-    wdg.setIconSize(QSize(150, 150))
-    newWin.setCentralWidget(wdg)
+        if listWdg.label is not None:
+            listWdg.label.hide()
+    listWdg.customContextMenuRequested.connect(contextMenu)
+    listWdg.itemSelectionChanged.connect(hChange)
+    listWdg.setViewMode(QListWidget.IconMode)
+    listWdg.setIconSize(QSize(150, 150))
+    listWdg.setDragDropMode(QAbstractItemView.DragDrop)
+    newWin.setCentralWidget(listWdg)
     newWin.showMaximized()
     newWin.setWhatsThis(
 """Library Viewer
-Rating is shown as 0 to 5 stars below each icon.
 Right click on an icon or a selection to open the context menu.
+Rating is shown as 0 to 5 stars below each icon.
 """
                         ) # end setWhatsThis
+    # dock viewer
+    window = newWin.parent()
+    dock = QDockWidget(window)
+    dock.setWidget(newWin)
+    dock.setWindowFlags(newWin.windowFlags())
+    dock.setWindowTitle(newWin.windowTitle())
+    # dock.setAttribute(Qt.WA_DeleteOnClose)
+    dock.setStyleSheet("QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
+    # add to bottom docking area
+    window.addDockWidget(Qt.BottomDockWidgetArea, dock)
     # launch loader instance
-    thr = loader(fileListGen, wdg)
+    thr = loader(fileListGen, listWdg)
     thr.start()

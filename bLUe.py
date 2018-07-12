@@ -117,17 +117,20 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
+import json
 import multiprocessing
 import sys
 import threading
 from itertools import cycle
 from os import path, walk
+
+from numpy import byte
 from os.path import basename
 from types import MethodType
 import rawpy
 from grabcut import segmentForm
 from PySide2.QtCore import Qt, QRect, QEvent, QUrl, QSize, QFileInfo, QRectF, QObject, QPoint, \
-    QMimeData, QByteArray
+    QMimeData, QByteArray, QDataStream, QIODevice
 from PySide2.QtGui import QPixmap, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, \
     QPainterPath, QTransform, QContextMenuEvent
 from PySide2.QtWidgets import QApplication, QMenu, QAction, QFileDialog, QMessageBox, \
@@ -567,6 +570,35 @@ def enterEvent(widget,img, event):
 
 def leaveEvent(widget,img, event):
     QApplication.restoreOverrideCursor()
+
+def dragEnterEvent(widget, img, event):
+    """
+    Accepts drop if mimeData contains text (e.g. file name)
+    (convenient for main window only)
+    @param widget:
+    @type widget:
+    @param img:
+    @type img:
+    @param event:
+    @type event:
+    """
+    if (event.mimeData().hasFormat("text/plain")):
+        event.acceptProposedAction()
+
+def dropEvent(widget, img, event):
+    """
+    gets file name from event.mimeData and opens it.
+    (Convenient for main window only)
+    @param widget:
+    @type widget:
+    @param img:
+    @type img:
+    @param event:
+    @type event:
+
+    """
+    mimeData = event.mimeData()
+    openFile(mimeData.text())
 
 def set_event_handlers(widg, enterAndLeave=True):
     """
@@ -1031,11 +1063,7 @@ def menuView(name):
         if dlg.exec_():
             newDir = dlg.selectedFiles()[0] # dlg.directory().absolutePath()
             window.settings.setValue('paths/dlgdir', newDir)
-            for dirpath, dirnames, filenames in walk(newDir):
-                for filename in [f for f in filenames if
-                            f.endswith(IMAGE_FILE_EXTENSIONS) or f.endswith(RAW_FILE_EXTENSIONS)]:
-                    viewList.append(path.join(dirpath, filename))
-            playViewer((filename for filename in viewList), newDir, parent=window)
+            playViewer(newDir, parent=window)
     updateStatus()
 
 def menuImage(name) :
@@ -1627,6 +1655,12 @@ Background/Mask
     set_event_handlers(window.label)
     set_event_handlers(window.label_2, enterAndLeave=False)
     set_event_handlers(window.label_3, enterAndLeave=False)
+    # drag and drop event handlers are specific for the main window
+    window.label.dropEvent = MethodType(lambda instance, e, wdg=window.label: dropEvent(wdg, wdg.img, e),
+                                        window.label.__class__)
+    window.label.dragEnterEvent = MethodType(lambda instance, e, wdg=window.label: dragEnterEvent(wdg, wdg.img, e),
+                                             window.label.__class__)
+    window.label.setAcceptDrops(True)
 
     img=QImage(200, 200, QImage.Format_ARGB32)
     img.fill(Qt.darkGray)
@@ -1638,7 +1672,6 @@ Background/Mask
 
     window.showMaximized()
     splash.finish(window)
-
     # init EyeDropper cursor
     window.cursor_EyeDropper = QCursor(QPixmap.fromImage(QImage(":/images/resources/Eyedropper-icon.png")))
     # init tool cursor, must be resizable

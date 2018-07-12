@@ -16,16 +16,16 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-# the code of the class ExifTool was taken
-# from the Stackoverflow answer http://stackoverflow.com/questions/10075115/call-exiftool-from-a-python-script
+# The class ExifTool implements the exiftool communication and synchronization protocol as
+# described in https://www.sno.phy.queensu.ca/~phil/exiftool/exiftool_pod.html
+# (cf. the paragraph -stay_open FLAG).
+# The implementation as a context manager follows the guidelines of Sven Marnach answer found in
+# https://stackoverflow.com/questions/10075115/call-exiftool-from-a-python-script
 # We gratefully acknowledge the contribution of the author.
-# startupinfo was added to prevent subprocess from opening a window. This is
-# needed when the application is freezed with Pyinstaller
 
 import subprocess
 import os
 import json
-from time import sleep
 
 from PySide2.QtCore import QByteArray
 from PySide2.QtGui import QTransform, QImage
@@ -34,15 +34,6 @@ from settings import EXIFTOOL_PATH
 from utils import dlgWarn
 
 class ExifTool(object):
-    """
-    This class implements the exiftool communication and synchronization protocol as
-    described in https://www.sno.phy.queensu.ca/~phil/exiftool/exiftool_pod.html
-    (cf. the paragraph -stay_open FLAG).
-    The implementation follows the guidelines of Sven Marnach answer found in
-    https://stackoverflow.com/questions/10075115/call-exiftool-from-a-python-script
-    We gratefully acknowledge the contribution of the author.
-
-    """
     # exiftool synchronization token
     sentinel = "{ready}"
     # exiftool useful flags
@@ -57,22 +48,21 @@ class ExifTool(object):
 
     def __enter__(self):
         """
-        entering "with" block:
-        launch exiftool. According to the documentation stdin, stdout
-        znd stderr are open in binary mode.
+        entering "with" block: launch exiftool.
+        According to the documentation stdin, stdout and stderr are open in binary mode.
         """
         try:
             # hide sub-window to prevent flashing console
             # when the program is freezed by PyInstaller with
             # console set to False.
             startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            startupinfo.wShowWindow = subprocess.SW_HIDE
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW # prevent subprocess from opening a window.
+            startupinfo.wShowWindow = subprocess.SW_HIDE           # This is needed when the application is freezed with PyInstaller
             # -@ FILE : read command line args from FILE
             # -stay_open True: keep reading -@ argFILE even after EOF
             self.process = subprocess.Popen(
-                                        [self.executable, "-stay_open", "True",  "-@", "-"],  # "-stay_open"
-                                        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,#subprocess.DEVNULL, #subprocess.STDOUT,
+                                        [self.executable, "-stay_open", "True",  "-@", "-"],
+                                        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,#subprocess.DEVNULL
                                         startupinfo=startupinfo
                                        )
         except OSError:
@@ -102,7 +92,7 @@ class ExifTool(object):
 
     def execute(self, *args, ascii=True):
         """
-        Class main method. It executes
+        Main ExifTool method. It executes
         the exiftool commands defined by *args and returns
         the command output. The value of the flag ascii must
         correspond to the expected type of exiftool output.
@@ -140,50 +130,83 @@ class ExifTool(object):
             output = bytes(output[:-len(self.sentinel)-2])
         return output
 
+    ##################
+    # Convenience methods
+    #################
+    def createSidecar(self, f):
+        """
+        Copies all metadata and icc profile from image file
+        to sidecar (.mie) file. An existing sidecar is overwritten.
+        @param f: path to image file
+        @type f: str
+        """
+        self.execute(*(["-tagsFromFile", f, "-overwrite_original", f[:-4] + ".mie"]))
+
+    def copySidecar(self, source, dest, removesidecar=False):
+        """
+        Copies all metadata and icc profile from sidecar to image file.
+        if removesidecar is True (default False), the sidecar file is removed after copying.
+        Should be called only while editing the file.
+        @param source: path to sidecar file
+        @type source: str
+        @param dest: path to image file
+        @type dest: str
+        @param removesidecar: if True remove sidecar file after restoration. Default is False
+        @type removesidecar: bool
+        @return True if sidecar file exists, False otherwise
+        @rtype bool
+        """
+        sidecar = source[:-4] + '.mie'
+        if isfile(sidecar):
+            # copy metadata from sidecar to image file
+            self.execute(*(["-tagsFromFile", sidecar, "-overwrite_original", dest]))
+        else:
+            return False
+        if removesidecar:
+            os.remove(sidecar)
+        return True
+
+    def get_thumbNail(self, f, thumbname='thumbnailimage'):
+        """
+        Extracts the (jpg) thumbnail from an image or sidecar file
+        and returns it as a QImage.
+        @param f: path to image or sidecar file
+        @type f: str
+        @param thumbname: tag name
+        @type thumbname: str
+        @return: thumbnail
+        @rtype: QImage
+        """
+        thumbNail = self.execute(*[ '-b', '-m', '-'+thumbname, f], ascii=False)  # -m disables output of warnings
+        return QImage.fromData(QByteArray.fromRawData(bytes(thumbNail)), 'JPG')
+
     def writeThumbnail(self, filename, thumbfile):
         """
         Writes a bytearray containing thumbnail data to an image
-        or sidecar file. Thumbnail should be a valid jpeg image
-        160x120 or 120x160.
+        or sidecar file. Thumbnail data should be a valid jpeg image
+        with dimensions 160x120 or 120x160.
+        For an image file, should be called only while editing the file.
         @param filename: path to image or sidecar file
         @type filename: str
         @param thumbnail: path to thumbnail jpg file
         @type thumbnail: str
         """
-        #self.execute(*(['-%s<=%s' % ('ThumbnailImage', thumbnail)] + [filename]))
-        self.execute(*([filename] + ['-%s<=%s' % ('thumbnailimage', thumbfile)]))
+        self.execute(*([filename, '-overwrite_original'] + ['-%s<=%s' % ('thumbnailimage', thumbfile)]))
 
     def writeOrientation(self, filename, value):
         """
-        Writes orientation to file (image or sidecar)
-        @param filename: destination file
+        Writes orientation tag to file (image or sidecar).
+        For an image file, should be called only while editing the file.
+        @param filename: path to file
         @type filename: str
         @param value: orientation code (range 1..8)
-        @type value: str
+        @type value: str or int
         """
-        self.execute(*(['-%s=%s' % ('Orientation', value)] + ['-n'] + [filename]))
-
-    def writeXMPTag(self, filename, tagName, value):
-        """
-        Writes tag info to the sidecar (.mie) file. If the sidecar
-        does not exist it is created from the image file.
-        @param filename: image file name
-        @type filename: str
-        @param tagName: tag name
-        @type tagName: str
-        @param value: tag value
-        @type value: str or number
-        """
-        fmie = filename[:-4] + '.mie'
-        # if sidecar does not exist create it
-        if not isfile(fmie):
-            self.saveMetadata(filename)
-        # write tag to sidecar
-        self.execute(*(['-%s=%s' % (tagName, value)] + [fmie]))
+        self.execute(*(['-%s=%s' % ('Orientation', value)] + ['-n'] + [filename, '-overwrite_original']))
 
     def readXMPTag(self, filename, tagName):
         """
-        Reads tag info from the sidecar (.mie) file. Despite its name, the method can read
+        Reads a tag from a sidecar (.mie) file. Despite its name, the method can read
         a tag of any type. A ValueError exception is raised if the file does not exist.
         @param filename: image or sidecar path
         @type filename: str
@@ -197,6 +220,28 @@ class ExifTool(object):
             raise ValueError
         res = self.execute(*(['-%s' % tagName] + [filename]))
         return res
+
+    ###############################
+    # The two next methods create
+    # the sidecar if it does not exist
+    ###############################
+    def writeXMPTag(self, filename, tagName, value):
+        """
+        Writes a tag to a sidecar (.mie) file. If the sidecar
+        does not exist it is created from the image file.
+        @param filename: image file name
+        @type filename: str
+        @param tagName: tag name
+        @type tagName: str
+        @param value: tag value
+        @type value: str or number
+        """
+        fmie = filename[:-4] + '.mie'
+        # if sidecar does not exist create it
+        if not isfile(fmie):
+            self.createSidecar(filename)
+        # write tag to sidecar
+        self.execute(*(['-%s=%s' % (tagName, value)] + [fmie, '-overwrite_original']))
 
     def get_metadata(self, f, createsidecar=True):
         """
@@ -233,49 +278,8 @@ class ExifTool(object):
             data = json.loads(self.execute(*(flags + [f])))
             # create sidecar file
             if createsidecar:
-                self.saveMetadata(f)
+                self.createSidecar(f)
         return profile, data
-
-    def get_thumbNail(self, f, thumbname='thumbnailimage'):
-        """
-        Extracts the thumbnail from image file
-        @param f: path to image file
-        @type f: str
-        @param thumbname: tag name
-        @type thumbname: str
-        @return: thumbnail
-        @rtype: QImage
-        """
-        thumbNail = self.execute(*[ '-b', '-m', '-'+thumbname, f], ascii=False)  # -m disables output of warnings
-        return QImage.fromData(QByteArray.fromRawData(bytes(thumbNail)), 'JPG')
-
-    def saveMetadata(self, f):
-        """
-        saves all metadata and icc profile to sidecar (.mie) file.
-        An existing sidecar is overwritten.
-        @param f: image file to process
-        @type f: str
-        """
-        self.execute(*(["-tagsFromFile", f, "-overwrite_original", f[:-4] + ".mie"]))
-
-    def restoreMetadata(self, source, dest, removesidecar=False):
-        """
-        Copy all metadata and icc profile from sidecar .mie to image file.
-        if removesidecar is True (default False), the sidecar file is removed after copying.
-        @param source: file the image was loaded from
-        @param dest: file the image is saved to
-        @param removesidecar: if True remove sidecar file after restoration. Default is False
-        @return True if sidecar file exists, False otherwise
-        """
-        sidecar = source[:-4] + '.mie'
-        if isfile(sidecar):
-            # copy metadata from sidecar to image file
-            self.execute(*(["-tagsFromFile", sidecar, "-overwrite_original", dest]))
-        else:
-            return False
-        if removesidecar:
-            os.remove(sidecar)
-        return True
 
 def decodeExifOrientation(value):
     """

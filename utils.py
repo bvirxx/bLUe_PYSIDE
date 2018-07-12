@@ -1134,10 +1134,14 @@ class loader(threading.Thread):
                     rating = metadata[0].get("XMP:Rating", 5)
                     rating = ''.join(['*']*int(rating))
                     transformation = exiftool.decodeExifOrientation(orientation)
+                    # get thumbnail
                     img = e.get_thumbNail(filename, thumbname='thumbnailimage')
+                    # no thumbnail found : try preview
                     if img.isNull():
-                        pass
-                        #img = e.get_thumbNail(filename, thumbname='PreviewImage')  # the order is important : for jpeg PreviewImage is full sized !
+                        img = e.get_thumbNail(filename, thumbname='PreviewImage')  # the order is important : for jpeg PreviewImage is full sized !
+                    # all failed : open image
+                    if img.isNull():
+                        img = QImage(filename)
                     # remove possible black borders, except for .NEF
                     if filename[-3:] not in ['nef', 'NEF']:
                         bBorder = 7
@@ -1146,13 +1150,13 @@ class loader(threading.Thread):
                     if not transformation.isIdentity():
                         pxm = pxm.transformed(transformation)
                     item = QListWidgetItem(QIcon(pxm), basename(filename)+ '\n' + rating)
-                    item.setToolTip(date + ' ' + rating)
+                    item.setToolTip(basename(filename) + ' ' + date + ' ' + rating)
+                    # set item mimeData to get filename=item.data(Qt.UserRole)[0] transformation=item.data(Qt.UserRole)[1]
                     item.setData(Qt.UserRole, (filename, transformation))
                     self.wdg.addItem(item)
                 # for clean exiting we catch all exceptions and force break
-                except OSError as e:
-                    print("I/O error({0}): {1}".format(e.errno, e.strerror))
-                    raise
+                except OSError:
+                    continue
                 except:
                     break
 

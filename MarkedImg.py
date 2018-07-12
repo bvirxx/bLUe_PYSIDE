@@ -1692,7 +1692,7 @@ class mImage(vImage):
         @type thumbnail: bytearray
         """
         with exiftool.ExifTool() as e:
-            e.restoreMetadata(srcFile, destFile)
+            e.copySidecar(srcFile, destFile)
             if defaultorientation:
                 e.writeOrientation(destFile, '1')
             if thumbfile is not None:
