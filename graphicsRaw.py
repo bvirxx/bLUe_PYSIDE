@@ -468,17 +468,19 @@ However, the correction curve can be edited manually by checking the option Show
 
     def setContrastSpline(self, a, b, d, T):
         """
-        Updates and displays the contrast spline
-        @param a:
+        Updates and displays the contrast spline Form.
+        The form is created if needed.
+        (Cf. also CoBrStaForm setContrastSpline).
+        @param a: x_coordinates
         @type a:
-        @param b:
+        @param b: y-coordinates
         @type b:
-        @param d:
+        @param d: tangent slopes
         @type d:
-        @param T:
-        @type T:
+        @param T: spline
+        @type T: ndarray dtype=float
         """
-        axeSize = 500
+        axeSize = 200
         if self.contrastForm is None:
             form = graphicsQuadricForm.getNewWindow(targetImage=None, axeSize=axeSize, layer=self.layer, parent=None,
                                                     mainForm=None)
@@ -488,6 +490,8 @@ However, the correction curve can be edited manually by checking the option Show
             self.contrastForm = form
         else:
             form = self.contrastForm
+        # update the curve
+        form.scene().setSceneRect(-25, -axeSize - 25, axeSize + 50, axeSize + 50)  # TODO added 15/07/18
         form.scene().quadricB.setCurve(a * axeSize, b * axeSize, d, T * axeSize)
         form.showNormal()
 

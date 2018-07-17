@@ -166,7 +166,7 @@ from splittedView import splittedWindow
 
 ##################
 #  Software Attributions
-from viewer import playDiaporama, playViewer
+from viewer import playDiaporama, viewer
 
 attributions = """
 exiftool Copyright © 2013-2016, Phil Harvey
@@ -1063,7 +1063,8 @@ def menuView(name):
         if dlg.exec_():
             newDir = dlg.selectedFiles()[0] # dlg.directory().absolutePath()
             window.settings.setValue('paths/dlgdir', newDir)
-            playViewer(newDir, parent=window)
+            viewerInstance = viewer.getViewerInstance(mainWin=window)
+            viewerInstance.playViewer(newDir)
     updateStatus()
 
 def menuImage(name) :
@@ -1536,6 +1537,7 @@ def updateStatus():
     # cropping
     if window.label.img.isCropped:
         s = s + '&nbsp;&nbsp;&nbsp;&nbsp;Crop Tool : h/w ratio %.2f ' % window.cropTool.formFactor
+    s = s + '&nbsp;&nbsp;&nbsp;&nbsp;Click an item and press Shift+F1 for context help'
     window.Label_status.setText(s)
 
 def screenUpdate(newScreenIndex):
@@ -1732,7 +1734,27 @@ Background/Mask
     window.actionColor_manage.setEnabled(icc.HAS_COLOR_MANAGE)
     window.actionColor_manage.setChecked(icc.COLOR_MANAGE)
     updateStatus()
-
+    window.label.setWhatsThis(
+""" <b>Main Window<br>
+Menu File > Open</b> to edit a photo.<br>
+<b>Menu Layer > New Adjustment Layer</b> to add an adjustment layer.<br>
+<b>Menu View > Library Viewer</b> to browse a folder.<br>
+"""
+    ) # end of setWhatsThis
+    window.label_3.setWhatsThis(
+""" <b>Before/After View : After Window</b><br>
+Shows the modified image.<br>
+<b>Ctrl+Space</b> to cycle through views.<br>
+<b>Space</b> to switch back to normal view.<br>
+"""
+    ) # end of setWhatsThis
+    window.label_2.setWhatsThis(
+""" <b>Before/After View : Before Window</b><br>
+Shows the initial image.<br>
+<b>Ctrl+Space</b> to cycle through views.<br>
+<b>Space</b> to switch back to normal view.
+"""
+    ) # end of setWhatsThis
     ###############
     # launch app
     ###############

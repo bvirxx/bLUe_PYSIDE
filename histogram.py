@@ -417,8 +417,8 @@ def warpHistogram(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True, spli
     """
     Stretches and warps the distribution of imgBuf to enhance the contrast.
     If a spline is given, it is applied to imgBuf, otherwise an "automatic"
-    spline is deduced from the image histogram. We mainly use the algorithm
-    proposed by Grundland and Dodgson,
+    spline is deduced from the image histogram.
+    We mainly use the algorithm proposed by Grundland and Dodgson,
     Cf. U{https://link.springer.com/chapter/10.1007/1-4020-4179-9_42},
     with a supplementary correction for highlights.
     The parameter valleyAperture is the (probability) width

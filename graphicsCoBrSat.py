@@ -286,7 +286,9 @@ Sliders can be reset to their default value by double clicking the name of the s
 
     def setContrastSpline(self, a, b, d, T):
         """
-        Updates and displays the contrast spline
+        Updates and displays the contrast spline form.
+        The form is created if needed.
+        (Cf also rawForm.setCoBrSat.setContrastSpline).
         @param a: x_coordinates
         @type a:
         @param b: y-coordinates
@@ -296,7 +298,7 @@ Sliders can be reset to their default value by double clicking the name of the s
         @param T: spline
         @type T: ndarray dtype=float
         """
-        axeSize = 500
+        axeSize = 200
         if self.contrastForm is None:
             form = graphicsQuadricForm.getNewWindow(targetImage=None, axeSize=axeSize, layer=self.layer, parent=None, mainForm=None)
             form.setWindowFlags(Qt.WindowStaysOnTopHint)
@@ -305,6 +307,8 @@ Sliders can be reset to their default value by double clicking the name of the s
             self.contrastForm = form
         else:
             form = self.contrastForm
+        # update the curve
+        form.scene().setSceneRect(-25, -axeSize-25, axeSize+50, axeSize+50)  # TODO added 15/07/18
         form.scene().quadricB.setCurve(a*axeSize,b*axeSize,d,T*axeSize)
         form.showNormal()
 

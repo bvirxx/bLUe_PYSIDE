@@ -374,35 +374,39 @@ class activeQuadricSpline(activeSpline) :
     halfTgLen = 50.0
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.a, self.b, self.d, self.T = a, b, d, T
+        #self.a, self.b, self.d, self.T = a, b, d, T  # TODO removed 15/07/18. validate
         self.fixedTangents = []
 
     def updatePath(self, calculate=True):
         """
         Calculates (if calculate=true) and displays the spline.
-        Called on activePoint and activeTangent mouse event
+        Called by activePoint and activeTangent mouse event
         @param calculate:
         @type calculate: bool
         """
+        # calculate the array of slopes
+        d = [item.controlPoint - item.contactPoint for item in self.fixedTangents]
+        d1 = - np.array(list(map(lambda a: a.y(), d)))
+        d2 = np.array(list(map(lambda a: a.x(), d)))
+        d = d1 / d2
         # add boundary points if needed
         X = [item.x() for item in self.fixedPoints]
         Y = [item.y() for item in self.fixedPoints]
         X0, X1 = X[0], X[-1]
         Y0, Y1 = Y[0], Y[-1]
-        Y2 = Y0 - X0 * (Y1-Y0)/(X1-X0)
-        Y3 = Y0 + (self.size - X0) * (Y1-Y0)/(X1-X0)
+        t = (Y1-Y0)/(X1-X0)
+        Y2 = Y0 - X0 * t
+        Y3 = Y0 + (self.size - X0) * t
+        d = d.tolist()
         if X[0] > 0.0:
             X.insert(0, 0.0)
             Y.insert(0, Y2)
+            d.insert(0, t)
         if X[-1] < self.size:
             X.append(self.size)
             Y.append(Y3)
-        #d = np.array([1.0] * len(X))
-        # calculate the array of slopes
-        d = [item.controlPoint - item.contactPoint for item in self.fixedTangents]
-        d1 = - np.array(list(map(lambda a : a.y(), d)))
-        d2 = np.array(list(map(lambda a : a.x(), d)))
-        d = d1 / d2
+            d.append(t)
+        d = np.array(d)
         try:
             if calculate:
                 T = interpolationQuadSpline(np.array(X)/self.size, -np.array(Y)/self.size, d) * self.size
@@ -436,6 +440,7 @@ class activeQuadricSpline(activeSpline) :
         @param T: spline array
         @type T: ndarray
         """
+        self.a, self.b, self.d, self.T = a, b, d, T  # TODO added 15/07/18. validate
         rect = QRectF(0.0, -self.size, self.size, self.size)
         # half tangent length and orientation
         alpha = [self.halfTgLen] * len(d)
@@ -568,7 +573,7 @@ class graphicsQuadricForm(graphicsCurveForm) :
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         super().__init__(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         graphicsScene = self.scene()
-        # curve
+        # init the curve
         quadric = activeQuadricSpline(graphicsScene.axeSize)
         graphicsScene.addItem(quadric)
         graphicsScene.quadricB = quadric

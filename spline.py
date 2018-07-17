@@ -42,6 +42,7 @@ def interpolationQuadSpline(a, b, d, plot=False):
     @return: Spline table
     @rtype: ndarray, dtype=np.float
     """
+    assert len(a) == len(b) == len(d)
     if np.min(a[1:] - a[:-1]) <= 0:
         raise ValueError('histogram.InterpolationSpline : a must be strictly increasing')
     # x-coordinate range
@@ -52,6 +53,7 @@ def interpolationQuadSpline(a, b, d, plot=False):
     tmp = tmp.reshape(len(a), len(x))
     k = np.argmax(tmp, axis=0)                     # a[k[i]-1]<= x[i] < a[k[i]] if k[i] > 0, and x[i] out of a[0],..a[-1] otherwise
     k = np.where(x >= a[-1], len(a) - 1, k)
+
     r = (b[1:] - b[:-1]) / (a[1:] - a[:-1])        # r[k] = (b[k] - b[k-1]) / (a[k] - a[k-1])
     r = np.concatenate(([0], r))
     t = (x-a[k-1])/(a[k]-a[k-1])                   # t[k] = (x - a[k-1]) / (a[k] - a[k-1]) for x in a[k-1]..a[k]

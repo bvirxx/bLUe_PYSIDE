@@ -947,8 +947,15 @@ class vImage(QImage):
 
     def applyRawPostProcessing(self):
         """
-        Develop raw image. An Exception AttributeError is
-        raised if rawImage is not an attribute of self.parentImage
+        Develop raw image.
+        Processing order is the following:
+             1 - process raw image
+             2 - contrast correction
+             3 - saturation correction
+        All operations are applied to 16 bits per channel images and
+        the final image is converted to 8 bits.
+        An Exception AttributeError is raised if rawImage
+        is not an attribute of self.parentImage.
         """
         # get adjustment form and rawImage
         adjustForm = self.view.widget()
@@ -1021,7 +1028,7 @@ class vImage(QImage):
             # cache buffers
             #self.postProcessCache = buf32Lab.copy()
         else:
-            # restore buffers
+            # get buffer from cache
             bufpost16 = self.postProcessCache.copy()
             bufHSV_CV32 = self.bufCache_HSV_CV32.copy()
 
@@ -1040,6 +1047,7 @@ class vImage(QImage):
             # show the spline
             if self.autoSpline and options['manualCurve']:
                 self.getGraphicsForm().setContrastSpline(a, b, d, T)
+                self.autoSpline = False  # mmcSpline = self.getGraphicsForm().scene().cubicItem # caution : misleading name for a quadratic s
         if adjustForm.satCorrection != 0:
             alpha = (-adjustForm.satCorrection + 50.0) / 50
             # tabulate x**alpha

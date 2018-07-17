@@ -29,7 +29,8 @@ from PySide2.QtCore import QByteArray
 from PySide2 import QtCore
 from PySide2.QtGui import QColor, QPainterPath, QPen, QImage, QPainter, QTransform, QPolygonF, QPixmap, QIcon
 from PySide2.QtWidgets import QListWidget, QListWidgetItem, QGraphicsPathItem, QDialog, QVBoxLayout, \
-    QFileDialog, QSlider, QWidget, QHBoxLayout, QLabel, QMessageBox, QPushButton, QToolButton, QApplication
+    QFileDialog, QSlider, QWidget, QHBoxLayout, QLabel, QMessageBox, QPushButton, QToolButton, QApplication, \
+    QMainWindow, QDockWidget
 from PySide2.QtCore import Qt, QPoint, QObject, QRect, QDir, QPointF, QBuffer, QIODevice
 from os.path import isfile, basename
 from itertools import product
@@ -1103,6 +1104,17 @@ def checkeredImage(format=QImage.Format_ARGB32):
             baseH *= 2
     qp.end()
     return image
+
+class stateAwareQDockWidget(QDockWidget):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._closed = False
+    def closeEvent(self, event):
+        self._closed = True
+        super().closeEvent(event)
+    @property
+    def isClosed(self):
+        return self._closed
 
 class loader(threading.Thread):
     """
