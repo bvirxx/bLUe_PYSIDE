@@ -996,10 +996,10 @@ class vImage(QImage):
                                             user_wb = mult,#adjustForm.rawMultipliers,
                                             gamma= (2.222, 4.5),  # default REC BT 709 exponent, slope #TODO modified 15/04/18
                                             #gamma=(2.4, 12.92), # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
-                                            exp_preserve_highlights = 0.8,#1.0 if options['Preserve Highlights'] else 0.0,
+                                            exp_preserve_highlights = 1.0 if options['Preserve Highlights'] else 0.8,
                                             output_bps=16,
                                             bright=adjustForm.brCorrection,  # default 1
-                                            hightlightmode=adjustForm.highCorrection
+                                            hightlightmode=adjustForm.highCorrection if not options['Auto Brightness'] else 0,
                                             # no_auto_scale= (not options['Auto Scale']) don't use : green shift
                                             )
                     row = i // 3
@@ -1010,17 +1010,17 @@ class vImage(QImage):
             # develop
             else:
                 bufpost16 = rawImage.postprocess(
-                    exp_shift=2.0 ** adjustForm.expCorrection if not options['Auto Brightness'] else 0,
+                    exp_shift=2.0 ** (4.0*adjustForm.expCorrection) if not options['Auto Brightness'] else 0,
                     no_auto_bright=(not options['Auto Brightness']),
                     use_auto_wb=options['Auto WB'],
                     use_camera_wb=options['Camera WB'],
                     user_wb=adjustForm.rawMultipliers,
                     gamma= (2.222, 4.5),  # default REC BT 709 exponent, slope #TODO modified 15/04/18
                     #gamma=(2.4, 12.92), # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
-                    exp_preserve_highlights=0.8, #1.0 if options['Preserve Highlights'] else 0.0,
+                    exp_preserve_highlights=0.99 if options['Preserve Highlights'] else 0.6,
                     output_bps=16,
                     bright=adjustForm.brCorrection,  # > 0, default 1
-                    highlight_mode=adjustForm.highCorrection,
+                    highlight_mode=adjustForm.highCorrection if not options['Auto Brightness'] else 0,
                     #no_auto_scale=False# (not options['Auto Scale']) don't use : green shift
                     )
             bufHSV_CV32 = cv2.cvtColor(((bufpost16.astype(np.float32)) / 65536).astype(np.float32), cv2.COLOR_RGB2HSV)
@@ -1033,23 +1033,24 @@ class vImage(QImage):
             bufHSV_CV32 = self.bufCache_HSV_CV32.copy()
 
         ###########
-        # contrast and saturation enhancement (V channel).
+        # contrast and saturation correction (V channel).
         # We apply a (nearly) automatic histogram equalization
         # algorithm, well suited for multimodal histograms.
         ###########
         if adjustForm.contCorrection > 0:
-            # warp must be in range 0..1.
+            # warp should be in range 0..1.
             # warp = 0 means that no additional warping is done, but
             # the histogram is always stretched.
             warp = max(0, (adjustForm.contCorrection -1)) / 10
-            bufHSV_CV32[:,:,2],a,b,d,T = warpHistogram(bufHSV_CV32[:, :, 2], valleyAperture=0.05, warp=warp, preserveHigh=False,
+            bufHSV_CV32[:,:,2],a,b,d,T = warpHistogram(bufHSV_CV32[:, :, 2], valleyAperture=0.05, warp=warp, preserveHigh=options['Preserve Highlights'],
                                                        spline=None if self.autoSpline else self.getMmcSpline()) #preserveHigh=options['Preserve Highlights'])
             # show the spline
             if self.autoSpline and options['manualCurve']:
                 self.getGraphicsForm().setContrastSpline(a, b, d, T)
                 self.autoSpline = False  # mmcSpline = self.getGraphicsForm().scene().cubicItem # caution : misleading name for a quadratic s
         if adjustForm.satCorrection != 0:
-            alpha = (-adjustForm.satCorrection + 50.0) / 50
+            satCorr = adjustForm.satCorrection / 100   # range -0.5..0.5
+            alpha = 1.0 / (0.501 + satCorr) - 1.0  # approx. map -0.5...0.0...0.5 --> +inf...1.0...0.0
             # tabulate x**alpha
             LUT = np.power(np.arange(256) / 255, alpha)
             # convert saturation s to s**alpha
@@ -1159,11 +1160,11 @@ class vImage(QImage):
             # get HSV buffer, H, S, V are in range 0..255
             HSVBuf = inputImage.getHSVBuffer().copy()
             if brightnessCorrection != 0:
-                alpha = (-adjustForm.brightnessCorrection + 1.0)
+                alpha = 1.0 / (0.501 + adjustForm.brightnessCorrection)  - 1.0  # approx. map -0.5...0.0...0.5 --> +inf...1.0...0.0
                 # tabulate x**alpha
                 LUT = np.power(np.arange(256) / 255, alpha) * 255
                 # convert V to V**alpha
-                HSVBuf[:, :, 2] = LUT[HSVBuf[:, :, 2]]
+                HSVBuf[:, :, 2] = LUT[HSVBuf[:, :, 2]]  # faster than take
             if contrastCorrection > 0:
                 if options['CLAHE']:
                     clahe = cv2.createCLAHE(clipLimit=contrastCorrection, tileGridSize=(8, 8))
@@ -1177,9 +1178,10 @@ class vImage(QImage):
                     # show the spline
                     if self.autoSpline and options['manualCurve']:
                         self.getGraphicsForm().setContrastSpline(a, b, d, T)
+                        self.autoSpline = False # TODO added 18/07/18
                 HSVBuf[:, :, 2] = res
             if satCorrection != 0:
-                alpha = (-adjustForm.satCorrection + 1.0)
+                alpha = 1.0 / (0.501 + adjustForm.satCorrection) - 1.0  # approx. map -0.5...0.0...0.5 --> +inf...1.0...0.0
                 # tabulate x**alpha
                 LUT = np.power(np.arange(256) / 255, alpha) * 255
                 # convert saturation s to s**alpha

@@ -70,27 +70,27 @@ class CoBrSatForm(QWidget):
 
     @classmethod
     def slider2Saturation(cls, v):
-        return v / 10 - 0.5
+        return v / 100 - 0.5
 
     @classmethod
     def saturation2Slider(cls, v):
-        return v * 10 + 5
+        return v * 100 + 50
 
     @classmethod
     def slidersaturation2User(cls, v):
-        return v - 5.0
+        return v - 50
 
     @classmethod
     def slider2Brightness(cls, v):
-        return v / 10 - 0.5
+        return v / 100 - 0.5
 
     @classmethod
     def brightness2Slider(cls, v):
-        return v * 10 + 5
+        return v * 100 + 50
 
     @classmethod
     def sliderBrightness2User(cls, v):
-        return v - 5.0
+        return v - 50
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         super().__init__(parent=parent)
@@ -158,7 +158,7 @@ class CoBrSatForm(QWidget):
         # saturation slider
         self.sliderSaturation = QbLUeSlider(Qt.Horizontal)
         self.sliderSaturation.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
-        self.sliderSaturation.setRange(0, 10)
+        self.sliderSaturation.setRange(0, 100)
         self.sliderSaturation.setSingleStep(1)
 
         saturationLabel = QbLUeLabel()
@@ -193,7 +193,7 @@ class CoBrSatForm(QWidget):
         # brightness slider
         self.sliderBrightness = QbLUeSlider(Qt.Horizontal)
         self.sliderBrightness.setStyleSheet(QbLUeSlider.bLueSliderDefaultBWStylesheet)
-        self.sliderBrightness.setRange(0, 10)
+        self.sliderBrightness.setRange(0, 100)
         self.sliderBrightness.setSingleStep(1)
 
         brightnessLabel = QbLUeLabel()
@@ -232,9 +232,9 @@ class CoBrSatForm(QWidget):
 
         # attributes initialized in setDefaults, declared here
         # for the sake of correctness
-        self.contrastCorrection = None
-        self.satCorrection = None
-        self.brightnessCorrection = None
+        self.contrastCorrection = None    # range
+        self.satCorrection = None         # range -0.5..0.5
+        self.brightnessCorrection = None  # range -0.5..0.5
 
         # layout
         l = QVBoxLayout()

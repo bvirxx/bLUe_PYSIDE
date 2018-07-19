@@ -23,7 +23,8 @@ from PySide2.QtGui import QFontMetrics
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBox, QWidget
 from colorConv import temperatureAndTint2RGBMultipliers, RGBMultipliers2TemperatureAndTint
 from graphicsLUT import graphicsQuadricForm
-from utils import optionsWidget, UDict, QbLUeSlider
+from utils import optionsWidget, UDict, QbLUeSlider, stateAwareQDockWidget
+
 
 class rawForm (QWidget):
     """
@@ -165,7 +166,7 @@ class rawForm (QWidget):
         self.sliderHigh.setSingleStep(1)
 
         self.highLabel = QLabel()
-        self.highLabel.setText("High. ")
+        self.highLabel.setText("OverExp. Rest.") # restauration of overexposed areas
 
         self.highValue = QLabel()
         font = self.highValue.font()
@@ -460,9 +461,14 @@ class rawForm (QWidget):
         self.adjustSize()
         self.setDefaults()
         self.setWhatsThis(
-"""Development of raw files
-Contrast enhancement is based on an automatic algorithm well suited to multi-mode histograms. \
-However, the correction curve can be edited manually by checking the option Show Contrast Curve. 
+"""<b>Development of raw files</b><br>
+<b>Default settings</b> are a good starting point.<br>
+<b>Contrast</b> correction is based on an automatic algorithm well suited to multi-mode histograms.<br>
+<b>Brightness, Contrast</b> and <b>Saturation</b> levels</b> are adjustable with the correponding sliders.<br>
+The <b>Contrast Curve</b> can be edited manually by checking the option <b>Show Contrast Curve</b>.<br>
+Uncheck <b>Auto Expose</b> to adjust the exposure manually.<br>
+The <b>OverExp. Rest.</b> slider controls the restauration of overexposed highlights.<br>
+<b> 
 """
                         ) # end of setWhatsThis
 
@@ -493,7 +499,14 @@ However, the correction curve can be edited manually by checking the option Show
         # update the curve
         form.scene().setSceneRect(-25, -axeSize - 25, axeSize + 50, axeSize + 50)  # TODO added 15/07/18
         form.scene().quadricB.setCurve(a * axeSize, b * axeSize, d, T * axeSize)
-        form.showNormal()
+        window=self.parent().parent()
+        dock = stateAwareQDockWidget(self.parent())
+        dock.setWidget(form)
+        dock.setWindowFlags(form.windowFlags())
+        dock.setWindowTitle(form.windowTitle())
+        dock.setStyleSheet("QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
+        window.addDockWidget(Qt.LeftDockWidgetArea, dock)
+        dock.showNormal()
 
     # temp changed  event handler
     def tempUpdate(self, value):
