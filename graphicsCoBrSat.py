@@ -21,7 +21,8 @@ from PySide2.QtGui import QFontMetrics
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QGroupBox, QWidget
 
 from graphicsLUT import graphicsQuadricForm
-from utils import optionsWidget, QbLUeSlider, UDict, QbLUeLabel
+from utils import optionsWidget, QbLUeSlider, UDict, QbLUeLabel, stateAwareQDockWidget
+
 
 class CoBrSatForm(QWidget):
     """
@@ -269,18 +270,14 @@ class CoBrSatForm(QWidget):
         self.setStyleSheet("QListWidget, QLabel {font : 7pt;}")
         self.setDefaults()
         self.setWhatsThis(
-"""
-Brightness and saturation are increased or decreased using the corresponding sliders.
-
-Contrast is enhanced using one of these two methods:
-  - CLAHE : increases the local contrast.
-  - Multi-Mode : increases the local contrast and the contrast between regions of the image.
-For both methods the correction is calculated automatically; the contrast slider controls \
-the level of the correction.
-
-With Multi-Mode enabled, use option Show Contrast Curve to modify the correction curve.
-
-Sliders can be reset to their default value by double clicking the name of the slider.
+"""<b>Contrast Brightness Saturation</b><br>
+<b>Contrast</b> is enhanced using one of these two methods:<br>
+  - <b>CLAHE</b> : increases the local contrast.<br>
+  - <b>Multi-Mode</b> : increases the local contrast and the contrast between regions of the image.<br>
+For both methods the contrast slider controls the level of the correction.<br>
+With Multi-Mode enabled, use the option <b>Show Contrast Curve</b> to edit the correction curve and check
+<b>Preserve Highlights</b> for softer highlights.<br>
+Sliders are <b>reset</b> to their default value by double clicking the name of the slider.<br>
 """
                         )  # end setWhatsThis
 
@@ -303,14 +300,22 @@ Sliders can be reset to their default value by double clicking the name of the s
             form = graphicsQuadricForm.getNewWindow(targetImage=None, axeSize=axeSize, layer=self.layer, parent=None, mainForm=None)
             form.setWindowFlags(Qt.WindowStaysOnTopHint)
             form.setAttribute(Qt.WA_DeleteOnClose, on=False)
-            form.setWindowTitle('Contrast curve')
+            form.setWindowTitle('Contrast Curve')
             self.contrastForm = form
+            window = self.parent().parent()
+            dock = stateAwareQDockWidget(self.parent())
+            dock.setWidget(form)
+            dock.setWindowFlags(form.windowFlags())
+            dock.setWindowTitle(form.windowTitle())
+            dock.setStyleSheet("QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
+            window.addDockWidget(Qt.LeftDockWidgetArea, dock)
+            self.dock = dock
         else:
             form = self.contrastForm
         # update the curve
         form.scene().setSceneRect(-25, -axeSize-25, axeSize+50, axeSize+50)  # TODO added 15/07/18
         form.scene().quadricB.setCurve(a*axeSize,b*axeSize,d,T*axeSize)
-        form.showNormal()
+        self.dock.showNormal()
 
     def enableSliders(self):
         self.sliderContrast.setEnabled(True)
@@ -351,10 +356,11 @@ Sliders can be reset to their default value by double clicking the name of the s
                 item.setFlags(item.flags() | Qt.ItemIsEnabled)
             else:
                 item.setFlags(item.flags() & ~Qt.ItemIsEnabled)
-        cf = self.contrastForm
+        # show/hide contrast curve
+        cf = getattr(self, 'dock', None) #self.contrastForm TODO modified 20/07/18
         if cf is None:
             return
-        if self.options['manualCurve']:
+        if self.options['manualCurve'] and self.options['Multi-Mode']:
             cf.showNormal()
         else:
             cf.hide()

@@ -88,9 +88,9 @@ class noiseForm (QWidget): # (QGraphicsView): TODO modified 25/06/18 validate
         self.adjustSize()
         self.setDefaults()
         self.setWhatsThis(
-"""Noise Reduction
-   Bilateral Filtering is the fastest method.
-   NLMeans (Non Local Means) and Wavelets are slower, but they usually give better results.
+"""<b>Noise Reduction</b><br>
+   <b>Bilateral Filtering</b> is the fastest method.<br>
+   <b>NLMeans</b> (Non Local Means) and <b>Wavelets</b> are slower, but they usually give better results.<br>
 """
                         )  # end of setWhatsThis
 

@@ -957,6 +957,10 @@ class vImage(QImage):
         An Exception AttributeError is raised if rawImage
         is not an attribute of self.parentImage.
         """
+        #################
+        # a priori underexposition compensation for most DSLR
+        #################
+        baseExpShift = 3.0
         # get adjustment form and rawImage
         adjustForm = self.view.widget()
         options = adjustForm.options
@@ -989,7 +993,7 @@ class vImage(QImage):
                     mult = (mult[0], mult[1], mult[2], mult[1])
                     print(mult, '   ', m)
                     bufpost_temp = rawImage.postprocess(
-                                            exp_shift=2.0**adjustForm.expCorrection if not options['Auto Brightness'] else 0,
+                                            exp_shift=baseExpShift+2.0**(2.0*adjustForm.expCorrection) if not options['Auto Brightness'] else 0,
                                             no_auto_bright= (not options['Auto Brightness']),
                                             use_auto_wb=options['Auto WB'],
                                             use_camera_wb=False,#options['Camera WB'],
@@ -1009,8 +1013,9 @@ class vImage(QImage):
                     bufpost16[row*h:(row+1)*h, col*w:(col+1)*w,: ]=bufpost_temp
             # develop
             else:
+                # highlight_mode : restauration of overexposed highlights. 0: clip, 1:unclip, 2:blend, 3...: rebuild
                 bufpost16 = rawImage.postprocess(
-                    exp_shift=2.0 ** (4.0*adjustForm.expCorrection) if not options['Auto Brightness'] else 0,
+                    exp_shift=baseExpShift+2.0**(2.0*adjustForm.expCorrection) if not options['Auto Brightness'] else 0,
                     no_auto_bright=(not options['Auto Brightness']),
                     use_auto_wb=options['Auto WB'],
                     use_camera_wb=options['Camera WB'],
@@ -1024,12 +1029,9 @@ class vImage(QImage):
                     #no_auto_scale=False# (not options['Auto Scale']) don't use : green shift
                     )
             bufHSV_CV32 = cv2.cvtColor(((bufpost16.astype(np.float32)) / 65536).astype(np.float32), cv2.COLOR_RGB2HSV)
-            #bufHSV_CV32[:,:,2] = bufHSV_CV32[:,:,2].clip(0,0.995)
-            # cache buffers
-            #self.postProcessCache = buf32Lab.copy()
         else:
             # get buffer from cache
-            bufpost16 = self.postProcessCache.copy()
+            # bufpost16 = self.postProcessCache.copy()  TODO removed 20/07/18 unused validate
             bufHSV_CV32 = self.bufCache_HSV_CV32.copy()
 
         ###########

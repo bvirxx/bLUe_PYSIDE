@@ -494,18 +494,19 @@ The <b>OverExp. Rest.</b> slider controls the restauration of overexposed highli
             form.setAttribute(Qt.WA_DeleteOnClose, on=False)
             form.setWindowTitle('Contrast Curve')
             self.contrastForm = form
+            window = self.parent().parent()
+            dock = stateAwareQDockWidget(self.parent())
+            dock.setWidget(form)
+            dock.setWindowFlags(form.windowFlags())
+            dock.setWindowTitle(form.windowTitle())
+            dock.setStyleSheet("QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
+            window.addDockWidget(Qt.LeftDockWidgetArea, dock)
+            self.dock = dock
         else:
             form = self.contrastForm
         # update the curve
         form.scene().setSceneRect(-25, -axeSize - 25, axeSize + 50, axeSize + 50)  # TODO added 15/07/18
         form.scene().quadricB.setCurve(a * axeSize, b * axeSize, d, T * axeSize)
-        window=self.parent().parent()
-        dock = stateAwareQDockWidget(self.parent())
-        dock.setWidget(form)
-        dock.setWindowFlags(form.windowFlags())
-        dock.setWindowTitle(form.windowTitle())
-        dock.setStyleSheet("QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
-        window.addDockWidget(Qt.LeftDockWidgetArea, dock)
         dock.showNormal()
 
     # temp changed  event handler
@@ -585,6 +586,13 @@ The <b>OverExp. Rest.</b> slider controls the restauration of overexposed highli
         self.enableSliders()
         self.layer.applyToStack()
         self.layer.parentImage.onImageChanged()
+        cf = getattr(self, 'dock', None)  # self.contrastForm TODO modified 20/07/18
+        if cf is None:
+            return
+        if self.options['manualCurve']:
+            cf.showNormal()
+        else:
+            cf.hide()
 
     def enableSliders(self):
         useUserWB = self.listWidget2.options["User WB"]
@@ -612,7 +620,7 @@ The <b>OverExp. Rest.</b> slider controls the restauration of overexposed highli
         self.tempCorrection = self.cameraTemp
         self.tintCorrection = 1.0
         self.expCorrection = 0.0
-        self.highCorrection = 0
+        self.highCorrection = 3.0  # restauration of overexposed highlights. 0: clip 1:unclip, 2: blend, 3...: rebuild
         self.contCorrection = 5.0
         #self.noiseCorrection = 0
         self.satCorrection = 0.0
@@ -621,7 +629,7 @@ The <b>OverExp. Rest.</b> slider controls the restauration of overexposed highli
         self.sliderTemp.setValue(round(self.temp2Slider(self.tempCorrection)))
         self.sliderTint.setValue(round(self.tint2Slider(self.tintCorrection)))
         self.sliderExp.setValue(self.exp2Slider(self.expCorrection))
-        self.sliderHigh.setValue(self.expCorrection)
+        self.sliderHigh.setValue(self.highCorrection)
         self.sliderCont.setValue(self.cont2Slider(self.contCorrection))
         self.sliderBrightness.setValue(self.br2Slider(self.brCorrection))
         #self.sliderNoise.setValue(self.noise2Slider(self.noiseCorrection))

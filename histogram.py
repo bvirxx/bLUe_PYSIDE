@@ -399,11 +399,10 @@ def autoQuadSpline(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True):
     d[-1] = (1-bMinus[-1])/ (1 -aMinus[-1])                      # d[K+1] = (1 - bMinus[K+1]) / ((1-aMinus[K+1])
     d = np.where(d==np.NaN, 1.0, d)
     d=np.clip(d, 0.25, 5)
-    # highlights correction
+    # highlight correction
     if preserveHigh:
         skyInd = np.argmax(a > 0.75*a[-1])
-        #if a[-3] > 0.75*a[-1]:  # may be V0[-2]>=0.75*V0[-1]??
-        b[-1]=0.98
+        b[-1]=0.99  # 0.98-->0.99 20/07/18
         for i in range(len(b) - skyInd - 1):  # TODO 31/05/18 skyInd is array, should be int
             b[-i-2]= min(np.power(a[-i-2], 0.30), b[-i-1]) - 0.02
         b[skyInd-1] = np.power(b[skyInd-1], 0.9)

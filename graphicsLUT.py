@@ -585,11 +585,11 @@ class graphicsQuadricForm(graphicsCurveForm) :
         graphicsScene.cubicItem = graphicsScene.quadricB
         graphicsScene.cubicItem.setVisible(True)
         self.setWhatsThis(
-"""
-Drag control points and tangents with the mouse.
-Add a control point by clicking on the curve.
-Remove a control point by clicking it.
-Zoom with the mouse wheel.
+"""<b>Contrast Curve</b><br>
+Drag <b>control points</b> and <b>tangents</b> with the mouse.<br>
+<b>Add</b> a control point by clicking on the curve.<br>
+<b>Remove</b> a control point by clicking on it.<br>
+<b>Zoom</b> with the mouse wheel.<br>
 """
                            )
 
