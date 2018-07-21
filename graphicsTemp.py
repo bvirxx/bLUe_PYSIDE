@@ -97,6 +97,13 @@ class temperatureForm (QWidget): #(QGraphicsView): TODO modified 25/06/18 valida
         self.dataChanged.connect(self.updateLayer)
         self.setStyleSheet("QListWidget, QLabel {font : 7pt;}")
         self.setDefaults()
+        self.setWhatsThis(
+"""<b>Color Temperature</b><br>
+<b>Photo Filter</b> uses the multiply blending mode to mimic a color filter
+in front of the camera lens.<br>
+<b>Chromatic Adaptation</b> uses a linear transformation in the XYZ color space.<br>
+"""
+                        )  # end of setWhatsThis
 
     def enableSliders(self):
         self.sliderTemp.setEnabled(True)

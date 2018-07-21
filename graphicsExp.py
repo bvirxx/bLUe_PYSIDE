@@ -1,6 +1,8 @@
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
-from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout, QWidget
+from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout, QWidget, QStyle
+
+from utils import QbLUeSlider
 
 
 class ExpForm (QWidget): # (QGraphicsView): TODO modified 25/06/18 validate
@@ -10,13 +12,6 @@ class ExpForm (QWidget): # (QGraphicsView): TODO modified 25/06/18 validate
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         wdgt = ExpForm(axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         wdgt.setWindowTitle(layer.name)
-        """
-        pushButton = QPushButton('apply', parent=wdgt)
-        hLay = QHBoxLayout()
-        wdgt.setLayout(hLay)
-        hLay.addWidget(pushButton)
-        pushButton.clicked.connect(lambda: wdgt.execute())
-        """
         return wdgt
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None): # TODO 01/12/17 remove param targetImage
@@ -25,63 +20,63 @@ class ExpForm (QWidget): # (QGraphicsView): TODO modified 25/06/18 validate
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize, axeSize)
         self.setAttribute(Qt.WA_DeleteOnClose)
-        #self.img = targetImage
         self.layer = layer
-        #self.defaultClip = self.defaultClipLimit
 
         # options
         self.options = None
 
         # clipLimit slider
-        self.sliderClip = QSlider(Qt.Horizontal)
-        self.sliderClip.setTickPosition(QSlider.TicksBelow)
-        self.sliderClip.setRange(-20, 20)
-        self.sliderClip.setSingleStep(1)
+        self.sliderExp = QbLUeSlider(Qt.Horizontal)
+        self.sliderExp.setStyleSheet(QbLUeSlider.bLueSliderDefaultBWStylesheet)
+        self.sliderExp.setTickPosition(QSlider.TicksBelow)
+        self.sliderExp.setRange(-20, 20)
+        self.sliderExp.setSingleStep(1)
 
-        tempLabel = QLabel()
-        tempLabel.setMaximumSize(150, 30)
-        tempLabel.setText("Exposure Correction")
+        expLabel = QLabel()
+        expLabel.setMaximumSize(150, 30)
+        expLabel.setText("Exposure Correction")
 
-        self.tempValue = QLabel()
-        font = self.tempValue.font()
+        self.expValue = QLabel()
+        font = self.expValue.font()
         metrics = QFontMetrics(font)
         w = metrics.width("1000 ")
         h = metrics.height()
-        self.tempValue.setMinimumSize(w, h)
-        self.tempValue.setMaximumSize(w, h)
-        self.tempValue.setStyleSheet("QLabel {background-color: white;}")
+        self.expValue.setMinimumSize(w, h)
+        self.expValue.setMaximumSize(w, h)
+        self.expValue.setStyleSheet("QLabel {background-color: white;}")
 
         # exp done event handler
         def f():
-            self.sliderClip.setEnabled(False)
-            self.tempValue.setText(str("{:+.1f}".format(self.sliderClip.value()*self.DefaultStep)))
-            self.onUpdateExposure(self.layer, self.sliderClip.value() * self.DefaultStep)
-            self.sliderClip.setEnabled(True)
+            self.sliderExp.setEnabled(False)
+            self.expValue.setText(str("{:+.1f}".format(self.sliderExp.value() * self.DefaultStep)))
+            self.onUpdateExposure(self.layer, self.sliderExp.value() * self.DefaultStep)
+            self.sliderExp.setEnabled(True)
 
-        # exp value changed event handler
+        # exp value changed slot
         def g():
-            self.tempValue.setText(str("{:+.1f}".format(self.sliderClip.value()*self.DefaultStep)))
+            self.expValue.setText(str("{:+.1f}".format(self.sliderExp.value() * self.DefaultStep)))
 
-        self.sliderClip.valueChanged.connect(g)
-        self.sliderClip.sliderReleased.connect(f)
+        self.sliderExp.valueChanged.connect(g)
+        self.sliderExp.sliderReleased.connect(f)
 
-        self.sliderClip.setValue(self.defaultExpCorrection / self.DefaultStep)
-        self.tempValue.setText(str("{:+.1f}".format(self.defaultExpCorrection )))
+        self.sliderExp.setValue(self.defaultExpCorrection / self.DefaultStep)
+        self.expValue.setText(str("{:+.1f}".format(self.defaultExpCorrection)))
 
         #layout
         l = QVBoxLayout()
-        l.setAlignment(Qt.AlignBottom)
-        l.addWidget(tempLabel)
+        l.setAlignment(Qt.AlignTop)
+        l.addWidget(expLabel)
         hl = QHBoxLayout()
-        hl.addWidget(self.tempValue)
-        hl.addWidget(self.sliderClip)
+        hl.addWidget(self.expValue)
+        hl.addWidget(self.sliderExp)
         l.addLayout(hl)
         l.setContentsMargins(20, 0, 20, 25)  # left, top, right, bottom
-        l.addStretch(1)
+        #l.addStretch(1)
         self.setLayout(l)
         self.adjustSize()
         self.setWhatsThis(
-"""Exposure correction
+"""<b>Exposure Correction</b>
+Multiplicative correction in the linear sRGB color space.<br>
 """
                          )  # end setWhatsThis
 
@@ -90,7 +85,7 @@ class ExpForm (QWidget): # (QGraphicsView): TODO modified 25/06/18 validate
         outStream.writeQString(layer.actionName)
         outStream.writeQString(layer.name)
         outStream.writeQString(self.listWidget1.selectedItems()[0].text())
-        outStream.writeInt32(self.sliderClip.value())
+        outStream.writeInt32(self.sliderExp.value())
         return outStream
 
     def readFromStream(self, inStream):
@@ -102,6 +97,6 @@ class ExpForm (QWidget): # (QGraphicsView): TODO modified 25/06/18 validate
             currentItem = self.listWidget1.item(r)
             if currentItem.text() == sel:
                 self.listWidget.select(currentItem)
-        self.sliderClip.setValue(temp)
+        self.sliderExp.setValue(temp)
         self.update()
         return inStream

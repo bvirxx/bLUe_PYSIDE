@@ -30,7 +30,7 @@ from PySide2 import QtCore
 from PySide2.QtGui import QColor, QPainterPath, QPen, QImage, QPainter, QTransform, QPolygonF, QPixmap, QIcon
 from PySide2.QtWidgets import QListWidget, QListWidgetItem, QGraphicsPathItem, QDialog, QVBoxLayout, \
     QFileDialog, QSlider, QWidget, QHBoxLayout, QLabel, QMessageBox, QPushButton, QToolButton, QApplication, \
-    QMainWindow, QDockWidget
+    QMainWindow, QDockWidget, QStyle
 from PySide2.QtCore import Qt, QPoint, QObject, QRect, QDir, QPointF, QBuffer, QIODevice
 from os.path import isfile, basename
 from itertools import product
@@ -424,12 +424,23 @@ class QbLUeSlider(QSlider):
         self.setStyleSheet("""QSlider::handle:horizontal {background: white; width: 10px; border: 1px solid black; border-radius: 4px; margin: -3px;}
                               QSlider::handle:horizontal:hover {background: #DDDDFF;}""")
 
+    def mousePressEvent(self, event):
+        # to prevent possible successive jumps, we catch mouse press events too far from
+        # the handle and we force the value. A signal valueChanged is emitted; it can be
+        # differentiated by testing that isSliderDown() returns False.
+        # CAUTION: not any signal mouseReleased is emitted, .
+        pressVal = QStyle.sliderValueFromPosition(self.minimum(), self.maximum(), event.x(), self.width(), 0)  # 0 is for horizontal slider
+        if abs(pressVal - self.value()) > 2:
+            self.setValue(pressVal)
+            return
+        super().mousePressEvent(event)
+
     def setStyleSheet(self, sheet):
         QSlider.setStyleSheet(self, self.styleSheet() + sheet)
 
 class QbLUeLabel(QLabel):
     """
-    Emit a signal when double clicked
+    Emits a signal when double clicked
     """
     doubleClicked = QtCore.Signal()
 
