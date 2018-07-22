@@ -245,8 +245,7 @@ class ExifTool(object):
 
     def get_metadata(self, f, createsidecar=True):
         """
-        Reads metadata from file : data are read from the sidecar
-        (.mie) file if it exists. Otherwise data are read
+        Reads metadata from file : data are read
         from the image file and the sidecar file is created if
         createsidecar is True (default).
         @param f: file name
@@ -266,7 +265,8 @@ class ExifTool(object):
                  "-colorSpace", "-InteropIndex", "-WhitePoint", "-PrimaryChromaticities", "-Gamma"]
         extract_meta_flags = ["-icc_profile", "-b"]
         fmie = f[:-4]+'.mie'
-        if isfile(fmie):
+        """
+        if isfile(fmie):  # TODO modified 22/07/18
             # get profile as bytes
             profile = self.execute(*(extract_meta_flags + [fmie]))
             # get data as (length 1) list of dict :
@@ -274,11 +274,12 @@ class ExifTool(object):
             # and json.loads deserializes it.
             data = json.loads(self.execute(*(flags + [fmie])))
         else:
-            profile = self.execute(*(extract_meta_flags + [f]), ascii=False)
-            data = json.loads(self.execute(*(flags + [f])))
-            # create sidecar file
-            if createsidecar:
-                self.createSidecar(f)
+        """
+        profile = self.execute(*(extract_meta_flags + [f]), ascii=False)
+        data = json.loads(self.execute(*(flags + [f])))
+        # create sidecar file
+        if createsidecar:
+            self.createSidecar(f)
         return profile, data
 
 def decodeExifOrientation(value):
