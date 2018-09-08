@@ -20,14 +20,10 @@ import numpy as np
 
 #############################################################################
 # This module implements temperature dependent                              #
-# conversion functions between color spaces.                                #
-# sRGB color space (illuminant D65) is                                      #
-# assumed for all input and output images.                                  #
-# vectorized/opencv functions:                                              #
+# conversion functions between color spaces :                               #
 # sRGB2LabVec, lab2sRGBVec, XYZ2sRGBVec, sRGB2XYZVec.                       #
 # Other conversion functions are change of coordinates in                   #
-# a single RGB color space.                                                 #
-# They are located in the module colorCube.py :                             #
+# a single RGB color space. They are located in the module colorCube.py :   #
 # rgb2hlsVec,hls2RGBVec, hsv2RGBVec, hsp2RGBVec, hsp2RGBVecSmall,           #
 # rgb2hsBVec, rgb2hspVec                                                    #
 #############################################################################
@@ -37,8 +33,8 @@ import numpy as np
 #####################
 
 ############################################
-# Conversion from CIE XYZ to LMS-like color space for chromatic adaptation
-# see http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html
+# Conversion from CIE XYZ to LMS-like color space.
+# Cf. http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html
 #############################################
 
 sRGBWP = 6500
@@ -54,7 +50,7 @@ Von_KriesInverse =  [[1.8599364, -1.1293816,  0.2198974],
                      [0.3611914,  0.6388125, -0.0000064],
                      [0.0000000,  0.0000000,  1.0890636]]
 
-Bradford =  [[0.8951000,  0.2664000, -0.1614000],               #photoshop and best
+Bradford =  [[0.8951000,  0.2664000, -0.1614000],               # photoshop and best
              [-0.7502000, 1.7135000,  0.0367000],
              [0.0389000,  -0.0685000, 1.0296000]]
 
@@ -64,7 +60,7 @@ BradfordInverse =  [[0.9869929, -0.1470543,  0.1599627],
 
 ######################################################################
 # conversion matrices from LINEAR sRGB (D65) to XYZ and back.
-# see http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
+# Cf. http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
 # and https://en.wikipedia.org/wiki/SRGB
 #######################################################################
 
@@ -77,19 +73,19 @@ sRGB_lin2XYZInverse = [[3.2404542, -1.5371385, -0.4985314],
                        [0.0556434, -0.2040259, 1.0572252]]
 
 ###########################################################
-# XYZ/Lab conversion :
+# XYZ/sRGB/Lab conversion :
 # D65 illuminant Xn, Yn, Zn
 # conversion constants Ka, Kb
 # See https://en.wikipedia.org/wiki/Lab_color_space
 ###########################################################
-Xn, Yn, Zn = 0.95047, 1.0, 1.08883 #95.02, 100.0, 108.82 #95.047, 100.0, 108.883
-Ka, Kb = 172.355, 67.038 #172.30, 67.20
+Xn, Yn, Zn = 0.95047, 1.0, 1.08883
+Ka, Kb = 172.355, 67.038
 
 ##########################################
 # Constants and precomputed tables for the
 # sRGB linearizing functions
 # rgbLinear2rgbVec and rgb2rgbLinearVec.
-# See https://en.wikipedia.org/wiki/SRGB
+# Cf. https://en.wikipedia.org/wiki/SRGB
 #########################################
 
 a = 0.055
@@ -98,31 +94,27 @@ beta = 1.0 / gamma
 b = (a / (1.0 + a)) ** gamma
 d = 12.92
 c = 255.0 * d
-# tabulation of x**beta
-# e is the size of the table
-e = 255 #255*255
-F = e**beta #255.0**(2*beta)
-# tabulated functions
+#e = 255
+F = 255.0**beta
 table0 = np.arange(256, dtype=np.float64)
-table1 = table0 / 255.0
 table2 = table0 / c
-table3 = np.power(table1, gamma)  # (i/255)**alpha
-# tabulation of x**beta
-table4 = np.arange(e + 1, dtype = np.float64)
-table5 = np.power(table4, beta) *(1.0+a)/F # i**beta
+table3 = np.power(table0/255.0, gamma)
+table5 = np.power(table0, beta) *(1.0+a)/F
 
+gammaLinearTreshold1 = 0.0031308
 def rgbLinear2rgb(r,g,b):
     """
     Conversion from linear RGB to sRGB.
-    All values are in range 0..1.
-    
+    Cf. U{https://en.wikipedia.org/wiki/SRGB}
+    Linear r,g,b values are in range 0..1.
+    Converted values are in range 0..255
     @param r:
     @param g:
     @param b:
     @return: The converted values
     """
     def cl2c(c):
-        if c <= 0.0031308:
+        if c <= gammaLinearTreshold1:
             c = d * c
         else:
             c = (1.0 + a) * (c**beta) - a
@@ -133,18 +125,20 @@ def rgbLinear2rgbVec(img):
     """
     Vectorized conversion from linear RGB to sRGB.
     See U{https://en.wikipedia.org/wiki/SRGB}
+    Linear r,g,b values are in range 0..1.
+    Converted values are in range 0..255
     @param img: linear RGB image, range 0..1
     @type img: numpy array, dtype=float
     @return: converted RGB image
     @rtype: numpy array, dtype=float, range 0..255
     """
     img2 = img * d
-    imgDiscretized = (img * e).astype(int)
-    imgDiscretized = np.clip(imgDiscretized, 0, e)
+    imgDiscretized = (img * 255.0).astype(int)
+    np.clip(imgDiscretized, 0, 255, imgDiscretized)
     img3 = table5[imgDiscretized] #* ((1.0+a)/F)
-    return np.where(img <=  0.0031308, img2, img3) * 255
+    return np.where(img <= gammaLinearTreshold1, img2, img3) * 255
 
-gammaLinearTreshold = 0.04045
+gammaLinearTreshold2 = 0.04045
 def rgb2rgbLinear(r,g,b):
     """
        Conversion from sRGB to LINEAR sRGB.
@@ -156,7 +150,7 @@ def rgb2rgbLinear(r,g,b):
        @return: The converted values
        """
     def c2cl(c):
-        if c <= gammaLinearTreshold:
+        if c <= gammaLinearTreshold2:
             # consider linear
             c =  c / d
         else:
@@ -175,7 +169,7 @@ def rgb2rgbLinearVec(img):
     """
     img2 = table2[img[...]]  # equivalent to img2 = img / c, faster
     img3 = table3[img[...]]  # img3 = power(img, alpha)
-    tr = gammaLinearTreshold * 255.0
+    tr = gammaLinearTreshold2 * 255.0
     return np.where(img <= tr, img2, img3)
 
 def sRGB2XYZVec(imgBuf):
@@ -216,8 +210,8 @@ def XYZ2sRGBVec(imgBuf):
     # test fot out of gamut image
     M = np.max(imgBuf[:,:,1])
     if M > 1:
-        imgBuf = imgBuf / M
-        print('XYZ2sRGBVecwarning : Y channel max %.5f' % M)
+        imgBuf /= M
+        print('XYZ2sRGBVec warning : Y channel max %.5f' % M)
     bufsRGBLinear = np.tensordot(imgBuf, sRGB_lin2XYZInverse, axes=(-1, -1))
     bufsRGB = rgbLinear2rgbVec(bufsRGBLinear)
     return bufsRGB
@@ -254,7 +248,7 @@ def sRGB2LabVec(bufsRGB, useOpencv=True) :
         np.seterr(**oldsettings)
         bufLab = np.dstack((bufL, bufa, bufb))
         # converting invalid values to int gives indeterminate results
-        bufLab[np.isnan(bufLab)] = 0.0  # TODO np.inf
+        bufLab[np.isnan(bufLab)] = 0.0  # TODO should be np.inf ?
     return bufLab
 
 
@@ -286,13 +280,13 @@ def Lab2sRGBVec(bufLab, useOpencv = True):
         bufXYZ = np.dstack((bufX, bufY, bufZ)) # /100.0
         bufsRGB = XYZ2sRGBVec(bufXYZ)
         # converting invalid values to int gives indeterminate results
-        bufsRGB[np.isnan(bufsRGB)] = 0.0  # TODO np.inf
+        bufsRGB[np.isnan(bufsRGB)] = 0.0  # TODO should be np.inf ?
     return bufsRGB
 
 def bbTemperature2RGB(temperature):
     """
-    Converts Kelvin temperature to rgb values.
-    See http://www.tannerhelland.com/4435/convert-temperature-rgb-algorithm-code
+    Converts black body Kelvin temperature to rgb values.
+    Cf. http://www.tannerhelland.com/4435/convert-temperature-rgb-algorithm-code
     @param temp: Kelvin temperature
     @type temp: float
     @return: r, g, b values in  range 0..255
@@ -326,7 +320,7 @@ def bbTemperature2RGB(temperature):
 # We use the approximation of the Planckian Locus by
 # a cubic spline as described in http://en.wikipedia.org/wiki/Planckian_locus#Approximation
 # combined with the cone response matrix method.
-# See https://web.stanford.edu/~sujason/ColorBalancing/adaptation.html for details
+# Cf. https://web.stanford.edu/~sujason/ColorBalancing/adaptation.html for details
 ##################################################
 def xyWP2temperature(x, y):
     """
@@ -350,7 +344,7 @@ def temperature2xyWP(T):
     Calculate the CIE chromaticity coordinates xc, yc
     of white point from temperature (use cubic spline approximation
     Accurate for 1667<T<25000).
-    See http://en.wikipedia.org/wiki/Planckian_locus#Approximation
+    Cf. http://en.wikipedia.org/wiki/Planckian_locus#Approximation
     @param T: temperature in Kelvin, range 1667..25000
     @type T: float
     @return: xc, yc
@@ -619,7 +613,7 @@ def RGBMultipliers2TemperatureAndTint(mR, mG, mB, XYZ2RGBMatrix):
 
 def temperature2Rho(T):
     """
-    Return the cone responses (multipliers) for temperature T (Kelvin).
+    Returns the cone responses (multipliers) for temperature T (Kelvin).
     see https://web.stanford.edu/~sujason/ColorBalancing/adaptation.html for details.
     @param T: temperature (Kelvin)
     @type T: float
@@ -635,7 +629,7 @@ def temperature2Rho(T):
 
 def conversionMatrix(Tdest, Tsource):
     """
-    Return the conversion matrix in the XYZ color space, from
+    Returns the conversion matrix in the XYZ color space, from
     Tsource to Tdest. We apply the method described in
     https://web.stanford.edu/~sujason/ColorBalancing/adaptation.html.
     @param Tdest: destination temperature (Kelvin)
@@ -651,7 +645,6 @@ def conversionMatrix(Tdest, Tsource):
     N = np.dot(np.array(BradfordInverse), D)  # N= (B**-1) D
     P = np.dot(N, np.array(Bradford))         # P = N B = (B**-1) D B
     return P
-
 
 if __name__ == '__main__':
     T=4000.0

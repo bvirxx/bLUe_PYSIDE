@@ -44,8 +44,10 @@ from graphicsLUT import graphicsQuadricForm
 from histogram import warpHistogram
 from colorManagement import icc, convertQImage
 from imgconvert import *
-from colorCube import interpMulti, rgb2hspVec, hsp2rgbVec, LUT3DIdentity, LUT3D, interpVec_, hsv2rgbVec
+from colorCube import interpMulti, rgb2hspVec, hsp2rgbVec, LUT3DIdentity, LUT3D, interpVec_, hsv2rgbVec, interpTetraVec_
 from time import time
+
+from settings import USE_TETRA
 from utils import SavitzkyGolay, channelValues, checkeredImage, boundingRect, dlgWarn, baseSignals
 from dwtdenoise import dwtDenoiseChan
 
@@ -684,7 +686,7 @@ class vImage(QImage):
                 QApplication.restoreOverrideCursor()
                 QApplication.processEvents()
         # forward the alpha channel
-        # TODO 23/06/18 forward ?
+        # TODO 23/06/18 should forward ?
         self.updatePixmap()
         # the presentation layer must be updated here because
         # applyCloning is called directly (mouse and Clone button events).
@@ -815,7 +817,7 @@ class vImage(QImage):
         #item.setCheckState(Qt.Checked if self.isClipping else Qt.Unchecked)
         #formOptions.options[name] = True if self.isClipping else False
         # forward the alpha channel
-        # TODO 23/06/18 forward ?
+        # TODO 23/06/18 should forward ?
         self.updatePixmap()
 
     def applyExposure(self, exposureCorrection, options):
@@ -998,7 +1000,7 @@ class vImage(QImage):
                                             use_auto_wb=options['Auto WB'],
                                             use_camera_wb=False,#options['Camera WB'],
                                             user_wb = mult,#adjustForm.rawMultipliers,
-                                            gamma= (2.222, 4.5),  # default REC BT 709 exponent, slope #TODO modified 15/04/18
+                                            gamma= (2.222, 4.5),  # default REC BT 709 exponent, slope
                                             #gamma=(2.4, 12.92), # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
                                             exp_preserve_highlights = 1.0 if options['Preserve Highlights'] else 0.8,
                                             output_bps=16,
@@ -1020,7 +1022,7 @@ class vImage(QImage):
                     use_auto_wb=options['Auto WB'],
                     use_camera_wb=options['Camera WB'],
                     user_wb=adjustForm.rawMultipliers,
-                    gamma= (2.222, 4.5),  # default REC BT 709 exponent, slope #TODO modified 15/04/18
+                    gamma= (2.222, 4.5),  # default REC BT 709 exponent, slope
                     #gamma=(2.4, 12.92), # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
                     exp_preserve_highlights=0.99 if options['Preserve Highlights'] else 0.6,
                     output_bps=16,
@@ -1377,7 +1379,8 @@ class vImage(QImage):
         Applies a 3D LUT to the current view of the image (self or self.thumb or self.hald).
         If pool is not None and the size of the current view is > 3000000, the computation is
         done in parallel on image slices.
-        @param LUT: LUT3D array (see colorCube.py)
+        The orders of LUT axes, LUT channels and image channels must match.
+        @param LUT: LUT3D array (cf. colorCube.py)
         @type LUT: 3d ndarray, dtype = int
         @param options:
         @type options: dict of string:boolean pairs
@@ -1410,7 +1413,7 @@ class vImage(QImage):
         if (pool is not None) and (inputImage.width() * inputImage.height() > 3000000):
             interp = interpMulti
         else:
-            interp = interpVec_
+            interp = interpTetraVec_ if USE_TETRA else interpVec_
         # apply LUT
         ndImg1[h1:h2 + 1, w1:w2 + 1, :] = interp(LUT, ndImg0, pool=pool)
         # forward the alpha channel

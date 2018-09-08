@@ -1331,13 +1331,17 @@ def menuLayer(name):
             try:
                 LUT3DArray, size = LUT3D.readFromTextFile(name)
             except (ValueError, IOError) as e:
-                dlgWarn('Unable to load 3D LUT', info=str(e))
+                dlgWarn('Unable to load 3D LUT : ', info=str(e))
                 return
             lname = path.basename(name)
             l = window.label.img.addAdjustmentLayer(name=lname)
             l.execute = lambda l=l, pool=None: l.apply3DLUT(LUT3DArray, {'use selection': False})
             window.tableView.setLayers(window.label.img)
             l.applyToStack()
+            # The resulting image is modified,
+            # so we update the presentation layer before returning
+            l.parentImage.prLayer.update()
+            l.parentImage.onImageChanged()
         return
     elif name == 'actionSave_Layer_Stack_as_LUT_Cube':
         return # TODO should be reviewed 26/06/18
@@ -1375,7 +1379,8 @@ def menuLayer(name):
         return
     # adding a new layer may modify the resulting image
     # (cf. actionNew_Image_Layer), so we update the presentation layer
-    window.label.img.prLayer.update()
+    l.parentImage.prLayer.update()
+    l.parentImage.onImageChanged()  # TODO added 06/09/18 validate
     # record action name for scripting
     l.actionName = name
     # dock the form

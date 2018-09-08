@@ -327,7 +327,7 @@ You can drag and drop layers to change their order.
         """
         # close open adjustment windows
         #self.closeAdjustForms()
-        self.clear(delete=delete)  # TODO 01/12/17 switched from closeadjust to clear
+        self.clear(delete=delete)  # TODO 01/12/17 change from closeadjust to clear
         # double link
         self.img = mImg
         mImg.layerView = self

@@ -842,7 +842,7 @@ Screen</string>
   </widget>
   <action name="actionOpen">
    <property name="text">
-    <string>Open</string>
+    <string>Open...</string>
    </property>
   </action>
   <action name="actionSave">
@@ -850,7 +850,7 @@ Screen</string>
     <bool>false</bool>
    </property>
    <property name="text">
-    <string>Save</string>
+    <string>Save...</string>
    </property>
   </action>
   <action name="actionSub">
@@ -882,7 +882,7 @@ Screen</string>
   </action>
   <action name="actionDiaporama">
    <property name="text">
-    <string>Slide Show</string>
+    <string>Slide Show...</string>
    </property>
   </action>
   <action name="actionProfile_1">
@@ -946,7 +946,7 @@ Screen</string>
   </action>
   <action name="actionClose">
    <property name="text">
-    <string>Close</string>
+    <string>Close...</string>
    </property>
   </action>
   <action name="actionCurves_HSpB">
@@ -966,17 +966,17 @@ Screen</string>
   </action>
   <action name="actionSave_Layer_Stack">
    <property name="text">
-    <string>Save Layer Stack</string>
+    <string>Save Layer Stack...</string>
    </property>
   </action>
   <action name="actionLoad_Layer_Stack">
    <property name="text">
-    <string>Load Layer Stack</string>
+    <string>Load Layer Stack...</string>
    </property>
   </action>
   <action name="actionLoad_3D_LUT">
    <property name="text">
-    <string>Load 3D LUT</string>
+    <string>Load 3D LUT...</string>
    </property>
   </action>
   <action name="actionHald_from_file">
@@ -991,7 +991,7 @@ Screen</string>
   </action>
   <action name="actionSave_Layer_Stack_as_LUT_Cube">
    <property name="text">
-    <string>Save Layer Stack as LUT Cube</string>
+    <string>Save Layer Stack as LUT Cube...</string>
    </property>
   </action>
   <action name="actionSave_Hald_Cube">

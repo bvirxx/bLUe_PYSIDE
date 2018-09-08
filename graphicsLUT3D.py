@@ -369,13 +369,13 @@ class activeNode(QGraphicsPathItem):
         # node on the color wheel. The transformation keeps hue and saturation.
         # The new (perceptual) brightness is computed from the original brightness of the vertex,
         # using the contrast function.
-        contrast = self.scene().LUTContrast
+        # contrast = self.scene().LUTContrast removed 06/09/18
         for x in self.LUTIndices:
             (i,j,k) = x.ind
             p=x.p
             nbghd = LUT3D_ORI[max(k-spread,0):k+spread+1, max(j-spread,0):j+spread+1, max(i-spread,0):i+spread+1, ::-1]
             trgNbghd = self.scene().LUT3DArray[max(k-spread,0):k+spread+1, max(j-spread,0):j+spread+1, max(i-spread,0):i+spread+1, ::-1]
-            trgNbghd[...] = np.clip(nbghd + (np.array(self.cModel.cm2rgb(hue, sat, contrast(p))) - LUT3D_ORI[k, j, i, ::-1]), 0, 255)
+            trgNbghd[...] = np.clip(nbghd + (np.array(self.cModel.cm2rgb(hue, sat, p)) - LUT3D_ORI[k, j, i, ::-1]), 0, 255)
             #self.scene().LUT3D[max(k-spread,0):k+spread+1, max(j-spread,0):j+spread+1, max(i-spread,0):i+spread+1, ::-1] = np.clip(LUT3D_ORI[max(k-spread,0):k+spread+1, max(j-spread,0):j+spread+1, max(i-spread,0):i+spread+1, ::-1] + (np.array(hsp2rgb(hue, sat, contrast(p))) - LUT3D_ORI[k, j , i,::-1]),0,255)
 
     def gridPos(self):
@@ -824,7 +824,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.graphicsScene.layer = layer
         # LUT
         freshLUT3D = LUT3D.LUT3DFromFactory(size=LUTSize)
-        self.graphicsScene.LUTSize, self.graphicsScene.LUTStep, self.graphicsScene.LUTContrast, self.graphicsScene.LUT3DArray = freshLUT3D.size, freshLUT3D.step, freshLUT3D.contrast, freshLUT3D.LUT3DArray
+        self.graphicsScene.LUTSize, self.graphicsScene.LUTStep, self.graphicsScene.LUT3DArray = freshLUT3D.size, freshLUT3D.step, freshLUT3D.LUT3DArray
         # color wheel
         QImg = hueSatModel.colorWheel(axeSize, axeSize, cModel, perceptualBrightness=self.defaultColorWheelBr, border=border)
         self.graphicsScene.colorWheel = colorPicker(cModel, QImg, target=self.targetImage, size=axeSize, border=border)

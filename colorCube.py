@@ -27,8 +27,9 @@ from debug import tdec
 from imgconvert import QImageBuffer
 
 ###########################################
-# 3D LUT constants
+# 3D LUT constants.
 # LUTSIZE is the length of LUT axes.
+# corresponding to LUTSIZE**3 vertices
 # Interpolation range is 0 <= x < MAXLUTRGB
 ###########################################
 
@@ -53,7 +54,7 @@ Perc_B=0.0782
 
 class LUT3D (object):
     """
-    Implement 3D LUT. Size should be be s=2**n + 1,
+    Implements 3D LUT. Size should be be s=2**n + 1,
     array shape is (s, s, s, 3) and array values
     are positive integers in range 0..255
     """
@@ -101,6 +102,7 @@ class LUT3D (object):
         LUT = np.zeros((size, size, size, 3), dtype=int) + 255
         LUT[:,:,:,:] = buf[:,:,:,::-1]
         return LUT3D(LUT, size=size)
+
     @classmethod
     def HaldBuffer2LUT3D(cls, haldBuff, size=LUTSIZE):
         buf = haldBuff
@@ -111,41 +113,78 @@ class LUT3D (object):
         LUT = np.zeros((size, size, size, 3), dtype=int) + 255
         LUT[:, :, :, :] = buf[:, :, :, ::-1]
         return LUT3D(LUT, size=size)
+
     @classmethod
     def readFromTextStream(cls, inStream):
-        #header
-        for i in range(2):
+        """
+        Reads a 3D LUT from a text stream in format .cube.
+        Values read should be between 0 and 1. They are
+        multiplied by 255 and converted to int.
+        The channels of the LUT and the axes of the cube are both in BGR order.
+        @param inStream:
+        @type inStream:
+        @return: 3D LUT table and size
+        @rtype: 2-uple : ndarray dtype=np.float32, int
+        """
+        ##########
+        # header
+        #########
+        # We expect exactly 2 uncommented lines
+        # where the second is LUT_3D_SIZE xx
+        i = 0
+        while not inStream.atEnd():
             line = inStream.readLine()
-        # get LUT size (second line format should be : Size xx)
-        token = line.split()
-        if len(token) >= 2:
-            _, size = token
-        else:
-            raise ValueError('Cannot find LUT size')
+            if line.startswith('#') or (len(line.lstrip()) == 0):
+                continue
+            i += 1
+            if i < 2:
+                continue
+            # get LUT size (second line format should be : Size xx)
+            token = line.split()
+            if len(token) >= 2:
+                _, size = token
+                break
+            else:
+                raise ValueError('Cannot find LUT size')
+        # LUT size
         size = int(size)
         bufsize = (size**3)*3
         buf = np.zeros(bufsize, dtype=float)
+        #######
+        # LUT
+        ######
         i = 0
-        while True:
+        while not inStream.atEnd():
             line = inStream.readLine()
-            if len(line) == 0:
-                break
+            if line.startswith('#') or (len(line.lstrip()) == 0):
+                continue
             token = line.split()
             if len(token) >= 3:
                 a, b, c = token
             else:
                 raise ValueError('Wrong file format')
-            buf[i], buf[i+1], buf[i+2] = float(a), float(b), float(c)
+            # BGR order for channels
+            buf[i:i+3] = float(c), float(b), float(a)
             i+=3
+        # sanity check
         if i != bufsize:
            raise ValueError('LUT size does not match line count')
+        buf *= 255.0
+        buf = buf.astype(int)
         buf = buf.reshape(size,size,size,3)
+        # the specification of the .cube format
+        # gives BGR order for the cube axes (R-axis changing most rapidly)
+        # So, no transposition is needed.
+        # buf = buf.transpose(2, 1, 0, 3)  # TODO 07/09/18 removed validate
         return buf, size
+
     @classmethod
     def readFromTextFile(cls, filename):
         """
         Reads 3D LUT from text file in format .cube.
-        Values are multiplied by 255.
+        Values read should be between 0 and 1. They are
+        multiplied by 255 and converted to int.
+        The channels of the LUT and the axes of the cube are both in BGR order.
         @param filename: 
         @type filename: str
         @return: 
@@ -156,10 +195,8 @@ class LUT3D (object):
         textStream = QTextStream(qf)
         LUT3DArray, size = cls.readFromTextStream(textStream)
         qf.close()
-        LUT3DArray = LUT3DArray *255.0
-        LUT3DArray = LUT3DArray.astype(int)
-        LUT3DArray = LUT3DArray.transpose(2,1,0, 3)
         return LUT3DArray, size
+
     @classmethod
     def readFromHaldFile(cls, filename):
         img = QImage(filename)
@@ -176,8 +213,8 @@ class LUT3D (object):
             raise ValueError("LUT3D : size should be 2**n+1, found %d" % size)
         self.LUT3DArray = LUT3DArray
         self.size = size
-        self.contrast = lambda p: p  # np.power(p,1.2)
-        self.step = MAXLUTRGB // (size - 1)  # python 3 : integer quotient
+        # self.contrast = lambda p: p removed 06/09/18
+        self.step = MAXLUTRGB / (size - 1)  # TODO 06/09/18 python 3 : integer division changed to float division
 
     def getHaldImage(self, w, h):
         """
@@ -248,8 +285,8 @@ def rgb2hspVec(rgbImg):
 
 def rgb2hsB(r, g, b, perceptual=False):
     """
-    transforms the red, green ,blue r, g, b components of a color
-    into hue, saturation, brightness h, s, v. (Cf. schema in file colors.docx)
+    transforms the r, g, b components of a color
+    to hue, saturation, brightness h, s, v. (Cf. schema in file colors.docx)
     The r, g, b components are integers in range 0..255. If perceptual is False
     (default) v = max(r,g,b)/255.0, else v = sqrt(Perc_R*r*r + Perc_G*g*g + Perc_B*b*b)
     @param r:
@@ -553,14 +590,13 @@ def hsp2rgbVec(hspImg):
 
     rgbMax = clistMax[orderMax[i], tmp]
     rgbMax = np.sqrt(rgbMax)
-    # in place clipping
     np.clip(rgbMax, 0, 1, out=rgbMax)
     hsv = np.dstack((h, s, rgbMax))
     hsv *=  [30.0, 255.0, 255.0]
     rgb1=cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
     return rgb1.reshape(shape + (3,))
 
-def hsp2rgbVecSmall(hspImg):
+def hsp2rgbVecSmall(hspImg):  # TODO 22/07/18 unused ?
     """
     Vectorized version of hsp2rgb. Optimized for small images.
     Very bad performances for big images : time = 11,11 s  and memory > 6 Go
@@ -642,10 +678,17 @@ def hsp2rgbVecSmall(hspImg):
 def interpMulti(LUT, ndImg, pool=None):
     """
     parallel version of trilinear interpolation.
-    Should be compared to the vectorized version interpVec_
-    @param LUT:
-    @param ndImg:
-    @return:
+    Should be compared to the vectorized version interpVec_.
+    Converts a color image using a 3D LUT.
+    The orders of LUT axes, LUT channels and image channels must match.
+    The output image is interpolated from the LUT.
+    It has the same type as the input image.
+    @param LUT: 3D LUT array
+    @type LUT: ndarray, dtype=np.float
+    @param ndImg: image array, RGB channels
+    @type ndImg: ndarray dtype=np.uint8
+    @return: RGB image with same type as the input image
+    @rtype: ndarray dtype=np.uint8
     """
     w, h = ndImg.shape[1], ndImg.shape[0]
     SLF = 4
@@ -664,20 +707,23 @@ def interpMulti(LUT, ndImg, pool=None):
     # collect results
     for i, (s1, s2) in enumerate(slices):
             outImg[s2, s1] = res[i]
-    return outImg
+    np.clip(outImg, 0, 255, outImg)
+    return outImg.astype(np.uint8)  # TODO 07/09/18 validate
 
 def interpVec_(LUT, ndImg, pool=None):
     """
     Vectorized version of trilinear interpolation
     (Cf. file trilinear.docx for details).
-    Convert an RGB image using a 3D LUT. The output image is interpolated from the LUT.
-    It has the same dimensions as the input image.
+    Convert a color image using a 3D LUT.
+    The orders of LUT axes, LUT channels and image channels must match.
+    The output image is interpolated from the LUT.
+    It has the same type as the input image.
     @param LUT: 3D LUT array
     @type LUT: ndarray, dtype=np.float
     @param ndImg: image array, RGB channels
     @type ndImg: ndarray dtype=np.uint8
-    @return: RGB image with same dimensions as the input image
-    @rtype: ndarray dtype=np.float
+    @return: RGB image with same type as the input image
+    @rtype: ndarray dtype=np.uint8
     """
     #  Calculate the coordinates of the bounding unit cube for (r, g, b)/LUTSTEP
     ndImgF = ndImg / float(LUTSTEP)
@@ -720,7 +766,86 @@ def interpVec_(LUT, ndImg, pool=None):
     #gamma = gamma[:,:,np.newaxis]  # broadcasting tested slower
 
     IValue = I2Value + gamma * (I1Value - I2Value)  #(1 - gamma) * I2Value + gamma * I1Value
-    return IValue
+    np.clip(IValue, 0, 255, out=IValue)
+    return IValue.astype(np.uint8)  # TODO 07/09/18 validate
+
+@tdec
+def interpTetraVec_(LUT, ndImg, pool=None):
+    """
+       Vectorized version of tetrahedral interpolation.
+       Cf. https://www.filmlight.ltd.uk/pdf/whitepapers//FL-TL-TN-0057-SoftwareLib.pdf
+       page 57.
+       Converts a color image using a 3D LUT.
+       The orders of LUT axes, LUT channels and image channels must match.
+       The output image is interpolated from the LUT.
+       It has the same type as the input image.
+       It turns out that Tetrahedral interpolation is 2 times slower
+       than vectorized trilinear interpolation.
+       @param LUT: 3D LUT array
+       @type LUT: ndarray, dtype=np.float
+       @param ndImg: image array, RGB channels
+       @type ndImg: ndarray dtype=np.uint8
+       @return: RGB image with same type as the input image
+       @rtype: ndarray dtype=np.uint8
+       """
+    #  Calculate the coordinates of the bounding unit cube for (r, g, b)/LUTSTEP
+    ndImgF = ndImg / float(LUTSTEP)
+    a = ndImgF.astype(np.uint16)
+    aplus1 = a + 1
+
+    # RGB channels
+    r0, g0, b0 = a[:, :, 0], a[:, :, 1], a[:, :, 2]
+    r1, g1, b1 = aplus1[:, :, 0], aplus1[:, :, 1], aplus1[:, :, 2]
+
+    ndImg00 = LUT[r0, g0, b0]
+    ndImg01 = LUT[r1, g0, b0]
+    ndImg02 = LUT[r0, g1, b0]
+    ndImg03 = LUT[r1, g1, b0]
+
+    ndImg10 = LUT[r0, g0, b1]
+    ndImg11 = LUT[r1, g0, b1]
+    ndImg12 = LUT[r0, g1, b1]
+    ndImg13 = LUT[r1, g1, b1]
+
+    fR = ndImgF[: , :,0] - a[:, :, 0]
+    fG = ndImgF[:, :, 1] - a[:, :, 1]
+    fB = ndImgF[:, :, 2] - a[:, :, 2]
+
+    oneMinusFR = (1 - fR)[..., np.newaxis] * ndImg00
+    oneMinusFG = (1 - fG)[..., np.newaxis] * ndImg00
+    oneMinusFB = (1 - fB)[..., np.newaxis] * ndImg00
+    fRG = (fR - fG)[..., np.newaxis]
+    fGB = (fG - fB)[..., np.newaxis]
+    fBR = (fB - fR)[..., np.newaxis]
+    fR = fR[..., np.newaxis]
+    fG = fG[..., np.newaxis]
+    fB = fB[..., np.newaxis]
+
+    B1 = fR >= fG
+    B2 = fG >= fB
+    B3 = fB >= fR
+
+    C1 = fR > fG
+    C2 = fG > fB
+    C3 = fB > fR
+
+    fR = fR * ndImg13
+    fG = fG * ndImg13
+    fB = fB * ndImg13
+
+    X0 = oneMinusFG + fGB * ndImg02 + fBR * ndImg12 + fR
+    X1 = oneMinusFB + fBR * ndImg10 + fRG * ndImg11 + fG
+    X2 = oneMinusFB - fGB * ndImg10 - fRG * ndImg12 + fR
+    X3 = oneMinusFR + fRG * ndImg01 + fGB * ndImg03 + fB
+    X4 = oneMinusFG - fRG * ndImg02 - fBR * ndImg03 + fB
+    X5 = oneMinusFR - fBR * ndImg01 - fGB * ndImg11 + fG
+
+    Y1 = np.select([B2*B3, C3*C1, np.logical_not(B2)*np.logical_not(C1), B1*C2, np.logical_not(B1)*np.logical_not(C3)],
+                   [X0, X1, X2, X3, X4],
+                   default = X5)
+
+    np.clip(Y1, 0, 255, out=Y1)
+    return Y1.astype(np.uint8)
 
 if __name__=='__main__':
     size = 4000
