@@ -1146,6 +1146,7 @@ def menuLayer(name):
     @param name: action name
     @type name: str
     """
+    global pool
     # curves
     if name in ['actionCurves_RGB', 'actionCurves_HSpB', 'actionCurves_Lab']:
         if name == 'actionCurves_RGB':
@@ -1175,9 +1176,10 @@ def menuLayer(name):
         l = window.label.img.addAdjustmentLayer(name=layerName, role='3DLUT')
         grWindow = graphicsForm3DLUT.getNewWindow(ccm, axeSize=300, targetImage=window.label.img, LUTSize=LUTSIZE, layer=l, parent=window, mainForm=window)
         # init pool only once
-        global pool
         if pool is None:
+            print('launching process pool...', end='')
             pool = multiprocessing.Pool(4)
+            print('done')
         l.execute = lambda l=l, pool=pool: l.apply3DLUT(grWindow.scene().LUT3DArray, options=grWindow.scene().options, pool=pool)
     # cloning
     elif name == 'actionNew_Cloning_Layer':
@@ -1335,7 +1337,12 @@ def menuLayer(name):
                 return
             lname = path.basename(name)
             l = window.label.img.addAdjustmentLayer(name=lname)
-            l.execute = lambda l=l, pool=None: l.apply3DLUT(LUT3DArray, {'use selection': False})
+            # init pool only once
+            if pool is None:
+                print('launching process pool...', end='')
+                pool = multiprocessing.Pool(4)
+                print('done')
+            l.execute = lambda l=l, pool=pool: l.apply3DLUT(LUT3DArray, {'use selection': False}, pool=pool)
             window.tableView.setLayers(window.label.img)
             l.applyToStack()
             # The resulting image is modified,

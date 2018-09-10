@@ -30,4 +30,4 @@ ADOBE_RGB_PROFILE_PATH = SYSTEM_PROFILE_DIR + "\AdobeRGB1998.icc"
 SRGB_PROFILE_PATH = SYSTEM_PROFILE_DIR + "\sRGB Color Space Profile.icm"
 
 # use tetrahedral interpolation for 3D LUTs
-USE_TETRA = True
+USE_TETRA = False

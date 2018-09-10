@@ -32,6 +32,7 @@ from imgconvert import QImageBuffer
 # corresponding to LUTSIZE**3 vertices
 # Interpolation range is 0 <= x < MAXLUTRGB
 ###########################################
+from settings import USE_TETRA
 
 MAXLUTRGB = 256
 # LUTSIZE = 17
@@ -677,7 +678,7 @@ def hsp2rgbVecSmall(hspImg):  # TODO 22/07/18 unused ?
 
 def interpMulti(LUT, ndImg, pool=None):
     """
-    parallel version of trilinear interpolation.
+    parallel trilinear interpolation.
     Should be compared to the vectorized version interpVec_.
     Converts a color image using a 3D LUT.
     The orders of LUT axes, LUT channels and image channels must match.
@@ -698,9 +699,9 @@ def interpMulti(LUT, ndImg, pool=None):
     slices = [ (s1, s2) for s1 in sl_w for s2 in sl_h]
     imgList = [ndImg[s2, s1] for s1, s2 in slices]
     if pool is None:
-        raise ValueError('interpVec: no processing pool')
+        raise ValueError('interpMulti: no processing pool')
     # get vectorized interpolation as partial function
-    partial_f = partial(interpVec_, LUT)
+    partial_f = partial(interpTetraVec_ if USE_TETRA else interpVec_, LUT)
     # parallel interpolation
     res = pool.map(partial_f, imgList)
     outImg = np.empty(ndImg.shape)
@@ -712,39 +713,48 @@ def interpMulti(LUT, ndImg, pool=None):
 
 def interpVec_(LUT, ndImg, pool=None):
     """
-    Vectorized version of trilinear interpolation
+    Vectorized trilinear interpolation
     (Cf. file trilinear.docx for details).
-    Convert a color image using a 3D LUT.
+    Converts a color image using a 3D LUT.
     The orders of LUT axes, LUT channels and image channels must match.
     The output image is interpolated from the LUT.
     It has the same type as the input image.
     @param LUT: 3D LUT array
-    @type LUT: ndarray, dtype=np.float
+    @type LUT: ndarray, dtype=np.float or np.int32 (faster)
     @param ndImg: image array, RGB channels
     @type ndImg: ndarray dtype=np.uint8
     @return: RGB image with same type as the input image
     @rtype: ndarray dtype=np.uint8
     """
+    # fix type
+    LUT = LUT.astype(np.int16)
     #  Calculate the coordinates of the bounding unit cube for (r, g, b)/LUTSTEP
     ndImgF = ndImg / float(LUTSTEP)
-    a = ndImgF.astype(np.uint16)
+    a = ndImgF.astype(np.int16)
     aplus1 = a + 1
 
     # RGB channels
     r0, g0, b0 = a[:,:,0], a[:,:,1], a[:,:,2]
     r1, g1, b1 = aplus1[:,:,0], aplus1[:,:,1], aplus1[:,:,2]
 
-    ndImg00 = LUT[r0, g0, b0]
-    ndImg01 = LUT[r1, g0, b0]
-    ndImg02 = LUT[r0, g1, b0]
-    ndImg03 = LUT[r1, g1, b0]
+    # get indices of pixel channels in flattened LUT
+    s = LUT.shape
+    st = np.array(LUT.strides)
+    st = st // st[-1]  # we count items instead of bytes
+    flatIndex = np.ravel_multi_index((r0[...,np.newaxis], g0[...,np.newaxis], b0[...,np.newaxis], np.arange(3)), s) # broadcasted to shape (w,h,3)
 
-    ndImg10 = LUT[r0, g0, b1]
-    ndImg11 = LUT[r1, g0, b1]
-    ndImg12 = LUT[r0, g1, b1]
-    ndImg13 = LUT[r1, g1, b1]
+    # apply LUT to the vertices of the bounding cube
+    # np.take uses the the flattened LUT, but keeps the shape of flatIndex
+    ndImg00 = np.take(LUT, flatIndex)                           # LUT[r0, g0, b0]
+    ndImg01 = np.take(LUT, flatIndex + st[0])                   # LUT[r1, g0, b0]
+    ndImg02 = np.take(LUT, flatIndex + st[1])                   # LUT[r0, g1, b0]
+    ndImg03 = np.take(LUT, flatIndex + (st[0] + st[1]))         # LUT[r1, g1, b0]
+    ndImg10 = np.take(LUT, flatIndex + st[2])                   # LUT[r0, g0, b1]
+    ndImg11 = np.take(LUT, flatIndex + (st[0] + st[2]))         # LUT[r1, g0, b1]
+    ndImg12 = np.take(LUT, flatIndex + (st[1] + st[2]))         # LUT[r0, g1, b1]
+    ndImg13 = np.take(LUT, flatIndex + (st[0] + st[1] + st[2])) # LUT[r1, g1, b1]
 
-    # interpolate
+    # interpolation
     alpha =  ndImgF[:,:,1] - g0
     alpha=np.dstack((alpha, alpha, alpha))
     #alpha = alpha[:,:,np.newaxis] # broadcasting tested slower
@@ -753,21 +763,27 @@ def interpVec_(LUT, ndImg, pool=None):
     I12Value = ndImg10 + alpha * (ndImg12 - ndImg10)  #oneMinusAlpha * ndImg10 + alpha * ndImg12
     I21Value = ndImg01 + alpha * (ndImg03 - ndImg01)  #oneMinusAlpha * ndImg01 + alpha * ndImg03
     I22Value = ndImg00 + alpha * (ndImg02 - ndImg00)  # oneMinusAlpha * ndImg00 + alpha * ndImg02
+    # allowing to free memory
+    ndImg00, ndImg01, ndImg02, ndImg03, ndImg10, ndImg11, ndImg12, ndImg13 = (None,) * 8
 
     beta = ndImgF[:,:,0] - r0
     beta = np.dstack((beta, beta, beta))
-    #beta = beta[:,:,np.newaxis] # broadcasting tested slower
+    #beta = beta[...,np.newaxis]
 
     I1Value = I12Value + beta * (I11Value - I12Value) #oneMinusBeta * I12Value + beta * I11Value
     I2Value = I22Value + beta * (I21Value - I22Value) #oneMinusBeta * I22Value + beta * I21Value
+    # allowing to free memory
+    I11Value, I12Value, I21Value, I22Value = (None,) * 4
 
     gamma = ndImgF[:,:,2] - b0
     gamma = np.dstack((gamma, gamma, gamma))
-    #gamma = gamma[:,:,np.newaxis]  # broadcasting tested slower
+    #gamma = gamma[...,np.newaxis]
 
     IValue = I2Value + gamma * (I1Value - I2Value)  #(1 - gamma) * I2Value + gamma * I1Value
+
+    # clip in place
     np.clip(IValue, 0, 255, out=IValue)
-    return IValue.astype(np.uint8)  # TODO 07/09/18 validate
+    return IValue.astype(np.uint8)
 
 @tdec
 def interpTetraVec_(LUT, ndImg, pool=None):
@@ -792,8 +808,6 @@ def interpTetraVec_(LUT, ndImg, pool=None):
     ndImgF = ndImg / float(LUTSTEP)
     a = ndImgF.astype(np.uint16)
     aplus1 = a + 1
-
-    # RGB channels
     r0, g0, b0 = a[:, :, 0], a[:, :, 1], a[:, :, 2]
     r1, g1, b1 = aplus1[:, :, 0], aplus1[:, :, 1], aplus1[:, :, 2]
 
@@ -801,7 +815,6 @@ def interpTetraVec_(LUT, ndImg, pool=None):
     ndImg01 = LUT[r1, g0, b0]
     ndImg02 = LUT[r0, g1, b0]
     ndImg03 = LUT[r1, g1, b0]
-
     ndImg10 = LUT[r0, g0, b1]
     ndImg11 = LUT[r1, g0, b1]
     ndImg12 = LUT[r0, g1, b1]
