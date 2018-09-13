@@ -17,6 +17,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import sys
 
+############
+# exiftool path
+############
 if getattr( sys, 'frozen', False ) :
     # running in a bundle
     EXIFTOOL_PATH = 'bin\exiftool.exe'
@@ -24,10 +27,19 @@ else :
     # running live
     EXIFTOOL_PATH = "C:\standalone\exiftool\exiftool.exe"
 
+##############
 # Paths to system profiles
+##############
 SYSTEM_PROFILE_DIR = "C:\Windows\System32\spool\drivers\color"
 ADOBE_RGB_PROFILE_PATH = SYSTEM_PROFILE_DIR + "\AdobeRGB1998.icc"
 SRGB_PROFILE_PATH = SYSTEM_PROFILE_DIR + "\sRGB Color Space Profile.icm"
 
-# use tetrahedral interpolation for 3D LUTs
-USE_TETRA = False
+#############
+# 3D LUT
+############
+# use tetrahedral interpolation instead of trilinear
+USE_TETRA = True
+
+# parallel interpolation
+USE_POOL = False
+POOL_SIZE = 4

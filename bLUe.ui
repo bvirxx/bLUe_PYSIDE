@@ -656,20 +656,10 @@ Screen</string>
      </property>
      <addaction name="actionSub"/>
     </widget>
-    <widget class="QMenu" name="menuOpen_hald">
-     <property name="title">
-      <string>Open Hald Image</string>
-     </property>
-     <addaction name="actionHald_from_file"/>
-     <addaction name="actionHald_identity"/>
-    </widget>
     <addaction name="actionOpen"/>
     <addaction name="actionSave"/>
     <addaction name="menuOpen_recent"/>
     <addaction name="actionClose"/>
-    <addaction name="separator"/>
-    <addaction name="menuOpen_hald"/>
-    <addaction name="actionSave_Hald_Cube"/>
    </widget>
    <widget class="QMenu" name="menuWindow">
     <property name="title">
@@ -760,9 +750,7 @@ Screen</string>
     <addaction name="actionNew_segmentation_layer"/>
     <addaction name="menuNew_Image_Layer"/>
     <addaction name="separator"/>
-    <addaction name="actionSave_Layer_Stack"/>
     <addaction name="actionSave_Layer_Stack_as_LUT_Cube"/>
-    <addaction name="actionLoad_Layer_Stack"/>
     <addaction name="actionLoad_3D_LUT"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
@@ -991,7 +979,7 @@ Screen</string>
   </action>
   <action name="actionSave_Layer_Stack_as_LUT_Cube">
    <property name="text">
-    <string>Save Layer Stack as LUT Cube...</string>
+    <string>Save Layer Stack as 3D LUT...</string>
    </property>
   </action>
   <action name="actionSave_Hald_Cube">

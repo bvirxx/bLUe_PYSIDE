@@ -88,6 +88,7 @@ class LUT3D (object):
     def HaldImage2LUT3D(cls, hald, size=LUTSIZE):
         """
         Converts a hald image to a LUT3D object.
+        The pixel channels and the LUT axes are in BGR order
         @param hald: image
         @type hald: QImage
         @param size: LUT size
@@ -101,7 +102,7 @@ class LUT3D (object):
         buf = buf[:count]
         buf = buf.reshape((size, size, size, 3))
         LUT = np.zeros((size, size, size, 3), dtype=int) + 255
-        LUT[:,:,:,:] = buf[:,:,:,::-1]
+        LUT[:,:,:,:] = buf #buf[:,:,:,::-1] # TODO 13/09/18 validate
         return LUT3D(LUT, size=size)
 
     @classmethod
@@ -121,7 +122,8 @@ class LUT3D (object):
         Reads a 3D LUT from a text stream in format .cube.
         Values read should be between 0 and 1. They are
         multiplied by 255 and converted to int.
-        The channels of the LUT and the axes of the cube are both in BGR order.
+        As a consequence of he specification of the .cube format,
+        the channels of the LUT and the axes of the cube are both in BGR order.
         @param inStream:
         @type inStream:
         @return: 3D LUT table and size
@@ -185,7 +187,8 @@ class LUT3D (object):
         Reads 3D LUT from text file in format .cube.
         Values read should be between 0 and 1. They are
         multiplied by 255 and converted to int.
-        The channels of the LUT and the axes of the cube are both in BGR order.
+        As a consequence of he specification of the .cube format,
+        the channels of the LUT and the axes of the cube are both in BGR order.
         @param filename: 
         @type filename: str
         @return: 
@@ -219,27 +222,25 @@ class LUT3D (object):
 
     def getHaldImage(self, w, h):
         """
-        Converts a LUT3D object to an image buffer (numpy array).
-        The (self.size-1)**3 *3 first bytes of the buffer are
-
-        [ LUT3DArray[r,g,b][::-1] for r in range(self.size-1) for g in range(self.size-1) for b in range(self.size-1) ]
-
-       The remainings bytes are padded with 0.
-       Example: LUT3DIdentity.getHaldImage(w, h) returns an identity hald image of size (w,h) padded with 0.
-       w*h must be greater than LUTSIZE^^3
-
-        Note that the buffer is in BGR order, suitable for direct conversion to a QImage and that
-        the b value increases fastest (i.e. from a byte to the next).
+        Converts a LUT3D object to a hald image.
+        A hald can be viewed as a 3D LUT flattened and reshaped
+        to an array representing an image.
+        The (self.size-1)**3 first pixels of the buffer are the LUT.
+        Remainings bytes are  0.
+        IMPORTANT : Hald channels, LUT channels and LUT axes must follow the same ordering (BGR or RGB).
+        To simplify the code, we only handle halds and LUTs of type BGR.
+        Note that the identity 3D LUT has both types.
+        w*h should be greater than LUTSIZE^^3
         @param w: image width
         @type w: int
         @param h: image height
         @type h: int
         @return: numpy array shape=(h,w,3), dtype=np.uint8
         """
-        buf = np.zeros((w * h * 3), dtype=np.uint8)  # + 255
+        buf = np.zeros((w * h * 3), dtype=np.uint8)
         s = self.size  # - 1
         count = (s ** 3) * 3  # TODO clip LUT array to 0,255 ?
-        buf[:count] = self.LUT3DArray[:, :, :, ::-1].ravel()  # self.LUT3DArray[:s,:s,:s,::-1].ravel()
+        buf[:count] = self.LUT3DArray.ravel() # self.LUT3DArray[:, :, :, ::-1].ravel()  # TODO modified 13/09/18 validate
         buf = buf.reshape(h, w, 3)
         return buf
 
@@ -247,9 +248,9 @@ class LUT3D (object):
         """
         Writes 3D LUT to QTextStream in format .cube.
         Values are divided by 255.
+        The 3D LUT must be in BGR order.
         @param outStream: 
         @type outStream: QTextStream
-        @return: 
         """
         LUT=self.LUT3DArray
         outStream << ('bLUe 3D LUT')<<'\n'
@@ -258,10 +259,20 @@ class LUT3D (object):
         for b in range(self.size):
             for g in range(self.size):
                 for r in range(self.size):
-                    r1, g1, b1 = LUT[r, g, b]
+                    #r1, g1, b1 = LUT[r, g, b]  # order RGB
+                    b1, g1, r1 = LUT[b, g, r]  # order BGR
                     outStream << ("%.7f %.7f %.7f" % (r1 / coeff, g1 / coeff, b1 / coeff)) << '\n'
 
     def writeToTextFile(self, filename):
+        """
+        Writes 3D LUT to QTextStream in format .cube.
+        Values are divided by 255.
+        The 3D LUT must be in BGR order.
+        @param filename:
+        @type filename:
+        @return:
+        @rtype:
+        """
         qf = QFile(filename)
         if not qf.open(QIODevice.WriteOnly):
             raise IOError('cannot open file %s' % filename)
@@ -270,7 +281,8 @@ class LUT3D (object):
         qf.close()
 
 #####################################
-# Initializes constant identity LUT3D
+# Initializes a constant identity LUT3D object
+# For symmetry reasons, the LUT can be seen as RGB or BGR
 #####################################
 LUT3DIdentity = LUT3D.LUT3DFromFactory()
 LUT3D_ORI = LUT3DIdentity.LUT3DArray
@@ -675,10 +687,9 @@ def hsp2rgbVecSmall(hspImg):  # TODO 22/07/18 unused ?
     rgb1=cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
     return rgb1.reshape(shape + (3,))
 
-
 def interpMulti(LUT, ndImg, pool=None):
     """
-    parallel trilinear interpolation.
+    parallel trilinear/tetrahedral interpolation.
     Should be compared to the vectorized version interpVec_.
     Converts a color image using a 3D LUT.
     The orders of LUT axes, LUT channels and image channels must match.
@@ -708,7 +719,7 @@ def interpMulti(LUT, ndImg, pool=None):
     # collect results
     for i, (s1, s2) in enumerate(slices):
             outImg[s2, s1] = res[i]
-    np.clip(outImg, 0, 255, outImg)
+    # np.clip(outImg, 0, 255, out=outImg) # chunks are already clipped
     return outImg.astype(np.uint8)  # TODO 07/09/18 validate
 
 def interpVec_(LUT, ndImg, pool=None):
@@ -721,12 +732,12 @@ def interpVec_(LUT, ndImg, pool=None):
     It has the same type as the input image.
     @param LUT: 3D LUT array
     @type LUT: ndarray, dtype=np.float or np.int32 (faster)
-    @param ndImg: image array, RGB channels
+    @param ndImg: image array, 3 channels, same order as LUT channels and axes
     @type ndImg: ndarray dtype=np.uint8
     @return: RGB image with same type as the input image
     @rtype: ndarray dtype=np.uint8
     """
-    # fix type
+    # fix parameter types
     LUT = LUT.astype(np.int16)
     #  Calculate the coordinates of the bounding unit cube for (r, g, b)/LUTSTEP
     ndImgF = ndImg / float(LUTSTEP)
@@ -785,7 +796,6 @@ def interpVec_(LUT, ndImg, pool=None):
     np.clip(IValue, 0, 255, out=IValue)
     return IValue.astype(np.uint8)
 
-@tdec
 def interpTetraVec_(LUT, ndImg, pool=None):
     """
        Vectorized version of tetrahedral interpolation.
@@ -799,34 +809,46 @@ def interpTetraVec_(LUT, ndImg, pool=None):
        than vectorized trilinear interpolation.
        @param LUT: 3D LUT array
        @type LUT: ndarray, dtype=np.float
-       @param ndImg: image array, RGB channels
+       @param ndImg: image array, 3 channels, same order as LUT channels and axes
        @type ndImg: ndarray dtype=np.uint8
        @return: RGB image with same type as the input image
        @rtype: ndarray dtype=np.uint8
        """
+    # fix parameter types
+    LUT = LUT.astype(np.int16)
     #  Calculate the coordinates of the bounding unit cube for (r, g, b)/LUTSTEP
     ndImgF = ndImg / float(LUTSTEP)
-    a = ndImgF.astype(np.uint16)
+    a = ndImgF.astype(np.int16)
     aplus1 = a + 1
+
+    # RGB channels
     r0, g0, b0 = a[:, :, 0], a[:, :, 1], a[:, :, 2]
     r1, g1, b1 = aplus1[:, :, 0], aplus1[:, :, 1], aplus1[:, :, 2]
 
-    ndImg00 = LUT[r0, g0, b0]
-    ndImg01 = LUT[r1, g0, b0]
-    ndImg02 = LUT[r0, g1, b0]
-    ndImg03 = LUT[r1, g1, b0]
-    ndImg10 = LUT[r0, g0, b1]
-    ndImg11 = LUT[r1, g0, b1]
-    ndImg12 = LUT[r0, g1, b1]
-    ndImg13 = LUT[r1, g1, b1]
+    # get indices of pixel channels in flattened LUT
+    s = LUT.shape
+    st = np.array(LUT.strides)
+    st = st // st[-1]  # we count items instead of bytes
+    flatIndex = np.ravel_multi_index((r0[..., np.newaxis], g0[..., np.newaxis], b0[..., np.newaxis], np.arange(3)), s)  # broadcasted to shape (w,h,3)
+
+    # apply LUT to the vertices of the bounding cube
+    # np.take uses the the flattened LUT, but keeps the shape of flatIndex
+    ndImg00 = np.take(LUT, flatIndex)  # LUT[r0, g0, b0]
+    ndImg01 = np.take(LUT, flatIndex + st[0])  # LUT[r1, g0, b0]
+    ndImg02 = np.take(LUT, flatIndex + st[1])  # LUT[r0, g1, b0]
+    ndImg03 = np.take(LUT, flatIndex + (st[0] + st[1]))  # LUT[r1, g1, b0]
+    ndImg10 = np.take(LUT, flatIndex + st[2])  # LUT[r0, g0, b1]
+    ndImg11 = np.take(LUT, flatIndex + (st[0] + st[2]))  # LUT[r1, g0, b1]
+    ndImg12 = np.take(LUT, flatIndex + (st[1] + st[2]))  # LUT[r0, g1, b1]
+    ndImg13 = np.take(LUT, flatIndex + (st[0] + st[1] + st[2]))  # LUT[r1, g1, b1]
 
     fR = ndImgF[: , :,0] - a[:, :, 0]
     fG = ndImgF[:, :, 1] - a[:, :, 1]
     fB = ndImgF[:, :, 2] - a[:, :, 2]
-
     oneMinusFR = (1 - fR)[..., np.newaxis] * ndImg00
     oneMinusFG = (1 - fG)[..., np.newaxis] * ndImg00
     oneMinusFB = (1 - fB)[..., np.newaxis] * ndImg00
+
     fRG = (fR - fG)[..., np.newaxis]
     fGB = (fG - fB)[..., np.newaxis]
     fBR = (fB - fR)[..., np.newaxis]
@@ -834,10 +856,7 @@ def interpTetraVec_(LUT, ndImg, pool=None):
     fG = fG[..., np.newaxis]
     fB = fB[..., np.newaxis]
 
-    B1 = fR >= fG
-    B2 = fG >= fB
-    B3 = fB >= fR
-
+    # regions
     C1 = fR > fG
     C2 = fG > fB
     C3 = fB > fR
@@ -846,16 +865,18 @@ def interpTetraVec_(LUT, ndImg, pool=None):
     fG = fG * ndImg13
     fB = fB * ndImg13
 
-    X0 = oneMinusFG + fGB * ndImg02 + fBR * ndImg12 + fR
-    X1 = oneMinusFB + fBR * ndImg10 + fRG * ndImg11 + fG
-    X2 = oneMinusFB - fGB * ndImg10 - fRG * ndImg12 + fR
-    X3 = oneMinusFR + fRG * ndImg01 + fGB * ndImg03 + fB
-    X4 = oneMinusFG - fRG * ndImg02 - fBR * ndImg03 + fB
-    X5 = oneMinusFR - fBR * ndImg01 - fGB * ndImg11 + fG
+    X0 = oneMinusFG + fGB * ndImg02 + fBR * ndImg12 + fR  # fG > fB > fR
+    X1 = oneMinusFB + fBR * ndImg10 + fRG * ndImg11 + fG  # fB > fR > fG
+    X2 = oneMinusFB - fGB * ndImg10 - fRG * ndImg12 + fR  # fB >=fG >=fR
+    X3 = oneMinusFR + fRG * ndImg01 + fGB * ndImg03 + fB  # fR > fG > fB
+    X4 = oneMinusFG - fRG * ndImg02 - fBR * ndImg03 + fB  # fG >=fR >=fB
+    X5 = oneMinusFR - fBR * ndImg01 - fGB * ndImg11 + fG  # fR >=fB >=fG
 
-    Y1 = np.select([B2*B3, C3*C1, np.logical_not(B2)*np.logical_not(C1), B1*C2, np.logical_not(B1)*np.logical_not(C3)],
-                   [X0, X1, X2, X3, X4],
-                   default = X5)
+    Y1 = np.select(
+                [C2 * C3, C3 * C1, np.logical_not(np.logical_or(C1,C2)), C1 * C2, np.logical_not(np.logical_or(C1,C3))],
+                [X0, X1, X2, X3, X4],  # clockwise ordering: X3, X5, X1, X2, X0, X4
+                default = X5
+                )
 
     np.clip(Y1, 0, 255, out=Y1)
     return Y1.astype(np.uint8)

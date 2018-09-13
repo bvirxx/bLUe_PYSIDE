@@ -388,6 +388,9 @@ class vImage(QImage):
     def initHald(self):
         """
         Builds a hald image (as a QImage) from identity 3D LUT.
+    A hald can be viewed as a 3D LUT flattened and reshaped as an array representing an image.
+        Pixel channels keep the same order, and
+
         """
         if not self.cachesEnabled:
             return
@@ -649,15 +652,22 @@ class vImage(QImage):
 
     def applyCloning(self, seamless=True):
         """
-
-
+        Seamless cloning
         @param seamless:
         @type seamless: boolean
         """
         # TODO 02/04/18 called multiple times by mouse events, cacheInvalidate should be called!!
         imgIn = self.inputImg()
-        pxIn = QPixmap.fromImage(imgIn)
         imgOut = self.getCurrentImage()
+        pxIn = QPixmap.fromImage(imgIn)
+        ########################
+        # hald pass through
+        if self.parentImage.isHald:
+            buf0 = QImageBuffer(imgIn)
+            buf1 = QImageBuffer(imgOut)
+            buf1[...] = buf0
+            return
+        ########################
         # draw the translated and zoomed input image on the output image
         #if not self.cloned :
         # erase previous transformed image : reset imgOut to ImgIn
@@ -698,6 +708,15 @@ class vImage(QImage):
         """
         imgIn = self.inputImg()
         imgOut = self.getCurrentImage()
+        ########################
+        # hald pass through
+        if self.parentImage.isHald:
+            buf0 = QImageBuffer(imgIn)
+            buf1 = QImageBuffer(imgOut)
+            buf1[...] = buf0
+            return
+        ########################
+
         imgInc = imgIn.copy()
         src = self.parentImage.layersStack[self.sourceIndex].getCurrentImage()
         vImage.seamlessMerge(imgInc, src, self.mask, self.cloningMethod)
@@ -715,14 +734,18 @@ class vImage(QImage):
         form = self.view.widget()
         formOptions = form.listWidget1
         inputImg = self.inputImg()
-        # grabcut is done only by clicking the Apply button of segmentForm
-        if self.noSegment:
+        ##################################################################
+        # pass through
+        # grabcut is done only when clicking the Apply button of segmentForm.
+        # No grabcut for hald image
+        if self.noSegment or self.parentImage.isHald:
             inBuf = QImageBuffer(inputImg)
             outputImg = self.getCurrentImage()
             outBuf = QImageBuffer(outputImg)
             outBuf[:,:,:] = inBuf
             self.updatePixmap()
             return
+        ##################################################################
         rect = self.rect
         # resizing coeff fitting selection rectangle with current image
         r = inputImg.width() / self.width()
@@ -909,6 +932,14 @@ class vImage(QImage):
         noisecorr = adjustForm.noiseCorrection
         currentImage = self.getCurrentImage()
         inputImage = self.inputImg()
+        ########################
+        # hald pass through
+        if self.parentImage.isHald:
+            buf0 = QImageBuffer(inputImage)
+            buf1 = QImageBuffer(currentImage)
+            buf1[...] = buf0
+            return
+        ########################
         if noisecorr == 0:
             bufOut = QImageBuffer(currentImage)
             bufOut[:, :, :3] = QImageBuffer(currentImage)[:,:,:3]
@@ -1140,13 +1171,16 @@ class vImage(QImage):
             if contrastCorrection >0:
                 # CLAHE
                 if options['CLAHE']:
+                    if self.parentImage.isHald:
+                        raise ValueError('cannot build 3D LUT from CLAHE ')
                     clahe = cv2.createCLAHE(clipLimit=contrastCorrection, tileGridSize=(8, 8))
                     clahe.setClipLimit(contrastCorrection)
                     res = clahe.apply((LBuf[:,:,0] * 255.0).astype(np.uint8)) /255
                 # multimode
                 else:
+                    auto = self.autoSpline and not self.parentImage.isHald
                     res,a,b,d,T = warpHistogram(LBuf[:,:,0], warp=contrastCorrection, preserveHigh=options['High'],
-                                                spline = None if self.autoSpline else self.getMmcSpline())
+                                                spline = None if auto else self.getMmcSpline())
                     # show the spline
                     if self.autoSpline and options['manualCurve']:
                         self.getGraphicsForm().setContrastSpline(a, b, d, T)
@@ -1171,13 +1205,16 @@ class vImage(QImage):
                 HSVBuf[:, :, 2] = LUT[HSVBuf[:, :, 2]]  # faster than take
             if contrastCorrection > 0:
                 if options['CLAHE']:
+                    if self.parentImage.isHald:
+                        raise ValueError('cannot build 3D LUT from CLAHE ')
                     clahe = cv2.createCLAHE(clipLimit=contrastCorrection, tileGridSize=(8, 8))
                     clahe.setClipLimit(contrastCorrection)
                     res = clahe.apply((HSVBuf[:, :, 2]))
                 else:
                     buf32 = HSVBuf[:,:,2].astype(np.float)/255
+                    auto = self.autoSpline and not self.parentImage.isHald
                     res,a,b,d,T = warpHistogram(buf32, warp=contrastCorrection, preserveHigh=options['High'],
-                                                spline=None if self.autoSpline else self.getMmcSpline())
+                                                spline=None if auto else self.getMmcSpline())
                     res = (res*255.0).astype(np.uint8)
                     # show the spline
                     if self.autoSpline and options['manualCurve']:
@@ -1379,7 +1416,7 @@ class vImage(QImage):
         Applies a 3D LUT to the current view of the image (self or self.thumb or self.hald).
         If pool is not None and the size of the current view is > 3000000, the computation is
         done in parallel on image slices.
-        The orders of LUT axes, LUT channels and image channels must match.
+        The orders of LUT axes, LUT channels and image channels must be BGR
         @param LUT: LUT3D array (cf. colorCube.py)
         @type LUT: 3d ndarray, dtype = int
         @param options:
@@ -1420,8 +1457,8 @@ class vImage(QImage):
         imgBuffer[:,:,3] = inputBuffer[:,:,3]
         self.updatePixmap()
 
+    """
     def applyHald(self, hald, pool=None):
-        """
         Convert a hald image to a 3DLUT object and applies
         the 3D LUT to the current view, using a pool of parallel processes if
         pool is not None.
@@ -1429,9 +1466,9 @@ class vImage(QImage):
         @type hald: QImage
         @param pool: pool of parallel processes, default None
         @type pool: multiprocessing.pool
-        """
         lut = LUT3D.HaldImage2LUT3D(hald)
         self.apply3DLUT(lut.LUT3DArray, options={'use selection' : False}, pool=pool)
+    """
 
     def histogram(self, size=QSize(200, 200), bgColor=Qt.white, range =(0,255), chans=channelValues.RGB, chanColors=Qt.gray, mode='RGB', addMode=''):
         """
@@ -1548,6 +1585,13 @@ class vImage(QImage):
         currentImage = self.getCurrentImage()
         buf0 = QImageBuffer(inputImage)
         buf1 = QImageBuffer(currentImage)
+        ########################
+        # hald pass through
+        if self.parentImage.isHald:
+            buf1[...] = buf0
+            return
+        ########################
+
         r = inputImage.width() / self.width()
         if self.rect is not None:
             rect = self.rect
@@ -1580,6 +1624,12 @@ class vImage(QImage):
         currentImage = self.getCurrentImage()
         buf0 = QImageBuffer(inputImage)
         buf1 = QImageBuffer(currentImage)
+        ########################
+        # hald pass through
+        if self.parentImage.isHald:
+            buf1[...] = buf0
+            return
+        ########################
         r = inputImage.width() / self.width()
         ####################
         # We blend a neutral filter with density range 0.5*s...0.5 with the image b,
@@ -1851,7 +1901,7 @@ class mImage(vImage):
 
     def addLayer(self, layer, name='', index=None):
         """
-        Adds layer.
+        Adds a layer.
 
         @param layer: layer to add (fresh layer if None, type QLayer)
         @type layer: QLayer
@@ -1870,7 +1920,7 @@ class mImage(vImage):
             trialname = name + '_'+ str(a)
             a = a+1
         if layer is None:
-            layer = QLayer(QImg=self)
+            layer = QLayer(QImg=self, parentImage=self) # TODO 11/09/18 added parentImage validate
             layer.fill(Qt.white)
         layer.name = trialname
         #layer.parentImage = self # TODO 07/06/18 validate suppression
@@ -1895,11 +1945,18 @@ class mImage(vImage):
 
     def addAdjustmentLayer(self, name='', role='',  index=None, sourceImg=None):
         """
-        Add an adjustment layer to the layer stack, at
+        Adds an adjustment layer to the layer stack, at
         position index (default is top of active layer)
-        @param name: 
-        @param index: 
-        @return: 
+        @param name:
+        @type name:
+        @param role:
+        @type role:
+        @param index:
+        @type index:
+        @param sourceImg:
+        @type sourceImg:
+        @return:
+        @rtype:
         """
         if index is None:
             # adding on top of active layer
@@ -2173,6 +2230,7 @@ class QLayer(vImage):
         return layer
 
     def __init__(self, *args, **kwargs):
+        self.parentImage = kwargs.get('parentImage', None)  #TODO added 11/09/18 validate
         self.modified = False
         self.name='noname'
         self.visible = True
@@ -2783,6 +2841,9 @@ class QPresentationLayer(QLayer):
         # self.updatePixmap() done by applyNone()
 
 class QLayerImage(QLayer):
+    """
+    QLayer holding a source image
+    """
     @classmethod
     def fromImage(cls, mImg, parentImage=None, sourceImg=None):
         layer = QLayerImage(QImg=mImg, parentImage=parentImage)

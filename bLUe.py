@@ -143,7 +143,7 @@ from graphicsNoise import noiseForm
 from graphicsRaw import rawForm
 from graphicsTransform import transForm, imageForm
 from imgconvert import *
-from MarkedImg import imImage, metadataBag, vImage
+from MarkedImg import imImage, metadataBag, vImage, QLayerImage, QLayer
 from graphicsRGBLUT import graphicsForm
 from graphicsLUT3D import graphicsForm3DLUT
 from colorCube import LUTSIZE, LUT3D, LUT3DIdentity
@@ -152,6 +152,7 @@ from colorManagement import icc
 from graphicsCoBrSat import CoBrSatForm
 from graphicsExp import ExpForm
 from graphicsPatch import patchForm
+from settings import USE_POOL, POOL_SIZE
 from utils import saveChangeDialog, saveDlg, openDlg, cropTool, rotatingTool, IMAGE_FILE_NAME_FILTER, \
     IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, demosaic, dlgWarn, dlgInfo, loader
 from graphicsTemp import temperatureForm
@@ -951,7 +952,7 @@ def menuFile(name):
     @type name: str
     """
     # load image from file
-    if name in ['actionOpen', 'actionHald_from_file'] :
+    if name in ['actionOpen'] : #, 'actionHald_from_file'] :
         # get file name from dialog
         filename = openDlg(window)
         # open file
@@ -970,6 +971,7 @@ def menuFile(name):
     # closing dialog : close opened document
     elif name == 'actionClose':
         closeFile()
+        """
     elif name == 'actionHald_identity':
         img = QImage(LUTSIZE, LUTSIZE**2, QImage.Format_ARGB32)
         buf = QImageBuffer(img)
@@ -999,6 +1001,7 @@ def menuFile(name):
             newDir = dlg.directory().absolutePath()
             window.settings.setValue('paths/dlgdir', newDir)
             LUT.writeToTextFile(filenames[0])
+        """
     updateStatus()
 
 def menuView(name):
@@ -1176,9 +1179,9 @@ def menuLayer(name):
         l = window.label.img.addAdjustmentLayer(name=layerName, role='3DLUT')
         grWindow = graphicsForm3DLUT.getNewWindow(ccm, axeSize=300, targetImage=window.label.img, LUTSize=LUTSIZE, layer=l, parent=window, mainForm=window)
         # init pool only once
-        if pool is None:
+        if USE_POOL and (pool is None):
             print('launching process pool...', end='')
-            pool = multiprocessing.Pool(4)
+            pool = multiprocessing.Pool(POOL_SIZE)
             print('done')
         l.execute = lambda l=l, pool=pool: l.apply3DLUT(grWindow.scene().LUT3DArray, options=grWindow.scene().options, pool=pool)
     # cloning
@@ -1216,8 +1219,8 @@ def menuLayer(name):
         l.actioname = name
     # empty new image
     elif name == 'actionNew_Layer':
-        img = window.label.img
-        w, h = img.width(), img.height()
+        processedImg = window.label.img
+        w, h = processedImg.width(), processedImg.height()
         imgNew = QImage(w, h, QImage.Format_ARGB32)
         imgNew.fill(Qt.black)
         lname = 'Image'
@@ -1288,20 +1291,20 @@ def menuLayer(name):
         grWindow = noiseForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         # wrapper for the right apply method
         l.execute = lambda l=l, pool=None: l.applyNoiseReduction()
+        """
     elif name == 'actionSave_Layer_Stack':
         return # TODO 26/06/18 should be reviewed
-        lastDir = str(window.settings.value('paths/dlgdir', '.'))
+        lastDir = str(window.settings.value('paths/dlg3DLUTdir', '.'))
         dlg = QFileDialog(window, "select", lastDir)
         dlg.setNameFilter('*.sba')
         dlg.setDefaultSuffix('sba')
         if dlg.exec_():
             filenames = dlg.selectedFiles()
             newDir = dlg.directory().absolutePath()
-            window.settings.setValue('paths/dlgdir', newDir)
+            window.settings.setValue('paths/dlg3DLUTdir', newDir)
             window.label.img.saveStackToFile(filenames[0])
             return
     elif name == 'actionLoad_Layer_Stack':
-        return # TODO 26/06/18 should be reviewedreview
         lastDir = str(window.settings.value('paths/dlgdir', '.'))
         dlg = QFileDialog(window, "select", lastDir)
         dlg.setNameFilter('*.sba')
@@ -1319,15 +1322,16 @@ def menuLayer(name):
             exec (script, safe_dict, locals)  #3.6
             qf.close()
             return
-    # adjustment layer from .cube file
+        """
+    # load 3D LUT from .cube file
     elif name == 'actionLoad_3D_LUT' :
-        lastDir = window.settings.value('paths/dlgdir', '.')
+        lastDir = window.settings.value('paths/dlg3DLUTdir', '.')
         dlg = QFileDialog(window, "select", lastDir)
         dlg.setNameFilter('*.cube')
         dlg.setDefaultSuffix('cube')
         if dlg.exec_():
             newDir = dlg.directory().absolutePath()
-            window.settings.setValue('paths/dlgdir', newDir)
+            window.settings.setValue('paths/dlg3DLUTdir', newDir)
             filenames = dlg.selectedFiles()
             name = filenames[0]
             try:
@@ -1338,9 +1342,9 @@ def menuLayer(name):
             lname = path.basename(name)
             l = window.label.img.addAdjustmentLayer(name=lname)
             # init pool only once
-            if pool is None:
+            if USE_POOL and (pool is None):
                 print('launching process pool...', end='')
-                pool = multiprocessing.Pool(4)
+                pool = multiprocessing.Pool(POOL_SIZE)
                 print('done')
             l.execute = lambda l=l, pool=pool: l.apply3DLUT(LUT3DArray, {'use selection': False}, pool=pool)
             window.tableView.setLayers(window.label.img)
@@ -1351,35 +1355,44 @@ def menuLayer(name):
             l.parentImage.onImageChanged()
         return
     elif name == 'actionSave_Layer_Stack_as_LUT_Cube':
-        return # TODO should be reviewed 26/06/18
-        doc = window.label.img
-        buf = LUT3DIdentity.getHaldImage(doc.width(), doc.height())
+        img = window.label.img
+        # get current size
+        s = (img.getCurrentImage()).size()
+        # build input hald image from identity 3D LUT; channels are in BGR order
+        buf = LUT3DIdentity.getHaldImage(s.width(), s.height())
+        # add hald to stack, on top of  background
+        layer = img.addLayer(None, name='Hald', index=1)
         try:
-            layer = doc.addLayer(None, name='Hald', index=1)
-            #layer = doc.layersStack[0]
-            docBuf = QImageBuffer(layer)
-            docBuf[:, :, :3] = buf
+            # set hald flag
+            img.isHald = True
+            QImageBuffer(layer.getCurrentImage())[:,:,:3] = buf
+            # process hald
             layer.applyToStack()
-            window.label.repaint()
-            img = doc.mergeVisibleLayers()
-            # convert image to LUT3D object
-            LUT = LUT3D.HaldImage2LUT3D(img, size=33)
-            # open file and save
-            lastDir = str(window.settings.value('paths/dlgdir', '.'))
+            processedImg = img.prLayer.inputImg()
+            # convert the output hald to a LUT3D object in BGR order
+            LUT = LUT3D.HaldImage2LUT3D(processedImg, size=LUT3DIdentity.size)
+            # write LUT to file
+            lastDir = str(window.settings.value('paths/dlg3DLUTdir', '.'))
             dlg = QFileDialog(window, "select", lastDir)
             dlg.setNameFilter('*.cube')
             dlg.setDefaultSuffix('cube')
             if dlg.exec_():
                 newDir = dlg.directory().absolutePath()
-                window.settings.setValue('paths/dlgdir', newDir)
+                window.settings.setValue('paths/dlg3DLUTdir', newDir)
                 filenames = dlg.selectedFiles()
                 newDir = dlg.directory().absolutePath()
-                window.settings.setValue('paths/dlgdir', newDir)
+                window.settings.setValue('paths/dlg3DLUTdir', newDir)
                 LUT.writeToTextFile(filenames[0])
+        except (ValueError, IOError) as e:
+            dlgWarn(str(e))
         finally:
-            # restore doc
-            doc.removeLayer(1)
-            doc.layersStack[0].applyToStack()
+            # restore stack
+            img.removeLayer(1)
+            # set hald flag
+            img.isHald = False
+            img.layersStack[0].applyToStack()
+            img.prLayer.update()
+            window.label.repaint()
             return
     # unknown action
     else:
