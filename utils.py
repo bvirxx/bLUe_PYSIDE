@@ -411,6 +411,10 @@ class QbLUeSlider(QSlider):
                                               background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 blue, stop:1 red);}
                                            QSlider::groove:horizontal:disabled {margin: 3px; 
                                               background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #8888FF, stop:1 #FF8888);}"""
+    bLueSliderDefaultIColorStylesheet = """QSlider::groove:horizontal:enabled {margin: 3px; 
+                                                  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 red, stop:1 blue);}
+                                               QSlider::groove:horizontal:disabled {margin: 3px; 
+                                                  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #8888FF, stop:1 #FF8888);}"""
     bLueSliderDefaultBWStylesheet = """QSlider::groove:horizontal:enabled {margin: 3px; 
                                               background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 black, stop:1 white);}
                                            QSlider::groove:horizontal:disabled {margin: 3px; background: #888888;}"""
@@ -502,6 +506,7 @@ class optionsWidget(QListWidget) :
             self.options[intName] = (listItem.checkState() == Qt.Checked)
         #self.setMinimumWidth(self.sizeHintForColumn(0)) # TODO 18/04/18 validate suppression to improve graphicsLUT3D
         self.setMinimumHeight(self.sizeHintForRow(0)*len(options))
+        self.setMaximumHeight(self.sizeHintForRow(0) * len(options)) # TODO added 14/09/18 to improve the aspect of all graphic forms. Validate
         self.exclusive = exclusive
         self.itemClicked.connect(self.select)
         if changed is not None:

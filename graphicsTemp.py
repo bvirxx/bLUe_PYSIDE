@@ -52,8 +52,8 @@ class temperatureForm (QWidget): #(QGraphicsView): TODO modified 25/06/18 valida
 
         # temp slider
         self.sliderTemp = QbLUeSlider(Qt.Horizontal)
-        self.sliderTemp.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
-        self.sliderTemp.setRange(17, 250)  # valid range for spline approximation is 1667..25000, cf. colorConv.temperature2xyWP
+        self.sliderTemp.setStyleSheet(QbLUeSlider.bLueSliderDefaultIColorStylesheet)
+        self.sliderTemp.setRange(17, 100) # 250) # valid range for spline approximation is 1667..25000, cf. colorConv.temperature2xyWP
         self.sliderTemp.setSingleStep(1)
 
         tempLabel = QLabel()
@@ -85,7 +85,7 @@ class temperatureForm (QWidget): #(QGraphicsView): TODO modified 25/06/18 valida
         self.sliderTemp.sliderReleased.connect(lambda: tempUpdate(self.sliderTemp.value()))
 
         l = QVBoxLayout()
-        l.setAlignment(Qt.AlignBottom)
+        l.setAlignment(Qt.AlignTop)
         l.addWidget(self.listWidget1)
         l.addWidget(tempLabel)
         hl = QHBoxLayout()

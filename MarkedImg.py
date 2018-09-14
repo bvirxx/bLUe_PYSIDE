@@ -990,6 +990,8 @@ class vImage(QImage):
         An Exception AttributeError is raised if rawImage
         is not an attribute of self.parentImage.
         """
+        if self.parentImage.isHald :
+            raise ValueError('Cannot build a 3D LUT from raw stack')
         #################
         # a priori underexposition compensation for most DSLR
         #################
@@ -998,7 +1000,6 @@ class vImage(QImage):
         adjustForm = self.view.widget()
         options = adjustForm.options
         rawImage = getattr(self.parentImage, 'rawImage')
-        # get current layer image
         currentImage = self.getCurrentImage()
         ######################################################################################################################
         # process raw image (16 bits mode)                        RGB ------diag(multipliers)-----------> RGB
@@ -1158,7 +1159,9 @@ class vImage(QImage):
             ndImg1a[:, :, :] = tmpBuf
             self.updatePixmap()
             return
+        ##########################
         # Lab mode, slower than HSV
+        ##########################
         if version=='Lab':
             # get l channel, range is 0..1
             LBuf = inputImage.getLabBuffer().copy()
@@ -1176,12 +1179,14 @@ class vImage(QImage):
                     clahe = cv2.createCLAHE(clipLimit=contrastCorrection, tileGridSize=(8, 8))
                     clahe.setClipLimit(contrastCorrection)
                     res = clahe.apply((LBuf[:,:,0] * 255.0).astype(np.uint8)) /255
-                # multimode
+                # warping
                 else:
+                    if self.parentImage.isHald and not options['manualCurve']:
+                        raise ValueError('Check option Show Contrast Curve in Cont/Bright/Sat layer')
                     auto = self.autoSpline and not self.parentImage.isHald
                     res,a,b,d,T = warpHistogram(LBuf[:,:,0], warp=contrastCorrection, preserveHigh=options['High'],
                                                 spline = None if auto else self.getMmcSpline())
-                    # show the spline
+                    # show the spline viewer
                     if self.autoSpline and options['manualCurve']:
                         self.getGraphicsForm().setContrastSpline(a, b, d, T)
                         self.autoSpline = False #mmcSpline = self.getGraphicsForm().scene().cubicItem # caution : misleading name for a quadratic spline !
@@ -1193,7 +1198,9 @@ class vImage(QImage):
                 LBuf[:, :, 1:3] = np.clip(LBuf[:, :, 1:3], -127, 127)
             # back to RGB
             sRGBBuf = Lab2sRGBVec(LBuf)  # use opencv cvtColor
-        # HSV mode
+        ###########
+        # HSV mode (default)
+        ###########
         else:
             # get HSV buffer, H, S, V are in range 0..255
             HSVBuf = inputImage.getHSVBuffer().copy()
@@ -1204,19 +1211,23 @@ class vImage(QImage):
                 # convert V to V**alpha
                 HSVBuf[:, :, 2] = LUT[HSVBuf[:, :, 2]]  # faster than take
             if contrastCorrection > 0:
+                # CLAHE
                 if options['CLAHE']:
                     if self.parentImage.isHald:
                         raise ValueError('cannot build 3D LUT from CLAHE ')
                     clahe = cv2.createCLAHE(clipLimit=contrastCorrection, tileGridSize=(8, 8))
                     clahe.setClipLimit(contrastCorrection)
                     res = clahe.apply((HSVBuf[:, :, 2]))
+                # warping
                 else:
+                    if self.parentImage.isHald and not options['manualCurve']:
+                        raise ValueError('Check option Show Contrast Curve in Cont/Bright/Sat layer')
                     buf32 = HSVBuf[:,:,2].astype(np.float)/255
                     auto = self.autoSpline and not self.parentImage.isHald
                     res,a,b,d,T = warpHistogram(buf32, warp=contrastCorrection, preserveHigh=options['High'],
                                                 spline=None if auto else self.getMmcSpline())
                     res = (res*255.0).astype(np.uint8)
-                    # show the spline
+                    # show the spline viewer
                     if self.autoSpline and options['manualCurve']:
                         self.getGraphicsForm().setContrastSpline(a, b, d, T)
                         self.autoSpline = False # TODO added 18/07/18
@@ -2282,7 +2293,9 @@ class QLayer(vImage):
         @return:
         @rtype: activeSpline
         """
+        # get layer graphic form
         grf = self.getGraphicsForm()
+        # manual curve form
         if grf.contrastForm is not None:
             return grf.contrastForm.scene().cubicItem
         return None

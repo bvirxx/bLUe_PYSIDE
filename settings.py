@@ -24,7 +24,6 @@ if getattr( sys, 'frozen', False ) :
     # running in a bundle
     EXIFTOOL_PATH = 'bin\exiftool.exe'
 else :
-    # running live
     EXIFTOOL_PATH = "C:\standalone\exiftool\exiftool.exe"
 
 ##############
@@ -37,9 +36,11 @@ SRGB_PROFILE_PATH = SYSTEM_PROFILE_DIR + "\sRGB Color Space Profile.icm"
 #############
 # 3D LUT
 ############
-# use tetrahedral interpolation instead of trilinear
-USE_TETRA = True
+# use tetrahedral interpolation instead of trilinear; trilinear is faster
+USE_TETRA = False
 
+######################
 # parallel interpolation
-USE_POOL = False
+#######################
+USE_POOL = True
 POOL_SIZE = 4

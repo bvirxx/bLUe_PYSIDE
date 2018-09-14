@@ -122,6 +122,7 @@ import multiprocessing
 import sys
 import threading
 from itertools import cycle
+from multiprocessing import freeze_support
 from os import path, walk
 
 from numpy import byte
@@ -184,8 +185,8 @@ grabCut is a parallel version of an Opencv3 function
 #################
 
 ##############
-#  Version
-VERSION = "v1.0-beta"
+#  Version number
+VERSION = "v1.0.0"
 ##############
 
 ##############
@@ -1587,6 +1588,14 @@ def screenUpdate(newScreenIndex):
 # app
 ###########
 if __name__ =='__main__':
+    #################
+    # multiprocessing
+    #################
+    # freeze_support() must be called at the start of __main__
+    # to enable multiprocessing when the executable is frozen.
+    # Otherwise, it does nothing.
+    freeze_support()
+
     # add dynamic attributes dktp and currentScreenIndex, used for screen management
     # window.dktp = app.desktop() # TODO removed 05/07/18 validate
     # splash screen

@@ -283,8 +283,8 @@ Sliders are <b>reset</b> to their default value by double clicking the name of t
 
     def setContrastSpline(self, a, b, d, T):
         """
-        Updates and displays the contrast spline form.
-        The form is created if needed.
+        Updates and displays the contrast spline viewer.
+        The form is created only once.
         (Cf also rawForm.setCoBrSat.setContrastSpline).
         @param a: x_coordinates
         @type a:
