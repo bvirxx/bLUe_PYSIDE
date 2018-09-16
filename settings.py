@@ -16,31 +16,38 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import sys
+from json import load
+
+########################
+# read configuration file
+########################
+with open("config.json", "r") as fd:
+    CONFIG = load(fd)
 
 ############
 # exiftool path
 ############
 if getattr( sys, 'frozen', False ) :
     # running in a bundle
-    EXIFTOOL_PATH = 'bin\exiftool.exe'
+    EXIFTOOL_PATH = CONFIG["PATHS"]["EXIFTOOL_PATH_BUNDLED"] #"bin\exiftool.exe"
 else :
-    EXIFTOOL_PATH = "C:\standalone\exiftool\exiftool.exe"
+    EXIFTOOL_PATH = CONFIG["PATHS"]["EXIFTOOL_PATH"] # C:\standalone\exiftool\exiftool.exe"
 
 ##############
 # Paths to system profiles
 ##############
-SYSTEM_PROFILE_DIR = "C:\Windows\System32\spool\drivers\color"
-ADOBE_RGB_PROFILE_PATH = SYSTEM_PROFILE_DIR + "\AdobeRGB1998.icc"
-SRGB_PROFILE_PATH = SYSTEM_PROFILE_DIR + "\sRGB Color Space Profile.icm"
+SYSTEM_PROFILE_DIR = CONFIG["PATHS"]["SYSTEM_PROFILE_DIR"]  # "C:\Windows\System32\spool\drivers\color"
+ADOBE_RGB_PROFILE_PATH = SYSTEM_PROFILE_DIR + CONFIG["PROFILES"]["ADOBE_RGB_PROFILE"]  # "\AdobeRGB1998.icc"
+SRGB_PROFILE_PATH = SYSTEM_PROFILE_DIR + CONFIG["PROFILES"]["SRGB_PROFILE"]  # "\sRGB Color Space Profile.icm"
 
 #############
 # 3D LUT
 ############
 # use tetrahedral interpolation instead of trilinear; trilinear is faster
-USE_TETRA = False
+USE_TETRA = CONFIG["ENV"]["USE_TETRA"]  # False
 
 ######################
 # parallel interpolation
 #######################
-USE_POOL = True
-POOL_SIZE = 4
+USE_POOL = CONFIG["ENV"]["USE_POOL"] # True
+POOL_SIZE = CONFIG["ENV"]["POOL_SIZE"] # 4

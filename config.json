@@ -1,0 +1,18 @@
+{
+  "PATHS": {
+    "EXIFTOOL_PATH_BUNDLED": "bin\\exiftool.exe",
+    "EXIFTOOL_PATH": "C:\\standalone\\exiftool\\exiftool.exe",
+    "SYSTEM_PROFILE_DIR": "C:\\Windows\\System32\\spool\\drivers\\color\\"
+  },
+  "PROFILES" : {
+    "ADOBE_RGB_PROFILE" : "AdobeRGB1998.icc",
+    "SRGB_PROFILE": "sRGB Color Space Profile.icm"
+  },
+  "ENV" : {
+    "//" : "3D LUT : Use tetrahedral interpolation instead of trilinear; trilinear is faster",
+    "USE_TETRA": false,
+    "//" : "3D LUT : Parallel interpolation",
+    "USE_POOL": true,
+    "POOL_SIZE": 4
+  }
+}
