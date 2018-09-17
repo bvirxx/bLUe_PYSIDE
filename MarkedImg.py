@@ -406,7 +406,7 @@ class vImage(QImage):
         Returns the current resizing coefficient used by
         the widget paint event handler to display the image.
         The coefficient is chosen to initially (i.e. when self.Zoom_coeff = 1)
-        fill the widget.
+        fill the widget without cropping.
         For splitted views we use the size of the QSplitter parent
         container instead of the size of the widget.
         @param widget:
@@ -417,8 +417,12 @@ class vImage(QImage):
         wp = widget.parent()
         if type(wp) == QSplitter:
             widget = wp
-        r_w, r_h = float(widget.width()) / self.width(), float(widget.height()) / self.height()
-        r = max(r_w, r_h)
+        w, h = self.width(), self.height()
+        r_w, r_h = float(widget.width()) / w, float(widget.height()) / h
+        if h > w:
+            r = min(r_w, r_h)  # TODO modified 17/09/18 validate to prevent cropping in diaporama for portrait mode
+        else:
+            r = max(r_w, r_h)
         return r * self.Zoom_coeff
 
     def getCurrentImage(self):

@@ -749,7 +749,7 @@ def loadImageFromFile(f, createsidecar=True):
     img.initThumb()
     if img.format() in [QImage.Format_Invalid, QImage.Format_Mono, QImage.Format_MonoLSB, QImage.Format_Indexed8]:
         raise ValueError("Cannot edit indexed formats\nConvert image to a non indexed mode first")
-    if colorSpace < 0:
+    if colorSpace < 0 and not getattr(window, 'modeDiaporama', False) :
         # setOverrideCursor does not work correctly for a MessageBox :
         # may be a Qt Bug, cf. https://bugreports.qt.io/browse/QTBUG-42117
         QApplication.changeOverrideCursor(QCursor(Qt.ArrowCursor))
@@ -1025,17 +1025,16 @@ def menuView(name):
                 window.cropTool.drawCropTool(window.label.img)
     # slide show
     elif name == 'actionDiaporama':
-        if hasattr(window, 'diaporamaGenerator'):
-            if window.diaporamaGenerator is not None:
-                reply = QMessageBox()
-                reply.setWindowTitle('Question')
-                reply.setIcon(QMessageBox.Information)
-                reply.setText("A diaporama was suspended. Resume ?")
-                reply.setStandardButtons(QMessageBox.No | QMessageBox.Yes)
-                reply.setDefaultButton(QMessageBox.Yes)
-                ret = reply.exec_()
-                if ret == QMessageBox.No:
-                    window.diaporamaGenerator = None
+        if getattr(window, 'diaporamaGenerator', None) is not None:
+            reply = QMessageBox()
+            reply.setWindowTitle('Question')
+            reply.setIcon(QMessageBox.Information)
+            reply.setText("A diaporama was suspended. Resume ?")
+            reply.setStandardButtons(QMessageBox.No | QMessageBox.Yes)
+            reply.setDefaultButton(QMessageBox.Yes)
+            ret = reply.exec_()
+            if ret == QMessageBox.No:
+                window.diaporamaGenerator = None
         else:
             window.diaporamaGenerator = None
         if window.diaporamaGenerator is None:

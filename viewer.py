@@ -17,20 +17,17 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import gc
 from os import walk, path, listdir
-
-from PySide2 import QtGui
 from os.path import basename, isfile
 from re import search
 from time import sleep
 
 from PySide2.QtCore import Qt, QUrl, QMimeData, QByteArray, QPoint, QSize
-from PySide2.QtGui import QKeySequence, QImage, QPixmap, QWindow, QDrag
+from PySide2.QtGui import QKeySequence, QImage, QDrag
 from PySide2.QtWidgets import QMainWindow, QLabel, QSizePolicy, QAction, QMenu, QListWidget, QAbstractItemView, \
-    QApplication, QDockWidget
+    QApplication
 
 import exiftool
 from QtGui1 import app, window
-from imgconvert import QImageBuffer
 from utils import loader, IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, stateAwareQDockWidget
 
 # global variable recording diaporama state
@@ -46,6 +43,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
     """
     global isSuspended
     isSuspended = False
+
     # init diaporama window
     newWin = QMainWindow(parent)
     newWin.setAttribute(Qt.WA_DeleteOnClose)
@@ -109,8 +107,18 @@ def playDiaporama(diaporamaGenerator, parent=None):
         menu.exec_(position)
     # connect contextMenuRequested
     newWin.customContextMenuRequested.connect(contextMenu)
+    newWin.setToolTip("Esc to exit full screen mode")
+    newWin.setWhatsThis(
+        """ <b>Slide Show</b><br>
+        The slide show cycles through the starting directory and its subfolders to display images.
+        Photos rated 0 or 1 star are not shown (by default, all photos are rated 5 stars).<br>
+        Hit the Esc key to <b>exit full screen mode and pause.</b><br> Use the Context Menu for <b>rating and resuming.</b>
+        The rating is saved in the .mie sidecar and the image file is not modified.
+        """
+    )  # end of setWhatsThis
     # play diaporama
     from bLUe import loadImageFromFile
+    window.modeDiaporama = True
     while True:
         if isSuspended:
             newWin.setWindowTitle(newWin.windowTitle() + ' Paused')
@@ -132,8 +140,8 @@ def playDiaporama(diaporamaGenerator, parent=None):
             # don't display image with low rating
             if rating < 2:
                 app.processEvents()
-                #continue
             imImg = loadImageFromFile(name, createsidecar=False)
+            # zoom might be modified with the mouse wheel : remember
             if label.img is not None:
                 imImg.Zoom_coeff = label.img.Zoom_coeff
             coeff = imImg.resize_coeff(label)
@@ -161,17 +169,10 @@ def playDiaporama(diaporamaGenerator, parent=None):
             break
         except:
             window.diaporamaGenerator = None
+            window.modeDiaporama = False
             raise
         app.processEvents()
-    newWin.setToolTip("Esc to exit full screen mode")
-    newWin.setWhatsThis(
-        """ Slide Show
-        The diaporama cycles through the starting directory and its subfolders to display images. \
-        Photos rated 0 or 1 star are not shown. By default, all photos are rated 5 stars.
-        Hit the Esc key to exit full screen mode and pause. Use the Context Menu for rating and resuming. \
-        The rating is saved in the .mie sidecar and the image file is not modified.
-        """
-    )  # end of setWhatsThis
+    window.modeDiaporama = False
 
 class dragQListWidget(QListWidget):
     """
