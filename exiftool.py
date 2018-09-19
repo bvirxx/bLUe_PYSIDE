@@ -37,6 +37,7 @@ class ExifTool(object):
     # exiftool synchronization token
     sentinel = "{ready}"
     # exiftool useful flags
+    # -v : formatted output
     # -n : print numerical values
     # -j : json output
     # -a : extract duplicate tags

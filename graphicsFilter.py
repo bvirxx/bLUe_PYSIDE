@@ -170,8 +170,9 @@ class filterForm (QWidget):
         sliderUpdate()
         self.setWhatsThis(
 """
-   Unsharp Mask and Sharpen Mask are useful to sharpen an image.
-   Gaussian Blur and Surface Blur are used to blur an image. In contrast to Gaussian Blur, the Surface Blur filter preserves edges.
+   <b>Unsharp Mask</b> and <b>Sharpen Mask</b> are used to sharpen an image.<br>
+   <b>Gaussian Blur</b> and <b>Surface Blur</b> are used to blur an image.
+   In contrast to Gaussian Blur, the Surface Blur filter preserves edges.
 """
                         )  # end setWhatsThis
 

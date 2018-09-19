@@ -97,7 +97,7 @@ class graphicsHspbForm(graphicsCurveForm) :
         item = self.listWidget1.items[options[1]]
         item.setCheckState(Qt.Checked)
         self.listWidget1.select(item)
-        self.setWhatsThis("""HSV curves""" + self.whatsThis())
+        self.setWhatsThis("""<b>HSV curves</b><br>""" + self.whatsThis())
 
     def drawBackground(self, qp, qrF):
         graphicsScene = self.scene()

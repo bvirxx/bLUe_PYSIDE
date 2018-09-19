@@ -125,18 +125,16 @@ from itertools import cycle
 from multiprocessing import freeze_support
 from os import path, walk
 
-from numpy import byte
 from os.path import basename
 from types import MethodType
 import rawpy
 from grabcut import segmentForm
-from PySide2.QtCore import Qt, QRect, QEvent, QUrl, QSize, QFileInfo, QRectF, QObject, QPoint, \
-    QMimeData, QByteArray, QDataStream, QIODevice
+from PySide2.QtCore import Qt, QRect, QEvent, QUrl, QSize, QFileInfo, QRectF, QObject
 from PySide2.QtGui import QPixmap, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, \
     QPainterPath, QTransform, QContextMenuEvent
-from PySide2.QtWidgets import QApplication, QMenu, QAction, QFileDialog, QMessageBox, \
+from PySide2.QtWidgets import QApplication, QAction, QFileDialog, QMessageBox, \
     QMainWindow, QLabel, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QWidget, \
-    QListWidget, QAbstractItemView, QStyle, QToolTip, QHBoxLayout, QVBoxLayout
+    QStyle, QToolTip, QHBoxLayout, QVBoxLayout
 from QtGui1 import app, window, rootWidget
 import exiftool
 from graphicsBlendFilter import blendFilterForm
@@ -158,7 +156,6 @@ from utils import saveChangeDialog, saveDlg, openDlg, cropTool, rotatingTool, IM
     IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, demosaic, dlgWarn, dlgInfo, loader
 from graphicsTemp import temperatureForm
 from time import sleep
-from re import search
 import gc
 from graphicsFilter import filterForm
 from graphicsHspbLUT import graphicsHspbForm
@@ -186,7 +183,7 @@ grabCut is a parallel version of an Opencv3 function
 
 ##############
 #  Version number
-VERSION = "v1.2.1"
+VERSION = "v1.2.1.2"
 ##############
 
 ##############
@@ -1635,23 +1632,20 @@ if __name__ =='__main__':
     window.eyeDropper.setWhatsThis("""Color picker\n Click on the image to sample pixel colors""")
     window.dragBtn.setWhatsThis("""Drag\n left button : drag the whole image\n Ctrl+Left button : drag the active layer only""")
     window.rectangle.setWhatsThis(
-"""Marquee Tool/Selection Rectangle
-Draw a selection rectangle on the active layer.
-For a segmentation layer all pixels outside the rectangle are set to background.
+"""<b>Marquee Tool/Selection Rectangle</b><br>
+Draw a selection rectangle on the active layer.<br>
+For a segmentation layer only, all pixels outside the rectangle are set to background.
 """
                                 )
     window.drawFG.setWhatsThis(
 """
-Foreground/Unmask
-  Paint on the active layer to unmask a previously masked region or to select foreground pixels (segmentation layer only)
-  
+<b>Foreground/Unmask</b><br
+  Paint on the active layer to unmask a previously masked region or to select foreground pixels (segmentation layer only)<br>
   Use the 'Brush Size' slider below to choose the size of the tool. 
 """                             )
     window.drawBG.setWhatsThis(
-"""
-Background/Mask
-  Paint on the active layer to mask a region or to select background pixels (segmentation layer only)
-  
+"""<b>Background/Mask</b><br>
+  Paint on the active layer to mask a region or to select background pixels (segmentation layer only)<br>
   Use the 'Brush Size' slider below to choose the size of the tool. 
 """                             )
     window.verticalSlider1.setWhatsThis("""Set the diameter of the painting brush""")

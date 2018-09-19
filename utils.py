@@ -463,7 +463,6 @@ class optionsWidgetItem(QListWidgetItem):
     def setInternalName(self, name):
         self._internalName = name
 
-
 class optionsWidget(QListWidget) :
     """
     Displays a list of options with checkboxes.
@@ -506,7 +505,7 @@ class optionsWidget(QListWidget) :
             self.options[intName] = (listItem.checkState() == Qt.Checked)
         #self.setMinimumWidth(self.sizeHintForColumn(0)) # TODO 18/04/18 validate suppression to improve graphicsLUT3D
         self.setMinimumHeight(self.sizeHintForRow(0)*len(options))
-        self.setMaximumHeight(self.sizeHintForRow(0) * len(options)) # TODO added 14/09/18 to improve the aspect of all graphic forms. Validate
+        self.setMaximumHeight(self.sizeHintForRow(0) * len(options) + 10) # TODO added 14/09/18 to improve the aspect of all graphic forms. Validate
         self.exclusive = exclusive
         self.itemClicked.connect(self.select)
         if changed is not None:

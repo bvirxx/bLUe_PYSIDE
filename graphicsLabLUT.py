@@ -96,7 +96,7 @@ class graphicsLabForm(graphicsCurveForm):
         item = self.listWidget1.items[options[0]]
         item.setCheckState(Qt.Checked)
         self.listWidget1.select(item)
-        self.setWhatsThis("""Lab curves""" + self.whatsThis())
+        self.setWhatsThis("""<b>Lab curves</b><br>""" + self.whatsThis())
 
     def drawBackground(self, qp, qrF):
         """

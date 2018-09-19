@@ -974,17 +974,18 @@ class graphicsForm3DLUT(QGraphicsView) :
             btn.adjustSize()
             btn.setMaximumSize(QSize(btn.width()+4, btn.height()+4))
         self.setWhatsThis(
-""" 3D LUT Editor
-   Sample the color of one or several pixels with mouse clicks on the image. The corresponding nodes are displayed \
-as small black circles on the color wheel. To modify the color of a node drag it with the mouse to a new position on \
-the wheel. Several nodes can be moved simultaneously by grouping them. 
-   To group several nodes :
-        1 - select them with the mouse : while pressing the mouse left button, drag a rubber band around the nodes to select;
-        2 - next, right click any one of the selected nodes and choose group from the context menu which opens.
-    To remove unwanted nodes:
-        1 - check the option Remove Node;
-        2 -  ungroup;
-        3 - on the image, click the pixels to remove.
+""" <b>3D LUT Editor</b><br>
+  To <b>select nodes</b> click on the image. The corresponding nodes are displayed \
+as small black circles on the color wheel.<br>
+To <b>modify the color of a node </b> drag it with the mouse to a new position on \
+the wheel. Several nodes can be moved simultaneously by grouping them.<br>
+   To <b>group several nodes</b> :<br>
+        &nbsp; 1 - select them with the mouse : while pressing the mouse left button, drag a rubber band around the nodes to select;<br>
+        &nbsp; 2 - next, right click any one of the selected nodes and choose group from the context menu which opens.<br>
+    To <b>remove nodes</b> from the selection:<br>
+        &nbsp; 1 - check the option Remove Node;<br>
+        &nbsp; 2 -  ungroup;<br>
+        &nbsp; 3 - on the image, click the pixels to remove.<br>
 """
 
                           ) # end of setWhatsThis

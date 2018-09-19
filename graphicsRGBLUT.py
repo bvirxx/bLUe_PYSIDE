@@ -20,7 +20,6 @@ from PySide2.QtCore import QRect
 from PySide2.QtCore import Qt, QRectF
 from PySide2.QtWidgets import QPushButton, QGraphicsScene
 
-from debug import tdec
 from graphicsLUT import activeCubicSpline, graphicsCurveForm
 from utils import optionsWidget, channelValues
 
@@ -83,7 +82,7 @@ class graphicsForm(graphicsCurveForm) :
         # options
         options = ['RGB', 'Red', 'Green', 'Blue']
         self.listWidget1 = optionsWidget(options=options, exclusive=True)
-        self.listWidget1.setGeometry(0, 10, self.listWidget1.sizeHintForColumn(0)+5, self.listWidget1.sizeHintForRow(0)*len(options) + 5)
+        self.listWidget1.setGeometry(0, 10, self.listWidget1.sizeHintForColumn(0) + 5, self.listWidget1.sizeHintForRow(0)*len(options) + 5)
         graphicsScene.addWidget(self.listWidget1)
         # selection changed handler
         curves = [graphicsScene.cubicRGB, graphicsScene.cubicR, graphicsScene.cubicG, graphicsScene.cubicB]
@@ -104,7 +103,7 @@ class graphicsForm(graphicsCurveForm) :
         item = self.listWidget1.items[options[0]]
         item.setCheckState(Qt.Checked)
         self.listWidget1.select(item)
-        self.setWhatsThis("""RGB curves""" + self.whatsThis())
+        self.setWhatsThis("""<b>RGB curves</b><br>""" + self.whatsThis())
 
     def drawBackground(self, qp, qrF):
         """

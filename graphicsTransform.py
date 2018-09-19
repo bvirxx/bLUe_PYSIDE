@@ -63,7 +63,7 @@ class transForm (QWidget): #(QGraphicsView): TODO modified 25/06/18 validate
         self.adjustSize()
         self.setWhatsThis(
 """
-Geometric transformation :
+<b>Geometric transformation :</b><br>
   Choose a transformation type and drag either corner of the image using the small square red button.
 """)
 

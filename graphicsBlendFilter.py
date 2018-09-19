@@ -110,8 +110,8 @@ class blendFilterForm (QWidget): #(QGraphicsView): TODO modified 25/06/18 valida
         self.setLayout(l)
 
         self.setWhatsThis(
-"""Gradual neutral filter. 
-   It mimics the classical gradual gray filter often used by photographers to darken the sky.
+"""<b>Gradual neutral filter.</b><br> 
+   It mimics the classical gradual gray filter often used by photographers to darken the sky.<br>
    To control the regions of maximum and minimum intensities use the Range slider.
 """
                         ) # end setWhatsThis

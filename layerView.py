@@ -258,11 +258,11 @@ class QLayerView(QTableView) :
         self.actionDup.triggered.connect(dup)
         self.setWhatsThis(
 """
-To toggle the layer visibility click on the Eye icon.
-To add a mask use the context menu to enable it and paint pixels with the Mask/Unmask tools found in the left pane.
-For color mask mode : 
-    grey pixels are masked,
-    reddish pixels are unmasked.
+To <b>toggle the layer visibility</b> click on the Eye icon.<br>
+To <b>add a mask</b> use the context menu to enable it and paint pixels with the Mask/Unmask tools found in the left pane.<br>
+For color mask mode enabled: <br>
+    &nbsp; grey pixels are masked,<br>
+    &nbsp; reddish pixels are unmasked.<br>
 Note that upper visible layers slow down mask edition.
 You can drag and drop layers to change their order.
 """
