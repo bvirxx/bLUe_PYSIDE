@@ -1444,6 +1444,7 @@ class vImage(QImage):
         currentImage = self.getCurrentImage()
         # get selection
         w1, w2, h1, h2 = (0.0,) * 4
+        # use selection
         if options.get('use selection', False):
             w, wF = self.getCurrentImage().width(), self.width()
             h, hF = self.getCurrentImage().height(), self.height()
@@ -1455,6 +1456,7 @@ class vImage(QImage):
             if w1>=w2 or h1>=h2:
                 dlgWarn("Empty selection\nSelect a region with the marquee tool")
                 return
+        # use image
         else:
             w1, w2, h1, h2 = 0, self.inputImg().width(), 0, self.inputImg().height()
         inputBuffer = QImageBuffer(inputImage)[h1:h2 + 1, w1:w2 + 1, :]
@@ -1469,7 +1471,7 @@ class vImage(QImage):
         # apply LUT
         ndImg1[h1:h2 + 1, w1:w2 + 1, :] = interp(LUT, ndImg0, pool=pool)
         # forward the alpha channel
-        imgBuffer[:,:,3] = inputBuffer[:,:,3]
+        imgBuffer[h1:h2 + 1, w1:w2 + 1, 3] = inputBuffer[:,:,3]
         self.updatePixmap()
 
     """

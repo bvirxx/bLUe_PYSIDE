@@ -153,7 +153,7 @@ from graphicsExp import ExpForm
 from graphicsPatch import patchForm
 from settings import USE_POOL, POOL_SIZE
 from utils import saveChangeDialog, saveDlg, openDlg, cropTool, rotatingTool, IMAGE_FILE_NAME_FILTER, \
-    IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, demosaic, dlgWarn, dlgInfo, loader
+    IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, demosaic, dlgWarn, dlgInfo
 from graphicsTemp import temperatureForm
 from time import sleep
 import gc
@@ -1442,7 +1442,7 @@ def menuHelp(name):
         w, label = handleTextWindow(parent=window, title='About bLUe', center=False)
         label.setStyleSheet("background-image: url(logo.png); color: white;")
         label.setAlignment(Qt.AlignCenter)
-        label.setText(VERSION + "\n"+attributions)
+        label.setText(VERSION + "\n" + attributions)
         # center window on screen
         w.setGeometry(QStyle.alignedRect(Qt.LeftToRight, Qt.AlignCenter, w.size(), rootWidget.availableGeometry())) # TODO changed app.desktop() to rootWidget 05/07/18
         w.show()
@@ -1586,14 +1586,12 @@ def screenUpdate(newScreenIndex):
 if __name__ =='__main__':
     #################
     # multiprocessing
-    #################
     # freeze_support() must be called at the start of __main__
     # to enable multiprocessing when the executable is frozen.
     # Otherwise, it does nothing.
+    #################
     freeze_support()
 
-    # add dynamic attributes dktp and currentScreenIndex, used for screen management
-    # window.dktp = app.desktop() # TODO removed 05/07/18 validate
     # splash screen
     pixmap = QPixmap('logo.png')
     splash = QSplashScreen(pixmap, Qt.WindowStaysOnTopHint)
@@ -1601,7 +1599,7 @@ if __name__ =='__main__':
     splash.showMessage("Loading .", color=Qt.white, alignment=Qt.AlignCenter)
     app.processEvents()
     sleep(1)
-    splash.showMessage(attributions, color=Qt.white, alignment=Qt.AlignCenter)
+    splash.showMessage(VERSION + "\n" + attributions, color=Qt.white, alignment=Qt.AlignCenter)
     app.processEvents()
     sleep(1)
     splash.finish(window)
