@@ -522,14 +522,14 @@ def temperatureAndTint2xy(temp, tint):
 # (temperature, tint) and the RGB mutipliers mR, mG, mB
 # The idea is as follow :
 # The planes mB/mR = constant in the RGB color space correspond to lines y=kx
-# in the xy color space. In this later space. Consider the point of intersection m1 of
+# in the xy color space. In this later space, consider the point of intersection m1 of
 # the locus (white points) with the line y = kx. It gives the temperature T and
 # the tint corresponds to an homothety applied to m1, which gives the final point m.
 ####################################################################
 
-def temperatureAndTint2RGBMultipliers(temp, tint, XYZ2RGBMatrix, version=0):
+def temperatureAndTint2RGBMultipliers(temp, tint, XYZ2RGBMatrix):
     """
-    Convert temperature and tint to RGB multipliers, as White Point RGB coordinates,
+    Converts temperature and tint to RGB multipliers, as White Point RGB coordinates,
     modulo tint green correction (mG = WP_G * tint)
     We compute the xy coordinates of the white point WP(T) by the Robertson's method.
     Next, we transform these coordinates to RGB values (mR,mG,mB), using the
@@ -537,12 +537,14 @@ def temperatureAndTint2RGBMultipliers(temp, tint, XYZ2RGBMatrix, version=0):
     Multipliers are m1 = mR, m2 = mG*tint, m3 = mB. For convenience
     the function returns the 4 values m1, m2, m3, m2, scaled to min(m1,m2,m3)=1.
     The tint factor should be between 0.2 and 2.5
-    @param T: temperature
-    @type T: float
-    @param green: Tint factor
-    @type green: float
-    @return: List of 4 multipliers (RGBG)
-    @rtype: list of float
+    @param temp: temperature
+    @type temp: float
+    @param tint: Tint factor
+    @type tint: float
+    @param XYZ2RGBMatrix: conversion matrix from XYZ to linear RGB
+    @type XYZ2RGBMatrix: 3x3 array
+    @return: 4 multipliers (RGBG)
+    @rtype: 4-uple of float
     """
     # WP coordinates for temp
     x,y = temperatureAndTint2xy(temp, 0)
@@ -642,7 +644,7 @@ def conversionMatrix(Tdest, Tsource):
     rhos1, rhos2, rhos3  = temperature2Rho(Tsource)
     rhod1, rhod2, rhod3 = temperature2Rho(Tdest)
     D = np.diag((rhod1/rhos1, rhod2/rhos2, rhod3/rhos3))
-    N = np.dot(np.array(BradfordInverse), D)  # N= (B**-1) D
+    N = np.dot(np.array(BradfordInverse), D)  # N = (B**-1) D
     P = np.dot(N, np.array(Bradford))         # P = N B = (B**-1) D B
     return P
 

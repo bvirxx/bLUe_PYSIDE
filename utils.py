@@ -411,6 +411,10 @@ class QbLUeSlider(QSlider):
                                               background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 blue, stop:1 red);}
                                            QSlider::groove:horizontal:disabled {margin: 3px; 
                                               background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #8888FF, stop:1 #FF8888);}"""
+    bLueSliderDefaultMGColorStylesheet = """QSlider::groove:horizontal:enabled {margin: 3px; 
+                                                  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 magenta, stop:1 green);}
+                                               QSlider::groove:horizontal:disabled {margin: 3px; 
+                                                  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #8888FF, stop:1 #FF8888);}"""
     bLueSliderDefaultIColorStylesheet = """QSlider::groove:horizontal:enabled {margin: 3px; 
                                                   background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 red, stop:1 blue);}
                                                QSlider::groove:horizontal:disabled {margin: 3px; 

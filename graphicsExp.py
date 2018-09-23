@@ -2,7 +2,7 @@ from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout, QWidget, QStyle
 
-from utils import QbLUeSlider
+from utils import QbLUeSlider, QbLUeLabel
 
 
 class ExpForm (QWidget): # (QGraphicsView): TODO modified 25/06/18 validate
@@ -32,9 +32,10 @@ class ExpForm (QWidget): # (QGraphicsView): TODO modified 25/06/18 validate
         self.sliderExp.setRange(-20, 20)
         self.sliderExp.setSingleStep(1)
 
-        expLabel = QLabel()
+        expLabel = QbLUeLabel()
         expLabel.setMaximumSize(150, 30)
         expLabel.setText("Exposure Correction")
+        expLabel.doubleClicked.connect(lambda: self.sliderExp.setValue(self.defaultExpCorrection))
 
         self.expValue = QLabel()
         font = self.expValue.font()

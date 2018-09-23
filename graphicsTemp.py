@@ -21,7 +21,7 @@ from PySide2.QtGui import QFontMetrics
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QWidget
 
 from colorConv import sRGBWP
-from utils import optionsWidget, QbLUeSlider
+from utils import optionsWidget, QbLUeSlider, QbLUeLabel
 
 
 class temperatureForm (QWidget): #(QGraphicsView): TODO modified 25/06/18 validate
@@ -36,6 +36,7 @@ class temperatureForm (QWidget): #(QGraphicsView): TODO modified 25/06/18 valida
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         super().__init__(parent=parent)
         self.tempCorrection = 6500
+        self.tintCorrection = 1.0
         self.setStyleSheet('QRangeSlider * {border: 0px; padding: 0px; margin: 0px}')
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize, axeSize)
@@ -43,6 +44,7 @@ class temperatureForm (QWidget): #(QGraphicsView): TODO modified 25/06/18 valida
         self.layer = layer
 
         self.defaultTemp = sRGBWP  # ref temperature D65
+        self.defaultTint = 0
 
         # options
         optionList, optionNames = ['Photo Filter', 'Chromatic Adaptation'], ['Photo Filter', 'Chromatic Adaptation']
@@ -56,24 +58,45 @@ class temperatureForm (QWidget): #(QGraphicsView): TODO modified 25/06/18 valida
         self.sliderTemp.setRange(17, 100) # 250) # valid range for spline approximation is 1667..25000, cf. colorConv.temperature2xyWP
         self.sliderTemp.setSingleStep(1)
 
-        tempLabel = QLabel()
+        tempLabel = QbLUeLabel()
         tempLabel.setMaximumSize(150, 30)
         tempLabel.setText("Color temperature")
+        tempLabel.doubleClicked.connect(lambda: self.sliderTemp.setValue(self.temp2Slider(self.defaultTemp)))
 
         self.tempValue = QLabel()
         font = self.tempValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("000000")
+        w = metrics.width("0000")
         h = metrics.height()
         self.tempValue.setMinimumSize(w, h)
         self.tempValue.setMaximumSize(w, h)
         self.tempValue.setText(str("{:d}".format(self.sliderTemp2User(self.sliderTemp.value()))))
 
+        # tint slider
+        self.sliderTint = QbLUeSlider(Qt.Horizontal)
+        self.sliderTint.setStyleSheet(QbLUeSlider.bLueSliderDefaultMGColorStylesheet)
+        self.sliderTint.setRange(0, 100)  # 250) # valid range for spline approximation is 1667..25000, cf. colorConv.temperature2xyWP
+        self.sliderTint.setSingleStep(1)
+
+        tintLabel = QbLUeLabel()
+        tintLabel.setMaximumSize(150, 30)
+        tintLabel.setText("Tint")
+        tintLabel.doubleClicked.connect(lambda: self.sliderTint.setValue(self.tint2Slider(self.defaultTint)))
+
+        self.tintValue = QLabel()
+        font = self.tintValue.font()
+        metrics = QFontMetrics(font)
+        w = metrics.width("0000")
+        h = metrics.height()
+        self.tintValue.setMinimumSize(w, h)
+        self.tintValue.setMaximumSize(w, h)
+        self.tintValue.setText(str("{:d}".format(self.sliderTint2User(self.sliderTint.value()))))
+
         # temp change event handler
         def tempUpdate(value):
             self.tempValue.setText(str("{:d}".format(self.sliderTemp2User(value))))
-            # move not yet terminated or value not modified
-            if self.sliderTemp.isSliderDown() or self.slider2Temp(value) == self.tempCorrection:
+            # move not yet terminated or values not modified
+            if self.sliderTemp.isSliderDown() or self.slider2Temp(value) == self.tempCorrection :
                 return
             self.sliderTemp.valueChanged.disconnect()
             self.sliderTemp.sliderReleased.disconnect()
@@ -81,9 +104,26 @@ class temperatureForm (QWidget): #(QGraphicsView): TODO modified 25/06/18 valida
             self.dataChanged.emit()
             self.sliderTemp.valueChanged.connect(tempUpdate)
             self.sliderTemp.sliderReleased.connect(lambda: tempUpdate(self.sliderTemp.value()))
+
+        # tint change event handler
+        def tintUpdate(value):
+            self.tintValue.setText(str("{:d}".format(self.sliderTint2User(value))))
+            # move not yet terminated or values not modified
+            if self.sliderTint.isSliderDown() or  self.slider2Tint(value) == self.tintCorrection:
+                return
+            self.sliderTint.valueChanged.disconnect()
+            self.sliderTint.sliderReleased.disconnect()
+            self.tintCorrection = self.slider2Tint(value)
+            self.dataChanged.emit()
+            self.sliderTint.valueChanged.connect(tintUpdate)
+            self.sliderTint.sliderReleased.connect(lambda: tintUpdate(self.sliderTint.value()))
+
         self.sliderTemp.valueChanged.connect(tempUpdate)
         self.sliderTemp.sliderReleased.connect(lambda: tempUpdate(self.sliderTemp.value()))
+        self.sliderTint.valueChanged.connect(tintUpdate)
+        self.sliderTint.sliderReleased.connect(lambda: tintUpdate(self.sliderTint.value()))
 
+        # layout
         l = QVBoxLayout()
         l.setAlignment(Qt.AlignTop)
         l.addWidget(self.listWidget1)
@@ -92,6 +132,11 @@ class temperatureForm (QWidget): #(QGraphicsView): TODO modified 25/06/18 valida
         hl.addWidget(self.tempValue)
         hl.addWidget(self.sliderTemp)
         l.addLayout(hl)
+        l.addWidget(tintLabel)
+        hl1 = QHBoxLayout()
+        hl1.addWidget(self.tintValue)
+        hl1.addWidget(self.sliderTint)
+        l.addLayout(hl1)
         self.setLayout(l)
         self.adjustSize()
         self.dataChanged.connect(self.updateLayer)
@@ -101,18 +146,21 @@ class temperatureForm (QWidget): #(QGraphicsView): TODO modified 25/06/18 valida
 """<b>Color Temperature</b><br>
 <b>Photo Filter</b> uses the multiply blending mode to mimic a color filter
 in front of the camera lens.<br>
-<b>Chromatic Adaptation</b> uses a linear transformation in the XYZ color space.<br>
+<b>Chromatic Adaptation</b> uses multipliers in the linear sRGB
+color space to adjust <b>temperature</b> and <b>tint</b>.
 """
                         )  # end of setWhatsThis
 
     def enableSliders(self):
         self.sliderTemp.setEnabled(True)
+        self.sliderTint.setEnabled(self.options['Chromatic Adaptation'])
 
     def setDefaults(self):
         self.listWidget1.unCheckAll()
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
         self.enableSliders()
         self.sliderTemp.setValue(round(self.temp2Slider(self.tempCorrection)))
+        self.sliderTint.setValue(round(self.tint2Slider(self.defaultTint)))
         self.dataChanged.emit()
 
     def updateLayer(self):
@@ -131,6 +179,15 @@ in front of the camera lens.<br>
 
     def sliderTemp2User(selfself, v):
         return v * 100
+
+    def slider2Tint(self, v):
+        return (v - 50) / 50
+
+    def tint2Slider(self, v):
+        return int( (1.0 + v) *50.0)
+
+    def sliderTint2User(selfself, v):
+        return int((v - 50) / 5.0)
 
     def writeToStream(self, outStream):
         layer = self.layer

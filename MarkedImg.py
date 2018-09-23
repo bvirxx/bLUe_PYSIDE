@@ -35,7 +35,7 @@ from PySide2.QtCore import QRect
 
 import exiftool
 from colorConv import sRGB2LabVec, sRGBWP, Lab2sRGBVec, rgb2rgbLinearVec, \
-    rgbLinear2rgbVec, XYZ2sRGBVec, sRGB2XYZVec
+    rgbLinear2rgbVec, XYZ2sRGBVec, sRGB2XYZVec, sRGB_lin2XYZInverse, temperatureAndTint2RGBMultipliers
 from debug import tdec
 from graphicsBlendFilter import blendFilterIndex
 
@@ -44,7 +44,8 @@ from graphicsLUT import graphicsQuadricForm
 from histogram import warpHistogram
 from colorManagement import icc, convertQImage
 from imgconvert import *
-from colorCube import interpMulti, rgb2hspVec, hsp2rgbVec, LUT3DIdentity, LUT3D, interpVec_, hsv2rgbVec, interpTetraVec_
+from colorCube import interpMulti, rgb2hspVec, hsp2rgbVec, LUT3DIdentity, LUT3D, interpVec_, hsv2rgbVec, \
+    interpTetraVec_, Perc_R, Perc_G, Perc_B
 from time import time
 
 from settings import USE_TETRA
@@ -1071,7 +1072,6 @@ class vImage(QImage):
             # get buffer from cache
             # bufpost16 = self.postProcessCache.copy()  TODO removed 20/07/18 unused validate
             bufHSV_CV32 = self.bufCache_HSV_CV32.copy()
-
         ###########
         # contrast and saturation correction (V channel).
         # We apply a (nearly) automatic histogram equalization
@@ -1693,25 +1693,27 @@ class vImage(QImage):
     def applyTemperature(self):
         """
         The method implements two algorithms for the correction of color temperature.
-        - Chromatic adaptation : linear transformation in the XYZ color space with Bradford
-        cone response. cf. http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html
-        This boils down to use multipliers in the cone response domain.
+        - Chromatic adaptation : multipliers in linear sRGB.
         - Photo filter : Blending using mode multiply, plus correction of luminosity
         """
         adjustForm = self.view.widget()
         options = adjustForm.options
         temperature = adjustForm.tempCorrection
+        tint = adjustForm.tintCorrection # range -1..1
         inputImage = self.inputImg()
         buf1 = QImageBuffer(inputImage)
         currentImage = self.getCurrentImage()
         # neutral point : forward input image and return
-        if abs(temperature - 6500) < 200:
+        if abs(temperature - 6500) < 200 and tint == 0:
             buf0 = QImageBuffer(currentImage)
             buf0[:, :, :] = buf1
             self.updatePixmap()
             return
         from blend import blendLuminosity
         from colorConv import bbTemperature2RGB, conversionMatrix, rgb2rgbLinearVec, rgbLinear2rgbVec
+        ################
+        # photo filter
+        ################
         if options['Photo Filter']:
             # get black body color
             r, g, b = bbTemperature2RGB(temperature)
@@ -1728,7 +1730,13 @@ class vImage(QImage):
             # Note that using perceptual brightness gives better results, unfortunately slower
             resImg = blendLuminosity(filter, inputImage)
             bufOutRGB = QImageBuffer(resImg)[:,:,:3][:,:,::-1]
+        #####################
+        # Chromatic adaptation
+        #####################
         elif options['Chromatic Adaptation']:
+            """
+            tint = 2**tint
+            m1, m2, m3 = (1.0, tint, 1.0,) if tint >=1 else (1.0/tint, 1.0, 1.0/tint,)
             # get conversion matrix in XYZ color space
             M = conversionMatrix(temperature, sRGBWP)  # source is input image : sRGB, ref WP D65
             buf = QImageBuffer(inputImage)[:, :, :3]
@@ -1736,9 +1744,20 @@ class vImage(QImage):
             bufXYZ = sRGB2XYZVec(buf[:,:,::-1])             #np.tensordot(bufLinear, sRGB_lin2XYZ, axes=(-1, -1))
             # apply conversion matrix
             bufXYZ = np.tensordot(bufXYZ, M, axes=(-1, -1))
-            # convert back to RGB
-            bufOutRGB = XYZ2sRGBVec(bufXYZ)
-            bufOutRGB = (bufOutRGB.clip(0, 255)).astype(np.uint8)
+            """
+            # get RGB multipliers
+            m1, m2, m3, _ = temperatureAndTint2RGBMultipliers(temperature, 2**tint, sRGB_lin2XYZInverse)
+            buf = QImageBuffer(inputImage)[:, :, :3]
+            bufXYZ = sRGB2XYZVec(buf[:, :, ::-1])
+            bufsRGBLinear = np.tensordot(bufXYZ, sRGB_lin2XYZInverse, axes=(-1, -1))
+            # apply multipliers
+            bufsRGBLinear *= [m1, m2, m3]
+            # brightness correction
+            M = np.max(bufsRGBLinear)
+            bufsRGBLinear /= M
+            bufOutRGB = rgbLinear2rgbVec(bufsRGBLinear)
+            np.clip(bufOutRGB, 0, 255, out=bufOutRGB)
+            bufOutRGB = bufOutRGB.astype(np.uint8)
         # set output image
         bufOut0 = QImageBuffer(currentImage)
         bufOut = bufOut0[:,:,:3]
