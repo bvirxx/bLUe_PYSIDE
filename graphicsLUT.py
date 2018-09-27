@@ -15,6 +15,8 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+import weakref
+
 import numpy as np
 from PySide2.QtGui import QPainterPathStroker, QBrush
 from PySide2.QtCore import QRect, QPointF, QPoint
@@ -526,6 +528,9 @@ class graphicsCurveForm(QGraphicsView):
         graphicsScene = QGraphicsScene()
         self.setScene(graphicsScene)
         graphicsScene.targetImage = targetImage
+        # link back to image layer
+        # using weak ref for back links
+        graphicsScene.layer = weakref.proxy(layer)
         graphicsScene.layer = layer
         graphicsScene.bgColor = QColor(200,200,200)
         self.mainForm = mainForm

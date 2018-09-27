@@ -18,20 +18,18 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import ctypes
 import os
 import threading
-import time
 from tempfile import mktemp
 
 import cv2
 import numpy as np
 from math import factorial
 
-from PySide2.QtCore import QByteArray
 from PySide2 import QtCore
 from PySide2.QtGui import QColor, QPainterPath, QPen, QImage, QPainter, QTransform, QPolygonF, QPixmap, QIcon
 from PySide2.QtWidgets import QListWidget, QListWidgetItem, QGraphicsPathItem, QDialog, QVBoxLayout, \
     QFileDialog, QSlider, QWidget, QHBoxLayout, QLabel, QMessageBox, QPushButton, QToolButton, QApplication, \
-    QMainWindow, QDockWidget, QStyle
-from PySide2.QtCore import Qt, QPoint, QObject, QRect, QDir, QPointF, QBuffer, QIODevice
+    QDockWidget, QStyle
+from PySide2.QtCore import Qt, QPoint, QObject, QRect, QDir, QPointF
 from os.path import isfile, basename
 from itertools import product
 from numpy.lib.stride_tricks import as_strided
@@ -46,8 +44,14 @@ RAW_FILE_EXTENSIONS = (".nef", ".NEF", ".dng", ".DNG", ".cr2", ".CR2")
 IMAGE_FILE_NAME_FILTER = ['Image Files (*.jpg *.png *.tif *.JPG *.PNG *.TIF)']
 #################
 
+##################
+# Base class for signals
+# A signal (specifically an unbound signal) is a class attribute. When a signal is
+# referenced as an attribute of an instance of the class
+# then PySide2 automatically binds the instance to the signal in order to create a bound signal.
 class baseSignals(QObject):
     visibilityChanged = QtCore.Signal(bool)
+################
 
 def hideConsole():
     """
@@ -1161,7 +1165,8 @@ class loader(threading.Thread):
                         metadata = [{}]
                     # get image info
                     orientation = metadata[0].get("EXIF:Orientation", 1)
-                    date = metadata[0].get("EXIF:DateTimeOriginal", '???')
+                    # EXIF:DateTimeOriginal seems to be missing in many files
+                    date = metadata[0].get("EXIF:ModifyDate", '')
                     rating = metadata[0].get("XMP:Rating", 5)
                     rating = ''.join(['*']*int(rating))
                     transformation = exiftool.decodeExifOrientation(orientation)

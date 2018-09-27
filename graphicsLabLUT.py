@@ -38,11 +38,12 @@ class graphicsLabForm(graphicsCurveForm):
         graphicsScene.addItem(cubic)
         graphicsScene.cubicR = cubic
         cubic.channel = channelValues.L
+        # get histogram as Qimage
         cubic.histImg = graphicsScene.layer.inputImg().histogram(size=graphicsScene.axeSize,
                                                                     bgColor=graphicsScene.bgColor, range=(0, 1),
                                                                     chans=channelValues.L, mode='Lab')
         cubic.initFixedPoints()
-        # a curve
+        # a curve (Green--> Red axis)
         cubic = activeCubicSpline(axeSize)
         graphicsScene.addItem(cubic)
         graphicsScene.cubicG = cubic
@@ -51,7 +52,7 @@ class graphicsLabForm(graphicsCurveForm):
                                                                     bgColor=graphicsScene.bgColor, range=(-100, 100),
                                                                     chans=channelValues.a, mode='Lab')
         cubic.initFixedPoints()
-        # b curve
+        # b curve (Blue-->Yellow axis)
         cubic = activeCubicSpline(axeSize)
         graphicsScene.addItem(cubic)
         graphicsScene.cubicB = cubic
@@ -87,7 +88,7 @@ class graphicsLabForm(graphicsCurveForm):
             self.scene().cubicItem.setVisible(False)
             self.scene().cubicItem = curveDict[item.text()]
             self.scene().cubicItem.setVisible(True)
-            # Force draw  histogram
+            # Force redraw  histogram
             self.scene().invalidate(QRectF(0.0, -self.scene().axeSize, self.scene().axeSize, self.scene().axeSize),
                                     QGraphicsScene.BackgroundLayer)
 

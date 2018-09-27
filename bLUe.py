@@ -774,7 +774,7 @@ def addRawAdjustmentLayer():
     grWindow = rawForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window,
                                             mainForm=window)
     # wrapper for the right apply method
-    l.execute = lambda l=l, pool=None: l.applyRawPostProcessing()
+    l.execute = lambda l=l, pool=None: l.tLayer.applyRawPostProcessing()
     # record action name for scripting
     l.actionName = ''
     # dock the form
@@ -1008,7 +1008,9 @@ def menuView(name):
     @param name: action name
     @type name: str
     """
-    # toggle before/after mode
+    ##################
+    # before/after mode
+    ##################
     if name == 'actionShow_hide_right_window_3' :
         if window.splitter.isHidden() :
             splittedWin.setSplittedView()
@@ -1020,7 +1022,9 @@ def menuView(name):
             window.viewState = 'After'
             if window.btnValues['Crop_Button']:
                 window.cropTool.drawCropTool(window.label.img)
+    ###########
     # slide show
+    ###########
     elif name == 'actionDiaporama':
         if getattr(window, 'diaporamaGenerator', None) is not None:
             reply = QMessageBox()
@@ -1051,15 +1055,16 @@ def menuView(name):
                         diaporamaList.append(path.join(dirpath, filename))
             window.diaporamaGenerator = cycle(diaporamaList)
         playDiaporama(window.diaporamaGenerator, parent=window)
-    # image viewer
+    #############
+    # library viewer
+    #############
     elif name == 'actionViewer':
         # start from parent dir of the last used directory
         lastDir = path.join(str(window.settings.value('paths/dlgdir', '.')), path.pardir)
         dlg = QFileDialog(window, "select", lastDir)
         dlg.setNameFilters(IMAGE_FILE_NAME_FILTER)
         dlg.setFileMode(QFileDialog.Directory)
-        viewList = []
-        # directory dialog
+        # open dialog
         if dlg.exec_():
             newDir = dlg.selectedFiles()[0] # dlg.directory().absolutePath()
             window.settings.setValue('paths/dlgdir', newDir)
@@ -1122,18 +1127,24 @@ def menuImage(name) :
         s = s + '\nIf the monitor profile listed above is not the right profile for your monitor, please check the system settings for color management'
         label.setWordWrap(True)
         label.setText(s)
-    # snapshot
+    # rotations
     elif name in ['action90_CW', 'action90_CCW', 'action180']:
         try:
             angle = 90 if name == 'action90_CW' else -90 if name == 'action90_CCW' else 180
             QApplication.setOverrideCursor(Qt.WaitCursor)
             QApplication.processEvents()
+            # get new imImage
             tImg = img.bTransformed(QTransform().rotate(angle))
             setDocumentImage(tImg)
+            # attempting to free old imImage
+            del img.prLayer
+            del img
+            gc.collect()
             tImg.layersStack[0].applyToStack()
         finally:
             QApplication.restoreOverrideCursor()
             QApplication.processEvents()
+    # rating
     elif name in ['action0', 'action1', 'action2', 'action3', 'action4', 'action5']:
         img.meta.rating = int(name[-1:])
         updateStatus()
@@ -1163,11 +1174,11 @@ def menuLayer(name):
         grWindow=form.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         # wrapper for the right applyXXX method
         if name == 'actionCurves_RGB':
-            l.execute = lambda l=l, pool=None: l.apply1DLUT(grWindow.scene().cubicItem.getStackedLUTXY())
+            l.execute = lambda l=l, pool=None: l.tLayer.apply1DLUT(grWindow.scene().cubicItem.getStackedLUTXY())
         elif name == 'actionCurves_HSpB':
-            l.execute = lambda l=l, pool=None: l.applyHSV1DLUT(grWindow.scene().cubicItem.getStackedLUTXY(), pool=pool)
+            l.execute = lambda l=l, pool=None: l.tLayer.applyHSV1DLUT(grWindow.scene().cubicItem.getStackedLUTXY(), pool=pool)
         elif name == 'actionCurves_Lab':
-            l.execute = lambda l=l, pool=None: l.applyLab1DLUT(grWindow.scene().cubicItem.getStackedLUTXY())
+            l.execute = lambda l=l, pool=None: l.tLayer.applyLab1DLUT(grWindow.scene().cubicItem.getStackedLUTXY())
     # 3D LUT
     elif name in ['action3D_LUT', 'action3D_LUT_HSB']:
         # color model
@@ -1180,19 +1191,19 @@ def menuLayer(name):
             print('launching process pool...', end='')
             pool = multiprocessing.Pool(POOL_SIZE)
             print('done')
-        l.execute = lambda l=l, pool=pool: l.apply3DLUT(grWindow.scene().LUT3DArray, options=grWindow.scene().options, pool=pool)
+        l.execute = lambda l=l, pool=pool: l.tLayer.apply3DLUT(grWindow.scene().LUT3DArray, options=grWindow.scene().options, pool=pool)
     # cloning
     elif name == 'actionNew_Cloning_Layer':
         lname = 'Cloning'
         l = window.label.img.addAdjustmentLayer(name=lname, role='CLONING')
         grWindow = patchForm.getNewWindow(targetImage=window.label.img, layer=l, mainForm=window)
-        l.execute = lambda l=l, pool=None: l.applyCloning(seamless=l.autoclone)
+        l.execute = lambda l=l, pool=None: l.tLayer.applyCloning(seamless=l.autoclone)
     # segmentation
     elif name == 'actionNew_segmentation_layer':
         lname = 'Segmentation'
         l = window.label.img.addSegmentationLayer(name=lname)
         grWindow = segmentForm.getNewWindow(targetImage=window.label.img, layer=l, mainForm=window)
-        l.execute = lambda l=l, pool=None: l.applyGrabcut(nbIter=grWindow.nbIter)
+        l.execute = lambda l=l, pool=None: l.tLayer.applyGrabcut(nbIter=grWindow.nbIter)
         # mask was modified
         #l.updatePixmap()
     # loads an image from file
@@ -1212,7 +1223,7 @@ def menuLayer(name):
         tool = rotatingTool(parent=window.label)#, layer=l, form=grWindow)
         l.addTool(tool)
         tool.showTool()
-        l.execute = lambda l=l, pool=None: l.applyImage(grWindow.options)
+        l.execute = lambda l=l, pool=None: l.tLayer.applyImage(grWindow.options)
         l.actioname = name
     # empty new image
     elif name == 'actionNew_Layer':
@@ -1228,7 +1239,7 @@ def menuLayer(name):
         tool = rotatingTool(parent=window.label)  # , layer=l, form=grWindow)
         l.addTool(tool)
         tool.showTool()
-        l.execute = lambda l=l, pool=None: l.applyImage(grWindow.options)
+        l.execute = lambda l=l, pool=None: l.tLayer.applyImage(grWindow.options)
         l.actioname = name
     # Temperature
     elif name == 'actionColor_Temperature':
@@ -1236,7 +1247,7 @@ def menuLayer(name):
         l = window.label.img.addAdjustmentLayer(name=lname)
         grWindow = temperatureForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         # wrapper for the right apply method
-        l.execute = lambda l=l, pool=None: l.applyTemperature()
+        l.execute = lambda l=l, pool=None: l.tLayer.applyTemperature()
     elif name == 'actionContrast_Correction':
         l = window.label.img.addAdjustmentLayer(name=CoBrSatForm.layerTitle, role='CONTRAST')
         grWindow = CoBrSatForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
@@ -1247,7 +1258,7 @@ def menuLayer(name):
             window.label.img.onImageChanged()
         grWindow.onUpdateContrast = h
         # wrapper for the right apply method
-        l.execute = lambda l=l, pool=None: l.applyContrast()
+        l.execute = lambda l=l, pool=None: l.tLayer.applyContrast()
     elif name == 'actionExposure_Correction':
         lname = 'Exposure'
         l = window.label.img.addAdjustmentLayer(name=lname)
@@ -1260,7 +1271,7 @@ def menuLayer(name):
             window.label.img.onImageChanged()
         grWindow.onUpdateExposure = h
         # wrapper for the right apply method
-        l.execute = lambda l=l,  pool=None: l.applyExposure(l.clipLimit, grWindow.options)
+        l.execute = lambda l=l,  pool=None: l.tLayer.applyExposure(l.clipLimit, grWindow.options)
     elif name == 'actionGeom_Transformation':
         lname = 'Transformation'
         l = window.label.img.addAdjustmentLayer(name=lname, role='GEOMETRY')
@@ -1269,25 +1280,25 @@ def menuLayer(name):
         tool = rotatingTool(parent=window.label)#, layer=l, form=grWindow)
         l.addTool(tool)
         tool.showTool()
-        l.execute = lambda l=l, pool=None: l.applyTransForm(grWindow.options)
+        l.execute = lambda l=l, pool=None: l.tLayer.applyTransForm(grWindow.options)
     elif name == 'actionFilter':
         lname = 'Filter'
         l = window.label.img.addAdjustmentLayer(name=lname)
         grWindow = filterForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         # wrapper for the right apply method
-        l.execute = lambda l=l, pool=None: l.applyFilter2D()
+        l.execute = lambda l=l, pool=None: l.tLayer.applyFilter2D()
     elif name == 'actionGradual_Filter':
         lname = 'Gradual Filter'
         l = window.label.img.addAdjustmentLayer(name=lname)
         grWindow = blendFilterForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         # wrapper for the right apply method
-        l.execute = lambda l=l, pool=None: l.applyBlendFilter()
+        l.execute = lambda l=l, pool=None: l.tLayer.applyBlendFilter()
     elif name == 'actionNoise_Reduction':
         lname='Noise Reduction'
         l = window.label.img.addAdjustmentLayer(name=lname)
         grWindow = noiseForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         # wrapper for the right apply method
-        l.execute = lambda l=l, pool=None: l.applyNoiseReduction()
+        l.execute = lambda l=l, pool=None: l.tLayer.applyNoiseReduction()
         """
     elif name == 'actionSave_Layer_Stack':
         return # TODO 26/06/18 should be reviewed
@@ -1320,6 +1331,16 @@ def menuLayer(name):
             qf.close()
             return
         """
+    # invert image
+    elif name == 'actionInvert':
+        lname = 'Invert'
+        l = window.label.img.addAdjustmentLayer(name=lname)
+        l.execute = lambda l=l : l.tLayer.applyInvert()
+        window.tableView.setLayers(window.label.img)
+        l.applyToStack()
+        l.parentImage.prLayer.update()
+        l.parentImage.onImageChanged()
+        return
     # load 3D LUT from .cube file
     elif name == 'actionLoad_3D_LUT' :
         lastDir = window.settings.value('paths/dlg3DLUTdir', '.')
@@ -1343,7 +1364,7 @@ def menuLayer(name):
                 print('launching process pool...', end='')
                 pool = multiprocessing.Pool(POOL_SIZE)
                 print('done')
-            l.execute = lambda l=l, pool=pool: l.apply3DLUT(LUT3DArray, {'use selection': False}, pool=pool)
+            l.execute = lambda l=l, pool=pool: l.tLayer.apply3DLUT(LUT3DArray, {'use selection': False}, pool=pool)
             window.tableView.setLayers(window.label.img)
             l.applyToStack()
             # The resulting image is modified,
@@ -1400,7 +1421,7 @@ def menuLayer(name):
     l.parentImage.onImageChanged()  # TODO added 06/09/18 validate
     # record action name for scripting
     l.actionName = name
-    # dock the form
+    # docking the form
     dock = QDockWidget(window)
     dock.setWidget(grWindow)
     dock.setWindowFlags(grWindow.windowFlags())

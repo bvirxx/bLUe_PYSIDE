@@ -1,3 +1,5 @@
+import weakref
+
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout, QWidget, QStyle
@@ -5,7 +7,7 @@ from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLa
 from utils import QbLUeSlider, QbLUeLabel
 
 
-class ExpForm (QWidget): # (QGraphicsView): TODO modified 25/06/18 validate
+class ExpForm (QWidget):
     defaultExpCorrection = 0.0
     DefaultStep = 0.1
     @classmethod
@@ -14,13 +16,15 @@ class ExpForm (QWidget): # (QGraphicsView): TODO modified 25/06/18 validate
         wdgt.setWindowTitle(layer.name)
         return wdgt
 
-    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None): # TODO 01/12/17 remove param targetImage
+    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         super().__init__(parent=parent)
         #self.targetImage = targetImage
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize, axeSize)
         self.setAttribute(Qt.WA_DeleteOnClose)
-        self.layer = layer
+        # link back to image layer
+        # using weak ref for back links
+        self.layer = weakref.proxy(layer)
 
         # options
         self.options = None

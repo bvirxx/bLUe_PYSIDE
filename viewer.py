@@ -206,7 +206,7 @@ class viewer :
     @classmethod
     def getViewerInstance(cls, mainWin=None):
         """
-        Returns a unique viewer instance. An instance
+        Returns a unique viewer instance : a new instance
         is created if there exists no instance yet.
         @param mainWin: should be the app main window
         @type mainWin: QMainWindow

@@ -15,6 +15,8 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+import weakref
+
 from PySide2 import QtCore
 
 from PySide2.QtCore import Qt
@@ -38,7 +40,9 @@ class noiseForm (QWidget): # (QGraphicsView): TODO modified 25/06/18 validate
         self.setMinimumSize(axeSize, axeSize)
         self.setAttribute(Qt.WA_DeleteOnClose)
         #self.img = targetImage
-        self.layer = layer
+        # link back to image layer
+        # using weak ref for back links
+        self.layer = weakref.proxy(layer)
         # attribute initialized in setDefaults
         # defined here for the sake of correctness
         self.noiseCorrection = 0

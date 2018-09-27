@@ -736,6 +736,7 @@ Screen</string>
      <addaction name="actionGradual_Filter"/>
      <addaction name="actionNoise_Reduction"/>
      <addaction name="separator"/>
+     <addaction name="actionInvert"/>
      <addaction name="actionGeom_Transformation"/>
     </widget>
     <widget class="QMenu" name="menuNew_Image_Layer">
@@ -1093,6 +1094,11 @@ Screen</string>
   <action name="actionNew_Layer">
    <property name="text">
     <string>New Layer</string>
+   </property>
+  </action>
+  <action name="actionInvert">
+   <property name="text">
+    <string>Invert</string>
    </property>
   </action>
  </widget>

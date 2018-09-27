@@ -15,6 +15,7 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+import weakref
 
 from PySide2.QtCore import Qt, QSize
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QWidget
@@ -31,7 +32,9 @@ class histForm (QWidget):
         self.setMinimumSize(size, 100)
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.img = targetImage
-        self.layer = layer
+        # link back to image layer
+        # using weak ref for back links
+        self.layer = layer if layer is None else weakref.proxy(layer)
         self.Label_Hist = QLabel()
         self.Label_Hist.setScaledContents(True)
         self.Label_Hist.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)

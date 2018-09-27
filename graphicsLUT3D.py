@@ -15,7 +15,7 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-
+import weakref
 
 from PySide2.QtCore import QSize
 from PySide2.QtWidgets import QAction, QFileDialog, QToolTip, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, QApplication
@@ -814,14 +814,18 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.currentR, self.currentG, self.currentB = 0,0,0
         self.size = axeSize
         self.targetImage= targetImage
-        self.layer=layer  # TODO 25/05/18 remove and instead use graphicsScene.layer below
+        # link back to image layer
+        # using weak ref for back links
+        self.layer = weakref.proxy(layer)   #TODO 25/05/18 remove and instead use graphicsScene.layer below
         self.mainForm = mainForm
         # currently selected grid node
         self.selected = None
         #self.bgPixmap = QPixmap.fromImage(self.QImg)
         self.graphicsScene = QGraphicsScene()
         self.setScene(self.graphicsScene)
-        self.graphicsScene.layer = layer
+        # link back to image layer
+        # using weak ref for back links
+        self.graphicsScene.layer = weakref.proxy(layer)
         # LUT
         freshLUT3D = LUT3D.LUT3DFromFactory(size=LUTSize)
         self.graphicsScene.LUTSize, self.graphicsScene.LUTStep, self.graphicsScene.LUT3DArray = freshLUT3D.size, freshLUT3D.step, freshLUT3D.LUT3DArray

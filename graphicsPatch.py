@@ -15,6 +15,8 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+import weakref
+
 import cv2
 from PySide2.QtCore import Qt
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QComboBox, QWidget
@@ -39,7 +41,9 @@ class patchForm (QWidget): #(QGraphicsView): TODO Modified 25/06/18 validate
         self.setMinimumSize(axeSize, axeSize)
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.img = targetImage
-        self.layer = layer
+        # link back to image layer
+        # using weak ref for back links
+        self.layer = weakref.proxy(layer)
         self.mainForm = mainForm
         # options
         options_dict = {'Normal Clone':cv2.NORMAL_CLONE, 'Mixed Clone':cv2.MIXED_CLONE, 'Monochrome Transfer':cv2.MONOCHROME_TRANSFER}

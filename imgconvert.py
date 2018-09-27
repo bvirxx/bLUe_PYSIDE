@@ -80,11 +80,11 @@ def QImageBuffer(qimg):
     # Get image buffer
     # Calling bits() performs a deep copy of the buffer,
     # suppressing all dependencies due to implicit data sharing.
-    # To avoid deep copy use constBits() instead (unfortunately returns a read-only buffer).
+    # To avoid deep copy use constBits() instead (Caution : it returns a read-only buffer).
     ptr = qimg.bits()  # type memoryview, items are bytes : ptr.itemsize = 1
     #convert buffer to ndarray and reshape
     h,w = qimg.height(), qimg.width()
-    return np.asarray(ptr, dtype=np.uint8).reshape(h, w, Bpp)  # specifying dtype may prevent copy of data
+    return np.asarray(ptr, dtype=np.uint8).reshape(h, w, Bpp)  # specifying dtype is mandatory to prevent copy of data
 
 def PilImageToQImage(pilimg) :
     """

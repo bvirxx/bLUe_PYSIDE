@@ -15,6 +15,8 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+import weakref
+
 from PySide2 import QtCore
 from PySide2.QtCore import Qt
 from PySide2.QtWidgets import QHBoxLayout, QPushButton, QWidget, QSizePolicy, QVBoxLayout, QSpinBox, QLabel
@@ -57,7 +59,9 @@ class segmentForm(QWidget):
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(200, 200)
         self.setAttribute(Qt.WA_DeleteOnClose)
-        self.layer = layer
+        # link back to image layer
+        # using weak ref for back links
+        self.layer = weakref.proxy(layer)
 
         pushButton = QPushButton('apply')
         # apply button slot

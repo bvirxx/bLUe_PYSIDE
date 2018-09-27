@@ -15,6 +15,7 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+import weakref
 from math import log
 import numpy as np
 from PySide2 import QtCore
@@ -106,7 +107,9 @@ class rawForm (QWidget):
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize, axeSize+200)  # +200 to prevent scroll bars in list Widgets
         self.setAttribute(Qt.WA_DeleteOnClose)
-        self.layer = layer
+        # link back to image layer
+        # using weak ref for back links
+        self.layer = weakref.proxy(layer)
         #######################################
         # Libraw correspondances:
         # rgb_xyz_matrix is libraw cam_xyz

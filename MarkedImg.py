@@ -18,6 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import gc
 
 import itertools
+import weakref
 
 from PySide2.support.signature import inspect
 from PySide2.support.signature.inspect import getframeinfo, currentframe
@@ -641,11 +642,6 @@ class vImage(QImage):
         img.useHald = self.useHald
         return img
 
-    def bResized(self, w, h):
-        transform = QTransform()
-        transform = transform.scale(w/self.width(), h/self.height())
-        return self.bTransformed(transform)
-
     def applyNone(self):
         """
         Pass through
@@ -848,9 +844,21 @@ class vImage(QImage):
         # TODO 23/06/18 should forward ?
         self.updatePixmap()
 
+    def applyInvert(self):
+        """
+        Inverts image
+        """
+        bufIn = QImageBuffer(self.inputImg())
+        # get orange mask from (negative) unexposed pixels
+        M0, M1, M2 = np.max(bufIn[:,:,0]), np.max(bufIn[:,:,1]), np.max(bufIn[:,:,2])
+        currentImage = self.getCurrentImage()
+        bufOut = QImageBuffer(currentImage)
+        bufOut[:, :, :3] = 255 - (bufIn[:, :, :3] / [M0, M1, M2]) * 255
+        self.updatePixmap()
+
     def applyExposure(self, exposureCorrection, options):
         """
-        Apply exposure correction 2**exposureCorrection
+        Applies exposure correction 2**exposureCorrection
         to the linearized RGB channels.
 
         @param exposureCorrection:
@@ -1316,7 +1324,6 @@ class vImage(QImage):
             return buf
         ndLImg0 = scaleLabBuf(ndLabImg0).astype(np.uint8)
         # apply LUTS to channels
-        #rList = np.array([0, 1, 2])  # L,a,b
         s = ndLImg0[:, :, 0].shape
         ndLabImg1 = np.zeros(ndLImg0.shape, dtype=np.uint8)
         for c in range(3):  # 0.43s for 15Mpx
@@ -1799,7 +1806,7 @@ class mImage(vImage):
             if thumbfile is not None:
                     e.writeThumbnail(destFile, thumbfile)
     def __init__(self, *args, **kwargs):
-        # as updatePixmap uses layersStack, must be
+        # as updatePixmap uses layersStack, it must be initialized
         # before the call to super(). __init__
         self.layersStack = []
         # link back to QLayerView window
@@ -1813,7 +1820,7 @@ class mImage(vImage):
         self.addLayer(bgLayer, name='Background')
         # color management : we assume that the image profile is the working profile
         self.colorTransformation = icc.workToMonTransform
-        # add presentation layer
+        # presentation layer
         prLayer = QPresentationLayer(QImg=self, parentImage=self)
         prLayer.name = 'presentation'
         prLayer.role ='presentation'
@@ -1826,8 +1833,8 @@ class mImage(vImage):
 
     def bTransformed(self, transformation):
         """
-        Applies transformation and returns a copy
-        of the transformed image and stack.
+        Applies transformation to all layers in stack and returns
+        the new mImage
         @param transformation:
         @type transformation: Qtransform
         @return:
@@ -2190,8 +2197,8 @@ class imImage(mImage) :
 
     def bTransformed(self, transformation):
         """
-        Applies transformation and returns a copy
-        of the transformed image and stack.
+        Applies transformation to all layers in stack
+        and returns the new imImage.
         @param transformation:
         @type transformation: QTransform
         @return:
@@ -2203,9 +2210,18 @@ class imImage(mImage) :
         img.useThumb = self.useThumb
         img.useHald = self.useHald
         stack = []
+        # apply transformation to the stack. Note that
+        # the presentation layer is automatically rebuilt
         for layer in self.layersStack:
             tLayer = layer.bTransformed(transformation, img)
-            #tLayer.name = tLayer.name + 'aaa'
+            # keep ref to original layer (needed by execute)
+            tLayer.parentLayer = layer.parentLayer
+            # record new transformed layer in original layer (needed by execute)
+            tLayer.parentLayer.tLayer = tLayer
+            # link back grWindow to tLayer
+            # using weak ref for back links
+            if tLayer.view is not None:
+                tLayer.view.widget().layer = weakref.proxy(tLayer)
             stack.append(tLayer)
         img.layersStack = stack
         gc.collect()
@@ -2258,18 +2274,36 @@ class imImage(mImage) :
         self.xOffset, self.yOffset = 0.0, 0.0
 
 class QLayer(vImage):
+    """
+    Base class for image layers
+    """
 
     @classmethod
     def fromImage(cls, mImg, parentImage=None):
+        """
+        Returns a QLayer object initialized with mImg.
+        @param mImg:
+        @type mImg: QImage
+        @param parentImage:
+        @type parentImage: mImage
+        @return:
+        @rtype: Qlayer
+        """
         layer = QLayer(QImg=mImg, parentImage=parentImage)
         layer.parentImage = parentImage
         return layer
 
     def __init__(self, *args, **kwargs):
         self.parentImage = kwargs.get('parentImage', None)  #TODO added 11/09/18 validate
+        # when a geometric transformation is applied to the whole image
+        # each layer must be replaced with a transformed layer, recorded in tLayer
+        # and tLayer.parentLayer keeps a reference to the original layer.
+        self.tLayer = self
+        self.parentLayer = self
         self.modified = False
         self.name='noname'
         self.visible = True
+        # add signal instance (layer visibility change,..)
         self.signals = baseSignals()
         self.isClipping = False
         self.role = kwargs.pop('role', '')
@@ -2280,8 +2314,6 @@ class QLayer(vImage):
         self.opacity = 1.0
         self.compositionMode = QPainter.CompositionMode_SourceOver
         # The next two attributes are used by adjustment layers only.
-        # wrapper for the right exec method
-        # self.execute = lambda l=None, pool=None: self.updatePixmap()
         self.execute = lambda l=None, pool=None: l.updatePixmap() if l is not None else None
         self.options = {}
         # actionName is used by methods graphics***.writeToStream()
@@ -2289,7 +2321,7 @@ class QLayer(vImage):
         # associated form : view is set by bLUe.menuLayer()
         self.view = None
         # containers are initialized (only once) by
-        # getCurrentMaskedImage, their type is QLayer
+        # getCurrentMaskedImage. Their type is QLayer
         self.maskedImageContainer = None
         self.maskedThumbContainer = None
         # consecutive layers can be grouped.
@@ -2367,39 +2399,23 @@ class QLayer(vImage):
         @return: transformed layer
         @rtype: QLayer
         """
+        # init a new layer from transformed image :
+        # all static attributes (caches...) are reset to default, but thumb
         tLayer = QLayer.fromImage(self.transformed(transformation), parentImage=parentImage)
-        # add dynamic attributes
+        # copy  dynamic attributes from old layer
         for a in self.__dict__.keys():
             if a not in tLayer.__dict__.keys():
                 tLayer.__dict__[a] = self.__dict__[a]
         tLayer.name = self.name
         tLayer.actionName = self.actionName
         tLayer.view = self.view
+        tLayer.visible = self.visible # TODO added 25/09/18 validate
         # cut link from old layer to graphic form
         # self.view = None                        # TODO 04/12/17 validate
-        # link back grWindow to tLayer
-        if tLayer.view is not None:
-            tLayer.view.widget().layer = tLayer
         tLayer.execute = self.execute
         tLayer.mask = self.mask.transformed(transformation)
         tLayer.maskIsEnabled, tLayer.maskIsSelected = self.maskIsEnabled, self.maskIsSelected
         return tLayer
-
-    def bResized(self,w, h, parentImage):
-        """
-        resize a copy of layer
-        @param w:
-        @type w:
-        @param h:
-        @type h:
-        @param parentImage:
-        @type parentImage:
-        @return:
-        @rtype: Qlayer
-        """
-        transform = QTransform()
-        transform = transform.scale(w / self.width(), h / self.height())
-        return self.bTransformed(transform, parentImage)
 
     def initThumb(self):
         """
@@ -2535,7 +2551,7 @@ class QLayer(vImage):
             mask = self.mask.scaled(img.width(), img.height())  # vImage.color2OpacityMask(self.mask)
             img = vImage.visualizeMask(img, mask, color=False, clipping=False, copy=False)
         """
-        buf = QImageBuffer(img)
+        # buf = QImageBuffer(img) #TODO 24/09/18 removed validate
         return img
 
     def applyToStack(self):
@@ -2851,7 +2867,7 @@ class QPresentationLayer(QLayer):
                 # CAUTION : reset alpha channel
                 img = convertQImage(currentImage, transformation=self.parentImage.colorTransformation)  # time 0.66 s for 15 Mpx.
                 # preserve alpha channel
-                img = img.convertToFormat(currentImage.format()) #TODO 14/06/18 convertToFormat is mandatory to get ARGB instead of RGB images
+                img = img.convertToFormat(currentImage.format()) #TODO 14/06/18 convertToFormat is mandatory to get ARGB imagesinstead of RGB images
                 buf0 = QImageBuffer(img)
                 buf1 = QImageBuffer(currentImage)
                 buf0[:,:,3] = buf1[:,:,3]
@@ -2903,6 +2919,9 @@ class QLayerImage(QLayer):
         @return: transformed layer
         @rtype: QLayerImage
         """
+        # TODO modified 26/09/18 validate
+        tLayer = super().bTransformed(self, transformation, parentImage)
+        """ 
         tLayer = QLayerImage.fromImage(self.transformed(transformation), parentImage=parentImage, sourceImg=self.sourceImg.transformed(transformation))
         # add dynamic attributes
         for a in self.__dict__.keys():
@@ -2918,23 +2937,15 @@ class QLayerImage(QLayer):
         tLayer.execute = self.execute
         tLayer.mask = self.mask.transformed(transformation)
         tLayer.maskIsEnabled, tLayer.maskIsSelected = self.maskIsEnabled, self.maskIsSelected
+        # keep original layer
+        tLayer.parentLayer = self.parentLayer
+        # record new transformed layer
+        self.parentLayer.tLayer = tLayer
+        """
+        if tLayer.tool is not None:
+            tLayer.tool.layer = tLayer
+            tLayer.tool.img = tLayer.parentImage
         return tLayer
-
-    def bResized(self,w, h, parentImage):
-        """
-        resize a copy of layer
-        @param w:
-        @type w:
-        @param h:
-        @type h:
-        @param parentImage:
-        @type parentImage:
-        @return:
-        @rtype: Qlayer
-        """
-        transform = QTransform()
-        transform = transform.scale(w / self.width(), h / self.height())
-        return self.bTransformed(transform, parentImage)
 
     def inputImg(self):
         """
