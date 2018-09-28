@@ -20,11 +20,11 @@ import gc
 import itertools
 import weakref
 
-from PySide2.support.signature import inspect
-from PySide2.support.signature.inspect import getframeinfo, currentframe
+# from PySide2.support.signature import inspect # unsused
+# from PySide2.support.signature.inspect import getframeinfo, currentframe # unused
 from os.path import isfile
 
-from PySide2.QtCore import Qt, QDataStream, QFile, QIODevice, QSize, QPointF, QPoint, QRectF, QMargins
+from PySide2.QtCore import Qt, QDataStream, QFile, QIODevice, QSize, QPoint, QRectF, QMargins
 
 import cv2
 from copy import copy
@@ -35,18 +35,17 @@ from PySide2.QtGui import QPixmap, QImage, QColor, QPainter
 from PySide2.QtCore import QRect
 
 import exiftool
-from colorConv import sRGB2LabVec, sRGBWP, Lab2sRGBVec, rgb2rgbLinearVec, \
-    rgbLinear2rgbVec, XYZ2sRGBVec, sRGB2XYZVec, sRGB_lin2XYZInverse, temperatureAndTint2RGBMultipliers
+from colorConv import sRGB2LabVec, Lab2sRGBVec, rgb2rgbLinearVec, \
+    rgbLinear2rgbVec, sRGB2XYZVec, sRGB_lin2XYZInverse, temperatureAndTint2RGBMultipliers
 from debug import tdec
 from graphicsBlendFilter import blendFilterIndex
 
 from graphicsFilter import filterIndex
-from graphicsLUT import graphicsQuadricForm
 from histogram import warpHistogram
 from colorManagement import icc, convertQImage
 from imgconvert import *
 from colorCube import interpMulti, rgb2hspVec, hsp2rgbVec, LUT3DIdentity, LUT3D, interpVec_, hsv2rgbVec, \
-    interpTetraVec_, Perc_R, Perc_G, Perc_B
+    interpTetraVec_
 from time import time
 
 from settings import USE_TETRA
