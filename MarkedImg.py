@@ -848,12 +848,15 @@ class vImage(QImage):
         """
         Inverts image
         """
-        bufIn = QImageBuffer(self.inputImg())
-        # get orange mask from (negative) unexposed pixels
-        M0, M1, M2 = np.max(bufIn[:,:,0]), np.max(bufIn[:,:,1]), np.max(bufIn[:,:,2])
+        bufIn = QImageBuffer(self.inputImg())[:,:,:3]
+        # get orange mask from negative brightest (unexposed) pixels
+        temp = np.sum(bufIn, axis=2)
+        ind = np.argmax(temp)
+        ind = np.unravel_index(ind, (bufIn.shape[0], bufIn.shape[1],))
+        Mask0,Mask1,Mask2 = bufIn[ind]
         currentImage = self.getCurrentImage()
         bufOut = QImageBuffer(currentImage)
-        bufOut[:, :, :3] = 255 - (bufIn[:, :, :3] / [M0, M1, M2]) * 255
+        bufOut[:, :, :3] = 255 - (bufIn[:, :, :3] / [Mask0, Mask1, Mask2]) * 255
         self.updatePixmap()
 
     def applyExposure(self, exposureCorrection, options):
