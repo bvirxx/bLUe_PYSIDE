@@ -1141,6 +1141,7 @@ def menuImage(name) :
             del img
             gc.collect()
             tImg.layersStack[0].applyToStack()
+            tImg.onImageChanged()
         finally:
             QApplication.restoreOverrideCursor()
             QApplication.processEvents()
