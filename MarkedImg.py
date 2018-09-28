@@ -2221,7 +2221,13 @@ class imImage(mImage) :
             # link back grWindow to tLayer
             # using weak ref for back links
             if tLayer.view is not None:
-                tLayer.view.widget().layer = weakref.proxy(tLayer)
+                # for historical reasons, graphic forms inheriting
+                # from QGraphicsView use form.scene().layer attribute,
+                # others use form.layer
+                if getattr(tLayer.view.widget(), 'scene', None) is None:
+                    tLayer.view.widget().layer = weakref.proxy(tLayer)
+                else:
+                    tLayer.view.widget().scene().layer = tLayer.view.widget().layer = weakref.proxy(tLayer)
             stack.append(tLayer)
         img.layersStack = stack
         gc.collect()

@@ -531,7 +531,7 @@ class graphicsCurveForm(QGraphicsView):
         # link back to image layer
         # using weak ref for back links
         graphicsScene.layer = weakref.proxy(layer)
-        graphicsScene.layer = layer
+        #graphicsScene.layer = layer
         graphicsScene.bgColor = QColor(200,200,200)
         self.mainForm = mainForm
         graphicsScene.axeSize = axeSize
