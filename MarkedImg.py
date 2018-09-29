@@ -783,8 +783,13 @@ class vImage(QImage):
         inputBuf = QImageBuffer(inputImg)
         bgdmodel_test = np.zeros((1, 13 * 5), np.float64)  # Temporary array for the background model
         fgdmodel_test = np.zeros((1, 13 * 5), np.float64)  # Temporary array for the foreground model
-        # segmentation
-        cv2.grabCut_mt(inputBuf[:, :, :3], finalMask, None,  # QRect2tuple(img0_r.rect),
+        # get the fastest available method for segmentation
+        if getattr(cv2, 'grabCut_mt', None) is None:
+            bGrabcut = cv2.grabCut
+        else:
+            bGrabcut = cv2.grabCut_mt
+        # apply grabcut
+        bGrabcut(inputBuf[:, :, :3], finalMask, None,  # QRect2tuple(img0_r.rect),
                         bgdmodel, fgdmodel, nbIter, mode)
         print ('grabcut_mtd time : %.2f' % (time()-t0))
         """
