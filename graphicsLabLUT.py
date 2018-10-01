@@ -15,13 +15,14 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-
+import numpy as np
 from PySide2.QtCore import QRect
 from PySide2.QtWidgets import QGraphicsScene, QPushButton
 from PySide2.QtGui import QPixmap
 from PySide2.QtCore import Qt, QRectF
 
-from graphicsLUT import activeCubicSpline, graphicsCurveForm
+from colorConv import sRGB2LabVec
+from graphicsLUT import activeCubicSpline, graphicsCurveForm, activePoint
 from utils import optionsWidget, channelValues
 
 class graphicsLabForm(graphicsCurveForm):
@@ -98,6 +99,80 @@ class graphicsLabForm(graphicsCurveForm):
         item.setCheckState(Qt.Checked)
         self.listWidget1.select(item)
         self.setWhatsThis("""<b>Lab curves</b><br>""" + self.whatsThis())
+
+    def setBlackPoint(self, r, g ,b):
+        """
+
+        @param r:
+        @type r:
+        @param g:
+        @type g:
+        @param b:
+        @type b:
+        """
+        sc = self.scene()
+        tmp = np.zeros((1,1,3,), dtype=np.uint8)
+        tmp[0,0,:] = (r, g, b)
+        L, a, b = sRGB2LabVec(tmp)[0,0,:]
+        cubicL = sc.cubicR
+        scale = cubicL.size
+        bPoint = L * scale
+        # don't set black point to white !
+        if bPoint >= cubicL.size:
+            bPoint -= 10.0
+        for p in list(cubicL.fixedPoints):
+            if (p.x() > 0.0 and p.x() <= bPoint) or (p.y() == 0.0 and p.x() > bPoint):
+                    cubicL.fixedPoints.remove(p)
+                    sc.removeItem(p)
+        try:
+            a = activePoint(bPoint, 0.0, parentItem=cubicL)
+            cubicL.fixedPoints.append(a)
+            cubicL.fixedPoints.sort(key=lambda z: z.scenePos().x())
+            cubicL.updatePath()
+            cubicL.updateLUTXY()
+        except ValueError: # empty list
+            pass
+        l = self.scene().layer
+        l.applyToStack()
+        l.parentImage.onImageChanged()
+
+    def setWhitePoint(self, r, g, b):
+        """
+
+        @param r:
+        @type r:
+        @param g:
+        @type g:
+        @param b:
+        @type b:
+        """
+        sc = self.scene()
+        tmp = np.zeros((1, 1, 3,), dtype=np.uint8)
+        tmp[0, 0, :] = (r, g, b)
+        L, a, b = sRGB2LabVec(tmp)[0, 0, :]
+        cubicL, cubica, cubicb = sc.cubicR, sc.cubicG, sc.cubicB
+        scale = cubicL.size
+        for i, cubic in enumerate([cubicL, cubica, cubicb]):
+            scale = cubic.size / 1.0 if i == 0 else 127.0
+            wPoint =  L * scale if i==0 else a * scale if i==1 else b * scale
+            # don't set white point to black!
+            if wPoint <= 10:
+                wPoint += 10.0
+            for p in list(cubic.fixedPoints):
+                if (p.x() > 255.0 and p.x() >= wPoint) or (p.y() == 255.0 and p.x() < wPoint):
+                    cubic.fixedPoints.remove(p)
+                    sc.removeItem(p)
+            try:
+                p = activePoint(wPoint, -cubic.size if i==0 else -cubic.size//2, parentItem=cubic)
+                cubic.fixedPoints.append(p)
+                cubic.fixedPoints.sort(key=lambda z: z.scenePos().x())
+                cubic.updatePath()
+                cubic.updateLUTXY()
+            except ValueError:  # empty list
+                pass
+            l = self.scene().layer
+            l.applyToStack()
+            l.parentImage.onImageChanged()
 
     def drawBackground(self, qp, qrF):
         """

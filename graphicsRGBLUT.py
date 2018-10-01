@@ -15,12 +15,12 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-
+from PySide2 import QtCore
 from PySide2.QtCore import QRect
 from PySide2.QtCore import Qt, QRectF
 from PySide2.QtWidgets import QPushButton, QGraphicsScene
 
-from graphicsLUT import activeCubicSpline, graphicsCurveForm
+from graphicsLUT import activeCubicSpline, graphicsCurveForm, activePoint
 from utils import optionsWidget, channelValues
 
 class graphicsForm(graphicsCurveForm) :
@@ -34,6 +34,8 @@ class graphicsForm(graphicsCurveForm) :
         return newWindow
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         super().__init__(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
+        self.scene().layer.colorPicked.sig.disconnect()
+        self.scene().layer.colorPicked.sig.connect(self.colorPickedSlot)
         # Brightness curve
         cubic = activeCubicSpline(axeSize)
         graphicsScene = self.scene()
@@ -104,6 +106,77 @@ class graphicsForm(graphicsCurveForm) :
         item.setCheckState(Qt.Checked)
         self.listWidget1.select(item)
         self.setWhatsThis("""<b>RGB curves</b><br>""" + self.whatsThis())
+
+
+
+    def setBlackPoint(self, r, g ,b):
+        """
+
+        @param r:
+        @type r:
+        @param g:
+        @type g:
+        @param b:
+        @type b:
+        """
+        sc = self.scene()
+        cubicRGB, cubicR, cubicG, cubicB = sc.cubicRGB, sc.cubicR, sc.cubicG, sc.cubicB
+        for cubic in [cubicRGB, cubicR, cubicG, cubicB]:
+            scale = cubic.size / 255.0
+            bPoint = min(r, g, b) * scale
+            # don't set black point to white !
+            if bPoint >= cubic.size:
+                bPoint -= 10.0
+            for p in list(cubic.fixedPoints):
+                if (p.x() > 0.0 and p.x() <= bPoint) or (p.y() == 0.0 and p.x() > bPoint):
+                        cubic.fixedPoints.remove(p)
+                        sc.removeItem(p)
+            try:
+                a = activePoint(bPoint, 0.0, parentItem=cubic)
+                cubic.fixedPoints.append(a)
+                cubic.fixedPoints.sort(key=lambda z: z.scenePos().x())
+                cubic.updatePath()
+                cubic.updateLUTXY()
+            except ValueError: # empty list
+                pass
+        l = self.scene().layer
+        l.applyToStack()
+        l.parentImage.onImageChanged()
+
+    def setWhitePoint(self, r, g, b):
+        """
+
+        @param r:
+        @type r:
+        @param g:
+        @type g:
+        @param b:
+        @type b:
+        """
+        sc = self.scene()
+        cubicRGB, cubicR, cubicG, cubicB = sc.cubicRGB, sc.cubicR, sc.cubicG, sc.cubicB
+        for i, cubic in enumerate([cubicRGB, cubicR, cubicG, cubicB]):
+            scale = cubic.size / 255.0
+            wPoint = max(r, g, b) * scale if i==0 else r * scale if i==1 else g * scale if i==2 else b * scale
+            # don't set white point to black!
+            if wPoint <= 10:
+                wPoint += 10.0
+            for p in list(cubic.fixedPoints):
+                if (p.x() > 255.0 and p.x() >= wPoint) or (p.y() == 255.0 and p.x() < wPoint):
+                    cubic.fixedPoints.remove(p)
+                    sc.removeItem(p)
+            try:
+                a = activePoint(wPoint, -cubic.size, parentItem=cubic)
+                cubic.fixedPoints.append(a)
+                cubic.fixedPoints.sort(key=lambda z: z.scenePos().x())
+                cubic.updatePath()
+                cubic.updateLUTXY()
+            except ValueError:  # empty list
+                pass
+            l = self.scene().layer
+            l.applyToStack()
+            l.parentImage.onImageChanged()
+
 
     def drawBackground(self, qp, qrF):
         """

@@ -20,8 +20,6 @@ import gc
 import itertools
 import weakref
 
-# from PySide2.support.signature import inspect # unsused
-# from PySide2.support.signature.inspect import getframeinfo, currentframe # unused
 from os.path import isfile
 
 from PySide2.QtCore import Qt, QDataStream, QFile, QIODevice, QSize, QPoint, QRectF, QMargins
@@ -49,7 +47,8 @@ from colorCube import interpMulti, rgb2hspVec, hsp2rgbVec, LUT3DIdentity, LUT3D,
 from time import time
 
 from settings import USE_TETRA
-from utils import SavitzkyGolay, channelValues, checkeredImage, boundingRect, dlgWarn, baseSignals
+from utils import SavitzkyGolay, channelValues, checkeredImage, boundingRect, dlgWarn, baseSignal_bool, baseSignal_Int2, \
+    qColorToRGB
 from dwtdenoise import dwtDenoiseChan
 
 class ColorSpace:
@@ -1897,23 +1896,29 @@ class mImage(vImage):
             active.tool.showTool()
         return active
 
-    def getActivePixel(self,x, y):
+    def getActivePixel(self,x, y, fromInputImg=True):
         """
-        Read pixel value from active layer. For
-        adjustment or segmentation layers, we read the pixel value
-        from the input image.
-        @param x, y: coordinates of pixel, relative to full-sized image
-        @return: pixel color
-        @rtype: QColor
+        Reads RGB colors of the pixel at (x, y) from the active layer.
+        If fromInputImg is True (default), pixel is taken from
+        the input image, otherwise from the current image.
+        Coordinates are relative to the full sized image.
+        @param x, y: coordinates of pixel, relative to the full-sized image
+        @return: pixel RGB colors
+        @rtype: 3-uple of int
         """
         x, y = self.full2CurrentXY(x, y)
         activeLayer = self.getActiveLayer()
+        # TODO modified 2/10/18 validate
+        qclr = activeLayer.inputImg().pixelColor(x, y) if fromInputImg else activeLayer.getCurrentImage().pixelColor(x, y)
+        return qColorToRGB(qclr)
+        """
         if activeLayer.isAdjustLayer() :
             # layer is adjustment or segmentation : read from input image
             return activeLayer.inputImg().pixelColor(x, y)
         else:
-            # read from image
+            # read from current image
             return activeLayer.getCurrentImage().pixelColor(x, y)
+        """
 
     def cacheInvalidate(self):
         """
@@ -2290,6 +2295,15 @@ class QLayer(vImage):
     """
     Base class for image layers
     """
+    ############################################################
+    # Signals
+    # Making QLayer inherit from QObject leads to
+    # a buggy behavior of hasattr and getattr.
+    # So, we don't add signals as first level class attributes.
+    # Instead, we use instances of ad hoc classes of signals (cf. utils.py)
+    ###########################################################
+    visibilityChanged = baseSignal_bool()
+    colorPicked = baseSignal_Int2()
 
     @classmethod
     def fromImage(cls, mImg, parentImage=None):
@@ -2317,7 +2331,7 @@ class QLayer(vImage):
         self.name='noname'
         self.visible = True
         # add signal instance (layer visibility change,..)
-        self.signals = baseSignals()
+        #self.signals = baseSignals()
         self.isClipping = False
         self.role = kwargs.pop('role', '')
         self.tool = None
@@ -2380,10 +2394,10 @@ class QLayer(vImage):
         tool.modified = False
         tool.layer = self
         try:
-            tool.layer.signals.visibilityChanged.disconnect()
+            tool.layer.visibilityChanged.sig.disconnect()  # TODO signals removed 30/09/18 validate
         except:
             pass
-        tool.layer.signals.visibilityChanged.connect(tool.setVisible)
+        tool.layer.visibilityChanged.sig.connect(tool.setVisible) # TODO signals removed 30/09/18 validate
         tool.img = self.parentImage
         w, h = tool.img.width(), tool.img.height()
         for role, pos in zip(['topLeft', 'topRight', 'bottomRight', 'bottomLeft'],
@@ -2395,12 +2409,12 @@ class QLayer(vImage):
 
     def setVisible(self, value):
         """
-        Sets self.visible to value and emit visibilityChanged
+        Sets self.visible to value and emit visibilityChanged.sig
         @param value:
         @type value: bool
         """
         self.visible = value
-        self.signals.visibilityChanged.emit(value)
+        self.visibilityChanged.sig.emit(value)  # TODO signals removed 30/09/18 validate
 
     def bTransformed(self, transformation, parentImage):
         """
@@ -2487,7 +2501,7 @@ class QLayer(vImage):
 
     def inputImg(self):
         """
-        Updates and returns maskedImageContainer, maskedThumbContainer
+        Updates and returns maskedImageContainer and maskedThumbContainer
         @return:
         @rtype: Qlayer
         """

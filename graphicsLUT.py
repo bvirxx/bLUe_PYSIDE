@@ -18,6 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import weakref
 
 import numpy as np
+from PySide2 import QtCore
 from PySide2.QtGui import QPainterPathStroker, QBrush
 from PySide2.QtCore import QRect, QPointF, QPoint
 from PySide2.QtWidgets import QGraphicsView, QGraphicsScene, QSizePolicy, QPushButton, QGraphicsPathItem
@@ -26,7 +27,7 @@ from PySide2.QtCore import Qt, QRectF
 
 from debug import tdec
 from spline import interpolationCubSpline, interpolationQuadSpline
-from utils import optionsWidget, channelValues, drawPlotGrid
+from utils import channelValues, drawPlotGrid
 
 ##########################################################################################
 # GUI for interactive construction of 1D-LUTs.
@@ -321,7 +322,7 @@ class activeCubicSpline(activeSpline) :
             stroker.setWidth(self.strokeWidth)
             mboundingPath = stroker.createStroke(qpp)
             self.setPath(mboundingPath)
-        except:
+        except ValueError:
             pass
 
     def mousePressEvent(self, e):
@@ -342,7 +343,7 @@ class activeCubicSpline(activeSpline) :
         if self.clicked:
             #add point
             p=e.pos()
-            a=activePoint(p.x(), p.y(), parentItem=self)
+            a = activePoint(p.x(), p.y(), parentItem=self)
             self.fixedPoints.append(a)
             self.fixedPoints.sort(key=lambda z : z.scenePos().x())
             self.updatePath()
@@ -538,14 +539,32 @@ class graphicsCurveForm(QGraphicsView):
         # add axes and grid
         item = drawPlotGrid(axeSize)
         graphicsScene.addItem(item)
+        self.scene().layer.colorPicked.sig.connect(self.colorPickedSlot)
         # default WhatsThis for interactive curves
         self.setWhatsThis(
 """
 <b>Drag control points</b> with the mouse.<br>
 <b>Add a control point</b> by clicking on the curve.<br>
 <b>Remove a control point</b> by clicking it.<br>
-<b>Zoom</b> with the mouse wheel.
+<b>Zoom</b> with the mouse wheel.<br>
+For RGB and Lab curves only, <b>Set black and white points</b> by clicking on the image
+while pressing Ctrl+Shift (black point) or Ctrl+Alt (white point).
 """                      )  # end setWhatsThis
+
+    def colorPickedSlot(self, x, y, modifiers):
+        print('rgb colorpicker')
+        r,g,b= self.scene().targetImage.getActivePixel(x, y)
+        if (modifiers & QtCore.Qt.ControlModifier):
+            if modifiers & QtCore.Qt.ShiftModifier:
+                self.setBlackPoint(r,g,b)
+            else:
+                self.setWhitePoint(r, g, b)
+
+    def setBlackPoint(selfr, g, b):
+        pass
+
+    def setWhitePoint(selfr, g, b):
+        pass
 
     def wheelEvent(self, e):
         """

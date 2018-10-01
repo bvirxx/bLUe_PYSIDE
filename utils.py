@@ -49,9 +49,22 @@ IMAGE_FILE_NAME_FILTER = ['Image Files (*.jpg *.png *.tif *.JPG *.PNG *.TIF)']
 # From the doc : A signal (specifically an unbound signal) is a class attribute. When a signal is
 # referenced as an attribute of an instance of the class
 # then PySide2 automatically binds the instance to the signal in order to create a bound signal.
-class baseSignals(QObject):
-    visibilityChanged = QtCore.Signal(bool)
+class baseSignal_bool(QObject):
+    sig = QtCore.Signal(bool)
+
+class baseSignal_Int2(QObject):
+    sig = QtCore.Signal(int, int, QtCore.Qt.KeyboardModifiers)
 ################
+
+def qColorToRGB(color):
+    """
+    Converts a QColor to R,G,B components (range 0..255)
+    @param color:
+    @type color: QColor
+    @return:
+    @rtype: 3-uple of int
+    """
+    return color.red(), color.green(), color.blue()
 
 def hideConsole():
     """
@@ -876,7 +889,7 @@ class rotatingTool(QObject):
         else:
             self.layer.tool = self
             self.img = layer.parentImage
-            self.layer.signals.visibilityChanged.connect(self.setVisible)
+            self.layer.visibilityChanged.sig.connect(self.setVisible)  # TODO 30/09/18 signals removed validate
             w, h = self.img.width(), self.img.height()
         # init tool buttons. The parameter pos is relative to the full size image.
         rotatingButtonLeft = rotatingHandle(role='topLeft', tool=self, pos=QPoint(0,0), parent=parent)

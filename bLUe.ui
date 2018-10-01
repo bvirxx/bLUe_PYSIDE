@@ -669,6 +669,7 @@ Screen</string>
     <addaction name="separator"/>
     <addaction name="actionDiaporama"/>
     <addaction name="actionViewer"/>
+    <addaction name="actionColor_Chooser"/>
    </widget>
    <widget class="QMenu" name="menuImage">
     <property name="title">
@@ -1099,6 +1100,11 @@ Screen</string>
   <action name="actionInvert">
    <property name="text">
     <string>Invert</string>
+   </property>
+  </action>
+  <action name="actionColor_Chooser">
+   <property name="text">
+    <string>Color Chooser</string>
    </property>
   </action>
  </widget>

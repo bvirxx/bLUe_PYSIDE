@@ -134,7 +134,7 @@ from PySide2.QtGui import QPixmap, QPainter, QCursor, QKeySequence, QBrush, QPen
     QPainterPath, QTransform, QContextMenuEvent
 from PySide2.QtWidgets import QApplication, QAction, QFileDialog, QMessageBox, \
     QMainWindow, QLabel, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QWidget, \
-    QStyle, QToolTip, QHBoxLayout, QVBoxLayout
+    QStyle, QToolTip, QHBoxLayout, QVBoxLayout, QColorDialog
 from QtGui1 import app, window, rootWidget
 import exiftool
 from graphicsBlendFilter import blendFilterForm
@@ -289,7 +289,7 @@ def paintEvent(widg, e) :
 State = {'ix':0, 'iy':0, 'ix_begin':0, 'iy_begin':0} #{'drag':False, 'drawing':False , 'tool_rect':False, 'rect_over':False,
 pressed=False
 clicked = True
-def mouseEvent(widget, event) :  # TODO split in 3 handlers
+def mouseEvent(widget, event) :  # TODO split into 3 handlers
     """
     Mouse event handler.
     The handler implements mouse actions on a vImage
@@ -311,7 +311,7 @@ def mouseEvent(widget, event) :  # TODO split in 3 handlers
     if type(event) == QContextMenuEvent:
         return
     # get image and active layer
-    img= widget.img
+    img = widget.img
     layer = img.getActiveLayer()
     r = img.resize_coeff(widget)
     # x, y coordinates (relative to widget)
@@ -422,14 +422,15 @@ def mouseEvent(widget, event) :  # TODO split in 3 handlers
         if window.btnValues['colorPicker']:
             x_img, y_img = (x - img.xOffset) / r, (y - img.yOffset) / r
             x_img, y_img = min(int(x_img), img.width() - 1), min(int(y_img), img.height() - 1)
-            color = img.getActivePixel(x_img, y_img)                # TODO modified 12/03/18
-            s = ('%s  %s  %s' % (color.red(), color.green(), color.blue()))
+            r, g, b = img.getActivePixel(x_img, y_img)
+            s = ('%s  %s  %s' % (r, g, b))
             QToolTip.showText(event.globalPos(), s, window, QRect(event.globalPos(), QSize(20,30)))
         if layer.isGeomLayer():
             #layer.view.widget().tool.moveRotatingTool()
             layer.tool.moveRotatingTool()
     #####################
     # mouse release event
+    # mouse click event
     ####################
     elif eventType == QEvent.MouseButtonRelease :
         pressed=False
@@ -444,8 +445,12 @@ def mouseEvent(widget, event) :  # TODO split in 3 handlers
                     x_img, y_img = (x - img.xOffset) / r, (y - img.yOffset) / r
                     x_img, y_img = min(int(x_img), img.width()-1), min(int(y_img), img.height()-1)
                     # Pick color from active layer. Coordinates are relative to the full-sized image
-                    c = img.getActivePixel(x_img, y_img)                # TODO modified 12/03/18
-                    red, green, blue = c.red(), c.green(), c.blue()
+                    red, green, blue = img.getActivePixel(x_img, y_img)
+                    if getattr(window, 'colorChooser', None) is not None:
+                        if window.colorChooser.isVisible():
+                            window.colorChooser.setCurrentColor(QColor(red,green,blue))
+                    # emit colorPicked signal
+                    layer.colorPicked.sig.emit(x_img, y_img, modifiers)
                     # select grid node for 3DLUT form
                     if layer.is3DLUTLayer():
                         layer.view.widget().selectGridNode(red, green, blue)
@@ -1070,6 +1075,13 @@ def menuView(name):
             window.settings.setValue('paths/dlgdir', newDir)
             viewerInstance = viewer.getViewerInstance(mainWin=window)
             viewerInstance.playViewer(newDir)
+    ###############
+    # Color Chooser
+    ###############
+    elif name == 'actionColor_Chooser':
+        if getattr(window, 'colorChooser', None) is None:
+            window.colorChooser = QColorDialog(parent=window)
+        window.colorChooser.show()
     updateStatus()
 
 def menuImage(name) :
