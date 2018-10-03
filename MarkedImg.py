@@ -856,10 +856,16 @@ class vImage(QImage):
         temp = np.sum(bufIn, axis=2)
         ind = np.argmax(temp)
         ind = np.unravel_index(ind, (bufIn.shape[0], bufIn.shape[1],))
-        Mask0,Mask1,Mask2 = bufIn[ind]
+        Mask0, Mask1, Mask2 = bufIn[ind]
+        if self.view is not None:
+            form = self.view.widget()
+            Mask0, Mask1, Mask2 =  form.Bmask, form.Gmask, form.Rmask
         currentImage = self.getCurrentImage()
         bufOut = QImageBuffer(currentImage)
-        bufOut[:, :, :3] = 255 - (bufIn[:, :, :3] / [Mask0, Mask1, Mask2]) * 255
+        # eliminate mask
+        tmp = (bufIn[:, :, :3] / [Mask0, Mask1, Mask2]) * 255
+        np.clip(tmp, 0, 255, out=tmp)
+        bufOut[:, :, :3] = 255.0 - tmp #(bufIn[:, :, :3] / [Mask0, Mask1, Mask2]) * 255
         self.updatePixmap()
 
     def applyExposure(self, exposureCorrection, options):
@@ -2368,7 +2374,14 @@ class QLayer(vImage):
         @return:
         @rtype: QWidget
         """
-        return self.view.widget()
+        if self.view is not None:  #TODO added 2/10/18 validate
+            return self.view.widget()
+        return None
+
+    def isActiveLayer(self):
+        if self.parentImage.getActiveLayer() is self:
+            return True
+        return False
 
     def getMmcSpline(self):
         """

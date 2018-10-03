@@ -21,7 +21,7 @@ import numpy as np
 from PySide2 import QtCore
 from PySide2.QtGui import QPainterPathStroker, QBrush
 from PySide2.QtCore import QRect, QPointF, QPoint
-from PySide2.QtWidgets import QGraphicsView, QGraphicsScene, QSizePolicy, QPushButton, QGraphicsPathItem
+from PySide2.QtWidgets import QGraphicsView, QGraphicsScene, QSizePolicy, QPushButton, QGraphicsPathItem, QWidget
 from PySide2.QtGui import QColor, QPen, QPainterPath, QPolygonF
 from PySide2.QtCore import Qt, QRectF
 
@@ -517,6 +517,22 @@ class activeQuadricSpline(activeSpline) :
         LUT = range(256)
         self.LUTXY = np.array(LUT)  # buildLUT(LUT)
         """
+
+class baseForm(QWidget):
+    """
+    Base class for non graphic (no scene) forms
+    """
+    def __init__(self, parent=None, layer=None):
+        super().__init__(parent=parent)
+        self.layer=layer
+        self.layer.colorPicked.sig.connect(self.colorPickedSlot)
+
+    def colorPickedSlot(self, x, y, modifiers):
+        if self.layer.isActiveLayer():
+            print(self.layer.name, ' : got colorPicked signal')
+            return True
+        return False
+
 class graphicsCurveForm(QGraphicsView):
     """
     Base class for interactive curve forms
@@ -552,7 +568,9 @@ while pressing Ctrl+Shift (black point) or Ctrl+Alt (white point).
 """                      )  # end setWhatsThis
 
     def colorPickedSlot(self, x, y, modifiers):
-        print('rgb colorpicker')
+        if not self.scene().layer.isActiveLayer():
+            return
+        print(self.scene().layer.name, ' : got colorPicked signal')
         r,g,b= self.scene().targetImage.getActivePixel(x, y)
         if (modifiers & QtCore.Qt.ControlModifier):
             if modifiers & QtCore.Qt.ShiftModifier:

@@ -138,6 +138,7 @@ from PySide2.QtWidgets import QApplication, QAction, QFileDialog, QMessageBox, \
 from QtGui1 import app, window, rootWidget
 import exiftool
 from graphicsBlendFilter import blendFilterForm
+from graphicsInvert import invertForm
 from graphicsNoise import noiseForm
 from graphicsRaw import rawForm
 from graphicsTransform import transForm, imageForm
@@ -1360,12 +1361,11 @@ def menuLayer(name):
     elif name == 'actionInvert':
         lname = 'Invert'
         l = window.label.img.addAdjustmentLayer(name=lname)
+        grWindow = invertForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
         l.execute = lambda l=l : l.tLayer.applyInvert()
-        window.tableView.setLayers(window.label.img)
         l.applyToStack()
-        l.parentImage.prLayer.update()
-        l.parentImage.onImageChanged()
-        return
+        #l.parentImage.prLayer.update()
+        #l.parentImage.onImageChanged()
     # load 3D LUT from .cube file
     elif name == 'actionLoad_3D_LUT' :
         lastDir = window.settings.value('paths/dlg3DLUTdir', '.')

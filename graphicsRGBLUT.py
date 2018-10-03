@@ -34,8 +34,6 @@ class graphicsForm(graphicsCurveForm) :
         return newWindow
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         super().__init__(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
-        self.scene().layer.colorPicked.sig.disconnect()
-        self.scene().layer.colorPicked.sig.connect(self.colorPickedSlot)
         # Brightness curve
         cubic = activeCubicSpline(axeSize)
         graphicsScene = self.scene()

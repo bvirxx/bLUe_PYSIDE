@@ -110,6 +110,9 @@ class graphicsLabForm(graphicsCurveForm):
         @param b:
         @type b:
         """
+        l = self.scene().layer
+        if not l.isActiveLayer():
+            return
         sc = self.scene()
         tmp = np.zeros((1,1,3,), dtype=np.uint8)
         tmp[0,0,:] = (r, g, b)
@@ -138,13 +141,12 @@ class graphicsLabForm(graphicsCurveForm):
         fp.sort(key=lambda z: z.scenePos().x())
         cubicL.updatePath()
         cubicL.updateLUTXY()
-        l = self.scene().layer
         l.applyToStack()
         l.parentImage.onImageChanged()
 
     def setWhitePoint(self, r, g, b, luminance=True, balance=True):
         """
-        for a, b curves, the method set first and
+        for a, b curves, the method sets first and
         @param r:
         @type r:
         @param g:
@@ -152,6 +154,9 @@ class graphicsLabForm(graphicsCurveForm):
         @param b:
         @type b:
         """
+        l = self.scene().layer
+        if not l.isActiveLayer():
+            return
         sc = self.scene()
         tmp = np.zeros((1, 1, 3,), dtype=np.uint8)
         tmp[0, 0, :] = (r, g, b)
@@ -210,7 +215,6 @@ class graphicsLabForm(graphicsCurveForm):
                 p.setPos(min(cubic.size, cubic.size + wPoint) - corr, -cubic.size)
                 cubic.updatePath()
                 cubic.updateLUTXY()
-        l = self.scene().layer
         l.applyToStack()
         l.parentImage.onImageChanged()
 
