@@ -102,7 +102,7 @@ class graphicsLabForm(graphicsCurveForm):
 
     def setBlackPoint(self, r, g ,b):
         """
-
+        Sets the L curve
         @param r:
         @type r:
         @param g:
@@ -120,25 +120,31 @@ class graphicsLabForm(graphicsCurveForm):
         # don't set black point to white !
         if bPoint >= cubicL.size:
             bPoint -= 10.0
-        for p in list(cubicL.fixedPoints):
-            if (p.x() > 0.0 and p.x() <= bPoint) or (p.y() == 0.0 and p.x() > bPoint):
-                    cubicL.fixedPoints.remove(p)
-                    sc.removeItem(p)
-        try:
+        fp = cubicL.fixedPoints
+        # find current white point
+        wPoint = cubicL.size
+        tmp = [p.x() for p in fp if p.y() == -cubicL.size]
+        if tmp:
+            wPoint = min(tmp)
+        # remove control points at the left of wPoint, but the first
+        for p in list(fp[1:-1]):
+            if p.x() < wPoint:
+                fp.remove(p)
+                sc.removeItem(p)
+        # add new black point if needed
+        if bPoint > 0.0 :
             a = activePoint(bPoint, 0.0, parentItem=cubicL)
-            cubicL.fixedPoints.append(a)
-            cubicL.fixedPoints.sort(key=lambda z: z.scenePos().x())
-            cubicL.updatePath()
-            cubicL.updateLUTXY()
-        except ValueError: # empty list
-            pass
+            fp.append(a)
+        fp.sort(key=lambda z: z.scenePos().x())
+        cubicL.updatePath()
+        cubicL.updateLUTXY()
         l = self.scene().layer
         l.applyToStack()
         l.parentImage.onImageChanged()
 
-    def setWhitePoint(self, r, g, b):
+    def setWhitePoint(self, r, g, b, luminance=True, balance=True):
         """
-
+        for a, b curves, the method set first and
         @param r:
         @type r:
         @param g:
@@ -151,28 +157,62 @@ class graphicsLabForm(graphicsCurveForm):
         tmp[0, 0, :] = (r, g, b)
         L, a, b = sRGB2LabVec(tmp)[0, 0, :]
         cubicL, cubica, cubicb = sc.cubicR, sc.cubicG, sc.cubicB
-        scale = cubicL.size
-        for i, cubic in enumerate([cubicL, cubica, cubicb]):
-            scale = cubic.size / 1.0 if i == 0 else 127.0
-            wPoint =  L * scale if i==0 else a * scale if i==1 else b * scale
+        if luminance:
+            ##########
+            # L curve
+            ##########
+            cubic = cubicL
+            scale = cubic.size
+            fp = cubic.fixedPoints
+            wPoint =  L * scale
             # don't set white point to black!
             if wPoint <= 10:
                 wPoint += 10.0
-            for p in list(cubic.fixedPoints):
-                if (p.x() > 255.0 and p.x() >= wPoint) or (p.y() == 255.0 and p.x() < wPoint):
+            # find black point
+            bPoint = 0.0
+            tmp = [p.x() for p in fp if p.y()==0.0]
+            if tmp:
+                bPoint = max(tmp)
+            # remove control points at the right of bPoint
+            for p in list(fp[1:-1]):
+                if p.x() > bPoint:
                     cubic.fixedPoints.remove(p)
                     sc.removeItem(p)
-            try:
-                p = activePoint(wPoint, -cubic.size if i==0 else -cubic.size//2, parentItem=cubic)
+            # add new white point if needed
+            if wPoint < cubic.size:
+                p = activePoint(wPoint, -cubic.size, parentItem=cubic)
                 cubic.fixedPoints.append(p)
                 cubic.fixedPoints.sort(key=lambda z: z.scenePos().x())
+            cubic.updatePath()
+            cubic.updateLUTXY()
+        if balance:
+            #############
+            # a, b curves
+            #############
+            corr = cubicL.size/4
+            for i, cubic in enumerate([cubica, cubicb]):
+                fp = cubic.fixedPoints
+                scale = cubic.size / (127 * 2.0)
+                wPoint = a * scale if i==0 else b * scale
+                # remove all control points but the first and the last
+                for p in list(fp[1:-1]):
+                        fp.remove(p)
+                        sc.removeItem(p)
+                # reset first and last points
+                #fp[0].setPos(0.0, 0.0)
+                #fp[-1].setPos(scale, -scale)
+                # according to the sign of wPoint, shift horizontally
+                # first or last control point by 2*wPoint
+                wPoint *= 2.0
+                p = cubic.fixedPoints[0]
+                p.setPos(max(0, wPoint) + corr, 0)
+                p = cubic.fixedPoints[-1]
+                p.setPos(min(cubic.size, cubic.size + wPoint) - corr, -cubic.size)
                 cubic.updatePath()
                 cubic.updateLUTXY()
-            except ValueError:  # empty list
-                pass
-            l = self.scene().layer
-            l.applyToStack()
-            l.parentImage.onImageChanged()
+        l = self.scene().layer
+        l.applyToStack()
+        l.parentImage.onImageChanged()
 
     def drawBackground(self, qp, qrF):
         """

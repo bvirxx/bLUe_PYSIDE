@@ -1106,6 +1106,9 @@ Screen</string>
    <property name="text">
     <string>Color Chooser</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+C</string>
+   </property>
   </action>
  </widget>
  <customwidgets>

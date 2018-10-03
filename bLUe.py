@@ -446,9 +446,13 @@ def mouseEvent(widget, event) :  # TODO split into 3 handlers
                     x_img, y_img = min(int(x_img), img.width()-1), min(int(y_img), img.height()-1)
                     # Pick color from active layer. Coordinates are relative to the full-sized image
                     red, green, blue = img.getActivePixel(x_img, y_img)
+                    redC, greenC, blueC = img.getActivePixel(x_img, y_img, fromInputImg=False)
                     if getattr(window, 'colorChooser', None) is not None:
                         if window.colorChooser.isVisible():
-                            window.colorChooser.setCurrentColor(QColor(red,green,blue))
+                            if modifiers & Qt.ControlModifier:
+                                window.colorChooser.setCurrentColor(QColor(red,green,blue))
+                            else:
+                                window.colorChooser.setCurrentColor(QColor(redC, greenC, blueC))
                     # emit colorPicked signal
                     layer.colorPicked.sig.emit(x_img, y_img, modifiers)
                     # select grid node for 3DLUT form
@@ -1081,6 +1085,14 @@ def menuView(name):
     elif name == 'actionColor_Chooser':
         if getattr(window, 'colorChooser', None) is None:
             window.colorChooser = QColorDialog(parent=window)
+            window.colorChooser.setWhatsThis(
+"""
+<b>ColorChooser</b><br>
+To <b>display the color of a pixel</b> from the activelayer, click on the image.<br>
+For adjustment layers, hold the Ctrl key while clicking to display the color of the
+corresponding input pixel.<br>
+"""
+            )# end of whatsthis
         window.colorChooser.show()
     updateStatus()
 
@@ -1798,6 +1810,7 @@ For a segmentation layer only, all pixels outside the rectangle are set to backg
 Menu File > Open</b> to edit a photo.<br>
 <b>Menu Layer > New Adjustment Layer</b> to add an adjustment layer.<br>
 <b>Menu View > Library Viewer</b> to browse a folder.<br>
+<b>Ctrl+C</b> to display the color chooser.<br>
 """
     ) # end of setWhatsThis
     window.label_3.setWhatsThis(

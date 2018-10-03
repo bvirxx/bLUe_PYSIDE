@@ -558,7 +558,9 @@ while pressing Ctrl+Shift (black point) or Ctrl+Alt (white point).
             if modifiers & QtCore.Qt.ShiftModifier:
                 self.setBlackPoint(r,g,b)
             else:
-                self.setWhitePoint(r, g, b)
+                self.setWhitePoint(r, g, b, luminance=True, balance=False)
+        elif modifiers & QtCore.Qt.ShiftModifier:
+            self.setWhitePoint(r, g, b, luminance=False, balance=True)
 
     def setBlackPoint(selfr, g, b):
         pass
