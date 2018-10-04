@@ -16,7 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import sys
-import win32gui
+
 from PIL.ImageCms import getOpenProfile, get_display_profile, getProfileInfo, \
     buildTransformFromOpenProfiles, applyTransform, INTENT_PERCEPTUAL
 from PySide2.QtGui import QImage
@@ -24,6 +24,9 @@ from PySide2.QtGui import QImage
 from debug import tdec
 from imgconvert import PilImageToQImage, QImageToPilImage
 from settings import SRGB_PROFILE_PATH
+
+if sys.platform == 'win32':
+    import win32gui
 
 class icc:
     """
@@ -85,7 +88,7 @@ class icc:
         @rtype: CmsProfile
         """
         try:
-            if qscreen is not None:
+            if qscreen is not None and sys.platform == 'win32':  #TODO added 04/10/18 validate
                 dc = win32gui.CreateDC(qscreen.name(), None, None)
                 monitorProfile = get_display_profile(dc)    # TODO modified 21/05/18 -- #HDC(dc))
                                                             # cf. imageCms.get_display_profile_win32 v5.1.0 patch

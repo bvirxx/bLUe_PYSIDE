@@ -134,7 +134,7 @@ from PySide2.QtGui import QPixmap, QPainter, QCursor, QKeySequence, QBrush, QPen
     QPainterPath, QTransform, QContextMenuEvent
 from PySide2.QtWidgets import QApplication, QAction, QFileDialog, QMessageBox, \
     QMainWindow, QLabel, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QWidget, \
-    QStyle, QToolTip, QHBoxLayout, QVBoxLayout, QColorDialog
+    QStyle, QHBoxLayout, QVBoxLayout, QColorDialog
 from QtGui1 import app, window, rootWidget
 import exiftool
 from graphicsBlendFilter import blendFilterForm
