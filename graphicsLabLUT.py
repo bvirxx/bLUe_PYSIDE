@@ -16,6 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import numpy as np
+from PySide2 import QtCore
 from PySide2.QtCore import QRect
 from PySide2.QtWidgets import QGraphicsScene, QPushButton
 from PySide2.QtGui import QPixmap
@@ -99,6 +100,16 @@ class graphicsLabForm(graphicsCurveForm):
         item.setCheckState(Qt.Checked)
         self.listWidget1.select(item)
         self.setWhatsThis("""<b>Lab curves</b><br>""" + self.whatsThis())
+
+    def colorPickedSlot(self, x, y, modifiers):
+        r,g,b= self.scene().targetImage.getActivePixel(x, y)
+        if (modifiers & QtCore.Qt.ControlModifier):
+            if modifiers & QtCore.Qt.ShiftModifier:
+                self.setBlackPoint(r,g,b)
+            else:
+                self.setWhitePoint(r, g, b, luminance=True, balance=False)
+        elif modifiers & QtCore.Qt.ShiftModifier:
+            self.setWhitePoint(r, g, b, luminance=False, balance=True)
 
     def setBlackPoint(self, r, g ,b):
         """

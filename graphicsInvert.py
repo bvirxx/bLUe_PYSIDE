@@ -35,12 +35,8 @@ class invertForm(baseForm) :
         self.Rmask, self.Bmask, self.Gmask = (255,) * 3
 
     def colorPickedSlot(self, x, y, modifiers):
-        if not self.layer.isActiveLayer():
-            return
-        print(self.layer.name, ' : got colorPicked signal')
         if modifiers == Qt.ControlModifier:
-            if self.layer.isActiveLayer():
-                r, g, b = self.layer.parentImage.getActivePixel(x, y)
+            r, g, b = self.layer.parentImage.getActivePixel(x, y)
             self.setMask(r, g, b)
 
     def setMask(self, r, g, b):

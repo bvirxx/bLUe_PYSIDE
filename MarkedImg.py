@@ -2301,16 +2301,6 @@ class QLayer(vImage):
     """
     Base class for image layers
     """
-    ############################################################
-    # Signals
-    # Making QLayer inherit from QObject leads to
-    # a buggy behavior of hasattr and getattr.
-    # So, we don't add signals as first level class attributes.
-    # Instead, we use instances of ad hoc classes of signals (cf. utils.py)
-    ###########################################################
-    visibilityChanged = baseSignal_bool()
-    colorPicked = baseSignal_Int2()
-
     @classmethod
     def fromImage(cls, mImg, parentImage=None):
         """
@@ -2327,6 +2317,17 @@ class QLayer(vImage):
         return layer
 
     def __init__(self, *args, **kwargs):
+        ############################################################
+        # Signals
+        # Making QLayer inherit from QObject leads to
+        # a buggy behavior of hasattr and getattr.
+        # So, we don't add signals as first level class attributes.
+        # Instead, we use instances of ad hoc signal containers (cf. utils.py)
+
+        self.visibilityChanged = baseSignal_bool()
+        self.colorPicked = baseSignal_Int2()
+
+        ###########################################################
         self.parentImage = kwargs.get('parentImage', None)  #TODO added 11/09/18 validate
         # when a geometric transformation is applied to the whole image
         # each layer must be replaced with a transformed layer, recorded in tLayer

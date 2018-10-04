@@ -525,13 +525,14 @@ class baseForm(QWidget):
     def __init__(self, parent=None, layer=None):
         super().__init__(parent=parent)
         self.layer=layer
+        # connect layerPicked signal
         self.layer.colorPicked.sig.connect(self.colorPickedSlot)
 
     def colorPickedSlot(self, x, y, modifiers):
-        if self.layer.isActiveLayer():
-            print(self.layer.name, ' : got colorPicked signal')
-            return True
-        return False
+        """
+        Should be overridden in derived classes
+        """
+        pass
 
 class graphicsCurveForm(QGraphicsView):
     """
@@ -555,6 +556,7 @@ class graphicsCurveForm(QGraphicsView):
         # add axes and grid
         item = drawPlotGrid(axeSize)
         graphicsScene.addItem(item)
+        # connect layer colorPicked signal
         self.scene().layer.colorPicked.sig.connect(self.colorPickedSlot)
         # default WhatsThis for interactive curves
         self.setWhatsThis(
@@ -563,27 +565,17 @@ class graphicsCurveForm(QGraphicsView):
 <b>Add a control point</b> by clicking on the curve.<br>
 <b>Remove a control point</b> by clicking it.<br>
 <b>Zoom</b> with the mouse wheel.<br>
-For RGB and Lab curves only, <b>Set black and white points</b> by clicking on the image
-while pressing Ctrl+Shift (black point) or Ctrl+Alt (white point).
+<b>Set black, white and neutral points</b> by clicking on the image
+while pressing one of the following key combination (for RGB and Lab curves only):<br>
+&nbsp;&nbsp;<b>Black Point</b> : Ctrl+Shift<br>
+&nbsp;&nbsp;<b>White Point</b> : Ctrl<br>
+&nbsp;&nbsp;<b>Grey Neutral Point</b></br> : Shift<br>
 """                      )  # end setWhatsThis
 
     def colorPickedSlot(self, x, y, modifiers):
-        if not self.scene().layer.isActiveLayer():
-            return
-        print(self.scene().layer.name, ' : got colorPicked signal')
-        r,g,b= self.scene().targetImage.getActivePixel(x, y)
-        if (modifiers & QtCore.Qt.ControlModifier):
-            if modifiers & QtCore.Qt.ShiftModifier:
-                self.setBlackPoint(r,g,b)
-            else:
-                self.setWhitePoint(r, g, b, luminance=True, balance=False)
-        elif modifiers & QtCore.Qt.ShiftModifier:
-            self.setWhitePoint(r, g, b, luminance=False, balance=True)
-
-    def setBlackPoint(selfr, g, b):
-        pass
-
-    def setWhitePoint(selfr, g, b):
+        """
+        Should be overridden in derived classes
+        """
         pass
 
     def wheelEvent(self, e):

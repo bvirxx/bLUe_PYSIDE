@@ -45,10 +45,13 @@ IMAGE_FILE_NAME_FILTER = ['Image Files (*.jpg *.png *.tif *.JPG *.PNG *.TIF)']
 #################
 
 ##################
-# Base class for signals
-# From the doc : A signal (specifically an unbound signal) is a class attribute. When a signal is
-# referenced as an attribute of an instance of the class
-# then PySide2 automatically binds the instance to the signal in order to create a bound signal.
+# Base classes for signals
+# They are mainly containers.
+# As multiple inheritance leads to
+# bugs with QObject, they can be used
+# as a workaround to define
+# custom signals (cf. QLayer).
+
 class baseSignal_bool(QObject):
     sig = QtCore.Signal(bool)
 
