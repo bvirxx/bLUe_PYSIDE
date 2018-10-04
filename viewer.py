@@ -177,7 +177,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
 class dragQListWidget(QListWidget):
     """
     This Class is used by playViewer instead of QListWidget.
-    It reimplements mousePressEvent and init
+    It reimplements mousePressEvent and inits
     a convenient QMimeData object for drag and drop events.
     """
     def mousePressEvent(self, event):
@@ -203,11 +203,13 @@ class viewer :
     """
     # current viewer instance
     instance = None
+    iconSize = 100
+
     @classmethod
     def getViewerInstance(cls, mainWin=None):
         """
         Returns a unique viewer instance : a new instance
-        is created if there exists no instance yet.
+        is created only if there exists no instance yet.
         @param mainWin: should be the app main window
         @type mainWin: QMainWindow
         @return: viewer instance
@@ -230,7 +232,7 @@ class viewer :
         self.initWins()
         # checkable action must be initialized only once
         # to keep its state.
-        actionSub = QAction('SubFolders', None)
+        actionSub = QAction('Show SubFolders', None)
         actionSub.setCheckable(True)
         actionSub.setChecked(False)
         actionSub.triggered.connect(lambda checked=False, action=actionSub: self.hSubfolders(action))  # named arg checked is always sent
@@ -244,15 +246,6 @@ class viewer :
         newWin.setAttribute(Qt.WA_DeleteOnClose)
         newWin.setContextMenuPolicy(Qt.CustomContextMenu)
         self.newWin = newWin
-        # dock the form
-        dock = stateAwareQDockWidget(window)
-        dock.setWidget(newWin)
-        dock.setWindowFlags(newWin.windowFlags())
-        dock.setWindowTitle(newWin.windowTitle())
-        dock.setAttribute(Qt.WA_DeleteOnClose)
-        dock.setStyleSheet("QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
-        self.dock = dock
-        window.addDockWidget(Qt.BottomDockWidgetArea, dock)
         # image list
         listWdg = dragQListWidget()
         listWdg.setWrapping(False)
@@ -260,21 +253,35 @@ class viewer :
         listWdg.setContextMenuPolicy(Qt.CustomContextMenu)
         listWdg.label = None
         listWdg.setViewMode(QListWidget.IconMode)
-        listWdg.setIconSize(QSize(150, 150))
+        # set icon and listWdg sizes
+        listWdg.setIconSize(QSize(self.iconSize, self.iconSize))
+        listWdg.setMaximumSize(160000, self.iconSize+50)
         listWdg.setDragDropMode(QAbstractItemView.DragDrop)
         listWdg.customContextMenuRequested.connect(self.contextMenu)
+        # dock the form
+        dock = stateAwareQDockWidget(window)
+        dock.setWidget(newWin)
+        dock.setWindowFlags(newWin.windowFlags())
+        dock.setWindowTitle(newWin.windowTitle())
+        dock.setAttribute(Qt.WA_DeleteOnClose)
+        #dock.setStyleSheet("QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
+        self.dock = dock
+        window.addDockWidget(Qt.BottomDockWidgetArea, dock)
+
         newWin.setCentralWidget(listWdg)
         self.listWdg = listWdg
         self.newWin.setWhatsThis(
 """<b>Library Viewer</b><br>
-Right click on an icon or a selection to open the <b>context menu</b>.<br>
-Drag an image into the main window to <b>open</b> it.<br>
+To <b>open context menu</b> right click on an icon or a selection.<br>
+To <b>open an image</b> drag it onto the main window.<br>
 <b>Rating</b> is shown as 0 to 5 stars below each icon.<br>
-
 """
         )  # end setWhatsThis
 
     def initCMenu(self):
+        """
+        Context menu initialization
+        """
         menu = QMenu()
         menu.addAction("Copy Image to Clipboard", self.hCopy)
         menu.addAction(self.actionSub)

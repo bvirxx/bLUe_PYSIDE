@@ -79,7 +79,7 @@ class Form1(QMainWindow):
 
     def handlePushButtonClicked(self, button):
         """
-        button clicked/toggled signal slot.
+        button clicked/toggled slot.
         @param button:
         @type button:
         """
@@ -87,7 +87,7 @@ class Form1(QMainWindow):
 
     def handleToolButtonClicked(self, button):
         """
-        button clicked/toggled signal slot.
+        button clicked/toggled slot.
         The toggled signal is triggered only by checkable buttons,
         when the button state changes. Thus, the method is called
         by all auto exclusive buttons in a group to correctly update

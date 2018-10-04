@@ -1076,6 +1076,9 @@ Screen</string>
    <property name="text">
     <string>Library Viewer</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+L</string>
+   </property>
   </action>
   <action name="actionGradual_Filter">
    <property name="text">

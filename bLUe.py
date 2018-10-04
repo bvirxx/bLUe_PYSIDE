@@ -419,6 +419,7 @@ def mouseEvent(widget, event) :  # TODO split into 3 handlers
                 layer.updatePixmap()
         #update current coordinates
         State['ix'],State['iy']=x,y
+        """
         # Pick color from active layer. Coordinates are relative to the full-sized image
         if window.btnValues['colorPicker']:
             x_img, y_img = (x - img.xOffset) / r, (y - img.yOffset) / r
@@ -426,6 +427,7 @@ def mouseEvent(widget, event) :  # TODO split into 3 handlers
             r, g, b = img.getActivePixel(x_img, y_img)
             s = ('%s  %s  %s' % (r, g, b))
             QToolTip.showText(event.globalPos(), s, window, QRect(event.globalPos(), QSize(20,30)))
+        """
         if layer.isGeomLayer():
             #layer.view.widget().tool.moveRotatingTool()
             layer.tool.moveRotatingTool()
@@ -643,7 +645,7 @@ def widgetChange(button):
         window.label.img.fit_window(window.label)
         # update crop button positions
         window.cropTool.drawCropTool(window.label.img)
-        window.label.repaint()
+        #window.label.repaint()
     elif wdgName == "cropButton":
         if button.isChecked():
             window.cropTool.drawCropTool(window.label.img)
@@ -653,10 +655,16 @@ def widgetChange(button):
             for b in window.cropTool.btnDict.values():
                 b.hide()
         window.label.img.isCropped = button.isChecked()
-        window.label.repaint()
+        #window.label.repaint()
     elif wdgName == "rulerButton":
         window.label.img.isRuled = button.isChecked()
-        window.label.repaint()
+    elif wdgName == 'eyeDropper':
+        if window.btnValues['colorPicker']:
+            openColorChooser()
+        else:
+            if getattr(window, 'colorChooser', None) is not None:
+                window.colorChooser.hide()
+    window.label.repaint()
 
 def contextMenu(pos, widget):
     """
@@ -1084,18 +1092,21 @@ def menuView(name):
     # Color Chooser
     ###############
     elif name == 'actionColor_Chooser':
-        if getattr(window, 'colorChooser', None) is None:
-            window.colorChooser = QColorDialog(parent=window)
-            window.colorChooser.setWhatsThis(
-"""
-<b>ColorChooser</b><br>
-To <b>display the color of a pixel</b> from the activelayer, click on the image.<br>
-For adjustment layers, hold the Ctrl key while clicking to display the color of the
-corresponding input pixel.<br>
-"""
-            )# end of whatsthis
-        window.colorChooser.show()
+        openColorChooser()
     updateStatus()
+
+def openColorChooser():
+    if getattr(window, 'colorChooser', None) is None:
+        window.colorChooser = QColorDialog(parent=window)
+        window.colorChooser.setWhatsThis(
+            """
+            <b>ColorChooser</b><br>
+            To <b>display the color of a pixel</b> from the activelayer, click on the image.<br>
+            For adjustment layers, hold the Ctrl key while clicking to display the color of the
+            corresponding input pixel.<br>
+            """
+        )  # end of whatsthis
+    window.colorChooser.show()
 
 def menuImage(name) :
     """
@@ -1809,8 +1820,8 @@ For a segmentation layer only, all pixels outside the rectangle are set to backg
 """ <b>Main Window<br>
 Menu File > Open</b> to edit a photo.<br>
 <b>Menu Layer > New Adjustment Layer</b> to add an adjustment layer.<br>
-<b>Menu View > Library Viewer</b> to browse a folder.<br>
-<b>Ctrl+C</b> to display the color chooser.<br>
+<b>Ctrl+L or Menu View > Library Viewer</b> to browse a folder.<br>
+<b>Ctrl+C or Menu View > Color Chooser</b> to display the color chooser.<br>
 """
     ) # end of setWhatsThis
     window.label_3.setWhatsThis(
