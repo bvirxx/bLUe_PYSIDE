@@ -1922,6 +1922,23 @@ class mImage(vImage):
             qClr = QColor(0,0,0)
         return qColorToRGB(qClr)
 
+    def getPrPixel(self, x, y):
+        """
+        Reads the RGB colors of the pixel at (x, y) from
+        the presentation layer. They are the (non color managed)
+        colors of the displayed pixel.
+        Coordinates are relative to the full sized image.
+        If (x,y) is outside the image, (0, 0, 0) is returned.
+        @param x, y: coordinates of pixel, relative to the full-sized image
+        @return: pixel RGB colors
+        @rtype: 3-uple of int
+        """
+        x, y = self.full2CurrentXY(x, y)
+        qClr = self.prLayer.getCurrentImage().pixelColor(x, y)
+        if not qClr.isValid():
+            qClr = QColor(0,0,0)
+        return qColorToRGB(qClr)
+
     def cacheInvalidate(self):
         """
         Invalidate cache buffers. The method is
@@ -2099,10 +2116,10 @@ class mImage(vImage):
 
     def save(self, filename, quality=-1, compression=-1, crops=None):
         """
-        Builds image from visible layers
-        and writes it to file. Raise IOError if
-        saving fails. Overrides QImage.save().
-        A thumbnail of standard size 160x120 or 120x160 is returned.
+        Overrides QImage.save().
+        Writes the presentation layer to a file and returns a
+        thumbnail with standard size (160x120 or 120x160).
+        Raises IOError if the saving fails.
         @param filename:
         @type filename: str
         @param quality: integer value in range 0..100, or -1
@@ -2114,22 +2131,20 @@ class mImage(vImage):
         if self.useThumb:
             return None
         # get the final image from the presentation layer.
-        # It is important to note that this image is
-        # NOT color managed (prLayer.qPixmap only
-        # is color managed)
-        img = self.prLayer.getCurrentImage() # self.mergeVisibleLayers()
+        # This image is NOT color managed (prLayer.qPixmap
+        # only is color managed)
+        img = self.prLayer.getCurrentImage()
         # imagewriter and QImage.save are unusable for tif files,
-        # due to bugs in libtiff, hence
-        # we use opencv imwrite.
+        # due to bugs in libtiff, hence we use opencv imwrite.
         fileFormat = filename[-3:].upper()
         buf = QImageBuffer(img)
         if fileFormat == 'JPG':
-            buf = buf[:, :, :3] # TODO added 19/06/18
+            buf = buf[:, :, :3]
             params = [cv2.IMWRITE_JPEG_QUALITY, quality]  # quality range 0..100
         elif fileFormat == 'PNG':
             params = [cv2.IMWRITE_PNG_COMPRESSION, compression]  # compression range 0..9
         elif fileFormat == 'TIF':
-            buf = buf[:, :, :3]  # TODO added 19/06/18
+            buf = buf[:, :, :3]
             params = []
         else:
             raise IOError("Invalid File Format\nValid formats are jpg, png, tif ")

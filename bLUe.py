@@ -450,13 +450,17 @@ def mouseEvent(widget, event) :  # TODO split into 3 handlers
                     # read input and current colors from active layer (coordinates are relative to the full-sized image)
                     red, green, blue = img.getActivePixel(x_img, y_img)
                     redC, greenC, blueC = img.getActivePixel(x_img, y_img, fromInputImg=False)
+                    # read color from presentation layer
+                    redP, greenP, blueP = img.getPrPixel(x_img, y_img)
                     # set color chooser value according to modifiers
                     if getattr(window, 'colorChooser', None) is not None:
                         if window.colorChooser.isVisible():
-                            if modifiers & Qt.ControlModifier:
+                            if (modifiers & Qt.ControlModifier) and (modifiers & Qt.ShiftModifier):
                                 window.colorChooser.setCurrentColor(QColor(red,green,blue))
-                            else:
+                            elif modifiers & Qt.ControlModifier:
                                 window.colorChooser.setCurrentColor(QColor(redC, greenC, blueC))
+                            else :
+                                window.colorChooser.setCurrentColor(QColor(redP, greenP, blueP))
                     # emit colorPicked signal
                     layer.colorPicked.sig.emit(x_img, y_img, modifiers)
                     # select grid node for 3DLUT form
@@ -1102,9 +1106,10 @@ def openColorChooser():
         window.colorChooser.setWhatsThis(
             """
             <b>ColorChooser</b><br>
-            To <b>display the color of a pixel</b> from the activelayer, click on the image.<br>
-            For adjustment layers, hold the Ctrl key while clicking to display the color of the
-            corresponding input pixel.<br>
+            To <b>display the color of a pixel</b> click it in the image :<br>
+            &nbsp;&nbsp;<b>Click</b> : image pixel<br>
+            &nbsp;&nbsp;<b>Ctrl + Click</b> : active layer pixel<br>
+            &nbsp;&nbsp;<b>Ctrl+Shift + Click</b> : input pixel of active layer (adjustment layer only) <br>
             """
         )  # end of whatsthis
     window.colorChooser.show()
@@ -1620,6 +1625,25 @@ def updateStatus():
     s = s + '&nbsp;&nbsp;&nbsp;&nbsp;Click an item and press Shift+F1 for context help'
     window.Label_status.setText(s)
 
+def initCursors():
+    """
+    Inits app cursors
+    """
+    # EyeDropper cursor
+    pxmp = QPixmap.fromImage(QImage(":/images/resources/Eyedropper-icon.png"))
+    w, h = pxmp.width(), pxmp.height()
+    window.cursor_EyeDropper = QCursor(pxmp, hotX=0, hotY=h-1)
+    # tool cursor, must be resizable
+    curImg = QImage(":/images/resources/cursor_circle.png")
+    # turn to white
+    curImg.invertPixels()
+    window.cursor_Circle_Pixmap = QPixmap.fromImage(curImg)
+
+def initDefaultImage():
+    img = QImage(200, 200, QImage.Format_ARGB32)
+    img.fill(Qt.darkGray)
+    return imImage(QImg=img, meta=metadataBag(name='noName'))
+
 def screenUpdate(newScreenIndex):
     """
     screenChanged event handler. The image is updated in background
@@ -1651,8 +1675,7 @@ if __name__ =='__main__':
     freeze_support()
 
     # splash screen
-    pixmap = QPixmap('logo.png')
-    splash = QSplashScreen(pixmap, Qt.WindowStaysOnTopHint)
+    splash = QSplashScreen(QPixmap('logo.png'), Qt.WindowStaysOnTopHint)
     splash.show()
     splash.showMessage("Loading .", color=Qt.white, alignment=Qt.AlignCenter)
     app.processEvents()
@@ -1747,24 +1770,16 @@ For a segmentation layer only, all pixels outside the rectangle are set to backg
                                              window.label.__class__)
     window.label.setAcceptDrops(True)
 
-    img=QImage(200, 200, QImage.Format_ARGB32)
-    img.fill(Qt.darkGray)
-    defaultImImage = imImage(QImg=img, meta=metadataBag(name='noName'))
-
+    defaultImImage = initDefaultImage()
     window.label.img = defaultImImage
     window.label_2.img = defaultImImage
     window.label_3.img = defaultImImage
 
     window.showMaximized()
     splash.finish(window)
-    # init EyeDropper cursor
-    window.cursor_EyeDropper = QCursor(QPixmap.fromImage(QImage(":/images/resources/Eyedropper-icon.png")))
-    # init tool cursor, must be resizable
-    curImg = QImage(":/images/resources/cursor_circle.png")
-    # turn to white
-    curImg.invertPixels()
-    window.cursor_Circle_Pixmap = QPixmap.fromImage(curImg)
 
+    initCursors()
+    
     # init Before/after view and cycling action
     window.splitter.setOrientation(Qt.Horizontal)
     window.splitter.currentState = next(splittedWin.splittedViews)
