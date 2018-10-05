@@ -1904,27 +1904,23 @@ class mImage(vImage):
 
     def getActivePixel(self,x, y, fromInputImg=True):
         """
-        Reads RGB colors of the pixel at (x, y) from the active layer.
-        If fromInputImg is True (default), pixel is taken from
+        Reads the RGB colors of the pixel at (x, y) from the active layer.
+        If fromInputImg is True (default), the pixel is taken from
         the input image, otherwise from the current image.
         Coordinates are relative to the full sized image.
+        If (x,y) is outside the image, (0, 0, 0) is returned.
         @param x, y: coordinates of pixel, relative to the full-sized image
         @return: pixel RGB colors
         @rtype: 3-uple of int
         """
         x, y = self.full2CurrentXY(x, y)
         activeLayer = self.getActiveLayer()
-        # TODO modified 2/10/18 validate
-        qclr = activeLayer.inputImg().pixelColor(x, y) if fromInputImg else activeLayer.getCurrentImage().pixelColor(x, y)
-        return qColorToRGB(qclr)
-        """
-        if activeLayer.isAdjustLayer() :
-            # layer is adjustment or segmentation : read from input image
-            return activeLayer.inputImg().pixelColor(x, y)
-        else:
-            # read from current image
-            return activeLayer.getCurrentImage().pixelColor(x, y)
-        """
+        qClr = activeLayer.inputImg().pixelColor(x, y) if fromInputImg else activeLayer.getCurrentImage().pixelColor(x, y)
+        # pixelColor returns an invalid color if (x,y) is out of range
+        # we return black
+        if not qClr.isValid():
+            qClr = QColor(0,0,0)
+        return qColorToRGB(qClr)
 
     def cacheInvalidate(self):
         """

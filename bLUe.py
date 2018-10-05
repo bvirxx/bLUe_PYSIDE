@@ -446,10 +446,11 @@ def mouseEvent(widget, event) :  # TODO split into 3 handlers
                 # click event
                 if clicked:
                     x_img, y_img = (x - img.xOffset) / r, (y - img.yOffset) / r
-                    x_img, y_img = min(int(x_img), img.width()-1), min(int(y_img), img.height()-1)
-                    # Pick color from active layer. Coordinates are relative to the full-sized image
+                    #x_img, y_img = min(int(x_img), img.width()-1), min(int(y_img), img.height()-1)
+                    # read input and current colors from active layer (coordinates are relative to the full-sized image)
                     red, green, blue = img.getActivePixel(x_img, y_img)
                     redC, greenC, blueC = img.getActivePixel(x_img, y_img, fromInputImg=False)
+                    # set color chooser value according to modifiers
                     if getattr(window, 'colorChooser', None) is not None:
                         if window.colorChooser.isVisible():
                             if modifiers & Qt.ControlModifier:
