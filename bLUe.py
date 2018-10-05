@@ -419,17 +419,7 @@ def mouseEvent(widget, event) :  # TODO split into 3 handlers
                 layer.updatePixmap()
         #update current coordinates
         State['ix'],State['iy']=x,y
-        """
-        # Pick color from active layer. Coordinates are relative to the full-sized image
-        if window.btnValues['colorPicker']:
-            x_img, y_img = (x - img.xOffset) / r, (y - img.yOffset) / r
-            x_img, y_img = min(int(x_img), img.width() - 1), min(int(y_img), img.height() - 1)
-            r, g, b = img.getActivePixel(x_img, y_img)
-            s = ('%s  %s  %s' % (r, g, b))
-            QToolTip.showText(event.globalPos(), s, window, QRect(event.globalPos(), QSize(20,30)))
-        """
         if layer.isGeomLayer():
-            #layer.view.widget().tool.moveRotatingTool()
             layer.tool.moveRotatingTool()
     #####################
     # mouse release event
@@ -453,40 +443,40 @@ def mouseEvent(widget, event) :  # TODO split into 3 handlers
                     # read color from presentation layer
                     redP, greenP, blueP = img.getPrPixel(x_img, y_img)
                     # set color chooser value according to modifiers
-                    if getattr(window, 'colorChooser', None) is not None:
-                        if window.colorChooser.isVisible():
-                            if (modifiers & Qt.ControlModifier) and (modifiers & Qt.ShiftModifier):
-                                window.colorChooser.setCurrentColor(QColor(red,green,blue))
-                            elif modifiers & Qt.ControlModifier:
-                                window.colorChooser.setCurrentColor(QColor(redC, greenC, blueC))
-                            else :
-                                window.colorChooser.setCurrentColor(QColor(redP, greenP, blueP))
-                    # emit colorPicked signal
-                    layer.colorPicked.sig.emit(x_img, y_img, modifiers)
-                    # select grid node for 3DLUT form
-                    if layer.is3DLUTLayer():
-                        layer.view.widget().selectGridNode(red, green, blue)
-                    if window.btnValues['rectangle'] and (modifiers == Qt.ControlModifier):
-                        layer.rect = None                               # TODO added 18/02/18 to clear selection
-                    # for raw layer, set multipliers to get selected pixel as White Point
-                    if layer.isRawLayer() and window.btnValues['colorPicker']:
-                        bufRaw = layer.parentImage.demosaic
-                        # demosaiced buffer
-                        nb = QRect(x_img-2, y_img-2, 4, 4)
-                        r = QImage.rect(layer.parentImage).intersected(nb)
-                        if not r.isEmpty():
-                            color = np.sum(bufRaw[r.top():r.bottom()+1, r.left():r.right()+1], axis=(0,1))/(r.width()*r.height())
-                        else:
-                            color = bufRaw[y_img, x_img, :]  # TODO added 25/06/18 to avoid uninit. color validate
-                        #color = bufRaw[y_img, x_img, :]
-                        color = [color[i] - layer.parentImage.rawImage.black_level_per_channel[i] for i in range(3)]
-                        form =layer.view.widget()
-                        if form.sampleMultipliers:
-                            row, col = 3*y_img//layer.height(), 3*x_img//layer.width()
-                            if form.samples:
-                                form.setRawMultipliers(*form.samples[3*row + col], sampling=False)
-                        else:
-                            form.setRawMultipliers(1/color[0], 1/color[1], 1/color[2], sampling=True)
+                    if getattr(window, 'colorChooser', None) and window.colorChooser.isVisible():
+                        if (modifiers & Qt.ControlModifier) and (modifiers & Qt.ShiftModifier):
+                            window.colorChooser.setCurrentColor(QColor(red,green,blue))
+                        elif modifiers & Qt.ControlModifier:
+                            window.colorChooser.setCurrentColor(QColor(redC, greenC, blueC))
+                        else :
+                            window.colorChooser.setCurrentColor(QColor(redP, greenP, blueP))
+                    # do other stuff
+                    else:
+                        # emit colorPicked signal
+                        layer.colorPicked.sig.emit(x_img, y_img, modifiers)
+                        # select grid node for 3DLUT form
+                        if layer.is3DLUTLayer():
+                            layer.view.widget().selectGridNode(red, green, blue)
+                        if window.btnValues['rectangle'] and (modifiers == Qt.ControlModifier):
+                            layer.rect = None                               # TODO added 18/02/18 to clear selection
+                        # for raw layer, set multipliers to get selected pixel as White Point
+                        if layer.isRawLayer() and window.btnValues['colorPicker']:
+                            bufRaw = layer.parentImage.demosaic
+                            # demosaiced buffer
+                            nb = QRect(x_img-2, y_img-2, 4, 4)
+                            r = QImage.rect(layer.parentImage).intersected(nb)
+                            if not r.isEmpty():
+                                color = np.sum(bufRaw[r.top():r.bottom()+1, r.left():r.right()+1], axis=(0,1))/(r.width()*r.height())
+                            else:
+                                color = bufRaw[y_img, x_img, :]  # TODO added 25/06/18 to avoid uninit. color validate
+                            color = [color[i] - layer.parentImage.rawImage.black_level_per_channel[i] for i in range(3)]
+                            form =layer.view.widget()
+                            if form.sampleMultipliers:
+                                row, col = 3*y_img//layer.height(), 3*x_img//layer.width()
+                                if form.samples:
+                                    form.setRawMultipliers(*form.samples[3*row + col], sampling=False)
+                            else:
+                                form.setRawMultipliers(1/color[0], 1/color[1], 1/color[2], sampling=True)
                 """
                 # cloning layer
                 if layer.isCloningLayer():
@@ -1779,7 +1769,7 @@ For a segmentation layer only, all pixels outside the rectangle are set to backg
     splash.finish(window)
 
     initCursors()
-    
+
     # init Before/after view and cycling action
     window.splitter.setOrientation(Qt.Horizontal)
     window.splitter.currentState = next(splittedWin.splittedViews)

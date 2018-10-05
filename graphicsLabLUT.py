@@ -40,7 +40,7 @@ class graphicsLabForm(graphicsCurveForm):
         graphicsScene.addItem(cubic)
         graphicsScene.cubicR = cubic
         cubic.channel = channelValues.L
-        # get histogram as Qimage
+        # get histogram as a Qimage
         cubic.histImg = graphicsScene.layer.inputImg().histogram(size=graphicsScene.axeSize,
                                                                     bgColor=graphicsScene.bgColor, range=(0, 1),
                                                                     chans=channelValues.L, mode='Lab')
@@ -50,7 +50,7 @@ class graphicsLabForm(graphicsCurveForm):
         graphicsScene.addItem(cubic)
         graphicsScene.cubicG = cubic
         cubic.channel = channelValues.a
-        cubic.histImg = graphicsScene.layer.inputImg().histogram(size=axeSize,
+        cubic.histImg = graphicsScene.layer.inputImg().histogram(size=graphicsScene.axeSize,
                                                                     bgColor=graphicsScene.bgColor, range=(-100, 100),
                                                                     chans=channelValues.a, mode='Lab')
         cubic.initFixedPoints()
@@ -59,7 +59,7 @@ class graphicsLabForm(graphicsCurveForm):
         graphicsScene.addItem(cubic)
         graphicsScene.cubicB = cubic
         cubic.channel = channelValues.b
-        cubic.histImg = graphicsScene.layer.inputImg().histogram(size=axeSize,
+        cubic.histImg = graphicsScene.layer.inputImg().histogram(size=graphicsScene.axeSize,
                                                                     bgColor=graphicsScene.bgColor, range=(-100, 100),
                                                                     chans=channelValues.b, mode='Lab')
         cubic.initFixedPoints()
@@ -70,12 +70,12 @@ class graphicsLabForm(graphicsCurveForm):
         pushButton1 = QPushButton("Reset Current")
         pushButton1.move(100, 20)
         pushButton1.adjustSize()
-        pushButton1.clicked.connect(self.onResetCurve)
+        pushButton1.clicked.connect(self.resetCurve)
         graphicsScene.addWidget(pushButton1)
         pushButton2 = QPushButton("Reset All")
         pushButton2.move(100, 50)
         pushButton2.adjustSize()
-        pushButton2.clicked.connect(self.onResetAllCurves)
+        pushButton2.clicked.connect(self.resetAllCurves)
         graphicsScene.addWidget(pushButton2)
         # options
         options = ['L', 'a', 'b']
@@ -90,10 +90,9 @@ class graphicsLabForm(graphicsCurveForm):
             self.scene().cubicItem.setVisible(False)
             self.scene().cubicItem = curveDict[item.text()]
             self.scene().cubicItem.setVisible(True)
-            # Force redraw  histogram
+            # Force to redraw  histogram
             self.scene().invalidate(QRectF(0.0, -self.scene().axeSize, self.scene().axeSize, self.scene().axeSize),
                                     QGraphicsScene.BackgroundLayer)
-
         self.listWidget1.onSelect = onSelect1
         # set initial selection to L
         item = self.listWidget1.items[options[0]]
@@ -102,6 +101,15 @@ class graphicsLabForm(graphicsCurveForm):
         self.setWhatsThis("""<b>Lab curves</b><br>""" + self.whatsThis())
 
     def colorPickedSlot(self, x, y, modifiers):
+        """
+        sets black/white points
+        @param x:
+        @type x:
+        @param y:
+        @type y:
+        @param modifiers:
+        @type modifiers:
+        """
         r,g,b= self.scene().targetImage.getActivePixel(x, y)
         if (modifiers & QtCore.Qt.ControlModifier):
             if modifiers & QtCore.Qt.ShiftModifier:
@@ -242,19 +250,58 @@ class graphicsLabForm(graphicsCurveForm):
         if graphicsScene.cubicItem.histImg is not None:
             qp.drawPixmap(QRect(0, -s, s, s), QPixmap.fromImage(graphicsScene.cubicItem.histImg))
 
-    def onResetCurve(self):
+    def updateHist(self, curve, redraw=True):
+        """
+        Updates the channel histogram displayed under the curve
+
+        @param curve:
+        @type curve:
+
+        """
+        sc = self.scene()
+        if curve is sc.cubicR:
+            curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize,
+                                                        bgColor=sc.bgColor, range=(0, 1),
+                                                        chans=channelValues.L, mode='Lab')
+        elif curve is sc.cubicG:
+            curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize,
+                                                        bgColor=sc.bgColor, range=(-100, 100),
+                                                        chans=channelValues.a, mode='Lab')
+        elif curve is sc.cubicB:
+            curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize,
+                                                        bgColor=sc.bgColor, range=(-100, 100),
+                                                        chans=channelValues.b, mode='Lab')
+        # Force to redraw histogram
+        if redraw:
+            sc.invalidate(QRectF(0.0, -sc.axeSize, sc.axeSize, sc.axeSize),
+                            sc.BackgroundLayer)
+
+    def updateHists(self):
+        """
+        Updates all histograms
+        @return:
+        @rtype:
+        """
+        sc = self.scene()
+        for curve in [sc.cubicR, sc.cubicG, sc.cubicB]:
+            self.updateHist(curve, redraw=False)
+        # Force to redraw histogram
+        sc.invalidate(QRectF(0.0, -sc.axeSize, sc.axeSize, sc.axeSize),
+                        sc.BackgroundLayer)
+
+    def resetCurve(self):
         """
         Button event handler
-        Reset the selected curve
+        Reset the current curve
         """
         graphicsScene = self.scene()
         graphicsScene.cubicItem.reset()
-        # self.scene().onUpdateLUT()
+        self.updateHist(graphicsScene.cubicItem)
         l = graphicsScene.layer
         l.applyToStack()
         l.parentImage.onImageChanged()
 
-    def onResetAllCurves(self):
+    def resetAllCurves(self):
         """
         Button event handler
         Reset all curves
@@ -262,7 +309,7 @@ class graphicsLabForm(graphicsCurveForm):
         graphicsScene = self.scene()
         for cubicItem in [graphicsScene.cubicR, graphicsScene.cubicG, graphicsScene.cubicB]:
             cubicItem.reset()
-        # self.scene().onUpdateLUT()
+        self.updateHists()
         l = graphicsScene.layer
         l.applyToStack()
         l.parentImage.onImageChanged()

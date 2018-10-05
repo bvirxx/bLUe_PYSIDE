@@ -561,19 +561,24 @@ class graphicsCurveForm(QGraphicsView):
         # default WhatsThis for interactive curves
         self.setWhatsThis(
 """
+The background histogram is the <i>input</i> histogram; it is refreshed only
+when the curve is reset.<br>
 <b>Drag control points</b> with the mouse.<br>
 <b>Add a control point</b> by clicking on the curve.<br>
 <b>Remove a control point</b> by clicking it.<br>
 <b>Zoom</b> with the mouse wheel.<br>
-<b>Set black, white and neutral points</b> by clicking on the image
-while pressing one of the following key combination (for RGB and Lab curves only):<br>
+<b>Set black, white and neutral points</b> in the image by clicking the corresponding pixels
+while pressing one of the following key combination (RGB and Lab curves only):<br>
 &nbsp;&nbsp;<b>Black Point</b> : Ctrl+Shift<br>
 &nbsp;&nbsp;<b>White Point</b> : Ctrl<br>
-&nbsp;&nbsp;<b>Grey Neutral Point</b></br> : Shift<br>
+&nbsp;&nbsp;<b>Grey Neutral Point (Lab only)</b></br> : Shift<br>
+<b>Caution</b> : Selecting a black, white or neutral point in an image is enabled only when
+the Color Chooser is closed.
 """                      )  # end setWhatsThis
 
     def colorPickedSlot(self, x, y, modifiers):
         """
+        Does nothing
         Should be overridden in derived classes
         """
         pass

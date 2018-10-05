@@ -71,12 +71,12 @@ class graphicsForm(graphicsCurveForm) :
         pushButton1 = QPushButton("Reset Current")
         pushButton1.move(100,20)
         pushButton1.adjustSize()
-        pushButton1.clicked.connect(self.onResetCurve)
+        pushButton1.clicked.connect(self.resetCurve)
         graphicsScene.addWidget(pushButton1)
         pushButton2 = QPushButton("Reset R,G,B")
         pushButton2.move(100, 50)
         pushButton2.adjustSize()
-        pushButton2.clicked.connect(self.onResetAllCurves)
+        pushButton2.clicked.connect(self.resetAllCurves)
         graphicsScene.addWidget(pushButton2)
 
         # options
@@ -105,7 +105,21 @@ class graphicsForm(graphicsCurveForm) :
         self.listWidget1.select(item)
         self.setWhatsThis("""<b>RGB curves</b><br>""" + self.whatsThis())
 
-
+    def colorPickedSlot(self, x, y, modifiers):
+        """
+        sets black/white points
+        @param x:
+        @type x:
+        @param y:
+        @type y:
+        @param modifiers:
+        @type modifiers:
+        """
+        r,g,b= self.scene().targetImage.getActivePixel(x, y)
+        if (modifiers & QtCore.Qt.ControlModifier) and (modifiers & QtCore.Qt.ShiftModifier):
+            self.setBlackPoint(r,g,b)
+        elif (modifiers & QtCore.Qt.ControlModifier):
+            self.setWhitePoint(r, g, b)
 
     def setBlackPoint(self, r, g ,b):
         """
@@ -118,25 +132,31 @@ class graphicsForm(graphicsCurveForm) :
         @type b:
         """
         sc = self.scene()
+        bPoint = min(r, g, b)
+        # don't set black point to white !
+        if bPoint >= 255:
+            bPoint -= 10.0
         cubicRGB, cubicR, cubicG, cubicB = sc.cubicRGB, sc.cubicR, sc.cubicG, sc.cubicB
         for cubic in [cubicRGB, cubicR, cubicG, cubicB]:
             scale = cubic.size / 255.0
-            bPoint = min(r, g, b) * scale
-            # don't set black point to white !
-            if bPoint >= cubic.size:
-                bPoint -= 10.0
-            for p in list(cubic.fixedPoints):
-                if (p.x() > 0.0 and p.x() <= bPoint) or (p.y() == 0.0 and p.x() > bPoint):
-                        cubic.fixedPoints.remove(p)
-                        sc.removeItem(p)
-            try:
-                a = activePoint(bPoint, 0.0, parentItem=cubic)
+            fp = cubic.fixedPoints
+            # find current white point
+            wPoint = cubic.size
+            tmp = [p.x() for p in fp if p.y() == -cubic.size]
+            if tmp:
+                wPoint = min(tmp)
+            # remove control points at the left of wPoint, but the first
+            for p in list(fp[1:-1]):
+                if p.x() < wPoint:
+                    fp.remove(p)
+                    sc.removeItem(p)
+            # add new black point if needed
+            if bPoint > 0.0:
+                a = activePoint(bPoint*scale, 0.0, parentItem=cubic)
                 cubic.fixedPoints.append(a)
-                cubic.fixedPoints.sort(key=lambda z: z.scenePos().x())
-                cubic.updatePath()
-                cubic.updateLUTXY()
-            except ValueError: # empty list
-                pass
+            cubic.fixedPoints.sort(key=lambda z: z.scenePos().x())
+            cubic.updatePath()
+            cubic.updateLUTXY()
         l = self.scene().layer
         l.applyToStack()
         l.parentImage.onImageChanged()
@@ -155,26 +175,31 @@ class graphicsForm(graphicsCurveForm) :
         cubicRGB, cubicR, cubicG, cubicB = sc.cubicRGB, sc.cubicR, sc.cubicG, sc.cubicB
         for i, cubic in enumerate([cubicRGB, cubicR, cubicG, cubicB]):
             scale = cubic.size / 255.0
-            wPoint = max(r, g, b) * scale if i==0 else r * scale if i==1 else g * scale if i==2 else b * scale
+            fp = cubic.fixedPoints
+            wPoint = max(r, g, b) if i==0 else r if i==1 else g if i==2 else b
             # don't set white point to black!
             if wPoint <= 10:
                 wPoint += 10.0
-            for p in list(cubic.fixedPoints):
-                if (p.x() > 255.0 and p.x() >= wPoint) or (p.y() == 255.0 and p.x() < wPoint):
+            # find black point
+            bPoint = 0.0
+            tmp = [p.x() for p in fp if p.y() == 0.0]
+            if tmp:
+                bPoint = max(tmp)
+            # remove control points at the right of bPoint
+            for p in list(fp[1:-1]):
+                if p.x() > bPoint:
                     cubic.fixedPoints.remove(p)
                     sc.removeItem(p)
-            try:
-                a = activePoint(wPoint, -cubic.size, parentItem=cubic)
-                cubic.fixedPoints.append(a)
-                cubic.fixedPoints.sort(key=lambda z: z.scenePos().x())
-                cubic.updatePath()
-                cubic.updateLUTXY()
-            except ValueError:  # empty list
-                pass
-            l = self.scene().layer
-            l.applyToStack()
-            l.parentImage.onImageChanged()
-
+            # add new white point if needed
+            if wPoint < cubic.size:
+                p = activePoint(wPoint * scale, -cubic.size, parentItem=cubic)
+                cubic.fixedPoints.append(p)
+            cubic.fixedPoints.sort(key=lambda z: z.scenePos().x())
+            cubic.updatePath()
+            cubic.updateLUTXY()
+        l = self.scene().layer
+        l.applyToStack()
+        l.parentImage.onImageChanged()
 
     def drawBackground(self, qp, qrF):
         """
@@ -190,26 +215,63 @@ class graphicsForm(graphicsCurveForm) :
         if graphicsScene.cubicItem.histImg is not None:
             qp.drawImage(QRect(0, -s, s, s), graphicsScene.cubicItem.histImg)
 
-    def onResetCurve(self):
+    def updateHist(self, curve, redraw=True):
+        """
+        Updates the channel histogram displayed under the curve
+
+        @param curve:
+        @type curve:
+
+        """
+        sc = self.scene()
+        if curve is sc.cubicRGB:
+            curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize, bgColor=sc.bgColor, chans=[], mode='Luminosity')
+        elif curve is sc.cubicR:
+            curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize, bgColor=sc.bgColor, chans=channelValues.Red)
+        elif curve is sc.cubicG:
+            curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize, bgColor=sc.bgColor, chans=channelValues.Green)
+        elif curve is sc.cubicB:
+            curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize, bgColor=sc.bgColor, chans=channelValues.Blue)
+        # Force to redraw histogram
+        if redraw:
+            sc.invalidate(QRectF(0.0, -sc.axeSize, sc.axeSize, sc.axeSize),
+                            sc.BackgroundLayer)
+
+    def updateHists(self):
+        """
+        Updates all histograms
+        @return:
+        @rtype:
+        """
+        sc = self.scene()
+        for curve in [sc.cubicRGB, sc.cubicR, sc.cubicG, sc.cubicB]:
+            self.updateHist(curve, redraw=False)
+        # Force to redraw histogram
+        sc.invalidate(QRectF(0.0, -sc.axeSize, sc.axeSize, sc.axeSize),
+                        sc.BackgroundLayer)
+
+    def resetCurve(self):
         """
         Button event handler
-        Reset the selected curve
+        Reset the current curve
         """
         graphicsScene = self.scene()
         graphicsScene.cubicItem.reset()
+        self.updateHist(graphicsScene.cubicItem)
         # self.scene().onUpdateLUT()
         l = graphicsScene.layer
         l.applyToStack()
         l.parentImage.onImageChanged()
 
-    def onResetAllCurves(self):
+    def resetAllCurves(self):
         """
         Button event handler
-        Reset all curves
+        Reset R,G,B curves
         """
         graphicsScene = self.scene()
         for cubicItem in [graphicsScene.cubicR, graphicsScene.cubicG, graphicsScene.cubicB]:
             cubicItem.reset()
+        self.updateHists()
         l = graphicsScene.layer
         l.applyToStack()
         l.parentImage.onImageChanged()

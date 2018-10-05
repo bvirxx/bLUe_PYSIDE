@@ -990,6 +990,8 @@ the wheel. Several nodes can be moved simultaneously by grouping them.<br>
         &nbsp; 1 - check the option Remove Node;<br>
         &nbsp; 2 -  ungroup;<br>
         &nbsp; 3 - on the image, click the pixels to remove.<br>
+<b>Caution</b> : Selecting nodes in an image with the mouse is enabled only when
+the Color Chooser is closed.
 """
 
                           ) # end of setWhatsThis
