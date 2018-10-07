@@ -21,11 +21,12 @@ from PySide2 import QtCore
 
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
-from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout, QWidget
+from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout
 
+from graphicsLUT import baseForm
 from utils import optionsWidget, QbLUeSlider
 
-class noiseForm (QWidget): # (QGraphicsView): TODO modified 25/06/18 validate
+class noiseForm (baseForm):
     dataChanged = QtCore.Signal(bool)
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
@@ -42,7 +43,10 @@ class noiseForm (QWidget): # (QGraphicsView): TODO modified 25/06/18 validate
         #self.img = targetImage
         # link back to image layer
         # using weak ref for back links
-        self.layer = weakref.proxy(layer)
+        if type(layer) in weakref.ProxyTypes:
+            self.layer = layer
+        else:
+            self.layer = weakref.proxy(layer)
         # attribute initialized in setDefaults
         # defined here for the sake of correctness
         self.noiseCorrection = 0

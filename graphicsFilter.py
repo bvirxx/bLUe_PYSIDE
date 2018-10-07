@@ -20,14 +20,15 @@ import weakref
 from PySide2 import QtCore
 
 from PySide2.QtCore import Qt
-from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout, QWidget
+from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout
 from PySide2.QtGui import QFontMetrics
 
+from graphicsLUT import baseForm
 from kernel import filterIndex, getKernel
 from utils import optionsWidget
 
 
-class filterForm (QWidget):
+class filterForm (baseForm):
     dataChanged = QtCore.Signal()
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
@@ -50,7 +51,10 @@ class filterForm (QWidget):
         self.img = targetImage
         # link back to image layer
         # using weak ref for back links
-        self.layer = weakref.proxy(layer)
+        if type(layer) in weakref.ProxyTypes:
+            self.layer = layer
+        else:
+            self.layer = weakref.proxy(layer)
         self.mainForm = mainForm
         self.kernelCategory = filterIndex.UNSHARP
         self.kernel = getKernel(self.kernelCategory)

@@ -19,12 +19,14 @@ import weakref
 
 import cv2
 from PySide2.QtCore import Qt
-from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QComboBox, QWidget
+from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QComboBox
+
 from MarkedImg import vImage
+from graphicsLUT import baseForm
 from utils import optionsWidget, dlgWarn
 
 
-class patchForm (QWidget): #(QGraphicsView): TODO Modified 25/06/18 validate
+class patchForm (baseForm):
     """
     Seamless cloning form
     """
@@ -43,7 +45,10 @@ class patchForm (QWidget): #(QGraphicsView): TODO Modified 25/06/18 validate
         self.img = targetImage
         # link back to image layer
         # using weak ref for back links
-        self.layer = weakref.proxy(layer)
+        if type(layer) in weakref.ProxyTypes:
+            self.layer = layer
+        else:
+            self.layer = weakref.proxy(layer)
         self.mainForm = mainForm
         # options
         options_dict = {'Normal Clone':cv2.NORMAL_CLONE, 'Mixed Clone':cv2.MIXED_CLONE, 'Monochrome Transfer':cv2.MONOCHROME_TRANSFER}
@@ -131,7 +136,7 @@ class patchForm (QWidget): #(QGraphicsView): TODO Modified 25/06/18 validate
    &nbsp; 3) Click the Clone button to start the cloning. 
 """
                         )
-class maskForm (QWidget): #(QGraphicsView): TODO modified 25/06/18 validate
+class maskForm (baseForm):
     """
     Knitting form (cloning an imported image)
     """

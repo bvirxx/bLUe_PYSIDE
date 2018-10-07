@@ -21,13 +21,13 @@ import numpy as np
 from PySide2 import QtCore
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
-from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBox, QWidget
+from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBox
 from colorConv import temperatureAndTint2RGBMultipliers, RGBMultipliers2TemperatureAndTint
-from graphicsLUT import graphicsQuadricForm
+from graphicsLUT import graphicsQuadricForm, baseForm
 from utils import optionsWidget, UDict, QbLUeSlider, stateAwareQDockWidget
 
 
-class rawForm (QWidget):
+class rawForm (baseForm):
     """
     GUI for postprocessing raw files.
     We use rawPy, the Python wrapper to Libraw.
@@ -109,7 +109,10 @@ class rawForm (QWidget):
         self.setAttribute(Qt.WA_DeleteOnClose)
         # link back to image layer
         # using weak ref for back links
-        self.layer = weakref.proxy(layer)
+        if type(layer) in weakref.ProxyTypes:
+            self.layer = layer
+        else:
+            self.layer = weakref.proxy(layer)
         #######################################
         # Libraw correspondances:
         # rgb_xyz_matrix is libraw cam_xyz

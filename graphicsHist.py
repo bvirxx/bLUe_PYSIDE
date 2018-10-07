@@ -18,10 +18,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import weakref
 
 from PySide2.QtCore import Qt, QSize
-from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QWidget
+from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout
+
+from graphicsLUT import baseForm
 from utils import optionsWidget
 
-class histForm (QWidget):
+class histForm (baseForm):
     """
     Form for displaying histograms
     """
@@ -34,7 +36,7 @@ class histForm (QWidget):
         self.img = targetImage
         # link back to image layer
         # using weak ref for back links
-        self.layer = layer if layer is None else weakref.proxy(layer)
+        self.layer = layer if (layer is None  or type(layer) in weakref.ProxyTypes) else weakref.proxy(layer)
         self.Label_Hist = QLabel()
         self.Label_Hist.setScaledContents(True)
         self.Label_Hist.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)

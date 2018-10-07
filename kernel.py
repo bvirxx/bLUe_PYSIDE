@@ -68,6 +68,7 @@ def kernelUnsharpMask(radius, amount):
     amount = amount / 100.0
     kernel = - kernelGaussianBlur(radius) * amount
     w = kernel.shape[0]
+    # sum of coeff. must be 1.0
     kernel[w//2, w//2] += 1.0 + amount  # python 3 integer quotient
     return kernel
 

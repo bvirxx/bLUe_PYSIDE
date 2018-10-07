@@ -129,14 +129,14 @@ def playDiaporama(diaporamaGenerator, parent=None):
             name = next(diaporamaGenerator)
             # search rating in metadata
             rating = 5  # default
-            try:
-                with exiftool.ExifTool() as e:
-                    rt = e.readXMPTag(name, 'XMP:rating')
+            with exiftool.ExifTool() as e:
+                try:
+                    rt = e.readXMPTag(name, 'XMP:rating')  # raise ValueError if sidecar not found
                     r = search("\d", rt)
                     if r is not None:
                         rating = int(r.group(0))
-            except ValueError:
-                rating = 5
+                except ValueError:
+                    rating = 5
             # don't display image with low rating
             if rating < 2:
                 app.processEvents()
@@ -255,7 +255,7 @@ class viewer :
         listWdg.setViewMode(QListWidget.IconMode)
         # set icon and listWdg sizes
         listWdg.setIconSize(QSize(self.iconSize, self.iconSize))
-        listWdg.setMaximumSize(160000, self.iconSize+50)
+        listWdg.setMaximumSize(160000, self.iconSize+20)
         listWdg.setDragDropMode(QAbstractItemView.DragDrop)
         listWdg.customContextMenuRequested.connect(self.contextMenu)
         # dock the form
@@ -264,7 +264,6 @@ class viewer :
         dock.setWindowFlags(newWin.windowFlags())
         dock.setWindowTitle(newWin.windowTitle())
         dock.setAttribute(Qt.WA_DeleteOnClose)
-        #dock.setStyleSheet("QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
         self.dock = dock
         window.addDockWidget(Qt.BottomDockWidgetArea, dock)
 

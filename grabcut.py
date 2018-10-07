@@ -61,7 +61,10 @@ class segmentForm(QWidget):
         self.setAttribute(Qt.WA_DeleteOnClose)
         # link back to image layer
         # using weak ref for back links
-        self.layer = weakref.proxy(layer)
+        if type(layer) in weakref.ProxyTypes:
+            self.layer = layer
+        else:
+            self.layer = weakref.proxy(layer)
 
         pushButton = QPushButton('apply')
         # apply button slot

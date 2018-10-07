@@ -18,10 +18,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import weakref
 
 from PySide2.QtCore import Qt
-from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QPushButton, QWidget
+from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QPushButton
+
+from graphicsLUT import baseForm
 from utils import optionsWidget
 
-class transForm (QWidget): #(QGraphicsView): TODO modified 25/06/18 validate
+class transForm (baseForm):
     """
     Geometric transformation form
     """
@@ -39,7 +41,10 @@ class transForm (QWidget): #(QGraphicsView): TODO modified 25/06/18 validate
         self.img = targetImage
         # link back to image layer
         # using weak ref for back links
-        self.layer = weakref.proxy(layer)
+        if type(layer) in weakref.ProxyTypes:
+            self.layer = layer
+        else:
+            self.layer = weakref.proxy(layer)
         self.mainForm = mainForm
         # options
         optionList, optionNames = ['Free', 'Rotation', 'Translation'], ['Free Transformation', 'Rotation', 'Translation']

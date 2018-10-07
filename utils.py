@@ -303,7 +303,7 @@ def saveChangeDialog(img):
     @rtype: QMessageBox.StandardButton
     """
     reply = QMessageBox()
-    reply.setText("%s has been modified" % img.meta.name if len(img.meta.name) > 0 else 'unnamed image')
+    reply.setText("%s was modified" % img.meta.name if len(img.meta.name) > 0 else 'unnamed image')
     reply.setInformativeText("Save your changes ?")
     reply.setStandardButtons(QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
     reply.setDefaultButton(QMessageBox.Save)
@@ -1157,9 +1157,17 @@ class stateAwareQDockWidget(QDockWidget):
 
 class loader(threading.Thread):
     """
-    Thread class for batch loading of images
+    Thread class for batch loading of images in a
+    QListWidget object
     """
     def __init__(self, gen, wdg):
+        """
+
+        @param gen: generator of image file names
+        @type gen: generator
+        @param wdg:
+        @type wdg: QListWidget
+        """
         super(loader, self).__init__()
         self.fileListGen = gen
         self.wdg = wdg
@@ -1201,7 +1209,8 @@ class loader(threading.Thread):
                     pxm = QPixmap.fromImage(img)
                     if not transformation.isIdentity():
                         pxm = pxm.transformed(transformation)
-                    item = QListWidgetItem(QIcon(pxm), basename(filename)+ '\n' + rating)
+                    # set item caption and tooltip
+                    item = QListWidgetItem(QIcon(pxm), basename(filename)) # + '\n' + rating)
                     item.setToolTip(basename(filename) + ' ' + date + ' ' + rating)
                     # set item mimeData to get filename=item.data(Qt.UserRole)[0] transformation=item.data(Qt.UserRole)[1]
                     item.setData(Qt.UserRole, (filename, transformation))

@@ -2253,10 +2253,15 @@ class imImage(mImage) :
                 # for historical reasons, graphic forms inheriting
                 # from QGraphicsView use form.scene().layer attribute,
                 # others use form.layer
-                if getattr(tLayer.view.widget(), 'scene', None) is None:
-                    tLayer.view.widget().layer = weakref.proxy(tLayer)
+                # use weak refs for back links
+                if type(tLayer) in weakref.ProxyTypes:
+                    wtLayer = tLayer
                 else:
-                    tLayer.view.widget().scene().layer = tLayer.view.widget().layer = weakref.proxy(tLayer)
+                    wtLayer = weakref.proxy(tLayer)
+                if getattr(tLayer.view.widget(), 'scene', None) is None:
+                    tLayer.view.widget().layer = wtLayer
+                else:
+                    tLayer.view.widget().scene().layer = wtLayer
             stack.append(tLayer)
         img.layersStack = stack
         gc.collect()

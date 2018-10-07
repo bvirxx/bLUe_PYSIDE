@@ -2,12 +2,13 @@ import weakref
 
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
-from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout, QWidget, QStyle
+from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout
 
+from graphicsLUT import baseForm
 from utils import QbLUeSlider, QbLUeLabel
 
 
-class ExpForm (QWidget):
+class ExpForm (baseForm):
     defaultExpCorrection = 0.0
     DefaultStep = 0.1
     @classmethod
@@ -24,7 +25,10 @@ class ExpForm (QWidget):
         self.setAttribute(Qt.WA_DeleteOnClose)
         # link back to image layer
         # using weak ref for back links
-        self.layer = weakref.proxy(layer)
+        if type(layer) in weakref.ProxyTypes:
+            self.layer = layer
+        else:
+            self.layer = weakref.proxy(layer)
 
         # options
         self.options = None

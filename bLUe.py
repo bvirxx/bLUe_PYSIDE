@@ -875,7 +875,7 @@ def closeFile():
 
 def setDocumentImage(img):
     """
-    Inits GUI to display the current document
+    Inits GUI and displays the current document
     @param img: image
     @type img: imImage
     """
@@ -904,9 +904,6 @@ def setDocumentImage(img):
                                      chanColors=window.histView.chanColors, mode=window.histView.mode, addMode='')
         window.histView.Label_Hist.setPixmap(QPixmap.fromImage(histView))
         window.histView.Label_Hist.repaint()
-        # window.label.img.layersStack[-1].updatePixmap()  # TODO 17/06/18 useless?
-        # window.label.repaint()                           # TODO 17/06/18 useless?
-
     ###################################
     # init displayed images
     # label.img : working image
@@ -1612,7 +1609,7 @@ def updateStatus():
     # cropping
     if window.label.img.isCropped:
         s = s + '&nbsp;&nbsp;&nbsp;&nbsp;Crop Tool : h/w ratio %.2f ' % window.cropTool.formFactor
-    s = s + '&nbsp;&nbsp;&nbsp;&nbsp;Click an item and press Shift+F1 for context help'
+    s = s + '&nbsp;&nbsp;&nbsp;&nbsp;Shift+F1 for Context Help'
     window.Label_status.setText(s)
 
 def initCursors():
@@ -1746,9 +1743,6 @@ For a segmentation layer only, all pixels outside the rectangle are set to backg
 
     #  called by all main form button and slider slots (cf. QtGui1.py)
     window.onWidgetChange = widgetChange
-
-    # load current settings
-    #window.readSettings() # TODO validate removing 05/07/18
 
     set_event_handlers(window.label)
     set_event_handlers(window.label_2, enterAndLeave=False)

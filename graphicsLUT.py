@@ -526,7 +526,8 @@ class baseForm(QWidget):
         super().__init__(parent=parent)
         self.layer=layer
         # connect layerPicked signal
-        self.layer.colorPicked.sig.connect(self.colorPickedSlot)
+        if self.layer is not None:
+            self.layer.colorPicked.sig.connect(self.colorPickedSlot)
 
     def colorPickedSlot(self, x, y, modifiers):
         """
@@ -548,7 +549,10 @@ class graphicsCurveForm(QGraphicsView):
         graphicsScene.targetImage = targetImage
         # link back to image layer
         # using weak ref for back links
-        graphicsScene.layer = weakref.proxy(layer)
+        if type(layer) in weakref.ProxyTypes:
+            graphicsScene.layer = layer
+        else:
+            graphicsScene.layer = weakref.proxy(layer)
         #graphicsScene.layer = layer
         graphicsScene.bgColor = QColor(200,200,200)
         self.mainForm = mainForm

@@ -69,12 +69,12 @@ class graphicsHspbForm(graphicsCurveForm) :
         pushButton1 = QPushButton("Reset Current")
         pushButton1.move(100, 20)
         pushButton1.adjustSize()
-        pushButton1.clicked.connect(self.onResetCurve)
+        pushButton1.clicked.connect(self.resetCurve)
         graphicsScene.addWidget(pushButton1)
         pushButton2 = QPushButton("Reset All")
         pushButton2.move(100, 50)
         pushButton2.adjustSize()
-        pushButton2.clicked.connect(self.onResetAllCurves)
+        pushButton2.clicked.connect(self.resetAllCurves)
         graphicsScene.addWidget(pushButton2)
         # options
         options = ['H', 'S', 'B']
@@ -105,18 +105,55 @@ class graphicsHspbForm(graphicsCurveForm) :
         if graphicsScene.cubicItem.histImg is not None:
             qp.drawImage(QRect(0, -s, s, s), graphicsScene.cubicItem.histImg)
 
-    def onResetCurve(self):
+    def updateHist(self, curve, redraw=True):
+        """
+        Updates the channel histogram displayed under the curve
+
+        @param curve:
+        @type curve:
+
+        """
+        sc = self.scene()
+        if curve is sc.cubicR:
+            curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize, bgColor=sc.bgColor,
+                                                          chans=channelValues.Red)
+        elif curve is sc.cubicG:
+            curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize, bgColor=sc.bgColor,
+                                                          chans=channelValues.Green)
+        elif curve is sc.cubicB:
+            curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize, bgColor=sc.bgColor,
+                                                          chans=channelValues.Blue)
+        # Force to redraw histogram
+        if redraw:
+            sc.invalidate(QRectF(0.0, -sc.axeSize, sc.axeSize, sc.axeSize),
+                          sc.BackgroundLayer)
+
+    def updateHists(self):
+        """
+        Updates all histograms
+        @return:
+        @rtype:
+        """
+        sc = self.scene()
+        for curve in [sc.cubicR, sc.cubicG, sc.cubicB]:
+            self.updateHist(curve, redraw=False)
+        # Force to redraw histogram
+        sc.invalidate(QRectF(0.0, -sc.axeSize, sc.axeSize, sc.axeSize),
+                      sc.BackgroundLayer)
+
+    def resetCurve(self):
         """
         Button event handler
         Reset the selected curve
         """
         graphicsScene = self.scene()
         graphicsScene.cubicItem.reset()
+        self.updateHist(graphicsScene.cubicItem)
         l = graphicsScene.layer
         l.applyToStack()
         l.parentImage.onImageChanged()
 
-    def onResetAllCurves(self):
+    def resetAllCurves(self):
         """
         Button event handler
         Reset all curves
@@ -124,6 +161,7 @@ class graphicsHspbForm(graphicsCurveForm) :
         graphicsScene = self.scene()
         for cubicItem in [graphicsScene.cubicR, graphicsScene.cubicG, graphicsScene.cubicB]:
             cubicItem.reset()
+        self.updateHists()
         l = graphicsScene.layer
         l.applyToStack()
         l.parentImage.onImageChanged()

@@ -816,7 +816,10 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.targetImage= targetImage
         # link back to image layer
         # using weak ref for back links
-        self.layer = weakref.proxy(layer)   #TODO 25/05/18 remove and instead use graphicsScene.layer below
+        if type(layer) in weakref.ProxyTypes:
+            self.layer = layer
+        else:
+            self.layer = weakref.proxy(layer)
         self.mainForm = mainForm
         # currently selected grid node
         self.selected = None
@@ -825,7 +828,10 @@ class graphicsForm3DLUT(QGraphicsView) :
         self.setScene(self.graphicsScene)
         # link back to image layer
         # using weak ref for back links
-        self.graphicsScene.layer = weakref.proxy(layer)
+        if type(layer) in weakref.ProxyTypes:
+            self.graphicsScene.layer = layer
+        else:
+            self.graphicsScene.layer = weakref.proxy(layer)
         # LUT
         freshLUT3D = LUT3D.LUT3DFromFactory(size=LUTSize)
         self.graphicsScene.LUTSize, self.graphicsScene.LUTStep, self.graphicsScene.LUT3DArray = freshLUT3D.size, freshLUT3D.step, freshLUT3D.LUT3DArray

@@ -20,13 +20,14 @@ import weakref
 from PySide2 import QtCore
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
-from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QWidget
+from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout
 
 from colorConv import sRGBWP
+from graphicsLUT import baseForm
 from utils import optionsWidget, QbLUeSlider, QbLUeLabel
 
 
-class temperatureForm (QWidget): #(QGraphicsView): TODO modified 25/06/18 validate
+class temperatureForm (baseForm):
 
     dataChanged = QtCore.Signal()
 
@@ -45,7 +46,10 @@ class temperatureForm (QWidget): #(QGraphicsView): TODO modified 25/06/18 valida
         self.setAttribute(Qt.WA_DeleteOnClose)
         # link back to image layer
         # using weak ref for back links
-        self.layer = weakref.proxy(layer)
+        if type(layer) in weakref.ProxyTypes:
+            self.layer = layer
+        else:
+            self.layer = weakref.proxy(layer)
 
         self.defaultTemp = sRGBWP  # ref temperature D65
         self.defaultTint = 0

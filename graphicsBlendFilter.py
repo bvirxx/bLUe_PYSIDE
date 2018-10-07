@@ -20,8 +20,9 @@ import weakref
 from PySide2 import QtCore
 
 from PySide2.QtCore import Qt
-from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QWidget
+from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout
 
+from graphicsLUT import baseForm
 from kernel import filterIndex, getKernel
 from qrangeslider import QRangeSlider
 from utils import optionsWidget
@@ -29,7 +30,7 @@ from utils import optionsWidget
 class blendFilterIndex:
     GRADUALBT, GRADUALTB, GRADUALNONE= range(3)
 
-class blendFilterForm (QWidget): #(QGraphicsView): TODO modified 25/06/18 validate
+class blendFilterForm (baseForm):
     dataChanged = QtCore.Signal()
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
@@ -50,7 +51,10 @@ class blendFilterForm (QWidget): #(QGraphicsView): TODO modified 25/06/18 valida
         self.img = targetImage
         # link back to image layer
         # using weak ref for back links
-        self.layer = weakref.proxy(layer)
+        if type(layer) in weakref.ProxyTypes:
+            self.layer = layer
+        else:
+            self.layer = weakref.proxy(layer)
         self.mainForm = mainForm
         self.kernelCategory = filterIndex.UNSHARP
         self.kernel = getKernel(self.kernelCategory)

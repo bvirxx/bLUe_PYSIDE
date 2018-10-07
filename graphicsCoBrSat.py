@@ -20,13 +20,13 @@ import weakref
 from PySide2 import QtCore
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
-from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QGroupBox, QWidget
+from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QGroupBox
 
-from graphicsLUT import graphicsQuadricForm
+from graphicsLUT import graphicsQuadricForm, baseForm
 from utils import optionsWidget, QbLUeSlider, UDict, QbLUeLabel, stateAwareQDockWidget
 
 
-class CoBrSatForm(QWidget):
+class CoBrSatForm(baseForm):
     """
     Contrast-Brightness-Saturation adjustment form
     Methods                          Attributes
@@ -103,7 +103,10 @@ class CoBrSatForm(QWidget):
         self.setAttribute(Qt.WA_DeleteOnClose)
         # link back to image layer
         # using weak ref for back links
-        self.layer = weakref.proxy(layer)
+        if type(layer) in weakref.ProxyTypes:
+            self.layer = layer
+        else:
+            self.layer = weakref.proxy(layer)
         # contrast spline viewer
         self.contrastForm = None
         # options
