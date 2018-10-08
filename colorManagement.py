@@ -18,12 +18,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import sys
 
 from PIL.ImageCms import getOpenProfile, get_display_profile, getProfileInfo, \
-    buildTransformFromOpenProfiles, applyTransform, INTENT_PERCEPTUAL
+    buildTransformFromOpenProfiles, applyTransform, INTENT_PERCEPTUAL, ImageCmsProfile
 from PySide2.QtGui import QImage
 
 from debug import tdec
 from imgconvert import PilImageToQImage, QImageToPilImage
-from settings import SRGB_PROFILE_PATH
+from settings import SRGB_PROFILE_PATH, ADOBE_RGB_PROFILE_PATH
 
 if sys.platform == 'win32':
     import win32gui
@@ -39,7 +39,7 @@ class icc:
     workingProfileInfo, monitorProfileInfo = '', ''
 
     @classmethod
-    def configure(cls, qscreen=None):
+    def configure(cls, qscreen=None, colorSpace=-1, workingProfile=None):
         """
         Try to configure color management for the monitor
         specified by QScreen, and build an image transformation
@@ -49,12 +49,20 @@ class icc:
         @type qscreen: QScreen
         """
         try:
-            # monitor profile
-            cls.monitorProfile = cls.getMonitorProfile(qscreen=qscreen)
-            # get profile info, a PyCmsError exception is raised if monitorProfile is invalid
-            cls.monitorProfileInfo = getProfileInfo(cls.monitorProfile)
-            # working profile
-            cls.workingProfile = getOpenProfile(SRGB_PROFILE_PATH)
+            # get monitor profile as CmsProfile object.
+            if qscreen is not None:
+                cls.monitorProfile = cls.getMonitorProfile(qscreen=qscreen)
+                # get profile info, a PyCmsError exception is raised if monitorProfile is invalid
+                cls.monitorProfileInfo = getProfileInfo(cls.monitorProfile)
+            # get working profile as CmsProfile object
+            if colorSpace == 1:
+                cls.workingProfile = getOpenProfile(SRGB_PROFILE_PATH)
+            elif colorSpace==2:
+                cls.workingProfile = getOpenProfile(ADOBE_RGB_PROFILE_PATH)
+            elif type(workingProfile) is ImageCmsProfile:
+                cls.workingProfile = workingProfile
+            else:
+                cls.workingProfile = getOpenProfile(SRGB_PROFILE_PATH)  # default
             cls.workingProfileInfo = getProfileInfo(cls.workingProfile)
             # init CmsTransform object : working profile ---> monitor profile
             cls.workToMonTransform = buildTransformFromOpenProfiles(cls.workingProfile, cls.monitorProfile,
@@ -67,7 +75,7 @@ class icc:
             """
             cls.HAS_COLOR_MANAGE = (cls.monitorProfile is not None) and (cls.workingProfile is not None) and (cls.workToMonTransform is not None)
             cls.COLOR_MANAGE = cls.HAS_COLOR_MANAGE and cls.COLOR_MANAGE
-        except OSError as e:
+        except (OSError, IOError) as e:
             print("I/O error({0}): {1}".format(e.errno, e.strerror))
         except ValueError:
             pass

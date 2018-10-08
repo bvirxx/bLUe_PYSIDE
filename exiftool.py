@@ -128,7 +128,7 @@ class ExifTool(object):
         if ascii:
             output = str(output, encoding='ascii')
         else:
-            output = bytes(output[:-len(self.sentinel)-2])
+            output = bytes(output)#[:-len(self.sentinel)-2])
         return output
 
     ##################

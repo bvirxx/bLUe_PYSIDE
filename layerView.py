@@ -16,15 +16,13 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import gc
-import weakref
 
 from PySide2 import QtCore
-
 import cv2
 import numpy as np
 from PySide2.QtCore import QRectF, QSize, Qt, QModelIndex
 from PySide2.QtGui import QImage, QPalette, QKeySequence, QFontMetrics, QTextOption, QPixmap, QIcon, QPainter, QStandardItem, QStandardItemModel
-from PySide2.QtWidgets import QAction, QMenu, QSlider, QStyle, QCheckBox, QMessageBox, QApplication, QFileDialog
+from PySide2.QtWidgets import QAction, QMenu, QSlider, QStyle, QCheckBox, QMessageBox, QApplication
 from PySide2.QtWidgets import QComboBox, QHBoxLayout, QLabel, QTableView, QAbstractItemView, QStyledItemDelegate, QHeaderView, QVBoxLayout
 import resources_rc  # hidden import mandatory : DO NOT REMOVE !!!
 import QtGui1
@@ -93,8 +91,7 @@ class itemDelegate(QStyledItemDelegate):
 
 class QLayerView(QTableView) :
     """
-    The class QLayerView inherits from QTableView. It is used
-    in the main form to display the stack of image layers.
+    This class is used to display the stack of image layers.
     """
     def __init__(self, parent):
         super(QLayerView, self).__init__(parent)
@@ -234,8 +231,8 @@ class QLayerView(QTableView) :
             self.img.getActiveLayer().compositionMode = self.compositionModeDict[str(s)]
             self.img.getActiveLayer().applyToStack()
             self.img.onImageChanged()
-        #self.blendingModeCombo.currentIndexChanged.connect(g1)
-        self.blendingModeCombo.activated.connect(g)
+        self.blendingModeCombo.currentIndexChanged.connect(g)
+        #self.blendingModeCombo.activated.connect(g)  # TODO activated changed to currentIndexChanged 08/10/18 validate
         # shortcut actions
         self.actionDup = QAction('Duplicate layer', None)
         self.actionDup.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_J))

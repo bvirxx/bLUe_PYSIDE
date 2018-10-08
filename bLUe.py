@@ -124,7 +124,9 @@ import threading
 from itertools import cycle
 from multiprocessing import freeze_support
 from os import path, walk
+from io import BytesIO
 
+from PIL.ImageCms import ImageCmsProfile
 from os.path import basename
 from types import MethodType
 import rawpy
@@ -672,7 +674,7 @@ def contextMenu(pos, widget):
 
 def loadImageFromFile(f, createsidecar=True):
     """
-    loads an imImage (metadata and image) from file. Returns the loaded imImage :
+    loads an imImage (image plus metadata) from file. Returns the loaded imImage :
     For a raw file, it is the image postprocessed with default parameters.
     metadata is a list of dicts with len(metadata) >=1.
     metadata[0] contains at least 'SourceFile' : path.
@@ -698,17 +700,30 @@ def loadImageFromFile(f, createsidecar=True):
         # Default metadata and profile
         metadata = [{'SourceFile': f}]
         profile = ''
-    # color space : 1=sRGB
+    # color space : 1=sRGB 65535=uncalibrated
     if "EXIF:ColorSpace" in metadata[0].keys():
         colorSpace = metadata[0].get("EXIF:ColorSpace")
     else:
         colorSpace = metadata[0].get("MakerNotes:ColorSpace", -1)
-    if colorSpace < 0:
+    # try again to find a valid color space tag and/or an imbedded profile.
+    # If everything fails, assign sRGB.
+    if colorSpace == -1 or colorSpace == 65535:
         desc_colorSpace = metadata[0].get("ICC_Profile:ProfileDescription", '')
         if isinstance(desc_colorSpace, str):# or isinstance(desc_colorSpace, unicode): python3
-            if 'sRGB' in desc_colorSpace:
-                # sRGBIEC61966-2.1
-                colorSpace = 1
+            if not ('sRGB' in desc_colorSpace) or hasattr(window, 'modeDiaporama'):
+                # setOverrideCursor does not work correctly for a MessageBox :
+                # may be a Qt Bug, cf. https://bugreports.qt.io/browse/QTBUG-42117
+                QApplication.changeOverrideCursor(QCursor(Qt.ArrowCursor))
+                QApplication.processEvents()
+                if len(desc_colorSpace) > 0 :
+                    # convert profile to ImageCmsProfile object
+                    profile = ImageCmsProfile(BytesIO(profile))
+                else:
+                    dlgInfo("Color profile is missing\nAssigning sRGB")  # modified 08/10/18 validate
+                    # assign sRGB profile
+                    colorSpace = 1
+    # update the color management object with the profile of the current image.
+    icc.configure(colorSpace=colorSpace, workingProfile=profile)
     # orientation
     orientation = metadata[0].get("EXIF:Orientation", 0)
     transformation = exiftool.decodeExifOrientation(orientation)
@@ -759,6 +774,7 @@ def loadImageFromFile(f, createsidecar=True):
     img.initThumb()
     if img.format() in [QImage.Format_Invalid, QImage.Format_Mono, QImage.Format_MonoLSB, QImage.Format_Indexed8]:
         raise ValueError("Cannot edit indexed formats\nConvert image to a non indexed mode first")
+    """
     if colorSpace < 0 and not getattr(window, 'modeDiaporama', False) :
         # setOverrideCursor does not work correctly for a MessageBox :
         # may be a Qt Bug, cf. https://bugreports.qt.io/browse/QTBUG-42117
@@ -767,6 +783,7 @@ def loadImageFromFile(f, createsidecar=True):
         dlgInfo("Color profile missing\nAssigning sRGB")
         img.meta.colorSpace = 1
         img.updatePixmap()
+    """
     return img
 
 def addBasicAdjustmentLayers(img):
@@ -1636,7 +1653,8 @@ def screenUpdate(newScreenIndex):
     screenChanged event handler. The image is updated in background
     """
     window.screenChanged.disconnect()
-    icc.configure(qscreen=rootWidget.screen(newScreenIndex).windowHandle().screen())  # TODO changed self.dktp to rootWidget 05/07/18 validate
+    # update the color management object with the monitor profile associated to the current monitor
+    icc.configure(qscreen=rootWidget.screen(newScreenIndex).windowHandle().screen())
     window.actionColor_manage.setEnabled(icc.HAS_COLOR_MANAGE)
     window.actionColor_manage.setChecked(icc.COLOR_MANAGE)
     updateStatus()
@@ -1809,9 +1827,10 @@ For a segmentation layer only, all pixels outside the rectangle are set to backg
     window.screenChanged.connect(screenUpdate)
     # screen detection
     c = window.frameGeometry().center()
-    scn = rootWidget.screenNumber(c) # TODO changed window.dktp to rootWidget 05/07/18 validate
+    scn = rootWidget.screenNumber(c)
     window.currentScreenIndex = scn
-    icc.configure(qscreen=rootWidget.screen(scn).windowHandle().screen()) # TODO changed window.dktp to rootWidget 05/07/18 validate
+    # update the color management object with the current monitor profile
+    icc.configure(qscreen=rootWidget.screen(scn).windowHandle().screen())
     icc.COLOR_MANAGE = icc.HAS_COLOR_MANAGE
     window.actionColor_manage.setEnabled(icc.HAS_COLOR_MANAGE)
     window.actionColor_manage.setChecked(icc.COLOR_MANAGE)
