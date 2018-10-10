@@ -17,9 +17,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import numpy as np
 from PySide2 import QtCore
-from PySide2.QtCore import QRect
+from PySide2.QtCore import QRect, QPoint
 from PySide2.QtWidgets import QGraphicsScene, QPushButton
-from PySide2.QtGui import QPixmap
+from PySide2.QtGui import QPixmap, QRadialGradient
 from PySide2.QtCore import Qt, QRectF
 
 from colorConv import sRGB2LabVec
@@ -35,7 +35,9 @@ class graphicsLabForm(graphicsCurveForm):
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         super().__init__(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         graphicsScene = self.scene()
+        #########
         # L curve
+        #########
         cubic = activeCubicSpline(axeSize)
         graphicsScene.addItem(cubic)
         graphicsScene.cubicR = cubic
@@ -44,8 +46,14 @@ class graphicsLabForm(graphicsCurveForm):
         cubic.histImg = graphicsScene.layer.inputImg().histogram(size=graphicsScene.axeSize,
                                                                     bgColor=graphicsScene.bgColor, range=(0, 1),
                                                                     chans=channelValues.L, mode='Lab')
+        # L curve use the default axes
+        cubic.axes = graphicsScene.defaultAxes
         cubic.initFixedPoints()
-        # a curve (Green--> Red axis)
+        cubic.axes.setVisible(False)
+        cubic.setVisible(False)
+        ##########
+        # a curve (Green--> Magenta axis)
+        #########
         cubic = activeCubicSpline(axeSize)
         graphicsScene.addItem(cubic)
         graphicsScene.cubicG = cubic
@@ -53,7 +61,18 @@ class graphicsLabForm(graphicsCurveForm):
         cubic.histImg = graphicsScene.layer.inputImg().histogram(size=graphicsScene.axeSize,
                                                                     bgColor=graphicsScene.bgColor, range=(-100, 100),
                                                                     chans=channelValues.a, mode='Lab')
+        #  add specific axes
+        gradient = QRadialGradient()
+        gradient.setCenter(QPoint(0, 1))
+        gradient.setRadius(axeSize*1.4)
+        gradient.setColorAt(0.0, Qt.green)
+        gradient.setColorAt(1.0, Qt.magenta)
+        cubic.axes = self.drawPlotGrid(axeSize, gradient)
+        graphicsScene.addItem(cubic.axes)
         cubic.initFixedPoints()
+        cubic.axes.setVisible(False)
+        cubic.setVisible(False)
+
         # b curve (Blue-->Yellow axis)
         cubic = activeCubicSpline(axeSize)
         graphicsScene.addItem(cubic)
@@ -62,10 +81,19 @@ class graphicsLabForm(graphicsCurveForm):
         cubic.histImg = graphicsScene.layer.inputImg().histogram(size=graphicsScene.axeSize,
                                                                     bgColor=graphicsScene.bgColor, range=(-100, 100),
                                                                     chans=channelValues.b, mode='Lab')
+        # add specific axes
+        gradient.setColorAt(0.0, Qt.blue)
+        gradient.setColorAt(1.0, Qt.yellow)
+        cubic.axes = self.drawPlotGrid(axeSize, gradient)
+        graphicsScene.addItem(cubic.axes)
         cubic.initFixedPoints()
-        # set current curve to L curve
+        cubic.axes.setVisible(False)
+        cubic.setVisible(False)
+
+        # set current to L curve and axes
         graphicsScene.cubicItem = graphicsScene.cubicR
         graphicsScene.cubicItem.setVisible(True)
+        graphicsScene.cubicItem.axes.setVisible(True)
         # buttons
         pushButton1 = QPushButton("Reset Current")
         pushButton1.move(100, 20)
@@ -87,9 +115,12 @@ class graphicsLabForm(graphicsCurveForm):
         curves = [graphicsScene.cubicR, graphicsScene.cubicG, graphicsScene.cubicB]
         curveDict = dict(zip(options, curves))
         def onSelect1(item):
-            self.scene().cubicItem.setVisible(False)
+            cubicItem = self.scene().cubicItem
+            cubicItem.setVisible(False)
+            cubicItem.axes.setVisible(False)
             self.scene().cubicItem = curveDict[item.text()]
             self.scene().cubicItem.setVisible(True)
+            self.scene().cubicItem.axes.setVisible(True)
             # Force to redraw  histogram
             self.scene().invalidate(QRectF(0.0, -self.scene().axeSize, self.scene().axeSize, self.scene().axeSize),
                                     QGraphicsScene.BackgroundLayer)

@@ -179,8 +179,11 @@ class filterForm (baseForm):
         self.setWhatsThis(
 """
    <b>Unsharp Mask</b> and <b>Sharpen Mask</b> are used to sharpen an image.<br>
-   <b>Gaussian Blur</b> and <b>Surface Blur</b> are used to blur an image.
-   In contrast to Gaussian Blur, the Surface Blur filter preserves edges.
+   <b>Gaussian Blur</b> and <b>Surface Blur</b> are used to blur an image.<br>
+   In contrast to Gaussian Blur, the Surface Blur filter preserves edges and reduces noise.<br>
+   It is possible to <b>limit the effect of a filter to a rectangular region of the image</b> by
+   drawing a selection rectangle on the layer with the marquee tool.<br>
+   
 """
                         )  # end setWhatsThis
 

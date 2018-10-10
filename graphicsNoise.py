@@ -80,10 +80,10 @@ class noiseForm (baseForm):
         self.thrValue.setMaximumSize(w, h)
         self.thrValue.setText(str("{:.0f}".format(self.slider2Thr(self.sliderThr.value()))))
         self.dataChanged.connect(self.updateLayer)
-        self.setStyleSheet("QListWidget, QLabel {font : 7pt;}")
+        # self.setStyleSheet("QListWidget, QLabel {font : 7pt;}")
         # layout
         l = QVBoxLayout()
-        l.setAlignment(Qt.AlignBottom)
+        #l.setAlignment(Qt.AlignBottom)
         l.addWidget(self.listWidget1)
         hl1 = QHBoxLayout()
         hl1.addWidget(self.thrLabel)
@@ -98,7 +98,11 @@ class noiseForm (baseForm):
         self.setWhatsThis(
 """<b>Noise Reduction</b><br>
    <b>Bilateral Filtering</b> is the fastest method.<br>
-   <b>NLMeans</b> (Non Local Means) and <b>Wavelets</b> are slower, but they usually give better results.<br>
+   <b>NLMeans</b> (Non Local Means) and <b>Wavelets</b> are slower,
+   but they usually give better results.<br>
+   It is possible to <b>limit the application of any method to a rectangular part of the image</b>
+   by drawing a selection rectangle on the layer with the marquee tool.<br>
+   
 """
                         )  # end of setWhatsThis
 

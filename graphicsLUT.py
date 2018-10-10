@@ -27,7 +27,7 @@ from PySide2.QtCore import Qt, QRectF
 
 from debug import tdec
 from spline import interpolationCubSpline, interpolationQuadSpline
-from utils import channelValues, drawPlotGrid
+from utils import channelValues
 
 ##########################################################################################
 # GUI for interactive construction of 1D-LUTs.
@@ -539,6 +539,38 @@ class graphicsCurveForm(QGraphicsView):
     """
     Base class for interactive curve forms
     """
+    @classmethod
+    def drawPlotGrid(cls, axeSize, gradient=None):
+        """
+        Rerturns a QGraphicsPathItem initialized with
+        a square grid.
+        @param axeSize:
+        @type axeSize:
+        @return:
+        @rtype: QGraphicsPathItem
+        """
+        lineWidth = 1
+        item = QGraphicsPathItem()
+        if gradient is None:
+            item.setPen(QPen(Qt.darkGray, lineWidth, Qt.DashLine))
+        else:
+            item.setPen(QPen(gradient, lineWidth, Qt.DashLine))
+        qppath = QPainterPath()
+        qppath.moveTo(QPoint(0, 0))
+        qppath.lineTo(QPoint(axeSize, 0))
+        qppath.lineTo(QPoint(axeSize, -axeSize))
+        qppath.lineTo(QPoint(0, -axeSize))
+        qppath.closeSubpath()
+        qppath.lineTo(QPoint(axeSize, -axeSize))
+        for i in range(1, 5):
+            a = (axeSize * i) / 4
+            qppath.moveTo(a, -axeSize)
+            qppath.lineTo(a, 0)
+            qppath.moveTo(0, -a)
+            qppath.lineTo(axeSize, -a)
+        item.setPath(qppath)
+        return item
+
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         super().__init__(parent=parent)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
@@ -553,13 +585,12 @@ class graphicsCurveForm(QGraphicsView):
             graphicsScene.layer = layer
         else:
             graphicsScene.layer = weakref.proxy(layer)
-        #graphicsScene.layer = layer
         graphicsScene.bgColor = QColor(200,200,200)
         self.mainForm = mainForm
         graphicsScene.axeSize = axeSize
         # add axes and grid
-        item = drawPlotGrid(axeSize)
-        graphicsScene.addItem(item)
+        graphicsScene.defaultAxes = self.drawPlotGrid(axeSize)
+        graphicsScene.addItem(graphicsScene.defaultAxes)
         # connect layer colorPicked signal
         self.scene().layer.colorPicked.sig.connect(self.colorPickedSlot)
         # default WhatsThis for interactive curves

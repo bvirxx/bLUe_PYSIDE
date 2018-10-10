@@ -1240,33 +1240,6 @@ def clip(image, mask, inverted=False):
         bufMask[:,:,3] = 255 - bufMask[:,:,3]
     bufImg[:,:,3] = bufMask[:,:,3]
 
-def drawPlotGrid(axeSize):
-    """
-    Rerturns a QGraphicsPathItem initialized with
-    a square grid.
-    @param axeSize:
-    @type axeSize:
-    @return:
-    @rtype: QGraphicsPathItem
-    """
-    item = QGraphicsPathItem()
-    item.setPen(QPen(QColor(255, 0, 0), 1, Qt.DashLine))
-    qppath = QPainterPath()
-    qppath.moveTo(QPoint(0, 0))
-    qppath.lineTo(QPoint(axeSize, 0))
-    qppath.lineTo(QPoint(axeSize, -axeSize))
-    qppath.lineTo(QPoint(0, -axeSize))
-    qppath.closeSubpath()
-    qppath.lineTo(QPoint(axeSize, -axeSize))
-    for i in range(1, 5):
-        a = (axeSize * i) / 4
-        qppath.moveTo(a, -axeSize)
-        qppath.lineTo(a, 0)
-        qppath.moveTo(0, -a)
-        qppath.lineTo(axeSize, -a)
-    item.setPath(qppath)
-    return item
-
 def boundingRect(img, pattern):
     """
     Given an image img, the function builds the bounding rectangle

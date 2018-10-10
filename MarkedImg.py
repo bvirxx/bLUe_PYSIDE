@@ -957,35 +957,46 @@ class vImage(QImage):
         noisecorr = adjustForm.noiseCorrection
         currentImage = self.getCurrentImage()
         inputImage = self.inputImg()
+        buf0 = QImageBuffer(inputImage)
+        buf1 = QImageBuffer(currentImage)
         ########################
-        # hald pass through
-        if self.parentImage.isHald:
-            buf0 = QImageBuffer(inputImage)
-            buf1 = QImageBuffer(currentImage)
+        # hald pass through and neutral point
+        if self.parentImage.isHald or noisecorr == 0:
             buf1[...] = buf0
-            return
-        ########################
-        if noisecorr == 0:
-            bufOut = QImageBuffer(currentImage)
-            bufOut[:, :, :3] = QImageBuffer(currentImage)[:,:,:3]
             self.updatePixmap()
             return
-        buf01 = QImageBuffer(inputImage)
-        buf0 = buf01[:, :, :3][:, :, ::-1]
+        ########################
+        w, h = self.width(), self.height()
+        r = inputImage.width() / w
+        if self.rect is not None:
+            # slicing
+            rect = self.rect
+            imgRect = QRect(0, 0, w, h)
+            rect = rect.intersected(imgRect)
+            slices = np.s_[int(rect.top() * r): int(rect.bottom() * r), int(rect.left() * r): int(rect.right() * r), :3]
+            ROI0 = buf0[slices]
+            # reset output image
+            buf1[:, :, :] = buf0
+            ROI1 = buf1[slices]
+        else:
+            ROI0 = buf0[:, :, :3]
+            ROI1 = buf1[:, :, :3]
+        buf01 = ROI0[:, :, ::-1]
         noisecorr *= currentImage.width() / self.width()
         if adjustForm.options['Wavelets']:
             noisecorr *= 100
-            bufLab = cv2.cvtColor(buf0, cv2.COLOR_RGB2Lab)
-            L = dwtDenoiseChan(bufLab, chan=0, thr=noisecorr, thrmode='wiener', level=8 if self.parentImage.useThumb else 11)
-            A = dwtDenoiseChan(bufLab, chan=1, thr=noisecorr, thrmode='wiener', level=8 if self.parentImage.useThumb else 11)
-            B = dwtDenoiseChan(bufLab, chan=2, thr=noisecorr, thrmode='wiener', level=8 if self.parentImage.useThumb else 11)
-            L = np.clip(L, 0, 255)
-            A = np.clip(A, 0,255)
-            B = np.clip(B, 0,255)
+            bufLab = cv2.cvtColor(buf01, cv2.COLOR_RGB2Lab)
+            L = dwtDenoiseChan(bufLab, chan=0, thr=noisecorr, thrmode='wiener') #, level=8 if self.parentImage.useThumb else 11)
+            A = dwtDenoiseChan(bufLab, chan=1, thr=noisecorr, thrmode='wiener') # level=8 if self.parentImage.useThumb else 11)
+            B = dwtDenoiseChan(bufLab, chan=2, thr=noisecorr, thrmode='wiener') # level=8 if self.parentImage.useThumb else 11)
+            np.clip(L, 0, 255, out=L)
+            np.clip(A, 0, 255, out=A)
+            np.clip(B, 0, 255, out=B)
             bufLab = np.dstack((L, A, B))
-            buf1 = cv2.cvtColor(bufLab.astype(np.uint8), cv2.COLOR_Lab2RGB)
+            # back to RGB
+            ROI1[:,:,::-1] = cv2.cvtColor(bufLab.astype(np.uint8), cv2.COLOR_Lab2RGB)
         elif adjustForm.options['Bilateral']:
-           buf1 = cv2.bilateralFilter(buf0,
+           ROI1[:,:,::-1] = cv2.bilateralFilter(buf01,
                                          9 if self.parentImage.useThumb else 15,   # 21:5.5s, 15:3.5s, diameter of
                                                                                    # (coordinate) pixel neighborhood,
                                                                                    # 5 is the recommended value for fast processing
@@ -995,12 +1006,10 @@ class vImage(QImage):
                                                                                    # in coordinate space,  100 middle value
                                          )
         elif adjustForm.options['NLMeans']:
-            buf1 = cv2.fastNlMeansDenoisingColored(buf0, None, 1+noisecorr, 1+noisecorr, 7, 21) # hluminance, hcolor,  last params window sizes 7, 21 are recommended values
+            ROI1[:,:,::-1] = cv2.fastNlMeansDenoisingColored(buf01, None, 1+noisecorr, 1+noisecorr, 7, 21) # hluminance, hcolor,  last params window sizes 7, 21 are recommended values
 
-        bufOut = QImageBuffer(currentImage)
-        bufOut[:, :, :3][:, :, ::-1] = buf1
         # forward the alpha channel
-        bufOut[:,:,3] = buf01[:,:,3]
+        buf1[:,:,3] = buf0[:,:,3]
         self.updatePixmap()
 
     def applyRawPostProcessing(self):
@@ -1627,14 +1636,18 @@ class vImage(QImage):
             buf1[...] = buf0
             return
         ########################
-
-        r = inputImage.width() / self.width()
+        w, h = self.width(), self.height()
+        r = inputImage.width() / w
         if self.rect is not None:
+            # slicing
             rect = self.rect
-            ROI0 = buf0[int(rect.top() * r): int(rect.bottom() * r), int(rect.left() * r): int(rect.right() * r),:3]
+            imgRect = QRect(0,0, w, h)
+            rect = rect.intersected(imgRect)
+            slices = np.s_[int(rect.top() * r): int(rect.bottom() * r), int(rect.left() * r): int(rect.right() * r), :3]
+            ROI0 = buf0[slices]
             # reset output image
             buf1[:,:,:] = buf0
-            ROI1 = buf1[int(rect.top() * r): int(rect.bottom() * r), int(rect.left() * r): int(rect.right() * r),:3]
+            ROI1 = buf1[slices]
         else:
             ROI0 = buf0[:,:,:3]
             ROI1 = buf1[:,:,:3]
