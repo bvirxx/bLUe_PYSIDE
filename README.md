@@ -7,7 +7,7 @@ DESCRIPTION
  bLUe is a complete GUI environment for photo edition. It can edit images in all
 usual formats : jpg, png, tif, including raw files: nef, cr2, dng.
 bLUe proposes a wide set of adjustment layers:
-exposure, brightness, saturation,contrast, color temperature, filters, noise reduction, cloning,
+exposure, brightness, saturation, contrast, color temperature, inversion, filters, noise reduction, cloning,
 segmentation, 1D LUTs and 3D LUTs editors.
 
 Layer stacks can be saved as 3D LUTs, making bLUe a powerful 3D LUT builder.
@@ -27,7 +27,7 @@ The program is fully modular : tools are implemented as independent
 adjustment layers using a common GUI. Any imaging library exposing Python
 bindings can take advantage of this GUI.
 
-bLUe is implemented in Python 3, using Pyside 2, PIL and RawPy.
+bLUe is implemented in Python 3, using Pyside2, PIL, RawPy and PyWavelets.
 
 LICENSE
 
