@@ -186,7 +186,7 @@ grabCut is a parallel version of an Opencv3 function
 
 ##############
 #  Version number
-VERSION = "v1.2.1.3"
+VERSION = "v1.2.2.0"
 ##############
 
 ##############
