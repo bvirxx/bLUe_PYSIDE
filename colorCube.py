@@ -223,14 +223,14 @@ class LUT3D (object):
     def getHaldImage(self, w, h):
         """
         Converts a LUT3D object to a hald image.
-        A hald can be viewed as a 3D LUT flattened and reshaped
-        to an array representing an image.
+        A hald image can be viewed as a 3D LUT reshaped
+        as a 2D array.
         The (self.size-1)**3 first pixels of the buffer are the LUT.
         Remainings bytes are  0.
         IMPORTANT : Hald channels, LUT channels and LUT axes must follow the same ordering (BGR or RGB).
-        To simplify the code, we only handle halds and LUTs of type BGR.
+        To simplify, we only handle halds and LUTs of type BGR.
         Note that the identity 3D LUT has both types.
-        w*h should be greater than LUTSIZE^^3
+        w*h should be greater than LUTSIZE**3
         @param w: image width
         @type w: int
         @param h: image height

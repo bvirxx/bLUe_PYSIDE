@@ -25,11 +25,14 @@ With bLUe, 3D LUTs are interactively created by grouping and moving nodes over a
 
 The program is fully modular : tools are implemented as independent
 adjustment layers using a common GUI. Any imaging library exposing Python
-bindings can take advantage of this GUI.
+bindings can take advantage of the GUI.
 
-bLUe is implemented in Python 3, using Pyside2, PIL, RawPy and PyWavelets.
+bLUe is written in Python, using Pyside2, PIL, RawPy and PyWavelets.
+
+Binary packages containing all dependencies are available for Windows.
+Make sure to download the latest release.
 
 LICENSE
 
- This project is licensed under the LGPL V 3
+ This project is licensed under the LGPL V 3.
 
