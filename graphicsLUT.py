@@ -525,6 +525,8 @@ class baseForm(QWidget):
     def __init__(self, parent=None, layer=None):
         super().__init__(parent=parent)
         self.layer=layer
+        # accept click focus (for whatsthis)
+        self.setFocusPolicy(Qt.ClickFocus)
         # connect layerPicked signal
         if self.layer is not None:
             self.layer.colorPicked.sig.connect(self.colorPickedSlot)

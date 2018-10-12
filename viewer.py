@@ -141,7 +141,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
             if rating < 2:
                 app.processEvents()
             imImg = loadImageFromFile(name, createsidecar=False)
-            # zoom might be modified with the mouse wheel : remember
+            # zoom might be modified by the mouse wheel : remember
             if label.img is not None:
                 imImg.Zoom_coeff = label.img.Zoom_coeff
             coeff = imImg.resize_coeff(label)
@@ -282,6 +282,7 @@ To <b>open an image</b> drag it onto the main window.<br>
         Context menu initialization
         """
         menu = QMenu()
+        menu.addAction('View image in a separate window', self.viewImage)
         menu.addAction("Copy Image to Clipboard", self.hCopy)
         menu.addAction(self.actionSub)
         subMenuRating = menu.addMenu('Rating')
@@ -296,9 +297,32 @@ To <b>open an image</b> drag it onto the main window.<br>
         globalPos = self.listWdg.mapToGlobal(pos)
         self.cMenu.exec_(globalPos)
 
-    # slot for action copy_to_clipboard
-    def hCopy(self):
+    def viewImage(self):
+        from bLUe import window, set_event_handlers, loadImageFromFile
+        parent = window
+        newWin = QMainWindow(parent)
+        newWin.setAttribute(Qt.WA_DeleteOnClose)
+        newWin.setContextMenuPolicy(Qt.CustomContextMenu)
+        label = QLabel()
+        label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        label.img = None
+        newWin.setCentralWidget(label)
+        newWin.showFullScreen()
+        set_event_handlers(label)
         sel = self.listWdg.selectedItems()
+        item = sel[0]
+        filename = item.data(Qt.UserRole)[0]
+        newWin.setWindowTitle(filename)
+        imImg = loadImageFromFile(filename, createsidecar=False)
+        label.img = imImg
+        newWin.showMaximized()
+
+    def hCopy(self):
+        """
+        # slot for action copy_to_clipboard
+        """
+        sel = self.listWdg.selectedItems()
+        ####################
         # test code
         l = []
         for item in sel:
@@ -311,6 +335,7 @@ To <b>open an image</b> drag it onto the main window.<br>
         q.setData("Preferred DropEffect", QByteArray("2"))
         q.setUrls(l)
         # end of test code
+        #####################
         # copy image to clipboard
         item = sel[0]
         filename = item.data(Qt.UserRole)[0]

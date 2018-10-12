@@ -27,7 +27,7 @@ from PySide2.QtWidgets import QComboBox, QHBoxLayout, QLabel, QTableView, QAbstr
 import resources_rc  # hidden import mandatory : DO NOT REMOVE !!!
 import QtGui1
 from imgconvert import QImageBuffer
-from utils import openDlg, dlgWarn
+from utils import openDlg, dlgWarn, QbLUeSlider
 
 
 class layerModel(QStandardItemModel):
@@ -76,14 +76,17 @@ class itemDelegate(QStyledItemDelegate):
         # visibility
         elif index.column() == 0:
             painter.save()
+            bgColor = option.palette.color(QPalette.Window)
+            bgColor = bgColor.red(), bgColor.green(), bgColor.blue()
+            dark = (max(bgColor) <=128)
             if option.state & QStyle.State_Selected:
                 c = option.palette.color(QPalette.Highlight)
                 painter.fillRect(rect, c)
             if self.parent().img.layersStack[-1 - index.row()].visible:
-                px = self.inv_px1 if option.state & QStyle.State_Selected else self.px1
+                px = self.inv_px1 if dark or (option.state & QStyle.State_Selected) else self.px1
             else:
-                px = self.inv_px2 if option.state & QStyle.State_Selected else self.px2
-            painter.drawPixmap(rect, px, QRectF(0,0,self.px1.width(), self.px1.height()))
+                px = self.inv_px2 if dark or (option.state & QStyle.State_Selected) else self.px2
+            painter.drawPixmap(rect, px, QRectF(0, 0, px.width(), px.height()))
             painter.restore()
         else:
             # call default
@@ -105,7 +108,7 @@ class QLayerView(QTableView) :
         delegate = itemDelegate(parent=self)
         self.setItemDelegate(delegate)
         ic1 = QImage(":/images/resources/eye-icon.png")
-        ic2 = QImage(":/images/resources/eye-icon-strike.png")#.scaled(10,20)
+        ic2 = QImage(":/images/resources/eye-icon-strike.png")
         delegate.px1 = QPixmap.fromImage(ic1)
         delegate.px2 = QPixmap.fromImage(ic2)
         ic1.invertPixels()
@@ -163,7 +166,8 @@ class QLayerView(QTableView) :
         self.previewOptionBox.setChecked(True) # m is not triggered
 
         # opacity slider
-        self.opacitySlider = QSlider(Qt.Horizontal)
+        self.opacitySlider = QbLUeSlider(Qt.Horizontal)
+        self.opacitySlider.setStyleSheet(QbLUeSlider.bLueSliderDefaultBWStylesheet)
         self.opacitySlider.setTickPosition(QSlider.TicksBelow)
         self.opacitySlider.setRange(0, 100)
         self.opacitySlider.setSingleStep(1)
@@ -171,11 +175,9 @@ class QLayerView(QTableView) :
         #self.opacitySlider.setTracking(False)
         opacityLabel = QLabel()
         opacityLabel.setMaximumSize(100,30)
-        #self.opacityLabel.setStyleSheet("QLabel {background-color: white;}")
         opacityLabel.setText("Layer opacity")
         hl0 = QHBoxLayout()
         hl0.addWidget(opacityLabel)
-        # l.addWidget(opacityLabel)
         hl0.addStretch(1)
         hl0.addWidget(self.previewOptionBox)
         l.addLayout(hl0)
@@ -190,7 +192,7 @@ class QLayerView(QTableView) :
         self.opacityValue.setMaximumSize(w, h)
 
         self.opacityValue.setText('100 ')
-        self.opacityValue.setStyleSheet("QLabel {background-color: white}")
+        #self.opacityValue.setStyleSheet("QLabel {background-color: white}")
         hl.addWidget(self.opacityValue)
         hl.addWidget(self.opacitySlider)
         l.addLayout(hl)
@@ -536,11 +538,13 @@ You can drag and drop layers to change their order.
                 return
             #layer.visible = not(layer.visible)
             layer.setVisible(not(layer.visible))
-            # update visibility icon
+            # update visibility icon : done by delegate
+            """
             if layer.visible:
                 self.model().setData(clickedIndex, QIcon(":/images/resources/eye-icon.png") ,Qt.DecorationRole)
             else:
                 self.model().setData(clickedIndex, QIcon(":/images/resources/eye-icon-strike.png"), Qt.DecorationRole)
+            """
             if self.currentWin is not None:
                 self.currentWin.setVisible(layer.visible)
                 if not layer.visible:

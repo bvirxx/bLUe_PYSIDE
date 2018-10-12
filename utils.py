@@ -25,8 +25,8 @@ import numpy as np
 from math import factorial
 
 from PySide2 import QtCore
-from PySide2.QtGui import QColor, QPainterPath, QPen, QImage, QPainter, QTransform, QPolygonF, QPixmap, QIcon
-from PySide2.QtWidgets import QListWidget, QListWidgetItem, QGraphicsPathItem, QDialog, QVBoxLayout, \
+from PySide2.QtGui import QColor, QImage, QPainter, QTransform, QPolygonF, QPixmap, QIcon
+from PySide2.QtWidgets import QListWidget, QListWidgetItem, QDialog, QVBoxLayout, \
     QFileDialog, QSlider, QWidget, QHBoxLayout, QLabel, QMessageBox, QPushButton, QToolButton, QApplication, \
     QDockWidget, QStyle
 from PySide2.QtCore import Qt, QPoint, QObject, QRect, QDir, QPointF
@@ -440,10 +440,10 @@ class QbLUeSlider(QSlider):
                                                QSlider::groove:horizontal:disabled {margin: 3px; 
                                                   background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #8888FF, stop:1 #FF8888);}"""
     bLueSliderDefaultBWStylesheet = """QSlider::groove:horizontal:enabled {margin: 3px; 
-                                              background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 black, stop:1 white);}
+                                              background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #333333, stop:1 white);}
                                            QSlider::groove:horizontal:disabled {margin: 3px; background: #888888;}"""
     bLueSliderDefaultIBWStylesheet = """QSlider::groove:horizontal:enabled {margin: 3px; 
-                                                  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 gray, stop:1 black);}
+                                                  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 gray, stop:1 #333333);}
                                                QSlider::groove:horizontal:disabled {margin: 3px; background: #888888;}"""
     def __init__(self, parent=None):
         super(QbLUeSlider, self).__init__(parent)

@@ -25,7 +25,7 @@ from utils import optionsWidget
 
 class histForm (baseForm):
     """
-    Form for displaying histograms
+    Form for histogram viewing
     """
     def __init__(self, targetImage=None, size=200, layer=None, parent=None, mainForm=None):
         super().__init__(parent=parent)
@@ -40,11 +40,12 @@ class histForm (baseForm):
         self.Label_Hist = QLabel()
         self.Label_Hist.setScaledContents(True)
         self.Label_Hist.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        self.setStyleSheet("QListWidget{background-color: rgb(200,200,200); selection-background-color: rgb(200,200,200); border: 0px; font-size: 9px}")
+        #self.setStyleSheet("QListWidget{background-color: rgb(200,200,200); selection-background-color: rgb(200,200,200); border: 0px; font-size: 9px}")
+        self.setStyleSheet("QListWidget{border: 0px; font-size: 12px}")
 
-        # options. We want the items displayed horizontally, so we make 2 lists
-        options1 = ['Original Image']
-        self.listWidget1 = optionsWidget(options=options1, exclusive=False)
+        # options. We want the items displayed horizontally, so we use 2 lists
+        options1, optionNames1 = ['Original Image'], ['Source']
+        self.listWidget1 = optionsWidget(options=options1, optionNames=optionNames1, exclusive=False)
         self.listWidget1.item(0).setSizeHint(QSize(100,10))
         self.listWidget1.setMaximumSize(self.listWidget1.sizeHintForColumn(0) + 5, self.listWidget1.sizeHintForRow(0) * len(options1))
 

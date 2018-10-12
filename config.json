@@ -14,5 +14,8 @@
     "//" : "3D LUT : Parallel interpolation",
     "USE_POOL": true,
     "POOL_SIZE": 4
+  },
+  "LOOK" : {
+    "THEME" : "dark"
   }
 }

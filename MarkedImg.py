@@ -82,9 +82,10 @@ class vImage(QImage):
     thumbSize = 1500
 
     ###############
-    # default base color, used to display semi transparent pixels
+    # default base color, painted as background color and to display transparent pixels
     ###############
-    defaultBgColor = QColor(191, 191, 191,255)
+    #defaultBgColor = QColor(191, 191, 191,255)
+    defaultBgColor = QColor(128, 128, 128, 255)
 
     ##############
     # default mask colors
@@ -940,8 +941,12 @@ class vImage(QImage):
         rectTrans = DInv.map(T.map(D.map(QImage.rect(self)))).boundingRect()
         # apply the transformation and re-translate the transformed image
         # so that the resulting transformation is T and NOT that given by QImage.trueMatrix()
-        #dummy = inImg.transformed(T)
         img = (inImg.transformed(T)).copy(QRect(-rectTrans.x()*s, -rectTrans.y()*s, w, h))
+        # copy sets pixels beyond image to 0. To show these pixels
+        # as black we set their alpha value to 255:
+        if options['Transparent']:
+            buf = QImageBuffer(img)
+            buf[:,:,3] = np.where(buf[:,:,3]==0, 255, buf[:,:,3])
         if img.isNull():
             print('applyTransform : transformation fails')
             self.tool.restore()

@@ -244,7 +244,7 @@ class graphicsLabForm(graphicsCurveForm):
             #############
             # a, b curves
             #############
-            corr = cubicL.size/4
+            corr = cubicL.size/8
             for i, cubic in enumerate([cubica, cubicb]):
                 fp = cubic.fixedPoints
                 scale = cubic.size / (127 * 2.0)

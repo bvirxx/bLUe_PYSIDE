@@ -2,7 +2,7 @@
 # https://stackoverflow.com/questions/32163436/python-decorator-for-printing-every-line-executed-by-a-function
 # - added a profiler
 # - corrected a bug in __exit__
-# usage : add decorator @tdec to a function to profile/debug
+# usage : add decorator @tdec to the function to profile
 
 import sys
 from os.path import basename

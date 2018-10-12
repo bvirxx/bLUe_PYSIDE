@@ -127,6 +127,7 @@ from os import path, walk
 from io import BytesIO
 
 from PIL.ImageCms import ImageCmsProfile
+from PySide2 import QtWidgets
 from os.path import basename
 from types import MethodType
 import rawpy
@@ -154,7 +155,7 @@ from colorManagement import icc
 from graphicsCoBrSat import CoBrSatForm
 from graphicsExp import ExpForm
 from graphicsPatch import patchForm
-from settings import USE_POOL, POOL_SIZE
+from settings import USE_POOL, POOL_SIZE, THEME
 from utils import saveChangeDialog, saveDlg, openDlg, cropTool, rotatingTool, IMAGE_FILE_NAME_FILTER, \
     IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, demosaic, dlgWarn, dlgInfo
 from graphicsTemp import temperatureForm
@@ -233,7 +234,7 @@ def paintEvent(widg, e) :
     r = mimg.resize_coeff(widg)
     qp.begin(widg)
     # smooth painting
-    qp.setRenderHint(QPainter.SmoothPixmapTransform)  # TODO useless
+    qp.setRenderHint(QPainter.SmoothPixmapTransform)  # TODO useless?
     # fill background
     qp.fillRect(QRect(0, 0, widg.width() , widg.height() ), vImage.defaultBgColor)
     # draw the presentation layer.
@@ -1343,7 +1344,7 @@ def menuLayer(name):
     elif name == 'actionNoise_Reduction':
         lname='Noise Reduction'
         l = window.label.img.addAdjustmentLayer(name=lname)
-        grWindow = noiseForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
+        grWindow = noiseForm.getNewWindow(axeSize=axeSize, layer=l, parent=window)
         # wrapper for the right apply method
         l.execute = lambda l=l, pool=None: l.tLayer.applyNoiseReduction()
         """
@@ -1692,11 +1693,26 @@ if __name__ =='__main__':
     # app title
     window.setWindowTitle('bLUe')
     # app style sheet
-    app.setStyleSheet("QMainWindow, QGraphicsView, QListWidget, QMenu, QTableView {background-color: rgb(200, 200, 200)}\
-                       QMenu, QTableView { selection-background-color: blue; selection-color: white;}\
-                        QWidget, QTableView, QTableView * {font-size: 9pt} QPushButton {font-size: 6pt}"
-                     )
-
+    if THEME == "light":
+        app.setStyleSheet("QMainWindow, QGraphicsView, QListWidget, QMenu, QTableView {background-color: rgb(200, 200, 200)}\
+                           QWidget, QTableView, QTableView * {font-size: 9pt} QPushButton {font-size: 6pt}"
+                         )
+    else:
+        app.setStyleSheet("QMainWindow, QMainWindow *, QGraphicsView, QListWidget, QMenu,\
+                                                     QTableView, QLabel, QGroupBox {background-color: rgb(40,40,40); color: rgb(220,220,220)}\
+                           QMenu, QTableView { selection-background-color: blue; selection-color: white;}\
+                           QWidget, QTableView, QTableView * {font-size: 9pt}\
+                           QGraphicsView QPushButton, baseForm QPushButton\
+                                                    {font-size: 9pt; background-color: rgb(100,100,100); color: rgb(200,200,200); border: 1px solid gray; border-radius: 6px}\
+                           QGraphicsView QPushButton:hover, baseForm QPushButton:hover {background-color: gray; color: black}\
+                           QToolButton:hover {background-color: gray; color: black}\
+                           QToolButton:checked {background-color: blue}\
+                           QToolButton {background-color: rgb(100,100,100); color: rgb(200,200,200); border: 1px solid gray; border-radius: 6px}\
+                           QGroupBox#groupbox_btn {border: 1px solid gray;}\
+                           QGroupBox#groupBox {border: 1px solid gray;}\
+                           QMessageBox QLabel, QDialog QLabel {background-color: white; color : black}\
+                           QToolTip {border: 0px; background-color: lightyellow; color: black}"  # border must be set, otherwise background-color has no effect : Qt bug?
+                         )
     # Before/After view
     splittedWin = splittedWindow(window)
 

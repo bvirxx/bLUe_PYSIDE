@@ -31,7 +31,7 @@ from utils import hideConsole, showConsole
 
 class Form1(QMainWindow):
     """
-    Main window class.
+    Main form class.
     The form is loaded from bLUe.ui.
     """
     # screen changed signal
@@ -125,7 +125,7 @@ class Form1(QMainWindow):
         sn = rootWidget.screenNumber(c)
         if sn != self.currentScreenIndex:
             # screen changed detected
-            self.currentScreenIndex = sn # TODO line added 05/07/18 validate
+            self.currentScreenIndex = sn
             self.screenChanged.emit(sn)
 
     def closeEvent(self, event):

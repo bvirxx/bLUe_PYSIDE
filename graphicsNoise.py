@@ -29,18 +29,16 @@ from utils import optionsWidget, QbLUeSlider
 class noiseForm (baseForm):
     dataChanged = QtCore.Signal(bool)
     @classmethod
-    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
-        wdgt = noiseForm(axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
+    def getNewWindow(cls, axeSize=500, layer=None, parent=None):
+        wdgt = noiseForm(axeSize=axeSize, layer=layer, parent=parent)
         wdgt.setWindowTitle(layer.name)
         return wdgt
 
-    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None): # TODO 01/12/17 remove param targetImage
+    def __init__(self, axeSize=500, layer=None, parent=None):
         super(noiseForm, self).__init__(parent=parent)
-        #self.targetImage = targetImage
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize, axeSize)
         self.setAttribute(Qt.WA_DeleteOnClose)
-        #self.img = targetImage
         # link back to image layer
         # using weak ref for back links
         if type(layer) in weakref.ProxyTypes:
@@ -100,7 +98,7 @@ class noiseForm (baseForm):
    <b>Bilateral Filtering</b> is the fastest method.<br>
    <b>NLMeans</b> (Non Local Means) and <b>Wavelets</b> are slower,
    but they usually give better results.<br>
-   It is possible to <b>limit the application of any method to a rectangular part of the image</b>
+   It is possible to <b>limit the application of all methods to a rectangular region of the image</b>
    by drawing a selection rectangle on the layer with the marquee tool.<br>
    
 """

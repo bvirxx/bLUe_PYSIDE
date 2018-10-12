@@ -19,6 +19,21 @@ import numpy as np
 import pywt
 from utils import movingAverage, movingVariance
 
+def noiseEstimation(DWT_coeffs):
+    """
+    Returns an estimation of the noise variance, using the Mean
+    Absolute Deviation (MAD) method of Donoho.
+    of
+    @param DWT_coeffs: DWT coefficients, as returned by wavedecn
+    @type DWT_coeffs:
+    @return: noise variance estimation
+    @rtype: float
+    """
+    a, s = pywt.coeffs_to_array(DWT_coeffs)
+    flattened_coeffs = a[s[-1]['dd'][0], s[-1]['dd'][1]].ravel()
+    MAD = np.median(abs(flattened_coeffs))
+    return MAD*MAD / (0.6745*0.6745)
+
 def dwtDenoiseChan(image, chan=0, thr=1.0, thrmode='hard', wavelet='haar', level=None):
     """
     Denoise a channel of image, using a Discrete Wavelet Transform. The three following
@@ -58,11 +73,13 @@ def dwtDenoiseChan(image, chan=0, thr=1.0, thrmode='hard', wavelet='haar', level
     """
     imArray = image[:,:,chan]
     w,h = imArray.shape[1], imArray.shape[0]
-    #imArray = 2 * np.sqrt(imArray + 3 / 8)
-    # coeffs is the list of DWT coefficients :
-    # coeffs[0] : array and for i>=1, coeffs[i] : dict of arrays(wavedecn),
+    #################
+    # apply DWT
+    # DWT_coeffs is the list of DWT coefficients :
+    # DWT_coeffs[0] : array and for i>=1, DWT_coeffs[i] : dict of arrays(wavedecn),
     # or t-uple of arrays (wavedec2)
     # For each array a, a.ndims = imArray.ndims
+    ###############
     DWT_coeffs = pywt.wavedecn(imArray, wavelet, level=level)
     if thrmode == 'hard' or thrmode == 'soft':
         # stack all arrays from coeffs in a single ndims-dimensional array
@@ -79,23 +96,10 @@ def dwtDenoiseChan(image, chan=0, thr=1.0, thrmode='hard', wavelet='haar', level
             a[mask] = np.where(np.abs(a[mask]) <= thr, 0, (np.sign(a[mask])) * (np.abs(a[mask])-thr))
             DWT_coeffs = pywt.array_to_coeffs(a, s)
     else:  # local Wiener Filter
-        #imV = movingVariance(imArray[9:-9, 9:-9], 9, version='strides')
-        #imV[image[9:-9,9:-9,0] > 200]=np.inf
-        #x = np.argmin(imV)
-        #x_u = np.unravel_index(x, imV.shape)
-        #print('argmin', x_u, imV[x_u])
-        # stack coefficients,  # a:array, s:strides
-        a, s = pywt.coeffs_to_array(DWT_coeffs)
-        #coefV = movingVariance(a[s[3]['dd'][0], s[3]['dd'][1]], 3, version='strides')
-        #y = np.argmin(coefV)
-        #y_u = np.unravel_index(y, coefV.shape)
-        #print('argmin coeff', y_u, coefV[y_u])
-        #flattened_coeffs = a[s[-1]['dd'][0], s[-1]['dd'][1]].ravel()
-        #median = np.median(abs(flattened_coeffs))
         # we do not estimate the noise variance sigma2 (a priori value or
         # Mean Absolute Deviation method for instance).
         # Instead, we use a variable interactive threshold set by the user
-        thr = thr/100 #((median/0.6745)**2) * thr/500
+        thr = thr/100
         ###################################################
         # Estimation of the variance of the coefficients of the
         # DWT transform.
