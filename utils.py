@@ -449,16 +449,16 @@ class QbLUeSlider(QSlider):
         super(QbLUeSlider, self).__init__(parent)
         self.setTickPosition(QSlider.NoTicks)
         self.setMaximumSize(16777215, 10)
-        self.setStyleSheet("""QSlider::handle:horizontal {background: white; width: 10px; border: 1px solid black; border-radius: 4px; margin: -3px;}
+        self.setStyleSheet("""QSlider::handle:horizontal {background: white; width: 15px; border: 1px solid black; border-radius: 4px; margin: -3px;}
                               QSlider::handle:horizontal:hover {background: #DDDDFF;}""")
 
     def mousePressEvent(self, event):
-        # to prevent possible successive jumps, we catch mouse press events too far from
+        # To prevent possible successive jumps, we catch mouse press events too far from
         # the handle and we force the value. A signal valueChanged is emitted; it can be
         # differentiated by testing that isSliderDown() returns False.
         # CAUTION: not any signal mouseReleased is emitted, .
         pressVal = QStyle.sliderValueFromPosition(self.minimum(), self.maximum(), event.x(), self.width(), 0)  # 0 is for horizontal slider
-        if abs(pressVal - self.value()) > 2:
+        if abs(pressVal - self.value()) > 7:  # BV was 2, set to 7 to prevent jumps around max position
             self.setValue(pressVal)
             return
         super().mousePressEvent(event)

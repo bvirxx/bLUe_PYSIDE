@@ -25,7 +25,7 @@ from PySide2.QtGui import QFontMetrics
 
 from graphicsLUT import baseForm
 from kernel import filterIndex, getKernel
-from utils import optionsWidget
+from utils import optionsWidget, QbLUeSlider
 
 
 class filterForm (baseForm):
@@ -57,7 +57,6 @@ class filterForm (baseForm):
             self.layer = weakref.proxy(layer)
         self.mainForm = mainForm
         self.kernelCategory = filterIndex.UNSHARP
-        self.kernel = getKernel(self.kernelCategory)
 
         # options
         self.optionList = ['Unsharp Mask', 'Sharpen', 'Gaussian Blur', 'Surface Blur']
@@ -69,8 +68,8 @@ class filterForm (baseForm):
         item = self.listWidget1.checkOption(self.optionList[0])
 
         # sliders
-        self.sliderRadius = QSlider(Qt.Horizontal)
-        self.sliderRadius.setTickPosition(QSlider.TicksBelow)
+        self.sliderRadius = QbLUeSlider(Qt.Horizontal)
+        #self.sliderRadius.setTickPosition(QSlider.TicksBelow)
         self.sliderRadius.setRange(1, 50)
         self.sliderRadius.setSingleStep(1)
         self.radiusLabel = QLabel()
@@ -84,10 +83,9 @@ class filterForm (baseForm):
         h = metrics.height()
         self.radiusValue.setMinimumSize(w, h)
         self.radiusValue.setMaximumSize(w, h)
-        #self.radiusValue.setStyleSheet("QLabel {background-color: gray;}")
 
-        self.sliderAmount = QSlider(Qt.Horizontal)
-        self.sliderAmount.setTickPosition(QSlider.TicksBelow)
+        self.sliderAmount = QbLUeSlider(Qt.Horizontal)
+        #self.sliderAmount.setTickPosition(QSlider.TicksBelow)
         self.sliderAmount.setRange(0, 100)
         self.sliderAmount.setSingleStep(1)
         self.amountLabel = QLabel()
@@ -100,14 +98,13 @@ class filterForm (baseForm):
         h = metrics.height()
         self.amountValue.setMinimumSize(w, h)
         self.amountValue.setMaximumSize(w, h)
-        #self.amountValue.setStyleSheet("QLabel {background-color: gray;}")
 
         self.toneValue = QLabel()
         self.toneLabel = QLabel()
         self.toneLabel.setMaximumSize(150, 30)
-        self.toneLabel.setText("Tone")
-        self.sliderTone = QSlider(Qt.Horizontal)
-        self.sliderTone.setTickPosition(QSlider.TicksBelow)
+        self.toneLabel.setText("Sigma")
+        self.sliderTone = QbLUeSlider(Qt.Horizontal)
+        #self.sliderTone.setTickPosition(QSlider.TicksBelow)
         self.sliderTone.setRange(0, 100)
         self.sliderTone.setSingleStep(1)
         font = self.radiusValue.font()
@@ -116,7 +113,6 @@ class filterForm (baseForm):
         h = metrics.height()
         self.toneValue.setMinimumSize(w, h)
         self.toneValue.setMaximumSize(w, h)
-        #self.toneValue.setStyleSheet("QLabel {background-color: white;}")
 
         # layout
         l = QVBoxLayout()
@@ -151,12 +147,10 @@ class filterForm (baseForm):
             self.sliderRadius.setEnabled(False)
             self.sliderAmount.setEnabled(False)
             self.sliderTone.setEnabled(False)
-            self.kernel = getKernel(self.kernelCategory, self.sliderRadius.value(), self.sliderAmount.value())
             self.tone = self.sliderTone.value()
             self.radius = self.sliderRadius.value()
             self.amount = self.sliderAmount.value()
             sliderUpdate()
-            # self.onUpdateFilter(self.kernelCategory, self.sliderRadius.value(), self.sliderAmount.value())
             self.dataChanged.emit()
             self.sliderRadius.setEnabled(sR)
             self.sliderAmount.setEnabled(sA)
@@ -180,9 +174,10 @@ class filterForm (baseForm):
 """
    <b>Unsharp Mask</b> and <b>Sharpen Mask</b> are used to sharpen an image.<br>
    <b>Gaussian Blur</b> and <b>Surface Blur</b> are used to blur an image.<br>
-   In contrast to Gaussian Blur, the Surface Blur filter preserves edges and reduces noise.<br>
+   In contrast to Gaussian Blur, Surface Blur preserves edges and reduces noise.<br>
    It is possible to <b>limit the effect of a filter to a rectangular region of the image</b> by
    drawing a selection rectangle on the layer with the marquee tool.<br>
+   Ctrl-Click to <b>clear the selection</b><br>
    
 """
                         )  # end setWhatsThis
@@ -200,10 +195,10 @@ class filterForm (baseForm):
         self.layer.parentImage.onImageChanged()
 
     def enableSliders(self):
-        op = self.listWidget1.options
-        useRadius = op[self.optionList[0]] or op[self.optionList[2]] or op[self.optionList[3]]
-        useAmount = op[self.optionList[0]] or op[self.optionList[2]]
-        useTone = op[self.optionList[3]]
+        opt = self.listWidget1.options
+        useRadius = opt[self.optionList[0]] or opt[self.optionList[2]] or opt[self.optionList[3]]
+        useAmount = opt[self.optionList[0]] or opt[self.optionList[2]]
+        useTone = opt[self.optionList[3]]
         self.sliderRadius.setEnabled(useRadius)
         self.sliderAmount.setEnabled(useAmount)
         self.sliderTone.setEnabled(useTone)

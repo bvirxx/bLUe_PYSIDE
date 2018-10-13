@@ -100,6 +100,7 @@ class noiseForm (baseForm):
    but they usually give better results.<br>
    It is possible to <b>limit the application of all methods to a rectangular region of the image</b>
    by drawing a selection rectangle on the layer with the marquee tool.<br>
+   Ctrl-Click to <b>clear the selection</b><br>
    
 """
                         )  # end of setWhatsThis

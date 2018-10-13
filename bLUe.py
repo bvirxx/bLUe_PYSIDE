@@ -146,7 +146,8 @@ from graphicsNoise import noiseForm
 from graphicsRaw import rawForm
 from graphicsTransform import transForm, imageForm
 from imgconvert import *
-from MarkedImg import imImage, metadataBag, vImage, QLayerImage, QLayer
+from versatileImg import vImage, metadataBag
+from MarkedImg import imImage, QLayerImage, QLayer
 from graphicsRGBLUT import graphicsForm
 from graphicsLUT3D import graphicsForm3DLUT
 from colorCube import LUTSIZE, LUT3D, LUT3DIdentity
@@ -461,7 +462,7 @@ def mouseEvent(widget, event) :  # TODO split into 3 handlers
                         if layer.is3DLUTLayer():
                             layer.view.widget().selectGridNode(red, green, blue)
                         if window.btnValues['rectangle'] and (modifiers == Qt.ControlModifier):
-                            layer.rect = None                               # TODO added 18/02/18 to clear selection
+                            layer.rect = None
                         # for raw layer, set multipliers to get selected pixel as White Point
                         if layer.isRawLayer() and window.btnValues['colorPicker']:
                             bufRaw = layer.parentImage.demosaic
@@ -1702,6 +1703,9 @@ if __name__ =='__main__':
                                                      QTableView, QLabel, QGroupBox {background-color: rgb(40,40,40); color: rgb(220,220,220)}\
                            QMenu, QTableView { selection-background-color: blue; selection-color: white;}\
                            QWidget, QTableView, QTableView * {font-size: 9pt}\
+                           QWidget:disabled {color: rgb(96,96,96)}\
+                           QSlider::groove:horizontal:enabled { margin: 3px; background-color: rgb(196,196,196)}\
+                           QSlider::groove:horizontal:disabled {margin: 3px; background-color: rgb(96,96,96)}\
                            QGraphicsView QPushButton, baseForm QPushButton\
                                                     {font-size: 9pt; background-color: rgb(100,100,100); color: rgb(200,200,200); border: 1px solid gray; border-radius: 6px}\
                            QGraphicsView QPushButton:hover, baseForm QPushButton:hover {background-color: gray; color: black}\
