@@ -27,7 +27,7 @@ from math import factorial
 from PySide2 import QtCore
 from PySide2.QtGui import QColor, QImage, QPainter, QPixmap, QIcon
 from PySide2.QtWidgets import QListWidget, QListWidgetItem, QDialog, QVBoxLayout, \
-    QFileDialog, QSlider, QWidget, QHBoxLayout, QLabel, QMessageBox, QPushButton, QDockWidget, QStyle
+    QFileDialog, QSlider, QWidget, QHBoxLayout, QLabel, QMessageBox, QPushButton, QDockWidget, QStyle, QColorDialog
 from PySide2.QtCore import Qt, QObject, QRect, QDir, QPointF
 from os.path import isfile, basename
 from itertools import product
@@ -50,6 +50,9 @@ IMAGE_FILE_NAME_FILTER = ['Image Files (*.jpg *.png *.tif *.JPG *.PNG *.TIF)']
 # bugs with QObject, they can be used
 # as a workaround to define
 # custom signals (cf. QLayer).
+
+class baseSignal_No(QObject):
+    sig = QtCore.Signal()
 
 class baseSignal_bool(QObject):
     sig = QtCore.Signal(bool)
@@ -421,6 +424,13 @@ class UDict(object):
        if item in self.d1:
            return self.d1[item]
        return self.d2[item]
+
+class QbLUeColorDialog(QColorDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+        self.closeSignal = baseSignal_No()
+    def closeEvent(self, e):
+        self.closeSignal.sig.emit()
 
 class QbLUeSlider(QSlider):
     """

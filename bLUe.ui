@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1169</width>
+    <width>1201</width>
     <height>1007</height>
    </rect>
   </property>
@@ -246,15 +246,9 @@ Screen</string>
             <property name="checkable">
              <bool>true</bool>
             </property>
-            <property name="autoExclusive">
-             <bool>false</bool>
-            </property>
             <property name="autoRaise">
              <bool>true</bool>
             </property>
-            <attribute name="buttonGroup">
-             <string notr="true">buttonGroup</string>
-            </attribute>
            </widget>
           </item>
           <item>
@@ -645,7 +639,7 @@ Screen</string>
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1169</width>
+     <width>1201</width>
      <height>26</height>
     </rect>
    </property>

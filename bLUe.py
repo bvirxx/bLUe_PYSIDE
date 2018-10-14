@@ -158,7 +158,7 @@ from graphicsExp import ExpForm
 from graphicsPatch import patchForm
 from settings import USE_POOL, POOL_SIZE, THEME
 from utils import saveChangeDialog, saveDlg, openDlg, IMAGE_FILE_NAME_FILTER, \
-    IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, demosaic, dlgWarn, dlgInfo
+    IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, demosaic, dlgWarn, dlgInfo, QbLUeColorDialog
 from tools import cropTool, rotatingTool
 from graphicsTemp import temperatureForm
 from time import sleep
@@ -640,13 +640,13 @@ def widgetChange(button):
     @param button:
     @type button: QWidget
     """
-    wdgName = button.objectName()
-    if wdgName == "fitButton" :
+    #wdgName = button.objectName()
+    if button is window.fitButton:#wdgName == "fitButton" :
         window.label.img.fit_window(window.label)
         # update crop button positions
         window.cropTool.drawCropTool(window.label.img)
         #window.label.repaint()
-    elif wdgName == "cropButton":
+    elif button is window.cropButton: #wdgName == "cropButton":
         if button.isChecked():
             window.cropTool.drawCropTool(window.label.img)
             for b in window.cropTool.btnDict.values():
@@ -656,11 +656,17 @@ def widgetChange(button):
                 b.hide()
         window.label.img.isCropped = button.isChecked()
         #window.label.repaint()
-    elif wdgName == "rulerButton":
+    elif button is window.rulerButton:#wdgName == "rulerButton":
         window.label.img.isRuled = button.isChecked()
-    elif wdgName == 'eyeDropper':
-        if window.btnValues['colorPicker']:
+    elif button is window.eyeDropper:#wdgName == 'eyeDropper':
+        if button.isChecked(): #window.btnValues['colorPicker']:
             openColorChooser()
+            dlg = window.colorChooser
+            try:
+                dlg.closeSignal.sig.disconnect()
+            except RuntimeError:
+                pass
+            dlg.closeSignal.sig.connect(lambda: button.setChecked(False))
         else:
             if getattr(window, 'colorChooser', None) is not None:
                 window.colorChooser.hide()
@@ -1109,11 +1115,11 @@ def menuView(name):
 
 def openColorChooser():
     if getattr(window, 'colorChooser', None) is None:
-        window.colorChooser = QColorDialog(parent=window)
+        window.colorChooser = QbLUeColorDialog(parent=window)
         window.colorChooser.setWhatsThis(
             """
             <b>ColorChooser</b><br>
-            To <b>display the color of a pixel</b> click it in the image :<br>
+            To <b>display the color of a pixel</b> click it in the image window:<br>
             &nbsp;&nbsp;<b>Click</b> : image pixel<br>
             &nbsp;&nbsp;<b>Ctrl + Click</b> : active layer pixel<br>
             &nbsp;&nbsp;<b>Ctrl+Shift + Click</b> : input pixel of active layer (adjustment layer only) <br>
@@ -1629,7 +1635,6 @@ def updateStatus():
     # cropping
     if window.label.img.isCropped:
         s = s + '&nbsp;&nbsp;&nbsp;&nbsp;Crop Tool : h/w ratio %.2f ' % window.cropTool.formFactor
-    s = s + '&nbsp;&nbsp;&nbsp;&nbsp;Shift+F1 for Context Help'
     window.Label_status.setText(s)
 
 def initCursors():
@@ -1716,6 +1721,8 @@ if __name__ =='__main__':
                            QGroupBox#groupbox_btn {border: 1px solid gray;}\
                            QGroupBox#groupBox {border: 1px solid gray;}\
                            QMessageBox QLabel, QDialog QLabel {background-color: white; color : black}\
+                           QColorDialog QLabel {background-color: gray; color: white}\
+                           QStatusBar::item {border: none}\
                            QToolTip {border: 0px; background-color: lightyellow; color: black}"  # border must be set, otherwise background-color has no effect : Qt bug?
                          )
     # Before/After view
@@ -1723,7 +1730,10 @@ if __name__ =='__main__':
 
     # status bar
     window.Label_status = QLabel()
+    #window.Label_status.setStyleSheet("border: 15px solid white;")
     window.statusBar().addWidget(window.Label_status)
+    # permanent text to right
+    window.statusBar().addPermanentWidget(QLabel('Shift+F1 for Context Help       '))
     window.updateStatus = updateStatus
     window.label.updateStatus = updateStatus
 
@@ -1731,7 +1741,7 @@ if __name__ =='__main__':
     window.cropTool = cropTool(parent=window.label)
 
     #whatsThis
-    window.cropButton.setWhatsThis("""To crop drag a gray curtain on either side using the 8 small square buttons around the image""")
+    window.cropButton.setWhatsThis("""To crop the image drag a gray curtain on either side using the 8 small square buttons around the image""")
     window.rulerButton.setWhatsThis("""Draw horizontal and vertical rulers over the image""")
     window.fitButton.setWhatsThis("""Reset the image size to the window size""")
     window.eyeDropper.setWhatsThis("""Color picker\n Click on the image to sample pixel colors""")
