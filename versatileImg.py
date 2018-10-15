@@ -536,36 +536,10 @@ class vImage(QImage):
               (mode DestinationIn). Color mask is no used.
         NOTE : the fully masked part of the image corresponds to
         mask opacity = 0.
-        @param maskOnly: default False
+        @param maskOnly: not used yet
         @type maskOnly: boolean
         """
         currentImage = self.getCurrentImage()
-        """
-        if not maskOnly:
-            # invalidate color managed cache
-            self.cmImage = None
-        # get current image and apply color management if self is the presentation layer
-        if icc.COLOR_MANAGE and getattr(self, 'role', None) == 'presentation':
-            if self.cmImage is None:
-                # CAUTION : reset alpha channel
-                img = convertQImage(currentImage, transformation=self.colorTransformation)
-                # copy  alpha channel
-                buf0 = QImageBuffer(img)
-                buf1 = QImageBuffer(currentImage)
-                buf0[:, :, 3] = buf1[:, :, 3]
-            else:
-                #img = QImage(self.cmImage)
-                img = self.cmImage
-        else:
-            #img = QImage(currentImage)
-            img = currentImage
-        # refresh cache
-        if maskOnly:
-            #self.cmImage = QImage(img)
-            self.cmImage = img
-        self.cmImage = img
-        qImg = img
-        """
         rImg = currentImage
         if self.maskIsEnabled:
             #qImg = vImage.visualizeMask(qImg, self.mask, color=self.maskIsSelected, clipping=self.isClipping)

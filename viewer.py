@@ -152,6 +152,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
                 newWin.setWindowTitle(newWin.windowTitle() + ' Paused')
                 break
             newWin.setWindowTitle(parent.tr('Slide show') + ' ' + name + ' ' + ' '.join(['*'] * imImg.meta.rating))
+            gc.collect()
             label.img = imImg
             label.repaint()
             app.processEvents()

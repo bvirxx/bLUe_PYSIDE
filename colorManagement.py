@@ -22,7 +22,7 @@ from PIL.ImageCms import getOpenProfile, get_display_profile, getProfileInfo, \
 from PySide2.QtGui import QImage
 
 from debug import tdec
-from imgconvert import PilImageToQImage, QImageToPilImage
+from imgconvert import QImageToPilImage, PilImageToQImage
 from settings import SRGB_PROFILE_PATH, ADOBE_RGB_PROFILE_PATH
 
 if sys.platform == 'win32':
@@ -110,7 +110,7 @@ def convertQImage(image, transformation=None):
     """
     Applies a Cms transformation to a QImage and returns the transformed image.
     If transformation is None, the input image is returned.
-    Caution: The alpha chanel is not preserved.
+    Caution: The format is kept, but the alpha chanel is not preserved.
     @param image: image
     @type image: QImage
     @param transformation : Cms transformation
@@ -121,6 +121,9 @@ def convertQImage(image, transformation=None):
     if transformation is not None:
         # convert to the PIL context and apply transformation
         converted_image = applyTransform(QImageToPilImage(image), transformation, 0)  # time 0.85s for a 15 Mpx image.
-        return PilImageToQImage(converted_image)
+        # convert back to QImage
+        img = PilImageToQImage(converted_image)
+        # restore format
+        return img.convertToFormat(image.format())
     else :
         return image

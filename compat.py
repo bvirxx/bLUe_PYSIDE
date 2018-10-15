@@ -48,7 +48,6 @@ from io import BytesIO
 qt_is_installed = True
 qt_version = None
 
-
 try:
     from PyQt5.QtGui import QImage, qRgba, QPixmap
     from PyQt5.QtCore import QBuffer, QIODevice
@@ -76,7 +75,6 @@ def rgb(r, g, b, a=255):
     # into a negative integer with the same bitpattern.
     return (qRgba(r, g, b, a) & 0xffffffff)
 
-
 def fromqimage(im):
     """
     :param im: A PIL Image object, or a file name
@@ -102,7 +100,6 @@ def fromqimage(im):
 
     return Image.open(b)
 
-
 def fromqpixmap(im):
     return fromqimage(im)
     # buffer = QBuffer()
@@ -115,7 +112,6 @@ def fromqpixmap(im):
     # buffer.close()
     # bytes_io.seek(0)
     # return Image.open(bytes_io)
-
 
 def align8to32(bytes, width, mode):
     """
@@ -144,7 +140,6 @@ def align8to32(bytes, width, mode):
         new_data.append(bytes[i*bytes_per_line:(i+1)*bytes_per_line] + b'\x00' * extra_padding)
 
     return b''.join(new_data)
-
 
 def _toqclass_helper(im):
     data = None
@@ -192,22 +187,21 @@ def _toqclass_helper(im):
         'data': __data, 'im': im, 'format': format, 'colortable': colortable
     }
 
+def PilImgToRaw(im):  # rename for external use
+    return _toqclass_helper(im)
 
 if qt_is_installed:
     class ImageQt(QImage):
 
         def __init__(self, im):
             """
-            An PIL image wrapper for Qt.  This is a subclass of PyQt's QImage
-            class.
+            A PIL image wrapper for Qt.
 
-            :param im: A PIL Image object, or a file name (given either as Python
+            @param im: A PIL Image object, or a file name (given either as Python
                 string or a PyQt string object).
             """
             im_data = _toqclass_helper(im)
             # must keep a reference, or Qt will crash!
-            # All QImage constructors that take data operate on an existing
-            # buffer, so this buffer has to hang on for the life of the image.
             # Fixes https://github.com/python-pillow/Pillow/issues/1370
             self.__data = im_data['data']
             QImage.__init__(self,
@@ -215,7 +209,6 @@ if qt_is_installed:
                             im_data['im'].size[1], im_data['format'])
             if im_data['colortable']:
                 self.setColorTable(im_data['colortable'])
-
 
 def toqimage(im):
     return ImageQt(im)

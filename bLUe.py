@@ -134,7 +134,7 @@ import rawpy
 from grabcut import segmentForm
 from PySide2.QtCore import Qt, QRect, QEvent, QUrl, QSize, QFileInfo, QRectF, QObject
 from PySide2.QtGui import QPixmap, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, \
-    QPainterPath, QTransform, QContextMenuEvent
+    QPainterPath, QTransform, QContextMenuEvent, QColor
 from PySide2.QtWidgets import QApplication, QAction, QFileDialog, QMessageBox, \
     QMainWindow, QLabel, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QWidget, \
     QStyle, QHBoxLayout, QVBoxLayout, QColorDialog
@@ -375,19 +375,22 @@ def mouseEvent(widget, event) :  # TODO split into 3 handlers
                         color = vImage.defaultColor_UnMasked_Invalid if window.btnValues['drawFG'] else vImage.defaultColor_Invalid
                     qp.begin(layer.mask)
                     # get pen width
-                    w = window.verticalSlider1.value() // (2 * r)
+                    w_pen = window.verticalSlider1.value() // r
                     # mode source : result is source (=pen) pixel color and opacity
                     qp.setCompositionMode(qp.CompositionMode_Source)
                     tmp_x = (x - img.xOffset) // r
                     tmp_y = (y - img.yOffset) // r
-                    qp.drawEllipse(tmp_x-w//2, tmp_y-w//2, w, w)
-                    qp.setPen(QPen(color, 2*w))
+                    qp.setPen(QPen(color, w_pen))
+                    # draw line and final circle filling the region under the cursor
                     qp.drawLine(State['x_imagePrecPos'], State['y_imagePrecPos'], tmp_x, tmp_y)
+                    qp.drawEllipse(tmp_x-w_pen//2, tmp_y-w_pen//2, w_pen, w_pen)
                     qp.end()
                     State['x_imagePrecPos'], State['y_imagePrecPos'] = tmp_x, tmp_y
+                    ############################
                     # update upper stack
-                    # should be layer.updateStack() if any upper layer visible : too slow
-                    layer.updatePixmap(maskOnly=True)
+                    # should be layer.applyToStack() if any upper layer visible : too slow
+                    layer.updatePixmap(maskOnly=True) # TODO maskOnly not used: remove
+                    #############################
                     img.prLayer.applyNone()
                     # img.prLayer.updatePixmap(maskOnly=True) # TODO called by applyNone 19/06/18
                     window.label.repaint()
@@ -404,6 +407,7 @@ def mouseEvent(widget, event) :  # TODO split into 3 handlers
                     layer.xOffset += (x - State['ix'])
                     layer.yOffset += (y - State['iy'])
                     layer.updatePixmap()
+                    img.prLayer.applyNone()
                 # drag cloning virtual layer
                 elif modifiers == Qt.ControlModifier | Qt.AltModifier:
                     if layer.isCloningLayer():
@@ -1754,13 +1758,17 @@ For a segmentation layer only, all pixels outside the rectangle are set to backg
                                 )
     window.drawFG.setWhatsThis(
 """
-<b>Foreground/Unmask</b><br
-  Paint on the active layer to unmask a previously masked region or to select foreground pixels (segmentation layer only)<br>
-  Use the 'Brush Size' slider below to choose the size of the tool. 
+<b>Foreground/Unmask tool</b><br>
+  Paint on the active layer to <b>unmask</b> a previously masked region or to <b>select foreground pixels</b> (segmentation layer only);
+  the mask must be enabled as opacity or color mask in the layer panel.<br>
+  With <b>Color Mask</b> enabled, masked pixels are grayed and unmasked pixels are reddish.<br>
+  Use the <b>Brush Size slider</b> below to choose the size of the tool. 
 """                             )
     window.drawBG.setWhatsThis(
-"""<b>Background/Mask</b><br>
-  Paint on the active layer to mask a region or to select background pixels (segmentation layer only)<br>
+"""<b>Background/Mask tool</b><br>
+  Paint on the active layer to mask a region or to select background pixels (segmentation layer only);
+  (the mask must be enabled as opacity or color mask in the layer panel).<br>
+  With <b>Color Mask</b> enabled, masked pixels are grayed and unmasked pixels are reddish.<br>
   Use the 'Brush Size' slider below to choose the size of the tool. 
 """                             )
     window.verticalSlider1.setWhatsThis("""Set the diameter of the painting brush""")

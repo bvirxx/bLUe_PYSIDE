@@ -18,8 +18,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 from time import time
 
 import numpy as np
-from compat import ImageQt
-from PySide2.QtGui import QImage, QColor
+from compat import PilImgToRaw
+from PySide2.QtGui import QImage
 from PIL import Image
 """
 from PyQt5.QtCore import QCoreApplication
@@ -88,14 +88,21 @@ def QImageBuffer(qimg):
 
 def PilImageToQImage(pilimg) :
     """
-    Converts a PIL image (mode RGB) to a QImage (format ARGB32)
+    Converts a PIL image (mode RGB) to a QImage (format RGB32)
     @param pilimg: The PIL image, mode RGB
     @type pilimg: PIL image
-    @return: QImage, format QImage.Format_ARGB32
+    @return: the converted image
     @rtype: QImage
     """
-    ################ revert
-    return ImageQt(pilimg)
+    ############################################
+    # CAUTION: PIL ImageQt causes a memory leak!!!
+    # return ImageQt(pilimg)
+    ############################################
+    im_data = PilImgToRaw(pilimg)
+    Qimg = QImage(im_data['im'].size[0], im_data['im'].size[1], im_data['format'])
+    buf = QImageBuffer(Qimg).ravel()
+    buf[:] = np.frombuffer(im_data['data'], dtype=np.uint8)
+    return Qimg
 
 def QImageToPilImage(qimg) :
     """

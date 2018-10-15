@@ -603,7 +603,7 @@ class QLayer(vImage):
         self.colorPicked = baseSignal_Int2()
 
         ###########################################################
-        self.parentImage = kwargs.get('parentImage', None)  #TODO added 11/09/18 validate
+        # self.parentImage = kwargs.get('parentImage', None)  #TODO added 11/09/18 validate removed 15/10/18 as duplicated
         # when a geometric transformation is applied to the whole image
         # each layer must be replaced with a transformed layer, recorded in tLayer
         # and tLayer.parentLayer keeps a reference to the original layer.
@@ -951,7 +951,7 @@ class QLayer(vImage):
     def isRawLayer(self):
         return 'RAW' in self.role
 
-    def updatePixmap(self, maskOnly = False):
+    def updatePixmap(self, maskOnly=False):
         """
         Updates the cached rPixmap.
         if maskIsEnabled is False, the mask is not shown.
@@ -1142,11 +1142,11 @@ class QLayer(vImage):
 
 class QPresentationLayer(QLayer):
     """
-    A presentation layer is used for color management. It is simply an
+    A presentation layer is used for color management. It is an
     adjustment layer that does nothing. It does not belong to the layer stack :
-    conceptually, it is "above" the stack, so its output is the composition of
-    all stacked layers. It is the sole color managed layer. It holds a cmImage
-    attribute caching the current color managed image.
+    conceptually, it is "above" the stack, so it holds the composition of
+    all stacked layers. It is the sole color managed layer, via its qPixmap
+    attribute.
     """
 
     def __init__(self, *args, **kwargs):
@@ -1174,32 +1174,19 @@ class QPresentationLayer(QLayer):
         @type maskOnly: boolean
         """
         currentImage = self.getCurrentImage()
-        if not maskOnly:
-            # invalidate color managed cache
-            self.cmImage = None
-        # get current image and apply color management if self is the presentation layer
+        # apply color management to presentation layer
         if icc.COLOR_MANAGE and self.parentImage is not None and getattr(self, 'role', None) == 'presentation':
-            # layer color model is parent image color model
-            if self.cmImage is None:
-                # CAUTION : reset alpha channel
-                img = convertQImage(currentImage, transformation=self.parentImage.colorTransformation)  # time 0.66 s for 15 Mpx.
-                # preserve alpha channel
-                img = img.convertToFormat(currentImage.format()) #TODO 14/06/18 convertToFormat is mandatory to get ARGB imagesinstead of RGB images
-                buf0 = QImageBuffer(img)
-                buf1 = QImageBuffer(currentImage)
-                buf0[:,:,3] = buf1[:,:,3]
-            else:
-                img = self.cmImage
+            # CAUTION : reset alpha channel
+            img = convertQImage(currentImage, transformation=self.parentImage.colorTransformation)  # time 0.66 s for 15 Mpx.
+            # restore alpha channel
+            # img = img.convertToFormat(currentImage.format()) # TODO 15/10/18 dome by convertQImage()
+            buf0 = QImageBuffer(img)
+            buf1 = QImageBuffer(currentImage)
+            buf0[:,:,3] = buf1[:,:,3]
         else:
             img = currentImage
-        self.cmImage = img
         qImg = img
         rImg = currentImage
-        # apply layer transformation. Missing pixels are set to QColor(0,0,0,0)
-        if self.xOffset != 0 or self.yOffset != 0:
-            x,y = self.full2CurrentXY(self.xOffset, self.yOffset)
-            qImg = qImg.copy(QRect(-x, -y, qImg.width()*self.Zoom_coeff, qImg.height()*self.Zoom_coeff))
-            rImg = rImg.copy(QRect(-x, -y, rImg.width()*self.Zoom_coeff, rImg.height()*self.Zoom_coeff))
         if self.maskIsEnabled:
             #qImg = vImage.visualizeMask(qImg, self.mask, color=self.maskIsSelected, clipping=self.isClipping)
             rImg = vImage.visualizeMask(rImg, self.mask, color=self.maskIsSelected, clipping=self.isClipping)
