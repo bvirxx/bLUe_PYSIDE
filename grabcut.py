@@ -23,9 +23,10 @@ from PySide2.QtWidgets import QHBoxLayout, QPushButton, QWidget, QSizePolicy, QV
 
 from MarkedImg import vImage
 from QtGui1 import window
+from graphicsLUT import baseForm
 from utils import optionsWidget
 
-class segmentForm(QWidget):
+class segmentForm(baseForm):
     """
     Segmentation (grabcut) form
 
@@ -146,12 +147,12 @@ class segmentForm(QWidget):
         self.setLayout(vLay)
         self.setDefaults()
         self.setWhatsThis(
-""" Object extraction  
-  Select the object to extract with the rectangle Marquee Tool. Next, click the Apply button. 
-  Correct (roughly) if needed the foreground (FG) and the background (BG) regions using the FG and BG tools (Ctrl to undo) and click again the Apply button.
-  To get a smoother contour increase the value of the Contour Margin and click the Apply Button.
+""" <b>Object extraction</b><br>  
+  Select the object to extract with the rectangle Marquee Tool. Next, click the Apply button.<br>
+  Correct (roughly) if needed the foreground (FG) and the background (BG) regions using the FG and BG tools (Ctrl to undo) and click again the Apply button.<br>
+  To get a smoother contour increase the value of the Contour Margin and click the Apply Button.<br>
   By default the mask is displayed as a color mask. To view it as an opacity mask, right click on the Segmentation layer row in the right pane and check Enable Mask As > Opacity Mask in the context menu.
-  Use the same context menu to copy/paste the object to a new image layer or the mask to another layer.
+  Use the same context menu to copy/paste the object to a new image layer or the mask to another layer.<br>
   
 """
                         )  # end setWhatsThis

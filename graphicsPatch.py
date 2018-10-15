@@ -130,10 +130,14 @@ class patchForm (baseForm):
         l.addWidget(pushButton2)
         self.setWhatsThis(
 """
-<b>Seamless replacement</b> of a region of the image by another region from the same image (e.g. to erase an object):<br>
-   &nbsp; 1) Select the Unmask/FG tool and paint the pixels to erase (Use the Mask/BG tool to adjust if needed); <br>
-   &nbsp; 2) Select the drag tool and while pressing Ctrl-Alt on the keyboard drag the image shown in the painted area; <br>
-   &nbsp; 3) Click the Clone button to start the cloning. 
+<b>Cloning</b> :
+Seamless replacement of a region of the image by another region from the same image (e.g. to erase an object):<br>
+   &nbsp; 1) Select the Unmask/FG tool and paint the pixels to erase (use the Mask/BG tool to adjust if needed); <br>
+   &nbsp; 2) Select the drag tool and while pressing Ctrl-Alt, drag or zoom the image shown in the painted region with the mouse; 
+             the mask can be modified with the mask/unmask tools<br>
+   &nbsp; 3) Click the Clone button to start the cloning.<br>
+   &nbsp; 4) Redo steps 2 and 3 until the result is satisfactory.<br>
+<b> While executing steps 1 to 4 above, make sure the that layer is the topmost visible layer</b>
 """
                         )
 class maskForm (baseForm):

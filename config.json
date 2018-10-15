@@ -17,5 +17,8 @@
   },
   "LOOK" : {
     "THEME" : "dark"
+  },
+  "PARAMS" : {
+    "MAX_ZOOM" : 8
   }
 }

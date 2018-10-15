@@ -671,6 +671,7 @@ class vImage(QImage):
         # the presentation layer must be updated here because
         # applyCloning is called directly (mouse and Clone button events).
         self.parentImage.prLayer.update()
+        self.parentImage.onImageChanged()
 
     def applyKnitting(self):
         """

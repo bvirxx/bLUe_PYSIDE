@@ -156,7 +156,7 @@ from colorManagement import icc
 from graphicsCoBrSat import CoBrSatForm
 from graphicsExp import ExpForm
 from graphicsPatch import patchForm
-from settings import USE_POOL, POOL_SIZE, THEME
+from settings import USE_POOL, POOL_SIZE, THEME, MAX_ZOOM
 from utils import saveChangeDialog, saveDlg, openDlg, IMAGE_FILE_NAME_FILTER, \
     IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, demosaic, dlgWarn, dlgInfo, QbLUeColorDialog
 from tools import cropTool, rotatingTool
@@ -526,7 +526,7 @@ def wheelEvent(widget,img, event):
     if modifiers == Qt.NoModifier:
         img.Zoom_coeff *= (1.0 + numSteps)
         # max Zoom for previews
-        if img.Zoom_coeff >2:
+        if img.Zoom_coeff > MAX_ZOOM:
             img.Zoom_coeff /= (1.0 + numSteps)
             return
         # correct image offset to keep unchanged the image point
@@ -571,7 +571,7 @@ def enterEvent(widget,img, event):
         if not QApplication.overrideCursor():
             w = window.verticalSlider1.value()
             if w > 5:
-                QApplication.setOverrideCursor(window.cursor_Circle_Pixmap.scaled(w*1.5, w*1.5))
+                QApplication.setOverrideCursor(window.cursor_Circle_Pixmap.scaled(w*2.0, w*2.0)) #(w*1.5, w*1.5))
             else:
                 QApplication.setOverrideCursor(Qt.CrossCursor)
     elif window.btnValues['drag']:

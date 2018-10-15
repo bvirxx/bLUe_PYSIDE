@@ -56,3 +56,8 @@ POOL_SIZE = CONFIG["ENV"]["POOL_SIZE"] # 4
 # Theme
 ########
 THEME = CONFIG["LOOK"]["THEME"]
+
+##########
+# Params
+#########
+MAX_ZOOM = CONFIG["PARAMS"]["MAX_ZOOM"]

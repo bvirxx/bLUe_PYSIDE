@@ -265,7 +265,6 @@ For color mask mode enabled: <br>
     &nbsp; grey pixels are masked,<br>
     &nbsp; reddish pixels are unmasked.<br>
 Note that upper visible layers slow down mask edition.
-You can drag and drop layers to change their order.
 """
         )
 
