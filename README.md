@@ -29,22 +29,18 @@ bindings can take advantage of the GUI.
 
 bLUe is written in Python.
 
-REQUIREMENTS
+## REQUIREMENTS
 
-   numpy
-
-   PySide2
-
-   PIL
-
-   RawPy
-   
-   PyWavelets.
+* numpy
+* PySide2
+* PIL
+* RawPy
+* PyWavelets.
 
 Binary packages containing all dependencies are available for Windows.
 Make sure to download the latest release.
 
-LICENSE
+## LICENSE
 
  This project is licensed under the LGPL V 3.
 
