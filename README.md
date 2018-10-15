@@ -30,10 +30,15 @@ bindings can take advantage of the GUI.
 bLUe is written in Python.
 
 REQUIREMENTS
+
    numpy
+
    PySide2
+
    PIL
+
    RawPy
+   
    PyWavelets.
 
 Binary packages containing all dependencies are available for Windows.
