@@ -27,7 +27,14 @@ The program is fully modular : tools are implemented as independent
 adjustment layers using a common GUI. Any imaging library exposing Python
 bindings can take advantage of the GUI.
 
-bLUe is written in Python, using Pyside2, PIL, RawPy and PyWavelets.
+bLUe is written in Python.
+
+REQUIREMENTS
+   numpy
+   PySide2
+   PIL
+   RawPy
+   PyWavelets.
 
 Binary packages containing all dependencies are available for Windows.
 Make sure to download the latest release.
