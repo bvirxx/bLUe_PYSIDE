@@ -2,7 +2,7 @@ This File is part of bLUe software.
 
 Copyright (C) 2017-2018 Bernard Virot <bernard.virot@libertysurf.fr>
 
-DESCRIPTION
+## DESCRIPTION
 
  bLUe is a complete GUI environment for photo edition. It can edit images in all
 usual formats : jpg, png, tif, including raw files: nef, cr2, dng.
@@ -35,7 +35,7 @@ bLUe is written in Python.
 * PySide2
 * PIL
 * RawPy
-* PyWavelets.
+* PyWavelets
 
 Binary packages containing all dependencies are available for Windows.
 Make sure to download the latest release.
