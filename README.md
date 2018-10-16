@@ -31,7 +31,8 @@ bLUe is written in Python.
 
 ## REQUIREMENTS
 
-* numpy
+* OpenCV-Python
+* NumPy
 * PySide2
 * PIL
 * RawPy
