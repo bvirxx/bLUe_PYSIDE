@@ -32,6 +32,7 @@ from PySide2.QtGui import QPixmap, QImage, QPainter
 from PySide2.QtCore import QRect
 
 import exiftool
+from bLUeInterp.trilinear import interpTriLinear
 
 from colorManagement import icc, convertQImage
 from imgconvert import *
@@ -1259,7 +1260,7 @@ class QLayerImage(QLayer):
         """
         return self.sourceImg.scaled(self.getCurrentImage().size())
 
-def apply3DLUTSliceCls(LUT, inputBuffer, imgBuffer, s ):
+def apply3DLUTSliceCls(LUT, LUTSTEP, inputBuffer, imgBuffer, s ):
 
     inputBuffer = inputBuffer[s[1], s[0], :]
     imgBuffer = imgBuffer[:, :, :]
@@ -1267,7 +1268,7 @@ def apply3DLUTSliceCls(LUT, inputBuffer, imgBuffer, s ):
     ndImg1 = imgBuffer[:, :, :3]
     # apply LUT
     start = time()
-    ndImg1[s[1], s[0], :] = interpVec_(LUT, ndImg0)
+    ndImg1[s[1], s[0], :] = interpTriLinear(LUT, LUTSTEP, ndImg0)
     end = time()
     #print 'Apply3DLUT time %.2f' % (end - start)
 
@@ -1278,7 +1279,7 @@ def applyHaldCls(item):
     """
     # QImageBuffer(l.hald), QImageBuffer(l.inputImg()), QImageBuffer(l.getCurrentImage()), s
     lut = LUT3D.HaldBuffer2LUT3D(item[0])
-    apply3DLUTSliceCls(lut.LUT3DArray, item[1], item[2], item[3])
+    apply3DLUTSliceCls(lut.LUT3DArray, lut.step, item[1], item[2], item[3])
     return item[2]
     #img.apply3DLUT(lut.LUT3DArray, options={'use selection' : True})
 

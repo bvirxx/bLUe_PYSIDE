@@ -150,7 +150,7 @@ from versatileImg import vImage, metadataBag
 from MarkedImg import imImage, QLayerImage, QLayer
 from graphicsRGBLUT import graphicsForm
 from graphicsLUT3D import graphicsForm3DLUT
-from colorCube import LUTSIZE, LUT3D, LUT3DIdentity
+from colorCube import LUTSIZE, LUT3D, LUT3DIdentity, MAXLUTRGB
 from colorModels import cmHSP, cmHSB
 from colorManagement import icc
 from graphicsCoBrSat import CoBrSatForm
@@ -1251,7 +1251,8 @@ def menuLayer(name):
             print('launching process pool...', end='')
             pool = multiprocessing.Pool(POOL_SIZE)
             print('done')
-        l.execute = lambda l=l, pool=pool: l.tLayer.apply3DLUT(grWindow.scene().LUT3DArray, options=grWindow.scene().options, pool=pool)
+        sc = grWindow.scene()
+        l.execute = lambda l=l, pool=pool: l.tLayer.apply3DLUT(sc.LUT3DArray, sc.LUTStep, options=sc.options, pool=pool)
     # cloning
     elif name == 'actionNew_Cloning_Layer':
         lname = 'Cloning'
@@ -1413,6 +1414,9 @@ def menuLayer(name):
             name = filenames[0]
             try:
                 LUT3DArray, size = LUT3D.readFromTextFile(name)
+                LUTSTEP = MAXLUTRGB / (size - 1)
+                if not LUTSTEP.is_integer():
+                    raise ValueError('Wrong size %d' % size)
             except (ValueError, IOError) as e:
                 dlgWarn('Unable to load 3D LUT : ', info=str(e))
                 return
@@ -1423,7 +1427,7 @@ def menuLayer(name):
                 print('launching process pool...', end='')
                 pool = multiprocessing.Pool(POOL_SIZE)
                 print('done')
-            l.execute = lambda l=l, pool=pool: l.tLayer.apply3DLUT(LUT3DArray, {'use selection': False}, pool=pool)
+            l.execute = lambda l=l, pool=pool: l.tLayer.apply3DLUT(LUT3DArray, LUTSTEP, {'use selection': False}, pool=pool)
             window.tableView.setLayers(window.label.img)
             l.applyToStack()
             # The resulting image is modified,

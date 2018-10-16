@@ -30,6 +30,8 @@ from PySide2.QtWidgets import QApplication, QSplitter
 from PySide2.QtGui import QPixmap, QImage, QColor, QPainter
 from PySide2.QtCore import QRect
 
+from bLUeInterp.tetrahedral import interpTetra
+from bLUeInterp.trilinear import interpTriLinear
 from colorConv import sRGB2LabVec, Lab2sRGBVec, rgb2rgbLinearVec, \
     rgbLinear2rgbVec, sRGB2XYZVec, sRGB_lin2XYZInverse, temperatureAndTint2RGBMultipliers
 from debug import tdec
@@ -1430,7 +1432,7 @@ class vImage(QImage):
         # update
         self.updatePixmap()
 
-    def apply3DLUT(self, LUT, options=None, pool=None):
+    def apply3DLUT(self, LUT, LUTSTEP, options=None, pool=None):
         """
         Applies a 3D LUT to the current view of the image (self or self.thumb or self.hald).
         If pool is not None and the size of the current view is > 3000000, the computation is
@@ -1469,11 +1471,11 @@ class vImage(QImage):
         ndImg1 = imgBuffer[:, :, :3]
         # choose the right interpolation method
         if (pool is not None) and (inputImage.width() * inputImage.height() > 3000000):
-            interp = interpMulti
+            interp = lambda x,y,z : interpMulti(x, y, z, pool=pool)
         else:
-            interp = interpTetraVec_ if USE_TETRA else interpVec_
+            interp = interpTetra if USE_TETRA else interpTriLinear
         # apply LUT
-        ndImg1[h1:h2 + 1, w1:w2 + 1, :] = interp(LUT, ndImg0, pool=pool)
+        ndImg1[h1:h2 + 1, w1:w2 + 1, :] = interp(LUT, LUTSTEP, ndImg0)
         # forward the alpha channel
         imgBuffer[h1:h2 + 1, w1:w2 + 1, 3] = inputBuffer[:,:,3]
         self.updatePixmap()
