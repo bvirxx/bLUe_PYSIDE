@@ -19,28 +19,12 @@ from functools import partial
 import cv2
 import gc
 import numpy as np
-from PySide2.QtCore import QFile, QIODevice, QTextStream
-from PySide2.QtGui import QImage
 
-from cartesian import cartesianProduct
-from debug import tdec
-from imgconvert import QImageBuffer
-
+from bLUeInterp.bLUeLUT3D import LUT3D
 from bLUeInterp.tetrahedral import interpTetra
 from bLUeInterp.trilinear import interpTriLinear
 
-###########################################
-# 3D LUT constants.
-# LUTSIZE is the length of LUT axes.
-# corresponding to LUTSIZE**3 vertices
-# Interpolation range is 0 <= x < MAXLUTRGB
-###########################################
 from settings import USE_TETRA
-
-MAXLUTRGB = 256
-# LUTSIZE = 17
-LUTSIZE = 33
-LUTSTEP = MAXLUTRGB / (LUTSIZE - 1)
 
 ######################################
 # Weights for perceptual brightness
@@ -56,238 +40,12 @@ Perc_R=0.2338
 Perc_G=0.6880
 Perc_B=0.0782
 
-class LUT3D (object):
-    """
-    Implements 3D LUT. Size should be be s=2**n + 1,
-    array shape is (s, s, s, 3) and array values
-    are positive integers in range 0..255
-    """
-    @classmethod
-    def LUT3DFromFactory(cls, size=LUTSIZE):
-        """
-        Initializes a LUT3D object with shape (size, size,size, 3).
-        size should be 2**n +1. Most common values are 17 and 33.
-        The 4th axis holds 3-uples (r,g,b) of integers evenly
-        distributed in the range 0..MAXLUTRGB (edges included) :
-        with step = MAXLUTRGB / (size - 1), we have
-        LUT3DArray(i, j, k) = (i*step, j*step, k*step).
-        Note that, with that initial LUT array, trilinear interpolation boils
-        down to identity : for all i,j,k in the range 0..255,
-        trilinear(i//step, j//step, k//step) = (i,j,k). See also the NOTE below.
-        @param size: integer value (should be 2**n+1)
-        @type size : int
-        @return: 3D LUT table
-        @rtype: LUT3D object shape (size, size, size, 3), dtype=int
-        """
-        step = MAXLUTRGB / (size - 1)
-        a = np.arange(size, dtype=np.float) * step  # TODO 09/04/18 validate dtype
-        c = cartesianProduct((a, a, a))
-        # clip to range 0..255 for the sake of consistency with Hald images.
-        # NOTE: trilinear interpolation applied to this clipped LUT is NOT exact identity.
-        c = np.clip(c, 0, 255)
-        return LUT3D(c, size=size)
-
-    @classmethod
-    def HaldImage2LUT3D(cls, hald, size=LUTSIZE):
-        """
-        Converts a hald image to a LUT3D object.
-        The pixel channels and the LUT axes are in BGR order
-        @param hald: image
-        @type hald: QImage
-        @param size: LUT size
-        @type size: int
-        @return: 3D LUT
-        @rtype: LUT3D object
-        """
-        buf = QImageBuffer(hald)
-        buf = buf[:,:,:3].ravel()
-        count = (size ** 3) * 3 # ((size - 1) ** 3) * 3
-        buf = buf[:count]
-        buf = buf.reshape((size, size, size, 3))
-        LUT = np.zeros((size, size, size, 3), dtype=int) + 255
-        LUT[:,:,:,:] = buf #buf[:,:,:,::-1] # TODO 13/09/18 validate
-        return LUT3D(LUT, size=size)
-
-    @classmethod
-    def HaldBuffer2LUT3D(cls, haldBuff, size=LUTSIZE):
-        buf = haldBuff
-        buf = buf[:, :, :3].ravel()
-        count = (size ** 3) * 3  # ((size - 1) ** 3) * 3
-        buf = buf[:count]
-        buf = buf.reshape((size, size, size, 3))
-        LUT = np.zeros((size, size, size, 3), dtype=int) + 255
-        LUT[:, :, :, :] = buf[:, :, :, ::-1]
-        return LUT3D(LUT, size=size)
-
-    @classmethod
-    def readFromTextStream(cls, inStream):
-        """
-        Reads a 3D LUT from a text stream in format .cube.
-        Values read should be between 0 and 1. They are
-        multiplied by 255 and converted to int.
-        As a consequence of he specification of the .cube format,
-        the channels of the LUT and the axes of the cube are both in BGR order.
-        @param inStream:
-        @type inStream:
-        @return: 3D LUT table and size
-        @rtype: 2-uple : ndarray dtype=np.float32, int
-        """
-        ##########
-        # header
-        #########
-        # We expect exactly 2 uncommented lines
-        # where the second is LUT_3D_SIZE xx
-        i = 0
-        while not inStream.atEnd():
-            line = inStream.readLine()
-            if line.startswith('#') or (len(line.lstrip()) == 0):
-                continue
-            i += 1
-            if i < 2:
-                continue
-            # get LUT size (second line format should be : Size xx)
-            token = line.split()
-            if len(token) >= 2:
-                _, size = token
-                break
-            else:
-                raise ValueError('Cannot find LUT size')
-        # LUT size
-        size = int(size)
-        bufsize = (size**3)*3
-        buf = np.zeros(bufsize, dtype=float)
-        #######
-        # LUT
-        ######
-        i = 0
-        while not inStream.atEnd():
-            line = inStream.readLine()
-            if line.startswith('#') or (len(line.lstrip()) == 0):
-                continue
-            token = line.split()
-            if len(token) >= 3:
-                a, b, c = token
-            else:
-                raise ValueError('Wrong file format')
-            # BGR order for channels
-            buf[i:i+3] = float(c), float(b), float(a)
-            i+=3
-        # sanity check
-        if i != bufsize:
-           raise ValueError('LUT size does not match line count')
-        buf *= 255.0
-        buf = buf.astype(int)
-        buf = buf.reshape(size,size,size,3)
-        # the specification of the .cube format
-        # gives BGR order for the cube axes (R-axis changing most rapidly)
-        # So, no transposition is needed.
-        # buf = buf.transpose(2, 1, 0, 3)  # TODO 07/09/18 removed validate
-        return buf, size
-
-    @classmethod
-    def readFromTextFile(cls, filename):
-        """
-        Reads 3D LUT from text file in format .cube.
-        Values read should be between 0 and 1. They are
-        multiplied by 255 and converted to int.
-        As a consequence of he specification of the .cube format,
-        the channels of the LUT and the axes of the cube are both in BGR order.
-        @param filename: 
-        @type filename: str
-        @return: 
-        """
-        qf = QFile(filename)
-        if not qf.open(QIODevice.ReadOnly):
-            raise IOError('cannot open file %s' % filename)
-        textStream = QTextStream(qf)
-        LUT3DArray, size = cls.readFromTextStream(textStream)
-        qf.close()
-        return LUT3DArray, size
-
-    @classmethod
-    def readFromHaldFile(cls, filename):
-        img = QImage(filename)
-        buf = QImageBuffer(img)[:,:,:3][:,:,::-1]
-        LUT = LUT3D.LUT3DFromFactory()
-        s = LUT.size
-        buf = buf.reshape(s-1, s-1,s-1,3)
-        LUT.LUT3DArray[:s-1,:s-1,:s-1] = buf
-        return LUT.LUT3DArray
-
-    def __init__(self, LUT3DArray, size=LUTSIZE):
-        # sanity check
-        if ((size - 1) & (size - 2)) != 0:
-            raise ValueError("LUT3D : size should be 2**n+1, found %d" % size)
-        self.LUT3DArray = LUT3DArray
-        self.size = size
-        # self.contrast = lambda p: p removed 06/09/18
-        self.step = MAXLUTRGB / (size - 1)  # TODO 06/09/18 python 3 : integer division changed to float division
-
-    def getHaldImage(self, w, h):
-        """
-        Converts a LUT3D object to a hald image.
-        A hald image can be viewed as a 3D LUT reshaped
-        as a 2D array.
-        The (self.size-1)**3 first pixels of the buffer are the LUT.
-        Remainings bytes are  0.
-        IMPORTANT : Hald channels, LUT channels and LUT axes must follow the same ordering (BGR or RGB).
-        To simplify, we only handle halds and LUTs of type BGR.
-        Note that the identity 3D LUT has both types.
-        w*h should be greater than LUTSIZE**3
-        @param w: image width
-        @type w: int
-        @param h: image height
-        @type h: int
-        @return: numpy array shape=(h,w,3), dtype=np.uint8
-        """
-        buf = np.zeros((w * h * 3), dtype=np.uint8)
-        s = self.size  # - 1
-        count = (s ** 3) * 3  # TODO clip LUT array to 0,255 ?
-        buf[:count] = self.LUT3DArray.ravel() # self.LUT3DArray[:, :, :, ::-1].ravel()  # TODO modified 13/09/18 validate
-        buf = buf.reshape(h, w, 3)
-        return buf
-
-    def writeToTextStream(self, outStream):
-        """
-        Writes 3D LUT to QTextStream in format .cube.
-        Values are divided by 255.
-        The 3D LUT must be in BGR order.
-        @param outStream: 
-        @type outStream: QTextStream
-        """
-        LUT=self.LUT3DArray
-        outStream << ('bLUe 3D LUT')<<'\n'
-        outStream << ('Size %d' % self.size)<<'\n'
-        coeff = 255.0
-        for b in range(self.size):
-            for g in range(self.size):
-                for r in range(self.size):
-                    #r1, g1, b1 = LUT[r, g, b]  # order RGB
-                    b1, g1, r1 = LUT[b, g, r]  # order BGR
-                    outStream << ("%.7f %.7f %.7f" % (r1 / coeff, g1 / coeff, b1 / coeff)) << '\n'
-
-    def writeToTextFile(self, filename):
-        """
-        Writes 3D LUT to QTextStream in format .cube.
-        Values are divided by 255.
-        The 3D LUT must be in BGR order.
-        @param filename:
-        @type filename:
-        @return:
-        @rtype:
-        """
-        qf = QFile(filename)
-        if not qf.open(QIODevice.WriteOnly):
-            raise IOError('cannot open file %s' % filename)
-        textStream = QTextStream(qf)
-        self.writeToTextStream(textStream)
-        qf.close()
-
 #####################################
-# Initializes a constant identity LUT3D object
-# For symmetry reasons, the LUT can be seen as RGB or BGR
+# Initializes LUT3D constants and objects used by bLUe
 #####################################
-LUT3DIdentity = LUT3D.LUT3DFromFactory()
+LUTSIZE = LUT3D.defaultSize
+LUT3DIdentity = LUT3D(None, size=LUTSIZE)
+LUTSTEP = LUT3DIdentity.step
 LUT3D_ORI = LUT3DIdentity.LUT3DArray
 a,b,c,d = LUT3D_ORI.shape
 LUT3D_SHADOW = np.zeros((a,b,c,d+1))
@@ -725,27 +483,11 @@ def interpMulti(LUT, LUTSTEP, ndImg, pool=None):
     # np.clip(outImg, 0, 255, out=outImg) # chunks are already clipped
     return outImg.astype(np.uint8)  # TODO 07/09/18 validate
 
-def interpVec_(LUT, ndImg, pool=None):
-    return interpTriLinear(LUT, LUTSTEP, ndImg)
-
-def interpTetraVec_(LUT, ndImg, pool=None):
-    return interpTetra(LUT, LUTSTEP, ndImg)
-
 if __name__=='__main__':
     size = 4000
     # random ints in range 0 <= x < 256
     b = np.random.randint(0,256, size=size*size*3, dtype=np.uint8)
     testImg = np.reshape(b, (size,size,3))
-    interpImg = interpTriLinear(LUT3D_ORI, LUTSTEP, testImg)
+    interpImg = interpTriLinear(LUT3DIdentity.LUT3DArray, LUT3DIdentity.step, testImg)
     d = testImg - interpImg
-    # Values different from 0 in d are caused
-    # by LUT3D_ORI being clipped to 255. (Cf. LUT3DFromFactory above).
-    if (d != 0.0).any():
-        print ("max deviation : ", np.max(np.abs(d)))
-
-
-
-
-
-
-
+    print ("max deviation : ", np.max(np.abs(d)))

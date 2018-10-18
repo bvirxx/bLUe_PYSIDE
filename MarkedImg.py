@@ -36,7 +36,7 @@ from bLUeInterp.trilinear import interpTriLinear
 
 from colorManagement import icc, convertQImage
 from imgconvert import *
-from colorCube import LUT3DIdentity, LUT3D, interpVec_, interpTetraVec_
+from colorCube import LUT3DIdentity, LUT3D
 from time import time
 
 from utils import dlgWarn, baseSignal_bool, baseSignal_Int2, qColorToRGB
@@ -749,7 +749,7 @@ class QLayer(vImage):
         if not self.cachesEnabled:
             return
         s = int((LUT3DIdentity.size) ** (3.0 / 2.0)) + 1
-        buf0 = LUT3DIdentity.getHaldImage(s, s)
+        buf0 = LUT3DIdentity.toHaldArray(s, s).haldBuffer
         #self.hald = QLayer(QImg=QImage(QSize(190,190), QImage.Format_ARGB32))
         self.hald = QImage(QSize(s, s), QImage.Format_ARGB32)
         buf1 = QImageBuffer(self.hald)
@@ -760,7 +760,7 @@ class QLayer(vImage):
     def getHald(self):
         if not self.cachesEnabled:
             s = int((LUT3DIdentity.size) ** (3.0 / 2.0)) + 1
-            buf0 = LUT3DIdentity.getHaldImage(s, s)
+            buf0 = LUT3DIdentity.toHaldArray(s, s).haldBuffer
             # self.hald = QLayer(QImg=QImage(QSize(190,190), QImage.Format_ARGB32))
             hald = QImage(QSize(s, s), QImage.Format_ARGB32)
             buf1 = QImageBuffer(hald)
@@ -1260,28 +1260,7 @@ class QLayerImage(QLayer):
         """
         return self.sourceImg.scaled(self.getCurrentImage().size())
 
-def apply3DLUTSliceCls(LUT, LUTSTEP, inputBuffer, imgBuffer, s ):
 
-    inputBuffer = inputBuffer[s[1], s[0], :]
-    imgBuffer = imgBuffer[:, :, :]
-    ndImg0 = inputBuffer[:, :, :3]
-    ndImg1 = imgBuffer[:, :, :3]
-    # apply LUT
-    start = time()
-    ndImg1[s[1], s[0], :] = interpTriLinear(LUT, LUTSTEP, ndImg0)
-    end = time()
-    #print 'Apply3DLUT time %.2f' % (end - start)
-
-def applyHaldCls(item):
-    """
-    Transforms a hald image into a 3DLUT object and applies
-    the 3D LUT to the current view of self.
-    """
-    # QImageBuffer(l.hald), QImageBuffer(l.inputImg()), QImageBuffer(l.getCurrentImage()), s
-    lut = LUT3D.HaldBuffer2LUT3D(item[0])
-    apply3DLUTSliceCls(lut.LUT3DArray, lut.step, item[1], item[2], item[3])
-    return item[2]
-    #img.apply3DLUT(lut.LUT3DArray, options={'use selection' : True})
 
 
 

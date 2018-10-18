@@ -785,7 +785,7 @@ class graphicsForm3DLUT(QGraphicsView) :
             QApplication.restoreOverrideCursor()
             QApplication.processEvents()
 
-    def __init__(self, cModel, targetImage=None, axeSize=500, LUTSize = LUTSIZE, layer=None, parent=None, mainForm=None):
+    def __init__(self, cModel, targetImage=None, axeSize=500, LUTSize=LUTSIZE, layer=None, parent=None, mainForm=None):
         """
         @param cModel: color space used by colorPicker, colorWheel and colorPicker
         @type cModel: cmConverter object
@@ -833,7 +833,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         else:
             self.graphicsScene.layer = weakref.proxy(layer)
         # LUT
-        freshLUT3D = LUT3D.LUT3DFromFactory(size=LUTSize)
+        freshLUT3D = LUT3D(None, size=LUTSize)
         self.graphicsScene.LUTSize, self.graphicsScene.LUTStep, self.graphicsScene.LUT3DArray = freshLUT3D.size, freshLUT3D.step, freshLUT3D.LUT3DArray
         # color wheel
         QImg = hueSatModel.colorWheel(axeSize, axeSize, cModel, perceptualBrightness=self.defaultColorWheelBr, border=border)
@@ -891,7 +891,6 @@ class graphicsForm3DLUT(QGraphicsView) :
         pushButton1 = QPushButton("Reset Grid")
         pushButton1.clicked.connect(self.onReset)
         pushButton2 = QPushButton("Save LUT")
-        pushButton2.clicked.connect(self.onReset)
         def saveLUT():
             lastDir = str(mainForm.settings.value('paths/dlgdir', '.'))
             dlg = QFileDialog(mainForm, "Save Color LUT", lastDir)
@@ -901,7 +900,7 @@ class graphicsForm3DLUT(QGraphicsView) :
                 filenames = dlg.selectedFiles()
                 newDir = dlg.directory().absolutePath()
                 mainForm.settings.setValue('paths/dlgdir', newDir)
-                LUT= LUT3D(self.graphicsScene.LUT3DArray, self.graphicsScene.LUTSize)
+                LUT = LUT3D(self.graphicsScene.LUT3DArray, size=self.graphicsScene.LUTSize)
                 LUT.writeToTextFile(filenames[0])
         pushButton2.clicked.connect(saveLUT)
 
@@ -1082,7 +1081,7 @@ the Color Chooser is closed.
         reset grid and LUT
         """
         # get a fresh LUT
-        self.graphicsScene.LUT3DArray = LUT3D.LUT3DFromFactory(size=self.graphicsScene.LUTSize).LUT3DArray
+        self.graphicsScene.LUT3DArray = LUT3D(None, size=self.graphicsScene.LUTSize).LUT3DArray
         # explode all node groups
         groupList = [item for item in self.grid.childItems() if type(item) is nodeGroup]
         for item in groupList:

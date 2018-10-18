@@ -19,16 +19,16 @@ import numpy as np
 
 def interpTriLinear(LUT, LUTSTEP, ndImg):
     """
-    Vectorized trilinear interpolation.
+    Converts a color image by interpolating the values in a 3D LUT array.
 
-    Convert a color image using a 3D LUT.
+    Implements a vectorized version of trilinear interpolation.
 
-    The output image is interpolated from the LUT.
-    It has the same type as the input image.
-    If d is the size of the LUT axes, all pixel colors to
-    interpolate must be in the (right opened) interval [0, (d - 1) * LUTSTEP[
-    and all values in the LUT must be in range 0..255.
-    The orders of LUT axes, LUT channels and image channels must match together.
+    The output image has the same type as the input image.
+    All pixel colors to interpolate must be in the (right opened)
+    interval [0, (s - 1) * LUTSTEP[, with s denoting the size of the LUT axes,
+    All values in the LUT should be in range 0..255.
+    The role (R or G or B) of the LUT axes follows the ordering of color channels.
+
     @param LUT: 3D LUT array
     @type LUT: ndarray, dtype float or int (faster)
     @param LUTSTEP: interpolation step
@@ -38,7 +38,8 @@ def interpTriLinear(LUT, LUTSTEP, ndImg):
     @return: RGB image with the same type as the input image
     @rtype: ndarray dtype=np.uint8
     """
-    # As interpolation computes differences, we switch to a signed type.
+    # As interpolation computes differences, we switch to a signed type,
+    # minimizing memory usage and implicit conversions.
     LUT = LUT.astype(np.int16)
     # We will use the bounding unit cube around each point (r, g, b)/LUTSTEP :
     # get its vertex closest to the origin and the corresponding channel colors.

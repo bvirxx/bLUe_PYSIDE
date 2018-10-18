@@ -147,10 +147,10 @@ from graphicsRaw import rawForm
 from graphicsTransform import transForm, imageForm
 from imgconvert import *
 from versatileImg import vImage, metadataBag
-from MarkedImg import imImage, QLayerImage, QLayer
+from MarkedImg import imImage
 from graphicsRGBLUT import graphicsForm
 from graphicsLUT3D import graphicsForm3DLUT
-from colorCube import LUTSIZE, LUT3D, LUT3DIdentity, MAXLUTRGB
+from colorCube import LUTSIZE, LUT3D, LUT3DIdentity
 from colorModels import cmHSP, cmHSB
 from colorManagement import icc
 from graphicsCoBrSat import CoBrSatForm
@@ -1413,10 +1413,7 @@ def menuLayer(name):
             filenames = dlg.selectedFiles()
             name = filenames[0]
             try:
-                LUT3DArray, size = LUT3D.readFromTextFile(name)
-                LUTSTEP = MAXLUTRGB / (size - 1)
-                if not LUTSTEP.is_integer():
-                    raise ValueError('Wrong size %d' % size)
+                lut = LUT3D.readFromTextFile(name)
             except (ValueError, IOError) as e:
                 dlgWarn('Unable to load 3D LUT : ', info=str(e))
                 return
@@ -1427,7 +1424,7 @@ def menuLayer(name):
                 print('launching process pool...', end='')
                 pool = multiprocessing.Pool(POOL_SIZE)
                 print('done')
-            l.execute = lambda l=l, pool=pool: l.tLayer.apply3DLUT(LUT3DArray, LUTSTEP, {'use selection': False}, pool=pool)
+            l.execute = lambda l=l, pool=pool: l.tLayer.apply3DLUT(lut.LUT3DArray, lut.step, {'use selection': False}, pool=pool)
             window.tableView.setLayers(window.label.img)
             l.applyToStack()
             # The resulting image is modified,
@@ -1440,7 +1437,7 @@ def menuLayer(name):
         # get current size
         s = (img.getCurrentImage()).size()
         # build input hald image from identity 3D LUT; channels are in BGR order
-        buf = LUT3DIdentity.getHaldImage(s.width(), s.height())
+        buf = LUT3DIdentity.toHaldArray(s.width(), s.height()).haldBuffer
         # add hald to stack, on top of  background
         layer = img.addLayer(None, name='Hald', index=1)
         try:
@@ -1451,7 +1448,7 @@ def menuLayer(name):
             layer.applyToStack()
             processedImg = img.prLayer.inputImg()
             # convert the output hald to a LUT3D object in BGR order
-            LUT = LUT3D.HaldImage2LUT3D(processedImg, size=LUT3DIdentity.size)
+            LUT = LUT3D.HaldBuffer2LUT3D(QImageBuffer(processedImg), LUT3DIdentity.size)
             # write LUT to file
             lastDir = str(window.settings.value('paths/dlg3DLUTdir', '.'))
             dlg = QFileDialog(window, "select", lastDir)

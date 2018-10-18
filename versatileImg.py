@@ -40,14 +40,12 @@ from graphicsBlendFilter import blendFilterIndex
 from graphicsFilter import filterIndex
 from histogram import warpHistogram
 from imgconvert import *
-from colorCube import interpMulti, rgb2hspVec, hsp2rgbVec, LUT3DIdentity, LUT3D, interpVec_, hsv2rgbVec, \
-    interpTetraVec_
+from colorCube import interpMulti, rgb2hspVec, hsp2rgbVec, LUT3DIdentity, hsv2rgbVec
 from time import time
 
 from kernel import getKernel
 from settings import USE_TETRA
-from utils import SavitzkyGolay, channelValues, checkeredImage, boundingRect, dlgWarn, baseSignal_bool, baseSignal_Int2, \
-    qColorToRGB
+from utils import SavitzkyGolay, channelValues, checkeredImage, boundingRect, dlgWarn
 from dwtdenoise import dwtDenoiseChan
 
 class ColorSpace:
@@ -394,7 +392,7 @@ class vImage(QImage):
         if not self.cachesEnabled:
             return
         s = int((LUT3DIdentity.size )**(3.0/2.0)) + 1
-        buf0 = LUT3DIdentity.getHaldImage(s, s)
+        buf0 = LUT3DIdentity.toHaldArray(s, s).haldBuffer
         buf1 = QImageBuffer(self.Hald)
         buf1[:,:,:]=buf0
         buf1[:, :, 3] = 255  # TODO added 15/11/17 for coherence with the overriding function QLayer.initHald()
