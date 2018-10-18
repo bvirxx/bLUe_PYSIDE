@@ -450,10 +450,10 @@ def hsp2rgbVecSmall(hspImg):  # TODO 22/07/18 unused ?
 
 def interpMulti(LUT, LUTSTEP, ndImg, pool=None):
     """
-    parallel trilinear/tetrahedral interpolation.
-    Should be compared to the vectorized version interpVec_.
+    Parallel trilinear/tetrahedral interpolation.
     Converts a color image using a 3D LUT.
-    The orders of LUT axes, LUT channels and image channels must match.
+    The roles (R or G or B) of the three first LUT channels
+    must follow the ordering of the color channels.
     The output image is interpolated from the LUT.
     It has the same type as the input image.
     @param LUT: 3D LUT array
