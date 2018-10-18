@@ -1252,7 +1252,7 @@ def menuLayer(name):
             pool = multiprocessing.Pool(POOL_SIZE)
             print('done')
         sc = grWindow.scene()
-        l.execute = lambda l=l, pool=pool: l.tLayer.apply3DLUT(sc.LUT3DArray, sc.LUTStep, options=sc.options, pool=pool)
+        l.execute = lambda l=l, pool=pool: l.tLayer.apply3DLUT(sc.lut.LUT3DArray, sc.lut.step, options=sc.options, pool=pool)
     # cloning
     elif name == 'actionNew_Cloning_Layer':
         lname = 'Cloning'
@@ -1461,6 +1461,7 @@ def menuLayer(name):
                 newDir = dlg.directory().absolutePath()
                 window.settings.setValue('paths/dlg3DLUTdir', newDir)
                 LUT.writeToTextFile(filenames[0])
+                dlgInfo('3D LUT written')
         except (ValueError, IOError) as e:
             dlgWarn(str(e))
         finally:

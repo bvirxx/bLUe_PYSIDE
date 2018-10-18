@@ -33,8 +33,7 @@ class haldArray(object):
         """
         self.size = size
         self. haldBuffer = haldBuffer
-       # directly inheriting from object
-       # super().__init__()
+        super().__init__()
 
 class LUT3D (object):
     """
@@ -225,8 +224,7 @@ class LUT3D (object):
             s0 = (size, size, size, 3)
             if s != s0:
                 raise ValueError("LUT3D : array shape should be (%d,%d,%d,%d)" % s0)
-        # directly inheriting from object
-        # super().__init__()
+        super().__init__()
 
     def toHaldArray(self, w, h):
         """

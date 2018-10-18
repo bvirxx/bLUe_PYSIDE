@@ -6,11 +6,11 @@ Copyright (C) 2017-2018 Bernard Virot <bernard.virot@libertysurf.fr>
 
  bLUe is a complete GUI environment for photo edition. It can edit images in all
 usual formats : jpg, png, tif, including raw files: nef, cr2, dng.
-bLUe proposes a wide set of adjustment layers:
+bLUe proposes a large set of adjustment layers:
 exposure, brightness, saturation, contrast, color temperature, inversion, filters, noise reduction, cloning,
-segmentation, 1D LUTs and 3D LUTs editors.
+segmentation, 1D LUTs and 3D LUTs.
 
-Layer stacks can be saved as 3D LUTs, making bLUe a powerful 3D LUT builder.
+Layer stacks can be saved as 3D LUTs, making bLUe a powerful 3D LUT editor.
 It imports and exports 3D LUTs in .cube format.
 
  1D LUT are represented by curves. Curves are applied to each color channel individually.

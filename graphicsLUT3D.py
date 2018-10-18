@@ -32,7 +32,7 @@ from colorCube import LUTSIZE, LUTSTEP, LUT3D_SHADOW, LUT3D_ORI, LUT3D
 from MarkedImg import QLayer, vImage
 from colorModels import hueSatModel, pbModel
 from imgconvert import QImageBuffer
-from utils import optionsWidget
+from utils import optionsWidget, dlgWarn, dlgInfo
 
 # node blocking factor
 spread = 1
@@ -374,7 +374,7 @@ class activeNode(QGraphicsPathItem):
             (i,j,k) = x.ind
             p=x.p
             nbghd = LUT3D_ORI[max(k-spread,0):k+spread+1, max(j-spread,0):j+spread+1, max(i-spread,0):i+spread+1, ::-1]
-            trgNbghd = self.scene().LUT3DArray[max(k-spread,0):k+spread+1, max(j-spread,0):j+spread+1, max(i-spread,0):i+spread+1, ::-1]
+            trgNbghd = self.scene().lut.LUT3DArray[max(k-spread,0):k+spread+1, max(j-spread,0):j+spread+1, max(i-spread,0):i+spread+1, ::-1]
             trgNbghd[...] = np.clip(nbghd + (np.array(self.cModel.cm2rgb(hue, sat, p)) - LUT3D_ORI[k, j, i, ::-1]), 0, 255)
             #self.scene().LUT3D[max(k-spread,0):k+spread+1, max(j-spread,0):j+spread+1, max(i-spread,0):i+spread+1, ::-1] = np.clip(LUT3D_ORI[max(k-spread,0):k+spread+1, max(j-spread,0):j+spread+1, max(i-spread,0):i+spread+1, ::-1] + (np.array(hsp2rgb(hue, sat, contrast(p))) - LUT3D_ORI[k, j , i,::-1]),0,255)
 
@@ -801,6 +801,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         @type parent:
         """
         super().__init__(parent=parent)
+        self.mainForm = mainForm  # used by saveLUT()
         # context help tag
         self.helpId = "LUT3DForm"
         self.cModel = cModel
@@ -820,7 +821,6 @@ class graphicsForm3DLUT(QGraphicsView) :
             self.layer = layer
         else:
             self.layer = weakref.proxy(layer)
-        self.mainForm = mainForm
         # currently selected grid node
         self.selected = None
         #self.bgPixmap = QPixmap.fromImage(self.QImg)
@@ -834,7 +834,8 @@ class graphicsForm3DLUT(QGraphicsView) :
             self.graphicsScene.layer = weakref.proxy(layer)
         # LUT
         freshLUT3D = LUT3D(None, size=LUTSize)
-        self.graphicsScene.LUTSize, self.graphicsScene.LUTStep, self.graphicsScene.LUT3DArray = freshLUT3D.size, freshLUT3D.step, freshLUT3D.LUT3DArray
+        #self.graphicsScene.LUTSize, self.graphicsScene.LUTStep, self.graphicsScene.LUT3DArray = freshLUT3D.size, freshLUT3D.step, freshLUT3D.LUT3DArray
+        self.graphicsScene.lut = freshLUT3D
         # color wheel
         QImg = hueSatModel.colorWheel(axeSize, axeSize, cModel, perceptualBrightness=self.defaultColorWheelBr, border=border)
         self.graphicsScene.colorWheel = colorPicker(cModel, QImg, target=self.targetImage, size=axeSize, border=border)
@@ -884,25 +885,14 @@ class graphicsForm3DLUT(QGraphicsView) :
         #self.setRenderHints(QPainter.Antialiasing | QPainter.SmoothPixmapTransform)
 
         # grid
-        self.grid = activeGrid(self.graphicsScene.LUTSize, self.cModel, parent=self.graphicsScene.colorWheel)
+        self.grid = activeGrid(self.graphicsScene.lut.size, self.cModel, parent=self.graphicsScene.colorWheel)
         self.graphicsScene.grid = self.grid
 
         # buttons
         pushButton1 = QPushButton("Reset Grid")
         pushButton1.clicked.connect(self.onReset)
         pushButton2 = QPushButton("Save LUT")
-        def saveLUT():
-            lastDir = str(mainForm.settings.value('paths/dlgdir', '.'))
-            dlg = QFileDialog(mainForm, "Save Color LUT", lastDir)
-            dlg.setNameFilter('*.cube')
-            dlg.setDefaultSuffix('cube')
-            if dlg.exec_():
-                filenames = dlg.selectedFiles()
-                newDir = dlg.directory().absolutePath()
-                mainForm.settings.setValue('paths/dlgdir', newDir)
-                LUT = LUT3D(self.graphicsScene.LUT3DArray, size=self.graphicsScene.LUTSize)
-                LUT.writeToTextFile(filenames[0])
-        pushButton2.clicked.connect(saveLUT)
+        pushButton2.clicked.connect(self.saveLUT)
 
         # options
         self.graphicsScene.options = {'use selection': True, 'add node':True, 'select neighbors':True,
@@ -1009,7 +999,7 @@ the Color Chooser is closed.
         @param b: color
         """
         #w = self.grid.size
-        w = self.graphicsScene.LUTStep
+        w = self.graphicsScene.lut.step
 
         # surrounding cube
         # LUTNeighborhood = [(i,j,k) for i in [r/w, (r/w)+1] for j in [g/w, (g/w)+1] for k in [b/w, (b/w)+1]]
@@ -1081,7 +1071,7 @@ the Color Chooser is closed.
         reset grid and LUT
         """
         # get a fresh LUT
-        self.graphicsScene.LUT3DArray = LUT3D(None, size=self.graphicsScene.LUTSize).LUT3DArray
+        self.graphicsScene.lut = LUT3D(None, size=self.graphicsScene.lut.size)
         # explode all node groups
         groupList = [item for item in self.grid.childItems() if type(item) is nodeGroup]
         for item in groupList:
@@ -1095,13 +1085,37 @@ the Color Chooser is closed.
         self.layer.applyToStack()
         self.layer.parentImage.window.repaint()
 
+    def saveLUT(self):
+        """
+
+        @param lut: 3D LUT
+        @type lut: LUT3D object
+        @param mainForm:
+        @type mainForm:
+        """
+        mainForm = self.mainForm
+        lut = self.scene().lut
+        lastDir = str(mainForm.settings.value('paths/dlg3DLUTdir', '.'))
+        dlg = QFileDialog(mainForm, "Save Color LUT", lastDir)
+        dlg.setNameFilter('*.cube')
+        dlg.setDefaultSuffix('cube')
+        try:
+            if dlg.exec_():
+                filenames = dlg.selectedFiles()
+                newDir = dlg.directory().absolutePath()
+                mainForm.settings.setValue('paths/dlg3DLUTdir', newDir)
+                lut.writeToTextFile(filenames[0])
+                dlgInfo('3D LUT written')
+        except IOError as e:
+            dlgWarn(str(e))
+
     def writeToStream(self, outStream):
         layer = self.layer
         outStream.writeQString(layer.actionName)
         outStream.writeQString(layer.name)
         outStream.writeInt32(self.graphicsScene.LUTSize)
-        outStream.writeInt32(self.graphicsScene.LUTStep)
-        byteData = self.graphicsScene.LUT3DArray.tostring()
+        outStream.writeInt32(self.graphicsScene.lut.step)
+        byteData = self.graphicsScene.lut.LUT3DArray.tostring()
         outStream.writeInt32(len(byteData))
         outStream.writeRawData(byteData)
         return outStream
@@ -1111,8 +1125,8 @@ the Color Chooser is closed.
         name = inStream.readQString()
         size = inStream.readInt32()
         self.graphicsScene.LUTsize = size
-        self.graphicsScene.LUTstep = inStream.readInt32()
+        self.graphicsScene.lut.step = inStream.readInt32()
         l = inStream.readInt32()
         byteData = inStream.readRawData(l)
-        self.graphicsScene.LUT3DArray = np.fromstring(byteData, dtype=int).reshape((size, size, size, 3))
+        self.graphicsScene.lut.LUT3DArray = np.fromstring(byteData, dtype=int).reshape((size, size, size, 3))
         return inStream
