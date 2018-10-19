@@ -23,7 +23,7 @@ from PySide2.QtWidgets import QHBoxLayout, QPushButton, QWidget, QSizePolicy, QV
 
 from MarkedImg import vImage
 from QtGui1 import window
-from graphicsLUT import baseForm
+from bLUeGui.graphicsSpline import baseForm
 from utils import optionsWidget
 
 class segmentForm(baseForm):

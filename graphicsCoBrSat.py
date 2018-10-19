@@ -22,7 +22,8 @@ from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QGroupBox
 
-from graphicsLUT import graphicsQuadricForm, baseForm
+from graphicsLUT import graphicsQuadricForm
+from bLUeGui.graphicsSpline import baseForm
 from utils import optionsWidget, QbLUeSlider, UDict, QbLUeLabel, stateAwareQDockWidget
 
 

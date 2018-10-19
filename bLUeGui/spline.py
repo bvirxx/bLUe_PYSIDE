@@ -61,21 +61,6 @@ def interpolationQuadSpline(a, b, d, plot=False):
     assert np.all(t<=1)
     # tabulate spline
     T = b[k-1] + (r[k]*t*t + d[k-1]*(1-t)*t)*(b[k]-b[k-1]) / (r[k]+(d[k]+d[k-1] - 2*r[k])*(1-t)*t)
-    """
-    if plot:
-        #import matplotlib
-        matplotlib.use('Agg')
-        import matplotlib.pyplot as plt
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        M = np.int(a[-1]*255)
-        ax.plot(T*255)
-        ax.plot([i for i in range(256)])
-        ax.plot(a*255, b*255, 'ro')
-        #ax.plot(a*255, a*255, 'bo')
-        fig.savefig('temp.png')
-        plt.close()
-    """
     return T
 
 
@@ -168,9 +153,3 @@ def interpolationCubSpline(X, Y, clippingInterval=None):
         minY, maxY = clippingInterval[0], clippingInterval[1]
         yValues = np.clip(yValues, minY, maxY)
     return [QPointF(x,y) for x,y in zip(xValues, yValues)]
-
-
-
-
-
-

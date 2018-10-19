@@ -4,7 +4,7 @@ from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout
 
-from graphicsLUT import baseForm
+from bLUeGui.graphicsSpline import baseForm
 from utils import QbLUeSlider, QbLUeLabel
 
 

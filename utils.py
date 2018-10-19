@@ -211,11 +211,6 @@ def movingVariance(a, winsize, version='kernel'):
         f2 = movingAverage(a*a, winsize, version=version)
         return f2-f1*f1
 
-class channelValues():
-    RGB, Red, Green, Blue =[0,1,2], [0], [1], [2]
-    HSB, Hue, Sat, Br = [0, 1, 2], [0], [1], [2]
-    Lab, L, a, b = [0, 1, 2], [0], [1], [2]
-
 def demosaic(raw_image_visible, raw_colors_visible, black_level_per_channel):
     """
     demosaic a sensor bitmap. The input array raw_image_visble has the same dimensions as the image,
@@ -434,7 +429,9 @@ class QbLUeColorDialog(QColorDialog):
 
 class QbLUeSlider(QSlider):
     """
-    Enhanced QSlider
+    Enhanced QSlider.
+    Overrides mousepressevent to update the slider
+    value with a single jump when clicking.
     """
     bLueSliderDefaultColorStylesheet = """QSlider::groove:horizontal:enabled {margin: 3px; 
                                               background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 blue, stop:1 red);}
@@ -462,18 +459,20 @@ class QbLUeSlider(QSlider):
                               QSlider::handle:horizontal:hover {background: #DDDDFF;}""")
 
     def mousePressEvent(self, event):
-        # To prevent possible successive jumps, we catch mouse press events too far from
-        # the handle and we force the value. A signal valueChanged is emitted; it can be
-        # differentiated by testing that isSliderDown() returns False.
-        # CAUTION: not any signal mouseReleased is emitted, .
-        pressVal = QStyle.sliderValueFromPosition(self.minimum(), self.maximum(), event.x(), self.width(), 0)  # 0 is for horizontal slider
-        if abs(pressVal - self.value()) > 7:  # BV was 2, set to 7 to prevent jumps around max position
+        """
+        Updates the slider value with a single jump when clicking.
+
+        @param event:
+        @type event:
+        """
+        pressVal = QStyle.sliderValueFromPosition(self.minimum(), self.maximum(), event.x(), self.width(), 0)  # 0 is for horizontal slider only
+        if abs(pressVal - self.value()) > 7:  # 7 to prevent jumps around max position
             self.setValue(pressVal)
             return
         super().mousePressEvent(event)
 
     def setStyleSheet(self, sheet):
-        QSlider.setStyleSheet(self, self.styleSheet() + sheet)
+        super().setStyleSheet(self.styleSheet() + sheet)
 
 class QbLUeLabel(QLabel):
     """

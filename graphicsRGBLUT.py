@@ -20,8 +20,8 @@ from PySide2.QtCore import QRect
 from PySide2.QtCore import Qt, QRectF
 from PySide2.QtWidgets import QPushButton, QGraphicsScene
 
-from graphicsLUT import activeCubicSpline, graphicsCurveForm, activePoint
-from utils import optionsWidget, channelValues
+from bLUeGui.graphicsSpline import activeCubicSpline, graphicsCurveForm, activePoint, channelValues
+from utils import optionsWidget
 
 class graphicsForm(graphicsCurveForm) :
     """

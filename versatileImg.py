@@ -45,8 +45,10 @@ from time import time
 
 from kernel import getKernel
 from settings import USE_TETRA
-from utils import SavitzkyGolay, channelValues, checkeredImage, boundingRect, dlgWarn
+from utils import SavitzkyGolay, checkeredImage, boundingRect, dlgWarn
 from dwtdenoise import dwtDenoiseChan
+
+from bLUeGui.graphicsSpline import channelValues
 
 class ColorSpace:
     notSpecified = -1; sRGB = 1

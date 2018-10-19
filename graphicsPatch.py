@@ -22,7 +22,7 @@ from PySide2.QtCore import Qt
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QComboBox
 
 from MarkedImg import vImage
-from graphicsLUT import baseForm
+from bLUeGui.graphicsSpline import baseForm
 from utils import optionsWidget, dlgWarn
 
 
