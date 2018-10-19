@@ -24,7 +24,7 @@ from imgconvert import QImageBuffer
 
 class cmConverter(object):
     """
-    Gather conversion functions for color space<-->RGB
+    Gather conversion functions color space<-->RGB
     """
 
     def __init__(self):

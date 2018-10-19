@@ -21,22 +21,21 @@ import weakref
 
 from os.path import isfile
 
-from PySide2.QtCore import Qt, QDataStream, QFile, QIODevice, QSize, QPoint, QRectF, QMargins
+from PySide2.QtCore import Qt, QDataStream, QFile, QIODevice, QSize, QPoint
 
 import cv2
 from copy import copy
 
-from PySide2.QtGui import QTransform
+from PySide2.QtGui import QTransform, QColor
 from PySide2.QtWidgets import QApplication
 from PySide2.QtGui import QPixmap, QImage, QPainter
 from PySide2.QtCore import QRect
 
 import exiftool
-from bLUeInterp.trilinear import interpTriLinear
 
 from colorManagement import icc, convertQImage
 from imgconvert import *
-from colorCube import LUT3DIdentity, LUT3D
+from colorCube import LUT3DIdentity
 from time import time
 
 from utils import dlgWarn, baseSignal_bool, baseSignal_Int2, qColorToRGB

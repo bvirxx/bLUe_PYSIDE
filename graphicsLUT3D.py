@@ -29,7 +29,8 @@ from PySide2.QtGui import QImage
 from PySide2.QtWidgets import QMenu, QRubberBand
 
 from colorCube import LUTSIZE, LUTSTEP, LUT3D_SHADOW, LUT3D_ORI, LUT3D
-from MarkedImg import QLayer, vImage
+from MarkedImg import QLayer
+from versatileImg import vImage
 from colorModels import hueSatModel, pbModel
 from imgconvert import QImageBuffer
 from utils import optionsWidget, dlgWarn, dlgInfo

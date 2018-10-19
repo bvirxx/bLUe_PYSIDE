@@ -28,12 +28,11 @@ from PySide2 import QtCore
 from PySide2.QtGui import QColor, QImage, QPainter, QPixmap, QIcon
 from PySide2.QtWidgets import QListWidget, QListWidgetItem, QDialog, QVBoxLayout, \
     QFileDialog, QSlider, QWidget, QHBoxLayout, QLabel, QMessageBox, QPushButton, QDockWidget, QStyle, QColorDialog
-from PySide2.QtCore import Qt, QObject, QRect, QDir, QPointF
+from PySide2.QtCore import Qt, QObject, QRect, QDir
 from os.path import isfile, basename
 from itertools import product
 from numpy.lib.stride_tricks import as_strided
 
-import exiftool
 from imgconvert import QImageBuffer
 
 ##################
@@ -765,6 +764,7 @@ class loader(threading.Thread):
         # If wdg internal C++ object was destroyed by main thread (form closing)
         # a RuntimeError exception is raised and causes thread termination too.
         # Thus, no further synchronization is needed.
+        import exiftool
         with exiftool.ExifTool() as e:
             while True:
                 try:
