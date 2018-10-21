@@ -34,7 +34,7 @@ from bLUeInterp.trilinear import interpTriLinear
 from lutUtils import LUTSIZE, LUTSTEP, LUT3D_SHADOW, LUT3D_ORI
 from versatileImg import vImage
 from bLUeGui.colorPatterns import hueSatPattern, brightnessPattern
-from imgconvert import QImageBuffer
+from bLUeGui.bLUeImage import QImageBuffer
 from utils import optionsWidget, dlgWarn, dlgInfo
 
 

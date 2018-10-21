@@ -41,13 +41,14 @@ from graphicsBlendFilter import blendFilterIndex
 from graphicsFilter import filterIndex
 from histogram import warpHistogram
 from imgconvert import *
+from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.colorCube import rgb2hspVec, hsp2rgbVec, hsv2rgbVec
 from bLUeInterp.multi import interpMulti
 from time import time
 
 from kernel import getKernel
 from settings import USE_TETRA
-from utils import SavitzkyGolay, checkeredImage, boundingRect, dlgWarn
+from utils import SavitzkyGolay, boundingRect, dlgWarn
 from dwtdenoise import dwtDenoiseChan
 
 from bLUeGui.graphicsSpline import channelValues

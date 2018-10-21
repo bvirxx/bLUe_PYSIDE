@@ -19,8 +19,7 @@ import numpy as np
 from bLUeGui.colorCube import hsv2rgbVec, hsp2rgb, rgb2hsp, rgb2hspVec, hsv2rgb, rgb2hsB, rgb2hsBVec, hsp2rgbVec
 from PySide2.QtGui import QImage
 
-from imgconvert import QImageBuffer
-from bLUeGui.bLUeImage import bImage
+from bLUeGui.bLUeImage import bImage, QImageBuffer
 
 class cmConverter(object):
     """

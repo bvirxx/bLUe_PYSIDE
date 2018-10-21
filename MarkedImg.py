@@ -35,6 +35,7 @@ import exiftool
 
 from colorManagement import icc, convertQImage
 from imgconvert import *
+from bLUeGui.bLUeImage import QImageBuffer
 from time import time
 
 from utils import dlgWarn, baseSignal_bool, baseSignal_Int2, qColorToRGB

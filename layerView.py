@@ -26,7 +26,7 @@ from PySide2.QtWidgets import QAction, QMenu, QSlider, QStyle, QCheckBox, QMessa
 from PySide2.QtWidgets import QComboBox, QHBoxLayout, QLabel, QTableView, QAbstractItemView, QStyledItemDelegate, QHeaderView, QVBoxLayout
 import resources_rc  # hidden import mandatory : DO NOT REMOVE !!!
 import QtGui1
-from imgconvert import QImageBuffer
+from bLUeGui.bLUeImage import QImageBuffer
 from utils import openDlg, dlgWarn, QbLUeSlider
 
 

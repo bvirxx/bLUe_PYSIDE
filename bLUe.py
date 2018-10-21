@@ -146,6 +146,7 @@ from graphicsNoise import noiseForm
 from graphicsRaw import rawForm
 from graphicsTransform import transForm, imageForm
 from imgconvert import *
+from bLUeGui.bLUeImage import QImageBuffer, QImageFormats
 from versatileImg import vImage, metadataBag
 from MarkedImg import imImage
 from graphicsRGBLUT import graphicsForm

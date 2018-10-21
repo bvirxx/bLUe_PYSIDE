@@ -33,7 +33,7 @@ from os.path import isfile, basename
 from itertools import product
 from numpy.lib.stride_tricks import as_strided
 
-from imgconvert import QImageBuffer
+from bLUeGui.bLUeImage import QImageBuffer
 
 ##################
 # file extension constants
