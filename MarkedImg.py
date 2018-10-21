@@ -35,7 +35,6 @@ import exiftool
 
 from colorManagement import icc, convertQImage
 from imgconvert import *
-from colorCube import LUT3DIdentity
 from time import time
 
 from utils import dlgWarn, baseSignal_bool, baseSignal_Int2, qColorToRGB
@@ -1150,6 +1149,7 @@ class QPresentationLayer(QLayer):
     """
 
     def __init__(self, *args, **kwargs):
+        self.qPixmap = None
         self.cmImage = None
         super().__init__(*args, **kwargs)
 

@@ -150,8 +150,8 @@ from versatileImg import vImage, metadataBag
 from MarkedImg import imImage
 from graphicsRGBLUT import graphicsForm
 from graphicsLUT3D import graphicsForm3DLUT
-from colorCube import LUTSIZE, LUT3D, LUT3DIdentity
-from colorModels import cmHSP, cmHSB
+from lutUtils import LUTSIZE, LUT3D, LUT3DIdentity
+from bLUeGui.colorPatterns import cmHSP, cmHSB
 from colorManagement import icc
 from graphicsCoBrSat import CoBrSatForm
 from graphicsExp import ExpForm

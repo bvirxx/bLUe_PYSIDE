@@ -15,16 +15,9 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-from functools import partial
 import cv2
 import gc
 import numpy as np
-
-from bLUeInterp.bLUeLUT3D import LUT3D
-from bLUeInterp.tetrahedral import interpTetra
-from bLUeInterp.trilinear import interpTriLinear
-
-from settings import USE_TETRA
 
 ######################################
 # Weights for perceptual brightness
@@ -39,17 +32,6 @@ Perc_B=0.0722
 Perc_R=0.2338
 Perc_G=0.6880
 Perc_B=0.0782
-
-#####################################
-# Initializes LUT3D constants and objects used by bLUe
-#####################################
-LUTSIZE = LUT3D.defaultSize
-LUT3DIdentity = LUT3D(None, size=LUTSIZE)
-LUTSTEP = LUT3DIdentity.step
-LUT3D_ORI = LUT3DIdentity.LUT3DArray
-a,b,c,d = LUT3D_ORI.shape
-LUT3D_SHADOW = np.zeros((a,b,c,d+1))
-LUT3D_SHADOW[:,:,:,:3] = LUT3D_ORI
 
 def rgb2hsp(r, g, b):
     return rgb2hsB(r,g,b, perceptual=True)
@@ -406,7 +388,7 @@ def hsp2rgbVecSmall(hspImg):  # TODO 22/07/18 unused ?
 
     X1 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_R * Mm2 + Perc_G * part1 + Perc_B))   # b
     Y1 = np.where(Mm==np.inf, p / np.sqrt(Perc_R+ Perc_G * f *f), X1 * Mm)              # r
-    #Z1 = np.where(Mm==np.inf, Y1 * f, X1 + f * (Y1 - X1))                               # g  # TODO 12/04/18 validate removal of Zi, clist, order 
+    #Z1 = np.where(Mm==np.inf, Y1 * f, X1 + f * (Y1 - X1))                               # g  # TODO 12/04/18 validate removal of Zi, clist, order
 
     X2 = np.where(Mm==np.inf, 0, p / np.sqrt(Perc_G * Mm2 + Perc_R * part2 + Perc_B))   # b
     Y2 = np.where(Mm==np.inf, p / np.sqrt(Perc_G + Perc_R * (1-f) * (1-f)), X2 * Mm)    # g
@@ -448,46 +430,3 @@ def hsp2rgbVecSmall(hspImg):  # TODO 22/07/18 unused ?
     rgb1=cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
     return rgb1.reshape(shape + (3,))
 
-def interpMulti(LUT, LUTSTEP, ndImg, pool=None):
-    """
-    Parallel trilinear/tetrahedral interpolation.
-    Converts a color image using a 3D LUT.
-    The roles (R or G or B) of the three first LUT channels
-    must follow the ordering of the color channels.
-    The output image is interpolated from the LUT.
-    It has the same type as the input image.
-    @param LUT: 3D LUT array
-    @type LUT: ndarray, dtype=np.float
-    @param ndImg: image array, RGB channels
-    @type ndImg: ndarray dtype=np.uint8
-    @return: RGB image with same type as the input image
-    @rtype: ndarray dtype=np.uint8
-    """
-    w, h = ndImg.shape[1], ndImg.shape[0]
-    SLF = 4
-    sl_w = [slice((w * i) // SLF, (w * (i+1)) // SLF) for i in range(SLF)]  # python 3 // for integer quotient
-    sl_h = [slice((h * i) // SLF, (h * (i + 1)) // SLF) for i in range(SLF)]
-
-    slices = [ (s1, s2) for s1 in sl_w for s2 in sl_h]
-    imgList = [ndImg[s2, s1] for s1, s2 in slices]
-    if pool is None:
-        raise ValueError('interpMulti: no processing pool')
-    # get vectorized interpolation as partial function
-    partial_f = partial(interpTetra if USE_TETRA else interpTriLinear, LUT, LUTSTEP)
-    # parallel interpolation
-    res = pool.map(partial_f, imgList)
-    outImg = np.empty(ndImg.shape)
-    # collect results
-    for i, (s1, s2) in enumerate(slices):
-            outImg[s2, s1] = res[i]
-    # np.clip(outImg, 0, 255, out=outImg) # chunks are already clipped
-    return outImg.astype(np.uint8)  # TODO 07/09/18 validate
-
-if __name__=='__main__':
-    size = 4000
-    # random ints in range 0 <= x < 256
-    b = np.random.randint(0,256, size=size*size*3, dtype=np.uint8)
-    testImg = np.reshape(b, (size,size,3))
-    interpImg = interpTriLinear(LUT3DIdentity.LUT3DArray, LUT3DIdentity.step, testImg)
-    d = testImg - interpImg
-    print ("max deviation : ", np.max(np.abs(d)))

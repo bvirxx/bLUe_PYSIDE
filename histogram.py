@@ -31,7 +31,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 
 from debug import tdec
-from spline import interpolationQuadSpline
+from bLUeGui.spline import interpolationQuadSpline
 
 
 class dstb(object):

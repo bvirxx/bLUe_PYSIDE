@@ -25,11 +25,12 @@ from PySide2.QtCore import Qt, QSize, QPoint, QRectF, QMargins
 import cv2
 from copy import copy
 
-from PySide2.QtGui import QImageReader, QTransform, QBrush
+from PySide2.QtGui import QImageReader, QTransform
 from PySide2.QtWidgets import QApplication, QSplitter
 from PySide2.QtGui import QPixmap, QImage, QColor, QPainter
 from PySide2.QtCore import QRect
 
+from bLUeGui.bLUeImage import bImage
 from bLUeInterp.tetrahedral import interpTetra
 from bLUeInterp.trilinear import interpTriLinear
 from colorConv import sRGB2LabVec, Lab2sRGBVec, rgb2rgbLinearVec, \
@@ -40,7 +41,8 @@ from graphicsBlendFilter import blendFilterIndex
 from graphicsFilter import filterIndex
 from histogram import warpHistogram
 from imgconvert import *
-from colorCube import interpMulti, rgb2hspVec, hsp2rgbVec, LUT3DIdentity, hsv2rgbVec
+from bLUeGui.colorCube import rgb2hspVec, hsp2rgbVec, hsv2rgbVec
+from bLUeInterp.multi import interpMulti
 from time import time
 
 from kernel import getKernel
@@ -60,10 +62,10 @@ class metadataBag:
     def __init__(self, name=''):
         self.name, self.colorSpace, self.rawMetadata, self.profile, self.orientation, self.rating = name, ColorSpace.notSpecified, [], '', None, 5
 
-class vImage(QImage):
+class vImage(bImage):
     """
     Versatile image class.
-    This is the base class for multi-layered and interactive image
+    Base class for multi-layered and interactive image
     classes, and for layer classes. It gathers all image information,
     including meta-data.
     A vImage object holds 4 images:
@@ -71,7 +73,7 @@ class vImage(QImage):
            - thumbnail (self.thumb),
            - hald (self.hald) for LUT3D conversion,
            - mask (self.mask, disabled by default).
-    Note : for performance self.thumb and self.hald are not synchronized with the image: they are initialized
+    Note : for the sake of performance self.thumb and self.hald are not synchronized with the image: they are initialized
     and handled independently of the full size image.
     """
     ################
@@ -143,11 +145,13 @@ class vImage(QImage):
             qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
             omask = vImage.color2OpacityMask(mask)
             qp.drawImage(QRect(0, 0, img.width(), img.height()), omask)
-            if False:#clipping:  # TODO 6/11/17 may be we should draw checker for both selected and unselected mask
+            """
+            if clipping:  # TODO 6/11/17 may be we should draw checker for both selected and unselected mask
                 # draw checker
                 qp.setCompositionMode(QPainter.CompositionMode_DestinationOver)
                 qp.setBrush(QBrush(checkeredImage()))
                 qp.drawRect(QRect(0, 0, img.width(), img.height()))  # 0.26s for 15Mpx
+            """
         qp.end()
         return img
     @classmethod
@@ -279,13 +283,12 @@ class vImage(QImage):
         self.isHald = False
         self.useThumb = False
 
-        # Cache buffers
+        # Caching flag
         self.cachesEnabled = True
-        self.qPixmap = None
-        self.rPixmap = None
-        self.hspbBuffer = None
-        self.LabBuffer = None
-        self.HSVBuffer = None
+        #self.rPixmap = None
+        #self.hspbBuffer = None
+        #self.LabBuffer = None
+        #self.HSVBuffer = None
 
         # preview image.
         # Conceptually, the layer stack can be seen as
@@ -522,31 +525,24 @@ class vImage(QImage):
 
     def updatePixmap(self, maskOnly=False):
         """
-        Updates the qPixmap, rPixmap, thumb and cmImage caches.
-        The image is that returned by getCurrentImage(), thus
-        the caches are synchronized using the current image
-        mode (full or preview).
+        Updates the rPixmap cache.
 
-        If maskOnly is True, cmImage is not updated.
-        if maskIsEnabled is False, the mask is not shown.
-        If maskIsEnabled is True, then
-            - if maskIsSelected is True, the mask is drawn over
+        if self.maskIsEnabled is False, the mask is not shown.
+        If self.maskIsEnabled is True, then
+            - if self.maskIsSelected is True, the mask is drawn over
               the layer as a color and opacity mask, with its own
               pixel color and inverse opacity.
-            - if maskIsSelected is False, the mask is drawn as an
+            - if self.maskIsSelected is False, the mask is drawn as an
               opacity mask, setting image opacity to that of mask
-              (mode DestinationIn). Color mask is no used.
+              (mode DestinationIn).
         NOTE : the fully masked part of the image corresponds to
         mask opacity = 0.
         @param maskOnly: not used yet
         @type maskOnly: boolean
         """
-        currentImage = self.getCurrentImage()
-        rImg = currentImage
+        rImg = self.getCurrentImage()
         if self.maskIsEnabled:
-            #qImg = vImage.visualizeMask(qImg, self.mask, color=self.maskIsSelected, clipping=self.isClipping)
             rImg = vImage.visualizeMask(rImg, self.mask, color=self.maskIsSelected, clipping=self.isClipping)
-        #self.qPixmap = QPixmap.fromImage(qImg)
         self.rPixmap = QPixmap.fromImage(rImg)
 
     def resetMask(self, maskAll=False):
@@ -1471,7 +1467,7 @@ class vImage(QImage):
         ndImg1 = imgBuffer[:, :, :3]
         # choose the right interpolation method
         if (pool is not None) and (inputImage.width() * inputImage.height() > 3000000):
-            interp = lambda x,y,z : interpMulti(x, y, z, pool=pool)
+            interp = lambda x,y,z : interpMulti(x, y, z, pool=pool, use_tetra=USE_TETRA)
         else:
             interp = interpTetra if USE_TETRA else interpTriLinear
         # apply LUT

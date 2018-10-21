@@ -1,5 +1,6 @@
 # This is an improved version of
 # https://stackoverflow.com/questions/32163436/python-decorator-for-printing-every-line-executed-by-a-function
+# Modifiactions (BV)
 # - added a profiler
 # - corrected a bug in __exit__
 # usage : add decorator @tdec to the function to profile
@@ -36,10 +37,16 @@ class debug_context():
     def __exit__(self, *args, **kwargs):
         # Stop tracing all events
         sys.settrace(None)
-        (self.out).sort(key=lambda x: x.etime, reverse=True)
-        l = [item.toStr() for item in self.out]
-        print('\n'.join(l))
-        print('******** cumul : %.5f s' % self.ttime)
+        # get cumulated time for each line_no
+        d = dict()
+        for item in self.out:
+            if item.line_no in d:
+                d[item.line_no].etime += item.etime
+            else:
+                d[item.line_no] = item
+        result = [item.toStr() for item in sorted(list(d.values()), key=lambda x: x.etime, reverse=True)]
+        print('\n'.join(result))
+        print('************ cumul : %.5f s' % self.ttime)
 
     def trace_calls(self, frame, event, arg):
         # no nested traces
@@ -52,7 +59,7 @@ class debug_context():
             return
         self.done = True
         print('in file %s :' % basename(frame.f_code.co_filename))
-        print('line  time (s) (sorted by decreasing time)')
+        print('cumulated line  time (s) (sorted by decreasing values)')
         # return the trace function to use when you
         # go into that function call
         return self.trace_lines

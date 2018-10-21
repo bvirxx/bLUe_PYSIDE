@@ -17,23 +17,26 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import weakref
 
+import numpy as np
+
 from PySide2.QtCore import QSize
 from PySide2.QtWidgets import QAction, QFileDialog, QToolTip, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, QApplication
 from PySide2.QtGui import QPainter, QPolygonF,QPainterPath, QPen, QBrush, QColor, QPixmap
 from PySide2.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsItem, QGraphicsItemGroup, QGraphicsPathItem,\
     QGraphicsPixmapItem, QGraphicsTextItem,  QGraphicsPolygonItem , QSizePolicy
 from PySide2.QtCore import Qt, QPointF, QRect, QRectF
-import numpy as np
-
 from PySide2.QtGui import QImage
 from PySide2.QtWidgets import QMenu, QRubberBand
 
-from colorCube import LUTSIZE, LUTSTEP, LUT3D_SHADOW, LUT3D_ORI, LUT3D
+from bLUeInterp.bLUeLUT3D import LUT3D
 from MarkedImg import QLayer
+from bLUeInterp.trilinear import interpTriLinear
+from lutUtils import LUTSIZE, LUTSTEP, LUT3D_SHADOW, LUT3D_ORI
 from versatileImg import vImage
-from colorModels import hueSatModel, pbModel
+from bLUeGui.colorPatterns import hueSatPattern, brightnessPattern
 from imgconvert import QImageBuffer
 from utils import optionsWidget, dlgWarn, dlgInfo
+
 
 # node blocking factor
 spread = 1
@@ -311,7 +314,7 @@ class activeNode(QGraphicsPathItem):
         # Color wheel has a non null offset for border.
         p = position - parent.parentItem().offset()
         scene = parent.scene()
-        c = QColor(scene.colorWheel.QImg.pixel(p.toPoint()))
+        c = QColor(scene.slider2D.QImg.pixel(p.toPoint()))
         self.r, self.g, self.b, _ = c.getRgb()
         self.hue, self.sat, self.pB = self.cModel.rgb2cm(self.r, self.g, self.b)
         # modified colors
@@ -323,7 +326,7 @@ class activeNode(QGraphicsPathItem):
         tmp = np.zeros((101,1,3), dtype=np.float)
         tmp[:,0,:2] = self.hue, self.sat
         tmp[:,0,2] = np.arange(101, dtype=np.float) / 100.0
-        tmp = scene.colorWheel.QImg.rgbBuf[:,p.toPoint().y(), p.toPoint().x()].astype(np.float)[:,None] #self.cModel.cm2rgbVec(tmp)
+        tmp = scene.slider2D.QImg.rgbBuf[:,p.toPoint().y(), p.toPoint().x()].astype(np.float)[:,None] #self.cModel.cm2rgbVec(tmp)
         #tmp = self.cModel.cm2rgbVec(np.array([(self.hue, self.sat, p / 100.0) for p in range(101)]) [:, None])
         self.LUTIndices = np.round(tmp[:,0]/float(LUTSTEP)).astype(int)
         clipped = [ (i,j,k) for i,j,k in self.LUTIndices if  i < LUTSIZE - 2 and j < LUTSIZE - 2 and k < LUTSIZE - 2]
@@ -352,7 +355,7 @@ class activeNode(QGraphicsPathItem):
         Synchronize LUT
         @param position: node position
         """
-        img = self.scene().colorWheel.QImg
+        img = self.scene().slider2D.QImg
         w, h = img.width(), img.height()
 
         # clipping
@@ -614,18 +617,25 @@ class activeMarker(QGraphicsPolygonItem):
         x, y = xmin if x < xmin else xmax if x > xmax else x, ymin if y < ymin else ymax if y > ymax else y
         self.onMouseRelease(e, x, y)
 
-class colorPicker(QGraphicsPixmapItem):
+class colorChooser(QGraphicsPixmapItem):
     """
-    implements rubber band selection and color picking.
-    Mouse click events read pixel colors from the QImage referenced by self.QImg.
+    Color wheel wrapper : it is a 2D slider-like
+    providing color selection from the wheel and
+    rubber band selection from a grid
+    of activeNode objects moving over the wheel.
     """
     def __init__(self, cModel, QImg, target=None, size=0, border=0):
         """
-        @param cModel: color model (type cmConverter)
+        @param cModel: color model
+        @type cModel: cmConverter
         @param QImg: color wheel
+        @type Qimg: vImage
         @param target: image to sample
+        @type target: QImage
         @param size: color wheel diameter
+        @type size: integer
         @param border: border size
+        @type border: int
         """
         self.QImg = QImg
         self.border = border
@@ -633,63 +643,66 @@ class colorPicker(QGraphicsPixmapItem):
             self.size = min(QImg.width(), QImg.heigth()) - 2 * border
         else:
             self.size = size
-        self.origin = 0  # used in mouse event handlers TODO added 26/06/18 validate
-        # target histogram
+        self.origin = 0
+        # calculate target histogram
         self.targetHist = None
         if target is not None:
+            # convert to current color space
             hsxImg = cModel.rgb2cmVec(QImageBuffer(target)[:, :, :3][:, :, ::-1])
+            # get polar coordinates relative to the color wheel
             xyarray = self.QImg.GetPointVec(hsxImg).astype(int)
             maxVal = self.QImg.width()
             STEP = 10
-
-            H, xedges, yedges = np.histogram2d(xyarray[:,:,0].ravel(), xyarray[:,:,1].ravel(), bins=[np.arange(0,maxVal+STEP, STEP), np.arange(0,maxVal+STEP, STEP)], normed=True)
-
-            a = vImage(QImg=QImg.copy())
-            a.meta = QImg.meta
-            b = QImage(a.width(), a.height(), QImage.Format_ARGB32)
+            # build 2D histogram for xyarray
+            H, xedges, yedges = np.histogram2d(xyarray[:,:,0].ravel(), xyarray[:,:,1].ravel(),
+                                               bins=[np.arange(0,maxVal+STEP, STEP), np.arange(0,maxVal+STEP, STEP)],
+                                               normed=True)
+            w,h = QImg.width(), QImg.height()
+            b = QImage(w, h, QImage.Format_ARGB32)
             b.fill(0)
             buf = QImageBuffer(b)
-            # (u, v) : bins indices
-            u = xyarray[:,:,0] // STEP  # python 3 integer quotient
+            # set the transparency of each pixel
+            # proportionally to the height of its bin
+            # get bin indices (u, v)
+            u = xyarray[:,:,0] // STEP
             v = xyarray[:,:,1] // STEP
-
-            tmp=H[u,v]
+            # get heights of bins
+            tmp = H[u,v]
             norma = np.amax(H)
-            # the color of each pixel in b is proportional to the weight of its bin
-            buf[xyarray[:,:,1], xyarray[:,:,0],...] = 255 #((255.0 *(1- tmp))[...,None] / norma).astype(int)
+            # color white
+            buf[xyarray[:,:,1], xyarray[:,:,0],...] = 255
             # alpha channel
-            buf[xyarray[:, :, 1], xyarray[:, :, 0], 3] = 90 + 128.0 *  tmp / norma # 64
+            buf[xyarray[:, :, 1], xyarray[:, :, 0], 3] = 90 + 128.0 *  tmp / norma
             self.targetHist = b
             self.showTargetHist = False
-
-        super().__init__(self.QImg.rPixmap)  #TODO qPixmap-->rPixmap 26/06/18
-        self.setPixmap(self.QImg.rPixmap) #TODO qPixmap-->rPixmap 26/06/18
+        super().__init__(self.QImg.rPixmap)
+        self.setPixmap(self.QImg.rPixmap)
         self.setOffset(QPointF(-border, -border))
-
-        self.onMouseRelease = lambda p, x, y, z : 0  # TODO 27/06/18 p added validate
+        self.onMouseRelease = lambda p, x, y, z : 0
         self.rubberBand = None
 
     def setPixmap(self, pxmap):
-        # paint the histogram onto the pixmap
+        """
+        Paints the histogram on a copy of pxmap
+        and displays the copy.
+        @param pxmap:
+        @type pxmap: QPixmap
+        """
         if self.targetHist is not None and self.showTargetHist:
             pxmap1 = QPixmap(pxmap)
             qp = QPainter(pxmap1)
             qp.drawImage(0, 0, self.targetHist)
             qp.end()
             pxmap = pxmap1
-        #self.QImg.qPixmap = pxmap  # QPixmap.fromImage(a)
         super().setPixmap(pxmap)
 
     def updatePixmap(self):
         """
         Convenience method
-        @return: 
         """
-        self.setPixmap(self.QImg.rPixmap) #TODO qPixmap-->rPixmap 26/06/18
+        self.setPixmap(self.QImg.rPixmap)
 
     def mousePressEvent(self, e):
-        #super(colorPicker, self).mousePressEvent(e)
-        #print 'color picker mouse press'
         if e.button() == Qt.RightButton:
             return
         self.origin = e.screenPos()
@@ -717,7 +730,7 @@ class colorPicker(QGraphicsPixmapItem):
                     if type(grid.gridNodes[i][j].parentItem()) is nodeGroup:
                         grid.gridNodes[i][j].parentItem().setSelected(False)
                     grid.gridNodes[i][j].setSelected(False)
-        # color picking
+        # pick color from self.QImg
         #p = (e.pos() - self.offset()).toPoint()
         p = e.pos().toPoint()
         c = QColor(self.QImg.pixel(p - self.offset().toPoint()))
@@ -788,7 +801,7 @@ class graphicsForm3DLUT(QGraphicsView) :
 
     def __init__(self, cModel, targetImage=None, axeSize=500, LUTSize=LUTSIZE, layer=None, parent=None, mainForm=None):
         """
-        @param cModel: color space used by colorPicker, colorWheel and colorPicker
+        @param cModel: color space used by colorPicker, slider2D and colorPicker
         @type cModel: cmConverter object
         @param axeSize: size of the color wheel
         @type axeSize: int
@@ -837,10 +850,10 @@ class graphicsForm3DLUT(QGraphicsView) :
         freshLUT3D = LUT3D(None, size=LUTSize)
         #self.graphicsScene.LUTSize, self.graphicsScene.LUTStep, self.graphicsScene.LUT3DArray = freshLUT3D.size, freshLUT3D.step, freshLUT3D.LUT3DArray
         self.graphicsScene.lut = freshLUT3D
-        # color wheel
-        QImg = hueSatModel.colorWheel(axeSize, axeSize, cModel, perceptualBrightness=self.defaultColorWheelBr, border=border)
-        self.graphicsScene.colorWheel = colorPicker(cModel, QImg, target=self.targetImage, size=axeSize, border=border)
-        self.graphicsScene.selectMarker = activeMarker.fromCross(parent=self.graphicsScene.colorWheel)
+        # init 2D slider
+        QImg = hueSatPattern(axeSize, axeSize, cModel, bright=self.defaultColorWheelBr, border=border)
+        self.graphicsScene.slider2D = colorChooser(cModel, QImg, target=self.targetImage, size=axeSize, border=border)
+        self.graphicsScene.selectMarker = activeMarker.fromCross(parent=self.graphicsScene.slider2D)
         self.graphicsScene.selectMarker.setPos(axeSize / 2, axeSize / 2)
         # color wheel event handler
         def f1(p,r,g,b):
@@ -850,15 +863,15 @@ class graphicsForm3DLUT(QGraphicsView) :
             self.currentR, self.currentG, self.currentB = r, g, b
             self.bSliderUpdate()
             self.displayStatus()
-        self.graphicsScene.colorWheel.onMouseRelease = f1
-        self.graphicsScene.addItem(self.graphicsScene.colorWheel)
+        self.graphicsScene.slider2D.onMouseRelease = f1
+        self.graphicsScene.addItem(self.graphicsScene.slider2D)
 
         # Brightness slider
         self.bSliderHeight = 20
-        self.bSliderWidth = self.graphicsScene.colorWheel.QImg.width()
-        px = pbModel.colorChart(self.bSliderWidth, self.bSliderHeight, cModel, self.currentHue, self.currentSat).rPixmap #TODO qPixmap-->rPixmap 26/06/18
-        self.graphicsScene.bSlider = QGraphicsPixmapItem(px, parent = self.graphicsScene.colorWheel)
-        self.graphicsScene.bSlider.setPos(QPointF(-border, self.graphicsScene.colorWheel.QImg.height()-border))
+        self.bSliderWidth = self.graphicsScene.slider2D.QImg.width()
+        px = brightnessPattern(self.bSliderWidth, self.bSliderHeight, cModel, self.currentHue, self.currentSat).rPixmap #TODO qPixmap-->rPixmap 26/06/18
+        self.graphicsScene.bSlider = QGraphicsPixmapItem(px, parent = self.graphicsScene.slider2D)
+        self.graphicsScene.bSlider.setPos(QPointF(-border, self.graphicsScene.slider2D.QImg.height() - border))
         bSliderCursor = activeMarker.fromTriangle(parent=self.graphicsScene.bSlider)
         bSliderCursor.setMoveRange(QRectF(0.0, bSliderCursor.size, self.graphicsScene.bSlider.pixmap().width(), 0.0))
         bSliderCursor.setPos(self.graphicsScene.bSlider.pixmap().width() * self.defaultColorWheelBr, bSliderCursor.size)
@@ -869,8 +882,8 @@ class graphicsForm3DLUT(QGraphicsView) :
         bSliderCursor.onMouseMove = f2
         def f3(e, p, q):
             self.currentPb = p / float(self.bSliderWidth)
-            self.graphicsScene.colorWheel.QImg.setPb(self.currentPb)
-            self.graphicsScene.colorWheel.setPixmap(self.graphicsScene.colorWheel.QImg.rPixmap) #TODO qPixmap-->rPixmap 26/06/18
+            self.graphicsScene.slider2D.QImg.setPb(self.currentPb)
+            self.graphicsScene.slider2D.setPixmap(self.graphicsScene.slider2D.QImg.rPixmap) #TODO qPixmap-->rPixmap 26/06/18
             self.displayStatus()
         bSliderCursor.onMouseRelease = f3
         # status bar
@@ -886,7 +899,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         #self.setRenderHints(QPainter.Antialiasing | QPainter.SmoothPixmapTransform)
 
         # grid
-        self.grid = activeGrid(self.graphicsScene.lut.size, self.cModel, parent=self.graphicsScene.colorWheel)
+        self.grid = activeGrid(self.graphicsScene.lut.size, self.cModel, parent=self.graphicsScene.slider2D)
         self.graphicsScene.grid = self.grid
 
         # buttons
@@ -928,8 +941,8 @@ class graphicsForm3DLUT(QGraphicsView) :
             option = item.text()
             self.graphicsScene.options[option] = True if (self.listWidget3.items[option].checkState() == Qt.Checked) else False
             if option == 'show histogram':
-                self.graphicsScene.colorWheel.showTargetHist = self.graphicsScene.options[option]
-                self.graphicsScene.colorWheel.updatePixmap()
+                self.graphicsScene.slider2D.showTargetHist = self.graphicsScene.options[option]
+                self.graphicsScene.slider2D.updatePixmap()
         self.listWidget3.onSelect = onSelect3
         # set initial selection to 'select naighbors'
         item = self.listWidget3.items[options3[0]]
@@ -1016,13 +1029,13 @@ the Color Chooser is closed.
         self.currentHue, self.currentSat, self.currentPb = h, s, p
         self.currentR, self.currentG, self.currentB = r,g,b
         # x, y : color wheel (cartesian origin top left corner) coordinates of the pixel corresponding to hue=h and sat=s
-        xc, yc = self.graphicsScene.colorWheel.QImg.GetPoint(h, s)
+        xc, yc = self.graphicsScene.slider2D.QImg.GetPoint(h, s)
 
-        #xyNeighborhood=[self.graphicsScene.colorWheel.QImg.GetPoint(h, s) for h,s,_ in hspNeighborhood]
+        #xyNeighborhood=[self.graphicsScene.slider2D.QImg.GetPoint(h, s) for h,s,_ in hspNeighborhood]
 
         # unitary coordinate increment between consecutive nodes
         step = float(self.grid.step)
-        border = self.graphicsScene.colorWheel.border
+        border = self.graphicsScene.slider2D.border
         #grid coordinates
         xcGrid, ycGrid = xc - border, yc -border
         #NNN = self.grid.gridNodes[int(round(ycGrid/step))][int(round(xcGrid/step))]
@@ -1060,7 +1073,7 @@ the Color Chooser is closed.
 
     def bSliderUpdate(self):
         # self.currentHue, self.currentSat = h, s
-        px = pbModel.colorChart(self.bSliderWidth, self.bSliderHeight, self.cModel, self.currentHue, self.currentSat).rPixmap #TODO qPixmap-->rPixmap 26/06/18
+        px = brightnessPattern(self.bSliderWidth, self.bSliderHeight, self.cModel, self.currentHue, self.currentSat).rPixmap #TODO qPixmap-->rPixmap 26/06/18
         self.graphicsScene.bSlider.setPixmap(px)
 
     def onSelectGridNode(self, h, s):
@@ -1131,3 +1144,12 @@ the Color Chooser is closed.
         byteData = inStream.readRawData(l)
         self.graphicsScene.lut.LUT3DArray = np.fromstring(byteData, dtype=int).reshape((size, size, size, 3))
         return inStream
+
+if __name__=='__main__':
+    size = 4000
+    # random ints in range 0 <= x < 256
+    b = np.random.randint(0,256, size=size*size*3, dtype=np.uint8)
+    testImg = np.reshape(b, (size,size,3))
+    interpImg = interpTriLinear(LUT3DIdentity.LUT3DArray, LUT3DIdentity.step, testImg)
+    d = testImg - interpImg
+    print ("max deviation : ", np.max(np.abs(d)))
