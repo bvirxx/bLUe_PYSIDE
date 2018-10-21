@@ -34,7 +34,6 @@ from PySide2.QtCore import QRect
 import exiftool
 
 from colorManagement import icc, convertQImage
-from imgconvert import *
 from bLUeGui.bLUeImage import QImageBuffer
 from time import time
 

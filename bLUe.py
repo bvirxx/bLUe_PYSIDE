@@ -134,7 +134,7 @@ import rawpy
 from grabcut import segmentForm
 from PySide2.QtCore import Qt, QRect, QEvent, QUrl, QSize, QFileInfo, QRectF, QObject
 from PySide2.QtGui import QPixmap, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, \
-    QPainterPath, QTransform, QContextMenuEvent, QColor
+    QPainterPath, QTransform, QContextMenuEvent, QColor, QImage
 from PySide2.QtWidgets import QApplication, QAction, QFileDialog, QMessageBox, \
     QMainWindow, QLabel, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QWidget, \
     QStyle, QHBoxLayout, QVBoxLayout, QColorDialog
@@ -145,7 +145,6 @@ from graphicsInvert import invertForm
 from graphicsNoise import noiseForm
 from graphicsRaw import rawForm
 from graphicsTransform import transForm, imageForm
-from imgconvert import *
 from bLUeGui.bLUeImage import QImageBuffer, QImageFormats
 from versatileImg import vImage, metadataBag
 from MarkedImg import imImage

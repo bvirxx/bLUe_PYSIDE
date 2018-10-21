@@ -17,17 +17,55 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import sys
 
+import numpy as np
+from PIL import Image
+
 from PIL.ImageCms import getOpenProfile, get_display_profile, getProfileInfo, \
     buildTransformFromOpenProfiles, applyTransform, INTENT_PERCEPTUAL, ImageCmsProfile
 from PySide2.QtGui import QImage
 
+from bLUeGui.bLUeImage import QImageBuffer
+from compat import PilImgToRaw
 from debug import tdec
-from imgconvert import QImageToPilImage, PilImageToQImage
+
 from settings import SRGB_PROFILE_PATH, ADOBE_RGB_PROFILE_PATH
 
 if sys.platform == 'win32':
     import win32gui
 
+def PilImageToQImage(pilimg) :
+    """
+    Converts a PIL image (mode RGB) to a QImage (format RGB32)
+    @param pilimg: The PIL image, mode RGB
+    @type pilimg: PIL image
+    @return: the converted image
+    @rtype: QImage
+    """
+    ############################################
+    # CAUTION: PIL ImageQt causes a memory leak!!!
+    # return ImageQt(pilimg)
+    ############################################
+    im_data = PilImgToRaw(pilimg)
+    Qimg = QImage(im_data['im'].size[0], im_data['im'].size[1], im_data['format'])
+    buf = QImageBuffer(Qimg).ravel()
+    buf[:] = np.frombuffer(im_data['data'], dtype=np.uint8)
+    return Qimg
+
+def QImageToPilImage(qimg) :
+    """
+    Converts a QImage (format ARGB32or RGB32) to a PIL image
+    @param qimg: The Qimage to convert
+    @type qimg: Qimage
+    @return: PIL image  object, mode RGB
+    @rtype: PIL Image
+    """
+    a = QImageBuffer(qimg)
+    if (qimg.format() == QImage.Format_ARGB32) or (qimg.format() == QImage.Format_RGB32):
+        # convert pixels from BGRA or BGRX to RGB
+        a = np.ascontiguousarray(a[:,:,:3][:,:,::-1]) #ascontiguousarray is mandatory to speed up Image.fromArray (x3)
+    else :
+        raise ValueError("QImageToPilImage : unrecognized format : %s" %qimg.Format())
+    return Image.fromarray(a)
 class icc:
     """
     Container for color management related variables and methods.
