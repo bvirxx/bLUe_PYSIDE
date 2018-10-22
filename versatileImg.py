@@ -51,7 +51,7 @@ from bLUeGui.colorCIE import sRGB2LabVec, Lab2sRGBVec, rgb2rgbLinearVec, \
 from bLUeCore.kernel import getKernel
 from settings import USE_TETRA
 from utils import SavitzkyGolay, boundingRect, dlgWarn
-from dwtdenoise import dwtDenoiseChan
+from bLUeCore.dwtDenoising import dwtDenoiseChan
 
 class ColorSpace:
     notSpecified = -1; sRGB = 1

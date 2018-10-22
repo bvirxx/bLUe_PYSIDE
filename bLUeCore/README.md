@@ -11,9 +11,11 @@ Base classes and functions.
 * Tetrahedral interpolation
 * Classes LUT3D, haldArray
 * Kernel related functions
+* Denoising functions
 
 ## REQUIREMENTS
 
 * Python 3
 * NumPy
 * OpenCV-Python for fastest rolling stats
+* The module dwtDenoising.py requires PyWavelets
