@@ -17,7 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import numpy as np
 import pywt
-from utils import movingAverage, movingVariance
+from bLUeCore.rollingStats import movingAverage
 
 def noiseEstimation(DWT_coeffs):
     """

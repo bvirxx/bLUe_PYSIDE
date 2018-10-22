@@ -44,6 +44,7 @@ from histogram import warpHistogram
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.colorCube import rgb2hspVec, hsp2rgbVec, hsv2rgbVec
 from bLUeGui.graphicsSpline import channelValues
+from bLUeGui.blend import blendLuminosity
 
 from bLUeGui.colorCIE import sRGB2LabVec, Lab2sRGBVec, rgb2rgbLinearVec, \
     rgbLinear2rgbVec, sRGB2XYZVec, sRGB_lin2XYZInverse, temperatureAndTint2RGBMultipliers, bbTemperature2RGB
@@ -1720,7 +1721,7 @@ class vImage(bImage):
             buf0[:, :, :] = buf1
             self.updatePixmap()
             return
-        from blend import blendLuminosity
+        #from bLUeGui.blend import blendLuminosity
         #from colorConv import bbTemperature2RGB, conversionMatrix, rgb2rgbLinearVec, rgbLinear2rgbVec
         ################
         # photo filter

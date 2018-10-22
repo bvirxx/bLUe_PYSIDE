@@ -6,12 +6,14 @@ Copyright (C) 2017-2018 Bernard Virot <bernard.virot@libertysurf.fr>
 
 Base classes and functions.
 
+* Rolling stats
 * Trilinear interpolation
 * Tetrahedral interpolation
-* classes LUT3D, haldArray
-* kernel related functions
+* Classes LUT3D, haldArray
+* Kernel related functions
 
 ## REQUIREMENTS
 
 * Python 3
 * NumPy
+* OpenCV-Python for fastest rolling stats

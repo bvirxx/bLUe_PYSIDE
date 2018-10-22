@@ -20,6 +20,7 @@ from PySide2.QtGui import QImage
 from bLUeGui.colorCube import rgb2hlsVec, hls2rgbVec
 from bLUeGui.bLUeImage import QImageBuffer
 
+
 def blendLuminosity(dest, source):
     """
     Implements blending with luminosity mode,
@@ -37,20 +38,21 @@ def blendLuminosity(dest, source):
     @param coeff: proportion of source luminosity retained
     @return: The blended image
     @rtype: QImage same size and format as source
-    
+
     """
-    sourceBuf = QImageBuffer(source)[:,:,:3]
-    destBuf = QImageBuffer(dest)[:,:,:3]
+    sourceBuf = QImageBuffer(source)[:, :, :3]
+    destBuf = QImageBuffer(dest)[:, :, :3]
     hlsSourceBuf = rgb2hlsVec(sourceBuf[:, :, ::-1])
     hlsDestBuf = rgb2hlsVec(destBuf[:, :, ::-1])
     # copy source luminosity to dest
     hlsDestBuf[:, :, 1] = hlsSourceBuf[:, :, 1]
     blendBuf = hls2rgbVec(hlsDestBuf)
     img = QImage(source.size(), source.format())
-    tmp=QImageBuffer(img)
-    tmp[:,:,:3][:,:,::-1] = blendBuf
-    tmp[:, :, 3]= 255
+    tmp = QImageBuffer(img)
+    tmp[:, :, :3][:, :, ::-1] = blendBuf
+    tmp[:, :, 3] = 255
     return img
+
 
 def blendColor(dest, source, usePerceptual=False, coeff=1.0):
     """
@@ -83,7 +85,3 @@ def blendColor(dest, source, usePerceptual=False, coeff=1.0):
     tmp[:, :, 3] = 255
     """
     return blendLuminosity(source, dest)
-
-
-
-

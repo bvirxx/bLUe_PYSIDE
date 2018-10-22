@@ -8,7 +8,7 @@ bLUe GUI classes and functions :
 
 * Splines
 * Images
-* Color space conversion
+* Color conversion functions
 * QRangeSlider
 
 ## REQUIREMENTS

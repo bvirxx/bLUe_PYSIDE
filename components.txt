@@ -1,5 +1,6 @@
-numpy 1.13.1+mkl
-pySide2 5.9.6
+NumPy 1.13.1+mkl
+PySide2 5.9.6
 Pillow 5.1.0
-rawpy 0.10.1
-opencv 3
+RawPy 0.10.1
+OpenCV 3
+PyWavelets
