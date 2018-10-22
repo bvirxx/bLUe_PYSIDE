@@ -38,6 +38,8 @@ bLUe is written in Python.
 * RawPy
 * PyWavelets
 
+ExifTool must be installed.
+
 Under Windows,  pywin32 is needed for multi-screen management.
 
 Binary packages containing all dependencies are available for Windows.
