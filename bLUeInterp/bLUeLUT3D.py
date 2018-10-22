@@ -15,9 +15,8 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-from cartesian import cartesianProduct
+from .cartesian import cartesianProduct
 import numpy as np
-from PySide2.QtCore import QFile, QIODevice, QTextStream
 
 class haldArray(object):
     """
@@ -68,7 +67,8 @@ class LUT3D (object):
         as a 2D array. The (self.size-1)**3 first pixels
         of the flattened image are taken from the LUT; remainings bytes are padded with 0.
 
-        The role (R or G or B) of the LUT axes is given by the color channels ordering.
+        The role (R or G or B) of the LUT axes is given by the color channels ordering
+        in haldBuf.
 
         @param haldBuff: hald array
         @type haldBuff: haldArray
@@ -82,7 +82,7 @@ class LUT3D (object):
             raise ValueError('HaldImage2LUT3D : LUT3D size and hald dimensions do not match')
         buf = buf[:count].reshape((size, size, size, 3))
         LUT = np.zeros((size, size, size, 3), dtype=float)  # TODO 18/10/18 changed dtype int to float : validate
-        LUT[:, :, :, :] = buf[:, :, :, ::-1]
+        LUT[:, :, :, :] = buf # [:, :, :, ::-1]
         return LUT3D(LUT, size=size)
 
     @classmethod
@@ -94,7 +94,7 @@ class LUT3D (object):
         The channels of the LUT and the axes of the cube are both in order BGR.
         Raises a ValueError exception if the method fails.
         @param inStream:
-        @type inStream: QTextStream
+        @type inStream: TextIoWrapper
         @return: 3D LUT
         @rtype: LUT3D object
         """
@@ -104,8 +104,7 @@ class LUT3D (object):
         # We expect exactly 2 uncommented lines
         # where the second is LUT_3D_SIZE xxx
         i = 0
-        while not inStream.atEnd():
-            line = inStream.readLine()
+        for line in inStream:
             # skip comments
             if line.startswith('#') or (len(line.lstrip()) == 0):
                 continue
@@ -127,8 +126,8 @@ class LUT3D (object):
         # LUT
         ######
         i = 0
-        while not inStream.atEnd():
-            line = inStream.readLine()
+        # restarting from current position
+        for line in inStream:
             if line.startswith('#') or (len(line.lstrip()) == 0):
                 continue
             token = line.split()
@@ -158,18 +157,14 @@ class LUT3D (object):
         Values read should be between 0 and 1. They are
         multiplied by 255 and converted to int.
         The channels of the LUT and the axes of the cube are both in order BGR.
-        Raises a ValueError exception if the method fails.
+        Raise a IOError exception.
         @param filename: path to file
         @type filename: str
         @return: LUT3D
         @rtype: LUT3D class instance
         """
-        qf = QFile(filename)
-        if not qf.open(QIODevice.ReadOnly):
-            raise IOError('cannot open file %s' % filename)
-        textStream = QTextStream(qf)
-        lut = cls.readFromTextStream(textStream)
-        qf.close()
+        with open(filename) as textStream:
+            lut = cls.readFromTextStream(textStream)
         return lut
 
     def __init__(self, LUT3DArray, size=defaultSize, maxrange=standardMaxRange, dtype=np.int16):
@@ -255,22 +250,22 @@ class LUT3D (object):
 
     def writeToTextStream(self, outStream):
         """
-        Writes a 3D LUT to QTextStream in format .cube.
+        Writes a 3D LUT to a text stream in format .cube.
         Values are divided by 255.
         The 3D LUT must be in BGR order.
         @param outStream:
-        @type outStream: QTextStream
+        @type outStream: TextIoWrapper
         """
         LUT=self.LUT3DArray
-        outStream << ('bLUe 3D LUT')<<'\n'
-        outStream << ('Size %d' % self.size)<<'\n'
+        outStream.write('bLUe 3D LUT\n')
+        outStream.write('Size %d\n' % self.size)
         coeff = 255.0
         for b in range(self.size):
             for g in range(self.size):
                 for r in range(self.size):
                     #r1, g1, b1 = LUT[r, g, b]  # order RGB
                     b1, g1, r1 = LUT[b, g, r]  # order BGR
-                    outStream << ("%.7f %.7f %.7f" % (r1 / coeff, g1 / coeff, b1 / coeff)) << '\n'
+                    outStream.write("%.7f %.7f %.7f\n" % (r1 / coeff, g1 / coeff, b1 / coeff))
 
     def writeToTextFile(self, filename):
         """
@@ -278,13 +273,8 @@ class LUT3D (object):
         Values are divided by 255.
         The 3D LUT must be in BGR order.
         @param filename:
-        @type filename:
-        @return:
-        @rtype:
+        @type filename: str
+        Raise IOError
         """
-        qf = QFile(filename)
-        if not qf.open(QIODevice.WriteOnly):
-            raise IOError('cannot open file %s' % filename)
-        textStream = QTextStream(qf)
-        self.writeToTextStream(textStream)
-        qf.close()
+        with open(filename, 'w') as textStream:
+            self.writeToTextStream(textStream)

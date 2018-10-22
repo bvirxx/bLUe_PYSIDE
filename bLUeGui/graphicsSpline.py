@@ -24,7 +24,7 @@ from PySide2.QtWidgets import QGraphicsView, QGraphicsScene, QSizePolicy, QPushB
 from PySide2.QtGui import QColor, QPen, QPainterPath, QPolygonF
 from PySide2.QtCore import Qt, QRectF
 
-from bLUeGui.spline import interpolationCubSpline, interpolationQuadSpline
+from .spline import interpolationCubSpline, interpolationQuadSpline
 
 class channelValues():
     RGB, Red, Green, Blue =[0,1,2], [0], [1], [2]

@@ -128,16 +128,18 @@ from io import BytesIO
 
 from PIL.ImageCms import ImageCmsProfile
 from PySide2 import QtWidgets
-from os.path import basename
+from os.path import basename, isfile
 from types import MethodType
 import rawpy
+
+from bLUeInterp.bLUeLUT3D import haldArray
 from grabcut import segmentForm
 from PySide2.QtCore import Qt, QRect, QEvent, QUrl, QSize, QFileInfo, QRectF, QObject
 from PySide2.QtGui import QPixmap, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, \
     QPainterPath, QTransform, QContextMenuEvent, QColor, QImage
 from PySide2.QtWidgets import QApplication, QAction, QFileDialog, QMessageBox, \
     QMainWindow, QLabel, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QWidget, \
-    QStyle, QHBoxLayout, QVBoxLayout, QColorDialog
+    QStyle, QHBoxLayout, QVBoxLayout, QColorDialog, QPushButton
 from QtGui1 import app, window, rootWidget
 import exiftool
 from graphicsBlendFilter import blendFilterForm
@@ -1447,8 +1449,11 @@ def menuLayer(name):
             # process hald
             layer.applyToStack()
             processedImg = img.prLayer.inputImg()
-            # convert the output hald to a LUT3D object in BGR order
-            LUT = LUT3D.HaldBuffer2LUT3D(QImageBuffer(processedImg), LUT3DIdentity.size)
+            buf = QImageBuffer(processedImg)
+            # init haldArray from image
+            hArray = haldArray(buf, LUT3DIdentity.size)
+            # convert the hald array to a LUT3D object (BGR order)
+            LUT = LUT3D.HaldBuffer2LUT3D(hArray)
             # write LUT to file
             lastDir = str(window.settings.value('paths/dlg3DLUTdir', '.'))
             dlg = QFileDialog(window, "select", lastDir)
@@ -1460,7 +1465,20 @@ def menuLayer(name):
                 filenames = dlg.selectedFiles()
                 newDir = dlg.directory().absolutePath()
                 window.settings.setValue('paths/dlg3DLUTdir', newDir)
-                LUT.writeToTextFile(filenames[0])
+                filename = filenames[0]
+                if isfile(filename):
+                    reply = QMessageBox()
+                    reply.setWindowTitle('Warning')
+                    reply.setIcon(QMessageBox.Warning)
+                    reply.setText("File %s already exists\n" % filename)
+                    reply.setStandardButtons(QMessageBox.Cancel)
+                    accButton = QPushButton("OverWrite")
+                    reply.addButton(accButton, QMessageBox.AcceptRole)
+                    reply.exec_()
+                    retButton = reply.clickedButton()
+                    if retButton is not accButton:
+                        raise ValueError("Saving Operation Failure")
+                LUT.writeToTextFile(filename)
                 dlgInfo('3D LUT written')
         except (ValueError, IOError) as e:
             dlgWarn(str(e))
