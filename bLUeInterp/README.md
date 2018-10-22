@@ -6,7 +6,8 @@ Copyright (C) 2017-2018 Bernard Virot <bernard.virot@libertysurf.fr>
 
 Base classes and functions  for 3D LUT management.
 
-* Trilinear and tetrahedral interpolation.
+* Trilinear interpolation
+* Tetrahedral interpolation
 * classes LUT3D, haldArray
 
 ## REQUIREMENTS
