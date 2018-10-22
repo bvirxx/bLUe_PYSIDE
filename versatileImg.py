@@ -17,8 +17,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 import itertools
-
 from os.path import isfile
+from time import time
 import numpy as np
 
 from PySide2.QtCore import Qt, QSize, QPoint, QRectF, QMargins
@@ -32,10 +32,10 @@ from PySide2.QtGui import QPixmap, QImage, QColor, QPainter
 from PySide2.QtCore import QRect
 
 from bLUeGui.bLUeImage import bImage
-from bLUeInterp.tetrahedral import interpTetra
-from bLUeInterp.trilinear import interpTriLinear
-from colorConv import sRGB2LabVec, Lab2sRGBVec, rgb2rgbLinearVec, \
-    rgbLinear2rgbVec, sRGB2XYZVec, sRGB_lin2XYZInverse, temperatureAndTint2RGBMultipliers
+from bLUeCore.tetrahedral import interpTetra
+from bLUeCore.trilinear import interpTriLinear
+from bLUeCore.multi import interpMulti
+
 from debug import tdec
 from graphicsBlendFilter import blendFilterIndex
 
@@ -43,15 +43,14 @@ from graphicsFilter import filterIndex
 from histogram import warpHistogram
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.colorCube import rgb2hspVec, hsp2rgbVec, hsv2rgbVec
-from bLUeInterp.multi import interpMulti
-from time import time
+from bLUeGui.graphicsSpline import channelValues
 
-from kernel import getKernel
+from bLUeGui.colorCIE import sRGB2LabVec, Lab2sRGBVec, rgb2rgbLinearVec, \
+    rgbLinear2rgbVec, sRGB2XYZVec, sRGB_lin2XYZInverse, temperatureAndTint2RGBMultipliers, bbTemperature2RGB
+from bLUeCore.kernel import getKernel
 from settings import USE_TETRA
 from utils import SavitzkyGolay, boundingRect, dlgWarn
 from dwtdenoise import dwtDenoiseChan
-
-from bLUeGui.graphicsSpline import channelValues
 
 class ColorSpace:
     notSpecified = -1; sRGB = 1
@@ -1303,7 +1302,7 @@ class vImage(bImage):
             buf2[:, :, :] = buf1
             self.updatePixmap()
             return
-        from colorConv import Lab2sRGBVec
+        #from colorConv import Lab2sRGBVec
         # convert LUT to float to speed up  buffer conversions
         stackedLUT = stackedLUT.astype(np.float)
         # get the Lab input buffer
@@ -1722,7 +1721,7 @@ class vImage(bImage):
             self.updatePixmap()
             return
         from blend import blendLuminosity
-        from colorConv import bbTemperature2RGB, conversionMatrix, rgb2rgbLinearVec, rgbLinear2rgbVec
+        #from colorConv import bbTemperature2RGB, conversionMatrix, rgb2rgbLinearVec, rgbLinear2rgbVec
         ################
         # photo filter
         ################

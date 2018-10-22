@@ -38,12 +38,12 @@ def phi(x, mu, sigma):
 
 def gaussianKernel(mu, w):
     """
-    2D gaussian kernel of size w and mean mu. 
+    2D gaussian kernel of size w and mean mu.
     The standard deviation sigma and w are bound by the relation w = 2.0 * int(4.0 * sigma + 0.5)
     @param mu: gaussian mean
     @type mu: float
     @param w: kernel size, should be odd
-    @type w: int 
+    @type w: int
     @return: gaussian kernel, size w
     @rtype: 2D array, shape (w,w), dtype numpy.float64
     """

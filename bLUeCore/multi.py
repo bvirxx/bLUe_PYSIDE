@@ -18,8 +18,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 from functools import partial
 import numpy as np
 
-from bLUeInterp.tetrahedral import interpTetra
-from bLUeInterp.trilinear import interpTriLinear
+from bLUeCore.tetrahedral import interpTetra
+from bLUeCore.trilinear import interpTriLinear
 
 def interpMulti(LUT, LUTSTEP, ndImg, pool=None, use_tetra=False):
     """

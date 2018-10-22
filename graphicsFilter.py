@@ -24,7 +24,7 @@ from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLa
 from PySide2.QtGui import QFontMetrics
 
 from bLUeGui.graphicsSpline import baseForm
-from kernel import filterIndex, getKernel
+from bLUeCore.kernel import filterIndex, getKernel
 from utils import optionsWidget, QbLUeSlider
 
 

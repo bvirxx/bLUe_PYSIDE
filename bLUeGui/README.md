@@ -4,11 +4,12 @@ Copyright (C) 2017-2018 Bernard Virot <bernard.virot@libertysurf.fr>
 
 ## DESCRIPTION
 
-Base classes and functions for bLUe objects :
+bLUe GUI classes and functions :
 
 * Splines
 * Images
 * Color space conversion
+* QRangeSlider
 
 ## REQUIREMENTS
 

@@ -132,7 +132,7 @@ from os.path import basename, isfile
 from types import MethodType
 import rawpy
 
-from bLUeInterp.bLUeLUT3D import haldArray
+from bLUeCore.bLUeLUT3D import haldArray
 from grabcut import segmentForm
 from PySide2.QtCore import Qt, QRect, QEvent, QUrl, QSize, QFileInfo, QRectF, QObject
 from PySide2.QtGui import QPixmap, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, \

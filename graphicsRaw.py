@@ -22,7 +22,7 @@ from PySide2 import QtCore
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBox
-from colorConv import temperatureAndTint2RGBMultipliers, RGBMultipliers2TemperatureAndTint
+from bLUeGui.colorCIE import temperatureAndTint2RGBMultipliers, RGBMultipliers2TemperatureAndTint
 from bLUeGui.graphicsSpline import graphicsQuadricForm
 from bLUeGui.graphicsSpline import baseForm
 from utils import optionsWidget, UDict, QbLUeSlider, stateAwareQDockWidget

@@ -20,7 +20,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 #####################################
 
 import numpy as np
-from bLUeInterp.bLUeLUT3D import LUT3D
+from bLUeCore.bLUeLUT3D import LUT3D
 
 LUTSIZE = LUT3D.defaultSize
 LUT3DIdentity = LUT3D(None, size=LUTSIZE)

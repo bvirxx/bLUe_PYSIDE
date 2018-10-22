@@ -28,9 +28,9 @@ from PySide2.QtCore import Qt, QPointF, QRect, QRectF
 from PySide2.QtGui import QImage
 from PySide2.QtWidgets import QMenu, QRubberBand
 
-from bLUeInterp.bLUeLUT3D import LUT3D
+from bLUeCore.bLUeLUT3D import LUT3D
 from MarkedImg import QLayer
-from bLUeInterp.trilinear import interpTriLinear
+from bLUeCore.trilinear import interpTriLinear
 from lutUtils import LUTSIZE, LUTSTEP, LUT3D_SHADOW, LUT3D_ORI
 from versatileImg import vImage
 from bLUeGui.colorPatterns import hueSatPattern, brightnessPattern

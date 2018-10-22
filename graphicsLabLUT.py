@@ -22,7 +22,7 @@ from PySide2.QtWidgets import QGraphicsScene, QPushButton
 from PySide2.QtGui import QPixmap, QRadialGradient
 from PySide2.QtCore import Qt, QRectF
 
-from colorConv import sRGB2LabVec
+from bLUeGui.colorCIE import sRGB2LabVec
 from bLUeGui.graphicsSpline import activeCubicSpline, graphicsCurveForm, activePoint, channelValues
 from utils import optionsWidget
 

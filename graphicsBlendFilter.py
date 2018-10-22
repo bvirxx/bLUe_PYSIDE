@@ -23,8 +23,8 @@ from PySide2.QtCore import Qt
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout
 
 from bLUeGui.graphicsSpline import baseForm
-from kernel import filterIndex, getKernel
-from qrangeslider import QRangeSlider
+from bLUeCore.kernel import filterIndex, getKernel
+from bLUeGui.qrangeslider import QRangeSlider
 from utils import optionsWidget
 
 class blendFilterIndex:
