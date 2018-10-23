@@ -50,7 +50,7 @@ class bImage(QImage):
 
     @property
     def LabBuffer(self):
-        return self.__LabBUffer
+        return self.__LabBuffer
 
     @LabBuffer.setter
     def LabBuffer(self, buffer):
@@ -58,7 +58,7 @@ class bImage(QImage):
 
     @property
     def HSVBuffer(self):
-        return self.__HSVBUffer
+        return self.__HSVBuffer
 
     @HSVBuffer.setter
     def HSVBuffer(self, buffer):

@@ -21,10 +21,11 @@ import cv2
 from PySide2.QtCore import Qt
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QComboBox
 
-from versatileImg import vImage
 from bLUeGui.graphicsSpline import baseForm
-from utils import optionsWidget, dlgWarn
+from bLUeGui.dialog import dlgWarn
 
+from versatileImg import vImage
+from utils import optionsWidget
 
 class patchForm (baseForm):
     """

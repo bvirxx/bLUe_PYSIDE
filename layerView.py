@@ -27,7 +27,8 @@ from PySide2.QtWidgets import QComboBox, QHBoxLayout, QLabel, QTableView, QAbstr
 import resources_rc  # hidden import mandatory : DO NOT REMOVE !!!
 import QtGui1
 from bLUeGui.bLUeImage import QImageBuffer
-from utils import openDlg, dlgWarn, QbLUeSlider
+from bLUeGui.dialog import openDlg, dlgWarn
+from utils import  QbLUeSlider
 
 
 class layerModel(QStandardItemModel):

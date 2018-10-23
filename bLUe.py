@@ -159,9 +159,8 @@ from graphicsCoBrSat import CoBrSatForm
 from graphicsExp import ExpForm
 from graphicsPatch import patchForm
 from settings import USE_POOL, POOL_SIZE, THEME, MAX_ZOOM
-from utils import saveChangeDialog, saveDlg, openDlg, IMAGE_FILE_NAME_FILTER, \
-    IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, demosaic, dlgWarn, dlgInfo, QbLUeColorDialog
-from tools import cropTool, rotatingTool
+from utils import  QbLUeColorDialog
+from bLUeGui.tool import cropTool, rotatingTool
 from graphicsTemp import temperatureForm
 from time import sleep
 import gc
@@ -169,6 +168,9 @@ from graphicsFilter import filterForm
 from graphicsHspbLUT import graphicsHspbForm
 from graphicsLabLUT import graphicsLabForm
 from splittedView import splittedWindow
+
+from bLUeCore.demosaicing import demosaic
+from bLUeGui.dialog import *
 
 
 ##################
@@ -1734,8 +1736,8 @@ if __name__ =='__main__':
                            QMenu, QTableView { selection-background-color: blue; selection-color: white;}\
                            QWidget, QTableView, QTableView * {font-size: 9pt}\
                            QWidget:disabled {color: rgb(96,96,96)}\
-                           QSlider::groove:horizontal:enabled { margin: 3px; background-color: rgb(196,196,196)}\
-                           QSlider::groove:horizontal:disabled {margin: 3px; background-color: rgb(96,96,96)}\
+                           QbLUeSlider::groove:horizontal:enabled { margin: 3px; background-color: rgb(196,196,196)}\
+                           QbLUeSlider::groove:horizontal:disabled {margin: 3px; background-color: rgb(96,96,96)}\
                            QGraphicsView QPushButton, baseForm QPushButton\
                                                     {font-size: 9pt; background-color: rgb(100,100,100); color: rgb(200,200,200); border: 1px solid gray; border-radius: 6px}\
                            QGraphicsView QPushButton:hover, baseForm QPushButton:hover {background-color: gray; color: black}\

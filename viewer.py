@@ -28,7 +28,8 @@ from PySide2.QtWidgets import QMainWindow, QLabel, QSizePolicy, QAction, QMenu, 
 
 import exiftool
 from QtGui1 import app, window
-from utils import loader, IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, stateAwareQDockWidget
+from utils import loader, stateAwareQDockWidget
+from bLUeGui.dialog import IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS
 
 # global variable recording diaporama state
 isSuspended = False

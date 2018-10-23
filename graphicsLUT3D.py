@@ -35,8 +35,8 @@ from lutUtils import LUTSIZE, LUTSTEP, LUT3D_SHADOW, LUT3D_ORI
 from versatileImg import vImage
 from bLUeGui.colorPatterns import hueSatPattern, brightnessPattern
 from bLUeGui.bLUeImage import QImageBuffer
-from utils import optionsWidget, dlgWarn, dlgInfo
-
+from utils import optionsWidget
+from bLUeGui.dialog import dlgWarn, dlgInfo
 
 # node blocking factor
 spread = 1

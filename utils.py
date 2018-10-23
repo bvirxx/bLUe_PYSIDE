@@ -16,31 +16,21 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import ctypes
-import os
 import threading
-from tempfile import mktemp
+from os.path import isfile, basename
+from itertools import product
 
 import cv2
 import numpy as np
-from math import factorial
 
 from PySide2 import QtCore
 from PySide2.QtGui import QColor, QImage, QPainter, QPixmap, QIcon
-from PySide2.QtWidgets import QListWidget, QListWidgetItem, QDialog, QVBoxLayout, \
-    QFileDialog, QSlider, QWidget, QHBoxLayout, QLabel, QMessageBox, QPushButton, QDockWidget, QStyle, QColorDialog
-from PySide2.QtCore import Qt, QObject, QRect, QDir
-from os.path import isfile, basename
-from itertools import product
-from numpy.lib.stride_tricks import as_strided
+from PySide2.QtWidgets import QListWidget, QListWidgetItem,\
+          QSlider, QLabel, QDockWidget, QStyle, QColorDialog
+from PySide2.QtCore import Qt, QObject, QRect
 
+from bLUeCore.rollingStats import movingVariance
 from bLUeGui.bLUeImage import QImageBuffer
-
-##################
-# file extension constants
-IMAGE_FILE_EXTENSIONS = (".jpg", ".JPG", ".png", ".PNG", ".tif", ".TIF", "*.bmp", "*.BMP")
-RAW_FILE_EXTENSIONS = (".nef", ".NEF", ".dng", ".DNG", ".cr2", ".CR2")
-IMAGE_FILE_NAME_FILTER = ['Image Files (*.jpg *.png *.tif *.JPG *.PNG *.TIF)']
-#################
 
 ##################
 # Base classes for signals
@@ -88,33 +78,6 @@ def showConsole():
         ctypes.windll.user32.ShowWindow(whnd, 1)
         ctypes.windll.kernel32.CloseHandle(whnd)
 
-def demosaic(raw_image_visible, raw_colors_visible, black_level_per_channel):
-    """
-    demosaic a sensor bitmap. The input array raw_image_visble has the same dimensions as the image,
-    BUT NO channel. The array raw_colors_visible (identical shape) gives the color channel (0=R, 1=G, 2=B)
-    corresponding to each point.
-    @param raw_image_visible:
-    @type raw_image_visible: nd_array, dtype uint16, shape(img_h, img_w)
-    @param raw_colors_visible:
-    @type raw_colors_visible: nd_array, dtype u1, shape(img_h, img_w)
-    @param black_level_per_channel:
-    @type black_level_per_channel: list or array, dtype= int
-    @return: demosaic array
-    @rtype: ndarray, dtype uint16, shape (img_width, img_height, 3)
-    """
-    black_level_per_channel = np.array(black_level_per_channel, dtype=np.uint16)
-    # Bayer bitmap (16 bits), subtract black level for each channel
-    if np.any(black_level_per_channel!=0):
-        bayerBuf = raw_image_visible - black_level_per_channel[raw_colors_visible]
-    else:
-        bayerBuf = raw_image_visible
-    # encode Bayer pattern to opencv constant
-    tmpdict = {0:'R', 1:'G', 2:'B'}
-    pattern = 'cv2.COLOR_BAYER_' + tmpdict[raw_colors_visible[1,1]] + tmpdict[raw_colors_visible[1,2]] + '2RGB'
-    # demosaic
-    demosaic = cv2.cvtColor(bayerBuf, eval(pattern))
-    return demosaic
-
 def multiply(matr_a, matr_b):
     """Return product of an MxP matrix A with an PxN matrix B."""
     cols, rows = len(matr_b[0]), len(matr_b)
@@ -137,154 +100,6 @@ def inversion(m):
                     [m6 * m7 - m4 * m9, m1 * m9 - m3 * m7, m3 * m4 - m1 * m6],
                     [m4 * m8 - m5 * m7, m2 * m7 - m1 * m8, m1 * m5 - m2 * m4]])
     return inv / multiply(inv[0], m[:, 0])
-
-def dlgInfo(text, info=''):
-    """
-    Shows a simple information dialog.
-    @param text:
-    @type text: str
-    @param info:
-    @type info: str
-    """
-    msg = QMessageBox()
-    msg.setWindowTitle('Information')
-    msg.setIcon(QMessageBox.Information)
-    msg.setText(text)
-    msg.setInformativeText(info)
-    msg.exec_()
-
-def dlgWarn(text, info=''):
-    """
-    Shows a simple warning dialog.
-    @param text:
-    @type text: str
-    @param info:
-    @type info: str
-    """
-    msg = QMessageBox()
-    msg.setWindowTitle('Warning')
-    msg.setIcon(QMessageBox.Warning)
-    msg.setText(text)
-    msg.setInformativeText(info)
-    msg.exec_()
-
-def saveChangeDialog(img):
-    """
-    Save/discard dialog. Returns the chosen button.
-    @param img: image to save
-    @type img: vImage
-    @return:
-    @rtype: QMessageBox.StandardButton
-    """
-    reply = QMessageBox()
-    reply.setText("%s was modified" % img.meta.name if len(img.meta.name) > 0 else 'unnamed image')
-    reply.setInformativeText("Save your changes ?")
-    reply.setStandardButtons(QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
-    reply.setDefaultButton(QMessageBox.Save)
-    ret = reply.exec_()
-    return ret
-
-def saveDlg(img, mainWidget):
-    """
-    Image saving dialogs. The actual saving is
-    done by a call to mImage.save(). Metadata is copied from sidecar
-    to image file. The function returns the image file name.
-    Exception ValueError or IOError are raised if the saving fails.
-    @param img:
-    @type img: vImage
-    @param mainWidget:
-    @type mainWidget: QWidget
-    @return: filename
-    @rtype: str
-    """
-    # get last accessed dir
-    lastDir = str(mainWidget.settings.value("paths/dlgdir", QDir.currentPath()))
-    # file dialogs
-    dlg = savingDialog(mainWidget, "Save", lastDir)
-    # default saving format JPG
-    dlg.selectFile(img.filename[:-3] + 'JPG')
-    dlg.dlg.currentChanged.connect(lambda f: print(f))
-    if dlg.exec_():
-        newDir = dlg.directory().absolutePath()
-        mainWidget.settings.setValue('paths/dlgdir', newDir)
-        filenames = dlg.selectedFiles()
-        if filenames:
-            filename = filenames[0]
-        else:
-            raise ValueError("You must select a file")
-        if isfile(filename):
-            reply = QMessageBox()
-            reply.setWindowTitle('Warning')
-            reply.setIcon(QMessageBox.Warning)
-            reply.setText("File %s already exists\n" % filename)
-            reply.setStandardButtons(QMessageBox.Cancel)
-            accButton = QPushButton("Save as New Copy")
-            rejButton = QPushButton("OverWrite")
-            reply.addButton(accButton, QMessageBox.AcceptRole)
-            reply.addButton(rejButton, QMessageBox.RejectRole)
-            reply.setDefaultButton(accButton)
-            reply.exec_()
-            retButton = reply.clickedButton()
-            # build a unique name
-            if retButton is accButton:
-                i = 0
-                base = filename
-                if '_copy' in base:
-                    flag = '_'
-                else:
-                    flag = '_copy'
-                while isfile(filename):
-                    filename = base[:-4] + flag + str(i) + base[-4:]
-                    i = i+1
-            # overwrite
-            elif retButton is rejButton:
-                pass
-            else:
-                raise ValueError("Saving Operation Failure")
-        # get parameters
-        quality = dlg.sliderQual.value()
-        compression = dlg.sliderComp.value()
-        # call mImage.save to write image to file : throw ValueError or IOError
-        thumb = img.save(filename, quality=quality, compression=compression)
-        tempFilename = mktemp('.jpg')
-        # save jpg to temp file
-        thumb.save(tempFilename)
-        # copy temp file to image file
-        img.restoreMeta(img.filename, filename, thumbfile=tempFilename)
-        os.remove(tempFilename)
-        return filename
-    else:
-        raise ValueError("Saving Operation Failure")
-
-def openDlg(mainWidget, ask=True):
-    """
-    Returns a file name or None.
-    @param mainWidget:
-    @type mainWidget:
-    @param ask:
-    @type ask:
-    @return:
-    @rtype:
-    """
-    if ask and mainWidget.label.img.isModified:
-        ret = saveChangeDialog(mainWidget.label.img)
-        if ret == QMessageBox.Yes:
-            try:
-                saveDlg(mainWidget.label.img, mainWidget)
-            except (ValueError, IOError) as e:
-                dlgWarn(str(e))
-                return
-        elif ret == QMessageBox.Cancel:
-            return
-    # don't ask again for saving
-    mainWidget.label.img.isModified = False
-    lastDir = str(mainWidget.settings.value('paths/dlgdir', '.'))
-    dlg = QFileDialog(mainWidget, "select", lastDir, " *".join(IMAGE_FILE_EXTENSIONS) + " *".join(RAW_FILE_EXTENSIONS))
-    if dlg.exec_():
-        filenames = dlg.selectedFiles()
-        newDir = dlg.directory().absolutePath()
-        mainWidget.settings.setValue('paths/dlgdir', newDir)
-        return filenames[0]
 
 class UDict(object):
     """
@@ -473,106 +288,6 @@ class optionsWidget(QListWidget) :
         for r in range(self.count()):
             self.item(r).setCheckState(Qt.Unchecked)
 
-class savingDialog(QDialog):
-    """
-    File dialog with quality and compression sliders.
-    We use a standard QFileDialog as a child widget and we
-    forward its methods to the top level.
-    """
-    def __init__(self, parent, text, lastDir):
-        """
-
-        @param parent:
-        @type parent: QObject
-        @param text:
-        @type text: str
-        @param lastDir:
-        @type lastDir:str
-        """
-        # QDialog __init__
-        super().__init__()
-        self.setWindowTitle(text)
-        # File Dialog
-        self.dlg = QFileDialog(caption=text, directory=lastDir)
-        # sliders
-        self.sliderComp = QSlider(Qt.Horizontal)
-        self.sliderComp.setTickPosition(QSlider.TicksBelow)
-        self.sliderComp.setRange(0, 9)
-        self.sliderComp.setSingleStep(1)
-        self.sliderComp.setValue(5)
-        self.sliderQual = QSlider(Qt.Horizontal)
-        self.sliderQual.setTickPosition(QSlider.TicksBelow)
-        self.sliderQual.setRange(0, 100)
-        self.sliderQual.setSingleStep(10)
-        self.sliderQual.setValue(90)
-        self.dlg.setVisible(True)
-        l = QVBoxLayout()
-        h = QHBoxLayout()
-        l.addWidget(self.dlg)
-        h.addWidget(QLabel("Quality"))
-        h.addWidget(self.sliderQual)
-        h.addWidget(QLabel("Compression"))
-        h.addWidget(self.sliderComp)
-        l.addLayout(h)
-        self.setLayout(l)
-        # file dialog close event handler
-        def f():
-            self.close()
-        self.dlg.finished.connect(f)
-
-    def exec_(self):
-        # QDialog exec_
-        super().exec_()
-        # forward file dialog result
-        return self.dlg.result()
-
-    def selectFile(self, fileName):
-        self.dlg.selectFile(fileName)
-
-    def selectedFiles(self):
-        return self.dlg.selectedFiles()
-
-    def directory(self):
-        return self.dlg.directory()
-
-class SavitzkyGolay:
-    """
-    Savitzky-Golay Filter.
-    This is a pure numpy implementation of the Savitzky_Golay filter. It is taken
-    from U{http://stackoverflow.com/questions/22988882/how-to-smooth-a-curve-in-python}
-    Many thanks to elviuz.
-    """
-    window_size = 11   # must be odd
-    order = 3
-    deriv = 0
-    rate = 1
-    kernel = None
-    @classmethod
-    def getKernel(cls):
-        if cls.kernel is None:
-            order_range = range(cls.order + 1)
-            half_window = (cls.window_size - 1) // 2
-            # compute the array m of filter coefficients
-            b = np.mat([[k ** i for i in order_range] for k in range(-half_window, half_window + 1)])
-            cls.kernel = np.linalg.pinv(b).A[cls.deriv] * cls.rate ** cls.deriv * factorial(cls.deriv)
-        return cls.kernel
-    @classmethod
-    def filter(cls, y):
-        """
-        @param y: data
-        @type y: 1D ndarray, dtype = float
-        @return: the filtered data array
-        """
-        kernel = cls.getKernel()
-        half_window = (cls.window_size -1) // 2
-        # pad the signal at the extremes with values taken from the signal itself
-        firstvals = y[0] - np.abs( y[1:half_window+1][::-1] - y[0] )
-        lastvals = y[-1] + np.abs(y[-half_window-1:-1][::-1] - y[-1])
-        y = np.concatenate((firstvals, y, lastvals))
-        #y = np.concatenate(([0]*half_window, y, [0]*half_window))
-        # apply filter
-        return np.convolve( kernel[::-1], y, mode='valid')
-
 def checkeredImage(format=QImage.Format_ARGB32):
     """
     Returns a 20x20 checker
@@ -750,15 +465,3 @@ if __name__ == '__main__':
     #b=strides_2d(a, (11,11))
     m = movingVariance(a,7)
     print(m)
-"""
-#pickle example
-saved_data = dict(outputFile, 
-                  saveFeature1 = feature1, 
-                  saveFeature2 = feature2, 
-                  saveLabel1 = label1, 
-                  saveLabel2 = label2,
-                  saveString = docString)
-
-with open('test.dat', 'wb') as outfile:
-    pickle.dump(saved_data, outfile, protocol=pickle.HIGHEST_PROTOCOL)
-"""

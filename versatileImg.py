@@ -45,13 +45,14 @@ from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.colorCube import rgb2hspVec, hsp2rgbVec, hsv2rgbVec
 from bLUeGui.graphicsSpline import channelValues
 from bLUeGui.blend import blendLuminosity
-
 from bLUeGui.colorCIE import sRGB2LabVec, Lab2sRGBVec, rgb2rgbLinearVec, \
     rgbLinear2rgbVec, sRGB2XYZVec, sRGB_lin2XYZInverse, temperatureAndTint2RGBMultipliers, bbTemperature2RGB
+from bLUeGui.dialog import dlgWarn
 from bLUeCore.kernel import getKernel
 from settings import USE_TETRA
-from utils import SavitzkyGolay, boundingRect, dlgWarn
+from utils import  boundingRect
 from bLUeCore.dwtDenoising import dwtDenoiseChan
+from bLUeCore.SavitskyGolay import SavitzkyGolayFilter
 
 class ColorSpace:
     notSpecified = -1; sRGB = 1
@@ -1526,7 +1527,7 @@ class vImage(bImage):
             #param hist: histogram to draw
             #param channel: channel index (BGRA (intel) or ARGB )
             # smooth the histogram (first and last bins excepted) for a better visualization of clipping.
-            hist = np.concatenate(([hist[0]], SavitzkyGolay.filter(hist[1:-1]), [hist[-1]]))
+            hist = np.concatenate(([hist[0]], SavitzkyGolayFilter.filter(hist[1:-1]), [hist[-1]]))
             M = max(hist[1:-1])  # TODO added 04/10/18 + removed parameter M: validate
             # draw histogram
             imgH = size.height()

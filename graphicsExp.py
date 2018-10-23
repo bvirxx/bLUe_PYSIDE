@@ -33,7 +33,7 @@ class ExpForm (baseForm):
         # options
         self.options = None
 
-        # clipLimit slider
+        # exposure slider
         self.sliderExp = QbLUeSlider(Qt.Horizontal)
         self.sliderExp.setStyleSheet(QbLUeSlider.bLueSliderDefaultBWStylesheet)
         self.sliderExp.setTickPosition(QSlider.TicksBelow)
@@ -45,14 +45,13 @@ class ExpForm (baseForm):
         expLabel.setText("Exposure Correction")
         expLabel.doubleClicked.connect(lambda: self.sliderExp.setValue(self.defaultExpCorrection))
 
-        self.expValue = QLabel()
+        self.expValue = QbLUeLabel()
         font = self.expValue.font()
         metrics = QFontMetrics(font)
         w = metrics.width("1000 ")
         h = metrics.height()
         self.expValue.setMinimumSize(w, h)
         self.expValue.setMaximumSize(w, h)
-        self.expValue.setStyleSheet("QLabel {background-color: white;}")
 
         # exp done event handler
         def f():

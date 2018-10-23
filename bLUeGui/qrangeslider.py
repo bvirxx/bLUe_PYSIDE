@@ -67,8 +67,6 @@ QRangeSlider > QSplitter::handle:vertical {
 QRangeSlider > QSplitter::handle:pressed {
     background: #ca5;
 }
-"""
-"""
 QRangeSlider > QSplitter::handle {
     background: #393;
 }
@@ -135,7 +133,6 @@ class Ui_Form(object):
         _translate = QtCore.QCoreApplication.translate
         Form.setWindowTitle(_translate("QRangeSlider", "QRangeSlider"))
 
-
 class Element(QtWidgets.QGroupBox):
     def __init__(self, parent, main):
         super().__init__(parent)
@@ -176,7 +173,6 @@ class Head(Element):
         qp.setPen(self.textColor())
         qp.setFont(QFont('Arial', FONT_SIZE))
         qp.drawText(event.rect(), QtCore.Qt.AlignLeft, str(self.main.min()))
-
 
 class Tail(Element):
     def __init__(self, parent, main):

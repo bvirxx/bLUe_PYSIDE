@@ -15,6 +15,8 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+
+import numpy as np
 import gc
 
 import weakref
@@ -34,10 +36,12 @@ from PySide2.QtCore import QRect
 import exiftool
 
 from colorManagement import icc, convertQImage
-from bLUeGui.bLUeImage import QImageBuffer
+from bLUeGui.bLUeImage import QImageBuffer, ndarrayToQImage
+from bLUeGui.dialog import dlgWarn
 from time import time
 
-from utils import dlgWarn, baseSignal_bool, baseSignal_Int2, qColorToRGB
+from lutUtils import LUT3DIdentity
+from utils import  baseSignal_bool, baseSignal_Int2, qColorToRGB
 
 from versatileImg import vImage
 
