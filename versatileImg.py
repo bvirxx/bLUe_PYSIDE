@@ -31,7 +31,7 @@ from PySide2.QtWidgets import QApplication, QSplitter
 from PySide2.QtGui import QPixmap, QImage, QColor, QPainter
 from PySide2.QtCore import QRect
 
-from bLUeGui.bLUeImage import bImage
+from bLUeGui.bLUeImage import bImage, ndarrayToQImage
 from bLUeCore.tetrahedral import interpTetra
 from bLUeCore.trilinear import interpTriLinear
 from bLUeCore.multi import interpMulti

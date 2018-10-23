@@ -117,7 +117,7 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
-import json
+import numpy as np
 import multiprocessing
 import sys
 import threading
@@ -127,7 +127,6 @@ from os import path, walk
 from io import BytesIO
 
 from PIL.ImageCms import ImageCmsProfile
-from PySide2 import QtWidgets
 from os.path import basename, isfile
 from types import MethodType
 import rawpy
@@ -137,9 +136,9 @@ from grabcut import segmentForm
 from PySide2.QtCore import Qt, QRect, QEvent, QUrl, QSize, QFileInfo, QRectF, QObject
 from PySide2.QtGui import QPixmap, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, \
     QPainterPath, QTransform, QContextMenuEvent, QColor, QImage
-from PySide2.QtWidgets import QApplication, QAction, QFileDialog, QMessageBox, \
-    QMainWindow, QLabel, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QWidget, \
-    QStyle, QHBoxLayout, QVBoxLayout, QColorDialog, QPushButton
+from PySide2.QtWidgets import QApplication, QAction,\
+    QMainWindow, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QWidget, \
+    QStyle
 from QtGui1 import app, window, rootWidget
 import exiftool
 from graphicsBlendFilter import blendFilterForm
