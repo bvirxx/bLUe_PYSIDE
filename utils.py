@@ -461,7 +461,7 @@ def boundingRect(img, pattern):
     return QRect(left, top, right - left, bottom - top)
 
 if __name__ == '__main__':
-    a= np.ones(dtype=int).reshape(10,10)
+    a= np.ones(100, dtype=int).reshape(10,10)
     #b=strides_2d(a, (11,11))
     m = movingVariance(a,7)
     print(m)

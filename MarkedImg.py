@@ -1227,8 +1227,8 @@ class QLayerImage(QLayer):
         @return: transformed layer
         @rtype: QLayerImage
         """
-        # TODO modified 26/09/18 validate
-        tLayer = super().bTransformed(self, transformation, parentImage)
+
+        tLayer = super().bTransformed(transformation, parentImage) #(self, transformation, parentImage) # TODO changed 23/10/18 validate
         """ 
         tLayer = QLayerImage.fromImage(self.transformed(transformation), parentImage=parentImage, sourceImg=self.sourceImg.transformed(transformation))
         # add dynamic attributes
