@@ -133,7 +133,7 @@ import rawpy
 
 from bLUeCore.bLUeLUT3D import haldArray
 from grabcut import segmentForm
-from PySide2.QtCore import Qt, QRect, QEvent, QUrl, QSize, QFileInfo, QRectF, QObject
+from PySide2.QtCore import QRect, QEvent, QUrl, QSize, QFileInfo, QRectF, QObject
 from PySide2.QtGui import QPixmap, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, \
     QPainterPath, QTransform, QContextMenuEvent, QColor, QImage
 from PySide2.QtWidgets import QApplication, QAction,\

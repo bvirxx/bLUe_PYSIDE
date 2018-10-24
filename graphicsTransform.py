@@ -18,7 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import weakref
 
 from PySide2.QtCore import Qt
-from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QPushButton, QHBoxLayout
+from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QPushButton, QHBoxLayout
 
 from bLUeGui.graphicsSpline import baseForm
 from utils import optionsWidget, UDict

@@ -386,8 +386,8 @@ To <b>open an image</b> drag it onto the main window.<br>
         """
         Opens a window and displays all images from a folder.
         The images are loaded asynchronously by a separate thread.
-        @param parent: should be app main window
-        @type parent: QMainWindow
+        @param folder: path to folder
+        @type folder: str
         """
         if self.dock.isClosed:
             # reinit form

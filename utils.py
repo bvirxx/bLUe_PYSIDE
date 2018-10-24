@@ -305,6 +305,7 @@ def checkeredImage(format=QImage.Format_ARGB32):
     qp.fillRect(10, 10, 10, 10, Qt.gray)
     qp.end()
     return base
+    """
     qp=QPainter(image)
     qp.setCompositionMode(QPainter.CompositionMode_Source)
     # draw the pattern once at 0,0
@@ -323,6 +324,7 @@ def checkeredImage(format=QImage.Format_ARGB32):
             baseH *= 2
     qp.end()
     return image
+    """
 
 class stateAwareQDockWidget(QDockWidget):
     def __init__(self, *args, **kwargs):

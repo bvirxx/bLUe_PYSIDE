@@ -2,7 +2,7 @@ import weakref
 
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
-from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout
+from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QSlider, QHBoxLayout
 
 from bLUeGui.graphicsSpline import baseForm
 from utils import QbLUeSlider, QbLUeLabel

@@ -458,7 +458,7 @@ class activeQuadricSpline(activeSpline) :
         self.fixedPoints = [activePoint(x, -y, rect=rect, parentItem=self) for x,y in zip(a,b)]
         # tangent normalization
         n = np.sqrt(1 + d * d)
-        alpha = alpha / n  # convert the list to a ndarray
+        alpha = alpha / n  # converts the list to a ndarray
         self.fixedTangents = [activeTangent(controlPoint=QPointF(x+alpha[i], -y-alpha[i]*p), contactPoint=QPointF(x,-y), parentItem=self)
                               for i,(x,y,p) in enumerate(zip(a,b,d))]
         # link contact point to tangent

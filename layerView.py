@@ -22,7 +22,7 @@ import cv2
 import numpy as np
 from PySide2.QtCore import QRectF, QSize, Qt, QModelIndex
 from PySide2.QtGui import QImage, QPalette, QKeySequence, QFontMetrics, QTextOption, QPixmap, QIcon, QPainter, QStandardItem, QStandardItemModel
-from PySide2.QtWidgets import QAction, QMenu, QSlider, QStyle, QCheckBox, QMessageBox, QApplication
+from PySide2.QtWidgets import QAction, QMenu, QSlider, QStyle, QCheckBox, QApplication
 from PySide2.QtWidgets import QComboBox, QHBoxLayout, QLabel, QTableView, QAbstractItemView, QStyledItemDelegate, QHeaderView, QVBoxLayout
 import resources_rc  # hidden import mandatory : DO NOT REMOVE !!!
 import QtGui1

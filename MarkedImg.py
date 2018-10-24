@@ -70,8 +70,8 @@ class mImage(vImage):
         @type destFile: str
         @param defaultorientation
         @type defaultorientation: bool
-        @param thumbnail: thumbnail data
-        @type thumbnail: bytearray
+        @param thumbfile: thumbnail file
+        @type thumbfile: str
         """
         with exiftool.ExifTool() as e:
             e.copySidecar(srcFile, destFile)

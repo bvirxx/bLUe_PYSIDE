@@ -35,7 +35,6 @@ def blendLuminosity(dest, source):
     @type dest QImage
     @param source: source QImage
     @type source QImage
-    @param coeff: proportion of source luminosity retained
     @return: The blended image
     @rtype: QImage same size and format as source
 

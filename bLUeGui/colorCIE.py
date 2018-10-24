@@ -303,8 +303,8 @@ def bbTemperature2RGB(temperature):
     """
     Converts black body Kelvin temperature to rgb values.
     Cf. http://www.tannerhelland.com/4435/convert-temperature-rgb-algorithm-code
-    @param temp: Kelvin temperature
-    @type temp: float
+    @param temperature: Kelvin temperature
+    @type temperature: float
     @return: r, g, b values in  range 0..255
     @rtype: 3-uple of int
     """
@@ -470,6 +470,7 @@ def xy2TemperatureAndTint(x, y):
     u, v = xy2uv(x, y)
     last_dt, last_dv, last_du = 0.0, 0.0, 0.0
 
+    temp, tint = 0, 0
     for index in range(31):
         # get unit vector of current isotherm
         du, dv = 1.0, uvt[index][3]

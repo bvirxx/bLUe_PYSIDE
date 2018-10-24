@@ -50,6 +50,7 @@ from bLUeGui.colorCIE import sRGB2LabVec, Lab2sRGBVec, rgb2rgbLinearVec, \
 from bLUeGui.multiplier import temperatureAndTint2RGBMultipliers
 from bLUeGui.dialog import dlgWarn
 from bLUeCore.kernel import getKernel
+from lutUtils import LUT3DIdentity
 from settings import USE_TETRA
 from utils import  boundingRect
 from bLUeCore.dwtDenoising import dwtDenoiseChan

@@ -189,8 +189,8 @@ class ExifTool(object):
         For an image file, should be called only while editing the file.
         @param filename: path to image or sidecar file
         @type filename: str
-        @param thumbnail: path to thumbnail jpg file
-        @type thumbnail: str
+        @param thumbfile: path to thumbnail jpg file
+        @type thumbfile: str
         """
         self.execute(*([filename, '-overwrite_original'] + ['-%s<=%s' % ('thumbnailimage', thumbfile)]))
 
@@ -262,7 +262,7 @@ class ExifTool(object):
             img = Image.open(fd)
         exif_data = img._getexif()
         """
-        flags = ["-j", "-a", "-XMP:all", "-EXIF:all", "-n", "-S", "-G0", "-Orientation", "-ProfileDescription", \
+        flags = ["-j", "-a", "-XMP:all", "-EXIF:all", "-n", "-S", "-G0", "-Orientation", "-ProfileDescription",
                  "-colorSpace", "-InteropIndex", "-WhitePoint", "-PrimaryChromaticities", "-Gamma"]
         extract_meta_flags = ["-icc_profile", "-b"]
         fmie = f[:-4]+'.mie'

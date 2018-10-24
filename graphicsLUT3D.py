@@ -31,7 +31,7 @@ from PySide2.QtWidgets import QMenu, QRubberBand
 from bLUeCore.bLUeLUT3D import LUT3D
 from MarkedImg import QLayer
 from bLUeCore.trilinear import interpTriLinear
-from lutUtils import LUTSIZE, LUTSTEP, LUT3D_SHADOW, LUT3D_ORI
+from lutUtils import LUTSIZE, LUTSTEP, LUT3D_SHADOW, LUT3D_ORI, LUT3DIdentity
 from versatileImg import vImage
 from bLUeGui.colorPatterns import hueSatPattern, brightnessPattern
 from bLUeGui.bLUeImage import QImageBuffer
@@ -629,7 +629,7 @@ class colorChooser(QGraphicsPixmapItem):
         @param cModel: color model
         @type cModel: cmConverter
         @param QImg: color wheel
-        @type Qimg: vImage
+        @type QImg: vImage
         @param target: image to sample
         @type target: QImage
         @param size: color wheel diameter
@@ -1102,10 +1102,6 @@ the Color Chooser is closed.
     def saveLUT(self):
         """
 
-        @param lut: 3D LUT
-        @type lut: LUT3D object
-        @param mainForm:
-        @type mainForm:
         """
         mainForm = self.mainForm
         lut = self.scene().lut

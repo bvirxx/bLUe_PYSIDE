@@ -513,7 +513,7 @@ The <b>OverExp. Rest.</b> slider controls the restauration of overexposed highli
         # update the curve
         form.scene().setSceneRect(-25, -axeSize - 25, axeSize + 50, axeSize + 50)  # TODO added 15/07/18
         form.scene().quadricB.setCurve(a * axeSize, b * axeSize, d, T * axeSize)
-        dock.showNormal()
+        self.dock.showNormal() # TODO self added 24/10/18 validate
 
     # temp changed  event handler
     def tempUpdate(self, value):
