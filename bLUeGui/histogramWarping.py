@@ -29,10 +29,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 # applying the contrast correction. The algorithm is simplified and the speedup is consequent.
 #########################################################################################################################
 import numpy as np
-
-from debug import tdec
-from bLUeGui.spline import interpolationQuadSpline
-
+from .spline import interpolationQuadSpline
 
 class dstb(object):
     """
@@ -315,9 +312,9 @@ def autoQuadSpline(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True):
     the correction level : it should be between 0 (no correction and 1 (full correction).
     If preserveHigh is True (default) a final correction is applied to preserve highlights.
     @param imgBuf:
-    @type imgBuf:
+    @type imgBuf: ndarray
     @param valleyAperture:
-    @type valleyAperture:
+    @type valleyAperture: float
     @param warp: control the amplitude of the control point moves
     @type warp: float, range 0..1
     @param preserveHigh: final highlight correction

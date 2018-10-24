@@ -41,7 +41,7 @@ cmHSB.cm2rgb, cmHSB.cm2rgbVec, cmHSB.rgb2cm, cmHSB.rgb2cmVec = hsv2rgb, hsv2rgbV
 class hueSatPattern(bImage):  # TODO 20/10/18 changed imImage to bLUeImage validate
     """
     (hue, sat) color wheel image.
-    For fast display, the correspondance with RGB values is tabulated for each brightness.
+    For fast display, the correspondence with RGB values is tabulated for each brightness.
     """
     # hue rotation
     rotation = 315
@@ -51,7 +51,8 @@ class hueSatPattern(bImage):  # TODO 20/10/18 changed imImage to bLUeImage valid
     def __init__(self, w, h, converter, bright=defaultBr, border=0.0):
         """
         Builds a (hue, sat) color wheel image of size (w, h)
-        For fast display, the correspondance with RGB values is tabulated for each
+        For fast display, the correspondence with RGB values is tabulated
+        for each value of the brightness.
         @param w: image width
         @type w: int
         @param h: image height

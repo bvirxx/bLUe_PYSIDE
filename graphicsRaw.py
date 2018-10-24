@@ -22,7 +22,7 @@ from PySide2 import QtCore
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBox
-from bLUeGui.colorCIE import temperatureAndTint2RGBMultipliers, RGBMultipliers2TemperatureAndTint
+from bLUeGui.multiplier import temperatureAndTint2RGBMultipliers, RGBMultipliers2TemperatureAndTint
 from bLUeGui.graphicsSpline import graphicsQuadricForm
 from bLUeGui.graphicsSpline import baseForm
 from utils import optionsWidget, UDict, QbLUeSlider, stateAwareQDockWidget
@@ -114,7 +114,7 @@ class rawForm (baseForm):
         else:
             self.layer = weakref.proxy(layer)
         #######################################
-        # Libraw correspondances:
+        # Libraw correspondences:
         # rgb_xyz_matrix is libraw cam_xyz
         # camera_whitebalance is libraw cam_mul
         # daylight_whitebalance is libraw pre_mul

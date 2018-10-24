@@ -40,13 +40,14 @@ from debug import tdec
 from graphicsBlendFilter import blendFilterIndex
 
 from graphicsFilter import filterIndex
-from histogram import warpHistogram
+from bLUeGui.histogramWarping import warpHistogram
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.colorCube import rgb2hspVec, hsp2rgbVec, hsv2rgbVec
 from bLUeGui.graphicsSpline import channelValues
 from bLUeGui.blend import blendLuminosity
 from bLUeGui.colorCIE import sRGB2LabVec, Lab2sRGBVec, rgb2rgbLinearVec, \
-    rgbLinear2rgbVec, sRGB2XYZVec, sRGB_lin2XYZInverse, temperatureAndTint2RGBMultipliers, bbTemperature2RGB
+    rgbLinear2rgbVec, sRGB2XYZVec, sRGB_lin2XYZInverse, bbTemperature2RGB
+from bLUeGui.multiplier import temperatureAndTint2RGBMultipliers
 from bLUeGui.dialog import dlgWarn
 from bLUeCore.kernel import getKernel
 from settings import USE_TETRA

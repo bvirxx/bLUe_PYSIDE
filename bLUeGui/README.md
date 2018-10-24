@@ -6,9 +6,10 @@ Copyright (C) 2017-2018 Bernard Virot <bernard.virot@libertysurf.fr>
 
 GUI base classes and functions :
 
-* QRangeSlider
 * Color conversion functions
 * Splines
+* Histogram warping
+* Multipliers
 * Images
 * Dialogs
 * Tools
