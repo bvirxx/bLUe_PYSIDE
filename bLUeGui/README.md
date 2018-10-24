@@ -4,15 +4,15 @@ Copyright (C) 2017-2018 Bernard Virot <bernard.virot@libertysurf.fr>
 
 ## DESCRIPTION
 
-GUI base classes and functions :
+Classes and functions for image processing:
 
-* Color conversion functions
+* Color space conversion functions
 * Splines
 * Histogram warping
 * Multipliers
 * Images
 * Dialogs
-* Tools
+* Transforming and cropping tools
 
 ## REQUIREMENTS
 
