@@ -1,5 +1,19 @@
 """
-This file is part of bLUe
+This File is part of bLUe software.
+
+Copyright (C) 2017  Bernard Virot <bernard.virot@libertysurf.fr>
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Lesser General Public License as
+published by the Free Software Foundation, version 3.
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+Lesser General Lesser Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License
+along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 #!/usr/bin/python2
@@ -43,9 +57,6 @@ from PySide2.QtCore import Slot, QMetaObject
 from PySide2.QtUiTools import QUiLoader
 from PySide2.QtWidgets import QApplication, QMainWindow, QMessageBox
 
-SCRIPT_DIRECTORY = os.path.dirname(os.path.abspath(__file__))
-
-
 class UiLoader(QUiLoader):
     """
     Subclass :QUiLoader` to create the user interface
@@ -88,7 +99,7 @@ class UiLoader(QUiLoader):
                 # relevant class_name in the dictionary, or TypeError, if
                 # customWidgets is None
                 try:
-                    widget = self.customWidgets[class_name](parent=parent)  # TODO fix : added parent= for coherence 08/10/17
+                    widget = self.customWidgets[class_name](parent=parent)
                 except (TypeError, KeyError) as e:
                     raise Exception('No custom widget ' + class_name + ' found in customWidgets param of UiLoader __init__.')
             if self.baseinstance:
@@ -130,34 +141,3 @@ def loadUi(uifile, baseinstance=None, customWidgets=None,
     widget = loader.load(uifile)
     QMetaObject.connectSlotsByName(widget)
     return widget
-
-
-class MainWindow(QMainWindow):
-
-    def __init__(self, parent=None):
-        QMainWindow.__init__(self, parent)
-        loadUi(os.path.join(SCRIPT_DIRECTORY, 'mainwindow.ui'), self)
-
-    @Slot(bool)
-    def on_clickMe_clicked(self, is_checked):
-        if is_checked:
-            message = self.trUtf8(b'I am checked now.')
-        else:
-            message = self.trUtf8(b'I am unchecked now.')
-        QMessageBox.information(self, self.trUtf8(b'You clicked me'), message)
-
-    @Slot()
-    def on_actionHello_triggered(self):
-        QMessageBox.information(self, self.trUtf8(b'Hello world'),
-                                self.trUtf8(b'Greetings to the world.'))
-
-
-def main():
-    app = QApplication(sys.argv)
-    window = MainWindow()
-    window.show()
-    app.exec_()
-
-
-if __name__ == '__main__':
-    main()
