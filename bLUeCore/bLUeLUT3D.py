@@ -65,7 +65,7 @@ class LUT3D (object):
 
         A hald image or hald array can be viewed as a 3D LUT flattened and reshaped
         as a 2D array. The (self.size-1)**3 first pixels
-        of the flattened image are taken from the LUT; remainings bytes are padded with 0.
+        of the flattened image are taken from the LUT; remaining bytes are padded with 0.
 
         The role (R or G or B) of the LUT axes is given by the color channels ordering
         in haldBuf.

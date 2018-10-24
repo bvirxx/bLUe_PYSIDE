@@ -313,7 +313,7 @@ Note that upper visible layers slow down mask edition.
         links to image
         @return: 
         """
-        self.closeAdjustForms(delete=delete) #TODO modified 8/10/17 for merge_with_layer_immediatly_below
+        self.closeAdjustForms(delete=delete) #TODO modified 8/10/17 for merge_with_layer_immediately_below
         self.img = None
         self.currentWin = None
         model = layerModel()

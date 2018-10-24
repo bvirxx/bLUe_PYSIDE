@@ -85,7 +85,7 @@ opencv copyright
 
 pywin32 License
 
-Unless stated in the specfic source file, this work is
+Unless stated in the specific source file, this work is
 Copyright (c) 1996-2008, Greg Stein and Mark Hammond.
 All rights reserved.
 
@@ -502,7 +502,7 @@ def mouseEvent(widget, event) :  # TODO split into 3 handlers
                 """
     # updates
     widget.repaint()
-    # sync splitted views
+    # sync split views
     linked = True
     if widget.objectName() == 'label_2' :
         splittedWin.syncSplittedView(window.label_3, window.label_2, linked)
@@ -551,7 +551,7 @@ def wheelEvent(widget,img, event):
             layer.applyCloning(seamless=False)
             #layer.updatePixmap()
     widget.repaint()
-    # sync splitted views
+    # sync split views
     linked = True
     if widget.objectName() == 'label_2':
         splittedWin.syncSplittedView(window.label_3, window.label_2, linked)
@@ -621,7 +621,7 @@ def dropEvent(widget, img, event):
 def set_event_handlers(widg, enterAndLeave=True):
     """
     Pythonic redefinition of event handlers, without
-    subclassing or overridding. However, the PySide dynamic
+    subclassing or overriding. However, the PySide dynamic
     ui loader requires that we set the corresponding classes as customWidget
     (cf. file QtGui1.py and pyside_dynamicLoader.py).
     if enterAndLeave is False enter and leave event handlers are not set,
@@ -681,7 +681,7 @@ def widgetChange(button):
 
 def contextMenu(pos, widget):
     """
-    Copntext menu for image QLabel
+    Context menu for image QLabel
     @param pos:
     @param widget:
     @return:
@@ -1881,7 +1881,7 @@ For a segmentation layer only, all pixels outside the rectangle are set to backg
     window.dockWidgetContents.setLayout(tmpH)
 
     ################################
-    # color magement configuration
+    # color management configuration
     # must be done after showing window
     ################################
     window.screenChanged.connect(screenUpdate)

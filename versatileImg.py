@@ -1058,7 +1058,7 @@ class vImage(bImage):
                     bufpost16[row*h:(row+1)*h, col*w:(col+1)*w,: ]=bufpost_temp
             # develop
             else:
-                # highlight_mode : restauration of overexposed highlights. 0: clip, 1:unclip, 2:blend, 3...: rebuild
+                # highlight_mode : restoration of overexposed highlights. 0: clip, 1:unclip, 2:blend, 3...: rebuild
                 bufpost16 = rawImage.postprocess(
                     exp_shift=baseExpShift+2.0**(2.0*adjustForm.expCorrection) if not options['Auto Brightness'] else 0,
                     no_auto_bright=(not options['Auto Brightness']),

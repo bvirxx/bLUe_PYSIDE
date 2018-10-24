@@ -82,7 +82,7 @@ def fromqimage(im):
     """
     buffer = QBuffer()
     buffer.open(QIODevice.ReadWrite)
-    # preserve alha channel with png
+    # preserve alpha channel with png
     # otherwise ppm is more friendly with Image.open
     if im.hasAlphaChannel():
         im.save(buffer, 'png')

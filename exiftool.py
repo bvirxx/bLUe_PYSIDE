@@ -54,11 +54,11 @@ class ExifTool(object):
         """
         try:
             # hide sub-window to prevent flashing console
-            # when the program is freezed by PyInstaller with
+            # when the program is frozen by PyInstaller with
             # console set to False.
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW # prevent subprocess from opening a window.
-            startupinfo.wShowWindow = subprocess.SW_HIDE           # This is needed when the application is freezed with PyInstaller
+            startupinfo.wShowWindow = subprocess.SW_HIDE           # This is needed when the application is frozen with PyInstaller
             # -@ FILE : read command line args from FILE
             # -stay_open True: keep reading -@ argFILE even after EOF
             self.process = subprocess.Popen(
@@ -76,7 +76,7 @@ class ExifTool(object):
         """
         exit "with" block:
         Terminate process. The function is always executed,
-        even if an exception has occured within the block.
+        even if an exception has occurred within the block.
         Return True to catch the exception.
         @param exc_type: type of exception (if any)
         @param exc_value: 

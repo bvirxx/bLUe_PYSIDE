@@ -244,7 +244,7 @@ def distWins(dist, delta):
     for a disribution dist. Parameter delta should be in range 0..0.5.
     @param dist: distribution
     @type dist: distribution object
-    @param delta: half probablity width of window
+    @param delta: half probability width of window
     @type delta: float
     @return: the list of 3-uples (j, k, i) corresponding to the windows (k+j, k, k+i), Note j is < 0
     @rtype: list

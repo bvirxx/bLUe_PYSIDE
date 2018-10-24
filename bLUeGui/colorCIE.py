@@ -40,7 +40,7 @@ import numpy as np
 
 sRGBWP = 6500
 
-# According to Python and Numpy coventions, the below definitions of matrix
+# According to Python and Numpy conventions, the below definitions of matrix
 # constants as lists and/or arrays give M[row_index][col_index] values.
 
 Von_Kries = [[0.4002400, 0.7076000, -0.0808100],

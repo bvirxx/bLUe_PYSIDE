@@ -70,7 +70,7 @@ class UiLoader(QUiLoader):
 
     def createWidget(self, class_name, parent=None, name=''):
         """
-        overriden function.
+        overridden function.
         It is called for each widget defined in the ui file.
         """
 

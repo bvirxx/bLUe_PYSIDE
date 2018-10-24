@@ -77,7 +77,7 @@ def RGBMultipliers2TemperatureAndTint(mR, mG, mB, XYZ2RGBMatrix):
     set of 3 RGB multipliers. They are interpreted as the RGB coordinates of a white point.
     The aim is to find a temperature T with a
     corresponding white point WP(T), and a factor tint, such that mB/mR = WPb/WPr
-    and mG*tint/mR = WpG/WPR. As mutipliers are invariant by scaling, this
+    and mG*tint/mR = WpG/WPR. As multipliers are invariant by scaling, this
     function can be seen as the inverse function
     of temperatureAndTint2RGBMultipliers.
     We consider the function f(T) = WPb/WPr giving

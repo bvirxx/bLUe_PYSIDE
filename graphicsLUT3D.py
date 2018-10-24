@@ -368,7 +368,7 @@ class activeNode(QGraphicsPathItem):
         self.rM, self.gM, self.bM, _ = c.getRgb()
         hue, sat, _ = self.cModel.rgb2cm(self.rM, self.gM, self.bM)#, perceptual=True)
         # update LUT vertices bound to node
-        # A neihborhood of the vertex is built and the corresponding values
+        # A neighborhood of the vertex is built and the corresponding values
         # in the LUT are shifted by the same vector, defined by the position of the
         # node on the color wheel. The transformation keeps hue and saturation.
         # The new (perceptual) brightness is computed from the original brightness of the vertex,

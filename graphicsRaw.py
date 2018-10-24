@@ -626,7 +626,7 @@ The <b>OverExp. Rest.</b> slider controls the restauration of overexposed highli
         self.tempCorrection = self.cameraTemp
         self.tintCorrection = 1.0
         self.expCorrection = 0.0
-        self.highCorrection = 3.0  # restauration of overexposed highlights. 0: clip 1:unclip, 2: blend, 3...: rebuild
+        self.highCorrection = 3.0  # restoration of overexposed highlights. 0: clip 1:unclip, 2: blend, 3...: rebuild
         self.contCorrection = 5.0
         #self.noiseCorrection = 0
         self.satCorrection = 0.0

@@ -186,7 +186,7 @@ class brightnessPattern (bImage): # TODO 20/10/18 changed imImage to bLUeImage v
         @type h: int
         @param converter: color space converter
         @type converter: cmConverter
-        @param hue: huhe value
+        @param hue: hue value
         @type hue: int or float
         @param sat: saturation value
         @type sat: int or float

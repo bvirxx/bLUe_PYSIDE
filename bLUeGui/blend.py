@@ -30,7 +30,7 @@ def blendLuminosity(dest, source):
     We use the HLS color model:
     see https://docs.opencv.org/3.3.0/de/d25/imgproc_color_conversions.html
     Note blendColor and blendLuminosity are commuted versions of each other:
-    blendLuminiosity(img1, img2) = blendColor(img2, img1)
+    blendLuminosity(img1, img2) = blendColor(img2, img1)
     @param dest: destination QImage
     @type dest QImage
     @param source: source QImage
@@ -62,7 +62,7 @@ def blendColor(dest, source, usePerceptual=False, coeff=1.0):
     luminosity of dest. We use the HLS color model:
     see https://docs.opencv.org/3.3.0/de/d25/imgproc_color_conversions.html
     Note blendColor and blendLuminosity are commuted versions of each other:
-    blendLuminiosity(img1, img2) = blendColor(img2, img1)
+    blendLuminosity(img1, img2) = blendColor(img2, img1)
     @param dest: destination QImage
     @type dest: QImage
     @param source: source QImage
