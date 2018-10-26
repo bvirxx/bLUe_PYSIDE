@@ -635,9 +635,9 @@ the Color Chooser is closed.
         numSteps = 1 + e.delta() / 1200.0
         self.scale(numSteps, numSteps)
 
-class graphicsQuadricForm(graphicsCurveForm) :
+class graphicsSplineForm(graphicsCurveForm) :
     """
-    Form for interactive quadratic splines.
+    Form for interactive cubic or quadratic splines.
     Dynamic attributes are added to the scene in order
     to provide links to arbitrary graphics items:
         self.scene().cubicItem : current active curve
@@ -646,21 +646,24 @@ class graphicsQuadricForm(graphicsCurveForm) :
         self.scene().bgColor
     """
     @classmethod
-    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
-        newWindow = graphicsQuadricForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
+    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None, curveType='quadric'):
+        newWindow = graphicsSplineForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm, curveType=curveType)
         newWindow.setWindowTitle(layer.name)
         return newWindow
-    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
+    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None, curveType='quadric'):
         super().__init__(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         graphicsScene = self.scene()
         # init the curve
-        quadric = activeQuadricSpline(graphicsScene.axeSize)
-        graphicsScene.addItem(quadric)
-        graphicsScene.quadricB = quadric
-        quadric.channel = channelValues.Br
-        quadric.histImg = graphicsScene.layer.histogram(size=graphicsScene.axeSize, bgColor=graphicsScene.bgColor,
+        if curveType == 'quadric':
+            curve = activeQuadricSpline(graphicsScene.axeSize)
+        else:
+            curve = activeCubicSpline(graphicsScene.axeSize)
+        graphicsScene.addItem(curve)
+        graphicsScene.quadricB = curve
+        curve.channel = channelValues.Br
+        curve.histImg = graphicsScene.layer.histogram(size=graphicsScene.axeSize, bgColor=graphicsScene.bgColor,
                                                        range=(0,255), chans=channelValues.Br, mode='Luminosity')
-        quadric.initFixedPoints()
+        curve.initFixedPoints()
         # set current curve
         graphicsScene.cubicItem = graphicsScene.quadricB
         graphicsScene.cubicItem.setVisible(True)
@@ -689,6 +692,10 @@ Drag <b>control points</b> and <b>tangents</b> with the mouse.<br>
         pushButton1.adjustSize()
         pushButton1.clicked.connect(onResetCurve)
         graphicsScene.addWidget(pushButton1)
+        self.pushButton = pushButton1
+
+    def setButtonText(self, text):
+        self.pushButton.setText(text)
 
     def drawBackground(self, qp, qrF):
         graphicsScene = self.scene()

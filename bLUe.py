@@ -171,7 +171,6 @@ from splittedView import splittedWindow
 from bLUeCore.demosaicing import demosaic
 from bLUeGui.dialog import *
 
-
 ##################
 #  Software Attributions
 from viewer import playDiaporama, viewer
@@ -473,8 +472,8 @@ def mouseEvent(widget, event) :  # TODO split into 3 handlers
                             layer.rect = None
                         # for raw layer, set multipliers to get selected pixel as White Point
                         if layer.isRawLayer() and window.btnValues['colorPicker']:
+                            # get demosaic buffer and sample raw pixels
                             bufRaw = layer.parentImage.demosaic
-                            # demosaiced buffer
                             nb = QRect(x_img-2, y_img-2, 4, 4)
                             r = QImage.rect(layer.parentImage).intersected(nb)
                             if not r.isEmpty():
@@ -753,27 +752,41 @@ def loadImageFromFile(f, createsidecar=True):
     if ext in list(IMAGE_FILE_EXTENSIONS):
         img = imImage(filename=f, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile, name=name, rating=rating)
     elif ext in list(RAW_FILE_EXTENSIONS):
-        # load raw image file
+        # load raw image file in a RawPy instance
         # rawpy.imread keeps f open. Calling raw.close() deletes the raw object.
         # As a workaround we use a file buffer .
+        # Relevant RawPy attributes are black_level_per_channel, camera_white_balance, color_desc, color_matrix,
+        # daylight_whitebalance, num_colors, raw_colors_visible, raw_image, raw_image_visible, raw_pattern,
+        # raw_type, rgb_xyz_matrix, sizes, tone_curve
+        # raw_image and raw_image_visble are sensor data
         raw = rawpy.RawPy()
         with open(f, "rb") as bufio:
             raw.open_buffer(bufio)
+        ######################################################################################
+        # unpack always applies the current tone curve (cf. https://www.libraw.org/node/2003)
+        # Another curve (array, shape=65536) can be loaded here before unpacking.
+        # NO EFFECT with files where the curve is calculated on unpack() phase (e.g.Nikon lossy NEF files).
+        #####################################################################################
         raw.unpack()
-        # postprocess raw image with default parameters (cf. vImage.applyRawPostProcessing)
+        # postprocess raw image, applying default settings (cf. vImage.applyRawPostProcessing)
         rawBuf = raw.postprocess(use_camera_wb=True)
         # build Qimage
         rawBuf = np.dstack((rawBuf[:,:,::-1], np.zeros(rawBuf.shape[:2], dtype=np.uint8)+255))
         img = imImage(cv2Img=rawBuf, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile, name=name, rating=rating)
-        # keep references to file and RawPy instance
+        # keep references to file and RawPy instance and sensor image with base tone curve applied (= linearized image)
         img.rawImage = raw
         img.filename = f
-        #######################################
-        # Reconstruct the demosaic Bayer bitmap :
-        # it is needed to calculate the multipliers corresponding
-        # to a user white point and we cannot access the
-        # rawpy native demosaic buffer from RawPy instance
-        #######################################
+        img.raw_image_from_profile = (raw.raw_image).copy()
+        img.raw_image_from_profile_min, img.raw_image_from_profile_max = np.min(raw.raw_image), np.max(raw.raw_image)
+        with exiftool.ExifTool() as e:
+            tmp1 = e.readBinaryData(f, tagname='ContrastCurve')
+            tmp2 = e.readBinaryData(f, tagname='NefLinearizationTable')
+        #########################################################
+        # Reconstructing the demosaic Bayer bitmap :
+        # we need it to calculate the multipliers corresponding
+        # to a user white point, and we cannot access the
+        # native rawpy demosaic buffer from the RawPy instance !!!!
+        #########################################################
         # get 16 bits Bayer bitmap
         img.demosaic = demosaic(raw.raw_image_visible, raw.raw_colors_visible, raw.black_level_per_channel)
         # correct orientation

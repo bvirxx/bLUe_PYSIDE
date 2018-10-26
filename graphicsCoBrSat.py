@@ -22,7 +22,7 @@ from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QGroupBox
 
-from bLUeGui.graphicsSpline import graphicsQuadricForm
+from bLUeGui.graphicsSpline import graphicsSplineForm
 from bLUeGui.graphicsSpline import baseForm
 from utils import optionsWidget, QbLUeSlider, UDict, QbLUeLabel, stateAwareQDockWidget
 
@@ -305,7 +305,7 @@ Sliders are <b>reset</b> to their default value by double clicking the name of t
         """
         axeSize = 200
         if self.contrastForm is None:
-            form = graphicsQuadricForm.getNewWindow(targetImage=None, axeSize=axeSize, layer=self.layer, parent=None, mainForm=None)
+            form = graphicsSplineForm.getNewWindow(targetImage=None, axeSize=axeSize, layer=self.layer, parent=None, mainForm=None)
             form.setWindowFlags(Qt.WindowStaysOnTopHint)
             form.setAttribute(Qt.WA_DeleteOnClose, on=False)
             form.setWindowTitle('Contrast Curve')

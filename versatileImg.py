@@ -1012,6 +1012,12 @@ class vImage(bImage):
         adjustForm = self.view.widget()
         options = adjustForm.options
         rawImage = getattr(self.parentImage, 'rawImage')
+        if adjustForm.toneForm is not None:
+            LUTXY = adjustForm.toneForm.scene().quadricB.LUTXY
+            m, M = self.parentImage.raw_image_from_profile_min, self.parentImage.raw_image_from_profile_max
+            LUTXY = np.interp(np.arange(M+1), np.arange(256) * (M+1)/256, LUTXY * (M+1)/256)
+            rawImage.raw_image[:,:] = LUTXY[self.parentImage.raw_image_from_profile]
+            self.postProcessCache = None
         currentImage = self.getCurrentImage()
         ######################################################################################################################
         # process raw image (16 bits mode)                        RGB ------diag(multipliers)-----------> RGB
@@ -1049,7 +1055,8 @@ class vImage(bImage):
                                             exp_preserve_highlights = 1.0 if options['Preserve Highlights'] else 0.8,
                                             output_bps=16,
                                             bright=adjustForm.brCorrection,  # default 1
-                                            hightlightmode=adjustForm.highCorrection if not options['Auto Brightness'] else 0,
+                                            hightlightmode=adjustForm.highCorrection if not options['Auto Brightness'] else 0
+                                            # Highlight mode 0 = clip, 1 = unclip, 2 = blend, 3 += rebuild
                                             # no_auto_scale= (not options['Auto Scale']) don't use : green shift
                                             )
                     row = i // 3
@@ -1084,6 +1091,8 @@ class vImage(bImage):
         # We apply a (nearly) automatic histogram equalization
         # algorithm, well suited for multimodal histograms.
         ###########
+        if options['toneCurve']:
+            self.getGraphicsForm().setToneSpline()
         if adjustForm.contCorrection > 0:
             # warp should be in range 0..1.
             # warp = 0 means that no additional warping is done, but

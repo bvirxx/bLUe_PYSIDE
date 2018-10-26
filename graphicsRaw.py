@@ -19,11 +19,11 @@ import weakref
 from math import log
 import numpy as np
 from PySide2 import QtCore
-from PySide2.QtCore import Qt
+from PySide2.QtCore import Qt, QPoint
 from PySide2.QtGui import QFontMetrics
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBox
 from bLUeGui.multiplier import temperatureAndTint2RGBMultipliers, RGBMultipliers2TemperatureAndTint
-from bLUeGui.graphicsSpline import graphicsQuadricForm
+from bLUeGui.graphicsSpline import graphicsSplineForm, activeCubicSpline
 from bLUeGui.graphicsSpline import baseForm
 from utils import optionsWidget, UDict, QbLUeSlider, stateAwareQDockWidget
 
@@ -155,8 +155,13 @@ class rawForm (baseForm):
                                                    self.contCorrection, self.satCorrection, self.brCorrection = [None] * 7
         # contrast spline view, initialized in setContrastSpline
         self.contrastForm = None
+        # tone spline view, initialized in setToneSpline
+        self.toneForm = None
+        # dock containers for contrast and tome forms
+        self.dockC, self.dockT = None, None
         # options : it turns out that the most accurate description for the 'Auto Brightness' option of rawpy.postprocess is 'Auto Expose'
-        optionList0, optionNames0 = ['Auto Brightness', 'Preserve Highlights', 'manualCurve'], ['Auto Expose', 'Preserve Highlights', 'Show Contrast Curve']
+        optionList0, optionNames0 = ['Auto Brightness', 'Preserve Highlights', 'toneCurve', 'manualCurve', ], \
+                                    ['Auto Expose', 'Preserve Highlights', 'Show Tone Curve', 'Show Contrast Curve']
         self.listWidget1 = optionsWidget(options=optionList0, optionNames=optionNames0, exclusive=False, changed=lambda: self.dataChanged.emit(True))
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
         self.listWidget1.checkOption(self.listWidget1.intNames[1])
@@ -172,7 +177,7 @@ class rawForm (baseForm):
         self.sliderHigh.setSingleStep(1)
 
         self.highLabel = QLabel()
-        self.highLabel.setText("OverExp. Rest.") # restauration of overexposed areas
+        self.highLabel.setText("OverExp. Rest.") # restoration of overexposed areas
 
         self.highValue = QLabel()
         font = self.highValue.font()
@@ -246,7 +251,7 @@ class rawForm (baseForm):
         ######################
         # From libraw and dcraw sources:
         # Exposure and brightness are curve transformations.
-        # Exposure curve is y = alpha*x, with cubic root ending, applied before demosaicing.
+        # Exposure curve is y = alpha*x, with cubic root ending; it is applied before demosaicing.
         # Brightness is (similar to) y = x**alpha and part of gamma transformation from linear sRGB to RGB.
         # Exposure and brightness both dilate the histogram towards highlights.
         # Exposure dilatation is uniform (homothety), brightness dilataion is
@@ -469,14 +474,41 @@ class rawForm (baseForm):
         self.setWhatsThis(
 """<b>Development of raw files</b><br>
 <b>Default settings</b> are a good starting point.<br>
+A <b>Tone Curve</b> is applied to the raw image prior to postprocessing.<br> Il can be edited by checking the option
+<b>Show Tone Curve</b>; this option works best with manual exposure.<br>
 <b>Contrast</b> correction is based on an automatic algorithm well suited to multi-mode histograms.<br>
 <b>Brightness, Contrast</b> and <b>Saturation</b> levels</b> are adjustable with the correponding sliders.<br>
 The <b>Contrast Curve</b> can be edited manually by checking the option <b>Show Contrast Curve</b>.<br>
 Uncheck <b>Auto Expose</b> to adjust the exposure manually.<br>
-The <b>OverExp. Rest.</b> slider controls the restauration of overexposed highlights.<br>
+The <b>OverExp. Rest.</b> slider controls the mode of restoration of overexposed areas. 
+Valid values are 0 to 3 (0=clip;1=unclip;2=blend;3=rebuild); (with Auto Exposed checked the mode is clip).<br>
 <b> 
 """
                         ) # end of setWhatsThis
+
+    def setToneSpline(self):
+        axeSize = 200
+        if self.toneForm is None:
+            form = graphicsSplineForm.getNewWindow(targetImage=None, axeSize=axeSize, layer=self.layer, parent=None,
+                                                    mainForm=None, curveType='cubic')
+            form.setWindowFlags(Qt.WindowStaysOnTopHint)
+            form.setAttribute(Qt.WA_DeleteOnClose, on=False)
+            form.setWindowTitle('Tone Curve')
+            form.setButtonText('Reset Curve')
+            self.toneForm = form
+            dockT = stateAwareQDockWidget(self.parent())
+            dockT.setWindowFlags(form.windowFlags())
+            dockT.setWindowTitle(form.windowTitle())
+            dockT.setStyleSheet(
+                "QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
+            window = self.parent().parent()
+            window.addDockWidget(Qt.LeftDockWidgetArea, dockT)
+            self.dockT = dockT
+            dockT.setWidget(form)
+        else:
+            form = self.toneForm
+        form.scene().setSceneRect(-25, -axeSize - 25, axeSize + 50, axeSize + 50)  # TODO added 15/07/18
+        self.dockT.showNormal()
 
     def setContrastSpline(self, a, b, d, T):
         """
@@ -494,26 +526,26 @@ The <b>OverExp. Rest.</b> slider controls the restauration of overexposed highli
         """
         axeSize = 200
         if self.contrastForm is None:
-            form = graphicsQuadricForm.getNewWindow(targetImage=None, axeSize=axeSize, layer=self.layer, parent=None,
-                                                    mainForm=None)
+            form = graphicsSplineForm.getNewWindow(targetImage=None, axeSize=axeSize, layer=self.layer, parent=None,
+                                                   mainForm=None)
             form.setWindowFlags(Qt.WindowStaysOnTopHint)
             form.setAttribute(Qt.WA_DeleteOnClose, on=False)
             form.setWindowTitle('Contrast Curve')
             self.contrastForm = form
+            dockC = stateAwareQDockWidget(self.parent())
+            dockC.setWindowFlags(form.windowFlags())
+            dockC.setWindowTitle(form.windowTitle())
+            dockC.setStyleSheet("QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
             window = self.parent().parent()
-            dock = stateAwareQDockWidget(self.parent())
-            dock.setWidget(form)
-            dock.setWindowFlags(form.windowFlags())
-            dock.setWindowTitle(form.windowTitle())
-            dock.setStyleSheet("QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
-            window.addDockWidget(Qt.LeftDockWidgetArea, dock)
-            self.dock = dock
+            window.addDockWidget(Qt.LeftDockWidgetArea, dockC)
+            self.dockC = dockC
+            dockC.setWidget(form)
         else:
             form = self.contrastForm
         # update the curve
         form.scene().setSceneRect(-25, -axeSize - 25, axeSize + 50, axeSize + 50)  # TODO added 15/07/18
         form.scene().quadricB.setCurve(a * axeSize, b * axeSize, d, T * axeSize)
-        self.dock.showNormal() # TODO self added 24/10/18 validate
+        self.dockC.showNormal() # TODO self added 24/10/18 validate
 
     # temp changed  event handler
     def tempUpdate(self, value):
@@ -592,7 +624,7 @@ The <b>OverExp. Rest.</b> slider controls the restauration of overexposed highli
         self.enableSliders()
         self.layer.applyToStack()
         self.layer.parentImage.onImageChanged()
-        cf = getattr(self, 'dock', None)  # self.contrastForm TODO modified 20/07/18
+        cf = getattr(self, 'dockC', None)  # self.contrastForm TODO modified 20/07/18
         if cf is None:
             return
         if self.options['manualCurve']:

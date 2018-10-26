@@ -167,6 +167,20 @@ class ExifTool(object):
             os.remove(sidecar)
         return True
 
+    def readBinaryData(self, f, tagname='xx'):
+        """
+        Read binary metadata from tagname in an image file or
+        a raw iamge file or a sidecar file.
+        @param f: path to file
+        @type f: str
+        @param tagname:
+        @type tagname: str
+        @return: data
+        @rtype: bytes
+        """
+        buf = self.execute(*['-b', '-m', '-' + tagname, f], ascii=False)  # -m disables output of warnings
+        return bytes(buf)
+
     def get_thumbNail(self, f, thumbname='thumbnailimage'):
         """
         Extracts the (jpg) thumbnail from an image or sidecar file
@@ -178,8 +192,8 @@ class ExifTool(object):
         @return: thumbnail
         @rtype: QImage
         """
-        thumbNail = self.execute(*[ '-b', '-m', '-'+thumbname, f], ascii=False)  # -m disables output of warnings
-        return QImage.fromData(QByteArray.fromRawData(bytes(thumbNail)), 'JPG')
+        thumbnail = self.readBinaryData(f, tagname=thumbname) # self.execute(*[ '-b', '-m', '-'+thumbname, f], ascii=False)
+        return QImage.fromData(QByteArray.fromRawData(thumbnail), 'JPG')
 
     def writeThumbnail(self, filename, thumbfile):
         """
