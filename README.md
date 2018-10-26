@@ -4,8 +4,8 @@ Copyright (C) 2017-2018 Bernard Virot <bernard.virot@libertysurf.fr>
 
 ## DESCRIPTION
 
- bLUe is a complete GUI environment for photo edition. It can .
-bLUe proposes a large set of adjustment layers:
+ bLUe is a complete GUI environment for photo edition, featuring a large set of adjustment layers and
+ 3D LUT management.
 
 A 3D LUT is represented by a 3D cube of color nodes. Image pixels are associated
 to nodes, based on their color and modifications are applied to each node individually.
