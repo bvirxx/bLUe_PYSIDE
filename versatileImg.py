@@ -17,6 +17,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 import itertools
+
+import rawpy
 from os.path import isfile
 from time import time
 import numpy as np
@@ -1033,6 +1035,28 @@ class vImage(bImage):
         ######################################################################################################################
         # postProcessCache is reset to None by graphicsRaw.updateLayer (graphicsRaw.dataChanged event handler)
         if self.postProcessCache is None:
+            #############################################
+            # get postprocessing parameters
+            # no_auto_scale = False  don't use : green shift
+            output_bps = 16
+            gamma = (2.222, 4.5)  # default REC BT 709 exponent, slope
+            # gamma=(2.4, 12.92), # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
+            exp_shift = adjustForm.expCorrection if not options['Auto Brightness'] else 0
+            no_auto_bright = (not options['Auto Brightness'])
+            use_auto_wb = options['Auto WB']
+            use_camera_wb = options['Camera WB']
+            exp_preserve_highlights = 0.99 if options['Preserve Highlights'] else 0.6  # range 0.0..1.0
+            bright = adjustForm.brCorrection  # default 1, should be > 0
+            hv = adjustForm.overexpValue
+            highlightmode = rawpy.HighlightMode.Clip if hv == 0 \
+                            else rawpy.HighlightMode.Ignore if hv == 1 \
+                            else rawpy.HighlightMode.Blend if hv == 2 \
+                            else rawpy.HighlightMode.ReconstructDefault
+            dv = adjustForm.denoiseValue
+            fbdd_noise_reduction = rawpy.FBDDNoiseReductionMode.Off if dv == 0 \
+                                   else rawpy.FBDDNoiseReductionMode.Light if dv == 1 \
+                                   else rawpy.FBDDNoiseReductionMode.Full
+            #############################################
             # build sample images for a set of multipliers
             if adjustForm.sampleMultipliers:
                 bufpost16 = np.empty((self.height(), self.width(), 3), dtype=np.uint16)
@@ -1045,20 +1069,18 @@ class vImage(bImage):
                     mult = (mult[0], mult[1], mult[2], mult[1])
                     print(mult, '   ', m)
                     bufpost_temp = rawImage.postprocess(
-                                            exp_shift=baseExpShift+2.0**(2.0*adjustForm.expCorrection) if not options['Auto Brightness'] else 0,
-                                            no_auto_bright= (not options['Auto Brightness']),
-                                            use_auto_wb=options['Auto WB'],
-                                            use_camera_wb=False,#options['Camera WB'],
-                                            user_wb = mult,#adjustForm.rawMultipliers,
-                                            gamma= (2.222, 4.5),  # default REC BT 709 exponent, slope
-                                            #gamma=(2.4, 12.92), # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
-                                            exp_preserve_highlights = 1.0 if options['Preserve Highlights'] else 0.8,
-                                            output_bps=16,
-                                            bright=adjustForm.brCorrection,  # default 1
-                                            hightlightmode=adjustForm.highCorrection if not options['Auto Brightness'] else 0
-                                            # Highlight mode 0 = clip, 1 = unclip, 2 = blend, 3 += rebuild
-                                            # no_auto_scale= (not options['Auto Scale']) don't use : green shift
-                                            )
+                        output_bps=output_bps,
+                        exp_shift=exp_shift,
+                        no_auto_bright= no_auto_bright,
+                        use_auto_wb=use_auto_wb,
+                        use_camera_wb=False,#options['Camera WB'],
+                        user_wb=mult,
+                        gamma=gamma,
+                        exp_preserve_highlights=exp_preserve_highlights,
+                        bright=bright,
+                        hightlightmode=highlightmode,
+                        fbdd_noise_reduction=rawpy.FBDDNoiseReductionMode.Off
+                        )
                     row = i // 3
                     col = i % 3
                     w, h = int(bufpost_temp.shape[1]/3), int(bufpost_temp.shape[0]/3)
@@ -1068,18 +1090,18 @@ class vImage(bImage):
             else:
                 # highlight_mode : restoration of overexposed highlights. 0: clip, 1:unclip, 2:blend, 3...: rebuild
                 bufpost16 = rawImage.postprocess(
-                    exp_shift=baseExpShift+2.0**(2.0*adjustForm.expCorrection) if not options['Auto Brightness'] else 0,
-                    no_auto_bright=(not options['Auto Brightness']),
-                    use_auto_wb=options['Auto WB'],
-                    use_camera_wb=options['Camera WB'],
+                    output_bps=output_bps,
+                    exp_shift=exp_shift,
+                    no_auto_bright=no_auto_bright,
+                    use_auto_wb=use_auto_wb,
+                    use_camera_wb=use_camera_wb,
                     user_wb=adjustForm.rawMultipliers,
-                    gamma= (2.222, 4.5),  # default REC BT 709 exponent, slope
-                    #gamma=(2.4, 12.92), # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
-                    exp_preserve_highlights=0.99 if options['Preserve Highlights'] else 0.6,
-                    output_bps=16,
-                    bright=adjustForm.brCorrection,  # > 0, default 1
-                    highlight_mode=adjustForm.highCorrection if not options['Auto Brightness'] else 0,
-                    #no_auto_scale=False# (not options['Auto Scale']) don't use : green shift
+                    gamma=gamma,
+                    exp_preserve_highlights=exp_preserve_highlights,
+                    bright=bright,
+                    highlight_mode=highlightmode,
+                    fbdd_noise_reduction=fbdd_noise_reduction,
+                    median_filter_passes=1
                     )
             bufHSV_CV32 = cv2.cvtColor(((bufpost16.astype(np.float32)) / 65536).astype(np.float32), cv2.COLOR_RGB2HSV)
         else:

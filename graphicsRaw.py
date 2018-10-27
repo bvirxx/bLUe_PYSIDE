@@ -21,7 +21,7 @@ import numpy as np
 from PySide2 import QtCore
 from PySide2.QtCore import Qt, QPoint
 from PySide2.QtGui import QFontMetrics
-from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBox
+from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBox, QComboBox
 from bLUeGui.multiplier import temperatureAndTint2RGBMultipliers, RGBMultipliers2TemperatureAndTint
 from bLUeGui.graphicsSpline import graphicsSplineForm, activeCubicSpline
 from bLUeGui.graphicsSpline import baseForm
@@ -67,11 +67,15 @@ class rawForm (baseForm):
 
     @classmethod
     def slider2Exp(cls, v):
-        return v / 20.0 - 2.0
+        return 2**( (v -50)/ 15.0)
 
     @classmethod
     def exp2Slider(cls, e):
-        return round((e + 2.0) * 20.0)
+        return round(15 * np.log2(e) + 50)
+
+    @classmethod
+    def sliderExp2User(cls, v):
+        return (v -50) / 15
 
     @classmethod
     def slider2Cont(cls, v):
@@ -170,6 +174,7 @@ class rawForm (baseForm):
         self.listWidget2.checkOption(self.listWidget2.intNames[1])
         self.options = UDict(self.listWidget1.options, self.listWidget2.options)
 
+        """
         # highlight correction slider
         self.sliderHigh= QbLUeSlider(Qt.Horizontal)
         self.sliderHigh.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
@@ -203,7 +208,7 @@ class rawForm (baseForm):
 
         self.sliderHigh.valueChanged.connect(highUpdate)  # send new value as parameter
         self.sliderHigh.sliderReleased.connect(lambda: highUpdate(self.sliderHigh.value()))
-
+        """
         # temp slider
         self.sliderTemp = QbLUeSlider(Qt.Horizontal)
         self.sliderTemp.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
@@ -262,6 +267,30 @@ class rawForm (baseForm):
         # Cf. https://www.cambridgeincolour.com/forums/thread653.htm
         #####################
 
+        # denoising combo
+        self.denoiseCombo = QComboBox()
+        for item in {'Off' : 0, 'Medium' : 1, 'Full' : 2}:
+            self.denoiseCombo.addItem(item)
+
+        # denoiseCombo index changed event handler
+        def denoiseUpdate(value):
+            self.denoiseValue = value
+            self.dataChanged.emit(True)
+
+        self.denoiseCombo.currentIndexChanged.connect(denoiseUpdate)
+
+        # overexposed area restoration
+        self.overexpCombo = QComboBox()
+        for item in {'Clip' : 0, 'Ignore' : 1, 'Blend' : 2, 'Reconstruct' : 3}:
+            self.overexpCombo.addItem(item)
+
+        # overexpCombo index changed event handler
+        def overexpUpdate(value):
+            self.overexpValue = value
+            self.dataChanged.emit(True)
+
+        self.overexpCombo.currentIndexChanged.connect(overexpUpdate)
+
         # exp slider
         self.sliderExp = QbLUeSlider(Qt.Horizontal)
         self.sliderExp.setStyleSheet(QbLUeSlider.bLueSliderDefaultBWStylesheet)
@@ -283,7 +312,7 @@ class rawForm (baseForm):
 
         # exp done event handler
         def expUpdate(value):
-            self.expValue.setText(str("{:.1f}".format(self.slider2Exp(self.sliderExp.value()))))
+            self.expValue.setText(str("{:+.1f}".format(self.sliderExp2User(self.sliderExp.value()))))
             # move not yet terminated or value not modified
             if self.sliderExp.isSliderDown() or self.slider2Exp(value) == self.expCorrection:
                 return
@@ -407,14 +436,28 @@ class rawForm (baseForm):
         self.dataChanged.connect(self.updateLayer)
         self.setStyleSheet("QListWidget, QLabel {font : 7pt;}")
 
-        """layout"""
+        # layout
         l = QVBoxLayout()
         l.setContentsMargins(8, 8, 8, 8)  # left, top, right, bottom
-        l.setAlignment(Qt.AlignBottom)
+        #l.setAlignment(Qt.AlignBottom)
+        hl0 = QHBoxLayout()
+        hl0.addWidget(QLabel('Denoising'))
+        hl0.addWidget(self.denoiseCombo)
+        l.addLayout(hl0)
+        hl00 = QHBoxLayout()
+        hl00.addWidget(QLabel('Overexp. Restoration'))
+        hl00.addWidget(self.overexpCombo)
+        l.addLayout(hl00)
         hl1 = QHBoxLayout()
         hl1.addWidget(self.expLabel)
         hl1.addWidget(self.expValue)
         hl1.addWidget(self.sliderExp)
+        l.addLayout(hl1)
+        hl8 = QHBoxLayout()
+        hl8.addWidget(brLabel)
+        hl8.addWidget(self.brValue)
+        hl8.addWidget(self.sliderBrightness)
+        l.addLayout(hl8)
         l.addWidget(self.listWidget1)
         self.listWidget2.setStyleSheet("QListWidget {border: 0px;} QListWidget::item {border: 0px; padding-left: 20px;}")
         vl1 = QVBoxLayout()
@@ -438,27 +481,11 @@ class rawForm (baseForm):
         hl4.addWidget(self.contLabel)
         hl4.addWidget(self.contValue)
         hl4.addWidget(self.sliderCont)
-        hl8 = QHBoxLayout()
-        hl8.addWidget(brLabel)
-        hl8.addWidget(self.brValue)
-        hl8.addWidget(self.sliderBrightness)
         hl7 = QHBoxLayout()
         hl7.addWidget(satLabel)
         hl7.addWidget(self.satValue)
         hl7.addWidget(self.sliderSat)
-        #hl5 = QHBoxLayout()
-        #hl5.addWidget(noiseLabel)
-        #hl5.addWidget(self.noiseValue)
-        #hl5.addWidget(self.sliderNoise)
-        #l.addLayout(hl2)
-        #l.addLayout(hl3)
-        l.addLayout(hl1)
-        hl10 = QHBoxLayout()
-        hl10.addWidget(self.highLabel)
-        hl10.addWidget(self.highValue)
-        hl10.addWidget(self.sliderHigh)
-        l.addLayout(hl10)
-        l.addLayout(hl8)
+
         # separator
         sep = QFrame()
         sep.setFrameShape(QFrame.HLine)
@@ -638,27 +665,29 @@ Valid values are 0 to 3 (0=clip;1=unclip;2=blend;3=rebuild); (with Auto Exposed 
         self.sliderTemp.setEnabled(useUserWB)
         self.sliderTint.setEnabled(useUserWB)
         self.sliderExp.setEnabled(useUserExp)
-        self.sliderHigh.setEnabled(useUserExp)
+        #self.sliderHigh.setEnabled(useUserExp)
         self.tempValue.setEnabled(self.sliderTemp.isEnabled())
         self.tintValue.setEnabled(self.sliderTint.isEnabled())
         self.expValue.setEnabled(self.sliderExp.isEnabled())
-        self.highValue.setEnabled(self.sliderHigh.isEnabled())
+        #self.highValue.setEnabled(self.sliderHigh.isEnabled())
         self.tempLabel.setEnabled(self.sliderTemp.isEnabled())
         self.tintLabel.setEnabled(self.sliderTint.isEnabled())
         self.expLabel.setEnabled(self.sliderExp.isEnabled())
-        self.highLabel.setEnabled(self.sliderHigh.isEnabled())
+        #self.highLabel.setEnabled(self.sliderHigh.isEnabled())
 
     def setDefaults(self):
         self.listWidget1.unCheckAll()
         self.listWidget2.unCheckAll()
-        self.listWidget1.checkOption(self.listWidget1.intNames[0])
+        #self.listWidget1.checkOption(self.listWidget1.intNames[0])
         self.listWidget1.checkOption(self.listWidget1.intNames[1])
         self.listWidget2.checkOption(self.listWidget2.intNames[1])
         self.enableSliders()
+        self.denoiseValue = 0 # denoising off
+        self.overexpValue = 0 # clip
         self.tempCorrection = self.cameraTemp
         self.tintCorrection = 1.0
-        self.expCorrection = 0.0
-        self.highCorrection = 3.0  # restoration of overexposed highlights. 0: clip 1:unclip, 2: blend, 3...: rebuild
+        self.expCorrection = 1.0
+        #self.highCorrection = 3.0  # restoration of overexposed highlights. 0: clip 1:unclip, 2: blend, 3...: rebuild
         self.contCorrection = 5.0
         #self.noiseCorrection = 0
         self.satCorrection = 0.0
@@ -667,10 +696,9 @@ Valid values are 0 to 3 (0=clip;1=unclip;2=blend;3=rebuild); (with Auto Exposed 
         self.sliderTemp.setValue(round(self.temp2Slider(self.tempCorrection)))
         self.sliderTint.setValue(round(self.tint2Slider(self.tintCorrection)))
         self.sliderExp.setValue(self.exp2Slider(self.expCorrection))
-        self.sliderHigh.setValue(self.highCorrection)
+        #self.sliderHigh.setValue(self.highCorrection)
         self.sliderCont.setValue(self.cont2Slider(self.contCorrection))
         self.sliderBrightness.setValue(self.br2Slider(self.brCorrection))
-        #self.sliderNoise.setValue(self.noise2Slider(self.noiseCorrection))
         self.sliderSat.setValue(self.sat2Slider(self.satCorrection))
         self.dataChanged.connect(self.updateLayer)
         self.dataChanged.emit(True)

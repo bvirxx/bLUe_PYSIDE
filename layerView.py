@@ -214,8 +214,8 @@ class QLayerView(QTableView) :
         compLabel = QLabel()
         compLabel.setText("Composition Mode")
         l.addWidget(compLabel)
-        modes = ['Normal', 'Plus', 'Multiply', 'Screen', 'Overlay', 'Darken', 'Lighten', 'Color Dodge', 'Color Burn', 'Hard Light',
-                'Soft Light', 'Difference', 'Exclusion']
+        #modes = ['Normal', 'Plus', 'Multiply', 'Screen', 'Overlay', 'Darken', 'Lighten', 'Color Dodge', 'Color Burn', 'Hard Light',
+                #'Soft Light', 'Difference', 'Exclusion']
         self.compositionModeDict = { 'Normal':QPainter.CompositionMode_SourceOver,
                                 'Plus':QPainter.CompositionMode_Plus, 'Multiply':QPainter.CompositionMode_Multiply,
                                 'Screen':QPainter.CompositionMode_Screen, 'Overlay':QPainter.CompositionMode_Overlay,
@@ -226,7 +226,7 @@ class QLayerView(QTableView) :
                                 }
         self.blendingModeCombo = QComboBox()
         l.addWidget(self.blendingModeCombo)
-        for key in modes:
+        for key in self.compositionModeDict.keys():
             self.blendingModeCombo.addItem(key, self.compositionModeDict[key])
         # combo box item chosen event handler
         def g(ind):
