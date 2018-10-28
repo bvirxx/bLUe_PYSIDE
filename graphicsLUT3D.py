@@ -153,7 +153,6 @@ class nodeGroup(QGraphicsItemGroup):
             for i in self.childItems():
                 i.setState(i.pos())
             self.grid.drawGrid()
-            #self.scene().onUpdateLUT(options=self.scene().options)
             l = self.scene().layer
             l.applyToStack()
             l.parentImage.onImageChanged()
@@ -349,6 +348,7 @@ class activeNode(QGraphicsPathItem):
         self.delta=QPointF(0,0)
         self.initialPosition = position
         self.newPos = QPointF()
+        self.isControlPoint = False  # 28/10
 
     def setState(self, position):
         """
@@ -416,30 +416,36 @@ class activeNode(QGraphicsPathItem):
         return nghb
 
     def computeForces(self):
-        # sum up all forces pushing item away
+        # sum up all forces pulling item away
         xvel, yvel = 0.0, 0.0
+        weight = 1.0
         for i in range(self.grid.size):
             for j in range(self.grid.size):
                 if abs(i - self.gridRow) > 50 and abs(j - self.gridCol) > 50:
                     continue
                 item = self.grid.gridNodes[i][j]
-                # Vec(item,self)
+                # get self-->item (vector) coordinates
                 vec = self.mapToItem(item, 0, 0)
                 dx = vec.x()
                 dy = vec.y()
                 l = 2.0 * (dx * dx + dy * dy)
                 if l > 0 :
-                    xvel += (dx * 1.0) / l
-                    yvel += (dy * 1.0) / l
-        # substract all forces pulling items together
+                    xvel += (dx * weight) / l
+                    yvel += (dy * weight) / l
+        # substract all forces pushing items together
         weight = 50.0
         for item in self.neighbors():
+            # get self-->item (vector) coordinates
             vec = self.mapToItem(item, 0, 0)
             xvel -= vec.x() / weight
             yvel -= vec.y() / weight
         if abs(xvel) < 0.1 and abs(yvel) < 0.1 :
             xvel = yvel = 0
-        self.newPos = self.pos() + QPointF(xvel, yvel)
+        if not self.isControlPoint:  # 28/10
+            self.newPos = self.pos() + QPointF(xvel*5, yvel*5)
+        else :
+            self.newPos = self.pos() #+ QPointF(xvel*5, yvel*5)
+
 
     def mousePressEvent(self, e):
         # super Press select node
@@ -454,9 +460,9 @@ class activeNode(QGraphicsPathItem):
         self.grid.drawGrid()
 
     def mouseReleaseEvent(self, e):
+        self.isControlPoint = True #28/10
         self.setState(self.pos())
         if self.mouseIsMoved:
-            #self.scene().onUpdateLUT(options=self.scene().options)
             l = self.scene().layer
             l.applyToStack()
             l.parentImage.onImageChanged()
@@ -525,14 +531,22 @@ class activeGrid(QGraphicsPathItem):
                 self.gridNodes[i][j].computeForces()
         for i in range(self.size) :
             for j in range(self.size):
-                self.gridNodes[i][j].setPos(self.gridNodes[i][j].newPos)
+                newPos = self.gridNodes[i][j].newPos
+                if self.gridNodes[i][j].pos() != newPos:
+                    self.gridNodes[i][j].setPos(newPos)
+                    self.gridNodes[i][j].setState(newPos)
+        for i in range(self.size):
+            for j in range(self.size):
+                if self.gridNodes[i][j].isControlPoint:
+                    self.gridNodes[i][j].setState(self.gridNodes[i][j].pos())
 
     def drawGrid(self):
         qpp = QPainterPath()
         for i in range(self.size):
             for j in range(self.size):
                 if not self.gridNodes[i][j].isSelected():
-                    continue
+                    pass #28/10
+                    #continue
                 node = self.gridNodes[i][j]
                 # mark initial position
                 qpp.moveTo(node.gridPos())
@@ -907,6 +921,8 @@ class graphicsForm3DLUT(QGraphicsView) :
         pushButton1.clicked.connect(self.onReset)
         pushButton2 = QPushButton("Save LUT")
         pushButton2.clicked.connect(self.saveLUT)
+        pushButton3 = QPushButton("Smooth Grid")
+        pushButton3.clicked.connect(self.onSmoothGrid)
 
         # options
         self.graphicsScene.options = {'use selection': True, 'add node':True, 'select neighbors':True,
@@ -952,6 +968,7 @@ class graphicsForm3DLUT(QGraphicsView) :
         # layouts
         hlButtons = QHBoxLayout()
         hlButtons.addWidget(pushButton1)
+        hlButtons.addWidget(pushButton3)
         hlButtons.addWidget(pushButton2)
         #hlButtons.addStretch(1)
         hl = QHBoxLayout()
@@ -979,7 +996,7 @@ class graphicsForm3DLUT(QGraphicsView) :
 
         # We cannot change QPushButton font size alone. Instead,
         # we must define a new style from scratch.
-        for btn in [pushButton1, pushButton2]:
+        for btn in []: #[pushButton1, pushButton2]:
             btn.setStyleSheet("QPushButton { margin: 1px; border-color: gray/*#0c457e*/; border-style: outset; border-radius: 3px;\
                                 border-width: 3px; color: black;\
                                 background-color: silver/*qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #2198c0, stop: 1 #0d5ca6)*/; color: white; font-size: 7pt}\
@@ -987,7 +1004,7 @@ class graphicsForm3DLUT(QGraphicsView) :
             btn.adjustSize()
             btn.setMaximumSize(QSize(btn.width()+4, btn.height()+4))
         self.setWhatsThis(
-""" <b>3D LUT Editor</b><br>
+""" <b>2.5D LUT Editor</b><br>
   To <b>select nodes</b> click on the image. The corresponding nodes are displayed \
 as small black circles on the color wheel.<br>
 To <b>modify the color of a node </b> drag it with the mouse to a new position on \
@@ -995,12 +1012,13 @@ the wheel. Several nodes can be moved simultaneously by grouping them.<br>
    To <b>group several nodes</b> :<br>
         &nbsp; 1 - select them with the mouse : while pressing the mouse left button, drag a rubber band around the nodes to select;<br>
         &nbsp; 2 - next, right click any one of the selected nodes and choose group from the context menu which opens.<br>
-    To <b>remove nodes</b> from the selection:<br>
+    To <b>unselect nodes</b> :<br>
         &nbsp; 1 - check the option Remove Node;<br>
         &nbsp; 2 -  ungroup;<br>
-        &nbsp; 3 - on the image, click the pixels to remove.<br>
+        &nbsp; 3 - on the image, click the pixels to unselect.<br>
 <b>Caution</b> : Selecting nodes in an image with the mouse is enabled only when
-the Color Chooser is closed.
+the Color Chooser is closed.<br>
+Click the <b> Smooth Grid</b> button to smooth color transitions between neighbor nodes in the LUT.<br>
 """
 
                           ) # end of setWhatsThis
@@ -1079,6 +1097,12 @@ the Color Chooser is closed.
     def onSelectGridNode(self, h, s):
         self.bSliderUpdate()
         self.displayStatus()
+
+    def onSmoothGrid(self):
+        self.grid.setElasticPos()
+        self.grid.drawGrid()
+        self.layer.applyToStack()
+        self.layer.parentImage.window.repaint()
 
     def onReset(self):
         """

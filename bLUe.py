@@ -1259,7 +1259,7 @@ def menuLayer(name):
     elif name in ['action3D_LUT', 'action3D_LUT_HSB']:
         # color model
         ccm = cmHSP if name == 'action3D_LUT' else cmHSB
-        layerName = '3D LUT HSpB' if name == 'action3D_LUT' else '3D LUT HSV'
+        layerName = '2.5D LUT HSpB' if name == 'action3D_LUT' else '2.5D LUT HSV'
         l = window.label.img.addAdjustmentLayer(name=layerName, role='3DLUT')
         grWindow = graphicsForm3DLUT.getNewWindow(ccm, axeSize=300, targetImage=window.label.img, LUTSize=LUTSIZE, layer=l, parent=window, mainForm=window)
         # init pool only once
@@ -1761,7 +1761,9 @@ if __name__ =='__main__':
                            QMessageBox QLabel, QDialog QLabel {background-color: white; color : black}\
                            QColorDialog QLabel {background-color: gray; color: white}\
                            QStatusBar::item {border: none}\
-                           QToolTip {border: 0px; background-color: lightyellow; color: black}"  # border must be set, otherwise background-color has no effect : Qt bug?
+                           QPushButton {font-size: 8pt}\
+                           QToolTip {border: 0px; background-color: lightyellow; color: black}"# border must be set, otherwise background-color has no effect : Qt bug?
+
                          )
     # Before/After view
     splittedWin = splittedWindow(window)

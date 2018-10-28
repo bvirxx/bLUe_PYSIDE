@@ -55,7 +55,7 @@ class LUT3D (object):
 
     ####################
     # default LUT size
-    defaultSize = 33
+    defaultSize = 17#33
     ####################
 
     @classmethod

@@ -8,13 +8,12 @@ Copyright (C) 2017-2018 Bernard Virot <bernard.virot@libertysurf.fr>
  well as 3D LUT and 2.5D LUT management.
 
 A 3D LUT is represented by a 3D cube of color nodes. Image pixels are associated
-to nodes, based on their color, and modifications are applied to each node individually,
-giving full control over colors. However, aesthetic considerations show that, for photo editing,
-the modifications should keep invariant the pixel brightnesses. A 3D LUT respecting this constraint
+to nodes, based on their color, and modifications (change in output colors) are applied to each node individually,
+giving full control over colors. However, for photo editing, aesthetic considerations show that
+modifications should not depend on the pixel brightnesses. A 3D LUT respecting this constraint
 is called 2.5D LUT.
-
 bLUe creates interactive 2.5D LUTs which can be edited by selecting, grouping and moving nodes over
-a (hue, saturation) color wheel. In addition, bLUe can import and export any 3D LUT file in .cube format.
+a (hue, saturation) color wheel.
 
 The program is fully modular : functionalities are implemented as independent
 adjustment layers using a common GUI. Any imaging library exposing Python
@@ -30,10 +29,12 @@ bLUe is written in Python.
 * Edition of files in formats jpg, png, tif, nef, cr2, dng.
 * Adjustment layers : exposure, brightness, saturation, contrast, color temperature, inversion, filters, noise reduction, cloning,
 segmentation, geometric transformations, curves (1D LUTs), 2.5D LUTs, 3D LUTs.
-* Automatic contrast enhancement
+* Automatic contrast enhancement (histogram warping and CLAHE)
 * Import and export of 3D LUTs in .cube format
 * mask edition
-* Editable (contrast) tone curve for raw files (cr2, nef, dng).
+* Editable (contrast) tone curve for raw files (cr2, nef, dng)
+* Library viewer
+* Slide Show
 
 ## REQUIREMENTS
 

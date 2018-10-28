@@ -889,7 +889,7 @@ Screen</string>
   </action>
   <action name="action3D_LUT">
    <property name="text">
-    <string>3D LUT HSpB</string>
+    <string>2.5D LUT HSpB</string>
    </property>
   </action>
   <action name="actionColor_manage">
@@ -910,7 +910,7 @@ Screen</string>
   </action>
   <action name="action3D_LUT_HSB">
    <property name="text">
-    <string>3D LUT HSV</string>
+    <string>2.5D LUT HSV</string>
    </property>
   </action>
   <action name="actionColor_Temperature">
