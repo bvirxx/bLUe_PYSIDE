@@ -287,14 +287,23 @@ class activeNode(QGraphicsPathItem):
 
     def __init__(self, position, cModel, gridRow=0, gridCol=0, parent=None, grid=None):
         """
-        Grid Node class. Each node is bound to a fixed color, depending on its
-        initial position on the color wheel. The node is also bound to a fixed list
+        Grid Node class. Each node owns a fixed color, depending on its
+        initial position on the color wheel. The node is bound to a fixed list
         of LUT vertices, corresponding to its initial color.
         When a node is moved over the color wheel, calling the method setState synchronizes
         the values of the LUT vertices with the current node position.
-        @param position: QpointF node position (relative to parent item)
+        @param position: node position (relative to parent item)
+        @type position: QPointF
+        @param cmodel:
+        @type cmodel:
+        @param gridRow:
+        @type gridRow:
+        @param gridCol:
+        @type gridCol:
         @param parent: parent item
+        @type parent:
         @param grid: owner grid
+        @type grid:
         """
         super().__init__()
         self.setParentItem(parent)
@@ -307,10 +316,10 @@ class activeNode(QGraphicsPathItem):
         self.setFlag(QGraphicsItem.ItemIsSelectable, True)
         self.setFlag(QGraphicsItem.ItemIgnoresTransformations, True)
         self.setVisible(False)
-        # read color from color wheel.
-        # Node parent is the grid, and grandfather is the color wheel
+        # read color from the color wheel.
+        # Node parent is the grid, and its grandfather is the color wheel
         # grid is at pos (0,0) on the color wheel (colorPicker object)
-        # Color wheel has a non null offset for border.
+        # Color wheel has a non null offset for the border.
         p = position - parent.parentItem().offset()
         scene = parent.scene()
         c = QColor(scene.slider2D.QImg.pixel(p.toPoint()))
@@ -318,16 +327,17 @@ class activeNode(QGraphicsPathItem):
         self.hue, self.sat, self.pB = self.cModel.rgb2cm(self.r, self.g, self.b)
         # modified colors
         self.rM, self.gM, self.bM = self.r, self.g, self.b
-
-        # build the list of LUT vertices bound to the node:  # TODO modified 13/04/18, validate
-        # we convert the list of HSpB coord. (self.hue, self.sat, p) to RGB values
-        # and find the nearest neighbors vertices in the 3D LUT
+        # build the list of LUT vertices bound to the node:
+        # we convert the list of HSV coord. (self.hue, self.sat, V) to RGB values
+        # and search the nearest neighbor vertices in the 3D LUT
+        """
         tmp = np.zeros((101,1,3), dtype=np.float)
         tmp[:,0,:2] = self.hue, self.sat
         tmp[:,0,2] = np.arange(101, dtype=np.float) / 100.0
-        tmp = scene.slider2D.QImg.rgbBuf[:,p.toPoint().y(), p.toPoint().x()].astype(np.float)[:,None] #self.cModel.cm2rgbVec(tmp)
-        #tmp = self.cModel.cm2rgbVec(np.array([(self.hue, self.sat, p / 100.0) for p in range(101)]) [:, None])
-        self.LUTIndices = np.round(tmp[:,0]/float(LUTSTEP)).astype(int)
+        """
+        # rgbBuf axis 0 is brightness
+        tmp = scene.slider2D.QImg.rgbBuf[:, p.toPoint().y(), p.toPoint().x()].astype(np.float)[:, None]
+        self.LUTIndices = np.round(tmp[:, 0] / float(LUTSTEP)).astype(int)
         clipped = [ (i,j,k) for i,j,k in self.LUTIndices if  i < LUTSIZE - 2 and j < LUTSIZE - 2 and k < LUTSIZE - 2]
         clipped.extend( [tuple(self.LUTIndices[len(clipped)])] if len(clipped) < len(self.LUTIndices) else [] )
         # remove duplicate vertices
@@ -545,8 +555,7 @@ class activeGrid(QGraphicsPathItem):
         for i in range(self.size):
             for j in range(self.size):
                 if not self.gridNodes[i][j].isSelected():
-                    pass #28/10
-                    #continue
+                    continue
                 node = self.gridNodes[i][j]
                 # mark initial position
                 qpp.moveTo(node.gridPos())

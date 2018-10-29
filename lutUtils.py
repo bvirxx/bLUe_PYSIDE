@@ -16,7 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 #####################################
-# Initializes LUT3D constants and objects used by bLUe
+# Initializes LUT3D constants and objects
 #####################################
 
 import numpy as np
