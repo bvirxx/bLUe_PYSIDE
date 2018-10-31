@@ -4,8 +4,8 @@ Copyright (C) 2017-2018 Bernard Virot <bernard.virot@libertysurf.fr>
 
 ## DESCRIPTION
 
- bLUe is a complete GUI environment for photo edition, featuring a large set of adjustment layers as
- well as 3D LUT and 2.5D LUT management.
+ bLUe is a complete GUI environment for photo edition, featuring a large set of controls as adjustment layers, including
+ 3D LUTs and 2.5D LUTs.
 
 A 3D LUT is represented by a 3D cube of color nodes. Image pixels are associated
 to nodes, based on their color, and modifications (change in output colors) are applied to each node individually,
@@ -15,7 +15,10 @@ is called 2.5D LUT.
 bLUe creates interactive 2.5D LUTs which can be edited by selecting, grouping and moving nodes over
 a (hue, saturation) color wheel.
 
-The program is fully modular : functionalities are implemented as independent
+Regarding raw file development, bLue provides full support for dng/dcp camera profiles : the same profile
+can be applied to several images, to obtain uniform results with a significant saving in time.
+
+The program is fully modular : controls are implemented as independent
 adjustment layers using a common GUI. Any imaging library exposing Python
 bindings can take advantage of the GUI.
 
@@ -32,7 +35,7 @@ segmentation, geometric transformations, curves (1D LUTs), 2.5D LUTs, 3D LUTs.
 * Automatic contrast enhancement (histogram warping and CLAHE)
 * Import and export of 3D LUTs in .cube format
 * Mask edition
-* Automatic import of camera specific dcp profiles
+* Automatic import of camera specific dng and dcp profiles
 * editable tone curve
 * Library viewer
 * Slide Show
