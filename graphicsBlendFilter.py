@@ -31,7 +31,7 @@ class blendFilterIndex:
     GRADUALBT, GRADUALTB, GRADUALNONE= range(3)
 
 class blendFilterForm (baseForm):
-    dataChanged = QtCore.Signal()
+    #dataChanged = QtCore.Signal() # TODO 30/10/18 removed
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         wdgt = blendFilterForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)

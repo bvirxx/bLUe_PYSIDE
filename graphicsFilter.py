@@ -29,7 +29,7 @@ from utils import optionsWidget, QbLUeSlider
 
 
 class filterForm (baseForm):
-    dataChanged = QtCore.Signal()
+    # dataChanged = QtCore.Signal()
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         wdgt = filterForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)

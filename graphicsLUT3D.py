@@ -330,11 +330,6 @@ class activeNode(QGraphicsPathItem):
         # build the list of LUT vertices bound to the node:
         # we convert the list of HSV coord. (self.hue, self.sat, V) to RGB values
         # and search the nearest neighbor vertices in the 3D LUT
-        """
-        tmp = np.zeros((101,1,3), dtype=np.float)
-        tmp[:,0,:2] = self.hue, self.sat
-        tmp[:,0,2] = np.arange(101, dtype=np.float) / 100.0
-        """
         # rgbBuf axis 0 is brightness
         tmp = scene.slider2D.QImg.rgbBuf[:, p.toPoint().y(), p.toPoint().x()].astype(np.float)[:, None]
         self.LUTIndices = np.round(tmp[:, 0] / float(LUTSTEP)).astype(int)
@@ -1014,18 +1009,19 @@ class graphicsForm3DLUT(QGraphicsView) :
             btn.setMaximumSize(QSize(btn.width()+4, btn.height()+4))
         self.setWhatsThis(
 """ <b>2.5D LUT Editor</b><br>
-  To <b>select nodes</b> click on the image. The corresponding nodes are displayed \
+  HSpB layers are slower than HSV, but, usually, they give better results.<br>
+  <b>Select nodes</b> with mouse clicks on the image. Selected nodes are shown
 as small black circles on the color wheel.<br>
-To <b>modify the color of a node </b> drag it with the mouse to a new position on \
+<b>Modify the color</b> of a node by dragging it on
 the wheel. Several nodes can be moved simultaneously by grouping them.<br>
-   To <b>group several nodes</b> :<br>
+<b>Group nodes</b> :<br>
         &nbsp; 1 - select them with the mouse : while pressing the mouse left button, drag a rubber band around the nodes to select;<br>
-        &nbsp; 2 - next, right click any one of the selected nodes and choose group from the context menu which opens.<br>
-    To <b>unselect nodes</b> :<br>
+        &nbsp; 2 - next, right click any one of the selected nodes and choose group from the context menu<br>
+<b>unselect nodes</b> :<br>
         &nbsp; 1 - check the option Remove Node;<br>
         &nbsp; 2 -  ungroup;<br>
         &nbsp; 3 - on the image, click the pixels to unselect.<br>
-<b>Caution</b> : Selecting nodes in an image with the mouse is enabled only when
+<b>Caution</b> : Selecting nodes with the mouse is enabled only when
 the Color Chooser is closed.<br>
 Click the <b> Smooth Grid</b> button to smooth color transitions between neighbor nodes in the LUT.<br>
 """

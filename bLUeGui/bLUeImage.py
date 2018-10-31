@@ -27,11 +27,39 @@ class bImage(QImage):
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.filename = ''
         self.rPixmap = None
         self.hspbBuffer = None
         self.LabBuffer = None
         self.HSVBuffer = None
+        self.postProcessCache = None
+        #self.dngDict = {}
 
+    @property
+    def filename(self):
+        return self.__filename
+
+    @filename.setter
+    def filename(self, s):
+        self.__filename = s
+
+    @property
+    def postProcessCache(self):
+        return self.__postProcessCache
+
+    @postProcessCache.setter
+    def postProcessCache(self, buf):
+        self.__postProcessCache = buf
+
+    """
+    @property
+    def dngDict(self):
+        return self.__dngDict
+
+    @dngDict.setter
+    def dngDict(self, d):
+        self.__dngDict = d
+    """
     @property
     def rPixmap(self):
         return self.__rPixmap

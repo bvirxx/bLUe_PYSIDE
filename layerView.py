@@ -134,7 +134,7 @@ class QLayerView(QTableView) :
         self.setDropIndicatorShown(True)
         # verticallayout
         l = QVBoxLayout()
-        l.setAlignment(Qt.AlignBottom)
+        l.setAlignment(Qt.AlignTop)
         # Preview option
         # We should use a QListWidget or a custom optionsWidget
         # (cf. utils.py) :  adding it to QVBoxLayout with mode
@@ -148,18 +148,18 @@ class QLayerView(QTableView) :
             self.img.useThumb = (state == Qt.Checked)
             QtGui1.window.updateStatus()
             self.img.cacheInvalidate()
-            for l in self.img.layersStack:
-                l.autoclone = True  # auto update cloning layers
-                l.knitted = False
+            for layer in self.img.layersStack:
+                layer.autoclone = True  # auto update cloning layers
+                layer.knitted = False
             try:
                 QApplication.setOverrideCursor(Qt.WaitCursor) #TODO 18/04/18 waitcursor is called by applytostack?
                 QtGui1.app.processEvents()
                 # update whole stack
                 self.img.layersStack[0].applyToStack()
             finally:
-                for l in self.img.layersStack:
-                    l.autoclone = False  # reset flags
-                    l.knitted = False
+                for layer in self.img.layersStack:
+                    layer.autoclone = False  # reset flags
+                    layer.knitted = False
                 QApplication.restoreOverrideCursor()
                 QApplication.processEvents()
             QtGui1.window.label.repaint()
@@ -182,7 +182,6 @@ class QLayerView(QTableView) :
         hl0.addStretch(1)
         hl0.addWidget(self.previewOptionBox)
         l.addLayout(hl0)
-
         hl =  QHBoxLayout()
         self.opacityValue = QLabel()
         font = self.opacityValue.font()
@@ -198,8 +197,7 @@ class QLayerView(QTableView) :
         hl.addWidget(self.opacitySlider)
         l.addLayout(hl)
         l.setContentsMargins(20,0,20,0) # left, top, right, bottom
-        # the layout is set in blue.py, after the initialization of the main form.
-        self.propertyLayout = l
+
         # opacity value changed event handler
         def f1():
             self.opacityValue.setText(str('%d ' % self.opacitySlider.value()))
@@ -210,6 +208,7 @@ class QLayerView(QTableView) :
             self.img.onImageChanged()
         self.opacitySlider.valueChanged.connect(f1)
         self.opacitySlider.sliderReleased.connect(f2)
+
         # blending modes combo box
         compLabel = QLabel()
         compLabel.setText("Composition Mode")
@@ -226,7 +225,12 @@ class QLayerView(QTableView) :
                                 }
         self.blendingModeCombo = QComboBox()
         l.addWidget(self.blendingModeCombo)
-        for key in self.compositionModeDict.keys():
+
+
+        # the layout is set in blue.py, after the initialization of the main form.
+        self.propertyLayout = l
+
+        for key in self.compositionModeDict: #.keys():
             self.blendingModeCombo.addItem(key, self.compositionModeDict[key])
         # combo box item chosen event handler
         def g(ind):

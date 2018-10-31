@@ -17,6 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 import itertools
+import struct
 
 import rawpy
 from os.path import isfile
@@ -37,8 +38,10 @@ from bLUeGui.bLUeImage import bImage, ndarrayToQImage
 from bLUeCore.tetrahedral import interpTetra
 from bLUeCore.trilinear import interpTriLinear
 from bLUeCore.multi import interpMulti
+from bLUeGui.spline import cubicSpline
 
 from debug import tdec
+from dng import dngProfileToneCurve
 from graphicsBlendFilter import blendFilterIndex
 
 from graphicsFilter import filterIndex
@@ -369,6 +372,9 @@ class vImage(bImage):
         self.thumb = None
         self.cacheInvalidate()
         self.updatePixmap()
+
+    def cameraModel(self):
+        return self.meta.rawMetadata[0].get('EXIF:Model', '')  # UniqueCameraModel works for dng
 
     def initThumb(self):
         """
@@ -1011,20 +1017,22 @@ class vImage(bImage):
         #################
         baseExpShift = 3.0
         # get adjustment form and rawImage
-        adjustForm = self.view.widget()
+        adjustForm = self.getGraphicsForm() #self.view.widget()
         options = adjustForm.options
         rawImage = getattr(self.parentImage, 'rawImage')
+        """
         if adjustForm.toneForm is not None:
             LUTXY = adjustForm.toneForm.scene().quadricB.LUTXY
             m, M = self.parentImage.raw_image_from_profile_min, self.parentImage.raw_image_from_profile_max
             LUTXY = np.interp(np.arange(M+1), np.arange(256) * (M+1)/256, LUTXY * (M+1)/256)
             rawImage.raw_image[:,:] = LUTXY[self.parentImage.raw_image_from_profile]
             self.postProcessCache = None
+        """
         currentImage = self.getCurrentImage()
         ######################################################################################################################
         # process raw image (16 bits mode)                        RGB ------diag(multipliers)-----------> RGB
         # post processing pipeline (from libraw):                   |                                      |
-        # - black subtraction                                       | rawpyObj.rgb_xyz_matrix[:3,:]        | sRGB_lin2XYZ
+        # - black substraction                                      | rawpyObj.rgb_xyz_matrix[:3,:]        | sRGB_lin2XYZ
         # - exposure correction                                     |                                      |
         # - white balance                                           |                                      |
         # - demosaic                                               XYZ                                    XYZ
@@ -1035,12 +1043,13 @@ class vImage(bImage):
         ######################################################################################################################
         # postProcessCache is reset to None by graphicsRaw.updateLayer (graphicsRaw.dataChanged event handler)
         if self.postProcessCache is None:
-            #############################################
+            ##############################
             # get postprocessing parameters
+            ##############################
             # no_auto_scale = False  don't use : green shift
             output_bps = 16
-            gamma = (2.222, 4.5)  # default REC BT 709 exponent, slope
-            # gamma=(2.4, 12.92), # sRGB exponent, slope cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
+            #gamma = (2.222, 4.5)  # default REC BT 709 (exponent, slope)
+            gamma=(2.4, 12.92) # sRGB (exponent, slope) cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
             exp_shift = adjustForm.expCorrection if not options['Auto Brightness'] else 0
             no_auto_bright = (not options['Auto Brightness'])
             use_auto_wb = options['Auto WB']
@@ -1069,6 +1078,7 @@ class vImage(bImage):
                     mult = (mult[0], mult[1], mult[2], mult[1])
                     print(mult, '   ', m)
                     bufpost_temp = rawImage.postprocess(
+                        output_color=rawpy.ColorSpace.sRGB,
                         output_bps=output_bps,
                         exp_shift=exp_shift,
                         no_auto_bright= no_auto_bright,
@@ -1090,31 +1100,52 @@ class vImage(bImage):
             else:
                 # highlight_mode : restoration of overexposed highlights. 0: clip, 1:unclip, 2:blend, 3...: rebuild
                 bufpost16 = rawImage.postprocess(
+                    output_color=rawpy.ColorSpace.sRGB,
                     output_bps=output_bps,
                     exp_shift=exp_shift,
                     no_auto_bright=no_auto_bright,
                     use_auto_wb=use_auto_wb,
                     use_camera_wb=use_camera_wb,
                     user_wb=adjustForm.rawMultipliers,
-                    gamma=gamma,
+                    gamma= (1,1), #gamma,
                     exp_preserve_highlights=exp_preserve_highlights,
                     bright=bright,
                     highlight_mode=highlightmode,
                     fbdd_noise_reduction=fbdd_noise_reduction,
                     median_filter_passes=1
                     )
-            bufHSV_CV32 = cv2.cvtColor(((bufpost16.astype(np.float32)) / 65536).astype(np.float32), cv2.COLOR_RGB2HSV)
+                self.postProcessCache = bufpost16
+            # ProfileLookTable here
+            # profileToneCurve here
+            # user ToneCurve
         else:
+            pass
             # get buffer from cache
-            # bufpost16 = self.postProcessCache.copy()  TODO removed 20/07/18 unused validate
-            bufHSV_CV32 = self.bufCache_HSV_CV32.copy()
+            # bufHSV_CV32 = self.bufCache_HSV_CV32.copy()
+
+        # apply profile tone curve
+        buf = adjustForm.dngDict.get('ProfileToneCurve', [])
+        if buf is not []:
+            LUTXY = dngProfileToneCurve(buf).toLUTXY(range=16)
+            bufpost16 = LUTXY[self.postProcessCache]
+            if adjustForm.toneForm is not None:
+                # apply user tone curve
+                LUTXY = adjustForm.toneForm.scene().quadricB.LUTXY
+                LUTXY = np.interp(np.arange(65536), np.arange(256) * 256, LUTXY * 256)
+                bufpost16 = LUTXY[bufpost16.astype(np.uint16)]
+        else:
+            bufpost16 = self.postProcessCache
+        bufpost16 = np.clip(rgbLinear2rgbVec(bufpost16 / 65536) * 256, 0, 65535)
+        bufHSV_CV32 = cv2.cvtColor(((bufpost16.astype(np.float32)) / 65535).astype(np.float32),
+                                   cv2.COLOR_RGB2HSV)  # TODO 29/10/18 change 65536 to 65535 validate
+        self.bufCache_HSV_CV32 = bufHSV_CV32.copy()
         ###########
         # contrast and saturation correction (V channel).
         # We apply a (nearly) automatic histogram equalization
         # algorithm, well suited for multimodal histograms.
         ###########
         if options['toneCurve']:
-            self.getGraphicsForm().setToneSpline()
+            adjustForm.setToneSpline()
         if adjustForm.contCorrection > 0:
             # warp should be in range 0..1.
             # warp = 0 means that no additional warping is done, but
@@ -1135,16 +1166,7 @@ class vImage(bImage):
             bufHSV_CV32[:, :, 1] = LUT[(bufHSV_CV32[:, :, 1] * 255).astype(int)]
         # back to RGB
         bufpost16 = (cv2.cvtColor(bufHSV_CV32, cv2.COLOR_HSV2RGB)*65535).astype(np.uint16)
-        """
-        ############
-        # saturation (Lab)
-        ############
-        if False and adjustForm.satCorrection != 0:
-            slope = max(0.1, adjustForm.satCorrection/25 +1) # range 0.1..3
-            # multiply a and b channels
-            buf32Lab[:,:,1:3] *= slope
-            buf32Lab[:, :, 1:3] = np.clip(buf32Lab[:,:,1:3], -127, 127)
-        """
+
         #############################
         # Conversion to 8 bits/channel
         #############################
@@ -1152,27 +1174,7 @@ class vImage(bImage):
 
         if self.parentImage.useThumb:
             bufpost = cv2.resize(bufpost, (currentImage.width(), currentImage.height()))
-        """
-        ################################################################################
-        # denoising
-        # opencv fastNlMeansDenoisingColored is very slow (>30s for a 15 Mpx image).
-        # Bilateral filtering is faster but not very accurate.
-        ################################################################################
-        noisecorr = adjustForm.noiseCorrection * currentImage.width() / self.width()
-        if noisecorr > 0:
-            noisecorr = noisecorr/100
-            t = time()
-            L = dwtDenoise_thr(buf32Lab[:, :, 0] / 100, thr=noisecorr, thrmode='wiener', level=8 if self.parentImage.useThumb else 11) * 100
-            A = dwtDenoise_thr(buf32Lab[:, :, 1] / 127, thr=noisecorr*0.5, thrmode='wiener', level=8 if self.parentImage.useThumb else 11) * 127
-            B = dwtDenoise_thr(buf32Lab[:, :, 2] / 127, thr=noisecorr*0.5, thrmode='wiener', level=8 if self.parentImage.useThumb else 11) * 127
-            L = np.clip(L, 0, 100)
-            # A = np.clip(A, -127, 127)
-            # B = np.clip(B, -127, 127)
-            print('denoise %.2f' % (time() - t))
-            buf32Lab = np.dstack((L, A, B))
-        """
-        #bufRGB32 = cv2.cvtColor(buf32Lab, cv2.COLOR_Lab2RGB)
-        #bufpost = (bufRGB32 * 255.0).astype(np.uint8)
+
         bufOut = QImageBuffer(currentImage)
         bufOut[:, :, :3][:, :, ::-1] = bufpost
         # base layer : no need to forward the alpha channel

@@ -32,7 +32,8 @@ segmentation, geometric transformations, curves (1D LUTs), 2.5D LUTs, 3D LUTs.
 * Automatic contrast enhancement (histogram warping and CLAHE)
 * Import and export of 3D LUTs in .cube format
 * Mask edition
-* Editable (contrast) tone curve for raw files (cr2, nef, dng)
+* Automatic import of camera specific dcp profiles
+* editable tone curve
 * Library viewer
 * Slide Show
 

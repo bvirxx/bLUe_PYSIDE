@@ -126,7 +126,6 @@ def rgbLinear2rgb(r, g, b):
 
     return cl2c(r) * 255, cl2c(g) * 255, cl2c(b) * 255
 
-
 def rgbLinear2rgbVec(img):
     """
     Vectorized conversion from linear RGB to sRGB.
@@ -221,7 +220,7 @@ def XYZ2sRGBVec(imgBuf):
     @return: image buffer, mode sRGB, range 0..255
     @rtype: ndarray, dtype numpy.float64
     """
-    # test fot out of gamut image
+    # test for out of gamut image
     M = np.max(imgBuf[:, :, 1])
     if M > 1:
         imgBuf /= M

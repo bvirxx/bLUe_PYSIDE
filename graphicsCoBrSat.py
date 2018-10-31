@@ -52,7 +52,7 @@ class CoBrSatForm(baseForm):
                                          sliderSaturation
     """
 
-    dataChanged = QtCore.Signal()  # CAUTION : All signal connections are supposed to be direct (not queued) by default.
+    # dataChanged = QtCore.Signal()
     layerTitle = "Cont/Bright/Sat"
     contrastDefault = 0.0
     brightnessDefault = 0.0
@@ -345,10 +345,7 @@ Sliders are <b>reset</b> to their default value by double clicking the name of t
         self.brightnessCorrection = self.brightnessDefault
         self.sliderBrightness.setValue(round(self.brightness2Slider(self.brightnessCorrection)))
         self.dataChanged.connect(self.updateLayer)
-        self.dataChanged.emit()
-
-    def reset(self):
-        self.setDefaults()
+        # self.dataChanged.emit() # TODO 30/10/18 removed
 
     def updateLayer(self):
         """

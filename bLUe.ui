@@ -768,8 +768,8 @@ Screen</string>
   <widget class="QDockWidget" name="dockWidget">
    <property name="minimumSize">
     <size>
-     <width>250</width>
-     <height>246</height>
+     <width>109</width>
+     <height>224</height>
     </size>
    </property>
    <property name="maximumSize">
@@ -807,6 +807,12 @@ Screen</string>
      </item>
      <item alignment="Qt::AlignRight">
       <widget class="QLayerView" name="tableView">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <property name="maximumSize">
         <size>
          <width>250</width>
@@ -822,7 +828,20 @@ Screen</string>
       </widget>
      </item>
      <item>
-      <widget class="QWidget" name="propertyWidget" native="true"/>
+      <widget class="QWidget" name="propertyWidget" native="true">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>0</height>
+        </size>
+       </property>
+      </widget>
      </item>
     </layout>
    </widget>

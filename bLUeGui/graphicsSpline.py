@@ -18,6 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import weakref
 
 import numpy as np
+from PySide2 import QtCore
 from PySide2.QtGui import QPainterPathStroker, QBrush
 from PySide2.QtCore import QRect, QPointF, QPoint
 from PySide2.QtWidgets import QGraphicsView, QGraphicsScene, QSizePolicy, QPushButton, QGraphicsPathItem, QWidget
@@ -522,20 +523,38 @@ class activeQuadricSpline(activeSpline) :
 
 class baseForm(QWidget):
     """
-    Base class for non graphic (no scene) forms
+    Base class for non graphic (i.e. without scene) forms
     """
+    dataChanged = QtCore.Signal()
+
     def __init__(self, parent=None, layer=None):
         super().__init__(parent=parent)
         self.layer=layer
-        # accept click focus (for whatsthis)
+        # accept click focus (needed by whatsthis)
         self.setFocusPolicy(Qt.ClickFocus)
         # connect layerPicked signal
+        self.dataChanged.connect(self.updateLayer)  # TODO 30/10/18 moved to base class
         if self.layer is not None:
             self.layer.colorPicked.sig.connect(self.colorPickedSlot)
 
     def colorPickedSlot(self, x, y, modifiers):
         """
         Should be overridden in derived classes
+        """
+        pass
+
+    def setDefaults(self):
+        pass
+
+    def reset(self):
+        self.setDefaults()
+        self.dataChanged.emit(True)
+
+    def updateLayer(self, cacheInvalidate):
+        """
+        data changed event handler
+        @param cacheInvalidate:
+        @type cacheInvalidate:
         """
         pass
 
@@ -566,6 +585,7 @@ class graphicsCurveForm(QGraphicsView):
         qppath.lineTo(QPoint(0, -axeSize))
         qppath.closeSubpath()
         qppath.lineTo(QPoint(axeSize, -axeSize))
+        # draw grid
         for i in range(1, 5):
             a = (axeSize * i) / 4
             qppath.moveTo(a, -axeSize)
@@ -577,6 +597,8 @@ class graphicsCurveForm(QGraphicsView):
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         super().__init__(parent=parent)
+        # additional inactive curve to draw (QPolyLineF or list of QPointF)
+        self.baseCurve = None
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize + 60, axeSize + 140)
         self.setAttribute(Qt.WA_DeleteOnClose)
@@ -614,6 +636,14 @@ while pressing one of the following key combination (RGB and Lab curves only):<b
 <b>Caution</b> : Selecting a black, white or neutral point in an image is enabled only when
 the Color Chooser is closed.
 """                      )  # end setWhatsThis
+
+    @property
+    def baseCurve(self):
+        return self.__baseCurve
+
+    @baseCurve.setter
+    def baseCurve(self, points):
+        self.__baseCurve = points
 
     def colorPickedSlot(self, x, y, modifiers):
         """
@@ -661,7 +691,7 @@ class graphicsSplineForm(graphicsCurveForm) :
         graphicsScene.addItem(curve)
         graphicsScene.quadricB = curve
         curve.channel = channelValues.Br
-        curve.histImg = graphicsScene.layer.histogram(size=graphicsScene.axeSize, bgColor=graphicsScene.bgColor,
+        curve.histImg = graphicsScene.layer.inputImg().histogram(size=graphicsScene.axeSize, bgColor=graphicsScene.bgColor,
                                                        range=(0,255), chans=channelValues.Br, mode='Luminosity')
         curve.initFixedPoints()
         # set current curve
@@ -702,6 +732,11 @@ Drag <b>control points</b> and <b>tangents</b> with the mouse.<br>
         s = graphicsScene.axeSize
         if graphicsScene.cubicItem.histImg is not None:
             qp.drawImage(QRect(0, -s, s, s), graphicsScene.cubicItem.histImg)
+        qp.save()
+        qp.setPen(Qt.red)
+        if self.baseCurve is not None:
+            qp.drawPolyline(self.baseCurve)
+        qp.restore()
 
     def writeToStream(self, outStream):
         graphicsScene = self.scene()

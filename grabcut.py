@@ -45,7 +45,7 @@ class segmentForm(baseForm):
                                              start
 
     """
-    dataChanged = QtCore.Signal()
+    # dataChanged = QtCore.Signal()
     layerTitle = "Segmentation"
     iterDefault = 3
     contourMarginDefault = 1
@@ -164,7 +164,7 @@ class segmentForm(baseForm):
         self.spBox1.setValue(self.contourMarginDefault)
         self.start = True
         self.dataChanged.connect(self.updateLayer)
-        self.dataChanged.emit()
+        # self.dataChanged.emit() # TODO 30/10/18 removed
 
     def updateLayer(self):
         self.nbIter = self.spBox.value()
@@ -180,6 +180,7 @@ class segmentForm(baseForm):
         layer.paintedMask = layer.mask.copy()
         layer.isClipping = False
         self.setDefaults()
+        self.dataChanged.emit()  # TODO added 30/10/18
         layer.updatePixmap()
 
 

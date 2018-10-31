@@ -16,27 +16,29 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import weakref
+from collections import OrderedDict
 from math import log
+from os.path import basename
+
 import numpy as np
 from PySide2 import QtCore
-from PySide2.QtCore import Qt, QPoint
+from PySide2.QtCore import Qt, QPoint, QPointF
 from PySide2.QtGui import QFontMetrics
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBox, QComboBox
 from bLUeGui.multiplier import temperatureAndTint2RGBMultipliers, RGBMultipliers2TemperatureAndTint
 from bLUeGui.graphicsSpline import graphicsSplineForm, activeCubicSpline
 from bLUeGui.graphicsSpline import baseForm
+from dng import getDngProfileList, getDngProfileDict, dngProfileToneCurve
 from utils import optionsWidget, UDict, QbLUeSlider, stateAwareQDockWidget
 
 class rawForm (baseForm):
     """
-    GUI for postprocessing raw files.
-    We use rawPy, the Python wrapper to Libraw.
-    cf https://github.com/LibRaw/LibRaw/blob/master/src/libraw_cxx.cpp
+    Postprocessing of raw files.
     """
     dataChanged = QtCore.Signal(bool)
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
-        wdgt = rawForm(axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
+        wdgt = rawForm(axeSize=axeSize, targetImage=targetImage, layer=layer, parent=parent, mainForm=mainForm)
         wdgt.setWindowTitle(layer.name)
         return wdgt
 
@@ -109,7 +111,7 @@ class rawForm (baseForm):
         super().__init__(parent=parent)
         self.setStyleSheet('QRangeSlider * {border: 0px; padding: 0px; margin: 0px}')
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        self.setMinimumSize(axeSize, axeSize+200)  # +200 to prevent scroll bars in list Widgets
+        self.setMinimumSize(axeSize, axeSize+300)  # +200 to prevent scroll bars in list Widgets
         self.setAttribute(Qt.WA_DeleteOnClose)
         # link back to image layer
         # using weak ref for back links
@@ -125,6 +127,7 @@ class rawForm (baseForm):
         ##########################################
         rawpyObj = layer.parentImage.rawImage
         # initial post processing multipliers (as shot)
+        self.targetImage = targetImage
         self.rawMultipliers = rawpyObj.camera_whitebalance
         self.sampleMultipliers = False
         self.samples = []
@@ -174,41 +177,6 @@ class rawForm (baseForm):
         self.listWidget2.checkOption(self.listWidget2.intNames[1])
         self.options = UDict(self.listWidget1.options, self.listWidget2.options)
 
-        """
-        # highlight correction slider
-        self.sliderHigh= QbLUeSlider(Qt.Horizontal)
-        self.sliderHigh.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
-        self.sliderHigh.setRange(0, 9)
-        self.sliderHigh.setSingleStep(1)
-
-        self.highLabel = QLabel()
-        self.highLabel.setText("OverExp. Rest.") # restoration of overexposed areas
-
-        self.highValue = QLabel()
-        font = self.highValue.font()
-        metrics = QFontMetrics(font)
-        w = metrics.width("100")
-        h = metrics.height()
-        self.highValue.setMinimumSize(w, h)
-        self.highValue.setMaximumSize(w, h)
-        self.highValue.setText(str("{:.0f}".format(self.sliderHigh.value())))
-
-        # highlight update event handler
-        def highUpdate(value):
-            self.highValue.setText(str("{:+d}".format(int(self.sliderHigh.value()))))
-            # move not yet terminated or value not modified
-            if self.sliderHigh.isSliderDown() or self.sliderHigh.value() == self.highCorrection:
-                return
-            self.sliderHigh.valueChanged.disconnect()
-            self.sliderHigh.sliderReleased.disconnect()
-            self.highCorrection = self.sliderHigh.value()
-            self.dataChanged.emit(True)
-            self.sliderHigh.sliderReleased.connect(lambda: highUpdate(self.sliderHigh.value()))
-            self.sliderHigh.valueChanged.connect(highUpdate)  # send new value as parameter
-
-        self.sliderHigh.valueChanged.connect(highUpdate)  # send new value as parameter
-        self.sliderHigh.sliderReleased.connect(lambda: highUpdate(self.sliderHigh.value()))
-        """
         # temp slider
         self.sliderTemp = QbLUeSlider(Qt.Horizontal)
         self.sliderTemp.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
@@ -267,26 +235,52 @@ class rawForm (baseForm):
         # Cf. https://www.cambridgeincolour.com/forums/thread653.htm
         #####################
 
+        # init the combo of camera profiles
+        # for each item, text is filename and data are a dict of (tagname, decoded bytes) pairs
+        self.cameraProfilesCombo = QComboBox()
+        files = [self.targetImage.filename]
+        files.extend(getDngProfileList(self.targetImage.cameraModel()))
+        items = OrderedDict([(basename(f)[:-4] if i > 0 else 'Embedded Profile', getDngProfileDict(f)) for i, f in enumerate(files)])
+        for key in items:
+            # filter items[keys]
+            d = {k:items[key][k] for k in items[key] if items[key][k] != ''}
+            if d:
+                self.cameraProfilesCombo.addItem(key, d)
+        self.cameraProfilesCombo.addItem('None', {})
+
+        # cameraProfilesCombo index changed event handler
+        def cameraProfileUpdate(value):
+            self.dngDict = self.cameraProfilesCombo.itemData(value)
+            if self.options['toneCurve']:
+                coords = dngProfileToneCurve(self.dngDict.get('ProfileToneCurve', []))
+                self.toneForm.baseCurve = [QPointF(x * axeSize, -y * axeSize) for x, y in zip(coords.dataX, coords.dataY)]
+                self.toneForm.update()
+            self.dataChanged.emit(False)
+
+        self.cameraProfilesCombo.currentIndexChanged.connect(cameraProfileUpdate)
+
         # denoising combo
         self.denoiseCombo = QComboBox()
-        for item in {'Off' : 0, 'Medium' : 1, 'Full' : 2}:
-            self.denoiseCombo.addItem(item)
+        items = OrderedDict([('Off', 0), ('Medium', 1), ('Full', 2)])
+        for key in items:
+            self.denoiseCombo.addItem(key, items[key])
 
         # denoiseCombo index changed event handler
         def denoiseUpdate(value):
-            self.denoiseValue = value
+            self.denoiseValue = self.denoiseCombo.itemData(value)
             self.dataChanged.emit(True)
 
         self.denoiseCombo.currentIndexChanged.connect(denoiseUpdate)
 
         # overexposed area restoration
         self.overexpCombo = QComboBox()
-        for item in {'Clip' : 0, 'Ignore' : 1, 'Blend' : 2, 'Reconstruct' : 3}:
-            self.overexpCombo.addItem(item)
+        items = OrderedDict([('Clip', 0), ('Ignore', 1), ('Blend', 2), ('Reconstruct', 3)])
+        for key in items:
+            self.overexpCombo.addItem(key, items[key])
 
         # overexpCombo index changed event handler
         def overexpUpdate(value):
-            self.overexpValue = value
+            self.overexpValue = self.overExpCombo.itemData(value)
             self.dataChanged.emit(True)
 
         self.overexpCombo.currentIndexChanged.connect(overexpUpdate)
@@ -433,13 +427,16 @@ class rawForm (baseForm):
         self.sliderSat.valueChanged.connect(satUpdate)  # send new value as parameter
         self.sliderSat.sliderReleased.connect(lambda: satUpdate(self.sliderSat.value()))  # signal has no parameter
 
-        self.dataChanged.connect(self.updateLayer)
+        # self.dataChanged.connect(self.updateLayer) # TODO 30/10/18 moved to base class
         self.setStyleSheet("QListWidget, QLabel {font : 7pt;}")
 
         # layout
         l = QVBoxLayout()
         l.setContentsMargins(8, 8, 8, 8)  # left, top, right, bottom
-        #l.setAlignment(Qt.AlignBottom)
+        hl01 = QHBoxLayout()
+        hl01.addWidget(QLabel('Camera Profile'))
+        hl01.addWidget(self.cameraProfilesCombo)
+        l.addLayout(hl01)
         hl0 = QHBoxLayout()
         hl0.addWidget(QLabel('Denoising'))
         hl0.addWidget(self.denoiseCombo)
@@ -522,6 +519,8 @@ Valid values are 0 to 3 (0=clip;1=unclip;2=blend;3=rebuild); (with Auto Exposed 
             form.setAttribute(Qt.WA_DeleteOnClose, on=False)
             form.setWindowTitle('Tone Curve')
             form.setButtonText('Reset Curve')
+            coords = dngProfileToneCurve(self.dngDict.get('ProfileToneCurve', []))
+            form.baseCurve = [QPointF(x*axeSize, -y*axeSize) for x,y in zip(coords.dataX, coords.dataY)]
             self.toneForm = form
             dockT = stateAwareQDockWidget(self.parent())
             dockT.setWindowFlags(form.windowFlags())
@@ -676,6 +675,7 @@ Valid values are 0 to 3 (0=clip;1=unclip;2=blend;3=rebuild); (with Auto Exposed 
         #self.highLabel.setEnabled(self.sliderHigh.isEnabled())
 
     def setDefaults(self):
+        self.dngDict = self.cameraProfilesCombo.itemData(0)
         self.listWidget1.unCheckAll()
         self.listWidget2.unCheckAll()
         #self.listWidget1.checkOption(self.listWidget1.intNames[0])
@@ -701,7 +701,7 @@ Valid values are 0 to 3 (0=clip;1=unclip;2=blend;3=rebuild); (with Auto Exposed 
         self.sliderBrightness.setValue(self.br2Slider(self.brCorrection))
         self.sliderSat.setValue(self.sat2Slider(self.satCorrection))
         self.dataChanged.connect(self.updateLayer)
-        self.dataChanged.emit(True)
+        # self.dataChanged.emit(True)  # TODO 30/10/18 removed
 
     def writeToStream(self, outStream):
         layer = self.layer

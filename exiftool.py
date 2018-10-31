@@ -169,7 +169,7 @@ class ExifTool(object):
 
     def readBinaryData(self, f, tagname='xx'):
         """
-        Read binary metadata from tagname in an image file or
+        Read binary metadata value of tagname from an image file or
         a raw iamge file or a sidecar file.
         @param f: path to file
         @type f: str
@@ -180,6 +180,23 @@ class ExifTool(object):
         """
         buf = self.execute(*['-b', '-m', '-' + tagname, f], ascii=False)  # -m disables output of warnings
         return bytes(buf)
+
+    def readBinaryDataAsDict(self, f, taglist=[]):
+        """
+        Read binary metadata values from a list of tag names in an image file,
+        a raw imamge file, a sidecar file or dcp profile. Return a dictionary of decoded buffers (i.e. str).
+        @param f: file name
+        @type f: str
+        @param taglist: list of tag names
+        @type taglist: list
+        @return: binary data
+        @rtype: dict of str
+        """
+        d = {}
+        for tagname in taglist:
+            buf = self.execute(*['-b', '-m', '-' + tagname, f], ascii=False)
+            d[tagname] = buf.decode()
+        return d
 
     def get_thumbNail(self, f, thumbname='thumbnailimage'):
         """
@@ -277,7 +294,7 @@ class ExifTool(object):
         exif_data = img._getexif()
         """
         flags = ["-j", "-a", "-XMP:all", "-EXIF:all", "-n", "-S", "-G0", "-Orientation", "-ProfileDescription",
-                 "-colorSpace", "-InteropIndex", "-WhitePoint", "-PrimaryChromaticities", "-Gamma"]
+                 "-colorSpace", "-InteropIndex", "-WhitePoint", "-PrimaryChromaticities", "-Gamma", "-Model"]
         extract_meta_flags = ["-icc_profile", "-b"]
         fmie = f[:-4]+'.mie'
         """

@@ -132,6 +132,7 @@ from types import MethodType
 import rawpy
 
 from bLUeCore.bLUeLUT3D import haldArray
+from dng import getDngProfileDict
 from grabcut import segmentForm
 from PySide2.QtCore import QRect, QEvent, QUrl, QSize, QFileInfo, QRectF, QObject
 from PySide2.QtGui import QPixmap, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, \
@@ -186,6 +187,7 @@ libraw Copyright (C) 2008-2018
 rawpy Copyright (c) 2014 Maik Riechert
 seamlessClone and CLAHE are Opencv3 functions
 grabCut is a parallel version of an Opencv3 function
+This product includes DNG technology under license by Adobe
 """
 #################
 
@@ -689,7 +691,7 @@ def contextMenu(pos, widget):
 
 def loadImageFromFile(f, createsidecar=True):
     """
-    loads an imImage (image plus metadata) from file. Returns the loaded imImage :
+    load an imImage (image plus metadata) from file. Returns the loaded imImage :
     For a raw file, it is the image postprocessed with default parameters.
     metadata is a list of dicts with len(metadata) >=1.
     metadata[0] contains at least 'SourceFile' : path.
@@ -759,28 +761,26 @@ def loadImageFromFile(f, createsidecar=True):
         # daylight_whitebalance, num_colors, raw_colors_visible, raw_image, raw_image_visible, raw_pattern,
         # raw_type, rgb_xyz_matrix, sizes, tone_curve
         # raw_image and raw_image_visble are sensor data
-        raw = rawpy.RawPy()
+        rawpyInst = rawpy.RawPy()
         with open(f, "rb") as bufio:
-            raw.open_buffer(bufio)
+            rawpyInst.open_buffer(bufio)
         ######################################################################################
         # unpack always applies the current tone curve (cf. https://www.libraw.org/node/2003)
         # Another curve (array, shape=65536) can be loaded here before unpacking.
         # NO EFFECT with files where the curve is calculated on unpack() phase (e.g.Nikon lossy NEF files).
         #####################################################################################
-        raw.unpack()
+        rawpyInst.unpack()
         # postprocess raw image, applying default settings (cf. vImage.applyRawPostProcessing)
-        rawBuf = raw.postprocess(use_camera_wb=True)
+        rawBuf = rawpyInst.postprocess(use_camera_wb=True)
         # build Qimage
         rawBuf = np.dstack((rawBuf[:,:,::-1], np.zeros(rawBuf.shape[:2], dtype=np.uint8)+255))
         img = imImage(cv2Img=rawBuf, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile, name=name, rating=rating)
-        # keep references to file and RawPy instance and sensor image with base tone curve applied (= linearized image)
-        img.rawImage = raw
         img.filename = f
-        img.raw_image_from_profile = (raw.raw_image).copy()
-        img.raw_image_from_profile_min, img.raw_image_from_profile_max = np.min(raw.raw_image), np.max(raw.raw_image)
-        with exiftool.ExifTool() as e:
-            tmp1 = e.readBinaryData(f, tagname='ContrastCurve')
-            tmp2 = e.readBinaryData(f, tagname='NefLinearizationTable')
+        # keep references to rawPy instance. rawpyInst.raw_image is the (linearized) sensor image
+        img.rawImage = rawpyInst
+        # img.filename = f # TODO removed 29/10/18 done by imImage()
+        #img.raw_image_from_profile = (rawpyInst.raw_image).copy()
+        #img.raw_image_from_profile_min, img.raw_image_from_profile_max = np.min(rawpyInst.raw_image), np.max(rawpyInst.raw_image)
         #########################################################
         # Reconstructing the demosaic Bayer bitmap :
         # we need it to calculate the multipliers corresponding
@@ -788,7 +788,7 @@ def loadImageFromFile(f, createsidecar=True):
         # native rawpy demosaic buffer from the RawPy instance !!!!
         #########################################################
         # get 16 bits Bayer bitmap
-        img.demosaic = demosaic(raw.raw_image_visible, raw.raw_colors_visible, raw.black_level_per_channel)
+        img.demosaic = demosaic(rawpyInst.raw_image_visible, rawpyInst.raw_colors_visible, rawpyInst.black_level_per_channel)
         # correct orientation
         if orientation == 6: # 90°
             img.demosaic = np.swapaxes(img.demosaic, 0, 1)
@@ -799,20 +799,10 @@ def loadImageFromFile(f, createsidecar=True):
         raise ValueError("Cannot read file %s" % f)
     if img.isNull():
         raise ValueError("Cannot read file %s" % f)
-    window.settings.setValue('paths/dlgdir', QFileInfo(f).absoluteDir().path())
-    img.initThumb()
     if img.format() in [QImage.Format_Invalid, QImage.Format_Mono, QImage.Format_MonoLSB, QImage.Format_Indexed8]:
         raise ValueError("Cannot edit indexed formats\nConvert image to a non indexed mode first")
-    """
-    if colorSpace < 0 and not getattr(window, 'modeDiaporama', False) :
-        # setOverrideCursor does not work correctly for a MessageBox :
-        # may be a Qt Bug, cf. https://bugreports.qt.io/browse/QTBUG-42117
-        QApplication.changeOverrideCursor(QCursor(Qt.ArrowCursor))
-        QApplication.processEvents()
-        dlgInfo("Color profile missing\nAssigning sRGB")
-        img.meta.colorSpace = 1
-        img.updatePixmap()
-    """
+    window.settings.setValue('paths/dlgdir', QFileInfo(f).absoluteDir().path())
+    img.initThumb()
     return img
 
 def addBasicAdjustmentLayers(img):
@@ -825,7 +815,7 @@ def addBasicAdjustmentLayers(img):
 
 def addRawAdjustmentLayer():
     """
-    Adds a development layer to the layer stack
+    Add a development layer to the layer stack
 
     """
     lname = 'Development'
@@ -863,7 +853,7 @@ def openFile(f):
         QApplication.setOverrideCursor(Qt.WaitCursor)
         QApplication.processEvents()
         img = loadImageFromFile(f)
-        # display image
+        # init layers
         if img is not None:
             setDocumentImage(img)
             # switch to preview mode and process stack
@@ -876,6 +866,7 @@ def openFile(f):
             addBasicAdjustmentLayers(img)
             # updates
             img.layersStack[0].applyToStack()
+            img.onImageChanged()
             updateStatus()
             # update list of recent files
             recentFiles = window.settings.value('paths/recent', [])
@@ -935,7 +926,7 @@ def setDocumentImage(img):
         # refresh windows (use repaint for faster update)
         window.label.repaint()
         window.label_3.repaint()
-        # recompute and display histogram
+        # recompute and display histogram for the right image
         if window.histView.listWidget1.items['Original Image'].checkState() is Qt.Checked:
             histImg = vImage(QImg=window.label.img.getCurrentImage()) # must be vImage : histogram method needed
         else:
@@ -1873,9 +1864,9 @@ For a segmentation layer only, all pixels outside the rectangle are set to backg
     action1.triggered.connect(f)
     window.addAction(action1)
 
-    # init property widget for tableView
+    # init property widget
     window.propertyWidget.setLayout(window.tableView.propertyLayout)
-
+    window.propertyWidget.adjustSize()
     # reinit the dockWidgetContents layout to
     # nest it in a QHboxLayout containing a (left) stretch
     tmpV = QVBoxLayout()
