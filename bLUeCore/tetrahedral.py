@@ -18,38 +18,48 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
 
-def interpTetra(LUT, LUTSTEP, ndImg):
+def interpTetra(LUT, LUTSTEP, ndImg, convert=True):
     """
-       Converts a color image by interpolating the values in a 3D LUT array.
+    Implement a vectorized version of tetrahedral interpolation.
 
-       Implements and uses a vectorized version of tetrahedral interpolation.
-       Cf.
-       U{https://www.filmlight.ltd.uk/pdf/whitepapers//FL-TL-TN-0057-SoftwareLib.pdf}
-       page 57.
+    Convert a array ndImg with shape (w, h, 3) by interpolating
+    its values in a 3D LUT array LUT with shape s = (s1, s2, s3, 3).
+    3-uple values v taken from the third axis of ndImg1 are input to
+    the three first axes of the LUT, keeping the ordering (i.e. v[i] is input to axis i).
 
-       The output image has the same type as the input image.
-       With s denoting the size of the LUT axes, all pixel colors to
-       interpolate must be in the (right opened) interval [0, (s - 1) * LUTSTEP[.
-       All values in the LUT should be in range 0..255.
-       The role (R or G or B) of the LUT axes follows the ordering of color channels.
+    LUTSTEP is the number or the 3-uple of numbers giving the unitary interpolation
+    steps for each axis of the LUT table.
 
-       It turns out that tetrahedral interpolation is 2 times slower
-       than trilinear.
-       @param LUT: 3D LUT array
-       @type LUT: ndarray, shape=(s,s,s,3), dtype float or int (faster)
-       @param LUTSTEP: interpolation step
-       @type LUTSTEP: int
-       @param ndImg: image array, 3 channels, same order as LUT channels and axes
-       @type ndImg: ndarray dtype=np.uint8
-       @return: RGB image with the same type as the input image
-       @rtype: ndarray dtype=np.uint8
-       """
+    All input values for axis i of the LUT must be in the (right opened)
+    interval [0, max[ with max = (s[i] - 1) * LUTSTEP[i].
+
+    if convert is True (default), the output array is clipped to (0, 255) and converted
+    to dtype=np.uint8, otherwise the output array has the same shape as ndImg and
+    dtype= np.float32.
+
+    It turns out that tetrahedral interpolation is 2 times slower
+    than trilinear.
+    @param LUT: 3D LUT array
+    @type LUT: ndarray, dtype float or int, shape(s1, s2, s3, 3)
+    @param LUTSTEP: interpolation step
+    @type LUTSTEP: number or 3-uple of numbers
+    @param ndImg: input array
+    @type ndImg: ndarray dtype float or int, shape (w, h, 3)
+    @param convert: convert the output to dtype=np.uint8
+    @type convert: boolean
+    @return: interpolatd array
+    @rtype: ndarray, same shape as the input image
+    """
+    # Probably due to a numpy bug, ravel_multi_index sometimes returns wrong indices
+    # for non contiguous arrays.
+    if not LUT.flags['C_CONTIGUOUS']:
+        raise ValueError('interpTetra : LUT array must be contiguous')
     # As interpolation computes differences, we switch to a signed type,
     # minimizing memory usage and implicit conversions.
-    LUT = LUT.astype(np.int16)
+    LUT = LUT.astype(np.float32)
     # We will use the bounding unit cube around each point (r, g, b)/LUTSTEP :
     # get its vertex closest to the origin and the corresponding channel colors.
-    ndImgF = ndImg / float(LUTSTEP)
+    ndImgF = ndImg / LUTSTEP
     a = ndImgF.astype(np.int16)
     # RGB channels
     r0, g0, b0 = a[:, :, 0], a[:, :, 1], a[:, :, 2]
@@ -107,5 +117,7 @@ def interpTetra(LUT, LUTSTEP, ndImg):
                 default = X5
                 )
 
-    np.clip(Y1, 0, 255, out=Y1)
-    return Y1.astype(np.uint8)
+    if convert:
+        np.clip(Y1, 0, 255, out=Y1)
+        Y1 = Y1.astype(np.uint8)
+    return Y1
