@@ -41,7 +41,8 @@ def getDngProfileDict(filename):
     #if filename[-3:].lower() not in ['dng', 'dcp']:
         #raise ValueError("getProfileDict : wrong file type")
     with exiftool.ExifTool() as e:
-        profileDict = e.readBinaryDataAsDict(filename, taglist=['LinearizationTable', 'ProfileLookTableData', 'ProfileToneCurve'])
+        profileDict = e.readBinaryDataAsDict(filename, taglist=['LinearizationTable', 'ProfileLookTableData', 'ProfileLookTableDims',
+                                                                'ProfileLookTableEncoding', 'ProfileToneCurve'])
     return profileDict
 
 def getDngProfileList(cameraName):
@@ -61,8 +62,8 @@ class dngProfileToneCurve:
     dataX, dataY = None, None
     def __init__(self, buf):
         """
-        Init the coordinates from a bytes buffer.
-        @param buf: as read by exiftool -b and decoded
+        Init the coordinates from a bytes buffer as read by exiftool -b and decoded.
+        @param buf:
         @type buf: str
         """
         try:
@@ -73,15 +74,55 @@ class dngProfileToneCurve:
             # identity curve
             self.dataX, self.dataY = np.array([0,1]), np.array([0,1])
 
-    def toLUTXY(self, range=8):
+    def toLUTXY(self, maxrange=255):
         """
         interpolate the data points by a cubic spline (cf adobe dng specification p. 56).
-        @param range: 8 (8 bits images) or 16 (16 bits images)
+        @param maxrange: max of data range (identical for input and output)
         @type range: int
-        @return: interpolated cubic spline 0..255 ---> 0..255
+        @return: interpolated cubic spline : [0, maxrange] ---> [0;;maxrange]
         @rtype: ndarray
         """
-        coeff = 255 if range == 8 else 65535
-        LUTXY = cubicSpline(self.dataX * coeff, self.dataY * coeff, np.arange(coeff+1))
+        LUTXY = cubicSpline(self.dataX * maxrange, self.dataY * maxrange, np.arange(maxrange + 1))
         return LUTXY
+
+class dngProfileLookTable:
+    """
+    hue, saturation, value mapping table
+    """
+
+    def __init__(self, dngDict):
+        """
+        Init a profile look table from a dictionary of (tagname, str) pairs
+        Dictionary values are decoded following the Adobe dng spec.
+        @param dngDict:
+        @type dngDict:
+        """
+        self.isValid = False
+        dims, encoding, data = dngDict.get('ProfileLookTableDims', None), dngDict.get('ProfileLookTableEncoding', None), dngDict.get('ProfileLookTableData', None)
+        if dims is None  or data is None:  # encoding not used yet : it seems to be missing in some dng files
+            return
+        try:
+            # raed dims of the LookTable
+            dims = [int(x) for x in dims.split(' ')]
+            self.dims = tuple(dims)  # h, s, v counts of division points
+            # read encoding
+            try:
+                self.encoding = int(encoding)  # 0: linear, 1 : sRGb
+            except TypeError:
+                self.encoding = 0
+            # allocate data array
+            buf = np.zeros((dims[0]+1, dims[1], dims[2], 3), dtype = np.float) + (0, 1, 1)
+            # read data h inices start from 0, s, v indice
+            # the table is stored in v, h, s loops ordering (cf. the dng specification)
+            data = np.array([float(x) for x in data.split(' ')]).reshape(dims[2], dims[0], dims[1], 3) # v, h, s
+            # move to h, s, v ordering for axes
+            data = np.moveaxis(data, (0,1,2), (2, 0, 1)) # h, s, v
+            # h, s, v start from index 0
+            buf[0:-1, :, :, : ] = data[:, :, :, ]
+            buf[-1,:,:,0] = buf[0,:,:,0]
+            self.data = buf
+        except (ValueError, TypeError) as e:
+            print(str(e))
+        self.isValid = True
+
 

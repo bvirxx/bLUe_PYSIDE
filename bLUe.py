@@ -823,7 +823,8 @@ def addRawAdjustmentLayer():
     grWindow = rawForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window,
                                             mainForm=window)
     # wrapper for the right apply method
-    l.execute = lambda l=l, pool=None: l.tLayer.applyRawPostProcessing()
+    pool = getPool()
+    l.execute = lambda l=l, pool=pool: l.tLayer.applyRawPostProcessing(pool=pool) # TODO 2/11/18  added pool validate
     # record action name for scripting
     l.actionName = ''
     # dock the form
@@ -1217,6 +1218,14 @@ def menuImage(name) :
         updateStatus()
         with exiftool.ExifTool() as e:
             e.writeXMPTag(img.meta.filename, 'XMP:rating', img.meta.rating)
+def getPool():
+    global pool
+    # init pool only once
+    if USE_POOL and (pool is None):
+        print('launching process pool...', end='')
+        pool = multiprocessing.Pool(POOL_SIZE)
+        print('done')
+    return pool
 
 def menuLayer(name):
     """
@@ -1224,7 +1233,7 @@ def menuLayer(name):
     @param name: action name
     @type name: str
     """
-    global pool
+
     # curves
     if name in ['actionCurves_RGB', 'actionCurves_HSpB', 'actionCurves_Lab']:
         if name == 'actionCurves_RGB':
@@ -1254,10 +1263,7 @@ def menuLayer(name):
         l = window.label.img.addAdjustmentLayer(name=layerName, role='3DLUT')
         grWindow = graphicsForm3DLUT.getNewWindow(ccm, axeSize=300, targetImage=window.label.img, LUTSize=LUTSIZE, layer=l, parent=window, mainForm=window)
         # init pool only once
-        if USE_POOL and (pool is None):
-            print('launching process pool...', end='')
-            pool = multiprocessing.Pool(POOL_SIZE)
-            print('done')
+        pool = getPool()
         sc = grWindow.scene()
         l.execute = lambda l=l, pool=pool: l.tLayer.apply3DLUT(sc.lut.LUT3DArray, sc.lut.step, options=sc.options, pool=pool)
     # cloning
@@ -1426,11 +1432,7 @@ def menuLayer(name):
                 return
             lname = path.basename(name)
             l = window.label.img.addAdjustmentLayer(name=lname)
-            # init pool only once
-            if USE_POOL and (pool is None):
-                print('launching process pool...', end='')
-                pool = multiprocessing.Pool(POOL_SIZE)
-                print('done')
+            pool = getPool()
             l.execute = lambda l=l, pool=pool: l.tLayer.apply3DLUT(lut.LUT3DArray, lut.step, {'use selection': False}, pool=pool)
             window.tableView.setLayers(window.label.img)
             l.applyToStack()
@@ -1737,7 +1739,7 @@ if __name__ =='__main__':
         app.setStyleSheet("QMainWindow, QMainWindow *, QGraphicsView, QListWidget, QMenu,\
                                                      QTableView, QLabel, QGroupBox {background-color: rgb(40,40,40); color: rgb(220,220,220)}\
                            QMenu, QTableView { selection-background-color: blue; selection-color: white;}\
-                           QWidget, QTableView, QTableView * {font-size: 9pt}\
+                           QWidget, QComboBox, QTableView, QTableView * {font-size: 9pt}\
                            QWidget:disabled {color: rgb(96,96,96)}\
                            QbLUeSlider::groove:horizontal:enabled { margin: 3px; background-color: rgb(196,196,196)}\
                            QbLUeSlider::groove:horizontal:disabled {margin: 3px; background-color: rgb(96,96,96)}\
@@ -1864,9 +1866,12 @@ For a segmentation layer only, all pixels outside the rectangle are set to backg
     action1.triggered.connect(f)
     window.addAction(action1)
 
-    # init property widget
+    #########################################
+    # dynamic modifications of the main form loaded
+    # from blue.ui
+    ########################################
+    # Set the layout of propertyWidget as built in QLayerView.__init__()
     window.propertyWidget.setLayout(window.tableView.propertyLayout)
-    window.propertyWidget.adjustSize()
     # reinit the dockWidgetContents layout to
     # nest it in a QHboxLayout containing a (left) stretch
     tmpV = QVBoxLayout()
@@ -1880,7 +1885,7 @@ For a segmentation layer only, all pixels outside the rectangle are set to backg
     tmpH.addLayout(tmpV)
     tmpH.setContentsMargins(0,0,10,0)
     tmpV.setContentsMargins(0,0,10,0)
-    # to remove the current layout we reparent it to
+    # to remove the current layout we re-parent it to
     # an unreferenced widget.
     QWidget().setLayout(window.dockWidgetContents.layout())
     # set the new layout

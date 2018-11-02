@@ -16,6 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import gc
+from collections import OrderedDict
 
 from PySide2 import QtCore
 import cv2
@@ -95,16 +96,18 @@ class itemDelegate(QStyledItemDelegate):
 
 class QLayerView(QTableView) :
     """
-    This class is used to display the stack of image layers.
+    Display the stack of image layers.
     """
     def __init__(self, parent):
         super(QLayerView, self).__init__(parent)
         self.img = None
-        # form to display
+        # graphic form to show : it
+        # should correspond to the currently selected layer
         self.currentWin = None
         # mouse click event
         self.clicked.connect(self.viewClicked)
-        # behavior and style for selection
+
+        # set behavior and styles
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
         delegate = itemDelegate(parent=self)
         self.setItemDelegate(delegate)
@@ -132,9 +135,11 @@ class QLayerView(QTableView) :
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
         self.setDropIndicatorShown(True)
-        # verticallayout
-        l = QVBoxLayout()
-        l.setAlignment(Qt.AlignTop)
+
+        ################################
+        # layer property GUI :
+        # preview, blending mode, opacity
+        ################################
         # Preview option
         # We should use a QListWidget or a custom optionsWidget
         # (cf. utils.py) :  adding it to QVBoxLayout with mode
@@ -177,12 +182,6 @@ class QLayerView(QTableView) :
         opacityLabel = QLabel()
         opacityLabel.setMaximumSize(100,30)
         opacityLabel.setText("Layer opacity")
-        hl0 = QHBoxLayout()
-        hl0.addWidget(opacityLabel)
-        hl0.addStretch(1)
-        hl0.addWidget(self.previewOptionBox)
-        l.addLayout(hl0)
-        hl =  QHBoxLayout()
         self.opacityValue = QLabel()
         font = self.opacityValue.font()
         metrics = QFontMetrics(font)
@@ -190,56 +189,74 @@ class QLayerView(QTableView) :
         h = metrics.height()
         self.opacityValue.setMinimumSize(w, h)
         self.opacityValue.setMaximumSize(w, h)
-
         self.opacityValue.setText('100 ')
-        #self.opacityValue.setStyleSheet("QLabel {background-color: white}")
-        hl.addWidget(self.opacityValue)
-        hl.addWidget(self.opacitySlider)
-        l.addLayout(hl)
-        l.setContentsMargins(20,0,20,0) # left, top, right, bottom
+        # self.opacityValue.setStyleSheet("QLabel {background-color: white}")
 
         # opacity value changed event handler
         def f1():
             self.opacityValue.setText(str('%d ' % self.opacitySlider.value()))
-        # slider released event handler
+
+        # opacity slider released event handler
         def f2():
             self.img.getActiveLayer().setOpacity(self.opacitySlider.value())
             self.img.getActiveLayer().applyToStack()
             self.img.onImageChanged()
+
         self.opacitySlider.valueChanged.connect(f1)
         self.opacitySlider.sliderReleased.connect(f2)
 
-        # blending modes combo box
+        # blending mode combo box
         compLabel = QLabel()
         compLabel.setText("Composition Mode")
-        l.addWidget(compLabel)
-        #modes = ['Normal', 'Plus', 'Multiply', 'Screen', 'Overlay', 'Darken', 'Lighten', 'Color Dodge', 'Color Burn', 'Hard Light',
-                #'Soft Light', 'Difference', 'Exclusion']
-        self.compositionModeDict = { 'Normal':QPainter.CompositionMode_SourceOver,
-                                'Plus':QPainter.CompositionMode_Plus, 'Multiply':QPainter.CompositionMode_Multiply,
-                                'Screen':QPainter.CompositionMode_Screen, 'Overlay':QPainter.CompositionMode_Overlay,
-                                'Darken':QPainter.CompositionMode_Darken, 'Lighten':QPainter.CompositionMode_Lighten,
-                                'Color Dodge':QPainter.CompositionMode_ColorDodge, 'Color Burn':QPainter.CompositionMode_ColorBurn,
-                                'Hard Light':QPainter.CompositionMode_HardLight, 'Soft Light':QPainter.CompositionMode_SoftLight,
-                                'Difference':QPainter.CompositionMode_Difference, 'Exclusion':QPainter.CompositionMode_Exclusion
-                                }
+
+        self.compositionModeDict = OrderedDict([('Normal', QPainter.CompositionMode_SourceOver),
+                                                ('Plus', QPainter.CompositionMode_Plus),
+                                                ('Multiply', QPainter.CompositionMode_Multiply),
+                                                ('Screen', QPainter.CompositionMode_Screen),
+                                                ('Overlay', QPainter.CompositionMode_Overlay),
+                                                ('Darken', QPainter.CompositionMode_Darken),
+                                                ('Lighten', QPainter.CompositionMode_Lighten),
+                                                ('Color Dodge', QPainter.CompositionMode_ColorDodge),
+                                                ('Color Burn', QPainter.CompositionMode_ColorBurn),
+                                                ('Hard Light', QPainter.CompositionMode_HardLight),
+                                                ('Soft Light', QPainter.CompositionMode_SoftLight),
+                                                ('Difference', QPainter.CompositionMode_Difference),
+                                                ('Exclusion', QPainter.CompositionMode_Exclusion)
+                                                ])
         self.blendingModeCombo = QComboBox()
-        l.addWidget(self.blendingModeCombo)
 
-
-        # the layout is set in blue.py, after the initialization of the main form.
-        self.propertyLayout = l
-
-        for key in self.compositionModeDict: #.keys():
+        for key in self.compositionModeDict:
             self.blendingModeCombo.addItem(key, self.compositionModeDict[key])
+
         # combo box item chosen event handler
         def g(ind):
             s = self.blendingModeCombo.currentText()
             self.img.getActiveLayer().compositionMode = self.compositionModeDict[str(s)]
             self.img.getActiveLayer().applyToStack()
             self.img.onImageChanged()
+
         self.blendingModeCombo.currentIndexChanged.connect(g)
-        #self.blendingModeCombo.activated.connect(g)  # TODO activated changed to currentIndexChanged 08/10/18 validate
+        # self.blendingModeCombo.activated.connect(g)  # TODO activated changed to currentIndexChanged 08/10/18 validate
+
+        #layout
+        l = QVBoxLayout()
+        l.setAlignment(Qt.AlignTop)
+        hl0 = QHBoxLayout()
+        hl0.addWidget(opacityLabel)
+        hl0.addStretch(1)
+        hl0.addWidget(self.previewOptionBox)
+        l.addLayout(hl0)
+        hl =  QHBoxLayout()
+        hl.addWidget(self.opacityValue)
+        hl.addWidget(self.opacitySlider)
+        l.addLayout(hl)
+        l.setContentsMargins(20,0,20,0) # left, top, right, bottom
+        l.addWidget(compLabel)
+        l.addWidget(self.blendingModeCombo)
+        # this layout must be set for the propertyWidget object loaded from blue.ui :
+        # we postpone it to the module blue.py, after loading the main form.
+        self.propertyLayout = l
+
         # shortcut actions
         self.actionDup = QAction('Duplicate layer', None)
         self.actionDup.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_J))
@@ -846,8 +863,8 @@ Note that upper visible layers slow down mask edition.
             self.img.onImageChanged()
         def layerReset():
             view = layer.view.widget()
-            if hasattr(view, 'setDefaults'):
-                view.setDefaults()
+            if hasattr(view, 'reset'):
+                view.reset()
 
         self.cMenu.actionRepositionLayer.triggered.connect(RepositionLayer)
         self.cMenu.actionUnselect.triggered.connect(unselectAll)

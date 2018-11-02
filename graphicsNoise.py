@@ -118,8 +118,8 @@ class noiseForm (baseForm):
         """
         data changed event handler
         """
-        if invalidate:
-            self.layer.postProcessCache = None
+        #if invalidate:
+            #self.layer.postProcessCache = None  # TODO 2/11/18 unused validate
         #self.enableSliders()
         self.layer.applyToStack()
         self.layer.parentImage.onImageChanged()

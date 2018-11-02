@@ -36,12 +36,12 @@ from PySide2.QtCore import QRect
 
 from bLUeGui.bLUeImage import bImage, ndarrayToQImage
 from bLUeCore.tetrahedral import interpTetra
-from bLUeCore.trilinear import interpTriLinear
+from bLUeCore.trilinear import interpTriLinear, interpTriLinearPara
 from bLUeCore.multi import interpMulti
 from bLUeGui.spline import cubicSpline
 
 from debug import tdec
-from dng import dngProfileToneCurve
+from dng import dngProfileToneCurve, dngProfileLookTable
 from graphicsBlendFilter import blendFilterIndex
 
 from graphicsFilter import filterIndex
@@ -998,7 +998,7 @@ class vImage(bImage):
         buf1[:,:,3] = buf0[:,:,3]
         self.updatePixmap()
 
-    def applyRawPostProcessing(self):
+    def applyRawPostProcessing(self, pool=None):
         """
         Develop raw image.
         Processing order is the following:
@@ -1012,22 +1012,17 @@ class vImage(bImage):
         """
         if self.parentImage.isHald :
             raise ValueError('Cannot build a 3D LUT from raw stack')
+
+        ##################
+        # Optmization flags
+        doALL = self.postProcessCache is None
+        doLOOKTABLE = self.postProcessCache is None or self.bufCache_HSV_CV32 is None
         #################
-        # a priori underexposition compensation for most DSLR
-        #################
-        baseExpShift = 3.0
+
         # get adjustment form and rawImage
         adjustForm = self.getGraphicsForm() #self.view.widget()
         options = adjustForm.options
         rawImage = getattr(self.parentImage, 'rawImage')
-        """
-        if adjustForm.toneForm is not None:
-            LUTXY = adjustForm.toneForm.scene().quadricB.LUTXY
-            m, M = self.parentImage.raw_image_from_profile_min, self.parentImage.raw_image_from_profile_max
-            LUTXY = np.interp(np.arange(M+1), np.arange(256) * (M+1)/256, LUTXY * (M+1)/256)
-            rawImage.raw_image[:,:] = LUTXY[self.parentImage.raw_image_from_profile]
-            self.postProcessCache = None
-        """
         currentImage = self.getCurrentImage()
         ######################################################################################################################
         # process raw image (16 bits mode)                        RGB ------diag(multipliers)-----------> RGB
@@ -1042,7 +1037,7 @@ class vImage(bImage):
         # ouput is CV_16UC3
         ######################################################################################################################
         # postProcessCache is reset to None by graphicsRaw.updateLayer (graphicsRaw.dataChanged event handler)
-        if self.postProcessCache is None:
+        if doALL : #self.postProcessCache is None:
             ##############################
             # get postprocessing parameters
             ##############################
@@ -1114,31 +1109,47 @@ class vImage(bImage):
                     fbdd_noise_reduction=fbdd_noise_reduction,
                     median_filter_passes=1
                     )
-                self.postProcessCache = bufpost16
-            # ProfileLookTable here
-            # profileToneCurve here
-            # user ToneCurve
+                self.postProcessCache = bufpost16 # .copy()
         else:
             pass
-            # get buffer from cache
-            # bufHSV_CV32 = self.bufCache_HSV_CV32.copy()
-
-        # apply profile tone curve
-        buf = adjustForm.dngDict.get('ProfileToneCurve', [])
-        if buf is not []:
-            LUTXY = dngProfileToneCurve(buf).toLUTXY(range=16)
-            bufpost16 = LUTXY[self.postProcessCache]
-            if adjustForm.toneForm is not None:
-                # apply user tone curve
-                LUTXY = adjustForm.toneForm.scene().quadricB.LUTXY
-                LUTXY = np.interp(np.arange(65536), np.arange(256) * 256, LUTXY * 256)
-                bufpost16 = LUTXY[bufpost16.astype(np.uint16)]
+        ##########################
+        # apply profile look table
+        # it must applied to the linear buffer and
+        # before tone curve (cf. Adobe dng spec. p. 65)
+        ##########################
+        if doLOOKTABLE:
+            bufHSV_CV32 = cv2.cvtColor(((self.postProcessCache.astype(np.float32)) / 65535).astype(np.float32),
+                                       cv2.COLOR_RGB2HSV)  # TODO 29/10/18 change 65536 to 65535 validate
+            hsvLUT = dngProfileLookTable(adjustForm.dngDict)
+            if hsvLUT.isValid:
+                steps = tuple([360 / hsvLUT.dims[0], 1.0 / (hsvLUT.dims[1]-1), 1.0 / (hsvLUT.dims[2]-1)])
+                coeffs = interpMulti(hsvLUT.data, steps, bufHSV_CV32, pool=pool, use_tetra=USE_TETRA, convert=False)
+                bufHSV_CV32[:, :, 0] = np.mod(bufHSV_CV32[:, :, 0] + coeffs[:, :, 0], 360)
+                bufHSV_CV32[:, :, 1:] = bufHSV_CV32[:, :, 1:] * coeffs[:, :, 1:]
+                np.clip(bufHSV_CV32, (0,0,0), (360,1,1), out=bufHSV_CV32)
+                self.bufCache_HSV_CV32 = bufHSV_CV32.copy()
         else:
-            bufpost16 = self.postProcessCache
+            bufHSV_CV32 = self.bufCache_HSV_CV32.copy()
+        #############################
+        # apply profile tone curve
+        #############################
+        buf = adjustForm.dngDict.get('ProfileToneCurve', [])
+        if doLOOKTABLE and buf is not []:
+            LUTXY = dngProfileToneCurve(buf).toLUTXY(maxrange=255)
+            bufHSV_CV32[:,:,2] = LUTXY[(bufHSV_CV32[:, :, 2]*255).astype(np.uint16)] / 255  #self.postProcessCache]
+            if adjustForm.toneForm is not None:
+                # apply GUI tone curve
+                guiLUTXY = adjustForm.toneForm.scene().quadricB.LUTXY
+                #guiLUTXY = np.interp(np.arange(256), np.arange(256) * 256, guiLUTXY)
+                bufHSV_CV32[:, :, 2] = guiLUTXY[(bufHSV_CV32[:,:,2]*255).astype(np.uint16)] / 255
+        """
         bufpost16 = np.clip(rgbLinear2rgbVec(bufpost16 / 65536) * 256, 0, 65535)
+
         bufHSV_CV32 = cv2.cvtColor(((bufpost16.astype(np.float32)) / 65535).astype(np.float32),
                                    cv2.COLOR_RGB2HSV)  # TODO 29/10/18 change 65536 to 65535 validate
-        self.bufCache_HSV_CV32 = bufHSV_CV32.copy()
+        """
+        self.bufCache_HSV_CV32 = bufHSV_CV32.copy()  #final saving
+
         ###########
         # contrast and saturation correction (V channel).
         # We apply a (nearly) automatic histogram equalization
@@ -1166,7 +1177,7 @@ class vImage(bImage):
             bufHSV_CV32[:, :, 1] = LUT[(bufHSV_CV32[:, :, 1] * 255).astype(int)]
         # back to RGB
         bufpost16 = (cv2.cvtColor(bufHSV_CV32, cv2.COLOR_HSV2RGB)*65535).astype(np.uint16)
-
+        bufpost16 = np.clip(rgbLinear2rgbVec(bufpost16 / 65536) * 256, 0, 65535)
         #############################
         # Conversion to 8 bits/channel
         #############################

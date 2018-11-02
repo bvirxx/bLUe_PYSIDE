@@ -28,7 +28,7 @@ from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QFr
 from bLUeGui.multiplier import temperatureAndTint2RGBMultipliers, RGBMultipliers2TemperatureAndTint
 from bLUeGui.graphicsSpline import graphicsSplineForm, activeCubicSpline
 from bLUeGui.graphicsSpline import baseForm
-from dng import getDngProfileList, getDngProfileDict, dngProfileToneCurve
+from dng import getDngProfileList, getDngProfileDict, dngProfileToneCurve, dngProfileLookTable
 from utils import optionsWidget, UDict, QbLUeSlider, stateAwareQDockWidget
 
 class rawForm (baseForm):
@@ -110,8 +110,8 @@ class rawForm (baseForm):
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         super().__init__(parent=parent)
         self.setStyleSheet('QRangeSlider * {border: 0px; padding: 0px; margin: 0px}')
-        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        self.setMinimumSize(axeSize, axeSize+300)  # +200 to prevent scroll bars in list Widgets
+        self.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Preferred)
+        self.setMinimumSize(axeSize, axeSize+300)  # +300 to prevent scroll bars in list Widgets
         self.setAttribute(Qt.WA_DeleteOnClose)
         # link back to image layer
         # using weak ref for back links
@@ -247,14 +247,18 @@ class rawForm (baseForm):
             if d:
                 self.cameraProfilesCombo.addItem(key, d)
         self.cameraProfilesCombo.addItem('None', {})
-
+        self.cameraProfilesCombo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
+        self.cameraProfilesCombo.setMaximumWidth(150)
+        self.cameraProfilesCombo.setStyleSheet("QComboBox QAbstractItemView { min-width: 250px;}")
         # cameraProfilesCombo index changed event handler
         def cameraProfileUpdate(value):
             self.dngDict = self.cameraProfilesCombo.itemData(value)
             if self.options['toneCurve']:
-                coords = dngProfileToneCurve(self.dngDict.get('ProfileToneCurve', []))
-                self.toneForm.baseCurve = [QPointF(x * axeSize, -y * axeSize) for x, y in zip(coords.dataX, coords.dataY)]
+                toneCurve = dngProfileToneCurve(self.dngDict.get('ProfileToneCurve', []))
+                self.toneForm.baseCurve = [QPointF(x * axeSize, -y * axeSize) for x, y in zip(toneCurve.dataX, toneCurve.dataY)]
                 self.toneForm.update()
+            # inavlidate the postprocessed buffer
+            self.layer.bufCache_HSV_CV32 = None
             self.dataChanged.emit(False)
 
         self.cameraProfilesCombo.currentIndexChanged.connect(cameraProfileUpdate)
@@ -432,7 +436,7 @@ class rawForm (baseForm):
 
         # layout
         l = QVBoxLayout()
-        l.setContentsMargins(8, 8, 8, 8)  # left, top, right, bottom
+        #l.setContentsMargins(8, 8, 8, 8)  # left, top, right, bottom
         hl01 = QHBoxLayout()
         hl01.addWidget(QLabel('Camera Profile'))
         hl01.addWidget(self.cameraProfilesCombo)
@@ -495,6 +499,7 @@ class rawForm (baseForm):
         self.setLayout(l)
         self.adjustSize()
         self.setDefaults()
+        #self.lookTable = dngProfileLookTable(self.dngDict)
         self.setWhatsThis(
 """<b>Development of raw files</b><br>
 <b>Default settings</b> are a good starting point.<br>
@@ -519,8 +524,8 @@ Valid values are 0 to 3 (0=clip;1=unclip;2=blend;3=rebuild); (with Auto Exposed 
             form.setAttribute(Qt.WA_DeleteOnClose, on=False)
             form.setWindowTitle('Tone Curve')
             form.setButtonText('Reset Curve')
-            coords = dngProfileToneCurve(self.dngDict.get('ProfileToneCurve', []))
-            form.baseCurve = [QPointF(x*axeSize, -y*axeSize) for x,y in zip(coords.dataX, coords.dataY)]
+            tomeCurve = dngProfileToneCurve(self.dngDict.get('ProfileToneCurve', []))
+            form.baseCurve = [QPointF(x*axeSize, -y*axeSize) for x,y in zip(tomeCurve.dataX, tomeCurve.dataY)]
             self.toneForm = form
             dockT = stateAwareQDockWidget(self.parent())
             dockT.setWindowFlags(form.windowFlags())
