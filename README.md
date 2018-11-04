@@ -27,7 +27,7 @@ monitor profiles in conjunction to display accurate colors.
 
 bLUe is written in Python.
 
-## Functionalities
+## FUNCTIONALITY
 
 * Edition of files in formats jpg, png, tif, nef, cr2, dng.
 * Adjustment layers : exposure, brightness, saturation, contrast, color temperature, inversion, filters, noise reduction, cloning,
