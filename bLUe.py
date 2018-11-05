@@ -193,7 +193,7 @@ This product includes DNG technology under license by Adobe
 
 ##############
 #  Version number
-VERSION = "v1.2.2.0"
+VERSION = "v1.2.3.0"
 ##############
 
 ##############
