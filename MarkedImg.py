@@ -984,6 +984,7 @@ class QLayer(vImage):
         @return:
         @rtype: int
         """
+        i = -1  # TODO added 5/11/18 validate
         for i, l in enumerate(self.parentImage.layersStack):
             if l is self:
                 break

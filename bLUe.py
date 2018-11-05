@@ -132,7 +132,6 @@ from types import MethodType
 import rawpy
 
 from bLUeCore.bLUeLUT3D import haldArray
-from dng import getDngProfileDict
 from grabcut import segmentForm
 from PySide2.QtCore import QRect, QEvent, QUrl, QSize, QFileInfo, QRectF, QObject
 from PySide2.QtGui import QPixmap, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, \
@@ -187,7 +186,7 @@ libraw Copyright (C) 2008-2018
 rawpy Copyright (c) 2014 Maik Riechert
 seamlessClone and CLAHE are Opencv3 functions
 grabCut is a parallel version of an Opencv3 function
-This product includes DNG technology under license by Adobe
+This product includes DNG technology under license by Adobe Systems Incorporated
 """
 #################
 

@@ -705,6 +705,7 @@ Note that upper visible layers slow down mask edition.
         rows = set([mi.row() for mi in selection])
         rStack = self.img.layersStack[::-1]
         layers = [rStack[r] for r in rows]
+        group = []  # TODO added 5/11/18 validate
         if layers:
             group = layers[0].group
         for l in layers:

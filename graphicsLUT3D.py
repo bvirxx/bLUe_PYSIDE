@@ -290,7 +290,8 @@ class activeNode(QGraphicsPathItem):
 
     def __init__(self, position, cModel, gridRow=0, gridCol=0, parent=None, grid=None):
         """
-        Grid Node class. Each node owns a fixed color, depending on its
+        Grid Node class.
+        Each node owns a fixed color, depending on its
         initial position on the color wheel. The node is bound to a fixed list
         of LUT vertices, corresponding to its initial color.
         When a node is moved over the color wheel, calling the method setState synchronizes
@@ -326,9 +327,10 @@ class activeNode(QGraphicsPathItem):
         p = position - parent.parentItem().offset()
         scene = parent.scene()
         c = QColor(scene.slider2D.QImg.pixel(p.toPoint()))
+        # node color (LUT input)
         self.r, self.g, self.b, _ = c.getRgb()
         self.hue, self.sat, self.pB = self.cModel.rgb2cm(self.r, self.g, self.b)
-        # modified colors
+        # modified colors (LUT output)
         self.rM, self.gM, self.bM = self.r, self.g, self.b
         # build the list of LUT vertices bound to the node:
         # we convert the list of HSV coord. (self.hue, self.sat, V) to RGB values
@@ -340,7 +342,7 @@ class activeNode(QGraphicsPathItem):
         clipped.extend( [tuple(self.LUTIndices[len(clipped)])] if len(clipped) < len(self.LUTIndices) else [] )
         # remove duplicate vertices
         self.LUTIndices = set([index(p/100.0, i, j, k) for p, (i, j, k) in enumerate(clipped)])
-        for x in self.LUTIndices:
+        for x in self.LUTIndices: # TODO convert set to array for consistency ?? may be useless and time consuming
             #LUT3D_SHADOW[i,j,k][3]=1
             (i, j, k) = x.ind
             LUT3D_SHADOW[max(i-spread,0):i+spread+1,max(j-spread,0):j+spread+1, max(k-spread,0):k+spread+1,3] = 1
@@ -413,7 +415,7 @@ class activeNode(QGraphicsPathItem):
         @rtype:
         """
         if self.gridRow > 0:
-            return self.grid.gridNodes[self.gridRow-1][self.gridCol]
+            return self.grid.gridNodes[self.gridRow-1][self.gridCol]  # TODO verify grid/col
         return None
 
     def left(self):
@@ -423,7 +425,7 @@ class activeNode(QGraphicsPathItem):
         @rtype:
         """
         if self.gridCol > 0:
-            return self.grid.gridNodes[self.gridRow][self.gridCol-1]
+            return self.grid.gridNodes[self.gridRow][self.gridCol-1] # TODO verify grid/col
         return None
 
     def neighbors(self):
@@ -466,12 +468,6 @@ class activeNode(QGraphicsPathItem):
             count += 1
         laplacian = laplacian / count
         return laplacian
-
-        vel = nullvec #vel[item.gridRow, item.gridCol]
-        vel += laplacian
-
-
-
 
     def mousePressEvent(self, e):
         # super Press select node
@@ -524,6 +520,7 @@ class activeGrid(QGraphicsPathItem):
         # parent should be the color wheel. step is the unitary coordinate increment
         # between consecutive nodes in each direction
         self.step = parent.size / float((self.size -1))
+        # set pos relative to parent
         self.setPos(0,0)
         # np.fromiter does not handle dtype object, so we cannot use a generator
         self.gridNodes = [[activeNode(QPointF(i*self.step,j*self.step), cModel, gridRow=j, gridCol=i, parent=self, grid=self)
@@ -533,6 +530,18 @@ class activeGrid(QGraphicsPathItem):
         self.drawGrid()
         self.selectedGroup = None
         self.setFlag(QGraphicsItem.ItemIsSelectable, True)
+
+    def getNodeAt(self, row, col):
+        """
+        Disambiguation of row/col
+        @param row: grid row
+        @type row: int
+        @param col: grid col
+        @type col: int
+        @return: grid node
+        @rtype: activeNode
+        """
+        return self.gridNodes[col][row]
 
     def paint(self, qpainter, options, widget):
         qpainter.save()

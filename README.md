@@ -34,6 +34,7 @@ bLUe is written in Python.
 * Adjustment layers : exposure, brightness, saturation, contrast, color temperature, inversion, filters, noise reduction, cloning,
 segmentation, geometric transformations, curves (1D LUTs), 2.5D LUTs, 3D LUTs.
 * Automatic contrast enhancement (histogram warping and CLAHE)
+* Crop tool
 * Import and export of 3D LUTs in .cube format
 * Mask edition
 * Automatic import of camera specific dng and dcp profiles

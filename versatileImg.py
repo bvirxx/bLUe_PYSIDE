@@ -1554,7 +1554,7 @@ class vImage(bImage):
         @type chans: list of indices
         @param chanColors: color or 3-uple of colors
         @type chanColors: QColor or 3-uple of QColor
-        @param mode: color mode ((one of 'RGB', 'HSpB', 'Lab')
+        @param mode: color mode ((one among 'RGB', 'HSpB', 'Lab', 'Luminosity')
         @type mode: str
         @return: histogram plot
         @rtype: QImage
@@ -1566,12 +1566,10 @@ class vImage(bImage):
         spread = float(range[1] - range[0])
         scale = size.width() / spread
         # per channel histogram function
-        #def drawChannelHistogram(painter, channel, buf, color):
         def drawChannelHistogram(painter, hist, bin_edges, color):
             #Draw the (smoothed) histogram for a single channel.
             #param painter: QPainter
             #param hist: histogram to draw
-            #param channel: channel index (BGRA (intel) or ARGB )
             # smooth the histogram (first and last bins excepted) for a better visualization of clipping.
             hist = np.concatenate(([hist[0]], SavitzkyGolayFilter.filter(hist[1:-1]), [hist[-1]]))
             M = max(hist[1:-1])  # TODO added 04/10/18 + removed parameter M: validate
@@ -1599,6 +1597,7 @@ class vImage(bImage):
         # green percent for clipping indicators
         gPercent = 1.0
         bufL = cv2.cvtColor(QImageBuffer(self)[:, :, :3], cv2.COLOR_BGR2GRAY)[..., np.newaxis]  # returns Y (YCrCb) : Y = 0.299*R + 0.587*G + 0.114*B
+        buf = None  # TODO added 5/11/18 validate
         if mode == 'RGB':
             buf = QImageBuffer(self)[:,:,:3][:,:,::-1]  #RGB
         elif mode == 'HSpB':
@@ -1817,6 +1816,8 @@ class vImage(bImage):
             bufOutRGB = rgbLinear2rgbVec(bufsRGBLinear)
             np.clip(bufOutRGB, 0, 255, out=bufOutRGB)
             bufOutRGB = bufOutRGB.astype(np.uint8)
+        else:
+            raise ValueError('applyTemperature : wrong option')
         # set output image
         bufOut0 = QImageBuffer(currentImage)
         bufOut = bufOut0[:,:,:3]

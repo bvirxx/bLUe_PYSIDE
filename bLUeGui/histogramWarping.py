@@ -33,9 +33,9 @@ from .spline import interpolationQuadSpline
 
 class dstb(object):
     """
-    Represents a discrete distribution over an interval 0...maxVal of positive
+    Represent a discrete distribution over an interval 0...maxVal of positive
     integers, estimated from an histogram partition of the interval.
-    For continuous distributions, 1/maxVal ca be viewed as  the size
+    For continuous distributions, 1/maxVal ca be viewed as the size
     of a discretization mesh.
     """
     interpolateCDF = False
@@ -48,7 +48,9 @@ class dstb(object):
 
     def __init__(self, hist, bins, maxVal=0):
         self.maxVal = max(maxVal, np.ceil(bins[-1]))
-        self.DTable, self.CDFTable = self.setDist(hist=hist, bins=bins, maxVal=maxVal)
+        self.CDFTable = None
+        self.DTable = None
+        self.setDist(hist=hist, bins=bins, maxVal=maxVal)  # TODO removed assignments (done by setDist) 5/11/18 validate
         self.bins = bins
         self.hist = hist
         # plot curve
@@ -71,7 +73,8 @@ class dstb(object):
 
     def setDist(self, hist=None, bins=None, maxVal=0):
         """
-        The distribution is estimated from the histogram. If maxVal is 0 (default), the distribution
+        Initialize the distribution from an histogram.
+        If maxVal is 0 (default), the distribution
         represents the probablities of each bin. If maxVal is a positive integer,
         the distribution represents the probabilities of all successive integers in the range 0..ceil(maxVal).
         It is not smoothed: all integers in the same bin get equal probabilities.
@@ -106,12 +109,12 @@ class dstb(object):
                     1 if (np.floor(bins[r]) != bins[r] or r == len(bins) - 1) else 0)
                 # assign equal probabilities to all these integers
                 dist += [hist[r - 1] * lg / n]
-            DTable = dist
-        CDFTable= np.cumsum(DTable)                             # len(CDFTable) = len(DTable) = maxVal + 1
+            self.DTable = dist  # TODO self added 05/11/18 validate
+        self.CDFTable = np.cumsum(self.DTable)                             # len(CDFTable) = len(DTable) = maxVal + 1
         # sanity check
-        if np.abs(CDFTable[-1] - 1) > 0.00000001:
+        if np.abs(self.CDFTable[-1] - 1) > 0.00000001:
             raise ValueError('setDistribution: invalid distribution')
-        return DTable, CDFTable
+        #return DTable, CDFTable   TODO removed 05/11/18 validate
 
     def F(self, x):
         """
