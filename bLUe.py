@@ -961,7 +961,7 @@ def setDocumentImage(img):
     window.label_2.update()
     window.label_3.update()
     # back links used by graphicsForm3DLUT.onReset
-    window.label.img.window = window.label
+    window.label.img.window = window.label  # TODO 4/11/18 probably graphicsForm3DLUT.onReset should be modified to remove this dependency
     window.label_2.img.window = window.label_2
     window.label.img.setModified(True)
 

@@ -31,6 +31,7 @@ from PySide2.QtWidgets import QMenu, QRubberBand
 from bLUeCore.bLUeLUT3D import LUT3D
 from MarkedImg import QLayer
 from bLUeCore.trilinear import interpTriLinear
+from debug import tdec
 from lutUtils import LUTSIZE, LUTSTEP, LUT3D_SHADOW, LUT3D_ORI, LUT3DIdentity
 from versatileImg import vImage
 from bLUeGui.colorPatterns import hueSatPattern, brightnessPattern
@@ -152,12 +153,14 @@ class nodeGroup(QGraphicsItemGroup):
         if self.mouseIsMoved:
             for i in self.childItems():
                 i.setState(i.pos())
+                i.isControlPoint = True  # 28/10
             self.grid.drawGrid()
             l = self.scene().layer
             l.applyToStack()
             l.parentImage.onImageChanged()
         self.mouseIsPressed = False
         self.mouseIsMoved = False
+
 
     def contextMenuEvent(self, event):
         menu = QMenu()
@@ -312,7 +315,7 @@ class activeNode(QGraphicsPathItem):
         self.mouseIsMoved = False
         self.initialPos = position
         self.setPos(self.initialPos)
-        self.gridRow, self.gridCol = gridRow, gridCol
+        self.__gridRow, self.__gridCol = gridRow, gridCol
         self.setFlag(QGraphicsItem.ItemIsSelectable, True)
         self.setFlag(QGraphicsItem.ItemIgnoresTransformations, True)
         self.setVisible(False)
@@ -355,6 +358,14 @@ class activeNode(QGraphicsPathItem):
         self.newPos = QPointF()
         self.isControlPoint = False  # 28/10
 
+    @property  # read only
+    def gridRow(self):
+        return self.__gridRow
+
+    @property # read only
+    def gridCol(self):
+        return self.__gridCol
+
     def setState(self, position):
         """
         Synchronize LUT
@@ -395,6 +406,26 @@ class activeNode(QGraphicsPathItem):
         """
         return self.scenePos() - self.grid.scenePos()
 
+    def top(self):
+        """
+        Return the north neighbor
+        @return:
+        @rtype:
+        """
+        if self.gridRow > 0:
+            return self.grid.gridNodes[self.gridRow-1][self.gridCol]
+        return None
+
+    def left(self):
+        """
+        Return the east neighbor
+        @return:
+        @rtype:
+        """
+        if self.gridCol > 0:
+            return self.grid.gridNodes[self.gridRow][self.gridCol-1]
+        return None
+
     def neighbors(self):
         """
         Returns the list of grid neighbors
@@ -420,36 +451,26 @@ class activeNode(QGraphicsPathItem):
             nghb.append(self.grid.gridNodes[self.gridRow+1][self.gridCol-1])
         return nghb
 
-    def computeForces(self):
-        # sum up all forces pulling item away
-        xvel, yvel = 0.0, 0.0
-        weight = 1.0
-        for i in range(self.grid.size):
-            for j in range(self.grid.size):
-                if abs(i - self.gridRow) > 50 and abs(j - self.gridCol) > 50:
-                    continue
-                item = self.grid.gridNodes[i][j]
-                # get self-->item (vector) coordinates
-                vec = self.mapToItem(item, 0, 0)
-                dx = vec.x()
-                dy = vec.y()
-                l = 2.0 * (dx * dx + dy * dy)
-                if l > 0 :
-                    xvel += (dx * weight) / l
-                    yvel += (dy * weight) / l
-        # substract all forces pushing items together
-        weight = 50.0
+    def laplacian(self):
+        """
+        Return the laplacian (the mean) of the neighbor nodes.
+        The laplacian coordinates are relative to the scene.
+        @return:
+        @rtype: QPointF
+        """
+        nullvec = QPointF(0.0, 0.0)
+        laplacian = nullvec
+        count = 0
         for item in self.neighbors():
-            # get self-->item (vector) coordinates
-            vec = self.mapToItem(item, 0, 0)
-            xvel -= vec.x() / weight
-            yvel -= vec.y() / weight
-        if abs(xvel) < 0.1 and abs(yvel) < 0.1 :
-            xvel = yvel = 0
-        if not self.isControlPoint:  # 28/10
-            self.newPos = self.pos() + QPointF(xvel*5, yvel*5)
-        else :
-            self.newPos = self.pos() #+ QPointF(xvel*5, yvel*5)
+            laplacian += item.scenePos()
+            count += 1
+        laplacian = laplacian / count
+        return laplacian
+
+        vel = nullvec #vel[item.gridRow, item.gridCol]
+        vel += laplacian
+
+
 
 
     def mousePressEvent(self, e):
@@ -529,29 +550,69 @@ class activeGrid(QGraphicsPathItem):
                 node.setPos(node.initialPosition)
                 node.setSelected(False)
                 node.setVisible(False)
+                node.isControlPoint = False
 
-    def setElasticPos(self):
-        for i in range(self.size) :
-            for j in range(self.size):
-                self.gridNodes[i][j].computeForces()
-        for i in range(self.size) :
-            for j in range(self.size):
-                newPos = self.gridNodes[i][j].newPos
-                if self.gridNodes[i][j].pos() != newPos:
-                    self.gridNodes[i][j].setPos(newPos)
-                    self.gridNodes[i][j].setState(newPos)
-        for i in range(self.size):
-            for j in range(self.size):
-                if self.gridNodes[i][j].isControlPoint:
-                    self.gridNodes[i][j].setState(self.gridNodes[i][j].pos())
+    def smooth(self):
+        """
+        Try to smooth the grid by moving each non fixed point to the position of the laplacian
+        of its neighbors.
+        """
+        """
+        weight = 0.5
+        # current positions of nodes
+        f = lambda p: (p.scenePos().x(), p.scenePos().y())
+        posArray = np.array([[[* f(self.gridNodes[i][j])] for j in range(self.size)] for i in range(self.size)])  # not transposed
+        # get array of deltas : d[i,j,k,l] = coordinates of the vector gridNodes[i][j] --> gridNodes[k][l]
+        d = posArray[None, None,:,:,:] - posArray[:,:,None, None,:]
+        # square norms of deltas
+        n2 = np.sum(np.square(d), axis=-1)
+        # compute
+        vel = (d / n2[...,None]) * weight
+        vel = np.nan_to_num(vel)
+        vel = - np.sum(vel, axis=(2,3))  # pulling nodes away
+        """
+        try:
+            QApplication.setOverrideCursor(Qt.WaitCursor)
+            QApplication.processEvents()
+            for i in range(self.size) :
+                for j in range(self.size):
+                    curnode = self.gridNodes[i][j]
+                    curnode.newPos = curnode.laplacian()
+            for i in range(self.size) :
+                for j in range(self.size):
+                    curnode = self.gridNodes[i][j]
+                    if abs(curnode.newPos.x()) < 0.1 and abs(curnode.newPos.y()) < 0.1:
+                        continue
+                    if curnode.gridRow == 0 or curnode.gridCol == 0 or curnode.gridRow == self.size - 1 or curnode.gridCol == self.size - 1 or curnode.isControlPoint:
+                       continue
+                    newPos = curnode.newPos
+                    if curnode.scenePos() != newPos:
+                        position = newPos - curnode.parentItem().scenePos()
+                        curnode.setPos(position)  # parent coordinates
+                        curnode.setState(position)
+            for i in range(self.size):
+                for j in range(self.size):
+                    if self.gridNodes[i][j].isControlPoint:
+                        self.gridNodes[i][j].setState(self.gridNodes[i][j].pos())
+        finally:
+            QApplication.restoreOverrideCursor()
+            QApplication.processEvents()
 
     def drawGrid(self):
+        step = 4
         qpp = QPainterPath()
         for i in range(self.size):
             for j in range(self.size):
-                if not self.gridNodes[i][j].isSelected():
-                    continue
                 node = self.gridNodes[i][j]
+                if i % step == 0 and j % step == 0 :
+                    if i > 0 :
+                        qpp.moveTo(node.gridPos())
+                        qpp.lineTo(self.gridNodes[i-step][j].gridPos())
+                    if j > 0 :
+                        qpp.moveTo(node.gridPos())
+                        qpp.lineTo(self.gridNodes[i][j-step].gridPos())
+                if not node.isSelected():
+                    continue
                 # mark initial position
                 qpp.moveTo(node.gridPos())
                 qpp.lineTo(node.initialPos)
@@ -1104,10 +1165,14 @@ Click the <b> Smooth Grid</b> button to smooth color transitions between neighbo
         self.displayStatus()
 
     def onSmoothGrid(self):
-        self.grid.setElasticPos()
+        """
+        Button slot
+        """
+        self.grid.smooth()
         self.grid.drawGrid()
         self.layer.applyToStack()
-        self.layer.parentImage.window.repaint()
+        if getattr(self.layer.parentImage, 'window', None) is not None:
+            self.layer.parentImage.window.repaint()  # TODO modify to remove dependency
 
     def onReset(self):
         """
@@ -1126,7 +1191,8 @@ Click the <b> Smooth Grid</b> button to smooth color transitions between neighbo
         self.grid.drawGrid()
         #self.scene().onUpdateScene() # TODO 24/05/18 validate suppression
         self.layer.applyToStack()
-        self.layer.parentImage.window.repaint()
+        if getattr(self.layer.parentImage, 'window', None) is not None:
+            self.layer.parentImage.window.repaint()  # TODO modify to remove this dependency
 
     def saveLUT(self):
         """
