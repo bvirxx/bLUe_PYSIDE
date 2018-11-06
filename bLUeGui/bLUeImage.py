@@ -33,6 +33,7 @@ class bImage(QImage):
         self.LabBuffer = None
         self.HSVBuffer = None
         self.postProcessCache = None
+        self.bufCache_HSV_CV32 = None
         #self.dngDict = {}
 
     @property
@@ -51,15 +52,6 @@ class bImage(QImage):
     def postProcessCache(self, buf):
         self.__postProcessCache = buf
 
-    """
-    @property
-    def dngDict(self):
-        return self.__dngDict
-
-    @dngDict.setter
-    def dngDict(self, d):
-        self.__dngDict = d
-    """
     @property
     def rPixmap(self):
         return self.__rPixmap
@@ -91,6 +83,14 @@ class bImage(QImage):
     @HSVBuffer.setter
     def HSVBuffer(self, buffer):
         self.__HSVBuffer = buffer
+
+    @property
+    def bufCache_HSV_CV32(self):
+        return self.__bufCache_HSV_CV32
+
+    @bufCache_HSV_CV32.setter
+    def bufCache_HSV_CV32(self, buffer):
+        self.__bufCache_HSV_CV32 = buffer
 
     def updatePixmap(self, maskOnly=False):
         """

@@ -37,6 +37,7 @@ import numpy as np
 # Conversion from CIE XYZ to LMS-like color space.
 # Cf. http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html
 #############################################
+from debug import tdec
 
 sRGBWP = 6500
 
@@ -99,8 +100,9 @@ c = 255.0 * d
 F = 255.0 ** beta
 table0 = np.arange(256, dtype=np.float64)
 table2 = table0 / c
-table3 = np.power(table0 / 255.0, gamma)
-table5 = np.power(table0, beta) * (1.0 + a) / F
+table3 = np.power((table0/255 + a) / (1 + a), gamma)    # np.power(table0 / 255.0, gamma) TODO 5/11/18 missing a corrected validate
+# tabulate (1 + a) * C**(1/gamma) - a
+table5 = np.power(table0, beta) * (1.0 + a) / F - a   # TODO 5/11/18 missing -a corrected validate
 
 gammaLinearTreshold1 = 0.0031308
 
@@ -131,7 +133,7 @@ def rgbLinear2rgbVec(img):
     Vectorized conversion from linear RGB to sRGB.
     See U{https://en.wikipedia.org/wiki/SRGB}
     Linear r,g,b values are in range 0..1.
-    Converted values are in range 0..255
+    Output values are in range 0..255.
     @param img: linear RGB image, range 0..1
     @type img: numpy array, dtype=float
     @return: converted RGB image
@@ -139,17 +141,15 @@ def rgbLinear2rgbVec(img):
     """
     img2 = img * d
     imgDiscretized = (img * 255.0).astype(int)
-    np.clip(imgDiscretized, 0, 255, imgDiscretized)
-    img3 = table5[imgDiscretized]  # * ((1.0+a)/F)
-    return np.where(img <= gammaLinearTreshold1, img2, img3) * 255
-
+    #np.clip(imgDiscretized, 0, 255, out=imgDiscretized)  # TODO 5/11/18 removed
+    img3 = table5[imgDiscretized]
+    return np.where(imgDiscretized <= gammaLinearTreshold1, img2, img3) * 255 # TODO 5/11/18 bug corrected img--> imgDiscretized
 
 gammaLinearTreshold2 = 0.04045
 
-
 def rgb2rgbLinear(r, g, b):
     """
-       Conversion from sRGB to LINEAR sRGB.
+       Conversion from sRGB to LINEAR RGB.
        All values are in range 0..1.
        See https://en.wikipedia.org/wiki/SRGB
        @param r:
@@ -168,18 +168,19 @@ def rgb2rgbLinear(r, g, b):
 
     return c2cl(r), c2cl(g), c2cl(b)
 
-
 def rgb2rgbLinearVec(img):
     """
-    Converts image from sRGB to linear sRGB.
+    Converts image from sRGB to linear RGB.
+    Input values are integers in range 0..255.
+    Output values are float in interval [0, 1]
     See https://en.wikipedia.org/wiki/SRGB
     @param img: RGB image, range 0..255
-    @type img: numpy array, dtype=uint8 or int or float
-    @return: converted linear RGB image, range 0..1
+    @type img: numpy array, dtype int
+    @return: converted linear RGB image
     @rtype: numpy array, dtype=float
     """
-    img2 = table2[img[...]]  # equivalent to img2 = img / c, faster
-    img3 = table3[img[...]]  # img3 = power(img, alpha)
+    img2 = table2[img[...]]  # img2 = img / c, faster
+    img3 = table3[img[...]]  # img3 = ( (img + a) / (1+a) ) ** gamma
     tr = gammaLinearTreshold2 * 255.0
     return np.where(img <= tr, img2, img3)
 

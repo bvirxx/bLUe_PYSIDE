@@ -25,6 +25,7 @@ from PySide2.QtWidgets import QGraphicsView, QGraphicsScene, QSizePolicy, QPushB
 from PySide2.QtGui import QColor, QPen, QPainterPath, QPolygonF
 from PySide2.QtCore import Qt, QRectF
 
+from utils import baseSignal_No
 from .spline import interpolationCubSpline, interpolationQuadSpline
 
 class channelValues():
@@ -124,9 +125,10 @@ class activePoint(QGraphicsPathItem):
             return
         self.scene().cubicItem.updatePath()
         self.scene().cubicItem.updateLUTXY()
-        l = self.scene().layer
-        l.applyToStack()  # call warpHistogram()
-        l.parentImage.onImageChanged()
+        self.scene().cubicItem.curveChanged.sig.emit()
+        #l = self.scene().layer
+        #l.applyToStack()  # call warpHistogram()
+        #l.parentImage.onImageChanged()
 
     def hoverEnterEvent(self, *args, **kwargs):
         self.setPen(QPen(QColor(0, 255, 0), 2))
@@ -189,9 +191,10 @@ class activeTangent(QGraphicsPathItem):
     def mouseReleaseEvent(self, e):
         self.scene().cubicItem.updatePath()
         self.scene().cubicItem.updateLUTXY()
-        l = self.scene().layer
-        l.applyToStack()  # call warpHistogram()
-        l.parentImage.onImageChanged()
+        self.scene().cubicItem.curveChanged.sig.emit()
+        #l = self.scene().layer
+        #l.applyToStack()  # call warpHistogram()
+        #l.parentImage.onImageChanged()
 
     def hoverEnterEvent(self, *args, **kwargs):
         self.setPen(QPen(QColor(0, 255, 0), 2))
@@ -218,6 +221,7 @@ class activeSpline(QGraphicsPathItem):
         @param parentItem:
         @type parentItem: object
         """
+        self.curveChanged = baseSignal_No()  # TODO added 5/11/18 validate
         super().__init__()
         if fixedPoints is None:
             fixedPoints = []
