@@ -15,9 +15,14 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+import cv2
 
 import numpy as np
-from PySide2.QtGui import QImage, QPixmap
+from PySide2.QtCore import QSize, QRect, QPoint, Qt
+from PySide2.QtGui import QImage, QPixmap, QColor, QPainter
+
+from bLUeCore.SavitskyGolay import SavitzkyGolayFilter
+from bLUeGui.graphicsSpline import channelValues
 
 class bImage(QImage):
     """
@@ -102,6 +107,112 @@ class bImage(QImage):
         @type maskOnly: boolean
         """
         self.rPixmap = QPixmap.fromImage(self)
+
+    def histogram(self, size=QSize(200, 200), bgColor=Qt.white, range =(0,255), chans=channelValues.RGB, chanColors=Qt.gray, mode='RGB', addMode=''):
+        """
+        Plots histogram with the
+        specified color mode and channels.
+        Luminosity is  Y = 0.299*R + 0.587*G + 0.114*B (YCrCb opencv color space).
+        Histograms are smoothed using a Savisky-Golay filter and curves are scaled individually
+        to fit the height of the plot.
+        @param size: size of the histogram plot
+        @type size: int or QSize
+        @param bgColor: background color
+        @type bgColor: QColor
+        @param range: plot data range
+        @type range: 2-uple of int or float
+        @param chans: channels to plot b=0, G=1, R=2
+        @type chans: list of indices
+        @param chanColors: color or 3-uple of colors
+        @type chanColors: QColor or 3-uple of QColor
+        @param mode: color mode ((one among 'RGB', 'HSpB', 'Lab', 'Luminosity')
+        @type mode: str
+        @return: histogram plot
+        @rtype: QImage
+        """
+        # convert size to QSize
+        if type(size) is int:
+            size = QSize(size, size)
+        # scaling factor for the bin edges
+        spread = float(range[1] - range[0])
+        scale = size.width() / spread
+        # per channel histogram function
+        def drawChannelHistogram(painter, hist, bin_edges, color):
+            #Draw the (smoothed) histogram for a single channel.
+            #param painter: QPainter
+            #param hist: histogram to draw
+            # smooth the histogram (first and last bins excepted) for a better visualization of clipping.
+            hist = np.concatenate(([hist[0]], SavitzkyGolayFilter.filter(hist[1:-1]), [hist[-1]]))
+            M = max(hist[1:-1])  # TODO added 04/10/18 + removed parameter M: validate
+            # draw histogram
+            imgH = size.height()
+            lg = len(hist)
+            for i, y in enumerate(hist):
+                h = int(imgH * y / M)
+                h = min(h, imgH - 1) # TODO added 04/10/18 height of rect must be < height of img, otherwise fillRect does nothing
+                rect = QRect(int((bin_edges[i] - range[0]) * scale), max(img.height() - h, 0), int((bin_edges[i + 1] - bin_edges[i]) * scale+1), h)
+                painter.fillRect(rect, color)
+                # clipping indicators
+                if i == 0 or i == len(hist)-1:
+                    left = bin_edges[0 if i == 0 else -1]
+                    if 0 < left < 255:
+                        continue
+                    left =  left - (10 if i > 0 else 0)
+                    clipping_threshold = 0.02
+                    percent = hist[i] * (bin_edges[i+1]-bin_edges[i])
+                    if percent > clipping_threshold:
+                        # calculate the color of the indicator according to percent value
+                        nonlocal gPercent
+                        gPercent = min(gPercent, np.clip((0.05 - percent) / 0.03, 0, 1))
+                        painter.fillRect(left, 0, 10, 10, QColor(255, 255*gPercent, 0))
+        # green percent for clipping indicators
+        gPercent = 1.0
+        bufL = cv2.cvtColor(QImageBuffer(self)[:, :, :3], cv2.COLOR_BGR2GRAY)[..., np.newaxis]  # returns Y (YCrCb) : Y = 0.299*R + 0.587*G + 0.114*B
+        buf = None  # TODO added 5/11/18 validate
+        if mode == 'RGB':
+            buf = QImageBuffer(self)[:,:,:3][:,:,::-1]  #RGB
+        elif mode == 'HSpB':
+            buf = self.getHspbBuffer()
+        elif mode == 'Lab':
+            buf = self.getLabBuffer()
+        elif mode =='Luminosity':
+            chans = []
+        img = QImage(size.width(), size.height(), QImage.Format_ARGB32)
+        img.fill(bgColor)
+        qp = QPainter(img)
+        if type(chanColors) is QColor or type(chanColors) is Qt.GlobalColor:
+            chanColors = [chanColors]*3
+        # compute histograms
+        # bins='auto' sometimes causes a huge number of bins ( >= 10**9) and memory error
+        # even for small data size (<=250000), so we don't use it.
+        # This is a numpy bug : in the module function_base.py
+        # a reasonable upper bound for bins should be chosen to prevent memory error.
+        if mode=='Luminosity' or addMode=='Luminosity':
+            hist, bin_edges = np.histogram(bufL, bins=100, density=True)
+            drawChannelHistogram(qp, hist, bin_edges, Qt.gray)
+        hist_L, bin_edges_L = [0]*len(chans), [0]*len(chans)
+        for i,ch in enumerate(chans):
+            buf0 = buf[:, :, ch]
+            hist_L[i], bin_edges_L[i] = np.histogram(buf0, bins=100, density=True)
+            # to prevent artifacts, the histogram bins must be drawn
+            # using the composition mode source_over. So, we use
+            # a fresh QImage for each channel.
+            tmpimg = QImage(size, QImage.Format_ARGB32)
+            tmpimg.fill(bgColor)
+            tmpqp = QPainter(tmpimg)
+            drawChannelHistogram(tmpqp, hist_L[i], bin_edges_L[i], chanColors[ch])
+            tmpqp.end()
+            # add the channnel hist to img
+            qp.drawImage(QPoint(0,0), tmpimg)
+            # subsequent images are added with composition mode Plus
+            qp.setCompositionMode(QPainter.CompositionMode_Plus)
+        qp.end()
+        buf = QImageBuffer(img)
+        # if len(chans) > 1, clip gray area to improve the aspect of the histogram
+        if len(chans) > 1 :
+            buf[:,:,:3] = np.where(np.min(buf, axis=-1)[:,:,np.newaxis]>=100, np.array((100,100,100))[np.newaxis, np.newaxis,:], buf[:,:,:3] )
+        return img
+
 
 QImageFormats = {0:'invalid', 1:'mono', 2:'monoLSB', 3:'indexed8', 4:'RGB32', 5:'ARGB32',6:'ARGB32 Premultiplied',
                  7:'RGB16', 8:'ARGB8565 Premultiplied', 9:'RGB666',10:'ARGB6666 Premultiplied', 11:'RGB555', 12:'ARGB8555 Premultiplied',

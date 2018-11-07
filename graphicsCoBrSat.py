@@ -323,6 +323,10 @@ Sliders are <b>reset</b> to their default value by double clicking the name of t
         # update the curve
         form.scene().setSceneRect(-25, -axeSize-25, axeSize+50, axeSize+50)  # TODO added 15/07/18
         form.scene().quadricB.setCurve(a*axeSize,b*axeSize,d,T*axeSize)
+        def f():
+            self.layer.applyToStack()
+            self.layer.parentImage.onImageChanged()
+        form.scene().quadricB.curveChanged.sig.connect(f)  # TODO added 5/11/18 validate
         self.dock.showNormal()
 
     def enableSliders(self):

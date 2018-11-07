@@ -35,7 +35,7 @@ class rawForm (baseForm):
     """
     Postprocessing of raw files.
     """
-    dataChanged = QtCore.Signal(bool)
+    dataChanged = QtCore.Signal(int)
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         wdgt = rawForm(axeSize=axeSize, targetImage=targetImage, layer=layer, parent=parent, mainForm=mainForm)
@@ -167,17 +167,19 @@ class rawForm (baseForm):
         # dock containers for contrast and tome forms
         self.dockC, self.dockT = None, None
         # options : it turns out that the most accurate description for the 'Auto Brightness' option of rawpy.postprocess is 'Auto Expose'
-        optionList0, optionNames0 = ['Auto Brightness', 'Preserve Highlights', 'toneCurve', 'manualCurve', ], \
-                                    ['Auto Expose', 'Preserve Highlights', 'Show Tone Curve', 'Show Contrast Curve']
-        self.listWidget1 = optionsWidget(options=optionList0, optionNames=optionNames0, exclusive=False, changed=lambda: self.dataChanged.emit(True))
+        optionList0, optionNames0 = ['Auto Brightness', 'Preserve Highlights'], \
+                                    ['Auto Expose', 'Preserve Highlights']
+        optionList1, optionNames1 = ['Auto WB', 'Camera WB', 'User WB'], ['Auto', 'Camera (As Shot)', 'User']
+        optionList2, optionNames2 = ['cpLookTable','cpToneCurve', 'manualCurve'], ['Use Camera Profile Look Table', 'Show Tone Curve', 'Show Contrast Curve']
+        self.listWidget1 = optionsWidget(options=optionList0, optionNames=optionNames0, exclusive=False, changed=lambda: self.dataChanged.emit(1))
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
         self.listWidget1.checkOption(self.listWidget1.intNames[1])
-        optionList1, optionNames1 = ['Auto WB', 'Camera WB', 'User WB'], ['Auto', 'Camera (As Shot)', 'User']
-        self.listWidget2 = optionsWidget(options=optionList1, optionNames=optionNames1,  exclusive=True, changed=lambda: self.dataChanged.emit(True))
+        self.listWidget2 = optionsWidget(options=optionList1, optionNames=optionNames1,  exclusive=True, changed=lambda: self.dataChanged.emit(1))
         self.listWidget2.checkOption(self.listWidget2.intNames[1])
-        self.options = UDict(self.listWidget1.options, self.listWidget2.options)
+        self.listWidget3 = optionsWidget(options=optionList2, optionNames=optionNames2, exclusive=False, changed=lambda: self.dataChanged.emit(2))
+        self.options = UDict((self.listWidget1.options, self.listWidget2.options, self.listWidget3.options))
 
-        # temp slider
+        # temperature slider
         self.sliderTemp = QbLUeSlider(Qt.Horizontal)
         self.sliderTemp.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
         self.sliderTemp.setRange(0,130)
@@ -257,9 +259,8 @@ class rawForm (baseForm):
                 toneCurve = dngProfileToneCurve(self.dngDict.get('ProfileToneCurve', []))
                 self.toneForm.baseCurve = [QPointF(x * axeSize, -y * axeSize) for x, y in zip(toneCurve.dataX, toneCurve.dataY)]
                 self.toneForm.update()
-            # inavlidate the postprocessed buffer
             self.layer.bufCache_HSV_CV32 = None
-            self.dataChanged.emit(False)
+            self.dataChanged.emit(2) # no postprocessing
 
         self.cameraProfilesCombo.currentIndexChanged.connect(cameraProfileUpdate)
 
@@ -272,7 +273,7 @@ class rawForm (baseForm):
         # denoiseCombo index changed event handler
         def denoiseUpdate(value):
             self.denoiseValue = self.denoiseCombo.itemData(value)
-            self.dataChanged.emit(True)
+            self.dataChanged.emit(1)
 
         self.denoiseCombo.currentIndexChanged.connect(denoiseUpdate)
 
@@ -284,8 +285,8 @@ class rawForm (baseForm):
 
         # overexpCombo index changed event handler
         def overexpUpdate(value):
-            self.overexpValue = self.overExpCombo.itemData(value)
-            self.dataChanged.emit(True)
+            self.overexpValue = self.overexpCombo.itemData(value)
+            self.dataChanged.emit(1)
 
         self.overexpCombo.currentIndexChanged.connect(overexpUpdate)
 
@@ -318,7 +319,7 @@ class rawForm (baseForm):
             self.sliderExp.sliderReleased.disconnect()
             # rawpy: expCorrection range is -2.0...3.0, boiling down to exp_shift range 2**(-2)=0.25...2**3=8.0
             self.expCorrection = self.slider2Exp(self.sliderExp.value())
-            self.dataChanged.emit(True)
+            self.dataChanged.emit(1)
             self.sliderExp.valueChanged.connect(expUpdate)  # send new value as parameter
             self.sliderExp.sliderReleased.connect(lambda: expUpdate(self.sliderExp.value()))  # signal has no parameter
         self.sliderExp.valueChanged.connect(expUpdate)  # send new value as parameter
@@ -354,7 +355,7 @@ class rawForm (baseForm):
             self.sliderBrightness.valueChanged.disconnect()
             self.sliderBrightness.sliderReleased.disconnect()
             self.brCorrection = self.slider2Br(self.sliderBrightness.value())
-            self.dataChanged.emit(True)
+            self.dataChanged.emit(1)
             self.sliderBrightness.sliderReleased.connect(lambda: brUpdate(self.sliderBrightness.value()))
             self.sliderBrightness.valueChanged.connect(brUpdate)  # send new value as parameter
         self.sliderBrightness.valueChanged.connect(brUpdate)  # send new value as parameter
@@ -391,7 +392,7 @@ class rawForm (baseForm):
             self.contValue.setText(str("{:+d}".format(self.contCorrection)))
             # force to recalculate the spline
             self.layer.autoSpline = True
-            self.dataChanged.emit(False)
+            self.dataChanged.emit(3) # no postprocessing and no camera profile stuff
             self.sliderCont.valueChanged.connect(contUpdate)  # send new value as parameter
             self.sliderCont.sliderReleased.connect(lambda: contUpdate(self.sliderCont.value()))  # signal has no parameter
         self.sliderCont.valueChanged.connect(contUpdate)  # send new value as parameter
@@ -425,7 +426,7 @@ class rawForm (baseForm):
             self.sliderSat.valueChanged.disconnect()
             self.sliderSat.sliderReleased.disconnect()
             self.satCorrection = self.slider2Sat(self.sliderSat.value())
-            self.dataChanged.emit(False)
+            self.dataChanged.emit(3) # no post processing and no camera profile stuff
             self.sliderSat.valueChanged.connect(satUpdate)  # send new value as parameter
             self.sliderSat.sliderReleased.connect(lambda: satUpdate(self.sliderSat.value()))  # signal has no parameter
         self.sliderSat.valueChanged.connect(satUpdate)  # send new value as parameter
@@ -436,7 +437,7 @@ class rawForm (baseForm):
 
         # layout
         l = QVBoxLayout()
-        #l.setContentsMargins(8, 8, 8, 8)  # left, top, right, bottom
+        l.addWidget(self.listWidget3)
         hl01 = QHBoxLayout()
         hl01.addWidget(QLabel('Camera Profile'))
         hl01.addWidget(self.cameraProfilesCombo)
@@ -522,10 +523,16 @@ Valid values are 0 to 3 (0=clip;1=unclip;2=blend;3=rebuild); (with Auto Exposed 
                                                     mainForm=None, curveType='cubic')
             form.setWindowFlags(Qt.WindowStaysOnTopHint)
             form.setAttribute(Qt.WA_DeleteOnClose, on=False)
-            form.setWindowTitle('Tone Curve')
+            form.setWindowTitle('Camera Profile Tone Curve')
             form.setButtonText('Reset Curve')
             tomeCurve = dngProfileToneCurve(self.dngDict.get('ProfileToneCurve', []))
             form.baseCurve = [QPointF(x*axeSize, -y*axeSize) for x,y in zip(tomeCurve.dataX, tomeCurve.dataY)]
+            def f():
+                layer = self.layer
+                layer.bufCache_HSV_CV32 = None
+                layer.applyToStack()
+                layer.parentImage.onImageChanged()
+            form.scene().quadricB.curveChanged.sig.connect(f)
             self.toneForm = form
             dockT = stateAwareQDockWidget(self.parent())
             dockT.setWindowFlags(form.windowFlags())
@@ -536,10 +543,23 @@ Valid values are 0 to 3 (0=clip;1=unclip;2=blend;3=rebuild); (with Auto Exposed 
             window.addDockWidget(Qt.LeftDockWidgetArea, dockT)
             self.dockT = dockT
             dockT.setWidget(form)
+            showFirst = True
+            form.setWhatsThis(
+"""<b>Camera Profile Tone Curve</b><br>
+The curve, if any, is applied as a starting point for user adjustments,
+after raw post-processing.
+Its input and output are in <b>linear</b> gamma.
+The curve is shown in red and cannot be changed.<br>
+A second curve, shown in black, is editable and is applied right after the
+former curve, allowing to modify the final output.<br>         
+"""
+            )  # end of setWhatsThis
         else:
             form = self.toneForm
+            showFirst = False
         form.scene().setSceneRect(-25, -axeSize - 25, axeSize + 50, axeSize + 50)  # TODO added 15/07/18
         self.dockT.showNormal()
+        return showFirst
 
     def setContrastSpline(self, a, b, d, T):
         """
@@ -562,6 +582,11 @@ Valid values are 0 to 3 (0=clip;1=unclip;2=blend;3=rebuild); (with Auto Exposed 
             form.setWindowFlags(Qt.WindowStaysOnTopHint)
             form.setAttribute(Qt.WA_DeleteOnClose, on=False)
             form.setWindowTitle('Contrast Curve')
+            def f():
+                layer = self.layer
+                layer.applyToStack()
+                layer.parentImage.onImageChanged()
+            form.scene().quadricB.curveChanged.sig.connect(f)
             self.contrastForm = form
             dockC = stateAwareQDockWidget(self.parent())
             dockC.setWindowFlags(form.windowFlags())
@@ -596,7 +621,7 @@ Valid values are 0 to 3 (0=clip;1=unclip;2=blend;3=rebuild); (with Auto Exposed 
         self.rawMultipliers = [self.daylight[i] / multipliers[i] for i in range(3)] + [self.daylight[1] / multipliers[1]]
         m = min(self.rawMultipliers[:3])
         self.rawMultipliers = [self.rawMultipliers[i] / m for i in range(4)]
-        self.dataChanged.emit(True)
+        self.dataChanged.emit(1)
         self.sliderTemp.valueChanged.connect(self.tempUpdate)  # send new value as parameter
         self.sliderTemp.sliderReleased.connect(lambda: self.tempUpdate(self.sliderTemp.value()))  # signal has no parameter
 
@@ -616,7 +641,7 @@ Valid values are 0 to 3 (0=clip;1=unclip;2=blend;3=rebuild); (with Auto Exposed 
             self.daylight[1] / multipliers[1]]
         m = min(self.rawMultipliers[:3])
         self.rawMultipliers = [self.rawMultipliers[i] / m for i in range(4)]
-        self.dataChanged.emit(True)
+        self.dataChanged.emit(1)
         self.sliderTint.valueChanged.connect(self.tintUpdate)
         self.sliderTint.sliderReleased.connect(lambda: self.tintUpdate(self.sliderTint.value()))  # signal has no parameter)
 
@@ -639,19 +664,24 @@ Valid values are 0 to 3 (0=clip;1=unclip;2=blend;3=rebuild); (with Auto Exposed 
         self.sliderTemp.valueChanged.connect(self.tempUpdate)
         self.sliderTint.valueChanged.connect(self.tintUpdate)
         self.sampleMultipliers = sampling
-        self.dataChanged.emit(True)
+        self.dataChanged.emit(1)
 
-    def updateLayer(self, cacheInvalidate):
+    def updateLayer(self, level):
         """
-        data changed event handler. If cacheInvalidate is True,
-        the postprocessing cache is reset to None, to enforce
-        a new raw postprocessing.
-        @param cacheInvalidate:
-        @type cacheInvalidate: boolean
+        data changed event handler.
+        @param level: 3: redo contrast and saturation, 2: previous + camera profile stuff, 1: all
+        @type level: int
         """
-        if cacheInvalidate:
-            # force raw postprocessing
+        if level == 1:
+            # force all
+            self.layer.bufCache_HSV_CV32 = None
             self.layer.postProcessCache = None
+        elif level == 2:
+            # force camera profile stuff
+            self.layer.bufCache_HSV_CV32 = None
+        elif level == 3:
+            # keep the 2 cache buffers
+            pass
         self.enableSliders()
         self.layer.applyToStack()
         self.layer.parentImage.onImageChanged()
@@ -693,7 +723,7 @@ Valid values are 0 to 3 (0=clip;1=unclip;2=blend;3=rebuild); (with Auto Exposed 
         self.tintCorrection = 1.0
         self.expCorrection = 1.0
         #self.highCorrection = 3.0  # restoration of overexposed highlights. 0: clip 1:unclip, 2: blend, 3...: rebuild
-        self.contCorrection = 5.0
+        self.contCorrection = 0.0  # TODO change 5.0 to 0.0 6/11/2018 validate
         #self.noiseCorrection = 0
         self.satCorrection = 0.0
         self.brCorrection = 1.0

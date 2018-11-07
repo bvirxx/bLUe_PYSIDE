@@ -32,24 +32,6 @@ from PySide2.QtCore import Qt, QObject, QRect
 from bLUeCore.rollingStats import movingVariance
 from bLUeGui.bLUeImage import QImageBuffer
 
-##################
-# Base classes for signals
-# They are mainly containers.
-# As multiple inheritance leads to
-# bugs with QObject, they can be used
-# as a workaround to define
-# custom signals (cf. QLayer).
-
-class baseSignal_No(QObject):
-    sig = QtCore.Signal()
-
-class baseSignal_bool(QObject):
-    sig = QtCore.Signal(bool)
-
-class baseSignal_Int2(QObject):
-    sig = QtCore.Signal(int, int, QtCore.Qt.KeyboardModifiers)
-################
-
 def qColorToRGB(color):
     """
     Converts a QColor to R,G,B components (range 0..255)
@@ -105,12 +87,14 @@ class UDict(object):
     """
     Union of dictionaries
     """
-    def __init__(self, d1, d2):
-       self.d1, self.d2 = d1, d2
+    def __init__(self, d_uple):
+        self.__dictionaries = d_uple
+
     def __getitem__(self, item):
-       if item in self.d1:
-           return self.d1[item]
-       return self.d2[item]
+        for i in range(len(self.__dictionaries)):
+            if item in self.__dictionaries[i]:
+                return self.__dictionaries[i][item]
+        return None
 
 class QbLUeColorDialog(QColorDialog):
     def __init__(self, parent=None):

@@ -25,7 +25,7 @@ from PySide2.QtWidgets import QGraphicsView, QGraphicsScene, QSizePolicy, QPushB
 from PySide2.QtGui import QColor, QPen, QPainterPath, QPolygonF
 from PySide2.QtCore import Qt, QRectF
 
-from utils import baseSignal_No
+from .baseSignal import baseSignal_No
 from .spline import interpolationCubSpline, interpolationQuadSpline
 
 class channelValues():

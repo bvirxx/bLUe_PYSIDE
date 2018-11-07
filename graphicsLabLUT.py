@@ -130,6 +130,13 @@ class graphicsLabForm(graphicsCurveForm):
         item.setCheckState(Qt.Checked)
         self.listWidget1.select(item)
         self.setWhatsThis("""<b>Lab curves</b><br>""" + self.whatsThis())
+        def f():
+            l = graphicsScene.layer
+            l.applyToStack()
+            l.parentImage.onImageChanged()
+        self.scene().cubicR.curveChanged.sig.connect(f)
+        self.scene().cubicG.curveChanged.sig.connect(f)
+        self.scene().cubicB.curveChanged.sig.connect(f)
 
     def colorPickedSlot(self, x, y, modifiers):
         """

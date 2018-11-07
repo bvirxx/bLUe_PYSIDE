@@ -41,10 +41,10 @@ from bLUeGui.dialog import dlgWarn
 from time import time
 
 from lutUtils import LUT3DIdentity
-from utils import  baseSignal_bool, baseSignal_Int2, qColorToRGB
+from bLUeGui.baseSignal import  baseSignal_bool, baseSignal_Int2
+from utils import qColorToRGB
 
 from versatileImg import vImage
-
 
 class ColorSpace:
     notSpecified = -1; sRGB = 1
@@ -666,7 +666,7 @@ class QLayer(vImage):
     def getMmcSpline(self):
         """
         Returns the spline used for multimode contrast
-        correction if it is initialized and None otherwise.
+        correction if it is initialized, and None otherwise.
         @return:
         @rtype: activeSpline
         """
