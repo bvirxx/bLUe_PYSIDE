@@ -52,7 +52,7 @@ class transForm (baseForm):
         self.listWidget1 = optionsWidget(options=optionList1, optionNames=optionNames1, exclusive=True)
         optionList2, optionNames2 = ['Transparent'], ['Set Transparent Pixels To Black']
         self.listWidget2 = optionsWidget(options=optionList2, optionNames=optionNames2, exclusive=False)
-        self.options = UDict(self.listWidget1.options, self.listWidget2.options)
+        self.options = UDict((self.listWidget1.options, self.listWidget2.options))
         # set initial selection to Perspective
         self.listWidget1.checkOption(optionList1[0])
         # option changed handler

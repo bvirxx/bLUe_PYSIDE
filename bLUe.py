@@ -758,7 +758,7 @@ def loadImageFromFile(f, createsidecar=True):
         # As a workaround we use a file buffer .
         # Relevant RawPy attributes are black_level_per_channel, camera_white_balance, color_desc, color_matrix,
         # daylight_whitebalance, num_colors, raw_colors_visible, raw_image, raw_image_visible, raw_pattern,
-        # raw_type, rgb_xyz_matrix, sizes, tone_curve
+        # raw_type, rgb_xyz_matrix, sizes, tone_curve.
         # raw_image and raw_image_visble are sensor data
         rawpyInst = rawpy.RawPy()
         with open(f, "rb") as bufio:

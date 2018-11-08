@@ -137,6 +137,7 @@ def rawPostProcess(rImg, pool=None):
         # develop
         else:
             # highlight_mode : restoration of overexposed highlights. 0: clip, 1:unclip, 2:blend, 3...: rebuild
+            # bufpost16 = rawImage.postprocess(use_camera_wb=True, output_bps=output_bps, gamma=(2.222,4.5))#, gamma=(1,1))
             bufpost16 = rawImage.postprocess(
                 output_color=rawpy.ColorSpace.sRGB,
                 output_bps=output_bps,
@@ -241,14 +242,20 @@ def rawPostProcess(rImg, pool=None):
                                      }"""
     # back to RGB
     bufpostF32_1 = cv2.cvtColor(bufHSV_CV32, cv2.COLOR_HSV2RGB) #* 65535 # .astype(np.uint16)  TODO 5/11/18 removed conversion removed * 65535validate
-    #np.clip(rgbLinear2rgbVec(bufpost16 / 65535) * 256, 0, 65535, out=bufpost16) # TODO 5/11/18 first 65536--> 65535 + removed line
-    bufpostF32_255 = rgbLinear2rgbVec(bufpostF32_1) # * 256 TODO removed /65535 and * 256 5/11/18 validate
-    #np.clip(bufpost16, 0, 65535, out=bufpost16) # TODO 5/11/18 removed
+    #np.clip(bufpostF32_1, 0, 1, out=bufpostF32_1) # TODO 8/11/18 removed
+
+    ###################
+    # apply gamma curve
+    ###################
+    bufpostF32_255 = rgbLinear2rgbVec(bufpostF32_1)
+    # np.clip(bufpostF32_255, 0, 255, out=bufpostF32_255)  # clip not needed after rgbLinear2rgbVec thresholds correction 8/11/18
     #############################
     # Conversion to 8 bits/channel
     #############################
     bufpostUI8 = bufpostF32_255.astype(np.uint8) # (bufpost16.astype(np.float32) / 256).astype(np.uint8) TODO 5/11/18 changed
-
+    ###################################################
+    #bufpostUI8 = (bufpost16/256).astype(np.uint8)
+    #################################################
     if rImg.parentImage.useThumb:
         bufpostUI8 = cv2.resize(bufpostUI8, (currentImage.width(), currentImage.height()))
 

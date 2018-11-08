@@ -128,7 +128,7 @@ class rawForm (baseForm):
         rawpyObj = layer.parentImage.rawImage
         # initial post processing multipliers (as shot)
         self.targetImage = targetImage
-        self.rawMultipliers = rawpyObj.camera_whitebalance
+        self.rawMultipliers = rawpyObj.camera_whitebalance # dng ASSHOTNEUTRAL tag
         self.sampleMultipliers = False
         self.samples = []
         # pre multipliers
@@ -137,10 +137,10 @@ class rawForm (baseForm):
         self.cameraMultipliers = [self.daylight[i] / self.rawMultipliers[i] for i in range(3)]
         #print ('WB', [self.daylight[i]*(10**5)/ rawpyObj.camera_whitebalance[i] for i in range(3)])
         ########################################
-        # Camera RGB -> XYZ conversion matrix:
-        # This matrix is constant for each camera model,
-        # Last row is zero for RGB cameras and non-zero for
-        # different color models (CMYG and so on), cf. rawpy and libraw docs.
+        # DNG tags COLORMATRIX1 COLORMATRIX2
+        # XYZ-->Camera conversion matrix:
+        # constant for each camera model.
+        # Last row is zero for RGB cameras (cf. rawpy and libraw docs).
         # type ndarray, shape (4,3)
         #########################################
         self.rgb_xyz_matrix = rawpyObj.rgb_xyz_matrix[:3,:]

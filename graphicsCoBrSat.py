@@ -124,7 +124,7 @@ class CoBrSatForm(baseForm):
         self.listWidget2 = optionsWidget(options=optionList2, optionNames=optionNames2, exclusive=False, changed=optionList2Change)
         self.listWidget2.checkOption(self.listWidget2.intNames[0])
         self.listWidget2.setStyleSheet("QListWidget {border: 0px;} QListWidget::item {border: 0px; padding-left: 0px;}")
-        self.options = UDict(self.listWidget1.options, self.listWidget2.options)
+        self.options = UDict((self.listWidget1.options, self.listWidget2.options))
 
         # contrast slider
         self.sliderContrast = QbLUeSlider(Qt.Horizontal)
