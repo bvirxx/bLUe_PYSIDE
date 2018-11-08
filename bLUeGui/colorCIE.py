@@ -85,27 +85,39 @@ Ka, Kb = 172.355, 67.038
 
 ##########################################
 # Constants and precomputed tables for the
-# sRGB linearizing functions
+# RGB linearizing functions
 # rgbLinear2rgbVec and rgb2rgbLinearVec.
-# Cf. https://en.wikipedia.org/wiki/SRGB
 #########################################
 
+##########
+# sRGB
+# Cf. https://en.wikipedia.org/wiki/SRGB
 a = 0.055
 gamma = 2.4
+d = 12.92
+thr=0.0031
+gammaLinearTreshold1 = 0.0031308
+gammaLinearTreshold2 = 0.04045
+#########
+# REC BT 709
+a=0.099
+gamma=2.2
+d=4.5
+gammaLinearTreshold1 = 0.018
+gammaLinearTreshold2 = 0.081
+#########
+
 beta = 1.0 / gamma
 b = (a / (1.0 + a)) ** gamma
-d = 12.92
-c = 255.0 * d
-# e = 255
+# c = 255.0 * d
+
 F = 255.0 ** beta
 table0 = np.arange(256, dtype=np.float64)
-table2 = table0 / c
-table3 = np.power((table0/255 + a) / (1 + a), gamma)    # np.power(table0 / 255.0, gamma) TODO 5/11/18 missing a corrected validate
-# tabulate (1 + a) * C**(1/gamma) - a
+table2 = table0 / (255 * d)
+# tabulate ( (x + a) / (1 + a) )**gamma
+table3 = np.power((table0 / 255 + a) / (1 + a), gamma)    # np.power(table0 / 255.0, gamma) TODO 5/11/18 missing a corrected validate
+# tabulate (1 + a) * x**(1/gamma) - a
 table5 = np.power(table0, beta) * (1.0 + a) / F - a   # TODO 5/11/18 missing -a corrected validate
-
-gammaLinearTreshold1 = 0.0031308
-
 
 def rgbLinear2rgb(r, g, b):
     """
@@ -118,7 +130,6 @@ def rgbLinear2rgb(r, g, b):
     @param b:
     @return: The converted values
     """
-
     def cl2c(c):
         if c <= gammaLinearTreshold1:
             c = d * c
@@ -143,9 +154,7 @@ def rgbLinear2rgbVec(img):
     imgDiscretized = (img * 255.0).astype(int)
     #np.clip(imgDiscretized, 0, 255, out=imgDiscretized)  # TODO 5/11/18 removed
     img3 = table5[imgDiscretized]
-    return np.where(imgDiscretized <= gammaLinearTreshold1, img2, img3) * 255 # TODO 5/11/18 bug corrected img--> imgDiscretized
-
-gammaLinearTreshold2 = 0.04045
+    return np.where(imgDiscretized <= gammaLinearTreshold1 * 255, img2, img3) * 255 # TODO 5/11/18 bug corrected img--> imgDiscretized
 
 def rgb2rgbLinear(r, g, b):
     """
