@@ -167,15 +167,14 @@ class rawForm (baseForm):
         # dock containers for contrast and tome forms
         self.dockC, self.dockT = None, None
         # options : it turns out that the most accurate description for the 'Auto Brightness' option of rawpy.postprocess is 'Auto Expose'
-        optionList0, optionNames0 = ['Auto Brightness', 'Preserve Highlights'], \
-                                    ['Auto Expose', 'Preserve Highlights']
+        optionList0, optionNames0 = ['Auto Brightness', 'Preserve Highlights'], ['Auto Expose', 'Preserve Highlights']
         optionList1, optionNames1 = ['Auto WB', 'Camera WB', 'User WB'], ['Auto', 'Camera (As Shot)', 'User']
-        optionList2, optionNames2 = ['cpLookTable','cpToneCurve', 'manualCurve'], ['Use Camera Profile Look Table', 'Show Tone Curve', 'Show Contrast Curve']
+        optionList2, optionNames2 = ['cpLookTable','cpToneCurve', 'manualCurve'], ['Use Camera Profile Look Table', 'Show Tone Curves', 'Show Contrast Curve']
         self.listWidget1 = optionsWidget(options=optionList0, optionNames=optionNames0, exclusive=False, changed=lambda: self.dataChanged.emit(1))
-        self.listWidget1.checkOption(self.listWidget1.intNames[0])
-        self.listWidget1.checkOption(self.listWidget1.intNames[1])
+        #self.listWidget1.checkOption(self.listWidget1.intNames[0])
+        #self.listWidget1.checkOption(self.listWidget1.intNames[1])
         self.listWidget2 = optionsWidget(options=optionList1, optionNames=optionNames1,  exclusive=True, changed=lambda: self.dataChanged.emit(1))
-        self.listWidget2.checkOption(self.listWidget2.intNames[1])
+        #self.listWidget2.checkOption(self.listWidget2.intNames[1])
         self.listWidget3 = optionsWidget(options=optionList2, optionNames=optionNames2, exclusive=False, changed=lambda: self.dataChanged.emit(2))
         self.options = UDict((self.listWidget1.options, self.listWidget2.options, self.listWidget3.options))
 
@@ -231,7 +230,7 @@ class rawForm (baseForm):
         # Exposure and brightness both dilate the histogram towards highlights.
         # Exposure dilatation is uniform (homothety), brightness dilataion is
         # maximum for the midtones and the highlghts are preserved.
-        # As a consequence, normal wokflow begins with the adjustment of exposure,
+        # As a consequence, normal workflow begins with the adjustment of exposure,
         # to fill the entire range of the histogram and to adjust the highlights. Next,
         # one adjusts the brightness to put the midtones at the level we want them to be.
         # Cf. https://www.cambridgeincolour.com/forums/thread653.htm
@@ -243,12 +242,13 @@ class rawForm (baseForm):
         files = [self.targetImage.filename]
         files.extend(getDngProfileList(self.targetImage.cameraModel()))
         items = OrderedDict([(basename(f)[:-4] if i > 0 else 'Embedded Profile', getDngProfileDict(f)) for i, f in enumerate(files)])
+        # add 'None' and all found profiles for the current camera model: 'None' will be the default selection
+        self.cameraProfilesCombo.addItem('None', {})
         for key in items:
             # filter items[keys]
             d = {k:items[key][k] for k in items[key] if items[key][k] != ''}
             if d:
                 self.cameraProfilesCombo.addItem(key, d)
-        self.cameraProfilesCombo.addItem('None', {})
         self.cameraProfilesCombo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
         self.cameraProfilesCombo.setMaximumWidth(150)
         self.cameraProfilesCombo.setStyleSheet("QComboBox QAbstractItemView { min-width: 250px;}")
@@ -517,6 +517,13 @@ Valid values are 0 to 3 (0=clip;1=unclip;2=blend;3=rebuild); (with Auto Exposed 
                         ) # end of setWhatsThis
 
     def setToneSpline(self):
+        """
+        On first call, init and show the Tone Curve form.
+        Otherwise, show the form.
+        Return True if called for the first time, False otherwise.
+        @return:
+        @rtype: boolean
+        """
         axeSize = 200
         if self.toneForm is None:
             form = graphicsSplineForm.getNewWindow(targetImage=None, axeSize=axeSize, layer=self.layer, parent=None,
@@ -546,12 +553,12 @@ Valid values are 0 to 3 (0=clip;1=unclip;2=blend;3=rebuild); (with Auto Exposed 
             showFirst = True
             form.setWhatsThis(
 """<b>Camera Profile Tone Curve</b><br>
-The curve, if any, is applied as a starting point for user adjustments,
+The profile curve, if any, is applied as a starting point for user adjustments,
 after raw post-processing.
 Its input and output are in <b>linear</b> gamma.
 The curve is shown in red and cannot be changed.<br>
-A second curve, shown in black, is editable and is applied right after the
-former curve, allowing to modify the final output.<br>         
+A user curve, shown in black, is editable and is applied right after the
+former.<br>         
 """
             )  # end of setWhatsThis
         else:
@@ -682,16 +689,22 @@ former curve, allowing to modify the final output.<br>
         elif level == 3:
             # keep the 2 cache buffers
             pass
+        cf = getattr(self, 'dockC', None)
+        if cf is not None:
+            if self.options['manualCurve']:
+                cf.showNormal()
+            else:
+                cf.hide()
+        ct = getattr(self, 'dockT', None)
+        if ct is not None:
+            if self.options['cpToneCurve']:
+                ct.showNormal()
+            else:
+                ct.hide()
         self.enableSliders()
         self.layer.applyToStack()
         self.layer.parentImage.onImageChanged()
-        cf = getattr(self, 'dockC', None)  # self.contrastForm TODO modified 20/07/18
-        if cf is None:
-            return
-        if self.options['manualCurve']:
-            cf.showNormal()
-        else:
-            cf.hide()
+
 
     def enableSliders(self):
         useUserWB = self.listWidget2.options["User WB"]
@@ -713,7 +726,7 @@ former curve, allowing to modify the final output.<br>
         self.dngDict = self.cameraProfilesCombo.itemData(0)
         self.listWidget1.unCheckAll()
         self.listWidget2.unCheckAll()
-        #self.listWidget1.checkOption(self.listWidget1.intNames[0])
+        self.listWidget1.checkOption(self.listWidget1.intNames[0])
         self.listWidget1.checkOption(self.listWidget1.intNames[1])
         self.listWidget2.checkOption(self.listWidget2.intNames[1])
         self.enableSliders()

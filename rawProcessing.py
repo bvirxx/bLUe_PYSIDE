@@ -39,11 +39,12 @@ def rawPostProcess(rImg, pool=None):
          1 - process raw image
          2 - contrast correction
          3 - saturation correction
-    All operations are applied to 16 bits per channel images and
-    the final image is converted to 8 bits.
     An Exception AttributeError is raised if rawImage
     is not an attribute of self.parentImage.
     """
+    # postprocess output bits per channel
+    output_bpc = 8
+    max_ouput = 255 if output_bpc == 8 else 65535
     if rImg.parentImage.isHald:
         raise ValueError('Cannot build a 3D LUT from raw stack')
 
@@ -51,8 +52,11 @@ def rawPostProcess(rImg, pool=None):
     adjustForm = rImg.getGraphicsForm()  # self.view.widget()
     options = adjustForm.options
 
+    # show the Tone Curve form
     if options['cpToneCurve']:
         toneCurveShowFirst = adjustForm.setToneSpline()
+    else:
+        toneCurveShowFirst = False
 
     rawImage = getattr(rImg.parentImage, 'rawImage', None)
     if rawImage is None:
@@ -85,9 +89,9 @@ def rawPostProcess(rImg, pool=None):
         # get postprocessing parameters
         ##############################
         # no_auto_scale = False  don't use : green shift
-        output_bps = 16
-        # gamma = (2.222, 4.5)  # default REC BT 709 (exponent, slope)
-        gamma = (2.4, 12.92)  # sRGB (exponent, slope) cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
+        #output_bpc = 16
+        gamma = (2.222, 4.5)  # default REC BT 709 (exponent, slope)
+        #gamma = (2.4, 12.92)  # sRGB (exponent, slope) cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
         exp_shift = adjustForm.expCorrection if not options['Auto Brightness'] else 0
         no_auto_bright = (not options['Auto Brightness'])
         use_auto_wb = options['Auto WB']
@@ -117,7 +121,7 @@ def rawPostProcess(rImg, pool=None):
                 print(mult, '   ', m)
                 bufpost_temp = rawImage.postprocess(
                     output_color=rawpy.ColorSpace.sRGB,
-                    output_bps=output_bps,
+                    output_bps=output_bpc,
                     exp_shift=exp_shift,
                     no_auto_bright=no_auto_bright,
                     use_auto_wb=use_auto_wb,
@@ -140,7 +144,7 @@ def rawPostProcess(rImg, pool=None):
             # bufpost16 = rawImage.postprocess(use_camera_wb=True, output_bps=output_bps, gamma=(2.222,4.5))#, gamma=(1,1))
             bufpost16 = rawImage.postprocess(
                 output_color=rawpy.ColorSpace.sRGB,
-                output_bps=output_bps,
+                output_bps=output_bpc,
                 exp_shift=exp_shift,
                 no_auto_bright=no_auto_bright,
                 use_auto_wb=use_auto_wb,
@@ -154,7 +158,7 @@ def rawPostProcess(rImg, pool=None):
                 median_filter_passes=1
             )
             # end of the post processing phase : save post processing cache
-            rImg.postProcessCache = cv2.cvtColor(((bufpost16.astype(np.float32)) / 65535).astype(np.float32),
+            rImg.postProcessCache = cv2.cvtColor(((bufpost16.astype(np.float32)) / max_ouput).astype(np.float32),
                                                     cv2.COLOR_RGB2HSV)  # TODO 29/10/18 change 65536 to 65535 validate
     else:
         pass
@@ -194,18 +198,22 @@ def rawPostProcess(rImg, pool=None):
             rImg.bufCache_HSV_CV32 = bufHSV_CV32.copy()
     else:
         pass
-    ##########################
-    # apply profile tone curve
-    ##########################
+    #############
+    # tone curve
+    ############
     buf = adjustForm.dngDict.get('ProfileToneCurve', [])
+    # apply profile tone curve, if any
     if buf : # non empty list
         LUTXY = dngProfileToneCurve(buf).toLUTXY(maxrange=255)
         bufHSV_CV32[:, :, 2] = LUTXY[(bufHSV_CV32[:, :, 2] * 255).astype(np.uint16)] / 255  # self.postProcessCache]
-    if adjustForm.toneForm is not None:
-        # apply GUI tone curve
-        guiLUTXY = adjustForm.toneForm.scene().quadricB.LUTXY
-        # guiLUTXY = np.interp(np.arange(256), np.arange(256) * 256, guiLUTXY)
-        bufHSV_CV32[:, :, 2] = guiLUTXY[(bufHSV_CV32[:, :, 2] * 255).astype(np.uint16)] / 255
+    # apply user tone curbe
+    toneForm = adjustForm.toneForm
+    if toneForm is not None:
+        if toneForm.isVisible():
+            # apply user tone curve
+            userLUTXY = toneForm.scene().quadricB.LUTXY
+            # guiLUTXY = np.interp(np.arange(256), np.arange(256) * 256, guiLUTXY)
+            bufHSV_CV32[:, :, 2] = userLUTXY[(bufHSV_CV32[:, :, 2] * 255).astype(np.uint16)] / 255  # TODO watch conversion ???
 
     rImg.bufCache_HSV_CV32 = bufHSV_CV32.copy() # CAUTION : must be outside of if adjusFormToneForm...
 
