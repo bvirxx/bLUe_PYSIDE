@@ -350,9 +350,8 @@ def bbTemperature2RGB(temperature):
 ##################################################
 def xyWP2temperature(x, y):
     """
-    Calculate the temperature from White point coordinates in the chromaticity
-    color space xy
-    We use spline approximation see https://en.wikipedia.org/wiki/Color_temperature#Approximation
+    Calculate the temperature from White point coordinates in the color space xy
+    We use spline approximation (see https://en.wikipedia.org/wiki/Color_temperature#Approximation)
     @param x:
     @type x: float
     @param y:
@@ -368,9 +367,9 @@ def xyWP2temperature(x, y):
 
 def temperature2xyWP(T):
     """
-    Calculate the CIE chromaticity coordinates xc, yc
-    of white point from temperature (use cubic spline approximation
-    Accurate for 1667<T<25000).
+    Calculate the (CIE chromaticity) coordinates xc, yc
+    of WP(T) in the xy color space (use cubic spline approximation,
+    accurate for 1667<T<25000).
     Cf. http://en.wikipedia.org/wiki/Planckian_locus#Approximation
     @param T: temperature in Kelvin, range 1667..25000
     @type T: float
@@ -400,7 +399,7 @@ def temperature2xyWP(T):
 # for temperatures from 1666.66K to infinity.
 # The Robertson's method uses it as an interpolation table for converting u,v coordinates to and from (Temperature, Tint).
 ###################################################################################################
-uvt = [
+uvtTable = [
     [0, 0.18006, 0.26352, -0.24341],
     [10, 0.18066, 0.26589, -0.25479],
     [20, 0.18133, 0.26846, -0.26876],
@@ -459,10 +458,9 @@ def uv2xy(u, v):
 # arbitrary scaling factor for tint values
 TintScale = -300.0
 
-
 def xy2TemperatureAndTint(x, y):
     """
-    Convert xy coordinates to Temperature and Tint.
+    Convert xy coordinates of a color point to Temperature and Tint.
     The conversion is based on the Robertson's method
     of interpolation in the uv space.
     Tint is a translation and it is scaled by an arbitrary chosen factor TintScale
@@ -473,8 +471,11 @@ def xy2TemperatureAndTint(x, y):
     @return: Temperature and Tint
     @rtype: 2-uple of float
     """
+    ##########################
     # arbitrary scaling factor
+    ##########################
     TintScale = -300.0
+
     # convert to uv
     u, v = xy2uv(x, y)
     last_dt, last_dv, last_du = 0.0, 0.0, 0.0
@@ -482,11 +483,11 @@ def xy2TemperatureAndTint(x, y):
     temp, tint = 0, 0
     for index in range(31):
         # get unit vector of current isotherm
-        du, dv = 1.0, uvt[index][3]
+        du, dv = 1.0, uvtTable[index][3]
         n = np.sqrt(1.0 + dv * dv)
         du, dv = du / n, dv / n
         # get vector from current WP to u, v
-        uu, vv = u - uvt[index][1], v - uvt[index][2]
+        uu, vv = u - uvtTable[index][1], v - uvtTable[index][2]
         # get algebraic distance from (u,v) to current isotherm
         dt = - uu * dv + vv * du  # (-dv, du) is a unit vector orthogonal to the isotherm
 
@@ -500,7 +501,7 @@ def xy2TemperatureAndTint(x, y):
             # interpolate 1/Temp between index-1 and index
             w = dt / (last_dt + dt)
 
-            temp = 10 ** 6 / (w * uvt[index - 1][0] + (1.0 - w) * uvt[index][0])
+            temp = 10 ** 6 / (w * uvtTable[index - 1][0] + (1.0 - w) * uvtTable[index][0])
 
             # interpolate unit vectors along isotherms
             du, dv = du * (1.0 - w) + last_du * w, dv * (1.0 - w) + last_dv * w
@@ -515,7 +516,7 @@ def xy2TemperatureAndTint(x, y):
 def temperatureAndTint2xy(temp, tint):
     """
     Convert temperature and tint to xy coordinates. The tint input is first scaled
-    by 1/TintScale
+    by 1/TintScale.
     The conversion is based on the Robertson's method of interpolation.
     Tint is a shift : for tint=0.0, the function gives the xy coordinates of the white point WP(T) :
     Cf. also temperature2xyWP(T).
@@ -532,16 +533,16 @@ def temperatureAndTint2xy(temp, tint):
     tint = tint / TintScale
     result = (0.0, 0.0)
     for index in range(30):
-        if (r < uvt[index + 1][0]) or (r == 29):
-            if r >= uvt[index + 1][0]:
+        if (r < uvtTable[index + 1][0]) or (r == 29):
+            if r >= uvtTable[index + 1][0]:
                 raise ValueError('TemperatureAndTint2xy: Temp should be >= 1667 K')
-            w = (uvt[index + 1][0] - r) / (uvt[index + 1][0] - uvt[index][0])
+            w = (uvtTable[index + 1][0] - r) / (uvtTable[index + 1][0] - uvtTable[index][0])
             # interpolate WP coordinates
-            WPu = uvt[index][1] * w + uvt[index + 1][1] * (1.0 - w)
-            WPv = uvt[index][2] * w + uvt[index + 1][2] * (1.0 - w)
+            WPu = uvtTable[index][1] * w + uvtTable[index + 1][1] * (1.0 - w)
+            WPv = uvtTable[index][2] * w + uvtTable[index + 1][2] * (1.0 - w)
             # interpolate isotherms
-            uu1, vv1 = 1.0, uvt[index][2]
-            uu2, vv2 = 1.0, uvt[index + 1][2]
+            uu1, vv1 = 1.0, uvtTable[index][2]
+            uu2, vv2 = 1.0, uvtTable[index + 1][2]
             n1, n2 = np.sqrt(uu1 * uu1 + vv1 * vv1), np.sqrt(uu2 * uu2 + vv2 * vv2)
             uu1, vv1 = uu1 / n1, vv1 / n1
             uu2, vv2 = uu2 / n2, vv2 / n2

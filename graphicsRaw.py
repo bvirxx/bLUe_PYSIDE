@@ -30,7 +30,7 @@ from bLUeGui.graphicsSpline import graphicsSplineForm, activeCubicSpline
 from bLUeGui.graphicsSpline import baseForm
 from dng import getDngProfileList, getDngProfileDict, dngProfileToneCurve, dngProfileLookTable
 from utils import optionsWidget, UDict, QbLUeSlider, stateAwareQDockWidget
-
+from bLUeGui.multiplier import *
 class rawForm (baseForm):
     """
     Postprocessing of raw files.
@@ -113,6 +113,7 @@ class rawForm (baseForm):
         self.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize, axeSize+300)  # +300 to prevent scroll bars in list Widgets
         self.setAttribute(Qt.WA_DeleteOnClose)
+        self.targetImage = targetImage
         # link back to image layer
         # using weak ref for back links
         if type(layer) in weakref.ProxyTypes:
@@ -124,38 +125,38 @@ class rawForm (baseForm):
         # rgb_xyz_matrix is libraw cam_xyz
         # camera_whitebalance is libraw cam_mul
         # daylight_whitebalance is libraw pre_mul
+        # dng correspondences:
+        # ASSHOTNEUTRAL tag value is (X,Y,Z) =  1 / rawpyObj.camera_whitebalance.
+        # It represents the coordinates of a perfectly neutral point i
         ##########################################
         rawpyObj = layer.parentImage.rawImage
         # initial post processing multipliers (as shot)
-        self.targetImage = targetImage
-        self.rawMultipliers = rawpyObj.camera_whitebalance # dng ASSHOTNEUTRAL tag
+        self.rawMultipliers = rawpyObj.camera_whitebalance # = 1/(dng ASSHOTNEUTRAL tag value)
         self.sampleMultipliers = False
         self.samples = []
         # pre multipliers
         self.daylight = rawpyObj.daylight_whitebalance
         # convert multipliers to White Point RGB coordinates, modulo tint green correction (mult[1] = tint*WP_G)
-        self.cameraMultipliers = [self.daylight[i] / self.rawMultipliers[i] for i in range(3)]
-        #print ('WB', [self.daylight[i]*(10**5)/ rawpyObj.camera_whitebalance[i] for i in range(3)])
+        #self.cameraMultipliers = [self.daylight[i] / self.rawMultipliers[i] for i in range(3)]
         ########################################
         # DNG tags COLORMATRIX1 COLORMATRIX2
         # XYZ-->Camera conversion matrix:
-        # constant for each camera model.
+        # (constant for each camera model).
         # Last row is zero for RGB cameras (cf. rawpy and libraw docs).
         # type ndarray, shape (4,3)
         #########################################
-        self.rgb_xyz_matrix = rawpyObj.rgb_xyz_matrix[:3,:]
-        self.rgb_xyz_matrix_inverse = np.linalg.inv(self.rgb_xyz_matrix)
+        self.XYZ2CameraMatrix = rawpyObj.rgb_xyz_matrix[:3,:]  # TODO changed rgb_xyz_matrix to XYZ2CameraMatrix 10/11/18
+        self.XYZ2CameraInverseMatrix = np.linalg.inv(self.XYZ2CameraMatrix)
         ##########################################
         # Color_matrix, read from file for some cameras, calculated for others,
         # type ndarray of shape (3,4), seems to be 0.
         # color_matrix = rawpyObj.color_matrix
         ##########################################
         # initial temp and tint (as shot values)
-        self.cameraTemp, self.cameraTint = RGBMultipliers2TemperatureAndTint(*self.cameraMultipliers, self.rgb_xyz_matrix_inverse)
+        #self.cameraTemp, self.cameraTint = RGBMultipliers2TemperatureAndTint(*self.cameraMultipliers, self.XYZ2CameraInverseMatrix)#TODO modified 11/11/18
+        self.cameraTemp, self.cameraTint = RGBMultipliers2TemperatureAndTint(*1/np.array(self.rawMultipliers[:3]), self.XYZ2CameraMatrix)
         # base tint correction. It depends on temperature only.
         # We use the product baseTint * tintCorrection as the current tint adjustment,
-        # keeping tintCorrection near to 1.0
-        self.baseTint = self.cameraTint
         # attributes initialized in setDefaults, declared here
         # for the sake of correctness
         self.tempCorrection, self.tintCorrection, self.expCorrection, self.highCorrection,\
@@ -255,7 +256,7 @@ class rawForm (baseForm):
         # cameraProfilesCombo index changed event handler
         def cameraProfileUpdate(value):
             self.dngDict = self.cameraProfilesCombo.itemData(value)
-            if self.options['toneCurve']:
+            if self.options['cpToneCurve']:
                 toneCurve = dngProfileToneCurve(self.dngDict.get('ProfileToneCurve', []))
                 self.toneForm.baseCurve = [QPointF(x * axeSize, -y * axeSize) for x, y in zip(toneCurve.dataX, toneCurve.dataY)]
                 self.toneForm.update()
@@ -516,7 +517,7 @@ Valid values are 0 to 3 (0=clip;1=unclip;2=blend;3=rebuild); (with Auto Exposed 
 """
                         ) # end of setWhatsThis
 
-    def setToneSpline(self):
+    def showToneSpline(self):
         """
         On first call, init and show the Tone Curve form.
         Otherwise, show the form.
@@ -532,8 +533,9 @@ Valid values are 0 to 3 (0=clip;1=unclip;2=blend;3=rebuild); (with Auto Exposed 
             form.setAttribute(Qt.WA_DeleteOnClose, on=False)
             form.setWindowTitle('Camera Profile Tone Curve')
             form.setButtonText('Reset Curve')
-            tomeCurve = dngProfileToneCurve(self.dngDict.get('ProfileToneCurve', []))
-            form.baseCurve = [QPointF(x*axeSize, -y*axeSize) for x,y in zip(tomeCurve.dataX, tomeCurve.dataY)]
+            # get base curve from profile
+            toneCurve = dngProfileToneCurve(self.dngDict.get('ProfileToneCurve', []))
+            form.baseCurve = [QPointF(x*axeSize, -y*axeSize) for x,y in zip(toneCurve.dataX, toneCurve.dataY)]
             def f():
                 layer = self.layer
                 layer.bufCache_HSV_CV32 = None
@@ -619,13 +621,10 @@ former.<br>
         self.sliderTemp.valueChanged.disconnect()
         self.sliderTemp.sliderReleased.disconnect()
         self.tempCorrection = self.slider2Temp(self.sliderTemp.value())
-
-        multipliers = temperatureAndTint2RGBMultipliers(self.tempCorrection, 1.0, self.rgb_xyz_matrix_inverse)
-        # Adjust the green multiplier to keep constant the ratio Mg/Mr, modulo the correction factor self.tintCorrection
-        self.baseTint = self.cameraMultipliers[1] / self.cameraMultipliers[0] * multipliers[0] / multipliers[1] * self.tintCorrection
-        m1 = multipliers[1] * (self.baseTint * self.tintCorrection)
-        multipliers = (multipliers[0], m1, multipliers[2])
-        self.rawMultipliers = [self.daylight[i] / multipliers[i] for i in range(3)] + [self.daylight[1] / multipliers[1]]
+        # get multipliers
+        multipliers = list(temperatureAndTint2RGBMultipliers(self.tempCorrection, 1.0, self.XYZ2CameraMatrix))
+        multipliers[1] *=  self.tintCorrection
+        self.rawMultipliers = [1 / multipliers[i] for i in range(3)] + [1 / multipliers[1]]
         m = min(self.rawMultipliers[:3])
         self.rawMultipliers = [self.rawMultipliers[i] / m for i in range(4)]
         self.dataChanged.emit(1)
@@ -641,13 +640,7 @@ former.<br>
         self.sliderTint.valueChanged.disconnect()
         self.sliderTint.sliderReleased.disconnect()
         self.tintCorrection = self.slider2Tint(self.sliderTint.value())
-        multipliers = temperatureAndTint2RGBMultipliers(self.tempCorrection, 1, self.rgb_xyz_matrix_inverse)
-        m1 = multipliers[1] * (self.baseTint* self.tintCorrection)
-        multipliers = (multipliers[0], m1, multipliers[2])
-        self.rawMultipliers = [self.daylight[i] / multipliers[i] for i in range(3)] + [
-            self.daylight[1] / multipliers[1]]
-        m = min(self.rawMultipliers[:3])
-        self.rawMultipliers = [self.rawMultipliers[i] / m for i in range(4)]
+        self.rawMultipliers[1] *= self.tintCorrection
         self.dataChanged.emit(1)
         self.sliderTint.valueChanged.connect(self.tintUpdate)
         self.sliderTint.sliderReleased.connect(lambda: self.tintUpdate(self.sliderTint.value()))  # signal has no parameter)
@@ -657,13 +650,13 @@ former.<br>
         m0, m1, m2 = m0/mi, m1/mi, m2/mi
         self.rawMultipliers = [m0, m1, m2, m1]
         # convert multipliers to White Point RGB coordinates, modulo tint green correction (mult[1] = tint*WP_G)
-        invMultipliers = [self.daylight[i] / self.rawMultipliers[i] for i in range(3)]
+        #invMultipliers = [self.daylight[i] / self.rawMultipliers[i] for i in range(3)]
+        invMultipliers = [1 / self.rawMultipliers[i] for i in range(3)]  # TODO modified 11/11/18 validate
         self.sliderTemp.valueChanged.disconnect()
         self.sliderTint.valueChanged.disconnect()
         # get temp and tint
-        temp, tint = RGBMultipliers2TemperatureAndTint(*invMultipliers, self.rgb_xyz_matrix_inverse)
-        self.baseTint = tint#
-        tint = 1.0
+        temp, tint = RGBMultipliers2TemperatureAndTint(*invMultipliers, self.XYZ2CameraMatrix)
+        self.tintCorrection = tint
         self.sliderTemp.setValue(self.temp2Slider(temp))
         self.sliderTint.setValue(self.tint2Slider(tint))
         self.tempValue.setText(str("{:.0f}".format(self.slider2Temp(self.sliderTemp.value()))))
@@ -689,12 +682,14 @@ former.<br>
         elif level == 3:
             # keep the 2 cache buffers
             pass
+        # contrast curve
         cf = getattr(self, 'dockC', None)
         if cf is not None:
             if self.options['manualCurve']:
                 cf.showNormal()
             else:
                 cf.hide()
+        # tone curve
         ct = getattr(self, 'dockT', None)
         if ct is not None:
             if self.options['cpToneCurve']:

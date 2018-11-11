@@ -37,6 +37,8 @@ def rawPostProcess(rImg, pool=None):
     Develop raw image.
     Processing order is the following:
          1 - process raw image
+         2 - paply profile look table
+         3 - apply profile and user tone curve
          2 - contrast correction
          3 - saturation correction
     An Exception AttributeError is raised if rawImage
@@ -54,10 +56,11 @@ def rawPostProcess(rImg, pool=None):
 
     # show the Tone Curve form
     if options['cpToneCurve']:
-        toneCurveShowFirst = adjustForm.setToneSpline()
+        toneCurveShowFirst = adjustForm.showToneSpline()
     else:
         toneCurveShowFirst = False
 
+    # get RawPy instance
     rawImage = getattr(rImg.parentImage, 'rawImage', None)
     if rawImage is None:
         raise ValueError("rawPostProcessing : not a raw image")
@@ -72,16 +75,15 @@ def rawPostProcess(rImg, pool=None):
     #################
 
     ######################################################################################################################
-    # process raw image (16 bits mode)                        RGB ------diag(multipliers)-----------> RGB
-    # post processing pipeline (from libraw):                   |                                      |
-    # - black substraction                                      | rawpyObj.rgb_xyz_matrix[:3,:]        | sRGB_lin2XYZ
-    # - exposure correction                                     |                                      |
-    # - white balance                                           |                                      |
-    # - demosaic                                               XYZ                                    XYZ
+    # process raw image (16 bits mode)                        camera ------diag(multipliers)----> camera
+    # post processing pipeline (from libraw):                   ^
+    # - black substraction                                      | CM=rawpyObj.rgb_xyz_matrix
+    # - exposure correction                                     |
+    # - white balance                                           |
+    # - demosaic                                               XYZ
     # - data scaling to use full range
     # - conversion to output color space
     # - gamma curve and brightness correction : gamma(imax) = 1, imax = 8*white/brightness
-    # ouput is CV_16UC3
     ######################################################################################################################
 
     if doALL:

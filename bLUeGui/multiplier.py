@@ -29,12 +29,37 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 from .colorCIE import temperatureAndTint2xy, conversionMatrix, temperature2xyWP
 
+def CIExyY2XYZ(x, y):
+    """
+    Based on CIE xyY
+    cf https://en.wikipedia.org/wiki/CIE_1931_color_space
+    Return the XYZ expansion of (x,y),  assuming Y=1
+    @param x:
+    @type x:
+    @param y:
+    @type y:
+    @return:
+    @rtype:
+    """
+    return x / y, 1, (1 - x - y) / y
+
+def XYZ2CIExyY(X, Y, Z):
+    """
+    Based on CIE xyY
+    cf https: // en.wikipedia.org / wiki / CIE_1931_color_space
+    Return the two first coordinates of (X,Y,Z) in CIE xyY
+    """
+    s = X + Y + Z
+    return X / s, Y / s
+
 def temperatureAndTint2RGBMultipliers(temp, tint, XYZ2RGBMatrix):
     """
-    Converts temperature and tint to RGB multipliers, as White Point RGB coordinates,
-    modulo tint green correction (mG = WP_G * tint)
+    Convert temperature and tint to RGB multipliers and apply a
+    tint shift : mG = WP_G * tint.
+    The matrix XYZ2RGBMatrix should the interpolated Camera Color Matrix for the
+    temperature T.
     We compute the xy coordinates of the white point WP(T) by the Robertson's method.
-    Next, we transform these coordinates to RGB values (mR,mG,mB), using the
+    Next, we transform these coordinates to camera RGB values (mR,mG,mB), using the
     conversion matrix XYZ2RGBMatrix.
     Multipliers are m1 = mR, m2 = mG*tint, m3 = mB. For convenience
     the function returns the 4 values m1, m2, m3, m2, scaled to min(m1,m2,m3)=1.
@@ -43,48 +68,41 @@ def temperatureAndTint2RGBMultipliers(temp, tint, XYZ2RGBMatrix):
     @type temp: float
     @param tint: Tint factor
     @type tint: float
-    @param XYZ2RGBMatrix: conversion matrix from XYZ to linear RGB
+    @param XYZ2RGBMatrix: conversion matrix from XYZ to camera RGB
     @type XYZ2RGBMatrix: 3x3 array
     @return: 4 multipliers (RGBG)
     @rtype: 4-uple of float
     """
-    # WP coordinates for temp
-    x, y = temperatureAndTint2xy(temp, 0)
-    # transform to XYZ coordinates
-    X, Y, Z = x / y, 1.0, (1.0 - x - y) / y
+    # get the coordinates of WP(temp) in xy color space.
+    # We use temperatureAndTint2xy(temp, 0).
+    # We could also call temperature2xyWP(temp).
+    # As the two methods use different methods of approximation,
+    # they return slightly different results.
+    WP_x, WP_y = temperatureAndTint2xy(temp, 0)
+    # expand to XYZ color space
+    WP_X, WP_Y, WP_Z = CIExyY2XYZ(WP_x, WP_y)  # x / y, 1.0, (1.0 - x - y) / y
     # WP RGB coordinates
-    m1, m2, m3 = np.dot(XYZ2RGBMatrix, [X, Y, Z])
+    m1, m2, m3 = np.dot(XYZ2RGBMatrix, [WP_X, WP_Y, WP_Z])
     # apply tint correction (green-magenta shift) to G channel.
     m2 = m2 * tint
     mi = min((m1, m2, m3))
     m1, m2, m3 = m1 / mi, m2 / mi, m3 / mi
     return m1, m2, m3, m2
 
-
-def convertMultipliers(Tdest, Tsource, tint, m):
-    M = conversionMatrix(Tdest, Tsource)
-    m1 = M[0, 0] / m[0]
-    m2 = M[1, 1] / m[1] * tint
-    m3 = M[2, 2] / m[2]
-    mi = min((m1, m2, m3))
-    m1, m2, m3 = m1 / mi, m2 / mi, m3 / mi
-    return m1, m2, m3, m2
-
-
 def RGBMultipliers2TemperatureAndTint(mR, mG, mB, XYZ2RGBMatrix):
     """
-    Evaluation of the temperature and tint correction corresponding to a
+    Inverse function for temperatureAndTint2RGBMultipliers.
+    Compute the temperature and tint correction corresponding to a
     set of 3 RGB multipliers. They are interpreted as the RGB coordinates of a white point.
     The aim is to find a temperature T with a
     corresponding white point WP(T), and a factor tint, such that mB/mR = WPb/WPr
-    and mG*tint/mR = WpG/WPR. As multipliers are invariant by scaling, this
+    and mG*tint/mR = Wpg/WPr. As multipliers are invariant by scaling, this
     function can be seen as the inverse function
     of temperatureAndTint2RGBMultipliers.
     We consider the function f(T) = WPb/WPr giving
     the ratio of blue over red coordinates for the white point WP(T). Assuming  f is monotonic,
     we solve the equation f(T) = mB/mR by a simple dichotomous search.
     Then, the tint is simply defined as the scaling factor mu verifying tint * mG/mR = WPG/WPR
-    The RGB space used is defined by the matrix XYZ2RGBMatrix.
     Note that to be inverse functions, RGBMultipliers2Temperature and temperatureAndTint2RGBMultipliers
     must use the same XYZ2RGBMatrix.
     @param mR:
@@ -102,8 +120,9 @@ def RGBMultipliers2TemperatureAndTint(mR, mG, mB, XYZ2RGBMatrix):
     Tmin, Tmax = 1667.0, 15000.0
     while (Tmax - Tmin) > 10:
         T = (Tmin + Tmax) / 2.0
-        x, y = temperature2xyWP(T)  # TODO temperature2xyWP(T) = temperatureAndTint2xy(T,0) ???
-        X, Y, Z = x / y, 1, (1 - x - y) / y
+        x, y = temperature2xyWP(T)  # ~ temperatureAndTint2xy(T,0)
+        # expand to the XYZ color space
+        X, Y, Z = CIExyY2XYZ(x, y) #= x / y, 1, (1 - x - y) / y
         r, g, b = np.dot(XYZ2RGBMatrix, [X, Y, Z])
         if (b / r) > (mB / mR):
             Tmax = T

@@ -765,6 +765,7 @@ def loadImageFromFile(f, createsidecar=True):
             rawpyInst.open_buffer(bufio)
         ######################################################################################
         # unpack always applies the current tone curve (cf. https://www.libraw.org/node/2003)
+        # read from file for Nikon, Sony and some other cameras.
         # Another curve (array, shape=65536) can be loaded here before unpacking.
         # NO EFFECT with files where the curve is calculated on unpack() phase (e.g.Nikon lossy NEF files).
         #####################################################################################
