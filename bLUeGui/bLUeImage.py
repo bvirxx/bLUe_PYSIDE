@@ -18,7 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import cv2
 
 import numpy as np
-from PySide2.QtCore import QSize, QRect, QPoint, Qt
+from PySide2.QtCore import QSize, QRect, QPoint, Qt, QPointF
 from PySide2.QtGui import QImage, QPixmap, QColor, QPainter
 
 from bLUeCore.SavitskyGolay import SavitzkyGolayFilter
@@ -133,6 +133,10 @@ class bImage(QImage):
         # convert size to QSize
         if type(size) is int:
             size = QSize(size, size)
+        # alert threshold for clipped areas
+        clipping_threshold = 0.02
+        # clipping threshold for black and white points
+        BWP_clipping_threshold = 0.02
         # scaling factor for the bin edges
         spread = float(range[1] - range[0])
         scale = size.width() / spread
@@ -143,22 +147,20 @@ class bImage(QImage):
             #param hist: histogram to draw
             # smooth the histogram (first and last bins excepted) for a better visualization of clipping.
             hist = np.concatenate(([hist[0]], SavitzkyGolayFilter.filter(hist[1:-1]), [hist[-1]]))
-            M = max(hist[1:-1])  # TODO added 04/10/18 + removed parameter M: validate
+            M = max(hist[1:-1])
             # draw histogram
             imgH = size.height()
-            lg = len(hist)
             for i, y in enumerate(hist):
                 h = int(imgH * y / M)
-                h = min(h, imgH - 1) # TODO added 04/10/18 height of rect must be < height of img, otherwise fillRect does nothing
+                h = min(h, imgH - 1) # height of rect must be < height of img, otherwise fillRect does nothing
                 rect = QRect(int((bin_edges[i] - range[0]) * scale), max(img.height() - h, 0), int((bin_edges[i + 1] - bin_edges[i]) * scale+1), h)
                 painter.fillRect(rect, color)
                 # clipping indicators
                 if i == 0 or i == len(hist)-1:
                     left = bin_edges[0 if i == 0 else -1]
-                    if 0 < left < 255:
+                    if range[0] < left < range[1]:
                         continue
                     left =  left - (10 if i > 0 else 0)
-                    clipping_threshold = 0.02
                     percent = hist[i] * (bin_edges[i+1]-bin_edges[i])
                     if percent > clipping_threshold:
                         # calculate the color of the indicator according to percent value
@@ -204,7 +206,7 @@ class bImage(QImage):
             tmpqp.end()
             # add the channnel hist to img
             qp.drawImage(QPoint(0,0), tmpimg)
-            # subsequent images are added with composition mode Plus
+            # subsequent images are added using composition mode Plus
             qp.setCompositionMode(QPainter.CompositionMode_Plus)
         qp.end()
         buf = QImageBuffer(img)
@@ -212,7 +214,6 @@ class bImage(QImage):
         if len(chans) > 1 :
             buf[:,:,:3] = np.where(np.min(buf, axis=-1)[:,:,np.newaxis]>=100, np.array((100,100,100))[np.newaxis, np.newaxis,:], buf[:,:,:3] )
         return img
-
 
 QImageFormats = {0:'invalid', 1:'mono', 2:'monoLSB', 3:'indexed8', 4:'RGB32', 5:'ARGB32',6:'ARGB32 Premultiplied',
                  7:'RGB16', 8:'ARGB8565 Premultiplied', 9:'RGB666',10:'ARGB6666 Premultiplied', 11:'RGB555', 12:'ARGB8555 Premultiplied',

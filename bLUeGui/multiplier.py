@@ -17,46 +17,46 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 ###############################################################
-# The functions in this module establish the correspondence between
-# (temperature, tint) and the RGB mutipliers mR, mG, mB.
-# The idea is as follow :
-# The planes mB/mR = constant in the RGB color space correspond to lines y=kx
-# in the xy color space. In this later space, consider the point of intersection m1 of
-# the locus (white points) with the line y = kx. It gives the temperature T and
-# the tint corresponds to an homothety applied to m1, which gives the final point m.
+# The functions in this module establish the back abd forth correspondence
+# between (temperature, tint) and the camera mutipliers (mR, mG, mB).
+# The camera is characterized by a color matrix XYZ2CameraMatrix.
+# Currently, the matrix is supposed constant for each camera model :
+# we do not use interpolation between the ColorMatrix1 and ColorMatrix2 tags
+# (cf. Adobe dng spec. p. 80 )
 ####################################################################
 
 import numpy as np
-from .colorCIE import temperatureAndTint2xy, conversionMatrix, temperature2xyWP
+from .colorCIE import temperatureAndTint2xy, temperature2xyWP
 
 def CIExyY2XYZ(x, y):
     """
-    Based on CIE xyY
+    Based on CIE xyY color space, return the XYZ expansion
+    of (x,y),  assuming Y=1.
     cf https://en.wikipedia.org/wiki/CIE_1931_color_space
-    Return the XYZ expansion of (x,y),  assuming Y=1
-    @param x:
-    @type x:
-    @param y:
-    @type y:
-    @return:
-    @rtype:
+    @param x: x coordinate
+    @type x: float
+    @param y: y coordinate
+    @type y: float
+    @return: XYZ coordinates
+    @rtype: 3-uple of float
     """
     return x / y, 1, (1 - x - y) / y
 
 def XYZ2CIExyY(X, Y, Z):
     """
-    Based on CIE xyY
+    Return the two first coordinates
+    of (X,Y,Z) in CIE xyY
     cf https: // en.wikipedia.org / wiki / CIE_1931_color_space
-    Return the two first coordinates of (X,Y,Z) in CIE xyY
+
     """
     s = X + Y + Z
     return X / s, Y / s
 
-def temperatureAndTint2RGBMultipliers(temp, tint, XYZ2RGBMatrix):
+def temperatureAndTint2RGBMultipliers(temp, tint, XYZ2CameraMatrix):
     """
     Convert temperature and tint to RGB multipliers and apply a
     tint shift : mG = WP_G * tint.
-    The matrix XYZ2RGBMatrix should the interpolated Camera Color Matrix for the
+    The matrix XYZ2CameraMatrix should the interpolated Camera Color Matrix for the
     temperature T.
     We compute the xy coordinates of the white point WP(T) by the Robertson's method.
     Next, we transform these coordinates to camera RGB values (mR,mG,mB), using the
@@ -68,8 +68,8 @@ def temperatureAndTint2RGBMultipliers(temp, tint, XYZ2RGBMatrix):
     @type temp: float
     @param tint: Tint factor
     @type tint: float
-    @param XYZ2RGBMatrix: conversion matrix from XYZ to camera RGB
-    @type XYZ2RGBMatrix: 3x3 array
+    @param XYZ2CameraMatrix: conversion matrix from XYZ to camera RGB
+    @type XYZ2CameraMatrix: 3x3 array
     @return: 4 multipliers (RGBG)
     @rtype: 4-uple of float
     """
@@ -81,39 +81,38 @@ def temperatureAndTint2RGBMultipliers(temp, tint, XYZ2RGBMatrix):
     WP_x, WP_y = temperatureAndTint2xy(temp, 0)
     # expand to XYZ color space
     WP_X, WP_Y, WP_Z = CIExyY2XYZ(WP_x, WP_y)  # x / y, 1.0, (1.0 - x - y) / y
-    # WP RGB coordinates
-    m1, m2, m3 = np.dot(XYZ2RGBMatrix, [WP_X, WP_Y, WP_Z])
-    # apply tint correction (green-magenta shift) to G channel.
+    # Convert to camera neutral
+    m1, m2, m3 = np.dot(XYZ2CameraMatrix, [WP_X, WP_Y, WP_Z])
+    # apply tint shift (green-magenta shift) to G channel.
     m2 = m2 * tint
     mi = min((m1, m2, m3))
     m1, m2, m3 = m1 / mi, m2 / mi, m3 / mi
     return m1, m2, m3, m2
 
-def RGBMultipliers2TemperatureAndTint(mR, mG, mB, XYZ2RGBMatrix):
+def RGBMultipliers2TemperatureAndTint(mR, mG, mB, XYZ2CameraMatrix):
     """
-    Inverse function for temperatureAndTint2RGBMultipliers.
+    Inverse function of temperatureAndTint2RGBMultipliers.
     Compute the temperature and tint correction corresponding to a
-    set of 3 RGB multipliers. They are interpreted as the RGB coordinates of a white point.
-    The aim is to find a temperature T with a
-    corresponding white point WP(T), and a factor tint, such that mB/mR = WPb/WPr
-    and mG*tint/mR = Wpg/WPr. As multipliers are invariant by scaling, this
-    function can be seen as the inverse function
-    of temperatureAndTint2RGBMultipliers.
+    set of 3 RGB multipliers.
+    The matrix XYZ2CameraMatrix should the interpolated Camera Color Matrix for the
+    temperature T.
+    The aim is to find a temperature T with a corresponding white point WP(T),
+    and a factor tint, such that mB/mR = WPb/WPr and mG*tint/mR = Wpg/WPr.
     We consider the function f(T) = WPb/WPr giving
     the ratio of blue over red coordinates for the white point WP(T). Assuming  f is monotonic,
     we solve the equation f(T) = mB/mR by a simple dichotomous search.
     Then, the tint is simply defined as the scaling factor mu verifying tint * mG/mR = WPG/WPR
     Note that to be inverse functions, RGBMultipliers2Temperature and temperatureAndTint2RGBMultipliers
-    must use the same XYZ2RGBMatrix.
+    must use the same XYZ2CameraMatrix.
     @param mR:
     @type mR:
     @param mG:
     @type mG:
     @param mB:
     @type mB:
-    @param XYZ2RGBMatrix:
-    @type XYZ2RGBMatrix:
-    @return: the evaluated temperature and the tint correction
+    @param XYZ2CameraMatrix:
+    @type XYZ2CameraMatrix:
+    @return: temperature and tint correction
     @rtype: 2-uple of float
     """
     # search for T
@@ -123,12 +122,13 @@ def RGBMultipliers2TemperatureAndTint(mR, mG, mB, XYZ2RGBMatrix):
         x, y = temperature2xyWP(T)  # ~ temperatureAndTint2xy(T,0)
         # expand to the XYZ color space
         X, Y, Z = CIExyY2XYZ(x, y) #= x / y, 1, (1 - x - y) / y
-        r, g, b = np.dot(XYZ2RGBMatrix, [X, Y, Z])
+        # Convert to camera neutral
+        r, g, b = np.dot(XYZ2CameraMatrix, [X, Y, Z])
         if (b / r) > (mB / mR):
             Tmax = T
         else:
             Tmin = T
-    # get tint correction
+    # compute tint shift
     green = (r / g) * (mG / mR)
     if green < 0.2:
         green = 0.2

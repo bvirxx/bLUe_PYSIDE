@@ -15,22 +15,35 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+import cv2
 import weakref
 from collections import OrderedDict
 from math import log
 from os.path import basename
 
-import numpy as np
 from PySide2 import QtCore
-from PySide2.QtCore import Qt, QPoint, QPointF
+from PySide2.QtCore import Qt, QPointF
 from PySide2.QtGui import QFontMetrics
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBox, QComboBox
-from bLUeGui.multiplier import temperatureAndTint2RGBMultipliers, RGBMultipliers2TemperatureAndTint
 from bLUeGui.graphicsSpline import graphicsSplineForm, activeCubicSpline
 from bLUeGui.graphicsSpline import baseForm
 from dng import getDngProfileList, getDngProfileDict, dngProfileToneCurve, dngProfileLookTable
 from utils import optionsWidget, UDict, QbLUeSlider, stateAwareQDockWidget
 from bLUeGui.multiplier import *
+
+class graphicsToneForm(graphicsSplineForm):
+    @classmethod
+    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None, curveType='quadric'):
+        newWindow = graphicsToneForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent,
+                                       mainForm=mainForm, curveType=curveType)
+        newWindow.setWindowTitle(layer.name)
+        return newWindow
+
+    def colorPickedSlot(self, x, y, modifiers):
+        r, g, b = self.scene().targetImage.getActivePixel(x, y)
+        h, s, v = cv2.cvtColor((np.array([r,g,b])/255).astype(np.float32)[np.newaxis, np.newaxis,:], cv2.COLOR_RGB2HSV)[0,0,:]
+        print (h,s,v)
+
 class rawForm (baseForm):
     """
     Postprocessing of raw files.
@@ -126,8 +139,7 @@ class rawForm (baseForm):
         # camera_whitebalance is libraw cam_mul
         # daylight_whitebalance is libraw pre_mul
         # dng correspondences:
-        # ASSHOTNEUTRAL tag value is (X,Y,Z) =  1 / rawpyObj.camera_whitebalance.
-        # It represents the coordinates of a perfectly neutral point i
+        # ASSHOTNEUTRAL tag value is (X,Y,Z) =  1 / rawpyObj.camera_whitebalance
         ##########################################
         rawpyObj = layer.parentImage.rawImage
         # initial post processing multipliers (as shot)
@@ -135,9 +147,9 @@ class rawForm (baseForm):
         self.sampleMultipliers = False
         self.samples = []
         # pre multipliers
-        self.daylight = rawpyObj.daylight_whitebalance
+        #self.daylight = rawpyObj.daylight_whitebalance
         # convert multipliers to White Point RGB coordinates, modulo tint green correction (mult[1] = tint*WP_G)
-        #self.cameraMultipliers = [self.daylight[i] / self.rawMultipliers[i] for i in range(3)]
+        # self.cameraMultipliers = [self.daylight[i] / self.rawMultipliers[i] for i in range(3)]
         ########################################
         # DNG tags COLORMATRIX1 COLORMATRIX2
         # XYZ-->Camera conversion matrix:
@@ -155,10 +167,7 @@ class rawForm (baseForm):
         # initial temp and tint (as shot values)
         #self.cameraTemp, self.cameraTint = RGBMultipliers2TemperatureAndTint(*self.cameraMultipliers, self.XYZ2CameraInverseMatrix)#TODO modified 11/11/18
         self.cameraTemp, self.cameraTint = RGBMultipliers2TemperatureAndTint(*1/np.array(self.rawMultipliers[:3]), self.XYZ2CameraMatrix)
-        # base tint correction. It depends on temperature only.
-        # We use the product baseTint * tintCorrection as the current tint adjustment,
-        # attributes initialized in setDefaults, declared here
-        # for the sake of correctness
+        # attributes initialized in setDefaults, declared here for the sake of correctness
         self.tempCorrection, self.tintCorrection, self.expCorrection, self.highCorrection,\
                                                    self.contCorrection, self.satCorrection, self.brCorrection = [None] * 7
         # contrast spline view, initialized in setContrastSpline
@@ -178,11 +187,14 @@ class rawForm (baseForm):
         #self.listWidget2.checkOption(self.listWidget2.intNames[1])
         self.listWidget3 = optionsWidget(options=optionList2, optionNames=optionNames2, exclusive=False, changed=lambda: self.dataChanged.emit(2))
         self.options = UDict((self.listWidget1.options, self.listWidget2.options, self.listWidget3.options))
+        # display the 'as shot' temperature
+        item = self.listWidget2.item(1)
+        item.setText(item.text() + ' : %d' % self.cameraTemp)
 
         # temperature slider
         self.sliderTemp = QbLUeSlider(Qt.Horizontal)
         self.sliderTemp.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
-        self.sliderTemp.setRange(0,130)
+        self.sliderTemp.setRange(0,100)  # TODO 130 changed to 100 12/11/18 validate
         self.sliderTemp.setSingleStep(1)
 
         self.tempLabel = QLabel()
@@ -203,7 +215,7 @@ class rawForm (baseForm):
         # tint slider
         self.sliderTint = QbLUeSlider(Qt.Horizontal)
         # self.sliderTint.setStyleSheet(self.sliderTint.styleSheet()+'QSlider::groove:horizontal {background: red;}')
-        self.sliderTint.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
+        self.sliderTint.setStyleSheet(QbLUeSlider.bLueSliderDefaultIMGColorStylesheet)
         self.sliderTint.setRange(0, 150)
 
         self.sliderTint.setSingleStep(1)
@@ -527,8 +539,8 @@ Valid values are 0 to 3 (0=clip;1=unclip;2=blend;3=rebuild); (with Auto Exposed 
         """
         axeSize = 200
         if self.toneForm is None:
-            form = graphicsSplineForm.getNewWindow(targetImage=None, axeSize=axeSize, layer=self.layer, parent=None,
-                                                    mainForm=None, curveType='cubic')
+            form = graphicsToneForm.getNewWindow(targetImage=self.targetImage, axeSize=axeSize, layer=self.layer, parent=None,
+                                                    mainForm=None, curveType='cubic')  # TODO self.targetImage added 12/11/18
             form.setWindowFlags(Qt.WindowStaysOnTopHint)
             form.setAttribute(Qt.WA_DeleteOnClose, on=False)
             form.setWindowTitle('Camera Profile Tone Curve')
@@ -563,6 +575,7 @@ A user curve, shown in black, is editable and is applied right after the
 former.<br>         
 """
             )  # end of setWhatsThis
+            #self.layer.colorPicked.sig.connect(form.colorPickedSlot)
         else:
             form = self.toneForm
             showFirst = False
@@ -640,7 +653,12 @@ former.<br>
         self.sliderTint.valueChanged.disconnect()
         self.sliderTint.sliderReleased.disconnect()
         self.tintCorrection = self.slider2Tint(self.sliderTint.value())
-        self.rawMultipliers[1] *= self.tintCorrection
+        # get multipliers
+        multipliers = list(temperatureAndTint2RGBMultipliers(self.tempCorrection, 1.0, self.XYZ2CameraMatrix))
+        multipliers[1] *= self.tintCorrection
+        self.rawMultipliers = [1 / multipliers[i] for i in range(3)] + [1 / multipliers[1]]
+        m = min(self.rawMultipliers[:3])
+        self.rawMultipliers = [self.rawMultipliers[i] / m for i in range(4)]
         self.dataChanged.emit(1)
         self.sliderTint.valueChanged.connect(self.tintUpdate)
         self.sliderTint.sliderReleased.connect(lambda: self.tintUpdate(self.sliderTint.value()))  # signal has no parameter)

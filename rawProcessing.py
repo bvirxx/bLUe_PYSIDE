@@ -71,7 +71,14 @@ def rawPostProcess(rImg, pool=None):
     # postProcessCache is invalidated (reset to None) to by graphicsRaw.updateLayer (graphicsRaw.dataChanged event handler).
     # bufCache_HSV_CV32 is invalidated (reset to None) by camera profile related events.
     doALL = rImg.postProcessCache is None
+    if not doALL:
+        s = rImg.postProcessCache.shape
+        cs = (currentImage.height(), currentImage.width())
+        if s != cs:
+            rImg.postProcessCache, rImg.bufCache_HSV_CV32 = (None,) * 2
+            doALL = True
     doCameraLookTable = options['cpLookTable'] and (doALL or rImg.bufCache_HSV_CV32 is None)
+    half_size = rImg.parentImage.useThumb
     #################
 
     ######################################################################################################################
@@ -91,7 +98,6 @@ def rawPostProcess(rImg, pool=None):
         # get postprocessing parameters
         ##############################
         # no_auto_scale = False  don't use : green shift
-        #output_bpc = 16
         gamma = (2.222, 4.5)  # default REC BT 709 (exponent, slope)
         #gamma = (2.4, 12.92)  # sRGB (exponent, slope) cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
         exp_shift = adjustForm.expCorrection if not options['Auto Brightness'] else 0
@@ -122,6 +128,7 @@ def rawPostProcess(rImg, pool=None):
                 mult = (mult[0], mult[1], mult[2], mult[1])
                 print(mult, '   ', m)
                 bufpost_temp = rawImage.postprocess(
+                    half_size=half_size,
                     output_color=rawpy.ColorSpace.sRGB,
                     output_bps=output_bpc,
                     exp_shift=exp_shift,
@@ -145,6 +152,7 @@ def rawPostProcess(rImg, pool=None):
             # highlight_mode : restoration of overexposed highlights. 0: clip, 1:unclip, 2:blend, 3...: rebuild
             # bufpost16 = rawImage.postprocess(use_camera_wb=True, output_bps=output_bps, gamma=(2.222,4.5))#, gamma=(1,1))
             bufpost16 = rawImage.postprocess(
+                half_size = half_size,
                 output_color=rawpy.ColorSpace.sRGB,
                 output_bps=output_bpc,
                 exp_shift=exp_shift,
@@ -174,8 +182,7 @@ def rawPostProcess(rImg, pool=None):
             buf[:, :, :] = (rImg.postProcessCache[:, :, 2, np.newaxis] * 255).astype(np.uint8)
             rImg.histImg = tmp.histogram(size=adjustForm.toneForm.scene().axeSize,
                                          bgColor=adjustForm.toneForm.scene().bgColor,
-                                         range=(0, 255), chans=channelValues.Br,
-                                         mode='Luminosity')
+                                         range=(0, 255), chans=channelValues.Br) # mode='Luminosity')
         adjustForm.toneForm.scene().quadricB.histImg = rImg.histImg
         adjustForm.toneForm.scene().update()
 
@@ -185,7 +192,7 @@ def rawPostProcess(rImg, pool=None):
 
 
     ##########################
-    # apply profile look table
+    # Profile look table
     # it must be applied to the linear buffer and
     # before tone curve (cf. Adobe dng spec. p. 65)
     ##########################

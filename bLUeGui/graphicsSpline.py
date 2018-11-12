@@ -651,7 +651,6 @@ the Color Chooser is closed.
 
     def colorPickedSlot(self, x, y, modifiers):
         """
-        Does nothing
         Should be overridden in derived classes
         """
         pass
@@ -696,7 +695,7 @@ class graphicsSplineForm(graphicsCurveForm) :
         graphicsScene.quadricB = curve
         curve.channel = channelValues.Br
         curve.histImg = graphicsScene.layer.inputImg().histogram(size=graphicsScene.axeSize, bgColor=graphicsScene.bgColor,
-                                                       range=(0,255), chans=channelValues.Br, mode='Luminosity')
+                                                       range=(0,255), chans=channelValues.Br)#, mode='Luminosity')
         curve.initFixedPoints()
         # set current curve
         graphicsScene.cubicItem = graphicsScene.quadricB
@@ -769,3 +768,4 @@ Drag <b>control points</b> and <b>tangents</b> with the mouse.<br>
         graphicsScene.quadricG.readFromStream(inStream)
         graphicsScene.quadricB.readFromStream(inStream)
         return inStream
+
