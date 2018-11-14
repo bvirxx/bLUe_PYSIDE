@@ -141,6 +141,7 @@ class graphicsLabForm(graphicsCurveForm):
     def colorPickedSlot(self, x, y, modifiers):
         """
         sets black/white points
+        (x,y) coordinates are relative to the full size image.
         @param x:
         @type x:
         @param y:

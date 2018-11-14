@@ -43,6 +43,10 @@ def rawPostProcess(rImg, pool=None):
          3 - saturation correction
     An Exception AttributeError is raised if rawImage
     is not an attribute of self.parentImage.
+    @param rImg: development layer
+    @type rImg: Qlayer
+    @param pool:
+    @type pool:
     """
     # postprocess output bits per channel
     output_bpc = 8
@@ -72,9 +76,8 @@ def rawPostProcess(rImg, pool=None):
     # bufCache_HSV_CV32 is invalidated (reset to None) by camera profile related events.
     doALL = rImg.postProcessCache is None
     if not doALL:
-        s = rImg.postProcessCache.shape
-        cs = (currentImage.height(), currentImage.width())
-        if s != cs:
+        parentImage = rImg.parentImage
+        if (rImg.half and not parentImage.useThumb) or (not rImg.half and parentImage.useThumb):
             rImg.postProcessCache, rImg.bufCache_HSV_CV32 = (None,) * 2
             doALL = True
     doCameraLookTable = options['cpLookTable'] and (doALL or rImg.bufCache_HSV_CV32 is None)
@@ -167,9 +170,9 @@ def rawPostProcess(rImg, pool=None):
                 fbdd_noise_reduction=fbdd_noise_reduction,
                 median_filter_passes=1
             )
-            # end of the post processing phase : save post processing cache
-            rImg.postProcessCache = cv2.cvtColor(((bufpost16.astype(np.float32)) / max_ouput).astype(np.float32),
-                                                    cv2.COLOR_RGB2HSV)  # TODO 29/10/18 change 65536 to 65535 validate
+            # save image into post processing cache
+            rImg.postProcessCache = cv2.cvtColor(((bufpost16.astype(np.float32)) / max_ouput).astype(np.float32), cv2.COLOR_RGB2HSV)
+            rImg.half = half_size
     else:
         pass
 
@@ -180,6 +183,7 @@ def rawPostProcess(rImg, pool=None):
             tmp = bImage(s[1], s[0], QImage.Format_RGB32)
             buf = QImageBuffer(tmp)
             buf[:, :, :] = (rImg.postProcessCache[:, :, 2, np.newaxis] * 255).astype(np.uint8)
+            rImg.linearImg = tmp
             rImg.histImg = tmp.histogram(size=adjustForm.toneForm.scene().axeSize,
                                          bgColor=adjustForm.toneForm.scene().bgColor,
                                          range=(0, 255), chans=channelValues.Br) # mode='Luminosity')
@@ -199,8 +203,10 @@ def rawPostProcess(rImg, pool=None):
     if doCameraLookTable:
         hsvLUT = dngProfileLookTable(adjustForm.dngDict)
         if hsvLUT.isValid:
-            steps = tuple([360 / hsvLUT.dims[0], 1.0 / (hsvLUT.dims[1] - 1), 1.0 / (hsvLUT.dims[2] - 1)])
+            divs = hsvLUT.divs
+            steps = tuple([360 / divs[0], 1.0 / divs[1], 1.0 / divs[2]])
             coeffs = interpMulti(hsvLUT.data, steps, bufHSV_CV32, pool=pool, use_tetra=USE_TETRA, convert=False)
+            #coeffs = interpTriLinear(hsvLUT.data, steps, bufHSV_CV32, convert=False)  # TODO 13/11/18 don't forget to switch to interpmulti
             bufHSV_CV32[:, :, 0] = np.mod(bufHSV_CV32[:, :, 0] + coeffs[:, :, 0], 360)
             bufHSV_CV32[:, :, 1:] = bufHSV_CV32[:, :, 1:] * coeffs[:, :, 1:]
             np.clip(bufHSV_CV32, (0, 0, 0), (360, 1, 1), out=bufHSV_CV32)

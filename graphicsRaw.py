@@ -23,8 +23,9 @@ from os.path import basename
 
 from PySide2 import QtCore
 from PySide2.QtCore import Qt, QPointF
-from PySide2.QtGui import QFontMetrics
-from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBox, QComboBox
+from PySide2.QtGui import QFontMetrics, QBrush, QPolygonF, qRed, qGreen, qBlue
+from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBox, QComboBox, \
+    QGraphicsEllipseItem, QGraphicsPolygonItem
 from bLUeGui.graphicsSpline import graphicsSplineForm, activeCubicSpline
 from bLUeGui.graphicsSpline import baseForm
 from dng import getDngProfileList, getDngProfileDict, dngProfileToneCurve, dngProfileLookTable
@@ -37,12 +38,36 @@ class graphicsToneForm(graphicsSplineForm):
         newWindow = graphicsToneForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent,
                                        mainForm=mainForm, curveType=curveType)
         newWindow.setWindowTitle(layer.name)
+        # init marker
+        triangle = QPolygonF()
+        s = 10
+        triangle.append(QPointF(-s, s))
+        triangle.append(QPointF(0, 0))
+        triangle.append(QPointF(s, s))
+        newWindow.inputMarker = QGraphicsPolygonItem(triangle)
+        newWindow.scene().addItem(newWindow.inputMarker)
+        newWindow.inputMarker.setBrush(QBrush(Qt.white))
         return newWindow
 
     def colorPickedSlot(self, x, y, modifiers):
-        r, g, b = self.scene().targetImage.getActivePixel(x, y)
+        """
+        Move the marker to the position corresponding to
+        the color picked on the input image of the active layer.
+        (x,y) coordinates are relative to the full size image.
+        @param x:
+        @type x:
+        @param y:
+        @type y:
+        @param modifiers:
+        @type modifiers:
+        """
+        rImg = self.scene().targetImage.getActiveLayer()
+        if rImg.parentImage.useThumb:
+            x, y = x//2, y//2
+        color = rImg.linearImg.pixelColor(x, y)
+        r, g, b = color.red(), color.green(), color.blue()
         h, s, v = cv2.cvtColor((np.array([r,g,b])/255).astype(np.float32)[np.newaxis, np.newaxis,:], cv2.COLOR_RGB2HSV)[0,0,:]
-        print (h,s,v)
+        self.inputMarker.setPos(v*self.scene().axeSize, 0.0)
 
 class rawForm (baseForm):
     """

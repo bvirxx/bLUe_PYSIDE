@@ -34,6 +34,17 @@ class invertForm(baseForm) :
         self.Rmask, self.Bmask, self.Gmask = (255,) * 3
 
     def colorPickedSlot(self, x, y, modifiers):
+        """
+        Set the invert mask to the color picked on the
+        active layer.
+        (x,y) coordinates are relative to the full size image.
+        @param x:
+        @type x:
+        @param y:
+        @type y:
+        @param modifiers:
+        @type modifiers:
+        """
         if modifiers == Qt.ControlModifier:
             r, g, b = self.layer.parentImage.getActivePixel(x, y)
             self.setMask(r, g, b)

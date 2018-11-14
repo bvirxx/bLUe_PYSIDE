@@ -818,8 +818,7 @@ def addRawAdjustmentLayer():
     Add a development layer to the layer stack
 
     """
-    lname = 'Development'
-    l = window.label.img.addAdjustmentLayer(name=lname, role='RAW')
+    l = window.label.img.addAdjustmentLayer(name='Development', role='RAW')
     grWindow = rawForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window,
                                             mainForm=window)
     # wrapper for the right apply method

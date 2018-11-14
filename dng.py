@@ -22,7 +22,7 @@ import exiftool
 import numpy as np
 
 #########################################################################################
-# Functions and classes related to profile tags
+# Functions and classes related to profile tags.
 # compliant with the Adobe DNG specification
 # cf. https://www.adobe.com/content/dam/acom/en/products/photoshop/pdfs/dng_spec_1.4.0.0.pdf
 ########################################################################################
@@ -38,14 +38,24 @@ def getDngProfileDict(filename):
     @return:
     @rtype: dict of decoded str
     """
-    #if filename[-3:].lower() not in ['dng', 'dcp']:
-        #raise ValueError("getProfileDict : wrong file type")
     with exiftool.ExifTool() as e:
-        profileDict = e.readBinaryDataAsDict(filename, taglist=['LinearizationTable', 'ProfileLookTableData', 'ProfileLookTableDims',
-                                                                'ProfileLookTableEncoding', 'ProfileToneCurve'])
+        profileDict = e.readBinaryDataAsDict(filename,
+                                             taglist=['LinearizationTable',
+                                                      'ProfileLookTableData',
+                                                      'ProfileLookTableDims',
+                                                      'ProfileLookTableEncoding',
+                                                      'ProfileToneCurve'
+                                                      ])
     return profileDict
 
 def getDngProfileList(cameraName):
+    """
+    Search for paths to profiles for a camera model.
+    @param cameraName: camera model
+    @type cameraName: str
+    @return: list of paths to profiles
+    @rtype: list of str
+    """
     plist = []
     if cameraName == '':
         return plist
@@ -57,13 +67,14 @@ def getDngProfileList(cameraName):
     return plist
 
 class dngProfileToneCurve:
-    #arrays of x - coordinates and y - coordinates of
-    # the tone curve.All coordinates are floats in the interval [0, 1].
-    dataX, dataY = None, None
+    # THe attributes datX and dataY are the arrays of x-coordinates
+    # and y-coordinates for the tone curve. They share the same length.
+    # All coordinates are floats in the interval [0, 1].
     def __init__(self, buf):
         """
-        Init the coordinates from a bytes buffer as read by exiftool -b and decoded.
-        @param buf:
+        Init the coordinates from a bytes buffer of interleaved x,y coordinates
+        as read by exiftool -b and decoded.
+        @param buf: decoded buffer
         @type buf: str
         """
         try:
@@ -78,51 +89,76 @@ class dngProfileToneCurve:
         """
         interpolate the data points by a cubic spline (cf adobe dng specification p. 56).
         @param maxrange: max of data range (identical for input and output)
-        @type range: int
-        @return: interpolated cubic spline : [0, maxrange] ---> [0;;maxrange]
+        @type maxrange: int
+        @return: interpolated cubic spline : [0, maxrange] ---> [0, maxrange]
         @rtype: ndarray
         """
-        LUTXY = cubicSpline(self.dataX * maxrange, self.dataY * maxrange, np.arange(maxrange + 1))
-        return LUTXY
+        return cubicSpline(self.dataX * maxrange, self.dataY * maxrange, np.arange(maxrange + 1))
 
 class dngProfileLookTable:
     """
-    hue, saturation, value mapping table
+    (hue, saturation, value) 3D LUT.
+    Property data gives the table array
+    Property divs gives the number of division points for each axis.
+    Due to modulo arithmetic for hue and to the presence of sentinels,
+    divs and data.shape are different.
+    Input values for axis=i must be mapped to the (closed) interval  [0, divs[i]]
     """
-
     def __init__(self, dngDict):
         """
-        Init a profile look table from a dictionary of (tagname, str) pairs
-        Dictionary values are decoded following the Adobe dng spec.
+        Init a profile look table from a dictionary of (tagname, str) pairs.
+        Tags are 'ProfileLookTableDims', 'ProfileLookTableEncoding', 'ProfileLookTableData'.
+        Values are decoded following the Adobe dng spec.
         @param dngDict:
-        @type dngDict:
+        @type dngDict: dict
         """
         self.isValid = False
-        dims, encoding, data = dngDict.get('ProfileLookTableDims', None), dngDict.get('ProfileLookTableEncoding', None), dngDict.get('ProfileLookTableData', None)
-        if dims is None  or data is None:  # encoding not used yet : it seems to be missing in some dng files
+        divs, encoding, data = dngDict.get('ProfileLookTableDims', None), dngDict.get('ProfileLookTableEncoding', None), dngDict.get('ProfileLookTableData', None)
+        if divs is None  or data is None:  # encoding not used yet : it seems to be missing in dng files
             return
         try:
-            # raed dims of the LookTable
-            dims = [int(x) for x in dims.split(' ')]
-            self.dims = tuple(dims)  # h, s, v counts of division points
-            # read encoding
+            # read encoding : may be missing
             try:
                 self.encoding = int(encoding)  # 0: linear, 1 : sRGb
             except TypeError:
                 self.encoding = 0
-            # allocate data array
-            buf = np.zeros((dims[0]+1, dims[1], dims[2], 3), dtype = np.float) + (0, 1, 1)
-            # read data h inices start from 0, s, v indice
-            # the table is stored in v, h, s loops ordering (cf. the dng specification)
-            data = np.array([float(x) for x in data.split(' ')]).reshape(dims[2], dims[0], dims[1], 3) # v, h, s
-            # move to h, s, v ordering for axes
-            data = np.moveaxis(data, (0,1,2), (2, 0, 1)) # h, s, v
-            # h, s, v start from index 0
-            buf[0:-1, :, :, : ] = data[:, :, :, ]
-            buf[-1,:,:,0] = buf[0,:,:,0]
-            self.data = buf
+            # read the number of division points for each axis.
+            divs = [int(x) for x in divs.split(' ')]
+            # read data. Tthe table is stored in v, h, s loops ordering (cf. the dng specification)
+            data = np.array([float(x) for x in data.split(' ')]).reshape(divs[2], divs[0], divs[1], 3)  # v, h, s
+            # add a division point for hue = 360 (cf. dng spec p. 82)
+            divs[0] += 1
+            self.__divs = tuple(divs)
+            # allocate data array.
+            # adding sentinels, so all
+            # dims are increased by +1 (Sentinels allow to
+            # use closed intervals instead of right-opened intervals
+            # as input ranges).
+            buf = np.zeros((divs[0] + 1, divs[1] + 1, divs[2] + 1, 3), dtype = np.float) + (0, 1, 1)
+            # move axes to h, s, v ordering
+            data = np.moveaxis(data, (0,1,2), (2, 0, 1))
+            # put values into table, starting from index 0.
+            buf[0:-2, :-1, :-1, : ] = data[:, :, :, ]
+            # modulo arithmetic for hue
+            buf[-2,:,:,0] = buf[0,:,:,0]
+            # interpolation does not use the values of sentinels faces, so don't care
+            self.__data = buf
         except (ValueError, TypeError) as e:
-            print(str(e))
+            print('dngProfileLooktable : ', str(e))
         self.isValid = True
+
+    @property
+    def divs(self):
+        """
+        Count of division points for each axis.
+
+        @return:
+        @rtype: 3-uple of int
+        """
+        return self.__divs
+
+    @property
+    def data(self):
+        return self.__data
 
 
