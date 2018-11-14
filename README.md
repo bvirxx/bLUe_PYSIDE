@@ -7,14 +7,13 @@ Copyright (C) 2017-2018 Bernard Virot <bernard.virot@libertysurf.fr>
  bLUe is a complete GUI environment for photo edition, featuring a large set of controls as adjustment layers, including
  3D LUTs and 2.5D LUTs.
 
-A 3D LUT is represented by a 3D cube of color nodes. Image pixels are associated
+A 3D LUT is a table representing a 3D cube of color nodes. Image pixels are associated
 to nodes, based on their color, and changes are applied to each node individually,
-giving full control over colors. However, for photo editing, aesthetic considerations show that
-modifications should not depend on the pixel brightnesses. A 3D LUT respecting this constraint
-is called 2.5D LUT.
+giving full control over colors. When changes in color do not depend on the pixel brightnesses,
+the table is called a 2.5D LUT.
 bLUe creates interactive 2.5D LUTs which can be edited by selecting, grouping and moving nodes as control points over
 a (hue, saturation) color wheel. Nodes are bound to an elastic grid and a grid smoothing algorithm is provided
-to even the changes in color.
+to even the changes in color. Full 3D LUTs are created and edited by combining 2.5 LUTs with curves.
 
 bLue supports dng/dcp camera profiles for the development of raw images : the same profile
 can be applied to several images, to obtain uniform results with a significant saving in time.
@@ -36,7 +35,7 @@ segmentation, geometric transformations, curves (1D LUTs), 2.5D LUTs, 3D LUTs.
 * Automatic contrast enhancement (histogram warping and CLAHE)
 * Crop tool
 * Import and export of 3D LUTs in .cube format
-* Mask edition
+* Masks
 * Automatic import of camera specific dng and dcp profiles
 * Editable tone curve
 * Library viewer
