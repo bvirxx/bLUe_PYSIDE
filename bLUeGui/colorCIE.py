@@ -44,15 +44,7 @@ sRGBWP = 6500
 # According to Python and Numpy conventions, the below definitions of matrix
 # constants as lists and/or arrays give M[row_index][col_index] values.
 
-Von_Kries = [[0.4002400, 0.7076000, -0.0808100],
-             [-0.2263000, 1.1653200, 0.0457000],
-             [0.0000000, 0.0000000, 0.9182200]]
-
-Von_KriesInverse = [[1.8599364, -1.1293816, 0.2198974],
-                    [0.3611914, 0.6388125, -0.0000064],
-                    [0.0000000, 0.0000000, 1.0890636]]
-
-Bradford = [[0.8951000, 0.2664000, -0.1614000],  # photoshop and best
+Bradford = [[0.8951000, 0.2664000, -0.1614000],
             [-0.7502000, 1.7135000, 0.0367000],
             [0.0389000, -0.0685000, 1.0296000]]
 
@@ -392,12 +384,13 @@ def temperature2xyWP(T):
         yc = 3.0817580 * (xc ** 3) - 5.87338670 * (xc ** 2) + 3.75112997 * xc - 0.37001483  # 4000<T<25000
     return xc, yc
 
-
 ###################################################################################################
-# The next table is taken from Wyszecki and Stiles book "Color Science", 2nd edition, p 228.
-# It records lines [(10**6/T), u, v, slope], with T = temperature, (u,v) = WP coordinates in CIEYUV, slope = isotherm slope,
-# for temperatures from 1666.66K to infinity.
+# The next table records lines [(10**6/T), u, v, slope], with T = temperature, (u,v) = WP coordinates in CIEYUV,
+# slope = isotherm slope, for temperatures from 1666.66K to infinity.
 # The Robertson's method uses it as an interpolation table for converting u,v coordinates to and from (Temperature, Tint).
+# References
+#   1) Wyszecki and Stiles book "Color Science", 2nd edition, p 228.
+#   2) http://www.brucelindbloom.com/index.html?Eqn_XYZ_to_T.html
 ###################################################################################################
 uvtTable = [
     [0, 0.18006, 0.26352, -0.24341],
@@ -419,8 +412,8 @@ uvtTable = [
     [250, 0.22511, 0.33439, -1.4512],
     [275, 0.23247, 0.33904, -1.7298],
     [300, 0.24010, 0.34308, -2.0637],
-    [325, 0.24792, 0.34655, -2.4681],  # Note: 0.24792 is a corrected value for the value found in W&S book as 0.24702
-    [350, 0.25591, 0.34951, -2.9641],  # cf. http://www.brucelindbloom.com/index.html?Eqn_XYZ_to_T.html
+    [325, 0.24792, 0.34655, -2.4681],
+    [350, 0.25591, 0.34951, -2.9641],
     [375, 0.26400, 0.35200, -3.5814],
     [400, 0.27218, 0.35407, -4.3633],
     [425, 0.28039, 0.35577, -5.3762],
