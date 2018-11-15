@@ -32,30 +32,32 @@ from debug import tdec
 from dng import dngProfileLookTable, dngProfileToneCurve
 from settings import USE_TETRA
 
-def rawPostProcess(rImg, pool=None):
+def rawPostProcess(rawLayer, pool=None):
     """
-    Develop raw image.
+    raw layer development.
     Processing order is the following:
-         1 - process raw image
-         2 - paply profile look table
-         3 - apply profile and user tone curve
+         1 - postprocessing
+         2 - profile look table
+         3 - profile and user tone curve
          2 - contrast correction
          3 - saturation correction
+    A pool of workers is used to apply the
+    profile look table.
     An Exception AttributeError is raised if rawImage
-    is not an attribute of self.parentImage.
-    @param rImg: development layer
-    @type rImg: Qlayer
-    @param pool:
-    @type pool:
+    is not an attribute of rawLayer.parentImage.
+    @param rawLayer: development layer
+    @type rawLayer: Qlayer
+    @param pool: multi processing pool
+    @type pool: multiprocessing.pool
     """
     # postprocess output bits per channel
     output_bpc = 8
     max_ouput = 255 if output_bpc == 8 else 65535
-    if rImg.parentImage.isHald:
+    if rawLayer.parentImage.isHald:
         raise ValueError('Cannot build a 3D LUT from raw stack')
 
     # get adjustment form and rawImage
-    adjustForm = rImg.getGraphicsForm()  # self.view.widget()
+    adjustForm = rawLayer.getGraphicsForm()  # self.view.widget()
     options = adjustForm.options
 
     # show the Tone Curve form
@@ -65,23 +67,23 @@ def rawPostProcess(rImg, pool=None):
         toneCurveShowFirst = False
 
     # get RawPy instance
-    rawImage = getattr(rImg.parentImage, 'rawImage', None)
+    rawImage = getattr(rawLayer.parentImage, 'rawImage', None)
     if rawImage is None:
         raise ValueError("rawPostProcessing : not a raw image")
-    currentImage = rImg.getCurrentImage()
+    currentImage = rawLayer.getCurrentImage()
 
     ##################
     # Control flags
     # postProcessCache is invalidated (reset to None) to by graphicsRaw.updateLayer (graphicsRaw.dataChanged event handler).
     # bufCache_HSV_CV32 is invalidated (reset to None) by camera profile related events.
-    doALL = rImg.postProcessCache is None
+    doALL = rawLayer.postProcessCache is None
     if not doALL:
-        parentImage = rImg.parentImage
-        if (rImg.half and not parentImage.useThumb) or (not rImg.half and parentImage.useThumb):
-            rImg.postProcessCache, rImg.bufCache_HSV_CV32 = (None,) * 2
+        parentImage = rawLayer.parentImage
+        if (rawLayer.half and not parentImage.useThumb) or (not rawLayer.half and parentImage.useThumb):
+            rawLayer.postProcessCache, rawLayer.bufCache_HSV_CV32 = (None,) * 2
             doALL = True
-    doCameraLookTable = options['cpLookTable'] and (doALL or rImg.bufCache_HSV_CV32 is None)
-    half_size = rImg.parentImage.useThumb
+    doCameraLookTable = options['cpLookTable'] and (doALL or rawLayer.bufCache_HSV_CV32 is None)
+    half_size = rawLayer.parentImage.useThumb
     #################
 
     ######################################################################################################################
@@ -121,7 +123,7 @@ def rawPostProcess(rImg, pool=None):
         #############################################
         # build sample images for a set of multipliers
         if adjustForm.sampleMultipliers:
-            bufpost16 = np.empty((rImg.height(), rImg.width(), 3), dtype=np.uint16)
+            bufpost16 = np.empty((rawLayer.height(), rawLayer.width(), 3), dtype=np.uint16)
             m = adjustForm.rawMultipliers
             co = np.array([0.85, 1.0, 1.2])
             mults = itertools.product(m[0] * co, [m[1]], m[2] * co)
@@ -171,28 +173,28 @@ def rawPostProcess(rImg, pool=None):
                 median_filter_passes=1
             )
             # save image into post processing cache
-            rImg.postProcessCache = cv2.cvtColor(((bufpost16.astype(np.float32)) / max_ouput).astype(np.float32), cv2.COLOR_RGB2HSV)
-            rImg.half = half_size
+            rawLayer.postProcessCache = cv2.cvtColor(((bufpost16.astype(np.float32)) / max_ouput).astype(np.float32), cv2.COLOR_RGB2HSV)
+            rawLayer.half = half_size
     else:
         pass
 
     if getattr(adjustForm, "toneForm", None) is not None:
         if doALL or toneCurveShowFirst:
             # update histogram
-            s = rImg.postProcessCache.shape
+            s = rawLayer.postProcessCache.shape
             tmp = bImage(s[1], s[0], QImage.Format_RGB32)
             buf = QImageBuffer(tmp)
-            buf[:, :, :] = (rImg.postProcessCache[:, :, 2, np.newaxis] * 255).astype(np.uint8)
-            rImg.linearImg = tmp
-            rImg.histImg = tmp.histogram(size=adjustForm.toneForm.scene().axeSize,
-                                         bgColor=adjustForm.toneForm.scene().bgColor,
-                                         range=(0, 255), chans=channelValues.Br) # mode='Luminosity')
-        adjustForm.toneForm.scene().quadricB.histImg = rImg.histImg
+            buf[:, :, :] = (rawLayer.postProcessCache[:, :, 2, np.newaxis] * 255).astype(np.uint8)
+            rawLayer.linearImg = tmp
+            rawLayer.histImg = tmp.histogram(size=adjustForm.toneForm.scene().axeSize,
+                                             bgColor=adjustForm.toneForm.scene().bgColor,
+                                             range=(0, 255), chans=channelValues.Br) # mode='Luminosity')
+        adjustForm.toneForm.scene().quadricB.histImg = rawLayer.histImg
         adjustForm.toneForm.scene().update()
 
     # beginning of the camera profile phase : update buffers from the last post processed image
-    bufHSV_CV32 = rImg.postProcessCache.copy()
-    rImg.bufCache_HSV_CV32 = bufHSV_CV32.copy()
+    bufHSV_CV32 = rawLayer.postProcessCache.copy()
+    rawLayer.bufCache_HSV_CV32 = bufHSV_CV32.copy()
 
 
     ##########################
@@ -210,7 +212,7 @@ def rawPostProcess(rImg, pool=None):
             bufHSV_CV32[:, :, 0] = np.mod(bufHSV_CV32[:, :, 0] + coeffs[:, :, 0], 360)
             bufHSV_CV32[:, :, 1:] = bufHSV_CV32[:, :, 1:] * coeffs[:, :, 1:]
             np.clip(bufHSV_CV32, (0, 0, 0), (360, 1, 1), out=bufHSV_CV32)
-            rImg.bufCache_HSV_CV32 = bufHSV_CV32.copy()
+            rawLayer.bufCache_HSV_CV32 = bufHSV_CV32.copy()
     else:
         pass
     #############
@@ -230,10 +232,10 @@ def rawPostProcess(rImg, pool=None):
             # guiLUTXY = np.interp(np.arange(256), np.arange(256) * 256, guiLUTXY)
             bufHSV_CV32[:, :, 2] = userLUTXY[(bufHSV_CV32[:, :, 2] * 255).astype(np.uint16)] / 255  # TODO watch conversion ???
 
-    rImg.bufCache_HSV_CV32 = bufHSV_CV32.copy() # CAUTION : must be outside of if adjusFormToneForm...
+    rawLayer.bufCache_HSV_CV32 = bufHSV_CV32.copy() # CAUTION : must be outside of if adjusFormToneForm...
 
     # beginning of the contrast-saturation phase : update buffer from the last camera profile applcation
-    bufHSV_CV32 = rImg.bufCache_HSV_CV32.copy()
+    bufHSV_CV32 = rawLayer.bufCache_HSV_CV32.copy()
     ###########
     # contrast and saturation correction (V channel).
     # We apply an automatic histogram equalization
@@ -247,11 +249,11 @@ def rawPostProcess(rImg, pool=None):
         warp = max(0, (adjustForm.contCorrection - 1)) / 10
         bufHSV_CV32[:, :, 2], a, b, d, T = warpHistogram(bufHSV_CV32[:, :, 2], valleyAperture=0.05, warp=warp,
                                                          preserveHigh=options['Preserve Highlights'],
-                                                         spline=None if rImg.autoSpline else rImg.getMmcSpline())  # preserveHigh=options['Preserve Highlights'])
+                                                         spline=None if rawLayer.autoSpline else rawLayer.getMmcSpline())  # preserveHigh=options['Preserve Highlights'])
         # show the spline
-        if rImg.autoSpline and options['manualCurve']:
-            rImg.getGraphicsForm().setContrastSpline(a, b, d, T)
-            rImg.autoSpline = False  # mmcSpline = self.getGraphicsForm().scene().cubicItem # caution : misleading name for a quadratic s
+        if rawLayer.autoSpline and options['manualCurve']:
+            rawLayer.getGraphicsForm().setContrastSpline(a, b, d, T)
+            rawLayer.autoSpline = False  # mmcSpline = self.getGraphicsForm().scene().cubicItem # caution : misleading name for a quadratic s
     if adjustForm.satCorrection != 0:
         satCorr = adjustForm.satCorrection / 100  # range -0.5..0.5
         alpha = 1.0 / (0.501 + satCorr) - 1.0  # approx. map -0.5...0.0...0.5 --> +inf...1.0...0.0
@@ -279,10 +281,10 @@ def rawPostProcess(rImg, pool=None):
     ###################################################
     #bufpostUI8 = (bufpost16/256).astype(np.uint8)
     #################################################
-    if rImg.parentImage.useThumb:
+    if rawLayer.parentImage.useThumb:
         bufpostUI8 = cv2.resize(bufpostUI8, (currentImage.width(), currentImage.height()))
 
     bufOut = QImageBuffer(currentImage)
     bufOut[:, :, :3][:, :, ::-1] = bufpostUI8
     # base layer : no need to forward the alpha channel
-    rImg.updatePixmap()
+    rawLayer.updatePixmap()

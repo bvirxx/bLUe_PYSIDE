@@ -21,7 +21,7 @@ import cv2
 from PySide2.QtCore import Qt
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QComboBox
 
-from bLUeGui.graphicsSpline import baseForm
+from bLUeGui.graphicsForm import baseForm
 from bLUeGui.dialog import dlgWarn
 
 from versatileImg import vImage

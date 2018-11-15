@@ -22,7 +22,7 @@ from PySide2 import QtCore
 from PySide2.QtCore import Qt
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout
 
-from bLUeGui.graphicsSpline import baseForm
+from bLUeGui.graphicsForm import baseForm
 from bLUeCore.kernel import filterIndex, getKernel
 from bLUeGui.qrangeslider import QRangeSlider
 from utils import optionsWidget

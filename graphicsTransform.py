@@ -20,7 +20,7 @@ import weakref
 from PySide2.QtCore import Qt
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QPushButton, QHBoxLayout
 
-from bLUeGui.graphicsSpline import baseForm
+from bLUeGui.graphicsForm import baseForm
 from utils import optionsWidget, UDict
 
 

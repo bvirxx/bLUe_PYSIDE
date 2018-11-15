@@ -21,8 +21,6 @@ import gc
 
 import weakref
 
-from os.path import isfile
-
 from PySide2.QtCore import Qt, QDataStream, QFile, QIODevice, QSize, QPoint
 
 import cv2
@@ -279,29 +277,39 @@ class mImage(vImage):
             return
         self.layersStack.pop(index)
 
-    def addAdjustmentLayer(self, name='', role='',  index=None, sourceImg=None):
+    def addAdjustmentLayer(self, layerType=None, name='', role='', index=None, sourceImg=None):
         """
         Adds an adjustment layer to the layer stack, at
-        position index (default is top of active layer)
+        position index (default is top of active layer).
+        The parameter layerType controls the class of the layer; it should
+        be a subclass of QLayer, default is QLayer itself.
+        If the parameter sourceImg is given, the layer is a
+        QLayerImage object built from sourceImg, and layerType has no effect.
+
+        @param layerType: layer class
+        @type layerType: QLayer subclass
         @param name:
-        @type name:
+        @type name: str
         @param role:
-        @type role:
+        @type role: str
         @param index:
-        @type index:
-        @param sourceImg:
-        @type sourceImg:
-        @return:
-        @rtype:
+        @type index: int
+        @param sourceImg: source image
+        @type sourceImg: QImage
+        @return: the new layer
+        @rtype: subclass of QLayer
         """
         if index is None:
             # adding on top of active layer
             index = self.activeLayerIndex
         if sourceImg is None:
-            # set image from active layer
-            layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
+            # set layer from active layer
+            if layerType is None:
+                layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
+            else:
+                layer = layerType.fromImage(self.layersStack[index], parentImage=self)
         else:
-            # image layer :
+            # set layer from image :
             layer = QLayerImage.fromImage(self.layersStack[index], parentImage=self, sourceImg=sourceImg)
         layer.role = role
         self.addLayer(layer, name=name, index=index + 1)
@@ -441,8 +449,9 @@ class mImage(vImage):
             """
             dataStream.writeQString(layer.actionName)
         for layer in self.layersStack:
-            if getattr(layer, 'view', None) is not None:
-                layer.view.widget().writeToStream(dataStream)
+            grForm = layer.getGraphicsForm()
+            if grForm is not None:
+                grForm.writeToStream(dataStream)
 
     def readStackFromStream(self, dataStream):
         # stack length
@@ -515,15 +524,17 @@ class imImage(mImage) :
                 # for historical reasons, graphic forms inheriting
                 # from QGraphicsView use form.scene().layer attribute,
                 # others use form.layer
+                """
                 # use weak refs for back links
                 if type(tLayer) in weakref.ProxyTypes:
                     wtLayer = tLayer
                 else:
                     wtLayer = weakref.proxy(tLayer)
-                if getattr(tLayer.view.widget(), 'scene', None) is None:
-                    tLayer.view.widget().layer = wtLayer
-                else:
-                    tLayer.view.widget().scene().layer = wtLayer
+                """
+                grForm = tLayer.getGraphicsForm()
+                # the grForm.layer property handles weak refs
+                grForm.layer = tLayer
+                grForm.scene().layer = grForm.layer # wtLayer
             stack.append(tLayer)
         img.layersStack = stack
         gc.collect()
@@ -606,7 +617,6 @@ class QLayer(vImage):
         self.colorPicked = baseSignal_Int2()
 
         ###########################################################
-        # self.parentImage = kwargs.get('parentImage', None)  #TODO added 11/09/18 validate removed 15/10/18 as duplicated
         # when a geometric transformation is applied to the whole image
         # each layer must be replaced with a transformed layer, recorded in tLayer
         # and tLayer.parentLayer keeps a reference to the original layer.
@@ -630,7 +640,8 @@ class QLayer(vImage):
         self.options = {}
         # actionName is used by methods graphics***.writeToStream()
         self.actionName = 'actionNull'
-        # associated form : view is set by bLUe.menuLayer()
+        # view is the dock widget containing
+        # the graphics form associated with the layer
         self.view = None
         # containers are initialized (only once) by
         # getCurrentMaskedImage. Their type is QLayer
@@ -646,15 +657,15 @@ class QLayer(vImage):
         self.xAltOffset, self.yAltOffset = 0, 0
         self.AltZoom_coeff = 1.0
         super().__init__(*args, **kwargs)
-        self.updatePixmap() # TODO added 13/10/18 validate
+        self.updatePixmap()
 
     def getGraphicsForm(self):
         """
-        Returns the graphics form associated to the layer
+        Return the graphics form associated with the layer
         @return:
         @rtype: QWidget
         """
-        if self.view is not None:  #TODO added 2/10/18 validate
+        if self.view is not None:
             return self.view.widget()
         return None
 
@@ -876,42 +887,37 @@ class QLayer(vImage):
 
     def applyToStack(self):
         """
-        Applies transformation and propagates changes to upper layers.
+        Apply new layer parameters and propagate changes to upper layers.
         """
         # recursive function
         def applyToStack_(layer, pool=None):
-            # apply Transformation (call vImage.apply*LUT...)
+            # apply transformation
             if layer.visible:
                 start = time()
-                layer.execute(l=layer)#, pool=pool) use default pool
+                layer.execute(l=layer)
                 layer.cacheInvalidate()
                 print("%s %.2f" %(layer.name, time()-start))
             stack = layer.parentImage.layersStack
+            lg = len(stack)
             ind = layer.getStackIndex() + 1
-            # get next visible upper layer
-            while ind < len(stack):
+            # update histograms displayed
+            # on the layer form, if any
+            if ind < lg:
+                grForm = stack[ind].getGraphicsForm()
+                if grForm is not None:
+                    grForm.updateHists()
+            # get next upper visible layer
+            while ind < lg:
                 if stack[ind].visible:
                     break
                 ind += 1
-            if ind < len(stack):
+            if ind < lg:
                 layer1 = stack[ind]
                 applyToStack_(layer1, pool=pool)
         try:
             QApplication.setOverrideCursor(Qt.WaitCursor)
             QApplication.processEvents()
-            """
-            if (not self.parentImage.useThumb or self.parentImage.useHald):
-                pool = None
-                # pool = multiprocessing.Pool(MULTIPROC_POOLSIZE)  # TODO time opt : pool is always created and used only by apply3DLUT; time 0.3s
-            else:
-                pool = None
-            """
             applyToStack_(self, pool=None)
-            """
-            if pool is not None:
-                pool.close()
-            pool = None
-            """
             # update the presentation layer
             self.parentImage.prLayer.execute(l=None, pool=None)
         finally:
@@ -1139,9 +1145,9 @@ class QLayer(vImage):
         return
 
     def readFromStream(self, dataStream):
-
-        if hasattr(self, 'view'):
-            self.view.widget().readFromStream(dataStream)
+        grForm = self.getGraphicsForm()
+        if grForm is not None:
+            grForm.readFromStream(dataStream)
         return dataStream
 
 class QPresentationLayer(QLayer):
@@ -1205,7 +1211,7 @@ class QPresentationLayer(QLayer):
 
 class QLayerImage(QLayer):
     """
-    QLayer holding a source image
+    QLayer containing its own source image
     """
     @classmethod
     def fromImage(cls, mImg, parentImage=None, sourceImg=None):
@@ -1264,8 +1270,46 @@ class QLayerImage(QLayer):
         """
         return self.sourceImg.scaled(self.getCurrentImage().size())
 
+class QRawLayer(QLayer):
+    """
+    Raw image development layer
+    """
 
+    @classmethod
+    def fromImage(cls, mImg, parentImage=None):
+        """
+        Returns a QLayer object initialized with mImg.
+        @param mImg:
+        @type mImg: QImage
+        @param parentImage:
+        @type parentImage: mImage
+        @return:
+        @rtype: QRawLayer
+        """
+        layer = QRawLayer(QImg=mImg, parentImage=parentImage)
+        layer.parentImage = parentImage
+        return layer
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.postProcessCache = None
+        self.bufCache_HSV_CV32 = None
+
+    @property
+    def postProcessCache(self):
+        return self.__postProcessCache
+
+    @postProcessCache.setter
+    def postProcessCache(self, buf):
+        self.__postProcessCache = buf
+
+    @property
+    def bufCache_HSV_CV32(self):
+        return self.__bufCache_HSV_CV32
+
+    @bufCache_HSV_CV32.setter
+    def bufCache_HSV_CV32(self, buffer):
+        self.__bufCache_HSV_CV32 = buffer
 
 
 

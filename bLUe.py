@@ -148,7 +148,7 @@ from graphicsRaw import rawForm
 from graphicsTransform import transForm, imageForm
 from bLUeGui.bLUeImage import QImageBuffer, QImageFormats
 from versatileImg import vImage, metadataBag
-from MarkedImg import imImage
+from MarkedImg import imImage, QRawLayer
 from graphicsRGBLUT import graphicsForm
 from graphicsLUT3D import graphicsForm3DLUT
 from lutUtils import LUTSIZE, LUT3D, LUT3DIdentity
@@ -468,7 +468,7 @@ def mouseEvent(widget, event) :  # TODO split into 3 handlers
                         layer.colorPicked.sig.emit(x_img, y_img, modifiers)
                         # select grid node for 3DLUT form
                         if layer.is3DLUTLayer():
-                            layer.view.widget().selectGridNode(red, green, blue)
+                            layer.getGraphicsForm().selectGridNode(red, green, blue)
                         if window.btnValues['rectangle'] and (modifiers == Qt.ControlModifier):
                             layer.rect = None
                         # for raw layer, set multipliers to get selected pixel as White Point
@@ -482,7 +482,7 @@ def mouseEvent(widget, event) :  # TODO split into 3 handlers
                             else:
                                 color = bufRaw[y_img, x_img, :]  # TODO added 25/06/18 to avoid uninit. color validate
                             color = [color[i] - layer.parentImage.rawImage.black_level_per_channel[i] for i in range(3)]
-                            form =layer.view.widget()
+                            form =layer.getGraphicsForm()
                             if form.sampleMultipliers:
                                 row, col = 3*y_img//layer.height(), 3*x_img//layer.width()
                                 if form.samples:
@@ -816,14 +816,13 @@ def addBasicAdjustmentLayers(img):
 def addRawAdjustmentLayer():
     """
     Add a development layer to the layer stack
-
     """
-    l = window.label.img.addAdjustmentLayer(name='Development', role='RAW')
+    l = window.label.img.addAdjustmentLayer(layerType=QRawLayer, name='Development', role='RAW')
     grWindow = rawForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window,
                                             mainForm=window)
     # wrapper for the right apply method
     pool = getPool()
-    l.execute = lambda l=l, pool=pool: l.tLayer.applyRawPostProcessing(pool=pool) # TODO 2/11/18  added pool validate
+    l.execute = lambda l=l, pool=pool: l.tLayer.applyRawPostProcessing(pool=pool)
     # record action name for scripting
     l.actionName = ''
     # dock the form

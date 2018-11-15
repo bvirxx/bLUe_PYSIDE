@@ -415,7 +415,7 @@ Note that upper visible layers slow down mask edition.
         self.updateForm()
         for item in self.img.layersStack:
             if hasattr(item, 'sourceIndex'):
-                combo = item.view.widget().sourceCombo
+                combo = item.getGraphicsForm().sourceCombo
                 currentText = combo.currentText()
                 combo.clear()
                 for i, x in enumerate(self.img.layersStack):
@@ -863,7 +863,7 @@ Note that upper visible layers slow down mask edition.
                 l.updatePixmap(maskOnly=True)
             self.img.onImageChanged()
         def layerReset():
-            view = layer.view.widget()
+            view = layer.getGraphicsForm()
             if hasattr(view, 'reset'):
                 view.reset()
 

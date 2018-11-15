@@ -37,9 +37,6 @@ class bImage(QImage):
         self.hspbBuffer = None
         self.LabBuffer = None
         self.HSVBuffer = None
-        self.postProcessCache = None
-        self.bufCache_HSV_CV32 = None
-        #self.dngDict = {}
 
     @property
     def filename(self):
@@ -48,14 +45,6 @@ class bImage(QImage):
     @filename.setter
     def filename(self, s):
         self.__filename = s
-
-    @property
-    def postProcessCache(self):
-        return self.__postProcessCache
-
-    @postProcessCache.setter
-    def postProcessCache(self, buf):
-        self.__postProcessCache = buf
 
     @property
     def rPixmap(self):
@@ -88,14 +77,6 @@ class bImage(QImage):
     @HSVBuffer.setter
     def HSVBuffer(self, buffer):
         self.__HSVBuffer = buffer
-
-    @property
-    def bufCache_HSV_CV32(self):
-        return self.__bufCache_HSV_CV32
-
-    @bufCache_HSV_CV32.setter
-    def bufCache_HSV_CV32(self, buffer):
-        self.__bufCache_HSV_CV32 = buffer
 
     def updatePixmap(self, maskOnly=False):
         """

@@ -291,7 +291,7 @@ class graphicsLabForm(graphicsCurveForm):
 
     def updateHist(self, curve, redraw=True):
         """
-        Updates the channel histogram displayed under the curve
+        Update the channel histogram displayed under the curve
 
         @param curve:
         @type curve:
@@ -310,14 +310,14 @@ class graphicsLabForm(graphicsCurveForm):
             curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize,
                                                         bgColor=sc.bgColor, range=(-100, 100),
                                                         chans=channelValues.b, mode='Lab')
-        # Force to redraw histogram
+        # Force to redraw the histogram
         if redraw:
             sc.invalidate(QRectF(0.0, -sc.axeSize, sc.axeSize, sc.axeSize),
                             sc.BackgroundLayer)
 
     def updateHists(self):
         """
-        Updates all histograms
+        Updates all histograms on the form
         @return:
         @rtype:
         """

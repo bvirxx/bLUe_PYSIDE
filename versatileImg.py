@@ -713,7 +713,7 @@ class vImage(bImage):
         @type nbIter: int
         @param mode:
         """
-        form = self.view.widget()
+        form = self.getGraphicsForm()
         formOptions = form.listWidget1
         inputImg = self.inputImg()
         ##################################################################
@@ -841,7 +841,7 @@ class vImage(bImage):
         ind = np.unravel_index(ind, (bufIn.shape[0], bufIn.shape[1],))
         Mask0, Mask1, Mask2 = bufIn[ind]
         if self.view is not None:
-            form = self.view.widget()
+            form = self.getGraphicsForm()
             Mask0, Mask1, Mask2 =  form.Bmask, form.Gmask, form.Rmask
         currentImage = self.getCurrentImage()
         bufOut = QImageBuffer(currentImage)
@@ -940,7 +940,7 @@ class vImage(bImage):
         self.applyTransForm(options)
 
     def applyNoiseReduction(self):
-        adjustForm = self.view.widget()
+        adjustForm = self.getGraphicsForm()
         noisecorr = adjustForm.noiseCorrection
         currentImage = self.getCurrentImage()
         inputImage = self.inputImg()
@@ -1025,7 +1025,7 @@ class vImage(bImage):
         @param version:
         @type version:
         """
-        adjustForm = self.view.widget()
+        adjustForm = self.getGraphicsForm()
         options = adjustForm.options
         contrastCorrection = adjustForm.contrastCorrection
         satCorrection = adjustForm.satCorrection
@@ -1471,7 +1471,7 @@ class vImage(bImage):
         """
         Apply 2D kernel.
         """
-        adjustForm = self.view.widget()
+        adjustForm = self.getGraphicsForm()
         inputImage = self.inputImg()
         currentImage = self.getCurrentImage()
         buf0 = QImageBuffer(inputImage)
@@ -1517,7 +1517,7 @@ class vImage(bImage):
         """
         Apply a gradual neutral density filter
         """
-        adjustForm = self.view.widget()
+        adjustForm = self.getGraphicsForm()
         inputImage = self.inputImg()
         currentImage = self.getCurrentImage()
         buf0 = QImageBuffer(inputImage)
@@ -1579,7 +1579,7 @@ class vImage(bImage):
         - Chromatic adaptation : multipliers in linear sRGB.
         - Photo filter : Blending using mode multiply, plus correction of luminosity
         """
-        adjustForm = self.view.widget()
+        adjustForm = self.getGraphicsForm()
         options = adjustForm.options
         temperature = adjustForm.tempCorrection
         tint = adjustForm.tintCorrection # range -1..1
