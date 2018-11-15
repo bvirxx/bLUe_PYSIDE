@@ -387,7 +387,8 @@ def temperature2xyWP(T):
 ###################################################################################################
 # The next table records lines [(10**6/T), u, v, slope], with T = temperature, (u,v) = WP coordinates in CIEYUV,
 # slope = isotherm slope, for temperatures from 1666.66K to infinity.
-# The Robertson's method uses it as an interpolation table for converting u,v coordinates to and from (Temperature, Tint).
+# We use it as an interpolation table for converting u,v coordinates to and
+# # from (Temperature, Tint) (Robertson's method)
 # References
 #   1) Wyszecki and Stiles book "Color Science", 2nd edition, p 228.
 #   2) http://www.brucelindbloom.com/index.html?Eqn_XYZ_to_T.html
@@ -426,7 +427,6 @@ uvtTable = [
     [600, 0.33724, 0.36051, -116.45]
 ]
 
-
 def xy2uv(x, y):
     """
     convert from xy to Yuv color space
@@ -456,7 +456,7 @@ def xy2TemperatureAndTint(x, y):
     Convert xy coordinates of a color point to Temperature and Tint.
     The conversion is based on the Robertson's method
     of interpolation in the uv space.
-    Tint is a translation and it is scaled by an arbitrary chosen factor TintScale
+    Tint is a shift in the uv space, and it is scaled by TintScale
     @param x:
     @type x: float
     @param y:
@@ -464,11 +464,6 @@ def xy2TemperatureAndTint(x, y):
     @return: Temperature and Tint
     @rtype: 2-uple of float
     """
-    ##########################
-    # arbitrary scaling factor
-    ##########################
-    TintScale = -300.0
-
     # convert to uv
     u, v = xy2uv(x, y)
     last_dt, last_dv, last_du = 0.0, 0.0, 0.0
@@ -522,7 +517,7 @@ def temperatureAndTint2xy(temp, tint):
     @rtype: 2-uple of float
     """
     r = (10 ** 6) / temp
-    # convert tint to uv space multiplicator
+    # convert back tint to a shift in uv space
     tint = tint / TintScale
     result = (0.0, 0.0)
     for index in range(30):
@@ -542,7 +537,7 @@ def temperatureAndTint2xy(temp, tint):
             uu3, vv3 = w * uu1 + (1.0 - w) * uu2, w * vv1 + (1.0 - w) * vv2
             n3 = np.sqrt(uu3 * uu3 + vv3 * vv3)
             uu3, vv3 = uu3 / n3, vv3 / n3
-            # shift WP along isotherm according to tint
+            # shift WP along the isotherm according to tint
             u, v = WPu + uu3 * tint, WPv + vv3 * tint
             result = uv2xy(u, v)
             break
