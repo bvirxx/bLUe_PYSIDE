@@ -447,16 +447,14 @@ def uv2xy(u, v):
     x, y = 1.5 * u / d, v / d
     return x, y
 
-
-# arbitrary scaling factor for tint values
-TintScale = -300.0
+#TintScale = -300.0
 
 def xy2TemperatureAndTint(x, y):
     """
     Convert xy coordinates of a color point to Temperature and Tint.
     The conversion is based on the Robertson's method
     of interpolation in the uv space.
-    Tint is a shift in the uv space, and it is scaled by TintScale
+    Tint is a shift in the uv space.
     @param x:
     @type x: float
     @param y:
@@ -478,7 +476,6 @@ def xy2TemperatureAndTint(x, y):
         uu, vv = u - uvtTable[index][1], v - uvtTable[index][2]
         # get algebraic distance from (u,v) to current isotherm
         dt = - uu * dv + vv * du  # (-dv, du) is a unit vector orthogonal to the isotherm
-
         if dt <= 0 or (index == 30):
             if index == 0:
                 raise ValueError('xy2TemperatureAndTint : Temp should not be infinity')
@@ -495,7 +492,7 @@ def xy2TemperatureAndTint(x, y):
             du, dv = du * (1.0 - w) + last_du * w, dv * (1.0 - w) + last_dv * w
             n = np.sqrt(du * du + dv * dv)
             du, dv = du / n, dv / n
-            tint = (u * du + v * dv) * TintScale
+            tint = (u * du + v * dv) # * TintScale
             break
         last_dt, last_du, last_dv = dt, du, dv
     return temp, tint
@@ -503,8 +500,7 @@ def xy2TemperatureAndTint(x, y):
 
 def temperatureAndTint2xy(temp, tint):
     """
-    Convert temperature and tint to xy coordinates. The tint input is first scaled
-    by 1/TintScale.
+    Convert temperature and tint to xy coordinates.
     The conversion is based on the Robertson's method of interpolation.
     Tint is a shift : for tint=0.0, the function gives the xy coordinates of the white point WP(T) :
     Cf. also temperature2xyWP(T).
@@ -517,8 +513,6 @@ def temperatureAndTint2xy(temp, tint):
     @rtype: 2-uple of float
     """
     r = (10 ** 6) / temp
-    # convert back tint to a shift in uv space
-    tint = tint / TintScale
     result = (0.0, 0.0)
     for index in range(30):
         if (r < uvtTable[index + 1][0]) or (r == 29):
