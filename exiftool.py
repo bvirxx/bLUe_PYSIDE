@@ -33,6 +33,7 @@ from os.path import isfile, basename
 from settings import EXIFTOOL_PATH
 from bLUeGui.dialog import dlgWarn
 
+
 class ExifTool(object):
     # exiftool synchronization token
     sentinel = "{ready}"
@@ -44,7 +45,7 @@ class ExifTool(object):
     # -S : very short output format
     # -G0 : print group name for each tag
 
-    def __init__(self, executable = EXIFTOOL_PATH):
+    def __init__(self, executable=EXIFTOOL_PATH):
         self.executable = executable
 
     def __enter__(self):
@@ -57,13 +58,13 @@ class ExifTool(object):
             # when the program is frozen by PyInstaller with
             # console set to False.
             startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW # prevent subprocess from opening a window.
-            startupinfo.wShowWindow = subprocess.SW_HIDE           # This is needed when the application is frozen with PyInstaller
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW  # prevent subprocess from opening a window.
+            startupinfo.wShowWindow = subprocess.SW_HIDE            # This is needed when the application is frozen with PyInstaller
             # -@ FILE : read command line args from FILE
             # -stay_open True: keep reading -@ argFILE even after EOF
             self.process = subprocess.Popen(
                                         [self.executable, "-stay_open", "True",  "-@", "-"],
-                                        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,#subprocess.DEVNULL
+                                        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,  # subprocess.DEVNULL
                                         startupinfo=startupinfo
                                        )
         except OSError:
@@ -72,7 +73,7 @@ class ExifTool(object):
             exit()
         return self
 
-    def  __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(self, exc_type, exc_value, traceback):
         """
         exit "with" block:
         Terminate process. The function is always executed,
@@ -95,13 +96,11 @@ class ExifTool(object):
         """
         Main ExifTool method. It executes
         the exiftool commands defined by *args and returns
-        the command output. The value of the flag ascii must
-        correspond to the expected type of exiftool output.
+        exif output. If ascii is True, output is of type str,
+        and of type bytes otherwise.
         @param args:
         @type args: tuple of str
-        @param indata: data sent to exiftool stdin
-        @type inData: bytearray
-        @param ascii: flag for exiftool expected output data type : binary/str
+        @param ascii: flag for the type of returned data
         @type ascii: boolean
         @return: command output
         @rtype: str or bytes according to the ascii flag.
@@ -128,7 +127,7 @@ class ExifTool(object):
         if ascii:
             output = str(output, encoding='ascii')
         else:
-            output = bytes(output)#[:-len(self.sentinel)-2])
+            output = bytes(output)
         return output
 
     ##################
@@ -141,7 +140,8 @@ class ExifTool(object):
         @param f: path to image file
         @type f: str
         """
-        self.execute(*(["-tagsFromFile", f, "-overwrite_original", f[:-4] + ".mie"]))
+        command = ["-tagsFromFile", f, "-overwrite_original", f[:-4] + ".mie"]
+        self.execute(*command)
 
     def copySidecar(self, source, dest, removesidecar=False):
         """
@@ -160,7 +160,8 @@ class ExifTool(object):
         sidecar = source[:-4] + '.mie'
         if isfile(sidecar):
             # copy metadata from sidecar to image file
-            self.execute(*(["-tagsFromFile", sidecar, "-overwrite_original", dest]))
+            command = ["-tagsFromFile", sidecar, "-overwrite_original", dest]
+            self.execute(*command)
         else:
             return False
         if removesidecar:
@@ -178,29 +179,36 @@ class ExifTool(object):
         @return: data
         @rtype: bytes
         """
-        buf = self.execute(*['-b', '-m', '-' + tagname, f], ascii=False)  # -m disables output of warnings
+        command = ['-b', '-m', '-' + tagname, f]
+        buf = self.execute(*command, ascii=False)  # -m : disables output of warnings
         return bytes(buf)
 
-    def readBinaryDataAsDict(self, f, taglist=[]):
+    def readBinaryDataAsDict(self, f, taglist=None):
         """
-        Read binary metadata values from a list of tag names in an image file,
-        a raw imamge file, a sidecar file or dcp profile. Return a dictionary of decoded buffers (i.e. str).
+        Read tag values from a list of tag names in an image file,
+        a raw imamge file, a sidecar file or a dng/dcp profile.
+        tag values can be binary data or strings.
+        The method returns a dictionary of decoded buffers (= str).
         @param f: file name
         @type f: str
-        @param taglist: list of tag names
-        @type taglist: list
-        @return: binary data
+        @param taglist: tag names
+        @type taglist: list of str
+        @return: data
         @rtype: dict of str
         """
         d = {}
+        if taglist is None:
+            return d
         for tagname in taglist:
-            buf = self.execute(*['-b', '-m', '-' + tagname, f], ascii=False)
+            command = ['-b', '-m', '-' + tagname, f]  # -m : disables output of warnings
+            buf = self.execute(*command, ascii=False)
+            # decode to str
             d[tagname] = buf.decode()
         return d
 
     def get_thumbNail(self, f, thumbname='thumbnailimage'):
         """
-        Extracts the (jpg) thumbnail from an image or sidecar file
+        Extract the (jpg) thumbnail from an image or sidecar file
         and returns it as a QImage.
         @param f: path to image or sidecar file
         @type f: str
@@ -209,12 +217,12 @@ class ExifTool(object):
         @return: thumbnail
         @rtype: QImage
         """
-        thumbnail = self.readBinaryData(f, tagname=thumbname) # self.execute(*[ '-b', '-m', '-'+thumbname, f], ascii=False)
+        thumbnail = self.readBinaryData(f, tagname=thumbname)
         return QImage.fromData(QByteArray.fromRawData(thumbnail), 'JPG')
 
     def writeThumbnail(self, filename, thumbfile):
         """
-        Writes a bytearray containing thumbnail data to an image
+        Write a bytearray containing thumbnail data to an image
         or sidecar file. Thumbnail data should be a valid jpeg image
         with dimensions 160x120 or 120x160.
         For an image file, should be called only while editing the file.
@@ -223,7 +231,8 @@ class ExifTool(object):
         @param thumbfile: path to thumbnail jpg file
         @type thumbfile: str
         """
-        self.execute(*([filename, '-overwrite_original'] + ['-%s<=%s' % ('thumbnailimage', thumbfile)]))
+        command = [filename, '-overwrite_original'] + ['-%s<=%s' % ('thumbnailimage', thumbfile)]
+        self.execute(*command)
 
     def writeOrientation(self, filename, value):
         """
@@ -234,11 +243,12 @@ class ExifTool(object):
         @param value: orientation code (range 1..8)
         @type value: str or int
         """
-        self.execute(*(['-%s=%s' % ('Orientation', value)] + ['-n'] + [filename, '-overwrite_original']))
+        command = ['-%s=%s' % ('Orientation', value)] + ['-n'] + [filename, '-overwrite_original']
+        self.execute(*command)
 
     def readXMPTag(self, filename, tagName):
         """
-        Reads a tag from a sidecar (.mie) file. Despite its name, the method can read
+        Read a tag from a sidecar (.mie) file. Despite its name, the method can read
         a tag of any type. A ValueError exception is raised if the file does not exist.
         @param filename: image or sidecar path
         @type filename: str
@@ -250,7 +260,8 @@ class ExifTool(object):
         filename = filename[:-4] + '.mie'
         if not isfile(filename):
             raise ValueError
-        res = self.execute(*(['-%s' % tagName] + [filename]))
+        command = ['-%s' % tagName] + [filename]
+        res = self.execute(*command)
         return res
 
     ###############################
@@ -259,7 +270,7 @@ class ExifTool(object):
     ###############################
     def writeXMPTag(self, filename, tagName, value):
         """
-        Writes a tag to a sidecar (.mie) file. If the sidecar
+        Write a tag to a sidecar (.mie) file. If the sidecar
         does not exist it is created from the image file.
         @param filename: image file name
         @type filename: str
@@ -273,46 +284,35 @@ class ExifTool(object):
         if not isfile(fmie):
             self.createSidecar(filename)
         # write tag to sidecar
-        self.execute(*(['-%s=%s' % (tagName, value)] + [fmie, '-overwrite_original']))
+        command = ['-%s=%s' % (tagName, value)] + [fmie, '-overwrite_original']
+        self.execute(*command)
 
     def get_metadata(self, f, createsidecar=True):
         """
-        Reads metadata from file : data are read
+        Read metadata from file : data are read
         from the image file and the sidecar file is created if
         createsidecar is True (default).
         @param f: file name
         @type f: str
+        @param createsidecar: flag
+        @type ceatesidecar: bool
         @return: profile, metadata
         @rtype: 2-uple profile: bytes, metadata: (length 1) list of dict
         """
         # Using PIL _getexif is simpler.
         # However, exiftool is much more powerful
-        """
-        PIL _getexif() example
-        with open(f, 'rb') as fd:
-            img = Image.open(fd)
-        exif_data = img._getexif()
-        """
         flags = ["-j", "-a", "-XMP:all", "-EXIF:all", "-n", "-S", "-G0", "-Orientation", "-ProfileDescription",
                  "-colorSpace", "-InteropIndex", "-WhitePoint", "-PrimaryChromaticities", "-Gamma", "-Model"]
         extract_meta_flags = ["-icc_profile", "-b"]
-        fmie = f[:-4]+'.mie'
-        """
-        if isfile(fmie):  # TODO modified 22/07/18
-            # get profile as bytes
-            profile = self.execute(*(extract_meta_flags + [fmie]))
-            # get data as (length 1) list of dict :
-            # execute returns a string [{aa:bb, cc:dd,...}],
-            # and json.loads deserializes it.
-            data = json.loads(self.execute(*(flags + [fmie])))
-        else:
-        """
-        profile = self.execute(*(extract_meta_flags + [f]), ascii=False)
-        data = json.loads(self.execute(*(flags + [f])))
+        command = extract_meta_flags + [f]
+        profile = self.execute(*command, ascii=False)
+        command = flags + [f]
+        data = json.loads(self.execute(*command))
         # create sidecar file
         if createsidecar:
             self.createSidecar(f)
         return profile, data
+
 
 def decodeExifOrientation(value):
     """
@@ -327,15 +327,16 @@ def decodeExifOrientation(value):
     tr = QTransform()
     if value == 0:
         pass
-    elif value == 1 :
+    elif value == 1:
         pass
-    elif value == 6:   # TODO complete
-        tr.rotate(90)  # clockwise
+    elif value == 6:    # TODO complete
+        tr.rotate(90)   # clockwise
     elif value == 8:
-        tr.rotate(-90) # counterclockwise
-    else :
+        tr.rotate(-90)  # counterclockwise
+    else:
         raise ValueError("decodeExifOrientation : unhandled orientation tag: %d" % value)
     return tr
+
 
 """
 case `jpegexiforient -n "$i"` in
