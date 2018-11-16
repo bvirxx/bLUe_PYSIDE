@@ -36,7 +36,7 @@ segmentation, geometric transformations, curves (1D LUTs), 2.5D LUTs, 3D LUTs.
 * Crop tool
 * Import and export of 3D LUTs in .cube format
 * Masks
-* Automatic import of camera specific dng and dcp profiles
+* Automatic import of camera specific dual illuminant dng and dcp profiles
 * Editable profile tone curve
 * Library viewer
 * Slide Show
