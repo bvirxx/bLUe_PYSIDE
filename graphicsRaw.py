@@ -176,32 +176,25 @@ class rawForm (baseForm):
         # convert multipliers to White Point RGB coordinates, modulo tint green correction (mult[1] = tint*WP_G)
         # self.cameraMultipliers = [self.daylight[i] / self.rawMultipliers[i] for i in range(3)]
         ########################################
-        # DNG tags COLORMATRIX1 COLORMATRIX2
         # XYZ-->Camera conversion matrix:
-        # (constant for each camera model).
         # Last row is zero for RGB cameras (cf. rawpy and libraw docs).
         # type ndarray, shape (4,3)
         #########################################
-        self.XYZ2CameraMatrix = rawpyObj.rgb_xyz_matrix[:3,:]  # TODO changed rgb_xyz_matrix to XYZ2CameraMatrix 10/11/18
+        self.XYZ2CameraMatrix = rawpyObj.rgb_xyz_matrix[:3,:]
         self.XYZ2CameraInverseMatrix = np.linalg.inv(self.XYZ2CameraMatrix)
-        ##########################################
-        # Color_matrix, read from file for some cameras, calculated for others,
-        # type ndarray of shape (3,4), seems to be 0.
-        # color_matrix = rawpyObj.color_matrix
-        ##########################################
         # initial temp and tint (as shot values)
         #self.cameraTemp, self.cameraTint = RGBMultipliers2TemperatureAndTint(*self.cameraMultipliers, self.XYZ2CameraInverseMatrix)#TODO modified 11/11/18
         self.cameraTemp, self.cameraTint = RGBMultipliers2TemperatureAndTint(*1/np.array(self.rawMultipliers[:3]), self.XYZ2CameraMatrix)
         # attributes initialized in setDefaults, declared here for the sake of correctness
         self.tempCorrection, self.tintCorrection, self.expCorrection, self.highCorrection,\
                                                    self.contCorrection, self.satCorrection, self.brCorrection = [None] * 7
-        # contrast spline view, initialized in setContrastSpline
+        # contrast spline vie (initialized by setContrastSpline)
         self.contrastForm = None
-        # tone spline view, initialized in setToneSpline
+        # tone spline view (initialized by setToneSpline)
         self.toneForm = None
         # dock containers for contrast and tome forms
         self.dockC, self.dockT = None, None
-        # options : it turns out that the most accurate description for the 'Auto Brightness' option of rawpy.postprocess is 'Auto Expose'
+        # options
         optionList0, optionNames0 = ['Auto Brightness', 'Preserve Highlights'], ['Auto Expose', 'Preserve Highlights']
         optionList1, optionNames1 = ['Auto WB', 'Camera WB', 'User WB'], ['Auto', 'Camera (As Shot)', 'User']
         optionList2, optionNames2 = ['cpLookTable','cpToneCurve', 'manualCurve'], ['Use Camera Profile Look Table', 'Show Tone Curves', 'Show Contrast Curve']
@@ -274,11 +267,12 @@ class rawForm (baseForm):
         # Cf. https://www.cambridgeincolour.com/forums/thread653.htm
         #####################
 
-        # init the combo of camera profiles
-        # for each item, text is filename and data are a dict of (tagname, decoded bytes) pairs
+        # combo of camera profiles
+        # for each item, text is the filename and data is the corresponding dict
         self.cameraProfilesCombo = QComboBox()
         files = [self.targetImage.filename]
         files.extend(getDngProfileList(self.targetImage.cameraModel()))
+        # load profiles
         items = OrderedDict([(basename(f)[:-4] if i > 0 else 'Embedded Profile', getDngProfileDict(f)) for i, f in enumerate(files)])
         # add 'None' and all found profiles for the current camera model: 'None' will be the default selection
         self.cameraProfilesCombo.addItem('None', {})
@@ -290,6 +284,8 @@ class rawForm (baseForm):
         self.cameraProfilesCombo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
         self.cameraProfilesCombo.setMaximumWidth(150)
         self.cameraProfilesCombo.setStyleSheet("QComboBox QAbstractItemView { min-width: 250px;}")
+        # item 0 is selected by default : init self.dngDict accordingly
+        self.dngDict = self.cameraProfilesCombo.itemData(0)
         # cameraProfilesCombo index changed event handler
         def cameraProfileUpdate(value):
             self.dngDict = self.cameraProfilesCombo.itemData(value)
@@ -297,6 +293,9 @@ class rawForm (baseForm):
                 toneCurve = dngProfileToneCurve(self.dngDict.get('ProfileToneCurve', []))
                 self.toneForm.baseCurve = [QPointF(x * axeSize, -y * axeSize) for x, y in zip(toneCurve.dataX, toneCurve.dataY)]
                 self.toneForm.update()
+            self.cameraTemp, self.cameraTint = RGBMultipliers2TemperatureAndTint(*1/np.array(self.rawMultipliers[:3]), self.XYZ2CameraMatrix, self.dngDict)
+            item = self.listWidget2.item(1)
+            item.setText(item.text().split(":")[0] + ' : %d' % self.cameraTemp)
             self.layer.bufCache_HSV_CV32 = None
             self.dataChanged.emit(2) # no postprocessing
 

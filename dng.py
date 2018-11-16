@@ -44,7 +44,11 @@ def getDngProfileDict(filename):
                                                       'ProfileLookTableData',
                                                       'ProfileLookTableDims',
                                                       'ProfileLookTableEncoding',
-                                                      'ProfileToneCurve'
+                                                      'ProfileToneCurve',
+                                                      'CalibrationIlluminant1',
+                                                      'CalibrationIlluminant2',
+                                                      'ColorMatrix1',
+                                                      'ColorMatrix2'
                                                       ])
     return profileDict
 
@@ -161,4 +165,41 @@ class dngProfileLookTable:
     def data(self):
         return self.__data
 
+class dngProfileIlluminants :
+
+    temperatureDict = { # TODO 16/11/18 some conversions from EXIF to temperatures need review
+    0 :  0,    # Unknown
+    1  : 6500, # Daylight
+    2  : 3450, # Fluorescent
+    3  : 2856, # Tungsten(incandescent light)
+    4  : 6000, # Flash
+    9  : 5600, # Fine weather
+    10 : 5500, # Cloudy weather
+    11 : 7200, # Shade
+    12 : 5700, # Daylight fluorescent(D 5700 - 7100K)
+    13 : 4600, # Day white fluorescent(N 4600 - 5400K)
+    14 : 3900, # Cool white fluorescent(W 3900 - 4500K)
+    15 : 3200, # White fluorescent(WW3200 - 3700K)
+    17 : 2856, # Standard light A
+    18 : 4874, # Standard light B
+    19 : 6774, # Standard light C
+    20 : 5500, # D55
+    21 : 6500, # D65
+    22 : 7500, # D75
+    23 : 5000, # D50
+    24 : 3200, # ISO studio tungsten
+    255 : 6500 # Other light source
+                     }
+
+    def __init__(self, dngDict):
+        illuminant1, illuminant2 = int(dngDict['CalibrationIlluminant1']),  int(dngDict['CalibrationIlluminant2'])
+        self.temperature1, self.temperature2 = self.temperatureDict[illuminant1], self.temperatureDict[illuminant2]
+
+class dngProfileColorMatrices:
+
+    def __init__(self, dngDict):
+        for tag in ['ColorMatrix1', 'ColorMatrix2']:
+            M = dngDict.get(tag, None)
+            M = np.array([float(x) for x in M.split(' ')]).reshape(3,3)
+            setattr(self, tag, M)
 

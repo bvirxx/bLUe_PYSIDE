@@ -13,10 +13,10 @@ giving full control over colors. When changes in color do not depend on the pixe
 the table is called a 2.5D LUT.
 bLUe creates interactive 2.5D LUTs which can be edited by selecting, grouping and moving nodes as control points over
 a (hue, saturation) color wheel. Nodes are bound to an elastic grid and a grid smoothing algorithm is provided
-to even the changes in color. Full 3D LUTs are created and edited by combining 2.5 LUTs with curves.
+to even the changes in color. Full 3D LUTs are created and edited by combining 2.5 LUTs with curve layers.
 
-bLue supports dng/dcp camera profiles for the development of raw images : the same profile
-can be applied to several images, to obtain uniform results with a significant saving in time.
+In addition to color images in formats jpg, tif, png, bLUe develops raw files in all usual formats : nef, cr2, dng, ...
+It supports dng/dcp dual illuminant camera profiles.
 
 The program is fully modular : controls are implemented as independent
 adjustment layers using a common GUI. Any imaging library exposing Python
@@ -25,11 +25,11 @@ bindings can take advantage of the GUI.
 bLUe is aware of multi-screen environments and color profiles : it uses image and
 monitor profiles in conjunction to display accurate colors.
 
-bLUe is written in Python.
+The program is written in Python.
 
 ## FUNCTIONALITY
 
-* Edition of images in formats jpg, png, tif, nef, cr2, dng.
+* Edition of images in formats jpg, png, tif, nef, cr2, dng,...
 * Adjustment layers : exposure, brightness, saturation, contrast, color temperature, inversion, filters, noise reduction, cloning,
 segmentation, geometric transformations, curves (1D LUTs), 2.5D LUTs, 3D LUTs.
 * Automatic contrast enhancement (histogram warping and CLAHE)
@@ -37,7 +37,7 @@ segmentation, geometric transformations, curves (1D LUTs), 2.5D LUTs, 3D LUTs.
 * Import and export of 3D LUTs in .cube format
 * Masks
 * Automatic import of camera specific dng and dcp profiles
-* Editable tone curve
+* Editable profile tone curve
 * Library viewer
 * Slide Show
 

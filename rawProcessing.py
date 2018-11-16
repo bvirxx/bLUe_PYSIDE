@@ -25,11 +25,12 @@ from PySide2.QtGui import QImage
 
 from bLUeCore.multi import interpMulti
 from bLUeGui.bLUeImage import QImageBuffer, bImage
-from bLUeGui.colorCIE import rgbLinear2rgbVec
+from bLUeGui.colorCIE import rgbLinear2rgbVec, sRGB_lin2XYZ, sRGB_lin2XYZInverse
 from bLUeGui.graphicsSpline import channelValues
 from bLUeGui.histogramWarping import warpHistogram
+from bLUeGui.multiplier import interpolatedMatrix
 from debug import tdec
-from dng import dngProfileLookTable, dngProfileToneCurve
+from dng import dngProfileLookTable, dngProfileToneCurve, dngProfileColorMatrices, dngProfileIlluminants
 from settings import USE_TETRA
 
 def rawPostProcess(rawLayer, pool=None):
@@ -175,7 +176,17 @@ def rawPostProcess(rawLayer, pool=None):
             # save image into post processing cache
             rawLayer.postProcessCache = cv2.cvtColor(((bufpost16.astype(np.float32)) / max_ouput).astype(np.float32), cv2.COLOR_RGB2HSV)
             rawLayer.half = half_size
+            rawLayer.bufpost16 = bufpost16
     else:
+        pass
+
+    try:
+        M = interpolatedMatrix(adjustForm.tempCorrection, adjustForm.dngDict)
+        M1 = np.linalg.inv(M)
+        bufpost16 = np.tensordot(rawLayer.bufpost16, sRGB_lin2XYZInverse @ M1 @ adjustForm.XYZ2CameraMatrix @ sRGB_lin2XYZ , axes=(-1, -1))
+        np.clip(bufpost16, 0, 255, out=bufpost16)
+        rawLayer.postProcessCache = cv2.cvtColor(((bufpost16.astype(np.float32)) / max_ouput).astype(np.float32), cv2.COLOR_RGB2HSV)
+    except KeyError:
         pass
 
     if getattr(adjustForm, "toneForm", None) is not None:
@@ -204,6 +215,8 @@ def rawPostProcess(rawLayer, pool=None):
     ##########################
     if doCameraLookTable:
         hsvLUT = dngProfileLookTable(adjustForm.dngDict)
+        colorMatrices = dngProfileColorMatrices(adjustForm.dngDict)
+        illuminants = dngProfileIlluminants(adjustForm.dngDict)
         if hsvLUT.isValid:
             divs = hsvLUT.divs
             steps = tuple([360 / divs[0], 1.0 / divs[1], 1.0 / divs[2]])
