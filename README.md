@@ -16,7 +16,8 @@ a (hue, saturation) color wheel. Nodes are bound to an elastic grid and a grid s
 to even the changes in color. Full 3D LUTs are created and edited by combining 2.5 LUTs with curve layers.
 
 In addition to color images in formats jpg, tif, png, bLUe develops raw files in all usual formats : nef, cr2, dng, ...
-It supports dng/dcp dual illuminant camera profiles.
+It supports dng/dcp dual illuminant camera profiles. Camera model dcp profiles can be applied to any format
+of raw file, eliminating the burden of a pre-conversion to the dng format.
 
 The program is fully modular : controls are implemented as independent
 adjustment layers using a common GUI. Any imaging library exposing Python
