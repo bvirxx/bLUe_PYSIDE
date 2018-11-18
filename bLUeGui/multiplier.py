@@ -27,7 +27,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
 
-from dng import dngProfileIlluminants, dngProfileColorMatrices
+from dng import dngProfileIlluminants, dngProfileColorMatrices, interpolate, dngProfileDual, interpolatedColorMatrix
 from .colorCIE import temperatureAndTint2xy, temperature2xyWP
 
 def CIExyY2XYZ(x, y):
@@ -54,29 +54,6 @@ def XYZ2CIExyY(X, Y, Z):
     s = X + Y + Z
     return X / s, Y / s
 
-def interpolate(T, M1, M2, T1, T2):
-    if T <= T1:
-        return M1
-    if T >+ T2:
-        return M2
-    return (M1 * (T2 - T) + M2 * (T - T1)) / (T2 - T1)
-
-def interpolatedMatrix(T, dngDict):
-    """
-    Raise a KeyError exception if dngDict is not a valid
-    dual illuminant profile
-    @param T: temperature
-    @type T: float
-    @param dngDict: dng profile tag values dict
-    @type dngDict: dict
-    @return: interpolated matrix
-    @rtype: ndarray, shape=(3,3)
-    """
-    illuminants = dngProfileIlluminants(dngDict) #int(dngDict['CalibrationIlluminant1']), int(dngDict['CalibrationIlluminant2'])
-    T1, T2 = illuminants.temperature1, illuminants.temperature2
-    colorMatrices = dngProfileColorMatrices(dngDict)  #dngDict['ColorMatrix1'], dngDict['ColorMatrix2']
-    colorMatrix1, colorMatrix2 = colorMatrices.ColorMatrix1, colorMatrices.ColorMatrix2
-    return interpolate(T, colorMatrix1, colorMatrix2, T1, T2)
 
 def temperatureAndTint2RGBMultipliers(temp, tint, XYZ2CameraMatrix, dngDict={}):
     """
@@ -101,13 +78,12 @@ def temperatureAndTint2RGBMultipliers(temp, tint, XYZ2CameraMatrix, dngDict={}):
     @return: 4 multipliers (RGBG)
     @rtype: 4-uple of float
     """
-    try:
-        T1, T2 = dngDict['CalibrationIlluminant1'] , dngDict['CalibrationIlluminant2']
-        colorMatrix1, colorMatrix2 = dngDict['ColorMatrix1'] , dngDict['ColorMatrix2']
-        colorMatrix = interpolate(temp, colorMatrix1, colorMatrix2, T1, T2) #(colorMatrix1 * (T2 - temp) + colorMatrix2 * (temp - T1)) / (T2 - T1)
-    except KeyError:
-        colorMatrix = XYZ2CameraMatrix
-
+    colorMatrix = XYZ2CameraMatrix
+    if dngDict:
+        try:
+            colorMatrix = interpolatedColorMatrix(temp, dngDict)
+        except ValueError:
+            pass
     # get the coordinates of WP(temp) in xy color space.
     # We use temperatureAndTint2xy(temp, 0).
     # We could also call temperature2xyWP(temp).
@@ -136,6 +112,9 @@ def RGBMultipliers2TemperatureAndTint(mR, mG, mB, XYZ2CameraMatrix, dngDict={}):
     We consider the function f(T) = WPb/WPr giving
     the ratio of blue over red coordinates for the white point WP(T). Assuming  f is monotonic,
     we solve the equation f(T) = mB/mR by a simple dichotomous search.
+    The Adobe dng spec. uses a slightly different algorithm (cf. p. 81) : they search for a white point
+    point (x,y) = WP(T) which is solution of the equation XYZtoCamera(WP(T)) = CameraNeutral,
+    with XYZtoCamera interpolated from ColorMatrix1 and ColorMatrix2.
     Then, the tint is simply defined as the scaling factor mu verifying tint * mG/mR = WPG/WPR
     Note that to be inverse functions, RGBMultipliers2Temperature and temperatureAndTint2RGBMultipliers
     must use the same XYZ2CameraMatrix.
@@ -152,15 +131,13 @@ def RGBMultipliers2TemperatureAndTint(mR, mG, mB, XYZ2CameraMatrix, dngDict={}):
     @return: temperature and tint correction
     @rtype: 2-uple of float
     """
-    dualIlluminant = True
-    try:
-        illuminants = dngProfileIlluminants(dngDict)
-        T1, T2 = illuminants.temperature1, illuminants.temperature2 #int(dngDict['CalibrationIlluminant1']) , int(dngDict['CalibrationIlluminant2'])
-        matrices = dngProfileColorMatrices(dngDict)
-        colorMatrix1, colorMatrix2 = matrices.ColorMatrix1, matrices.ColorMatrix2 #dngDict['CalibrationIlluminant1'] , dngDict['CalibrationIlluminant2']
-    except KeyError:
-        dualIlluminant = False
-
+    dualIlluminant = False
+    if dngDict:
+        calibration = dngProfileDual(dngDict)
+        dualIlluminant = calibration.isValid
+    if dualIlluminant:
+        T1, T2 = calibration.T1, calibration.T2
+        colorMatrix1, colorMatrix2 = calibration.colorMatrix1, calibration.colorMatrix2
     # search for T
     Tmin, Tmax = 1667.0, 15000.0
     while (Tmax - Tmin) > 10:
@@ -168,7 +145,7 @@ def RGBMultipliers2TemperatureAndTint(mR, mG, mB, XYZ2CameraMatrix, dngDict={}):
         x, y = temperature2xyWP(T)  # ~ temperatureAndTint2xy(T,0)
         # expand to the XYZ color space
         X, Y, Z = CIExyY2XYZ(x, y) #= x / y, 1, (1 - x - y) / y
-        # Convert to camera neutral
+        # Convert to camera color space :
         if dualIlluminant:
             M = interpolate(T, colorMatrix1, colorMatrix2, T1, T2)
         else:

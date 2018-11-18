@@ -555,7 +555,7 @@ def temperature2Rho(T):
     return rho1, rho2, rho3
 
 
-def conversionMatrix(Tdest, Tsource):
+def bradfordAdaptationMatrix(Tdest, Tsource):
     """
     Returns the conversion matrix in the XYZ color space, from
     Tsource to Tdest. We apply the method described in

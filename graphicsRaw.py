@@ -276,8 +276,10 @@ class rawForm (baseForm):
         items = OrderedDict([(basename(f)[:-4] if i > 0 else 'Embedded Profile', getDngProfileDict(f)) for i, f in enumerate(files)])
         # add 'None' and all found profiles for the current camera model: 'None' will be the default selection
         self.cameraProfilesCombo.addItem('None', {})
+        # filter items to elimionate empty entries and
+        # add non empty dicts to cameraProfileCombo
         for key in items:
-            # filter items[keys]
+            # filter items[key]
             d = {k:items[key][k] for k in items[key] if items[key][k] != ''}
             if d:
                 self.cameraProfilesCombo.addItem(key, d)

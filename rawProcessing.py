@@ -25,12 +25,12 @@ from PySide2.QtGui import QImage
 
 from bLUeCore.multi import interpMulti
 from bLUeGui.bLUeImage import QImageBuffer, bImage
-from bLUeGui.colorCIE import rgbLinear2rgbVec, sRGB_lin2XYZ, sRGB_lin2XYZInverse
+from bLUeGui.colorCIE import rgbLinear2rgbVec, sRGB_lin2XYZ, sRGB_lin2XYZInverse, bradfordAdaptationMatrix
 from bLUeGui.graphicsSpline import channelValues
 from bLUeGui.histogramWarping import warpHistogram
-from bLUeGui.multiplier import interpolatedMatrix
 from debug import tdec
-from dng import dngProfileLookTable, dngProfileToneCurve, dngProfileColorMatrices, dngProfileIlluminants
+from dng import dngProfileLookTable, dngProfileToneCurve, dngProfileColorMatrices, dngProfileIlluminants, \
+    interpolatedColorMatrix, interpolatedForwardMatrix
 from settings import USE_TETRA
 
 def rawPostProcess(rawLayer, pool=None):
@@ -155,18 +155,16 @@ def rawPostProcess(rawLayer, pool=None):
                 bufpost16[row * h:(row + 1) * h, col * w:(col + 1) * w, :] = bufpost_temp
         # develop
         else:
-            # highlight_mode : restoration of overexposed highlights. 0: clip, 1:unclip, 2:blend, 3...: rebuild
-            # bufpost16 = rawImage.postprocess(use_camera_wb=True, output_bps=output_bps, gamma=(2.222,4.5))#, gamma=(1,1))
             bufpost16 = rawImage.postprocess(
                 half_size = half_size,
-                output_color=rawpy.ColorSpace.sRGB,
+                output_color=rawpy.ColorSpace.raw,#XYZ,#XYZ, #######################
                 output_bps=output_bpc,
                 exp_shift=exp_shift,
                 no_auto_bright=no_auto_bright,
                 use_auto_wb=use_auto_wb,
                 use_camera_wb=use_camera_wb,
                 user_wb=adjustForm.rawMultipliers,
-                gamma=(1, 1),  # gamma,
+                gamma=(1, 1),
                 exp_preserve_highlights=exp_preserve_highlights,
                 bright=bright,
                 highlight_mode=highlightmode,
@@ -180,14 +178,44 @@ def rawPostProcess(rawLayer, pool=None):
     else:
         pass
 
+    # postProcessCache is in raw color space.
+    # and must be converted to linear RGB. We follow
+    # the guidelines of Adobe dng spec. (chapter 6).
+    # If we have a valid dng profile and valid ForwardMatrix1
+    # and ForwardMatrix2 matrices, we first convert to XYZ_D50 using the interpolated
+    # ForwardMatrix for T and next from XYZ_D50 to RGB.
+    # If we have no valid dng profile, we reinit the multipliers and
+    # apply a Bradford chromatic adaptation matrix.
+    m1,m2,m3 = adjustForm.rawMultipliers[:3]
+    D = np.diag((1/m1,1/m2,1/m3))
+    MM = bradfordAdaptationMatrix(6500, adjustForm.tempCorrection)
+    FM, BM = None, None
+    if adjustForm.dngDict:
+        try:
+            #BM = interpolatedColorMatrix(adjustForm.tempCorrection, adjustForm.dngDict)
+            #BMInverse = np.linalg(BM)
+            FM = interpolatedForwardMatrix(adjustForm.tempCorrection, adjustForm.dngDict)
+        except:
+            pass
+    raw2sRGBMatrix = sRGB_lin2XYZInverse @ FM if FM is not None else sRGB_lin2XYZInverse @ MM @ adjustForm.XYZ2CameraInverseMatrix @ D #  @ MMInverse
+    bufpost16 = np.tensordot(rawLayer.bufpost16, raw2sRGBMatrix, axes=(-1, -1))
+    np.clip(bufpost16, 0, 255, out=bufpost16)
+    rawLayer.postProcessCache = cv2.cvtColor(((bufpost16.astype(np.float32)) / max_ouput).astype(np.float32), cv2.COLOR_RGB2HSV)
+
+    """
     try:
-        M = interpolatedMatrix(adjustForm.tempCorrection, adjustForm.dngDict)
-        M1 = np.linalg.inv(M)
-        bufpost16 = np.tensordot(rawLayer.bufpost16, sRGB_lin2XYZInverse @ M1 @ adjustForm.XYZ2CameraMatrix @ sRGB_lin2XYZ , axes=(-1, -1))
-        np.clip(bufpost16, 0, 255, out=bufpost16)
-        rawLayer.postProcessCache = cv2.cvtColor(((bufpost16.astype(np.float32)) / max_ouput).astype(np.float32), cv2.COLOR_RGB2HSV)
-    except KeyError:
+        if adjustForm.dngDict:
+            M = interpolatedColorMatrix(adjustForm.tempCorrection, adjustForm.dngDict)
+            M1 = np.linalg.inv(M)
+            #bufpost16 = np.tensordot(rawLayer.bufpost16, sRGB_lin2XYZInverse @ M1 @ adjustForm.XYZ2CameraMatrix , axes=(-1, -1))
+            #bufpost16 = np.tensordot(rawLayer.bufpost16, sRGB_lin2XYZInverse @ FM @ D @ adjustForm.XYZ2CameraMatrix @ MMInverse, axes=(-1, -1))  # for raw output
+            bufpost16 = np.tensordot(rawLayer.bufpost16, sRGB_lin2XYZInverse @ FM, axes=(-1, -1))
+        else:
+            raise ValueError
+    except (KeyError, ValueError):
         pass
+        #bufpost16 = np.tensordot(rawLayer.bufpost16, FM @ D @  adjustForm.XYZ2CameraMatrix  @ MMInverse, axes=(-1, -1))  # for raw output
+    """
 
     if getattr(adjustForm, "toneForm", None) is not None:
         if doALL or toneCurveShowFirst:
@@ -215,8 +243,6 @@ def rawPostProcess(rawLayer, pool=None):
     ##########################
     if doCameraLookTable:
         hsvLUT = dngProfileLookTable(adjustForm.dngDict)
-        colorMatrices = dngProfileColorMatrices(adjustForm.dngDict)
-        illuminants = dngProfileIlluminants(adjustForm.dngDict)
         if hsvLUT.isValid:
             divs = hsvLUT.divs
             steps = tuple([360 / divs[0], 1.0 / divs[1], 1.0 / divs[2]])
@@ -235,17 +261,14 @@ def rawPostProcess(rawLayer, pool=None):
     # apply profile tone curve, if any
     if buf : # non empty list
         LUTXY = dngProfileToneCurve(buf).toLUTXY(maxrange=255)
-        bufHSV_CV32[:, :, 2] = LUTXY[(bufHSV_CV32[:, :, 2] * 255).astype(np.uint16)] / 255  # self.postProcessCache]
-    # apply user tone curbe
+        bufHSV_CV32[:, :, 2] = LUTXY[(bufHSV_CV32[:, :, 2] * 255).astype(np.uint16)] / 255.0
+    # apply user tone curve
     toneForm = adjustForm.toneForm
     if toneForm is not None:
         if toneForm.isVisible():
-            # apply user tone curve
             userLUTXY = toneForm.scene().quadricB.LUTXY
-            # guiLUTXY = np.interp(np.arange(256), np.arange(256) * 256, guiLUTXY)
-            bufHSV_CV32[:, :, 2] = userLUTXY[(bufHSV_CV32[:, :, 2] * 255).astype(np.uint16)] / 255  # TODO watch conversion ???
-
-    rawLayer.bufCache_HSV_CV32 = bufHSV_CV32.copy() # CAUTION : must be outside of if adjusFormToneForm...
+            bufHSV_CV32[:, :, 2] = userLUTXY[(bufHSV_CV32[:, :, 2] * 255).astype(np.uint16)] / 255
+    rawLayer.bufCache_HSV_CV32 = bufHSV_CV32.copy() # CAUTION : must be outside of if toneForm.
 
     # beginning of the contrast-saturation phase : update buffer from the last camera profile applcation
     bufHSV_CV32 = rawLayer.bufCache_HSV_CV32.copy()

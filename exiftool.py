@@ -188,7 +188,7 @@ class ExifTool(object):
         Read tag values from a list of tag names in an image file,
         a raw imamge file, a sidecar file or a dng/dcp profile.
         tag values can be binary data or strings.
-        The method returns a dictionary of decoded buffers (= str).
+        The method returns a dictionary of (str) decoded buffers.
         @param f: file name
         @type f: str
         @param taglist: tag names
