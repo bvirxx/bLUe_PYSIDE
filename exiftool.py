@@ -35,8 +35,7 @@ from bLUeGui.dialog import dlgWarn
 
 
 class ExifTool(object):
-    # exiftool synchronization token
-    sentinel = "{ready}"
+    """
     # exiftool useful flags
     # -v : formatted output
     # -n : print numerical values
@@ -44,6 +43,10 @@ class ExifTool(object):
     # -a : extract duplicate tags
     # -S : very short output format
     # -G0 : print group name for each tag
+    """
+    # exiftool synchronization token
+    sentinel = "{ready}"
+
 
     def __init__(self, executable=EXIFTOOL_PATH):
         self.executable = executable
@@ -96,8 +99,8 @@ class ExifTool(object):
         """
         Main ExifTool method. It executes
         the exiftool commands defined by *args and returns
-        exif output. If ascii is True, output is of type str,
-        and of type bytes otherwise.
+        exif output. If ascii is True, output is decoded as str,
+        and is a bytes object otherwise.
         @param args:
         @type args: tuple of str
         @param ascii: flag for the type of returned data
@@ -135,7 +138,7 @@ class ExifTool(object):
     #################
     def createSidecar(self, f):
         """
-        Copies all metadata and icc profile from image file
+        Copy all metadata and icc profile from image file
         to sidecar (.mie) file. An existing sidecar is overwritten.
         @param f: path to image file
         @type f: str
@@ -145,7 +148,7 @@ class ExifTool(object):
 
     def copySidecar(self, source, dest, removesidecar=False):
         """
-        Copies all metadata and icc profile from sidecar to image file.
+        Copy all metadata and icc profile from sidecar to image file.
         if removesidecar is True (default False), the sidecar file is removed after copying.
         Should be called only while editing the file.
         @param source: path to sidecar file

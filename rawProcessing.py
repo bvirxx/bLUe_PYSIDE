@@ -99,6 +99,8 @@ def rawPostProcess(rawLayer, pool=None):
     # - gamma curve and brightness correction : gamma(imax) = 1, imax = 8*white/brightness
     ######################################################################################################################
 
+    use_auto_wb = options['Auto WB']
+    use_camera_wb = options['Camera WB']
     if doALL:
         ##############################
         # get postprocessing parameters
@@ -108,8 +110,7 @@ def rawPostProcess(rawLayer, pool=None):
         #gamma = (2.4, 12.92)  # sRGB (exponent, slope) cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
         exp_shift = adjustForm.expCorrection if not options['Auto Brightness'] else 0
         no_auto_bright = (not options['Auto Brightness'])
-        use_auto_wb = options['Auto WB']
-        use_camera_wb = options['Camera WB']
+
         exp_preserve_highlights = 0.99 if options['Preserve Highlights'] else 0.6  # range 0.0..1.0
         bright = adjustForm.brCorrection  # default 1, should be > 0
         hv = adjustForm.overexpValue
@@ -186,9 +187,10 @@ def rawPostProcess(rawLayer, pool=None):
     # ForwardMatrix for T and next from XYZ_D50 to RGB.
     # If we have no valid dng profile, we reinit the multipliers and
     # apply a Bradford chromatic adaptation matrix.
-    m1,m2,m3 = adjustForm.rawMultipliers[:3]
+    m1,m2,m3 = adjustForm.asShotMultipliers[:3] if use_camera_wb else adjustForm.rawMultipliers[:3]
     D = np.diag((1/m1,1/m2,1/m3))
-    MM = bradfordAdaptationMatrix(6500, adjustForm.tempCorrection)
+    tempCorrection = adjustForm.asShotTemp if use_camera_wb else adjustForm.tempCorrection
+    MM = bradfordAdaptationMatrix(6500, tempCorrection)
     FM, BM = None, None
     if adjustForm.dngDict:
         try:
@@ -201,7 +203,6 @@ def rawPostProcess(rawLayer, pool=None):
     bufpost16 = np.tensordot(rawLayer.bufpost16, raw2sRGBMatrix, axes=(-1, -1))
     np.clip(bufpost16, 0, 255, out=bufpost16)
     rawLayer.postProcessCache = cv2.cvtColor(((bufpost16.astype(np.float32)) / max_ouput).astype(np.float32), cv2.COLOR_RGB2HSV)
-
     """
     try:
         if adjustForm.dngDict:
@@ -217,7 +218,15 @@ def rawPostProcess(rawLayer, pool=None):
         #bufpost16 = np.tensordot(rawLayer.bufpost16, FM @ D @  adjustForm.XYZ2CameraMatrix  @ MMInverse, axes=(-1, -1))  # for raw output
     """
 
+    # update histogram
+    s = rawLayer.postProcessCache.shape
+    tmp = bImage(s[1], s[0], QImage.Format_RGB32)
+    buf = QImageBuffer(tmp)
+    buf[:, :, :] = (rawLayer.postProcessCache[:, :, 2, np.newaxis] * 255).astype(np.uint8)
+    rawLayer.linearImg = tmp
+
     if getattr(adjustForm, "toneForm", None) is not None:
+        """
         if doALL or toneCurveShowFirst:
             # update histogram
             s = rawLayer.postProcessCache.shape
@@ -228,6 +237,10 @@ def rawPostProcess(rawLayer, pool=None):
             rawLayer.histImg = tmp.histogram(size=adjustForm.toneForm.scene().axeSize,
                                              bgColor=adjustForm.toneForm.scene().bgColor,
                                              range=(0, 255), chans=channelValues.Br) # mode='Luminosity')
+        """
+        rawLayer.histImg = tmp.histogram(size=adjustForm.toneForm.scene().axeSize,
+                                         bgColor=adjustForm.toneForm.scene().bgColor,
+                                         range=(0, 255), chans=channelValues.Br)  # mode='Luminosity')
         adjustForm.toneForm.scene().quadricB.histImg = rawLayer.histImg
         adjustForm.toneForm.scene().update()
 

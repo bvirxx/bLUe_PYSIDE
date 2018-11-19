@@ -52,7 +52,7 @@ from bLUeGui.graphicsSpline import channelValues
 from bLUeGui.blend import blendLuminosity
 from bLUeGui.colorCIE import sRGB2LabVec, Lab2sRGBVec, rgb2rgbLinearVec, \
     rgbLinear2rgbVec, sRGB2XYZVec, sRGB_lin2XYZInverse, bbTemperature2RGB
-from bLUeGui.multiplier import temperatureAndTint2RGBMultipliers
+from bLUeGui.multiplier import temperatureAndTint2Multipliers
 from bLUeGui.dialog import dlgWarn
 from bLUeCore.kernel import getKernel
 from lutUtils import LUT3DIdentity
@@ -1629,7 +1629,7 @@ class vImage(bImage):
             bufXYZ = np.tensordot(bufXYZ, M, axes=(-1, -1))
             """
             # get RGB multipliers
-            m1, m2, m3, _ = temperatureAndTint2RGBMultipliers(temperature, 2**tint, sRGB_lin2XYZInverse)
+            m1, m2, m3, _ = temperatureAndTint2Multipliers(temperature, 2 ** tint, sRGB_lin2XYZInverse)
             buf = QImageBuffer(inputImage)[:, :, :3]
             bufXYZ = sRGB2XYZVec(buf[:, :, ::-1])
             bufsRGBLinear = np.tensordot(bufXYZ, sRGB_lin2XYZInverse, axes=(-1, -1))

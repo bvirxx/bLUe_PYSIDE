@@ -158,6 +158,7 @@ class rawForm (baseForm):
             self.layer = layer
         else:
             self.layer = weakref.proxy(layer)
+
         #######################################
         # Libraw correspondences:
         # rgb_xyz_matrix is libraw cam_xyz
@@ -167,24 +168,24 @@ class rawForm (baseForm):
         # ASSHOTNEUTRAL tag value is (X,Y,Z) =  1 / rawpyObj.camera_whitebalance
         ##########################################
         rawpyObj = layer.parentImage.rawImage
+
+        # constants and as shot values
+        self.XYZ2CameraMatrix = rawpyObj.rgb_xyz_matrix[:3, :]
+        self.XYZ2CameraInverseMatrix = np.linalg.inv(self.XYZ2CameraMatrix)
+        self.asShotMultipliers = rawpyObj.camera_whitebalance
+        self.asShotTemp, self.asShotTint = multipliers2TemperatureAndTint(*1 / np.array(self.asShotMultipliers[:3]), self.XYZ2CameraMatrix)
+
+
         # initial post processing multipliers (as shot)
         self.rawMultipliers = rawpyObj.camera_whitebalance # = 1/(dng ASSHOTNEUTRAL tag value)
         self.sampleMultipliers = False
         self.samples = []
-        # pre multipliers
-        #self.daylight = rawpyObj.daylight_whitebalance
-        # convert multipliers to White Point RGB coordinates, modulo tint green correction (mult[1] = tint*WP_G)
-        # self.cameraMultipliers = [self.daylight[i] / self.rawMultipliers[i] for i in range(3)]
         ########################################
         # XYZ-->Camera conversion matrix:
         # Last row is zero for RGB cameras (cf. rawpy and libraw docs).
         # type ndarray, shape (4,3)
         #########################################
-        self.XYZ2CameraMatrix = rawpyObj.rgb_xyz_matrix[:3,:]
-        self.XYZ2CameraInverseMatrix = np.linalg.inv(self.XYZ2CameraMatrix)
-        # initial temp and tint (as shot values)
-        #self.cameraTemp, self.cameraTint = RGBMultipliers2TemperatureAndTint(*self.cameraMultipliers, self.XYZ2CameraInverseMatrix)#TODO modified 11/11/18
-        self.cameraTemp, self.cameraTint = RGBMultipliers2TemperatureAndTint(*1/np.array(self.rawMultipliers[:3]), self.XYZ2CameraMatrix)
+
         # attributes initialized in setDefaults, declared here for the sake of correctness
         self.tempCorrection, self.tintCorrection, self.expCorrection, self.highCorrection,\
                                                    self.contCorrection, self.satCorrection, self.brCorrection = [None] * 7
@@ -207,7 +208,7 @@ class rawForm (baseForm):
         self.options = UDict((self.listWidget1.options, self.listWidget2.options, self.listWidget3.options))
         # display the 'as shot' temperature
         item = self.listWidget2.item(1)
-        item.setText(item.text() + ' : %d' % self.cameraTemp)
+        item.setText(item.text() + ' : %d' % self.asShotTemp)
 
         # temperature slider
         self.sliderTemp = QbLUeSlider(Qt.Horizontal)
@@ -267,27 +268,8 @@ class rawForm (baseForm):
         # Cf. https://www.cambridgeincolour.com/forums/thread653.htm
         #####################
 
-        # combo of camera profiles
-        # for each item, text is the filename and data is the corresponding dict
-        self.cameraProfilesCombo = QComboBox()
-        files = [self.targetImage.filename]
-        files.extend(getDngProfileList(self.targetImage.cameraModel()))
-        # load profiles
-        items = OrderedDict([(basename(f)[:-4] if i > 0 else 'Embedded Profile', getDngProfileDict(f)) for i, f in enumerate(files)])
-        # add 'None' and all found profiles for the current camera model: 'None' will be the default selection
-        self.cameraProfilesCombo.addItem('None', {})
-        # filter items to elimionate empty entries and
-        # add non empty dicts to cameraProfileCombo
-        for key in items:
-            # filter items[key]
-            d = {k:items[key][k] for k in items[key] if items[key][k] != ''}
-            if d:
-                self.cameraProfilesCombo.addItem(key, d)
-        self.cameraProfilesCombo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
-        self.cameraProfilesCombo.setMaximumWidth(150)
-        self.cameraProfilesCombo.setStyleSheet("QComboBox QAbstractItemView { min-width: 250px;}")
-        # item 0 is selected by default : init self.dngDict accordingly
-        self.dngDict = self.cameraProfilesCombo.itemData(0)
+        # profile combo
+        self.dngDict = self.setCameraProfilesCombo()
         # cameraProfilesCombo index changed event handler
         def cameraProfileUpdate(value):
             self.dngDict = self.cameraProfilesCombo.itemData(value)
@@ -295,11 +277,14 @@ class rawForm (baseForm):
                 toneCurve = dngProfileToneCurve(self.dngDict.get('ProfileToneCurve', []))
                 self.toneForm.baseCurve = [QPointF(x * axeSize, -y * axeSize) for x, y in zip(toneCurve.dataX, toneCurve.dataY)]
                 self.toneForm.update()
-            self.cameraTemp, self.cameraTint = RGBMultipliers2TemperatureAndTint(*1/np.array(self.rawMultipliers[:3]), self.XYZ2CameraMatrix, self.dngDict)
+            # recompute as shot temp and tint using new profile
+            self.asShotTemp, self.asShotTint = multipliers2TemperatureAndTint(*1 / np.array(self.asShotMultipliers[:3]), self.XYZ2CameraMatrix, self.dngDict)
+            # display updated as shot temp
             item = self.listWidget2.item(1)
-            item.setText(item.text().split(":")[0] + ' : %d' % self.cameraTemp)
+            item.setText(item.text().split(":")[0] + ': %d' % self.asShotTemp)
+            # invalidate cache
             self.layer.bufCache_HSV_CV32 = None
-            self.dataChanged.emit(2) # no postprocessing
+            self.dataChanged.emit(2) # 2 = no postprocessing
 
         self.cameraProfilesCombo.currentIndexChanged.connect(cameraProfileUpdate)
 
@@ -661,7 +646,7 @@ former.<br>
         self.sliderTemp.sliderReleased.disconnect()
         self.tempCorrection = self.slider2Temp(self.sliderTemp.value())
         # get multipliers
-        multipliers = list(temperatureAndTint2RGBMultipliers(self.tempCorrection, 1.0, self.XYZ2CameraMatrix))
+        multipliers = list(temperatureAndTint2Multipliers(self.tempCorrection, 1.0, self.XYZ2CameraMatrix, self.dngDict))
         multipliers[1] *=  self.tintCorrection
         self.rawMultipliers = [1 / multipliers[i] for i in range(3)] + [1 / multipliers[1]]
         m = min(self.rawMultipliers[:3])
@@ -680,7 +665,7 @@ former.<br>
         self.sliderTint.sliderReleased.disconnect()
         self.tintCorrection = self.slider2Tint(self.sliderTint.value())
         # get multipliers
-        multipliers = list(temperatureAndTint2RGBMultipliers(self.tempCorrection, 1.0, self.XYZ2CameraMatrix))
+        multipliers = list(temperatureAndTint2Multipliers(self.tempCorrection, 1.0, self.XYZ2CameraMatrix, self.dngDict))
         multipliers[1] *= self.tintCorrection
         self.rawMultipliers = [1 / multipliers[i] for i in range(3)] + [1 / multipliers[1]]
         m = min(self.rawMultipliers[:3])
@@ -699,7 +684,7 @@ former.<br>
         self.sliderTemp.valueChanged.disconnect()
         self.sliderTint.valueChanged.disconnect()
         # get temp and tint
-        temp, tint = RGBMultipliers2TemperatureAndTint(*invMultipliers, self.XYZ2CameraMatrix)
+        temp, tint = multipliers2TemperatureAndTint(*invMultipliers, self.XYZ2CameraMatrix)
         self.tintCorrection = tint
         self.sliderTemp.setValue(self.temp2Slider(temp))
         self.sliderTint.setValue(self.tint2Slider(tint))
@@ -771,7 +756,7 @@ former.<br>
         self.enableSliders()
         self.denoiseValue = 0 # denoising off
         self.overexpValue = 0 # clip
-        self.tempCorrection = self.cameraTemp
+        self.tempCorrection = self.asShotTemp
         self.tintCorrection = 1.0
         self.expCorrection = 1.0
         #self.highCorrection = 3.0  # restoration of overexposed highlights. 0: clip 1:unclip, 2: blend, 3...: rebuild
@@ -789,6 +774,33 @@ former.<br>
         self.sliderSat.setValue(self.sat2Slider(self.satCorrection))
         self.dataChanged.connect(self.updateLayer)
         # self.dataChanged.emit(True)  # TODO 30/10/18 removed
+
+    def setCameraProfilesCombo(self):
+        """
+        # for each item, text is the filename and data is the corresponding dict
+        @return: the currently selected item data
+        @rtype: dict
+        """
+        self.cameraProfilesCombo = QComboBox()
+        files = [self.targetImage.filename]
+        files.extend(getDngProfileList(self.targetImage.cameraModel()))
+        # load profiles
+        items = OrderedDict(
+            [(basename(f)[:-4] if i > 0 else 'Embedded Profile', getDngProfileDict(f)) for i, f in enumerate(files)])
+        # add 'None' and all found profiles for the current camera model: 'None' will be the default selection
+        self.cameraProfilesCombo.addItem('None', {})
+        # filter items to eliminate empty entries and
+        # add non empty dicts to cameraProfileCombo
+        for key in items:
+            # filter items[key]
+            d = {k: items[key][k] for k in items[key] if items[key][k] != ''}
+            if d:
+                self.cameraProfilesCombo.addItem(key, d)
+        self.cameraProfilesCombo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
+        self.cameraProfilesCombo.setMaximumWidth(150)
+        self.cameraProfilesCombo.setStyleSheet("QComboBox QAbstractItemView { min-width: 250px;}")
+        # return the currently selected item
+        return self.cameraProfilesCombo.itemData(0)
 
     def writeToStream(self, outStream):
         layer = self.layer

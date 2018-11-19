@@ -25,7 +25,7 @@ from settings import DNG_PROFILES_DIR2, DNG_PROFILES_DIR1
 
 #########################################################################################
 # Functions and classes related to dng/dcp profile tags.
-# Compliant with the Adobe DNG specification
+# Compliant with the Adobe DNG specification.
 # cf. https://www.adobe.com/content/dam/acom/en/products/photoshop/pdfs/dng_spec_1.4.0.0.pdf
 ########################################################################################
 
@@ -33,8 +33,7 @@ from settings import DNG_PROFILES_DIR2, DNG_PROFILES_DIR1
 def getDngProfileDict(filename):
     """
     Read profile related tags from a dng or dcp file.
-    Return a dictionary of (str) decoded tagname : tagvalue pairs.
-    Tag names follow the Adobe dng spec.
+    Return a dictionary of (str) decoded {tagname : tagvalue} pairs.
     @param filename:
     @type filename: str
     @return: dictionary
@@ -144,15 +143,14 @@ class dngProfileLookTable:
             divs = [int(x) for x in divs.split(' ')]
             # read data. Tthe table is stored in v, h, s loops ordering (cf. the dng specification)
             data = np.array([float(x) for x in data.split(' ')]).reshape(divs[2], divs[0], divs[1], 3)  # v, h, s
-            # add a division point for hue = 360 (cf. dng spec p. 82)
-            divs[0] += 1
             self.__divs = tuple(divs)
             # allocate data array.
             # adding sentinels, so all
             # dims are increased by +1 (Sentinels allow to
             # use closed intervals instead of right-opened intervals
             # as input ranges).
-            buf = np.zeros((divs[0] + 1, divs[1] + 1, divs[2] + 1, 3), dtype=np.float) + (0, 1, 1)
+            # adding a division point for hue = 360 (cf. dng spec p. 82) : total increment for divs[0] is +2.
+            buf = np.zeros((divs[0] + 2, divs[1] + 1, divs[2] + 1, 3), dtype=np.float) + (0, 1, 1)
             # move axes to h, s, v ordering
             data = np.moveaxis(data, (0, 1, 2), (2, 0, 1))
             # put values into table, starting from index 0.
@@ -191,85 +189,132 @@ class dngProfileIlluminants:
     """
     Wrapper for the two illuminant temperatures
     """
-    temperatureDict = {  # TODO 16/11/18 some conversions from EXIF to temperatures need review
-        0 :  0,    # Unknown
-        1  : 6500, # Daylight
-        2  : 3450, # Fluorescent
-        3  : 2856, # Tungsten(incandescent light)
-        4  : 6000, # Flash
-        9  : 5600, # Fine weather
-        10 : 5500, # Cloudy weather
-        11 : 7200, # Shade
-        12 : 5700, # Daylight fluorescent(D 5700 - 7100K)
-        13 : 4600, # Day white fluorescent(N 4600 - 5400K)
-        14 : 3900, # Cool white fluorescent(W 3900 - 4500K)
-        15 : 3200, # White fluorescent(WW3200 - 3700K)
-        17 : 2856, # Standard light A
-        18 : 4874, # Standard light B
-        19 : 6774, # Standard light C
-        20 : 5500, # D55
-        21 : 6500, # D65
-        22 : 7500, # D75
-        23 : 5000, # D50
-        24 : 3200, # ISO studio tungsten
-        255 : 6500 # Other light source
+    ExifTemperatureDict = {                                     # TODO 16/11/18 some conversions from EXIF to temperatures need review
+                        0  : 0,    # Unknown
+                        1  : 5600, # Daylight
+                        2  : 3600, # Fluorescent
+                        3  : 3200, # Tungsten(incandescent light)
+                        4  : 6000, # Flash
+                        9  : 5600, # Fine weather
+                        10 : 6500, # Cloudy weather
+                        11 : 8000, # Shade
+                        12 : 5700, # Daylight fluorescent(D 5700 - 7100K)
+                        13 : 4600, # Day white fluorescent(N 4600 - 5400K)
+                        14 : 3900, # Cool white fluorescent(W 3900 - 4500K)
+                        15 : 3200, # White fluorescent(WW3200 - 3700K)
+                        17 : 2856, # Standard light A
+                        18 : 4874, # Standard light B
+                        19 : 6774, # Standard light C
+                        20 : 5500, # D55
+                        21 : 6500, # D65
+                        22 : 7500, # D75
+                        23 : 5000, # D50
+                        24 : 3200, # ISO studio tungsten
+                       255 : 6500  # Other light source
                      }
 
     def __init__(self, dngDict):
-        self.isValid = False
         try:
             illuminant1, illuminant2 = int(dngDict['CalibrationIlluminant1']),  int(dngDict['CalibrationIlluminant2'])
-            self.temperature1, self.temperature2 = self.temperatureDict[illuminant1], self.temperatureDict[illuminant2]
-            self.isValid = True
+            self.temperature1, self.temperature2 = self.ExifTemperatureDict[illuminant1], self.ExifTemperatureDict[illuminant2]
         except (ValueError, KeyError) as e:
             print('dngProfileIlluminants : ', str(e))
+            raise e
+
 
 class dngProfileColorMatrices:
     """
     Wrapper for the two color matrices
     """
     def __init__(self, dngDict):
-        self.isValid = False
         try:
             for tag in ['ColorMatrix1', 'ColorMatrix2']:
                 M = dngDict.get(tag, None)
                 M = np.array([float(x) for x in M.split(' ')]).reshape(3, 3)
-                setattr(self, tag, M)
-                self.isValid = True
+                setattr(self, '_' + tag, M)  # a single _ , as setattr does no mangling
+
         except (ValueError, KeyError) as e:
             print('dngProfileColorMatrices : ', str(e))
+            raise e
+
+    @property
+    def colorMatrix1(self):
+        return self._ColorMatrix1
+
+    @property
+    def colorMatrix2(self):
+        return self._ColorMatrix2
+
 
 class dngProfileForwardMatrices:
     """
     Wrapper for the two color matrices
     """
     def __init__(self, dngDict):
-        self.isValid = False
         try:
             for tag in ['ForwardMatrix1', 'ForwardMatrix2']:
                 M = dngDict.get(tag, None)
                 M = np.array([float(x) for x in M.split(' ')]).reshape(3, 3)
-                setattr(self, tag, M)
-                self.isValid = True
+                setattr(self, '_' + tag, M) # a single _ , as setattr does no mangling
         except (ValueError, KeyError) as e:
             print('dngProfileForwardMatrices : ', str(e))
+            raise e
+
+    @property
+    def forwardMatrix1(self):
+        return self._ForwardMatrix1
+
+    @property
+    def forwardMatrix2(self):
+        return self._ForwardMatrix2
+
 
 class dngProfileDual:
     """
-    Wrapper for the dual calibration
+    Main class for dual illuminant profile.
+    An invalid or missing profile dictionary sets the
+    property dngProfileDual.isValid to False.
     """
     def __init__(self, dngDict):
-        self.isValid = False
+        self.__isValid = False
         try:
             illuminants = dngProfileIlluminants(dngDict)
-            self.T1, self.T2 = illuminants.temperature1, illuminants.temperature2  # int(dngDict['CalibrationIlluminant1']) , int(dngDict['CalibrationIlluminant2'])
+            self.__T1, self.__T2 = illuminants.temperature1, illuminants.temperature2
             matrices = dngProfileColorMatrices(dngDict)
-            self.colorMatrix1, self.colorMatrix2 = matrices.ColorMatrix1, matrices.ColorMatrix2  # dngDict['CalibrationIlluminant1'] , dngDict['CalibrationIlluminant2']
+            self.__colorMatrix1, self.__colorMatrix2 = matrices.colorMatrix1, matrices.colorMatrix2
             matrices = dngProfileForwardMatrices(dngDict)
-            self.forwardMatrix1, self.forwardMatrix2 = matrices.ForwardMatrix1, matrices.ForwardMatrix2
-            self.isValid = True
-        except (ValueError, KeyError, AttributeError):
-            pass
+            self.__forwardMatrix1, self.__forwardMatrix2 = matrices.forwardMatrix1, matrices.forwardMatrix2
+            self.__isValid = True
+        except (ValueError, KeyError, AttributeError) as e:
+            print('dngProfileDual : ', str(e))
+
+    @property
+    def isValid(self):
+        return self.__isValid
+
+    @property
+    def colorMatrix1(self):
+        return self.__colorMatrix1
+
+    @property
+    def colorMatrix2(self):
+        return self.__colorMatrix2
+
+    @property
+    def forwardMatrix1(self):
+        return self.__forwardMatrix1
+
+    @property
+    def forwardMatrix2(self):
+        return self.__forwardMatrix2
+
+    @property
+    def T1(self):
+        return self.__T1
+
+    @property
+    def T2(self):
+        return self.__T2
 
 
 def interpolate(T, M1, M2, T1, T2):
@@ -277,8 +322,8 @@ def interpolate(T, M1, M2, T1, T2):
     Return the interpolated color matrix
     for temperature T, using the two calibration
     illuminants (M1, T1) and (M2, T2).
-    Following the Adobe dng spec.(p. 79), we inverse
-    all temperatures and apply linear interpolation.
+    Following the Adobe dng spec.(p. 79), we apply
+    linear interpolation to the inverse of the temperatures.
     @param T: temperature of interpolation
     @type T: float
     @param M1: ColorMatrix1
@@ -315,13 +360,13 @@ def interpolatedColorMatrix(T, dngDict):
     @rtype: ndarray, shape=(3,3)
     """
     calibration = dngProfileDual(dngDict)
-    dualIlluminant = calibration.isValid
-    if dualIlluminant:
+    if calibration.isValid:
         T1, T2 = calibration.T1, calibration.T2
         colorMatrix1, colorMatrix2 = calibration.colorMatrix1, calibration.colorMatrix2
         return interpolate(T, colorMatrix1, colorMatrix2, T1, T2)
     else:
-        raise ValueError("interpolatedMatrix : invalid profile")
+        raise ValueError("interpolatedColorMatrix : invalid profile")
+
 
 def interpolatedForwardMatrix(T, dngDict):
     """
@@ -337,10 +382,9 @@ def interpolatedForwardMatrix(T, dngDict):
     @rtype: ndarray, shape=(3,3)
     """
     calibration = dngProfileDual(dngDict)
-    dualIlluminant = calibration.isValid
-    if dualIlluminant:
+    if calibration.isValid:
         T1, T2 = calibration.T1, calibration.T2
         forwardMatrix1, forwardMatrix2 = calibration.forwardMatrix1, calibration.forwardMatrix2
         return interpolate(T, forwardMatrix1, forwardMatrix2, T1, T2)
     else:
-        raise ValueError("interpolatedMatrix : invalid profile")
+        raise ValueError("interpolatedForwardMatrix : invalid profile")
