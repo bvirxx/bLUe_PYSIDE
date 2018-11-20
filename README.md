@@ -35,10 +35,11 @@ The program is written in Python.
 segmentation, geometric transformations, curves (1D LUTs), 2.5D LUTs, 3D LUTs.
 * Automatic contrast enhancement (histogram warping and CLAHE)
 * Crop tool
+* Multiple blending modes; adjustable opacity
 * Import and export of 3D LUTs in .cube format
 * Masks
-* Automatic import of camera specific dual illuminant dng and dcp profiles
-* Editable profile tone curve
+* Automatic import of camera specific dual illuminant dng/dcp profiles
+* Adjustable profile tone curve
 * Library viewer
 * Slide Show
 
