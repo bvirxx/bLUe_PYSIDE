@@ -172,12 +172,11 @@ class rawForm (baseForm):
         # constants and as shot values
         self.XYZ2CameraMatrix = rawpyObj.rgb_xyz_matrix[:3, :]
         self.XYZ2CameraInverseMatrix = np.linalg.inv(self.XYZ2CameraMatrix)
-        self.asShotMultipliers = rawpyObj.camera_whitebalance
-        self.asShotTemp, self.asShotTint = multipliers2TemperatureAndTint(*1 / np.array(self.asShotMultipliers[:3]), self.XYZ2CameraMatrix)
-
-
         # initial post processing multipliers (as shot)
-        self.rawMultipliers = rawpyObj.camera_whitebalance # = 1/(dng ASSHOTNEUTRAL tag value)
+        m1,m2,m3, m4 = rawpyObj.camera_whitebalance
+        self.asShotMultipliers = (m1/m2, 1.0, m3/m2, m4/m2) # normalization is mandatory : for nef files white balance is around 256
+        self.asShotTemp, self.asShotTint = multipliers2TemperatureAndTint(*1 / np.array(self.asShotMultipliers[:3]), self.XYZ2CameraMatrix)
+        self.rawMultipliers = self.asShotMultipliers #rawpyObj.camera_whitebalance # = 1/(dng ASSHOTNEUTRAL tag value)
         self.sampleMultipliers = False
         self.samples = []
         ########################################
@@ -788,7 +787,7 @@ former.<br>
         items = OrderedDict(
             [(basename(f)[:-4] if i > 0 else 'Embedded Profile', getDngProfileDict(f)) for i, f in enumerate(files)])
         # add 'None' and all found profiles for the current camera model: 'None' will be the default selection
-        self.cameraProfilesCombo.addItem('None', {})
+
         # filter items to eliminate empty entries and
         # add non empty dicts to cameraProfileCombo
         for key in items:
@@ -796,6 +795,7 @@ former.<br>
             d = {k: items[key][k] for k in items[key] if items[key][k] != ''}
             if d:
                 self.cameraProfilesCombo.addItem(key, d)
+        self.cameraProfilesCombo.addItem('None', {})
         self.cameraProfilesCombo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
         self.cameraProfilesCombo.setMaximumWidth(150)
         self.cameraProfilesCombo.setStyleSheet("QComboBox QAbstractItemView { min-width: 250px;}")

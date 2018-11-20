@@ -25,7 +25,8 @@ from PySide2.QtGui import QImage
 
 from bLUeCore.multi import interpMulti
 from bLUeGui.bLUeImage import QImageBuffer, bImage
-from bLUeGui.colorCIE import rgbLinear2rgbVec, sRGB_lin2XYZ, sRGB_lin2XYZInverse, bradfordAdaptationMatrix
+from bLUeGui.colorCIE import rgbLinear2rgbVec, sRGB_lin2XYZ, sRGB_lin2XYZInverse, bradfordAdaptationMatrix, \
+    sRGB_lin2XYZ_D50Inverse
 from bLUeGui.graphicsSpline import channelValues
 from bLUeGui.histogramWarping import warpHistogram
 from debug import tdec
@@ -101,6 +102,7 @@ def rawPostProcess(rawLayer, pool=None):
 
     use_auto_wb = options['Auto WB']
     use_camera_wb = options['Camera WB']
+    exp_preserve_highlights = 0.99 if options['Preserve Highlights'] else 0.2  # 0.6  # range 0.0..1.0 (1.0 = full preservation)
     if doALL:
         ##############################
         # get postprocessing parameters
@@ -111,7 +113,7 @@ def rawPostProcess(rawLayer, pool=None):
         exp_shift = adjustForm.expCorrection if not options['Auto Brightness'] else 0
         no_auto_bright = (not options['Auto Brightness'])
 
-        exp_preserve_highlights = 0.99 if options['Preserve Highlights'] else 0.6  # range 0.0..1.0
+
         bright = adjustForm.brCorrection  # default 1, should be > 0
         hv = adjustForm.overexpValue
         highlightmode = rawpy.HighlightMode.Clip if hv == 0 \
@@ -191,32 +193,19 @@ def rawPostProcess(rawLayer, pool=None):
     D = np.diag((1/m1,1/m2,1/m3))
     tempCorrection = adjustForm.asShotTemp if use_camera_wb else adjustForm.tempCorrection
     MM = bradfordAdaptationMatrix(6500, tempCorrection)
-    FM, BM = None, None
+    MM1 = bradfordAdaptationMatrix(6500, 5000)
+    FM = None
+    myHighlightPreservation = 0.8 if exp_preserve_highlights > 0.9 else 1.0
     if adjustForm.dngDict:
         try:
-            #BM = interpolatedColorMatrix(adjustForm.tempCorrection, adjustForm.dngDict)
-            #BMInverse = np.linalg(BM)
             FM = interpolatedForwardMatrix(adjustForm.tempCorrection, adjustForm.dngDict)
         except:
             pass
-    raw2sRGBMatrix = sRGB_lin2XYZInverse @ FM if FM is not None else sRGB_lin2XYZInverse @ MM @ adjustForm.XYZ2CameraInverseMatrix @ D #  @ MMInverse
+    raw2sRGBMatrix = sRGB_lin2XYZInverse @ MM1 @ FM * myHighlightPreservation if FM is not None else\
+                     sRGB_lin2XYZ_D50Inverse @ MM @ adjustForm.XYZ2CameraInverseMatrix @ D
     bufpost16 = np.tensordot(rawLayer.bufpost16, raw2sRGBMatrix, axes=(-1, -1))
     np.clip(bufpost16, 0, 255, out=bufpost16)
     rawLayer.postProcessCache = cv2.cvtColor(((bufpost16.astype(np.float32)) / max_ouput).astype(np.float32), cv2.COLOR_RGB2HSV)
-    """
-    try:
-        if adjustForm.dngDict:
-            M = interpolatedColorMatrix(adjustForm.tempCorrection, adjustForm.dngDict)
-            M1 = np.linalg.inv(M)
-            #bufpost16 = np.tensordot(rawLayer.bufpost16, sRGB_lin2XYZInverse @ M1 @ adjustForm.XYZ2CameraMatrix , axes=(-1, -1))
-            #bufpost16 = np.tensordot(rawLayer.bufpost16, sRGB_lin2XYZInverse @ FM @ D @ adjustForm.XYZ2CameraMatrix @ MMInverse, axes=(-1, -1))  # for raw output
-            bufpost16 = np.tensordot(rawLayer.bufpost16, sRGB_lin2XYZInverse @ FM, axes=(-1, -1))
-        else:
-            raise ValueError
-    except (KeyError, ValueError):
-        pass
-        #bufpost16 = np.tensordot(rawLayer.bufpost16, FM @ D @  adjustForm.XYZ2CameraMatrix  @ MMInverse, axes=(-1, -1))  # for raw output
-    """
 
     # update histogram
     s = rawLayer.postProcessCache.shape
@@ -226,18 +215,6 @@ def rawPostProcess(rawLayer, pool=None):
     rawLayer.linearImg = tmp
 
     if getattr(adjustForm, "toneForm", None) is not None:
-        """
-        if doALL or toneCurveShowFirst:
-            # update histogram
-            s = rawLayer.postProcessCache.shape
-            tmp = bImage(s[1], s[0], QImage.Format_RGB32)
-            buf = QImageBuffer(tmp)
-            buf[:, :, :] = (rawLayer.postProcessCache[:, :, 2, np.newaxis] * 255).astype(np.uint8)
-            rawLayer.linearImg = tmp
-            rawLayer.histImg = tmp.histogram(size=adjustForm.toneForm.scene().axeSize,
-                                             bgColor=adjustForm.toneForm.scene().bgColor,
-                                             range=(0, 255), chans=channelValues.Br) # mode='Luminosity')
-        """
         rawLayer.histImg = tmp.histogram(size=adjustForm.toneForm.scene().axeSize,
                                          bgColor=adjustForm.toneForm.scene().bgColor,
                                          range=(0, 255), chans=channelValues.Br)  # mode='Luminosity')
@@ -247,7 +224,6 @@ def rawPostProcess(rawLayer, pool=None):
     # beginning of the camera profile phase : update buffers from the last post processed image
     bufHSV_CV32 = rawLayer.postProcessCache.copy()
     rawLayer.bufCache_HSV_CV32 = bufHSV_CV32.copy()
-
 
     ##########################
     # Profile look table

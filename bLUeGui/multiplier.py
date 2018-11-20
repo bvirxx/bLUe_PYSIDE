@@ -27,8 +27,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
 
-from dng import dngProfileIlluminants, dngProfileColorMatrices, interpolate, dngProfileDual, interpolatedColorMatrix
+from dng import interpolate, dngProfileDual, interpolatedColorMatrix
 from .colorCIE import temperatureAndTint2xy, temperature2xyWP
+
 
 def CIExyY2XYZ(x, y):
     """
@@ -44,6 +45,7 @@ def CIExyY2XYZ(x, y):
     """
     return x / y, 1, (1 - x - y) / y
 
+
 def XYZ2CIExyY(X, Y, Z):
     """
     Return the two first coordinates
@@ -55,15 +57,17 @@ def XYZ2CIExyY(X, Y, Z):
     return X / s, Y / s
 
 
-def temperatureAndTint2RGBMultipliers(temp, tint, XYZ2CameraMatrix, dngDict={}):
+def temperatureAndTint2Multipliers(temp, tint, XYZ2CameraMatrix, dngDict={}):
     """
     Convert temperature and tint to RGB multipliers and apply a
-    tint shift : mG = WP_G * tint.
-    The matrix XYZ2CameraMatrix should the interpolated Camera Color Matrix for the
-    temperature T.
+    tint shift : mG = WP_G * tint. The conversion algorithm is based on the
+    camera profile matrix CM for the temperature T.
+    If dngDict is a valid dual illuminant profile, CM is the interpolated Camera Color Matrix for
+    temperature T, and the parameter XYZ2CameraMatrix is not used.
+    If dngDict is invalid, then CM = XYZ2CameraMatrix.
     We compute the xy coordinates of the white point WP(T) by the Robertson's method.
     Next, we transform these coordinates to camera RGB values (mR,mG,mB), using the
-    conversion matrix XYZ2RGBMatrix.
+    conversion matrix CM.
     Multipliers are m1 = mR, m2 = mG*tint, m3 = mB. For convenience
     the function returns the 4 values m1, m2, m3, m2, scaled to min(m1,m2,m3)=1.
     The tint factor should be between 0.2 and 2.5
@@ -93,31 +97,34 @@ def temperatureAndTint2RGBMultipliers(temp, tint, XYZ2CameraMatrix, dngDict={}):
     # expand to XYZ color space
     WP_X, WP_Y, WP_Z = CIExyY2XYZ(WP_x, WP_y)  # x / y, 1.0, (1.0 - x - y) / y
     # Convert to camera neutral
-    m1, m2, m3 = np.dot(colorMatrix, [WP_X, WP_Y, WP_Z]) # np.dot(XYZ2CameraMatrix, [WP_X, WP_Y, WP_Z])
+    m1, m2, m3 = np.dot(colorMatrix, [WP_X, WP_Y, WP_Z])  # np.dot(XYZ2CameraMatrix, [WP_X, WP_Y, WP_Z])
     # apply tint shift (green-magenta shift) to G channel.
     m2 = m2 * tint
     mi = min((m1, m2, m3))
     m1, m2, m3 = m1 / mi, m2 / mi, m3 / mi
     return m1, m2, m3, m2
 
-def RGBMultipliers2TemperatureAndTint(mR, mG, mB, XYZ2CameraMatrix, dngDict={}):
+
+def multipliers2TemperatureAndTint(mR, mG, mB, XYZ2CameraMatrix, dngDict={}):
     """
     Inverse function of temperatureAndTint2RGBMultipliers.
-    Compute the temperature and tint correction corresponding to a
+    It calculates the CCT temperature and the tint correction corresponding to a
     set of 3 RGB multipliers.
-    The matrix XYZ2CameraMatrix should the interpolated Camera Color Matrix for the
-    temperature T.
+    The conversion algorithm is based on the
+    camera profile matrix CM for the temperature T.
+    If dngDict is a valid dual illuminant profile, CM is the interpolated Camera Color Matrix for
+    temperature T, and the parameter XYZ2CameraMatrix is not used.
+    If dngDict is invalid, then CM = XYZ2CameraMatrix.
     The aim is to find a temperature T with a corresponding white point WP(T),
     and a factor tint, such that mB/mR = WPb/WPr and mG*tint/mR = Wpg/WPr.
     We consider the function f(T) = WPb/WPr giving
     the ratio of blue over red coordinates for the white point WP(T). Assuming  f is monotonic,
     we solve the equation f(T) = mB/mR by a simple dichotomous search.
     The Adobe dng spec. uses a slightly different algorithm (cf. p. 81) : they search for a white point
-    point (x,y) = WP(T) which is solution of the equation XYZtoCamera(WP(T)) = CameraNeutral,
-    with XYZtoCamera interpolated from ColorMatrix1 and ColorMatrix2.
-    Then, the tint is simply defined as the scaling factor mu verifying tint * mG/mR = WPG/WPR
+    point (x,y) = WP(T) which is solution of the equation CM(WP(T)) = CameraNeutral,
+    Tint is simply defined as the scaling factor mu verifying tint * mG/mR = WPG/WPR
     Note that to be inverse functions, RGBMultipliers2Temperature and temperatureAndTint2RGBMultipliers
-    must use the same XYZ2CameraMatrix.
+    must use the same conversion matrix.
     @param mR:
     @type mR:
     @param mG:
@@ -126,7 +133,7 @@ def RGBMultipliers2TemperatureAndTint(mR, mG, mB, XYZ2CameraMatrix, dngDict={}):
     @type mB:
     @param XYZ2CameraMatrix:
     @type XYZ2CameraMatrix:
-     @param dngDict: dictionary of dng profile tag values
+    @param dngDict: dictionary of dng profile tag values
     @type dngDict: dict
     @return: temperature and tint correction
     @rtype: 2-uple of float
@@ -144,7 +151,7 @@ def RGBMultipliers2TemperatureAndTint(mR, mG, mB, XYZ2CameraMatrix, dngDict={}):
         T = (Tmin + Tmax) / 2.0
         x, y = temperature2xyWP(T)  # ~ temperatureAndTint2xy(T,0)
         # expand to the XYZ color space
-        X, Y, Z = CIExyY2XYZ(x, y) #= x / y, 1, (1 - x - y) / y
+        X, Y, Z = CIExyY2XYZ(x, y)  # x / y, 1, (1 - x - y) / y
         # Convert to camera color space :
         if dualIlluminant:
             M = interpolate(T, colorMatrix1, colorMatrix2, T1, T2)

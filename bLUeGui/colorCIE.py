@@ -17,6 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import cv2
 import numpy as np
+from debug import tdec
 
 #############################################################################
 # This module implements temperature dependent                              #
@@ -33,16 +34,17 @@ import numpy as np
 # Conversion Matrices
 #####################
 
-############################################
-# Conversion from CIE XYZ to LMS-like color space.
-# Cf. http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html
-#############################################
-from debug import tdec
 
 sRGBWP = 6500
 
 # According to Python and Numpy conventions, the below definitions of matrix
 # constants as lists and/or arrays give M[row_index][col_index] values.
+
+############################################
+# The Bradford matrix converts from
+# CIE XYZ to the cone response domain.
+# Cf. http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html
+#############################################
 
 Bradford = [[0.8951000, 0.2664000, -0.1614000],
             [-0.7502000, 1.7135000, 0.0367000],
@@ -53,7 +55,7 @@ BradfordInverse = [[0.9869929, -0.1470543, 0.1599627],
                    [-0.0085287, 0.0400428, 0.9684867]]
 
 ######################################################################
-# conversion matrices from LINEAR sRGB (D65) to XYZ and back.
+# conversion matrices from LINEAR sRGB  to XYZ (D65) and back.
 # Cf. http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
 # and https://en.wikipedia.org/wiki/SRGB
 #######################################################################
@@ -65,6 +67,21 @@ sRGB_lin2XYZ = [[0.4124564, 0.3575761, 0.1804375],
 sRGB_lin2XYZInverse = [[3.2404542, -1.5371385, -0.4985314],
                        [-0.9692660, 1.8760108, 0.0415560],
                        [0.0556434, -0.2040259, 1.0572252]]
+
+######################################################################
+# conversion matrices from LINEAR sRGB  to XYZ (D50) and back.
+# Cf. http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
+# and https://en.wikipedia.org/wiki/SRGB
+#######################################################################
+
+sRGB_lin2XYZ_D50 = [[0.4360747,  0.3850649,  0.1430804],
+                    [0.2225045,  0.7168786,  0.0606169],
+                    [0.0139322,  0.0971045,  0.7141733]]
+
+sRGB_lin2XYZ_D50Inverse = [[3.1338561, -1.6168667, -0.4906146],
+                           [-0.9787684,  1.9161415,  0.0334540],
+                           [0.0719453, -0.2289914,  1.4052427]]
+
 
 ###########################################################
 # XYZ/sRGB/Lab conversion :
