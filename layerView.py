@@ -26,7 +26,7 @@ from PySide2.QtGui import QImage, QPalette, QKeySequence, QFontMetrics, QTextOpt
 from PySide2.QtWidgets import QAction, QMenu, QSlider, QStyle, QCheckBox, QApplication
 from PySide2.QtWidgets import QComboBox, QHBoxLayout, QLabel, QTableView, QAbstractItemView, QStyledItemDelegate, QHeaderView, QVBoxLayout
 import resources_rc  # hidden import mandatory : DO NOT REMOVE !!!
-import QtGui1
+from QtGui1 import window
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.dialog import openDlg, dlgWarn
 from utils import  QbLUeSlider
@@ -151,7 +151,7 @@ class QLayerView(QTableView) :
             if self.img is None:
                 return
             self.img.useThumb = (state == Qt.Checked)
-            QtGui1.window.updateStatus()
+            window.updateStatus()
             self.img.cacheInvalidate()
             for layer in self.img.layersStack:
                 layer.autoclone = True  # auto update cloning layers
@@ -167,7 +167,7 @@ class QLayerView(QTableView) :
                     layer.knitted = False
                 QApplication.restoreOverrideCursor()
                 QApplication.processEvents()
-            QtGui1.window.label.repaint()
+            window.label.repaint()
         self.previewOptionBox.stateChanged.connect(m)
         self.previewOptionBox.setChecked(True) # m is not triggered
 
@@ -613,7 +613,7 @@ Note that upper visible layers slow down mask edition.
         ind = self.blendingModeCombo.findData(compositionMode)
         self.blendingModeCombo.setCurrentIndex(ind)
         # draw the right rectangle
-        QtGui1.window.label.repaint()
+        window.label.repaint()
 
 
     def initContextMenu(self):
@@ -747,7 +747,7 @@ Note that upper visible layers slow down mask edition.
             self.img.onImageChanged()
         def loadImage():
             return # TODO 26/06/18 action to remove from menu? replaced by new image layer
-            filename = openDlg(QtGui1.window)
+            filename = openDlg(window)
             img = QImage(filename)
             layer.thumb = None
             layer.setImage(img)

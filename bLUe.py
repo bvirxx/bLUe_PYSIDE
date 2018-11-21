@@ -1707,9 +1707,6 @@ def screenUpdate(newScreenIndex):
     threading.Thread(target=bgTask)
     window.screenChanged.connect(screenUpdate)
 
-###########
-# app
-###########
 
 if __name__ == '__main__':
     #################
@@ -1719,7 +1716,8 @@ if __name__ == '__main__':
     # Otherwise, it does nothing.
     #################
     freeze_support()
-
+    # load UI
+    window.init()
     # splash screen
     splash = QSplashScreen(QPixmap('logo.png'), Qt.WindowStaysOnTopHint)
     splash.show()

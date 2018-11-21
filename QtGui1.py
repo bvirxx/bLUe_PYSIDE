@@ -31,52 +31,59 @@ from utils import hideConsole, showConsole
 class Form1(QMainWindow):
     """
     Main form class.
-    The form is loaded from bLUe.ui.
     """
     # screen changed signal
     screenChanged = QtCore.Signal(int)
     def __init__(self): # app, parent=None):  # TODO 05/07/18 validate app and parent removing
-        from graphicsHist import histForm
-        from layerView import QLayerView
         super(Form1, self).__init__()
-        # load .ui file
         self.settings = QSettings("bLUe.ini", QSettings.IniFormat)
         # we presume that the form will be shown first on screen 0;
         # No detection possible before it is effectively shown !
         self.currentScreenIndex = 0
-        loadUi('bLUe.ui', baseinstance=self, customWidgets= {'QLayerView': QLayerView, 'QLabel': QLabel, 'histForm': histForm})
+
+
+    def init(self):
+        """
+        Load the form from the .ui file
+
+        """
+        from graphicsHist import histForm
+        from layerView import QLayerView
+        loadUi('bLUe.ui', baseinstance=self,
+               customWidgets={'QLayerView': QLayerView, 'QLabel': QLabel, 'histForm': histForm})
         # hook called by event slots
         # should be redefined later
-        self.onWidgetChange = lambda b : None
+        self.onWidgetChange = lambda b: None
         # State recording.
         self.slidersValues = {}
         self.btnValues = {}
         # connect slider and button signals to slots
         for slider in self.findChildren(QtWidgets.QSlider):
             slider.valueChanged.connect(
-                            lambda value, slider=slider : self.handleSliderMoved(value, slider)
-                            )
-            self.slidersValues [str(slider.accessibleName())] = slider.value()
+                lambda value, slider=slider: self.handleSliderMoved(value, slider)
+            )
+            self.slidersValues[str(slider.accessibleName())] = slider.value()
 
-        for button in self.findChildren(QtWidgets.QPushButton) :
+        for button in self.findChildren(QtWidgets.QPushButton):
             # signal clicked has a default argument checked=False,
-            # so we consume all args passed
+            # so we consume all passed args
             button.clicked.connect(
-                            lambda *args, button=button : self.handlePushButtonClicked(button)
-                            )
+                lambda *args, button=button: self.handlePushButtonClicked(button)
+            )
             self.btnValues[str(button.accessibleName())] = button.isChecked()
 
-        for button in self.findChildren(QtWidgets.QToolButton) :
+        for button in self.findChildren(QtWidgets.QToolButton):
             button.toggled.connect(
-                            lambda state, button=button : self.handleToolButtonClicked(button)
-                            )
+                lambda state, button=button: self.handleToolButtonClicked(button)
+            )
             if not button.isCheckable():
                 # signal clicked has a default argument checked=False
                 # so we consume all args passed.
                 button.clicked.connect(
-                                lambda *args, button=button : self.handleToolButtonClicked(button)
-                                )
+                    lambda *args, button=button: self.handleToolButtonClicked(button)
+                )
             self.btnValues[str(button.accessibleName())] = button.isChecked()
+
 
     def handlePushButtonClicked(self, button):
         """
@@ -180,8 +187,9 @@ app = QApplication(sys.argv)
 # get root widget for screen management
 rootWidget = app.desktop()
 
-################3
+#################
 # init main form
+# the UI is not loaded yet
 window = Form1()
 #################
 
