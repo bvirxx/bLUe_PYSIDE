@@ -237,7 +237,7 @@ class mImage(vImage):
         """
         Adds a layer.
 
-        @param layer: layer to add (fresh layer if None, type QLayer)
+        @param layer: layer to add (if None, add a fresh layer)
         @type layer: QLayer
         @param name:
         @type name: str

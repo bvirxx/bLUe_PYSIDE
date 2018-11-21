@@ -25,7 +25,7 @@ from PySide2 import QtCore
 from PySide2.QtCore import Qt, QPointF
 from PySide2.QtGui import QFontMetrics, QBrush, QPolygonF, qRed, qGreen, qBlue
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBox, QComboBox, \
-    QGraphicsEllipseItem, QGraphicsPolygonItem
+    QGraphicsEllipseItem, QGraphicsPolygonItem, QApplication
 from bLUeGui.graphicsSpline import graphicsSplineForm, activeCubicSpline
 from bLUeGui.graphicsForm import baseForm
 from dng import getDngProfileList, getDngProfileDict, dngProfileToneCurve, dngProfileLookTable
@@ -539,6 +539,26 @@ Valid values are 0 to 3 (0=clip;1=unclip;2=blend;3=rebuild); (with Auto Exposed 
 """
                         ) # end of setWhatsThis
 
+
+    def close(self):
+        """
+        Overrides QWidget.close to
+        close toneForm and contrastForm
+        @return:
+        @rtype: boolean
+        """
+        delete = self.testAttribute(Qt.WA_DeleteOnClose)
+        for attr in ['toneForm', 'contrastForm']:
+            form = getattr(self, attr, None)
+            if delete and form is not None:
+                dock = form.parent()
+                dock.setAttribute(Qt.WA_DeleteOnClose)
+                form.setAttribute(Qt.WA_DeleteOnClose)
+                dock.close()
+                form.close()
+        return super().close()
+
+
     def showToneSpline(self):
         """
         On first call, init and show the Tone Curve form.
@@ -549,8 +569,8 @@ Valid values are 0 to 3 (0=clip;1=unclip;2=blend;3=rebuild); (with Auto Exposed 
         """
         axeSize = 200
         if self.toneForm is None:
-            form = graphicsToneForm.getNewWindow(targetImage=self.targetImage, axeSize=axeSize, layer=self.layer, parent=None,
-                                                    mainForm=None, curveType='cubic')  # TODO self.targetImage added 12/11/18
+            form = graphicsToneForm.getNewWindow(targetImage=self.targetImage, axeSize=axeSize, layer=self.layer, parent=self,
+                                                  mainForm=None, curveType='cubic')
             form.setWindowFlags(Qt.WindowStaysOnTopHint)
             form.setAttribute(Qt.WA_DeleteOnClose, on=False)
             form.setWindowTitle('Camera Profile Tone Curve')
@@ -644,11 +664,11 @@ former.<br>
         self.sliderTemp.valueChanged.disconnect()
         self.sliderTemp.sliderReleased.disconnect()
         self.tempCorrection = self.slider2Temp(self.sliderTemp.value())
-        # get multipliers
-        multipliers = list(temperatureAndTint2Multipliers(self.tempCorrection, 1.0, self.XYZ2CameraMatrix, self.dngDict))
+        # get multipliers (temperatureAndTint2Multipliers returns the camera neutral)
+        multipliers = [1/m for m in temperatureAndTint2Multipliers(self.tempCorrection, 1.0, self.XYZ2CameraMatrix, self.dngDict)]
         multipliers[1] *=  self.tintCorrection
-        self.rawMultipliers = [1 / multipliers[i] for i in range(3)] + [1 / multipliers[1]]
-        m = min(self.rawMultipliers[:3])
+        self.rawMultipliers = multipliers
+        m = multipliers[1]
         self.rawMultipliers = [self.rawMultipliers[i] / m for i in range(4)]
         self.dataChanged.emit(1)
         self.sliderTemp.valueChanged.connect(self.tempUpdate)  # send new value as parameter
@@ -663,11 +683,11 @@ former.<br>
         self.sliderTint.valueChanged.disconnect()
         self.sliderTint.sliderReleased.disconnect()
         self.tintCorrection = self.slider2Tint(self.sliderTint.value())
-        # get multipliers
-        multipliers = list(temperatureAndTint2Multipliers(self.tempCorrection, 1.0, self.XYZ2CameraMatrix, self.dngDict))
+        # get multipliers (temperatureAndTint2Multipliers returns the camera neutral)
+        multipliers = [1/m for m in temperatureAndTint2Multipliers(self.tempCorrection, 1.0, self.XYZ2CameraMatrix, self.dngDict)]
         multipliers[1] *= self.tintCorrection
-        self.rawMultipliers = [1 / multipliers[i] for i in range(3)] + [1 / multipliers[1]]
-        m = min(self.rawMultipliers[:3])
+        self.rawMultipliers = multipliers
+        m = multipliers[1]
         self.rawMultipliers = [self.rawMultipliers[i] / m for i in range(4)]
         self.dataChanged.emit(1)
         self.sliderTint.valueChanged.connect(self.tintUpdate)

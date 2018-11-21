@@ -158,7 +158,7 @@ from graphicsCoBrSat import CoBrSatForm
 from graphicsExp import ExpForm
 from graphicsPatch import patchForm
 from settings import USE_POOL, POOL_SIZE, THEME, MAX_ZOOM
-from utils import  QbLUeColorDialog
+from utils import QbLUeColorDialog
 from bLUeGui.tool import cropTool, rotatingTool
 from graphicsTemp import temperatureForm
 from time import sleep
@@ -214,23 +214,24 @@ pool = None
 
 # init global QPainter for paint event (CAUTION non thread safe approach!)
 qp = QPainter()
-# stuff for Before/After marks
+# stuff for Before/After tags
 qp.font = QFont("Arial", 8)
-qp.markPath=QPainterPath()
+qp.markPath = QPainterPath()
 qp.markRect = QRect(0, 0, 50, 20)
 qp.markPath.addRoundedRect(qp.markRect, 5, 5)
 
-def paintEvent(widg, e) :
+
+def paintEvent(widg, e):
     """
     Paint event handler.
-    The handler displays a vImage object in a Qlabel, with
-    current offset and zooming coefficient.
+    It displays the presentation layer of a vImage object in a Qlabel,
+    with current offset and zooming coefficient.
     The widget must have a valid img attribute of type vImage.
-    The handler should be used override the paintEvent method of widg. This can be done
+    The handler should be used to override the paintEvent method of widg. This can be done
     by subclassing (not directly compatible with Qt Designer) or by assigning paintEvent
-    to widg.paintEvent (cf. the function set_event_handler below).
+    to the method widg.paintEvent (cf. the function set_event_handler below).
     @param widg: widget
-    @type widg: object with a img attribute of type vImage
+    @type widg: QLabel with a img attribute of type vImage
     @param e: paint event
     """
     mimg = getattr(widg, 'img', None)
@@ -239,9 +240,9 @@ def paintEvent(widg, e) :
     r = mimg.resize_coeff(widg)
     qp.begin(widg)
     # smooth painting
-    qp.setRenderHint(QPainter.SmoothPixmapTransform)  # TODO useless?
+    qp.setRenderHint(QPainter.SmoothPixmapTransform)  # TODO may be useless
     # fill background
-    qp.fillRect(QRect(0, 0, widg.width() , widg.height() ), vImage.defaultBgColor)
+    qp.fillRect(QRect(0, 0, widg.width(), widg.height()), vImage.defaultBgColor)
     # draw the presentation layer.
     # As offsets can be float numbers, we use QRectF instead of QRect
     # r is relative to the full resolution image, so we use mimg width and height
@@ -253,36 +254,36 @@ def paintEvent(widg, e) :
     else:
         currentImage = mimg.prLayer.getCurrentImage()
         qp.drawImage(rectF, currentImage, QImage.rect(currentImage))  # CAUTION : vImage.rect() is overwritten by attribute rect
-    # draw selection rectangle for the active layer only
+    # draw the selection rectangle of the active layer, if any
     layer = mimg.getActiveLayer()
     rect = layer.rect
-    if layer.visible and (rect is not None ):
+    if layer.visible and rect is not None:
         qp.setPen(QColor(0, 255, 0))
-        qp.drawRect(rect.left()*r + mimg.xOffset, rect.top()*r +mimg.yOffset, rect.width()*r, rect.height()*r)
-    # cropping marks
+        qp.drawRect(rect.left()*r + mimg.xOffset, rect.top()*r + mimg.yOffset, rect.width()*r, rect.height()*r)
+    # draw the cropping marks
     lm, rm, tm, bm = 0, 0, 0, 0
     if mimg.isCropped:
-        c = QColor(128,128,128, 192)
+        c = QColor(128, 128, 128, 192)
         lm = window.cropTool.btnDict['left'].margin*r
-        rm =  window.cropTool.btnDict['right'].margin*r
-        tm =  window.cropTool.btnDict['top'].margin*r
-        bm =  window.cropTool.btnDict['bottom'].margin*r
-        #left
+        rm = window.cropTool.btnDict['right'].margin*r
+        tm = window.cropTool.btnDict['top'].margin*r
+        bm = window.cropTool.btnDict['bottom'].margin*r
+        # left
         qp.fillRect(QRectF(mimg.xOffset, mimg.yOffset, lm, h), c)
-        #top
+        # top
         qp.fillRect(QRectF(mimg.xOffset+lm, mimg.yOffset, w - lm, tm), c)
-        #right
+        # right
         qp.fillRect(QRectF(mimg.xOffset+w-rm, mimg.yOffset+tm, rm, h-tm),  c)
-        #bottom
+        # bottom
         qp.fillRect(QRectF(mimg.xOffset+lm, mimg.yOffset+h-bm, w-lm-rm, bm), c)
-    # rulers
+    # draw rulers
     if mimg.isRuled:
         deltaX, deltaY = (w-lm-rm)//3, (h-tm-bm)//3
         qp.drawLine(lm+mimg.xOffset, deltaY+tm+mimg.yOffset, w-rm+mimg.xOffset, deltaY+tm+mimg.yOffset)
         qp.drawLine(lm+mimg.xOffset, 2*deltaY+tm+mimg.yOffset, w-rm+mimg.xOffset, 2*deltaY+tm+mimg.yOffset)
         qp.drawLine(deltaX+lm+mimg.xOffset, tm+mimg.yOffset, deltaX+lm+mimg.xOffset, h-bm+mimg.yOffset)
         qp.drawLine(2*deltaX+lm+mimg.xOffset, tm+mimg.yOffset, 2*deltaX+lm+mimg.xOffset, h-bm+mimg.yOffset)
-    # mark before/after views
+    # tag before/after views
     name = widg.objectName()
     if name == "label_2" or name == "label_3":
         # draw filled rect
@@ -290,19 +291,21 @@ def paintEvent(widg, e) :
         # draw text
         qp.setPen(Qt.white)
         qp.setFont(qp.font)
-        qp.drawText(qp.markRect, Qt.AlignCenter | Qt.AlignVCenter, "Before" if name == "label_2" else "After" )
+        qp.drawText(qp.markRect, Qt.AlignCenter | Qt.AlignVCenter, "Before" if name == "label_2" else "After")
     qp.end()
 
-# global variables used in mouseEvent. CAUTION:  non thread safe approach
+
+# global state variables used in mouseEvent. CAUTION:  non thread safe approach
 # Recording of state and mouse coordinates (relative to widget)
-State = {'ix':0, 'iy':0, 'ix_begin':0, 'iy_begin':0} #{'drag':False, 'drawing':False , 'tool_rect':False, 'rect_over':False,
-pressed=False
+State = {'ix': 0, 'iy': 0, 'ix_begin': 0, 'iy_begin': 0}
+pressed = False
 clicked = True
-def mouseEvent(widget, event) :  # TODO split into 3 handlers
+
+
+def mouseEvent(widget, event):  # TODO split into 3 handlers
     """
     Mouse event handler.
-    The handler implements mouse actions on a vImage
-    displayed in a Qlabel.
+    The handler implements mouse actions on a vImage in a QLabel.
     It handles image positioning, zooming, and
     tool actions. It must be called by the mousePressed,
     mouseMoved and mouseReleased methods of the QLabel. This can be done by
@@ -314,7 +317,7 @@ def mouseEvent(widget, event) :  # TODO split into 3 handlers
     @param widget:
     @type widget: QLabel object with img attribute of type mImage
     @param event: mouse event
-    @type event:
+    @type event: QMouseEvent
     """
     global pressed, clicked
     if type(event) == QContextMenuEvent:
@@ -331,13 +334,13 @@ def mouseEvent(widget, event) :  # TODO split into 3 handlers
     ###################
     # mouse press event
     ###################
-    if eventType == QEvent.MouseButtonPress :
+    if eventType == QEvent.MouseButtonPress:
         # Mouse hover generates mouse move events,
         # so, we set pressed to only select non hovering events
-        pressed=True
+        pressed = True
         if event.button() == Qt.LeftButton:
             # no move yet
-            clicked=True
+            clicked = True
         State['ix'], State['iy'] = x, y
         State['ix_begin'], State['iy_begin'] = x, y
         State['x_imagePrecPos'], State['y_imagePrecPos'] = (x - img.xOffset) // r, (y - img.yOffset) // r
@@ -345,11 +348,11 @@ def mouseEvent(widget, event) :  # TODO split into 3 handlers
     ##################
     # mouse move event
     ##################
-    elif eventType == QEvent.MouseMove :
+    elif eventType == QEvent.MouseMove:
         # skip hover events
         if not pressed:
             return
-        clicked=False
+        clicked = False
         if img.isMouseSelectable:
             # don't draw on a non visible layer
             if window.btnValues['rectangle'] or window.btnValues['drawFG'] or window.btnValues['drawBG']:
@@ -392,7 +395,7 @@ def mouseEvent(widget, event) :  # TODO split into 3 handlers
                     ############################
                     # update upper stack
                     # should be layer.applyToStack() if any upper layer visible : too slow
-                    layer.updatePixmap(maskOnly=True) # TODO maskOnly not used: remove
+                    layer.updatePixmap(maskOnly=True)  # TODO maskOnly not used: remove
                     #############################
                     img.prLayer.applyNone()
                     # img.prLayer.updatePixmap(maskOnly=True) # TODO called by applyNone 19/06/18
@@ -401,8 +404,8 @@ def mouseEvent(widget, event) :  # TODO split into 3 handlers
             else:
                 # drag image
                 if modifiers == Qt.NoModifier:
-                    img.xOffset+=(x-State['ix'])
-                    img.yOffset+=(y-State['iy'])
+                    img.xOffset += x - State['ix']
+                    img.yOffset += y - State['iy']
                     if window.btnValues['Crop_Button']:
                         window.cropTool.drawCropTool(img)
                 # drag active layer only
@@ -429,16 +432,16 @@ def mouseEvent(widget, event) :  # TODO split into 3 handlers
                 layer.xOffset += (x - State['ix'])
                 layer.yOffset += (y - State['iy'])
                 layer.updatePixmap()
-        #update current coordinates
-        State['ix'],State['iy']=x,y
+        # update current coordinates
+        State['ix'], State['iy'] = x, y
         if layer.isGeomLayer():
             layer.tool.moveRotatingTool()
     #####################
     # mouse release event
     # mouse click event
     ####################
-    elif eventType == QEvent.MouseButtonRelease :
-        pressed=False
+    elif eventType == QEvent.MouseButtonRelease:
+        pressed = False
         if event.button() == Qt.LeftButton:
             if layer.maskIsEnabled \
                     and layer.getUpperVisibleStackIndex() != -1\
@@ -448,7 +451,7 @@ def mouseEvent(widget, event) :  # TODO split into 3 handlers
                 # click event
                 if clicked:
                     x_img, y_img = (x - img.xOffset) / r, (y - img.yOffset) / r
-                    #x_img, y_img = min(int(x_img), img.width()-1), min(int(y_img), img.height()-1)
+                    # x_img, y_img = min(int(x_img), img.width()-1), min(int(y_img), img.height()-1)
                     # read input and current colors from active layer (coordinates are relative to the full-sized image)
                     red, green, blue = img.getActivePixel(x_img, y_img)
                     redC, greenC, blueC = img.getActivePixel(x_img, y_img, fromInputImg=False)
@@ -457,10 +460,10 @@ def mouseEvent(widget, event) :  # TODO split into 3 handlers
                     # set color chooser value according to modifiers
                     if getattr(window, 'colorChooser', None) and window.colorChooser.isVisible():
                         if (modifiers & Qt.ControlModifier) and (modifiers & Qt.ShiftModifier):
-                            window.colorChooser.setCurrentColor(QColor(red,green,blue))
+                            window.colorChooser.setCurrentColor(QColor(red, green, blue))
                         elif modifiers & Qt.ControlModifier:
                             window.colorChooser.setCurrentColor(QColor(redC, greenC, blueC))
-                        else :
+                        else:
                             window.colorChooser.setCurrentColor(QColor(redP, greenP, blueP))
                     # do other stuff
                     else:
@@ -478,11 +481,11 @@ def mouseEvent(widget, event) :  # TODO split into 3 handlers
                             nb = QRect(x_img-2, y_img-2, 4, 4)
                             r = QImage.rect(layer.parentImage).intersected(nb)
                             if not r.isEmpty():
-                                color = np.sum(bufRaw[r.top():r.bottom()+1, r.left():r.right()+1], axis=(0,1))/(r.width()*r.height())
+                                color = np.sum(bufRaw[r.top():r.bottom()+1, r.left():r.right()+1], axis=(0, 1))/(r.width()*r.height())
                             else:
                                 color = bufRaw[y_img, x_img, :]  # TODO added 25/06/18 to avoid uninit. color validate
                             color = [color[i] - layer.parentImage.rawImage.black_level_per_channel[i] for i in range(3)]
-                            form =layer.getGraphicsForm()
+                            form = layer.getGraphicsForm()
                             if form.sampleMultipliers:
                                 row, col = 3*y_img//layer.height(), 3*x_img//layer.width()
                                 if form.samples:
@@ -504,14 +507,15 @@ def mouseEvent(widget, event) :  # TODO split into 3 handlers
     widget.repaint()
     # sync split views
     linked = True
-    if widget.objectName() == 'label_2' :
+    if widget.objectName() == 'label_2':
         splittedWin.syncSplittedView(window.label_3, window.label_2, linked)
         window.label_3.repaint()
     elif widget.objectName() == 'label_3':
         splittedWin.syncSplittedView(window.label_2, window.label_3, linked)
         window.label_2.repaint()
 
-def wheelEvent(widget,img, event):
+
+def wheelEvent(widget, img, event):
     """
     Mouse wheel event handler : zooming
     for imImage objects.
@@ -539,7 +543,7 @@ def wheelEvent(widget,img, event):
         if window.btnValues['Crop_Button']:
             window.cropTool.drawCropTool(img)
         if layer.isGeomLayer():
-            #layer.view.widget().tool.moveRotatingTool()
+            # layer.view.widget().tool.moveRotatingTool()
             layer.tool.moveRotatingTool()
     elif modifiers == Qt.ControlModifier:
         layer.Zoom_coeff *= (1.0 + numSteps)
@@ -549,7 +553,7 @@ def wheelEvent(widget,img, event):
             layer.AltZoom_coeff *= (1.0 + numSteps)
             layer.autoclone = False
             layer.applyCloning(seamless=False)
-            #layer.updatePixmap()
+            # layer.updatePixmap()
     widget.repaint()
     # sync split views
     linked = True
@@ -560,7 +564,8 @@ def wheelEvent(widget,img, event):
         splittedWin.syncSplittedView(window.label_2, window.label_3, linked)
         window.label_2.repaint()
 
-def enterEvent(widget,img, event):
+
+def enterEvent(widget, img, event):
     """
     Mouse enter event handler
     @param widget:
@@ -574,7 +579,7 @@ def enterEvent(widget,img, event):
         if not QApplication.overrideCursor():
             w = window.verticalSlider1.value()
             if w > 5:
-                QApplication.setOverrideCursor(window.cursor_Circle_Pixmap.scaled(w*2.0, w*2.0)) #(w*1.5, w*1.5))
+                QApplication.setOverrideCursor(window.cursor_Circle_Pixmap.scaled(w*2.0, w*2.0))  # (w*1.5, w*1.5))
             else:
                 QApplication.setOverrideCursor(Qt.CrossCursor)
     elif window.btnValues['drag']:
@@ -586,8 +591,10 @@ def enterEvent(widget,img, event):
                 if not QApplication.overrideCursor():
                     QApplication.setOverrideCursor(window.cursor_EyeDropper)
 
-def leaveEvent(widget,img, event):
+
+def leaveEvent(widget, img, event):
     QApplication.restoreOverrideCursor()
+
 
 def dragEnterEvent(widget, img, event):
     """
@@ -600,8 +607,9 @@ def dragEnterEvent(widget, img, event):
     @param event:
     @type event:
     """
-    if (event.mimeData().hasFormat("text/plain")):
+    if event.mimeData().hasFormat("text/plain"):
         event.acceptProposedAction()
+
 
 def dropEvent(widget, img, event):
     """
@@ -618,6 +626,7 @@ def dropEvent(widget, img, event):
     mimeData = event.mimeData()
     openFile(mimeData.text())
 
+
 def set_event_handlers(widg, enterAndLeave=True):
     """
     Pythonic redefinition of event handlers, without
@@ -632,13 +641,14 @@ def set_event_handlers(widg, enterAndLeave=True):
     @type enterAndLeave: boolean
     """
     widg.paintEvent = MethodType(lambda instance, e, wdg=widg: paintEvent(wdg, e), widg.__class__)
-    widg.mousePressEvent = MethodType(lambda instance, e, wdg=widg : mouseEvent(wdg, e), widg.__class__)
-    widg.mouseMoveEvent = MethodType(lambda instance, e, wdg=widg : mouseEvent(wdg, e), widg.__class__)
-    widg.mouseReleaseEvent = MethodType(lambda instance, e, wdg=widg : mouseEvent(wdg, e), widg.__class__)
-    widg.wheelEvent = MethodType(lambda instance, e, wdg=widg : wheelEvent(wdg, wdg.img, e), widg.__class__)
+    widg.mousePressEvent = MethodType(lambda instance, e, wdg=widg: mouseEvent(wdg, e), widg.__class__)
+    widg.mouseMoveEvent = MethodType(lambda instance, e, wdg=widg: mouseEvent(wdg, e), widg.__class__)
+    widg.mouseReleaseEvent = MethodType(lambda instance, e, wdg=widg: mouseEvent(wdg, e), widg.__class__)
+    widg.wheelEvent = MethodType(lambda instance, e, wdg=widg: wheelEvent(wdg, wdg.img, e), widg.__class__)
     if enterAndLeave:
-        widg.enterEvent = MethodType(lambda instance, e, wdg=widg : enterEvent(wdg, wdg.img, e), widg.__class__)
-        widg.leaveEvent = MethodType(lambda instance, e, wdg=widg : leaveEvent(wdg, wdg.img, e), widg.__class__)
+        widg.enterEvent = MethodType(lambda instance, e, wdg=widg: enterEvent(wdg, wdg.img, e), widg.__class__)
+        widg.leaveEvent = MethodType(lambda instance, e, wdg=widg: leaveEvent(wdg, wdg.img, e), widg.__class__)
+
 
 def widgetChange(button):
     """
@@ -647,13 +657,13 @@ def widgetChange(button):
     @param button:
     @type button: QWidget
     """
-    #wdgName = button.objectName()
-    if button is window.fitButton:#wdgName == "fitButton" :
+    # wdgName = button.objectName()
+    if button is window.fitButton:  # wdgName == "fitButton" :
         window.label.img.fit_window(window.label)
         # update crop button positions
         window.cropTool.drawCropTool(window.label.img)
-        #window.label.repaint()
-    elif button is window.cropButton: #wdgName == "cropButton":
+        # window.label.repaint()
+    elif button is window.cropButton:  # wdgName == "cropButton":
         if button.isChecked():
             window.cropTool.drawCropTool(window.label.img)
             for b in window.cropTool.btnDict.values():
@@ -662,11 +672,11 @@ def widgetChange(button):
             for b in window.cropTool.btnDict.values():
                 b.hide()
         window.label.img.isCropped = button.isChecked()
-        #window.label.repaint()
-    elif button is window.rulerButton:#wdgName == "rulerButton":
+        # window.label.repaint()
+    elif button is window.rulerButton:  # wdgName == "rulerButton":
         window.label.img.isRuled = button.isChecked()
-    elif button is window.eyeDropper:#wdgName == 'eyeDropper':
-        if button.isChecked(): #window.btnValues['colorPicker']:
+    elif button is window.eyeDropper:  # wdgName == 'eyeDropper':
+        if button.isChecked():  # window.btnValues['colorPicker']:
             openColorChooser()
             dlg = window.colorChooser
             try:
@@ -679,6 +689,7 @@ def widgetChange(button):
                 window.colorChooser.hide()
     window.label.repaint()
 
+
 def contextMenu(pos, widget):
     """
     Context menu for image QLabel
@@ -687,6 +698,7 @@ def contextMenu(pos, widget):
     @return:
     """
     pass
+
 
 def loadImageFromFile(f, createsidecar=True):
     """
@@ -725,13 +737,13 @@ def loadImageFromFile(f, createsidecar=True):
     # If everything fails, assign sRGB.
     if colorSpace == -1 or colorSpace == 65535:
         desc_colorSpace = metadata[0].get("ICC_Profile:ProfileDescription", '')
-        if isinstance(desc_colorSpace, str):# or isinstance(desc_colorSpace, unicode): python3
+        if isinstance(desc_colorSpace, str):  # or isinstance(desc_colorSpace, unicode): python3
             if not ('sRGB' in desc_colorSpace) or hasattr(window, 'modeDiaporama'):
                 # setOverrideCursor does not work correctly for a MessageBox :
                 # may be a Qt Bug, cf. https://bugreports.qt.io/browse/QTBUG-42117
                 QApplication.changeOverrideCursor(QCursor(Qt.ArrowCursor))
                 QApplication.processEvents()
-                if len(desc_colorSpace) > 0 :
+                if len(desc_colorSpace) > 0:
                     # convert profile to ImageCmsProfile object
                     profile = ImageCmsProfile(BytesIO(profile))
                 else:
@@ -773,14 +785,14 @@ def loadImageFromFile(f, createsidecar=True):
         # postprocess raw image, applying default settings (cf. vImage.applyRawPostProcessing)
         rawBuf = rawpyInst.postprocess(use_camera_wb=True)
         # build Qimage
-        rawBuf = np.dstack((rawBuf[:,:,::-1], np.zeros(rawBuf.shape[:2], dtype=np.uint8)+255))
+        rawBuf = np.dstack((rawBuf[:, :, ::-1], np.zeros(rawBuf.shape[:2], dtype=np.uint8)+255))
         img = imImage(cv2Img=rawBuf, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile, name=name, rating=rating)
         img.filename = f
         # keep references to rawPy instance. rawpyInst.raw_image is the (linearized) sensor image
         img.rawImage = rawpyInst
         # img.filename = f # TODO removed 29/10/18 done by imImage()
-        #img.raw_image_from_profile = (rawpyInst.raw_image).copy()
-        #img.raw_image_from_profile_min, img.raw_image_from_profile_max = np.min(rawpyInst.raw_image), np.max(rawpyInst.raw_image)
+        # img.raw_image_from_profile = (rawpyInst.raw_image).copy()
+        # img.raw_image_from_profile_min, img.raw_image_from_profile_max = np.min(rawpyInst.raw_image), np.max(rawpyInst.raw_image)
         #########################################################
         # Reconstructing the demosaic Bayer bitmap :
         # we need it to calculate the multipliers corresponding
@@ -790,11 +802,11 @@ def loadImageFromFile(f, createsidecar=True):
         # get 16 bits Bayer bitmap
         img.demosaic = demosaic(rawpyInst.raw_image_visible, rawpyInst.raw_colors_visible, rawpyInst.black_level_per_channel)
         # correct orientation
-        if orientation == 6: # 90°
+        if orientation == 6:  # 90°
             img.demosaic = np.swapaxes(img.demosaic, 0, 1)
-        elif orientation == 8: # 270°
+        elif orientation == 8:  # 270°
             img.demosaic = np.swapaxes(img.demosaic, 0, 1)
-            img.demosaic = img.demosaic[:,::-1,:]
+            img.demosaic = img.demosaic[:, ::-1, :]
     else:
         raise ValueError("Cannot read file %s" % f)
     if img.isNull():
@@ -805,26 +817,28 @@ def loadImageFromFile(f, createsidecar=True):
     img.initThumb()
     return img
 
+
 def addBasicAdjustmentLayers(img):
     if img.rawImage is None:
-        #menuLayer('actionColor_Temperature')
-        #menuLayer('actionExposure_Correction')
+        # menuLayer('actionColor_Temperature')
+        # menuLayer('actionExposure_Correction')
         menuLayer('actionContrast_Correction')
     # select active layer : top row
     window.tableView.select(0, 1)
+
 
 def addRawAdjustmentLayer():
     """
     Add a development layer to the layer stack
     """
-    l = window.label.img.addAdjustmentLayer(layerType=QRawLayer, name='Development', role='RAW')
-    grWindow = rawForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window,
-                                            mainForm=window)
+    rlayer = window.label.img.addAdjustmentLayer(layerType=QRawLayer, name='Development', role='RAW')
+    grWindow = rawForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=rlayer,
+                                    parent=window, mainForm=window)
     # wrapper for the right apply method
     pool = getPool()
-    l.execute = lambda l=l, pool=pool: l.tLayer.applyRawPostProcessing(pool=pool)
+    rlayer.execute = lambda l=rlayer, pool=pool: l.tLayer.applyRawPostProcessing(pool=pool)
     # record action name for scripting
-    l.actionName = ''
+    rlayer.actionName = ''
     # dock the form
     dock = QDockWidget(window)
     dock.setWidget(grWindow)
@@ -832,11 +846,12 @@ def addRawAdjustmentLayer():
     dock.setWindowTitle(grWindow.windowTitle())
     dock.move(900, 40)
     dock.setStyleSheet("QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
-    l.view = dock
+    rlayer.view = dock
     # add to docking area
     window.addDockWidget(Qt.RightDockWidgetArea, dock)
     # update layer stack view
     window.tableView.setLayers(window.label.img)
+
 
 def openFile(f):
     """
@@ -848,7 +863,7 @@ def openFile(f):
     if not closeFile():
         return
     # load file
-    try :
+    try:
         QApplication.setOverrideCursor(Qt.WaitCursor)
         QApplication.processEvents()
         img = loadImageFromFile(f)
@@ -887,17 +902,17 @@ def openFile(f):
         QApplication.restoreOverrideCursor()
         QApplication.processEvents()
 
+
 def closeFile():
     """
     Top Level function for file closing.
-    Closes the opened document and clears windows.
+    Close the opened document and reset windows.
+    return True if succeed, False otherwise.
     @return:
     @rtype: boolean
     """
     if not canClose():
         return False
-    # watch memory leak : set weakref to image
-    # r = weakref.ref(window.label.img)
     window.tableView.clear(delete=True)
     window.histView.targetImage = None
     window.label.img = defaultImImage
@@ -908,6 +923,7 @@ def closeFile():
     window.label_2.update()
     window.label_3.update()
     return True
+
 
 def setDocumentImage(img):
     """
@@ -921,18 +937,19 @@ def setDocumentImage(img):
     # init histogram
     window.histView.targetImage = window.label.img
     # image changed event handler
+
     def f():
         # refresh windows (use repaint for faster update)
         window.label.repaint()
         window.label_3.repaint()
         # recompute and display histogram for the right image
         if window.histView.listWidget1.items['Original Image'].checkState() is Qt.Checked:
-            histImg = vImage(QImg=window.label.img.getCurrentImage()) # must be vImage : histogram method needed
+            histImg = vImage(QImg=window.label.img.getCurrentImage())  # must be vImage : histogram method needed
         else:
-            histImg = window.label.img.layersStack[-1].getCurrentMaskedImage() # vImage(QImg=window.label.img.layersStack[-1].getCurrentMaskedImage())#mergeVisibleLayers())
+            histImg = window.label.img.layersStack[-1].getCurrentMaskedImage()  # vImage(QImg=window.label.img.layersStack[-1].getCurrentMaskedImage())#mergeVisibleLayers())
         if window.histView.listWidget2.items['Color Chans'].checkState() is Qt.Checked:
             window.histView.mode = 'RGB'
-            window.histView.chanColors = [QColor(255,0,0), QColor(0,255,0), QColor(10,10,255)]
+            window.histView.chanColors = [QColor(255, 0, 0), QColor(0, 255, 0), QColor(10, 10, 255)]
         else:
             window.histView.mode = 'Luminosity'
             window.histView.chanColors = [Qt.gray]
@@ -963,6 +980,7 @@ def setDocumentImage(img):
     window.label_2.img.window = window.label_2
     window.label.img.setModified(True)
 
+
 def updateMenuOpenRecent():
     """
     Update the list of recent files displayed
@@ -976,8 +994,9 @@ def updateMenuOpenRecent():
     # in QVariant conversion.
     if type(recentFiles) is str:
         recentFiles = [recentFiles]
-    for filename in recentFiles :
+    for filename in recentFiles:
         window.menuOpen_recent.addAction(filename, lambda x=filename: openFile(x))
+
 
 def updateEnabledActions():
     """
@@ -989,6 +1008,7 @@ def updateEnabledActions():
     window.actionSave.setEnabled(window.label.img.isModified)
     window.actionSave_Hald_Cube.setEnabled(window.label.img.isHald)
 
+
 def menuFile(name):
     """
     Menu handler
@@ -996,7 +1016,7 @@ def menuFile(name):
     @type name: str
     """
     # load image from file
-    if name in ['actionOpen'] : #, 'actionHald_from_file'] :
+    if name in ['actionOpen']:
         # get file name from dialog
         filename = openDlg(window)
         # open file
@@ -1015,38 +1035,8 @@ def menuFile(name):
     # closing dialog : close opened document
     elif name == 'actionClose':
         closeFile()
-        """
-    elif name == 'actionHald_identity':
-        img = QImage(LUTSIZE, LUTSIZE**2, QImage.Format_ARGB32)
-        buf = QImageBuffer(img)
-        buf[:,:,:3] = LUT3DIdentity.getHaldImage(LUTSIZE, LUTSIZE**2)
-        img1 = imImage(QImg=img)
-        img1.initThumb()
-        setDocumentImage(img1)
-        img1.isHald = True
-    elif name == 'actionSave_Hald_Cube':
-        # apply stack
-        doc = window.label.img
-        if not doc.isHald:
-            return
-        doc.layersStack[0].applyToStack()
-        window.label.repaint()
-        # get resulting image
-        img = doc.mergeVisibleLayers()
-        # convert image to LUT3D object
-        LUT = LUT3D.HaldImage2LUT3D(img, size=33)
-        # open file and save
-        lastDir = str(window.settings.value('paths/dlgdir', '.'))
-        dlg = QFileDialog(window, "select", lastDir)
-        dlg.setNameFilter('*.cube')
-        dlg.setDefaultSuffix('cube')
-        if dlg.exec_():
-            filenames = dlg.selectedFiles()
-            newDir = dlg.directory().absolutePath()
-            window.settings.setValue('paths/dlgdir', newDir)
-            LUT.writeToTextFile(filenames[0])
-        """
     updateStatus()
+
 
 def menuView(name):
     """
@@ -1057,8 +1047,8 @@ def menuView(name):
     ##################
     # before/after mode
     ##################
-    if name == 'actionShow_hide_right_window_3' :
-        if window.splitter.isHidden() :
+    if name == 'actionShow_hide_right_window_3':
+        if window.splitter.isHidden():
             splittedWin.setSplittedView()
             window.viewState = 'Before/After'
         else:
@@ -1093,11 +1083,11 @@ def menuView(name):
             diaporamaList = []
             # directory dialog
             if dlg.exec_():
-                newDir = dlg.selectedFiles()[0] # dlg.directory().absolutePath()
+                newDir = dlg.selectedFiles()[0]  # dlg.directory().absolutePath()
                 window.settings.setValue('paths/dlgdir', newDir)
                 for dirpath, dirnames, filenames in walk(newDir):
-                    for filename in [f for f in filenames if
-                                f.endswith(IMAGE_FILE_EXTENSIONS)]:
+                    for filename in [f for f in filenames
+                                     if f.endswith(IMAGE_FILE_EXTENSIONS)]:
                         diaporamaList.append(path.join(dirpath, filename))
             window.diaporamaGenerator = cycle(diaporamaList)
         playDiaporama(window.diaporamaGenerator, parent=window)
@@ -1112,7 +1102,7 @@ def menuView(name):
         dlg.setFileMode(QFileDialog.Directory)
         # open dialog
         if dlg.exec_():
-            newDir = dlg.selectedFiles()[0] # dlg.directory().absolutePath()
+            newDir = dlg.selectedFiles()[0]  # dlg.directory().absolutePath()
             window.settings.setValue('paths/dlgdir', newDir)
             viewerInstance = viewer.getViewerInstance(mainWin=window)
             viewerInstance.playViewer(newDir)
@@ -1122,6 +1112,7 @@ def menuView(name):
     elif name == 'actionColor_Chooser':
         openColorChooser()
     updateStatus()
+
 
 def openColorChooser():
     if getattr(window, 'colorChooser', None) is None:
@@ -1137,7 +1128,8 @@ def openColorChooser():
         )  # end of whatsthis
     window.colorChooser.show()
 
-def menuImage(name) :
+
+def menuImage(name):
     """
     Menu handler
     @param name: action name
@@ -1145,7 +1137,7 @@ def menuImage(name) :
     """
     img = window.label.img
     # display image info
-    if name == 'actionImage_info' :
+    if name == 'actionImage_info':
         # Format
         s = "Format : %s\n(cf. QImage formats in the doc for more info)" % QImageFormats.get(img.format(), 'unknown')
         # dimensions
@@ -1154,13 +1146,13 @@ def menuImage(name) :
         s = s + "\n\nWorking Profile : %s" % workingProfileInfo
         # embedded profile
         if len(img.meta.profile) > 0:
-            s = s +"\n\nEmbedded profile found, length %d" % len(img.meta.profile)
+            s = s + "\n\nEmbedded profile found, length %d" % len(img.meta.profile)
         s = s + "\nRating %s" % ''.join(['*']*img.meta.rating)
         # get raw meta data dictionary
-        l = img.meta.rawMetadata
+        rmd = img.meta.rawMetadata
         s = s + "\n\nMETADATA :\n"
-        for d in l:
-            s = s + '\n'.join('%s : %s' % (k,v) for k, v in d.items()) # python 3 iteritems -> items
+        for d in rmd:
+            s = s + '\n'.join('%s : %s' % (k, v) for k, v in d.items())  # python 3 iteritems -> items
         w, label = handleTextWindow(parent=window, title='Image info')
         label.setWordWrap(True)
         label.setText(s)
@@ -1216,6 +1208,8 @@ def menuImage(name) :
         updateStatus()
         with exiftool.ExifTool() as e:
             e.writeXMPTag(img.meta.filename, 'XMP:rating', img.meta.rating)
+
+
 def getPool():
     global pool
     # init pool only once
@@ -1224,6 +1218,7 @@ def getPool():
         pool = multiprocessing.Pool(POOL_SIZE)
         print('done')
     return pool
+
 
 def menuLayer(name):
     """
@@ -1244,42 +1239,42 @@ def menuLayer(name):
             layerName = 'Lab'
             form = graphicsLabForm
         # add new layer on top of active layer
-        l = window.label.img.addAdjustmentLayer(name=layerName)
-        grWindow=form.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
+        layer = window.label.img.addAdjustmentLayer(name=layerName)
+        grWindow = form.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window, mainForm=window)
         # wrapper for the right applyXXX method
         if name == 'actionCurves_RGB':
-            l.execute = lambda l=l, pool=None: l.tLayer.apply1DLUT(grWindow.scene().cubicItem.getStackedLUTXY())
+            layer.execute = lambda l=layer, pool=None: l.tLayer.apply1DLUT(grWindow.scene().cubicItem.getStackedLUTXY())
         elif name == 'actionCurves_HSpB':
-            l.execute = lambda l=l, pool=None: l.tLayer.applyHSV1DLUT(grWindow.scene().cubicItem.getStackedLUTXY(), pool=pool)
+            layer.execute = lambda l=layer, pool=None: l.tLayer.applyHSV1DLUT(grWindow.scene().cubicItem.getStackedLUTXY(), pool=pool)
         elif name == 'actionCurves_Lab':
-            l.execute = lambda l=l, pool=None: l.tLayer.applyLab1DLUT(grWindow.scene().cubicItem.getStackedLUTXY())
+            layer.execute = lambda l=layer, pool=None: l.tLayer.applyLab1DLUT(grWindow.scene().cubicItem.getStackedLUTXY())
     # 3D LUT
     elif name in ['action3D_LUT', 'action3D_LUT_HSB']:
         # color model
         ccm = cmHSP if name == 'action3D_LUT' else cmHSB
         layerName = '2.5D LUT HSpB' if name == 'action3D_LUT' else '2.5D LUT HSV'
-        l = window.label.img.addAdjustmentLayer(name=layerName, role='3DLUT')
-        grWindow = graphicsForm3DLUT.getNewWindow(ccm, axeSize=300, targetImage=window.label.img, LUTSize=LUTSIZE, layer=l, parent=window, mainForm=window)
+        layer = window.label.img.addAdjustmentLayer(name=layerName, role='3DLUT')
+        grWindow = graphicsForm3DLUT.getNewWindow(ccm, axeSize=300, targetImage=window.label.img, LUTSize=LUTSIZE, layer=layer, parent=window, mainForm=window)
         # init pool only once
         pool = getPool()
         sc = grWindow.scene()
-        l.execute = lambda l=l, pool=pool: l.tLayer.apply3DLUT(sc.lut.LUT3DArray, sc.lut.step, options=sc.options, pool=pool)
+        layer.execute = lambda l=layer, pool=pool: l.tLayer.apply3DLUT(sc.lut.LUT3DArray, sc.lut.step, options=sc.options, pool=pool)
     # cloning
     elif name == 'actionNew_Cloning_Layer':
         lname = 'Cloning'
-        l = window.label.img.addAdjustmentLayer(name=lname, role='CLONING')
-        grWindow = patchForm.getNewWindow(targetImage=window.label.img, layer=l, mainForm=window)
-        l.execute = lambda l=l, pool=None: l.tLayer.applyCloning(seamless=l.autoclone)
+        layer = window.label.img.addAdjustmentLayer(name=lname, role='CLONING')
+        grWindow = patchForm.getNewWindow(targetImage=window.label.img, layer=layer, mainForm=window)
+        layer.execute = lambda l=layer, pool=None: l.tLayer.applyCloning(seamless=l.autoclone)
     # segmentation
     elif name == 'actionNew_segmentation_layer':
         lname = 'Segmentation'
-        l = window.label.img.addSegmentationLayer(name=lname)
-        grWindow = segmentForm.getNewWindow(targetImage=window.label.img, layer=l, mainForm=window)
-        l.execute = lambda l=l, pool=None: l.tLayer.applyGrabcut(nbIter=grWindow.nbIter)
+        layer = window.label.img.addSegmentationLayer(name=lname)
+        grWindow = segmentForm.getNewWindow(targetImage=window.label.img, layer=layer, mainForm=window)
+        layer.execute = lambda l=layer, pool=None: l.tLayer.applyGrabcut(nbIter=grWindow.nbIter)
         # mask was modified
-        #l.updatePixmap()
-    # loads an image from file
-    elif name == 'actionLoad_Image_from_File': #'actionNew_Image_Layer':
+        # l.updatePixmap()
+    # load an image from file
+    elif name == 'actionLoad_Image_from_File': # 'actionNew_Image_Layer':
         filename = openDlg(window, ask=False)
         if filename is None:
             return
@@ -1289,14 +1284,14 @@ def menuLayer(name):
             dlgWarn("Cannot load %s: " % filename)
             return
         lname = path.basename(filename)
-        l = window.label.img.addAdjustmentLayer(name=lname, sourceImg=imgNew, role='GEOMETRY')
-        grWindow = imageForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
+        layer = window.label.img.addAdjustmentLayer(name=lname, sourceImg=imgNew, role='GEOMETRY')
+        grWindow = imageForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window, mainForm=window)
         # add transformation tool to parent widget
-        tool = rotatingTool(parent=window.label)#, layer=l, form=grWindow)
-        l.addTool(tool)
+        tool = rotatingTool(parent=window.label)  # , layer=l, form=grWindow)
+        layer.addTool(tool)
         tool.showTool()
-        l.execute = lambda l=l, pool=None: l.tLayer.applyImage(grWindow.options)
-        l.actioname = name
+        layer.execute = lambda l=layer, pool=None: l.tLayer.applyImage(grWindow.options)
+        layer.actioname = name
     # empty new image
     elif name == 'actionNew_Layer':
         processedImg = window.label.img
@@ -1304,25 +1299,25 @@ def menuLayer(name):
         imgNew = QImage(w, h, QImage.Format_ARGB32)
         imgNew.fill(Qt.black)
         lname = 'Image'
-        l = window.label.img.addAdjustmentLayer(name=lname, sourceImg=imgNew, role='GEOMETRY')
-        grWindow = imageForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window,
+        layer = window.label.img.addAdjustmentLayer(name=lname, sourceImg=imgNew, role='GEOMETRY')
+        grWindow = imageForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window,
                                           mainForm=window)
         # add transformation tool to parent widget
         tool = rotatingTool(parent=window.label)  # , layer=l, form=grWindow)
-        l.addTool(tool)
+        layer.addTool(tool)
         tool.showTool()
-        l.execute = lambda l=l, pool=None: l.tLayer.applyImage(grWindow.options)
-        l.actioname = name
+        layer.execute = lambda l=layer, pool=None: l.tLayer.applyImage(grWindow.options)
+        layer.actioname = name
     # Temperature
     elif name == 'actionColor_Temperature':
         lname = 'Color Temperature'
-        l = window.label.img.addAdjustmentLayer(name=lname)
-        grWindow = temperatureForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
+        layer = window.label.img.addAdjustmentLayer(name=lname)
+        grWindow = temperatureForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window, mainForm=window)
         # wrapper for the right apply method
-        l.execute = lambda l=l, pool=None: l.tLayer.applyTemperature()
+        layer.execute = lambda l=layer, pool=None: l.tLayer.applyTemperature()
     elif name == 'actionContrast_Correction':
-        l = window.label.img.addAdjustmentLayer(name=CoBrSatForm.layerTitle, role='CONTRAST')
-        grWindow = CoBrSatForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
+        layer = window.label.img.addAdjustmentLayer(name=CoBrSatForm.layerTitle, role='CONTRAST')
+        grWindow = CoBrSatForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window, mainForm=window)
         # clipLimit change event handler
         def h(lay, clipLimit):
             lay.clipLimit = clipLimit
@@ -1330,12 +1325,12 @@ def menuLayer(name):
             window.label.img.onImageChanged()
         grWindow.onUpdateContrast = h
         # wrapper for the right apply method
-        l.execute = lambda l=l, pool=None: l.tLayer.applyContrast()
+        layer.execute = lambda l=layer, pool=None: l.tLayer.applyContrast()
     elif name == 'actionExposure_Correction':
         lname = 'Exposure'
-        l = window.label.img.addAdjustmentLayer(name=lname)
-        l.clipLimit = ExpForm.defaultExpCorrection
-        grWindow = ExpForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
+        layer = window.label.img.addAdjustmentLayer(name=lname)
+        layer.clipLimit = ExpForm.defaultExpCorrection
+        grWindow = ExpForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window, mainForm=window)
         # clipLimit change event handler
         def h(lay, clipLimit):
             lay.clipLimit = clipLimit
@@ -1343,34 +1338,34 @@ def menuLayer(name):
             window.label.img.onImageChanged()
         grWindow.onUpdateExposure = h
         # wrapper for the right apply method
-        l.execute = lambda l=l,  pool=None: l.tLayer.applyExposure(l.clipLimit, grWindow.options)
+        layer.execute = lambda l=layer,  pool=None: l.tLayer.applyExposure(l.clipLimit, grWindow.options)
     elif name == 'actionGeom_Transformation':
         lname = 'Transformation'
-        l = window.label.img.addAdjustmentLayer(name=lname, role='GEOMETRY')
-        grWindow = transForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
+        layer = window.label.img.addAdjustmentLayer(name=lname, role='GEOMETRY')
+        grWindow = transForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window, mainForm=window)
         # add transformation tool to parent widget
         tool = rotatingTool(parent=window.label)#, layer=l, form=grWindow)
-        l.addTool(tool)
+        layer.addTool(tool)
         tool.showTool()
-        l.execute = lambda l=l, pool=None: l.tLayer.applyTransForm(grWindow.options)
+        layer.execute = lambda l=layer, pool=None: l.tLayer.applyTransForm(grWindow.options)
     elif name == 'actionFilter':
         lname = 'Filter'
-        l = window.label.img.addAdjustmentLayer(name=lname)
-        grWindow = filterForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
+        layer = window.label.img.addAdjustmentLayer(name=lname)
+        grWindow = filterForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window, mainForm=window)
         # wrapper for the right apply method
-        l.execute = lambda l=l, pool=None: l.tLayer.applyFilter2D()
+        layer.execute = lambda l=layer, pool=None: l.tLayer.applyFilter2D()
     elif name == 'actionGradual_Filter':
         lname = 'Gradual Filter'
-        l = window.label.img.addAdjustmentLayer(name=lname)
-        grWindow = blendFilterForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
+        layer = window.label.img.addAdjustmentLayer(name=lname)
+        grWindow = blendFilterForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window, mainForm=window)
         # wrapper for the right apply method
-        l.execute = lambda l=l, pool=None: l.tLayer.applyBlendFilter()
+        layer.execute = lambda l=layer, pool=None: l.tLayer.applyBlendFilter()
     elif name == 'actionNoise_Reduction':
-        lname='Noise Reduction'
-        l = window.label.img.addAdjustmentLayer(name=lname)
-        grWindow = noiseForm.getNewWindow(axeSize=axeSize, layer=l, parent=window)
+        lname = 'Noise Reduction'
+        layer = window.label.img.addAdjustmentLayer(name=lname)
+        grWindow = noiseForm.getNewWindow(axeSize=axeSize, layer=layer, parent=window)
         # wrapper for the right apply method
-        l.execute = lambda l=l, pool=None: l.tLayer.applyNoiseReduction()
+        layer.execute = lambda l=layer, pool=None: l.tLayer.applyNoiseReduction()
         """
     elif name == 'actionSave_Layer_Stack':
         return # TODO 26/06/18 should be reviewed
@@ -1406,14 +1401,14 @@ def menuLayer(name):
     # invert image
     elif name == 'actionInvert':
         lname = 'Invert'
-        l = window.label.img.addAdjustmentLayer(name=lname)
-        grWindow = invertForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=l, parent=window, mainForm=window)
-        l.execute = lambda l=l : l.tLayer.applyInvert()
-        l.applyToStack()
-        #l.parentImage.prLayer.update()
-        #l.parentImage.onImageChanged()
+        layer = window.label.img.addAdjustmentLayer(name=lname)
+        grWindow = invertForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window, mainForm=window)
+        layer.execute = lambda l=layer: l.tLayer.applyInvert()
+        layer.applyToStack()
+        # l.parentImage.prLayer.update()
+        # l.parentImage.onImageChanged()
     # load 3D LUT from .cube file
-    elif name == 'actionLoad_3D_LUT' :
+    elif name == 'actionLoad_3D_LUT':
         lastDir = window.settings.value('paths/dlg3DLUTdir', '.')
         dlg = QFileDialog(window, "select", lastDir)
         dlg.setNameFilter('*.cube')
@@ -1429,15 +1424,15 @@ def menuLayer(name):
                 dlgWarn('Unable to load 3D LUT : ', info=str(e))
                 return
             lname = path.basename(name)
-            l = window.label.img.addAdjustmentLayer(name=lname)
+            layer = window.label.img.addAdjustmentLayer(name=lname)
             pool = getPool()
-            l.execute = lambda l=l, pool=pool: l.tLayer.apply3DLUT(lut.LUT3DArray, lut.step, {'use selection': False}, pool=pool)
+            layer.execute = lambda l=layer, pool=pool: l.tLayer.apply3DLUT(lut.LUT3DArray, lut.step, {'use selection': False}, pool=pool)
             window.tableView.setLayers(window.label.img)
-            l.applyToStack()
+            layer.applyToStack()
             # The resulting image is modified,
             # so we update the presentation layer before returning
-            l.parentImage.prLayer.update()
-            l.parentImage.onImageChanged()
+            layer.parentImage.prLayer.update()
+            layer.parentImage.onImageChanged()
         return
     elif name == 'actionSave_Layer_Stack_as_LUT_Cube':
         img = window.label.img
@@ -1450,7 +1445,7 @@ def menuLayer(name):
         try:
             # set hald flag
             img.isHald = True
-            QImageBuffer(layer.getCurrentImage())[:,:,:3] = buf
+            QImageBuffer(layer.getCurrentImage())[:, :, :3] = buf
             # process hald
             layer.applyToStack()
             processedImg = img.prLayer.inputImg()
@@ -1501,19 +1496,19 @@ def menuLayer(name):
         return
     # adding a new layer may modify the resulting image
     # (cf. actionNew_Image_Layer), so we update the presentation layer
-    l.parentImage.prLayer.update()
-    l.parentImage.onImageChanged()  # TODO added 06/09/18 validate
+    layer.parentImage.prLayer.update()
+    layer.parentImage.onImageChanged()  # TODO added 06/09/18 validate
     # record action name for scripting
-    l.actionName = name
+    layer.actionName = name
     # docking the form
     dock = QDockWidget(window)
     dock.setWidget(grWindow)
     dock.setWindowFlags(grWindow.windowFlags())
     dock.setWindowTitle(grWindow.windowTitle())
-    #dock.setAttribute(Qt.WA_DeleteOnClose)
+    # dock.setAttribute(Qt.WA_DeleteOnClose)
     dock.move(900, 40)
     dock.setStyleSheet("QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
-    l.view = dock
+    layer.view = dock
     # add to docking area
     window.addDockWidget(Qt.RightDockWidgetArea, dock)
     # update layer stack view
@@ -1541,7 +1536,7 @@ def menuHelp(name):
                 # so we do nothing.
                 # cf. https://bugreports.qt.io/browse/QTBUG-14460
                 pass
-                #url.setFragment(w.helpId)
+                # url.setFragment(w.helpId)
         QDesktopServices.openUrl(url)
     elif name == "actionAbout_bLUe":
         w, label = handleTextWindow(parent=window, title='About bLUe', center=False)
@@ -1549,8 +1544,9 @@ def menuHelp(name):
         label.setAlignment(Qt.AlignCenter)
         label.setText(VERSION + "\n" + attributions)
         # center window on screen
-        w.setGeometry(QStyle.alignedRect(Qt.LeftToRight, Qt.AlignCenter, w.size(), rootWidget.availableGeometry())) # TODO changed app.desktop() to rootWidget 05/07/18
+        w.setGeometry(QStyle.alignedRect(Qt.LeftToRight, Qt.AlignCenter, w.size(), rootWidget.availableGeometry()))  # TODO changed app.desktop() to rootWidget 05/07/18
         w.show()
+
 
 def handleNewWindow(imImg=None, parent=None, title='New window', show_maximized=False, event_handler=True, scroll=False):
     """
@@ -1592,6 +1588,7 @@ def handleNewWindow(imImg=None, parent=None, title='New window', show_maximized=
         newwindow.show()
     return newwindow, label
 
+
 def handleTextWindow(parent=None, title='', center=True):
     """
     Displays a floating modal text window
@@ -1605,7 +1602,7 @@ def handleTextWindow(parent=None, title='', center=True):
     @rtype: QMainWindow, QLabel
     """
     w, label = handleNewWindow(parent=parent, title=title, event_handler=False, scroll=True)
-    w.setFixedSize(500,500)
+    w.setFixedSize(500, 500)
     label.setAlignment(Qt.AlignTop)
     w.hide()
     if center:
@@ -1616,6 +1613,7 @@ def handleTextWindow(parent=None, title='', center=True):
     w.setWindowModality(Qt.WindowModal)
     w.show()
     return w, label
+
 
 def canClose():
     """
@@ -1639,6 +1637,7 @@ def canClose():
             dlgWarn(str(e))
             return False
     return True
+
 
 def updateStatus():
     """
@@ -1666,6 +1665,7 @@ def updateStatus():
         s = s + '&nbsp;&nbsp;&nbsp;&nbsp;Crop Tool : h/w ratio %.2f ' % window.cropTool.formFactor
     window.Label_status.setText(s)
 
+
 def initCursors():
     """
     Inits app cursors
@@ -1680,10 +1680,12 @@ def initCursors():
     curImg.invertPixels()
     window.cursor_Circle_Pixmap = QPixmap.fromImage(curImg)
 
+
 def initDefaultImage():
     img = QImage(200, 200, QImage.Format_ARGB32)
     img.fill(Qt.darkGray)
     return imImage(QImg=img, meta=metadataBag(name='noName'))
+
 
 def screenUpdate(newScreenIndex):
     """
@@ -1696,6 +1698,7 @@ def screenUpdate(newScreenIndex):
     window.actionColor_manage.setChecked(icc.COLOR_MANAGE)
     updateStatus()
     # launch a bg task for image update
+
     def bgTask():
         window.label.img.updatePixmap()
         window.label_2.img.updatePixmap()
@@ -1707,7 +1710,8 @@ def screenUpdate(newScreenIndex):
 ###########
 # app
 ###########
-if __name__ =='__main__':
+
+if __name__ == '__main__':
     #################
     # multiprocessing
     # freeze_support() must be called at the start of __main__
@@ -1753,7 +1757,7 @@ if __name__ =='__main__':
                            QColorDialog QLabel {background-color: gray; color: white}\
                            QStatusBar::item {border: none}\
                            QPushButton {font-size: 8pt}\
-                           QToolTip {border: 0px; background-color: lightyellow; color: black}"# border must be set, otherwise background-color has no effect : Qt bug?
+                           QToolTip {border: 0px; background-color: lightyellow; color: black}"  # border must be set, otherwise background-color has no effect : Qt bug?
 
                          )
     # Before/After view
@@ -1761,7 +1765,7 @@ if __name__ =='__main__':
 
     # status bar
     window.Label_status = QLabel()
-    #window.Label_status.setStyleSheet("border: 15px solid white;")
+    # window.Label_status.setStyleSheet("border: 15px solid white;")
     window.statusBar().addWidget(window.Label_status)
     # permanent text to right
     window.statusBar().addPermanentWidget(QLabel('Shift+F1 for Context Help       '))
@@ -1804,7 +1808,7 @@ For a segmentation layer only, all pixels outside the rectangle are set to backg
     window.splittedView = False
 
     window.histView.mode = 'Luminosity'
-    window.histView.chanColors = Qt.gray #[Qt.red, Qt.green,Qt.blue]
+    window.histView.chanColors = Qt.gray  # [Qt.red, Qt.green,Qt.blue]
 
     # close event handler
     window.onCloseEvent = canClose
@@ -1819,11 +1823,11 @@ For a segmentation layer only, all pixels outside the rectangle are set to backg
     window.menuWindow.aboutToShow.connect(updateEnabledActions)
     window.menuHelp.aboutToShow.connect(updateEnabledActions)
     window.menuOpen_recent.aboutToShow.connect(updateMenuOpenRecent)
-    window.menu_File.triggered.connect(lambda a : menuFile(a.objectName()))
-    window.menuLayer.triggered.connect(lambda a : menuLayer(a.objectName()))
-    window.menuImage.triggered.connect(lambda a : menuImage(a.objectName()))
-    window.menuWindow.triggered.connect(lambda a : menuView(a.objectName()))
-    window.menuHelp.triggered.connect(lambda a : menuHelp(a.objectName()))
+    window.menu_File.triggered.connect(lambda a: menuFile(a.objectName()))
+    window.menuLayer.triggered.connect(lambda a: menuLayer(a.objectName()))
+    window.menuImage.triggered.connect(lambda a: menuImage(a.objectName()))
+    window.menuWindow.triggered.connect(lambda a: menuView(a.objectName()))
+    window.menuHelp.triggered.connect(lambda a: menuHelp(a.objectName()))
 
     #  called by all main form button and slider slots (cf. QtGui1.py)
     window.onWidgetChange = widgetChange
@@ -1857,6 +1861,7 @@ For a segmentation layer only, all pixels outside the rectangle are set to backg
     window.viewState = 'After'
     action1 = QAction('cycle', None)
     action1.setShortcut(QKeySequence("Ctrl+ "))
+
     def f():
         window.viewState = 'Before/After'
         splittedWin.nextSplittedView()
@@ -1881,8 +1886,8 @@ For a segmentation layer only, all pixels outside the rectangle are set to backg
     tmpH = QHBoxLayout()
     tmpH.addStretch(100)
     tmpH.addLayout(tmpV)
-    tmpH.setContentsMargins(0,0,10,0)
-    tmpV.setContentsMargins(0,0,10,0)
+    tmpH.setContentsMargins(0, 0, 10, 0)
+    tmpV.setContentsMargins(0, 0, 10, 0)
     # to remove the current layout we re-parent it to
     # an unreferenced widget.
     QWidget().setLayout(window.dockWidgetContents.layout())
@@ -1930,3 +1935,4 @@ Shows the initial image.<br>
     # launch app
     ###############
     sys.exit(app.exec_())
+

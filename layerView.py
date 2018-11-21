@@ -18,7 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import gc
 from collections import OrderedDict
 
-from PySide2 import QtCore
+from PySide2 import QtCore, QtWidgets
 import cv2
 import numpy as np
 from PySide2.QtCore import QRectF, QSize, Qt, QModelIndex
@@ -158,7 +158,7 @@ class QLayerView(QTableView) :
                 layer.knitted = False
             try:
                 QApplication.setOverrideCursor(Qt.WaitCursor) #TODO 18/04/18 waitcursor is called by applytostack?
-                QtGui1.app.processEvents()
+                QApplication.processEvents()
                 # update whole stack
                 self.img.layersStack[0].applyToStack()
             finally:
@@ -299,7 +299,7 @@ Note that upper visible layers slow down mask edition.
 
     def closeAdjustForms(self, delete=False):
         """
-        Closes all adjust forms. If delete is True (default False),
+        Close all layer forms. If delete is True (default False),
         the forms and their dock containers are deleted.
         @param delete:
         @type delete: boolean
@@ -312,14 +312,13 @@ Note that upper visible layers slow down mask edition.
                 if layer.view is not None:
                     dock = layer.view
                     if delete:
+                        form = dock.widget()
                         # remove back link
-                        dock.widget().layer = None
-                        QtGui1.window.removeDockWidget(dock)
-                        dock.widget().setAttribute(Qt.WA_DeleteOnClose)
-                        dock.widget().deleteLater()
-                        dock.widget().close()
+                        form.layer = None
+                        # QtGui1.window.removeDockWidget(dock)
+                        form.setAttribute(Qt.WA_DeleteOnClose)
+                        form.close()
                         dock.setAttribute(Qt.WA_DeleteOnClose)
-                        dock.deleteLater()
                         dock.close()
                         layer.view = None
                     else:
@@ -334,7 +333,7 @@ Note that upper visible layers slow down mask edition.
         links to image
         @return: 
         """
-        self.closeAdjustForms(delete=delete) #TODO modified 8/10/17 for merge_with_layer_immediately_below
+        self.closeAdjustForms(delete=delete)
         self.img = None
         self.currentWin = None
         model = layerModel()
@@ -616,6 +615,7 @@ Note that upper visible layers slow down mask edition.
         # draw the right rectangle
         QtGui1.window.label.repaint()
 
+
     def initContextMenu(self):
         """
         return context menu
@@ -690,6 +690,7 @@ Note that upper visible layers slow down mask edition.
         menu.addAction(menu.actionReset)
         return menu
 
+
     def contextMenuEvent(self, event):
         """
         context menu
@@ -746,8 +747,7 @@ Note that upper visible layers slow down mask edition.
             self.img.onImageChanged()
         def loadImage():
             return # TODO 26/06/18 action to remove from menu? replaced by new image layer
-            window = QtGui1.window
-            filename = openDlg(window)
+            filename = openDlg(QtGui1.window)
             img = QImage(filename)
             layer.thumb = None
             layer.setImage(img)

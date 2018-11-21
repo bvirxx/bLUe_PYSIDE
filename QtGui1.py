@@ -24,10 +24,9 @@ import sys
 from PySide2.QtWidgets import QApplication, QLabel, QMainWindow
 
 import resources_rc   # MANDATORY - DO NOT REMOVE !!!!
-from graphicsHist import histForm
-from layerView import QLayerView
 from pyside_dynamicLoader import loadUi
 from utils import hideConsole, showConsole
+
 
 class Form1(QMainWindow):
     """
@@ -37,6 +36,8 @@ class Form1(QMainWindow):
     # screen changed signal
     screenChanged = QtCore.Signal(int)
     def __init__(self): # app, parent=None):  # TODO 05/07/18 validate app and parent removing
+        from graphicsHist import histForm
+        from layerView import QLayerView
         super(Form1, self).__init__()
         # load .ui file
         self.settings = QSettings("bLUe.ini", QSettings.IniFormat)
