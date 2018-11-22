@@ -122,7 +122,7 @@ import multiprocessing
 import sys
 import threading
 from itertools import cycle
-from multiprocessing import freeze_support
+#from multiprocessing import freeze_support, Event
 from os import path, walk
 from io import BytesIO
 
@@ -702,7 +702,7 @@ def contextMenu(pos, widget):
 
 def loadImageFromFile(f, createsidecar=True):
     """
-    load an imImage (image plus metadata) from file. Returns the loaded imImage :
+    load an imImage (image and metadata) from file. Returns the loaded imImage :
     For a raw file, it is the image postprocessed with default parameters.
     metadata is a list of dicts with len(metadata) >=1.
     metadata[0] contains at least 'SourceFile' : path.
@@ -723,21 +723,22 @@ def loadImageFromFile(f, createsidecar=True):
         # read metadata from sidecar (.mie) if it exists, otherwise from image file.
         # The sidecar is created if it does not exist and createsidecar is True.
         with exiftool.ExifTool() as e:
-            profile, metadata = e.get_metadata(f, createsidecar=createsidecar)
+            profile, metadata = e.get_metadata(f, tags=("colorspace", "profileDescription", "orientation", "model", "rating"), createsidecar=createsidecar)
+            imageInfo = e.get_formatted_metadata(f)
     except ValueError:
         # Default metadata and profile
         metadata = [{'SourceFile': f}]
         profile = ''
     # color space : 1=sRGB 65535=uncalibrated
-    if "EXIF:ColorSpace" in metadata[0].keys():
-        colorSpace = metadata[0].get("EXIF:ColorSpace")
-    else:
-        colorSpace = metadata[0].get("MakerNotes:ColorSpace", -1)
+    tmp = [value for key, value in metadata.items() if 'colorspace' in key.lower()]
+    colorSpace = tmp[0] if tmp else -1
     # try again to find a valid color space tag and/or an imbedded profile.
     # If everything fails, assign sRGB.
     if colorSpace == -1 or colorSpace == 65535:
-        desc_colorSpace = metadata[0].get("ICC_Profile:ProfileDescription", '')
-        if isinstance(desc_colorSpace, str):  # or isinstance(desc_colorSpace, unicode): python3
+        tmp = [value for key, value in metadata.items() if 'profiledescription' in key.lower()]
+        desc_colorSpace = tmp[0] if tmp else ''
+        #desc_colorSpace = metadata.get("ICC_Profile:ProfileDescription", '')
+        if isinstance(desc_colorSpace, str):
             if not ('sRGB' in desc_colorSpace) or hasattr(window, 'modeDiaporama'):
                 # setOverrideCursor does not work correctly for a MessageBox :
                 # may be a Qt Bug, cf. https://bugreports.qt.io/browse/QTBUG-42117
@@ -750,13 +751,15 @@ def loadImageFromFile(f, createsidecar=True):
                     dlgInfo("Color profile is missing\nAssigning sRGB")  # modified 08/10/18 validate
                     # assign sRGB profile
                     colorSpace = 1
-    # update the color management object with the profile of the current image.
+    # update the color management object with the image profile.
     icc.configure(colorSpace=colorSpace, workingProfile=profile)
     # orientation
-    orientation = metadata[0].get("EXIF:Orientation", 0)
+    tmp = [value for key, value in metadata.items() if 'orientation' in key.lower()]
+    orientation = tmp[0] if tmp else 0  # metadata.get("EXIF:Orientation", 0)
     transformation = exiftool.decodeExifOrientation(orientation)
     # rating
-    rating = metadata[0].get("XMP:Rating", 5)
+    tmp = [value for key, value in metadata.items() if 'rating' in key.lower()]
+    rating = tmp[0] if tmp else 0  # metadata.get("XMP:Rating", 5)
     ############
     # load image
     ############
@@ -813,6 +816,7 @@ def loadImageFromFile(f, createsidecar=True):
         raise ValueError("Cannot read file %s" % f)
     if img.format() in [QImage.Format_Invalid, QImage.Format_Mono, QImage.Format_MonoLSB, QImage.Format_Indexed8]:
         raise ValueError("Cannot edit indexed formats\nConvert image to a non indexed mode first")
+    img.imageInfo = imageInfo
     window.settings.setValue('paths/dlgdir', QFileInfo(f).absoluteDir().path())
     img.initThumb()
     return img
@@ -1142,19 +1146,20 @@ def menuImage(name):
         s = "Format : %s\n(cf. QImage formats in the doc for more info)" % QImageFormats.get(img.format(), 'unknown')
         # dimensions
         s = s + "\n\ndim : %d x %d" % (img.width(), img.height())
+        # profile info
+        if img.meta.profile is not None:  # len(img.meta.profile) > 0:
+            s = s + "\n\nEmbedded profile found"  # length %d" % len(img.meta.profile)
         workingProfileInfo = icc.workingProfileInfo
         s = s + "\n\nWorking Profile : %s" % workingProfileInfo
-        # embedded profile
-        if len(img.meta.profile) > 0:
-            s = s + "\n\nEmbedded profile found, length %d" % len(img.meta.profile)
-        s = s + "\nRating %s" % ''.join(['*']*img.meta.rating)
-        # get raw meta data dictionary
-        rmd = img.meta.rawMetadata
-        s = s + "\n\nMETADATA :\n"
-        for d in rmd:
-            s = s + '\n'.join('%s : %s' % (k, v) for k, v in d.items())  # python 3 iteritems -> items
-        w, label = handleTextWindow(parent=window, title='Image info')
+        # rating
+        s = s + "\n\nRating %s" % ''.join(['*']*img.meta.rating)
+        # formatted meta data
+        s = s + "\n\n" + img.imageInfo
+        # display
+        _, label = handleTextWindow(parent=window, title='Image info', wSize=QSize(700, 700))
         label.setWordWrap(True)
+        label.setFont(QFont("Courier New"))
+        label.setStyleSheet("background-color: white")
         label.setText(s)
     elif name == 'actionColor_manage':
         icc.COLOR_MANAGE = window.actionColor_manage.isChecked()
@@ -1214,9 +1219,7 @@ def getPool():
     global pool
     # init pool only once
     if USE_POOL and (pool is None):
-        print('launching process pool...', end='')
         pool = multiprocessing.Pool(POOL_SIZE)
-        print('done')
     return pool
 
 
@@ -1569,6 +1572,7 @@ def handleNewWindow(imImg=None, parent=None, title='New window', show_maximized=
     newwindow = QMainWindow(parent)
     newwindow.setAttribute(Qt.WA_DeleteOnClose)
     newwindow.setWindowTitle(parent.tr(title))
+    newwindow.setStyleSheet("background-color: rgb(220, 220, 220); color: black")
     label = QLabel()
     if scroll:
         scarea = QScrollArea(parent=newwindow)
@@ -1589,24 +1593,25 @@ def handleNewWindow(imImg=None, parent=None, title='New window', show_maximized=
     return newwindow, label
 
 
-def handleTextWindow(parent=None, title='', center=True):
+def handleTextWindow(parent=None, title='', center=True, wSize=QSize(500, 500)):
     """
-    Displays a floating modal text window
+    Display a floating modal text window
+
     @param parent:
     @type parent:
     @param title:
     @type title:
     @param center:
     @type center:
-    @return (new window, label)
+    @return new window, label
     @rtype: QMainWindow, QLabel
     """
     w, label = handleNewWindow(parent=parent, title=title, event_handler=False, scroll=True)
-    w.setFixedSize(500, 500)
+    w.setFixedSize(wSize)
     label.setAlignment(Qt.AlignTop)
     w.hide()
     if center:
-        # center to the parent current screen
+        # center at the parent current screen
         pw = w.parent()
         pw = w if pw is None else pw
         w.move(pw.windowHandle().screen().geometry().center() - w.rect().center())
@@ -1715,7 +1720,7 @@ if __name__ == '__main__':
     # to enable multiprocessing when the executable is frozen.
     # Otherwise, it does nothing.
     #################
-    freeze_support()
+    multiprocessing.freeze_support()
     # load UI
     window.init()
     # splash screen
