@@ -284,7 +284,7 @@ To <b>open an image</b> drag it onto the main window.<br>
         Context menu initialization
         """
         menu = QMenu()
-        menu.addAction('View image in a separate window', self.viewImage)
+        # menu.addAction('View image in a separate window', self.viewImage)  # too large overload and limited usage: removed
         menu.addAction("Copy Image to Clipboard", self.hCopy)
         menu.addAction(self.actionSub)
         subMenuRating = menu.addMenu('Rating')
@@ -299,17 +299,21 @@ To <b>open an image</b> drag it onto the main window.<br>
         globalPos = self.listWdg.mapToGlobal(pos)
         self.cMenu.exec_(globalPos)
 
+
     def viewImage(self):
+        """
+        display full size image in a new window
+        Unused yet
+        """
         from bLUe import window, set_event_handlers, loadImageFromFile
         parent = window
         newWin = QMainWindow(parent)
         newWin.setAttribute(Qt.WA_DeleteOnClose)
         newWin.setContextMenuPolicy(Qt.CustomContextMenu)
-        label = QLabel()
+        label = QLabel(parent=newWin)
         label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         label.img = None
         newWin.setCentralWidget(label)
-        newWin.showFullScreen()
         set_event_handlers(label)
         sel = self.listWdg.selectedItems()
         item = sel[0]
@@ -318,6 +322,7 @@ To <b>open an image</b> drag it onto the main window.<br>
         imImg = loadImageFromFile(filename, createsidecar=False)
         label.img = imImg
         newWin.showMaximized()
+
 
     def hCopy(self):
         """
