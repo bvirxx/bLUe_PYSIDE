@@ -357,14 +357,18 @@ class loader(threading.Thread):
                     # get orientation
                     try:
                         # read metadata from sidecar (.mie) if it exists, otherwise from image file.
-                        profile, metadata = e.get_metadata(filename, createsidecar=False)
+                        profile, metadata = e.get_metadata(filename, tags=("colorspace", "profileDescription", "orientation", "model", "rating", "FileCreateDate"),
+                                                           createsidecar=False)
                     except ValueError:
-                        metadata = [{}]
+                        metadata = {}
                     # get image info
-                    orientation = metadata[0].get("EXIF:Orientation", 1)
+                    tmp = [value for key, value in metadata.items() if 'orientation' in key.lower()]
+                    orientation = tmp[0] if tmp else 1  # metadata.get("EXIF:Orientation", 1)
                     # EXIF:DateTimeOriginal seems to be missing in many files
-                    date = metadata[0].get("EXIF:ModifyDate", '')
-                    rating = metadata[0].get("XMP:Rating", 5)
+                    tmp = [value for key, value in metadata.items() if 'date' in key.lower()]
+                    date = tmp[0] if tmp else ''  # metadata.get("EXIF:ModifyDate", '')
+                    tmp = [value for key, value in metadata.items() if 'rating' in key.lower()]
+                    rating = tmp[0] if tmp else 0  # metadata.get("XMP:Rating", 5)
                     rating = ''.join(['*']*int(rating))
                     transformation = exiftool.decodeExifOrientation(orientation)
                     # get thumbnail
