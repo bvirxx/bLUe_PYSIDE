@@ -25,7 +25,7 @@ def interpMulti(LUT, LUTSTEP, ndImg, pool=None, use_tetra=False, convert=True):
     """
     Parallel trilinear/tetrahedral interpolation, using
     a pool of workers.
-    Converts an input array using a 3D LUT.
+    Convert an input array using a 3D LUT.
     The roles (R or G or B) of the three first LUT channels
     must follow the ordering of the color channels.
     The output image is interpolated from the LUT.
