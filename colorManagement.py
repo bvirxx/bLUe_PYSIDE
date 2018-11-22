@@ -33,6 +33,7 @@ from settings import SRGB_PROFILE_PATH, ADOBE_RGB_PROFILE_PATH
 if sys.platform == 'win32':
     import win32gui
 
+
 def PilImageToQImage(pilimg) :
     """
     Converts a PIL image (mode RGB) to a QImage (format RGB32)
@@ -51,6 +52,7 @@ def PilImageToQImage(pilimg) :
     buf[:] = np.frombuffer(im_data['data'], dtype=np.uint8)
     return Qimg
 
+
 def QImageToPilImage(qimg) :
     """
     Converts a QImage (format ARGB32or RGB32) to a PIL image
@@ -66,15 +68,18 @@ def QImageToPilImage(qimg) :
     else :
         raise ValueError("QImageToPilImage : unrecognized format : %s" %qimg.Format())
     return Image.fromarray(a)
+
+
 class icc:
     """
-    Container for color management related variables and methods.
-    Never instantiated
+    Container for color management related flags and methods.
+    Should never be instantiated
     """
     HAS_COLOR_MANAGE = False  # menu action "color manage" will be disabled
     COLOR_MANAGE = False  # no color management
     monitorProfile, workingProfile, workToMonTransform = (None,)*3
     workingProfileInfo, monitorProfileInfo = '', ''
+
 
     @classmethod
     def configure(cls, qscreen=None, colorSpace=-1, workingProfile=None):
@@ -82,7 +87,7 @@ class icc:
         Try to configure color management for the monitor
         specified by QScreen, and build an image transformation
         from the working profile (default sRGB) to the monitor profile.
-        This transformation is convenient to match image colors to the screen.
+        This transformation is convenient to match image colors to screen colors.
         @param qscreen: QScreen instance
         @type qscreen: QScreen
         """
@@ -101,6 +106,7 @@ class icc:
                 cls.workingProfile = workingProfile
             else:
                 cls.workingProfile = getOpenProfile(SRGB_PROFILE_PATH)  # default
+
             cls.workingProfileInfo = getProfileInfo(cls.workingProfile)
             # init CmsTransform object : working profile ---> monitor profile
             cls.workToMonTransform = buildTransformFromOpenProfiles(cls.workingProfile, cls.monitorProfile,
@@ -120,6 +126,7 @@ class icc:
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
+
 
     @classmethod
     def getMonitorProfile(cls, qscreen=None):
@@ -143,6 +150,7 @@ class icc:
         except :
             monitorProfile = None
         return monitorProfile
+
 
 def convertQImage(image, transformation=None):
     """
