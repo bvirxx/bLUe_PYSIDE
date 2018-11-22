@@ -16,10 +16,6 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-import itertools
-import struct
-
-import rawpy
 from os.path import isfile
 from time import time
 import numpy as np
@@ -36,12 +32,10 @@ from PySide2.QtCore import QRect
 
 from bLUeGui.bLUeImage import bImage, ndarrayToQImage
 from bLUeCore.tetrahedral import interpTetra
-from bLUeCore.trilinear import interpTriLinear, interpTriLinearPara
+from bLUeCore.trilinear import interpTriLinear
 from bLUeCore.multi import interpMulti
-from bLUeGui.spline import cubicSpline
 
 from debug import tdec
-from dng import dngProfileToneCurve, dngProfileLookTable
 from graphicsBlendFilter import blendFilterIndex
 
 from graphicsFilter import filterIndex
@@ -70,7 +64,7 @@ class metadataBag:
     Container for vImage meta data
     """
     def __init__(self, name=''):
-        self.name, self.colorSpace, self.rawMetadata, self.profile, self.orientation, self.rating = name, ColorSpace.notSpecified, [], '', None, 5
+        self.name, self.colorSpace, self.rawMetadata, self.profile, self.orientation, self.rating = name, ColorSpace.notSpecified, {}, '', None, 5
 
 class vImage(bImage):
     """
@@ -269,8 +263,8 @@ class vImage(bImage):
         @type orientation: Qtransform
         @param meta: metadata instance (default None)
         @type meta: MarkedImg.metadataBag
-        @param rawMetadata: list of dictionaries (default [])
-        @type rawMetadata: list of dictionaries
+        @param rawMetadata: dictionary
+        @type rawMetadata: dictionary
         @param profile: embedded profile (default '')
         @type profile: str
         """
@@ -279,7 +273,7 @@ class vImage(bImage):
         # current color managed image
         # self.cmImage = None
         if rawMetadata is None:
-            rawMetadata = []
+            rawMetadata = {} # []  # TODO modified 21/11/18
         self.isModified = False
         self.rect, self.mask, = None, mask
         self.filename = filename if filename is not None else ''
@@ -314,7 +308,8 @@ class vImage(bImage):
         if meta is None:
             # init metadata container
             self.meta = metadataBag()
-            self.meta.name, self.meta.colorSpace, self.meta.rawMetadata, self.meta.profile, self.meta.orientation, self.meta.rating = name, colorSpace, rawMetadata, profile, orientation, rating
+            self.meta.name, self.meta.colorSpace, self.meta.rawMetadata, self.meta.profile, self.meta.orientation, self.meta.rating = \
+                                                                            name, colorSpace, rawMetadata, profile, orientation, rating
         else:
             self.meta = meta
         if (filename is None and cv2Img is None and QImg is None):
@@ -375,7 +370,8 @@ class vImage(bImage):
         self.updatePixmap()
 
     def cameraModel(self):
-        return self.meta.rawMetadata[0].get('EXIF:Model', '')  # UniqueCameraModel works for dng
+        tmp = [value for key, value in self.meta.rawMetadata.items() if 'model' in key.lower()]
+        return tmp[0] if tmp else ''  #  self.meta.rawMetadata.get('EXIF:Model', '')  # UniqueCameraModel works for dng
 
     def initThumb(self):
         """
