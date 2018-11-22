@@ -66,10 +66,10 @@ def temperatureAndTint2Multipliers(temp, tint, XYZ2CameraMatrix, dngDict={}):
     temperature T, and the parameter XYZ2CameraMatrix is not used.
     If dngDict is invalid, then CM = XYZ2CameraMatrix.
     We compute the xy coordinates of the white point WP(T) by the Robertson's method.
-    Next, we transform these coordinates to camera RGB values (mR,mG,mB), using the
+    Next, we transform these coordinates to camera neutral ( 1/mR, 1/mG, 1/mB) using the
     conversion matrix CM.
-    Multipliers are m1 = mR, m2 = mG*tint, m3 = mB. For convenience
-    the function returns the 4 values m1, m2, m3, m2, scaled to min(m1,m2,m3)=1.
+    Multipliers are m1 = mR, m2 = mG/tint, m3 = mB. For convenience
+    the function returns the 4 values 1/m1, 1/m2, 1/m3, 1/m2, scaled to m2 = 1.
     The tint factor should be between 0.2 and 2.5
     @param temp: temperature
     @type temp: float
@@ -79,7 +79,7 @@ def temperatureAndTint2Multipliers(temp, tint, XYZ2CameraMatrix, dngDict={}):
     @type XYZ2CameraMatrix: 3x3 array
     @param dngDict: dictionary of dng profile tag values
     @type dngDict: dict
-    @return: 4 multipliers (RGBG)
+    @return: camera neutral
     @rtype: 4-uple of float
     """
     colorMatrix = XYZ2CameraMatrix
@@ -101,7 +101,7 @@ def temperatureAndTint2Multipliers(temp, tint, XYZ2CameraMatrix, dngDict={}):
     # apply tint shift (green-magenta shift) to G channel.
     m2 = m2 * tint
     mi = min((m1, m2, m3))
-    m1, m2, m3 = m1 / mi, m2 / mi, m3 / mi
+    m1, m2, m3 = m1/m2, 1.0, m3/m2 #m1 / mi, m2 / mi, m3 / mi
     return m1, m2, m3, m2
 
 
