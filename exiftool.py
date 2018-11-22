@@ -290,7 +290,8 @@ class ExifTool(object):
         command = ['-%s=%s' % (tagName, value)] + [fmie, '-overwrite_original']
         self.execute(*command)
 
-    def get_metadata(self, f, createsidecar=True):
+
+    def get_metadata(self, f, tags=None, createsidecar=True):
         """
         Read metadata from file : data are read
         from the image file and the sidecar file is created if
@@ -304,8 +305,10 @@ class ExifTool(object):
         """
         # Using PIL _getexif is simpler.
         # However, exiftool is much more powerful
-        flags = ["-j", "-a", "-XMP:all", "-EXIF:all", "-n", "-S", "-G0", "-Orientation", "-ProfileDescription",
-                 "-colorSpace", "-InteropIndex", "-WhitePoint", "-PrimaryChromaticities", "-Gamma", "-Model"]
+        if tags is None:
+            flags = ["-j", "-a", "-n", "-S"]  # -XMP:all", "-EXIF:all", "-n", "-S", "-G0", "-Orientation", "-ProfileDescription",
+        else:
+            flags = ["-j", "-n", "-S"] + ['-' + tag for tag in tags]
         extract_meta_flags = ["-icc_profile", "-b"]
         command = extract_meta_flags + [f]
         profile = self.execute(*command, ascii=False)
@@ -314,8 +317,13 @@ class ExifTool(object):
         # create sidecar file
         if createsidecar:
             self.createSidecar(f)
-        return profile, data
+        # data is a length 1 list
+        return profile, data[0]
 
+    def get_formatted_metadata(self, f):
+        command = ["-a", f]
+        out = self.execute(* command)
+        return out
 
 def decodeExifOrientation(value):
     """
