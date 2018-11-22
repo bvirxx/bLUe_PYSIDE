@@ -565,10 +565,9 @@ def temperature2Rho(T):
     """
     # get CIE chromaticity coordinates of white point
     x, y = temperature2xyWP(T)
-    # transform to XYZ coordinates
+    # expand to XYZ coordinates
     X, Y, Z = x / y, 1.0, (1.0 - x - y) / y
-    rho1, rho2, rho3 = np.dot(np.array(Bradford), np.array(
-        [X, Y, Z]).T)  # TODO .T is useless  : sum-product over last axes. for one dimensional array a, a.T = a
+    rho1, rho2, rho3 = np.dot(np.array(Bradford), np.array([X, Y, Z]))
     return rho1, rho2, rho3
 
 
@@ -581,8 +580,8 @@ def bradfordAdaptationMatrix(Tdest, Tsource):
     @type Tdest: float
     @param Tsource: Source temperature (Kelvin)
     @type Tsource: float
-    @return: np array
-    @rtype: shape=(3,3), dtype=float
+    @return: adaptation matrix
+    @rtype: ndarray, shape=(3,3), dtype=float
     """
     rhos1, rhos2, rhos3 = temperature2Rho(Tsource)
     rhod1, rhod2, rhod3 = temperature2Rho(Tdest)
