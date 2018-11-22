@@ -202,8 +202,10 @@ def rawPostProcess(rawLayer, pool=None):
         except:
             pass
     raw2sRGBMatrix = sRGB_lin2XYZInverse @ MM1 @ FM * myHighlightPreservation if FM is not None else\
-                     sRGB_lin2XYZ_D50Inverse @ MM @ adjustForm.XYZ2CameraInverseMatrix @ D
+                     sRGB_lin2XYZInverse @ MM @ adjustForm.XYZ2CameraInverseMatrix @ D
     bufpost16 = np.tensordot(rawLayer.bufpost16, raw2sRGBMatrix, axes=(-1, -1))
+    M = np.max(bufpost16) / 255.0
+    bufpost16 = bufpost16 / M
     np.clip(bufpost16, 0, 255, out=bufpost16)
     rawLayer.postProcessCache = cv2.cvtColor(((bufpost16.astype(np.float32)) / max_ouput).astype(np.float32), cv2.COLOR_RGB2HSV)
 
