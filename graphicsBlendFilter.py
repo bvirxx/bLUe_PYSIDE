@@ -24,6 +24,7 @@ from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout
 
 from bLUeGui.graphicsForm import baseForm
 from bLUeCore.kernel import filterIndex, getKernel
+from bLUeGui.memory import weakProxy
 from bLUeGui.qrangeslider import QRangeSlider
 from utils import optionsWidget
 
@@ -44,17 +45,22 @@ class blendFilterForm (baseForm):
         self.defaultFilterEnd = 99
         self.filterStart = self.defaultFilterStart
         self.filterEnd = self.defaultFilterEnd
-        self.targetImage = targetImage
+
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize, axeSize)
         self.setAttribute(Qt.WA_DeleteOnClose)
-        self.img = targetImage
+
         # link back to image layer
+        self.targetImage = weakProxy(targetImage)
+        self.img = weakProxy(targetImage)
+        self.layer = weakProxy(layer)
+        """
         # using weak ref for back links
         if type(layer) in weakref.ProxyTypes:
             self.layer = layer
         else:
             self.layer = weakref.proxy(layer)
+        """
         self.mainForm = mainForm
         self.kernelCategory = filterIndex.UNSHARP
         self.kernel = getKernel(self.kernelCategory)

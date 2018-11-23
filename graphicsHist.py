@@ -21,6 +21,7 @@ from PySide2.QtCore import Qt, QSize
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout
 
 from bLUeGui.graphicsForm import baseForm
+from bLUeGui.memory import weakProxy
 from utils import optionsWidget
 
 class histForm (baseForm):
@@ -29,11 +30,11 @@ class histForm (baseForm):
     """
     def __init__(self, targetImage=None, size=200, layer=None, parent=None, mainForm=None):
         super().__init__(parent=parent)
-        self.targetImage = targetImage
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.setMinimumSize(size, 100)
         self.setAttribute(Qt.WA_DeleteOnClose)
-        self.img = targetImage
+        self.targetImage = weakProxy(targetImage)
+        self.img = weakProxy(targetImage)
         # link back to image layer
         # using weak ref for back links
         self.layer = layer if (layer is None  or type(layer) in weakref.ProxyTypes) else weakref.proxy(layer)

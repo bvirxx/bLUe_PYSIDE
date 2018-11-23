@@ -23,6 +23,7 @@ from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QHBoxLayout, QPushButton
 
 from bLUeGui.graphicsForm import baseForm
 from bLUeGui.dialog import dlgWarn
+from bLUeGui.memory import weakProxy
 
 from versatileImg import vImage
 from utils import optionsWidget
@@ -39,17 +40,13 @@ class patchForm (baseForm):
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         super().__init__(parent=parent)
-        self.targetImage = targetImage
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize, axeSize)
         self.setAttribute(Qt.WA_DeleteOnClose)
-        self.img = targetImage
-        # link back to image layer
-        # using weak ref for back links
-        if type(layer) in weakref.ProxyTypes:
-            self.layer = layer
-        else:
-            self.layer = weakref.proxy(layer)
+        # back links to image
+        self.targetImage = weakProxy(targetImage)
+        self.img = weakProxy(targetImage)
+        self.layer = weakProxy(layer)
         self.mainForm = mainForm
         # options
         options_dict = {'Normal Clone':cv2.NORMAL_CLONE, 'Mixed Clone':cv2.MIXED_CLONE, 'Monochrome Transfer':cv2.MONOCHROME_TRANSFER}

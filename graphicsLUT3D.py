@@ -15,7 +15,6 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-import weakref
 
 import numpy as np
 
@@ -31,6 +30,7 @@ from PySide2.QtWidgets import QMenu, QRubberBand
 from bLUeCore.bLUeLUT3D import LUT3D
 from MarkedImg import QLayer
 from bLUeCore.trilinear import interpTriLinear
+from bLUeGui.memory import weakProxy
 from debug import tdec
 from lutUtils import LUTSIZE, LUTSTEP, LUT3D_SHADOW, LUT3D_ORI, LUT3DIdentity
 from versatileImg import vImage
@@ -725,7 +725,8 @@ class colorChooser(QGraphicsPixmapItem):
         @param border: border size
         @type border: int
         """
-        self.QImg = QImg
+        # back link to image
+        self.QImg = weakProxy(QImg)
         self.border = border
         if size == 0:
             self.size = min(QImg.width(), QImg.heigth()) - 2 * border
@@ -829,32 +830,6 @@ class graphicsForm3DLUT(QGraphicsView) :
     """
     Form for 3D LUT editing.
 
-    Methods                         Attributes
-        getNewWindow                     bSliderHeight
-        __init__                         bSliderWidth
-        selectGridNode                   cModel
-        displayStatus                    currentB
-        bSliderUpdate                    currentG
-        onSelectGridNode                 currentHue
-        onReset                          currentPb
-        writeToStream                    currentR
-        readFromStream                   currentSat
-                                         defaultColorWheelBr
-                                         graphicsScene
-                                         grid
-                                         helpId
-                                         layer
-                                         listWidget1
-                                         listWidget2
-                                         listWidget3
-                                         mainForm
-                                         qpp0
-                                         qpp1
-                                         selectBrush
-                                         selected
-                                         size
-                                         targetImage
-                                         unselectBrush
     """
     # node markers
     qpp0 = activeNode.qppR
@@ -910,30 +885,20 @@ class graphicsForm3DLUT(QGraphicsView) :
         border = 20
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize + 90, axeSize + 200)
-        #self.setWindowFlags(Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.setBackgroundBrush(QBrush(Qt.black, Qt.SolidPattern))
         self.currentHue, self.currentSat, self.currentPb = 0, 0, self.defaultColorWheelBr
         self.currentR, self.currentG, self.currentB = 0,0,0
         self.size = axeSize
-        self.targetImage= targetImage
-        # link back to image layer
-        # using weak ref for back links
-        if type(layer) in weakref.ProxyTypes:
-            self.layer = layer
-        else:
-            self.layer = weakref.proxy(layer)
+        # back links to image
+        self.targetImage= weakProxy(targetImage)
+        self.layer = weakProxy(layer)
         # currently selected grid node
         self.selected = None
-        #self.bgPixmap = QPixmap.fromImage(self.QImg)
         self.graphicsScene = QGraphicsScene()
         self.setScene(self.graphicsScene)
-        # link back to image layer
-        # using weak ref for back links
-        if type(layer) in weakref.ProxyTypes:
-            self.graphicsScene.layer = layer
-        else:
-            self.graphicsScene.layer = weakref.proxy(layer)
+        # back to image layer
+        self.graphicsScene.layer = weakProxy(layer)
         # LUT
         freshLUT3D = LUT3D(None, size=LUTSize)
         #self.graphicsScene.LUTSize, self.graphicsScene.LUTStep, self.graphicsScene.LUT3DArray = freshLUT3D.size, freshLUT3D.step, freshLUT3D.LUT3DArray

@@ -21,6 +21,7 @@ from PySide2.QtCore import Qt
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QPushButton, QHBoxLayout
 
 from bLUeGui.graphicsForm import baseForm
+from bLUeGui.memory import weakProxy
 from utils import optionsWidget, UDict
 
 
@@ -35,17 +36,14 @@ class transForm (baseForm):
         return wdgt
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         super(transForm, self).__init__(parent=parent)
-        self.targetImage = targetImage
+
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize, axeSize)
         self.setAttribute(Qt.WA_DeleteOnClose)
-        self.img = targetImage
-        # link back to image layer
-        # using weak ref for back links
-        if type(layer) in weakref.ProxyTypes:
-            self.layer = layer
-        else:
-            self.layer = weakref.proxy(layer)
+        # back links to image
+        self.targetImage = weakProxy(targetImage)
+        self.img = weakProxy(targetImage)
+        self.layer = weakProxy(layer)
         self.mainForm = mainForm
         # options
         optionList1, optionNames1 = ['Free', 'Rotation', 'Translation'], ['Free Transformation', 'Rotation', 'Translation']

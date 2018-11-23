@@ -24,6 +24,7 @@ from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout
 
 from bLUeGui.colorCIE import sRGBWP
 from bLUeGui.graphicsForm import baseForm
+from bLUeGui.memory import weakProxy
 from utils import optionsWidget, QbLUeSlider, QbLUeLabel
 
 
@@ -45,12 +46,14 @@ class temperatureForm (baseForm):
         self.setMinimumSize(axeSize, axeSize)
         self.setAttribute(Qt.WA_DeleteOnClose)
         # link back to image layer
+        self.layer = weakProxy(layer)
+        """
         # using weak ref for back links
         if type(layer) in weakref.ProxyTypes:
             self.layer = layer
         else:
             self.layer = weakref.proxy(layer)
-
+        """
         self.defaultTemp = sRGBWP  # ref temperature D65
         self.defaultTint = 0
 

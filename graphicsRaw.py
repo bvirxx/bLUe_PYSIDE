@@ -28,6 +28,7 @@ from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QFr
     QGraphicsEllipseItem, QGraphicsPolygonItem, QApplication
 from bLUeGui.graphicsSpline import graphicsSplineForm, activeCubicSpline
 from bLUeGui.graphicsForm import baseForm
+from bLUeGui.memory import weakProxy
 from dng import getDngProfileList, getDngProfileDict, dngProfileToneCurve, dngProfileLookTable
 from utils import optionsWidget, UDict, QbLUeSlider, stateAwareQDockWidget
 from bLUeGui.multiplier import *
@@ -151,14 +152,22 @@ class rawForm (baseForm):
         self.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize, axeSize+300)  # +300 to prevent scroll bars in list Widgets
         self.setAttribute(Qt.WA_DeleteOnClose)
-        self.targetImage = targetImage
-        # link back to image layer
-        # using weak ref for back links
+        # links back to image : using weak refs
+        self.targetImage = weakProxy(targetImage)
+        """
+        if type(targetImage) in weakref.ProxyTypes:
+            self.targetImage = targetImage           
+        else:
+            self.targetImage = weakref.proxy(targetImage)
+        """
+        #self.targetImage = targetImage
+        self.layer = weakProxy(layer)
+        """
         if type(layer) in weakref.ProxyTypes:
             self.layer = layer
         else:
             self.layer = weakref.proxy(layer)
-
+        """
         #######################################
         # Libraw correspondences:
         # rgb_xyz_matrix is libraw cam_xyz

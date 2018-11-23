@@ -16,6 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import gc
+import weakref
 from collections import OrderedDict
 
 from PySide2 import QtCore, QtWidgets
@@ -29,6 +30,7 @@ import resources_rc  # hidden import mandatory : DO NOT REMOVE !!!
 from QtGui1 import window
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.dialog import openDlg, dlgWarn
+from bLUeGui.memory import weakProxy
 from utils import  QbLUeSlider
 
 
@@ -348,9 +350,15 @@ Note that upper visible layers slow down mask edition.
         """
         # close open adjustment windows
         #self.closeAdjustForms()
-        self.clear(delete=delete)  # TODO 01/12/17 change from closeadjust to clear
-        # double link
-        self.img = mImg
+        self.clear(delete=delete)
+        # back link to image
+        self.img = weakProxy(mImg)
+        """
+        if type(mImg) in weakref.ProxyTypes:  # TODO weakref added 21/11/18 validate
+            self.img = mImg
+        else:
+            self.img = weakref.proxy(mImg)
+        """
         mImg.layerView = self
         model = layerModel()
         model.setColumnCount(3)

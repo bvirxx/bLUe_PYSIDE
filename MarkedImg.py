@@ -32,6 +32,7 @@ from PySide2.QtGui import QPixmap, QImage, QPainter
 from PySide2.QtCore import QRect
 
 import exiftool
+from bLUeGui.memory import weakProxy
 
 from colorManagement import icc, convertQImage
 from bLUeGui.bLUeImage import QImageBuffer, ndarrayToQImage
@@ -630,7 +631,16 @@ class QLayer(vImage):
         self.isClipping = False
         self.role = kwargs.pop('role', '')
         self.tool = None
-        self.parentImage = kwargs.pop('parentImage', None)
+        # back link to parent image
+        parentImage = kwargs.pop('parentImage', None)
+        self.parentImage = weakProxy(parentImage)
+        """
+        if type(parentImage) in weakref.ProxyTypes:  # TODO 21/11/18 added weakref for back link
+            self.parentImage = parentImage
+        else:
+            self.parentImage = weakref.proxy(parentImage)
+        """
+        #self.parentImage = kwargs.pop('parentImage', None)
         # layer opacity is used by QPainter operations.
         # Its value must be in the range 0.0...1.0
         self.opacity = 1.0
@@ -658,6 +668,7 @@ class QLayer(vImage):
         self.AltZoom_coeff = 1.0
         super().__init__(*args, **kwargs)
         self.updatePixmap()
+
 
     def getGraphicsForm(self):
         """
@@ -885,6 +896,7 @@ class QLayer(vImage):
         # buf = QImageBuffer(img) #TODO 24/09/18 removed validate
         return img
 
+
     def applyToStack(self):
         """
         Apply new layer parameters and propagate changes to upper layers.
@@ -942,23 +954,30 @@ class QLayer(vImage):
             QApplication.restoreOverrideCursor()
             QApplication.processEvents()
     """
+
     def isAdjustLayer(self):
         return self.view is not None #hasattr(self, 'view')
+
 
     def isSegmentLayer(self):
         return 'SEGMENT' in self.role
 
+
     def isCloningLayer(self):
         return 'CLONING' in self.role
+
 
     def isGeomLayer(self):
         return 'GEOM' in self.role
 
+
     def is3DLUTLayer(self):
         return '3DLUT' in self.role
 
+
     def isRawLayer(self):
         return 'RAW' in self.role
+
 
     def updatePixmap(self, maskOnly=False):
         """
@@ -982,6 +1001,7 @@ class QLayer(vImage):
             rImg = vImage.visualizeMask(rImg, self.mask, color=self.maskIsSelected, clipping=self.isClipping)
         self.rPixmap = QPixmap.fromImage(rImg)
         self.setModified(True)
+
 
     def getStackIndex(self):
         """

@@ -21,6 +21,7 @@ from PySide2 import QtCore
 from PySide2.QtCore import Qt
 from PySide2.QtWidgets import QHBoxLayout, QPushButton, QWidget, QSizePolicy, QVBoxLayout, QSpinBox, QLabel
 
+from bLUeGui.memory import weakProxy
 from versatileImg import vImage
 from QtGui1 import window
 from bLUeGui.graphicsForm import baseForm
@@ -61,12 +62,14 @@ class segmentForm(baseForm):
         self.setMinimumSize(200, 200)
         self.setAttribute(Qt.WA_DeleteOnClose)
         # link back to image layer
+        self.layer = weakProxy(layer)
+        """
         # using weak ref for back links
         if type(layer) in weakref.ProxyTypes:
             self.layer = layer
         else:
             self.layer = weakref.proxy(layer)
-
+        """
         pushButton = QPushButton('apply')
         # apply button slot
         def f():

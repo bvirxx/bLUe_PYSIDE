@@ -25,6 +25,7 @@ from PySide2.QtGui import QFontMetrics
 
 from bLUeGui.graphicsForm import baseForm
 from bLUeCore.kernel import filterIndex, getKernel
+from bLUeGui.memory import weakProxy
 from utils import optionsWidget, QbLUeSlider
 
 
@@ -50,11 +51,14 @@ class filterForm (baseForm):
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.img = targetImage
         # link back to image layer
+        self.layer = weakProxy(layer)
+        """
         # using weak ref for back links
         if type(layer) in weakref.ProxyTypes:
             self.layer = layer
         else:
             self.layer = weakref.proxy(layer)
+        """
         self.mainForm = mainForm
         self.kernelCategory = filterIndex.UNSHARP
 
