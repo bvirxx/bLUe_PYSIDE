@@ -170,11 +170,10 @@ from splittedView import splittedWindow
 
 from bLUeCore.demosaicing import demosaic
 from bLUeGui.dialog import *
+from viewer import playDiaporama, viewer
 
 ##################
 #  Software Attributions
-from viewer import playDiaporama, viewer
-
 attributions = """
 exiftool Copyright © 2013-2016, Phil Harvey
 QRangeSlider Copyright (c) 2011-2012, Ryan Galloway
