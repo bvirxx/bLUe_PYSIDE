@@ -31,6 +31,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 from .spline import interpolationQuadSpline
 
+
 class dstb(object):
     """
     Represent a discrete distribution over an interval 0...maxVal of positive
@@ -44,7 +45,7 @@ class dstb(object):
     @classmethod
     def FromImage(cls, imgBuf):
         hist, bins = np.histogram(imgBuf, bins=256, range=(0, 255), density=True)
-        return  dstb(hist, bins, 255)
+        return dstb(hist, bins, 255)
 
     def __init__(self, hist, bins, maxVal=0):
         self.maxVal = max(maxVal, np.ceil(bins[-1]))
@@ -81,6 +82,8 @@ class dstb(object):
         All bins should be between 0 and maxVal.
         @param hist: histogram
         @type hist: list
+        @param maxVal:
+        @type maxVal: int
         @param bins: histogram bins
         @type bins: list
         """
@@ -114,7 +117,7 @@ class dstb(object):
         # sanity check
         if np.abs(self.CDFTable[-1] - 1) > 0.00000001:
             raise ValueError('setDistribution: invalid distribution')
-        #return DTable, CDFTable   TODO removed 05/11/18 validate
+        # return DTable, CDFTable   TODO removed 05/11/18 validate
 
     def F(self, x):
         """
@@ -139,7 +142,7 @@ class dstb(object):
             k2 = k1 + 1
             v2 = self.CDFTable[k2]
             return (k2 - xs) * v1 + (xs - k1) * v2
-        return v1 #self.CDFTable[int(x * s)]
+        return v1 # self.CDFTable[int(x * s)]
 
     def FVec(self, x):
         """
@@ -177,8 +180,6 @@ class dstb(object):
             raise ValueError('dstb.FInvVec : argument is a scalar')
         s = self.maxVal
         CDFTable = self.CDFTable
-        FVec = self.FVec
-        xs = x * s
         # get the smallest integer k s.t. CDFTable[k] >= x
         k1 = np.argmax(CDFTable[:, np.newaxis] >= x, axis=0)
         # CDFTable[-1] should be equal to 1. However, we try to prevent an eventual error
@@ -192,14 +193,14 @@ class dstb(object):
         k1_over_s = k1/s
         # interpolation
         if self.interpolateCDF:
-            k2 = np.maximum(k1 - 1, 0)                                                   # FVec(k2_over_s) = CDFTable[k1-1] <= x <= CDFTable[k1]
-            #k3 = (FVec(k1_over_s) -x) * k2 + (x - FVec(k2overs)) * k1
+            k2 = np.maximum(k1 - 1, 0)   # FVec(k2_over_s) = CDFTable[k1-1] <= x <= CDFTable[k1]
+            # k3 = (FVec(k1_over_s) -x) * k2 + (x - FVec(k2overs)) * k1
             k3 = (CDFTable[k1] - x) * k2 + (x - CDFTable[k2]) * k1
             # ignore floating point warnings
             # old_settings = np.seterr(all='ignore')
-            k4 = k3 /(CDFTable[k1]-CDFTable[k2])
+            k4 = k3 / (CDFTable[k1]-CDFTable[k2])
             # np.seterr(**old_settings)
-            k1 = np.where(np.isfinite(k4), k4, k1 )
+            k1 = np.where(np.isfinite(k4), k4, k1)
             k1_over_s = k1/s
         return k1_over_s
 
@@ -216,6 +217,7 @@ class dstb(object):
         if not np.isscalar(x):
             raise ValueError('dstb.FInv : argument is not a scalar')
         return np.asscalar(self.FInvVec(np.array([x])))
+
 
 def gaussianDistribution(x, hist, bins, h):
     """
@@ -235,11 +237,12 @@ def gaussianDistribution(x, hist, bins, h):
     """
     dist = dstb(hist, bins)
     values = np.arange(256, dtype=np.float)/256
-    valuesx = x/256 -values
+    valuesx = x/256 - values
     valuesx = - valuesx*valuesx/(2*h*h)
-    expx = np.exp(valuesx)/ (h*np.sqrt(2*np.pi)) * dist
+    expx = np.exp(valuesx) / (h*np.sqrt(2*np.pi)) * dist
     dx = np.sum(expx)
     return dx
+
 
 def distWins(dist, delta):
     """
@@ -259,12 +262,12 @@ def distWins(dist, delta):
         # search for a window of (probability) width >= 2*delta, centered at k.
         foundi, foundj = False, False
         i, j = 1, -1
-        while  k+i < len(CDF)-1:
+        while k+i < len(CDF)-1:
             if CDF[k + i] - CDF[k] >= delta:
-                foundi=True
+                foundi = True
                 break
             i += 1
-        while  k+j > 0:
+        while k+j > 0:
             if CDF[k] - CDF[k + j] >= delta:
                 foundj = True
                 break
@@ -272,6 +275,7 @@ def distWins(dist, delta):
         if foundi and foundj:
             W.append((j, k, i))
     return W
+
 
 def valleys(imgBuf, delta):
     """
@@ -290,7 +294,7 @@ def valleys(imgBuf, delta):
     @rtype: ndarray, distribution
     """
     # build image histogram and init distribution
-    hist, bins = np.histogram(imgBuf, bins=256, range=(0,255), density=True)
+    hist, bins = np.histogram(imgBuf, bins=256, range=(0, 255), density=True)
     dist = dstb(hist, bins, 255)
     # get candidate windows
     hDB = distWins(dist, delta)
@@ -298,15 +302,17 @@ def valleys(imgBuf, delta):
     V = []
     DTable = dist.DTable
     for j, k, i in hDB:
-        if np.all([(DTable[l] > DTable[k]) for l in range(k+j, k)]) and np.all([(DTable[l] > DTable[k]) for l in range(k+1, k+i+1)]) :
+        if np.all([(DTable[l] > DTable[k]) for l in range(k+j, k)]) and \
+                    np.all([(DTable[l] > DTable[k]) for l in range(k+1, k+i+1)]):
             V.append(k)
     V = np.fromiter(V, dtype=np.float, count=len(V))
     return V, dist
 
+
 def autoQuadSpline(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True):
     """
-    Calculates a quadratic spline from ImgBuf histogram, for automatic
-    contrats enhancement.
+    Calculate a quadratic spline from ImgBuf histogram, for automatic
+    contrast enhancement.
     We mainly use the algorithm proposed by  Grundland and Dodgson
     Cf. U{https://link.springer.com/chapter/10.1007/1-4020-4179-9_42},
     with a supplementary correction for highlights.
@@ -356,35 +362,37 @@ def autoQuadSpline(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True):
     a[0], a[1], a[-2], a[-1] = dist.FInv(0), dist.FInv(tau), dist.FInv(1 - tau), dist.FInv(1)
     b[0], b[1], b[-2], b[-1] = 0, tau, 1 - tau, 1
     # make a strictly increasing if needed
-    if a[1]<=a[0] or a[1]>=a[2]:
-        a[1]= (a[0]*99+a[2])/100
-    if a[-2]>=a[-1] or a[-2]<=a[-3]:
+    if a[1] <= a[0] or a[1] >= a[2]:
+        a[1] = (a[0]*99+a[2])/100
+    if a[-2] >= a[-1] or a[-2] <= a[-3]:
         a[-2] = (a[-1]*99+a[-3])/100
-    if  np.min(a[1:]-a[:-1]) <= 0:
-        raise ValueError('warpHistogram : array must be strictly increasing')
+    if np.min(a[1:]-a[:-1]) <= 0:
+        raise ValueError('warpHistogram : array a must be strictly increasing')
     # move b[k] within [v[k-1], v[k]] to equalize the histogram.
     # The parameter s controls the move.
     # b[k] is interpolated between V[k-1], V[k] and a[k], hence b[k]
     # lies in [V(k-1], V[k]], which in turn guaranties that b[2:-2]  is non decreasing.
     s = np.clip(warp, 0, 1)
+    oneMinusTau = 1 - tau
     for k in range(2, len(b)-2):                                # 2..K-1
         b[k] = (dist.F(V[k]) - dist.F(a[k])) * V[k-1] + (dist.F(a[k]) - dist.F(V[k-1])) * V[k]
-        b[k] = b[k] / (dist.F(V[k]) - dist.F(V[k-1]))*s  + a[k]*(1-s)     # F(V[k]) - F(V[k-1] >= valleyAperture
+        b[k] = b[k] / (dist.F(V[k]) - dist.F(V[k-1]))*s + a[k]*(1-s)     # F(V[k]) - F(V[k-1] >= valleyAperture
+        b[k] = min(b[k], oneMinusTau)  # TODO added 23/11/18 to keep b non decreasing
     if np.min(b[1:] - b[:-1]) < 0:
         raise ValueError('warpHistogram : array b must be non decreasing')
 
     # calculate curve slopes at (a[k], b[k]).
-    bPlus = (b[:-1] + b[1:])/ 2                                 # bPlus[k] = (b[k] + b[k+1])/ 2
+    bPlus = (b[:-1] + b[1:]) / 2                                 # bPlus[k] = (b[k] + b[k+1])/ 2
     bPlus = np.concatenate((bPlus, [0.0]))
-    bMinus = np.concatenate( ([0.0], bPlus[:-1]))               # bMinus[k] = (b[k] + b[k-1]) / 2 , k>=1
+    bMinus = np.concatenate(([0.0], bPlus[:-1]))                 # bMinus[k] = (b[k] + b[k-1]) / 2 , k>=1
 
     tmpMid = (dist.FVec(a[:-1]) + dist.FVec(a[1:]))/2           # tmpMid[k] = (F(a[k]) + F(a[k+1]) / 2
     aPlus = dist.FInvVec(tmpMid)                                # aPLus[k] = FInv( (F(a[k] + F(a[k+1])) / 2 )
     aPlus = np.concatenate((aPlus, [1.0]))
     aMinus = np.concatenate(([0.0], aPlus[:-1]))                # aMinus[k] = FInv( (F(a[k] + F(a[k-1])) / 2 ), k>=1
-    #eps = np.finfo(np.float64).eps
+    # eps = np.finfo(np.float64).eps
 
-    alpha = (dist.FVec(a[1:-1]) - dist.FVec(a[:-2])) /(dist.FVec(a[2:]) - dist.FVec(a[:-2]))
+    alpha = (dist.FVec(a[1:-1]) - dist.FVec(a[:-2])) / (dist.FVec(a[2:]) - dist.FVec(a[:-2]))
     alpha = np.concatenate(([0], alpha))                       # alpha[k] = (F(a[k]) - F(a[k-1])/(F(a[k+1]) - F(a[k-1]), K-1>=k>=1
     beta = (dist.FVec(a[2:]) - dist.FVec(a[1:-1])) / (dist.FVec(a[2:]) - dist.FVec(a[:-2]))
     beta = np.concatenate(([0], beta))                         # beta[k] = (F(a[k+1] - F(a[k])/(F(a[k+1]) - F([a[k-1])), K-1>=k>=1
@@ -393,24 +401,26 @@ def autoQuadSpline(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True):
     r1[1:-1] = (b[1:-1] - bMinus[1:-1]) / (a[1:-1] - aMinus[1:-1])  # r1[k] = (b[k] - bMinus[k])/((a[k] - aMinus[k]), k>=1
     r2[1:-1] = (bPlus[1:-1] - b[1:-1]) / (aPlus[1:-1] - a[1:-1])    # r2[k] = (bPlus[k] - b[k])/((aPlus[k] - a[k]), k>=1
     # array of slopes
-    d = np.zeros(len(a), dtype = np.float)                          # len(a) = len(b) = len(d) = K+2
-    d[1:-1] = np.power( r1[1:-1], alpha[1:]) * np.power(r2[1:-1], beta[1:])
+    d = np.zeros(len(a), dtype=np.float)                          # len(a) = len(b) = len(d) = K+2
+    d[1:-1] = np.power(r1[1:-1], alpha[1:]) * np.power(r2[1:-1], beta[1:])
     d[0] = bPlus[0] / aPlus[0]
-    d[-1] = (1-bMinus[-1])/ (1 -aMinus[-1])                      # d[K+1] = (1 - bMinus[K+1]) / ((1-aMinus[K+1])
-    d = np.where(d==np.NaN, 1.0, d)
-    d=np.clip(d, 0.25, 5)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        d[-1] = (1-bMinus[-1]) / (1 - aMinus[-1])                 # d[K+1] = (1 - bMinus[K+1]) / ((1-aMinus[K+1])
+    d = np.where(d == np.NaN, 1.0, d)
+    d = np.clip(d, 0.25, 5)
     # highlight correction
     if preserveHigh:
         skyInd = np.argmax(a > 0.75*a[-1])
-        b[-1]=0.99  # 0.98-->0.99 20/07/18
+        b[-1] = 0.99  # 0.98-->0.99 20/07/18
         for i in range(len(b) - skyInd - 1):  # TODO 31/05/18 skyInd is array, should be int
-            b[-i-2]= min(np.power(a[-i-2], 0.30), b[-i-1]) - 0.02
+            b[-i-2] = min(np.power(a[-i-2], 0.30), b[-i-1]) - 0.02
         b[skyInd-1] = np.power(b[skyInd-1], 0.9)
         d[skyInd:] = 0.2
-        d[-1]=2
+        d[-1] = 2
     # build and apply the spline.
     T = interpolationQuadSpline(a, b, d, plot=True)
     return a, b, d, T
+
 
 def warpHistogram(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True, spline=None):
     """
@@ -440,19 +450,21 @@ def warpHistogram(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True, spli
     if spline is None:
         a, b, d, T = autoQuadSpline(imgBuf, valleyAperture=valleyAperture, warp=warp, preserveHigh=preserveHigh)
     else:
-        a, b, d, T = [p.x() for p in spline.fixedPoints], [p.y() for p in spline.fixedPoints], spline.fixedTangents, spline.LUTXY/256
+        a, b, d, T = [p.x() for p in spline.fixedPoints], \
+                      [p.y() for p in spline.fixedPoints], spline.fixedTangents, spline.LUTXY/256
     im = imgBuf*255
     im1 = im.astype(np.int)
     im2 = im1+1
     B1 = T[im1]
     # extrapolate T to handle eventual value 256 in im2
     T1 = np.hstack((T, [T[-1]]))
-    B2 = T1[im2] # clearer but slower : T[np.minimum(im2, 255)]
+    B2 = T1[im2]  # clearer but slower : T[np.minimum(im2, 255)]
     # interpolate B1, B2
     B = (im2 - im) * B1 + (im - im1) * B2
     return np.clip(B, 0, 1, out=B), a, b, d, T
 
+
 if __name__ == '__main__':
-    img = (np.arange(1000*800, dtype=np.float)/800000).reshape(1000, 800)
+    #img = (np.arange(1000*800, dtype=np.float)/800000).reshape(1000, 800)
     img = np.zeros((1000, 800))
     dist = dstb.FromImage(img)
