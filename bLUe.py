@@ -157,7 +157,7 @@ from colorManagement import icc
 from graphicsCoBrSat import CoBrSatForm
 from graphicsExp import ExpForm
 from graphicsPatch import patchForm
-from settings import USE_POOL, POOL_SIZE, THEME, MAX_ZOOM
+from settings import USE_POOL, POOL_SIZE, THEME, MAX_ZOOM, TABBING
 from utils import QbLUeColorDialog
 from bLUeGui.tool import cropTool, rotatingTool
 from graphicsTemp import temperatureForm
@@ -1216,9 +1216,15 @@ def menuImage(name):
 
 def getPool():
     global pool
-    # init pool only once
-    if USE_POOL and (pool is None):
-        pool = multiprocessing.Pool(POOL_SIZE)
+    try:
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        QApplication.processEvents()
+        # init pool only once
+        if USE_POOL and (pool is None):
+            pool = multiprocessing.Pool(POOL_SIZE)
+    finally:
+        QApplication.restoreOverrideCursor()
+        QApplication.processEvents()
     return pool
 
 
@@ -1234,7 +1240,7 @@ def menuLayer(name):
         if name == 'actionCurves_RGB':
             layerName = 'RGB'
             form = graphicsForm
-        elif name == 'actionCurves_HSpB':
+        elif name == 'actionCurves_HSpB':  # displayed as HSV in the layer menu !!
             layerName = 'HSV'
             form = graphicsHspbForm
         elif name == 'actionCurves_Lab':
@@ -1246,7 +1252,7 @@ def menuLayer(name):
         # wrapper for the right applyXXX method
         if name == 'actionCurves_RGB':
             layer.execute = lambda l=layer, pool=None: l.tLayer.apply1DLUT(grWindow.scene().cubicItem.getStackedLUTXY())
-        elif name == 'actionCurves_HSpB':
+        elif name == 'actionCurves_HSpB':  # displayed as HSV in the layer menu !!
             layer.execute = lambda l=layer, pool=None: l.tLayer.applyHSV1DLUT(grWindow.scene().cubicItem.getStackedLUTXY(), pool=pool)
         elif name == 'actionCurves_Lab':
             layer.execute = lambda l=layer, pool=None: l.tLayer.applyLab1DLUT(grWindow.scene().cubicItem.getStackedLUTXY())
@@ -1507,14 +1513,21 @@ def menuLayer(name):
     dock.setWidget(grWindow)
     dock.setWindowFlags(grWindow.windowFlags())
     dock.setWindowTitle(grWindow.windowTitle())
-    # dock.setAttribute(Qt.WA_DeleteOnClose)
-    dock.move(900, 40)
-    dock.setStyleSheet("QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
+    if TABBING:
+        # add form to docking area
+        forms = [ item.view for item in layer.parentImage.layersStack if getattr(item, 'view', None) is not None]
+        dockedForms = [item for item in forms if not item.isFloating()]
+        if dockedForms:
+            window.tabifyDockWidget(dockedForms[-1], dock)
+        else:
+            window.addDockWidget(Qt.RightDockWidgetArea, dock)
+    else:
+        window.addDockWidget(Qt.RightDockWidgetArea, dock)
     layer.view = dock
-    # add to docking area
-    window.addDockWidget(Qt.RightDockWidgetArea, dock)
-    # update layer stack view
+    # update the view of layer stack
     window.tableView.setLayers(window.label.img)
+
+
 
 def menuHelp(name):
     """
@@ -1759,8 +1772,8 @@ if __name__ == '__main__':
                            QColorDialog QLabel {background-color: gray; color: white}\
                            QStatusBar::item {border: none}\
                            QPushButton {font-size: 8pt}\
-                           QToolTip {border: 0px; background-color: lightyellow; color: black}"  # border must be set, otherwise background-color has no effect : Qt bug?
-
+                           QTabBar::tab {color: black}\
+                           QToolTip {border: 0px; background-color: lightyellow; color: black}"""  # border must be set, otherwise background-color has no effect : Qt bug?
                          )
     # Before/After view
     splittedWin = splittedWindow(window)
