@@ -94,6 +94,20 @@ class baseForm(QWidget):
         pass
 
 
+class baseGraphicsForm(QGraphicsView):
+    """
+    Base class for graphics (with scene) forms
+    """
+
+    def updateHists(self):
+        """
+        Update the input histograms displayed
+        on the form. Should be overridden
+        by subclasses.
+        """
+        pass
+
+
 class graphicsCurveForm(QGraphicsView):
     """
     Base class for interactive curve forms
@@ -106,6 +120,8 @@ class graphicsCurveForm(QGraphicsView):
         a square grid.
         @param axeSize:
         @type axeSize:
+        @param gradient:
+        @type gradient
         @return:
         @rtype: QGraphicsPathItem
         """
@@ -208,7 +224,6 @@ class graphicsCurveForm(QGraphicsView):
         @param e:
         @type e:
         """
-        pos = e.pos()
         # delta unit is 1/8 of degree
         # Most mice have a resolution of 15 degrees
         numSteps = 1 + e.delta() / 1200.0
