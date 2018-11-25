@@ -22,47 +22,64 @@ from PySide2.QtCore import Qt, QRectF
 from bLUeGui.graphicsSpline import activeCubicSpline, graphicsCurveForm, channelValues
 from utils import optionsWidget
 
-class graphicsHspbForm(graphicsCurveForm) :
+
+class graphicsHspbForm(graphicsCurveForm):
     """
-    Form for HSV/HSpB curves
+    Form for HSV/HSpB curves   # TODO take a look at the histogram range for HSpB
     """
     @classmethod
-    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
-        newWindow = graphicsHspbForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
+    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, colorModel='HSV', mainForm=None):
+        newWindow = graphicsHspbForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent,
+                                     colorModel=colorModel, mainForm=mainForm)
         newWindow.setWindowTitle(layer.name)
         return newWindow
-    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
+
+    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, colorModel='HSV', mainForm=None):
         super().__init__(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         graphicsScene = self.scene()
-        # hue curve
+        graphicsScene.colorModel = colorModel
+
+        # hue curve init.
         cubic = activeCubicSpline(axeSize)
         graphicsScene.addItem(cubic)
         graphicsScene.cubicR = cubic
         cubic.channel = channelValues.Hue
+        """
         cubic.histImg = graphicsScene.layer.histogram(size=axeSize,
                                                        bgColor=graphicsScene.bgColor, range=(0, 360),
                                                        chans=channelValues.Hue, mode='HSpB')
+        """
         cubic.initFixedPoints()
-        # sat curve
+
+        # sat curve init.
         cubic = activeCubicSpline(axeSize)
         graphicsScene.addItem(cubic)
         graphicsScene.cubicG = cubic
         cubic.channel = channelValues.Sat
+        """
         cubic.histImg = graphicsScene.layer.histogram(size=axeSize,
                                                       bgColor=graphicsScene.bgColor, range=(0,1),
                                                       chans=channelValues.Sat, mode='HSpB')
+        """
         cubic.initFixedPoints()
-        # brightness curve
+
+        # brightness curve init.
         cubic = activeCubicSpline(axeSize)
         graphicsScene.addItem(cubic)
         graphicsScene.cubicB = cubic
         cubic.channel = channelValues.Br
+        """
         cubic.histImg = graphicsScene.layer.histogram(size=axeSize,
                                                       bgColor=graphicsScene.bgColor,
                                                       range=(0,1), chans=channelValues.Br, mode='HSpB')
+        """
         cubic.initFixedPoints()
-        # set current curve
-        graphicsScene.cubicItem = graphicsScene.cubicB
+
+        # init histograms
+        self.updateHists()
+
+        # set current curve to sat
+        graphicsScene.cubicItem = graphicsScene.cubicG
         graphicsScene.cubicItem.setVisible(True)
 
         # buttons
@@ -79,18 +96,21 @@ class graphicsHspbForm(graphicsCurveForm) :
         # options
         options = ['H', 'S', 'B']
         self.listWidget1 = optionsWidget(options=options, exclusive=True)
-        self.listWidget1.setGeometry(0, 10, self.listWidget1.sizeHintForColumn(0) + 5, self.listWidget1.sizeHintForRow(0) * len(options) + 5)
+        self.listWidget1.setGeometry(0, 10, self.listWidget1.sizeHintForColumn(0) + 5,
+                                     self.listWidget1.sizeHintForRow(0) * len(options) + 5)
         graphicsScene.addWidget(self.listWidget1)
 
         # selection changed handler
         curves = [graphicsScene.cubicR, graphicsScene.cubicG, graphicsScene.cubicB]
         curveDict = dict(zip(options, curves))
+
         def onSelect1(item):
             self.scene().cubicItem.setVisible(False)
             self.scene().cubicItem = curveDict[item.text()]
             self.scene().cubicItem.setVisible(True)
             # draw  histogram
-            self.scene().invalidate(QRectF(0.0, -self.scene().axeSize, self.scene().axeSize, self.scene().axeSize), QGraphicsScene.BackgroundLayer)
+            self.scene().invalidate(QRectF(0.0, -self.scene().axeSize, self.scene().axeSize,
+                                           self.scene().axeSize), QGraphicsScene.BackgroundLayer)
 
         self.listWidget1.onSelect = onSelect1
         # set initial selection to Saturation
@@ -98,10 +118,11 @@ class graphicsHspbForm(graphicsCurveForm) :
         item.setCheckState(Qt.Checked)
         self.listWidget1.select(item)
         self.setWhatsThis("""<b>HSV curves</b><br>""" + self.whatsThis())
+
         def f():
-            l = graphicsScene.layer
-            l.applyToStack()
-            l.parentImage.onImageChanged()
+            layer = graphicsScene.layer
+            layer.applyToStack()
+            layer.parentImage.onImageChanged()
         self.scene().cubicR.curveChanged.sig.connect(f)
         self.scene().cubicG.curveChanged.sig.connect(f)
         self.scene().cubicB.curveChanged.sig.connect(f)
@@ -118,18 +139,23 @@ class graphicsHspbForm(graphicsCurveForm) :
 
         @param curve:
         @type curve:
+        @param redraw:
+        @ptype redraw:
 
         """
         sc = self.scene()
         if curve is sc.cubicR:
-            curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize, bgColor=sc.bgColor,
-                                                          chans=channelValues.Red)
+            curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize,
+                                                            bgColor=sc.bgColor, range=(0, 255),  # opencv convention for 8 bits image
+                                                            chans=channelValues.Hue, mode=sc.colorModel)
         elif curve is sc.cubicG:
-            curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize, bgColor=sc.bgColor,
-                                                          chans=channelValues.Green)
+            curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize,
+                                                            bgColor=sc.bgColor, range=(0, 255),  # opencv convention for 8 bits image
+                                                            chans=channelValues.Sat, mode=sc.colorModel)
         elif curve is sc.cubicB:
-            curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize, bgColor=sc.bgColor,
-                                                          chans=channelValues.Blue)
+            curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize,
+                                                            bgColor=sc.bgColor, range=(0, 255),  # opencv convention for 8 bits image
+                                                            chans=channelValues.Br, mode=sc.colorModel)
         # Force to redraw histogram
         if redraw:
             sc.invalidate(QRectF(0.0, -sc.axeSize, sc.axeSize, sc.axeSize),
@@ -156,9 +182,9 @@ class graphicsHspbForm(graphicsCurveForm) :
         graphicsScene = self.scene()
         graphicsScene.cubicItem.reset()
         self.updateHist(graphicsScene.cubicItem)
-        l = graphicsScene.layer
-        l.applyToStack()
-        l.parentImage.onImageChanged()
+        layer = graphicsScene.layer
+        layer.applyToStack()
+        layer.parentImage.onImageChanged()
 
     def resetAllCurves(self):
         """
@@ -169,9 +195,9 @@ class graphicsHspbForm(graphicsCurveForm) :
         for cubicItem in [graphicsScene.cubicR, graphicsScene.cubicG, graphicsScene.cubicB]:
             cubicItem.reset()
         self.updateHists()
-        l = graphicsScene.layer
-        l.applyToStack()
-        l.parentImage.onImageChanged()
+        layer = graphicsScene.layer
+        layer.applyToStack()
+        layer.parentImage.onImageChanged()
 
     def writeToStream(self, outStream):
         graphicsScene = self.scene()
@@ -186,10 +212,6 @@ class graphicsHspbForm(graphicsCurveForm) :
         return outStream
 
     def readFromStream(self, inStream):
-        actionName = inStream.readQString()
-        name = inStream.readQString()
-        sel = inStream.readQString()
-        cubics = []
         # for i in range(3):
         # cubic = cubicItem.readFromStream(inStream)
         # cubics.append(cubic)
@@ -200,3 +222,4 @@ class graphicsHspbForm(graphicsCurveForm) :
         graphicsScene.cubicG.readFromStream(inStream)
         graphicsScene.cubicB.readFromStream(inStream)
         return inStream
+
