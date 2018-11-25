@@ -18,14 +18,16 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
 
+
 def interpTetra(LUT, LUTSTEP, ndImg, convert=True):
     """
     Implement a vectorized version of tetrahedral interpolation.
 
-    Convert a array ndImg with shape (w, h, 3) by interpolating
-    its values in a 3D LUT array LUT with shape s = (s1, s2, s3, 3).
-    3-uple values v taken from the third axis of ndImg1 are input to
-    the three first axes of the LUT, keeping the ordering (i.e. v[i] is input to axis i).
+    Convert a array ndImg with shape (w, h, d)  with d >=3 by interpolating
+    its values in a 3D LUT array LUT with shape s = (s1, s2, s3, d).
+    Inputs are taken from the third axis of ndImg[:,:,:3]. they are input to
+    the three first axes of the LUT, keeping the same ordering (i.e. v[i] is input to axis i).
+    Output values are interpolated from the LUT.
 
     LUTSTEP is the number or the 3-uple of numbers giving the unitary interpolation
     steps for each axis of the LUT table.
@@ -68,7 +70,11 @@ def interpTetra(LUT, LUTSTEP, ndImg, convert=True):
     s = LUT.shape
     st = np.array(LUT.strides)
     st = st // st[-1]  # we count items instead of bytes
-    flatIndex = np.ravel_multi_index((r0[..., np.newaxis], g0[..., np.newaxis], b0[..., np.newaxis], np.arange(3)), s)  # broadcasted to shape (w,h,3)
+    flatIndex = np.ravel_multi_index((r0[..., np.newaxis],
+                                      g0[..., np.newaxis],
+                                      b0[..., np.newaxis],
+                                      np.arange(s[-1])),
+                                      s)  # broadcasted to shape (w,h,3)
 
     # apply LUT to the vertices of the bounding cube
     # np.take uses the the flattened LUT, but keeps the shape of flatIndex
@@ -81,7 +87,7 @@ def interpTetra(LUT, LUTSTEP, ndImg, convert=True):
     ndImg12 = np.take(LUT, flatIndex + (st[1] + st[2]))          # = LUT[r0, g1, b1]
     ndImg13 = np.take(LUT, flatIndex + (st[0] + st[1] + st[2]))  # = LUT[r1, g1, b1]
 
-    fR = ndImgF[: , :,0] - a[:, :, 0]
+    fR = ndImgF[:, :, 0] - a[:, :, 0]
     fG = ndImgF[:, :, 1] - a[:, :, 1]
     fB = ndImgF[:, :, 2] - a[:, :, 2]
     oneMinusFR = (1 - fR)[..., np.newaxis] * ndImg00
@@ -112,9 +118,9 @@ def interpTetra(LUT, LUTSTEP, ndImg, convert=True):
     X5 = oneMinusFR - fBR * ndImg01 - fGB * ndImg11 + fG  # fR >=fB >=fG
 
     Y1 = np.select(
-                [C2 * C3, C3 * C1, np.logical_not(np.logical_or(C1,C2)), C1 * C2, np.logical_not(np.logical_or(C1,C3))],
+                [C2 * C3, C3 * C1, np.logical_not(np.logical_or(C1, C2)), C1 * C2, np.logical_not(np.logical_or(C1,C3))],
                 [X0, X1, X2, X3, X4],  # clockwise ordering: X3, X5, X1, X2, X0, X4
-                default = X5
+                default=X5
                 )
 
     if convert:
