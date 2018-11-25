@@ -31,6 +31,7 @@ from QtGui1 import window
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.dialog import openDlg, dlgWarn
 from bLUeGui.memory import weakProxy
+from settings import TABBING
 from utils import  QbLUeSlider
 
 
@@ -323,7 +324,7 @@ Note that upper visible layers slow down mask edition.
                         dock.setAttribute(Qt.WA_DeleteOnClose)
                         dock.close()
                         layer.view = None
-                    else:
+                    elif not TABBING:  # tabbed forms should not be closed
                         dock.close()
         if delete:
             self.currentWin = None
@@ -331,7 +332,7 @@ Note that upper visible layers slow down mask edition.
 
     def clear(self, delete=True):
         """
-        Resets LayerView and clears back
+        Reset LayerView and clear back
         links to image
         @return: 
         """
@@ -342,6 +343,7 @@ Note that upper visible layers slow down mask edition.
         model.setColumnCount(3)
         self.setModel(None)
 
+
     def setLayers(self, mImg, delete=False):
         """
         Displays the layer stack of mImg
@@ -351,15 +353,9 @@ Note that upper visible layers slow down mask edition.
         # close open adjustment windows
         #self.closeAdjustForms()
         self.clear(delete=delete)
+        mImg.layerView = self
         # back link to image
         self.img = weakProxy(mImg)
-        """
-        if type(mImg) in weakref.ProxyTypes:  # TODO weakref added 21/11/18 validate
-            self.img = mImg
-        else:
-            self.img = weakref.proxy(mImg)
-        """
-        mImg.layerView = self
         model = layerModel()
         model.setColumnCount(3)
         l = len(mImg.layersStack)
@@ -419,6 +415,11 @@ Note that upper visible layers slow down mask edition.
         header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
         # select active layer
         self.selectRow(len(mImg.layersStack) - 1 - mImg.activeLayerIndex)
+        layerview = mImg.getActiveLayer().view  # TODO added 25/11/18
+        if layerview is not None:
+            layerview.show()
+            if TABBING:
+                layerview.raise_()
         self.updateForm()
         for item in self.img.layersStack:
             if hasattr(item, 'sourceIndex'):
@@ -429,6 +430,7 @@ Note that upper visible layers slow down mask edition.
                     item.view.widget().sourceCombo.addItem(x.name, i)
                 combo.setCurrentIndex(combo.findText(currentText))
 
+
     def updateForm(self):
         activeLayer = self.img.getActiveLayer()
         if hasattr(activeLayer, 'view'):
@@ -437,9 +439,11 @@ Note that upper visible layers slow down mask edition.
             self.currentWin.show()
             self.currentWin.activateWindow()
 
+
     def updateRow(self, row):
         minInd, maxInd = self.model().index(row, 0), self.model().index(row, 3)
         self.model().dataChanged.emit(minInd, maxInd)
+
 
     def dropEvent(self, event):
         """
@@ -532,6 +536,7 @@ Note that upper visible layers slow down mask edition.
         self.img.layersStack[0].applyToStack()
         self.img.onImageChanged()
 
+
     def select(self, row, col):
         """
         select item in view
@@ -544,6 +549,7 @@ Note that upper visible layers slow down mask edition.
         """
         model = self.model()
         self.viewClicked(model.index(row, col))
+
 
     def viewClicked(self, clickedIndex):
         """
@@ -590,27 +596,18 @@ Note that upper visible layers slow down mask edition.
                     # top layer : update only the presentation layer
                     layer.parentImage.prLayer.execute(l=None, pool=None)
             self.img.onImageChanged()
-        # hide/display adjustment form
-        elif clickedIndex.column() == 1 :
-            pass
-        elif clickedIndex.column() == 2:
-            pass
-            """
-            cl = self.img.layersStack[-1-clickedIndex.row()]
-            cl.maskIsSelected = not cl.maskIsSelected
-            layer.applyToStack()
-            self.img.onImageChanged()
-            """
         # update displayed window and active layer
         activeStackIndex = len(self.img.layersStack) - 1 - row
         activeLayer = self.img.setActiveLayer(activeStackIndex)
         if self.currentWin is not None:
-            self.currentWin.hide()
-            self.currentWin = None
+                if not self.currentWin.isFloating():
+                    #self.currentWin.hide()
+                    self.currentWin = None
         if hasattr(self.img.layersStack[activeStackIndex], "view"):
             self.currentWin = self.img.layersStack[activeStackIndex].view
         if self.currentWin is not None and activeLayer.visible:
             self.currentWin.show()
+            self.currentWin.raise_()
             # make self.currentWin the active window
             self.currentWin.activateWindow()
         # update opacity and composition mode for current layer
