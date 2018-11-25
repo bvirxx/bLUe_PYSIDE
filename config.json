@@ -23,6 +23,7 @@
     "THEME" : "dark"
   },
   "PARAMS" : {
-    "MAX_ZOOM" : 8
+    "MAX_ZOOM" : 8,
+    "TABBING"   : true
   }
 }
