@@ -91,9 +91,8 @@ class bImage(QImage):
 
     def histogram(self, size=QSize(200, 200), bgColor=Qt.white, range =(0,255), chans=channelValues.RGB, chanColors=Qt.gray, mode='RGB', addMode=''):
         """
-        Plots histogram with the
+        Plot the image histogram with the
         specified color mode and channels.
-        Luminosity is  Y = 0.299*R + 0.587*G + 0.114*B (YCrCb opencv color space).
         Histograms are smoothed using a Savisky-Golay filter and curves are scaled individually
         to fit the height of the plot.
         @param size: size of the histogram plot
@@ -154,6 +153,8 @@ class bImage(QImage):
         buf = None  # TODO added 5/11/18 validate
         if mode == 'RGB':
             buf = QImageBuffer(self)[:,:,:3][:,:,::-1]  #RGB
+        elif mode == 'HSV':
+            buf = self.getHSVBuffer()
         elif mode == 'HSpB':
             buf = self.getHspbBuffer()
         elif mode == 'Lab':
