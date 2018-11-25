@@ -18,6 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 from .cartesian import cartesianProduct
 import numpy as np
 
+
 class haldArray(object):
     """
     hald array wrapper, recording the size of the corresponding LUT.
@@ -33,6 +34,7 @@ class haldArray(object):
         self.size = size
         self. haldBuffer = haldBuffer
         super().__init__()
+
 
 class LUT3D (object):
     """
@@ -55,7 +57,7 @@ class LUT3D (object):
 
     ####################
     # default LUT size
-    defaultSize = 33 # 17
+    defaultSize = 33  # 17
     ####################
 
     @classmethod
@@ -82,7 +84,7 @@ class LUT3D (object):
             raise ValueError('HaldImage2LUT3D : LUT3D size and hald dimensions do not match')
         buf = buf[:count].reshape((size, size, size, 3))
         LUT = np.zeros((size, size, size, 3), dtype=float)  # TODO 18/10/18 changed dtype int to float : validate
-        LUT[:, :, :, :] = buf # [:, :, :, ::-1]
+        LUT[:, :, :, :] = buf  # [:, :, :, ::-1]
         return LUT3D(LUT, size=size)
 
     @classmethod
@@ -137,13 +139,13 @@ class LUT3D (object):
                 raise ValueError('Wrong file format')
             # BGR order for channels
             buf[i:i+3] = float(c), float(b), float(a)
-            i+=3
+            i += 3
         # sanity check
         if i != bufsize:
-           raise ValueError('LUT size does not match line count')
+            raise ValueError('LUT size does not match line count')
         buf *= 255.0
         buf = buf.astype(int)
-        buf = buf.reshape(size,size,size,3)
+        buf = buf.reshape(size, size, size, 3)
         # the specification of the .cube format
         # gives BGR order for the cube axes (R-axis changing most rapidly)
         # So, no transposition is needed.
@@ -167,7 +169,7 @@ class LUT3D (object):
             lut = cls.readFromTextStream(textStream)
         return lut
 
-    def __init__(self, LUT3DArray, size=defaultSize, maxrange=standardMaxRange, dtype=np.int16):
+    def __init__(self, LUT3DArray, size=defaultSize, maxrange=standardMaxRange, dtype=np.int16, alpha=False):
         """
         Initializes a LUT3D object with shape (size, size,size, 3).
         size should be 2**n +1. Most common values are 17 and 33.
@@ -219,6 +221,11 @@ class LUT3D (object):
             s0 = (size, size, size, 3)
             if s != s0:
                 raise ValueError("LUT3D : array shape should be (%d,%d,%d,%d)" % s0)
+        if alpha:
+            self.LUT3DArray = np.concatenate((
+                                     self.LUT3DArray,
+                                     np.zeros(self.LUT3DArray.shape[:3] + (1,), dtype=self.LUT3DArray.dtype
+                                              )), axis=-1)
         super().__init__()
 
     def toHaldArray(self, w, h):
@@ -256,14 +263,14 @@ class LUT3D (object):
         @param outStream:
         @type outStream: TextIoWrapper
         """
-        LUT=self.LUT3DArray
+        LUT = self.LUT3DArray
         outStream.write('bLUe 3D LUT\n')
         outStream.write('Size %d\n' % self.size)
         coeff = 255.0
         for b in range(self.size):
             for g in range(self.size):
                 for r in range(self.size):
-                    #r1, g1, b1 = LUT[r, g, b]  # order RGB
+                    # r1, g1, b1 = LUT[r, g, b]  # order RGB
                     b1, g1, r1 = LUT[b, g, r]  # order BGR
                     outStream.write("%.7f %.7f %.7f\n" % (r1 / coeff, g1 / coeff, b1 / coeff))
 
