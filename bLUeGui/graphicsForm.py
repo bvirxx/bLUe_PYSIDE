@@ -27,6 +27,8 @@ from PySide2.QtCore import Qt
 # All layer control graphic forms must inherit
 # from either baseForm or graphicsCurveForm below.
 #################################################
+from bLUeGui.memory import weakProxy
+
 
 class baseForm(QWidget):
     """
@@ -140,16 +142,9 @@ class graphicsCurveForm(QGraphicsView):
         self.setAttribute(Qt.WA_DeleteOnClose)
         graphicsScene = QGraphicsScene()
         self.setScene(graphicsScene)
-        graphicsScene.targetImage = targetImage
-        graphicsScene.layer = layer # historical reasons !
-        """
-        # link back to image layer
-        # using weak ref for back links
-        if type(layer) in weakref.ProxyTypes:
-            graphicsScene.layer = layer
-        else:
-            graphicsScene.layer = weakref.proxy(layer)
-        """
+        # back links to image
+        graphicsScene.targetImage = weakProxy(targetImage)
+        graphicsScene.layer = weakProxy(layer)
         graphicsScene.bgColor = QColor(200, 200, 200)
         self.mainForm = mainForm
         graphicsScene.axeSize = axeSize
