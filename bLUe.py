@@ -1771,7 +1771,7 @@ if __name__ == '__main__':
                            QMessageBox QLabel, QDialog QLabel {background-color: white; color : black}\
                            QColorDialog QLabel {background-color: gray; color: white}\
                            QStatusBar::item {border: none}\
-                           QPushButton {font-size: 8pt}\
+                           QPushButton {font-size: 8pt;}\
                            QTabBar::tab {color: black}\
                            QToolTip {border: 0px; background-color: lightyellow; color: black}"""  # border must be set, otherwise background-color has no effect : Qt bug?
                          )
