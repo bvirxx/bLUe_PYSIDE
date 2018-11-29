@@ -398,6 +398,9 @@ class mImage(vImage):
         @return: thumbnail of the saved image
         @rtype: QImage
         """
+        def transparencyCheck(buf):
+            if np.any(buf[:,:,3] < 255):
+                dlgWarn('Transparency will be lost. Use PNG format instead')
         # don't save thumbnails
         if self.useThumb:
             return None
@@ -410,11 +413,13 @@ class mImage(vImage):
         fileFormat = filename[-3:].upper()
         buf = QImageBuffer(img)
         if fileFormat == 'JPG':
+            transparencyCheck(buf)
             buf = buf[:, :, :3]
             params = [cv2.IMWRITE_JPEG_QUALITY, quality]  # quality range 0..100
         elif fileFormat == 'PNG':
             params = [cv2.IMWRITE_PNG_COMPRESSION, compression]  # compression range 0..9
         elif fileFormat == 'TIF':
+            transparencyCheck(buf)
             buf = buf[:, :, :3]
             params = []
         else:
@@ -888,12 +893,6 @@ class QLayer(vImage):
                     omask = vImage.color2OpacityMask(layer.mask)
                     qp.drawImage(QRect(0, 0, img.width(), img.height()), omask)
         qp.end()
-        """
-        if self.isClipping and self.maskIsEnabled: #TODO modified 23/06/18
-            mask = self.mask.scaled(img.width(), img.height())  # vImage.color2OpacityMask(self.mask)
-            img = vImage.visualizeMask(img, mask, color=False, clipping=False, copy=False)
-        """
-        # buf = QImageBuffer(img) #TODO 24/09/18 removed validate
         return img
 
 
@@ -981,15 +980,15 @@ class QLayer(vImage):
 
     def updatePixmap(self, maskOnly=False):
         """
-        Updates the cached rPixmap.
-        if maskIsEnabled is False, the mask is not shown.
+        Synchronize rPixmap with the layer image and mask.
+        if maskIsEnabled is False, the mask is not used.
         If maskIsEnabled is True, then
             - if maskIsSelected is True, the mask is drawn over
               the layer as a color mask.
             - if maskIsSelected is False, the mask is drawn as an
-              opacity mask, setting image opacity to that of mask
-              (mode DestinationIn). Mask color is no used.
-        @param maskOnly: not used yet
+              opacity mask, setting the image opacity to that of the mask
+              (mode DestinationIn).
+        @param maskOnly: not used : for consistency with overriding method signature
         @type maskOnly: boolean
         """
         rImg = self.getCurrentImage()
@@ -998,7 +997,7 @@ class QLayer(vImage):
             x,y = self.full2CurrentXY(self.xOffset, self.yOffset)
             rImg = rImg.copy(QRect(-x, -y, rImg.width()*self.Zoom_coeff, rImg.height()*self.Zoom_coeff))
         if self.maskIsEnabled:
-            rImg = vImage.visualizeMask(rImg, self.mask, color=self.maskIsSelected, clipping=self.isClipping)
+            rImg = vImage.visualizeMask(rImg, self.mask, color=self.maskIsSelected, clipping=True) #self.isClipping)
         self.rPixmap = QPixmap.fromImage(rImg)
         self.setModified(True)
 
@@ -1189,10 +1188,7 @@ class QPresentationLayer(QLayer):
 
     def updatePixmap(self, maskOnly = False):
         """
-        Updates the caches qPixmap, rPixmap and cmImage.
-        The input image is that returned by getCurrentImage(), thus
-        the caches are synchronized using the current image
-        mode (full or preview).
+        Synchronize qPixmap and rPixmap with the image layer and mask.
         If maskOnly is True, cmImage is not updated.
         if maskIsEnabled is False, the mask is not shown.
         If maskIsEnabled is True, then
