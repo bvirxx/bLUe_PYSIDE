@@ -647,6 +647,7 @@ Note that upper visible layers slow down mask edition.
         menu.actionRepositionLayer = QAction('Reposition Layer(s)', None)
         menu.actionColorMaskEnable = QAction('Color Mask', None)
         menu.actionOpacityMaskEnable = QAction('Opacity Mask', None)
+        menu.actionClippingMaskEnable = QAction('Clipping Mask', None)
         menu.actionMaskDisable = QAction('Disable Mask', None)
         menu.actionMaskInvert = QAction('Invert Mask', None)
         menu.actionMaskReset = QAction('Clear Mask', None)
@@ -658,6 +659,8 @@ Note that upper visible layers slow down mask edition.
         menu.actionMaskErode = QAction('Erode Mask', None)
         menu.actionColorMaskEnable.setCheckable(True)
         menu.actionOpacityMaskEnable.setCheckable(True)
+        menu.actionClippingMaskEnable.setCheckable(True)
+        menu.actionMaskDisable.setCheckable(True)
         ####################
         # Build menu
         ###################
@@ -675,10 +678,11 @@ Note that upper visible layers slow down mask edition.
         menu.addAction(menu.actionImagePaste)
         menu.addSeparator()
         # mask
-        menu.subMenuEnable = menu.addMenu('Enable Mask As...')
+        menu.subMenuEnable = menu.addMenu('Mask...')
         menu.subMenuEnable.addAction(menu.actionColorMaskEnable)
         menu.subMenuEnable.addAction(menu.actionOpacityMaskEnable)
-        menu.addAction(menu.actionMaskDisable)
+        menu.subMenuEnable.addAction(menu.actionClippingMaskEnable)
+        menu.subMenuEnable.addAction(menu.actionMaskDisable)
         menu.addAction(menu.actionMaskInvert)
         menu.addAction(menu.actionMaskReset)
         menu.addAction(menu.actionMaskCopy)
@@ -734,6 +738,8 @@ Note that upper visible layers slow down mask edition.
         self.actionDup.setEnabled(not layer.isAdjustLayer())
         self.cMenu.actionColorMaskEnable.setChecked(layer.maskIsSelected and layer.maskIsEnabled)
         self.cMenu.actionOpacityMaskEnable.setChecked((not layer.maskIsSelected) and layer.maskIsEnabled)
+        self.cMenu.actionClippingMaskEnable.setChecked(layer.isClipping and (layer.maskIsSelected or layer.maskIsEnabled))
+        self.cMenu.actionMaskDisable.setChecked( not(layer.isClipping or layer.maskIsSelected or layer.maskIsEnabled))
         self.cMenu.actionUnselect.setEnabled(layer.rect is None)
         self.cMenu.subMenuEnable.setEnabled(len(rows)==1)
         self.cMenu.actionMaskPaste.setEnabled(not QApplication.clipboard().image().isNull())
@@ -801,9 +807,16 @@ Note that upper visible layers slow down mask edition.
             layer.maskIsSelected = False
             layer.applyToStack()
             self.img.onImageChanged()
+        def clippingMaskEnable():
+            layer.maskIsEnabled = True
+            layer.maskIsSelected = False
+            layer.isClipping = True
+            layer.applyToStack()
+            self.img.onImageChanged()
         def maskDisable():
             layer.maskIsEnabled = False
             layer.maskIsSelected = False
+            layer.isClipping = False  # TODO added 28/11/18
             layer.applyToStack()
             self.img.onImageChanged()
         def maskInvert():
@@ -881,6 +894,7 @@ Note that upper visible layers slow down mask edition.
         self.cMenu.actionMerge.triggered.connect(merge)
         self.cMenu.actionColorMaskEnable.triggered.connect(colorMaskEnable)
         self.cMenu.actionOpacityMaskEnable.triggered.connect(opacityMaskEnable)
+        self.cMenu.actionClippingMaskEnable.triggered.connect(clippingMaskEnable)
         self.cMenu.actionMaskDisable.triggered.connect(maskDisable)
         self.cMenu.actionMaskInvert.triggered.connect(maskInvert)
         self.cMenu.actionMaskReset.triggered.connect(maskReset)
