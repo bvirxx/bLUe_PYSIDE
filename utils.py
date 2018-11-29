@@ -87,10 +87,22 @@ def inversion(m):
 
 class UDict(object):
     """
-    Union of dictionaries
+    Union of dictionaries. The dictionaries are neither copied nor changed.
     """
-    def __init__(self, d_uple):
-        self.__dictionaries = d_uple
+    def __init__(self, *args):
+        """
+        If args is a tuple of dict instances, build an (ordered) union
+        of the dictionaries : __getitem__(key) returns the first found
+        value corresponding to the key, and None if the key is not present
+        in any of the dictionaries. No exception is raised if the key does not
+        exist.
+        @param args: empty or sequence of dict
+        @type args:
+        """
+        if args:
+            self.__dictionaries = tuple(args[0])
+        else:
+            self.__dictionaries = ()
 
     def __getitem__(self, item):
         for i in range(len(self.__dictionaries)):
@@ -176,6 +188,9 @@ class optionsWidgetItem(QListWidgetItem):
 
     def setInternalName(self, name):
         self._internalName = name
+
+    def isChecked(self):
+        return self.checkState() == Qt.CheckState.Checked
 
 class optionsWidget(QListWidget) :
     """
