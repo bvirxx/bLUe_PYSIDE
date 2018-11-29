@@ -25,7 +25,7 @@ from PySide2.QtCore import Qt, QSize, QPoint, QRectF, QMargins
 import cv2
 from copy import copy
 
-from PySide2.QtGui import QImageReader, QTransform
+from PySide2.QtGui import QImageReader, QTransform, QBrush
 from PySide2.QtWidgets import QApplication, QSplitter
 from PySide2.QtGui import QPixmap, QImage, QColor, QPainter
 from PySide2.QtCore import QRect
@@ -52,7 +52,7 @@ from bLUeCore.kernel import getKernel
 from lutUtils import LUT3DIdentity
 from rawProcessing import rawPostProcess
 from settings import USE_TETRA
-from utils import  boundingRect
+from utils import boundingRect, UDict, checkeredImage
 from bLUeCore.dwtDenoising import dwtDenoiseChan
 from bLUeCore.SavitskyGolay import SavitzkyGolayFilter
 
@@ -94,12 +94,13 @@ class vImage(bImage):
 
     ##############
     # default mask colors
-    # To be able to display masks as color masks, we use the red channel to code
-    # the mask opacity, instead of its alpha channel.
+    # QImage transformations sometimes give unexpected results
+    # with fully transparent pixels. So, we use the red channel to record
+    # mask opacity, instead of the alpha channel.
     # When modifying these colors, it is mandatory to
     # modify the methods invertMask and color2OpacityMask accordingly.
     ##############
-    defaultColor_UnMasked = QColor(128, 0, 0, 255)
+    defaultColor_UnMasked = QColor(255, 0, 0, 255)  # 128
     defaultColor_Masked = QColor(0, 0, 0, 255)
     defaultColor_Invalid = QColor(0, 99, 0, 255)
     defaultColor_UnMasked_Invalid = QColor(128, 99, 0, 255)
@@ -107,8 +108,9 @@ class vImage(bImage):
     @classmethod
     def color2OpacityMask(cls, mask):
         """
-        Sets opacity channel from red channel (alpha = 0 if R==0 else 255),
-        leaving other channels unchanged.
+        Return a copy of mask with the opacity channel set
+        from red channel (alpha = 0 if Red==0 else 255),
+        Other channels are unchanged.
         @param mask: mask
         @type mask: QImage
         @return: opacity mask
@@ -117,8 +119,36 @@ class vImage(bImage):
         mask = mask.copy()
         buf = QImageBuffer(mask)
         # set alpha channel from red channel
-        buf[:, :, 3] = np.where(buf[:, :, 2] == 0, 0, 255)
+        buf[:, :, 3] = buf[:, :, 2] # np.where(buf[:, :, 2] == 0, 0, 255)  # TODO modified 28/11/18
         return mask
+
+
+    @classmethod
+    def color2ViewMask(clscls, mask):
+        """
+        Return a colored representation of mask.
+        Opacity is 255.
+
+        mask is kept unchanged.
+        @param mask: mask
+        @type mask: QImage
+        @return: opacity mask
+        @rtype: QImage
+        """
+        mask = mask.copy()
+        buf = QImageBuffer(mask)
+        c0 = vImage.defaultColor_Masked.getRgb()
+        c1 = vImage.defaultColor_UnMasked.getRgb()
+        # switch to BGRA
+        c0 = np.array(c0[:3][::-1])  # + (c0[3],)
+        c1 = np.array(c1[:3][::-1]) #+ (c1[3],)
+        # threshold alpha channel to 128
+        #mask[:,:,2] = c0 * imgmask + c1 * 255 - imgmask) #np.where((imgmask < 128)[..., np.newaxis], c0, c1)
+        # record alpha in G channel
+        buf[:, :, 1] = (255 - buf[:,:,2]) *0.75
+        return mask
+
+
     @ classmethod
     def isAllMasked(cls, mask):
         buf = QImageBuffer(mask)
@@ -131,33 +161,63 @@ class vImage(bImage):
         if np.any(buf[:, :, 2] == cls.defaultColor_Masked.red()):
             return False
         return True
+
+
     @classmethod
     def visualizeMask(cls, img, mask, color=True, clipping=False, copy=True):
-        # copy image
+        """
+        Return an image blending img and mask. If color is True (default)
+        the mask is drawn over the image with opacity 0.5, using its own colors.
+
+        If color is False (default True), the mask is first converted to a 0-1
+        opacity image and then drawn over the image using the mode destinationIn :
+        destination opacity is set to that of source.
+
+        If copy is True (default) img is copied before the application of the mask.
+
+        If clipping is True (default False), an opaque checker is drawn under the image.
+        @param img:
+        @type img: QImage
+        @param mask:
+        @type mask: QImage
+        @param color:
+        @type color: bool
+        @param clipping:
+        @type clipping: bool
+        @param copy:
+        @type copy: boolean
+        @return:
+        @rtype: QImage
+        """
         if copy:
             img = QImage(img)
         qp = QPainter(img)
-        # qp.drawImage(QRect(0, 0, img.width(), img.height()), img) # TODO validate suppression 19/06/18
+        # color mask
         if color:
-            # draw mask as color mask with opacity 0.5
+            # draw mask over image
             qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
-            qp.setOpacity(0.5)
-            qp.drawImage(QRect(0, 0, img.width(), img.height()), mask)
+            #qp.setOpacity(0.5)
+            qp.drawImage(QRect(0, 0, img.width(), img.height()), cls.color2ViewMask(mask))
+        # opacity mask
         else:
-            # draw mask as opacity mask :
             # mode DestinationIn (set image opacity to mask opacity)
             qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
             omask = vImage.color2OpacityMask(mask)
             qp.drawImage(QRect(0, 0, img.width(), img.height()), omask)
-            """
-            if clipping:  # TODO 6/11/17 may be we should draw checker for both selected and unselected mask
-                # draw checker
-                qp.setCompositionMode(QPainter.CompositionMode_DestinationOver)
-                qp.setBrush(QBrush(checkeredImage()))
-                qp.drawRect(QRect(0, 0, img.width(), img.height()))  # 0.26s for 15Mpx
-            """
+        """
+        # the image may have transparent or semi transparent pixels.
+        # If clipping is True, we draw an opaque checker under the image
+        # to set the overall opacity to 1.
+        if clipping:
+            qp.setOpacity(1.0)
+            qp.setCompositionMode(QPainter.CompositionMode_DestinationOver)
+            qp.setBrush(QBrush(checkeredImage()))
+            #qp.drawRect(QRect(0, 0, img.width(), img.height()))
+        """
         qp.end()
         return img
+
+
     @classmethod
     def maskDilate(cls, mask, iterations=1):
         """
@@ -175,6 +235,7 @@ class vImage(bImage):
         # CAUTION erode decreases values (min filter), so it extends the masked part of the image
         mask[:, :, 2] = cv2.erode(mask[:, :, 2], kernel, iterations=iterations)
         return mask
+
     @classmethod
     def maskErode(cls, mask,iterations=1):
         """
@@ -192,6 +253,7 @@ class vImage(bImage):
         # CAUTION dilate increases values (max filter), so it reduces the masked region of the image
         mask[:, :, 2] = cv2.dilate(mask[:, :, 2], kernel, iterations=iterations)
         return mask
+
     @ classmethod
     def seamlessMerge(cls, dest, source, mask, cloningMethod):
         """
@@ -566,11 +628,10 @@ class vImage(bImage):
 
     def invertMask(self):
         """
-        Inverts mask: masked/unmasked pixels
-        are coded by red = 0/128
+        Inverts mask
         """
         buf = QImageBuffer(self.mask)
-        buf[:, :,2] = 128 - buf[:,:,2]  #np.where(buf[:,:,2]==128, 0, 128)
+        buf[:, :,2] = 255 - buf[:,:,2]  #np.where(buf[:,:,2]==128, 0, 128)  # TODO modified 28/11/18
 
     def resize(self, pixels, interpolation=cv2.INTER_CUBIC):
         """
@@ -1129,9 +1190,9 @@ class vImage(bImage):
         @param options: not used yet
         @type options : dictionary
         """
-        # neutral point
         if options is None:
-            options = {}
+            options = UDict()
+        # neutral point
         if not np.any(stackedLUT - np.arange(256)):  # last dims are equal : broadcast is working
             buf1 = QImageBuffer(self.inputImg())
             buf2 = QImageBuffer(self.getCurrentImage())
@@ -1162,9 +1223,9 @@ class vImage(bImage):
         @type stackedLUT: ndarray shape=(3,256) dtype=int or float
         @param options: not used yet
         """
-        # neutral point
         if options is None:
-            options = {}
+            options = UDict()
+        # neutral point
         if not np.any(stackedLUT - np.arange(256)):  # last dims are equal : broadcast is working
             buf1 = QImageBuffer(self.inputImg())
             buf2 = QImageBuffer(self.getCurrentImage())
@@ -1217,9 +1278,9 @@ class vImage(bImage):
         @param pool: multiprocessing pool : unused
         @type pool: muliprocessing.Pool
         """
-        # neutral point
         if options is None:
-            options = {}
+            options = UDict()
+        # neutral point
         if not np.any(stackedLUT - np.arange(256)):  # last dims are equal : broadcast is working
             buf1 = QImageBuffer(self.inputImg())
             buf2=QImageBuffer(self.getCurrentImage())
@@ -1256,13 +1317,13 @@ class vImage(bImage):
         @param stackedLUT: array of color values (in range 0..255), a row for each channel
         @type stackedLUT : ndarray shape=(3,256) dtype=int or float
         @param options: not used yet
-        @type options : dictionary
+        @type options : Udict
         @param pool: multiprocessing pool : unused
         @type pool: muliprocessing.Pool
         """
         # neutral point
         if options is None:
-            options = {}
+            options = UDict()
         if not np.any(stackedLUT - np.arange(256)):  # last dims are equal : broadcast is working
             buf1 = QImageBuffer(self.inputImg())
             buf2=QImageBuffer(self.getCurrentImage())
@@ -1299,24 +1360,25 @@ class vImage(bImage):
 
     def apply3DLUT(self, LUT, LUTSTEP, options=None, pool=None):
         """
-        Applies a 3D LUT to the current view of the image (self or self.thumb or self.hald).
-        If pool is not None and the size of the current view is > 3000000, the computation is
-        done in parallel on image slices.
-        The orders of LUT axes, LUT channels and image channels must be BGR
+        Apply a 3D LUT to the current view of the image (self or self.thumb).
+        If pool is not None and the size of the current view is > 3000000,
+        parallel interpolation on image slices is used.
+        If options['keep alpha'] is False, alpha channel is interpolated too.
+        The order of LUT axes, LUT channels and image channels must be BGR.
         @param LUT: LUT3D array (cf. colorCube.py)
         @type LUT: 3d ndarray, dtype = int
         @param options:
-        @type options: dict of string:boolean pairs
+        @type options: UDict
         """
-        # get buffers
         if options is None:
-            options = {}
+            options = UDict()
+        # get buffers
         inputImage = self.inputImg()
         currentImage = self.getCurrentImage()
         # get selection
         w1, w2, h1, h2 = (0.0,) * 4
         # use selection
-        if options.get('use selection', False):
+        if options['use selection']:
             w, wF = self.getCurrentImage().width(), self.width()
             h, hF = self.getCurrentImage().height(), self.height()
             wRatio, hRatio = float(w) / wF, float(h) / hF
@@ -1332,8 +1394,14 @@ class vImage(bImage):
             w1, w2, h1, h2 = 0, self.inputImg().width(), 0, self.inputImg().height()
         inputBuffer = QImageBuffer(inputImage)[h1:h2 + 1, w1:w2 + 1, :]
         imgBuffer = QImageBuffer(currentImage)[:, :, :]
-        ndImg0 = inputBuffer[:, :, :3]
-        ndImg1 = imgBuffer[:, :, :3]
+        interpAlpha = not options['keep alpha']
+        if interpAlpha:
+            # interpolate alpha channel from LUT
+            ndImg0 = inputBuffer
+            ndImg1 = imgBuffer
+        else:
+            ndImg0 = inputBuffer[:, :, :3]
+            ndImg1 = imgBuffer[:, :, :3]
         # choose the right interpolation method
         if (pool is not None) and (inputImage.width() * inputImage.height() > 3000000):
             interp = lambda x,y,z : interpMulti(x, y, z, pool=pool, use_tetra=USE_TETRA)
@@ -1341,25 +1409,13 @@ class vImage(bImage):
             interp = interpTetra if USE_TETRA else interpTriLinear
         # apply LUT
         ndImg1[h1:h2 + 1, w1:w2 + 1, :] = interp(LUT, LUTSTEP, ndImg0)
-        # forward the alpha channel
-        imgBuffer[h1:h2 + 1, w1:w2 + 1, 3] = inputBuffer[:,:,3]
+        if not interpAlpha:
+            # forward the alpha channel
+            imgBuffer[h1:h2 + 1, w1:w2 + 1, 3] = inputBuffer[:, :, 3]
         self.updatePixmap()
 
     """
-    def applyHald(self, hald, pool=None):
-        Convert a hald image to a 3DLUT object and applies
-        the 3D LUT to the current view, using a pool of parallel processes if
-        pool is not None.
-        @param hald: hald image
-        @type hald: QImage
-        @param pool: pool of parallel processes, default None
-        @type pool: multiprocessing.pool
-        lut = LUT3D.HaldImage2LUT3D(hald)
-        self.apply3DLUT(lut.LUT3DArray, options={'use selection' : False}, pool=pool)
-    """
-
     def histogram(self, size=QSize(200, 200), bgColor=Qt.white, range =(0,255), chans=channelValues.RGB, chanColors=Qt.gray, mode='RGB', addMode=''):
-        """
         Plots histogram with the
         specified color mode and channels.
         Luminosity is  Y = 0.299*R + 0.587*G + 0.114*B (YCrCb opencv color space).
@@ -1379,7 +1435,7 @@ class vImage(bImage):
         @type mode: str
         @return: histogram plot
         @rtype: QImage
-        """
+        
         # convert size to QSize
         if type(size) is int:
             size = QSize(size, size)
@@ -1421,6 +1477,8 @@ class vImage(bImage):
         buf = None  # TODO added 5/11/18 validate
         if mode == 'RGB':
             buf = QImageBuffer(self)[:,:,:3][:,:,::-1]  #RGB
+        elif mode == 'HSV':
+            buf = self.getHSVBuffer()
         elif mode == 'HSpB':
             buf = self.getHspbBuffer()
         elif mode == 'Lab':
@@ -1462,6 +1520,7 @@ class vImage(bImage):
         if len(chans) > 1 :
             buf[:,:,:3] = np.where(np.min(buf, axis=-1)[:,:,np.newaxis]>=100, np.array((100,100,100))[np.newaxis, np.newaxis,:], buf[:,:,:3] )
         return img
+        """
 
     def applyFilter2D(self):
         """
@@ -1646,3 +1705,4 @@ class vImage(bImage):
         # forward the alpha channel
         bufOut0[:,:,3] = buf1[:,:,3]
         self.updatePixmap()
+
