@@ -1015,6 +1015,7 @@ class QLayer(vImage):
                 break
         return i
 
+
     def updateTableView(self, table):
         """
         refreshes the corresponding row in table
@@ -1023,6 +1024,7 @@ class QLayer(vImage):
         """
         ind = self.getStackIndex()
         table.updateRow(len(self.parentImage.layersStack) - 1 - ind)
+
 
     def getTopVisibleStackIndex(self):
         """
@@ -1036,6 +1038,8 @@ class QLayer(vImage):
             if stack[i].visible:
                 return i
         return -1
+
+
     def getLowerVisibleStackIndex(self):
         """
         Returns the index of the next lower visible layer,
@@ -1049,6 +1053,7 @@ class QLayer(vImage):
             if stack[i].visible:
                 return i
         return -1
+
 
     def getUpperVisibleStackIndex(self):
         """
@@ -1065,6 +1070,7 @@ class QLayer(vImage):
                 return i
         return -1
 
+
     def getLowerClippingStackIndex(self):
         """
          Returns the index of the next lower clipping layer,
@@ -1078,6 +1084,7 @@ class QLayer(vImage):
             if self.parentImage.layersStack[i].isClipping:
                 return i
         return -1
+
 
     def linkMask2Lower(self):
         """
@@ -1105,6 +1112,7 @@ class QLayer(vImage):
             self.group = lower.group
         self.mask = lower.mask
 
+
     def unlinkMask(self):
         self.mask =self.mask.copy()
         # remove self from group
@@ -1116,6 +1124,7 @@ class QLayer(vImage):
                     self.group.pop(0)
                 break
         self.group = []
+
 
     def merge_with_layer_immediately_below(self):
         """
@@ -1148,6 +1157,7 @@ class QLayer(vImage):
         self.parentImage.layersStack.pop(currentIndex)
         self.parentImage.layerView.setLayers(self.parentImage)
 
+
     def reset(self):
         """
         reset layer to inputImg
@@ -1155,19 +1165,30 @@ class QLayer(vImage):
         """
         self.setImage(self.inputImg())
 
+
     def setOpacity(self, value):
         """
-        set the opacity attribute to value/100.0
+        set layer opacity to value/100.0
         @param value:
+        @type value: int in range 0..100
         """
-        self.opacity = value /100.0
-        return
+        self.opacity = value / 100.0
+
+    def setColorMaskOpacity(self, value):
+        """
+        Set mask alpha channel to value * 255 / 100
+        @param value:
+        @type value: int in range 0..100
+        """
+        buf = QImageBuffer(self.mask)
+        buf[:,:,3] = np.uint8(value * 255 / 100)
 
     def readFromStream(self, dataStream):
         grForm = self.getGraphicsForm()
         if grForm is not None:
             grForm.readFromStream(dataStream)
         return dataStream
+
 
 class QPresentationLayer(QLayer):
     """
