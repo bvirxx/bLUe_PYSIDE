@@ -38,7 +38,7 @@ from lutUtils import LUTSIZE, LUTSTEP, LUT3D_SHADOW, LUT3D_ORI, LUT3DIdentity
 from versatileImg import vImage
 from bLUeGui.colorPatterns import hueSatPattern, brightnessPattern
 from bLUeGui.bLUeImage import QImageBuffer
-from utils import optionsWidget, UDict
+from utils import optionsWidget, UDict, QbLUePushButton
 from bLUeGui.dialog import dlgWarn, dlgInfo
 
 
@@ -973,13 +973,13 @@ class graphicsForm3DLUT(baseGraphicsForm):
         self.graphicsScene.grid = self.grid
 
         # buttons
-        pushButton1 = QPushButton("Reset Grid")
+        pushButton1 = QbLUePushButton("Reset Grid")
         pushButton1.clicked.connect(self.onReset)
-        pushButton2 = QPushButton("Save LUT")
+        pushButton2 = QbLUePushButton("Save LUT")
         pushButton2.clicked.connect(self.saveLUT)
-        pushButton3 = QPushButton("Smooth Grid")
+        pushButton3 = QbLUePushButton("Smooth Grid")
         pushButton3.clicked.connect(self.onSmoothGrid)
-        pushButton4 = QPushButton('Set Mask')
+        pushButton4 = QbLUePushButton('Set Mask')
         pushButton4.clicked.connect(self.setMask)
         # pushButton4 needs enabling/disabling
         self.pushButton4 = pushButton4
@@ -1050,9 +1050,7 @@ class graphicsForm3DLUT(baseGraphicsForm):
         ss = """QWidget#container{background: black}\
                 QListWidget{background-color: black; selection-background-color: black; border: none; font-size: 7pt}\
                 QListWidget::item{color: white;}\
-                QListWidget::item::selected{background: black; border: none}
-                QPushButton {color: white;}
-                QPushButton:pressed, QPushButton:hover {background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #0d5ca6, stop: 1 #2198c0);}"""
+                QListWidget::item::selected{background: black; border: none}"""
         container.setStyleSheet(ss)
         for wdg in [self.listWidget1, self.listWidget2, self.listWidget3]:
             wdg.setMinimumWidth(wdg.sizeHintForColumn(0))
