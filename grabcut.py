@@ -15,11 +15,9 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-import weakref
 
-from PySide2 import QtCore
 from PySide2.QtCore import Qt
-from PySide2.QtWidgets import QHBoxLayout, QPushButton, QWidget, QSizePolicy, QVBoxLayout, QSpinBox, QLabel
+from PySide2.QtWidgets import QHBoxLayout, QPushButton, QSizePolicy, QVBoxLayout, QSpinBox, QLabel
 
 from bLUeGui.memory import weakProxy
 from versatileImg import vImage
@@ -30,23 +28,7 @@ from utils import optionsWidget
 class segmentForm(baseForm):
     """
     Segmentation (grabcut) form
-
-        Methods                          Attributes
-            getNewWindow                     contourMargin
-            __init__                         contourMarginDefault
-            setDefaults                      dataChanged
-            updateLayer                      iterDefault
-            reset                            layer
-                                             layerTitle
-                                             listWidget1
-                                             nbIter
-                                             options
-                                             spBox
-                                             spBox1
-                                             start
-
     """
-    # dataChanged = QtCore.Signal()
     layerTitle = "Segmentation"
     iterDefault = 3
     contourMarginDefault = 1
@@ -63,15 +45,8 @@ class segmentForm(baseForm):
         self.setAttribute(Qt.WA_DeleteOnClose)
         # link back to image layer
         self.layer = weakProxy(layer)
-        """
-        # using weak ref for back links
-        if type(layer) in weakref.ProxyTypes:
-            self.layer = layer
-        else:
-            self.layer = weakref.proxy(layer)
-        """
         pushButton = QPushButton('apply')
-        # apply button slot
+        # button slot
         def f():
             self.layer.noSegment = False
             self.layer.applyToStack()
@@ -167,7 +142,7 @@ class segmentForm(baseForm):
         self.spBox1.setValue(self.contourMarginDefault)
         self.start = True
         self.dataChanged.connect(self.updateLayer)
-        # self.dataChanged.emit() # TODO 30/10/18 removed
+        # self.dataChanged.emit() # TODO 30/10/18 removed validate
 
     def updateLayer(self):
         self.nbIter = self.spBox.value()
@@ -183,7 +158,7 @@ class segmentForm(baseForm):
         layer.paintedMask = layer.mask.copy()
         layer.isClipping = False
         self.setDefaults()
-        self.dataChanged.emit()  # TODO added 30/10/18
+        self.dataChanged.emit()  # TODO added 30/10/18 validate
         layer.updatePixmap()
 
 
