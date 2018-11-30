@@ -16,23 +16,24 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import gc
-import weakref
 from collections import OrderedDict
 
-from PySide2 import QtCore, QtWidgets
 import cv2
 import numpy as np
+
+from PySide2 import QtCore
 from PySide2.QtCore import QRectF, QSize, Qt, QModelIndex
 from PySide2.QtGui import QImage, QPalette, QKeySequence, QFontMetrics, QTextOption, QPixmap, QIcon, QPainter, QStandardItem, QStandardItemModel
 from PySide2.QtWidgets import QAction, QMenu, QSlider, QStyle, QCheckBox, QApplication
 from PySide2.QtWidgets import QComboBox, QHBoxLayout, QLabel, QTableView, QAbstractItemView, QStyledItemDelegate, QHeaderView, QVBoxLayout
-import resources_rc  # hidden import mandatory : DO NOT REMOVE !!!
+
 from QtGui1 import window
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.dialog import openDlg, dlgWarn
 from bLUeGui.memory import weakProxy
 from settings import TABBING
 from utils import  QbLUeSlider
+import resources_rc  # hidden import mandatory : DO NOT REMOVE !!!
 
 
 class layerModel(QStandardItemModel):
@@ -42,6 +43,7 @@ class layerModel(QStandardItemModel):
 
     def flags(self, index):
         return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsDragEnabled | Qt.ItemIsDropEnabled | Qt.ItemIsEditable
+
 
 class itemDelegate(QStyledItemDelegate):
     """
@@ -97,6 +99,7 @@ class itemDelegate(QStyledItemDelegate):
             # call default
             QStyledItemDelegate.paint(self, painter, option, index)
 
+
 class QLayerView(QTableView) :
     """
     Display the stack of image layers.
@@ -127,11 +130,8 @@ class QLayerView(QTableView) :
         self.verticalHeader().setDefaultSectionSize(self.verticalHeader().minimumSectionSize())
         self.horizontalHeader().setMinimumSectionSize(40)
         self.horizontalHeader().setDefaultSectionSize(40)
-        """
-        self.verticalHeader().setMovable(True)
-        self.verticalHeader().setDragEnabled(True)
-        self.verticalHeader().setDragDropMode(QAbstractItemView.InternalMove)
-        """
+
+        # drag and drop
         self.setDragDropMode(QAbstractItemView.DragDrop)
         self.setDefaultDropAction(Qt.MoveAction)
         self.setDragDropOverwriteMode(False)
@@ -141,7 +141,7 @@ class QLayerView(QTableView) :
 
         ################################
         # layer property GUI :
-        # preview, blending mode, opacity
+        # preview, blending mode, opacity, mask color
         ################################
         # Preview option
         # We should use a QListWidget or a custom optionsWidget
@@ -149,8 +149,9 @@ class QLayerView(QTableView) :
         # Qt.AlignBottom does not work.
         self.previewOptionBox = QCheckBox('Preview')
         self.previewOptionBox.setMaximumSize(100, 30)
+
         # View/Preview changed event handler
-        def m(state): # state : Qt.Checked Qt.UnChecked
+        def m(state):  # state : Qt.Checked Qt.UnChecked
             if self.img is None:
                 return
             self.img.useThumb = (state == Qt.Checked)
@@ -160,19 +161,25 @@ class QLayerView(QTableView) :
                 layer.autoclone = True  # auto update cloning layers
                 layer.knitted = False
             try:
-                QApplication.setOverrideCursor(Qt.WaitCursor) #TODO 18/04/18 waitcursor is called by applytostack?
+                QApplication.setOverrideCursor(Qt.WaitCursor)  # TODO 18/04/18 waitcursor is called by applytostack?
                 QApplication.processEvents()
-                # update whole stack
+                # update the whole stack
                 self.img.layersStack[0].applyToStack()
+                self.img.onImageChanged()  # TODO added 30/11/18 validate
+
             finally:
                 for layer in self.img.layersStack:
                     layer.autoclone = False  # reset flags
                     layer.knitted = False
                 QApplication.restoreOverrideCursor()
                 QApplication.processEvents()
-            window.label.repaint()
+            # window.label.repaint()  # TODO removed 30/11/18 replaced by onImageChange above
         self.previewOptionBox.stateChanged.connect(m)
-        self.previewOptionBox.setChecked(True) # m is not triggered
+        self.previewOptionBox.setChecked(True)  # m is not triggered
+
+        # title
+        titleLabel = QLabel('Layer')
+        titleLabel.setMaximumSize(100, 30)
 
         # opacity slider
         self.opacitySlider = QbLUeSlider(Qt.Horizontal)
@@ -181,10 +188,7 @@ class QLayerView(QTableView) :
         self.opacitySlider.setRange(0, 100)
         self.opacitySlider.setSingleStep(1)
         self.opacitySlider.setSliderPosition(100)
-        #self.opacitySlider.setTracking(False)
-        opacityLabel = QLabel()
-        opacityLabel.setMaximumSize(100,30)
-        opacityLabel.setText("Layer opacity")
+
         self.opacityValue = QLabel()
         font = self.opacityValue.font()
         metrics = QFontMetrics(font)
@@ -193,7 +197,6 @@ class QLayerView(QTableView) :
         self.opacityValue.setMinimumSize(w, h)
         self.opacityValue.setMaximumSize(w, h)
         self.opacityValue.setText('100 ')
-        # self.opacityValue.setStyleSheet("QLabel {background-color: white}")
 
         # opacity value changed event handler
         def f1():
@@ -208,9 +211,39 @@ class QLayerView(QTableView) :
         self.opacitySlider.valueChanged.connect(f1)
         self.opacitySlider.sliderReleased.connect(f2)
 
+        # mask color slider
+        self.maskSlider = QbLUeSlider(Qt.Horizontal)
+        self.maskSlider.setStyleSheet(QbLUeSlider.bLueSliderDefaultBWStylesheet)
+        self.maskSlider.setTickPosition(QSlider.TicksBelow)
+        self.maskSlider.setRange(0, 100)
+        self.maskSlider.setSingleStep(1)
+        self.maskSlider.setSliderPosition(100)
+
+        self.maskValue = QLabel()
+        font = self.maskValue.font()
+        metrics = QFontMetrics(font)
+        w = metrics.width("100 ")
+        h = metrics.height()
+        self.maskValue.setMinimumSize(w, h)
+        self.maskValue.setMaximumSize(w, h)
+        self.maskValue.setText('100 ')
+
+        # mask value changed event handler
+        def g1():
+            self.maskValue.setText(str('%d ' % self.maskSlider.value()))
+
+        # mask slider released event handler
+        def g2():
+            self.img.getActiveLayer().setColorMaskOpacity(self.maskSlider.value())
+            self.img.getActiveLayer().applyToStack()
+            self.img.onImageChanged()
+
+        self.maskSlider.valueChanged.connect(g1)
+        self.maskSlider.sliderReleased.connect(g2)
+
         # blending mode combo box
         compLabel = QLabel()
-        compLabel.setText("Composition Mode")
+        compLabel.setText("Blend")
 
         self.compositionModeDict = OrderedDict([('Normal', QPainter.CompositionMode_SourceOver),
                                                 ('Plus', QPainter.CompositionMode_Plus),
@@ -227,7 +260,6 @@ class QLayerView(QTableView) :
                                                 ('Exclusion', QPainter.CompositionMode_Exclusion)
                                                 ])
         self.blendingModeCombo = QComboBox()
-
         for key in self.compositionModeDict:
             self.blendingModeCombo.addItem(key, self.compositionModeDict[key])
 
@@ -245,19 +277,29 @@ class QLayerView(QTableView) :
         l = QVBoxLayout()
         l.setAlignment(Qt.AlignTop)
         hl0 = QHBoxLayout()
-        hl0.addWidget(opacityLabel)
+        hl0.addWidget(titleLabel)
         hl0.addStretch(1)
         hl0.addWidget(self.previewOptionBox)
         l.addLayout(hl0)
         hl =  QHBoxLayout()
+        hl.addWidget(QLabel('Opacity'))
         hl.addWidget(self.opacityValue)
         hl.addWidget(self.opacitySlider)
         l.addLayout(hl)
-        l.setContentsMargins(20,0,20,0) # left, top, right, bottom
-        l.addWidget(compLabel)
-        l.addWidget(self.blendingModeCombo)
-        # this layout must be set for the propertyWidget object loaded from blue.ui :
-        # we postpone it to the module blue.py, after loading the main form.
+        hl1 = QHBoxLayout()
+        hl1.addWidget(QLabel('Mask Color'))
+        hl1.addWidget(self.maskValue)
+        hl1.addWidget(self.maskSlider)
+        l.addLayout(hl1)
+        l.setContentsMargins(0,0,10,0) # left, top, right, bottom
+        hl2 = QHBoxLayout()
+        hl2.addWidget(compLabel)
+        hl2.addWidget(self.blendingModeCombo)
+        l.addLayout(hl2)
+        for layout in [hl, hl1, hl2]:
+            layout.setContentsMargins(5, 0, 0, 0)
+        # this layout must be added to the propertyWidget object loaded from blue.ui :
+        # we postpone it after loading of the main form, in blue.py.
         self.propertyLayout = l
 
         # shortcut actions
@@ -266,8 +308,8 @@ class QLayerView(QTableView) :
         self.addAction(self.actionDup)
         def dup():
             row = self.selectedIndexes()[0].row()
-            #Stack index
-            index = len(self.img.layersStack) - row -1
+            # Stack index
+            index = len(self.img.layersStack) - row - 1
             layer = self.img.layersStack[index]
             if layer.isAdjustLayer():
                 return
@@ -275,30 +317,26 @@ class QLayerView(QTableView) :
             self.img.dupLayer(index=index)
             # update layer view
             self.setLayers(self.img)
-            # select the new layer
-            # the 1rst call to setActiveLayer has no effect
-            # when dup is triggered by the shorcut keys
-            # Maybe a Pyside or Qt bug ?
-            #self.img.setActiveLayer(index + 1)
-            #self.img.setActiveLayer(index + 1)
         self.actionDup.triggered.connect(dup)
         self.setWhatsThis(
-"""
+"""<b>Layer Stack</b>
 To <b>toggle the layer visibility</b> click on the Eye icon.<br>
-To <b>add a mask</b> use the context menu to enable it and paint pixels with the Mask/Unmask tools found in the left pane.<br>
-For color mask mode enabled: <br>
-    &nbsp; grey pixels are masked,<br>
-    &nbsp; reddish pixels are unmasked.<br>
-Note that upper visible layers slow down mask edition.
+To <b>add a mask</b> use the context menu to enable it and paint pixels with the Mask/Unmask tools in the left pane.<br>
+For <b>color mask<b/b>: <br>
+    &nbsp; green pixels are masked,<br>
+    &nbsp; red pixels are unmasked.<br>
+Note that upper visible layers slow down mask edition.<br>
 """
-        )
+                        )  # end of setWhatsThis
 
-    def setEnabled(self, value):
-        super(QLayerView, self).setEnabled(value)
+    """
+    def setEnabled(self, value):  # TODO removed 30/11/18
+        super(QLayerView, self).setEnabled(value)  
         if not self.isEnabled():
             self.setStatusTip('Close adjustment form %s to enable Layers' % self.currentWin.windowTitle())
         else:
             self.setStatusTip('')
+    """
 
     def closeAdjustForms(self, delete=False):
         """
@@ -332,9 +370,8 @@ Note that upper visible layers slow down mask edition.
 
     def clear(self, delete=True):
         """
-        Reset LayerView and clear back
-        links to image
-        @return: 
+        Reset LayerView and clear the back
+        links to image.
         """
         self.closeAdjustForms(delete=delete)
         self.img = None
@@ -359,9 +396,10 @@ Note that upper visible layers slow down mask edition.
         model = layerModel()
         model.setColumnCount(3)
         l = len(mImg.layersStack)
+
         # dataChanged event handler : enables edition of layer name
         def f(index1, index2):
-            #index1 and index2 should be equal
+            # index1 and index2 should be equal
             # only layer name should be editable
             # dropEvent emit dataChanged when setting item values. f must
             # return immediately from these calls, as they are possibly made with unconsistent data :
@@ -572,13 +610,6 @@ Note that upper visible layers slow down mask edition.
                 return
             #layer.visible = not(layer.visible)
             layer.setVisible(not(layer.visible))
-            # update visibility icon : done by delegate
-            """
-            if layer.visible:
-                self.model().setData(clickedIndex, QIcon(":/images/resources/eye-icon.png") ,Qt.DecorationRole)
-            else:
-                self.model().setData(clickedIndex, QIcon(":/images/resources/eye-icon-strike.png"), Qt.DecorationRole)
-            """
             if self.currentWin is not None:
                 self.currentWin.setVisible(layer.visible)
                 if not layer.visible:
@@ -623,7 +654,7 @@ Note that upper visible layers slow down mask edition.
 
     def initContextMenu(self):
         """
-        return context menu
+        return the context menu
         @return:
         @rtype: QMenu
         """
@@ -636,12 +667,11 @@ Note that upper visible layers slow down mask edition.
 
         menu.actionUnGroup = QAction('Ungroup', None)
 
-        # multiple selection
+        # multiple selections
         menu.actionMerge = QAction('Merge Lower', None)
         # merge only adjustment layer with image layer
 
         # don't dup adjustment layers
-
         menu.actionUnselect = QAction('Unselect All', None)
 
         menu.actionRepositionLayer = QAction('Reposition Layer(s)', None)
@@ -702,7 +732,7 @@ Note that upper visible layers slow down mask edition.
 
     def contextMenuEvent(self, event):
         """
-        context menu
+        context menu handler
         @param event
         @type event: QContextMenuEvent
         """
