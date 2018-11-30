@@ -21,7 +21,8 @@ from PySide2.QtCore import Qt, QRectF
 from PySide2.QtWidgets import QPushButton, QGraphicsScene
 
 from bLUeGui.graphicsSpline import activeCubicSpline, graphicsCurveForm, activePoint, channelValues
-from utils import optionsWidget
+from utils import optionsWidget, QbLUePushButton
+
 
 class graphicsForm(graphicsCurveForm) :
     """
@@ -32,6 +33,8 @@ class graphicsForm(graphicsCurveForm) :
         newWindow = graphicsForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         newWindow.setWindowTitle(layer.name)
         return newWindow
+
+
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         super().__init__(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         # Brightness curve
@@ -68,12 +71,12 @@ class graphicsForm(graphicsCurveForm) :
         graphicsScene.cubicItem.setVisible(True)
 
         # buttons
-        pushButton1 = QPushButton("Reset Current")
+        pushButton1 = QbLUePushButton("Reset Current")
         pushButton1.move(100,20)
         pushButton1.adjustSize()
         pushButton1.clicked.connect(self.resetCurve)
         graphicsScene.addWidget(pushButton1)
-        pushButton2 = QPushButton("Reset R,G,B")
+        pushButton2 = QbLUePushButton("Reset R,G,B")
         pushButton2.move(100, 50)
         pushButton2.adjustSize()
         pushButton2.clicked.connect(self.resetAllCurves)
