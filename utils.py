@@ -25,8 +25,8 @@ import numpy as np
 
 from PySide2 import QtCore
 from PySide2.QtGui import QColor, QImage, QPainter, QPixmap, QIcon
-from PySide2.QtWidgets import QListWidget, QListWidgetItem,\
-          QSlider, QLabel, QDockWidget, QStyle, QColorDialog
+from PySide2.QtWidgets import QListWidget, QListWidgetItem, \
+    QSlider, QLabel, QDockWidget, QStyle, QColorDialog, QPushButton
 from PySide2.QtCore import Qt, QObject, QRect
 
 from bLUeCore.rollingStats import movingVariance
@@ -168,6 +168,7 @@ class QbLUeSlider(QSlider):
     def setStyleSheet(self, sheet):
         super().setStyleSheet(self.styleSheet() + sheet)
 
+
 class QbLUeLabel(QLabel):
     """
     Emits a signal when double clicked
@@ -176,6 +177,12 @@ class QbLUeLabel(QLabel):
 
     def mouseDoubleClickEvent(self, e):
         self.doubleClicked.emit()
+
+class QbLUePushButton(QPushButton):
+    """
+    Form PushButtons (specific style sheet)
+    """
+    pass
 
 class optionsWidgetItem(QListWidgetItem):
     def __init__(self, *args, intName='',**kwargs, ):
