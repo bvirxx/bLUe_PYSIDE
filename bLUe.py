@@ -1760,21 +1760,34 @@ if __name__ == '__main__':
                            QWidget:disabled {color: rgb(96,96,96)}\
                            QbLUeSlider::groove:horizontal:enabled { margin: 3px; background-color: rgb(196,196,196)}\
                            QbLUeSlider::groove:horizontal:disabled {margin: 3px; background-color: rgb(96,96,96)}\
-                           QGraphicsView QPushButton, baseForm QPushButton\
-                                                    {font-size: 9pt; background-color: rgb(100,100,100); color: rgb(200,200,200); border: 1px solid gray; border-radius: 6px}\
+                           QPushButton {font-size: 8pt;}\
+                           QbLUePushButton {font-size: 7pt;\
+                                            background-color: rgb(100,100,100);\
+                                            color: white;\
+                                            border: 2px solid gray;\
+                                            border-radius: 5px;\
+                                            padding: 4px;}\
+                           QbLUePushButton:hover, QbLUePushButton:pressed {background-color: rgb(150,150,200);}\
+                           QbLUePushButton:disabled {color: rgb(50,50,50)}\
                            QGraphicsView QPushButton:hover, baseForm QPushButton:hover {background-color: gray; color: black}\
                            QToolButton:hover {background-color: gray; color: black}\
                            QToolButton:checked {background-color: blue}\
                            QToolButton {background-color: rgb(100,100,100); color: rgb(200,200,200); border: 1px solid gray; border-radius: 6px}\
                            QGroupBox#groupbox_btn {border: 1px solid gray;}\
                            QGroupBox#groupBox {border: 1px solid gray;}\
-                           QMessageBox QLabel, QDialog QLabel {background-color: white; color : black}\
+                           QMessageBox QLabel, QDialog QLabel {background-color: white; color: black}\
                            QColorDialog QLabel {background-color: gray; color: white}\
                            QStatusBar::item {border: none}\
-                           QPushButton {font-size: 8pt;}\
-                           QTabBar::tab {color: black}\
+                           QTabBar::tab {background: black; color: lightgray; min-width: 8ex; border: 2px solid white; border-top-color: gray;\
+                           border-bottom-left-radius: 4px; border-bottom-right-radius: 4px;  padding: 2px}\
+                           QTabBar::tab:hover {color: white}\
+                           QTabBar::tab:selected {border-top-color: red; color: white;}\
+                           QTabBar::tab:!selected {margin-bottom: 2px}\
+                           QDockWidget::title {background-color: #444455}\
+                           QDockWidget::title:hover{background-color: #555588}\
                            QToolTip {border: 0px; background-color: lightyellow; color: black}"""  # border must be set, otherwise background-color has no effect : Qt bug?
                          )
+
     # Before/After view
     splittedWin = splittedWindow(window)
 
