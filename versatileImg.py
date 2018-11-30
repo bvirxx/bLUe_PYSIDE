@@ -96,13 +96,15 @@ class vImage(bImage):
     # default mask colors
     # QImage transformations sometimes give unexpected results
     # with fully transparent pixels. So, we use the red channel to record
-    # mask opacity, instead of the alpha channel.
+    # the mask opacity, instead of alpha channel.
+    # The alpha channel is used only to display semi transparent color masks
+    # for specific usages (e.g. grabcut).
     # When modifying these colors, it is mandatory to
     # modify the methods invertMask and color2OpacityMask accordingly.
     ##############
     defaultColor_UnMasked = QColor(255, 0, 0, 255)  # 128
     defaultColor_Masked = QColor(0, 0, 0, 255)
-    defaultColor_Invalid = QColor(0, 99, 0, 255)
+    defaultColor_Invalid = QColor(0, 99, 0, 128)  # TODO alpha changed from 255 to 128 29/11/18 for grabcut
     defaultColor_UnMasked_Invalid = QColor(128, 99, 0, 255)
 
     @classmethod
@@ -137,13 +139,6 @@ class vImage(bImage):
         """
         mask = mask.copy()
         buf = QImageBuffer(mask)
-        c0 = vImage.defaultColor_Masked.getRgb()
-        c1 = vImage.defaultColor_UnMasked.getRgb()
-        # switch to BGRA
-        c0 = np.array(c0[:3][::-1])  # + (c0[3],)
-        c1 = np.array(c1[:3][::-1]) #+ (c1[3],)
-        # threshold alpha channel to 128
-        #mask[:,:,2] = c0 * imgmask + c1 * 255 - imgmask) #np.where((imgmask < 128)[..., np.newaxis], c0, c1)
         # record alpha in G channel
         buf[:, :, 1] = (255 - buf[:,:,2]) *0.75
         return mask
@@ -616,14 +611,22 @@ class vImage(bImage):
             rImg = vImage.visualizeMask(rImg, self.mask, color=self.maskIsSelected, clipping=self.isClipping)
         self.rPixmap = QPixmap.fromImage(rImg)
 
-    def resetMask(self, maskAll=False):
+    def resetMask(self, maskAll=False, alpha=255):
         """
-        Reinits the mask : all pixels are masked or all
-        pixels are unmasked (default).
+        Reinit the mask : all pixels are masked or all
+        pixels are unmasked (default). The alpha channel of the
+        mask is set to alpha (default 255). Mask alpha has no effect
+        on layer masking; it is used only to display semi transparent color
+        masks (e.g. for grabcut or cloning)
+
         @param maskAll:
         @type maskAll: boolean
+        @param alpha
+        @type alpha: int in range 0..255
         """
-        self.mask.fill(vImage.defaultColor_Masked if maskAll else vImage.defaultColor_UnMasked)
+        color = vImage.defaultColor_Masked if maskAll else vImage.defaultColor_UnMasked
+        color.setAlpha(alpha)
+        self.mask.fill(color)
         self.updatePixmap(maskOnly=True)
 
     def invertMask(self):
@@ -797,7 +800,7 @@ class vImage(bImage):
             # all : PR_BGD
             finalMask = np.zeros((inputImg.height(), inputImg.width()), dtype=np.uint8) + cv2.GC_PR_BGD
         # add info from self.mask
-        # initially (before any painting with BG/FG tools and before first call to applygrabcut)
+        # initially (i.e. before any painting with BG/FG tools and before first call to applygrabcut)
         # all mask pixels are marked as invalid. Painting a pixel marks it as valid, Ctrl+paint
         # switches it to invalid. Only valid pixel info is added to finalMask, fixing them as FG or BG
         if inputImg.size() != self.size():
@@ -805,9 +808,9 @@ class vImage(bImage):
         else:
             scaledMask = self.mask
         scaledMaskBuf = QImageBuffer(scaledMask)
-        # Only actually painted pixels of the mask should be considered
+        # Only actually painted pixels of the mask must be considered
         finalMask[(scaledMaskBuf[:, :, 2] > 100 )* (scaledMaskBuf[:,:,1]!=99)] = cv2.GC_FGD  # 99=defaultColorInvalid R=128 unmasked R=0 masked
-        finalMask[(scaledMaskBuf[:,:, 2]==0) *(scaledMaskBuf[:,:,1]!=99)] = cv2.GC_BGD
+        finalMask[(scaledMaskBuf[:,:, 2]==0) *(scaledMaskBuf[:, :, 1] != 99)] = cv2.GC_BGD
         # save a copy of the mask
         finalMask_save = finalMask.copy()
         # mandatory : at least one (FGD or PR_FGD)  pixel and one (BGD or PR_BGD) pixel
@@ -820,16 +823,15 @@ class vImage(bImage):
         fgdmodel = np.zeros((1, 13 * 5), np.float64)  # Temporary array for the foreground model
         t0 = time()
         inputBuf = QImageBuffer(inputImg)
-        bgdmodel_test = np.zeros((1, 13 * 5), np.float64)  # Temporary array for the background model
-        fgdmodel_test = np.zeros((1, 13 * 5), np.float64)  # Temporary array for the foreground model
         # get the fastest available method for segmentation
         if getattr(cv2, 'grabCut_mt', None) is None:
             bGrabcut = cv2.grabCut
         else:
             bGrabcut = cv2.grabCut_mt
-        # apply grabcut
-        bGrabcut(inputBuf[:, :, :3], finalMask, None,  # QRect2tuple(img0_r.rect),
-                        bgdmodel, fgdmodel, nbIter, mode)
+
+        # apply grabcut function
+        bGrabcut(inputBuf[:, :, :3], finalMask, None,
+                 bgdmodel, fgdmodel, nbIter, mode)
         print ('grabcut_mtd time : %.2f' % (time()-t0))
         """
         t1 = time()
@@ -837,17 +839,15 @@ class vImage(bImage):
                         bgdmodel_test, fgdmodel_test, nbIter, mode)
         print('grabcut time : %.2f' % (time() - t1))
         """
-        # keep unmodified initial FGD and BGD pixels : #TODO 22/06/18 alraedy done by the function grabcut
+        # keep unmodified initial FGD and BGD pixels : #TODO 22/06/18 alraedy done by the cv2 function grabcut
         finalMask = np.where((finalMask_save==cv2.GC_BGD) + (finalMask_save == cv2.GC_FGD), finalMask_save, finalMask)
 
         # set opacity (255=background, 0=foreground)
-        # We want to keep the colors of mask pixels. Unfortunately,
-        # while drawing or scaling, Qt replaces the colors of transparent pixels by 0.
-        # So, we can't set now the mask alpha channel.
+        #
         finalOpacity = np.where((finalMask == cv2.GC_FGD) + (finalMask == cv2.GC_PR_FGD), 255, 0)
         buf = QImageBuffer(scaledMask)
         # set the red channel of the mask
-        buf[:,:,2] = np.where(finalOpacity==255, 128, 0)
+        buf[:,:,2] = np.where(finalOpacity==255, 255, 0) # 128, 0)  # TODO modified 29/11/18
         invalidate_contour = True  # always True (for testing purpose)
         if invalidate_contour:
             # without manual corrections, only the contour region may be updated
@@ -858,10 +858,10 @@ class vImage(bImage):
             dbuf = vImage.maskDilate(buf, iterations=maxIterations)
             cbMask = ((buf[:, :, 2] == 0) & (ebuf[:, :, 2] == 128)) | ((buf[:, :, 2] == 128) & (dbuf[:, :, 2] == 0))
             # mark contour pixels as invalid and others as valid : the contour only can be modified
-            # Unlike in the case of integer index arrays, in the boolean case, the result is a 1-D array
+            # For the boolean case, unlike the case of integer index arrays,  the result is a 1-D array
             # containing all the elements in the indexed array corresponding to all the true elements in the boolean array.
-            buf[:, :,1][cbMask] = 99
-            buf[:,:,1][~cbMask] = 0
+            buf[:, :, 1][cbMask] = 99
+            buf[:, :, 1][~cbMask] = 0
             # dilate the mask to remove background dithering
             # iterations should be <= maxIterations
             dbuf = vImage.maskDilate(buf, iterations=min(form.contourMargin, maxIterations))
@@ -884,7 +884,7 @@ class vImage(bImage):
         #item.setCheckState(Qt.Checked if self.isClipping else Qt.Unchecked)
         #formOptions.options[name] = True if self.isClipping else False
         # forward the alpha channel
-        # TODO 23/06/18 should forward ?
+        # TODO 23/06/18 should we forward ?
         self.updatePixmap()
 
     def applyInvert(self):
