@@ -45,6 +45,13 @@ class baseForm(QWidget):
         self.dataChanged.connect(self.updateLayer)  # TODO 30/10/18 moved to base class
         if self.layer is not None:
             self.layer.colorPicked.sig.connect(self.colorPickedSlot)
+        ss = """QWidget#container{background: black;}\
+                        QListWidget{background-color: black; selection-background-color: black; border: none; font-size: 7pt;}\
+                        QListWidget::item{color: white;}\
+                        QListWidget::item::selected{background: black; border: none;}\
+                        QPushButton {color: white;}\
+                        QPushButton:pressed, QPushButton:hover {background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #0d5ca6, stop: 1 #2198c0);}"""
+        # self.setStyleSheet(ss)  # TDO removed 30/11/18
 
     @property
     def layer(self):
@@ -108,7 +115,7 @@ class baseGraphicsForm(QGraphicsView):
         pass
 
 
-class graphicsCurveForm(QGraphicsView):
+class graphicsCurveForm(baseGraphicsForm):  # QGraphicsView):  # TODO modified 30/11/18
     """
     Base class for interactive curve forms
     """
