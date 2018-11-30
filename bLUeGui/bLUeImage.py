@@ -120,6 +120,7 @@ class bImage(QImage):
         # scaling factor for the bin edges
         spread = float(range[1] - range[0])
         scale = size.width() / spread
+
         # per channel histogram function
         def drawChannelHistogram(painter, hist, bin_edges, color):
             #Draw the (smoothed) histogram for a single channel.
@@ -131,7 +132,13 @@ class bImage(QImage):
             # draw histogram
             imgH = size.height()
             for i, y in enumerate(hist):
-                h = int(imgH * y / M)
+                try:
+                    h = int(imgH * y / M)
+                except (ValueError, ArithmeticError):
+                    # don't draw the channel histogram if M is too small:
+                    # It may happen when channel values are concentrated
+                    # on the first and/or last bins.
+                    return
                 h = min(h, imgH - 1) # height of rect must be < height of img, otherwise fillRect does nothing
                 rect = QRect(int((bin_edges[i] - range[0]) * scale), max(img.height() - h, 0), int((bin_edges[i + 1] - bin_edges[i]) * scale+1), h)
                 painter.fillRect(rect, color)
@@ -164,33 +171,37 @@ class bImage(QImage):
         img = QImage(size.width(), size.height(), QImage.Format_ARGB32)
         img.fill(bgColor)
         qp = QPainter(img)
-        if type(chanColors) is QColor or type(chanColors) is Qt.GlobalColor:
-            chanColors = [chanColors]*3
-        # compute histograms
-        # bins='auto' sometimes causes a huge number of bins ( >= 10**9) and memory error
-        # even for small data size (<=250000), so we don't use it.
-        # This is a numpy bug : in the module function_base.py
-        # a reasonable upper bound for bins should be chosen to prevent memory error.
-        if mode=='Luminosity' or addMode=='Luminosity':
-            hist, bin_edges = np.histogram(bufL, bins=100, density=True)
-            drawChannelHistogram(qp, hist, bin_edges, Qt.gray)
-        hist_L, bin_edges_L = [0]*len(chans), [0]*len(chans)
-        for i,ch in enumerate(chans):
-            buf0 = buf[:, :, ch]
-            hist_L[i], bin_edges_L[i] = np.histogram(buf0, bins=100, density=True)
-            # to prevent artifacts, the histogram bins must be drawn
-            # using the composition mode source_over. So, we use
-            # a fresh QImage for each channel.
-            tmpimg = QImage(size, QImage.Format_ARGB32)
-            tmpimg.fill(bgColor)
-            tmpqp = QPainter(tmpimg)
-            drawChannelHistogram(tmpqp, hist_L[i], bin_edges_L[i], chanColors[ch])
-            tmpqp.end()
-            # add the channnel hist to img
-            qp.drawImage(QPoint(0,0), tmpimg)
-            # subsequent images are added using composition mode Plus
-            qp.setCompositionMode(QPainter.CompositionMode_Plus)
-        qp.end()
+        try:
+            if type(chanColors) is QColor or type(chanColors) is Qt.GlobalColor:
+                chanColors = [chanColors]*3
+            # compute histograms
+            # bins='auto' sometimes causes a huge number of bins ( >= 10**9) and memory error
+            # even for small data size (<=250000), so we don't use it.
+            # This is a numpy bug : in the module function_base.py
+            # a reasonable upper bound for bins should be chosen to prevent memory error.
+            if mode=='Luminosity' or addMode=='Luminosity':
+                hist, bin_edges = np.histogram(bufL, bins=100, density=True)
+                drawChannelHistogram(qp, hist, bin_edges, Qt.gray)
+            hist_L, bin_edges_L = [0]*len(chans), [0]*len(chans)
+            for i,ch in enumerate(chans):
+                buf0 = buf[:, :, ch]
+                hist_L[i], bin_edges_L[i] = np.histogram(buf0, bins=100, density=True)
+                # to prevent artifacts, the histogram bins must be drawn
+                # using the composition mode source_over. So, we use
+                # a fresh QImage for each channel.
+                tmpimg = QImage(size, QImage.Format_ARGB32)
+                tmpimg.fill(bgColor)
+                tmpqp = QPainter(tmpimg)
+                try:
+                    drawChannelHistogram(tmpqp, hist_L[i], bin_edges_L[i], chanColors[ch])
+                finally:
+                    tmpqp.end()
+                # add the channnel hist to img
+                qp.drawImage(QPoint(0,0), tmpimg)
+                # subsequent images are added using composition mode Plus
+                qp.setCompositionMode(QPainter.CompositionMode_Plus)
+        finally:
+            qp.end()
         buf = QImageBuffer(img)
         # if len(chans) > 1, clip gray area to improve the aspect of the histogram
         if len(chans) > 1 :
