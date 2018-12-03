@@ -22,9 +22,11 @@ from PySide2.QtCore import Qt, QDir
 from os.path import isfile
 
 from PySide2.QtWidgets import QMessageBox, QPushButton, QFileDialog, QDialog, QSlider, QVBoxLayout, QHBoxLayout, QLabel
+from utils import QbLUeSlider
 
 ##################
 # file extension constants
+
 IMAGE_FILE_EXTENSIONS = (".jpg", ".JPG", ".png", ".PNG", ".tif", ".TIF", "*.bmp", "*.BMP")
 RAW_FILE_EXTENSIONS = (".nef", ".NEF", ".dng", ".DNG", ".cr2", ".CR2")
 IMAGE_FILE_NAME_FILTER = ['Image Files (*.jpg *.png *.tif *.JPG *.PNG *.TIF)']
@@ -98,12 +100,12 @@ class savingDialog(QDialog):
         # File Dialog
         self.dlg = QFileDialog(caption=text, directory=lastDir)
         # sliders
-        self.sliderComp = QSlider(Qt.Horizontal)
+        self.sliderComp = QbLUeSlider(Qt.Horizontal)
         self.sliderComp.setTickPosition(QSlider.TicksBelow)
         self.sliderComp.setRange(0, 9)
         self.sliderComp.setSingleStep(1)
         self.sliderComp.setValue(5)
-        self.sliderQual = QSlider(Qt.Horizontal)
+        self.sliderQual = QbLUeSlider(Qt.Horizontal)
         self.sliderQual.setTickPosition(QSlider.TicksBelow)
         self.sliderQual.setRange(0, 100)
         self.sliderQual.setSingleStep(10)
