@@ -19,8 +19,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 import gc
 
-import weakref
-
 from PySide2.QtCore import Qt, QDataStream, QFile, QIODevice, QSize, QPoint
 
 import cv2
