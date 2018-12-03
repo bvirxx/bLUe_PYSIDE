@@ -42,16 +42,8 @@ class baseForm(QWidget):
         # accept click focus (needed by whatsthis)
         self.setFocusPolicy(Qt.ClickFocus)
         # connect layerPicked signal
-        self.dataChanged.connect(self.updateLayer)  # TODO 30/10/18 moved to base class
         if self.layer is not None:
             self.layer.colorPicked.sig.connect(self.colorPickedSlot)
-        ss = """QWidget#container{background: black;}\
-                        QListWidget{background-color: black; selection-background-color: black; border: none; font-size: 7pt;}\
-                        QListWidget::item{color: white;}\
-                        QListWidget::item::selected{background: black; border: none;}\
-                        QPushButton {color: white;}\
-                        QPushButton:pressed, QPushButton:hover {background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #0d5ca6, stop: 1 #2198c0);}"""
-        # self.setStyleSheet(ss)  # TDO removed 30/11/18
 
     @property
     def layer(self):
@@ -76,7 +68,8 @@ class baseForm(QWidget):
         pass
 
     def setDefaults(self):
-        pass
+        self.dataChanged.connect(self.updateLayer)
+
 
     def reset(self):
         self.setDefaults()
@@ -105,6 +98,10 @@ class baseGraphicsForm(QGraphicsView):
     """
     Base class for graphics (with scene) forms
     """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setAlignment(Qt.AlignTop)
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
 
     def updateHists(self):
         """
@@ -160,7 +157,6 @@ class graphicsCurveForm(baseGraphicsForm):  # QGraphicsView):  # TODO modified 3
         self.layer = layer
         # additional inactive curve to draw (QPolyLineF or list of QPointF)
         self.baseCurve = None
-        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize + 60, axeSize + 140)
         self.setAttribute(Qt.WA_DeleteOnClose)
         graphicsScene = QGraphicsScene()

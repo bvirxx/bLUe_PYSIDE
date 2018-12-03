@@ -91,10 +91,6 @@ class segmentForm(baseForm):
             self.layer.parentImage.onImageChanged()
         self.listWidget1.onSelect = g
 
-        # dataChanged must be connected to updateLayer in __init__
-        # otherwise disconnecting in setDefaults raises an exception
-        self.dataChanged.connect(self.updateLayer)
-
         # attributes initialized in setDefaults, declared here
         # for the sake of correctness
         self.start = None
@@ -136,7 +132,11 @@ class segmentForm(baseForm):
                         )  # end setWhatsThis
 
     def setDefaults(self):
-        self.dataChanged.disconnect(self.updateLayer)
+        # prevent multiple updates
+        try:
+            self.dataChanged.disconnect()
+        except RuntimeError:
+            pass
         self.listWidget1.unCheckAll()
         self.spBox.setValue(self.iterDefault)
         self.spBox1.setValue(self.contourMarginDefault)

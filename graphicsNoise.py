@@ -77,7 +77,7 @@ class noiseForm (baseForm):
         self.thrValue.setMinimumSize(w, h)
         self.thrValue.setMaximumSize(w, h)
         self.thrValue.setText(str("{:.0f}".format(self.slider2Thr(self.sliderThr.value()))))
-        self.dataChanged.connect(self.updateLayer)
+        # self.dataChanged.connect(self.updateLayer)
         # self.setStyleSheet("QListWidget, QLabel {font : 7pt;}")
         # layout
         l = QVBoxLayout()
@@ -109,7 +109,11 @@ class noiseForm (baseForm):
         self.listWidget1.unCheckAll()
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
         self.noiseCorrection = 0
-        self.dataChanged.disconnect()
+        # prevent multiple updates
+        try:
+            self.dataChanged.disconnect()
+        except RuntimeError:
+            pass
         self.sliderThr.setValue(round(self.thr2Slider(self.noiseCorrection)))
         self.dataChanged.connect(self.updateLayer)
         self.dataChanged.emit(True)

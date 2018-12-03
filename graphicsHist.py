@@ -60,13 +60,19 @@ class histForm (baseForm):
         self.options = {option : True for option in options1 + options2}
         def onSelect1(item):
             self.options[options1[0]] = item.checkState() is Qt.Checked
-            self.targetImage.onImageChanged()
-            self.Label_Hist.update()
+            try:
+                self.targetImage.onImageChanged()
+                self.Label_Hist.update()
+            except AttributeError:
+                return
 
         def onSelect2(item):
             self.options[options2[0]] = item.checkState() is Qt.Checked
-            self.targetImage.onImageChanged()
-            self.Label_Hist.update()
+            try:
+                self.targetImage.onImageChanged()
+                self.Label_Hist.update()
+            except AttributeError:
+                return
 
         self.listWidget1.onSelect = onSelect1
         self.listWidget2.onSelect = onSelect2

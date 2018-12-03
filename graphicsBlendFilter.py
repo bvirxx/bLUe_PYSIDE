@@ -111,7 +111,7 @@ class blendFilterForm (baseForm):
             self.layer.applyToStack()
             self.layer.parentImage.onImageChanged()
 
-        self.dataChanged.connect(updateLayer)
+        self.dataChanged.connect(updateLayer)  # TODO 3/12/18 move to setDefaults
         # layout
         l = QVBoxLayout()
         l.setAlignment(Qt.AlignBottom)

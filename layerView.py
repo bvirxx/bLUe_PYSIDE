@@ -204,20 +204,25 @@ class QLayerView(QTableView) :
 
         # opacity slider released event handler
         def f2():
-            self.img.getActiveLayer().setOpacity(self.opacitySlider.value())
-            self.img.getActiveLayer().applyToStack()
-            self.img.onImageChanged()
+            try:
+                layer = self.img.getActiveLayer()
+                layer.setOpacity(self.opacitySlider.value())
+                layer.applyToStack()
+                self.img.onImageChanged()
+            except AttributeError:
+                return
 
         self.opacitySlider.valueChanged.connect(f1)
         self.opacitySlider.sliderReleased.connect(f2)
 
         # mask color slider
-        self.maskSlider = QbLUeSlider(Qt.Horizontal)
-        self.maskSlider.setStyleSheet(QbLUeSlider.bLueSliderDefaultBWStylesheet)
-        self.maskSlider.setTickPosition(QSlider.TicksBelow)
-        self.maskSlider.setRange(0, 100)
-        self.maskSlider.setSingleStep(1)
-        self.maskSlider.setSliderPosition(100)
+        maskSlider = QbLUeSlider(Qt.Horizontal)
+        maskSlider.setStyleSheet(QbLUeSlider.bLueSliderDefaultBWStylesheet)
+        maskSlider.setTickPosition(QSlider.TicksBelow)
+        maskSlider.setRange(0, 100)
+        maskSlider.setSingleStep(1)
+        maskSlider.setSliderPosition(100)
+        self.maskSlider = maskSlider
 
         self.maskValue = QLabel()
         font = self.maskValue.font()
@@ -234,9 +239,13 @@ class QLayerView(QTableView) :
 
         # mask slider released event handler
         def g2():
-            self.img.getActiveLayer().setColorMaskOpacity(self.maskSlider.value())
-            self.img.getActiveLayer().applyToStack()
-            self.img.onImageChanged()
+            try:
+                layer = self.img.getActiveLayer()
+                layer.setColorMaskOpacity(self.maskSlider.value())
+                layer.applyToStack()
+                self.img.onImageChanged()
+            except AttributeError:
+                return
 
         self.maskSlider.valueChanged.connect(g1)
         self.maskSlider.sliderReleased.connect(g2)
@@ -266,9 +275,13 @@ class QLayerView(QTableView) :
         # combo box item chosen event handler
         def g(ind):
             s = self.blendingModeCombo.currentText()
-            self.img.getActiveLayer().compositionMode = self.compositionModeDict[str(s)]
-            self.img.getActiveLayer().applyToStack()
-            self.img.onImageChanged()
+            try:
+                layer = self.img.getActiveLayer()
+                layer.compositionMode = self.compositionModeDict[str(s)]
+                layer.applyToStack()
+                self.img.onImageChanged()
+            except AttributeError:
+                return
 
         self.blendingModeCombo.currentIndexChanged.connect(g)
         # self.blendingModeCombo.activated.connect(g)  # TODO activated changed to currentIndexChanged 08/10/18 validate

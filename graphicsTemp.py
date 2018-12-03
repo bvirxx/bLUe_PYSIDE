@@ -37,6 +37,7 @@ class temperatureForm (baseForm):
         wdgt = temperatureForm(axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
         wdgt.setWindowTitle(layer.name)
         return wdgt
+
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         super().__init__(parent=parent)
         self.tempCorrection = 6500
@@ -150,7 +151,7 @@ class temperatureForm (baseForm):
         l.addLayout(hl1)
         self.setLayout(l)
         self.adjustSize()
-        self.dataChanged.connect(self.updateLayer)
+        self.dataChanged.connect(self.updateLayer)  # TODO move to setDefaults 3/12/18
         self.setStyleSheet("QListWidget, QLabel {font : 7pt;}")
         self.setDefaults()
         self.setWhatsThis(
@@ -167,11 +168,17 @@ color space to adjust <b>temperature</b> and <b>tint</b>.
         self.sliderTint.setEnabled(self.options['Chromatic Adaptation'])
 
     def setDefaults(self):
+        # prevent multiple updates
+        try:
+            self.dataChanged.disconnect()
+        except RuntimeError:
+            pass
         self.listWidget1.unCheckAll()
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
         self.enableSliders()
         self.sliderTemp.setValue(round(self.temp2Slider(self.tempCorrection)))
         self.sliderTint.setValue(round(self.tint2Slider(self.defaultTint)))
+        self.dataChanged.connect(self.updateLayer)
         # self.dataChanged.emit() # removed 30/10/18
 
     def updateLayer(self):

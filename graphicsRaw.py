@@ -792,7 +792,11 @@ former.<br>
         #self.noiseCorrection = 0
         self.satCorrection = 0.0
         self.brCorrection = 1.0
-        self.dataChanged.disconnect()
+        # prevent multiple updates
+        try:
+            self.dataChanged.disconnect()
+        except RuntimeError:
+            pass
         self.sliderTemp.setValue(round(self.temp2Slider(self.tempCorrection)))
         self.sliderTint.setValue(round(self.tint2Slider(self.tintCorrection)))
         self.sliderExp.setValue(self.exp2Slider(self.expCorrection))

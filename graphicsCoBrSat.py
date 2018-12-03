@@ -239,10 +239,6 @@ class CoBrSatForm(baseForm):
         self.sliderBrightness.valueChanged.connect(brightnessUpdate)
         self.sliderBrightness.sliderReleased.connect(lambda: brightnessUpdate(self.sliderBrightness.value()))
 
-        # dataChanged must be connected to updateLayer in __init__
-        # otherwise disconnecting in setDefaults raises an exception
-        self.dataChanged.connect(self.updateLayer)
-
         # attributes initialized in setDefaults, declared here
         # for the sake of correctness
         self.contrastCorrection = None    # range
@@ -310,7 +306,6 @@ Sliders are <b>reset</b> to their default value by double clicking the name of t
         axeSize = 200
         if self.contrastForm is None:
             form = graphicsSplineForm.getNewWindow(targetImage=None, axeSize=axeSize, layer=self.layer, parent=None, mainForm=None)
-            form.setWindowFlags(Qt.WindowStaysOnTopHint)
             form.setAttribute(Qt.WA_DeleteOnClose, on=False)
             form.setWindowTitle('Contrast Curve')
             self.contrastForm = form
@@ -340,7 +335,10 @@ Sliders are <b>reset</b> to their default value by double clicking the name of t
 
     def setDefaults(self):
         # prevent multiple updates
-        self.dataChanged.disconnect(self.updateLayer)
+        try:
+            self.dataChanged.disconnect()
+        except RuntimeError:
+            pass
         self.listWidget1.unCheckAll()
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
         self.listWidget2.unCheckAll()
