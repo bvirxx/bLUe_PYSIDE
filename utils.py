@@ -110,63 +110,77 @@ class UDict(object):
                 return self.__dictionaries[i][item]
         return None
 
+
 class QbLUeColorDialog(QColorDialog):
+
     def __init__(self, parent=None):
         super().__init__(parent=parent)
         self.closeSignal = baseSignal_No()
+
     def closeEvent(self, e):
         self.closeSignal.sig.emit()
 
 class QbLUeSlider(QSlider):
     """
     Enhanced QSlider.
-    Overrides mousepressevent to update the slider
-    value with a single jump when clicking.
+    Override mousepressevent to prevent jumps
+    when clicking the handle and to update value
+    with a single jump when clicking on the groove.
     """
-    bLueSliderDefaultColorStylesheet = """QSlider::groove:horizontal:enabled {margin: 3px; 
-                                              background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 blue, stop:1 red);}
-                                           QSlider::groove:horizontal:disabled {margin: 3px; 
-                                              background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #8888FF, stop:1 #FF8888);}"""
-    bLueSliderDefaultMGColorStylesheet = """QSlider::groove:horizontal:enabled {margin: 3px; 
-                                                  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 magenta, stop:1 green);}
-                                               QSlider::groove:horizontal:disabled {margin: 3px; 
-                                                  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #8888FF, stop:1 #FF8888);}"""
-    bLueSliderDefaultIMGColorStylesheet = """QSlider::groove:horizontal:enabled {margin: 3px; 
-                                                      background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 green, stop:1 magenta);}
-                                                   QSlider::groove:horizontal:disabled {margin: 3px; 
-                                                      background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #8888FF, stop:1 #FF8888);}"""
-    bLueSliderDefaultIColorStylesheet = """QSlider::groove:horizontal:enabled {margin: 3px; 
-                                                  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 red, stop:1 blue);}
-                                               QSlider::groove:horizontal:disabled {margin: 3px; 
-                                                  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #8888FF, stop:1 #FF8888);}"""
-    bLueSliderDefaultBWStylesheet = """QSlider::groove:horizontal:enabled {margin: 3px; 
-                                              background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #333333, stop:1 white);}
-                                           QSlider::groove:horizontal:disabled {margin: 3px; background: #888888;}"""
-    bLueSliderDefaultIBWStylesheet = """QSlider::groove:horizontal:enabled {margin: 3px; 
-                                                  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 gray, stop:1 #333333);}
-                                               QSlider::groove:horizontal:disabled {margin: 3px; background: #888888;}"""
-    def __init__(self, parent=None):
-        super(QbLUeSlider, self).__init__(parent)
+    bLueSliderDefaultColorStylesheet = """QSlider::groove:horizontal:enabled { 
+                                                                        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 blue, stop:1 red);
+                                                                        }
+                                          QSlider::groove:horizontal:disabled {
+                                                                        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #8888FF, stop:1 #FF8888);
+                                                                        }"""
+    bLueSliderDefaultMGColorStylesheet = """QSlider::groove:horizontal:enabled {
+                                                                        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 magenta, stop:1 green);
+                                                                        }
+                                            QSlider::groove:horizontal:disabled {
+                                                                        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #8888FF, stop:1 #FF8888);
+                                                                        }"""
+    bLueSliderDefaultIMGColorStylesheet = """QSlider::groove:horizontal:enabled {
+                                                                        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 green, stop:1 magenta);
+                                                                        }
+                                             QSlider::groove:horizontal:disabled {
+                                                                        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #8888FF, stop:1 #FF8888);
+                                                                        }"""
+    bLueSliderDefaultIColorStylesheet = """QSlider::groove:horizontal:enabled {
+                                                                        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 red, stop:1 blue);
+                                                                        }
+                                            QSlider::groove:horizontal:disabled { 
+                                                                        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #8888FF, stop:1 #FF8888);
+                                                                        }"""
+    bLueSliderDefaultBWStylesheet = """QSlider::groove:horizontal:enabled {
+                                                                        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #333333, stop:1 white);
+                                                                        }
+                                       QSlider::groove:horizontal:disabled {
+                                                                        background: #888888;
+                                                                        }"""
+    bLueSliderDefaultIBWStylesheet = """QSlider::groove:horizontal:enabled {
+                                                                        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 gray, stop:1 #333333);
+                                                                        }
+                                        QSlider::groove:horizontal:disabled {
+                                                                        background: #888888;
+                                                                        }"""
+
+    def __init__(self, *args, **kwargs):
+        super(QbLUeSlider, self).__init__(*args, **kwargs)
         self.setTickPosition(QSlider.NoTicks)
         self.setMaximumSize(16777215, 10)
-        self.setStyleSheet("""QSlider::handle:horizontal {background: white; width: 15px; border: 1px solid black; border-radius: 4px; margin: -3px;}
-                              QSlider::handle:horizontal:hover {background: #DDDDFF;}""")
 
     def mousePressEvent(self, event):
         """
-        Updates the slider value with a single jump when clicking.
+        Update the slider value with a single jump when clicking on the groove.
 
         @param event:
         @type event:
         """
         pressVal = QStyle.sliderValueFromPosition(self.minimum(), self.maximum(), event.x(), self.width(), 0)  # 0 is for horizontal slider only
-        if abs(pressVal - self.value()) > 7:  # 7 to prevent jumps around max position
+        if abs(pressVal - self.value()) > (self.maximum() - self.minimum()) * 20 / self.width():  # handle width should be near 20
             self.setValue(pressVal)
-            return
-        super().mousePressEvent(event)
-
-    def setStyleSheet(self, sheet):
-        super().setStyleSheet(self.styleSheet() + sheet)
+        else:
+            super().mousePressEvent(event)
 
 
 class QbLUeLabel(QLabel):
@@ -477,6 +491,7 @@ def boundingRect(img, pattern):
     top = leftPattern(img.T)
     bottom = img.shape[0] - 1 - leftPattern(img.T[::-1, ::-1])
     return QRect(left, top, right - left, bottom - top)
+
 
 if __name__ == '__main__':
     a= np.ones(100, dtype=int).reshape(10,10)
