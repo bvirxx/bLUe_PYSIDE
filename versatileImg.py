@@ -333,7 +333,6 @@ class vImage(bImage):
             rawMetadata = {} # []  # TODO modified 21/11/18
         self.isModified = False
         self.rect, self.mask, = None, mask
-        self.filename = filename if filename is not None else ''
         self.isCropped = False
         self.cropTop, self.cropBottom, self.cropLeft, self.cropRight = (0,) * 4
         self.isRuled = False
@@ -397,6 +396,7 @@ class vImage(bImage):
         # check format
         if self.depth() != 32:
             raise ValueError('vImage : should be a 8 bits/channel color image')
+        self.filename = filename if filename is not None else ''
         # mask
         self.maskIsEnabled = False
         self.maskIsSelected = False
