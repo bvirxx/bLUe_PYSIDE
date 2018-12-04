@@ -924,6 +924,7 @@ class graphicsForm3DLUT(baseGraphicsForm):
         self.graphicsScene.slider2D = colorChooser(cModel, QImg, target=self.targetImage, size=axeSize, border=border)
         self.graphicsScene.selectMarker = activeMarker.fromCross(parent=self.graphicsScene.slider2D)
         self.graphicsScene.selectMarker.setPos(axeSize / 2, axeSize / 2)
+
         # color wheel event handler
         def f1(p, r, g, b):
             h, s, br = self.cModel.rgb2cm(r, g, b)
@@ -1218,6 +1219,7 @@ This option must be unchecked to build a mask from the 3D LUT.<br>
         imgBuf = QImageBuffer(currentImg)
         # resize the alpha channel
         imgmask = cv2.resize(imgBuf[:, :, 3], (layer.width(), layer.height()))
+        layer.historyListMask.addItem(layer.mask.copy())
         mask = QImageBuffer(layer.mask)
         mask[:, :, 2] = imgmask
         layer.applyToStack()
