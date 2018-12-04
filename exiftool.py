@@ -321,6 +321,14 @@ class ExifTool(object):
         return profile, data[0]
 
     def get_formatted_metadata(self, f):
+        """
+        read all metadata from file f and return
+        a formatted sting.
+        @param f: path to file
+        @type f: str
+        @return:
+        @rtype: str
+        """
         command = ["-a", f]
         out = self.execute(* command)
         return out
