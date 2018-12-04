@@ -39,7 +39,7 @@ from time import time
 
 from lutUtils import LUT3DIdentity
 from bLUeGui.baseSignal import  baseSignal_bool, baseSignal_Int2
-from utils import qColorToRGB
+from utils import qColorToRGB, historyList
 
 from versatileImg import vImage
 
@@ -629,21 +629,12 @@ class QLayer(vImage):
         self.modified = False
         self.name='noname'
         self.visible = True
-        # add signal instance (layer visibility change,..)
-        #self.signals = baseSignals()
         self.isClipping = False
         self.role = kwargs.pop('role', '')
         self.tool = None
         # back link to parent image
         parentImage = kwargs.pop('parentImage', None)
         self.parentImage = weakProxy(parentImage)
-        """
-        if type(parentImage) in weakref.ProxyTypes:  # TODO 21/11/18 added weakref for back link
-            self.parentImage = parentImage
-        else:
-            self.parentImage = weakref.proxy(parentImage)
-        """
-        #self.parentImage = kwargs.pop('parentImage', None)
         # layer opacity is used by QPainter operations.
         # Its value must be in the range 0.0...1.0
         self.opacity = 1.0
@@ -660,6 +651,8 @@ class QLayer(vImage):
         # getCurrentMaskedImage. Their type is QLayer
         self.maskedImageContainer = None
         self.maskedThumbContainer = None
+        # undo/redo mask history
+        self.historyListMask = historyList(size=5)
         # consecutive layers can be grouped.
         # A group is a list of QLayer objects
         self.group = []
