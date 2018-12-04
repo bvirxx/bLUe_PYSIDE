@@ -198,6 +198,66 @@ class QbLUePushButton(QPushButton):
     """
     pass
 
+class historyList(list):
+    """
+    History management.
+    Implements undo/redo methods.
+    """
+
+    def __init__(self, size=5):
+       """
+       The attribute self.current indicates the
+       index of the last restored item, -1 if no
+       restoration was done since the last saving:
+       next item to restore has always index self.current+1
+       @param size: max history size
+       @type size: int
+       """
+       self.size= size
+       self.current = -1
+
+    def addItem(self, item):
+        super().insert(0, item)
+        if len(self) > self.size:
+            self.pop()
+        # next item to save has index 0.
+        self.current = -1
+
+    def undo(self, saveitem=None):
+        """
+        Return the next item in history.
+        Parameter saveitem should be the old value
+        (before restoration) of the variable to restore.
+        IL is saved to history if it not already a  restored state
+        (i.e. if self.current == -1).
+        @param saveitem: item possibly to save, depending on history state
+        @type saveitem: object
+        @return:
+        @rtype: object
+        """
+        if (self.current >= len(self) - 1):
+            # no more items to restore
+            return None
+        # stack a possibly unsaved (i.e. not restored) item
+        if (self.current == -1) and (saveitem is not None):
+            self.addItem(saveitem)
+            self.current = 0
+        self.current += 1
+        item = self[self.current]
+        return item
+
+    def redo(self):
+        if self.current <= 0:
+            return None
+        self.current -= 1
+        return self[self.current]
+
+    def canUndo(self):
+        return self.current < len(self) - 1
+
+    def canRedo(self):
+        return self.current > 0
+
 class optionsWidgetItem(QListWidgetItem):
     def __init__(self, *args, intName='',**kwargs, ):
         super().__init__(*args, **kwargs)

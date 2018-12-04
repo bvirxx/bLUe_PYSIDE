@@ -692,6 +692,8 @@ Note that upper visible layers slow down mask edition.<br>
         menu.actionOpacityMaskEnable = QAction('Opacity Mask', None)
         menu.actionClippingMaskEnable = QAction('Clipping Mask', None)
         menu.actionMaskDisable = QAction('Disable Mask', None)
+        menu.actionMaskUndo = QAction('Undo Mask', None)
+        menu.actionMaskRedo = QAction('Redo Mask', None)
         menu.actionMaskInvert = QAction('Invert Mask', None)
         menu.actionMaskReset = QAction('Clear Mask', None)
         menu.actionMaskCopy = QAction('Copy Mask to Clipboard', None)
@@ -726,6 +728,8 @@ Note that upper visible layers slow down mask edition.<br>
         menu.subMenuEnable.addAction(menu.actionOpacityMaskEnable)
         menu.subMenuEnable.addAction(menu.actionClippingMaskEnable)
         menu.subMenuEnable.addAction(menu.actionMaskDisable)
+        menu.addAction(menu.actionMaskUndo)
+        menu.addAction(menu.actionMaskRedo)
         menu.addAction(menu.actionMaskInvert)
         menu.addAction(menu.actionMaskReset)
         menu.addAction(menu.actionMaskCopy)
@@ -783,15 +787,20 @@ Note that upper visible layers slow down mask edition.<br>
         self.cMenu.actionOpacityMaskEnable.setChecked((not layer.maskIsSelected) and layer.maskIsEnabled)
         self.cMenu.actionClippingMaskEnable.setChecked(layer.isClipping and (layer.maskIsSelected or layer.maskIsEnabled))
         self.cMenu.actionMaskDisable.setChecked( not(layer.isClipping or layer.maskIsSelected or layer.maskIsEnabled))
+        self.cMenu.actionMaskUndo.setEnabled(layer.historyListMask.canUndo())
+        self.cMenu.actionMaskRedo.setEnabled(layer.historyListMask.canRedo())
         self.cMenu.actionUnselect.setEnabled(layer.rect is None)
         self.cMenu.subMenuEnable.setEnabled(len(rows)==1)
         self.cMenu.actionMaskPaste.setEnabled(not QApplication.clipboard().image().isNull())
         self.cMenu.actionImagePaste.setEnabled(not QApplication.clipboard().image().isNull())
         # Event handlers
+
         def f():
             self.opacitySlider.show()
+
         def unselectAll():
             layer.rect = None
+
         def RepositionLayer():
             layer.xOffset, layer.yOffset = 0, 0
             layer.Zoom_coeff = 1.0
@@ -799,17 +808,20 @@ Note that upper visible layers slow down mask edition.<br>
             layer.xAltOffset, layer.yAltOffset = 0, 0
             layer.updatePixmap()
             self.img.onImageChanged()
+
         def loadImage():
             return # TODO 26/06/18 action to remove from menu? replaced by new image layer
             filename = openDlg(window)
             img = QImage(filename)
             layer.thumb = None
             layer.setImage(img)
+
         def add2Group():
             layer.group = group
             layer.mask = group[0].mask
             layer.maskIsEnabled = True
             layer.maskIsSelected = True
+
         def groupSelection():
             layers = [rStack[i] for i in sorted(rows)]
             if any(l.group for l in layers):
@@ -821,12 +833,15 @@ Note that upper visible layers slow down mask edition.<br>
                 l.mask = mask
                 l.maskIsEnabled = True
                 l.maskIsSelected = False
+
         def unGroup():
             group = layer.group.copy()
             for l in group:
                 l.unlinkMask()
+
         def merge():
             layer.merge_with_layer_immediately_below()
+
         def testUpperVisibility():
             pos = self.img.getStackIndex(layer)
             upperVisible = False
@@ -838,30 +853,50 @@ Note that upper visible layers slow down mask edition.<br>
                 dlgWarn("Upper visible layers slow down mask edition")
                 return True
             return False
+
         def colorMaskEnable():
             testUpperVisibility()
             layer.maskIsEnabled = True
             layer.maskIsSelected = True
             layer.applyToStack()
             self.img.onImageChanged()
+
         def opacityMaskEnable():
             testUpperVisibility()
             layer.maskIsEnabled = True
             layer.maskIsSelected = False
             layer.applyToStack()
             self.img.onImageChanged()
+
         def clippingMaskEnable():
             layer.maskIsEnabled = True
             layer.maskIsSelected = False
             layer.isClipping = True
             layer.applyToStack()
             self.img.onImageChanged()
+
         def maskDisable():
             layer.maskIsEnabled = False
             layer.maskIsSelected = False
             layer.isClipping = False  # TODO added 28/11/18
             layer.applyToStack()
             self.img.onImageChanged()
+
+        def undoMask():
+            mask = layer.historyListMask.undo(saveitem=layer.mask.copy())
+            if mask is not None:
+                layer.mask = mask
+            layer.applyToStack()
+            self.img.onImageChanged()
+
+
+        def redoMask():
+            mask = layer.historyListMask.redo()
+            if mask is not None:
+                layer.mask = mask
+            layer.applyToStack()
+            self.img.onImageChanged()
+
         def maskInvert():
             layer.invertMask()
             # update mask stack
@@ -869,16 +904,20 @@ Note that upper visible layers slow down mask edition.<br>
             #for l in self.img.layersStack:
                 #l.updatePixmap(maskOnly=True)
             self.img.onImageChanged()
+
         def maskReset():
             layer.resetMask()
             # update mask stack
             for l in self.img.layersStack:
                 l.updatePixmap(maskOnly=True)
             self.img.onImageChanged()
+
         def maskCopy():
             QApplication.clipboard().setImage(layer.mask)
+
         def imageCopy():
             QApplication.clipboard().setImage(layer.getCurrentMaskedImage())
+
         def maskPaste():
             """
             Pastes clipboard to mask and updates the stack. The clipboard image
@@ -893,6 +932,7 @@ Note that upper visible layers slow down mask edition.<br>
                     layer.mask = img.scaled(layer.mask.size())
             layer.applyToStack()
             self.img.onImageChanged()
+
         def imagePaste():
             """
             Pastes clipboard to mask and updates the stack. The clipboard image
@@ -907,6 +947,7 @@ Note that upper visible layers slow down mask edition.<br>
                     layer.setImage(srcImg.scaled(layer.size()))
             layer.applyToStack()
             self.img.onImageChanged()
+
         def maskDilate():
             kernel = np.ones((5, 5), np.uint8)
             buf = QImageBuffer(layer.mask)
@@ -915,6 +956,7 @@ Note that upper visible layers slow down mask edition.<br>
             for l in self.img.layersStack:
                 l.updatePixmap(maskOnly=True)
             self.img.onImageChanged()
+
         def maskErode():
             kernel = np.ones((5, 5), np.uint8)
             buf = QImageBuffer(layer.mask)
@@ -923,6 +965,7 @@ Note that upper visible layers slow down mask edition.<br>
             for l in self.img.layersStack:
                 l.updatePixmap(maskOnly=True)
             self.img.onImageChanged()
+
         def layerReset():
             view = layer.getGraphicsForm()
             if hasattr(view, 'reset'):
@@ -939,6 +982,8 @@ Note that upper visible layers slow down mask edition.<br>
         self.cMenu.actionOpacityMaskEnable.triggered.connect(opacityMaskEnable)
         self.cMenu.actionClippingMaskEnable.triggered.connect(clippingMaskEnable)
         self.cMenu.actionMaskDisable.triggered.connect(maskDisable)
+        self.cMenu.actionMaskUndo.triggered.connect(undoMask)
+        self.cMenu.actionMaskRedo.triggered.connect(redoMask)
         self.cMenu.actionMaskInvert.triggered.connect(maskInvert)
         self.cMenu.actionMaskReset.triggered.connect(maskReset)
         self.cMenu.actionMaskCopy.triggered.connect(maskCopy)
