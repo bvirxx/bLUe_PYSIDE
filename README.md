@@ -41,6 +41,7 @@ segmentation, geometric transformations, curves (1D LUTs), 2.5D LUTs, 3D LUTs.
 * Multiple blending modes; adjustable layer opacity
 * Import and export of 3D LUTs in .cube format
 * Adjustable masks
+* History
 * Automatic import of camera specific dual illuminant dng/dcp profiles
 * Adjustable profile tone curve
 * Library viewer
