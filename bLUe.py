@@ -294,12 +294,13 @@ def paintEvent(widg, e):
     qp.end()
 
 
-# global state variables used in mouseEvent. CAUTION:  non thread safe approach
-# Recording of state and mouse coordinates (relative to widget)
-State = {'ix': 0, 'iy': 0, 'ix_begin': 0, 'iy_begin': 0}
+##############################################################
+# global state variables used in mouseEvent.
 pressed = False
 clicked = True
-
+# Recording of state and mouse coordinates (relative to widget)
+State = {'ix': 0, 'iy': 0, 'ix_begin': 0, 'iy_begin': 0}
+###############################################################
 
 def mouseEvent(widget, event):  # TODO split into 3 handlers
     """
@@ -335,7 +336,7 @@ def mouseEvent(widget, event):  # TODO split into 3 handlers
     ###################
     if eventType == QEvent.MouseButtonPress:
         # Mouse hover generates mouse move events,
-        # so, we set pressed to only select non hovering events
+        # so, we set pressed to select only non hovering events
         pressed = True
         if event.button() == Qt.LeftButton:
             # no move yet
@@ -343,6 +344,10 @@ def mouseEvent(widget, event):  # TODO split into 3 handlers
         State['ix'], State['iy'] = x, y
         State['ix_begin'], State['iy_begin'] = x, y
         State['x_imagePrecPos'], State['y_imagePrecPos'] = (x - img.xOffset) // r, (y - img.yOffset) // r
+        # add current mask to history
+        if window.btnValues['drawFG'] or window.btnValues['drawBG']:
+            if layer.maskIsEnabled:
+                layer.historyListMask.addItem(layer.mask.copy())
         return  # no update needed
     ##################
     # mouse move event
@@ -578,7 +583,7 @@ def enterEvent(widget, img, event):
         if not QApplication.overrideCursor():
             w = window.verticalSlider1.value()
             if w > 5:
-                QApplication.setOverrideCursor(window.cursor_Circle_Pixmap.scaled(w*2.0, w*2.0))  # (w*1.5, w*1.5))
+                QApplication.setOverrideCursor(window.cursor_Circle_Pixmap.scaled(w*2.0, w*2.0))
             else:
                 QApplication.setOverrideCursor(Qt.CrossCursor)
     elif window.btnValues['drag']:
@@ -597,7 +602,7 @@ def leaveEvent(widget, img, event):
 
 def dragEnterEvent(widget, img, event):
     """
-    Accepts drop if mimeData contains text (e.g. file name)
+    Accept drop if mimeData contains text (e.g. file name)
     (convenient for main window only)
     @param widget:
     @type widget:
@@ -612,8 +617,7 @@ def dragEnterEvent(widget, img, event):
 
 def dropEvent(widget, img, event):
     """
-    gets file name from event.mimeData and opens it.
-    (Convenient for main window only)
+    get file name from event.mimeData and open it.
     @param widget:
     @type widget:
     @param img:
@@ -728,6 +732,7 @@ def loadImageFromFile(f, createsidecar=True):
         # Default metadata and profile
         metadata = [{'SourceFile': f}]
         profile = ''
+        imageInfo = 'No data found'
     # color space : 1=sRGB 65535=uncalibrated
     tmp = [value for key, value in metadata.items() if 'colorspace' in key.lower()]
     colorSpace = tmp[0] if tmp else -1
@@ -788,13 +793,11 @@ def loadImageFromFile(f, createsidecar=True):
         rawBuf = rawpyInst.postprocess(use_camera_wb=True)
         # build Qimage
         rawBuf = np.dstack((rawBuf[:, :, ::-1], np.zeros(rawBuf.shape[:2], dtype=np.uint8)+255))
-        img = imImage(cv2Img=rawBuf, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile, name=name, rating=rating)
+        img = imImage(cv2Img=rawBuf, colorSpace=colorSpace, orientation=transformation,
+                      rawMetadata=metadata, profile=profile, name=name, rating=rating)
         img.filename = f
         # keep references to rawPy instance. rawpyInst.raw_image is the (linearized) sensor image
         img.rawImage = rawpyInst
-        # img.filename = f # TODO removed 29/10/18 done by imImage()
-        # img.raw_image_from_profile = (rawpyInst.raw_image).copy()
-        # img.raw_image_from_profile_min, img.raw_image_from_profile_max = np.min(rawpyInst.raw_image), np.max(rawpyInst.raw_image)
         #########################################################
         # Reconstructing the demosaic Bayer bitmap :
         # we need it to calculate the multipliers corresponding
@@ -949,14 +952,15 @@ def setDocumentImage(img):
         if window.histView.listWidget1.items['Original Image'].checkState() is Qt.Checked:
             histImg = vImage(QImg=window.label.img.getCurrentImage())  # must be vImage : histogram method needed
         else:
-            histImg = window.label.img.layersStack[-1].getCurrentMaskedImage()  # vImage(QImg=window.label.img.layersStack[-1].getCurrentMaskedImage())#mergeVisibleLayers())
+            histImg = window.label.img.layersStack[-1].getCurrentMaskedImage()
         if window.histView.listWidget2.items['Color Chans'].checkState() is Qt.Checked:
             window.histView.mode = 'RGB'
             window.histView.chanColors = [QColor(255, 0, 0), QColor(0, 255, 0), QColor(10, 10, 255)]
         else:
             window.histView.mode = 'Luminosity'
             window.histView.chanColors = [Qt.gray]
-        histView = histImg.histogram(QSize(window.histView.width(), window.histView.height()), chans=list(range(3)), bgColor=Qt.black,  # TODO 03/07/18 list added
+        histView = histImg.histogram(QSize(window.histView.width(), window.histView.height()),
+                                     chans=list(range(3)), bgColor=Qt.black,
                                      chanColors=window.histView.chanColors, mode=window.histView.mode, addMode='')
         window.histView.Label_Hist.setPixmap(QPixmap.fromImage(histView))
         window.histView.Label_Hist.repaint()
@@ -1262,11 +1266,13 @@ def menuLayer(name):
         ccm = cmHSP if name == 'action3D_LUT' else cmHSB
         layerName = '2.5D LUT HSpB' if name == 'action3D_LUT' else '2.5D LUT HSV'
         layer = window.label.img.addAdjustmentLayer(name=layerName, role='3DLUT')
-        grWindow = graphicsForm3DLUT.getNewWindow(ccm, axeSize=300, targetImage=window.label.img, LUTSize=LUTSIZE, layer=layer, parent=window, mainForm=window)
+        grWindow = graphicsForm3DLUT.getNewWindow(ccm, axeSize=300, targetImage=window.label.img,
+                                                  LUTSize=LUTSIZE, layer=layer, parent=window, mainForm=window)
         # init pool only once
         pool = getPool()
         sc = grWindow.scene()
-        layer.execute = lambda l=layer, pool=pool: l.tLayer.apply3DLUT(sc.lut.LUT3DArray, sc.lut.step, options=sc.options, pool=pool)
+        layer.execute = lambda l=layer, pool=pool: l.tLayer.apply3DLUT(sc.lut.LUT3DArray, sc.lut.step,
+                                                                       options=sc.options, pool=pool)
     # cloning
     elif name == 'actionNew_Cloning_Layer':
         lname = 'Cloning'
@@ -1282,7 +1288,7 @@ def menuLayer(name):
         # mask was modified
         # l.updatePixmap()
     # load an image from file
-    elif name == 'actionLoad_Image_from_File': # 'actionNew_Image_Layer':
+    elif name == 'actionLoad_Image_from_File':  # 'actionNew_Image_Layer':
         filename = openDlg(window, ask=False)
         if filename is None:
             return
@@ -1320,13 +1326,16 @@ def menuLayer(name):
     elif name == 'actionColor_Temperature':
         lname = 'Color Temperature'
         layer = window.label.img.addAdjustmentLayer(name=lname)
-        grWindow = temperatureForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window, mainForm=window)
+        grWindow = temperatureForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer,
+                                                parent=window, mainForm=window)
         # wrapper for the right apply method
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyTemperature()
     elif name == 'actionContrast_Correction':
         layer = window.label.img.addAdjustmentLayer(name=CoBrSatForm.layerTitle, role='CONTRAST')
-        grWindow = CoBrSatForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window, mainForm=window)
+        grWindow = CoBrSatForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer,
+                                            parent=window, mainForm=window)
         # clipLimit change event handler
+
         def h(lay, clipLimit):
             lay.clipLimit = clipLimit
             lay.applyToStack()
@@ -1338,8 +1347,10 @@ def menuLayer(name):
         lname = 'Exposure'
         layer = window.label.img.addAdjustmentLayer(name=lname)
         layer.clipLimit = ExpForm.defaultExpCorrection
-        grWindow = ExpForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window, mainForm=window)
+        grWindow = ExpForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer,
+                                        parent=window, mainForm=window)
         # clipLimit change event handler
+
         def h(lay, clipLimit):
             lay.clipLimit = clipLimit
             lay.applyToStack()
@@ -1350,22 +1361,25 @@ def menuLayer(name):
     elif name == 'actionGeom_Transformation':
         lname = 'Transformation'
         layer = window.label.img.addAdjustmentLayer(name=lname, role='GEOMETRY')
-        grWindow = transForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window, mainForm=window)
+        grWindow = transForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer,
+                                          parent=window, mainForm=window)
         # add transformation tool to parent widget
-        tool = rotatingTool(parent=window.label)#, layer=l, form=grWindow)
+        tool = rotatingTool(parent=window.label)
         layer.addTool(tool)
         tool.showTool()
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyTransForm(grWindow.options)
     elif name == 'actionFilter':
         lname = 'Filter'
         layer = window.label.img.addAdjustmentLayer(name=lname)
-        grWindow = filterForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window, mainForm=window)
+        grWindow = filterForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer,
+                                           parent=window, mainForm=window)
         # wrapper for the right apply method
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyFilter2D()
     elif name == 'actionGradual_Filter':
         lname = 'Gradual Filter'
         layer = window.label.img.addAdjustmentLayer(name=lname)
-        grWindow = blendFilterForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window, mainForm=window)
+        grWindow = blendFilterForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img,
+                                                layer=layer, parent=window, mainForm=window)
         # wrapper for the right apply method
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyBlendFilter()
     elif name == 'actionNoise_Reduction':
@@ -1410,7 +1424,8 @@ def menuLayer(name):
     elif name == 'actionInvert':
         lname = 'Invert'
         layer = window.label.img.addAdjustmentLayer(name=lname)
-        grWindow = invertForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window, mainForm=window)
+        grWindow = invertForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img,
+                                           layer=layer, parent=window, mainForm=window)
         layer.execute = lambda l=layer: l.tLayer.applyInvert()
         layer.applyToStack()
         # l.parentImage.prLayer.update()
@@ -1434,7 +1449,10 @@ def menuLayer(name):
             lname = path.basename(name)
             layer = window.label.img.addAdjustmentLayer(name=lname)
             pool = getPool()
-            layer.execute = lambda l=layer, pool=pool: l.tLayer.apply3DLUT(lut.LUT3DArray, lut.step, {'use selection': False}, pool=pool)
+            layer.execute = lambda l=layer, pool=pool: l.tLayer.apply3DLUT(lut.LUT3DArray,
+                                                                           lut.step,
+                                                                           {'use selection': False},
+                                                                           pool=pool)
             window.tableView.setLayers(window.label.img)
             layer.applyToStack()
             # The resulting image is modified,
@@ -1559,7 +1577,8 @@ def menuHelp(name):
         label.setAlignment(Qt.AlignCenter)
         label.setText(VERSION + "\n" + attributions)
         # center window on screen
-        w.setGeometry(QStyle.alignedRect(Qt.LeftToRight, Qt.AlignCenter, w.size(), rootWidget.availableGeometry()))  # TODO changed app.desktop() to rootWidget 05/07/18
+        w.setGeometry(QStyle.alignedRect(Qt.LeftToRight, Qt.AlignCenter, w.size(),
+                                         rootWidget.availableGeometry()))
         w.show()
 
 
@@ -1615,6 +1634,8 @@ def handleTextWindow(parent=None, title='', center=True, wSize=QSize(500, 500)):
     @type title:
     @param center:
     @type center:
+    @param wSize:
+    @type wSize:
     @return new window, label
     @rtype: QMainWindow, QLabel
     """
@@ -1688,7 +1709,8 @@ def initCursors():
     Inits app cursors
     """
     # EyeDropper cursor
-    pxmp = QPixmap.fromImage(QImage(":/images/resources/Eyedropper-icon.png"))
+    curImg = QImage(":/images/resources/Eyedropper-icon.png")
+    pxmp = QPixmap.fromImage(curImg)
     w, h = pxmp.width(), pxmp.height()
     window.cursor_EyeDropper = QCursor(pxmp, hotX=0, hotY=h-1)
     # tool cursor, must be resizable
@@ -1788,14 +1810,13 @@ if __name__ == '__main__':
                            QbLUePushButton:disabled {color: rgb(50,50,50)}
                            QGraphicsView QPushButton:hover, baseForm QPushButton:hover {background-color: gray;
                                                                                         color: black}
-                           QToolButton:hover {
-                                              background-color: gray;
-                                              color: black}
-                           QToolButton:checked {background-color: blue}
-                           QToolButton {background-color: rgb(100,100,100);
+                           QToolButton {background-color: #444455;
                                         color: rgb(200,200,200);
                                         border: 1px solid gray;
                                         border-radius: 6px}
+                           QToolButton:hover {background-color: #555588;
+                                              color: black}
+                           QToolButton:checked {background-color: blue}
                            QGroupBox#groupbox_btn {border: 1px solid gray;}
                            QGroupBox#groupBox {border: 1px solid gray;}
                            QMessageBox QLabel, QDialog QLabel {background-color: white; 
@@ -1837,7 +1858,7 @@ if __name__ == '__main__':
     # crop tool
     window.cropTool = cropTool(parent=window.label)
 
-    #whatsThis
+    # whatsThis
     window.cropButton.setWhatsThis("""To crop the image drag a gray curtain on either side using the 8 small square buttons around the image""")
     window.rulerButton.setWhatsThis("""Draw horizontal and vertical rulers over the image""")
     window.fitButton.setWhatsThis("""Reset the image size to the window size""")
@@ -1978,21 +1999,21 @@ Menu File > Open</b> to edit a photo.<br>
 <b>Ctrl+L or Menu View > Library Viewer</b> to browse a folder.<br>
 <b>Ctrl+C or Menu View > Color Chooser</b> to display the color chooser.<br>
 """
-    ) # end of setWhatsThis
+    )  # end of setWhatsThis
     window.label_3.setWhatsThis(
 """ <b>Before/After View : After Window</b><br>
 Shows the modified image.<br>
 <b>Ctrl+Space</b> to cycle through views.<br>
 <b>Space</b> to switch back to normal view.<br>
 """
-    ) # end of setWhatsThis
+    )  # end of setWhatsThis
     window.label_2.setWhatsThis(
 """ <b>Before/After View : Before Window</b><br>
 Shows the initial image.<br>
 <b>Ctrl+Space</b> to cycle through views.<br>
 <b>Space</b> to switch back to normal view.
 """
-    ) # end of setWhatsThis
+    )  # end of setWhatsThis
     ###############
     # launch app
     ###############
