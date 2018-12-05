@@ -15,15 +15,10 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-import weakref
-
-from PySide2 import QtCore
-
 from PySide2.QtCore import Qt
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout
 
 from bLUeGui.graphicsForm import baseForm
-from bLUeCore.kernel import filterIndex, getKernel
 from bLUeGui.memory import weakProxy
 from bLUeGui.qrangeslider import QRangeSlider
 from utils import optionsWidget
@@ -32,14 +27,13 @@ class blendFilterIndex:
     GRADUALBT, GRADUALTB, GRADUALNONE= range(3)
 
 class blendFilterForm (baseForm):
-    #dataChanged = QtCore.Signal() # TODO 30/10/18 removed
     @classmethod
-    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
-        wdgt = blendFilterForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
+    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
+        wdgt = blendFilterForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
         wdgt.setWindowTitle(layer.name)
         return wdgt
 
-    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
+    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super().__init__(parent=parent)
         self.defaultFilterStart = 0
         self.defaultFilterEnd = 99
@@ -54,16 +48,7 @@ class blendFilterForm (baseForm):
         self.targetImage = weakProxy(targetImage)
         self.img = weakProxy(targetImage)
         self.layer = weakProxy(layer)
-        """
-        # using weak ref for back links
-        if type(layer) in weakref.ProxyTypes:
-            self.layer = layer
-        else:
-            self.layer = weakref.proxy(layer)
-        """
-        self.mainForm = mainForm
-        self.kernelCategory = filterIndex.UNSHARP
-        self.kernel = getKernel(self.kernelCategory)
+        self.kernelCategory = blendFilterIndex.GRADUALNONE  # TODO kernelCategory should be renamed as filterIndex 5/12/18
         # options
         optionList, optionNames = ['Gradual Top', 'Gradual Bottom'], ['Top To Bottom', 'Bottom To Top']
         filters = [blendFilterIndex.GRADUALTB, blendFilterIndex.GRADUALBT] #, blendFilterIndex.GRADUALNONE]
@@ -103,7 +88,6 @@ class blendFilterForm (baseForm):
 
         # data changed event handler
         def updateLayer():
-            #enableSliders()
             for key in self.listWidget1.options:
                 if self.listWidget1.options[key]:
                     self.kernelCategory = filterDict[key]
@@ -114,7 +98,6 @@ class blendFilterForm (baseForm):
         self.dataChanged.connect(updateLayer)  # TODO 3/12/18 move to setDefaults
         # layout
         l = QVBoxLayout()
-        l.setAlignment(Qt.AlignBottom)
         l.addWidget(self.listWidget1)
         hl8 = QHBoxLayout()
         hl8.addWidget(frLabel)

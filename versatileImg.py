@@ -908,7 +908,7 @@ class vImage(bImage):
         bufOut[:, :, :3] = 255.0 - tmp #(bufIn[:, :, :3] / [Mask0, Mask1, Mask2]) * 255
         self.updatePixmap()
 
-    def applyExposure(self, exposureCorrection, options):
+    def applyExposure(self, options):
         """
         Applies exposure correction 2**exposureCorrection
         to the linearized RGB channels.
@@ -920,6 +920,8 @@ class vImage(bImage):
         @return:
         @rtype:
         """
+        form = self.getGraphicsForm()
+        exposureCorrection = form.expCorrection
         # neutral point
         if abs(exposureCorrection) < 0.05:
             buf0 = QImageBuffer(self.getCurrentImage())
@@ -929,13 +931,14 @@ class vImage(bImage):
             return
         bufIn = QImageBuffer(self.inputImg())
         buf = bufIn[:,:,:3][:,:,::-1]
+        # convert to linear
         buf = rgb2rgbLinearVec(buf)
-
+        # apply correction
         buf[:,:,:] = buf * (2 ** exposureCorrection)
-
+        np.clip(buf, 0.0, 1.0, out=buf)
+        # convert back to RGB
         buf = rgbLinear2rgbVec(buf)
-
-        buf = np.clip(buf, 0.0, 255.0)
+        np.clip(buf, 0.0, 255.0, out=buf)
         currentImage = self.getCurrentImage()
         ndImg1a = QImageBuffer(currentImage)
         ndImg1a[:, :, :3][:, :, ::-1] = buf

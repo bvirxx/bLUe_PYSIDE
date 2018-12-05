@@ -30,8 +30,6 @@ from utils import optionsWidget, QbLUeSlider, QbLUeLabel
 
 class temperatureForm (baseForm):
 
-    # dataChanged = QtCore.Signal()
-
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
         wdgt = temperatureForm(axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
@@ -179,7 +177,6 @@ color space to adjust <b>temperature</b> and <b>tint</b>.
         self.sliderTemp.setValue(round(self.temp2Slider(self.tempCorrection)))
         self.sliderTint.setValue(round(self.tint2Slider(self.defaultTint)))
         self.dataChanged.connect(self.updateLayer)
-        # self.dataChanged.emit() # removed 30/10/18
 
     def updateLayer(self):
         """

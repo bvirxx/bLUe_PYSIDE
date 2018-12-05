@@ -1338,15 +1338,15 @@ def menuLayer(name):
         layer = window.label.img.addAdjustmentLayer(name=lname)
         layer.clipLimit = ExpForm.defaultExpCorrection
         grWindow = ExpForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
+        """
         # clipLimit change event handler
-
         def h(lay, clipLimit):
             lay.clipLimit = clipLimit
             lay.applyToStack()
             window.label.img.onImageChanged()
         grWindow.onUpdateExposure = h
-        # wrapper for the right apply method
-        layer.execute = lambda l=layer,  pool=None: l.tLayer.applyExposure(l.clipLimit, grWindow.options)
+        """
+        layer.execute = lambda l=layer,  pool=None: l.tLayer.applyExposure(grWindow.options)
     elif name == 'actionGeom_Transformation':
         lname = 'Transformation'
         layer = window.label.img.addAdjustmentLayer(name=lname, role='GEOMETRY')
