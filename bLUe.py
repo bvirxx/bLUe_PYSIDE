@@ -469,15 +469,16 @@ def mouseEvent(widget, event):  # TODO split into 3 handlers
                             window.colorChooser.setCurrentColor(QColor(redC, greenC, blueC))
                         else:
                             window.colorChooser.setCurrentColor(QColor(redP, greenP, blueP))
-                    # do other stuff
                     else:
                         # emit colorPicked signal
                         layer.colorPicked.sig.emit(x_img, y_img, modifiers)
                         # select grid node for 3DLUT form
                         if layer.is3DLUTLayer():
                             layer.getGraphicsForm().selectGridNode(red, green, blue)
+                        # rectangle selection
                         if window.btnValues['rectangle'] and (modifiers == Qt.ControlModifier):
-                            layer.rect = None
+                                layer.rect = None
+                                layer.selectionChanged.sig.emit()
                         # for raw layer, set multipliers to get selected pixel as White Point
                         if layer.isRawLayer() and window.btnValues['colorPicker']:
                             # get demosaic buffer and sample raw pixels
@@ -496,17 +497,9 @@ def mouseEvent(widget, event):  # TODO split into 3 handlers
                                     form.setRawMultipliers(*form.samples[3*row + col], sampling=False)
                             else:
                                 form.setRawMultipliers(1/color[0], 1/color[1], 1/color[2], sampling=True)
-                """
-                # cloning layer
-                if layer.isCloningLayer():
-                    if modifiers == Qt.ControlModifier | Qt.AltModifier:
-                        if layer.keepCloned:
-                            layer.maskIsEnabled = False
-                            layer.maskisSelected = False
-                            layer.applyCloning(seamless=False)
-                        # update mask status in the table of layers
-                        layer.updateTableView(window.tableView)
-                """
+                else: # not clicked
+                    if window.btnValues['rectangle']:
+                        layer.selectionChanged.sig.emit()
     # updates
     widget.repaint()
     # sync split views
@@ -1252,7 +1245,7 @@ def menuLayer(name):
             form = graphicsLabForm
         # add new layer on top of active layer
         layer = window.label.img.addAdjustmentLayer(name=layerName)
-        grWindow = form.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window, mainForm=window)
+        grWindow = form.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
         # wrapper for the right applyXXX method
         if name == 'actionCurves_RGB':
             layer.execute = lambda l=layer, pool=None: l.tLayer.apply1DLUT(grWindow.scene().cubicItem.getStackedLUTXY())
@@ -1267,7 +1260,7 @@ def menuLayer(name):
         layerName = '2.5D LUT HSpB' if name == 'action3D_LUT' else '2.5D LUT HSV'
         layer = window.label.img.addAdjustmentLayer(name=layerName, role='3DLUT')
         grWindow = graphicsForm3DLUT.getNewWindow(ccm, axeSize=300, targetImage=window.label.img,
-                                                  LUTSize=LUTSIZE, layer=layer, parent=window, mainForm=window)
+                                                  LUTSize=LUTSIZE, layer=layer, parent=window)
         # init pool only once
         pool = getPool()
         sc = grWindow.scene()
@@ -1277,13 +1270,13 @@ def menuLayer(name):
     elif name == 'actionNew_Cloning_Layer':
         lname = 'Cloning'
         layer = window.label.img.addAdjustmentLayer(name=lname, role='CLONING')
-        grWindow = patchForm.getNewWindow(targetImage=window.label.img, layer=layer, mainForm=window)
+        grWindow = patchForm.getNewWindow(targetImage=window.label.img, layer=layer)
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyCloning(seamless=l.autoclone)
     # segmentation
     elif name == 'actionNew_segmentation_layer':
         lname = 'Segmentation'
         layer = window.label.img.addSegmentationLayer(name=lname)
-        grWindow = segmentForm.getNewWindow(targetImage=window.label.img, layer=layer, mainForm=window)
+        grWindow = segmentForm.getNewWindow(targetImage=window.label.img, layer=layer)
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyGrabcut(nbIter=grWindow.nbIter)
         # mask was modified
         # l.updatePixmap()
@@ -1299,7 +1292,7 @@ def menuLayer(name):
             return
         lname = path.basename(filename)
         layer = window.label.img.addAdjustmentLayer(name=lname, sourceImg=imgNew, role='GEOMETRY')
-        grWindow = imageForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window, mainForm=window)
+        grWindow = imageForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
         # add transformation tool to parent widget
         tool = rotatingTool(parent=window.label)  # , layer=l, form=grWindow)
         layer.addTool(tool)
@@ -1314,8 +1307,7 @@ def menuLayer(name):
         imgNew.fill(Qt.black)
         lname = 'Image'
         layer = window.label.img.addAdjustmentLayer(name=lname, sourceImg=imgNew, role='GEOMETRY')
-        grWindow = imageForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window,
-                                          mainForm=window)
+        grWindow = imageForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
         # add transformation tool to parent widget
         tool = rotatingTool(parent=window.label)  # , layer=l, form=grWindow)
         layer.addTool(tool)
@@ -1326,14 +1318,12 @@ def menuLayer(name):
     elif name == 'actionColor_Temperature':
         lname = 'Color Temperature'
         layer = window.label.img.addAdjustmentLayer(name=lname)
-        grWindow = temperatureForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer,
-                                                parent=window, mainForm=window)
+        grWindow = temperatureForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
         # wrapper for the right apply method
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyTemperature()
     elif name == 'actionContrast_Correction':
         layer = window.label.img.addAdjustmentLayer(name=CoBrSatForm.layerTitle, role='CONTRAST')
-        grWindow = CoBrSatForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer,
-                                            parent=window, mainForm=window)
+        grWindow = CoBrSatForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
         # clipLimit change event handler
 
         def h(lay, clipLimit):
@@ -1347,8 +1337,7 @@ def menuLayer(name):
         lname = 'Exposure'
         layer = window.label.img.addAdjustmentLayer(name=lname)
         layer.clipLimit = ExpForm.defaultExpCorrection
-        grWindow = ExpForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer,
-                                        parent=window, mainForm=window)
+        grWindow = ExpForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
         # clipLimit change event handler
 
         def h(lay, clipLimit):
@@ -1361,8 +1350,7 @@ def menuLayer(name):
     elif name == 'actionGeom_Transformation':
         lname = 'Transformation'
         layer = window.label.img.addAdjustmentLayer(name=lname, role='GEOMETRY')
-        grWindow = transForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer,
-                                          parent=window, mainForm=window)
+        grWindow = transForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
         # add transformation tool to parent widget
         tool = rotatingTool(parent=window.label)
         layer.addTool(tool)
@@ -1371,15 +1359,14 @@ def menuLayer(name):
     elif name == 'actionFilter':
         lname = 'Filter'
         layer = window.label.img.addAdjustmentLayer(name=lname)
-        grWindow = filterForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer,
-                                           parent=window, mainForm=window)
+        grWindow = filterForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer)
         # wrapper for the right apply method
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyFilter2D()
     elif name == 'actionGradual_Filter':
         lname = 'Gradual Filter'
         layer = window.label.img.addAdjustmentLayer(name=lname)
         grWindow = blendFilterForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img,
-                                                layer=layer, parent=window, mainForm=window)
+                                                layer=layer, parent=window)
         # wrapper for the right apply method
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyBlendFilter()
     elif name == 'actionNoise_Reduction':
@@ -1388,44 +1375,12 @@ def menuLayer(name):
         grWindow = noiseForm.getNewWindow(axeSize=axeSize, layer=layer, parent=window)
         # wrapper for the right apply method
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyNoiseReduction()
-        """
-    elif name == 'actionSave_Layer_Stack':
-        return # TODO 26/06/18 should be reviewed
-        lastDir = str(window.settings.value('paths/dlg3DLUTdir', '.'))
-        dlg = QFileDialog(window, "select", lastDir)
-        dlg.setNameFilter('*.sba')
-        dlg.setDefaultSuffix('sba')
-        if dlg.exec_():
-            filenames = dlg.selectedFiles()
-            newDir = dlg.directory().absolutePath()
-            window.settings.setValue('paths/dlg3DLUTdir', newDir)
-            window.label.img.saveStackToFile(filenames[0])
-            return
-    elif name == 'actionLoad_Layer_Stack':
-        lastDir = str(window.settings.value('paths/dlgdir', '.'))
-        dlg = QFileDialog(window, "select", lastDir)
-        dlg.setNameFilter('*.sba')
-        dlg.setDefaultSuffix('sba')
-        if dlg.exec_():
-            filenames = dlg.selectedFiles()
-            newDir = dlg.directory().absolutePath()
-            window.settings.setValue('paths/dlgdir', newDir)
-            script, qf, dataStream = window.label.img.loadStackFromFile(filenames[0])
-            script = '\n'.join(script)
-            # secure env for exec
-            safe_list = ['menuLayer', 'window']
-            safe_dict = dict([(k, globals().get(k, None)) for k in safe_list])
-            #exec script in safe_dict, locals() #globals(), locals()
-            exec (script, safe_dict, locals)  #3.6
-            qf.close()
-            return
-        """
     # invert image
     elif name == 'actionInvert':
         lname = 'Invert'
         layer = window.label.img.addAdjustmentLayer(name=lname)
         grWindow = invertForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img,
-                                           layer=layer, parent=window, mainForm=window)
+                                           layer=layer, parent=window)
         layer.execute = lambda l=layer: l.tLayer.applyInvert()
         layer.applyToStack()
         # l.parentImage.prLayer.update()

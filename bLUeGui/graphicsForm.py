@@ -75,7 +75,7 @@ class baseForm(QWidget):
         self.setDefaults()
         self.dataChanged.emit(True)
 
-    def updateLayer(self, cacheInvalidate):
+    def updateLayer(self, *args, **kwargs):  # cacheInvalidate)
         """
         data changed event handler.
         Should be overridden
