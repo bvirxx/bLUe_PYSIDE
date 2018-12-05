@@ -216,6 +216,7 @@ class QLayerView(QTableView) :
         self.opacitySlider.sliderReleased.connect(f2)
 
         # mask color slider
+        self.maskLabel = QLabel('Mask Color')
         maskSlider = QbLUeSlider(Qt.Horizontal)
         maskSlider.setStyleSheet(QbLUeSlider.bLueSliderDefaultBWStylesheet)
         maskSlider.setTickPosition(QSlider.TicksBelow)
@@ -232,6 +233,10 @@ class QLayerView(QTableView) :
         self.maskValue.setMinimumSize(w, h)
         self.maskValue.setMaximumSize(w, h)
         self.maskValue.setText('100 ')
+        # masks are disbled by default
+        self.maskLabel.setEnabled(False)
+        self.maskSlider.setEnabled(False)
+        self.maskValue.setEnabled(False)
 
         # mask value changed event handler
         def g1():
@@ -300,7 +305,7 @@ class QLayerView(QTableView) :
         hl.addWidget(self.opacitySlider)
         l.addLayout(hl)
         hl1 = QHBoxLayout()
-        hl1.addWidget(QLabel('Mask Color'))
+        hl1.addWidget(self.maskLabel)
         hl1.addWidget(self.maskValue)
         hl1.addWidget(self.maskSlider)
         l.addLayout(hl1)
@@ -342,14 +347,6 @@ Note that upper visible layers slow down mask edition.<br>
 """
                         )  # end of setWhatsThis
 
-    """
-    def setEnabled(self, value):  # TODO removed 30/11/18
-        super(QLayerView, self).setEnabled(value)  
-        if not self.isEnabled():
-            self.setStatusTip('Close adjustment form %s to enable Layers' % self.currentWin.windowTitle())
-        else:
-            self.setStatusTip('')
-    """
 
     def closeAdjustForms(self, delete=False):
         """
@@ -643,6 +640,10 @@ Note that upper visible layers slow down mask edition.<br>
         # update displayed window and active layer
         activeStackIndex = len(self.img.layersStack) - 1 - row
         activeLayer = self.img.setActiveLayer(activeStackIndex)
+        # update color mask slider and label
+        self.maskLabel.setEnabled(layer.maskIsSelected)
+        self.maskSlider.setEnabled(activeLayer.maskIsSelected)
+        self.maskValue.setEnabled(activeLayer.maskIsSelected)
         if self.currentWin is not None:
                 if not self.currentWin.isFloating():
                     #self.currentWin.hide()
@@ -661,6 +662,7 @@ Note that upper visible layers slow down mask edition.<br>
         compositionMode = layer.compositionMode
         ind = self.blendingModeCombo.findData(compositionMode)
         self.blendingModeCombo.setCurrentIndex(ind)
+
         # draw the right rectangle
         window.label.repaint()
 
@@ -858,6 +860,9 @@ Note that upper visible layers slow down mask edition.<br>
             testUpperVisibility()
             layer.maskIsEnabled = True
             layer.maskIsSelected = True
+            self.maskLabel.setEnabled(layer.maskIsSelected)
+            self.maskSlider.setEnabled(layer.maskIsSelected)
+            self.maskValue.setEnabled(layer.maskIsSelected)
             layer.applyToStack()
             self.img.onImageChanged()
 
@@ -865,12 +870,18 @@ Note that upper visible layers slow down mask edition.<br>
             testUpperVisibility()
             layer.maskIsEnabled = True
             layer.maskIsSelected = False
+            self.maskLabel.setEnabled(layer.maskIsSelected)
+            self.maskSlider.setEnabled(layer.maskIsSelected)
+            self.maskValue.setEnabled(layer.maskIsSelected)
             layer.applyToStack()
             self.img.onImageChanged()
 
         def clippingMaskEnable():
             layer.maskIsEnabled = True
             layer.maskIsSelected = False
+            self.maskLabel.setEnabled(layer.maskIsSelected)
+            self.maskSlider.setEnabled(layer.maskIsSelected)
+            self.maskValue.setEnabled(layer.maskIsSelected)
             layer.isClipping = True
             layer.applyToStack()
             self.img.onImageChanged()
@@ -878,6 +889,9 @@ Note that upper visible layers slow down mask edition.<br>
         def maskDisable():
             layer.maskIsEnabled = False
             layer.maskIsSelected = False
+            self.maskLabel.setEnabled(layer.maskIsSelected)
+            self.maskSlider.setEnabled(layer.maskIsSelected)
+            self.maskValue.setEnabled(layer.maskIsSelected)
             layer.isClipping = False  # TODO added 28/11/18
             layer.applyToStack()
             self.img.onImageChanged()
