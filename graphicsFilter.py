@@ -15,29 +15,25 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-import weakref
-
-from PySide2 import QtCore
 
 from PySide2.QtCore import Qt
-from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout
+from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout
 from PySide2.QtGui import QFontMetrics
 
 from bLUeGui.graphicsForm import baseForm
-from bLUeCore.kernel import filterIndex, getKernel
+from bLUeCore.kernel import filterIndex
 from bLUeGui.memory import weakProxy
 from utils import optionsWidget, QbLUeSlider
 
 
 class filterForm (baseForm):
-    # dataChanged = QtCore.Signal()
     @classmethod
-    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
-        wdgt = filterForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
+    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
+        wdgt = filterForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
         wdgt.setWindowTitle(layer.name)
         return wdgt
 
-    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
+    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super().__init__(parent=parent)
         defaultRadius = 10
         defaultTone = 100.0
@@ -52,28 +48,20 @@ class filterForm (baseForm):
         self.img = targetImage
         # link back to image layer
         self.layer = weakProxy(layer)
-        """
-        # using weak ref for back links
-        if type(layer) in weakref.ProxyTypes:
-            self.layer = layer
-        else:
-            self.layer = weakref.proxy(layer)
-        """
-        self.mainForm = mainForm
+        #
+        self.layer.selectionChanged.sig.connect(self.updateLayer)
         self.kernelCategory = filterIndex.UNSHARP
-
         # options
         self.optionList = ['Unsharp Mask', 'Sharpen', 'Gaussian Blur', 'Surface Blur']
-        filters = [ filterIndex.UNSHARP, filterIndex.SHARPEN, filterIndex.BLUR1, filterIndex.SURFACEBLUR]
+        filters = [filterIndex.UNSHARP, filterIndex.SHARPEN, filterIndex.BLUR1, filterIndex.SURFACEBLUR]
         self.filterDict = dict(zip(self.optionList, filters))
 
         self.listWidget1 = optionsWidget(options=self.optionList, exclusive=True, changed=self.dataChanged)
         # set initial selection to unsharp mask
-        item = self.listWidget1.checkOption(self.optionList[0])
+        self.listWidget1.checkOption(self.optionList[0])
 
         # sliders
         self.sliderRadius = QbLUeSlider(Qt.Horizontal)
-        #self.sliderRadius.setTickPosition(QSlider.TicksBelow)
         self.sliderRadius.setRange(1, 50)
         self.sliderRadius.setSingleStep(1)
         self.radiusLabel = QLabel()
@@ -89,7 +77,6 @@ class filterForm (baseForm):
         self.radiusValue.setMaximumSize(w, h)
 
         self.sliderAmount = QbLUeSlider(Qt.Horizontal)
-        #self.sliderAmount.setTickPosition(QSlider.TicksBelow)
         self.sliderAmount.setRange(0, 100)
         self.sliderAmount.setSingleStep(1)
         self.amountLabel = QLabel()
@@ -108,7 +95,6 @@ class filterForm (baseForm):
         self.toneLabel.setMaximumSize(150, 30)
         self.toneLabel.setText("Sigma")
         self.sliderTone = QbLUeSlider(Qt.Horizontal)
-        #self.sliderTone.setTickPosition(QSlider.TicksBelow)
         self.sliderTone.setRange(0, 100)
         self.sliderTone.setSingleStep(1)
         font = self.radiusValue.font()
@@ -117,10 +103,8 @@ class filterForm (baseForm):
         h = metrics.height()
         self.toneValue.setMinimumSize(w, h)
         self.toneValue.setMaximumSize(w, h)
-
         # layout
         l = QVBoxLayout()
-        l.setAlignment(Qt.AlignBottom)
         l.addWidget(self.listWidget1)
         hl = QHBoxLayout()
         hl.addWidget(self.radiusLabel)
@@ -145,6 +129,7 @@ class filterForm (baseForm):
             self.radiusValue.setText(str('%d ' % self.sliderRadius.value()))
             self.amountValue.setText(str('%d ' % self.sliderAmount.value()))
             self.toneValue.setText(str('%d ' % self.sliderTone.value()))
+
         # value done event handler
         def formUpdate():
             sR, sA, sT = self.sliderRadius.isEnabled(), self.sliderAmount.isEnabled(), self.sliderTone.isEnabled()
@@ -176,11 +161,12 @@ class filterForm (baseForm):
         sliderUpdate()
         self.setWhatsThis(
 """
-   <b>Unsharp Mask</b> and <b>Sharpen Mask</b> are used to sharpen an image.<br>
-   <b>Gaussian Blur</b> and <b>Surface Blur</b> are used to blur an image.<br>
+   <b>Unsharp Mask</b> and <b>Sharpen Mask</b> sharpen an image.
+   Unsharp Mask usually gives best results.<br>
+   <b>Gaussian Blur</b> and <b>Surface Blur</b> blur an image.<br>
    In contrast to Gaussian Blur, Surface Blur preserves edges and reduces noise.<br>
    It is possible to <b>limit the effect of a filter to a rectangular region of the image</b> by
-   drawing a selection rectangle on the layer with the marquee tool.<br>
+   drawing a selection rectangle on the layer with the marquee (rectangle) tool.<br>
    Ctrl-Click to <b>clear the selection</b><br>
    
 """

@@ -38,7 +38,7 @@ from bLUeGui.dialog import dlgWarn
 from time import time
 
 from lutUtils import LUT3DIdentity
-from bLUeGui.baseSignal import  baseSignal_bool, baseSignal_Int2
+from bLUeGui.baseSignal import baseSignal_bool, baseSignal_Int2, baseSignal_No
 from utils import qColorToRGB, historyList
 
 from versatileImg import vImage
@@ -613,12 +613,13 @@ class QLayer(vImage):
         ############################################################
         # Signals
         # Making QLayer inherit from QObject leads to
-        # a buggy behavior of hasattr and getattr.
+        # a bugged behavior of hasattr and getattr.
         # So, we don't add signals as first level class attributes.
         # Instead, we use instances of ad hoc signal containers (cf. utils.py)
 
         self.visibilityChanged = baseSignal_bool()
         self.colorPicked = baseSignal_Int2()
+        self.selectionChanged = baseSignal_No()
 
         ###########################################################
         # when a geometric transformation is applied to the whole image
