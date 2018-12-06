@@ -33,7 +33,7 @@ The program is written in Python.
 ## FUNCTIONALITY
 
 * Edition of images in formats jpg, png, tif, nef, cr2, dng,...
-* Adjustment layers : exposure, brightness, saturation, contrast, color temperature, inversion, filters, noise reduction, cloning,
+* Adjustment layers : exposure, brightness, saturation, contrast, channel mixer, color temperature, inversion, filters, noise reduction, cloning,
 segmentation, geometric transformations, curves (1D LUTs), 2.5D LUTs, 3D LUTs.
 * RGB, HSV, Lab color models
 * Automatic contrast enhancement (histogram warping and CLAHE)
