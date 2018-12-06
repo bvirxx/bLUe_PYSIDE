@@ -831,9 +831,8 @@ def addRawAdjustmentLayer():
     """
     Add a development layer to the layer stack
     """
-    rlayer = window.label.img.addAdjustmentLayer(layerType=QRawLayer, name='Development', role='RAW')
-    grWindow = rawForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=rlayer,
-                                    parent=window, mainForm=window)
+    rlayer = window.label.img.addAdjustmentLayer(layerType=QRawLayer, name='Develop', role='RAW')
+    grWindow = rawForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=rlayer, parent=window)
     # wrapper for the right apply method
     pool = getPool()
     rlayer.execute = lambda l=rlayer, pool=pool: l.tLayer.applyRawPostProcessing(pool=pool)

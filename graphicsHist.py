@@ -28,7 +28,7 @@ class histForm (baseForm):
     """
     Form for histogram viewing
     """
-    def __init__(self, targetImage=None, size=200, layer=None, parent=None, mainForm=None):
+    def __init__(self, targetImage=None, size=200, layer=None, parent=None):
         super().__init__(parent=parent)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.setMinimumSize(size, 100)

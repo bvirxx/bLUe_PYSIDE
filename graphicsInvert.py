@@ -25,11 +25,11 @@ class invertForm(baseForm) :
     Form for interactive RGB curves
     """
     @classmethod
-    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
-        newWindow = invertForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
+    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
+        newWindow = invertForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
         newWindow.setWindowTitle(layer.name)
         return newWindow
-    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
+    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super().__init__(layer=layer, parent=parent)
         self.Rmask, self.Bmask, self.Gmask = (255,) * 3
 

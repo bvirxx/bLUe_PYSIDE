@@ -547,12 +547,12 @@ class graphicsSplineForm(graphicsCurveForm) :
         self.scene().bgColor
     """
     @classmethod
-    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None, curveType='quadric'):
-        newWindow = graphicsSplineForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm, curveType=curveType)
+    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, curveType='quadric'):
+        newWindow = graphicsSplineForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, curveType=curveType)
         newWindow.setWindowTitle(layer.name)
         return newWindow
-    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None, curveType='quadric'):
-        super().__init__(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
+    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, curveType='quadric'):
+        super().__init__(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
         graphicsScene = self.scene()
         # init the curve
         if curveType == 'quadric':

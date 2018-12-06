@@ -35,7 +35,7 @@ class graphicsForm(graphicsCurveForm) :
         return newWindow
 
 
-    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
+    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super().__init__(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
         # Brightness curve
         cubic = activeCubicSpline(axeSize)

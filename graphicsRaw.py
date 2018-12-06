@@ -35,9 +35,8 @@ from bLUeGui.multiplier import *
 
 class graphicsToneForm(graphicsSplineForm):
     @classmethod
-    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None, curveType='quadric'):
-        newWindow = graphicsToneForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent,
-                                       mainForm=mainForm, curveType=curveType)
+    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, curveType='quadric'):
+        newWindow = graphicsToneForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, curveType=curveType)
         newWindow.setWindowTitle(layer.name)
         # init marker
         triangle = QPolygonF()
@@ -76,8 +75,8 @@ class rawForm (baseForm):
     """
     dataChanged = QtCore.Signal(int)
     @classmethod
-    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
-        wdgt = rawForm(axeSize=axeSize, targetImage=targetImage, layer=layer, parent=parent, mainForm=mainForm)
+    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
+        wdgt = rawForm(axeSize=axeSize, targetImage=targetImage, layer=layer, parent=parent)
         wdgt.setWindowTitle(layer.name)
         return wdgt
 
@@ -146,7 +145,7 @@ class rawForm (baseForm):
     def sat2Slider(cls, e):
         return e + 50
 
-    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
+    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super().__init__(parent=parent)
         self.setStyleSheet('QRangeSlider * {border: 0px; padding: 0px; margin: 0px}')
         self.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Preferred)
@@ -579,10 +578,10 @@ Valid values are 0 to 3 (0=clip;1=unclip;2=blend;3=rebuild); (with Auto Exposed 
         axeSize = 200
         if self.toneForm is None:
             form = graphicsToneForm.getNewWindow(targetImage=self.targetImage, axeSize=axeSize, layer=self.layer, parent=self,
-                                                  mainForm=None, curveType='cubic')
+                                                  curveType='cubic')
             form.setWindowFlags(Qt.WindowStaysOnTopHint)
             form.setAttribute(Qt.WA_DeleteOnClose, on=False)
-            form.setWindowTitle('Camera Profile Tone Curve')
+            form.setWindowTitle('Cam Tone Curve')
             form.setButtonText('Reset Curve')
             # get base curve from profile
             toneCurve = dngProfileToneCurve(self.dngDict.get('ProfileToneCurve', []))
@@ -638,8 +637,7 @@ former.<br>
         """
         axeSize = 200
         if self.contrastForm is None:
-            form = graphicsSplineForm.getNewWindow(targetImage=None, axeSize=axeSize, layer=self.layer, parent=None,
-                                                   mainForm=None)
+            form = graphicsSplineForm.getNewWindow(targetImage=None, axeSize=axeSize, layer=self.layer, parent=None)
             form.setWindowFlags(Qt.WindowStaysOnTopHint)
             form.setAttribute(Qt.WA_DeleteOnClose, on=False)
             form.setWindowTitle('Contrast Curve')

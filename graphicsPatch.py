@@ -33,12 +33,12 @@ class patchForm (baseForm):
     Seamless cloning form
     """
     @classmethod
-    def getNewWindow(cls, targetImage=None, axeSize=200, layer=None, parent=None, mainForm=None):
-        wdgt = patchForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
+    def getNewWindow(cls, targetImage=None, axeSize=200, layer=None, parent=None):
+        wdgt = patchForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
         wdgt.setWindowTitle(layer.name)
         return wdgt
 
-    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
+    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super().__init__(parent=parent)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize, axeSize)
@@ -47,7 +47,6 @@ class patchForm (baseForm):
         self.targetImage = weakProxy(targetImage)
         self.img = weakProxy(targetImage)
         self.layer = weakProxy(layer)
-        self.mainForm = mainForm
         # options
         options_dict = {'Normal Clone':cv2.NORMAL_CLONE, 'Mixed Clone':cv2.MIXED_CLONE, 'Monochrome Transfer':cv2.MONOCHROME_TRANSFER}
         options = list(options_dict.keys())

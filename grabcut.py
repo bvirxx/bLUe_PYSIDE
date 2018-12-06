@@ -33,7 +33,7 @@ class segmentForm(baseForm):
     iterDefault = 3
     contourMarginDefault = 1
     @classmethod
-    def getNewWindow(cls, targetImage=None, layer=None, mainForm=None):
+    def getNewWindow(cls, targetImage=None, layer=None):
         wdgt = segmentForm(layer=layer)
         return wdgt
 

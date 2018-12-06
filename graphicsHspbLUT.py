@@ -28,14 +28,14 @@ class graphicsHspbForm(graphicsCurveForm):
     Form for HSV/HSpB curves   # TODO take a look at the histogram range for HSpB
     """
     @classmethod
-    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, colorModel='HSV', mainForm=None):
+    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, colorModel='HSV'):
         newWindow = graphicsHspbForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent,
-                                     colorModel=colorModel, mainForm=mainForm)
+                                     colorModel=colorModel)
         newWindow.setWindowTitle(layer.name)
         return newWindow
 
-    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, colorModel='HSV', mainForm=None):
-        super().__init__(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
+    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, colorModel='HSV'):
+        super().__init__(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
         graphicsScene = self.scene()
         graphicsScene.colorModel = colorModel
 

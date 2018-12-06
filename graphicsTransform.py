@@ -30,11 +30,11 @@ class transForm (baseForm):
     Geometric transformation form
     """
     @classmethod
-    def getNewWindow(cls, targetImage=None, axeSize=200, layer=None, parent=None, mainForm=None):
-        wdgt = transForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
+    def getNewWindow(cls, targetImage=None, axeSize=200, layer=None, parent=None):
+        wdgt = transForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
         wdgt.setWindowTitle(layer.name)
         return wdgt
-    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
+    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super(transForm, self).__init__(parent=parent)
 
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
@@ -44,7 +44,6 @@ class transForm (baseForm):
         self.targetImage = weakProxy(targetImage)
         self.img = weakProxy(targetImage)
         self.layer = weakProxy(layer)
-        self.mainForm = mainForm
         # options
         optionList1, optionNames1 = ['Free', 'Rotation', 'Translation'], ['Free Transformation', 'Rotation', 'Translation']
         self.listWidget1 = optionsWidget(options=optionList1, optionNames=optionNames1, exclusive=True)

@@ -109,6 +109,7 @@ class baseGraphicsForm(QGraphicsView):
         self.layer = weakProxy(kwargs.get('layer', None))
         # for convenience
         self.graphicsScene.layer = self.layer
+        self.graphicsScene.targetImage = self.targetImage
 
     def updateHists(self):
         """
