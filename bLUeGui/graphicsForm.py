@@ -99,9 +99,16 @@ class baseGraphicsForm(QGraphicsView):
     Base class for graphics (with scene) forms
     """
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(parent=kwargs.get('parent', None))
         self.setAlignment(Qt.AlignTop)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        self.graphicsScene = QGraphicsScene()
+        self.setScene(self.graphicsScene)
+        # back links to image
+        self.targetImage = weakProxy(kwargs.get('targetImage', None))
+        self.layer = weakProxy(kwargs.get('layer', None))
+        # for convenience
+        self.graphicsScene.layer = self.layer
 
     def updateHists(self):
         """
@@ -152,26 +159,21 @@ class graphicsCurveForm(baseGraphicsForm):  # QGraphicsView):  # TODO modified 3
         item.setPath(qppath)
         return item
 
-    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
-        super().__init__(parent=parent)
+    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
+        super().__init__(parent=parent, targetImage=targetImage, layer=layer)
         self.layer = layer
         # additional inactive curve to draw (QPolyLineF or list of QPointF)
         self.baseCurve = None
         self.setMinimumSize(axeSize + 60, axeSize + 140)
         self.setAttribute(Qt.WA_DeleteOnClose)
-        graphicsScene = QGraphicsScene()
-        self.setScene(graphicsScene)
-        # back links to image
-        graphicsScene.targetImage = weakProxy(targetImage)
-        graphicsScene.layer = weakProxy(layer)
+        graphicsScene = self.scene()
         graphicsScene.bgColor = QColor(200, 200, 200)
-        self.mainForm = mainForm
         graphicsScene.axeSize = axeSize
         # add axes and grid
         graphicsScene.defaultAxes = self.drawPlotGrid(axeSize)
         graphicsScene.addItem(graphicsScene.defaultAxes)
         # connect layer colorPicked signal
-        self.scene().layer.colorPicked.sig.connect(self.colorPickedSlot)
+        graphicsScene.layer.colorPicked.sig.connect(self.colorPickedSlot)
         # default WhatsThis for interactive curves
         self.setWhatsThis(
             """
