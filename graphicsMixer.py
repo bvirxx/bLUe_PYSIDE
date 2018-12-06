@@ -102,6 +102,7 @@ To <b>mix the R, G, B channels</b>, drag the 3 control points inside the triangl
 
     def setDefaults(self):
         self.scene().triangleChanged.sig.connect(self.updateLayer)
+        self.mixerMatrix = np.identity(3, dtype=np.float)
 
     def setBackgroundImage(self):
         img = QImage(QSize(256, 256), QImage.Format_ARGB32)
