@@ -23,7 +23,7 @@ from PySide2.QtGui import QPixmap, QRadialGradient
 from PySide2.QtCore import Qt, QRectF
 
 from bLUeGui.colorCIE import sRGB2LabVec
-from bLUeGui.graphicsSpline import activeCubicSpline, graphicsCurveForm, activePoint, channelValues
+from bLUeGui.graphicsSpline import activeCubicSpline, graphicsCurveForm, activeSplinePoint, channelValues
 from utils import optionsWidget
 
 class graphicsLabForm(graphicsCurveForm):
@@ -194,7 +194,7 @@ class graphicsLabForm(graphicsCurveForm):
                 sc.removeItem(p)
         # add new black point if needed
         if bPoint > 0.0 :
-            a = activePoint(bPoint, 0.0, parentItem=cubicL)
+            a = activeSplinePoint(bPoint, 0.0, parentItem=cubicL)
             fp.append(a)
         fp.sort(key=lambda z: z.scenePos().x())
         cubicL.updatePath()
@@ -243,7 +243,7 @@ class graphicsLabForm(graphicsCurveForm):
                     sc.removeItem(p)
             # add new white point if needed
             if wPoint < cubic.size:
-                p = activePoint(wPoint, -cubic.size, parentItem=cubic)
+                p = activeSplinePoint(wPoint, -cubic.size, parentItem=cubic)
                 cubic.fixedPoints.append(p)
                 cubic.fixedPoints.sort(key=lambda z: z.scenePos().x())
             cubic.updatePath()

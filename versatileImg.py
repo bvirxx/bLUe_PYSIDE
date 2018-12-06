@@ -946,6 +946,24 @@ class vImage(bImage):
         ndImg1a[:, :, 3] = bufIn[:,:,3]
         self.updatePixmap()
 
+    def applyMixer(self, options):
+        form = self.getGraphicsForm()
+        bufIn = QImageBuffer(self.inputImg())
+        buf = bufIn[:, :, :3][:, :, ::-1]
+        # convert to linear
+        buf = rgb2rgbLinearVec(buf)
+        # mix channels
+        currentImage = self.getCurrentImage()
+        bufOut = QImageBuffer(currentImage)
+        buf = np.tensordot(buf, form.mixerMatrix, axes=(-1,-1))
+        np.clip(buf, 0, 1.0, out=buf)
+        # convert back to RGB
+        buf = rgbLinear2rgbVec(buf)
+        bufOut[:, :, :3][:, :, ::-1] = buf
+        # forward the alpha channel
+        bufOut[:, :, 3] = bufIn[:, :, 3]
+        self.updatePixmap()
+
     def applyTransForm(self, options):
         """
         Applies the geometric transformation defined by source and target quads

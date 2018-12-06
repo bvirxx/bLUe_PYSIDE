@@ -143,6 +143,7 @@ from QtGui1 import app, window, rootWidget
 import exiftool
 from graphicsBlendFilter import blendFilterForm
 from graphicsInvert import invertForm
+from graphicsMixer import mixerForm
 from graphicsNoise import noiseForm
 from graphicsRaw import rawForm
 from graphicsTransform import transForm, imageForm
@@ -195,7 +196,7 @@ VERSION = "v1.2.3.1"
 ##############
 
 ##############
-# adjustment form size
+# default adjustment form size
 axeSize = 200
 ##############
 
@@ -1260,7 +1261,7 @@ def menuLayer(name):
         layerName = '2.5D LUT HSpB' if name == 'action3D_LUT' else '2.5D LUT HSV'
         layer = window.label.img.addAdjustmentLayer(name=layerName, role='3DLUT')
         grWindow = graphicsForm3DLUT.getNewWindow(ccm, axeSize=300, targetImage=window.label.img,
-                                                  LUTSize=LUTSIZE, layer=layer, parent=window)
+                                                  LUTSize=LUTSIZE, layer=layer, parent=window, mainForm=window)  # mainForm mandatory here
         # init pool only once
         pool = getPool()
         sc = grWindow.scene()
@@ -1383,8 +1384,12 @@ def menuLayer(name):
                                            layer=layer, parent=window)
         layer.execute = lambda l=layer: l.tLayer.applyInvert()
         layer.applyToStack()
-        # l.parentImage.prLayer.update()
-        # l.parentImage.onImageChanged()
+    elif name == 'actionChannel_Mixer':
+        lname = 'Channel Mixer'
+        layer = window.label.img.addAdjustmentLayer(name=lname)
+        grWindow = mixerForm.getNewWindow(axeSize=260, targetImage=window.label.img,
+                                           layer=layer, parent=window)
+        layer.execute = lambda l=layer: l.tLayer.applyMixer(grWindow.options)
     # load 3D LUT from .cube file
     elif name == 'actionLoad_3D_LUT':
         lastDir = window.settings.value('paths/dlg3DLUTdir', '.')

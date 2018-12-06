@@ -18,7 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
-from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QSlider, QHBoxLayout
+from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QHBoxLayout
 
 from bLUeGui.graphicsForm import baseForm
 from bLUeGui.memory import weakProxy
@@ -28,6 +28,7 @@ from utils import QbLUeSlider, QbLUeLabel
 class ExpForm (baseForm):
     defaultExpCorrection = 0.0
     defaultStep = 0.1
+
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
         wdgt = ExpForm(axeSize=axeSize, layer=layer, parent=parent)
@@ -80,7 +81,7 @@ class ExpForm (baseForm):
         self.sliderExp.valueChanged.connect(f)
         self.sliderExp.sliderReleased.connect(f)
 
-        #layout
+        # layout
         l = QVBoxLayout()
         l.setAlignment(Qt.AlignTop)
         l.addWidget(expLabel)
@@ -94,6 +95,7 @@ class ExpForm (baseForm):
         self.setWhatsThis(
 """<b>Exposure Correction</b>
 Multiplicative correction in the linear sRGB color space.<br>
+Unit is the diaphragm stop.<br>
 """
                          )  # end setWhatsThis
 
@@ -112,7 +114,6 @@ Multiplicative correction in the linear sRGB color space.<br>
         self.expValue.setText(str("{:+.1f}".format(self.defaultExpCorrection)))
         self.expCorrection = self.defaultExpCorrection * self.defaultStep
         self.dataChanged.connect(self.updateLayer)
-
 
     def writeToStream(self, outStream):
         layer = self.layer

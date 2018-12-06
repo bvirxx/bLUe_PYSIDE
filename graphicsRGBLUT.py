@@ -20,7 +20,7 @@ from PySide2.QtCore import QRect
 from PySide2.QtCore import Qt, QRectF
 from PySide2.QtWidgets import QPushButton, QGraphicsScene
 
-from bLUeGui.graphicsSpline import activeCubicSpline, graphicsCurveForm, activePoint, channelValues
+from bLUeGui.graphicsSpline import activeCubicSpline, graphicsCurveForm, activeSplinePoint, channelValues
 from utils import optionsWidget, QbLUePushButton
 
 
@@ -29,14 +29,14 @@ class graphicsForm(graphicsCurveForm) :
     Form for interactive RGB curves
     """
     @classmethod
-    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
-        newWindow = graphicsForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
+    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
+        newWindow = graphicsForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
         newWindow.setWindowTitle(layer.name)
         return newWindow
 
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, mainForm=None):
-        super().__init__(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, mainForm=mainForm)
+        super().__init__(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
         # Brightness curve
         cubic = activeCubicSpline(axeSize)
         graphicsScene = self.scene()
@@ -164,7 +164,7 @@ class graphicsForm(graphicsCurveForm) :
                     sc.removeItem(p)
             # add new black point if needed
             if bPoint > 0.0:
-                a = activePoint(bPoint*scale, 0.0, parentItem=cubic)
+                a = activeSplinePoint(bPoint * scale, 0.0, parentItem=cubic)
                 cubic.fixedPoints.append(a)
             cubic.fixedPoints.sort(key=lambda z: z.scenePos().x())
             cubic.updatePath()
@@ -204,7 +204,7 @@ class graphicsForm(graphicsCurveForm) :
                     sc.removeItem(p)
             # add new white point if needed
             if wPoint < cubic.size:
-                p = activePoint(wPoint * scale, -cubic.size, parentItem=cubic)
+                p = activeSplinePoint(wPoint * scale, -cubic.size, parentItem=cubic)
                 cubic.fixedPoints.append(p)
             cubic.fixedPoints.sort(key=lambda z: z.scenePos().x())
             cubic.updatePath()

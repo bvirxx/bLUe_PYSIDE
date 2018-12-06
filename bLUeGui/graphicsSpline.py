@@ -37,13 +37,52 @@ class channelValues():
 # 1D-LUT are calculated as interpolation splines defined by a set of control points.
 # Control points and splines are implemented as QGraphicsPathItem instances in a QGraphicsScene.
 # Mouse event handlers are reimplemented to provide full control (move range, removing,...)
-# Classes : activePoint
+# Classes : activeSplinePoint
 #           activeTangent
 #           activeSpline, activeCubicSpline, activeQuadricSpline
 #           graphicsCurveForm, graphicsCubicForm, graphicsQuadricForm
 ###########################################################################################
 
 class activePoint(QGraphicsPathItem):
+
+    def __init__(self, x,y, persistent=False, rect=None, parentItem=None):
+        super().__init__()
+        self.setAcceptHoverEvents(True)
+        self.setParentItem(parentItem)
+        self.persistent = persistent
+        self.rect = rect
+        if self.rect is not None:
+            self.xmin, self.xmax, self.ymin, self.ymax = rect.left(), rect.right(), rect.top(), rect.bottom()
+            x = min(max(x, self.xmin), self.xmax)
+            y = min(max(y, self.ymin), self.ymax)
+        self.setPos(QPointF(x, y))
+        self.clicked = False
+        self.setPen(QPen(QColor(255, 255, 255), 2))
+        qpp = QPainterPath()
+        # coordinates are relative to activePoint
+        qpp.addEllipse(-4, -4, 8, 8)
+        self.setPath(qpp)
+
+    def mousePressEvent(self, e):
+        self.clicked = True
+
+    def mouseMoveEvent(self, e):
+        self.clicked = False
+        x, y = e.scenePos().x(), e.scenePos().y()
+        if self.rect is not None:
+            x = min(max(x, self.xmin), self.xmax)
+            y = min(max(y, self.ymin), self.ymax)
+        self.setPos(x, y)
+
+    def hoverEnterEvent(self, *args, **kwargs):
+        self.setPen(QPen(QColor(0, 255, 0), 2))
+        self.update()
+
+    def hoverLeaveEvent(self, *args, **kwargs):
+        self.setPen(QPen(QColor(255, 255, 255), 2))
+        self.update()
+
+class activeSplinePoint(activePoint):
     """
     Interactive (movable and removable) control point for a spline in a QGraphicsScene.
     """
@@ -62,26 +101,8 @@ class activePoint(QGraphicsPathItem):
         @param parentItem:
         @type parentItem: object
         """
-        super(activePoint, self).__init__()
+        super().__init__(x, y, persistent=persistent, rect=rect, parentItem=parentItem)
         self.tangent = None  # link to tangent : used only by qudratic spline
-        self.setAcceptHoverEvents(True)
-        self.setParentItem(parentItem)
-        self.persistent = persistent
-        self.rect = rect
-        if self.rect is not None:
-            self.xmin, self.xmax, self.ymin, self.ymax = rect.left(), rect.right(), rect.top(), rect.bottom()
-            x = min(max(x, self.xmin), self.xmax)
-            y = min(max(y, self.ymin), self.ymax)
-        self.setPos(QPointF(x,y))
-        self.clicked = False
-        self.setPen(QPen(QColor(255, 255, 255), 2))
-        qpp = QPainterPath()
-        # coordinates are relative to activePoint
-        qpp.addEllipse(-4,-4, 8, 8)
-        self.setPath(qpp)
-
-    def mousePressEvent(self, e):
-        self.clicked = True
 
     def mouseMoveEvent(self, e):
         self.clicked = False
@@ -125,17 +146,8 @@ class activePoint(QGraphicsPathItem):
         self.scene().cubicItem.updatePath()
         self.scene().cubicItem.updateLUTXY()
         self.scene().cubicItem.curveChanged.sig.emit()
-        #l = self.scene().layer
-        #l.applyToStack()  # call warpHistogram()
-        #l.parentImage.onImageChanged()
 
-    def hoverEnterEvent(self, *args, **kwargs):
-        self.setPen(QPen(QColor(0, 255, 0), 2))
-        self.update()
 
-    def hoverLeaveEvent(self, *args, **kwargs):
-        self.setPen(QPen(QColor(255, 255, 255), 2))
-        self.update()
 
 class activeTangent(QGraphicsPathItem):
     """
@@ -250,9 +262,9 @@ class activeSpline(QGraphicsPathItem):
     def initFixedPoints(self):
         axeSize=self.size
         rect = QRectF(0.0, -axeSize, axeSize, axeSize)
-        self.fixedPoints = [activePoint(0, 0, persistent=True, rect=rect, parentItem=self),
-                            activePoint(axeSize / 2, -axeSize / 2, rect=rect, parentItem=self),
-                            activePoint(axeSize, -axeSize, persistent=True, rect=rect, parentItem=self)]
+        self.fixedPoints = [activeSplinePoint(0, 0, persistent=True, rect=rect, parentItem=self),
+                            activeSplinePoint(axeSize / 2, -axeSize / 2, rect=rect, parentItem=self),
+                            activeSplinePoint(axeSize, -axeSize, persistent=True, rect=rect, parentItem=self)]
 
     def updateLUTXY(self):
         """
@@ -277,7 +289,7 @@ class activeSpline(QGraphicsPathItem):
         for i in range(count):
             point = QPointF()
             inStream >> point
-            self.fixedPoints.append(activePoint(point.x(), point.y(), parentItem=self))
+            self.fixedPoints.append(activeSplinePoint(point.x(), point.y(), parentItem=self))
         self.updatePath()
         self.updateLUTXY()
         return self
@@ -349,7 +361,7 @@ class activeCubicSpline(activeSpline) :
         if self.clicked:
             #add point
             p=e.pos()
-            a = activePoint(p.x(), p.y(), parentItem=self)
+            a = activeSplinePoint(p.x(), p.y(), parentItem=self)
             self.fixedPoints.append(a)
             self.fixedPoints.sort(key=lambda z : z.scenePos().x())
             self.updatePath()
@@ -459,7 +471,7 @@ class activeQuadricSpline(activeSpline) :
             self.scene().removeItem(item)
         for item in self.fixedTangents:
             self.scene().removeItem(item)
-        self.fixedPoints = [activePoint(x, -y, rect=rect, parentItem=self) for x,y in zip(a,b)]
+        self.fixedPoints = [activeSplinePoint(x, -y, rect=rect, parentItem=self) for x, y in zip(a, b)]
         # tangent normalization
         n = np.sqrt(1 + d * d)
         alpha = alpha / n  # converts the list to a ndarray
@@ -491,7 +503,7 @@ class activeQuadricSpline(activeSpline) :
         if self.clicked:
             #add point
             p=e.pos()
-            a = activePoint(p.x(), p.y(), parentItem=self)
+            a = activeSplinePoint(p.x(), p.y(), parentItem=self)
             self.fixedPoints.append(a)
             self.fixedPoints.sort(key=lambda z: z.scenePos().x())
             t = activeTangent(controlPoint=p+QPointF(0.7,-0.7) * self.halfTgLen, contactPoint=p, parentItem=self)

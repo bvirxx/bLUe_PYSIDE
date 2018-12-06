@@ -724,6 +724,7 @@ Screen</string>
      <addaction name="actionContrast_Correction"/>
      <addaction name="action3D_LUT_HSB"/>
      <addaction name="action3D_LUT"/>
+     <addaction name="actionChannel_Mixer"/>
      <addaction name="actionColor_Temperature"/>
      <addaction name="actionExposure_Correction"/>
      <addaction name="separator"/>
@@ -1127,6 +1128,11 @@ Screen</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+C</string>
+   </property>
+  </action>
+  <action name="actionChannel_Mixer">
+   <property name="text">
+    <string>Channel Mixer</string>
    </property>
   </action>
  </widget>
