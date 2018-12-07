@@ -42,7 +42,6 @@ from graphicsFilter import filterIndex
 from bLUeGui.histogramWarping import warpHistogram
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.colorCube import rgb2hspVec, hsp2rgbVec, hsv2rgbVec
-from bLUeGui.graphicsSpline import channelValues
 from bLUeGui.blend import blendLuminosity
 from bLUeGui.colorCIE import sRGB2LabVec, Lab2sRGBVec, rgb2rgbLinearVec, \
     rgbLinear2rgbVec, sRGB2XYZVec, sRGB_lin2XYZInverse, bbTemperature2RGB
@@ -52,9 +51,9 @@ from bLUeCore.kernel import getKernel
 from lutUtils import LUT3DIdentity
 from rawProcessing import rawPostProcess
 from settings import USE_TETRA
-from utils import boundingRect, UDict, checkeredImage
+from utils import boundingRect, UDict
 from bLUeCore.dwtDenoising import dwtDenoiseChan
-from bLUeCore.SavitskyGolay import SavitzkyGolayFilter
+
 
 class ColorSpace:
     notSpecified = -1; sRGB = 1
@@ -76,13 +75,13 @@ class vImage(bImage):
            - full (self),
            - thumbnail (self.thumb),
            - hald (self.hald) for LUT3D conversion,
-           - mask (self.mask, disabled by default).
+           - mask self.mask
     Note : for the sake of performance self.thumb and self.hald are not synchronized with the image: they are initialized
     and handled independently of the full size image.
     """
     ################
     # max thumb size :
-    # max(thimb.width(), thumb.height()) <= thumbsize
+    # max(thumb.width(), thumb.height()) <= thumbsize
     ################
     thumbSize = 1500
 
@@ -296,11 +295,10 @@ class vImage(bImage):
         # copy output into dest
         destBuf[:, :, :3][:, :, ::-1] = output  # assign src_ maskBuf for testing
 
-    def __init__(self, filename=None, cv2Img=None, QImg=None, mask=None, format=QImage.Format_ARGB32,
+    def __init__(self, filename=None, cv2Img=None, QImg=None, format=QImage.Format_ARGB32,
                  name='', colorSpace=-1, orientation=None, rating=5, meta=None, rawMetadata=None, profile=''):
         """
         With no parameter, builds a null image.
-        Mask is disabled by default.
         image is assumed to be in the color space sRGB : colorSpace value is used only as meta data.
         @param filename: path to file
         @type filename: str
@@ -308,8 +306,6 @@ class vImage(bImage):
         @type cv2Img: ndarray
         @param QImg: image
         @type QImg: QImage
-        @param mask: Image mask. Should have format and dims identical to those of image
-        @type mask: QImage
         @param format: QImage format (default QImage.Format_ARGB32)
         @type format: QImage.Format
         @param name: image name
@@ -325,14 +321,10 @@ class vImage(bImage):
         @param profile: embedded profile (default '')
         @type profile: str
         """
-        # color management : we assume the working profile is the image profile
-        # self.colorTransformation = icc.workToMonTransform
-        # current color managed image
-        # self.cmImage = None
         if rawMetadata is None:
             rawMetadata = {} # []  # TODO modified 21/11/18
         self.isModified = False
-        self.rect, self.mask, = None, mask
+        self.rect = None
         self.isCropped = False
         self.cropTop, self.cropBottom, self.cropLeft, self.cropRight = (0,) * 4
         self.isRuled = False
@@ -345,20 +337,16 @@ class vImage(bImage):
 
         # Caching flag
         self.cachesEnabled = True
-        #self.rPixmap = None
-        #self.hspbBuffer = None
-        #self.LabBuffer = None
-        #self.HSVBuffer = None
 
         # preview image.
-        # Conceptually, the layer stack can be seen as
+        # The layer stack can be seen as
         # the juxtaposition of two stacks:
         #  - a stack of full sized images
         #  - a stack of thumbnails
         # For the sake of performance, the two stacks are
-        # NOT synchronized : they are updated independently.
-        # Thus, after initialization, the thumbnail should
-        # NOT be calculated from the full size image.
+        # NOT synchronized. Thus, after initialization, the
+        # thumbnail should never be calculated from
+        # the full size image.
         self.thumb = None
         self.onImageChanged = lambda: 0
         if meta is None:
@@ -397,16 +385,7 @@ class vImage(bImage):
         if self.depth() != 32:
             raise ValueError('vImage : should be a 8 bits/channel color image')
         self.filename = filename if filename is not None else ''
-        # mask
-        self.maskIsEnabled = False
-        self.maskIsSelected = False
-        if self.mask is None:
-            self.mask = QImage(self.width(), self.height(), format)
-            # default : unmask all
-            self.mask.fill(self.defaultColor_UnMasked)
-        #self.updatePixmap()
-        #if type(self) in [QLayer]: # TODO moved to QLayer.__init__ 13/10/18 validate
-            # self.updatePixmap()
+
 
     def setImage(self, qimg):
         """
@@ -432,9 +411,9 @@ class vImage(bImage):
 
     def initThumb(self):
         """
-        Inits the image thumbnail as a QImage. In contrast to
+        Init the image thumbnail as a QImage. In contrast with
         maskedThumbContainer, thumb is never used as an input image, thus
-        there is no need for a type yielding color space buffers.
+        there is no need for a type featuring cache buffers.
         Layer thumbs own an attribute parentImage set by the overridden method QLayer.initThumb.
         For non adjustment layers, the thumbnail will never be updated. So, we
         perform a high quality scaling.
@@ -445,7 +424,7 @@ class vImage(bImage):
 
     def getThumb(self):
         """
-        inits image thumbnail if needed and returns it.
+        init image thumbnail if needed and return it.
         @return: thumbnail
         @rtype: QImage
         """
@@ -456,9 +435,7 @@ class vImage(bImage):
     def initHald(self):
         """
         Builds a hald image (as a QImage) from identity 3D LUT.
-    A hald can be viewed as a 3D LUT flattened and reshaped as an array representing an image.
-        Pixel channels keep the same order, and
-
+        A hald can be viewed as a 3D LUT flattened and reshaped as a 2D array.
         """
         if not self.cachesEnabled:
             return
@@ -500,7 +477,6 @@ class vImage(bImage):
         The thumbnail and hald are computed if they are not initialized.
         Otherwise, they are not updated, unless self.thumb is None
         or purgeThumb is True.
-        The method is overridden in QLayer
         @return: image
         @rtype: QImage
         """
@@ -531,7 +507,7 @@ class vImage(bImage):
     def getHspbBuffer(self):
         """
         return the image buffer in color mode HSpB.
-        The buffer is recalculated if needed and cached.
+        The buffer is recalculated when needed.
         @return: HSPB buffer
         @rtype: ndarray
         """
@@ -544,7 +520,7 @@ class vImage(bImage):
     def getLabBuffer(self):
         """
         returns the image buffer in color mode Lab.
-        The buffer is recalculated if needed and cached.
+        The buffer is recalculated when needed.
         @return: Lab buffer, L range is 0..1, a, b ranges are -128..+128
         @rtype: numpy ndarray, dtype np.float
         """

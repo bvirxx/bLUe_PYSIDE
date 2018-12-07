@@ -33,6 +33,7 @@ from dng import getDngProfileList, getDngProfileDict, dngProfileToneCurve, dngPr
 from utils import optionsWidget, UDict, QbLUeSlider, stateAwareQDockWidget
 from bLUeGui.multiplier import *
 
+
 class graphicsToneForm(graphicsSplineForm):
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, curveType='quadric'):

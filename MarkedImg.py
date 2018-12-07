@@ -616,15 +616,15 @@ class QLayer(vImage):
         # a bugged behavior of hasattr and getattr.
         # So, we don't add signals as first level class attributes.
         # Instead, we use instances of ad hoc signal containers (cf. utils.py)
-
+        ############################################################
         self.visibilityChanged = baseSignal_bool()
         self.colorPicked = baseSignal_Int2()
         self.selectionChanged = baseSignal_No()
-
         ###########################################################
         # when a geometric transformation is applied to the whole image
         # each layer must be replaced with a transformed layer, recorded in tLayer
         # and tLayer.parentLayer keeps a reference to the original layer.
+        ###########################################################
         self.tLayer = self
         self.parentLayer = self
         self.modified = False
@@ -636,8 +636,15 @@ class QLayer(vImage):
         # back link to parent image
         parentImage = kwargs.pop('parentImage', None)
         self.parentImage = weakProxy(parentImage)
-        # layer opacity is used by QPainter operations.
-        # Its value must be in the range 0.0...1.0
+        super().__init__(*args, **kwargs)  # don't move backwards
+        # mask init, must be done after after calling super().__init__
+        self.maskIsEnabled = False
+        self.maskIsSelected = False
+        if type(self) not in [QPresentationLayer]:
+            self.mask = QImage(self.width(), self.height(), QImage.Format_ARGB32)
+            # default : unmask all
+            self.mask.fill(self.defaultColor_UnMasked)
+        # layer opacity, range 0.0...1.0
         self.opacity = 1.0
         self.compositionMode = QPainter.CompositionMode_SourceOver
         # The next two attributes are used by adjustment layers only.
@@ -663,7 +670,6 @@ class QLayer(vImage):
         # clone dup layer shift and zoom  relative to current layer
         self.xAltOffset, self.yAltOffset = 0, 0
         self.AltZoom_coeff = 1.0
-        super().__init__(*args, **kwargs)
         self.updatePixmap()
 
 

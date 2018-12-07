@@ -1034,7 +1034,11 @@ def menuFile(name):
                 dlgWarn(str(e))
     # closing dialog : close opened document
     elif name == 'actionClose':
+        global pool
         closeFile()
+        pool.close()
+        pool.join()
+        pool = None
     updateStatus()
 
 
