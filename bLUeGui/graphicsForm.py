@@ -102,12 +102,13 @@ class baseGraphicsForm(QGraphicsView):
         super().__init__(parent=kwargs.get('parent', None))
         self.setAlignment(Qt.AlignTop)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        self.graphicsScene = QGraphicsScene()
-        self.setScene(self.graphicsScene)
         # back links to image
         self.targetImage = weakProxy(kwargs.get('targetImage', None))
         self.layer = weakProxy(kwargs.get('layer', None))
-        # for convenience
+        self.setScene(QGraphicsScene())
+        # convenience attributes
+        self.graphicsScene = weakProxy(self.scene())
+        self.graphicsScene.options = None
         self.graphicsScene.layer = self.layer
         self.graphicsScene.targetImage = self.targetImage
 

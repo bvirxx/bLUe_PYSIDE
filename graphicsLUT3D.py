@@ -893,7 +893,7 @@ class graphicsForm3DLUT(baseGraphicsForm):
         @param parent:
         @type parent:
         """
-        super().__init__(parent=parent)
+        super().__init__(targetImage=targetImage, layer=layer, parent=parent)
         self.mainForm = mainForm  # used by saveLUT()
         # context help tag
         self.helpId = "LUT3DForm"
@@ -911,11 +911,6 @@ class graphicsForm3DLUT(baseGraphicsForm):
         self.layer = weakProxy(layer)
         # currently selected grid node
         self.selected = None
-        self.graphicsScene = QGraphicsScene()
-        self.graphicsScene.options = None
-        self.setScene(self.graphicsScene)
-        # back to image layer
-        self.graphicsScene.layer = weakProxy(layer)
         # init LUT
         freshLUT3D = LUT3D(None, size=LUTSize, alpha=True)
         self.graphicsScene.lut = freshLUT3D
