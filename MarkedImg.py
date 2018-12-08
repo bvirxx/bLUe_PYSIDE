@@ -32,7 +32,7 @@ from PySide2.QtCore import QRect
 import exiftool
 from bLUeGui.memory import weakProxy
 
-from colorManagement import icc, convertQImage
+from colorManagement import icc, cmsConvertQImage
 from bLUeGui.bLUeImage import QImageBuffer, ndarrayToQImage
 from bLUeGui.dialog import dlgWarn
 from time import time
@@ -1191,16 +1191,16 @@ class QLayer(vImage):
 class QPresentationLayer(QLayer):
     """
     A presentation layer is used for color management. It is an
-    adjustment layer that does nothing. It does not belong to the layer stack :
+    adjustment layer whose output is equal to input. It does not belong to the layer stack :
     conceptually, it is "above" the stack, so it holds the composition of
     all stacked layers. It is the sole color managed layer, via its qPixmap
     attribute.
     """
 
     def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.qPixmap = None
         self.cmImage = None
-        super().__init__(*args, **kwargs)
 
     def inputImg(self):
         return self.parentImage.layersStack[self.getTopVisibleStackIndex()].getCurrentMaskedImage()
@@ -1220,21 +1220,14 @@ class QPresentationLayer(QLayer):
         @type maskOnly: boolean
         """
         currentImage = self.getCurrentImage()
-        # apply color management to presentation layer
+        # color manage
         if icc.COLOR_MANAGE and self.parentImage is not None and getattr(self, 'role', None) == 'presentation':
-            # CAUTION : reset alpha channel
-            img = convertQImage(currentImage, transformation=self.parentImage.colorTransformation)  # time 0.66 s for 15 Mpx.
-            # restore alpha channel
-            # img = img.convertToFormat(currentImage.format()) # TODO 15/10/18 dome by convertQImage()
-            buf0 = QImageBuffer(img)
-            buf1 = QImageBuffer(currentImage)
-            buf0[:,:,3] = buf1[:,:,3]
+            img = cmsConvertQImage(currentImage, cmsTransformation=self.parentImage.colorTransformation)
         else:
             img = currentImage
         qImg = img
         rImg = currentImage
         if self.maskIsEnabled:
-            #qImg = vImage.visualizeMask(qImg, self.mask, color=self.maskIsSelected, clipping=self.isClipping)
             rImg = vImage.visualizeMask(rImg, self.mask, color=self.maskIsSelected, clipping=self.isClipping)
         self.qPixmap = QPixmap.fromImage(qImg)
         self.rPixmap = QPixmap.fromImage(rImg)
@@ -1242,7 +1235,6 @@ class QPresentationLayer(QLayer):
 
     def update(self):
         self.applyNone()
-        # self.updatePixmap() done by applyNone()
 
 class QLayerImage(QLayer):
     """
