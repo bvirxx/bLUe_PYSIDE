@@ -33,7 +33,7 @@ import exiftool
 from bLUeGui.memory import weakProxy
 
 from colorManagement import icc, cmsConvertQImage
-from bLUeGui.bLUeImage import QImageBuffer, ndarrayToQImage
+from bLUeGui.bLUeImage import QImageBuffer, ndarrayToQImage, bImage
 from bLUeGui.dialog import dlgWarn
 from time import time
 
@@ -216,10 +216,9 @@ class mImage(vImage):
 
     def updatePixmap(self):
         """
-        Updates all pixmaps
-        Overrides vImage.updatePixmap()
+        Updates all layer pixmaps
         """
-        vImage.updatePixmap(self)
+        # vImage.updatePixmap(self)  # TODO removed 8/12/18 validate
         for layer in self.layersStack:
             vImage.updatePixmap(layer)
         self.prLayer.updatePixmap()
@@ -638,8 +637,6 @@ class QLayer(vImage):
         self.parentImage = weakProxy(parentImage)
         super().__init__(*args, **kwargs)  # don't move backwards
         # mask init, must be done after after calling super().__init__
-        self.maskIsEnabled = False
-        self.maskIsSelected = False
         if type(self) not in [QPresentationLayer]:
             self.mask = QImage(self.width(), self.height(), QImage.Format_ARGB32)
             # default : unmask all
@@ -655,10 +652,6 @@ class QLayer(vImage):
         # view is the dock widget containing
         # the graphics form associated with the layer
         self.view = None
-        # containers are initialized (only once) by
-        # getCurrentMaskedImage. Their type is QLayer
-        self.maskedImageContainer = None
-        self.maskedThumbContainer = None
         # undo/redo mask history
         self.historyListMask = historyList(size=5)
         # consecutive layers can be grouped.
@@ -819,7 +812,7 @@ class QLayer(vImage):
 
     def inputImg(self):
         """
-        Updates and returns maskedImageContainer and maskedThumbContainer
+        Update and return maskedImageContainer and maskedThumbContainer
         @return:
         @rtype: Qlayer
         """
@@ -845,29 +838,27 @@ class QLayer(vImage):
 
     def getCurrentMaskedImage(self):
         """
-        Reduces the layer stack up to self (included),
-        taking into account the masks. if self.isClipping is True
-        self.mask applies to all lower layers and to self only otherwise.
-        The method uses the non color managed rPixmaps to build the masked image.
+        Blend the layer stack up to self (included),
+        taking into account the masks. The method uses the
+        non color managed rPixmap to build the masked image.
         For convenience, mainly to be able to use its color space buffers,
-        the built image is of type QLayer. It is drawn on a container image,
-        created only once.
+        the built image is of type bImage. It is drawn on a container image,
+        instantiated only once.
         @return: masked image
-        @rtype: QLayer
+        @rtype: bImage
         """
-        # init containers if needed
+        # init containers if needed. They are instantiated only
+        # once and updated by drawing.
         if self.parentImage.useHald:
             return self.getHald()
         if self.maskedThumbContainer is None:
-            self.maskedThumbContainer = QLayer.fromImage(self.getThumb(), parentImage=self.parentImage)
+            self.maskedThumbContainer = bImage.fromImage(self.getThumb(), parentImage=self.parentImage)
         if self.maskedImageContainer is None:
-            self.maskedImageContainer = QLayer.fromImage(self, parentImage=self.parentImage)
+            self.maskedImageContainer = bImage.fromImage(self, parentImage=self.parentImage)
         if self.parentImage.useThumb:
             img = self.maskedThumbContainer
         else:
             img = self.maskedImageContainer
-        # no thumbnails for containers
-        img.getThumb = lambda: img
         # draw lower stack
         qp = QPainter(img)
         top = self.parentImage.getStackIndex(self)
@@ -879,12 +870,11 @@ class QLayer(vImage):
                 else:
                     qp.setOpacity(layer.opacity)
                     qp.setCompositionMode(layer.compositionMode)
-                if layer.rPixmap is not None:
-                    qp.drawPixmap(QRect(0,0,img.width(), img.height()), layer.rPixmap)
-                else:
-                    qp.drawImage(QRect(0,0,img.width(), img.height()), layer.getCurrentImage())
+                if layer.rPixmap is None:
+                    layer.rPixmap = QPixmap.fromImage(layer.getCurrentImage())  # TODO modified 9/12/18 validate
+                qp.drawPixmap(QRect(0,0,img.width(), img.height()), layer.rPixmap)
                 # clipping
-                if layer.isClipping and layer.maskIsEnabled: #TODO modified 23/06/18
+                if layer.isClipping and layer.maskIsEnabled:
                     # draw mask as opacity mask
                     # mode DestinationIn (set dest opacity to source opacity)
                     qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
@@ -892,7 +882,6 @@ class QLayer(vImage):
                     qp.drawImage(QRect(0, 0, img.width(), img.height()), omask)
         qp.end()
         return img
-
 
     def applyToStack(self):
         """
