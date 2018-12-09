@@ -20,12 +20,12 @@ from os.path import isfile
 from time import time
 import numpy as np
 
-from PySide2.QtCore import Qt, QSize, QPoint, QRectF, QMargins
+from PySide2.QtCore import Qt, QRectF, QMargins
 
 import cv2
 from copy import copy
 
-from PySide2.QtGui import QImageReader, QTransform, QBrush
+from PySide2.QtGui import QImageReader, QTransform
 from PySide2.QtWidgets import QApplication, QSplitter
 from PySide2.QtGui import QPixmap, QImage, QColor, QPainter
 from PySide2.QtCore import QRect
@@ -56,14 +56,18 @@ from bLUeCore.dwtDenoising import dwtDenoiseChan
 
 
 class ColorSpace:
-    notSpecified = -1; sRGB = 1
+    notSpecified = -1
+    sRGB = 1
+
 
 class metadataBag:
     """
     Container for vImage meta data
     """
     def __init__(self, name=''):
-        self.name, self.colorSpace, self.rawMetadata, self.profile, self.orientation, self.rating = name, ColorSpace.notSpecified, {}, '', None, 5
+        self.name, self.colorSpace, self.rawMetadata, self.profile, self.orientation, self.rating = \
+                                                              name, ColorSpace.notSpecified, {}, '', None, 5
+
 
 class vImage(bImage):
     """
@@ -75,8 +79,9 @@ class vImage(bImage):
            - full (self),
            - thumbnail (self.thumb),
            - hald (self.hald) for LUT3D conversion,
-           - mask self.mask
-    Note : for the sake of performance self.thumb and self.hald are not synchronized with the image: they are initialized
+           - mask (self.mask)
+    Note 1 : self.mask is instantiated only in the subclass QLayer.
+    Note 2 : for the sake of performance self.thumb and self.hald are not synchronized with the image: they are initialized
     and handled independently of the full size image.
     """
     ################
@@ -88,7 +93,6 @@ class vImage(bImage):
     ###############
     # default base color, painted as background color and to display transparent pixels
     ###############
-    #defaultBgColor = QColor(191, 191, 191,255)
     defaultBgColor = QColor(128, 128, 128, 255)
 
     ##############
@@ -120,12 +124,11 @@ class vImage(bImage):
         mask = mask.copy()
         buf = QImageBuffer(mask)
         # set alpha channel from red channel
-        buf[:, :, 3] = buf[:, :, 2] # np.where(buf[:, :, 2] == 0, 0, 255)  # TODO modified 28/11/18
+        buf[:, :, 3] = buf[:, :, 2]  # np.where(buf[:, :, 2] == 0, 0, 255)  # TODO modified 28/11/18
         return mask
 
-
     @classmethod
-    def color2ViewMask(clscls, mask):
+    def color2ViewMask(cls, mask):
         """
         Return a colored representation of mask.
         Opacity is 255.
@@ -139,9 +142,8 @@ class vImage(bImage):
         mask = mask.copy()
         buf = QImageBuffer(mask)
         # record alpha in G channel
-        buf[:, :, 1] = (255 - buf[:,:,2]) *0.75
+        buf[:, :, 1] = (255 - buf[:, :, 2]) * 0.75
         return mask
-
 
     @ classmethod
     def isAllMasked(cls, mask):
@@ -149,6 +151,7 @@ class vImage(bImage):
         if np.any(buf[:, :, 2] == cls.defaultColor_UnMasked.red()):
             return False
         return True
+
     @classmethod
     def isAllUnmasked(cls, mask):
         buf = QImageBuffer(mask)
@@ -156,19 +159,16 @@ class vImage(bImage):
             return False
         return True
 
-
     @classmethod
-    def visualizeMask(cls, img, mask, color=True, clipping=False, copy=True):
+    def visualizeMask(cls, img, mask, color=True, clipping=False, inplace=False):
         """
-        Return an image blending img and mask. If color is True (default)
-        the mask is drawn over the image with opacity 0.5, using its own colors.
-
-        If color is False (default True), the mask is first converted to a 0-1
+        Blend img with mask. By default, img is copied before blending.
+        If inplace is True no copy is made.
+        If color is True (default), the mask is drawn over the image with opacity 0.5,
+        using its own colors.
+        If color is False (default True), the mask is first converted to a 0/1
         opacity image and then drawn over the image using the mode destinationIn :
         destination opacity is set to that of source.
-
-        If copy is True (default) img is copied before the application of the mask.
-
         If clipping is True (default False), an opaque checker is drawn under the image.
         @param img:
         @type img: QImage
@@ -178,19 +178,19 @@ class vImage(bImage):
         @type color: bool
         @param clipping:
         @type clipping: bool
-        @param copy:
-        @type copy: boolean
+        @param inplace:
+        @type inplace: boolean
         @return:
         @rtype: QImage
         """
-        if copy:
+        # make a copy of img
+        if not inplace:
             img = QImage(img)
         qp = QPainter(img)
         # color mask
         if color:
             # draw mask over image
             qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
-            #qp.setOpacity(0.5)
             qp.drawImage(QRect(0, 0, img.width(), img.height()), cls.color2ViewMask(mask))
         # opacity mask
         else:
@@ -198,19 +198,8 @@ class vImage(bImage):
             qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
             omask = vImage.color2OpacityMask(mask)
             qp.drawImage(QRect(0, 0, img.width(), img.height()), omask)
-        """
-        # the image may have transparent or semi transparent pixels.
-        # If clipping is True, we draw an opaque checker under the image
-        # to set the overall opacity to 1.
-        if clipping:
-            qp.setOpacity(1.0)
-            qp.setCompositionMode(QPainter.CompositionMode_DestinationOver)
-            qp.setBrush(QBrush(checkeredImage()))
-            #qp.drawRect(QRect(0, 0, img.width(), img.height()))
-        """
         qp.end()
         return img
-
 
     @classmethod
     def maskDilate(cls, mask, iterations=1):
@@ -231,7 +220,7 @@ class vImage(bImage):
         return mask
 
     @classmethod
-    def maskErode(cls, mask,iterations=1):
+    def maskErode(cls, mask, iterations=1):
         """
         Copy the mask and reduces the masked region by applying
         a 5x5 max filter.
@@ -280,13 +269,12 @@ class vImage(bImage):
             return
         # set white mask
         bt, bb, bl, br = inRect.top(), inRect.bottom(), inRect.left(), inRect.right()
-        src_maskBuf = np.dstack((tmp, tmp, tmp)).astype(np.uint8)[bt:bb+1,bl:br+1,:]
-        #center = (bl + bRect.width() // 2, bt + bRect.height() // 2)
-        sourceBuf = QImageBuffer(source)[bt:bb+1,bl:br+1,:]
-        destBuf = QImageBuffer(dest)[bt:bb+1,bl:br+1,:]
+        src_maskBuf = np.dstack((tmp, tmp, tmp)).astype(np.uint8)[bt:bb+1, bl:br+1, :]
+        sourceBuf = QImageBuffer(source)[bt:bb+1, bl:br+1, :]
+        destBuf = QImageBuffer(dest)[bt:bb+1, bl:br+1, :]
         # The cloning center is the center of oRect. We look for its coordinates
         # relative to inRect
-        center = (oRect.width()//2 + oRect.left() - inRect.left() , oRect.height()//2 + oRect.top() - inRect.top())
+        center = (oRect.width()//2 + oRect.left() - inRect.left(), oRect.height()//2 + oRect.top() - inRect.top())
         output = cv2.seamlessClone(sourceBuf[:, :, :3][:, :, ::-1],  # source
                                    destBuf[:, :, :3][:, :, ::-1],    # dest
                                    src_maskBuf,
@@ -322,7 +310,7 @@ class vImage(bImage):
         @type profile: str
         """
         if rawMetadata is None:
-            rawMetadata = {} # []  # TODO modified 21/11/18
+            rawMetadata = {}  # []  # TODO modified 21/11/18
         self.isModified = False
         self.rect = None
         self.isCropped = False
@@ -356,7 +344,7 @@ class vImage(bImage):
                                                                             name, colorSpace, rawMetadata, profile, orientation, rating
         else:
             self.meta = meta
-        if (filename is None and cv2Img is None and QImg is None):
+        if filename is None and cv2Img is None and QImg is None:
             # create a null image
             super().__init__()
         if filename is not None:
@@ -386,7 +374,6 @@ class vImage(bImage):
             raise ValueError('vImage : should be a 8 bits/channel color image')
         self.filename = filename if filename is not None else ''
 
-
     def setImage(self, qimg):
         """
         copies qimg to image. Does not update metadata.
@@ -407,7 +394,7 @@ class vImage(bImage):
 
     def cameraModel(self):
         tmp = [value for key, value in self.meta.rawMetadata.items() if 'model' in key.lower()]
-        return tmp[0] if tmp else ''  #  self.meta.rawMetadata.get('EXIF:Model', '')  # UniqueCameraModel works for dng
+        return tmp[0] if tmp else ''  # self.meta.rawMetadata.get('EXIF:Model', '')  # UniqueCameraModel works for dng
 
     def initThumb(self):
         """
@@ -439,10 +426,10 @@ class vImage(bImage):
         """
         if not self.cachesEnabled:
             return
-        s = int((LUT3DIdentity.size )**(3.0/2.0)) + 1
+        s = int((LUT3DIdentity.size)**(3.0/2.0)) + 1
         buf0 = LUT3DIdentity.toHaldArray(s, s).haldBuffer
         buf1 = QImageBuffer(self.Hald)
-        buf1[:,:,:]=buf0
+        buf1[:, :, :] = buf0
         buf1[:, :, 3] = 255  # TODO added 15/11/17 for coherence with the overriding function QLayer.initHald()
 
     def resize_coeff(self, widget):
@@ -511,10 +498,10 @@ class vImage(bImage):
         @return: HSPB buffer
         @rtype: ndarray
         """
-        #inputImage = self.inputImgFull().getCurrentImage()
-        if self.hspbBuffer is None  or not self.cachesEnabled:
+        # inputImage = self.inputImgFull().getCurrentImage()
+        if self.hspbBuffer is None or not self.cachesEnabled:
             currentImage = self.getCurrentImage()
-            self.hspbBuffer = rgb2hspVec(QImageBuffer(currentImage)[:,:,:3][:,:,::-1])
+            self.hspbBuffer = rgb2hspVec(QImageBuffer(currentImage)[:, :, :3][:, :, ::-1])
         return self.hspbBuffer
 
     def getLabBuffer(self):
@@ -524,7 +511,7 @@ class vImage(bImage):
         @return: Lab buffer, L range is 0..1, a, b ranges are -128..+128
         @rtype: numpy ndarray, dtype np.float
         """
-        if self.LabBuffer is None  or not self.cachesEnabled:
+        if self.LabBuffer is None or not self.cachesEnabled:
             currentImage = self.getCurrentImage()
             self.LabBuffer = sRGB2LabVec(QImageBuffer(currentImage)[:, :, :3][:, :, ::-1])
         return self.LabBuffer
@@ -537,7 +524,7 @@ class vImage(bImage):
         @return: HSV buffer
         @rtype: numpy ndarray, dtype np.float
         """
-        if self.HSVBuffer is None  or not self.cachesEnabled:
+        if self.HSVBuffer is None or not self.cachesEnabled:
             currentImage = self.getCurrentImage()
             self.HSVBuffer = cv2.cvtColor(QImageBuffer(currentImage)[:, :, :3], cv2.COLOR_BGR2HSV)
         return self.HSVBuffer
@@ -550,42 +537,16 @@ class vImage(bImage):
         """
         self.isModified = b
 
-    def cacheInvalidate(self):
-        """
-        Invalidate cache buffers. The method is
-        called in applyToStack for each layer after layer.execute
-        """
-        self.hspbBuffer = None
-        self.LabBuffer = None
-        self.HSVBuffer = None
-        if hasattr(self, 'maskedImageContainer'):
-            if self.maskedImageContainer is not None:
-                self.maskedImageContainer.cacheInvalidate()
-        if hasattr(self, 'maskedThumbContainer'):
-            if self.maskedThumbContainer is not None:
-                self.maskedThumbContainer.cacheInvalidate()
+
 
     def updatePixmap(self, maskOnly=False):
         """
-        Updates the rPixmap cache.
-
-        if self.maskIsEnabled is False, the mask is not shown.
-        If self.maskIsEnabled is True, then
-            - if self.maskIsSelected is True, the mask is drawn over
-              the layer as a color and opacity mask, with its own
-              pixel color and inverse opacity.
-            - if self.maskIsSelected is False, the mask is drawn as an
-              opacity mask, setting image opacity to that of mask
-              (mode DestinationIn).
-        NOTE : the fully masked part of the image corresponds to
-        mask opacity = 0.
-        @param maskOnly: not used yet
+        For the sake of performance and memory usage,
+        rPixmap is instantiated only in the subclass QLayer.
+        @param maskOnly: not used
         @type maskOnly: boolean
         """
-        rImg = self.getCurrentImage()
-        if self.maskIsEnabled:
-            rImg = vImage.visualizeMask(rImg, self.mask, color=self.maskIsSelected, clipping=self.isClipping)
-        self.rPixmap = QPixmap.fromImage(rImg)
+        pass
 
     def resetMask(self, maskAll=False, alpha=255):
         """
@@ -610,7 +571,7 @@ class vImage(bImage):
         Inverts mask
         """
         buf = QImageBuffer(self.mask)
-        buf[:, :,2] = 255 - buf[:,:,2]  #np.where(buf[:,:,2]==128, 0, 128)  # TODO modified 28/11/18
+        buf[:, :, 2] = 255 - buf[:, :, 2]  # np.where(buf[:,:,2]==128, 0, 128)  # TODO modified 28/11/18
 
     def resize(self, pixels, interpolation=cv2.INTER_CUBIC):
         """
@@ -634,7 +595,7 @@ class vImage(bImage):
         rszd = vImage(cv2Img=cv2Img, meta=copy(self.meta), format=self.format())
         # prevent buffer from garbage collector
         rszd.dummy = cv2Img
-        #resize rect and mask
+        # resize rect and mask
         if self.rect is not None:
             rszd.rect = QRect(self.rect.left() * hom, self.rect.top() * hom, self.rect.width() * hom, self.rect.height() * hom)
         if self.mask is not None:
@@ -664,7 +625,7 @@ class vImage(bImage):
         """
         bufIn = QImageBuffer(self.inputImg())
         bufOut = QImageBuffer(self.getCurrentImage())
-        bufOut[:,:,:] = bufIn
+        bufOut[:, :, :] = bufIn
         self.updatePixmap()
 
     def applyCloning(self, seamless=True):
@@ -686,7 +647,6 @@ class vImage(bImage):
             return
         ########################
         # draw the translated and zoomed input image on the output image
-        #if not self.cloned :
         # erase previous transformed image : reset imgOut to ImgIn
         qp = QPainter(imgOut)
         qp.setCompositionMode(QPainter.CompositionMode_Source)
@@ -707,7 +667,7 @@ class vImage(bImage):
                 src = imgOut
                 vImage.seamlessMerge(imgInc, src, self.mask, self.cloningMethod)
                 bufOut = QImageBuffer(imgOut)
-                bufOut[:, :, :3] = QImageBuffer(imgInc)[:,:,:3]
+                bufOut[:, :, :3] = QImageBuffer(imgInc)[:, :, :3]
             finally:
                 self.parentImage.setModified(True)
                 QApplication.restoreOverrideCursor()
@@ -739,7 +699,7 @@ class vImage(bImage):
         src = self.parentImage.layersStack[self.sourceIndex].getCurrentImage()
         vImage.seamlessMerge(imgInc, src, self.mask, self.cloningMethod)
         bufOut = QImageBuffer(imgOut)
-        bufOut[:, :, :3] = QImageBuffer(imgInc)[:,:,:3]
+        bufOut[:, :, :3] = QImageBuffer(imgInc)[:, :, :3]
         self.updatePixmap()
 
     def applyGrabcut(self, nbIter=2, mode=cv2.GC_INIT_WITH_MASK):
@@ -760,7 +720,7 @@ class vImage(bImage):
             inBuf = QImageBuffer(inputImg)
             outputImg = self.getCurrentImage()
             outBuf = QImageBuffer(outputImg)
-            outBuf[:,:,:] = inBuf
+            outBuf[:, :, :] = inBuf
             self.updatePixmap()
             return
         ##################################################################
@@ -785,8 +745,8 @@ class vImage(bImage):
             scaledMask = self.mask
         scaledMaskBuf = QImageBuffer(scaledMask)
         # Only actually painted pixels of the mask must be considered
-        finalMask[(scaledMaskBuf[:, :, 2] > 100 )* (scaledMaskBuf[:,:,1]!=99)] = cv2.GC_FGD  # 99=defaultColorInvalid R=128 unmasked R=0 masked
-        finalMask[(scaledMaskBuf[:,:, 2]==0) *(scaledMaskBuf[:, :, 1] != 99)] = cv2.GC_BGD
+        finalMask[(scaledMaskBuf[:, :, 2] > 100) * (scaledMaskBuf[:, :, 1] != 99)] = cv2.GC_FGD  # 99=defaultColorInvalid R=128 unmasked R=0 masked
+        finalMask[(scaledMaskBuf[:, :, 2] == 0) * (scaledMaskBuf[:, :, 1] != 99)] = cv2.GC_BGD
         # save a copy of the mask
         finalMask_save = finalMask.copy()
         # mandatory : at least one (FGD or PR_FGD)  pixel and one (BGD or PR_BGD) pixel
@@ -808,7 +768,7 @@ class vImage(bImage):
         # apply grabcut function
         bGrabcut(inputBuf[:, :, :3], finalMask, None,
                  bgdmodel, fgdmodel, nbIter, mode)
-        print ('grabcut_mtd time : %.2f' % (time()-t0))
+        print('grabcut_mtd time : %.2f' % (time()-t0))
         """
         t1 = time()
         cv2.grabCut(inputBuf[:, :, :3], finalMask_test, None,  # QRect2tuple(img0_r.rect),
@@ -816,14 +776,14 @@ class vImage(bImage):
         print('grabcut time : %.2f' % (time() - t1))
         """
         # keep unmodified initial FGD and BGD pixels : #TODO 22/06/18 alraedy done by the cv2 function grabcut
-        finalMask = np.where((finalMask_save==cv2.GC_BGD) + (finalMask_save == cv2.GC_FGD), finalMask_save, finalMask)
+        finalMask = np.where((finalMask_save == cv2.GC_BGD) + (finalMask_save == cv2.GC_FGD), finalMask_save, finalMask)
 
         # set opacity (255=background, 0=foreground)
         #
         finalOpacity = np.where((finalMask == cv2.GC_FGD) + (finalMask == cv2.GC_PR_FGD), 255, 0)
         buf = QImageBuffer(scaledMask)
         # set the red channel of the mask
-        buf[:,:,2] = np.where(finalOpacity==255, 255, 0) # 128, 0)  # TODO modified 29/11/18
+        buf[:, :, 2] = np.where(finalOpacity == 255, 255, 0)  # 128, 0)  # TODO modified 29/11/18
         invalidate_contour = True  # always True (for testing purpose)
         if invalidate_contour:
             # without manual corrections, only the contour region may be updated
@@ -845,7 +805,7 @@ class vImage(bImage):
             buf[:, :, 2][innerCbMask] = 0
         else:
             # invalidate PR_FGD and PR_BGD pixels, validate others
-            buf[:,:,1] = np.where((finalMask!=cv2.GC_FGD) * (finalMask!=cv2.GC_BGD), 99, 0)
+            buf[:, :, 1] = np.where((finalMask != cv2.GC_FGD) * (finalMask != cv2.GC_BGD), 99, 0)
         if self.size() != scaledMask.size():
             self.mask = scaledMask.scaled(self.size())
         else:
@@ -857,8 +817,8 @@ class vImage(bImage):
         name = formOptions.intNames[0]
         item = formOptions.items[name]
         formOptions.checkOption(name, checked=self.isClipping, callOnSelect=False)
-        #item.setCheckState(Qt.Checked if self.isClipping else Qt.Unchecked)
-        #formOptions.options[name] = True if self.isClipping else False
+        # item.setCheckState(Qt.Checked if self.isClipping else Qt.Unchecked)
+        # formOptions.options[name] = True if self.isClipping else False
         # forward the alpha channel
         # TODO 23/06/18 should we forward ?
         self.updatePixmap()
@@ -867,7 +827,7 @@ class vImage(bImage):
         """
         Inverts image
         """
-        bufIn = QImageBuffer(self.inputImg())[:,:,:3]
+        bufIn = QImageBuffer(self.inputImg())[:, :, :3]
         # get orange mask from negative brightest (unexposed) pixels
         temp = np.sum(bufIn, axis=2)
         ind = np.argmax(temp)
@@ -875,26 +835,21 @@ class vImage(bImage):
         Mask0, Mask1, Mask2 = bufIn[ind]
         if self.view is not None:
             form = self.getGraphicsForm()
-            Mask0, Mask1, Mask2 =  form.Bmask, form.Gmask, form.Rmask
+            Mask0, Mask1, Mask2 = form.Bmask, form.Gmask, form.Rmask
         currentImage = self.getCurrentImage()
         bufOut = QImageBuffer(currentImage)
         # eliminate mask
         tmp = (bufIn[:, :, :3] / [Mask0, Mask1, Mask2]) * 255
         np.clip(tmp, 0, 255, out=tmp)
-        bufOut[:, :, :3] = 255.0 - tmp #(bufIn[:, :, :3] / [Mask0, Mask1, Mask2]) * 255
+        bufOut[:, :, :3] = 255.0 - tmp  # (bufIn[:, :, :3] / [Mask0, Mask1, Mask2]) * 255
         self.updatePixmap()
 
     def applyExposure(self, options):
         """
-        Applies exposure correction 2**exposureCorrection
+        Applies exposure correction
         to the linearized RGB channels.
-
-        @param exposureCorrection:
-        @type exposureCorrection: float
         @param options:
         @type options:
-        @return:
-        @rtype:
         """
         form = self.getGraphicsForm()
         exposureCorrection = form.expCorrection
@@ -906,11 +861,11 @@ class vImage(bImage):
             self.updatePixmap()
             return
         bufIn = QImageBuffer(self.inputImg())
-        buf = bufIn[:,:,:3][:,:,::-1]
+        buf = bufIn[:, :, :3][:, :, ::-1]
         # convert to linear
         buf = rgb2rgbLinearVec(buf)
         # apply correction
-        buf[:,:,:] = buf * (2 ** exposureCorrection)
+        buf[:, :, :] = buf * (2 ** exposureCorrection)
         np.clip(buf, 0.0, 1.0, out=buf)
         # convert back to RGB
         buf = rgbLinear2rgbVec(buf)
@@ -919,7 +874,7 @@ class vImage(bImage):
         ndImg1a = QImageBuffer(currentImage)
         ndImg1a[:, :, :3][:, :, ::-1] = buf
         # forward the alpha channel
-        ndImg1a[:, :, 3] = bufIn[:,:,3]
+        ndImg1a[:, :, 3] = bufIn[:, :, 3]
         self.updatePixmap()
 
     def applyMixer(self, options):
@@ -931,7 +886,7 @@ class vImage(bImage):
         # mix channels
         currentImage = self.getCurrentImage()
         bufOut = QImageBuffer(currentImage)
-        buf = np.tensordot(buf, form.mixerMatrix, axes=(-1,-1))
+        buf = np.tensordot(buf, form.mixerMatrix, axes=(-1, -1))
         np.clip(buf, 0, 1.0, out=buf)
         # convert back to RGB
         buf = rgbLinear2rgbVec(buf)
@@ -942,7 +897,7 @@ class vImage(bImage):
 
     def applyTransForm(self, options):
         """
-        Applies the geometric transformation defined by source and target quads
+        Apply the geometric transformation defined by source and target quads
         @param options:
         @type options:
         """
@@ -982,12 +937,12 @@ class vImage(bImage):
         # as black we set their alpha value to 255:
         if options['Transparent']:
             buf = QImageBuffer(img)
-            buf[:,:,3] = np.where(buf[:,:,3]==0, 255, buf[:,:,3])
+            buf[:, :, 3] = np.where(buf[:, :, 3] == 0, 255, buf[:, :, 3])
         if img.isNull():
             print('applyTransform : transformation fails')
             self.tool.restore()
             return
-        buf0[:,:,:] = QImageBuffer(img)
+        buf0[:, :, :] = QImageBuffer(img)
         self.updatePixmap()
 
     def applyImage(self, options):
@@ -1027,30 +982,30 @@ class vImage(bImage):
         if adjustForm.options['Wavelets']:
             noisecorr *= 100
             bufLab = cv2.cvtColor(buf01, cv2.COLOR_RGB2Lab)
-            L = dwtDenoiseChan(bufLab, chan=0, thr=noisecorr, thrmode='wiener') #, level=8 if self.parentImage.useThumb else 11)
-            A = dwtDenoiseChan(bufLab, chan=1, thr=noisecorr, thrmode='wiener') # level=8 if self.parentImage.useThumb else 11)
-            B = dwtDenoiseChan(bufLab, chan=2, thr=noisecorr, thrmode='wiener') # level=8 if self.parentImage.useThumb else 11)
+            L = dwtDenoiseChan(bufLab, chan=0, thr=noisecorr, thrmode='wiener')  # level=8 if self.parentImage.useThumb else 11)
+            A = dwtDenoiseChan(bufLab, chan=1, thr=noisecorr, thrmode='wiener')  # level=8 if self.parentImage.useThumb else 11)
+            B = dwtDenoiseChan(bufLab, chan=2, thr=noisecorr, thrmode='wiener')  # level=8 if self.parentImage.useThumb else 11)
             np.clip(L, 0, 255, out=L)
             np.clip(A, 0, 255, out=A)
             np.clip(B, 0, 255, out=B)
             bufLab = np.dstack((L, A, B))
             # back to RGB
-            ROI1[:,:,::-1] = cv2.cvtColor(bufLab.astype(np.uint8), cv2.COLOR_Lab2RGB)
+            ROI1[:, :, ::-1] = cv2.cvtColor(bufLab.astype(np.uint8), cv2.COLOR_Lab2RGB)
         elif adjustForm.options['Bilateral']:
-           ROI1[:,:,::-1] = cv2.bilateralFilter(buf01,
-                                         9 if self.parentImage.useThumb else 15,   # 21:5.5s, 15:3.5s, diameter of
-                                                                                   # (coordinate) pixel neighborhood,
-                                                                                   # 5 is the recommended value for fast processing
-                                         10 * adjustForm.noiseCorrection,          # std deviation sigma
-                                                                                   # in color space,  100 middle value
-                                         50 if self.parentImage.useThumb else 150, # std deviation sigma
-                                                                                   # in coordinate space,  100 middle value
+            ROI1[:, :, ::-1] = cv2.bilateralFilter(buf01,
+                                         9 if self.parentImage.useThumb else 15,    # 21:5.5s, 15:3.5s, diameter of
+                                                                                    # (coordinate) pixel neighborhood,
+                                                                                    # 5 is the recommended value for fast processing
+                                         10 * adjustForm.noiseCorrection,           # std deviation sigma
+                                                                                    # in color space,  100 middle value
+                                         50 if self.parentImage.useThumb else 150,  # std deviation sigma
+                                                                                    # in coordinate space,  100 middle value
                                          )
         elif adjustForm.options['NLMeans']:
-            ROI1[:,:,::-1] = cv2.fastNlMeansDenoisingColored(buf01, None, 1+noisecorr, 1+noisecorr, 7, 21) # hluminance, hcolor,  last params window sizes 7, 21 are recommended values
+            ROI1[:, :, ::-1] = cv2.fastNlMeansDenoisingColored(buf01, None, 1+noisecorr, 1+noisecorr, 7, 21)  # hluminance, hcolor,  last params window sizes 7, 21 are recommended values
 
         # forward the alpha channel
-        buf1[:,:,3] = buf0[:,:,3]
+        buf1[:, :, 3] = buf0[:, :, 3]
         self.updatePixmap()
 
     def applyRawPostProcessing(self, pool=None):
@@ -1065,16 +1020,16 @@ class vImage(bImage):
         An Exception AttributeError is raised if rawImage
         is not an attribute of self.parentImage.
         """
-        if self.parentImage.isHald :
+        if self.parentImage.isHald:
             raise ValueError('Cannot build a 3D LUT from raw stack')
 
         rawPostProcess(self, pool=pool)
 
     def applyContrast(self, version='HSV'):
         """
-        Applies contrast saturation and brightness corrections.
+        Apply contrast, saturation and brightness corrections.
         If version is 'HSV' (default), the
-        image is converted to HSV and the correction is applied to
+        image is first converted to HSV and next the correction is applied to
         the S and V channels. Otherwise, the Lab color space is used.
         @param version:
         @type version:
@@ -1088,60 +1043,62 @@ class vImage(bImage):
         tmpBuf = QImageBuffer(inputImage)
         currentImage = self.getCurrentImage()
         ndImg1a = QImageBuffer(currentImage)
-        # neutral point : forward changes
+        # neutral point : by pass
         if contrastCorrection == 0 and satCorrection == 0 and brightnessCorrection == 0:
             ndImg1a[:, :, :] = tmpBuf
             self.updatePixmap()
             return
         ##########################
-        # Lab mode, slower than HSV
+        # Lab mode (slower than HSV)
         ##########################
-        if version=='Lab':
-            # get l channel, range is 0..1
+        if version == 'Lab':
+            # get l channel (range 0..1)
             LBuf = inputImage.getLabBuffer().copy()
             if brightnessCorrection != 0:
                 alpha = (-adjustForm.brightnessCorrection + 1.0)
                 # tabulate x**alpha
-                LUT = np.power(np.arange(256) / 255, alpha)
+                LUT = np.power(np.arange(256) / 255.0, alpha)
                 # convert L to L**alpha
-                LBuf[:, :, 0] = LUT[LBuf[:, :, 0]]
-            if contrastCorrection >0:
+                LBuf[:, :, 0] = LUT[(LBuf[:, :, 0] * 255.0).astype(np.uint8)]
+            # contrast
+            if contrastCorrection > 0:
                 # CLAHE
                 if options['CLAHE']:
                     if self.parentImage.isHald:
                         raise ValueError('cannot build 3D LUT from CLAHE ')
                     clahe = cv2.createCLAHE(clipLimit=contrastCorrection, tileGridSize=(8, 8))
                     clahe.setClipLimit(contrastCorrection)
-                    res = clahe.apply((LBuf[:,:,0] * 255.0).astype(np.uint8)) /255
+                    res = clahe.apply((LBuf[:, :, 0] * 255.0).astype(np.uint8)) / 255.0
                 # warping
                 else:
                     if self.parentImage.isHald and not options['manualCurve']:
                         raise ValueError('Check option Show Contrast Curve in Cont/Bright/Sat layer')
                     auto = self.autoSpline and not self.parentImage.isHald
-                    res,a,b,d,T = warpHistogram(LBuf[:,:,0], warp=contrastCorrection, preserveHigh=options['High'],
-                                                spline = None if auto else self.getMmcSpline())
+                    res, a, b, d, T = warpHistogram(LBuf[:, :, 0], warp=contrastCorrection, preserveHigh=options['High'],
+                                                spline=None if auto else self.getMmcSpline())
                     # show the spline viewer
                     if self.autoSpline and options['manualCurve']:
                         self.getGraphicsForm().setContrastSpline(a, b, d, T)
-                        self.autoSpline = False #mmcSpline = self.getGraphicsForm().scene().cubicItem # caution : misleading name for a quadratic spline !
-                LBuf[:,:,0] = res
+                        self.autoSpline = False
+                LBuf[:, :, 0] = res
+            # saturation
             if satCorrection != 0:
-                slope = max(0.1, adjustForm.satCorrection / 25 + 1)  # ran# show the splinege 0.1..3
+                slope = max(0.1, adjustForm.satCorrection / 25 + 1)
                 # multiply a and b channels
                 LBuf[:, :, 1:3] *= slope
                 LBuf[:, :, 1:3] = np.clip(LBuf[:, :, 1:3], -127, 127)
             # back to RGB
-            sRGBBuf = Lab2sRGBVec(LBuf)  # use opencv cvtColor
+            sRGBBuf = Lab2sRGBVec(LBuf)  # use cv2.cvtColor
         ###########
-        # HSV mode (default)
+        # HSV mode
         ###########
         else:
-            # get HSV buffer, H, S, V are in range 0..255
+            # get HSV buffer (H, S, V are in range 0..255)
             HSVBuf = inputImage.getHSVBuffer().copy()
             if brightnessCorrection != 0:
-                alpha = 1.0 / (0.501 + adjustForm.brightnessCorrection)  - 1.0  # approx. map -0.5...0.0...0.5 --> +inf...1.0...0.0
+                alpha = 1.0 / (0.501 + adjustForm.brightnessCorrection) - 1.0  # approx. map -0.5...0.0...0.5 --> +inf...1.0...0.0
                 # tabulate x**alpha
-                LUT = np.power(np.arange(256) / 255, alpha) * 255
+                LUT = np.power(np.arange(256) / 255, alpha) * 255.0
                 # convert V to V**alpha
                 HSVBuf[:, :, 2] = LUT[HSVBuf[:, :, 2]]  # faster than take
             if contrastCorrection > 0:
@@ -1156,15 +1113,15 @@ class vImage(bImage):
                 else:
                     if self.parentImage.isHald and not options['manualCurve']:
                         raise ValueError('Check option Show Contrast Curve in Cont/Bright/Sat layer')
-                    buf32 = HSVBuf[:,:,2].astype(np.float)/255
+                    buf32 = HSVBuf[:, :, 2].astype(np.float) / 255
                     auto = self.autoSpline and not self.parentImage.isHald
-                    res,a,b,d,T = warpHistogram(buf32, warp=contrastCorrection, preserveHigh=options['High'],
-                                                spline=None if auto else self.getMmcSpline())
+                    res, a, b, d, T = warpHistogram(buf32, warp=contrastCorrection, preserveHigh=options['High'],
+                                                    spline=None if auto else self.getMmcSpline())
                     res = (res*255.0).astype(np.uint8)
                     # show the spline viewer
                     if self.autoSpline and options['manualCurve']:
                         self.getGraphicsForm().setContrastSpline(a, b, d, T)
-                        self.autoSpline = False # TODO added 18/07/18
+                        self.autoSpline = False
                 HSVBuf[:, :, 2] = res
             if satCorrection != 0:
                 alpha = 1.0 / (0.501 + adjustForm.satCorrection) - 1.0  # approx. map -0.5...0.0...0.5 --> +inf...1.0...0.0
@@ -1174,23 +1131,23 @@ class vImage(bImage):
                 HSVBuf[:, :, 1] = LUT[HSVBuf[:, :, 1]]  # faster than take
             # back to RGB
             sRGBBuf = cv2.cvtColor(HSVBuf, cv2.COLOR_HSV2RGB)
-        ndImg1a[:, :, :3][:,:,::-1] = sRGBBuf
+        ndImg1a[:, :, :3][:, :, ::-1] = sRGBBuf
         # forward the alpha channel
-        ndImg1a[:, :,3] = tmpBuf[:,:,3]
+        ndImg1a[:, :, 3] = tmpBuf[:, :, 3]
         self.updatePixmap()
 
     def apply1DLUT(self, stackedLUT, options=None):
         """
-        Applies 1D LUTS to RGB channels (one for each channel)
-        @param stackedLUT: array of color values (in range 0..255) : a row for each RGB channel
-        @type stackedLUT : ndarray, shape (3, 256) dtype int
-        @param options: not used yet
+        Apply 1D LUTS to R, G, B channels (one for each channel)
+        @param stackedLUT: array of color values (in range 0..255) : a row for each R, G, B channel
+        @type stackedLUT : ndarray, shape=(3, 256), dtype=int
+        @param options:
         @type options : dictionary
         """
         if options is None:
             options = UDict()
-        # neutral point
-        if not np.any(stackedLUT - np.arange(256)):  # last dims are equal : broadcast is working
+        # neutral point: by pass
+        if not np.any(stackedLUT - np.arange(256)):  # last dims are equal : broadcast works
             buf1 = QImageBuffer(self.inputImg())
             buf2 = QImageBuffer(self.getCurrentImage())
             buf2[:, :, :] = buf1
@@ -1198,19 +1155,19 @@ class vImage(bImage):
             return
         inputImage = self.inputImg()
         currentImage = self.getCurrentImage()
-        # get image buffers (BGR order on intel arch.)
+        # get image buffers
         ndImg0a = QImageBuffer(inputImage)
         ndImg1a = QImageBuffer(currentImage)
-        ndImg0 = ndImg0a[:,:,:3]
+        ndImg0 = ndImg0a[:, :, :3]
         ndImg1 = ndImg1a[:, :, :3]
         # apply LUTS to channels
-        #rList = np.array([2,1,0]) #BGR
         s = ndImg0[:,:,0].shape
-        for c in range(3): # 0.36s for 15Mpx
-            ndImg1[:, :, c] = np.take(stackedLUT[2-c,:], ndImg0[:,:,c].reshape((-1,))).reshape(s)
+        for c in range(3):  # 0.36s for 15Mpx
+            ndImg1[:, :, c] = np.take(stackedLUT[2-c, :], ndImg0[:, :, c].reshape((-1,))).reshape(s)
+        # rList = np.array([2,1,0])  # B, G, R
         # ndImg1[:, :, :] = stackedLUT[rList, ndImg0]  # last dims of index arrays are equal : broadcast works. slower 0.66s for 15Mpx
-        # forward the alpha channel
-        ndImg1a[:,:,3] = ndImg0a[:,:,3]
+        # forward alpha channel
+        ndImg1a[:, :, 3] = ndImg0a[:, :, 3]
         self.updatePixmap()
 
     def applyLab1DLUT(self, stackedLUT, options=None):
@@ -1229,20 +1186,21 @@ class vImage(bImage):
             buf2[:, :, :] = buf1
             self.updatePixmap()
             return
-        #from colorConv import Lab2sRGBVec
         # convert LUT to float to speed up  buffer conversions
         stackedLUT = stackedLUT.astype(np.float)
         # get the Lab input buffer
         Img0 = self.inputImg()
-        ndLabImg0 = Img0.getLabBuffer() #.copy()
+        ndLabImg0 = Img0.getLabBuffer()  # copy()
         # conversion functions
+
         def scaleLabBuf(buf):
             buf = buf + [0.0, 128.0, 128.0]  # copy is mandatory here to avoid the corruption of the cached Lab buffer
-            buf[:,:,0] *= 255.0
+            buf[:, :, 0] *= 255.0
             return buf
+
         def scaleBackLabBuf(buf):
-            buf = buf - [0.0, 128.0, 128.0] # no copy needed here, but seems faster than in place operation!
-            buf[:,:,0] /= 255.0
+            buf = buf - [0.0, 128.0, 128.0]  # no copy needed here, but seems faster than in place operation!
+            buf[:, :, 0] /= 255.0
             return buf
         ndLImg0 = scaleLabBuf(ndLabImg0).astype(np.uint8)
         # apply LUTS to channels
@@ -1250,7 +1208,7 @@ class vImage(bImage):
         ndLabImg1 = np.zeros(ndLImg0.shape, dtype=np.uint8)
         for c in range(3):  # 0.43s for 15Mpx
             ndLabImg1[:, :, c] = np.take(stackedLUT[c, :], ndLImg0[:, :, c].reshape((-1,))).reshape(s)
-        #ndLabImg1 = stackedLUT[rList, ndLImg0] # last dims are equal : broadcast works
+        # ndLabImg1 = stackedLUT[rList, ndLImg0] # last dims are equal : broadcast works
         ndLabImg1 = scaleBackLabBuf(ndLabImg1)
         # back sRGB conversion
         ndsRGBImg1 = Lab2sRGBVec(ndLabImg1)
@@ -1261,7 +1219,7 @@ class vImage(bImage):
         ndImg1[:, :, :3][:, :, ::-1] = ndsRGBImg1
         # forward the alpha channel
         ndImg0 = QImageBuffer(Img0)
-        ndImg1[:,:,3] = ndImg0[:,:,3]
+        ndImg1[:, :, 3] = ndImg0[:, :, 3]
         # update
         self.updatePixmap()
 
@@ -1280,15 +1238,15 @@ class vImage(bImage):
         # neutral point
         if not np.any(stackedLUT - np.arange(256)):  # last dims are equal : broadcast is working
             buf1 = QImageBuffer(self.inputImg())
-            buf2=QImageBuffer(self.getCurrentImage())
-            buf2[:,:,:] = buf1
+            buf2 = QImageBuffer(self.getCurrentImage())
+            buf2[:, :, :] = buf1
             self.updatePixmap()
             return
         Img0 = self.inputImg()
         ndHSPBImg0 = Img0.getHspbBuffer()   # time 2s with cache disabled for 15 Mpx
         # apply LUTS to normalized channels (range 0..255)
         ndLImg0 = (ndHSPBImg0 * [255.0/360.0, 255.0, 255.0]).astype(np.uint8)
-        #rList = np.array([0,1,2]) # H,S,B
+        # rList = np.array([0,1,2]) # H,S,B
         ndHSBPImg1 = np.zeros(ndLImg0.shape, dtype=np.uint8)
         s = ndLImg0[:, :, 0].shape
         for c in range(3):  # 0.36s for 15Mpx
@@ -1301,10 +1259,10 @@ class vImage(bImage):
         # set current image to modified image
         currentImage = self.getCurrentImage()
         ndImg1a = QImageBuffer(currentImage)
-        ndImg1a[:, :, :3][:,:,::-1] = ndRGBImg1
+        ndImg1a[:, :, :3][:, :, ::-1] = ndRGBImg1
         # forward the alpha channel
         ndImg0 = QImageBuffer(Img0)
-        ndImg1a[:,:,3] = ndImg0[:,:,3]
+        ndImg1a[:, :, 3] = ndImg0[:, :, 3]
         # update
         self.updatePixmap()
 
@@ -1323,8 +1281,8 @@ class vImage(bImage):
             options = UDict()
         if not np.any(stackedLUT - np.arange(256)):  # last dims are equal : broadcast is working
             buf1 = QImageBuffer(self.inputImg())
-            buf2=QImageBuffer(self.getCurrentImage())
-            buf2[:,:,:] = buf1
+            buf2 = QImageBuffer(self.getCurrentImage())
+            buf2[:, :, :] = buf1
             self.updatePixmap()
             return
         # convert LUT to float to speed up  buffer conversions
@@ -1332,15 +1290,15 @@ class vImage(bImage):
         # get HSV buffer, range H: 0..180, S:0..255 V:0..255
         Img0 = self.inputImg()
         HSVImg0 = Img0.getHSVBuffer()
-        #HSVImg0 = self.getMaskedCurrentContainer().getHSVBuffer()
+        # HSVImg0 = self.getMaskedCurrentContainer().getHSVBuffer()
         HSVImg0 = HSVImg0.astype(np.uint8)
         # apply LUTS
         HSVImg1 = np.zeros(HSVImg0.shape, dtype=np.uint8)
-        #rList = np.array([0,1,2]) # H,S,V
+        # rList = np.array([0,1,2]) # H,S,V
         s = HSVImg0[:, :, 0].shape
         for c in range(3):  # 0.43s for 15Mpx
             HSVImg1[:, :, c] = np.take(stackedLUT[c, :], HSVImg0[:, :, c].reshape((-1,))).reshape(s)
-        #HSVImg1 = stackedLUT[rList, HSVImg0]
+        # HSVImg1 = stackedLUT[rList, HSVImg0]
         # back to sRGB
         RGBImg1 = hsv2rgbVec(HSVImg1, cvRange=True)
         # in place clipping
@@ -1348,10 +1306,10 @@ class vImage(bImage):
         # set current image to modified image
         currentImage = self.getCurrentImage()
         ndImg1a = QImageBuffer(currentImage)
-        ndImg1a[:, :, :3][:,:,::-1] = RGBImg1
+        ndImg1a[:, :, :3][:, :, ::-1] = RGBImg1
         # forward the alpha channel
         ndImg0 = QImageBuffer(Img0)
-        ndImg1a[:,:,3] = ndImg0[:,:,3]
+        ndImg1a[:, :, 3] = ndImg0[:, :, 3]
         # update
         self.updatePixmap()
 
@@ -1364,8 +1322,12 @@ class vImage(bImage):
         The order of LUT axes, LUT channels and image channels must be BGR.
         @param LUT: LUT3D array (cf. colorCube.py)
         @type LUT: 3d ndarray, dtype = int
+        @param LUTSTEP:
+        @type LUTSTEP:
         @param options:
         @type options: UDict
+        @param pool:
+        @type pool:
         """
         if options is None:
             options = UDict()
@@ -1381,9 +1343,9 @@ class vImage(bImage):
             wRatio, hRatio = float(w) / wF, float(h) / hF
             if self.rect is not None:
                 w1, w2, h1, h2 = int(self.rect.left() * wRatio), int(self.rect.right() * wRatio), int(self.rect.top() * hRatio), int(self.rect.bottom() * hRatio)
-            w1 , h1 = max(w1,0), max(h1, 0)
+            w1, h1 = max(w1, 0), max(h1, 0)
             w2, h2 = min(w2, inputImage.width()), min(h2, inputImage.height())
-            if w1>=w2 or h1>=h2:
+            if w1 >= w2 or h1 >= h2:
                 dlgWarn("Empty selection\nSelect a region with the marquee tool")
                 return
         # use image
@@ -1401,7 +1363,7 @@ class vImage(bImage):
             ndImg1 = imgBuffer[:, :, :3]
         # choose the right interpolation method
         if (pool is not None) and (inputImage.width() * inputImage.height() > 3000000):
-            interp = lambda x,y,z : interpMulti(x, y, z, pool=pool, use_tetra=USE_TETRA)
+            interp = lambda x, y, z: interpMulti(x, y, z, pool=pool, use_tetra=USE_TETRA)  # TODO use def instead of lambda
         else:
             interp = interpTetra if USE_TETRA else interpTriLinear
         # apply LUT
@@ -1410,7 +1372,6 @@ class vImage(bImage):
             # forward the alpha channel
             imgBuffer[h1:h2 + 1, w1:w2 + 1, 3] = inputBuffer[:, :, 3]
         self.updatePixmap()
-
 
 
     def applyFilter2D(self, options=None):
@@ -1433,30 +1394,30 @@ class vImage(bImage):
         if self.rect is not None:
             # slicing
             rect = self.rect
-            imgRect = QRect(0,0, w, h)
+            imgRect = QRect(0, 0, w, h)
             rect = rect.intersected(imgRect)
             slices = np.s_[int(rect.top() * r): int(rect.bottom() * r), int(rect.left() * r): int(rect.right() * r), :3]
             ROI0 = buf0[slices]
             # reset output image
-            buf1[:,:,:] = buf0
+            buf1[:, :, :] = buf0
             ROI1 = buf1[slices]
         else:
-            ROI0 = buf0[:,:,:3]
-            ROI1 = buf1[:,:,:3]
+            ROI0 = buf0[:, :, :3]
+            ROI1 = buf1[:, :, :3]
         # kernel based filtering
         if adjustForm.kernelCategory in [filterIndex.IDENTITY, filterIndex.UNSHARP, filterIndex.SHARPEN, filterIndex.BLUR1, filterIndex.BLUR2]:
             # correct radius for preview if needed
             radius = int(adjustForm.radius * r)
             kernel = getKernel(adjustForm.kernelCategory, radius, adjustForm.amount)
-            ROI1[:,:,:] = cv2.filter2D(ROI0, -1, kernel)
+            ROI1[:, :, :] = cv2.filter2D(ROI0, -1, kernel)
         else:
             # bilateral filtering
             radius = int(adjustForm.radius * r)
             sigmaColor = 2 * adjustForm.tone
             sigmaSpace = sigmaColor
-            ROI1[:,:,::-1] = cv2.bilateralFilter( ROI0[:,:,::-1], radius, sigmaColor, sigmaSpace)
+            ROI1[:, :, ::-1] = cv2.bilateralFilter(ROI0[:, :, ::-1], radius, sigmaColor, sigmaSpace)
         # forward the alpha channel
-        buf1[:,:,3] = buf0[:,:,3]
+        buf1[:, :, 3] = buf0[:, :, 3]
         self.updatePixmap()
 
     def applyBlendFilter(self):
@@ -1495,8 +1456,8 @@ class vImage(bImage):
             # build the filter as a 1D array of size h
             s = 0  # strongest 0
             opacity = 1 - s
-            if adjustForm.kernelCategory ==  blendFilterIndex.GRADUALNONE:
-                start, end = 0 , h -1
+            if adjustForm.kernelCategory == blendFilterIndex.GRADUALNONE:
+                start, end = 0, h - 1
             else:
                 start = int(h * adjustForm.filterStart / 100.0)
                 end = int(h * adjustForm.filterEnd / 100.0)
@@ -1514,9 +1475,9 @@ class vImage(bImage):
             # luminosity correction
             # buf32Lab[:,:,0] = buf32Lab[:,:,0]*(1.0+0.1)
             bufRGB32 = cv2.cvtColor(buf32Lab, cv2.COLOR_Lab2RGB)
-            buf1[:,:,:3][:,:,::-1] = (bufRGB32 * 255.0).astype(np.uint8)
+            buf1[:, :, :3][:, :, ::-1] = (bufRGB32 * 255.0).astype(np.uint8)
         # forward the alpha channel
-        buf1[:,:,3] = buf0[:,:,3]
+        buf1[:, :, 3] = buf0[:, :, 3]
         self.updatePixmap()
 
     def applyTemperature(self):
@@ -1528,7 +1489,7 @@ class vImage(bImage):
         adjustForm = self.getGraphicsForm()
         options = adjustForm.options
         temperature = adjustForm.tempCorrection
-        tint = adjustForm.tintCorrection # range -1..1
+        tint = adjustForm.tintCorrection  # range -1..1
         inputImage = self.inputImg()
         buf1 = QImageBuffer(inputImage)
         currentImage = self.getCurrentImage()
@@ -1538,8 +1499,6 @@ class vImage(bImage):
             buf0[:, :, :] = buf1
             self.updatePixmap()
             return
-        #from bLUeGui.blend import blendLuminosity
-        #from colorConv import bbTemperature2RGB, conversionMatrix, rgb2rgbLinearVec, rgbLinear2rgbVec
         ################
         # photo filter
         ################
@@ -1558,7 +1517,7 @@ class vImage(bImage):
             # We use a tuning coeff to control the amount of correction.
             # Note that using perceptual brightness gives better results, unfortunately slower
             resImg = blendLuminosity(filter, inputImage)
-            bufOutRGB = QImageBuffer(resImg)[:,:,:3][:,:,::-1]
+            bufOutRGB = QImageBuffer(resImg)[:, :, :3][:, :, ::-1]
         #####################
         # Chromatic adaptation
         #####################
@@ -1591,9 +1550,9 @@ class vImage(bImage):
             raise ValueError('applyTemperature : wrong option')
         # set output image
         bufOut0 = QImageBuffer(currentImage)
-        bufOut = bufOut0[:,:,:3]
+        bufOut = bufOut0[:, :, :3]
         bufOut[:, :, ::-1] = bufOutRGB
         # forward the alpha channel
-        bufOut0[:,:,3] = buf1[:,:,3]
+        bufOut0[:, :, 3] = buf1[:, :, 3]
         self.updatePixmap()
 
