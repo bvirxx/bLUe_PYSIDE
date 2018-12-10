@@ -34,7 +34,7 @@ class Form1(QMainWindow):
     """
     # screen changed signal
     screenChanged = QtCore.Signal(int)
-    def __init__(self): # app, parent=None):  # TODO 05/07/18 validate app and parent removing
+    def __init__(self):
         super(Form1, self).__init__()
         self.settings = QSettings("bLUe.ini", QSettings.IniFormat)
         # we presume that the form will be shown first on screen 0;

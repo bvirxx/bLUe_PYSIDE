@@ -159,7 +159,7 @@ from graphicsCoBrSat import CoBrSatForm
 from graphicsExp import ExpForm
 from graphicsPatch import patchForm
 from settings import USE_POOL, POOL_SIZE, THEME, MAX_ZOOM, TABBING
-from utils import QbLUeColorDialog
+from utils import QbLUeColorDialog, colorInfoLabel
 from bLUeGui.tool import cropTool, rotatingTool
 from graphicsTemp import temperatureForm
 from time import sleep
@@ -354,8 +354,13 @@ def mouseEvent(widget, event):  # TODO split into 3 handlers
     # mouse move event
     ##################
     elif eventType == QEvent.MouseMove:
-        # skip hover events
+        # hover event
         if not pressed:
+            x_img, y_img = (x - img.xOffset) / r, (y - img.yOffset) / r
+            # read input and current colors from active layer (coordinates are relative to the full-sized image)
+            clr = img.getActivePixel(x_img, y_img, qcolor=True)
+            clrC = img.getActivePixel(x_img, y_img, fromInputImg=False, qcolor=True)
+            window.infoView.widget().setInfo(clr, clrC)
             return
         clicked = False
         if img.isMouseSelectable:
@@ -456,18 +461,18 @@ def mouseEvent(widget, event):  # TODO split into 3 handlers
                 # click event
                 if clicked:
                     x_img, y_img = (x - img.xOffset) / r, (y - img.yOffset) / r
-                    # x_img, y_img = min(int(x_img), img.width()-1), min(int(y_img), img.height()-1)
                     # read input and current colors from active layer (coordinates are relative to the full-sized image)
-                    red, green, blue = img.getActivePixel(x_img, y_img)
-                    redC, greenC, blueC = img.getActivePixel(x_img, y_img, fromInputImg=False)
+                    clr = img.getActivePixel(x_img, y_img, qcolor=True)
+                    clrC = img.getActivePixel(x_img, y_img, fromInputImg=False, qcolor=True)
+                    red, green, blue = clr.red(), clr.green(), clr.blue()
                     # read color from presentation layer
                     redP, greenP, blueP = img.getPrPixel(x_img, y_img)
                     # set color chooser value according to modifiers
                     if getattr(window, 'colorChooser', None) and window.colorChooser.isVisible():
                         if (modifiers & Qt.ControlModifier) and (modifiers & Qt.ShiftModifier):
-                            window.colorChooser.setCurrentColor(QColor(red, green, blue))
+                            window.colorChooser.setCurrentColor(clr)
                         elif modifiers & Qt.ControlModifier:
-                            window.colorChooser.setCurrentColor(QColor(redC, greenC, blueC))
+                            window.colorChooser.setCurrentColor(clrC)
                         else:
                             window.colorChooser.setCurrentColor(QColor(redP, greenP, blueP))
                     else:
@@ -1509,7 +1514,6 @@ def menuLayer(name):
     window.tableView.setLayers(window.label.img)
 
 
-
 def menuHelp(name):
     """
     Menu handler
@@ -1708,6 +1712,49 @@ def screenUpdate(newScreenIndex):
         window.label_2.update()
     threading.Thread(target=bgTask)
     window.screenChanged.connect(screenUpdate)
+
+def colorInfoView():
+    infoView = colorInfoLabel()
+    infoView.setMaximumSize(300, 80)
+    dock = QDockWidget('Color Info', parent=window)
+    dock.setFocusPolicy(Qt.ClickFocus)
+    dock.setWidget(infoView)
+    return dock
+
+def setRightPane():
+    """
+    Convenient modifications of the right pane
+    loaded from blue.ui
+    """
+    # Set the (vertical) layout of
+    # propertyWidget, containing :
+    #   - tableview
+    #   - propertyLayout as built in QLayerView.__init__()
+    vl = QVBoxLayout()
+    vl.addWidget(window.tableView)
+    vl.addLayout(window.tableView.propertyLayout)
+    window.propertyWidget.setLayout(vl)
+    # reinit the dockWidgetContents (created by blue.ui) layout to
+    # nest it in a QHboxLayout containing a left stretch
+    tmpV = QVBoxLayout()
+    while window.dockWidgetContents.layout().count() != 0:
+        w = window.dockWidgetContents.layout().itemAt(0).widget()
+        tmpV.addWidget(w)
+        if w.objectName() == 'histView':
+            tmpV.addSpacing(20)
+    tmpH = QHBoxLayout()
+    tmpH.addStretch(100)
+    tmpH.addLayout(tmpV)
+    tmpH.setContentsMargins(0, 0, 10, 0)
+    tmpV.setContentsMargins(0, 0, 10, 0)
+    # to remove the current layout we re-parent it to
+    # an unreferenced widget.
+    QWidget().setLayout(window.dockWidgetContents.layout())
+    # set the new layout
+    window.dockWidgetContents.setLayout(tmpH)
+    window.infoView = colorInfoView()
+    #window.addDockWidget(Qt.RightDockWidgetArea, window.infoView)
+    window.tabifyDockWidget(window.dockWidget, window.infoView)
 
 
 if __name__ == '__main__':
@@ -1919,27 +1966,7 @@ For a segmentation layer only, all pixels outside the rectangle are set to backg
     # dynamic modifications of the main form loaded
     # from blue.ui
     ########################################
-    # Set the layout of propertyWidget as built in QLayerView.__init__()
-    window.propertyWidget.setLayout(window.tableView.propertyLayout)
-    # reinit the dockWidgetContents layout to
-    # nest it in a QHboxLayout containing a (left) stretch
-    tmpV = QVBoxLayout()
-    while window.dockWidgetContents.layout().count() != 0:
-        w = window.dockWidgetContents.layout().itemAt(0).widget()
-        tmpV.addWidget(w)
-        if w.objectName() == 'histView':
-            tmpV.addSpacing(20)
-    tmpH = QHBoxLayout()
-    tmpH.addStretch(100)
-    tmpH.addLayout(tmpV)
-    tmpH.setContentsMargins(0, 0, 10, 0)
-    tmpV.setContentsMargins(0, 0, 10, 0)
-    # to remove the current layout we re-parent it to
-    # an unreferenced widget.
-    QWidget().setLayout(window.dockWidgetContents.layout())
-    # set the new layout
-    window.dockWidgetContents.setLayout(tmpH)
-
+    setRightPane()
     ################################
     # color management configuration
     # must be done after showing window

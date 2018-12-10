@@ -24,7 +24,7 @@ import cv2
 import numpy as np
 
 from PySide2 import QtCore
-from PySide2.QtGui import QColor, QImage, QPainter, QPixmap, QIcon
+from PySide2.QtGui import QColor, QImage, QPainter, QPixmap, QIcon, QFont
 from PySide2.QtWidgets import QListWidget, QListWidgetItem, \
     QSlider, QLabel, QDockWidget, QStyle, QColorDialog, QPushButton
 from PySide2.QtCore import Qt, QObject, QRect
@@ -36,13 +36,66 @@ from bLUeGui.baseSignal import baseSignal_No
 
 def qColorToRGB(color):
     """
-    Converts a QColor to R,G,B components (range 0..255)
+    Converts a QColor to its R,G,B components (range 0..255)
     @param color:
     @type color: QColor
     @return:
     @rtype: 3-uple of int
     """
     return color.red(), color.green(), color.blue()
+
+def qColorToCMYK(color):
+    """
+    Converts a QColor to its C, M, Y, K components (range 0..255)
+    @param color:
+    @type color: QColor
+    @return:
+    @rtype: 4-uple of int
+    """
+    return color.cyan(), color.magenta(), color.yellow(), color.black()
+
+def qColorToHSV(color):
+    """
+    Converts a QColor to its H,S,V components
+    @param color:
+    @type color: QColor
+    @return:
+    @rtype: 3-uple of int
+    """
+    return color.hue(), color.saturation(), color.value()
+
+
+class colorInfoLabel(QLabel):
+    """
+    Display formatted color info for a pixel
+    """
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+        self.setFocusPolicy(Qt.ClickFocus)
+        self.setStyleSheet("font-family: 'courier'; font-size: 8pt")
+        self.setWhatsThis(
+"""<b>ActiveLayer input/output</b><br>
+For each color space (RGB, CMYK, HSV) input values are displayed in the left column
+and output values in the right column.<br>
+"""
+                        )  # end of setWhatsThis
+
+    def setInfo(self, clrI, clrC):
+        """
+        Set widget text to formatted color info
+        @param clrI: input color
+        @type clrI: QColor
+        @param clrC: output color
+        @type clrC: QColor
+        """
+        r0 = 'R ' + "".join([str(w).ljust(4) if type(w) is int else w
+                             for w in (clrI.red(), clrC.red(), 'C ', clrI.cyan()*100//255, clrC.cyan()*100//255, 'H ', clrI.hue(), clrC.hue())])
+        r1 = 'G ' + "".join([str(w).ljust(4) if type(w) is int else w
+                             for w in (clrI.green(), clrC.green(), 'M ', clrI.magenta()*100//255, clrC.magenta()*100//255, 'S ', clrI.saturation(), clrC.saturation())])
+        r2 = 'B ' + "".join([str(w).ljust(4) if type(w) is int else w
+                             for w in (clrI.blue(), clrC.blue(), 'Y ', clrI.yellow()*100//255, clrC.yellow()*100//255, 'V ', clrI.value(), clrC.value())])
+        r3 = "".join((' ',) * 10)  + 'K ' + "".join([str(w).ljust(4) for w in (clrI.black(), clrC.black())])
+        self.setText('\n'.join((r0, r1, r2, r3)))
 
 def hideConsole():
     """

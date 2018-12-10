@@ -112,6 +112,18 @@ class baseGraphicsForm(QGraphicsView):
         self.graphicsScene.layer = self.layer
         self.graphicsScene.targetImage = self.targetImage
 
+    def wheelEvent(self, e):
+        """
+        Overrides QGraphicsView wheelEvent
+        Zoom the scene
+        @param e:
+        @type e:
+        """
+        # delta unit is 1/8 of degree
+        # Most mice have a resolution of 15 degrees
+        numSteps = 1 + e.delta() / 1200.0
+        self.scale(numSteps, numSteps)
+
     def updateHists(self):
         """
         Update the input histograms displayed
@@ -223,18 +235,6 @@ class graphicsCurveForm(baseGraphicsForm):  # QGraphicsView):  # TODO modified 3
         Should be overridden in derived classes
         """
         pass
-
-    def wheelEvent(self, e):
-        """
-        Overrides QGraphicsView wheelEvent
-        Zoom the scene
-        @param e:
-        @type e:
-        """
-        # delta unit is 1/8 of degree
-        # Most mice have a resolution of 15 degrees
-        numSteps = 1 + e.delta() / 1200.0
-        self.scale(numSteps, numSteps)
 
     def updateHists(self):
         """

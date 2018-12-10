@@ -105,7 +105,7 @@ class QLayerView(QTableView) :
     Display the stack of image layers.
     """
     def __init__(self, parent):
-        super(QLayerView, self).__init__(parent)
+        super().__init__(parent)
         self.img = None
         # graphic form to show : it
         # should correspond to the currently selected layer
@@ -317,9 +317,8 @@ class QLayerView(QTableView) :
         for layout in [hl, hl1, hl2]:
             layout.setContentsMargins(5, 0, 0, 0)
         # this layout must be added to the propertyWidget object loaded from blue.ui :
-        # we postpone it after loading of the main form, in blue.py.
+        # we postpone it to in blue.py, after loading the main form.
         self.propertyLayout = l
-
         # shortcut actions
         self.actionDup = QAction('Duplicate layer', None)
         self.actionDup.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_J))

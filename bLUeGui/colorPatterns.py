@@ -38,7 +38,7 @@ cmHSP.cm2rgb, cmHSP.cm2rgbVec, cmHSP.rgb2cm, cmHSP.rgb2cmVec = hsp2rgb, hsp2rgbV
 cmHSB = cmConverter()
 cmHSB.cm2rgb, cmHSB.cm2rgbVec, cmHSB.rgb2cm, cmHSB.rgb2cmVec = hsv2rgb, hsv2rgbVec, rgb2hsB, rgb2hsBVec
 
-class hueSatPattern(bImage):  # TODO 20/10/18 changed imImage to bLUeImage validate
+class hueSatPattern(bImage):
     """
     (hue, sat) color wheel image.
     For fast display, the correspondence with RGB values is tabulated for each brightness.
@@ -121,7 +121,7 @@ class hueSatPattern(bImage):  # TODO 20/10/18 changed imImage to bLUeImage valid
 
     def GetPoint(self, h, s):
         """
-        convert hue, sat values to cartesian coordinates
+        convert (hue, sat) values to cartesian coordinates
         on the color wheel (origin top-left corner).
         @param h: hue in range 0..1
         @param s: saturation in range 0..1
@@ -129,15 +129,15 @@ class hueSatPattern(bImage):  # TODO 20/10/18 changed imImage to bLUeImage valid
         """
         cx = self.width() / 2
         cy = self.height() / 2
-        #x,y = cx*s*np.cos((h-self.rotation)*np.pi/180.0), cy*s*np.sin((h-self.rotation)*np.pi/180.0)
         x, y = (cx-self.border) * s * np.cos((h - self.rotation) * np.pi / 180.0), (cy-self.border) * s * np.sin((h - self.rotation) * np.pi / 180.0)
         x,y = x + cx, - y + cy
         return x,y
 
     def GetPointVec(self, hsarray):
         """
-        converts (hue, sat) values to cartesian coordinates
+        convert (hue, sat) values to cartesian coordinates
         on the color wheel (origin top-left corner).
+        Vectorized version of GetPoint
         @param hsarray
         @type: hsarray: ndarray, shape=(w,h,2)
         @return: cartesian coordinates

@@ -22,8 +22,8 @@ It supports dng/dcp dual illuminant camera profiles. Camera model dcp profiles c
 of raw file, eliminating the burden of a pre-conversion to the dng format.
 
 The program is fully modular : controls are implemented as independent
-adjustment layers using a common GUI. Any imaging library exposing Python
-bindings can take advantage of the GUI.
+adjustment layers using a common GUI. New functionality can be added very quickly and
+any imaging library exposing Python bindings can take advantage of the GUI.
 
 bLUe is aware of multi-screen environments and color profiles : it uses image and
 monitor profiles in conjunction to display accurate colors.
@@ -35,7 +35,8 @@ The program is written in Python.
 * Edition of images in formats jpg, png, tif, nef, cr2, dng,...
 * Adjustment layers : exposure, brightness, saturation, contrast, channel mixer, color temperature, inversion, filters, noise reduction, cloning,
 segmentation, geometric transformations, curves (1D LUTs), 2.5D LUTs, 3D LUTs.
-* RGB, HSV, Lab color models
+* RGB, HSV, CMYK, Lab color models
+* Fast skin tone correction
 * Automatic contrast enhancement (histogram warping and CLAHE)
 * Crop tool
 * Multiple blending modes; adjustable layer opacity

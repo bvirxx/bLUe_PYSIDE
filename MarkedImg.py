@@ -161,7 +161,7 @@ class mImage(vImage):
             active.tool.showTool()
         return active
 
-    def getActivePixel(self,x, y, fromInputImg=True):
+    def getActivePixel(self,x, y, fromInputImg=True, qcolor=False):
         """
         Reads the RGB colors of the pixel at (x, y) from the active layer.
         If fromInputImg is True (default), the pixel is taken from
@@ -169,8 +169,13 @@ class mImage(vImage):
         Coordinates are relative to the full sized image.
         If (x,y) is outside the image, (0, 0, 0) is returned.
         @param x, y: coordinates of pixel, relative to the full-sized image
-        @return: pixel RGB colors
-        @rtype: 3-uple of int
+        @type x, y: int
+        @param fromInputImg:
+        @type fromInputImg:
+        @param qcolor:
+        @type qcolor:
+        @return: color of pixel if qcolor else its R, G, B components
+        @rtype: QColor if qcolor else 3-uple of int
         """
         x, y = self.full2CurrentXY(x, y)
         activeLayer = self.getActiveLayer()
@@ -179,7 +184,7 @@ class mImage(vImage):
         # we return black
         if not qClr.isValid():
             qClr = QColor(0,0,0)
-        return qColorToRGB(qClr)
+        return qClr if qcolor else qColorToRGB(qClr)
 
     def getPrPixel(self, x, y):
         """

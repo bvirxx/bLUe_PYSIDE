@@ -19,9 +19,9 @@ import cv2
 import gc
 import numpy as np
 
-######################################
-# Weights for perceptual brightness
-#######################################
+###############################################
+# Weights for perceptual brightness calculation
+###############################################
 # usual values
 """
 Perc_R=0.2126
@@ -42,7 +42,7 @@ def rgb2hspVec(rgbImg):
 def rgb2hsB(r, g, b, perceptual=False):
     """
     transforms the r, g, b components of a color
-    to hue, saturation, brightness h, s, v. (Cf. schema in file colors.docx)
+    to hue, saturation, brightness h, s, v.
     The r, g, b components are integers in range 0..255. If perceptual is False
     (default) v = max(r,g,b)/255.0, else v = sqrt(Perc_R*r*r + Perc_G*g*g + Perc_B*b*b)
     @param r:
@@ -430,3 +430,46 @@ def hsp2rgbVecSmall(hspImg):  # TODO 22/07/18 unused ?
     rgb1=cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
     return rgb1.reshape(shape + (3,))
 
+def rgb2cmyk(r, g, b):
+    """
+    Convert r, g, b values in range 0..255 to
+    CMYK colors as percents (range 0..100)
+    @param r:
+    @type r: int
+    @param g:
+    @type g: int
+    @param b:
+    @type b: int
+    @return: CMYK colors
+    @rtype: 4 uple of ints
+    """
+    r, g, b  = r / 255, g / 255, b /255
+    K = 1 - max(r, g, b)
+    if K == 1:
+        C, M, Y = (0,) * 3
+    else:
+        C = (1 - r - K) / (1 - K)
+        M = (1 - g - K) / (1 - K)
+        Y = (1 - b - K) / (1 - K)
+    return int(C * 100), int(M * 100), int(Y * 100), int(K * 100)
+
+def cmyk2rgb(c, m, y, k):
+    """
+    Convert CMYK values in range 0..100 to RGB colors in range 0..255
+    @param c:
+    @type c: int
+    @param m:
+    @type m: int
+    @param y:
+    @type y: int
+    @param k:
+    @type k: int
+    @return:
+    @rtype: 3-uple of int
+    """
+    c, m, y, k = c / 100.0, m /100.0, y / 100.0, k / 100.0
+    k = 1 - k
+    if k == 0:
+        return (0,) * 3
+    else:
+        return int(255 * (1 - c) * k), int(255 * (1 - m) * k), int(255 * (1 - y) * k)

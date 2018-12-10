@@ -31,6 +31,7 @@ from PySide2.QtWidgets import QMenu, QRubberBand
 from bLUeCore.bLUeLUT3D import LUT3D
 from MarkedImg import QLayer
 from bLUeCore.trilinear import interpTriLinear
+from bLUeGui.colorCube import rgb2hsB, cmyk2rgb
 from bLUeGui.graphicsForm import baseGraphicsForm
 from bLUeGui.memory import weakProxy
 from debug import tdec
@@ -914,12 +915,17 @@ class graphicsForm3DLUT(baseGraphicsForm):
         # init LUT
         freshLUT3D = LUT3D(None, size=LUTSize, alpha=True)
         self.graphicsScene.lut = freshLUT3D
-        # init 2D slider
+        # init 2D slider (color wheel)
         QImg = hueSatPattern(axeSize, axeSize, cModel, bright=self.defaultColorWheelBr, border=border)
-        self.graphicsScene.slider2D = colorChooser(cModel, QImg, target=self.targetImage, size=axeSize, border=border)
-        self.graphicsScene.selectMarker = activeMarker.fromCross(parent=self.graphicsScene.slider2D)
-        self.graphicsScene.selectMarker.setPos(axeSize / 2, axeSize / 2)
-
+        slider2D = colorChooser(cModel, QImg, target=self.targetImage, size=axeSize, border=border)
+        self.graphicsScene.slider2D = slider2D
+        ###############
+        # convenience markers : gray and skin tones
+        ###############
+        selectMarker = activeMarker.fromCross(parent=slider2D)
+        selectMarker.setPos(axeSize / 2, axeSize / 2)
+        skinMarker = activeMarker.fromCross(parent=slider2D)
+        skinMarker.setPos(*QImg.GetPoint(*rgb2hsB(*cmyk2rgb(6, 25, 30, 0))[:2]))
         # color wheel event handler
         def f1(p, r, g, b):
             h, s, br = self.cModel.rgb2cm(r, g, b)
@@ -1073,6 +1079,8 @@ the wheel. Several nodes can be moved simultaneously by grouping them.<br>
 <b>Caution</b> : Selecting nodes with the mouse is enabled only when
 the Color Chooser is closed.<br>
 Click the <b> Smooth Grid</b> button to smooth color transitions between neighbor nodes.<br>
+<b>Gray tones and average skin tones</b> are marked with crosshairs.<br>
+<b>The grid can be enlarged</b> with the mouse wheel.<br>
 Check the <br>Keep Alpha</b> option to forward the alpha channel without modifications.<br>
 This option must be unchecked to build a mask from the 3D LUT.<br>
 """
