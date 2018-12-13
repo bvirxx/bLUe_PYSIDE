@@ -18,7 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 from PySide2 import QtCore
 from PySide2.QtCore import QRect
 from PySide2.QtCore import Qt, QRectF
-from PySide2.QtWidgets import QPushButton, QGraphicsScene
+from PySide2.QtWidgets import QGraphicsScene
 
 from bLUeGui.graphicsSpline import activeCubicSpline, graphicsCurveForm, activeSplinePoint, channelValues
 from utils import optionsWidget, QbLUePushButton

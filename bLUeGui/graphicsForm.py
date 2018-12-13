@@ -114,7 +114,7 @@ class baseGraphicsForm(QGraphicsView):
 
     def wheelEvent(self, e):
         """
-        Overrides QGraphicsView wheelEvent
+        Override QGraphicsView wheelEvent
         Zoom the scene
         @param e:
         @type e:

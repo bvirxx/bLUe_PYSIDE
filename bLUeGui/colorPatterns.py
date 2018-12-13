@@ -123,15 +123,16 @@ class hueSatPattern(bImage):
         """
         convert (hue, sat) values to cartesian coordinates
         on the color wheel (origin top-left corner).
-        @param h: hue in range 0..1
+        @param h: hue in range 0..360
         @param s: saturation in range 0..1
         @return: cartesian coordinates
         """
         cx = self.width() / 2
         cy = self.height() / 2
-        x, y = (cx-self.border) * s * np.cos((h - self.rotation) * np.pi / 180.0), (cy-self.border) * s * np.sin((h - self.rotation) * np.pi / 180.0)
-        x,y = x + cx, - y + cy
-        return x,y
+        x, y = (cx - self.border) * s * np.cos((h - self.rotation) * np.pi / 180.0), \
+                                                (cy - self.border) * s * np.sin((h - self.rotation) * np.pi / 180.0)
+        x, y = x + cx, -y + cy
+        return x, y
 
     def GetPointVec(self, hsarray):
         """
@@ -143,42 +144,23 @@ class hueSatPattern(bImage):
         @return: cartesian coordinates
         @rtype: ndarray, shape=(w,h,2)
         """
-        h, s = hsarray[:,:,0], hsarray[:,:,1]
+        h, s = hsarray[:,:,0], hsarray[:, :, 1]
         cx = self.width() / 2
         cy = self.height() / 2
-        #x,y = cx*s*np.cos((h-self.rotation)*np.pi/180.0), cy*s*np.sin((h-self.rotation)*np.pi/180.0)
-        x, y = (cx-self.border) * s * np.cos((h - self.rotation) * np.pi / 180.0), (cy-self.border) * s * np.sin((h - self.rotation) * np.pi / 180.0)
-        x,y = x + cx, - y + cy
-        return np.dstack((x,y))
+        x, y = (cx-self.border) * s * np.cos((h - self.rotation) * np.pi / 180.0), \
+                                                (cy-self.border) * s * np.sin((h - self.rotation) * np.pi / 180.0)
+        x, y = x + cx, - y + cy
+        return np.dstack((x, y))
 
-    """
-    def colorPickerSetmark(self, r,g,b, LUT3D):
-        h,s,v = rgb2hsB(r, g, b, perceptual=True)
-        #r1,g1,b1=hsp2rgb(h,s,self.pb)
-        #print r,r1,b,b1,g,g1
-        #assert abs(r-r1)<20 and abs(g-g1)<20 and abs(b-b1)<20
-        i,j= self.GetPoint(h, s)
-        p =QPainter(self)
-        #p.setBrush(QBrush(QColor(255,255,255)))
-        p.drawEllipse(int(i),int(j),5,5)
-        self.updatePixmap()
-        #print '********************************** draw ellipse', int(i),int(j)
-        tmp = lutNN(LUT3D, r, g, b)
-        print 'NN', tmp, r,g,b, LUT3D[tmp[0], tmp[1], tmp[2]]
-        l=[lutNN(LUT3D, *hsp2rgb(h, s, p / 100.0)) for p in range(100)]
 
-        for t in l:
-            LUT3D[t] = [0,0,0]
-    """
-
-class brightnessPattern (bImage): # TODO 20/10/18 changed imImage to bLUeImage validate
+class brightnessPattern(bImage):
     """
     linear gradient of brightnesses for fixed hue and sat.
     """
     def __init__(self, w, h, converter, hue, sat):
         """
-        Builds a linear gradient of size (w, h) with variable brightnesses
-        and fixed hue and sat. The converter parameter defines the color space
+        Build a linear gradient of size (w, h) with variable brightnesses
+        and fixed hue and sat. The parameter converter defines the color space
         which is used (HSV, HSpB,...).
         @param w: image width
         @type w: int

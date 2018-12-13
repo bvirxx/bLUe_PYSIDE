@@ -22,6 +22,8 @@ from PySide2.QtCore import QSize, QRect, QPoint, Qt
 from PySide2.QtGui import QImage, QPixmap, QColor, QPainter
 
 from bLUeCore.SavitskyGolay import SavitzkyGolayFilter
+from bLUeGui.colorCIE import sRGB2LabVec
+from bLUeGui.colorCube import rgb2hspVec
 from bLUeGui.graphicsSpline import channelValues
 
 
@@ -91,6 +93,32 @@ class bImage(QImage):
     @HSVBuffer.setter
     def HSVBuffer(self, buffer):
         self.__HSVBuffer = buffer
+
+    def getHspbBuffer(self):
+        """
+        return the image buffer in color mode HSpB.
+        Override to enable buffering
+        @return: HSPB buffer
+        @rtype: ndarray
+        """
+        self.hspbBuffer = rgb2hspVec(QImageBuffer(self)[:, :, :3][:, :, ::-1])
+        return self.hspbBuffer
+
+    def getLabBuffer(self):
+        """
+        return the image buffer in color mode Lab.
+        Override to enable buffering
+       """
+        self.LabBuffer = sRGB2LabVec(QImageBuffer(self)[:, :, :3][:, :, ::-1])
+        return self.LabBuffer
+
+    def getHSVBuffer(self):
+        """
+        return the image buffer in color mode HSV.
+        Override to enable buffering
+        """
+        self.HSVBuffer = cv2.cvtColor(QImageBuffer(self)[:, :, :3], cv2.COLOR_BGR2HSV)
+        return self.HSVBuffer
 
     def cacheInvalidate(self):
         """

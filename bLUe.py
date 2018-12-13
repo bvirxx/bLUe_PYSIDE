@@ -1838,12 +1838,12 @@ if __name__ == '__main__':
                                          color: lightgray;
                                          min-width: 8ex; 
                                          border: 2px solid white; 
-                                         border-top-color: gray;
+                                         border-color: gray;
                                          border-bottom-left-radius: 4px; 
                                          border-bottom-right-radius: 4px;
                                          padding: 2px}
                            QTabBar::tab:hover {color: white}
-                           QTabBar::tab:selected {border-top-color: red; 
+                           QTabBar::tab:selected {border-top-color: white; 
                                                   color: white;}
                            QTabBar::tab:!selected {margin-bottom: 2px}
                            QDockWidget::title {background-color: #444455}

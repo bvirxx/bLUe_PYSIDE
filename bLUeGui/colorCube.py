@@ -45,9 +45,12 @@ def rgb2hsB(r, g, b, perceptual=False):
     to hue, saturation, brightness h, s, v.
     The r, g, b components are integers in range 0..255. If perceptual is False
     (default) v = max(r,g,b)/255.0, else v = sqrt(Perc_R*r*r + Perc_G*g*g + Perc_B*b*b)
-    @param r:
-    @param g:
-    @param b:
+    @param r: range 0..255
+    @type r: int
+    @param g: range 0..255
+    @type g: int
+    @param b: range 0..255
+    @type b: int
     @param perceptual:
     @type perceptual: boolean
     @return: h, s, v values : 0<=h<360, 0<=s<=1, 0<=v<=1
@@ -55,6 +58,8 @@ def rgb2hsB(r, g, b, perceptual=False):
     """
     cMax = max(r, g, b)
     cMin = min(r, g, b)
+    if cMax > 255 or cMin < 0:
+        raise ValueError('rgb2hsB : r, g, b must be in range 0..255')
     delta = cMax - cMin
     # hue
     if delta == 0:

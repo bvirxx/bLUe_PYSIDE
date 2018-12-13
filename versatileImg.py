@@ -506,7 +506,7 @@ class vImage(bImage):
 
     def getLabBuffer(self):
         """
-        returns the image buffer in color mode Lab.
+        return the image buffer in color mode Lab.
         The buffer is recalculated when needed.
         @return: Lab buffer, L range is 0..1, a, b ranges are -128..+128
         @rtype: numpy ndarray, dtype np.float
@@ -518,7 +518,7 @@ class vImage(bImage):
 
     def getHSVBuffer(self):
         """
-        returns the image buffer in color mode HSV.
+        return the image buffer in color mode HSV.
         The buffer is calculated if needed and cached.
         H,S,V ranges are 0..255 (opencv convention for 8 bits images)
         @return: HSV buffer
