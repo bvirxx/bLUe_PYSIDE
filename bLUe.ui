@@ -801,7 +801,7 @@ Screen</string>
        <property name="maximumSize">
         <size>
          <width>250</width>
-         <height>65</height>
+         <height>90</height>
         </size>
        </property>
       </widget>
@@ -823,7 +823,7 @@ Screen</string>
        <property name="maximumSize">
         <size>
          <width>16777215</width>
-         <height>500</height>
+         <height>400</height>
         </size>
        </property>
        <widget class="QLayerView" name="tableView">

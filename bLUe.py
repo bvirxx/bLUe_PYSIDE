@@ -122,7 +122,6 @@ import multiprocessing
 import sys
 import threading
 from itertools import cycle
-#from multiprocessing import freeze_support, Event
 from os import path, walk
 from io import BytesIO
 
@@ -136,9 +135,9 @@ from grabcut import segmentForm
 from PySide2.QtCore import QRect, QEvent, QUrl, QSize, QFileInfo, QRectF, QObject
 from PySide2.QtGui import QPixmap, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, \
     QPainterPath, QTransform, QContextMenuEvent, QColor, QImage
-from PySide2.QtWidgets import QApplication, QAction,\
+from PySide2.QtWidgets import QApplication, QAction, \
     QMainWindow, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QWidget, \
-    QStyle
+    QStyle, QTabWidget
 from QtGui1 import app, window, rootWidget
 import exiftool
 from graphicsBlendFilter import blendFilterForm
@@ -159,7 +158,7 @@ from graphicsCoBrSat import CoBrSatForm
 from graphicsExp import ExpForm
 from graphicsPatch import patchForm
 from settings import USE_POOL, POOL_SIZE, THEME, MAX_ZOOM, TABBING
-from utils import QbLUeColorDialog, colorInfoLabel
+from utils import QbLUeColorDialog, colorInfoView
 from bLUeGui.tool import cropTool, rotatingTool
 from graphicsTemp import temperatureForm
 from time import sleep
@@ -192,7 +191,7 @@ This product includes DNG technology under license by Adobe Systems Incorporated
 
 ##############
 #  Version number
-VERSION = "v1.3.0"
+VERSION = "v1.3.1"
 ##############
 
 ##############
@@ -360,7 +359,7 @@ def mouseEvent(widget, event):  # TODO split into 3 handlers
             # read input and current colors from active layer (coordinates are relative to the full-sized image)
             clr = img.getActivePixel(x_img, y_img, qcolor=True)
             clrC = img.getActivePixel(x_img, y_img, fromInputImg=False, qcolor=True)
-            window.infoView.widget().setInfo(clr, clrC)
+            window.infoView.setText(clr, clrC)
             return
         clicked = False
         if img.isMouseSelectable:
@@ -1713,48 +1712,72 @@ def screenUpdate(newScreenIndex):
     threading.Thread(target=bgTask)
     window.screenChanged.connect(screenUpdate)
 
-def colorInfoView():
-    infoView = colorInfoLabel()
-    infoView.setMaximumSize(300, 80)
-    dock = QDockWidget('Color Info', parent=window)
-    dock.setFocusPolicy(Qt.ClickFocus)
-    dock.setWidget(infoView)
-    return dock
+def getColorInfoView():
+    """
+    Return a color info view
+    @return:
+    @rtype: QDockWidget
+    """
+    infoView = colorInfoView()
+    infoView.label.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Minimum)
+    infoView.label.setMaximumSize(400, 80)
+    return infoView
 
 def setRightPane():
     """
     Convenient modifications of the right pane
     loaded from blue.ui
     """
-    # Set the (vertical) layout of
-    # propertyWidget, containing :
-    #   - tableview
-    #   - propertyLayout as built in QLayerView.__init__()
+    # clean dock area
+    window.setTabPosition(Qt.RightDockWidgetArea, QTabWidget.East)
+    window.removeDockWidget(window.dockWidget)
+    # redo the layout of window.dockWidget
+    widget = window.dockWidget.widget()
     vl = QVBoxLayout()
     vl.addWidget(window.tableView)
+    # add sliders, blend modes ...
     vl.addLayout(window.tableView.propertyLayout)
     window.propertyWidget.setLayout(vl)
     # reinit the dockWidgetContents (created by blue.ui) layout to
     # nest it in a QHboxLayout containing a left stretch
     tmpV = QVBoxLayout()
     while window.dockWidgetContents.layout().count() != 0:
-        w = window.dockWidgetContents.layout().itemAt(0).widget()
-        tmpV.addWidget(w)
+        w = widget.layout().itemAt(0).widget()
+        # dock the histogram on top
         if w.objectName() == 'histView':
-            tmpV.addSpacing(20)
+            w.setWindowTitle('Hist')
+            histViewDock = QDockWidget()
+            hl = QHBoxLayout()
+            hl.addStretch(1)
+            hl.addWidget(w)
+            hl.addStretch(1)
+            wdg = QWidget()
+            wdg.setLayout(hl)
+            histViewDock.setWidget(wdg)
+            histViewDock.setWindowTitle(w.windowTitle())
+            window.addDockWidget(Qt.RightDockWidgetArea, histViewDock)
+            continue
+        # add other widgets to layout
+        tmpV.addWidget(w)
     tmpH = QHBoxLayout()
-    tmpH.addStretch(100)
+    tmpH.setAlignment(Qt.AlignCenter)
+    # prevent tmpV horizontal stretching
+    tmpH.addStretch(1)
     tmpH.addLayout(tmpV)
+    tmpH.addStretch(1)
     tmpH.setContentsMargins(0, 0, 10, 0)
     tmpV.setContentsMargins(0, 0, 10, 0)
     # to remove the current layout we re-parent it to
     # an unreferenced widget.
     QWidget().setLayout(window.dockWidgetContents.layout())
     # set the new layout
-    window.dockWidgetContents.setLayout(tmpH)
-    window.infoView = colorInfoView()
-    #window.addDockWidget(Qt.RightDockWidgetArea, window.infoView)
-    window.tabifyDockWidget(window.dockWidget, window.infoView)
+    widget.setLayout(tmpH)
+    widget.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
+    window.addDockWidget(Qt.RightDockWidgetArea, window.dockWidget)
+    window.dockWidget.show()
+    # tabify colorInfoView with histView
+    window.infoView = getColorInfoView()
+    window.tabifyDockWidget(histViewDock, window.infoView)
 
 
 if __name__ == '__main__':
@@ -1788,7 +1811,8 @@ if __name__ == '__main__':
         app.setStyleSheet("""QMainWindow, QMainWindow *, QGraphicsView, QListWidget, QMenu,
                                         QTableView, QLabel, QGroupBox {background-color: rgb(40,40,40); 
                                                                        color: rgb(220,220,220)}
-                           QMenu, QTableView { selection-background-color: blue;
+                           QListWidget::item{background-color: rgb(40, 40, 40); color: white}
+                           QMenu, QTableView {selection-background-color: blue;
                                                selection-color: white;}
                            QWidget, QComboBox, QTableView, QTableView * {font-size: 9pt}
                            QWidget:disabled {color: rgb(96,96,96)}
@@ -1841,6 +1865,7 @@ if __name__ == '__main__':
                                          border-color: gray;
                                          border-bottom-left-radius: 4px; 
                                          border-bottom-right-radius: 4px;
+                                         margin: 3px;
                                          padding: 2px}
                            QTabBar::tab:hover {color: white}
                            QTabBar::tab:selected {border-top-color: white; 

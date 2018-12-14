@@ -253,6 +253,7 @@ class CoBrSatForm(baseForm):
         l1 = QVBoxLayout()
         ct = QLabel()
         ct.setText('Contrast')
+        l.setAlignment(Qt.AlignTop)
         l1.addWidget(ct)
         l1.addWidget(self.listWidget1)
         gb1.setLayout(l1)

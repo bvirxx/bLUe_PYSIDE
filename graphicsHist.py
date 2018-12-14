@@ -41,19 +41,17 @@ class histForm (baseForm):
         self.Label_Hist = QLabel()
         self.Label_Hist.setScaledContents(True)
         self.Label_Hist.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        #self.setStyleSheet("QListWidget{background-color: rgb(200,200,200); selection-background-color: rgb(200,200,200); border: 0px; font-size: 9px}")
         self.setStyleSheet("QListWidget{border: 0px; font-size: 12px}")
 
-        # options. We want the items displayed horizontally, so we use 2 lists
-        options1, optionNames1 = ['Original Image'], ['Source']
+        # options
+        options1, optionNames1 = ['Original Image'], ['Source Image']
         self.listWidget1 = optionsWidget(options=options1, optionNames=optionNames1, exclusive=False)
-        self.listWidget1.item(0).setSizeHint(QSize(100,10))
-        self.listWidget1.setMaximumSize(self.listWidget1.sizeHintForColumn(0) + 5, self.listWidget1.sizeHintForRow(0) * len(options1))
-
+        self.listWidget1.setMaximumSize(self.listWidget1.sizeHintForColumn(0) + 5,
+                                        self.listWidget1.sizeHintForRow(0) * len(options1))
         options2 = ['Color Chans']
         self.listWidget2 = optionsWidget(options=options2, exclusive=False)
-        self.listWidget2.item(0).setSizeHint(QSize(100, 10))
-        self.listWidget2.setMaximumSize(self.listWidget2.sizeHintForColumn(0) + 5, self.listWidget2.sizeHintForRow(0) * len(options2))
+        self.listWidget2.setMaximumSize(self.listWidget2.sizeHintForColumn(0) + 5,
+                                        self.listWidget2.sizeHintForRow(0) * len(options2))
         # default: show color hists
         self.listWidget2.item(0).setCheckState(Qt.Checked)
 
@@ -79,14 +77,15 @@ class histForm (baseForm):
 
         # layout
         h = QHBoxLayout()
+        h.setContentsMargins(0, 0, 0, 2)
         h.addWidget(self.listWidget1)
         h.addWidget(self.listWidget2)
-        l = QVBoxLayout()
-        l.setAlignment(Qt.AlignTop)
-        l.addWidget(self.Label_Hist)
-        l.addLayout(h)
-        l.setContentsMargins(0, 0, 0, 2)  # left, top, right, bottom
-        self.setLayout(l)
+        vl = QVBoxLayout()
+        vl.setAlignment(Qt.AlignTop)
+        vl.addWidget(self.Label_Hist)
+        vl.addLayout(h)
+        vl.setContentsMargins(0, 0, 0, 2)  # left, top, right, bottom
+        self.setLayout(vl)
 
 
 

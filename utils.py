@@ -65,22 +65,26 @@ def qColorToHSV(color):
     return color.hue(), color.saturation(), color.value()
 
 
-class colorInfoLabel(QLabel):
+class colorInfoView(QDockWidget):
     """
     Display formatted color info for a pixel
     """
     def __init__(self, parent=None):
         super().__init__(parent=parent)
+        self.label = QLabel()
+        self.label.setWindowTitle('Info')
+        self.setWidget(self.label)
+        self.setWindowTitle(self.label.windowTitle())
         self.setFocusPolicy(Qt.ClickFocus)
-        self.setStyleSheet("font-family: 'courier'; font-size: 8pt")
-        self.setWhatsThis(
+        self.label.setStyleSheet("font-family: 'courier'; font-size: 8pt")
+        self.label.setWhatsThis(
 """<b>ActiveLayer input/output</b><br>
 For each color space (RGB, CMYK, HSV) input values are displayed in the left column
 and output values in the right column.<br>
 """
                         )  # end of setWhatsThis
 
-    def setInfo(self, clrI, clrC):
+    def setText(self, clrI, clrC):
         """
         Set widget text to formatted color info
         @param clrI: input color
@@ -89,13 +93,19 @@ and output values in the right column.<br>
         @type clrC: QColor
         """
         r0 = 'R ' + "".join([str(w).ljust(4) if type(w) is int else w
-                             for w in (clrI.red(), clrC.red(), 'C ', clrI.cyan()*100//255, clrC.cyan()*100//255, 'H ', clrI.hue(), clrC.hue())])
+                             for w in (clrI.red(), clrC.red(), 'C ', clrI.cyan() * 100 // 255,
+                                       clrC.cyan() * 100 // 255, 'H ', clrI.hue(), clrC.hue())])
         r1 = 'G ' + "".join([str(w).ljust(4) if type(w) is int else w
-                             for w in (clrI.green(), clrC.green(), 'M ', clrI.magenta()*100//255, clrC.magenta()*100//255, 'S ', clrI.saturation(), clrC.saturation())])
+                             for w in (clrI.green(), clrC.green(), 'M ',
+                                       clrI.magenta() * 100 // 255, clrC.magenta() * 100 // 255, 'S ',
+                                       clrI.saturation() * 100 // 255, clrC.saturation() * 100 // 255)])
         r2 = 'B ' + "".join([str(w).ljust(4) if type(w) is int else w
-                             for w in (clrI.blue(), clrC.blue(), 'Y ', clrI.yellow()*100//255, clrC.yellow()*100//255, 'V ', clrI.value(), clrC.value())])
-        r3 = "".join((' ',) * 10)  + 'K ' + "".join([str(w).ljust(4) for w in (clrI.black(), clrC.black())])
-        self.setText('\n'.join((r0, r1, r2, r3)))
+                             for w in (clrI.blue(), clrC.blue(), 'Y ',
+                                       clrI.yellow() * 100 // 255, clrC.yellow() * 100 // 255, 'V ',
+                                       clrI.value() * 100 // 255, clrC.value() * 100 // 255)])
+        r3 = "".join((' ',) * 10)  + 'K ' + "".join([str(w).ljust(4) for w in
+                                                     (clrI.black() * 100 // 255, clrC.black() * 100 // 255)])
+        self.label.setText('\n'.join((r0, r1, r2, r3)))
 
 def hideConsole():
     """
