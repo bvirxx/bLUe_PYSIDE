@@ -53,6 +53,7 @@ class bImage(QImage):
         self.mask = None
         self.maskIsEnabled = False
         self.maskIsSelected = False
+        self.colorMaskOpacity = 255
 
     @property
     def filename(self):

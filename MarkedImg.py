@@ -1168,12 +1168,13 @@ class QLayer(vImage):
 
     def setColorMaskOpacity(self, value):
         """
-        Set mask alpha channel to value * 255 / 100
+        Set mask alpha channel to value
         @param value:
-        @type value: int in range 0..100
+        @type value: int in range 0..255
         """
+        self.colorMaskOpacity = value
         buf = QImageBuffer(self.mask)
-        buf[:,:,3] = np.uint8(value * 255 / 100)
+        buf[:,:,3] = np.uint8(value)
 
     def readFromStream(self, dataStream):
         grForm = self.getGraphicsForm()

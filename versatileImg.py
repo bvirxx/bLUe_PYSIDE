@@ -124,7 +124,7 @@ class vImage(bImage):
         mask = mask.copy()
         buf = QImageBuffer(mask)
         # set alpha channel from red channel
-        buf[:, :, 3] = buf[:, :, 2]  # np.where(buf[:, :, 2] == 0, 0, 255)  # TODO modified 28/11/18
+        buf[:, :, 3] = buf[:, :, 2]
         return mask
 
     @classmethod
@@ -165,9 +165,8 @@ class vImage(bImage):
         Blend img with mask. By default, img is copied before blending.
         If inplace is True no copy is made.
         If color is True (default), the mask is drawn over the image with opacity 0.5,
-        using its own colors.
-        If color is False (default True), the mask is first converted to a 0/1
-        opacity image and then drawn over the image using the mode destinationIn :
+        using its own colors. If color is False the alpha channel of the mask is set from
+        its red channel and, next, the mask is drawn over the image using the mode destinationIn :
         destination opacity is set to that of source.
         If clipping is True (default False), an opaque checker is drawn under the image.
         @param img:
@@ -653,7 +652,7 @@ class vImage(bImage):
         qp.drawPixmap(QRect(0, 0, imgOut.width(), imgOut.height()), pxIn, pxIn.rect())
         # get translation relative to current Image
         currentAltX, currentAltY = self.full2CurrentXY(self.xAltOffset, self.yAltOffset)
-        # draw translated and zoomed input image (nothing is drawn outside of dest. image)
+        # draw translated and zoomed input image (nothing is drawn outside of dest image)
         qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
         rect = QRectF(currentAltX, currentAltY, imgOut.width()*self.AltZoom_coeff, imgOut.height()*self.AltZoom_coeff)
         qp.drawPixmap(rect, pxIn, pxIn.rect())
@@ -663,6 +662,7 @@ class vImage(bImage):
             try:
                 QApplication.setOverrideCursor(Qt.WaitCursor)
                 QApplication.processEvents()
+                # temporary layer
                 imgInc = imgIn.copy()
                 src = imgOut
                 vImage.seamlessMerge(imgInc, src, self.mask, self.cloningMethod)
@@ -846,7 +846,7 @@ class vImage(bImage):
 
     def applyExposure(self, options):
         """
-        Applies exposure correction
+        Apply exposure correction
         to the linearized RGB channels.
         @param options:
         @type options:
@@ -1396,6 +1396,9 @@ class vImage(bImage):
             rect = self.rect
             imgRect = QRect(0, 0, w, h)
             rect = rect.intersected(imgRect)
+            if rect.width() < 10 or rect.height() < 10:
+                dlgWarn('Selection dimensions must be > 10')
+                return
             slices = np.s_[int(rect.top() * r): int(rect.bottom() * r), int(rect.left() * r): int(rect.right() * r), :3]
             ROI0 = buf0[slices]
             # reset output image

@@ -384,10 +384,13 @@ def mouseEvent(widget, event):  # TODO split into 3 handlers
             # drawing tools
             elif window.btnValues['drawFG'] or window.btnValues['drawBG']:
                 if layer.maskIsEnabled:
+                    toolOpacity = window.verticalSlider2.value() / 100
                     if modifiers == Qt.NoModifier:
                         color = vImage.defaultColor_UnMasked if window.btnValues['drawFG'] else vImage.defaultColor_Masked
                     else:
                         color = vImage.defaultColor_UnMasked_Invalid if window.btnValues['drawFG'] else vImage.defaultColor_Invalid
+                    # paint with current mask alpha
+                    color.setAlpha(layer.colorMaskOpacity)
                     qp.begin(layer.mask)
                     # get pen width
                     w_pen = window.verticalSlider1.value() // r
@@ -396,9 +399,18 @@ def mouseEvent(widget, event):  # TODO split into 3 handlers
                     tmp_x = (x - img.xOffset) // r
                     tmp_y = (y - img.yOffset) // r
                     qp.setPen(QPen(color, w_pen))
-                    # draw line and final circle filling the region under the cursor
-                    qp.drawLine(State['x_imagePrecPos'], State['y_imagePrecPos'], tmp_x, tmp_y)
-                    qp.drawEllipse(tmp_x-w_pen//2, tmp_y-w_pen//2, w_pen, w_pen)
+                    qp.setOpacity(toolOpacity)
+                    # paint the brush tips spaced by 0.25 * w_pen
+                    a_x, a_y = tmp_x - State['x_imagePrecPos'], tmp_y - State['y_imagePrecPos']
+                    d = abs(a_x) + abs(a_y)
+                    x, y = State['x_imagePrecPos'], State['y_imagePrecPos']
+                    if d == 0:
+                        qp.drawEllipse(x, y, w_pen, w_pen)
+                    else:
+                        step = w_pen * 0.25 / d
+                        for i in range(int(1 / step)):
+                            qp.drawEllipse(x, y, w_pen, w_pen)
+                            x, y = x + a_x * step, y + a_y * step
                     qp.end()
                     State['x_imagePrecPos'], State['y_imagePrecPos'] = tmp_x, tmp_y
                     ############################
@@ -407,7 +419,6 @@ def mouseEvent(widget, event):  # TODO split into 3 handlers
                     layer.updatePixmap(maskOnly=True)  # TODO maskOnly not used: remove
                     #############################
                     img.prLayer.applyNone()
-                    # img.prLayer.updatePixmap(maskOnly=True) # TODO called by applyNone 19/06/18
                     window.label.repaint()
             # dragBtn or arrow
             else:
@@ -466,7 +477,7 @@ def mouseEvent(widget, event):  # TODO split into 3 handlers
                     red, green, blue = clr.red(), clr.green(), clr.blue()
                     # read color from presentation layer
                     redP, greenP, blueP = img.getPrPixel(x_img, y_img)
-                    # set color chooser value according to modifiers
+                    # set color chooser value accordingly to modifiers
                     if getattr(window, 'colorChooser', None) and window.colorChooser.isVisible():
                         if (modifiers & Qt.ControlModifier) and (modifiers & Qt.ShiftModifier):
                             window.colorChooser.setCurrentColor(clr)
@@ -1756,9 +1767,9 @@ def setRightPane():
             histViewDock.setWidget(wdg)
             histViewDock.setWindowTitle(w.windowTitle())
             window.addDockWidget(Qt.RightDockWidgetArea, histViewDock)
-            continue
         # add other widgets to layout
-        tmpV.addWidget(w)
+        else:
+            tmpV.addWidget(w)
     tmpH = QHBoxLayout()
     tmpH.setAlignment(Qt.AlignCenter)
     # prevent tmpV horizontal stretching
@@ -1921,6 +1932,7 @@ For a segmentation layer only, all pixels outside the rectangle are set to backg
   Use the 'Brush Size' slider below to choose the size of the tool. 
 """                             )
     window.verticalSlider1.setWhatsThis("""Set the diameter of the painting brush""")
+    window.verticalSlider2.setWhatsThis("""Set the opacity of the painting brush""")
 
     # Before/After views flag
     window.splittedView = False

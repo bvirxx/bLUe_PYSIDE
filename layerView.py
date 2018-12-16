@@ -246,7 +246,7 @@ class QLayerView(QTableView) :
         def g2():
             try:
                 layer = self.img.getActiveLayer()
-                layer.setColorMaskOpacity(self.maskSlider.value())
+                layer.setColorMaskOpacity(self.maskSlider.value() * 255.0 / 100.0)
                 layer.applyToStack()
                 self.img.onImageChanged()
             except AttributeError:
@@ -962,6 +962,11 @@ Note that upper visible layers slow down mask edition.<br>
             self.img.onImageChanged()
 
         def maskDilate():
+            """
+            Increase the masked part of the image
+            @return:
+            @rtype:
+            """
             kernel = np.ones((5, 5), np.uint8)
             buf = QImageBuffer(layer.mask)
             # CAUTION erode decreases values (min filter), so it extends the masked part of the image
@@ -971,10 +976,17 @@ Note that upper visible layers slow down mask edition.<br>
             self.img.onImageChanged()
 
         def maskErode():
-            kernel = np.ones((5, 5), np.uint8)
+            """
+            Reduce the masked part of the image
+
+            """
+            ks = 11
+            kernelMax = np.ones((ks, ks), np.uint8)
+            kernelMean = np.ones((ks, ks), np.float) / (ks * ks)
             buf = QImageBuffer(layer.mask)
             # CAUTION dilate increases values (max filter), so it reduces the masked part of the image
-            buf[:,:,2] = cv2.dilate(buf[:,:,2], kernel, iterations=1)
+            #buf[:,:,2] = cv2.dilate(buf[:,:,2], kernelMax, iterations=1)
+            buf[:,:,2] = cv2.filter2D(buf[:,:,2], -1 ,kernelMean)
             for l in self.img.layersStack:
                 l.updatePixmap(maskOnly=True)
             self.img.onImageChanged()
