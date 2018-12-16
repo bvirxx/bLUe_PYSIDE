@@ -309,6 +309,7 @@ Sliders are <b>reset</b> to their default value by double clicking the name of t
             form = graphicsSplineForm.getNewWindow(targetImage=None, axeSize=axeSize, layer=self.layer, parent=None)
             form.setAttribute(Qt.WA_DeleteOnClose, on=False)
             form.setWindowTitle('Contrast Curve')
+            form.setMaximumSize(300, 400)
             self.contrastForm = form
             window = self.parent().parent()
             dock = stateAwareQDockWidget(self.parent())
@@ -318,15 +319,15 @@ Sliders are <b>reset</b> to their default value by double clicking the name of t
             dock.setStyleSheet("QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
             window.addDockWidget(Qt.LeftDockWidgetArea, dock)
             self.dock = dock
+            def f():
+                self.layer.applyToStack()
+                self.layer.parentImage.onImageChanged()
+            form.scene().quadricB.curveChanged.sig.connect(f)  # TODO moved 16/12/18 validate
         else:
             form = self.contrastForm
         # update the curve
-        form.scene().setSceneRect(-25, -axeSize-25, axeSize+50, axeSize+50)  # TODO added 15/07/18
+        form.scene().setSceneRect(-25, -axeSize-25, axeSize+50, axeSize+50)
         form.scene().quadricB.setCurve(a*axeSize,b*axeSize,d,T*axeSize)
-        def f():
-            self.layer.applyToStack()
-            self.layer.parentImage.onImageChanged()
-        form.scene().quadricB.curveChanged.sig.connect(f)  # TODO added 5/11/18 validate
         self.dock.showNormal()
 
     def enableSliders(self):
