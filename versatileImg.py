@@ -627,14 +627,14 @@ class vImage(bImage):
         bufOut[:, :, :] = bufIn
         self.updatePixmap()
 
-    def applyCloning(self, seamless=True):
+    def applyCloning(self, seamless=True, moving=False):
         """
         Seamless cloning
         @param seamless:
         @type seamless: boolean
         """
         # TODO 02/04/18 called multiple times by mouse events, cacheInvalidate should be called!!
-        imgIn = self.inputImg()
+        imgIn = self.inputImg()#(redo=not moving)
         imgOut = self.getCurrentImage()
         pxIn = QPixmap.fromImage(imgIn)
         ########################
@@ -677,30 +677,8 @@ class vImage(bImage):
         self.updatePixmap()
         # the presentation layer must be updated here because
         # applyCloning is called directly (mouse and Clone button events).
-        self.parentImage.prLayer.update()
+        self.parentImage.prLayer.update()  # = applyNone()
         self.parentImage.onImageChanged()
-
-    def applyKnitting(self):
-        """
-        Knitting
-        """
-        imgIn = self.inputImg()
-        imgOut = self.getCurrentImage()
-        ########################
-        # hald pass through
-        if self.parentImage.isHald:
-            buf0 = QImageBuffer(imgIn)
-            buf1 = QImageBuffer(imgOut)
-            buf1[...] = buf0
-            return
-        ########################
-
-        imgInc = imgIn.copy()
-        src = self.parentImage.layersStack[self.sourceIndex].getCurrentImage()
-        vImage.seamlessMerge(imgInc, src, self.mask, self.cloningMethod)
-        bufOut = QImageBuffer(imgOut)
-        bufOut[:, :, :3] = QImageBuffer(imgInc)[:, :, :3]
-        self.updatePixmap()
 
     def applyGrabcut(self, nbIter=2, mode=cv2.GC_INIT_WITH_MASK):
         """

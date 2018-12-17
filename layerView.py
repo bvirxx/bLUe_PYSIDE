@@ -22,7 +22,7 @@ import cv2
 import numpy as np
 
 from PySide2 import QtCore
-from PySide2.QtCore import QRectF, QSize, Qt, QModelIndex
+from PySide2.QtCore import QRectF, QSize, Qt, QModelIndex, QPointF, QPoint
 from PySide2.QtGui import QImage, QPalette, QKeySequence, QFontMetrics, QTextOption, QPixmap, QIcon, QPainter, QStandardItem, QStandardItemModel
 from PySide2.QtWidgets import QAction, QMenu, QSlider, QStyle, QCheckBox, QApplication
 from PySide2.QtWidgets import QComboBox, QHBoxLayout, QLabel, QTableView, QAbstractItemView, QStyledItemDelegate, QHeaderView, QVBoxLayout
@@ -710,11 +710,6 @@ Note that upper visible layers slow down mask edition.<br>
         ####################
         # Build menu
         ###################
-        # group/ungroup
-        menu.addAction(menu.actionAdd2Group)
-        menu.addAction(menu.actionGroupSelection)
-        menu.addAction(menu.actionUnGroup)
-        menu.addSeparator()
         menu.addAction(menu.actionUnselect)
         menu.addSeparator()
         menu.addAction(menu.actionRepositionLayer)
@@ -779,9 +774,6 @@ Note that upper visible layers slow down mask edition.<br>
         lowerVisible = self.img.layersStack[layer.getLowerVisibleStackIndex()]
         lower = self.img.layersStack[layerStackIndex - 1]  # case index == 0 doesn't matter
         # toggle actions
-        self.cMenu.actionGroupSelection.setEnabled(not(len(rows) < 2 or any(l.group for l in layers)))
-        self.cMenu.actionAdd2Group.setEnabled(not(group or layer.group))
-        self.cMenu.actionUnGroup.setEnabled(bool(layer.group))
         self.cMenu.actionMerge.setEnabled(not (hasattr(layer, 'inputImg') or hasattr(lowerVisible, 'inputImg')))
         self.actionDup.setEnabled(not layer.isAdjustLayer())
         self.cMenu.actionColorMaskEnable.setChecked(layer.maskIsSelected and layer.maskIsEnabled)
@@ -816,29 +808,6 @@ Note that upper visible layers slow down mask edition.<br>
             img = QImage(filename)
             layer.thumb = None
             layer.setImage(img)
-
-        def add2Group():
-            layer.group = group
-            layer.mask = group[0].mask
-            layer.maskIsEnabled = True
-            layer.maskIsSelected = True
-
-        def groupSelection():
-            layers = [rStack[i] for i in sorted(rows)]
-            if any(l.group for l in layers):
-                dlgWarn("Some layers are already grouped. Ungroup first")
-                return
-            mask = layers[0].mask
-            for l in layers:
-                l.group = layers
-                l.mask = mask
-                l.maskIsEnabled = True
-                l.maskIsSelected = False
-
-        def unGroup():
-            group = layer.group.copy()
-            for l in group:
-                l.unlinkMask()
 
         def merge():
             layer.merge_with_layer_immediately_below()
@@ -978,7 +947,6 @@ Note that upper visible layers slow down mask edition.<br>
         def maskErode():
             """
             Reduce the masked part of the image
-
             """
             ks = 11
             kernelMax = np.ones((ks, ks), np.uint8)
@@ -999,9 +967,6 @@ Note that upper visible layers slow down mask edition.<br>
         self.cMenu.actionRepositionLayer.triggered.connect(RepositionLayer)
         self.cMenu.actionUnselect.triggered.connect(unselectAll)
         self.cMenu.actionLoadImage.triggered.connect(loadImage)
-        self.cMenu.actionAdd2Group.triggered.connect(add2Group)
-        self.cMenu.actionGroupSelection.triggered.connect(groupSelection)
-        self.cMenu.actionUnGroup.triggered.connect(unGroup)
         self.cMenu.actionMerge.triggered.connect(merge)
         self.cMenu.actionColorMaskEnable.triggered.connect(colorMaskEnable)
         self.cMenu.actionOpacityMaskEnable.triggered.connect(opacityMaskEnable)
@@ -1018,7 +983,7 @@ Note that upper visible layers slow down mask edition.<br>
         self.cMenu.actionMaskDilate.triggered.connect(maskDilate)
         self.cMenu.actionMaskErode.triggered.connect(maskErode)
         self.cMenu.actionReset.triggered.connect(layerReset)
-        self.cMenu.exec_(event.globalPos())
+        self.cMenu.exec_(event.globalPos() - QPoint(400, 0))
         # update table
         for row in rows:
             self.updateRow(row)

@@ -442,7 +442,7 @@ def mouseEvent(widget, event):  # TODO split into 3 handlers
                         layer.autoclone = False
                         layer.maskIsEnabled = True
                         layer.maskIsSelected = False
-                        layer.applyCloning(seamless=False)
+                        layer.applyCloning(seamless=False, moving=True)
         # not mouse selectable widget : probably before window alone !
         else:
             if modifiers == Qt.NoModifier:
@@ -564,6 +564,10 @@ def wheelEvent(widget, img, event):
     elif modifiers == Qt.ControlModifier | Qt.AltModifier:
         if layer.isCloningLayer():
             layer.AltZoom_coeff *= (1.0 + numSteps)
+            # correct image offset to keep unchanged the image point
+            # under the cursor : (pos - offset) / resize_coeff is invariant
+            layer.xAltOffset = -pos.x() * numSteps + (1.0 + numSteps) * layer.xAltOffset
+            layer.yAltOffset = -pos.y() * numSteps + (1.0 + numSteps) * layer.yAltOffset
             layer.autoclone = False
             layer.applyCloning(seamless=False)
             # layer.updatePixmap()

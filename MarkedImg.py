@@ -815,14 +815,19 @@ class QLayer(vImage):
         else:
             return self
 
-    def inputImg(self):
+    def inputImg(self, redo=True):
         """
-        Update and return maskedImageContainer and maskedThumbContainer
+        return maskedImageContainer/maskedThumbContainer.
+        If redo is True(default), containers are updated.
         @return:
-        @rtype: Qlayer
+        @rtype: bImage
         """
-        # TODO 29/05/18 optimize to avoid useless updates of containers (add a valid flag to each container and invalidate it in cacheInvalidate())
-        return self.parentImage.layersStack[self.getLowerVisibleStackIndex()].getCurrentMaskedImage()
+        lower = self.parentImage.layersStack[self.getLowerVisibleStackIndex()]
+        container = lower.maskedThumbContainer if self.parentImage.useThumb else lower.maskedImageContainer
+        if redo or container is None:
+            return lower.getCurrentMaskedImage()
+        else:
+            return container
 
     def full2CurrentXY(self, x, y):
         """
