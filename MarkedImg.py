@@ -43,8 +43,11 @@ from utils import qColorToRGB, historyList
 
 from versatileImg import vImage
 
+
 class ColorSpace:
-    notSpecified = -1; sRGB = 1
+    notSpecified = -1
+    sRGB = 1
+
 
 class mImage(vImage):
     """
@@ -76,14 +79,15 @@ class mImage(vImage):
                 e.writeOrientation(destFile, '1')
             if thumbfile is not None:
                     e.writeThumbnail(destFile, thumbfile)
+
     def __init__(self, *args, **kwargs):
-        # as updatePixmap uses layersStack, it must be initialized
-        # before the call to super(). __init__
+        # as updatePixmap() uses layersStack, the latter must be initialized
+        # before the call to super(). __init__()
         self.layersStack = []
-        # link back to QLayerView window
+        # link to QLayerView instance
         self.layerView = None
         super().__init__(*args, **kwargs)  # must be done before prLayer init.
-        # add background layer
+        # background layer
         bgLayer = QLayer.fromImage(self, parentImage=self)
         bgLayer.isClipping = True
         self.setModified(False)
@@ -94,12 +98,12 @@ class mImage(vImage):
         # presentation layer
         prLayer = QPresentationLayer(QImg=self, parentImage=self)
         prLayer.name = 'presentation'
-        prLayer.role ='presentation'
+        prLayer.role = 'presentation'
         prLayer.execute = lambda l=prLayer, pool=None: prLayer.applyNone()
-        prLayer.updatePixmap() # mandatory here as vImage init. can't do it
+        prLayer.updatePixmap()  # mandatory here as vImage init. can't do it
         self.prLayer = prLayer
         self.isModified = False
-        # rawpy object
+        # link to rawpy instance
         self.rawImage = None
 
     def bTransformed(self, transformation):
@@ -161,15 +165,17 @@ class mImage(vImage):
             active.tool.showTool()
         return active
 
-    def getActivePixel(self,x, y, fromInputImg=True, qcolor=False):
+    def getActivePixel(self, x, y, fromInputImg=True, qcolor=False):
         """
         Reads the RGB colors of the pixel at (x, y) from the active layer.
         If fromInputImg is True (default), the pixel is taken from
         the input image, otherwise from the current image.
         Coordinates are relative to the full sized image.
         If (x,y) is outside the image, (0, 0, 0) is returned.
-        @param x, y: coordinates of pixel, relative to the full-sized image
-        @type x, y: int
+        @param x: x-coordinates of pixel, relative to the full-sized image
+        @type x: int
+        @param y: y-coordinates of pixel, relative to the full-sized image
+        @type y: int
         @param fromInputImg:
         @type fromInputImg:
         @param qcolor:
@@ -183,7 +189,7 @@ class mImage(vImage):
         # pixelColor returns an invalid color if (x,y) is out of range
         # we return black
         if not qClr.isValid():
-            qClr = QColor(0,0,0)
+            qClr = QColor(0, 0, 0)
         return qClr if qcolor else qColorToRGB(qClr)
 
     def getPrPixel(self, x, y):
@@ -193,14 +199,17 @@ class mImage(vImage):
         colors of the displayed pixel.
         Coordinates are relative to the full sized image.
         If (x,y) is outside the image, (0, 0, 0) is returned.
-        @param x, y: coordinates of pixel, relative to the full-sized image
+        @param x: x-coordinate of pixel, relative to the full-sized image
+        @type x: int
+        @param y: y-coordinate of pixel, relative to the full-sized image
+        @type y: int
         @return: pixel RGB colors
         @rtype: 3-uple of int
         """
         x, y = self.full2CurrentXY(x, y)
         qClr = self.prLayer.getCurrentImage().pixelColor(x, y)
         if not qClr.isValid():
-            qClr = QColor(0,0,0)
+            qClr = QColor(0, 0, 0)
         return qColorToRGB(qClr)
 
     def cacheInvalidate(self):
@@ -221,17 +230,17 @@ class mImage(vImage):
 
     def updatePixmap(self):
         """
-        Updates all layer pixmaps
+        Update the presentation layer only.
+        Used when a change in color managnement occurs
         """
-        # vImage.updatePixmap(self)  # TODO removed 8/12/18 validate
-        for layer in self.layersStack:
-            vImage.updatePixmap(layer)
+        # for layer in self.layersStack:  # TODO removed 29/12/18 validate
+            # vImage.updatePixmap(layer)
         self.prLayer.updatePixmap()
 
     def getStackIndex(self, layer):
         p = id(layer)
         i = -1
-        for i,l in enumerate(self.layersStack):
+        for i, l in enumerate(self.layersStack):
             if id(l) == p:
                 break
         return i
@@ -254,17 +263,16 @@ class mImage(vImage):
         a = 1
         trialname = name if len(name) > 0 else 'noname'
         while trialname in usedNames:
-            trialname = name + '_'+ str(a)
+            trialname = name + '_' + str(a)
             a = a+1
         if layer is None:
-            layer = QLayer(QImg=self, parentImage=self) # TODO 11/09/18 added parentImage validate
+            layer = QLayer(QImg=self, parentImage=self)  # TODO 11/09/18 added parentImage validate
             layer.fill(Qt.white)
         layer.name = trialname
-        #layer.parentImage = self # TODO 07/06/18 validate suppression
         if index is None:
             if self.activeLayerIndex is not None:
                 # add on top of active layer if any
-                index = self.activeLayerIndex + 1 #TODO +1 added 03/05/18 validate
+                index = self.activeLayerIndex + 1  # TODO +1 added 03/05/18 validate
             else:
                 # empty stack
                 index = 0
@@ -336,7 +344,7 @@ class mImage(vImage):
             index = self.activeLayerIndex
         layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
         layer.role = 'SEGMENT'
-        layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getCurrentMaskedImage() # TODO 13/06/18 is it different from other layers?
+        layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getCurrentMaskedImage()  # TODO 13/06/18 is it different from other layers?
         self.addLayer(layer, name=name, index=index + 1)
         layer.maskIsEnabled = True
         layer.maskIsSelected = True
@@ -387,7 +395,7 @@ class mImage(vImage):
         qp.end()
         return img
 
-    def save(self, filename, quality=-1, compression=-1, crops=None):
+    def save(self, filename, quality=-1, compression=-1):
         """
         Overrides QImage.save().
         Writes the presentation layer to a file and returns a
@@ -397,11 +405,13 @@ class mImage(vImage):
         @type filename: str
         @param quality: integer value in range 0..100, or -1
         @type quality: int
+        @param compression: integer value in range 0..100, or -1
+        @type compression: int
         @return: thumbnail of the saved image
         @rtype: QImage
         """
         def transparencyCheck(buf):
-            if np.any(buf[:,:,3] < 255):
+            if np.any(buf[:, :, 3] < 255):
                 dlgWarn('Transparency will be lost. Use PNG format instead')
         # don't save thumbnails
         if self.useThumb:
@@ -439,10 +449,9 @@ class mImage(vImage):
             wt, ht = 160, 120
         else:
             wt, ht = 120, 160
-        thumb = ndarrayToQImage(np.ascontiguousarray(buf[:,:,:3][:,:,::-1]), format=QImage.Format_RGB888).scaled(wt,ht, Qt.KeepAspectRatio)
-        #wr, hr = thumb.width(), thumb.height()
-        #thumb = thumb.copy(QRect((wr-wt)//2,(hr-ht)//2, wt, ht))
-        written = cv2.imwrite(filename, buf, params)  #BGR order
+        thumb = ndarrayToQImage(np.ascontiguousarray(buf[:, :, :3][:, :, ::-1]),
+                                format=QImage.Format_RGB888).scaled(wt,ht, Qt.KeepAspectRatio)
+        written = cv2.imwrite(filename, buf, params)  # BGR order
         if not written:
             raise IOError("Cannot write file %s " % filename)
         # self.setModified(False) # cannot be reset if the image is modified again
@@ -451,10 +460,6 @@ class mImage(vImage):
     def writeStackToStream(self, dataStream):
         dataStream.writeInt32(len(self.layersStack))
         for layer in self.layersStack:
-            """
-            dataStream.writeQString('menuLayer(None, "%s")' % layer.actionName)
-            dataStream.writeQString('if "%s" != "actionNull":\n dataStream=window.label.img.layersStack[-1].readFromStream(dataStream)' % layer.actionName)
-            """
             dataStream.writeQString(layer.actionName)
         for layer in self.layersStack:
             grForm = layer.getGraphicsForm()
@@ -488,7 +493,8 @@ class mImage(vImage):
         #qf.close()
         return script, qf, dataStream
 
-class imImage(mImage) :
+
+class imImage(mImage):
     """
     Zoomable and draggable multi-layer image :
     this is the base class for bLUe documents
@@ -500,7 +506,7 @@ class imImage(mImage) :
         # size of the current window ( NOT the actual pixels of the image).
         self.Zoom_coeff = 1.0
         self.xOffset, self.yOffset = 0, 0
-        self.isMouseSelectable =True
+        self.isMouseSelectable = True
         self.isModified = False
 
     def bTransformed(self, transformation):
@@ -542,7 +548,7 @@ class imImage(mImage) :
                 grForm = tLayer.getGraphicsForm()
                 # the grForm.layer property handles weak refs
                 grForm.layer = tLayer
-                grForm.scene().layer = grForm.layer # wtLayer
+                grForm.scene().layer = grForm.layer  # wtLayer
             stack.append(tLayer)
         img.layersStack = stack
         gc.collect()
@@ -559,13 +565,12 @@ class imImage(mImage) :
         # resized vImage
         rszd0 = super().resize(pixels, interpolation=interpolation)
         # resized imImage
-        rszd = imImage(QImg=rszd0,meta=copy(self.meta))
+        rszd = imImage(QImg=rszd0, meta=copy(self.meta))
         rszd.rect = rszd0.rect
-        for k, l  in enumerate(self.layersStack):
+        for k, l in enumerate(self.layersStack):
             if l.name != "background" and l.name != 'drawlayer':
                 img = QLayer.fromImage(l.resize(pixels, interpolation=interpolation), parentImage=rszd)
                 rszd.layersStack.append(img)
-                #rszd._layers[l.name] = img
         self.isModified = True
         return rszd
 
@@ -585,14 +590,13 @@ class imImage(mImage) :
         """
         self.Zoom_coeff, self.xOffset, self.yOffset = zoom, xOffset, yOffset
 
-    def fit_window(self, win):
+    def fit_window(self):
         """
         reset Zoom_coeff and offset
-        @param win: 
-        @type win:
         """
         self.Zoom_coeff = 1.0
         self.xOffset, self.yOffset = 0.0, 0.0
+
 
 class QLayer(vImage):
     """
@@ -619,7 +623,7 @@ class QLayer(vImage):
         # Making QLayer inherit from QObject leads to
         # a bugged behavior of hasattr and getattr.
         # So, we don't add signals as first level class attributes.
-        # Instead, we use instances of ad hoc signal containers (cf. utils.py)
+        # Instead, we use instances of ad hoc signal containers.
         ############################################################
         self.visibilityChanged = baseSignal_bool()
         self.colorPicked = baseSignal_Int2()
@@ -632,7 +636,7 @@ class QLayer(vImage):
         self.tLayer = self
         self.parentLayer = self
         self.modified = False
-        self.name='noname'
+        self.name = 'noname'
         self.visible = True
         self.isClipping = False
         self.role = kwargs.pop('role', '')
@@ -669,7 +673,6 @@ class QLayer(vImage):
         self.xAltOffset, self.yAltOffset = 0, 0
         self.AltZoom_coeff = 1.0
         self.updatePixmap()
-
 
     def getGraphicsForm(self):
         """
@@ -711,9 +714,9 @@ class QLayer(vImage):
         tool.layer = self
         try:
             tool.layer.visibilityChanged.sig.disconnect()  # TODO signals removed 30/09/18 validate
-        except:
+        except RuntimeError:
             pass
-        tool.layer.visibilityChanged.sig.connect(tool.setVisible) # TODO signals removed 30/09/18 validate
+        tool.layer.visibilityChanged.sig.connect(tool.setVisible)  # TODO signals removed 30/09/18 validate
         tool.img = self.parentImage
         w, h = tool.img.width(), tool.img.height()
         for role, pos in zip(['topLeft', 'topRight', 'bottomRight', 'bottomLeft'],
@@ -734,7 +737,7 @@ class QLayer(vImage):
 
     def bTransformed(self, transformation, parentImage):
         """
-        Applies transformation to a copy of layer and returns the copy.
+        Apply transformation to a copy of layer. Returns the transformed copy.
         @param transformation:
         @type transformation: QTransform
         @param parentImage:
@@ -752,7 +755,7 @@ class QLayer(vImage):
         tLayer.name = self.name
         tLayer.actionName = self.actionName
         tLayer.view = self.view
-        tLayer.visible = self.visible # TODO added 25/09/18 validate
+        tLayer.visible = self.visible  # TODO added 25/09/18 validate
         # cut link from old layer to graphic form
         # self.view = None                        # TODO 04/12/17 validate
         tLayer.execute = self.execute
@@ -773,18 +776,18 @@ class QLayer(vImage):
         """
         if not self.cachesEnabled:
             return
-        s = int((LUT3DIdentity.size) ** (3.0 / 2.0)) + 1
+        s = int(LUT3DIdentity.size ** (3.0 / 2.0)) + 1
         buf0 = LUT3DIdentity.toHaldArray(s, s).haldBuffer
-        #self.hald = QLayer(QImg=QImage(QSize(190,190), QImage.Format_ARGB32))
+        # self.hald = QLayer(QImg=QImage(QSize(190,190), QImage.Format_ARGB32))
         self.hald = QImage(QSize(s, s), QImage.Format_ARGB32)
         buf1 = QImageBuffer(self.hald)
         buf1[:, :, :3] = buf0
-        buf1[:,:,3] = 255
+        buf1[:, :, 3] = 255
         self.hald.parentImage = self.parentImage
 
     def getHald(self):
         if not self.cachesEnabled:
-            s = int((LUT3DIdentity.size) ** (3.0 / 2.0)) + 1
+            s = int(LUT3DIdentity.size ** (3.0 / 2.0)) + 1
             buf0 = LUT3DIdentity.toHaldArray(s, s).haldBuffer
             # self.hald = QLayer(QImg=QImage(QSize(190,190), QImage.Format_ARGB32))
             hald = QImage(QSize(s, s), QImage.Format_ARGB32)
@@ -904,7 +907,7 @@ class QLayer(vImage):
                 start = time()
                 layer.execute(l=layer)
                 layer.cacheInvalidate()
-                print("%s %.2f" %(layer.name, time()-start))
+                print("%s %.2f" % (layer.name, time()-start))
             stack = layer.parentImage.layersStack
             lg = len(stack)
             ind = layer.getStackIndex() + 1
@@ -952,28 +955,22 @@ class QLayer(vImage):
     """
 
     def isAdjustLayer(self):
-        return self.view is not None #hasattr(self, 'view')
-
+        return self.view is not None  # hasattr(self, 'view')
 
     def isSegmentLayer(self):
         return 'SEGMENT' in self.role
 
-
     def isCloningLayer(self):
         return 'CLONING' in self.role
-
 
     def isGeomLayer(self):
         return 'GEOM' in self.role
 
-
     def is3DLUTLayer(self):
         return '3DLUT' in self.role
 
-
     def isRawLayer(self):
         return 'RAW' in self.role
-
 
     def updatePixmap(self, maskOnly=False):
         """
@@ -994,10 +991,9 @@ class QLayer(vImage):
             x,y = self.full2CurrentXY(self.xOffset, self.yOffset)
             rImg = rImg.copy(QRect(-x, -y, rImg.width()*self.Zoom_coeff, rImg.height()*self.Zoom_coeff))
         if self.maskIsEnabled:
-            rImg = vImage.visualizeMask(rImg, self.mask, color=self.maskIsSelected, clipping=True) #self.isClipping)
+            rImg = vImage.visualizeMask(rImg, self.mask, color=self.maskIsSelected, clipping=True)  # self.isClipping)
         self.rPixmap = QPixmap.fromImage(rImg)
         self.setModified(True)
-
 
     def getStackIndex(self):
         """
@@ -1012,7 +1008,6 @@ class QLayer(vImage):
                 break
         return i
 
-
     def updateTableView(self, table):
         """
         refreshes the corresponding row in table
@@ -1021,7 +1016,6 @@ class QLayer(vImage):
         """
         ind = self.getStackIndex()
         table.updateRow(len(self.parentImage.layersStack) - 1 - ind)
-
 
     def getTopVisibleStackIndex(self):
         """
@@ -1036,7 +1030,6 @@ class QLayer(vImage):
                 return i
         return -1
 
-
     def getLowerVisibleStackIndex(self):
         """
         Returns the index of the next lower visible layer,
@@ -1050,7 +1043,6 @@ class QLayer(vImage):
             if stack[i].visible:
                 return i
         return -1
-
 
     def getUpperVisibleStackIndex(self):
         """
@@ -1067,7 +1059,6 @@ class QLayer(vImage):
                 return i
         return -1
 
-
     def getLowerClippingStackIndex(self):
         """
          Returns the index of the next lower clipping layer,
@@ -1081,7 +1072,6 @@ class QLayer(vImage):
             if self.parentImage.layersStack[i].isClipping:
                 return i
         return -1
-
 
     def linkMask2Lower(self):
         """
@@ -1099,7 +1089,7 @@ class QLayer(vImage):
         if not self.group and not lower.group:
             self.group = [self, lower]
             lower.group = self.group
-        elif not lower.group :
+        elif not lower.group:
             if not any(o is lower for o in self.group):
                 self.group.append(lower)
             lower.group  = self.group
@@ -1109,11 +1099,10 @@ class QLayer(vImage):
             self.group = lower.group
         self.mask = lower.mask
 
-
     def unlinkMask(self):
-        self.mask =self.mask.copy()
+        self.mask = self.mask.copy()
         # remove self from group
-        for i,item in enumerate(self.group):
+        for i, item in enumerate(self.group):
             if item is self:
                 self.group.pop(i)
                 # don't keep  group with length 1
@@ -1121,7 +1110,6 @@ class QLayer(vImage):
                     self.group.pop(0)
                 break
         self.group = []
-
 
     def merge_with_layer_immediately_below(self):
         """
@@ -1139,14 +1127,14 @@ class QLayer(vImage):
             info = "Uncheck Preview first" if self.parentImage.useThumb else "Target layer must be background or image"
             dlgWarn("Cannot Merge layers", info=info)
             return
-        #update stack
+        # update stack
         self.parentImage.layersStack[0].applyToStack()
         # merge
-        #target.setImage(self)
+        # target.setImage(self)
         qp = QPainter(target)
         qp.setCompositionMode(self.compositionMode)
         qp.setOpacity(self.opacity)
-        qp.drawImage(QRect(0,0,self.width(), self.height()), self)
+        qp.drawImage(QRect(0, 0, self.width(), self.height()), self)
         target.updatePixmap()
         self.parentImage.layerView.clear(delete=False)
         currentIndex = self.getStackIndex()
@@ -1154,14 +1142,12 @@ class QLayer(vImage):
         self.parentImage.layersStack.pop(currentIndex)
         self.parentImage.layerView.setLayers(self.parentImage)
 
-
     def reset(self):
         """
         reset layer to inputImg
         @return:
         """
         self.setImage(self.inputImg())
-
 
     def setOpacity(self, value):
         """
@@ -1179,7 +1165,7 @@ class QLayer(vImage):
         """
         self.colorMaskOpacity = value
         buf = QImageBuffer(self.mask)
-        buf[:,:,3] = np.uint8(value)
+        buf[:, :, 3] = np.uint8(value)
 
     def readFromStream(self, dataStream):
         grForm = self.getGraphicsForm()
@@ -1202,10 +1188,10 @@ class QPresentationLayer(QLayer):
         self.qPixmap = None
         self.cmImage = None
 
-    def inputImg(self):
+    def inputImg(self, redo=True):
         return self.parentImage.layersStack[self.getTopVisibleStackIndex()].getCurrentMaskedImage()
 
-    def updatePixmap(self, maskOnly = False):
+    def updatePixmap(self, maskOnly=False):
         """
         Synchronize qPixmap and rPixmap with the image layer and mask.
         If maskOnly is True, cmImage is not updated.
@@ -1236,6 +1222,7 @@ class QPresentationLayer(QLayer):
     def update(self):
         self.applyNone()
 
+
 class QLayerImage(QLayer):
     """
     QLayer containing its own source image
@@ -1262,40 +1249,20 @@ class QLayerImage(QLayer):
         @rtype: QLayerImage
         """
 
-        tLayer = super().bTransformed(transformation, parentImage) #(self, transformation, parentImage) # TODO changed 23/10/18 validate
-        """ 
-        tLayer = QLayerImage.fromImage(self.transformed(transformation), parentImage=parentImage, sourceImg=self.sourceImg.transformed(transformation))
-        # add dynamic attributes
-        for a in self.__dict__.keys():
-            av = tLayer.__dict__.get(a, None)
-            if av is None or av == '':
-                tLayer.__dict__[a] = self.__dict__[a]
-        # link back grWindow to tLayer
-        if tLayer.view is not None:
-            tLayer.view.widget().layer = tLayer
-        if tLayer.tool is not None:
-            tLayer.tool.layer = tLayer
-            tLayer.tool.img = tLayer.parentImage
-        tLayer.execute = self.execute
-        tLayer.mask = self.mask.transformed(transformation)
-        tLayer.maskIsEnabled, tLayer.maskIsSelected = self.maskIsEnabled, self.maskIsSelected
-        # keep original layer
-        tLayer.parentLayer = self.parentLayer
-        # record new transformed layer
-        self.parentLayer.tLayer = tLayer
-        """
+        tLayer = super().bTransformed(transformation, parentImage)
         if tLayer.tool is not None:
             tLayer.tool.layer = tLayer
             tLayer.tool.img = tLayer.parentImage
         return tLayer
 
-    def inputImg(self):
+    def inputImg(self, redo=True):
         """
         Overrides QLayer.inputImg()
         @return:
         @rtype: QImage
         """
         return self.sourceImg.scaled(self.getCurrentImage().size())
+
 
 class QRawLayer(QLayer):
     """
