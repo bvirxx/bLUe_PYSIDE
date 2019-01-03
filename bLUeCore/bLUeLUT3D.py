@@ -19,16 +19,15 @@ from .cartesian import cartesianProduct
 import numpy as np
 
 
-class haldArray(object):
+class HaldArray(object):
     """
-    hald array wrapper, recording the size of the corresponding LUT.
+    hald image wrapper, recording the size of the corresponding 3D LUT.
     """
     def __init__(self, haldBuffer, size):
         """
-        Inits a hald array.
         @param haldBuffer: 2D array
         @type haldBuffer: ndarray, shape (w,h,3)
-        @param size: size of the LUT
+        @param size: size of the 3D LUT
         @type size: int
         """
         self.size = size
@@ -38,20 +37,25 @@ class haldArray(object):
 
 class LUT3D (object):
     """
-    Implements a 3D LUT as a cubic array with shape (s, s, s, 3). The size s should be s=2**n + 1,
+    Standard RGB 3D LUT, following the Adobe cube LUT specification :
+    cf. http://wwwimages.adobe.com/content/dam/Adobe/en/products/speedgrade/cc/pdfs/cube-lut-specification-1.0.pdf
+
+    This class implements a RGB 3D LUT as a cubic array with shape (s, s, s, 3). The size s should be s=2**n + 1,
     where n is a postive integer. Most common values are s=17 or s=33.
+    The input role (R or G or B) of the LUT axes must follow the ordering
+    of the output color channels.
 
-    The role (R or G or B) of the LUT axes follows the ordering of the color channels.
+    A 3D LUT can also be represented as a 2D image, called a hald. To build the hald, the LUT is
+    flattened, padded with 0,and next reshaped as a two dimensional array.
 
-    A 3D LUT can also be represented as an array or image, called a hald. To build the hald, the LUT is
-    flattened, padded with 0,and next reshaped as a a two dimensional array. The 3D LUT can easily be
-    reconstructed from the hald.
+    Another 3D LUT class, following the Adobe dng spec. and suitable for arbitrary color spaces,
+    can be found in the module dng.py.
     """
     ####################################
     # MaxRange defines the maximum input value
     # that can be interpolated from the LUT.
     # It should be 2**n with integer n.
-    # For standard 3D LUT formats it is always 256
+    # For standard 3D LUTs it is always 256
     standardMaxRange = 256
     #####################################
 
@@ -63,17 +67,11 @@ class LUT3D (object):
     @classmethod
     def HaldBuffer2LUT3D(cls, haldBuff):
         """
-        Converts a hald array to a LUT3D object.
+        Convert a HaldArray instance to a LUT3D object.
+        The role (R or G or B) of the LUT axes follows the ordering of the color channels.
 
-        A hald image or hald array can be viewed as a 3D LUT flattened and reshaped
-        as a 2D array. The (self.size-1)**3 first pixels
-        of the flattened image are taken from the LUT; remaining bytes are padded with 0.
-
-        The role (R or G or B) of the LUT axes is given by the color channels ordering
-        in haldBuf.
-
-        @param haldBuff: hald array
-        @type haldBuff: haldArray
+        @param haldBuff: hald image
+        @type haldBuff: HaldArray
         @return: 3D LUT
         @rtype: LUT3D object
         """
@@ -81,10 +79,10 @@ class LUT3D (object):
         size = haldBuff.size
         count = (size ** 3) * 3
         if count > buf.shape[0]:
-            raise ValueError('HaldImage2LUT3D : LUT3D size and hald dimensions do not match')
+            raise ValueError('haldBuffer2LUT3D : LUT3D size and hald dimensions do not match')
         buf = buf[:count].reshape((size, size, size, 3))
-        LUT = np.zeros((size, size, size, 3), dtype=float)  # TODO 18/10/18 changed dtype int to float : validate
-        LUT[:, :, :, :] = buf  # [:, :, :, ::-1]
+        LUT = np.zeros((size, size, size, 3), dtype=float)
+        LUT[:, :, :, :] = buf
         return LUT3D(LUT, size=size)
 
     @classmethod
@@ -93,7 +91,7 @@ class LUT3D (object):
         Read a 3D LUT from a text stream in format .cube.
         Values read should be between 0 and 1. They are
         multiplied by 255 and converted to int.
-        The channels of the LUT and the axes of the cube are both in order BGR.
+        The channels of the LUT and the axes of the cube are both in BGR order.
         Raises a ValueError exception if the method fails.
         @param inStream:
         @type inStream: TextIoWrapper
@@ -178,13 +176,13 @@ class LUT3D (object):
 
         LUT3DArray is the array of color values, with shape (size, size, size, 3).
         By convention, the role (R or G or B) of the three first axes follows the ordering
-        of the color channels..
+        of the color channels.
 
         If LUT3DArray is None, we construct an "identity" LUT3D :
         it holds 3-uples (r,g,b) of numbers of type dtype, evenly
         distributed in the range 0..standardMaxRange (edges included).
         When used to interpolate an image, this "identity" LUT3D
-        should keep it unchanged.
+        keeps it unchanged.
 
         The parameter dtype has no effect when LUT3Darray is not None.
 
@@ -213,7 +211,7 @@ class LUT3D (object):
 
         if LUT3DArray is None:
             # build default LUT3DArray
-            a = np.arange(size, dtype=dtype) * self.step  #
+            a = np.arange(size, dtype=dtype) * self.step
             c = cartesianProduct((a, a, a))
             self.LUT3DArray = c
         else:
@@ -230,21 +228,17 @@ class LUT3D (object):
 
     def toHaldArray(self, w, h):
         """
-        Convert the LUT3D object to a hald array with shape (w,h,3).
-
+        Convert a LUT3D object to a haldArray object with shape (w,h,3).
         The 3D LUT is flattened, padded with 0, and reshaped
-        to a 2D array (or image).
-
-        w*h should be greater than (self.size)**3
-
-        IMPORTANT : Hald channels, LUT channels and LUT axes must follow the same ordering (BGR or RGB).
+        to a 2D array. The product w * h must be greater than (self.size)**3
+        Hald channels, LUT channels and LUT axes must follow the same ordering (BGR or RGB).
         To simplify, we only handle halds and LUTs of type BGR.
         @param w: image width
         @type w: int
         @param h: image height
         @type h: int
-        @return: hald array
-        @rtype: haldArray object
+        @return: hald image
+        @rtype: HaldArray
         """
         s = self.size
         if (s ** 3) > w * h:
@@ -253,7 +247,7 @@ class LUT3D (object):
         count = (s ** 3) * 3  # TODO may be clip LUT array to 0,255 ?
         buf[:count] = self.LUT3DArray.ravel()
         buf = buf.reshape(h, w, 3)
-        return haldArray(buf, s)
+        return HaldArray(buf, s)
 
     def writeToTextStream(self, outStream):
         """
