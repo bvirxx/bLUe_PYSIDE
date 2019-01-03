@@ -434,7 +434,7 @@ class vImage(bImage):
     def resize_coeff(self, widget):
         """
         Normalization of self.Zoom_coeff.
-        Returns the current resizing coefficient used by
+        Return the current resizing coefficient used by
         the widget paint event handler to display the image.
         The coefficient is chosen to initially (i.e. when self.Zoom_coeff = 1)
         fill the widget without cropping.
