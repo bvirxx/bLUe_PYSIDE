@@ -19,12 +19,10 @@ import ctypes
 import threading
 from os.path import isfile, basename
 from itertools import product
-
-import cv2
 import numpy as np
 
 from PySide2 import QtCore
-from PySide2.QtGui import QColor, QImage, QPainter, QPixmap, QIcon, QFont
+from PySide2.QtGui import QColor, QImage, QPainter, QPixmap, QIcon
 from PySide2.QtWidgets import QListWidget, QListWidgetItem, \
     QSlider, QLabel, QDockWidget, QStyle, QColorDialog, QPushButton
 from PySide2.QtCore import Qt, QObject, QRect
@@ -44,6 +42,7 @@ def qColorToRGB(color):
     """
     return color.red(), color.green(), color.blue()
 
+
 def qColorToCMYK(color):
     """
     Converts a QColor to its C, M, Y, K components (range 0..255)
@@ -53,6 +52,7 @@ def qColorToCMYK(color):
     @rtype: 4-uple of int
     """
     return color.cyan(), color.magenta(), color.yellow(), color.black()
+
 
 def qColorToHSV(color):
     """
@@ -103,9 +103,10 @@ and output values in the right column.<br>
                              for w in (clrI.blue(), clrC.blue(), 'Y ',
                                        clrI.yellow() * 100 // 255, clrC.yellow() * 100 // 255, 'V ',
                                        clrI.value() * 100 // 255, clrC.value() * 100 // 255)])
-        r3 = "".join((' ',) * 10)  + 'K ' + "".join([str(w).ljust(4) for w in
+        r3 = "".join((' ',) * 10) + 'K ' + "".join([str(w).ljust(4) for w in
                                                      (clrI.black() * 100 // 255, clrC.black() * 100 // 255)])
         self.label.setText('\n'.join((r0, r1, r2, r3)))
+
 
 def hideConsole():
     """
@@ -116,6 +117,7 @@ def hideConsole():
         ctypes.windll.user32.ShowWindow(whnd, 0)
         ctypes.windll.kernel32.CloseHandle(whnd)
 
+
 def showConsole():
     """
     Shows the console window
@@ -124,6 +126,7 @@ def showConsole():
     if whnd != 0:
         ctypes.windll.user32.ShowWindow(whnd, 1)
         ctypes.windll.kernel32.CloseHandle(whnd)
+
 
 def multiply(matr_a, matr_b):
     """Return product of an MxP matrix A with an PxN matrix B."""
@@ -134,6 +137,7 @@ def multiply(matr_a, matr_b):
         for j, k in product(range(cols), range(rows)):
             rMatrix[idx][j] += matr_a[idx][k] * matr_b[k][j]
     return rMatrix
+
 
 def inversion(m):
     """
@@ -147,6 +151,7 @@ def inversion(m):
                     [m6 * m7 - m4 * m9, m1 * m9 - m3 * m7, m3 * m4 - m1 * m6],
                     [m4 * m8 - m5 * m7, m2 * m7 - m1 * m8, m1 * m5 - m2 * m4]])
     return inv / multiply(inv[0], m[:, 0])
+
 
 class UDict(object):
     """
@@ -182,6 +187,7 @@ class QbLUeColorDialog(QColorDialog):
 
     def closeEvent(self, e):
         self.closeSignal.sig.emit()
+
 
 class QbLUeSlider(QSlider):
     """
@@ -255,11 +261,13 @@ class QbLUeLabel(QLabel):
     def mouseDoubleClickEvent(self, e):
         self.doubleClicked.emit()
 
+
 class QbLUePushButton(QPushButton):
     """
     Form PushButtons (specific style sheet)
     """
     pass
+
 
 class historyList(list):
     """
@@ -268,16 +276,17 @@ class historyList(list):
     """
 
     def __init__(self, size=5):
-       """
-       The attribute self.current indicates the
-       index of the last restored item, -1 if no
-       restoration was done since the last saving:
-       next item to restore has always index self.current+1
-       @param size: max history size
-       @type size: int
-       """
-       self.size= size
-       self.current = -1
+        """
+        The attribute self.current indicates the
+        index of the last restored item, -1 if no
+        restoration was done since the last saving:
+        next item to restore has always index self.current+1
+        @param size: max history size
+        @type size: int
+        """
+        super().__init__()
+        self.size = size
+        self.current = -1
 
     def addItem(self, item):
         super().insert(0, item)
@@ -298,7 +307,7 @@ class historyList(list):
         @return:
         @rtype: object
         """
-        if (self.current >= len(self) - 1):
+        if self.current >= len(self) - 1:
             # no more items to restore
             return None
         # stack a possibly unsaved (i.e. not restored) item
@@ -321,8 +330,9 @@ class historyList(list):
     def canRedo(self):
         return self.current > 0
 
+
 class optionsWidgetItem(QListWidgetItem):
-    def __init__(self, *args, intName='',**kwargs, ):
+    def __init__(self, *args, intName='', **kwargs, ):
         super().__init__(*args, **kwargs)
         self._internalName = intName
 
@@ -336,7 +346,8 @@ class optionsWidgetItem(QListWidgetItem):
     def isChecked(self):
         return self.checkState() == Qt.CheckState.Checked
 
-class optionsWidget(QListWidget) :
+
+class optionsWidget(QListWidget):
     """
     Displays a list of options with checkboxes.
     The choices can be mutually exclusive (default) or not
@@ -376,15 +387,14 @@ class optionsWidget(QListWidget) :
             self.addItem(listItem)
             self.items[intName] = listItem
             self.options[intName] = (listItem.checkState() == Qt.Checked)
-        #self.setMinimumWidth(self.sizeHintForColumn(0)) # TODO 18/04/18 validate suppression to improve graphicsLUT3D
         self.setMinimumHeight(self.sizeHintForRow(0)*len(options))
-        self.setMaximumHeight(self.sizeHintForRow(0) * len(options) + 10) # TODO added 14/09/18 to improve the aspect of all graphic forms. Validate
+        self.setMaximumHeight(self.sizeHintForRow(0) * len(options) + 10)
         self.exclusive = exclusive
         self.itemClicked.connect(self.select)
         if changed is not None:
             self.itemClicked.connect(changed)
         # selection hook.
-        self.onSelect = lambda x : 0
+        self.onSelect = lambda x: 0
 
     def select(self, item, callOnSelect=True):
         """
@@ -437,6 +447,7 @@ class optionsWidget(QListWidget) :
         for r in range(self.count()):
             self.item(r).setCheckState(Qt.Unchecked)
 
+
 def checkeredImage(format=QImage.Format_ARGB32):
     """
     Returns a 20x20 checker
@@ -475,16 +486,20 @@ def checkeredImage(format=QImage.Format_ARGB32):
     return image
     """
 
+
 class stateAwareQDockWidget(QDockWidget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._closed = False
+
     def closeEvent(self, event):
         self._closed = True
         super().closeEvent(event)
+
     @property
     def isClosed(self):
         return self._closed
+
 
 class loader(threading.Thread):
     """
@@ -502,6 +517,7 @@ class loader(threading.Thread):
         super(loader, self).__init__()
         self.fileListGen = gen
         self.wdg = wdg
+
     def run(self):
         # next() raises a StopIteration exception when the generator ends.
         # If this exception is unhandled by run(), it causes thread termination.
@@ -516,7 +532,8 @@ class loader(threading.Thread):
                     # get orientation
                     try:
                         # read metadata from sidecar (.mie) if it exists, otherwise from image file.
-                        profile, metadata = e.get_metadata(filename, tags=("colorspace", "profileDescription", "orientation", "model", "rating", "FileCreateDate"),
+                        profile, metadata = e.get_metadata(filename,
+                                                           tags=("colorspace", "profileDescription", "orientation", "model", "rating", "FileCreateDate"),
                                                            createsidecar=False)
                     except ValueError:
                         metadata = {}
@@ -541,12 +558,12 @@ class loader(threading.Thread):
                     # remove possible black borders, except for .NEF
                     if filename[-3:] not in ['nef', 'NEF']:
                         bBorder = 7
-                        img = img.copy(QRect(0,bBorder, img.width(), img.height()-2*bBorder))
+                        img = img.copy(QRect(0, bBorder, img.width(), img.height()-2*bBorder))
                     pxm = QPixmap.fromImage(img)
                     if not transformation.isIdentity():
                         pxm = pxm.transformed(transformation)
                     # set item caption and tooltip
-                    item = QListWidgetItem(QIcon(pxm), basename(filename)) # + '\n' + rating)
+                    item = QListWidgetItem(QIcon(pxm), basename(filename))  # + '\n' + rating)
                     item.setToolTip(basename(filename) + ' ' + date + ' ' + rating)
                     # set item mimeData to get filename=item.data(Qt.UserRole)[0] transformation=item.data(Qt.UserRole)[1]
                     item.setData(Qt.UserRole, (filename, transformation))
@@ -556,6 +573,7 @@ class loader(threading.Thread):
                     continue
                 except:
                     break
+
 
 def clip(image, mask, inverted=False):
     """
@@ -573,8 +591,9 @@ def clip(image, mask, inverted=False):
     bufMask = QImageBuffer(mask)
     if inverted:
         bufMask = bufMask.copy()
-        bufMask[:,:,3] = 255 - bufMask[:,:,3]
-    bufImg[:,:,3] = bufMask[:,:,3]
+        bufMask[:, :, 3] = 255 - bufMask[:, :, 3]
+    bufImg[:, :, 3] = bufMask[:, :, 3]
+
 
 def boundingRect(img, pattern):
     """
@@ -601,7 +620,7 @@ def boundingRect(img, pattern):
         XMin = np.argmax(b, axis=1)
         # To exclude the rows with a max different of the global max,
         # we assign to them a value greater than all possible indices.
-        XMin = np.where(np.diagonal(b[:, XMin])==np.max(b), XMin, np.sum(b.shape)+1)
+        XMin = np.where(np.diagonal(b[:, XMin]) == np.max(b), XMin, np.sum(b.shape)+1)
         return np.min(XMin)
     # indicator function of the region
     img = np.where(img==pattern, 1, 0)
@@ -617,7 +636,7 @@ def boundingRect(img, pattern):
 
 
 if __name__ == '__main__':
-    a= np.ones(100, dtype=int).reshape(10,10)
+    a= np.ones(100, dtype=int).reshape(10, 10)
     #b=strides_2d(a, (11,11))
     m = movingVariance(a,7)
     print(m)
