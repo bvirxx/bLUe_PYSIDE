@@ -18,10 +18,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
-from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QHBoxLayout
+from PySide2.QtWidgets import QVBoxLayout, QHBoxLayout
 
 from bLUeGui.graphicsForm import baseForm
-from bLUeGui.memory import weakProxy
 from utils import QbLUeSlider, QbLUeLabel
 
 
@@ -31,17 +30,12 @@ class ExpForm (baseForm):
 
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
-        wdgt = ExpForm(axeSize=axeSize, layer=layer, parent=parent)
+        wdgt = ExpForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
         wdgt.setWindowTitle(layer.name)
         return wdgt
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
-        super().__init__(parent=parent)
-        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        self.setMinimumSize(axeSize, axeSize)
-        self.setAttribute(Qt.WA_DeleteOnClose)
-        # link back to image layer
-        self.layer = weakProxy(layer)
+        super().__init__(layer=layer, targetImage=targetImage, parent=parent)
         # options
         self.options = None
         # exposure slider
@@ -93,10 +87,10 @@ class ExpForm (baseForm):
         self.setLayout(l)
         self.adjustSize()
         self.setWhatsThis(
-"""<b>Exposure Correction</b>
-Multiplicative correction in the linear sRGB color space.<br>
-Unit is the diaphragm stop.<br>
-"""
+                        """<b>Exposure Correction</b>
+                        Multiplicative correction in the linear sRGB color space.<br>
+                        Unit is the diaphragm stop.<br>
+                        """
                          )  # end setWhatsThis
 
         self.setDefaults()
