@@ -15,107 +15,167 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-import weakref
-
 from PySide2 import QtCore
 from PySide2.QtCore import QPoint
-from PySide2.QtWidgets import QGraphicsView, QGraphicsScene, QSizePolicy, QGraphicsPathItem, QWidget
-from PySide2.QtGui import QColor, QPen, QPainterPath
+from PySide2.QtWidgets import QGraphicsView, QGraphicsScene, QSizePolicy, QGraphicsPathItem, QWidget, QVBoxLayout, \
+    QLabel, QHBoxLayout
+from PySide2.QtGui import QColor, QPen, QPainterPath, QBrush
 from PySide2.QtCore import Qt
-
-#################################################
-# All layer control graphic forms must inherit
-# from either baseForm or graphicsCurveForm below.
-#################################################
 from bLUeGui.memory import weakProxy
 
-
-class baseForm(QWidget):
+class bottomWidget(QLabel):
     """
-    Base class for non graphic (i.e. without scene) forms
+    ad hoc container to add non-zoomable
+    buttons and options below a scene.
     """
-    dataChanged = QtCore.Signal()
+    def __init__(self):
+        super().__init__()
+        self.setMaximumSize(160000, 180)
+        self.setObjectName('container')
+        ss = """QWidget#container{background-color: black}
+                               QListWidget{background-color: black; selection-background-color: black; border: none; font-size: 7pt}
+                               QListWidget::item{color: white;}
+                               QListWidget::item::selected{background: black; border: none}"""
+        self.setStyleSheet(ss)
 
-    def __init__(self, parent=None, layer=None):
-        super().__init__(parent=parent)
-        self.layer = layer
-        # accept click focus (needed by whatsthis)
-        self.setFocusPolicy(Qt.ClickFocus)
-        # connect layerPicked signal
-        if self.layer is not None:
-            self.layer.colorPicked.sig.connect(self.colorPickedSlot)
 
+class abstractForm:
+    """
+    Base properties and methods
+    for graphic forms.
+    This container is designed for multiple
+    inheritance only and should never be instantiated.
+    """
     @property
     def layer(self):
         return self.__layer
 
     @layer.setter
     def layer(self, aLayer):
-        if aLayer is None:
-            self.__layer = None
-        else:
-            # link back to image layer :
-            # using weak ref for back links
-            if type(aLayer) in weakref.ProxyTypes:
-                self.__layer = aLayer
-            else:
-                self.__layer = weakref.proxy(aLayer)
+        self.__layer = weakProxy(aLayer)
+
+    @property
+    def targetImage(self):
+        return self.__targetImage
+
+    @targetImage.setter
+    def targetImage(self, aTargetImage):
+        self.__targetImage = weakProxy(aTargetImage)
 
     def colorPickedSlot(self, x, y, modifiers):
         """
-        Should be overridden in derived classes
+        A colorPicked signal is emitted when a mouse click
+        occurs on the image under edition (cf. bLUe.mouseEvent()).
+        (x,y) coordinates are supposed to be relative to the full size image.
+        Should be overridden in subclasses.
+        @param x:
+        @type x: int
+        @param y:
+        @type y: int
+        @param modifiers:
+        @type modifiers: Qt.KeyboardModifiers
+
         """
         pass
 
     def setDefaults(self):
+        """
+        Set the initial state of the form.
+        This is an outline that must
+        be overridden in subclasses.
+        """
+        try:
+            self.dataChanged.disconnect()
+        except RuntimeError:
+            pass
+        # set default values here
         self.dataChanged.connect(self.updateLayer)
 
-
     def reset(self):
-        self.setDefaults()
-        self.dataChanged.emit(True)
-
-    def updateLayer(self, *args, **kwargs):  # cacheInvalidate)
         """
-        data changed event handler.
-        Should be overridden
-        by subclasses.
-        @param cacheInvalidate:
-        @type cacheInvalidate:
+        Reset the form and update
+        """
+        self.setDefaults()
+        self.dataChanged.emit()
+
+    def updateLayer(self):
+        """
+        data changed slot.
+        Must be overridden in subclasses.
         """
         pass
 
     def updateHists(self):
         """
-        Update the input histograms displayed
+        Update the input histograms possibly displayed
         on the form. Should be overridden
-        by subclasses.
+        in subclasses.
         """
         pass
 
 
-class baseGraphicsForm(QGraphicsView):
+#################################################
+# Base graphic forms.
+# All graphic forms should inherit
+# from baseForm, baseGraphicsForm or graphicsCurveForm below.
+#################################################
+
+class baseForm(QWidget, abstractForm):
     """
-    Base class for graphics (with scene) forms
+    Base class for all graphic forms.
+
     """
-    def __init__(self, *args, **kwargs):
-        super().__init__(parent=kwargs.get('parent', None))
+    # Form state changed signal
+    # Subclasses may redefine it with a different signature.
+    # In that case, they must override abstractForm.reset() accordingly.
+    dataChanged = QtCore.Signal()
+
+    def __init__(self, layer=None, targetImage=None, parent=None):
+        super().__init__(parent=parent)
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        # accept click focus (needed by whatsthis)
+        self.setFocusPolicy(Qt.ClickFocus)
+        # back link to image layer (weak ref)
+        self.layer = layer              # property setter
+        self.targetImage = targetImage  # property setter
+        self.dataChanged.connect(self.updateLayer)
+        # layer color picked signal
+        if layer is not None:
+            layer.colorPicked.sig.connect(self.colorPickedSlot)
+
+
+class baseGraphicsForm(QGraphicsView, abstractForm):
+    """
+    Base class for graphic forms using a scene.
+    """
+    # Form state changed signal
+    # Subclasses may redefine it with a different signature.
+    # In that case, they must override abstractForm.reset() accordingly.
+    dataChanged = QtCore.Signal()
+
+    def __init__(self, layer=None, targetImage=None, parent=None):
+        super().__init__(parent=parent)  # QGraphicsView __init__ is mandatory : don't rely on MRO !
         self.setAlignment(Qt.AlignTop)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        self.setFocusPolicy(Qt.ClickFocus)
         # back links to image
-        self.targetImage = weakProxy(kwargs.get('targetImage', None))
-        self.layer = weakProxy(kwargs.get('layer', None))
+        self.layer = layer
+        self.targetImage = targetImage
         self.setScene(QGraphicsScene())
         # convenience attributes
         self.graphicsScene = weakProxy(self.scene())
         self.graphicsScene.options = None
         self.graphicsScene.layer = self.layer
         self.graphicsScene.targetImage = self.targetImage
+        self.dataChanged.connect(self.updateLayer)
+        # layer color picked signal
+        if layer is not None:
+            layer.colorPicked.sig.connect(self.colorPickedSlot)
 
     def wheelEvent(self, e):
         """
-        Override QGraphicsView wheelEvent
-        Zoom the scene
+        Override QGraphicsView wheelEvent.
+        Zoom the scene.
         @param e:
         @type e:
         """
@@ -124,29 +184,43 @@ class baseGraphicsForm(QGraphicsView):
         numSteps = 1 + e.delta() / 1200.0
         self.scale(numSteps, numSteps)
 
-    def updateHists(self):
+    def addCommandLayout(self, glayout):
         """
-        Update the input histograms displayed
-        on the form. Should be overridden
-        by subclasses.
+        Add a layout below the scene.
+        That layout (e.g. a grid layout) is opaque and
+        non-zoomable. It is supposed
+        to contain option lists, buttons,...needed by
+        the form.
+        @param glayout:
+        @type glayout: Qlayout
         """
-        pass
+        vl = QVBoxLayout()
+        vl.addLayout(glayout)
+        container = bottomWidget()
+        container.setLayout(vl)
+        vl1 = QVBoxLayout()
+        vl1.setAlignment(Qt.AlignBottom)
+        vl1.addWidget(container)
+        hl = QHBoxLayout()
+        hl.addStretch(1)
+        hl.addLayout(vl1)
+        container.adjustSize()  # needed
+        self.setLayout(hl)
 
 
-class graphicsCurveForm(baseGraphicsForm):  # QGraphicsView):  # TODO modified 30/11/18
+class graphicsCurveForm(baseGraphicsForm):
     """
     Base class for interactive curve forms
     """
-
     @classmethod
     def drawPlotGrid(cls, axeSize, gradient=None):
         """
-        Rerturns a QGraphicsPathItem initialized with
+        Rerturn a QGraphicsPathItem initialized with
         a square grid.
         @param axeSize:
-        @type axeSize:
+        @type axeSize: int
         @param gradient:
-        @type gradient
+        @type gradient: QGradient
         @return:
         @rtype: QGraphicsPathItem
         """
@@ -155,7 +229,7 @@ class graphicsCurveForm(baseGraphicsForm):  # QGraphicsView):  # TODO modified 3
         if gradient is None:
             item.setPen(QPen(Qt.darkGray, lineWidth, Qt.DashLine))
         else:
-            item.setPen(QPen(gradient, lineWidth, Qt.DashLine))
+            item.setPen(QPen(QBrush(gradient), lineWidth, Qt.DashLine))
         qppath = QPainterPath()
         qppath.moveTo(QPoint(0, 0))
         qppath.lineTo(QPoint(axeSize, 0))
@@ -173,21 +247,17 @@ class graphicsCurveForm(baseGraphicsForm):  # QGraphicsView):  # TODO modified 3
         item.setPath(qppath)
         return item
 
-    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
-        super().__init__(parent=parent, targetImage=targetImage, layer=layer)
-        self.layer = layer
+    def __init__(self, layer=None, targetImage=None, axeSize=500, parent=None):
+        super().__init__(layer=layer, targetImage=targetImage, parent=parent)
         # additional inactive curve to draw (QPolyLineF or list of QPointF)
         self.baseCurve = None
         self.setMinimumSize(axeSize + 60, axeSize + 140)
-        self.setAttribute(Qt.WA_DeleteOnClose)
-        graphicsScene = self.scene()
-        graphicsScene.bgColor = QColor(200, 200, 200)
-        graphicsScene.axeSize = axeSize
-        # add axes and grid
-        graphicsScene.defaultAxes = self.drawPlotGrid(axeSize)
-        graphicsScene.addItem(graphicsScene.defaultAxes)
-        # connect layer colorPicked signal
-        graphicsScene.layer.colorPicked.sig.connect(self.colorPickedSlot)
+        # self.setAttribute(Qt.WA_DeleteOnClose)  # TODO removed 02/01/19 validate
+        self.graphicsScene.bgColor = QColor(200, 200, 200)
+        self.graphicsScene.axeSize = axeSize
+        # add axes and grid to scene
+        self.graphicsScene.defaultAxes = self.drawPlotGrid(axeSize)
+        self.graphicsScene.addItem(self.graphicsScene.defaultAxes)
         # default WhatsThis for interactive curves
         self.setWhatsThis(
             """
@@ -207,22 +277,6 @@ class graphicsCurveForm(baseGraphicsForm):  # QGraphicsView):  # TODO modified 3
             """)  # end setWhatsThis
 
     @property
-    def layer(self):
-        return self.__layer
-
-    @layer.setter
-    def layer(self, aLayer):
-        if aLayer is None:
-            self.__layer = None
-        else:
-            # link back to image layer :
-            # using weak ref for back links
-            if type(aLayer) in weakref.ProxyTypes:
-                self.__layer = aLayer
-            else:
-                self.__layer = weakref.proxy(aLayer)
-
-    @property
     def baseCurve(self):
         return self.__baseCurve
 
@@ -230,16 +284,4 @@ class graphicsCurveForm(baseGraphicsForm):  # QGraphicsView):  # TODO modified 3
     def baseCurve(self, points):
         self.__baseCurve = points
 
-    def colorPickedSlot(self, x, y, modifiers):
-        """
-        Should be overridden in derived classes
-        """
-        pass
 
-    def updateHists(self):
-        """
-        Update the input histograms displayed
-        under the curves. Should be overridden
-        by subclasses.
-        """
-        pass
