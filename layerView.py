@@ -957,6 +957,7 @@ Note that upper visible layers slow down mask edition.<br>
             buf[:,:,2] = cv2.filter2D(buf[:,:,2], -1 ,kernelMean)
             for l in self.img.layersStack:
                 l.updatePixmap(maskOnly=True)
+            self.img.prLayer.applyNone()
             self.img.onImageChanged()
 
         def layerReset():
