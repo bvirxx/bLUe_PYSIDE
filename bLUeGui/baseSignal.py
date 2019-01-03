@@ -17,12 +17,14 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 ##################
-# Base classes for signals
-# They are mainly containers.
-# As multiple inheritance leads to
-# bugs with QObject, they can be used
-# as a workaround to define
-# custom signals (cf. QLayer).
+# Signal classes.
+# They are signal containers:
+# they can be used as a substitute to
+# multiple inheritance for adding custom
+# signals to classes that do not inherit from
+# QObject (cf. QLayer).
+##################
+
 from PySide2 import QtCore
 from PySide2.QtCore import QObject
 
@@ -30,8 +32,10 @@ from PySide2.QtCore import QObject
 class baseSignal_No(QObject):
     sig = QtCore.Signal()
 
+
 class baseSignal_bool(QObject):
     sig = QtCore.Signal(bool)
+
 
 class baseSignal_Int2(QObject):
     sig = QtCore.Signal(int, int, QtCore.Qt.KeyboardModifiers)

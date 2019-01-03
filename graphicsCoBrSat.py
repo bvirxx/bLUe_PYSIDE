@@ -52,8 +52,6 @@ class CoBrSatForm(baseForm):
                                          sliderContrast
                                          sliderSaturation
     """
-
-    # dataChanged = QtCore.Signal()
     layerTitle = "Cont/Bright/Sat"
     contrastDefault = 0.0
     brightnessDefault = 0.0
@@ -98,20 +96,13 @@ class CoBrSatForm(baseForm):
         return v - 50
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
-        super().__init__(parent=parent)
+        super().__init__(layer=layer, parent=parent)
         self.setStyleSheet('QRangeSlider * {border: 0px; padding: 0px; margin: 0px}')
-        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        # self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize, axeSize+100)
-        self.setAttribute(Qt.WA_DeleteOnClose)
+        # self.setAttribute(Qt.WA_DeleteOnClose)
         # link back to image layer
         self.layer = weakProxy(layer)
-        """
-        # using weak ref for back links
-        if type(layer) in weakref.ProxyTypes:
-            self.layer = layer
-        else:
-            self.layer = weakref.proxy(layer)
-        """
         # contrast spline viewer
         self.contrastForm = None
         # options

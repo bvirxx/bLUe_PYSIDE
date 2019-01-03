@@ -232,7 +232,7 @@ class activeSpline(QGraphicsPathItem):
         @param parentItem:
         @type parentItem: object
         """
-        self.curveChanged = baseSignal_No()  # TODO added 5/11/18 validate
+        self.curveChanged = baseSignal_No()
         super().__init__()
         if fixedPoints is None:
             fixedPoints = []
