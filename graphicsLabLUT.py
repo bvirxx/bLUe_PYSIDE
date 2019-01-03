@@ -18,13 +18,16 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 from PySide2 import QtCore
 from PySide2.QtCore import QRect, QPoint
-from PySide2.QtWidgets import QGraphicsScene, QPushButton
+from PySide2.QtWidgets import QGraphicsScene, QPushButton, QGridLayout, QVBoxLayout, QHBoxLayout, QApplication, QStyle, \
+    QLabel
 from PySide2.QtGui import QPixmap, QRadialGradient
 from PySide2.QtCore import Qt, QRectF
 
 from bLUeGui.colorCIE import sRGB2LabVec
+from bLUeGui.graphicsForm import bottomWidget
 from bLUeGui.graphicsSpline import activeCubicSpline, graphicsCurveForm, activeSplinePoint, channelValues
 from utils import optionsWidget
+
 
 class graphicsLabForm(graphicsCurveForm):
     @classmethod
@@ -96,20 +99,19 @@ class graphicsLabForm(graphicsCurveForm):
         graphicsScene.cubicItem.axes.setVisible(True)
         # buttons
         pushButton1 = QPushButton("Reset Current")
-        pushButton1.move(100, 20)
+        #pushButton1.move(100, 20)
         pushButton1.adjustSize()
         pushButton1.clicked.connect(self.resetCurve)
-        graphicsScene.addWidget(pushButton1)
+        #graphicsScene.addWidget(pushButton1)
         pushButton2 = QPushButton("Reset All")
-        pushButton2.move(100, 50)
+        #pushButton2.move(100, 50)
         pushButton2.adjustSize()
         pushButton2.clicked.connect(self.resetAllCurves)
-        graphicsScene.addWidget(pushButton2)
+        #graphicsScene.addWidget(pushButton2)
         # options
         options = ['L', 'a', 'b']
         self.listWidget1 = optionsWidget(options=options, exclusive=True)
-        self.listWidget1.setGeometry(0, 10, self.listWidget1.sizeHintForColumn(0) + 5, self.listWidget1.sizeHintForRow(0) * len(options) + 5)
-        graphicsScene.addWidget(self.listWidget1)
+        self.listWidget1.setMinimumSize(self.listWidget1.sizeHintForColumn(0) + 5, self.listWidget1.sizeHintForRow(0) * len(options) + 5)
 
         # selection changed handler
         curves = [graphicsScene.cubicR, graphicsScene.cubicG, graphicsScene.cubicB]
@@ -137,6 +139,13 @@ class graphicsLabForm(graphicsCurveForm):
         self.scene().cubicR.curveChanged.sig.connect(f)
         self.scene().cubicG.curveChanged.sig.connect(f)
         self.scene().cubicB.curveChanged.sig.connect(f)
+
+        # layout
+        gl = QGridLayout()
+        gl.addWidget(self.listWidget1, 0, 0, 2, 1)
+        for i, button in enumerate([pushButton1, pushButton2]):
+            gl.addWidget(button, i, 1)
+        self.addCommandLayout(gl)
 
     def colorPickedSlot(self, x, y, modifiers):
         """

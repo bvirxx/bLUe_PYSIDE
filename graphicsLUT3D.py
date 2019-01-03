@@ -1090,34 +1090,11 @@ class graphicsForm3DLUT(baseGraphicsForm):
         gl.addWidget(infoCombo, 1, 1)
         for i, widget in enumerate([self.listWidget1, self.listWidget2, self.listWidget3]):
             gl.addWidget(widget, 2 if i <2 else 1, i, 1 if i <2 else 2, 1, 0)
-
-        # grid and info layout
-        vl = QVBoxLayout()
-        vl.setAlignment(Qt.AlignBottom)
-        w = QApplication.style().pixelMetric(QStyle.PM_ScrollBarExtent)
-        vl.setContentsMargins(w + 3, w + 3, w + 3, w + 3)
-        # vl.addStretch(1)
-        vl.addLayout(gl)
         hl = QHBoxLayout()
         hl.addWidget(labelFormat)
         hl.addWidget(self.info)
-        vl.addLayout(hl)
-        # we need a container with opaque background for vl
-        container = QLabel()
-        container.setMaximumSize(160000, 180)
-        container.setObjectName('container')
-        ss = """QWidget#container{background-color: black}
-                        QListWidget{background-color: black; selection-background-color: black; border: none; font-size: 7pt}
-                        QListWidget::item{color: white;}
-                        QListWidget::item::selected{background: black; border: none}"""
-        container.setStyleSheet(ss)
-        container.setLayout(vl)
-        # graphicsForm3DLUT final layout
-        vl2 = QVBoxLayout()
-        vl2.setAlignment(Qt.AlignBottom)
-        # vl2.setContentsMargins(0, axeSize + 3 *  border, 0, 0)
-        vl2.addWidget(container)
-        self.setLayout(vl2)
+        gl.addLayout(hl, 3, 0, -1, -1)
+        self.addCommandLayout(gl)
 
         # set defaults
         self.colorInfoFormat = 0  # RGB
@@ -1132,7 +1109,8 @@ as small black circles on the color wheel.<br>
 <b>Modify the color</b> of a node by dragging it on
 the wheel. Several nodes can be moved simultaneously by grouping them.<br>
 <b>Group nodes</b> :<br>
-        &nbsp; 1 - select them with the mouse : while pressing the mouse left button, drag a rubber band around the nodes to select;<br>
+        &nbsp; 1 - select them with the mouse : while pressing the mouse left button,
+                   drag a rubber band around the nodes to select;<br>
         &nbsp; 2 - next, right click any one of the selected nodes and choose group from the context menu<br>
 <b>unselect nodes</b> :<br>
         &nbsp; 1 - check the option Remove Node;<br>
