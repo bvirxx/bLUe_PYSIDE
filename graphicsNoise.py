@@ -118,13 +118,10 @@ class noiseForm (baseForm):
         self.dataChanged.connect(self.updateLayer)
         self.dataChanged.emit(True)
 
-    def updateLayer(self, invalidate):
+    def updateLayer(self, cacheInvalidate):
         """
         data changed event handler
         """
-        #if invalidate:
-            #self.layer.postProcessCache = None  # TODO 2/11/18 unused validate
-        #self.enableSliders()
         self.layer.applyToStack()
         self.layer.parentImage.onImageChanged()
 
