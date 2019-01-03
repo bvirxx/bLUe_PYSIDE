@@ -15,7 +15,6 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-import weakref
 
 from PySide2.QtCore import Qt
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QPushButton, QHBoxLayout
@@ -25,7 +24,7 @@ from bLUeGui.memory import weakProxy
 from utils import optionsWidget, UDict
 
 
-class transForm (baseForm):
+class transForm (baseForm):  # TODO setDefaults(), updateLayer()
     """
     Geometric transformation form
     """
