@@ -20,7 +20,7 @@ from PySide2.QtCore import Qt
 from bLUeGui.graphicsForm import baseForm
 
 
-class invertForm(baseForm) :
+class invertForm(baseForm) :  # TODO setDefaults(), updateLayer()
     """
     Form for interactive RGB curves
     """

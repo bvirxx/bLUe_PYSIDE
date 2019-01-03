@@ -130,9 +130,9 @@ from os.path import basename, isfile
 from types import MethodType
 import rawpy
 
-from bLUeCore.bLUeLUT3D import haldArray
+from bLUeCore.bLUeLUT3D import HaldArray
 from grabcut import segmentForm
-from PySide2.QtCore import QRect, QEvent, QUrl, QSize, QFileInfo, QRectF, QObject
+from PySide2.QtCore import QRect, QEvent, QUrl, QSize, QFileInfo, QRectF, QObject, QPoint, QPointF
 from PySide2.QtGui import QPixmap, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, \
     QPainterPath, QTransform, QContextMenuEvent, QColor, QImage
 from PySide2.QtWidgets import QApplication, QAction, \
@@ -392,7 +392,7 @@ def mouseEvent(widget, event):  # TODO split into 3 handlers
                     # paint with current mask alpha
                     color.setAlpha(layer.colorMaskOpacity)
                     qp.begin(layer.mask)
-                    # get pen width
+                    # get pen width (relative to image)
                     w_pen = window.verticalSlider1.value() // r
                     # mode source : result is source (=pen) pixel color and opacity
                     qp.setCompositionMode(qp.CompositionMode_Source)
@@ -401,15 +401,17 @@ def mouseEvent(widget, event):  # TODO split into 3 handlers
                     qp.setPen(QPen(color, w_pen))
                     qp.setOpacity(toolOpacity)
                     # paint the brush tips spaced by 0.25 * w_pen
+                    # use 1-norm for performance
                     a_x, a_y = tmp_x - State['x_imagePrecPos'], tmp_y - State['y_imagePrecPos']
                     d = abs(a_x) + abs(a_y)
                     x, y = State['x_imagePrecPos'], State['y_imagePrecPos']
+                    radius = w_pen / 2
                     if d == 0:
-                        qp.drawEllipse(x, y, w_pen, w_pen)
+                        qp.drawEllipse(QPointF(x, y), radius, radius)  # center, radius : QPointF mandatory, else bounding rect topleft and size
                     else:
                         step = w_pen * 0.25 / d
-                        for i in range(int(1 / step)):
-                            qp.drawEllipse(x, y, w_pen, w_pen)
+                        for i in range(int(1 / step) + 1):
+                            qp.drawEllipse(QPointF(x, y), radius, radius)  # center, radius : QPointF mandatory, else bounding rect topleft and size
                             x, y = x + a_x * step, y + a_y * step
                     qp.end()
                     State['x_imagePrecPos'], State['y_imagePrecPos'] = tmp_x, tmp_y
@@ -477,7 +479,7 @@ def mouseEvent(widget, event):  # TODO split into 3 handlers
                     red, green, blue = clr.red(), clr.green(), clr.blue()
                     # read color from presentation layer
                     redP, greenP, blueP = img.getPrPixel(x_img, y_img)
-                    # set color chooser value accordingly to modifiers
+                    # color chooser : when visible the colorPicked signal is not emitted
                     if getattr(window, 'colorChooser', None) and window.colorChooser.isVisible():
                         if (modifiers & Qt.ControlModifier) and (modifiers & Qt.ShiftModifier):
                             window.colorChooser.setCurrentColor(clr)
@@ -593,20 +595,18 @@ def enterEvent(widget, img, event):
         # don't stack multiple cursors
         return
     if window.btnValues['drawFG'] or window.btnValues['drawBG']:
-        if not QApplication.overrideCursor():
-            w = window.verticalSlider1.value()
-            if w > 5:
-                QApplication.setOverrideCursor(window.cursor_Circle_Pixmap.scaled(w*2.0, w*2.0))
-            else:
-                QApplication.setOverrideCursor(Qt.CrossCursor)
+        w = window.verticalSlider1.value()
+        if w > 5:
+            QApplication.setOverrideCursor(QCursor(window.cursor_Circle_Pixmap.scaled(w * 2.0, w * 2.0), hotX=w, hotY=w))
+        else:
+            QApplication.setOverrideCursor(Qt.CrossCursor)
     elif window.btnValues['drag']:
         QApplication.setOverrideCursor(Qt.OpenHandCursor)
     elif window.btnValues['colorPicker']:
         layer = window.label.img.getActiveLayer()
         if layer.isAdjustLayer():
             if layer.view.isVisible():
-                if not QApplication.overrideCursor():
-                    QApplication.setOverrideCursor(window.cursor_EyeDropper)
+                QApplication.setOverrideCursor(window.cursor_EyeDropper)
 
 
 def leaveEvent(widget, img, event):
@@ -675,7 +675,7 @@ def widgetChange(button):
     """
     # wdgName = button.objectName()
     if button is window.fitButton:  # wdgName == "fitButton" :
-        window.label.img.fit_window(window.label)
+        window.label.img.fit_window()
         # update crop button positions
         window.cropTool.drawCropTool(window.label.img)
         # window.label.repaint()
@@ -1459,7 +1459,7 @@ def menuLayer(name):
             processedImg = img.prLayer.inputImg()
             buf = QImageBuffer(processedImg)
             # init haldArray from image
-            hArray = haldArray(buf, LUT3DIdentity.size)
+            hArray = HaldArray(buf, LUT3DIdentity.size)
             # convert the hald array to a LUT3D object (BGR order)
             LUT = LUT3D.HaldBuffer2LUT3D(hArray)
             # write LUT to file
@@ -1511,7 +1511,7 @@ def menuLayer(name):
     # docking the form
     dock = QDockWidget(window)
     dock.setWidget(grWindow)
-    dock.setWindowFlags(grWindow.windowFlags())
+    # dock.setWindowFlags(grWindow.windowFlags())  # TODO removed 02/01/19 as spurious
     dock.setWindowTitle(grWindow.windowTitle())
     if TABBING:
         # add form to docking area
@@ -1687,7 +1687,7 @@ def updateStatus():
 
 def initCursors():
     """
-    Inits app cursors
+    Init app cursors
     """
     # EyeDropper cursor
     curImg = QImage(":/images/resources/Eyedropper-icon.png")
@@ -1717,8 +1717,8 @@ def screenUpdate(newScreenIndex):
     window.actionColor_manage.setEnabled(icc.HAS_COLOR_MANAGE)
     window.actionColor_manage.setChecked(icc.COLOR_MANAGE)
     updateStatus()
-    # launch a bg task for image update
 
+    # launch a bg task for image update
     def bgTask():
         window.label.img.updatePixmap()
         window.label_2.img.updatePixmap()

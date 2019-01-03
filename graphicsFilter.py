@@ -26,7 +26,7 @@ from bLUeGui.memory import weakProxy
 from utils import optionsWidget, QbLUeSlider
 
 
-class filterForm (baseForm):
+class filterForm (baseForm):  # TODO setDefaults()
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
         wdgt = filterForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)

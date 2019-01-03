@@ -115,7 +115,7 @@ class dngProfileToneCurve:
 class dngProfileLookTable:
     """
     (hue, saturation, value) 3D LUT class.
-    Property data holds the table array
+    Property data holds the table array.
     Property divs holds the number of division points for each axis.
     Due to modulo arithmetic for hue and to the presence of sentinels,
     divs and data.shape are different.

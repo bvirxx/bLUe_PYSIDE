@@ -26,7 +26,7 @@ from utils import optionsWidget
 class blendFilterIndex:
     GRADUALBT, GRADUALTB, GRADUALNONE= range(3)
 
-class blendFilterForm (baseForm):
+class blendFilterForm (baseForm):  # TODO updateLayer()
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
         wdgt = blendFilterForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
