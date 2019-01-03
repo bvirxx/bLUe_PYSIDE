@@ -25,7 +25,7 @@ from bLUeGui.graphicsForm import baseForm
 from bLUeGui.dialog import dlgWarn
 from bLUeGui.memory import weakProxy
 
-from versatileImg import vImage
+from versatileImg import vImage# TODO setDefaults(), updateLayer()
 from utils import optionsWidget
 
 class patchForm (baseForm):
