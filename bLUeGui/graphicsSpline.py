@@ -538,13 +538,7 @@ class activeQuadricSpline(activeSpline) :
 
 class graphicsSplineForm(graphicsCurveForm) :
     """
-    Form for interactive cubic or quadratic splines.
-    Dynamic attributes are added to the scene in order
-    to provide links to arbitrary graphics items:
-        self.scene().cubicItem : current active curve
-        self.scene().targetImage
-        self.scene().layer
-        self.scene().bgColor
+    Form for interactive cubic or quadratic spline.
     """
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, curveType='quadric'):
@@ -608,6 +602,27 @@ Drag <b>control points</b> and <b>tangents</b> with the mouse.<br>
         if self.baseCurve is not None:
             qp.drawPolyline(self.baseCurve)
         qp.restore()
+
+    def updateHist(self, curve):
+        """
+        Updates the channel histogram displayed under the curve
+
+        @param curve:
+        @type curve:
+
+        """
+        sc = self.scene()
+        curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize, bgColor=sc.bgColor, chans=[], mode='Luminosity')
+
+    def updateHists(self):
+        """
+        Updates all histograms
+        """
+        sc = self.scene()
+        self.updateHist(sc.cubicItem)
+        # Force to redraw histogram
+        sc.invalidate(QRectF(0.0, -sc.axeSize, sc.axeSize, sc.axeSize),
+                        sc.BackgroundLayer)
 
     def writeToStream(self, outStream):
         graphicsScene = self.scene()

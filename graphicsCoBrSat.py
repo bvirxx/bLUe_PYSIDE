@@ -15,42 +15,19 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-import weakref
 
-from PySide2 import QtCore
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
-from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QGroupBox
+from PySide2.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout, QGroupBox
 
 from bLUeGui.graphicsSpline import graphicsSplineForm
 from bLUeGui.graphicsForm import baseForm
-from bLUeGui.memory import weakProxy
 from utils import optionsWidget, QbLUeSlider, UDict, QbLUeLabel, stateAwareQDockWidget
 
 
 class CoBrSatForm(baseForm):
     """
-    Contrast-Brightness-Saturation adjustment form
-    Methods                          Attributes
-        getNewWindow                     brightnessCorrection
-        __init__                         brightnessDefault
-        setContrastSpline                brightnessValue
-        enableSliders                    contrastCorrection
-        setDefaults                      contrastDefault
-        updateLayer                      contrastForm
-        slider2Contrast                  contrastValue
-        contrast2Slider                  dataChanged
-        slider2Saturation                layer
-        saturation2Slider                layerTitle
-        slidersaturation2User            listWidget1
-        slider2Brightness                listWidget2
-        brightness2Slider                options
-        sliderBrightness2User            satCorrection
-        writeToStream                    saturationDefault
-        readFromStream                   saturationValue
-                                         sliderBrightness
-                                         sliderContrast
-                                         sliderSaturation
+    Contrast, Brightness, Saturation adjustment form
     """
     layerTitle = "Cont/Bright/Sat"
     contrastDefault = 0.0
@@ -59,7 +36,7 @@ class CoBrSatForm(baseForm):
 
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
-        wdgt = CoBrSatForm(axeSize=axeSize, layer=layer, parent=parent)
+        wdgt = CoBrSatForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
         wdgt.setWindowTitle(layer.name)
         return wdgt
 
@@ -96,27 +73,25 @@ class CoBrSatForm(baseForm):
         return v - 50
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
-        super().__init__(layer=layer, parent=parent)
-        self.setStyleSheet('QRangeSlider * {border: 0px; padding: 0px; margin: 0px}')
-        # self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        super().__init__(layer=layer, targetImage=targetImage, parent=parent)
         self.setMinimumSize(axeSize, axeSize+100)
-        # self.setAttribute(Qt.WA_DeleteOnClose)
-        # link back to image layer
-        self.layer = weakProxy(layer)
         # contrast spline viewer
         self.contrastForm = None
         # options
         optionList1, optionNames1 = ['Multi-Mode', 'CLAHE'], ['Multi-Mode', 'CLAHE']
-        self.listWidget1 = optionsWidget(options=optionList1, optionNames=optionNames1, exclusive=True, changed=lambda: self.dataChanged.emit())
+        self.listWidget1 = optionsWidget(options=optionList1, optionNames=optionNames1, exclusive=True,
+                                         changed=lambda: self.dataChanged.emit())
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
         self.listWidget1.setStyleSheet("QListWidget {border: 0px;} QListWidget::item {border: 0px; padding-left: 0px;}")
         optionList2, optionNames2 = ['High', 'manualCurve'], ['Preserve Highlights', 'Show Contrast Curve']
+
         def optionList2Change(item):
             if item.internalName == 'High':
                 # force to recalculate the spline
                 self.layer.autoSpline = True
             self.dataChanged.emit()
-        self.listWidget2 = optionsWidget(options=optionList2, optionNames=optionNames2, exclusive=False, changed=optionList2Change)
+        self.listWidget2 = optionsWidget(options=optionList2, optionNames=optionNames2, exclusive=False,
+                                         changed=optionList2Change)
         self.listWidget2.checkOption(self.listWidget2.intNames[0])
         self.listWidget2.setStyleSheet("QListWidget {border: 0px;} QListWidget::item {border: 0px; padding-left: 0px;}")
         self.options = UDict((self.listWidget1.options, self.listWidget2.options))
@@ -203,7 +178,7 @@ class CoBrSatForm(baseForm):
         brightnessLabel = QbLUeLabel()
         brightnessLabel.setMaximumSize(150, 30)
         brightnessLabel.setText("Brightness")
-        brightnessLabel.doubleClicked.connect(lambda : self.sliderBrightness.setValue(self.brightness2Slider(self.brightnessDefault)))
+        brightnessLabel.doubleClicked.connect(lambda: self.sliderBrightness.setValue(self.brightness2Slider(self.brightnessDefault)))
 
         self.brightnessValue = QLabel()
         font = self.brightnessValue.font()
@@ -270,15 +245,16 @@ class CoBrSatForm(baseForm):
         self.setStyleSheet("QListWidget, QLabel {font : 7pt;}")
         self.setDefaults()
         self.setWhatsThis(
-"""<b>Contrast Brightness Saturation</b><br>
-<b>Contrast</b> is enhanced using one of these two methods:<br>
-  - <b>CLAHE</b> : increases the local contrast.<br>
-  - <b>Multi-Mode</b> : increases the local contrast and the contrast between regions of the image.<br>
-For both methods the contrast slider controls the level of the correction.<br>
-With Multi-Mode enabled, use the option <b>Show Contrast Curve</b> to edit the correction curve and check
-<b>Preserve Highlights</b> for softer highlights.<br>
-Sliders are <b>reset</b> to their default value by double clicking the name of the slider.<br>
-"""
+            """<b>Contrast Brightness Saturation</b><br>
+            <b>Contrast</b> is enhanced using one of these two methods:<br>
+              - <b>CLAHE</b> : increases the local contrast.<br>
+              - <b>Multi-Mode</b> : increases the local contrast and the contrast between regions of the image.<br>
+            For both methods the contrast slider controls the level of the correction.<br>
+            With Multi-Mode enabled, use the option <b>Show Contrast Curve</b> to edit the correction curve and check
+            <b>Preserve Highlights</b> for softer highlights.<br>
+            <b>Brightness</b> and <b>Saturation</b> corrections are non linear to limit clipping.<br>
+            Sliders are <b>reset</b> to their default value by double clicking the name of the slider.<br>
+            """
                         )  # end setWhatsThis
 
     def setContrastSpline(self, a, b, d, T):
@@ -310,16 +286,26 @@ Sliders are <b>reset</b> to their default value by double clicking the name of t
             dock.setStyleSheet("QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
             window.addDockWidget(Qt.LeftDockWidgetArea, dock)
             self.dock = dock
+
+            # curve changed slot
             def f():
                 self.layer.applyToStack()
                 self.layer.parentImage.onImageChanged()
-            form.scene().quadricB.curveChanged.sig.connect(f)  # TODO moved 16/12/18 validate
+            form.scene().quadricB.curveChanged.sig.connect(f)
         else:
             form = self.contrastForm
         # update the curve
         form.scene().setSceneRect(-25, -axeSize-25, axeSize+50, axeSize+50)
-        form.scene().quadricB.setCurve(a*axeSize,b*axeSize,d,T*axeSize)
+        form.scene().quadricB.setCurve(a*axeSize, b*axeSize,d, T*axeSize)
         self.dock.showNormal()
+
+    def updateHists(self):
+        """
+        Update the histogram displayed under
+        the contrast spline.
+        """
+        if self.contrastForm is not None:
+            self.contrastForm.updateHists()
 
     def enableSliders(self):
         self.sliderContrast.setEnabled(True)
@@ -327,7 +313,6 @@ Sliders are <b>reset</b> to their default value by double clicking the name of t
         self.sliderBrightness.setEnabled(True)
 
     def setDefaults(self):
-        # prevent multiple updates
         try:
             self.dataChanged.disconnect()
         except RuntimeError:
@@ -344,11 +329,10 @@ Sliders are <b>reset</b> to their default value by double clicking the name of t
         self.brightnessCorrection = self.brightnessDefault
         self.sliderBrightness.setValue(round(self.brightness2Slider(self.brightnessCorrection)))
         self.dataChanged.connect(self.updateLayer)
-        # self.dataChanged.emit() # TODO 30/10/18 removed
 
     def updateLayer(self):
         """
-        data changed event handler.
+        data changed slot.
         """
         self.enableSliders()
         self.layer.applyToStack()
@@ -361,7 +345,7 @@ Sliders are <b>reset</b> to their default value by double clicking the name of t
             else:
                 item.setFlags(item.flags() & ~Qt.ItemIsEnabled)
         # show/hide contrast curve
-        cf = getattr(self, 'dock', None) #self.contrastForm TODO modified 20/07/18
+        cf = getattr(self, 'dock', None)
         if cf is None:
             return
         if self.options['manualCurve'] and self.options['Multi-Mode']:
