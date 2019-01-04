@@ -17,16 +17,20 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 from PySide2.QtCore import Qt
-from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout
+from PySide2.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout
 from PySide2.QtGui import QFontMetrics
 
 from bLUeGui.graphicsForm import baseForm
 from bLUeCore.kernel import filterIndex
-from bLUeGui.memory import weakProxy
 from utils import optionsWidget, QbLUeSlider
 
 
-class filterForm (baseForm):  # TODO setDefaults()
+class filterForm (baseForm):
+
+    defaultRadius = 10
+    defaultTone = 100.0
+    defaultAmount = 50.0
+
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
         wdgt = filterForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
@@ -34,27 +38,14 @@ class filterForm (baseForm):  # TODO setDefaults()
         return wdgt
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
-        super().__init__(parent=parent)
-        defaultRadius = 10
-        defaultTone = 100.0
-        defaultAmount = 50.0
-        self.radius = defaultRadius
-        self.tone = defaultTone
-        self.amount = defaultAmount
-        self.targetImage = targetImage
-        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        self.setMinimumSize(axeSize, axeSize)
-        self.setAttribute(Qt.WA_DeleteOnClose)
-        self.img = targetImage
-        # link back to image layer
-        self.layer = weakProxy(layer)
-        #
+        super().__init__(layer=layer, targetImage=targetImage, parent=parent)
+        # connect layer selectionChanged signal
         self.layer.selectionChanged.sig.connect(self.updateLayer)
         self.kernelCategory = filterIndex.UNSHARP
         # options
         self.optionList = ['Unsharp Mask', 'Sharpen', 'Gaussian Blur', 'Surface Blur']
         filters = [filterIndex.UNSHARP, filterIndex.SHARPEN, filterIndex.BLUR1, filterIndex.SURFACEBLUR]
-        self.filterDict = dict(zip(self.optionList, filters))
+        self.filterDict = dict(zip(self.optionList, filters))  # filters is not a dict: don't use UDict here
 
         self.listWidget1 = optionsWidget(options=self.optionList, exclusive=True, changed=self.dataChanged)
         # set initial selection to unsharp mask
@@ -103,6 +94,32 @@ class filterForm (baseForm):  # TODO setDefaults()
         h = metrics.height()
         self.toneValue.setMinimumSize(w, h)
         self.toneValue.setMaximumSize(w, h)
+
+        # value change/done slot
+        def formUpdate():
+            self.radiusValue.setText(str('%d ' % self.sliderRadius.value()))
+            self.amountValue.setText(str('%d ' % self.sliderAmount.value()))
+            self.toneValue.setText(str('%d ' % self.sliderTone.value()))
+            if self.sliderRadius.isSliderDown() or self.sliderAmount.isSliderDown() or self.sliderTone.isSliderDown():
+                return
+            try:
+                for slider in [self.sliderRadius, self.sliderAmount, self.sliderTone]:
+                    slider.valueChanged.disconnect()
+                    slider.sliderReleased.disconnect()
+            except RuntimeError:
+                pass
+            self.tone = self.sliderTone.value()
+            self.radius = self.sliderRadius.value()
+            self.amount = self.sliderAmount.value()
+            self.dataChanged.emit()
+            for slider in [self.sliderRadius, self.sliderAmount, self.sliderTone]:
+                slider.valueChanged.connect(formUpdate)
+                slider.sliderReleased.connect(formUpdate)
+
+        for slider in [self.sliderRadius, self.sliderAmount, self.sliderTone]:
+            slider.valueChanged.connect(formUpdate)
+            slider.sliderReleased.connect(formUpdate)
+
         # layout
         l = QVBoxLayout()
         l.addWidget(self.listWidget1)
@@ -124,53 +141,31 @@ class filterForm (baseForm):  # TODO setDefaults()
         l.setContentsMargins(20, 0, 20, 25)  # left, top, right, bottom
         self.setLayout(l)
 
-        # value changed event handler
-        def sliderUpdate():
-            self.radiusValue.setText(str('%d ' % self.sliderRadius.value()))
-            self.amountValue.setText(str('%d ' % self.sliderAmount.value()))
-            self.toneValue.setText(str('%d ' % self.sliderTone.value()))
-
-        # value done event handler
-        def formUpdate():
-            sR, sA, sT = self.sliderRadius.isEnabled(), self.sliderAmount.isEnabled(), self.sliderTone.isEnabled()
-            self.sliderRadius.setEnabled(False)
-            self.sliderAmount.setEnabled(False)
-            self.sliderTone.setEnabled(False)
-            self.tone = self.sliderTone.value()
-            self.radius = self.sliderRadius.value()
-            self.amount = self.sliderAmount.value()
-            sliderUpdate()
-            self.dataChanged.emit()
-            self.sliderRadius.setEnabled(sR)
-            self.sliderAmount.setEnabled(sA)
-            self.sliderTone.setEnabled(sT)
-
-        self.sliderRadius.valueChanged.connect(sliderUpdate)
-        self.sliderRadius.sliderReleased.connect(formUpdate)
-        self.sliderAmount.valueChanged.connect(sliderUpdate)
-        self.sliderAmount.sliderReleased.connect(formUpdate)
-        self.sliderTone.valueChanged.connect(sliderUpdate)
-        self.sliderTone.sliderReleased.connect(formUpdate)
-
-        self.dataChanged.connect(self.updateLayer)
-        # init
-        self.sliderRadius.setValue(defaultRadius)
-        self.sliderAmount.setValue(defaultAmount)
-        self.sliderTone.setValue(defaultTone)
-        self.enableSliders()
-        sliderUpdate()
+        self.setDefaults()
         self.setWhatsThis(
-"""
-   <b>Unsharp Mask</b> and <b>Sharpen Mask</b> sharpen an image.
-   Unsharp Mask usually gives best results.<br>
-   <b>Gaussian Blur</b> and <b>Surface Blur</b> blur an image.<br>
-   In contrast to Gaussian Blur, Surface Blur preserves edges and reduces noise.<br>
-   It is possible to <b>limit the effect of a filter to a rectangular region of the image</b> by
-   drawing a selection rectangle on the layer with the marquee (rectangle) tool.<br>
-   Ctrl-Click to <b>clear the selection</b><br>
-   
-"""
+                    """
+                       <b>Unsharp Mask</b> and <b>Sharpen Mask</b> are used to sharpen an image.
+                       Unsharp Mask usually gives best results.<br>
+                       <b>Gaussian Blur</b> and <b>Surface Blur</b> are used to blur an image.<br>
+                       In contrast to Gaussian Blur, Surface Blur preserves edges and reduces noise,
+                       but it may be slow.<br>
+                       It is possible to <b>limit the effect of a filter to a rectangular region of the image</b> by
+                       drawing a selection rectangle on the layer with the marquee (rectangle) tool.<br>
+                       Ctrl Click <b>clears the selection</b><br>
+                       
+                    """
                         )  # end setWhatsThis
+
+    def setDefaults(self):
+        self.enableSliders()
+        try:
+            self.dataChanged.disconnect()
+        except RuntimeError:
+            pass
+        self.sliderRadius.setValue(self.defaultRadius)
+        self.sliderAmount.setValue(self.defaultAmount)
+        self.sliderTone.setValue(self.defaultTone)
+        self.dataChanged.connect(self.updateLayer)
 
     def updateLayer(self):
         """
