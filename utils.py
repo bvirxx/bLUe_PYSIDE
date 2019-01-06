@@ -595,11 +595,11 @@ def clip(image, mask, inverted=False):
     bufImg[:, :, 3] = bufMask[:, :, 3]
 
 
-def boundingRect(img, pattern):
+def boundingRect(img, pattern=0):
     """
     Given an image img, the function builds the bounding rectangle
-    of the region defined by (img == pattern). If the region is empty, the function
-    returns an invalid rectangle.
+    of the region defined by (img == pattern). Rectangle coordinates are relative to img.
+    If the region is empty, the function returns an invalid rectangle.
     @param img:
     @type img: 2D array
     @param pattern:
@@ -626,7 +626,7 @@ def boundingRect(img, pattern):
     img = np.where(img==pattern, 1, 0)
     # empty region
     if np.max(img) == 0:
-        return None
+        return QRect(0, 0, -1, -1)
     # build the enclosing rectangle
     left = leftPattern(img)
     right = img.shape[1] - 1 - leftPattern(img[::-1, ::-1])
