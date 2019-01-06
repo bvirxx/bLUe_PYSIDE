@@ -252,8 +252,6 @@ class graphicsForm(graphicsCurveForm) :
     def updateHists(self):
         """
         Updates all histograms
-        @return:
-        @rtype:
         """
         sc = self.scene()
         for curve in [sc.cubicRGB, sc.cubicR, sc.cubicG, sc.cubicB]:
