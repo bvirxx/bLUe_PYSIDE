@@ -239,8 +239,8 @@ class vImage(bImage):
     @ classmethod
     def seamlessMerge(cls, dest, source, mask, cloningMethod):
         """
-        Seamless cloning of source into dest
-        mask is a color mask.
+        Seamless cloning of source into dest.
+        The cloning area corresponds to the unmasked region.
         The dest image is modified.
         @param dest:
         @type dest: vImage
@@ -251,33 +251,39 @@ class vImage(bImage):
         @param cloningMethod:
         @type cloningMethod:
         """
-        # scale mask to source size and convert to opacity mask
+        # scale the mask to source size and convert to an opacity mask
         src_mask = vImage.color2OpacityMask(mask).scaled(source.size())
+        # turn the mask into a 1-channel buffer. The cloning area corresponds to
+        # cloning_mask == 255.
         buf = QImageBuffer(src_mask)
-        tmp = np.where(buf[:, :, 3] == 0, 0, 255)
-        # get src_mask bounding rect dilated by margin.
-        # All rectangle coordinates are relative to src_mask
-        margin = 100
-        oRect = boundingRect(tmp, 255)
-        bRect = oRect + QMargins(margin, margin, margin, margin)
-        inRect = bRect & QImage.rect(src_mask)
-        # look for masked pixels
-        if bRect is None:
-            # no white pixels
-            dlgWarn("seamlessMerge : no masked pixel found")
+        cloning_mask = np.where(buf[:, :, 3] == 0, 0, 255)
+        # calculate the bounding rect of the cloning area.
+        # coordinates are relative to tmp (or src_mask)
+        oRect = boundingRect(cloning_mask, pattern=255)
+        if not oRect.isValid():
+            dlgWarn("seamlessMerge : no cloning region found")
             return
-        # set white mask
+        margin = 0
+        bRect = oRect + QMargins(margin, margin, margin, margin)
+        if not bRect.isValid():
+            dlgWarn("seamlessMerge : no cloning region found")
+            return
+        inRect = bRect & QImage.rect(src_mask)
         bt, bb, bl, br = inRect.top(), inRect.bottom(), inRect.left(), inRect.right()
-        src_maskBuf = np.dstack((tmp, tmp, tmp)).astype(np.uint8)[bt:bb+1, bl:br+1, :]
+        # cv2.seamlesClone uses a white mask, so we turn cloning_mask into
+        # a 3-channel buffer.
+        src_maskBuf = np.dstack((cloning_mask, cloning_mask, cloning_mask)).astype(np.uint8)[bt:bb+1, bl:br+1, :]
         sourceBuf = QImageBuffer(source)[bt:bb+1, bl:br+1, :]
         destBuf = QImageBuffer(dest)[bt:bb+1, bl:br+1, :]
         # The cloning center is the center of oRect. We look for its coordinates
         # relative to inRect
         center = (oRect.width()//2 + oRect.left() - inRect.left(), oRect.height()//2 + oRect.top() - inRect.top())
-        output = cv2.seamlessClone(sourceBuf[:, :, :3][:, :, ::-1],  # source
-                                   destBuf[:, :, :3][:, :, ::-1],    # dest
+        # center = (oRect.left()+oRect.right()) // 2, (oRect.top()+oRect.bottom()) // 2
+        output = cv2.seamlessClone(np.ascontiguousarray(sourceBuf[:, :, :3][:, :, ::-1]),  # source
+                                   np.ascontiguousarray(destBuf[:, :, :3][:, :, ::-1]),    # dest
                                    src_maskBuf,
-                                   center, cloningMethod
+                                   center,
+                                   cloningMethod
                                    )
         # copy output into dest
         destBuf[:, :, :3][:, :, ::-1] = output  # assign src_ maskBuf for testing
@@ -627,16 +633,29 @@ class vImage(bImage):
         bufOut[:, :, :] = bufIn
         self.updatePixmap()
 
-    def applyCloning(self, seamless=True, moving=False):
+    def applyCloning(self, seamless=True, showTranslated=False, moving=False):
         """
-        Seamless cloning
+        Seamless cloning. The method uses a virtual layer which can
+        be interactively translated and zoomed.
+        If showTranslated is True (default False) the output image
+        is the virtual layer.
+        If seamless is True (default) actual cloning is done.
+        If moving is True (default False) the input image is not updated
         @param seamless:
         @type seamless: boolean
+        @param showTranslated:
+        @type showTranslated: boolean
+        @param moving: flag indicating if the method is triggered by a mouse event
+        @type moving: boolean
         """
-        # TODO 02/04/18 called multiple times by mouse events, cacheInvalidate should be called!!
-        imgIn = self.inputImg()#(redo=not moving)
+        # when moving the virtual layer no change is made to
+        # lower layers : we set redo to False
+        imgIn = self.inputImg(redo=not moving)
+        pxIn = imgIn.rPixmap # QPixmap.fromImage(imgIn)
+        if pxIn is None:
+            imgIn.rPixmap = QPixmap.fromImage(imgIn)
+            pxIn = imgIn.rPixmap
         imgOut = self.getCurrentImage()
-        pxIn = QPixmap.fromImage(imgIn)
         ########################
         # hald pass through
         if self.parentImage.isHald:
@@ -645,25 +664,27 @@ class vImage(bImage):
             buf1[...] = buf0
             return
         ########################
-        # draw the translated and zoomed input image on the output image
-        # erase previous transformed image : reset imgOut to ImgIn
-        qp = QPainter(imgOut)
-        qp.setCompositionMode(QPainter.CompositionMode_Source)
-        qp.drawPixmap(QRect(0, 0, imgOut.width(), imgOut.height()), pxIn, pxIn.rect())
-        # get translation relative to current Image
-        currentAltX, currentAltY = self.full2CurrentXY(self.xAltOffset, self.yAltOffset)
-        # draw translated and zoomed input image (nothing is drawn outside of dest image)
-        qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
-        rect = QRectF(currentAltX, currentAltY, imgOut.width()*self.AltZoom_coeff, imgOut.height()*self.AltZoom_coeff)
-        qp.drawPixmap(rect, pxIn, pxIn.rect())
-        qp.end()
+        # erase previous transformed image : reset imgOut to ImgIn;
+        # Next, draw the translated and zoomed input image on imgOut
+        if seamless or showTranslated:
+            qp = QPainter(imgOut)
+            qp.setCompositionMode(QPainter.CompositionMode_Source)
+            qp.drawPixmap(QRect(0, 0, imgOut.width(), imgOut.height()), pxIn, pxIn.rect())
+            # get translation relative to current Image
+            currentAltX, currentAltY = self.full2CurrentXY(self.xAltOffset, self.yAltOffset)
+            # draw translated and zoomed input image (nothing is drawn outside of dest image)
+            qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
+            rect = QRectF(currentAltX, currentAltY, imgOut.width()*self.AltZoom_coeff, imgOut.height()*self.AltZoom_coeff)
+            qp.drawPixmap(rect, pxIn, pxIn.rect())
+            qp.end()
         # do seamless cloning
         if seamless:
             try:
                 QApplication.setOverrideCursor(Qt.WaitCursor)
                 QApplication.processEvents()
-                # temporary layer
+                # temporary dest image
                 imgInc = imgIn.copy()
+                # source image is the previous translated image
                 src = imgOut
                 vImage.seamlessMerge(imgInc, src, self.mask, self.cloningMethod)
                 bufOut = QImageBuffer(imgOut)
@@ -824,8 +845,9 @@ class vImage(bImage):
 
     def applyExposure(self, options):
         """
-        Apply exposure correction
-        to the linearized RGB channels.
+        Multiply the linearized RGB channels by
+        c = 2**exposureCorrection.
+
         @param options:
         @type options:
         """
@@ -1007,10 +1029,12 @@ class vImage(bImage):
         """
         Apply contrast, saturation and brightness corrections.
         If version is 'HSV' (default), the
-        image is first converted to HSV and next the correction is applied to
-        the S and V channels. Otherwise, the Lab color space is used.
+        image is first converted to HSV and next a curve f(x)=x**alpha is applied to
+        the S and V channels. Otherwise, the Lab color space is used :
+        a curve f(x) = x**alpha is applied to the L channel and curves f(x) = x*slope
+        are applied to the a and b channels.
         @param version:
-        @type version:
+        @type version: str
         """
         adjustForm = self.getGraphicsForm()
         options = adjustForm.options
@@ -1375,7 +1399,7 @@ class vImage(bImage):
             imgRect = QRect(0, 0, w, h)
             rect = rect.intersected(imgRect)
             if rect.width() < 10 or rect.height() < 10:
-                dlgWarn('Selection dimensions must be > 10')
+                dlgWarn('Selection is too narrow')
                 return
             slices = np.s_[int(rect.top() * r): int(rect.bottom() * r), int(rect.left() * r): int(rect.right() * r), :3]
             ROI0 = buf0[slices]
@@ -1386,7 +1410,8 @@ class vImage(bImage):
             ROI0 = buf0[:, :, :3]
             ROI1 = buf1[:, :, :3]
         # kernel based filtering
-        if adjustForm.kernelCategory in [filterIndex.IDENTITY, filterIndex.UNSHARP, filterIndex.SHARPEN, filterIndex.BLUR1, filterIndex.BLUR2]:
+        if adjustForm.kernelCategory in [filterIndex.IDENTITY, filterIndex.UNSHARP,
+                                         filterIndex.SHARPEN, filterIndex.BLUR1, filterIndex.BLUR2]:
             # correct radius for preview if needed
             radius = int(adjustForm.radius * r)
             kernel = getKernel(adjustForm.kernelCategory, radius, adjustForm.amount)

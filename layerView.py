@@ -389,10 +389,9 @@ Note that upper visible layers slow down mask edition.<br>
         model.setColumnCount(3)
         self.setModel(None)
 
-
     def setLayers(self, mImg, delete=False):
         """
-        Displays the layer stack of mImg
+        Displays the layer stack of a mImage instance.
         @param mImg: image
         @type mImg: mImage
         """
@@ -424,6 +423,11 @@ Note that upper visible layers slow down mask edition.<br>
             mImg.layersStack[stackIndex].name = index1.data()
         model.dataChanged.connect(f)
         for r, lay in enumerate(reversed(mImg.layersStack)):
+            try:
+                lay.maskSettingsChanged.sig.disconnect()
+            except RuntimeError:
+                pass
+            lay.maskSettingsChanged.sig.connect(self.updateRows)
             items = []
             # col 0 : visibility icon
             if lay.visible :
@@ -491,6 +495,13 @@ Note that upper visible layers slow down mask edition.<br>
         minInd, maxInd = self.model().index(row, 0), self.model().index(row, 3)
         self.model().dataChanged.emit(minInd, maxInd)
 
+    def updateRows(self):
+        """
+        Update all rows.
+        """
+        count = self.model().rowCount()
+        minInd, maxInd = self.model().index(0, 0), self.model().index(count-1, 3)
+        self.model().dataChanged.emit(minInd, maxInd)
 
     def dropEvent(self, event):
         """
@@ -664,7 +675,6 @@ Note that upper visible layers slow down mask edition.<br>
 
         # draw the right rectangle
         window.label.repaint()
-
 
     def initContextMenu(self):
         """
@@ -949,7 +959,7 @@ Note that upper visible layers slow down mask edition.<br>
             Reduce the masked part of the image
             """
             ks = 11
-            kernelMax = np.ones((ks, ks), np.uint8)
+            # kernelMax = np.ones((ks, ks), np.uint8)
             kernelMean = np.ones((ks, ks), np.float) / (ks * ks)
             buf = QImageBuffer(layer.mask)
             # CAUTION dilate increases values (max filter), so it reduces the masked part of the image

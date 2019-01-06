@@ -185,7 +185,8 @@ class mImage(vImage):
         """
         x, y = self.full2CurrentXY(x, y)
         activeLayer = self.getActiveLayer()
-        qClr = activeLayer.inputImg().pixelColor(x, y) if fromInputImg else activeLayer.getCurrentImage().pixelColor(x, y)
+        qClr = activeLayer.inputImg(redo=False).pixelColor(x, y) if fromInputImg \
+                                else activeLayer.getCurrentImage().pixelColor(x, y)  # TODO 06/01/18 added redo=False
         # pixelColor returns an invalid color if (x,y) is out of range
         # we return black
         if not qClr.isValid():
@@ -628,6 +629,7 @@ class QLayer(vImage):
         self.visibilityChanged = baseSignal_bool()
         self.colorPicked = baseSignal_Int2()
         self.selectionChanged = baseSignal_No()
+        self.maskSettingsChanged = baseSignal_No()
         ###########################################################
         # when a geometric transformation is applied to the whole image
         # each layer must be replaced with a transformed layer, recorded in tLayer
@@ -822,15 +824,23 @@ class QLayer(vImage):
         """
         return maskedImageContainer/maskedThumbContainer.
         If redo is True(default), containers are updated.
+        layer.applyToStack() always calls inputImg() with redo=True.
+        So, to keep the containers up to date we only have to follow
+        each layer modification with a call to layer.applyToStack().
+        @param redo:
+        @type redo: boolean
         @return:
         @rtype: bImage
         """
         lower = self.parentImage.layersStack[self.getLowerVisibleStackIndex()]
         container = lower.maskedThumbContainer if self.parentImage.useThumb else lower.maskedImageContainer
         if redo or container is None:
-            return lower.getCurrentMaskedImage()
+            container = lower.getCurrentMaskedImage()
+            container.rPixmap = None  # invalidate and don't update
         else:
-            return container
+            if container.rPixmap is None:
+                container.rPixmap = QPixmap.fromImage(container)  # will probably be reused : update
+        return container
 
     def full2CurrentXY(self, x, y):
         """
@@ -1008,14 +1018,10 @@ class QLayer(vImage):
                 break
         return i
 
-    def updateTableView(self, table):
-        """
-        refreshes the corresponding row in table
-        @param table:
-        @type table: QTableView
-        """
-        ind = self.getStackIndex()
-        table.updateRow(len(self.parentImage.layersStack) - 1 - ind)
+    def setMaskEnabled(self, color=False):
+        self.maskIsEnabled = True
+        self.maskIsSelected = color
+        self.maskSettingsChanged.sig.emit()
 
     def getTopVisibleStackIndex(self):
         """
