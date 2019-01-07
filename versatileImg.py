@@ -824,23 +824,28 @@ class vImage(bImage):
 
     def applyInvert(self):
         """
-        Inverts image
+        Invert an  image. Depending of the graphics form options,
+        the orange mask is estimated automaically or set from
+        the graphic form parameters.
         """
+        adjustForm = self.getGraphicsForm()
+        options = adjustForm.options if adjustForm is not None else {'Auto': True}
         bufIn = QImageBuffer(self.inputImg())[:, :, :3]
-        # get orange mask from negative brightest (unexposed) pixels
-        temp = np.sum(bufIn, axis=2)
-        ind = np.argmax(temp)
-        ind = np.unravel_index(ind, (bufIn.shape[0], bufIn.shape[1],))
-        Mask0, Mask1, Mask2 = bufIn[ind]
-        if self.view is not None:
-            form = self.getGraphicsForm()
-            Mask0, Mask1, Mask2 = form.Bmask, form.Gmask, form.Rmask
+        if options['Auto']:
+            # get orange mask from negative brightest (unexposed) pixels
+            temp = np.sum(bufIn, axis=2)
+            ind = np.argmax(temp)
+            ind = np.unravel_index(ind, (bufIn.shape[0], bufIn.shape[1]))
+            Mask0, Mask1, Mask2 = bufIn[ind]
+        else:
+            Mask0, Mask1, Mask2 = adjustForm.Bmask, adjustForm.Gmask, adjustForm.Rmask
         currentImage = self.getCurrentImage()
         bufOut = QImageBuffer(currentImage)
         # eliminate mask
         tmp = (bufIn[:, :, :3] / [Mask0, Mask1, Mask2]) * 255
         np.clip(tmp, 0, 255, out=tmp)
-        bufOut[:, :, :3] = 255.0 - tmp  # (bufIn[:, :, :3] / [Mask0, Mask1, Mask2]) * 255
+        # invert
+        bufOut[:, :, :3] = 255.0 - tmp
         self.updatePixmap()
 
     def applyExposure(self, options):
