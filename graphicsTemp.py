@@ -37,10 +37,6 @@ class temperatureForm (baseForm):
         super().__init__(layer=layer, targetImage=targetImage, parent=parent)
         self.tempCorrection = 6500
         self.tintCorrection = 1.0
-        #self.setStyleSheet('QRangeSlider * {border: 0px; padding: 0px; margin: 0px}')
-        #self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        #self.setMinimumSize(axeSize, axeSize)
-        #self.setAttribute(Qt.WA_DeleteOnClose)
         self.defaultTemp = sRGBWP  # ref temperature D65
         self.defaultTint = 0
 
@@ -144,8 +140,6 @@ class temperatureForm (baseForm):
         l.addLayout(hl1)
         self.setLayout(l)
         self.adjustSize()
-        self.dataChanged.connect(self.updateLayer)  # TODO move to setDefaults 3/12/18
-        # self.setStyleSheet("QListWidget, QLabel {font : 7pt;}")
         self.setDefaults()
         self.setWhatsThis(
                         """<b>Color Temperature</b><br>
