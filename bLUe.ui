@@ -972,7 +972,7 @@ Screen</string>
   </action>
   <action name="actionColor_Temperature">
    <property name="text">
-    <string>Color Temperature</string>
+    <string>Color Filter</string>
    </property>
   </action>
   <action name="actionNew_segmentation_layer">

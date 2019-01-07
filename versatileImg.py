@@ -1488,9 +1488,11 @@ class vImage(bImage):
 
     def applyTemperature(self):
         """
-        The method implements two algorithms for the correction of color temperature.
-        - Chromatic adaptation : multipliers in linear sRGB.
+        Warming/cooling filter.
+        The method implements two algorithms.
         - Photo filter : Blending using mode multiply, plus correction of luminosity
+            by blending the output image with the inputImage, using mode luminosity.
+        - Chromatic adaptation : multipliers in linear sRGB.
         """
         adjustForm = self.getGraphicsForm()
         options = adjustForm.options
@@ -1511,6 +1513,7 @@ class vImage(bImage):
         if options['Photo Filter']:
             # get black body color
             r, g, b = bbTemperature2RGB(temperature)
+            # r,g,b = (1 -  r/255) * 255, (1 -  g/255) * 255, (1 -  b/255) * 255
             filter = QImage(inputImage.size(), inputImage.format())
             filter.fill(QColor(r, g, b, 255))
             # draw image on filter using mode multiply
@@ -1520,7 +1523,6 @@ class vImage(bImage):
             qp.end()
             # correct the luminosity of the resulting image,
             # by blending it with the inputImage, using mode luminosity.
-            # We use a tuning coeff to control the amount of correction.
             # Note that using perceptual brightness gives better results, unfortunately slower
             resImg = blendLuminosity(filter, inputImage)
             bufOutRGB = QImageBuffer(resImg)[:, :, :3][:, :, ::-1]

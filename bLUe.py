@@ -1342,7 +1342,7 @@ def menuLayer(name):
         layer.actioname = name
     # Temperature
     elif name == 'actionColor_Temperature':
-        lname = 'Color Temperature'
+        lname = 'Color Filter'
         layer = window.label.img.addAdjustmentLayer(name=lname)
         grWindow = temperatureForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
         # wrapper for the right apply method
