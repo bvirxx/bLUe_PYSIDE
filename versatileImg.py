@@ -96,26 +96,33 @@ class vImage(bImage):
     defaultBgColor = QColor(128, 128, 128, 255)
 
     ##############
-    # default mask colors
+    # Image Mask
     # QImage transformations sometimes give unexpected results
     # with fully transparent pixels. So, we use the red channel to record
     # the mask opacity, instead of alpha channel.
-    # The alpha channel is used only to display semi transparent color masks
-    # for specific usages (e.g. grabcut).
-    # When modifying these colors, it is mandatory to
-    # modify the methods invertMask and color2OpacityMask accordingly.
+    # A mask acts only while image viewing or saving (cf the method vImage.visualizeMask())
+    # It has two possible effects, depending on its flags :
+    #        - opacity mask : set the layer opacity to the value of mask red channel;
+    #        - color mask : blend mask with layer (mode source over)
+    # NOTE 1: The mode "color mask" is meant for viewing only; it should not be used while saving an image !
+    # NOTE 2 : Modifying the B, G, A channels of a mask has no effect in mode "opacity mask"
     ##############
-    defaultColor_UnMasked = QColor(255, 0, 0, 255)  # 128
+    defaultColor_UnMasked = QColor(255, 0, 0, 255)
     defaultColor_Masked = QColor(0, 0, 0, 255)
-    defaultColor_Invalid = QColor(0, 99, 0, 128)  # TODO alpha changed from 255 to 128 29/11/18 for grabcut
-    defaultColor_UnMasked_Invalid = QColor(128, 99, 0, 255)
+    defaultColor_UnMasked_SM = QColor(255, 0, 0, 128)
+    defaultColor_Masked_SM = QColor(0, 0, 0, 128)
+    # segmentation uses the G channel to mark
+    # mask pixel as modifiable/unmodifiable
+    invalidG = 99  # modifiable if G==99 else unmodifiable
+    defaultColor_Invalid = QColor(0, invalidG, 0, 128)
+    defaultColor_UnMasked_Invalid = QColor(128, invalidG, 0, 255)
 
-    @classmethod
-    def color2OpacityMask(cls, mask):
+    @staticmethod
+    def color2OpacityMask(mask):
         """
         Return a copy of mask with the opacity channel set
-        from red channel (alpha = 0 if Red==0 else 255),
-        Other channels are unchanged.
+        from the red channel (alpha = 0 if Red==0 else 255),
+        B, G, R channels are kept unchanged.
         @param mask: mask
         @type mask: QImage
         @return: opacity mask
@@ -127,13 +134,11 @@ class vImage(bImage):
         buf[:, :, 3] = buf[:, :, 2]
         return mask
 
-    @classmethod
-    def color2ViewMask(cls, mask):
+    @staticmethod
+    def color2ViewMask(mask):
         """
         Return a colored representation of mask.
-        Opacity is 255.
-
-        mask is kept unchanged.
+        B, R, A channels are not modified, mask is kept unchanged.
         @param mask: mask
         @type mask: QImage
         @return: opacity mask
@@ -141,7 +146,7 @@ class vImage(bImage):
         """
         mask = mask.copy()
         buf = QImageBuffer(mask)
-        # record alpha in G channel
+        # record mask alpha in the G channel
         buf[:, :, 1] = (255 - buf[:, :, 2]) * 0.75
         return mask
 
@@ -200,41 +205,52 @@ class vImage(bImage):
         qp.end()
         return img
 
-    @classmethod
-    def maskDilate(cls, mask, iterations=1):
+    @staticmethod
+    def maskDilate(mask, ks=5, iterations=1):
         """
-        Copy the mask and increases the masked region by applying
-        a 5x5 min filter.
+        Increases the masked region by applying
+        a ksxks min filter. Returns the dilated mask.
         @param mask:
-        @type mask: ndarray RGB channels
-        @param iterations: kernal iteartion count
+        @type mask: image ndarray
+        @param ks: kernel size, should be odd
+        @type ks: int
+        @param iterations: filter iteration count
         @type iterations: int
-        @return: the dialted mask
-        @rtype:
+        @return: the dilated mask
+        @rtype: ndarray
         """
-        mask = mask.copy()
-        kernel = np.ones((5, 5), np.uint8)
+        if iterations <= 0:
+            return mask
+        kernel = np.ones((ks, ks), np.uint8)
         # CAUTION erode decreases values (min filter), so it extends the masked part of the image
-        mask[:, :, 2] = cv2.erode(mask[:, :, 2], kernel, iterations=iterations)
+        mask = cv2.erode(mask, kernel, iterations=iterations)
         return mask
 
-    @classmethod
-    def maskErode(cls, mask, iterations=1):
+    @staticmethod
+    def maskErode(mask, ks=5, iterations=1):
         """
-        Copy the mask and reduces the masked region by applying
-        a 5x5 max filter.
+        Reduces the masked region by applying
+        a ksxks max filter. Returns the eroded mask
         @param mask:
-        @type mask: ndarray BGR channels
-        @param iterations: kernel iteration count
+        @type mask: image ndarray
+        @param ks: kernel size, should be odd
+        @type ks: int
+        @param iterations: filter iteration count
         @type iterations: int
         @return: the eroded mask
         @rtype: ndarray
         """
-        mask = mask.copy()
-        kernel = np.ones((5, 5), np.uint8)
+        if iterations <= 0:
+            return mask
+        kernel = np.ones((ks, ks), np.uint8)
         # CAUTION dilate increases values (max filter), so it reduces the masked region of the image
-        mask[:, :, 2] = cv2.dilate(mask[:, :, 2], kernel, iterations=iterations)
+        mask = cv2.dilate(mask, kernel, iterations=iterations)
         return mask
+
+    @staticmethod
+    def maskSmooth(mask, ks=11):
+        kernelMean = np.ones((ks, ks), np.float) / (ks * ks)
+        return cv2.filter2D(mask, -1, kernelMean)
 
     @ classmethod
     def seamlessMerge(cls, dest, source, mask, cloningMethod):
@@ -573,10 +589,10 @@ class vImage(bImage):
 
     def invertMask(self):
         """
-        Inverts mask
+        Invert image mask
         """
         buf = QImageBuffer(self.mask)
-        buf[:, :, 2] = 255 - buf[:, :, 2]  # np.where(buf[:,:,2]==128, 0, 128)  # TODO modified 28/11/18
+        buf[:, :, 2] = 255 - buf[:, :, 2]
 
     def resize(self, pixels, interpolation=cv2.INTER_CUBIC):
         """
@@ -703,11 +719,15 @@ class vImage(bImage):
 
     def applyGrabcut(self, nbIter=2, mode=cv2.GC_INIT_WITH_MASK):
         """
-        Segmentation
+        Segmentation.
+        The segmentation mask is built from the selection rectangle, if any, and from
+        the user painted pixels.
         @param nbIter:
         @type nbIter: int
         @param mode:
+        @type mode:
         """
+        invalid = vImage.defaultColor_Invalid.green()
         form = self.getGraphicsForm()
         formOptions = form.listWidget1
         inputImg = self.inputImg()
@@ -723,101 +743,102 @@ class vImage(bImage):
             self.updatePixmap()
             return
         ##################################################################
+        # selection rectangle
         rect = self.rect
         # resizing coeff fitting selection rectangle with current image
         r = inputImg.width() / self.width()
-        # mask
+        ############################
+        # build the segmentation mask
+        ############################
         if rect is not None:
-            # inside : PR_FGD, outside BGD
-            finalMask = np.zeros((inputImg.height(), inputImg.width()), dtype=np.uint8) + cv2.GC_BGD
-            finalMask[int(rect.top() * r):int(rect.bottom() * r), int(rect.left() * r):int(rect.right() * r)] = cv2.GC_PR_FGD
+            # inside rect: PR_FGD, outside BGD
+            segMask = np.zeros((inputImg.height(), inputImg.width()), dtype=np.uint8) + cv2.GC_BGD
+            segMask[int(rect.top() * r):int(rect.bottom() * r), int(rect.left() * r):int(rect.right() * r)] = cv2.GC_PR_FGD
         else:
-            # all : PR_BGD
-            finalMask = np.zeros((inputImg.height(), inputImg.width()), dtype=np.uint8) + cv2.GC_PR_BGD
-        # add info from self.mask
+            # everywhere : PR_BGD
+            segMask = np.zeros((inputImg.height(), inputImg.width()), dtype=np.uint8) + cv2.GC_PR_BGD
+
+        # add info from current self.mask
         # initially (i.e. before any painting with BG/FG tools and before first call to applygrabcut)
         # all mask pixels are marked as invalid. Painting a pixel marks it as valid, Ctrl+paint
-        # switches it to invalid. Only valid pixel info is added to finalMask, fixing them as FG or BG
+        # switches it back to invalid. Only valid pixels are added to segMask, fixing them as FG or BG
         if inputImg.size() != self.size():
             scaledMask = self.mask.scaled(inputImg.width(), inputImg.height())
         else:
             scaledMask = self.mask
         scaledMaskBuf = QImageBuffer(scaledMask)
-        # Only actually painted pixels of the mask must be considered
-        finalMask[(scaledMaskBuf[:, :, 2] > 100) * (scaledMaskBuf[:, :, 1] != 99)] = cv2.GC_FGD  # 99=defaultColorInvalid R=128 unmasked R=0 masked
-        finalMask[(scaledMaskBuf[:, :, 2] == 0) * (scaledMaskBuf[:, :, 1] != 99)] = cv2.GC_BGD
-        # save a copy of the mask
-        finalMask_save = finalMask.copy()
-        # mandatory : at least one (FGD or PR_FGD)  pixel and one (BGD or PR_BGD) pixel
-        if not ((np.any(finalMask == cv2.GC_FGD) or np.any(finalMask == cv2.GC_PR_FGD))
+
+        # copy valid pixels from scaledMaskBuf to the segmentation mask
+        m = (scaledMaskBuf[:, :, 2] > 100) * (scaledMaskBuf[:, :, 1] != invalid)  # R>100 is unmasked, R=0 is masked
+        segMask[m] = cv2.GC_FGD
+        m = (scaledMaskBuf[:, :, 2] == 0) * (scaledMaskBuf[:, :, 1] != invalid)
+        segMask[m] = cv2.GC_BGD
+        # segMask will be modified by grabcut : save a copy
+        segMask_save = segMask.copy()
+
+        # sanity check : at least one (FGD or PR_FGD)  pixel and one (BGD or PR_BGD) pixel
+        if not ((np.any(segMask == cv2.GC_FGD) or np.any(segMask == cv2.GC_PR_FGD))
                 and
-                (np.any(finalMask == cv2.GC_BGD) or np.any(finalMask == cv2.GC_PR_BGD))):
-            dlgWarn('You must select some background or foreground pixels', info='Use selection rectangle or draw mask')
+                (np.any(segMask == cv2.GC_BGD) or np.any(segMask == cv2.GC_PR_BGD))):
+            dlgWarn('You must select some background or foreground pixels', info='Use selection rectangle or Mask/Unmask tools')
             return
+
+        #############
+        # do segmentation
+        #############
         bgdmodel = np.zeros((1, 13 * 5), np.float64)  # Temporary array for the background model
         fgdmodel = np.zeros((1, 13 * 5), np.float64)  # Temporary array for the foreground model
         t0 = time()
         inputBuf = QImageBuffer(inputImg)
-        # get the fastest available method for segmentation
+        # get the fastest available grabcut function
         if getattr(cv2, 'grabCut_mt', None) is None:
             bGrabcut = cv2.grabCut
         else:
             bGrabcut = cv2.grabCut_mt
+        bGrabcut(inputBuf[:, :, :3], segMask, None, bgdmodel, fgdmodel, nbIter, mode)
+        print('%s : %.2f' % (bGrabcut.__name__, (time()-t0)))
 
-        # apply grabcut function
-        bGrabcut(inputBuf[:, :, :3], finalMask, None,
-                 bgdmodel, fgdmodel, nbIter, mode)
-        print('grabcut_mtd time : %.2f' % (time()-t0))
-        """
-        t1 = time()
-        cv2.grabCut(inputBuf[:, :, :3], finalMask_test, None,  # QRect2tuple(img0_r.rect),
-                        bgdmodel_test, fgdmodel_test, nbIter, mode)
-        print('grabcut time : %.2f' % (time() - t1))
-        """
-        # keep unmodified initial FGD and BGD pixels : #TODO 22/06/18 alraedy done by the cv2 function grabcut
-        finalMask = np.where((finalMask_save == cv2.GC_BGD) + (finalMask_save == cv2.GC_FGD), finalMask_save, finalMask)
+        # restore initial FGD and BGD pixels : #TODO 22/06/18 useless: already done by the cv2 function grabcut
+        # segMask = np.where((segMask_save == cv2.GC_BGD) + (segMask_save == cv2.GC_FGD), segMask_save, segMask)
 
-        # set opacity (255=background, 0=foreground)
-        #
-        finalOpacity = np.where((finalMask == cv2.GC_FGD) + (finalMask == cv2.GC_PR_FGD), 255, 0)
+        # back to mask
+        unmasked = vImage.defaultColor_UnMasked.red()
+        masked = vImage.defaultColor_Masked.red()
         buf = QImageBuffer(scaledMask)
-        # set the red channel of the mask
-        buf[:, :, 2] = np.where(finalOpacity == 255, 255, 0)  # 128, 0)  # TODO modified 29/11/18
-        invalidate_contour = True  # always True (for testing purpose)
+        buf[:, :, 2] = np.where((segMask == cv2.GC_FGD) + (segMask == cv2.GC_PR_FGD), unmasked, masked)
+        buf[:, :, 3] = 128
+
+        # mark all mask pixels as valid, thus
+        # further calls to applyGrabcut will not be
+        # able to modify them. To enable further modifications
+        # paint mask pixels white holding the Ctrl key.
+        buf[:, :, 1] = 0
+
+        invalidate_contour = form.contourMargin > 0
+        # invalidate a stripe around the foreground/background boundary.
+        # its width is 5 * form.contourMargin
         if invalidate_contour:
-            # without manual corrections, only the contour region may be updated
-            # by further calls to applyGrabcut()
-            # build the contour as a boolean mask : cbMask is True iff the pixel belongs to the contour
-            maxIterations = 8
-            ebuf = vImage.maskErode(buf, iterations=maxIterations)
-            dbuf = vImage.maskDilate(buf, iterations=maxIterations)
-            cbMask = ((buf[:, :, 2] == 0) & (ebuf[:, :, 2] == 128)) | ((buf[:, :, 2] == 128) & (dbuf[:, :, 2] == 0))
+            # build the contour as a boolean mask
+            maxIterations = form.contourMargin
+            ebuf = vImage.maskErode(buf.copy(), iterations=maxIterations)
+            dbuf = vImage.maskDilate(buf.copy(), iterations=maxIterations)
+            m = ((buf[:, :, 2] == 0) & (ebuf[:, :, 2] == unmasked)) | ((buf[:, :, 2] == unmasked) & (dbuf[:, :, 2] == 0))
             # mark contour pixels as invalid and others as valid : the contour only can be modified
-            # For the boolean case, unlike the case of integer index arrays,  the result is a 1-D array
-            # containing all the elements in the indexed array corresponding to all the true elements in the boolean array.
-            buf[:, :, 1][cbMask] = 99
-            buf[:, :, 1][~cbMask] = 0
-            # dilate the mask to remove background dithering
-            # iterations should be <= maxIterations
-            dbuf = vImage.maskDilate(buf, iterations=min(form.contourMargin, maxIterations))
-            innerCbMask = ((buf[:, :, 2] == 128) & (dbuf[:, :, 2] == 0))
-            buf[:, :, 2][innerCbMask] = 0
-        else:
-            # invalidate PR_FGD and PR_BGD pixels, validate others
-            buf[:, :, 1] = np.where((finalMask != cv2.GC_FGD) * (finalMask != cv2.GC_BGD), 99, 0)
+            buf[:, :, 1] = np.where(m, invalid, 0)
+
+        """
+        # dilate the mask to remove background dithering
+        # iteration count should be <= maxIterations
+        dbuf = vImage.maskDilate(buf.copy(), iterations=min(form.contourMargin, maxIterations))
+        innerCbMask = ((buf[:, :, 2] == unmasked) & (dbuf[:, :, 2] == 0))
+        buf[:, :, 2] = np.where(innerCbMask, 0, buf[:,:,2]) # [innerCbMask] = 0
+        """
+
         if self.size() != scaledMask.size():
             self.mask = scaledMask.scaled(self.size())
         else:
             self.mask = scaledMask
-        # Set clipping mode for better viewing
-        name = formOptions.intNames[0]
-        form.start = False
-        # check option clipping
-        name = formOptions.intNames[0]
-        item = formOptions.items[name]
-        formOptions.checkOption(name, checked=self.isClipping, callOnSelect=False)
-        # item.setCheckState(Qt.Checked if self.isClipping else Qt.Unchecked)
-        # formOptions.options[name] = True if self.isClipping else False
+
         # forward the alpha channel
         # TODO 23/06/18 should we forward ?
         self.updatePixmap()

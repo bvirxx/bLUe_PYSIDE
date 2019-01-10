@@ -34,6 +34,7 @@ from bLUeGui.memory import weakProxy
 from settings import TABBING
 from utils import  QbLUeSlider
 import resources_rc  # hidden import mandatory : DO NOT REMOVE !!!
+from versatileImg import vImage
 
 
 class layerModel(QStandardItemModel):
@@ -683,7 +684,7 @@ Note that upper visible layers slow down mask edition.<br>
         @rtype: QMenu
         """
         menu = QMenu()
-        menu.actionReset = QAction('Reset To Default', None)
+        # menu.actionReset = QAction('Reset To Default', None)
         menu.actionLoadImage = QAction('Load New Image', None)
         menu.actionGroupSelection = QAction('Group Selection', None)
         menu.actionAdd2Group = QAction('Add to Group', None)
@@ -699,20 +700,22 @@ Note that upper visible layers slow down mask edition.<br>
         menu.actionUnselect = QAction('Unselect All', None)
 
         menu.actionRepositionLayer = QAction('Reposition Layer(s)', None)
-        menu.actionColorMaskEnable = QAction('Color Mask', None)
-        menu.actionOpacityMaskEnable = QAction('Opacity Mask', None)
-        menu.actionClippingMaskEnable = QAction('Clipping Mask', None)
-        menu.actionMaskDisable = QAction('Disable Mask', None)
+        menu.actionColorMaskEnable = QAction('Color', None)
+        menu.actionOpacityMaskEnable = QAction('Opacity', None)
+        menu.actionClippingMaskEnable = QAction('Clipping', None)
+        menu.actionMaskDisable = QAction('Disabled', None)
         menu.actionMaskUndo = QAction('Undo Mask', None)
         menu.actionMaskRedo = QAction('Redo Mask', None)
         menu.actionMaskInvert = QAction('Invert Mask', None)
-        menu.actionMaskReset = QAction('Clear Mask', None)
+        menu.actionMaskReset_UM = QAction('Unmask All', None)
+        menu.actionMaskReset_M = QAction('Mask All', None)
         menu.actionMaskCopy = QAction('Copy Mask to Clipboard', None)
         menu.actionImageCopy = QAction('Copy Image to Clipboard', None)
         menu.actionMaskPaste = QAction('Paste Mask', None)
         menu.actionImagePaste = QAction('Paste Image', None)
         menu.actionMaskDilate = QAction('Dilate Mask', None)
         menu.actionMaskErode = QAction('Erode Mask', None)
+        menu.actionMaskSmooth = QAction('Smooth Mask', None)
         menu.actionColorMaskEnable.setCheckable(True)
         menu.actionOpacityMaskEnable.setCheckable(True)
         menu.actionClippingMaskEnable.setCheckable(True)
@@ -737,11 +740,13 @@ Note that upper visible layers slow down mask edition.<br>
         menu.addAction(menu.actionMaskUndo)
         menu.addAction(menu.actionMaskRedo)
         menu.addAction(menu.actionMaskInvert)
-        menu.addAction(menu.actionMaskReset)
+        menu.addAction(menu.actionMaskReset_UM)
+        menu.addAction(menu.actionMaskReset_M)
         menu.addAction(menu.actionMaskCopy)
         menu.addAction(menu.actionMaskPaste)
         menu.addAction(menu.actionMaskDilate)
         menu.addAction(menu.actionMaskErode)
+        menu.addAction(menu.actionMaskSmooth)
         menu.addSeparator()
         # miscellaneous
         menu.addAction(menu.actionLoadImage)
@@ -749,7 +754,7 @@ Note that upper visible layers slow down mask edition.<br>
         # it must be set in __init__
         menu.addAction(self.actionDup)
         menu.addAction(menu.actionMerge)
-        menu.addAction(menu.actionReset)
+        # menu.addAction(menu.actionReset)
         return menu
 
 
@@ -881,7 +886,6 @@ Note that upper visible layers slow down mask edition.<br>
             layer.applyToStack()
             self.img.onImageChanged()
 
-
         def redoMask():
             mask = layer.historyListMask.redo()
             if mask is not None:
@@ -897,8 +901,15 @@ Note that upper visible layers slow down mask edition.<br>
                 #l.updatePixmap(maskOnly=True)
             self.img.onImageChanged()
 
-        def maskReset():
-            layer.resetMask()
+        def maskReset_UM():
+            layer.resetMask(maskAll=False)
+            # update mask stack
+            for l in self.img.layersStack:
+                l.updatePixmap(maskOnly=True)
+            self.img.onImageChanged()
+
+        def maskReset_M():
+            layer.resetMask(maskAll=True)
             # update mask stack
             for l in self.img.layersStack:
                 l.updatePixmap(maskOnly=True)
@@ -943,37 +954,35 @@ Note that upper visible layers slow down mask edition.<br>
         def maskDilate():
             """
             Increase the masked part of the image
-            @return:
-            @rtype:
             """
-            kernel = np.ones((5, 5), np.uint8)
             buf = QImageBuffer(layer.mask)
-            # CAUTION erode decreases values (min filter), so it extends the masked part of the image
-            buf[:, :, 2] = cv2.erode(buf[:,:,2], kernel, iterations=1)
+            buf[:, :, 2] = vImage.maskDilate(buf[:, :, 2])
             for l in self.img.layersStack:
                 l.updatePixmap(maskOnly=True)
+            self.img.prLayer.applyNone()
             self.img.onImageChanged()
 
         def maskErode():
             """
             Reduce the masked part of the image
             """
-            ks = 11
-            # kernelMax = np.ones((ks, ks), np.uint8)
-            kernelMean = np.ones((ks, ks), np.float) / (ks * ks)
             buf = QImageBuffer(layer.mask)
-            # CAUTION dilate increases values (max filter), so it reduces the masked part of the image
-            #buf[:,:,2] = cv2.dilate(buf[:,:,2], kernelMax, iterations=1)
-            buf[:,:,2] = cv2.filter2D(buf[:,:,2], -1 ,kernelMean)
+            buf[:, :, 2] = vImage.maskErode(buf[:, :, 2])
             for l in self.img.layersStack:
                 l.updatePixmap(maskOnly=True)
             self.img.prLayer.applyNone()
             self.img.onImageChanged()
 
-        def layerReset():
-            view = layer.getGraphicsForm()
-            if hasattr(view, 'reset'):
-                view.reset()
+        def maskSmooth():
+            """
+            Smooth the mask boundary
+            """
+            buf = QImageBuffer(layer.mask)
+            buf[:,:,2] = vImage.maskSmooth(buf[:,:,2])
+            for l in self.img.layersStack:
+                l.updatePixmap(maskOnly=True)
+            self.img.prLayer.applyNone()
+            self.img.onImageChanged()
 
         self.cMenu.actionRepositionLayer.triggered.connect(RepositionLayer)
         self.cMenu.actionUnselect.triggered.connect(unselectAll)
@@ -986,14 +995,16 @@ Note that upper visible layers slow down mask edition.<br>
         self.cMenu.actionMaskUndo.triggered.connect(undoMask)
         self.cMenu.actionMaskRedo.triggered.connect(redoMask)
         self.cMenu.actionMaskInvert.triggered.connect(maskInvert)
-        self.cMenu.actionMaskReset.triggered.connect(maskReset)
+        self.cMenu.actionMaskReset_UM.triggered.connect(maskReset_UM)
+        self.cMenu.actionMaskReset_M.triggered.connect(maskReset_M)
         self.cMenu.actionMaskCopy.triggered.connect(maskCopy)
         self.cMenu.actionMaskPaste.triggered.connect(maskPaste)
         self.cMenu.actionImageCopy.triggered.connect(imageCopy)
         self.cMenu.actionImagePaste.triggered.connect(imagePaste)
         self.cMenu.actionMaskDilate.triggered.connect(maskDilate)
         self.cMenu.actionMaskErode.triggered.connect(maskErode)
-        self.cMenu.actionReset.triggered.connect(layerReset)
+        self.cMenu.actionMaskSmooth.triggered.connect(maskSmooth)
+        # self.cMenu.actionReset.triggered.connect(layerReset)
         self.cMenu.exec_(event.globalPos() - QPoint(400, 0))
         # update table
         for row in rows:

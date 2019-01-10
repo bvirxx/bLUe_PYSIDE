@@ -386,11 +386,16 @@ def mouseEvent(widget, event):  # TODO split into 3 handlers
                 if layer.maskIsEnabled:
                     toolOpacity = window.verticalSlider2.value() / 100
                     if modifiers == Qt.NoModifier:
-                        color = vImage.defaultColor_UnMasked if window.btnValues['drawFG'] else vImage.defaultColor_Masked
+                        if layer.isSegmentLayer():
+                            color = vImage.defaultColor_UnMasked_SM if \
+                                window.btnValues['drawFG'] else vImage.defaultColor_Masked_SM
+                        else:
+                            color = vImage.defaultColor_UnMasked if \
+                                window.btnValues['drawFG'] else vImage.defaultColor_Masked
                     else:
-                        color = vImage.defaultColor_UnMasked_Invalid if window.btnValues['drawFG'] else vImage.defaultColor_Invalid
-                    # paint with current mask alpha
-                    color.setAlpha(layer.colorMaskOpacity)
+                        color = vImage.defaultColor_UnMasked_Invalid
+                    # reduce color opacity by  current colorMaskOpacity
+                    # color.setAlpha(color.alpha() * layer.colorMaskOpacity // 255)  # TODO removed 10/01/19 for grabcut
                     qp.begin(layer.mask)
                     # get pen width (relative to image)
                     w_pen = window.verticalSlider1.value() // r

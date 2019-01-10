@@ -19,11 +19,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 from PySide2.QtCore import Qt
 from PySide2.QtWidgets import QHBoxLayout, QPushButton, QSizePolicy, QVBoxLayout, QSpinBox, QLabel
 
-from bLUeGui.memory import weakProxy
 from versatileImg import vImage
 from QtGui1 import window
 from bLUeGui.graphicsForm import baseForm
 from utils import optionsWidget
+
 
 class segmentForm(baseForm):
     """
@@ -31,40 +31,39 @@ class segmentForm(baseForm):
     """
     layerTitle = "Segmentation"
     iterDefault = 3
-    contourMarginDefault = 1
+    contourMarginDefault = 0
+
     @classmethod
-    def getNewWindow(cls, targetImage=None, layer=None):
-        wdgt = segmentForm(layer=layer)
+    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
+        wdgt = segmentForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
         return wdgt
 
-    def __init__(self, layer=None):
-        super(segmentForm, self).__init__()
+    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
+        super().__init__(layer=layer, targetImage=targetImage, parent=parent)
         self.setWindowTitle('grabcut')
-        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        self.setMinimumSize(200, 200)
-        self.setAttribute(Qt.WA_DeleteOnClose)
-        # link back to image layer
-        self.layer = weakProxy(layer)
-        pushButton = QPushButton('apply')
+        button0 = QPushButton('Segment')
+
         # button slot
         def f():
             self.layer.noSegment = False
             self.layer.applyToStack()
             window.label.img.onImageChanged()
-            # do manual segmentation only
-            layer.noSegment = True
-        pushButton.clicked.connect(f)
+            # manual segmentation only
+            self.layer.noSegment = True
 
-        pushButton1 = QPushButton('Reset')
-        pushButton1.clicked.connect(lambda : self.reset())
+        button0.clicked.connect(f)
+
+        button1 = QPushButton('Reset')
+        button1.clicked.connect(self.reset)
 
         self.spBox = QSpinBox()
-        self.spBox.setRange(1,10)
-        # spBox Slot
+        self.spBox.setRange(1, 10)
+
+        # spBox slot
         def f2(iterCount):
-            self.spBox.valueChanged.disconnect()
+            self.nbIter = self.spBox.value()
             self.dataChanged.emit()
-            self.spBox.valueChanged.connect(f2)
+
         self.spBox.valueChanged.connect(f2)
         spBoxLabel = QLabel()
         spBoxLabel.setText('Iterations')
@@ -72,30 +71,27 @@ class segmentForm(baseForm):
         self.spBox1 = QSpinBox()
         self.spBox1.setRange(0, 20)
         spBox1Label = QLabel()
-        spBox1Label.setText('Contour Margin')
+        spBox1Label.setText('Contour Redo Radius')
+
         # spBox1 slot
         def f1(margin):
-            self.spBox1.valueChanged.disconnect()
+            self.contourMargin = self.spBox1.value()
             self.dataChanged.emit()
-            self.spBox1.valueChanged.connect(f1)
+
         self.spBox1.valueChanged.connect(f1)
 
         # options
         optionList1, optionNames1 = ['Clipping Layer'], ['Clipping Layer']
-        self.listWidget1 = optionsWidget(options=optionList1, optionNames=optionNames1, exclusive=False)
+        self.listWidget1 = optionsWidget(options=optionList1, optionNames=optionNames1, exclusive=False,
+                                         changed=lambda: self.dataChanged.emit())
         self.options = self.listWidget1.options
+
         # option changed slot
         def g(item):
             self.layer.isClipping = self.options['Clipping Layer']
             self.layer.applyToStack()
             self.layer.parentImage.onImageChanged()
         self.listWidget1.onSelect = g
-
-        # attributes initialized in setDefaults, declared here
-        # for the sake of correctness
-        self.start = None
-        self.nbIter = None
-        self.contourMargin = None
 
         # layout
         hLay = QHBoxLayout()
@@ -115,24 +111,28 @@ class segmentForm(baseForm):
         vLay.addLayout(hLay1)
         vLay.addLayout(h2)
         h3 = QHBoxLayout()
-        h3.addWidget(pushButton)
-        h3.addWidget(pushButton1)
+        h3.addWidget(button0)
+        h3.addWidget(button1)
         vLay.addLayout(h3)
         self.setLayout(vLay)
+
         self.setDefaults()
         self.setWhatsThis(
-""" <b>Object extraction</b><br>  
-  Select the object to extract with the rectangle Marquee Tool. Next, click the Apply button.<br>
-  Correct (roughly) if needed the foreground (FG) and the background (BG) regions using the FG and BG tools (Ctrl to undo) and click again the Apply button.<br>
-  To get a smoother contour increase the value of the Contour Margin and click the Apply Button.<br>
-  By default the mask is displayed as a color mask. To view it as an opacity mask, right click on the Segmentation layer row in the right pane and check Enable Mask As > Opacity Mask in the context menu.
-  Use the same context menu to copy/paste the object to a new image layer or the mask to another layer.<br>
-  
-"""
+            """ <b>Segmentation (Object extraction)</b><br>  
+              Select the object to extract with the rectangle Marquee Tool. Next, press the <i>Segment</i> button.<br>
+              The background of the segmented image is transparent : to <b>mask the underlying layers</b> check the
+              option <i>Clipping Layer.</i><br>
+              To <b>fix the selection</b>, paint eventual misclassed pixels with the foreground (FG) or background (BG) tools.<br>
+              To <b>redo the segmentation of a region</b> (e.g. a border area) hold down the Ctrl key while painting the area
+              and press again <i>segment.</i><br>
+              To <b>redo the segmentation of the whole contour</b> set <i>Contour Redo Radius</i> to a value >= 1 and
+              press <i>Segment.</i><br>
+              To <b>smooth the contour</b> right click the layer row in the <i>Layers</i> panel
+              and choose <i>Smooth Mask</i> from the context menu.<br>
+            """
                         )  # end setWhatsThis
 
     def setDefaults(self):
-        # prevent multiple updates
         try:
             self.dataChanged.disconnect()
         except RuntimeError:
@@ -140,25 +140,28 @@ class segmentForm(baseForm):
         self.listWidget1.unCheckAll()
         self.spBox.setValue(self.iterDefault)
         self.spBox1.setValue(self.contourMarginDefault)
-        self.start = True
+        # self.start = True
+        self.contourMargin = self.contourMarginDefault
+        self.nbIter = self.iterDefault
         self.dataChanged.connect(self.updateLayer)
-        # self.dataChanged.emit() # TODO 30/10/18 removed validate
 
     def updateLayer(self):
-        self.nbIter = self.spBox.value()
-        self.contourMargin = self.spBox1.value()
+        self.layer.isClipping = self.options['Clipping Layer']
+        self.layer.applyToStack()
+        self.layer.parentImage.onImageChanged()
 
     def reset(self):
         layer = self.layer
+        layer.noSegment = True
         layer.maskIsEnabled = True
         layer.maskIsSelected = True
         # mask pixels are not yet painted as FG or BG
         # so we mark them as invalid
         layer.mask.fill(vImage.defaultColor_Invalid)
-        layer.paintedMask = layer.mask.copy()
+        # layer.paintedMask = layer.mask.copy()
         layer.isClipping = False
         self.setDefaults()
-        self.dataChanged.emit()  # TODO added 30/10/18 validate
+        self.dataChanged.emit()
         layer.updatePixmap()
 
 

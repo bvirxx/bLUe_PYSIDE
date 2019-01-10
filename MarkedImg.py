@@ -345,14 +345,13 @@ class mImage(vImage):
             index = self.activeLayerIndex
         layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
         layer.role = 'SEGMENT'
-        layer.inputImg = lambda: self.layersStack[layer.getLowerVisibleStackIndex()].getCurrentMaskedImage()  # TODO 13/06/18 is it different from other layers?
         self.addLayer(layer, name=name, index=index + 1)
         layer.maskIsEnabled = True
         layer.maskIsSelected = True
         # mask pixels are not yet painted as FG or BG
         # so we mark them as invalid
         layer.mask.fill(vImage.defaultColor_Invalid)
-        layer.paintedMask = layer.mask.copy()
+        # layer.paintedMask = layer.mask.copy()
         # add noSegment flag. It blocks/allows the execution of grabcut algorithm
         # in applyGrabcut : if True, further stack updates
         # do not redo the segmentation. The flag is toggled by the Apply Button
