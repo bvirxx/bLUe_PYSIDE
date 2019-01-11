@@ -15,29 +15,22 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-import weakref
 
-from PySide2.QtCore import Qt, QSize
+from PySide2.QtCore import Qt
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout
 
 from bLUeGui.graphicsForm import baseForm
-from bLUeGui.memory import weakProxy
 from utils import optionsWidget
+
 
 class histForm (baseForm):
     """
     Form for histogram viewing
     """
     def __init__(self, targetImage=None, size=200, layer=None, parent=None):
-        super().__init__(parent=parent)
+        super().__init__(layer=layer, targetImage=targetImage, parent=parent)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.setMinimumSize(size, 100)
-        self.setAttribute(Qt.WA_DeleteOnClose)
-        self.targetImage = weakProxy(targetImage)
-        self.img = weakProxy(targetImage)
-        # link back to image layer
-        # using weak ref for back links
-        self.layer = layer if (layer is None  or type(layer) in weakref.ProxyTypes) else weakref.proxy(layer)
         self.Label_Hist = QLabel()
         self.Label_Hist.setScaledContents(True)
         self.Label_Hist.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
@@ -55,7 +48,8 @@ class histForm (baseForm):
         # default: show color hists
         self.listWidget2.item(0).setCheckState(Qt.Checked)
 
-        self.options = {option : True for option in options1 + options2}
+        self.options = {option: True for option in options1 + options2}
+
         def onSelect1(item):
             self.options[options1[0]] = item.checkState() is Qt.Checked
             try:
