@@ -57,7 +57,7 @@ class ExpForm (baseForm):
         self.expValue.setMinimumSize(w, h)
         self.expValue.setMaximumSize(w, h)
 
-        # exp change/released event handler
+        # exp change/released slot
         def f():
             self.expValue.setText(str("{:+.1f}".format(self.sliderExp.value() * self.defaultStep)))
             if self.sliderExp.isSliderDown() or (self.expCorrection == self.sliderExp.value() * self.defaultStep):
