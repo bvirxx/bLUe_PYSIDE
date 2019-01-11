@@ -54,7 +54,7 @@ class blendFilterForm (baseForm):  # TODO updateLayer()
         filters = [blendFilterIndex.GRADUALTB, blendFilterIndex.GRADUALBT] #, blendFilterIndex.GRADUALNONE]
         filterDict = dict(zip(optionList, filters))
 
-        self.listWidget1 = optionsWidget(options=optionList, optionNames=optionNames, exclusive=True, changed=self.dataChanged)
+        self.listWidget1 = optionsWidget(options=optionList, optionNames=optionNames, exclusive=True, changed=self.dataChanged)  #TODO changed signal takes a parameter
         # set initial selection to gradual top
         self.listWidget1.checkOption(optionList[0])
 
