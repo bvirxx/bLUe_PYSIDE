@@ -16,20 +16,18 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import cv2
-import weakref
+
 from collections import OrderedDict
 from math import log
 from os.path import basename
 
 from PySide2 import QtCore
 from PySide2.QtCore import Qt, QPointF
-from PySide2.QtGui import QFontMetrics, QBrush, QPolygonF, qRed, qGreen, qBlue
-from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBox, QComboBox, \
-    QGraphicsEllipseItem, QGraphicsPolygonItem, QApplication
-from bLUeGui.graphicsSpline import graphicsSplineForm, activeCubicSpline
+from PySide2.QtGui import QFontMetrics, QBrush, QPolygonF
+from PySide2.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBox, QComboBox, QGraphicsPolygonItem
+from bLUeGui.graphicsSpline import graphicsSplineForm
 from bLUeGui.graphicsForm import baseForm
-from bLUeGui.memory import weakProxy
-from dng import getDngProfileList, getDngProfileDict, dngProfileToneCurve, dngProfileLookTable
+from dng import getDngProfileList, getDngProfileDict, dngProfileToneCurve
 from utils import optionsWidget, UDict, QbLUeSlider, stateAwareQDockWidget
 from bLUeGui.multiplier import *
 
@@ -67,107 +65,91 @@ class graphicsToneForm(graphicsSplineForm):
             x, y = x//2, y//2
         color = rImg.linearImg.pixelColor(x, y)
         r, g, b = color.red(), color.green(), color.blue()
-        h, s, v = cv2.cvtColor((np.array([r,g,b])/255).astype(np.float32)[np.newaxis, np.newaxis,:], cv2.COLOR_RGB2HSV)[0,0,:]
+        h, s, v = cv2.cvtColor((np.array([r, g, b])/255).astype(np.float32)[np.newaxis, np.newaxis,:],
+                               cv2.COLOR_RGB2HSV)[0, 0, :]
         self.inputMarker.setPos(v*self.scene().axeSize, 0.0)
+
 
 class rawForm (baseForm):
     """
     Postprocessing of raw files.
     """
     dataChanged = QtCore.Signal(int)
+
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
         wdgt = rawForm(axeSize=axeSize, targetImage=targetImage, layer=layer, parent=parent)
         wdgt.setWindowTitle(layer.name)
         return wdgt
 
-    @classmethod
-    def slider2Temp(cls, v):
+    @staticmethod
+    def slider2Temp(v):
         return 2000 + v * v
 
-    @classmethod
-    def temp2Slider(cls, T):
+    @staticmethod
+    def temp2Slider(T):
         return np.sqrt(T - 2000)
 
-    @classmethod
-    def slider2Tint(cls, v):
+    @staticmethod
+    def slider2Tint(v):
         return 0.1 + 0.0125 * v  # 0.2 + 0.0125 * v  # wanted range : 0.2...2.5
         # coeff = (self.tempCorrection / 4000 - 1) * 1.2 # experimental formula
         # eturn coeff + 0.01*v
 
-    @classmethod
-    def tint2Slider(cls, t):
+    @staticmethod
+    def tint2Slider(t):
         return (t - 0.1) / 0.0125
         # coeff = (self.tempCorrection / 4000 - 1) * 1.2 # experimental formula
         # return (t-coeff)/0.01
         # displayed value
 
-    @classmethod
-    def sliderTint2User(cls, v):
+    @staticmethod
+    def sliderTint2User(v):
         return v - 75  # ((slider2Tint(v) - 1)*100)
 
-    @classmethod
-    def slider2Exp(cls, v):
-        return 2**( (v -50)/ 15.0)
+    @staticmethod
+    def slider2Exp(v):
+        return 2**((v - 50) / 15.0)
 
-    @classmethod
-    def exp2Slider(cls, e):
+    @staticmethod
+    def exp2Slider(e):
         return round(15 * np.log2(e) + 50)
 
-    @classmethod
-    def sliderExp2User(cls, v):
-        return (v -50) / 15
+    @staticmethod
+    def sliderExp2User(v):
+        return (v - 50) / 15
 
-    @classmethod
-    def slider2Cont(cls, v):
+    @staticmethod
+    def slider2Cont(v):
         return v
 
-    @classmethod
-    def cont2Slider(cls, e):
+    @staticmethod
+    def cont2Slider(e):
         return e
 
-    @classmethod
-    def slider2Br(cls, v):
+    @staticmethod
+    def slider2Br(v):
         return (np.power(3, v/50) - 1) / 2
 
-    @classmethod
-    def br2Slider(cls, v):
-        return 50 * log(2*v + 1, 3) #int(round(50.0 * e))
+    @staticmethod
+    def br2Slider(v):
+        return 50 * log(2*v + 1, 3)  # int(round(50.0 * e))
 
-    @classmethod
-    def brSlider2User(cls, v):
-        return (v - 50)
-
-    @classmethod
-    def slider2Sat(cls, v):
+    @staticmethod
+    def brSlider2User(v):
         return v - 50
 
-    @classmethod
-    def sat2Slider(cls, e):
+    @staticmethod
+    def slider2Sat(v):
+        return v - 50
+
+    @staticmethod
+    def sat2Slider(e):
         return e + 50
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
-        super().__init__(parent=parent)
-        self.setStyleSheet('QRangeSlider * {border: 0px; padding: 0px; margin: 0px}')
-        self.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Preferred)
-        self.setMinimumSize(axeSize, axeSize+300)  # +300 to prevent scroll bars in list Widgets
-        self.setAttribute(Qt.WA_DeleteOnClose)
-        # links back to image : using weak refs
-        self.targetImage = weakProxy(targetImage)
-        """
-        if type(targetImage) in weakref.ProxyTypes:
-            self.targetImage = targetImage           
-        else:
-            self.targetImage = weakref.proxy(targetImage)
-        """
-        #self.targetImage = targetImage
-        self.layer = weakProxy(layer)
-        """
-        if type(layer) in weakref.ProxyTypes:
-            self.layer = layer
-        else:
-            self.layer = weakref.proxy(layer)
-        """
+        super().__init__(layer=layer, targetImage=targetImage, parent=parent)
+
         #######################################
         # Libraw correspondences:
         # rgb_xyz_matrix is libraw cam_xyz
@@ -182,10 +164,10 @@ class rawForm (baseForm):
         self.XYZ2CameraMatrix = rawpyObj.rgb_xyz_matrix[:3, :]
         self.XYZ2CameraInverseMatrix = np.linalg.inv(self.XYZ2CameraMatrix)
         # initial post processing multipliers (as shot)
-        m1,m2,m3, m4 = rawpyObj.camera_whitebalance
-        self.asShotMultipliers = (m1/m2, 1.0, m3/m2, m4/m2) # normalization is mandatory : for nef files white balance is around 256
+        m1, m2, m3, m4 = rawpyObj.camera_whitebalance
+        self.asShotMultipliers = (m1/m2, 1.0, m3/m2, m4/m2)  # normalization is mandatory : for nef files white balance is around 256
         self.asShotTemp, self.asShotTint = multipliers2TemperatureAndTint(*1 / np.array(self.asShotMultipliers[:3]), self.XYZ2CameraMatrix)
-        self.rawMultipliers = self.asShotMultipliers #rawpyObj.camera_whitebalance # = 1/(dng ASSHOTNEUTRAL tag value)
+        self.rawMultipliers = self.asShotMultipliers  # rawpyObj.camera_whitebalance # = 1/(dng ASSHOTNEUTRAL tag value)
         self.sampleMultipliers = False
         self.samples = []
         ########################################
@@ -206,13 +188,14 @@ class rawForm (baseForm):
         # options
         optionList0, optionNames0 = ['Auto Brightness', 'Preserve Highlights'], ['Auto Expose', 'Preserve Highlights']
         optionList1, optionNames1 = ['Auto WB', 'Camera WB', 'User WB'], ['Auto', 'Camera (As Shot)', 'User']
-        optionList2, optionNames2 = ['cpLookTable','cpToneCurve', 'manualCurve'], ['Use Camera Profile Look Table', 'Show Tone Curves', 'Show Contrast Curve']
-        self.listWidget1 = optionsWidget(options=optionList0, optionNames=optionNames0, exclusive=False, changed=lambda: self.dataChanged.emit(1))
-        #self.listWidget1.checkOption(self.listWidget1.intNames[0])
-        #self.listWidget1.checkOption(self.listWidget1.intNames[1])
-        self.listWidget2 = optionsWidget(options=optionList1, optionNames=optionNames1,  exclusive=True, changed=lambda: self.dataChanged.emit(1))
-        #self.listWidget2.checkOption(self.listWidget2.intNames[1])
-        self.listWidget3 = optionsWidget(options=optionList2, optionNames=optionNames2, exclusive=False, changed=lambda: self.dataChanged.emit(2))
+        optionList2, optionNames2 = ['cpLookTable', 'cpToneCurve', 'manualCurve'], ['Use Camera Profile Look Table',
+                                                                                    'Show Tone Curves', 'Show Contrast Curve']
+        self.listWidget1 = optionsWidget(options=optionList0, optionNames=optionNames0, exclusive=False,
+                                         changed=lambda: self.dataChanged.emit(1))
+        self.listWidget2 = optionsWidget(options=optionList1, optionNames=optionNames1,  exclusive=True,
+                                         changed=lambda: self.dataChanged.emit(1))
+        self.listWidget3 = optionsWidget(options=optionList2, optionNames=optionNames2, exclusive=False,
+                                         changed=lambda: self.dataChanged.emit(2))
         self.options = UDict((self.listWidget1.options, self.listWidget2.options, self.listWidget3.options))
         # display the 'as shot' temperature
         item = self.listWidget2.item(1)
@@ -221,7 +204,7 @@ class rawForm (baseForm):
         # temperature slider
         self.sliderTemp = QbLUeSlider(Qt.Horizontal)
         self.sliderTemp.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
-        self.sliderTemp.setRange(0,100)  # TODO 130 changed to 100 12/11/18 validate
+        self.sliderTemp.setRange(0, 100)  # TODO 130 changed to 100 12/11/18 validate
         self.sliderTemp.setSingleStep(1)
 
         self.tempLabel = QLabel()
@@ -236,12 +219,11 @@ class rawForm (baseForm):
         self.tempValue.setMaximumSize(w, h)
         self.tempValue.setText(str("{:.0f}".format(self.slider2Temp(self.sliderTemp.value()))))
 
-        self.sliderTemp.valueChanged.connect(self.tempUpdate)  # send new value as parameter
-        self.sliderTemp.sliderReleased.connect(lambda :self.tempUpdate(self.sliderTemp.value()))  # signal has no parameter
+        self.sliderTemp.valueChanged.connect(self.tempUpdate)  # signal send new value as parameter
+        self.sliderTemp.sliderReleased.connect(lambda: self.tempUpdate(self.sliderTemp.value()))  # signal pass no parameter
 
         # tint slider
         self.sliderTint = QbLUeSlider(Qt.Horizontal)
-        # self.sliderTint.setStyleSheet(self.sliderTint.styleSheet()+'QSlider::groove:horizontal {background: red;}')
         self.sliderTint.setStyleSheet(QbLUeSlider.bLueSliderDefaultIMGColorStylesheet)
         self.sliderTint.setRange(0, 150)
 
@@ -260,7 +242,7 @@ class rawForm (baseForm):
         self.tintValue.setText(str("{:.0f}".format(self.sliderTint2User(self.sliderTint.value()))))
 
         self.sliderTint.valueChanged.connect(self.tintUpdate)
-        self.sliderTint.sliderReleased.connect(lambda :self.tintUpdate(self.sliderTint.value()))  # signal has no parameter)
+        self.sliderTint.sliderReleased.connect(lambda: self.tintUpdate(self.sliderTint.value()))  # signal pass no parameter)
 
         ######################
         # From libraw and dcraw sources:
@@ -279,6 +261,7 @@ class rawForm (baseForm):
         # profile combo
         self.dngDict = self.setCameraProfilesCombo()
         # cameraProfilesCombo index changed event handler
+
         def cameraProfileUpdate(value):
             self.dngDict = self.cameraProfilesCombo.itemData(value)
             if self.options['cpToneCurve']:
@@ -286,13 +269,14 @@ class rawForm (baseForm):
                 self.toneForm.baseCurve = [QPointF(x * axeSize, -y * axeSize) for x, y in zip(toneCurve.dataX, toneCurve.dataY)]
                 self.toneForm.update()
             # recompute as shot temp and tint using new profile
-            self.asShotTemp, self.asShotTint = multipliers2TemperatureAndTint(*1 / np.array(self.asShotMultipliers[:3]), self.XYZ2CameraMatrix, self.dngDict)
+            self.asShotTemp, self.asShotTint = multipliers2TemperatureAndTint(*1 / np.array(self.asShotMultipliers[:3]),
+                                                                              self.XYZ2CameraMatrix, self.dngDict)
             # display updated as shot temp
             item = self.listWidget2.item(1)
             item.setText(item.text().split(":")[0] + ': %d' % self.asShotTemp)
             # invalidate cache
             self.layer.bufCache_HSV_CV32 = None
-            self.dataChanged.emit(2) # 2 = no postprocessing
+            self.dataChanged.emit(2)  # 2 = no postprocessing
 
         self.cameraProfilesCombo.currentIndexChanged.connect(cameraProfileUpdate)
 
@@ -347,15 +331,18 @@ class rawForm (baseForm):
             # move not yet terminated or value not modified
             if self.sliderExp.isSliderDown() or self.slider2Exp(value) == self.expCorrection:
                 return
-            self.sliderExp.valueChanged.disconnect()
-            self.sliderExp.sliderReleased.disconnect()
+            try:
+                self.sliderExp.valueChanged.disconnect()
+                self.sliderExp.sliderReleased.disconnect()
+            except RuntimeError:
+                pass
             # rawpy: expCorrection range is -2.0...3.0, boiling down to exp_shift range 2**(-2)=0.25...2**3=8.0
             self.expCorrection = self.slider2Exp(self.sliderExp.value())
             self.dataChanged.emit(1)
             self.sliderExp.valueChanged.connect(expUpdate)  # send new value as parameter
-            self.sliderExp.sliderReleased.connect(lambda: expUpdate(self.sliderExp.value()))  # signal has no parameter
+            self.sliderExp.sliderReleased.connect(lambda: expUpdate(self.sliderExp.value()))  # signal pass no parameter
         self.sliderExp.valueChanged.connect(expUpdate)  # send new value as parameter
-        self.sliderExp.sliderReleased.connect(lambda: expUpdate(self.sliderExp.value()))      # signal has no parameter
+        self.sliderExp.sliderReleased.connect(lambda: expUpdate(self.sliderExp.value()))      # signal pass no parameter
 
         # brightness slider
         brSlider = QbLUeSlider(Qt.Horizontal)
@@ -384,8 +371,11 @@ class rawForm (baseForm):
             # move not yet terminated or value not modified
             if self.sliderBrightness.isSliderDown() or self.slider2Br(value) == self.brCorrection:
                 return
-            self.sliderBrightness.valueChanged.disconnect()
-            self.sliderBrightness.sliderReleased.disconnect()
+            try:
+                self.sliderBrightness.valueChanged.disconnect()
+                self.sliderBrightness.sliderReleased.disconnect()
+            except RuntimeError:
+                pass
             self.brCorrection = self.slider2Br(self.sliderBrightness.value())
             self.dataChanged.emit(1)
             self.sliderBrightness.sliderReleased.connect(lambda: brUpdate(self.sliderBrightness.value()))
@@ -418,13 +408,16 @@ class rawForm (baseForm):
             # move not yet terminated or value not modified
             if self.sliderCont.isSliderDown() or self.slider2Cont(value) == self.tempCorrection:
                 return
-            self.sliderCont.valueChanged.disconnect()
-            self.sliderCont.sliderReleased.disconnect()
+            try:
+                self.sliderCont.valueChanged.disconnect()
+                self.sliderCont.sliderReleased.disconnect()
+            except RuntimeError:
+                pass
             self.contCorrection = self.slider2Cont(self.sliderCont.value())
             self.contValue.setText(str("{:+d}".format(self.contCorrection)))
             # force to recalculate the spline
             self.layer.autoSpline = True
-            self.dataChanged.emit(3) # no postprocessing and no camera profile stuff
+            self.dataChanged.emit(3)  # no postprocessing and no camera profile stuff
             self.sliderCont.valueChanged.connect(contUpdate)  # send new value as parameter
             self.sliderCont.sliderReleased.connect(lambda: contUpdate(self.sliderCont.value()))  # signal has no parameter
         self.sliderCont.valueChanged.connect(contUpdate)  # send new value as parameter
@@ -455,10 +448,13 @@ class rawForm (baseForm):
             # move not yet terminated or value not modified
             if self.sliderSat.isSliderDown() or self.slider2Sat(value) == self.satCorrection:
                 return
-            self.sliderSat.valueChanged.disconnect()
-            self.sliderSat.sliderReleased.disconnect()
+            try:
+                self.sliderSat.valueChanged.disconnect()
+                self.sliderSat.sliderReleased.disconnect()
+            except RuntimeError:
+                pass
             self.satCorrection = self.slider2Sat(self.sliderSat.value())
-            self.dataChanged.emit(3) # no post processing and no camera profile stuff
+            self.dataChanged.emit(3)  # no post processing and no camera profile stuff
             self.sliderSat.valueChanged.connect(satUpdate)  # send new value as parameter
             self.sliderSat.sliderReleased.connect(lambda: satUpdate(self.sliderSat.value()))  # signal has no parameter
         self.sliderSat.valueChanged.connect(satUpdate)  # send new value as parameter
@@ -527,27 +523,28 @@ class rawForm (baseForm):
         l.addWidget(sep)
         l.addLayout(hl4)
         l.addLayout(hl7)
-        #l.addLayout(hl5)
         l.addStretch(1)
         self.setLayout(l)
         self.adjustSize()
         self.setDefaults()
-        #self.lookTable = dngProfileLookTable(self.dngDict)
         self.setWhatsThis(
-"""<b>Development of raw files</b><br>
-<b>Default settings</b> are a good starting point.<br>
-A <b>Tone Curve</b> is applied to the raw image prior to postprocessing.<br> Il can be edited by checking the option
-<b>Show Tone Curve</b>; this option works best with manual exposure.<br>
-<b>Contrast</b> correction is based on an automatic algorithm well suited to multi-mode histograms.<br>
-<b>Brightness, Contrast</b> and <b>Saturation</b> levels</b> are adjustable with the correponding sliders.<br>
-The <b>Contrast Curve</b> can be edited manually by checking the option <b>Show Contrast Curve</b>.<br>
-Uncheck <b>Auto Expose</b> to adjust the exposure manually.<br>
-The <b>OverExp. Rest.</b> slider controls the mode of restoration of overexposed areas. 
-Valid values are 0 to 3 (0=clip;1=unclip;2=blend;3=rebuild); (with Auto Exposed checked the mode is clip).<br>
-<b> 
-"""
-                        ) # end of setWhatsThis
-
+                    """<b>Development of raw files</b><br>
+                    <b>Default settings</b> are a good starting point.<br>
+                    A <b>Tone Curve</b> is applied to the raw image prior to postprocessing.<br> 
+                    The cuvre can be edited by checking the option
+                    <b>Show Tone Curve</b>; this option works best with manual exposure.<br>
+                    <b>Contrast</b> correction is based on an automatic algorithm 
+                    well suited to multi-mode histograms.<br>
+                    <b>Brightness, Contrast</b> and <b>Saturation</b> levels</b> are 
+                    adjustable with the correponding sliders.<br>
+                    The <b>Contrast Curve</b> can be edited manually by checking 
+                    the option <b>Show Contrast Curve</b>.<br>
+                    Uncheck <b>Auto Expose</b> to adjust the exposure manually.<br>
+                    The <b>OverExp. Rest.</b> slider controls the mode of restoration of overexposed areas. 
+                    Valid values are 0 to 3 (0=clip;1=unclip;2=blend;3=rebuild); (with Auto Exposed 
+                    checked the mode is clip).<br>
+                    """
+                        )  # end of setWhatsThis
 
     def close(self):
         """
@@ -567,7 +564,6 @@ Valid values are 0 to 3 (0=clip;1=unclip;2=blend;3=rebuild); (with Auto Exposed 
                 form.close()
         return super().close()
 
-
     def showToneSpline(self):
         """
         On first call, init and show the Tone Curve form.
@@ -586,7 +582,8 @@ Valid values are 0 to 3 (0=clip;1=unclip;2=blend;3=rebuild); (with Auto Exposed 
             form.setButtonText('Reset Curve')
             # get base curve from profile
             toneCurve = dngProfileToneCurve(self.dngDict.get('ProfileToneCurve', []))
-            form.baseCurve = [QPointF(x*axeSize, -y*axeSize) for x,y in zip(toneCurve.dataX, toneCurve.dataY)]
+            form.baseCurve = [QPointF(x*axeSize, -y*axeSize) for x, y in zip(toneCurve.dataX, toneCurve.dataY)]
+
             def f():
                 layer = self.layer
                 layer.bufCache_HSV_CV32 = None
@@ -605,20 +602,19 @@ Valid values are 0 to 3 (0=clip;1=unclip;2=blend;3=rebuild); (with Auto Exposed 
             dockT.setWidget(form)
             showFirst = True
             form.setWhatsThis(
-"""<b>Camera Profile Tone Curve</b><br>
-The profile curve, if any, is applied as a starting point for user adjustments,
-after raw post-processing.
-Its input and output are in <b>linear</b> gamma.
-The curve is shown in red and cannot be changed.<br>
-A user curve, shown in black, is editable and is applied right after the
-former.<br>         
-"""
+                            """<b>Camera Profile Tone Curve</b><br>
+                            The profile curve, if any, is applied as a starting point for user adjustments,
+                            after raw post-processing.
+                            Its input and output are in <b>linear</b> gamma.
+                            The curve is shown in red and cannot be changed.<br>
+                            A user curve, shown in black, is editable and is applied right after the
+                            former.<br>         
+                            """
             )  # end of setWhatsThis
-            #self.layer.colorPicked.sig.connect(form.colorPickedSlot)
         else:
             form = self.toneForm
             showFirst = False
-        form.scene().setSceneRect(-25, -axeSize - 25, axeSize + 50, axeSize + 50)  # TODO added 15/07/18
+        form.scene().setSceneRect(-25, -axeSize - 25, axeSize + 50, axeSize + 50)
         self.dockT.showNormal()
         return showFirst
 
@@ -642,6 +638,7 @@ former.<br>
             form.setWindowFlags(Qt.WindowStaysOnTopHint)
             form.setAttribute(Qt.WA_DeleteOnClose, on=False)
             form.setWindowTitle('Contrast Curve')
+
             def f():
                 layer = self.layer
                 layer.applyToStack()
@@ -661,7 +658,7 @@ former.<br>
         # update the curve
         form.scene().setSceneRect(-25, -axeSize - 25, axeSize + 50, axeSize + 50)  # TODO added 15/07/18
         form.scene().quadricB.setCurve(a * axeSize, b * axeSize, d, T * axeSize)
-        self.dockC.showNormal() # TODO self added 24/10/18 validate
+        self.dockC.showNormal()
 
     # temp changed  event handler
     def tempUpdate(self, value):
@@ -669,12 +666,15 @@ former.<br>
         # move not yet terminated or value not modified
         if self.sliderTemp.isSliderDown() or self.slider2Temp(value) == self.tempCorrection:
             return
-        self.sliderTemp.valueChanged.disconnect()
-        self.sliderTemp.sliderReleased.disconnect()
+        try:
+            self.sliderTemp.valueChanged.disconnect()
+            self.sliderTemp.sliderReleased.disconnect()
+        except RuntimeError:
+            pass
         self.tempCorrection = self.slider2Temp(self.sliderTemp.value())
         # get multipliers (temperatureAndTint2Multipliers returns the camera neutral)
         multipliers = [1/m for m in temperatureAndTint2Multipliers(self.tempCorrection, 1.0, self.XYZ2CameraMatrix, self.dngDict)]
-        multipliers[1] *=  self.tintCorrection
+        multipliers[1] *= self.tintCorrection
         self.rawMultipliers = multipliers
         m = multipliers[1]
         self.rawMultipliers = [self.rawMultipliers[i] / m for i in range(4)]
@@ -688,11 +688,15 @@ former.<br>
         # move not yet terminated or value not modified
         if self.sliderTint.isSliderDown() or self.slider2Tint(value) == self.tintCorrection:
             return
-        self.sliderTint.valueChanged.disconnect()
-        self.sliderTint.sliderReleased.disconnect()
+        try:
+            self.sliderTint.valueChanged.disconnect()
+            self.sliderTint.sliderReleased.disconnect()
+        except RuntimeError:
+            pass
         self.tintCorrection = self.slider2Tint(self.sliderTint.value())
         # get multipliers (temperatureAndTint2Multipliers returns the camera neutral)
-        multipliers = [1/m for m in temperatureAndTint2Multipliers(self.tempCorrection, 1.0, self.XYZ2CameraMatrix, self.dngDict)]
+        multipliers = [1/m for m in temperatureAndTint2Multipliers(self.tempCorrection, 1.0,
+                                                                   self.XYZ2CameraMatrix, self.dngDict)]
         multipliers[1] *= self.tintCorrection
         self.rawMultipliers = multipliers
         m = multipliers[1]
@@ -706,10 +710,13 @@ former.<br>
         m0, m1, m2 = m0/mi, m1/mi, m2/mi
         self.rawMultipliers = [m0, m1, m2, m1]
         # convert multipliers to White Point RGB coordinates, modulo tint green correction (mult[1] = tint*WP_G)
-        #invMultipliers = [self.daylight[i] / self.rawMultipliers[i] for i in range(3)]
+        # invMultipliers = [self.daylight[i] / self.rawMultipliers[i] for i in range(3)]
         invMultipliers = [1 / self.rawMultipliers[i] for i in range(3)]  # TODO modified 11/11/18 validate
-        self.sliderTemp.valueChanged.disconnect()
-        self.sliderTint.valueChanged.disconnect()
+        try:
+            self.sliderTemp.valueChanged.disconnect()
+            self.sliderTint.valueChanged.disconnect()
+        except RuntimeError:
+            pass
         # get temp and tint
         temp, tint = multipliers2TemperatureAndTint(*invMultipliers, self.XYZ2CameraMatrix)
         self.tintCorrection = tint
@@ -756,22 +763,21 @@ former.<br>
         self.layer.applyToStack()
         self.layer.parentImage.onImageChanged()
 
-
     def enableSliders(self):
         useUserWB = self.listWidget2.options["User WB"]
         useUserExp = not self.listWidget1.options["Auto Brightness"]
         self.sliderTemp.setEnabled(useUserWB)
         self.sliderTint.setEnabled(useUserWB)
         self.sliderExp.setEnabled(useUserExp)
-        #self.sliderHigh.setEnabled(useUserExp)
+        # self.sliderHigh.setEnabled(useUserExp)
         self.tempValue.setEnabled(self.sliderTemp.isEnabled())
         self.tintValue.setEnabled(self.sliderTint.isEnabled())
         self.expValue.setEnabled(self.sliderExp.isEnabled())
-        #self.highValue.setEnabled(self.sliderHigh.isEnabled())
+        # self.highValue.setEnabled(self.sliderHigh.isEnabled())
         self.tempLabel.setEnabled(self.sliderTemp.isEnabled())
         self.tintLabel.setEnabled(self.sliderTint.isEnabled())
         self.expLabel.setEnabled(self.sliderExp.isEnabled())
-        #self.highLabel.setEnabled(self.sliderHigh.isEnabled())
+        # self.highLabel.setEnabled(self.sliderHigh.isEnabled())
 
     def setDefaults(self):
         self.dngDict = self.cameraProfilesCombo.itemData(0)
@@ -781,14 +787,14 @@ former.<br>
         self.listWidget1.checkOption(self.listWidget1.intNames[1])
         self.listWidget2.checkOption(self.listWidget2.intNames[1])
         self.enableSliders()
-        self.denoiseValue = 0 # denoising off
-        self.overexpValue = 0 # clip
+        self.denoiseValue = 0  # denoising off
+        self.overexpValue = 0  # clip
         self.tempCorrection = self.asShotTemp
         self.tintCorrection = 1.0
         self.expCorrection = 1.0
-        #self.highCorrection = 3.0  # restoration of overexposed highlights. 0: clip 1:unclip, 2: blend, 3...: rebuild
+        # self.highCorrection = 3.0  # restoration of overexposed highlights. 0: clip 1:unclip, 2: blend, 3...: rebuild
         self.contCorrection = 0.0  # TODO change 5.0 to 0.0 6/11/2018 validate
-        #self.noiseCorrection = 0
+        # self.noiseCorrection = 0
         self.satCorrection = 0.0
         self.brCorrection = 1.0
         # prevent multiple updates
@@ -799,12 +805,11 @@ former.<br>
         self.sliderTemp.setValue(round(self.temp2Slider(self.tempCorrection)))
         self.sliderTint.setValue(round(self.tint2Slider(self.tintCorrection)))
         self.sliderExp.setValue(self.exp2Slider(self.expCorrection))
-        #self.sliderHigh.setValue(self.highCorrection)
+        # self.sliderHigh.setValue(self.highCorrection)
         self.sliderCont.setValue(self.cont2Slider(self.contCorrection))
         self.sliderBrightness.setValue(self.br2Slider(self.brCorrection))
         self.sliderSat.setValue(self.sat2Slider(self.satCorrection))
         self.dataChanged.connect(self.updateLayer)
-        # self.dataChanged.emit(True)  # TODO 30/10/18 removed
 
     def setCameraProfilesCombo(self):
         """

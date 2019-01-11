@@ -1043,14 +1043,6 @@ class vImage(bImage):
     def applyRawPostProcessing(self, pool=None):
         """
         Develop raw image.
-        Processing order is the following:
-             1 - process raw image
-             2 - contrast correction
-             3 - saturation correction
-        All operations are applied to 16 bits per channel images and
-        the final image is converted to 8 bits.
-        An Exception AttributeError is raised if rawImage
-        is not an attribute of self.parentImage.
         """
         if self.parentImage.isHald:
             raise ValueError('Cannot build a 3D LUT from raw stack')

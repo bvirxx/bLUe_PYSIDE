@@ -25,14 +25,13 @@ from PySide2.QtGui import QImage
 
 from bLUeCore.multi import interpMulti
 from bLUeGui.bLUeImage import QImageBuffer, bImage
-from bLUeGui.colorCIE import rgbLinear2rgbVec, sRGB_lin2XYZ, sRGB_lin2XYZInverse, bradfordAdaptationMatrix, \
-    sRGB_lin2XYZ_D50Inverse
+from bLUeGui.colorCIE import rgbLinear2rgbVec, sRGB_lin2XYZInverse, bradfordAdaptationMatrix
 from bLUeGui.graphicsSpline import channelValues
 from bLUeGui.histogramWarping import warpHistogram
 from debug import tdec
-from dng import dngProfileLookTable, dngProfileToneCurve, dngProfileColorMatrices, dngProfileIlluminants, \
-    interpolatedColorMatrix, interpolatedForwardMatrix
+from dng import dngProfileLookTable, dngProfileToneCurve, interpolatedForwardMatrix
 from settings import USE_TETRA
+
 
 def rawPostProcess(rawLayer, pool=None):
     """
@@ -109,10 +108,9 @@ def rawPostProcess(rawLayer, pool=None):
         ##############################
         # no_auto_scale = False  don't use : green shift
         gamma = (2.222, 4.5)  # default REC BT 709 (exponent, slope)
-        #gamma = (2.4, 12.92)  # sRGB (exponent, slope) cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
+        # gamma = (2.4, 12.92)  # sRGB (exponent, slope) cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
         exp_shift = adjustForm.expCorrection if not options['Auto Brightness'] else 0
         no_auto_bright = (not options['Auto Brightness'])
-
 
         bright = adjustForm.brCorrection  # default 1, should be > 0
         hv = adjustForm.overexpValue
@@ -159,8 +157,8 @@ def rawPostProcess(rawLayer, pool=None):
         # develop
         else:
             bufpost16 = rawImage.postprocess(
-                half_size = half_size,
-                output_color=rawpy.ColorSpace.raw,#XYZ,#XYZ, #######################
+                half_size=half_size,
+                output_color=rawpy.ColorSpace.raw,  # XYZ
                 output_bps=output_bpc,
                 exp_shift=exp_shift,
                 no_auto_bright=no_auto_bright,
@@ -189,7 +187,7 @@ def rawPostProcess(rawLayer, pool=None):
     # ForwardMatrix for T and next from XYZ_D50 to RGB.
     # If we have no valid dng profile, we reinit the multipliers and
     # apply a Bradford chromatic adaptation matrix.
-    m1,m2,m3 = adjustForm.asShotMultipliers[:3] if use_camera_wb else adjustForm.rawMultipliers[:3]
+    m1, m2, m3 = adjustForm.asShotMultipliers[:3] if use_camera_wb else adjustForm.rawMultipliers[:3]
     D = np.diag((1/m1,1/m2,1/m3))
     tempCorrection = adjustForm.asShotTemp if use_camera_wb else adjustForm.tempCorrection
     MM = bradfordAdaptationMatrix(6500, tempCorrection)
@@ -199,7 +197,7 @@ def rawPostProcess(rawLayer, pool=None):
     if adjustForm.dngDict:
         try:
             FM = interpolatedForwardMatrix(adjustForm.tempCorrection, adjustForm.dngDict)
-        except:
+        except ValueError:
             pass
     raw2sRGBMatrix = sRGB_lin2XYZInverse @ MM1 @ FM * myHighlightPreservation if FM is not None else\
                      sRGB_lin2XYZInverse @ MM @ adjustForm.XYZ2CameraInverseMatrix @ D
@@ -238,7 +236,6 @@ def rawPostProcess(rawLayer, pool=None):
             divs = hsvLUT.divs
             steps = tuple([360 / divs[0], 1.0 / divs[1], 1.0 / divs[2]])
             coeffs = interpMulti(hsvLUT.data, steps, bufHSV_CV32, pool=pool, use_tetra=USE_TETRA, convert=False)
-            #coeffs = interpTriLinear(hsvLUT.data, steps, bufHSV_CV32, convert=False)  # TODO 13/11/18 don't forget to switch to interpmulti
             bufHSV_CV32[:, :, 0] = np.mod(bufHSV_CV32[:, :, 0] + coeffs[:, :, 0], 360)
             bufHSV_CV32[:, :, 1:] = bufHSV_CV32[:, :, 1:] * coeffs[:, :, 1:]
             np.clip(bufHSV_CV32, (0, 0, 0), (360, 1, 1), out=bufHSV_CV32)
@@ -250,7 +247,7 @@ def rawPostProcess(rawLayer, pool=None):
     ############
     buf = adjustForm.dngDict.get('ProfileToneCurve', [])
     # apply profile tone curve, if any
-    if buf : # non empty list
+    if buf:  # non empty list
         LUTXY = dngProfileToneCurve(buf).toLUTXY(maxrange=255)
         bufHSV_CV32[:, :, 2] = LUTXY[(bufHSV_CV32[:, :, 2] * 255).astype(np.uint16)] / 255.0
     # apply user tone curve
@@ -259,7 +256,7 @@ def rawPostProcess(rawLayer, pool=None):
         if toneForm.isVisible():
             userLUTXY = toneForm.scene().quadricB.LUTXY
             bufHSV_CV32[:, :, 2] = userLUTXY[(bufHSV_CV32[:, :, 2] * 255).astype(np.uint16)] / 255
-    rawLayer.bufCache_HSV_CV32 = bufHSV_CV32.copy() # CAUTION : must be outside of if toneForm.
+    rawLayer.bufCache_HSV_CV32 = bufHSV_CV32.copy()  # CAUTION : must be outside of if toneForm.
 
     # beginning of the contrast-saturation phase : update buffer from the last camera profile applcation
     bufHSV_CV32 = rawLayer.bufCache_HSV_CV32.copy()
@@ -276,11 +273,11 @@ def rawPostProcess(rawLayer, pool=None):
         warp = max(0, (adjustForm.contCorrection - 1)) / 10
         bufHSV_CV32[:, :, 2], a, b, d, T = warpHistogram(bufHSV_CV32[:, :, 2], valleyAperture=0.05, warp=warp,
                                                          preserveHigh=options['Preserve Highlights'],
-                                                         spline=None if rawLayer.autoSpline else rawLayer.getMmcSpline())  # preserveHigh=options['Preserve Highlights'])
+                                                         spline=None if rawLayer.autoSpline else rawLayer.getMmcSpline())
         # show the spline
         if rawLayer.autoSpline and options['manualCurve']:
             rawLayer.getGraphicsForm().setContrastSpline(a, b, d, T)
-            rawLayer.autoSpline = False  # mmcSpline = self.getGraphicsForm().scene().cubicItem # caution : misleading name for a quadratic s
+            rawLayer.autoSpline = False
     if adjustForm.satCorrection != 0:
         satCorr = adjustForm.satCorrection / 100  # range -0.5..0.5
         alpha = 1.0 / (0.501 + satCorr) - 1.0  # approx. map -0.5...0.0...0.5 --> +inf...1.0...0.0
@@ -288,13 +285,9 @@ def rawPostProcess(rawLayer, pool=None):
         LUT = np.power(np.arange(256) / 255, alpha)
         # convert saturation s to s**alpha
         bufHSV_CV32[:, :, 1] = LUT[(bufHSV_CV32[:, :, 1] * 255).astype(int)]
-    """proof of program assert : {postProcessCache contains the current post-processed image 
-                                     and bufHSV_CV32 contains the current HSV image
-                                     and bufCache_HSV_CV32 is a copy of bufHSV_CV32 after profile tone curve
-                                     }"""
     # back to RGB
-    bufpostF32_1 = cv2.cvtColor(bufHSV_CV32, cv2.COLOR_HSV2RGB) #* 65535 # .astype(np.uint16)  TODO 5/11/18 removed conversion removed * 65535validate
-    #np.clip(bufpostF32_1, 0, 1, out=bufpostF32_1) # TODO 8/11/18 removed
+    bufpostF32_1 = cv2.cvtColor(bufHSV_CV32, cv2.COLOR_HSV2RGB)  #* 65535 # .astype(np.uint16)
+    # np.clip(bufpostF32_1, 0, 1, out=bufpostF32_1) # TODO 8/11/18 removed
 
     ###################
     # apply gamma curve
@@ -304,9 +297,9 @@ def rawPostProcess(rawLayer, pool=None):
     #############################
     # Conversion to 8 bits/channel
     #############################
-    bufpostUI8 = bufpostF32_255.astype(np.uint8) # (bufpost16.astype(np.float32) / 256).astype(np.uint8) TODO 5/11/18 changed
+    bufpostUI8 = bufpostF32_255.astype(np.uint8)  # (bufpost16.astype(np.float32) / 256).astype(np.uint8) TODO 5/11/18 changed
     ###################################################
-    #bufpostUI8 = (bufpost16/256).astype(np.uint8)
+    # bufpostUI8 = (bufpost16/256).astype(np.uint8)
     #################################################
     if rawLayer.parentImage.useThumb:
         bufpostUI8 = cv2.resize(bufpostUI8, (currentImage.width(), currentImage.height()))
