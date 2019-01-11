@@ -975,6 +975,9 @@ class vImage(bImage):
         self.applyTransForm(options)
 
     def applyNoiseReduction(self):
+        """
+        Wavelets, bilateral filtering, NLMeans
+        """
         adjustForm = self.getGraphicsForm()
         noisecorr = adjustForm.noiseCorrection
         currentImage = self.getCurrentImage()
@@ -995,6 +998,9 @@ class vImage(bImage):
             rect = self.rect
             imgRect = QRect(0, 0, w, h)
             rect = rect.intersected(imgRect)
+            if rect.width() < 10 or rect.height() < 10:
+                dlgWarn('Selection is too narrow')
+                return
             slices = np.s_[int(rect.top() * r): int(rect.bottom() * r), int(rect.left() * r): int(rect.right() * r), :3]
             ROI0 = buf0[slices]
             # reset output image

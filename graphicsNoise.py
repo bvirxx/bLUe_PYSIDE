@@ -15,10 +15,6 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-import weakref
-
-from PySide2 import QtCore
-
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout
@@ -26,32 +22,31 @@ from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLa
 from bLUeGui.graphicsForm import baseForm
 from utils import optionsWidget, QbLUeSlider
 
+
 class noiseForm (baseForm):
-    dataChanged = QtCore.Signal(bool)
+
+    noiseCorrection = 0
+
+    @staticmethod
+    def slider2Thr(v):
+        return v
+
+    @staticmethod
+    def thr2Slider(t):
+        return t
+
     @classmethod
-    def getNewWindow(cls, axeSize=500, layer=None, parent=None):
-        wdgt = noiseForm(axeSize=axeSize, layer=layer, parent=parent)
+    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
+        wdgt = noiseForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
         wdgt.setWindowTitle(layer.name)
         return wdgt
 
-    def __init__(self, axeSize=500, layer=None, parent=None):
-        super(noiseForm, self).__init__(parent=parent)
-        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        self.setMinimumSize(axeSize, axeSize)
-        self.setAttribute(Qt.WA_DeleteOnClose)
-        # link back to image layer
-        # using weak ref for back links
-        if type(layer) in weakref.ProxyTypes:
-            self.layer = layer
-        else:
-            self.layer = weakref.proxy(layer)
-        # attribute initialized in setDefaults
-        # defined here for the sake of correctness
-        self.noiseCorrection = 0
-
+    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
+        super().__init__(layer=layer, targetImage=targetImage, parent=parent)
+        self.layer.selectionChanged.sig.connect(self.updateLayer)
         # options
-        optionList= ['Wavelets', 'Bilateral', 'NLMeans']
-        self.listWidget1 = optionsWidget(options=optionList, exclusive=True, changed=lambda: self.dataChanged.emit(True))
+        optionList = ['Wavelets', 'Bilateral', 'NLMeans']
+        self.listWidget1 = optionsWidget(options=optionList, exclusive=True, changed=self.dataChanged)
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
         self.options = self.listWidget1.options
 
@@ -59,7 +54,7 @@ class noiseForm (baseForm):
         self.sliderThr = QbLUeSlider(Qt.Horizontal)
         self.sliderThr.setStyleSheet(QbLUeSlider.bLueSliderDefaultBWStylesheet)
         self.sliderThr.setTickPosition(QSlider.TicksBelow)
-        self.sliderThr.setRange(0,10)
+        self.sliderThr.setRange(0, 10)
         self.sliderThr.setSingleStep(1)
 
         self.sliderThr.valueChanged.connect(self.thrUpdate)
@@ -77,11 +72,9 @@ class noiseForm (baseForm):
         self.thrValue.setMinimumSize(w, h)
         self.thrValue.setMaximumSize(w, h)
         self.thrValue.setText(str("{:.0f}".format(self.slider2Thr(self.sliderThr.value()))))
-        # self.dataChanged.connect(self.updateLayer)
-        # self.setStyleSheet("QListWidget, QLabel {font : 7pt;}")
+
         # layout
         l = QVBoxLayout()
-        #l.setAlignment(Qt.AlignBottom)
         l.addWidget(self.listWidget1)
         hl1 = QHBoxLayout()
         hl1.addWidget(self.thrLabel)
@@ -89,58 +82,59 @@ class noiseForm (baseForm):
         hl1.addWidget(self.sliderThr)
         l.addLayout(hl1)
         l.setContentsMargins(20, 0, 20, 25)  # left, top, right, bottom
-        #l.setContentsMargins(10, 10, 10, 10)  # left, top, right, bottom
         self.setLayout(l)
         self.adjustSize()
+
         self.setDefaults()
         self.setWhatsThis(
-"""<b>Noise Reduction</b><br>
-   <b>Bilateral Filtering</b> is the fastest method.<br>
-   <b>NLMeans</b> (Non Local Means) and <b>Wavelets</b> are slower,
-   but they usually give better results.<br>
-   It is possible to <b>limit the application of all methods to a rectangular region of the image</b>
-   by drawing a selection rectangle on the layer with the marquee tool.<br>
-   Ctrl-Click to <b>clear the selection</b><br>
-   
-"""
+                        """<b>Noise Reduction</b><br>
+                           <b>Bilateral Filtering</b> is the fastest method.<br>
+                           <b>NLMeans</b> (Non Local Means) and <b>Wavelets</b> are slower,
+                           but they usually give better results.<br>
+                           To <b>limit the action of any method to a 
+                           rectangular region of the image</b>
+                           draw a selection rectangle on the layer with the marquee tool.<br>
+                           Ctrl-Click to <b>clear the selection</b><br>
+                        """
                         )  # end of setWhatsThis
 
     def setDefaults(self):
         self.listWidget1.unCheckAll()
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
         self.noiseCorrection = 0
-        # prevent multiple updates
         try:
             self.dataChanged.disconnect()
         except RuntimeError:
             pass
         self.sliderThr.setValue(round(self.thr2Slider(self.noiseCorrection)))
         self.dataChanged.connect(self.updateLayer)
-        self.dataChanged.emit(True)
 
-    def updateLayer(self, cacheInvalidate):
+    def updateLayer(self):
         """
-        data changed event handler
+        data changed slot
         """
         self.layer.applyToStack()
         self.layer.parentImage.onImageChanged()
 
-    def slider2Thr(self, v):
-        return v
-
-    def thr2Slider(self, t):
-        return t
-
     def thrUpdate(self, value):
+        """
+        Slidet thr slot
+        @param value:
+        @type value:
+        @return:
+        @rtype:
+        """
         self.thrValue.setText(str("{:.0f}".format(self.slider2Thr(self.sliderThr.value()))))
-        # move not yet terminated or value not modified
+        # move not yet terminated or value unchanged
         if self.sliderThr.isSliderDown() or self.slider2Thr(value) == self.noiseCorrection:
             return
-        self.sliderThr.valueChanged.disconnect()
-        self.sliderThr.sliderReleased.disconnect()
+        try:
+            self.sliderThr.valueChanged.disconnect()
+            self.sliderThr.sliderReleased.disconnect()
+        except RuntimeError:
+            pass
         self.noiseCorrection = self.slider2Thr(self.sliderThr.value())
-        self.thrValue.setText(str("{:+d}".format(self.noiseCorrection)))
-        self.dataChanged.emit(False)
+        self.dataChanged.emit()
         self.sliderThr.valueChanged.connect(self.thrUpdate)  # send new value as parameter
         self.sliderThr.sliderReleased.connect(lambda: self.thrUpdate(self.sliderThr.value()))  # signal has no parameter
 

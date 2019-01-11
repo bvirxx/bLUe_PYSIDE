@@ -364,8 +364,8 @@ class optionsWidget(QListWidget):
         @type optionNames: list of str
         @param exclusive:
         @type exclusive: bool
-        @param changed: SLOT for itemclicked signal
-        @type changed: function
+        @param changed: signal or slot for itemclicked signal
+        @type changed: signal or function (0 or 1 argument)
         @param parent:
         @type parent: QObject
         """
