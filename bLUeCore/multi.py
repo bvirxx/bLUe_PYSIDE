@@ -20,6 +20,8 @@ import numpy as np
 
 from bLUeCore.tetrahedral import interpTetra
 from bLUeCore.trilinear import interpTriLinear
+from settings import USE_TETRA
+
 
 def interpMulti(LUT, LUTSTEP, ndImg, pool=None, use_tetra=False, convert=True):
     """
@@ -64,3 +66,19 @@ def interpMulti(LUT, LUTSTEP, ndImg, pool=None, use_tetra=False, convert=True):
             outImg[s2, s1] = res[i]
     # np.clip(outImg, 0, 255, out=outImg) # chunks are already clipped
     return outImg # .astype(np.uint8)  # TODO 07/09/18 validate
+
+def chosenInterp(pool, size):
+    """
+    Return the right interpolation method, depending on settings, pool and image size
+    @param pool:
+    @type pool: multiprocessing pool
+    @param size: image size
+    @type size: int
+    @return:
+    @rtype: interpolation function
+    """
+    if (pool is not None) and size > 3000000:
+        interp = lambda x, y, z, convert=True: interpMulti(x, y, z, pool=pool, use_tetra=USE_TETRA, convert=convert)
+    else:
+        interp = interpTetra if USE_TETRA else interpTriLinear
+    return interp
