@@ -28,11 +28,13 @@ def interpTriLinear(LUT, LUTSTEP, ndImg, convert=True):
     the three first axes of the LUT, keeping the same ordering (i.e. v[i] is input to axis i).
     Output values are interpolated from the LUT.
 
-    LUTSTEP is the number or the 3-uple of numbers giving the unitary interpolation
+    LUTSTEP is the integer or the 3-uple of integers representing the unitary interpolation
     steps for each axis of the LUT table.
 
-    All input values for axis i of the LUT must be in the (right opened)
-    interval [0, max[ with max = (s[i] - 1) * LUTSTEP[i].
+    All input values for axis i must be in the (right opened)
+    interval [0, max[ with max = (s[i] - 1) * LUTSTEP[i]. Closed intervals
+    [0, max] can be used instead by adding a sentinel to each axis. Then, with
+    max = (s[i] - 2) * LUTSTEP[i], the LUT values for sentinel sides are not used.
 
     if convert is True (default), the output array is clipped to (0, 255) and converted
     to dtype=np.uint8, otherwise the output array has the same shape as ndImg and
