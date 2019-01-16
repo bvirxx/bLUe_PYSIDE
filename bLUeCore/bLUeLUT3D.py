@@ -279,3 +279,43 @@ class LUT3D (object):
         """
         with open(filename, 'w') as textStream:
             self.writeToTextStream(textStream)
+
+
+class DeltaLUT3D(object):
+    """
+    Versatile displacement 3D LUT. First dim is meant for hue
+    (additive shift and modulo arithmetic)
+    and remaining dims can be used for any type of input (multiplicative shifts).
+    """
+    def __init__(self, divs):
+        """
+        Init an identity displacement 3D LUT with
+        shape (divs[0] + 2, divs[1] + 1, divs[2] + 1, 3)
+        @param divs: division count for each axis
+        @type divs: 3-uple of int
+
+        """
+        self.__divs = divs
+        self.__data = np.zeros((divs[0] + 2, divs[1] + 1, divs[2] + 1, 3), dtype=np.float) + (0, 1, 1)
+
+
+    @property
+    def divs(self):
+        """
+        Count of dividing intervals for each axis.
+
+        @return:
+        @rtype: 3-uple of int
+        """
+        return self.__divs
+
+    @property
+    def data(self):
+        """
+        (hue, sat, value) 3D look up table.
+        Output values are shifts (additive shift for hue, multiplicative
+        shifts for saturation and value).
+        @return: 3D look up table
+        @rtype: ndarray shape=(divs[0] + 2, divs[1] + 1, divs[2] + 1, 3), dtype=float
+        """
+        return self.__data
