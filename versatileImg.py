@@ -33,7 +33,7 @@ from PySide2.QtCore import QRect
 from bLUeGui.bLUeImage import bImage, ndarrayToQImage
 from bLUeCore.tetrahedral import interpTetra
 from bLUeCore.trilinear import interpTriLinear
-from bLUeCore.multi import interpMulti
+from bLUeCore.multi import interpMulti, chosenInterp
 
 from debug import tdec
 from graphicsBlendFilter import blendFilterIndex
@@ -1316,15 +1316,12 @@ class vImage(bImage):
         # get HSV buffer, range H: 0..180, S:0..255 V:0..255
         Img0 = self.inputImg()
         HSVImg0 = Img0.getHSVBuffer()
-        # HSVImg0 = self.getMaskedCurrentContainer().getHSVBuffer()
         HSVImg0 = HSVImg0.astype(np.uint8)
         # apply LUTS
         HSVImg1 = np.zeros(HSVImg0.shape, dtype=np.uint8)
-        # rList = np.array([0,1,2]) # H,S,V
         s = HSVImg0[:, :, 0].shape
         for c in range(3):  # 0.43s for 15Mpx
             HSVImg1[:, :, c] = np.take(stackedLUT[c, :], HSVImg0[:, :, c].reshape((-1,))).reshape(s)
-        # HSVImg1 = stackedLUT[rList, HSVImg0]
         # back to sRGB
         RGBImg1 = hsv2rgbVec(HSVImg1, cvRange=True)
         # in place clipping
@@ -1337,6 +1334,50 @@ class vImage(bImage):
         ndImg0 = QImageBuffer(Img0)
         ndImg1a[:, :, 3] = ndImg0[:, :, 3]
         # update
+        self.updatePixmap()
+
+    def applyHVLUT2D(self, LUT, options=None, pool=None):
+        if options is None:
+            options = UDict()
+        # get buffers
+        inputImage = self.inputImg()
+        currentImage = self.getCurrentImage()
+        if options is None:
+            options = UDict()
+        # get selection
+        w1, w2, h1, h2 = (0.0,) * 4
+        # selection
+        if self.rect is not None:
+            w, wF = self.getCurrentImage().width(), self.width()
+            h, hF = self.getCurrentImage().height(), self.height()
+            wRatio, hRatio = float(w) / wF, float(h) / hF
+            if self.rect is not None:
+                w1, w2, h1, h2 = int(self.rect.left() * wRatio), int(self.rect.right() * wRatio), int(self.rect.top() * hRatio), int(self.rect.bottom() * hRatio)
+            w1, h1 = max(w1, 0), max(h1, 0)
+            w2, h2 = min(w2, inputImage.width()), min(h2, inputImage.height())
+            if w1 >= w2 or h1 >= h2:
+                dlgWarn("Empty selection\nSelect a region with the marquee tool")
+                return
+        else:
+            w1, w2, h1, h2 = 0, self.inputImg().width(), 0, self.inputImg().height()
+        # get HSV buffer, range H: 0..180, S:0..255 V:0..255
+        HSVImg0 = inputImage.getHSVBuffer()
+        HSVImg0 = HSVImg0.astype(np.float)
+        HSVImg0[:,:,0] *= 2
+        bufHSV_CV32 = HSVImg0[h1:h2 + 1, w1:w2 + 1, :]
+
+        divs = LUT.divs
+        steps = tuple([360 / divs[0], 255.0 / divs[1], 255.0 / divs[2]])
+        interp = chosenInterp(pool, (w2 - w1) * (h2 - h1))
+        coeffs = interp(LUT.data, steps, bufHSV_CV32, convert=False)
+        bufHSV_CV32[:, :, 0] = np.mod(bufHSV_CV32[:, :, 0] + coeffs[:, :, 0], 360)
+        bufHSV_CV32[:, :, 1:] = bufHSV_CV32[:, :, 1:] * coeffs[:, :, 1:]
+        np.clip(bufHSV_CV32, (0, 0, 0), (360, 255, 255), out=bufHSV_CV32)
+        bufHSV_CV32[:, :, 0] /= 2
+
+        bufpostF32_1 = cv2.cvtColor(bufHSV_CV32.astype(np.uint8), cv2.COLOR_HSV2RGB)
+        buf = QImageBuffer(currentImage)
+        buf[h1:h2 + 1, w1:w2 + 1, :3] = bufpostF32_1[:,:,::-1]
         self.updatePixmap()
 
     def apply3DLUT(self, LUT, LUTSTEP, options=None, pool=None):
@@ -1388,10 +1429,7 @@ class vImage(bImage):
             ndImg0 = inputBuffer[:, :, :3]
             ndImg1 = imgBuffer[:, :, :3]
         # choose the right interpolation method
-        if (pool is not None) and (inputImage.width() * inputImage.height() > 3000000):
-            interp = lambda x, y, z: interpMulti(x, y, z, pool=pool, use_tetra=USE_TETRA)  # TODO use def instead of lambda
-        else:
-            interp = interpTetra if USE_TETRA else interpTriLinear
+        interp = chosenInterp(pool, (w2 - w1) * (h2 - h1))
         # apply LUT
         ndImg1[h1:h2 + 1, w1:w2 + 1, :] = interp(LUT, LUTSTEP, ndImg0)
         if not interpAlpha:

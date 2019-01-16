@@ -16,7 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 from PySide2.QtCore import QRect
-from PySide2.QtWidgets import QGraphicsScene, QPushButton
+from PySide2.QtWidgets import QGraphicsScene, QPushButton, QGridLayout
 from PySide2.QtCore import Qt, QRectF
 
 from bLUeGui.graphicsSpline import activeCubicSpline, graphicsCurveForm, channelValues
@@ -44,11 +44,7 @@ class graphicsHspbForm(graphicsCurveForm):
         graphicsScene.addItem(cubic)
         graphicsScene.cubicR = cubic
         cubic.channel = channelValues.Hue
-        """
-        cubic.histImg = graphicsScene.layer.histogram(size=axeSize,
-                                                       bgColor=graphicsScene.bgColor, range=(0, 360),
-                                                       chans=channelValues.Hue, mode='HSpB')
-        """
+
         cubic.initFixedPoints()
 
         # sat curve init.
@@ -56,11 +52,7 @@ class graphicsHspbForm(graphicsCurveForm):
         graphicsScene.addItem(cubic)
         graphicsScene.cubicG = cubic
         cubic.channel = channelValues.Sat
-        """
-        cubic.histImg = graphicsScene.layer.histogram(size=axeSize,
-                                                      bgColor=graphicsScene.bgColor, range=(0,1),
-                                                      chans=channelValues.Sat, mode='HSpB')
-        """
+
         cubic.initFixedPoints()
 
         # brightness curve init.
@@ -68,11 +60,7 @@ class graphicsHspbForm(graphicsCurveForm):
         graphicsScene.addItem(cubic)
         graphicsScene.cubicB = cubic
         cubic.channel = channelValues.Br
-        """
-        cubic.histImg = graphicsScene.layer.histogram(size=axeSize,
-                                                      bgColor=graphicsScene.bgColor,
-                                                      range=(0,1), chans=channelValues.Br, mode='HSpB')
-        """
+
         cubic.initFixedPoints()
 
         # init histograms
@@ -84,21 +72,14 @@ class graphicsHspbForm(graphicsCurveForm):
 
         # buttons
         pushButton1 = QPushButton("Reset Current")
-        pushButton1.move(100, 20)
-        pushButton1.adjustSize()
         pushButton1.clicked.connect(self.resetCurve)
-        graphicsScene.addWidget(pushButton1)
         pushButton2 = QPushButton("Reset All")
-        pushButton2.move(100, 50)
-        pushButton2.adjustSize()
         pushButton2.clicked.connect(self.resetAllCurves)
-        graphicsScene.addWidget(pushButton2)
         # options
         options = ['H', 'S', 'B']
         self.listWidget1 = optionsWidget(options=options, exclusive=True)
-        self.listWidget1.setGeometry(0, 10, self.listWidget1.sizeHintForColumn(0) + 5,
+        self.listWidget1.setGeometry(0, 0, self.listWidget1.sizeHintForColumn(0) + 5,
                                      self.listWidget1.sizeHintForRow(0) * len(options) + 5)
-        graphicsScene.addWidget(self.listWidget1)
 
         # selection changed handler
         curves = [graphicsScene.cubicR, graphicsScene.cubicG, graphicsScene.cubicB]
@@ -117,6 +98,14 @@ class graphicsHspbForm(graphicsCurveForm):
         item = self.listWidget1.items[options[1]]
         item.setCheckState(Qt.Checked)
         self.listWidget1.select(item)
+
+        # layout
+        gl = QGridLayout()
+        gl.addWidget(self.listWidget1, 0, 0, 2, 1)
+        for i, button in enumerate([pushButton1, pushButton2]):
+            gl.addWidget(button, i, 1)
+        self.addCommandLayout(gl)
+
         self.setWhatsThis("""<b>HSV curves</b><br>""" + self.whatsThis())
 
         def f():

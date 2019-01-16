@@ -19,11 +19,48 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 from PySide2.QtCore import QPointF
 
+#####################
+# displacement spline
+#####################
+def displacementSpline(X, Y, V, period=0, clippingInterval=None):
+    """
+     Calculate the y-coordinates corresponding to the x-coordinates V for
+    the dsiplacement spline defined by the control points zip(X,Y).
+    A ValueError exception is raised if the X values are not distinct.
+    @param X: x-coordinates of control points, sorted in increasing order
+    @type X: ndarray, dtype=np.float
+    @param Y: y-coordinates of control points
+    @type Y: ndarray, dtype=np.float
+    @param V: x-coordinates of spline points
+    @type V: ndarray, dtype=np.float
+    @param period:
+    @type period: int
+    @return: y-coordinates of spline points
+    @rtype: ndarray, dtype=np.float
+    """
+    def bumpVec(V, t1, t2, b, period=period):
+        # return the y-coordinates corresponding to the x-coordinates
+        # given by V, for the (periodic if period > 0) bump spline (t1, t2, b)
+        M = (t1 + t2) / 2
+        if period > 0:
+            # find the nearest neighbor of M congruent with V modulo period
+            K = (V - M) / period
+            K = np.round(K)
+            V = V - period * K
+        return np.where(V <= t1, 0, np.where(V >= t2, 0, np.where(V < M, b * (V - t1) / (M - t1),  b * (t2 - V) / (t2 - M))))
+
+    left, right, bump = X[::2], X[1::2], Y[::2]
+    tmp = np.vstack(([bumpVec(V, left[i], right[i], bump[i], period=period) for i in range(left.shape[0])]))
+    fPlus = np.amax(tmp, axis=0, initial=0)
+    fMoins = np.amax(-tmp, axis=0, initial=0)
+    return fPlus - fMoins
+
+
 ###############################
 # Quadratic interpolation spline
-################################
+###############################
 
-def interpolationQuadSpline(a, b, d, plot=False):
+def interpolationQuadSpline(a, b, d):
     """
     Builds a monotonic transformation curve T from [0,1] onto b[0], b[-1],
     as a piecewise rational quadratic interpolation spline to a set of (a[k], b[k]) 2D nodes.
@@ -47,7 +84,7 @@ def interpolationQuadSpline(a, b, d, plot=False):
     # x-coordinate range
     x = np.arange(256, dtype=np.float)/255
     x = np.clip(x, a[0], a[-1])
-    #find  node intervals containing x : for each i, get smallest j s.t. a[j] > x[i]
+    # find  node intervals containing x : for each i, get smallest j s.t. a[j] > x[i]
     tmp = np.fromiter(((a[j]> x[i]) for j in range(len(a)) for i in range(len(x))), dtype=bool)
     tmp = tmp.reshape(len(a), len(x))
     k = np.argmax(tmp, axis=0)                     # a[k[i]-1]<= x[i] < a[k[i]] if k[i] > 0, and x[i] out of a[0],..a[-1] otherwise

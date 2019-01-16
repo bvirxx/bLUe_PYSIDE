@@ -5,7 +5,7 @@ Copyright (C) 2017-2018 Bernard Virot <bernard.virot@libertysurf.fr>
 ## DESCRIPTION
 
  bLUe proposes a modular and comprehensive GUI for photo edition, featuring a large set of controls as adjustment layers, including
- 3D LUTs and 2.5D LUTs.
+ 3D LUTs, 2.5D LUTs, 2D curves and 1D curves for various color models.
 
 A 3D LUT is a table representing a 3D cube of color nodes. Image pixels are associated
 to nodes, based on their color, and changes are applied to each node individually,
@@ -16,6 +16,9 @@ a (hue, saturation) color wheel. Nodes are bound to an elastic grid and a grid s
 to even the changes in color. Full 3D LUTs are created and edited by combining 2.5 LUTs with curve layers.
 
 Masks are automatically created from 2.5D LUTs, based on the node selection. They can be freely edited.
+
+Simple (Hue, Brightness) 2D curves are available to selectively modify the brightness of a set of colors,
+regardless of their saturation.
 
 In addition to color images in formats jpg, tif, png, bLUe develops raw files in all usual formats : nef, cr2, dng, ...
 It supports dng/dcp dual illuminant camera profiles. Camera model dcp profiles can be applied to any format
@@ -34,7 +37,7 @@ The program is written in Python.
 
 * Edition of images in formats jpg, png, tif, nef, cr2, dng,...
 * Adjustment layers : exposure, brightness, saturation, contrast, channel mixer, color temperature, inversion, filters, noise reduction, cloning,
-segmentation, geometric transformations, curves (1D LUTs), 2.5D LUTs, 3D LUTs.
+segmentation, geometric transformations, curves, 2D curves (currently Hue, Brightness 2D curves), 2.5D LUTs, 3D LUTs.
 * RGB, HSV, CMYK, Lab color models
 * Fast skin tone correction
 * Automatic contrast enhancement (histogram warping and CLAHE)
@@ -51,7 +54,7 @@ segmentation, geometric transformations, curves (1D LUTs), 2.5D LUTs, 3D LUTs.
 ## REQUIREMENTS
 
 * OpenCV-Python
-* NumPy
+* NumPy >= 1.15.0
 * PySide2
 * PIL
 * RawPy

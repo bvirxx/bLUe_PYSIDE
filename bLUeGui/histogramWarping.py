@@ -418,7 +418,7 @@ def autoQuadSpline(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True):
         d[skyInd:] = 0.2
         d[-1] = 2
     # build and apply the spline.
-    T = interpolationQuadSpline(a, b, d, plot=True)
+    T = interpolationQuadSpline(a, b, d)
     return a, b, d, T
 
 

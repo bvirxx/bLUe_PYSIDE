@@ -141,6 +141,7 @@ from PySide2.QtWidgets import QApplication, QAction, \
 from QtGui1 import app, window, rootWidget
 import exiftool
 from graphicsBlendFilter import blendFilterForm
+from graphicsHVLUT2D import HVLUT2DForm
 from graphicsInvert import invertForm
 from graphicsMixer import mixerForm
 from graphicsNoise import noiseForm
@@ -1297,6 +1298,15 @@ def menuLayer(name):
         sc = grWindow.scene()
         layer.execute = lambda l=layer, pool=pool: l.tLayer.apply3DLUT(sc.lut.LUT3DArray, sc.lut.step,
                                                                        options=sc.options, pool=pool)
+    elif name == 'action2D_LUT_HV':
+        layerName = 'HV 2D LUT'
+        layer = window.label.img.addAdjustmentLayer(name=layerName, role='2DLUT')
+        grWindow = HVLUT2DForm.getNewWindow(axeSize=300, targetImage=window.label.img,
+                                                  layer=layer, parent=window)
+        # init pool only once
+        pool = getPool()
+        sc = grWindow.scene()
+        layer.execute = lambda l=layer, pool=pool: l.tLayer.applyHVLUT2D(grWindow.LUT, options=sc.options, pool=pool)
     # cloning
     elif name == 'actionNew_Cloning_Layer':
         lname = 'Cloning'

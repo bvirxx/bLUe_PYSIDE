@@ -20,108 +20,80 @@ from PySide2.QtCore import QRect
 from PySide2.QtCore import Qt, QRectF
 from PySide2.QtWidgets import QGraphicsScene, QGridLayout
 
-from bLUeGui.graphicsSpline import activeCubicSpline, graphicsCurveForm, activeSplinePoint, channelValues
+from bLUeCore.bLUeLUT3D import DeltaLUT3D
+from bLUeGui.graphicsSpline import activeCubicSpline, graphicsCurveForm, activeSplinePoint, channelValues, activeBSpline
 from utils import optionsWidget, QbLUePushButton
 
 
-class graphicsForm(graphicsCurveForm):
+class HVLUT2DForm(graphicsCurveForm) :
     """
-    Form for interactive RGB curves
+    Form for interactive HV 2D LUT
     """
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
-        newWindow = graphicsForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
+        newWindow = HVLUT2DForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
         newWindow.setWindowTitle(layer.name)
         return newWindow
 
+
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super().__init__(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
-        # Brightness curve
-        cubic = activeCubicSpline(axeSize)
+        # Init curve
+        dSpline = activeBSpline(axeSize)
         graphicsScene = self.scene()
-        graphicsScene.addItem(cubic)
-        graphicsScene.cubicRGB = cubic
-        cubic.channel = channelValues.RGB
-        cubic.histImg = self.scene().layer.inputImg().histogram(size=graphicsScene.axeSize,
-                                                                bgColor=graphicsScene.bgColor, chans=[], mode='Luminosity')
-        cubic.initFixedPoints()
-        # Red curve
-        cubic = activeCubicSpline(axeSize)
-        graphicsScene.addItem(cubic)
-        graphicsScene.cubicR = cubic
-        cubic.channel = channelValues.Red
-        cubic.histImg = self.scene().layer.inputImg().histogram(size=graphicsScene.axeSize,
-                                                                bgColor=graphicsScene.bgColor, chans=channelValues.Red)
-        cubic.initFixedPoints()
-        # Green curve
-        cubic = activeCubicSpline(axeSize)
-        graphicsScene.addItem(cubic)
-        graphicsScene.cubicG = cubic
-        cubic.channel = channelValues.Green
-        cubic.histImg = self.scene().layer.inputImg().histogram(size=graphicsScene.axeSize,
-                                                                bgColor=graphicsScene.bgColor, chans=channelValues.Green)
-        cubic.initFixedPoints()
-        # Blue curve
-        cubic = activeCubicSpline(axeSize)
-        graphicsScene.addItem(cubic)
-        graphicsScene.cubicB = cubic
-        cubic.channel = channelValues.Blue
-        cubic.histImg = self.scene().layer.inputImg().histogram(size=graphicsScene.axeSize,
-                                                                bgColor=graphicsScene.bgColor, chans=channelValues.Blue)
-        cubic.initFixedPoints()
-        # set current curve to brightness
-        graphicsScene.cubicItem = graphicsScene.cubicRGB
+        graphicsScene.addItem(dSpline)
+
+        dSpline.initFixedPoints()
+
+        self.LUT = DeltaLUT3D((34, 32, 32))
+
+        # set current curve to dsplacement spline
+        self.cubicItem = dSpline
+        graphicsScene.cubicItem = dSpline
         graphicsScene.cubicItem.setVisible(True)
 
         # buttons
-        pushButton1 = QbLUePushButton("Reset Current")
+        pushButton1 = QbLUePushButton("Reset Curve")
         pushButton1.clicked.connect(self.resetCurve)
-        pushButton2 = QbLUePushButton("Reset R,G,B")
-        pushButton2.clicked.connect(self.resetAllCurves)
 
         # options
         options = ['RGB', 'Red', 'Green', 'Blue']
         self.listWidget1 = optionsWidget(options=options, exclusive=True)
-        self.listWidget1.setGeometry(0, 0, self.listWidget1.sizeHintForColumn(0) + 5,
-                                     self.listWidget1.sizeHintForRow(0)*len(options) + 5)
-        # selection changed handler
-        curves = [graphicsScene.cubicRGB, graphicsScene.cubicR, graphicsScene.cubicG, graphicsScene.cubicB]
-        curveDict = dict(zip(options, curves))
-
-        def onSelect1(item):
-            self.scene().cubicItem.setVisible(False)
-            self.scene().cubicItem = curveDict[item.text()]
-            pushButton2.setEnabled(item.text() != 'RGB')
-            self.scene().cubicItem.setVisible(True)
-            l = self.scene().layer
-            l.applyToStack()
-            l.parentImage.onImageChanged()
-            # Force redraw histogram
-            self.scene().invalidate(QRectF(0.0, -self.scene().axeSize, self.scene().axeSize, self.scene().axeSize),
-                                    QGraphicsScene.BackgroundLayer)
-        self.listWidget1.onSelect = onSelect1
-        # set initial selection to RGB
-        item = self.listWidget1.items[options[0]]
-        item.setCheckState(Qt.Checked)
-        self.listWidget1.select(item)
+        self.listWidget1.setGeometry(0, 10, self.listWidget1.sizeHintForColumn(0) + 5, self.listWidget1.sizeHintForRow(0)*len(options) + 5)
 
         # layout
         gl = QGridLayout()
         gl.addWidget(self.listWidget1, 0, 0, 2, 1)
-        for i, button in enumerate([pushButton1, pushButton2]):
+        for i, button in enumerate([pushButton1]):
             gl.addWidget(button, i, 1)
         self.addCommandLayout(gl)
 
-        self.setWhatsThis("""<b>RGB curves</b><br>""" + self.whatsThis())
+        self.setWhatsThis(
+            """<b>HV displacement curve</b><br>
+            """ + self.whatsThis())
 
-        def f():
-            l = self.scene().layer
-            l.applyToStack()
-            l.parentImage.onImageChanged()
-        self.scene().cubicRGB.curveChanged.sig.connect(f)
-        self.scene().cubicR.curveChanged.sig.connect(f)
-        self.scene().cubicG.curveChanged.sig.connect(f)
-        self.scene().cubicB.curveChanged.sig.connect(f)
+        dSpline.curveChanged.sig.connect(self.updateLayer)
+
+    def updateLUT(self):
+        """
+        Updates the displacement LUT
+        """
+        data = self.LUT.data
+        axeSize = self.axeSize
+        hdivs = self.LUT.divs[0]
+        hstep = 360 / hdivs
+        activeSpline = self.cubicItem
+        sp = activeSpline.spline
+        d = axeSize // 2
+        for i in range(hdivs):
+            pt = sp[int(i * hstep * axeSize/360)]
+            data[i, :, :, 2] = 1.0 -(pt.y() + d) / 100
+
+    def updateLayer(self):
+        self.updateLUT()
+        l = self.scene().layer
+        l.applyToStack()
+        l.parentImage.onImageChanged()
 
     def colorPickedSlot(self, x, y, modifiers):
         """
@@ -134,13 +106,13 @@ class graphicsForm(graphicsCurveForm):
         @param modifiers:
         @type modifiers:
         """
-        r, g, b = self.scene().targetImage.getActivePixel(x, y)
+        r,g,b= self.scene().targetImage.getActivePixel(x, y)
         if (modifiers & QtCore.Qt.ControlModifier) and (modifiers & QtCore.Qt.ShiftModifier):
-            self.setBlackPoint(r, g, b)
-        elif modifiers & QtCore.Qt.ControlModifier:
+            self.setBlackPoint(r,g,b)
+        elif (modifiers & QtCore.Qt.ControlModifier):
             self.setWhitePoint(r, g, b)
 
-    def setBlackPoint(self, r, g, b):
+    def setBlackPoint(self, r, g ,b):
         """
 
         @param r:
@@ -195,7 +167,7 @@ class graphicsForm(graphicsCurveForm):
         for i, cubic in enumerate([cubicRGB, cubicR, cubicG, cubicB]):
             scale = cubic.size / 255.0
             fp = cubic.fixedPoints
-            wPoint = max(r, g, b) if i == 0 else r if i==1 else g if i==2 else b
+            wPoint = max(r, g, b) if i==0 else r if i==1 else g if i==2 else b
             # don't set white point to black!
             if wPoint <= 10:
                 wPoint += 10.0
@@ -233,39 +205,6 @@ class graphicsForm(graphicsCurveForm):
         s = graphicsScene.axeSize
         if graphicsScene.cubicItem.histImg is not None:
             qp.drawImage(QRect(0, -s, s, s), graphicsScene.cubicItem.histImg)
-
-    def updateHist(self, curve, redraw=True):
-        """
-        Update the channel histogram displayed under the curve
-        @param curve:
-        @type curve:
-        @param redraw:
-        @type redraw
-        """
-        sc = self.scene()
-        if curve is sc.cubicRGB:
-            curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize, bgColor=sc.bgColor, chans=[], mode='Luminosity')
-        elif curve is sc.cubicR:
-            curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize, bgColor=sc.bgColor, chans=channelValues.Red)
-        elif curve is sc.cubicG:
-            curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize, bgColor=sc.bgColor, chans=channelValues.Green)
-        elif curve is sc.cubicB:
-            curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize, bgColor=sc.bgColor, chans=channelValues.Blue)
-        # Force to redraw histogram
-        if redraw:
-            sc.invalidate(QRectF(0.0, -sc.axeSize, sc.axeSize, sc.axeSize),
-                            sc.BackgroundLayer)
-
-    def updateHists(self):
-        """
-        Updates all histograms
-        """
-        sc = self.scene()
-        for curve in [sc.cubicRGB, sc.cubicR, sc.cubicG, sc.cubicB]:
-            self.updateHist(curve, redraw=False)
-        # Force to redraw histogram
-        sc.invalidate(QRectF(0.0, -sc.axeSize, sc.axeSize, sc.axeSize),
-                        sc.BackgroundLayer)
 
     def resetCurve(self):
         """
@@ -323,6 +262,4 @@ class graphicsForm(graphicsCurveForm):
         graphicsScene.cubicG.readFromStream(inStream)
         graphicsScene.cubicB.readFromStream(inStream)
         return inStream
-
-
 

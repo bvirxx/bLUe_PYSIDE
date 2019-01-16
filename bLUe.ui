@@ -749,6 +749,7 @@ Screen</string>
      <addaction name="actionContrast_Correction"/>
      <addaction name="action3D_LUT_HSB"/>
      <addaction name="action3D_LUT"/>
+     <addaction name="action2D_LUT_HV"/>
      <addaction name="actionChannel_Mixer"/>
      <addaction name="actionColor_Temperature"/>
      <addaction name="actionExposure_Correction"/>
@@ -1170,6 +1171,11 @@ Screen</string>
   <action name="actionChannel_Mixer">
    <property name="text">
     <string>Channel Mixer</string>
+   </property>
+  </action>
+  <action name="action2D_LUT_HV">
+   <property name="text">
+    <string>2D LUT HV</string>
    </property>
   </action>
  </widget>

@@ -22,8 +22,8 @@ import cv2
 import numpy as np
 
 from PySide2.QtCore import QSize
-from PySide2.QtWidgets import QAction, QFileDialog, QToolTip, QHBoxLayout, QVBoxLayout, \
-    QApplication, QLabel, QStyle, QGridLayout, QComboBox, QLineEdit
+from PySide2.QtWidgets import QAction, QFileDialog, QToolTip, QHBoxLayout,\
+    QApplication, QLabel, QGridLayout, QComboBox, QLineEdit
 from PySide2.QtGui import QPainter, QPolygonF, QPainterPath, QPen, QBrush, QColor, QPixmap
 from PySide2.QtWidgets import QGraphicsItem, QGraphicsItemGroup, QGraphicsPathItem,\
     QGraphicsPixmapItem, QGraphicsPolygonItem, QSizePolicy
@@ -36,7 +36,6 @@ from MarkedImg import QLayer
 from bLUeCore.trilinear import interpTriLinear
 from bLUeGui.colorCube import rgb2hsB, cmyk2rgb
 from bLUeGui.graphicsForm import baseGraphicsForm
-from bLUeGui.memory import weakProxy
 from debug import tdec
 from lutUtils import LUTSIZE, LUTSTEP, LUT3D_SHADOW, LUT3D_ORI, LUT3DIdentity
 from versatileImg import vImage
@@ -139,26 +138,6 @@ class nodeGroup(QGraphicsItemGroup):
 
     def mouseReleaseEvent(self, e):
         super().mouseReleaseEvent(e)
-        # click event
-        """
-        if not self.mouseIsMoved:
-            if self.isSelected():
-                self.grid.selectedGroup = None
-                self.setSelected(False)
-            else:
-                self.setSelected(True)
-                if self.grid.selectedGroup is not None:
-                    self.grid.selectedGroup.setSelected(False)
-                self.grid.selectedGroup = self
-                self.grid.selectionList = self.childItems()
-            self.setTransformOriginPoint(QPoint(400,400)-self.pos())
-            self.setScale(self.scale()+0.2)
-
-            for i in self.childItems():
-                if i.sceneBoundingRect().contains(e.scenePos()):
-                    print "removed"
-                    self.removeFromGroup(i)
-        """
         # move child nodes and synchronize LUT
         self.grid.drawTrace = False
         if self.mouseIsMoved:
@@ -192,7 +171,6 @@ class nodeGroup(QGraphicsItemGroup):
             self.grid.drawGrid()
             for i in self.childItems():
                 i.syncLUT()
-            # self.scene().onUpdateLUT(options=self.scene().options)
             l = self.scene().layer
             l.applyToStack()
             l.parentImage.onImageChanged()
@@ -349,7 +327,7 @@ class activeNode(QGraphicsPathItem):
         self.LUTIndices = set([index(p/100.0, i, j, k) for p, (i, j, k) in enumerate(clipped)])
         for x in self.LUTIndices:
             (i, j, k) = x.ind
-            LUT3D_SHADOW[max(i-spread, 0):i + spread + 1,max(j - spread, 0):j + spread + 1,
+            LUT3D_SHADOW[max(i-spread, 0):i + spread + 1, max(j - spread, 0):j + spread + 1,
                          max(k - spread, 0):k + spread + 1, 3] = 1
         # mark central node
         c = grid.size//2  # PYTHON 3 integer quotient
@@ -443,15 +421,15 @@ class activeNode(QGraphicsPathItem):
         @rtype: list of activeNode objects
         """
         nghb = []
-        if self.gridRow > 0 :
+        if self.gridRow > 0:
             nghb.append(self.grid.gridNodes[self.gridRow-1][self.gridCol])
-        if self.gridCol > 0 :
+        if self.gridCol > 0:
             nghb.append(self.grid.gridNodes[self.gridRow][self.gridCol-1])
         if self.gridRow < self.grid.size - 1:
             nghb.append(self.grid.gridNodes[self.gridRow+1][self.gridCol])
         if self.gridCol < self.grid.size - 1:
             nghb.append(self.grid.gridNodes[self.gridRow][self.gridCol + 1])
-        if self.gridRow > 0 and self.gridCol >0 :
+        if self.gridRow > 0 and self.gridCol > 0:
             nghb.append(self.grid.gridNodes[self.gridRow - 1][self.gridCol-1])
         if self.gridRow > 0 and self.gridCol < self.grid.size - 1:
             nghb.append(self.grid.gridNodes[self.gridRow-1][self.gridCol+1])
@@ -533,7 +511,8 @@ class activeGrid(QGraphicsPathItem):
         # set pos relative to parent
         self.setPos(0, 0)
         # np.fromiter does not handle dtype object, so we cannot use a generator
-        self.gridNodes = [[activeNode(QPointF(i*self.step, j * self.step), cModel, gridRow=j, gridCol=i, parent=self, grid=self)
+        self.gridNodes = [[activeNode(QPointF(i*self.step, j * self.step), cModel, gridRow=j,
+                                      gridCol=i, parent=self, grid=self)
                                     for i in range(self.size)] for j in range(self.size)]
         self.drawTrace = False
         self.drawGrid()
@@ -774,7 +753,7 @@ class colorChooser(QGraphicsPixmapItem):
             tmp = H[u, v]
             norma = np.amax(H)
             # color white
-            buf[xyarray[:, :, 1], xyarray[:, :, 0],...] = 255
+            buf[xyarray[:, :, 1], xyarray[:, :, 0], ...] = 255
             # alpha channel
             buf[xyarray[:, :, 1], xyarray[:, :, 0], 3] = 90 + 128.0 * tmp / norma
             self.targetHist = b
@@ -844,7 +823,6 @@ class colorChooser(QGraphicsPixmapItem):
 class graphicsForm3DLUT(baseGraphicsForm):
     """
     Form for 3D LUT editing.
-
     """
     # node markers
     qpp0 = activeNode.qppR
@@ -915,9 +893,6 @@ class graphicsForm3DLUT(baseGraphicsForm):
         self.currentHue, self.currentSat, self.currentPb = 0, 0, self.defaultColorWheelBr
         self.currentR, self.currentG, self.currentB = 0, 0, 0
         self.size = axeSize
-        # back links to image
-        self.targetImage = weakProxy(targetImage)
-        self.layer = weakProxy(layer)
         # currently selected grid node
         self.selected = None
         # init LUT
@@ -1076,6 +1051,8 @@ class graphicsForm3DLUT(baseGraphicsForm):
                     if not 0 <= s <= 100:
                         raise ValueError
                     pt = QPointF(*swatchImg.GetPoint(h, s / 100.0)) + offset
+                else:
+                    raise ValueError
                 self.workingMarker.setPos(pt.x(), pt.y())
             except ValueError:
                 dlgWarn("Invalid color")
@@ -1089,7 +1066,7 @@ class graphicsForm3DLUT(baseGraphicsForm):
         gl.addWidget(pushButton4, 1, 0)
         gl.addWidget(infoCombo, 1, 1)
         for i, widget in enumerate([self.listWidget1, self.listWidget2, self.listWidget3]):
-            gl.addWidget(widget, 2 if i <2 else 1, i, 1 if i <2 else 2, 1, 0)
+            gl.addWidget(widget, 2 if i < 2 else 1, i, 1 if i < 2 else 2, 1, 0)
         hl = QHBoxLayout()
         hl.addWidget(labelFormat)
         hl.addWidget(self.info)
@@ -1102,31 +1079,33 @@ class graphicsForm3DLUT(baseGraphicsForm):
 
         # whatsthis
         self.setWhatsThis(
-""" <b>2.5D LUT Editor</b><br>
-  HSpB layer is slower than HSV, but usually gives better results.<br>
-  <b>Select nodes</b> with mouse clicks on the image. Selected nodes are shown
-as small black circles on the color wheel.<br>
-<b>Modify the color</b> of a node by dragging it on
-the wheel. Several nodes can be moved simultaneously by grouping them.<br>
-<b>Group nodes</b> :<br>
-        &nbsp; 1 - select them with the mouse : while pressing the mouse left button,
-                   drag a rubber band around the nodes to select;<br>
-        &nbsp; 2 - next, right click any one of the selected nodes and choose group from the context menu<br>
-<b>unselect nodes</b> :<br>
-        &nbsp; 1 - check the option Remove Node;<br>
-        &nbsp; 2 -  ungroup;<br>
-        &nbsp; 3 - on the image, click the pixels to unselect.<br>
-<b>Warning</b> : Selecting nodes with the mouse is enabled only when
-the Color Chooser is closed.<br>
-Click the <b> Smooth Grid</b> button to smooth color transitions between neighbor nodes.<br>
-<b>Crosshair</b> markers indicate neutral gray tones and average skin tones. They can be moved with the mouse.
-The position of the second marker is reflected in the editable bottom right box. Due to the inherent properties
-of the CMYK color model, CMYK input values may be modified silently.<br>
-<b>The grid can be zoomed</b> with the mouse wheel.<br>
-Check the <b>Keep Alpha</b> option to forward the alpha channel without modifications.<br>
-This option must be unchecked to build a mask from the 3D LUT.<br>
-
-"""
+                        """ <b>2.5D LUT Editor</b><br>
+                          <b>Select nodes</b> with mouse clicks on the image. Selected nodes are shown
+                        as small black circles on the color wheel.<br>
+                        <b>Modify the color</b> of a node by dragging it on
+                        the wheel. Several nodes can be moved simultaneously by grouping them.<br>
+                        <b>Group nodes</b> :<br>
+                                &nbsp; 1 - group nodes with the mouse : while pressing the mouse left button,
+                                           drag a rubber band around the nodes to group;<br>
+                                &nbsp; 2 - next, right click any one of the selected nodes and 
+                                choose group from the context menu<br>
+                        <b>Unselect nodes</b> :<br>
+                                &nbsp; 1 - check the option Remove Node;<br>
+                                &nbsp; 2 -  ungroup;<br>
+                                &nbsp; 3 - on the image, click the pixels to unselect.<br>
+                        <b>Warning</b> : Selecting/unselecting nodes with the mouse is enabled only when
+                        the Color Chooser is closed.<br>
+                        Press the <b> Smooth Grid</b> button to smooth color transitions between neighbor nodes.<br>
+                        <b>Crosshair</b> markers indicate neutral gray tones and average 
+                        skin tones. They can be moved with the mouse.
+                        The position of the second marker is reflected in the editable 
+                        bottom right box. Due to inherent properties
+                        of the CMYK color model, CMYK input values may be modified silently.<br>
+                        <b>The grid can be zoomed</b> with the mouse wheel.<br>
+                        Check the <b>Keep Alpha</b> option to forward the alpha channel without modifications.<br>
+                        This option must be unchecked to build a mask from the 3D LUT.<br>
+                        HSpB layer is slower than HSV, but usually gives better results.<br>    
+                        """
                           )  # end of setWhatsThis
 
     def selectGridNode(self, r, g, b):
@@ -1136,30 +1115,22 @@ This option must be unchecked to build a mask from the 3D LUT.<br>
         @param g: color
         @param b: color
         """
-        # surrounding cube
-        # LUTNeighborhood = [(i,j,k) for i in [r/w, (r/w)+1] for j in [g/w, (g/w)+1] for k in [b/w, (b/w)+1]]
-
         # reset previous selected marker
         if self.selected is not None:
             self.selected.setPath(self.qpp1)
             self.selected.setBrush(self.unselectBrush)
 
-        h, s, p = self.cModel.rgb2cm(r, g, b)  # , perceptual=True)
-        # hspNeighborhood=[rgb2ccm(i * w, j * w, k * w, perceptual=True) for (i, j, k) in LUTNeighborhood if (i * w <= 255 and j * w <= 255 and k * w <= 255)]
+        h, s, p = self.cModel.rgb2cm(r, g, b)
         # currently selected values in adjust layer
         self.currentHue, self.currentSat, self.currentPb = h, s, p
         self.currentR, self.currentG, self.currentB = r, g, b
-        # x, y : color wheel (cartesian origin top left corner) coordinates of the pixel corresponding to hue=h and sat=s
         xc, yc = self.graphicsScene.slider2D.QImg.GetPoint(h, s)
-
-        # xyNeighborhood=[self.graphicsScene.slider2D.QImg.GetPoint(h, s) for h,s,_ in hspNeighborhood]
 
         # unitary coordinate increment between consecutive nodes
         step = float(self.grid.step)
         border = self.graphicsScene.slider2D.border
         # grid coordinates
         xcGrid, ycGrid = xc - border, yc - border
-        # NNN = self.grid.gridNodes[int(round(ycGrid/step))][int(round(xcGrid/step))]
         NNN = self.grid.gridNodes[int(np.floor(ycGrid / step))][int(np.floor(xcGrid / step))]
 
         # select and mark selected node
@@ -1179,12 +1150,6 @@ This option must be unchecked to build a mask from the 3D LUT.<br>
                     n.parentItem().removeFromGroup(n)
                 n.setPos(n.initialPos)
                 n.syncLUT()
-            """
-            for item in n.LUTIndices:
-                #self.scene().lut.LUT3DArray[item.ind + (3,)] = 255  # TODO added 24/11/18
-                i, j, k = item.ind
-                self.scene().lut.LUT3DArray[k, j, i, 3] = 255  # TODO added 24/11/18
-            """
         # update status
         self.onSelectGridNode(h, s)
 
@@ -1239,8 +1204,6 @@ This option must be unchecked to build a mask from the 3D LUT.<br>
         self.grid.drawGrid()
         self.layer.applyToStack()
         self.layer.parentImage.onImageChanged()
-        # if getattr(self.layer.parentImage, 'window', None) is not None:
-        # self.layer.parentImage.window.repaint()  # TODO modified 28/11/18 validate
 
     def enableButtons(self):
         self.pushButton4.setEnabled(not self.graphicsScene.options['keep alpha'])

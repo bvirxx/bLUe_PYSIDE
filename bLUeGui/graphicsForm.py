@@ -255,6 +255,7 @@ class graphicsCurveForm(baseGraphicsForm):
         # self.setAttribute(Qt.WA_DeleteOnClose)  # TODO removed 02/01/19 validate
         self.graphicsScene.bgColor = QColor(200, 200, 200)
         self.graphicsScene.axeSize = axeSize
+        self.axeSize = axeSize
         # add axes and grid to scene
         self.graphicsScene.defaultAxes = self.drawPlotGrid(axeSize)
         self.graphicsScene.addItem(self.graphicsScene.defaultAxes)

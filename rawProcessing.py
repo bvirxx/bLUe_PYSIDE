@@ -23,7 +23,7 @@ import numpy as np
 import rawpy
 from PySide2.QtGui import QImage
 
-from bLUeCore.multi import interpMulti
+from bLUeCore.multi import interpMulti, chosenInterp
 from bLUeGui.bLUeImage import QImageBuffer, bImage
 from bLUeGui.colorCIE import rgbLinear2rgbVec, sRGB_lin2XYZInverse, bradfordAdaptationMatrix
 from bLUeGui.graphicsSpline import channelValues
@@ -234,8 +234,9 @@ def rawPostProcess(rawLayer, pool=None):
         hsvLUT = dngProfileLookTable(adjustForm.dngDict)
         if hsvLUT.isValid:
             divs = hsvLUT.divs
-            steps = tuple([360 / divs[0], 1.0 / divs[1], 1.0 / divs[2]])
-            coeffs = interpMulti(hsvLUT.data, steps, bufHSV_CV32, pool=pool, use_tetra=USE_TETRA, convert=False)
+            steps = tuple([360 / divs[0], 1.0 / (divs[1] - 1), 1.0 / (divs[2] - 1)]) # TODO -1 added 16/01/18 validate
+            interp = chosenInterp(pool, currentImage.width() * currentImage.height())
+            coeffs = interp(hsvLUT.data, steps, bufHSV_CV32, convert=False)
             bufHSV_CV32[:, :, 0] = np.mod(bufHSV_CV32[:, :, 0] + coeffs[:, :, 0], 360)
             bufHSV_CV32[:, :, 1:] = bufHSV_CV32[:, :, 1:] * coeffs[:, :, 1:]
             np.clip(bufHSV_CV32, (0, 0, 0), (360, 1, 1), out=bufHSV_CV32)

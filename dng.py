@@ -145,11 +145,11 @@ class dngProfileLookTable:
             data = np.array([float(x) for x in data.split(' ')]).reshape(divs[2], divs[0], divs[1], 3)  # v, h, s
             self.__divs = tuple(divs)
             # allocate data array.
-            # adding sentinels, so all
+            # Adding sentinels, so all
             # dims are increased by +1 (Sentinels allow to
             # use closed intervals instead of right-opened intervals
             # as input ranges).
-            # adding a division point for hue = 360 (cf. dng spec p. 82) : total increment for divs[0] is +2.
+            # Adding a division point for hue = 360 (cf. dng spec p. 82) : total increment for divs[0] is +2.
             buf = np.zeros((divs[0] + 2, divs[1] + 1, divs[2] + 1, 3), dtype=np.float) + (0, 1, 1)
             # move axes to h, s, v ordering
             data = np.moveaxis(data, (0, 1, 2), (2, 0, 1))
@@ -157,7 +157,7 @@ class dngProfileLookTable:
             buf[0:-2, :-1, :-1, :] = data[:, :, :, ]
             # modulo arithmetic for hue
             buf[-2, :, :, 0] = buf[0, :, :, 0]
-            # interpolation does not use the values of sentinels faces, so don't care
+            # interpolation does not use the values of sentinel sides, so don't care
             self.__data = buf
             self.isValid = True
         except (ValueError, TypeError) as e:
@@ -180,7 +180,7 @@ class dngProfileLookTable:
         Output values are shifts (additive shift for hue, multiplicative
         shifts for saturation and value).
         @return: 3D look up table
-        @rtype: ndarray shape=(dim1, dim2, dim3, 3), dtype=float
+        @rtype: ndarray shape=(divs[0] + 2, divs[1] + 1, divs[2] + 1, 3), dtype=float
         """
         return self.__data
 

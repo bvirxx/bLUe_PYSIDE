@@ -68,7 +68,6 @@ class mixerForm(baseGraphicsForm):
         super().__init__(parent=parent, targetImage=targetImage, layer=layer)
         self.setMinimumSize(axeSize, axeSize)
         self.setAttribute(Qt.WA_DeleteOnClose)
-        # graphicsScene.triangleChanged = baseSignal_No()
         self.options = None
         # barycentric coordinate basis : the 3 base points form an equilateral triangle
         self.R, self.G, self.B = QPointF(20, 235), QPointF(235, 235), QPointF(128, 13)

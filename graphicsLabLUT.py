@@ -18,13 +18,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 from PySide2 import QtCore
 from PySide2.QtCore import QRect, QPoint
-from PySide2.QtWidgets import QGraphicsScene, QPushButton, QGridLayout, QVBoxLayout, QHBoxLayout, QApplication, QStyle, \
-    QLabel
+from PySide2.QtWidgets import QGraphicsScene, QPushButton, QGridLayout
 from PySide2.QtGui import QPixmap, QRadialGradient
 from PySide2.QtCore import Qt, QRectF
 
 from bLUeGui.colorCIE import sRGB2LabVec
-from bLUeGui.graphicsForm import bottomWidget
 from bLUeGui.graphicsSpline import activeCubicSpline, graphicsCurveForm, activeSplinePoint, channelValues
 from utils import optionsWidget
 
@@ -35,6 +33,7 @@ class graphicsLabForm(graphicsCurveForm):
         newWindow = graphicsLabForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
         newWindow.setWindowTitle(layer.name)
         return newWindow
+
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super().__init__(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
         graphicsScene = self.scene()
@@ -99,23 +98,22 @@ class graphicsLabForm(graphicsCurveForm):
         graphicsScene.cubicItem.axes.setVisible(True)
         # buttons
         pushButton1 = QPushButton("Reset Current")
-        #pushButton1.move(100, 20)
         pushButton1.adjustSize()
         pushButton1.clicked.connect(self.resetCurve)
-        #graphicsScene.addWidget(pushButton1)
         pushButton2 = QPushButton("Reset All")
-        #pushButton2.move(100, 50)
         pushButton2.adjustSize()
         pushButton2.clicked.connect(self.resetAllCurves)
-        #graphicsScene.addWidget(pushButton2)
+
         # options
         options = ['L', 'a', 'b']
         self.listWidget1 = optionsWidget(options=options, exclusive=True)
-        self.listWidget1.setMinimumSize(self.listWidget1.sizeHintForColumn(0) + 5, self.listWidget1.sizeHintForRow(0) * len(options) + 5)
+        self.listWidget1.setMinimumSize(self.listWidget1.sizeHintForColumn(0) + 5,
+                                        self.listWidget1.sizeHintForRow(0) * len(options) + 5)
 
         # selection changed handler
         curves = [graphicsScene.cubicR, graphicsScene.cubicG, graphicsScene.cubicB]
         curveDict = dict(zip(options, curves))
+
         def onSelect1(item):
             cubicItem = self.scene().cubicItem
             cubicItem.setVisible(False)
@@ -132,6 +130,7 @@ class graphicsLabForm(graphicsCurveForm):
         item.setCheckState(Qt.Checked)
         self.listWidget1.select(item)
         self.setWhatsThis("""<b>Lab curves</b><br>""" + self.whatsThis())
+
         def f():
             l = graphicsScene.layer
             l.applyToStack()
@@ -158,16 +157,16 @@ class graphicsLabForm(graphicsCurveForm):
         @param modifiers:
         @type modifiers:
         """
-        r,g,b= self.scene().targetImage.getActivePixel(x, y)
-        if (modifiers & QtCore.Qt.ControlModifier):
+        r, g, b = self.scene().targetImage.getActivePixel(x, y)
+        if modifiers & QtCore.Qt.ControlModifier:
             if modifiers & QtCore.Qt.ShiftModifier:
-                self.setBlackPoint(r,g,b)
+                self.setBlackPoint(r, g, b)
             else:
                 self.setWhitePoint(r, g, b, luminance=True, balance=False)
         elif modifiers & QtCore.Qt.ShiftModifier:
             self.setWhitePoint(r, g, b, luminance=False, balance=True)
 
-    def setBlackPoint(self, r, g ,b):
+    def setBlackPoint(self, r, g, b):
         """
         Sets the L curve
         @param r:
@@ -181,9 +180,9 @@ class graphicsLabForm(graphicsCurveForm):
         if not l.isActiveLayer():
             return
         sc = self.scene()
-        tmp = np.zeros((1,1,3,), dtype=np.uint8)
-        tmp[0,0,:] = (r, g, b)
-        L, a, b = sRGB2LabVec(tmp)[0,0,:]
+        tmp = np.zeros((1, 1, 3), dtype=np.uint8)
+        tmp[0, 0, :] = (r, g, b)
+        L, a, b = sRGB2LabVec(tmp)[0, 0, :]
         cubicL = sc.cubicR
         scale = cubicL.size
         bPoint = L * scale
@@ -220,6 +219,10 @@ class graphicsLabForm(graphicsCurveForm):
         @type g:
         @param b:
         @type b:
+        @param luminance:
+        @type luminance:
+        @param balance:
+        @type balance
         """
         l = self.scene().layer
         if not l.isActiveLayer():
@@ -236,13 +239,13 @@ class graphicsLabForm(graphicsCurveForm):
             cubic = cubicL
             scale = cubic.size
             fp = cubic.fixedPoints
-            wPoint =  L * scale
+            wPoint = L * scale
             # don't set white point to black!
             if wPoint <= 10:
                 wPoint += 10.0
             # find black point
             bPoint = 0.0
-            tmp = [p.x() for p in fp if p.y()==0.0]
+            tmp = [p.x() for p in fp if p.y() == 0.0]
             if tmp:
                 bPoint = max(tmp)
             # remove control points at the right of bPoint
@@ -270,9 +273,6 @@ class graphicsLabForm(graphicsCurveForm):
                 for p in list(fp[1:-1]):
                         fp.remove(p)
                         sc.removeItem(p)
-                # reset first and last points
-                #fp[0].setPos(0.0, 0.0)
-                #fp[-1].setPos(scale, -scale)
                 # according to the sign of wPoint, shift horizontally
                 # first or last control point by 2*wPoint
                 wPoint *= 2.0
@@ -301,10 +301,10 @@ class graphicsLabForm(graphicsCurveForm):
     def updateHist(self, curve, redraw=True):
         """
         Update the channel histogram displayed under the curve
-
         @param curve:
         @type curve:
-
+        @param redraw:
+        @type redraw
         """
         sc = self.scene()
         if curve is sc.cubicR:
@@ -378,12 +378,6 @@ class graphicsLabForm(graphicsCurveForm):
         actionName = inStream.readQString()
         name = inStream.readQString()
         sel = inStream.readQString()
-        cubics = []
-        #for i in range(3):
-            #cubic = cubicItem.readFromStream(inStream)
-            #cubics.append(cubic)
-        #kwargs = dict(zip(['cubicR', 'cubicG', 'cubicB'], cubics))
-        #self.setEntries(sel=sel, **kwargs)
         graphicsScene = self.scene()
         graphicsScene.cubicR.readFromStream(inStream)
         graphicsScene.cubicG.readFromStream(inStream)
