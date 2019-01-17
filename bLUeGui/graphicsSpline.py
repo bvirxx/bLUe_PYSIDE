@@ -44,11 +44,13 @@ class channelValues:
 
 
 class activePoint(QGraphicsPathItem):
+    """
+    Interactive point
+    """
 
     def __init__(self, x, y, persistent=False, rect=None, parentItem=None):
-        super().__init__()
+        super().__init__(parent=parentItem)
         self.setAcceptHoverEvents(True)
-        self.setParentItem(parentItem)
         self.persistent = persistent
         self.rect = rect
         if self.rect is not None:
@@ -83,9 +85,85 @@ class activePoint(QGraphicsPathItem):
         self.update()
 
 
+class activeTriangle(QGraphicsPathItem):
+    """
+    interactive triangle
+    """
+    def __init__(self, x, y, bump, persistent=False, rect=None, parentItem=None):
+        super().__init__(parent=parentItem)
+        self.setAcceptHoverEvents(True)
+        self.persistent = persistent
+        self.rect = rect
+        self.setPos(QPointF(x, y))
+        self.clicked = False
+        # coordinates are relative to activeTriangle
+        self.B, self.C, self.A = QPointF(0, 0), QPointF(50, 0), QPointF(25, -bump)
+        self.setPen(QPen(QColor(255, 255, 255), 2))
+        self.update()
+
+    def update(self):
+        qpp = QPainterPath()
+        trans = QPointF(-4, -4)
+        # coordinates are relative to activeTriangle
+        for p in [self.A, self.B, self.C]:
+            qpp.addEllipse(p + trans, 4, 4)
+        self.setPath(qpp)
+        super().update()
+
+    def mousePressEvent(self, e):
+        self.clicked = True
+        xt, yt = e.pos().x(), e.pos().y()
+        p = QPointF(xt, yt)
+        self.moving = None
+        for p in [self.A, self.B, self.C]:
+            if abs(xt - p.x()) + abs(yt - p.y()) < 15:
+                self.moving = p
+                break
+
+    def mouseMoveEvent(self, e):
+        if self.moving is None:
+            return
+        self.clicked = False
+        xt, yt = e.pos().x(), e.pos().y()
+        if self.moving is self.A:
+            self.A.setY(yt)
+        else:
+            if self.moving is self.B:
+                x1, x2 = xt, self.C.x()
+            elif self.moving is self.C:
+                x1, x2 = xt, self.B.x()
+            self.A.setX((self.B.x() + self.C.x()) / 2)
+            self.B.setX(min(x1, x2))
+            self.C.setX(max(x1, x2))
+        self.update()
+        self.scene().cubicItem.updatePath()
+
+    def mouseReleaseEvent(self, e):
+        # get scene current spline
+        sc = self.scene()
+        item = sc.cubicItem
+        # click event : remove point
+        if self.clicked:
+            if self.persistent:
+                return
+            item.fixedPoints.remove(self)
+            sc.removeItem(self)
+            return
+        sc.cubicItem.updateLUTXY()
+        sc.cubicItem.curveChanged.sig.emit()
+
+    def hoverEnterEvent(self, *args, **kwargs):
+        self.setPen(QPen(QColor(0, 255, 0), 2))
+        self.update()
+
+    def hoverLeaveEvent(self, *args, **kwargs):
+        self.setPen(QPen(QColor(255, 255, 255), 2))
+        self.update()
+
 class activeSplinePoint(activePoint):
     """
-    Interactive (movable and removable) control point for a spline in a QGraphicsScene.
+    Interactive (movable and removable) control point
+    for a spline in a QGraphicsScene.
     """
     def __init__(self, x, y, persistent=False, rect=None, parentItem=None):
         """
@@ -157,9 +235,8 @@ class activeTangent(QGraphicsPathItem):
     brushColor = Qt.darkGray
 
     def __init__(self, controlPoint=QPointF(), contactPoint=QPointF(), parentItem=None):
-        super().__init__()
+        super().__init__(parent=parentItem)
         self.savedPen = self.pen()
-        self.setParentItem(parentItem)
         self.setAcceptHoverEvents(True)
         self.controlPoint = controlPoint
         self.contactPoint = contactPoint
@@ -239,10 +316,9 @@ class activeSpline(QGraphicsPathItem):
         @type parentItem: object
         """
         self.curveChanged = baseSignal_No()
-        super().__init__()
+        super().__init__(parent=parentItem)
         if fixedPoints is None:
             fixedPoints = []
-        self.setParentItem(parentItem)
         self.size = size
         # default initial curve : diagonal
         if baseCurve is None:
@@ -350,8 +426,26 @@ class activeBSpline(activeSpline):
     """
     Interactive displacement spline.
     """
-    def __init__(self, size):
+    # To display periodic splines, the interval [0, period] is
+    # represented by [0, axeSize] and the curve is enlarged
+    # by periodViewing on both sides.
+    periodViewing = 50
+    def __init__(self, size, period=0):
         super().__init__(size, fixedPoints=None, parentItem=None, baseCurve=(QPoint(0, -size//2), QPoint(size, -size//2)))
+        self.period = period
+
+    def mouseReleaseEvent(self, e):
+        """
+        if clicked, add a bump triangle to the curve
+        """
+        # click event
+        if self.clicked:
+            # add point
+            p = e.pos()
+            a = activeTriangle(p.x(), p.y(), 50, parentItem=self)
+            self.fixedPoints.append(a)
+            self.fixedPoints.sort(key=lambda z: z.scenePos().x())
+            self.updatePath()
 
     def initFixedPoints(self):
         """
@@ -360,17 +454,19 @@ class activeBSpline(activeSpline):
         """
         axeSize = self.size
         rect = QRectF(0.0, -axeSize, axeSize, axeSize)
-        self.fixedPoints = [activeSplinePoint(0, -axeSize //2, persistent=True, rect=rect, parentItem=self),
-                            activeSplinePoint(axeSize, -axeSize//2, persistent=True, rect=rect, parentItem=self)]
+        self.fixedPoints = [activeTriangle(50, -axeSize //2, 25, persistent=True, rect=rect, parentItem=self)]
 
     def updatePath(self):
         axeSize = self.size
         try:
-            X = np.array([item.x() for item in self.fixedPoints])
-            Y = np.array([-item.y() for item in self.fixedPoints]) - axeSize // 2
-            xCoords = np.arange(axeSize+100)-50
-            T = displacementSpline(np.array(X), np.array(Y), xCoords,
-                                   clippingInterval=[-self.scene().axeSize, 0], period=axeSize)
+            X=[]
+            for item in self.fixedPoints:
+                X.extend([item.B.x() + item.x(), item.C.x() + item.x()])
+            X = np.array(X)
+            Y = np.array([-(item.A.y() + item.y()) for item in self.fixedPoints]) - axeSize//2
+            xCoords = np.arange(axeSize + 2 * self.periodViewing) - self.periodViewing
+            T = displacementSpline(X, Y, xCoords,
+                                   clippingInterval=[-self.scene().axeSize, 0], period=self.period)
             self.spline = [QPointF(x, y) - QPointF(0, axeSize//2) for x, y in zip(xCoords, -T)]  # scene coord.
             # build path
             polygon = QPolygonF(self.spline)

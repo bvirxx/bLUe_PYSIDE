@@ -49,7 +49,7 @@ def displacementSpline(X, Y, V, period=0, clippingInterval=None):
             V = V - period * K
         return np.where(V <= t1, 0, np.where(V >= t2, 0, np.where(V < M, b * (V - t1) / (M - t1),  b * (t2 - V) / (t2 - M))))
 
-    left, right, bump = X[::2], X[1::2], Y[::2]
+    left, right, bump = X[::2], X[1::2], Y
     tmp = np.vstack(([bumpVec(V, left[i], right[i], bump[i], period=period) for i in range(left.shape[0])]))
     fPlus = np.amax(tmp, axis=0, initial=0)
     fMoins = np.amax(-tmp, axis=0, initial=0)

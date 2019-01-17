@@ -22,6 +22,7 @@ from PySide2.QtWidgets import QGraphicsScene, QGridLayout
 
 from bLUeCore.bLUeLUT3D import DeltaLUT3D
 from bLUeGui.graphicsSpline import activeCubicSpline, graphicsCurveForm, activeSplinePoint, channelValues, activeBSpline
+from graphicsLUT3D import activeMarker
 from utils import optionsWidget, QbLUePushButton
 
 
@@ -39,7 +40,7 @@ class HVLUT2DForm(graphicsCurveForm) :
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super().__init__(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
         # Init curve
-        dSpline = activeBSpline(axeSize)
+        dSpline = activeBSpline(axeSize, period=axeSize)
         graphicsScene = self.scene()
         graphicsScene.addItem(dSpline)
 
@@ -52,25 +53,19 @@ class HVLUT2DForm(graphicsCurveForm) :
         graphicsScene.cubicItem = dSpline
         graphicsScene.cubicItem.setVisible(True)
 
-        # buttons
-        pushButton1 = QbLUePushButton("Reset Curve")
-        pushButton1.clicked.connect(self.resetCurve)
-
-        # options
-        options = ['RGB', 'Red', 'Green', 'Blue']
-        self.listWidget1 = optionsWidget(options=options, exclusive=True)
-        self.listWidget1.setGeometry(0, 10, self.listWidget1.sizeHintForColumn(0) + 5, self.listWidget1.sizeHintForRow(0)*len(options) + 5)
-
-        # layout
-        gl = QGridLayout()
-        gl.addWidget(self.listWidget1, 0, 0, 2, 1)
-        for i, button in enumerate([pushButton1]):
-            gl.addWidget(button, i, 1)
-        self.addCommandLayout(gl)
+        self.marker = activeMarker.fromTriangle(parent=self.cubicItem)
+        self.scene().addItem(self.marker)
 
         self.setWhatsThis(
-            """<b>HV displacement curve</b><br>
-            """ + self.whatsThis())
+            """<b>(Hue, Brightness) correction curve</b><br>
+            The curve represents a brightness correction (initially 0) for 
+            each value of the hue. The specific brightness correction corresponding 
+            to its hue is applied to each image pixel.<br> 
+            To <b>add a bump triangle</b> click anywhere on the curve.<br>
+            Drag the triangle vertices to move the bump along the x-axis and to change 
+            its height and orientation.<br>
+            To <b>set the Hue Value Marker</b> Ctrl+click on the image.
+            """)
 
         dSpline.curveChanged.sig.connect(self.updateLayer)
 
@@ -81,13 +76,14 @@ class HVLUT2DForm(graphicsCurveForm) :
         data = self.LUT.data
         axeSize = self.axeSize
         hdivs = self.LUT.divs[0]
+        sThr = self.LUT.divs[1] // 4  # unsaturated color preservation threshold
         hstep = 360 / hdivs
         activeSpline = self.cubicItem
-        sp = activeSpline.spline
+        sp = activeSpline.spline[activeSpline.periodViewing:]
         d = axeSize // 2
         for i in range(hdivs):
             pt = sp[int(i * hstep * axeSize/360)]
-            data[i, :, :, 2] = 1.0 -(pt.y() + d) / 100
+            data[i, sThr:, :, 2] = 1.0 -(pt.y() + d) / 100
 
     def updateLayer(self):
         self.updateLUT()
@@ -106,131 +102,10 @@ class HVLUT2DForm(graphicsCurveForm) :
         @param modifiers:
         @type modifiers:
         """
-        r,g,b= self.scene().targetImage.getActivePixel(x, y)
-        if (modifiers & QtCore.Qt.ControlModifier) and (modifiers & QtCore.Qt.ShiftModifier):
-            self.setBlackPoint(r,g,b)
-        elif (modifiers & QtCore.Qt.ControlModifier):
-            self.setWhitePoint(r, g, b)
-
-    def setBlackPoint(self, r, g ,b):
-        """
-
-        @param r:
-        @type r:
-        @param g:
-        @type g:
-        @param b:
-        @type b:
-        """
-        sc = self.scene()
-        bPoint = min(r, g, b)
-        # don't set black point to white !
-        if bPoint >= 255:
-            bPoint -= 10.0
-        cubicRGB, cubicR, cubicG, cubicB = sc.cubicRGB, sc.cubicR, sc.cubicG, sc.cubicB
-        for cubic in [cubicRGB, cubicR, cubicG, cubicB]:
-            scale = cubic.size / 255.0
-            fp = cubic.fixedPoints
-            # find current white point
-            wPoint = cubic.size
-            tmp = [p.x() for p in fp if p.y() == -cubic.size]
-            if tmp:
-                wPoint = min(tmp)
-            # remove control points at the left of wPoint, but the first
-            for p in list(fp[1:-1]):
-                if p.x() < wPoint:
-                    fp.remove(p)
-                    sc.removeItem(p)
-            # add new black point if needed
-            if bPoint > 0.0:
-                a = activeSplinePoint(bPoint * scale, 0.0, parentItem=cubic)
-                cubic.fixedPoints.append(a)
-            cubic.fixedPoints.sort(key=lambda z: z.scenePos().x())
-            cubic.updatePath()
-            cubic.updateLUTXY()
-        l = self.scene().layer
-        l.applyToStack()
-        l.parentImage.onImageChanged()
-
-    def setWhitePoint(self, r, g, b):
-        """
-
-        @param r:
-        @type r:
-        @param g:
-        @type g:
-        @param b:
-        @type b:
-        """
-        sc = self.scene()
-        cubicRGB, cubicR, cubicG, cubicB = sc.cubicRGB, sc.cubicR, sc.cubicG, sc.cubicB
-        for i, cubic in enumerate([cubicRGB, cubicR, cubicG, cubicB]):
-            scale = cubic.size / 255.0
-            fp = cubic.fixedPoints
-            wPoint = max(r, g, b) if i==0 else r if i==1 else g if i==2 else b
-            # don't set white point to black!
-            if wPoint <= 10:
-                wPoint += 10.0
-            # find black point
-            bPoint = 0.0
-            tmp = [p.x() for p in fp if p.y() == 0.0]
-            if tmp:
-                bPoint = max(tmp)
-            # remove control points at the right of bPoint
-            for p in list(fp[1:-1]):
-                if p.x() > bPoint:
-                    cubic.fixedPoints.remove(p)
-                    sc.removeItem(p)
-            # add new white point if needed
-            if wPoint < cubic.size:
-                p = activeSplinePoint(wPoint * scale, -cubic.size, parentItem=cubic)
-                cubic.fixedPoints.append(p)
-            cubic.fixedPoints.sort(key=lambda z: z.scenePos().x())
-            cubic.updatePath()
-            cubic.updateLUTXY()
-        l = self.scene().layer
-        l.applyToStack()
-        l.parentImage.onImageChanged()
-
-    def drawBackground(self, qp, qrF):
-        """
-        Overrides QGraphicsView.drawBackground
-        @param qp:
-        @type qp: QPainter
-        @param qrF:
-        @type qrF: QRectF
-        """
-        super().drawBackground(qp, qrF)
-        graphicsScene = self.scene()
-        s = graphicsScene.axeSize
-        if graphicsScene.cubicItem.histImg is not None:
-            qp.drawImage(QRect(0, -s, s, s), graphicsScene.cubicItem.histImg)
-
-    def resetCurve(self):
-        """
-        Button event handler
-        Reset the current curve
-        """
-        graphicsScene = self.scene()
-        graphicsScene.cubicItem.reset()
-        self.updateHist(graphicsScene.cubicItem)
-        # self.scene().onUpdateLUT()
-        l = graphicsScene.layer
-        l.applyToStack()
-        l.parentImage.onImageChanged()
-
-    def resetAllCurves(self):
-        """
-        Button event handler
-        Reset R,G,B curves
-        """
-        graphicsScene = self.scene()
-        for cubicItem in [graphicsScene.cubicR, graphicsScene.cubicG, graphicsScene.cubicB]:
-            cubicItem.reset()
-        self.updateHists()
-        l = graphicsScene.layer
-        l.applyToStack()
-        l.parentImage.onImageChanged()
+        color = self.scene().targetImage.getActivePixel(x, y, qcolor=True)
+        h = color.hsvHue()
+        if (modifiers & QtCore.Qt.ControlModifier):
+            self.marker.setPos(h * 300/360, -self.axeSize//2)
 
     def writeToStream(self, outStream):
         """
