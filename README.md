@@ -15,10 +15,11 @@ bLUe creates interactive 2.5D LUTs which can be edited by selecting, grouping an
 a (hue, saturation) color wheel. Nodes are bound to an elastic grid and a grid smoothing algorithm is provided
 to even the changes in color. Full 3D LUTs are created and edited by combining 2.5 LUTs with curve layers.
 
-Masks are automatically created from 2.5D LUTs, based on the node selection. They can be freely edited.
+Alternatively 3D LUTs can be created from delta curves defining value changes (additive or multiplicative)
+for a color channel, depending on the value of another channel. Currently, bLUe provides interactive (Hue, Brightness)
+delta curves to selectively modify the brightness of pixels, depending of their hue.
 
-Simple (Hue, Brightness) 2D curves are available to selectively modify the brightness of a set of colors,
-regardless of their saturation.
+Masks are automatically created from 2.5D LUTs, based on the node selection. They can be freely edited.
 
 In addition to color images in formats jpg, tif, png, bLUe develops raw files in all usual formats : nef, cr2, dng, ...
 It supports dng/dcp dual illuminant camera profiles. Camera model dcp profiles can be applied to any format
@@ -49,7 +50,8 @@ segmentation, geometric transformations, curves, 2D curves (currently Hue, Brigh
 * Automatic import of camera specific dual illuminant dng/dcp profiles
 * Adjustable profile tone curve
 * Library viewer
-* Slide Show
+* Slide show
+* Context help
 
 ## REQUIREMENTS
 
