@@ -15,9 +15,9 @@ bLUe creates interactive 2.5D LUTs which can be edited by selecting, grouping an
 a (hue, saturation) color wheel. Nodes are bound to an elastic grid and a grid smoothing algorithm is provided
 to even the changes in color. Full 3D LUTs are created and edited by combining 2.5 LUTs with curve layers.
 
-Alternatively 3D LUTs can be created from delta curves defining value changes (additive or multiplicative)
-for a color channel, depending on the value of another channel. Currently, bLUe provides interactive (Hue, Brightness)
-delta curves to selectively modify the brightness of pixels, depending of their hue.
+Alternatively 3D LUTs can be created from curves defining changes (additive or multiplicative shift)
+for a color channel, depending on the value of another channel. Currently, bLUe provides interactive (Hue, Brightness shift)
+curves to selectively modify the brightness of pixels, depending of their hue.
 
 Masks are automatically created from 2.5D LUTs, based on the node selection. They can be freely edited.
 
