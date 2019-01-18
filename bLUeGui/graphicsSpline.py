@@ -430,9 +430,13 @@ class activeBSpline(activeSpline):
     # represented by [0, axeSize] and the curve is enlarged
     # by periodViewing on both sides.
     periodViewing = 50
+
     def __init__(self, size, period=0):
         super().__init__(size, fixedPoints=None, parentItem=None, baseCurve=(QPoint(0, -size//2), QPoint(size, -size//2)))
         self.period = period
+        # x-coordinates of the  curve
+        self.xCoords = np.arange(size + 2 * self.periodViewing) - self.periodViewing
+        self.spline = [QPointF(x, -size//2) for x in self.xCoords]  # scene coord.
 
     def mouseReleaseEvent(self, e):
         """
@@ -464,10 +468,9 @@ class activeBSpline(activeSpline):
                 X.extend([item.B.x() + item.x(), item.C.x() + item.x()])
             X = np.array(X)
             Y = np.array([-(item.A.y() + item.y()) for item in self.fixedPoints]) - axeSize//2
-            xCoords = np.arange(axeSize + 2 * self.periodViewing) - self.periodViewing
-            T = displacementSpline(X, Y, xCoords,
+            T = displacementSpline(X, Y, self.xCoords,
                                    clippingInterval=[-self.scene().axeSize, 0], period=self.period)
-            self.spline = [QPointF(x, y) - QPointF(0, axeSize//2) for x, y in zip(xCoords, -T)]  # scene coord.
+            self.spline = [QPointF(x, y) - QPointF(0, axeSize//2) for x, y in zip(self.xCoords, -T)]  # scene coord.
             # build path
             polygon = QPolygonF(self.spline)
             qpp = QPainterPath()

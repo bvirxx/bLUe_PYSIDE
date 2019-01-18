@@ -16,17 +16,17 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 from PySide2 import QtCore
-from PySide2.QtCore import QRect
-from PySide2.QtCore import Qt, QRectF
-from PySide2.QtWidgets import QGraphicsScene, QGridLayout
+from PySide2.QtCore import Qt
+from PySide2.QtGui import QFontMetrics
+from PySide2.QtWidgets import QLabel, QGridLayout
 
 from bLUeCore.bLUeLUT3D import DeltaLUT3D
-from bLUeGui.graphicsSpline import activeCubicSpline, graphicsCurveForm, activeSplinePoint, channelValues, activeBSpline
+from bLUeGui.graphicsSpline import graphicsCurveForm, activeBSpline
 from graphicsLUT3D import activeMarker
-from utils import optionsWidget, QbLUePushButton
+from utils import QbLUeSlider
 
 
-class HVLUT2DForm(graphicsCurveForm) :
+class HVLUT2DForm(graphicsCurveForm):
     """
     Form for interactive HV 2D LUT
     """
@@ -36,38 +36,108 @@ class HVLUT2DForm(graphicsCurveForm) :
         newWindow.setWindowTitle(layer.name)
         return newWindow
 
-
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super().__init__(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
         # Init curve
         dSpline = activeBSpline(axeSize, period=axeSize)
         graphicsScene = self.scene()
         graphicsScene.addItem(dSpline)
+        # connect layer selectionChanged signal
+        self.layer.selectionChanged.sig.connect(self.updateLayer)
 
         dSpline.initFixedPoints()
 
         self.LUT = DeltaLUT3D((34, 32, 32))
 
-        # set current curve to dsplacement spline
+        # set current curve to displacement spline
         self.cubicItem = dSpline
         graphicsScene.cubicItem = dSpline
         graphicsScene.cubicItem.setVisible(True)
 
         self.marker = activeMarker.fromTriangle(parent=self.cubicItem)
+        self.marker.setPos(0, -axeSize//2)
         self.scene().addItem(self.marker)
 
+        def showPos(e, x, y):
+            self.markerLabel.setText("%d" % (x * 360 // axeSize))
+
+        self.marker.onMouseMove = showPos
+
+        self.markerLabel = QLabel()
+        font = self.markerLabel.font()
+        metrics = QFontMetrics(font)
+        w = metrics.width("0000")
+        h = metrics.height()
+        self.markerLabel.setMinimumSize(w, h)
+        self.markerLabel.setMaximumSize(w, h)
+
+        self.sliderSat = QbLUeSlider(Qt.Horizontal)
+        self.sliderSat.setMinimumWidth(200)
+
+        def satUpdate(value):
+            self.satValue.setText(str("{:d}".format(value)))
+            # move not yet terminated or values not modified
+            if self.sliderSat.isSliderDown() or value == self.satThr:
+                return
+            try:
+                self.sliderSat.valueChanged.disconnect()
+                self.sliderSat.sliderReleased.disconnect()
+            except RuntimeError:
+                pass
+            self.satThr = value
+            self.dataChanged.emit()
+            self.sliderSat.valueChanged.connect(satUpdate)
+            self.sliderSat.sliderReleased.connect(lambda: satUpdate(self.sliderSat.value()))
+
+        self.sliderSat.valueChanged.connect(satUpdate)
+        self.sliderSat.sliderReleased.connect(lambda: satUpdate(self.sliderSat.value()))
+
+        self.satValue = QLabel()
+        font = self.markerLabel.font()
+        metrics = QFontMetrics(font)
+        w = metrics.width("0000")
+        h = metrics.height()
+        self.satValue.setMinimumSize(w, h)
+        self.satValue.setMaximumSize(w, h)
+
+        # layout
+        gl = QGridLayout()
+        gl.addWidget(QLabel('Hue '), 0, 0)
+        gl.addWidget(self.markerLabel, 0, 1)
+        gl.addWidget(QLabel('Sat Thr '), 1, 0)
+        gl.addWidget(self.satValue, 1, 1)
+        gl.addWidget(self.sliderSat, 1, 2, 4, 1)
+        self.addCommandLayout(gl)
+
+        self.setDefaults()
+
         self.setWhatsThis(
-            """<b>(Hue, Brightness) correction curve</b><br>
+            """<b>(Hue, Brightness) 2D curve</b><br>
             The curve represents a brightness correction (initially 0) for 
-            each value of the hue. The specific brightness correction corresponding 
-            to its hue is applied to each image pixel.<br> 
-            To <b>add a bump triangle</b> click anywhere on the curve.<br>
+            each value of the hue. All pixel colors are changed by the specific 
+            brightness correction corresponding to their hue.
+            The curve is controlled by bump triangles.<br>
+            To <b>add a bump triangle</b> to the curve click anywhere on the curve.
+            To <b>remove the triangle</b> click on any vertex.<br>
             Drag the triangle vertices to move the bump along the x-axis and to change 
-            its height and orientation.<br>
-            To <b>set the Hue Value Marker</b> Ctrl+click on the image.
+            its height and orientation. Use the <b> Sat Thr</b> slider 
+            to preserve low saturated colors.<br>
+            To <b>set the Hue Value Marker</b> Ctrl+click on the image.<br>
+            To limit the brightness correction to a region of the image select the desired area
+            with the rectangular marquee tool.<br>
+            <b>Zoom</b> the curve with the mouse wheel.<br>
             """)
 
-        dSpline.curveChanged.sig.connect(self.updateLayer)
+    def setDefaults(self):
+        try:
+            self.dataChanged.disconnect()
+            self.cubicItem.curveChanged.sig.disconnect()
+        except RuntimeError:
+            pass
+        self.satThr = 10
+        self.sliderSat.setValue(self.satThr)
+        self.dataChanged.connect(self.updateLayer)
+        self.cubicItem.curveChanged.sig.connect(self.updateLayer)
 
     def updateLUT(self):
         """
@@ -76,14 +146,17 @@ class HVLUT2DForm(graphicsCurveForm) :
         data = self.LUT.data
         axeSize = self.axeSize
         hdivs = self.LUT.divs[0]
-        sThr = self.LUT.divs[1] // 4  # unsaturated color preservation threshold
+        # sat threshold
+        sThr = int(self.LUT.divs[1] * self.satThr / 100)
         hstep = 360 / hdivs
         activeSpline = self.cubicItem
         sp = activeSpline.spline[activeSpline.periodViewing:]
         d = axeSize // 2
+        # reinit the LUT
+        data[...] = 0, 1, 1
         for i in range(hdivs):
             pt = sp[int(i * hstep * axeSize/360)]
-            data[i, sThr:, :, 2] = 1.0 -(pt.y() + d) / 100
+            data[i, sThr:, :, 2] = 1.0 - (pt.y() + d) / 100
 
     def updateLayer(self):
         self.updateLUT()
@@ -104,8 +177,10 @@ class HVLUT2DForm(graphicsCurveForm) :
         """
         color = self.scene().targetImage.getActivePixel(x, y, qcolor=True)
         h = color.hsvHue()
-        if (modifiers & QtCore.Qt.ControlModifier):
+        if modifiers & QtCore.Qt.ControlModifier:
             self.marker.setPos(h * 300/360, -self.axeSize//2)
+            self.markerLabel.setText("%d" % h)
+            self.update()
 
     def writeToStream(self, outStream):
         """
