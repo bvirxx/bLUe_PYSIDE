@@ -399,7 +399,7 @@ class vImage(bImage):
         """
         copies qimg to image. Does not update metadata.
         image and qimg must have identical dimensions and type.
-        @param qimg: QImage object
+        @param qimg: image
         @type qimg: QImage
         """
         # image layer
@@ -1342,22 +1342,22 @@ class vImage(bImage):
         # get buffers
         inputImage = self.inputImg()
         currentImage = self.getCurrentImage()
+        bufOut = QImageBuffer(currentImage)
         if options is None:
             options = UDict()
         # get selection
-        w1, w2, h1, h2 = (0.0,) * 4
-        # selection
         if self.rect is not None:
             w, wF = self.getCurrentImage().width(), self.width()
             h, hF = self.getCurrentImage().height(), self.height()
             wRatio, hRatio = float(w) / wF, float(h) / hF
-            if self.rect is not None:
-                w1, w2, h1, h2 = int(self.rect.left() * wRatio), int(self.rect.right() * wRatio), int(self.rect.top() * hRatio), int(self.rect.bottom() * hRatio)
+            w1, w2, h1, h2 = int(self.rect.left() * wRatio), int(self.rect.right() * wRatio), int(self.rect.top() * hRatio), int(self.rect.bottom() * hRatio)
             w1, h1 = max(w1, 0), max(h1, 0)
             w2, h2 = min(w2, inputImage.width()), min(h2, inputImage.height())
             if w1 >= w2 or h1 >= h2:
                 dlgWarn("Empty selection\nSelect a region with the marquee tool")
                 return
+            # reset layer image
+            bufOut[:,:,:] = QImageBuffer(inputImage)
         else:
             w1, w2, h1, h2 = 0, self.inputImg().width(), 0, self.inputImg().height()
         # get HSV buffer, range H: 0..180, S:0..255 V:0..255
@@ -1376,8 +1376,8 @@ class vImage(bImage):
         bufHSV_CV32[:, :, 0] /= 2
 
         bufpostF32_1 = cv2.cvtColor(bufHSV_CV32.astype(np.uint8), cv2.COLOR_HSV2RGB)
-        buf = QImageBuffer(currentImage)
-        buf[h1:h2 + 1, w1:w2 + 1, :3] = bufpostF32_1[:,:,::-1]
+        bufOut = QImageBuffer(currentImage)
+        bufOut[h1:h2 + 1, w1:w2 + 1, :3] = bufpostF32_1[:,:,::-1]
         self.updatePixmap()
 
     def apply3DLUT(self, LUT, LUTSTEP, options=None, pool=None):

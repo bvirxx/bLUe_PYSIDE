@@ -624,6 +624,9 @@ class activeGrid(QGraphicsPathItem):
 
 
 class activeMarker(QGraphicsPolygonItem):
+    """
+    Movable marker
+    """
 
     size = 10
     triangle = QPolygonF()

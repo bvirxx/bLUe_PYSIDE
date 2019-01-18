@@ -1150,7 +1150,6 @@ class QLayer(vImage):
     def reset(self):
         """
         reset layer to inputImg
-        @return:
         """
         self.setImage(self.inputImg())
 
