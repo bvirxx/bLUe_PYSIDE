@@ -1299,7 +1299,7 @@ def menuLayer(name):
         layer.execute = lambda l=layer, pool=pool: l.tLayer.apply3DLUT(sc.lut.LUT3DArray, sc.lut.step,
                                                                        options=sc.options, pool=pool)
     elif name == 'action2D_LUT_HV':
-        layerName = 'HV 2D LUT'
+        layerName = '3D LUT HSV Shift'
         layer = window.label.img.addAdjustmentLayer(name=layerName, role='2DLUT')
         grWindow = HVLUT2DForm.getNewWindow(axeSize=300, targetImage=window.label.img,
                                                   layer=layer, parent=window)

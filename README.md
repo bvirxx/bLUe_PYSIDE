@@ -15,8 +15,10 @@ bLUe creates interactive 2.5D LUTs which can be edited by selecting, grouping an
 a (hue, saturation) color wheel. Nodes are bound to an elastic grid and a grid smoothing algorithm is provided
 to even the changes in color. Full 3D LUTs are created and edited by combining 2.5 LUTs with curve layers.
 
-Alternatively 3D LUTs can be created from curves defining changes (additive or multiplicative shift)
-for a color channel, depending on the value of another channel. Currently, bLUe provides interactive (Hue, Brightness shift)
+Alternatively 3D LUTs can be created from curves defining changes (additive or multiplicative shifts)
+for a color channel, depending on the value of another channel. bLUe can create and edit interactive 3D LUTs for
+HSV shifts.
+
 curves to selectively modify the brightness of pixels, depending of their hue.
 
 Masks are automatically created from 2.5D LUTs, based on the node selection. They can be freely edited.
@@ -38,7 +40,7 @@ The program is written in Python.
 
 * Edition of images in formats jpg, png, tif, nef, cr2, dng,...
 * Adjustment layers : exposure, brightness, saturation, contrast, channel mixer, color temperature, inversion, filters, noise reduction, cloning,
-segmentation, geometric transformations, curves, 2D curves (currently Hue, Brightness 2D curves), 2.5D LUTs, 3D LUTs.
+segmentation, geometric transformations, curves, 2.5D LUTs, 3D LUTs.
 * RGB, HSV, CMYK, Lab color models
 * Fast skin tone correction
 * Automatic contrast enhancement (histogram warping and CLAHE)

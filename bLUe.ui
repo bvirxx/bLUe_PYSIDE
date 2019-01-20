@@ -1175,7 +1175,7 @@ Screen</string>
   </action>
   <action name="action2D_LUT_HV">
    <property name="text">
-    <string>2D LUT HV</string>
+    <string>3D LUT HSV Shift</string>
    </property>
   </action>
  </widget>

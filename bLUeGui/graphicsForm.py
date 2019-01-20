@@ -215,7 +215,7 @@ class graphicsCurveForm(baseGraphicsForm):
     @classmethod
     def drawPlotGrid(cls, axeSize, gradient=None):
         """
-        Rerturn a QGraphicsPathItem initialized with
+        Return a QGraphicsPathItem initialized with
         a square grid.
         @param axeSize:
         @type axeSize: int

@@ -87,7 +87,7 @@ class activePoint(QGraphicsPathItem):
 
 class activeTriangle(QGraphicsPathItem):
     """
-    interactive triangle
+    interactive bump triangle
     """
     def __init__(self, x, y, bump, persistent=False, rect=None, parentItem=None):
         super().__init__(parent=parentItem)
@@ -136,21 +136,22 @@ class activeTriangle(QGraphicsPathItem):
             self.B.setX(min(x1, x2))
             self.C.setX(max(x1, x2))
         self.update()
-        self.scene().cubicItem.updatePath()
+        self.parentItem().updatePath()
 
     def mouseReleaseEvent(self, e):
         # get scene current spline
         sc = self.scene()
-        item = sc.cubicItem
+        # get parent spline
+        activeSpline = self.parentItem() # sc.cubicItem
         # click event : remove point
         if self.clicked:
             if self.persistent:
                 return
-            item.fixedPoints.remove(self)
+            activeSpline.fixedPoints.remove(self)
             sc.removeItem(self)
             return
-        sc.cubicItem.updateLUTXY()
-        sc.cubicItem.curveChanged.sig.emit()
+        activeSpline.updateLUTXY()
+        activeSpline.curveChanged.sig.emit()
 
     def hoverEnterEvent(self, *args, **kwargs):
         self.setPen(QPen(QColor(0, 255, 0), 2))
@@ -431,12 +432,21 @@ class activeBSpline(activeSpline):
     # by periodViewing on both sides.
     periodViewing = 50
 
-    def __init__(self, size, period=0):
-        super().__init__(size, fixedPoints=None, parentItem=None, baseCurve=(QPoint(0, -size//2), QPoint(size, -size//2)))
+    def __init__(self, size, period=0, yZero=0):
+        """
+        @param size: Spline size (scene coords)
+        @type size: int
+        @param period: Spline period (scene coords.) or 0
+        @type period: int
+        @param yZero: curve origin is (0, yZero)
+        @type yZero: int
+        """
+        super().__init__(size, fixedPoints=None, parentItem=None, baseCurve=(QPoint(0, yZero), QPoint(size, yZero)))
         self.period = period
+        self.yZero = yZero
         # x-coordinates of the  curve
         self.xCoords = np.arange(size + 2 * self.periodViewing) - self.periodViewing
-        self.spline = [QPointF(x, -size//2) for x in self.xCoords]  # scene coord.
+        self.spline = [QPointF(x, yZero) for x in self.xCoords]  # scene coord.
 
     def mouseReleaseEvent(self, e):
         """
@@ -458,19 +468,20 @@ class activeBSpline(activeSpline):
         """
         axeSize = self.size
         rect = QRectF(0.0, -axeSize, axeSize, axeSize)
-        self.fixedPoints = [activeTriangle(50, -axeSize //2, 25, persistent=True, rect=rect, parentItem=self)]
+        self.fixedPoints = [activeTriangle(50, self.yZero, 25, persistent=True, rect=rect, parentItem=self)]
 
     def updatePath(self):
         axeSize = self.size
+        yZero = self.yZero
         try:
             X=[]
             for item in self.fixedPoints:
                 X.extend([item.B.x() + item.x(), item.C.x() + item.x()])
             X = np.array(X)
-            Y = np.array([-(item.A.y() + item.y()) for item in self.fixedPoints]) - axeSize//2
+            Y = np.array([-(item.A.y() + item.y()) for item in self.fixedPoints]) + yZero
             T = displacementSpline(X, Y, self.xCoords,
                                    clippingInterval=[-self.scene().axeSize, 0], period=self.period)
-            self.spline = [QPointF(x, y) - QPointF(0, axeSize//2) for x, y in zip(self.xCoords, -T)]  # scene coord.
+            self.spline = [QPointF(x, y + yZero)  for x, y in zip(self.xCoords, -T)]  # scene coord.
             # build path
             polygon = QPolygonF(self.spline)
             qpp = QPainterPath()

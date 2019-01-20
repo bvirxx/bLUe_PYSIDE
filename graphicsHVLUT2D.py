@@ -38,23 +38,28 @@ class HVLUT2DForm(graphicsCurveForm):
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super().__init__(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
-        # Init curve
-        dSpline = activeBSpline(axeSize, period=axeSize)
         graphicsScene = self.scene()
-        graphicsScene.addItem(dSpline)
         # connect layer selectionChanged signal
         self.layer.selectionChanged.sig.connect(self.updateLayer)
+        # Init curves
+        dSplineItem = activeBSpline(axeSize, period=axeSize, yZero=-3*axeSize//4)
+        graphicsScene.addItem(dSplineItem)
+        dSplineItem.setVisible(True)
+        dSplineItem.initFixedPoints()
+        self.dSplineItemB = dSplineItem
+        graphicsScene.dSplineItemB = dSplineItem
 
-        dSpline.initFixedPoints()
+        dSplineItem = activeBSpline(axeSize, period=axeSize, yZero=-axeSize // 4)
+        graphicsScene.addItem(dSplineItem)
+        dSplineItem.setVisible(True)
+        dSplineItem.initFixedPoints()
+        self.dSplineItemH = dSplineItem
+        graphicsScene.dSplineItemH = dSplineItem
 
+        # init 3D LUT
         self.LUT = DeltaLUT3D((34, 32, 32))
 
-        # set current curve to displacement spline
-        self.cubicItem = dSpline
-        graphicsScene.cubicItem = dSpline
-        graphicsScene.cubicItem.setVisible(True)
-
-        self.marker = activeMarker.fromTriangle(parent=self.cubicItem)
+        self.marker = activeMarker.fromTriangle(parent=self.dSplineItemB)
         self.marker.setPos(0, -axeSize//2)
         self.scene().addItem(self.marker)
 
@@ -112,32 +117,35 @@ class HVLUT2DForm(graphicsCurveForm):
         self.setDefaults()
 
         self.setWhatsThis(
-            """<b>(Hue, Brightness) 2D curve</b><br>
-            The curve represents a brightness correction (initially 0) for 
-            each value of the hue. All pixel colors are changed by the specific 
-            brightness correction corresponding to their hue.
-            The curve is controlled by bump triangles.<br>
+            """<b>3D LUT Shift HSV</b><br>
+            x-axes represent hue values from 0 to 360.
+            The upper curve shows brightness multiplicative shifts (initially 1) and
+            the lower curve hue additive shifts (initially 0). 
+            All pixel colors are changed by the specific shifts corresponding to their hue.
+            Each curve is controlled by bump triangles.<br>
             To <b>add a bump triangle</b> to the curve click anywhere on the curve.
             To <b>remove the triangle</b> click on any vertex.<br>
             Drag the triangle vertices to move the bump along the x-axis and to change 
             its height and orientation. Use the <b> Sat Thr</b> slider 
             to preserve low saturated colors.<br>
             To <b>set the Hue Value Marker</b> Ctrl+click on the image.<br>
-            To limit the brightness correction to a region of the image select the desired area
+            To limit the shift corrections to a region of the image select the desired area
             with the rectangular marquee tool.<br>
-            <b>Zoom</b> the curve with the mouse wheel.<br>
+            <b>Zoom</b> the curves with the mouse wheel.<br>
             """)
 
     def setDefaults(self):
         try:
             self.dataChanged.disconnect()
-            self.cubicItem.curveChanged.sig.disconnect()
+            self.dSplineItemB.curveChanged.sig.disconnect()
+            self.dSplineItemH.curveChanged.sig.disconnect()
         except RuntimeError:
             pass
         self.satThr = 10
         self.sliderSat.setValue(self.satThr)
         self.dataChanged.connect(self.updateLayer)
-        self.cubicItem.curveChanged.sig.connect(self.updateLayer)
+        self.dSplineItemB.curveChanged.sig.connect(self.updateLayer)
+        self.dSplineItemH.curveChanged.sig.connect(self.updateLayer)
 
     def updateLUT(self):
         """
@@ -149,14 +157,21 @@ class HVLUT2DForm(graphicsCurveForm):
         # sat threshold
         sThr = int(self.LUT.divs[1] * self.satThr / 100)
         hstep = 360 / hdivs
-        activeSpline = self.cubicItem
+        activeSpline = self.dSplineItemB
         sp = activeSpline.spline[activeSpline.periodViewing:]
-        d = axeSize // 2
+        d = activeSpline.yZero
         # reinit the LUT
         data[...] = 0, 1, 1
         for i in range(hdivs):
             pt = sp[int(i * hstep * axeSize/360)]
-            data[i, sThr:, :, 2] = 1.0 - (pt.y() + d) / 100
+            data[i, sThr:, :, 2] = 1.0 - (pt.y() - d) / 100
+
+        activeSpline = self.dSplineItemH
+        sp = activeSpline.spline[activeSpline.periodViewing:]
+        d = activeSpline.yZero
+        for i in range(hdivs):
+            pt = sp[int(i * hstep * axeSize / 360)]
+            data[i, sThr:, :, 0] = - (pt.y() - d) / 5
 
     def updateLayer(self):
         self.updateLUT()
