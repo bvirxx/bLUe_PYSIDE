@@ -46,6 +46,13 @@ class abstractForm:
     This container is designed for multiple
     inheritance only and should never be instantiated.
     """
+
+    @classmethod
+    def getNewWindow(cls, targetImage=None, axeSize=200, layer=None, parent=None):
+        wdgt = cls(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
+        wdgt.setWindowTitle(layer.name)
+        return wdgt
+
     @property
     def layer(self):
         return self.__layer
