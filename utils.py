@@ -25,16 +25,70 @@ from PySide2 import QtCore
 from PySide2.QtGui import QColor, QImage, QPainter, QPixmap, QIcon
 from PySide2.QtWidgets import QListWidget, QListWidgetItem, \
     QSlider, QLabel, QDockWidget, QStyle, QColorDialog, QPushButton
-from PySide2.QtCore import Qt, QObject, QRect
+from PySide2.QtCore import Qt, QObject, QRect, QEvent
 
 from bLUeCore.rollingStats import movingVariance
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.baseSignal import baseSignal_No
+from debug import tdec
+
+
+def shift2D(arr, tr, fill=0):
+    """
+    Shift the two first axes of an array.
+    The missing region is padded with the value fill
+    (default 0). To be compliant with opencv images
+    the first axis of arr is shifted by the second component of tr.
+    The original array is not modified.
+    @param arr: array
+    @type arr: ndarray, ndims >= 2
+    @param tr: 2-uple of translations for the 2 first axes
+    @type tr: array-like
+    @param fill: filling value
+    @type fill: float
+    @return: the shifted array
+    @rtype: ndarray same shape and dtype as arr
+    """
+    s = arr.shape
+    result = np.full(s, fill, dtype=arr.dtype)
+    r1 = QRect(0, 0, s[1], s[0])
+    r2 = QRect(tr[1], tr[0], s[1], s[0])
+    r3 = QRect(-tr[1], -tr[0], s[1], s[0])
+    r4, r5 = r1 & r2, r1 & r3
+    if r4.isValid() and r5.isValid():
+        result[r4.top():r4.bottom(), r4.left():r4.right()] = arr[r5.top():r5.bottom(), r5.left():r5.right()]
+    return result
+
+
+def array2DSlices(a2D, rect):
+    """
+    Return the 2-uple of slice objects convenient to
+    index the intersection of the 2 dimensional array a2D
+    with rect.
+    @param a2D:
+    @type a2D: ndarray, ndims >=2
+    @param rect: (x, y, w, h)
+    @type rect: 4-uple of int or QRect object
+    @return:
+    @rtype: 2-uple of slice objects
+    """
+    # convert rect to a QRect object
+    if type(rect) not in [QRect]:
+        try:
+            rect = QRect(* rect)
+        except (TypeError, ValueError):
+            rect = QRect()
+    # intersect a2D with rect
+    qrect = QRect(0, 0, a2D.shape[1], a2D.shape[0]) & rect
+    if qrect.isValid():
+        return slice(qrect.top(), qrect.bottom()), slice(qrect.left(), qrect.right())
+    else:
+        return slice(0, 0), slice(0, 0)
 
 
 def qColorToRGB(color):
     """
-    Converts a QColor to its R,G,B components (range 0..255)
+    Convert a QColor to its R,G,B components (range 0..255)
     @param color:
     @type color: QColor
     @return:
@@ -78,11 +132,11 @@ class colorInfoView(QDockWidget):
         self.setFocusPolicy(Qt.ClickFocus)
         self.label.setStyleSheet("font-family: 'courier'; font-size: 8pt")
         self.label.setWhatsThis(
-"""<b>ActiveLayer input/output</b><br>
-For each color space (RGB, CMYK, HSV) input values are displayed in the left column
-and output values in the right column.<br>
-"""
-                        )  # end of setWhatsThis
+                                """<b>ActiveLayer input/output</b><br>
+                                For each color space (RGB, CMYK, HSV) input values are displayed in the left column
+                                and output values in the right column.<br>
+                                """
+                                )  # end of setWhatsThis
 
     def setText(self, clrI, clrC):
         """
@@ -197,41 +251,41 @@ class QbLUeSlider(QSlider):
     with a single jump when clicking on the groove.
     """
     bLueSliderDefaultColorStylesheet = """QSlider::groove:horizontal:enabled { 
-                                                                        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 blue, stop:1 red);
-                                                                        }
-                                          QSlider::groove:horizontal:disabled {
-                                                                        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #8888FF, stop:1 #FF8888);
-                                                                        }"""
+                                                                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 blue, stop:1 red);
+                                                                }
+                                                                QSlider::groove:horizontal:disabled {
+                                                                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #8888FF, stop:1 #FF8888);
+                                                                }"""
     bLueSliderDefaultMGColorStylesheet = """QSlider::groove:horizontal:enabled {
-                                                                        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 magenta, stop:1 green);
-                                                                        }
+                                                                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 magenta, stop:1 green);
+                                                                }
                                             QSlider::groove:horizontal:disabled {
-                                                                        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #8888FF, stop:1 #FF8888);
-                                                                        }"""
+                                                                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #8888FF, stop:1 #FF8888);
+                                                                }"""
     bLueSliderDefaultIMGColorStylesheet = """QSlider::groove:horizontal:enabled {
-                                                                        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 green, stop:1 magenta);
-                                                                        }
+                                                                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 green, stop:1 magenta);
+                                                                }
                                              QSlider::groove:horizontal:disabled {
-                                                                        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #8888FF, stop:1 #FF8888);
-                                                                        }"""
+                                                                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #8888FF, stop:1 #FF8888);
+                                                                }"""
     bLueSliderDefaultIColorStylesheet = """QSlider::groove:horizontal:enabled {
-                                                                        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 red, stop:1 blue);
-                                                                        }
+                                                                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 red, stop:1 blue);
+                                                                }
                                             QSlider::groove:horizontal:disabled { 
-                                                                        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #8888FF, stop:1 #FF8888);
-                                                                        }"""
+                                                                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #8888FF, stop:1 #FF8888);
+                                                                }"""
     bLueSliderDefaultBWStylesheet = """QSlider::groove:horizontal:enabled {
-                                                                        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #333333, stop:1 white);
-                                                                        }
+                                                                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #333333, stop:1 white);
+                                                                }
                                        QSlider::groove:horizontal:disabled {
-                                                                        background: #888888;
-                                                                        }"""
+                                                                background: #888888;
+                                                                }"""
     bLueSliderDefaultIBWStylesheet = """QSlider::groove:horizontal:enabled {
-                                                                        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 gray, stop:1 #333333);
-                                                                        }
+                                                                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 gray, stop:1 #333333);
+                                                                }
                                         QSlider::groove:horizontal:disabled {
-                                                                        background: #888888;
-                                                                        }"""
+                                                                background: #888888;
+                                                                }"""
 
     def __init__(self, *args, **kwargs):
         super(QbLUeSlider, self).__init__(*args, **kwargs)
@@ -340,20 +394,17 @@ class optionsWidgetItem(QListWidgetItem):
     def internalName(self):
         return self._internalName
 
-    def setInternalName(self, name):
-        self._internalName = name
-
     def isChecked(self):
         return self.checkState() == Qt.CheckState.Checked
 
 
 class optionsWidget(QListWidget):
     """
-    Displays a list of options with checkboxes.
+    Display a list of options with checkboxes.
     The choices can be mutually exclusive (default) or not
     exclusive. Actions can be done on item selection by assigning
     a function to onSelect. It is called after the selection of the new item.
-    if changed is not None, it is called when an item is clicked.
+    if changed is not None, it is emitted/called when an item is clicked.
     """
 
     def __init__(self, options=None, optionNames=None, exclusive=True, changed=None, parent=None):
@@ -395,20 +446,37 @@ class optionsWidget(QListWidget):
             self.itemClicked.connect(changed)
         # selection hook.
         self.onSelect = lambda x: 0
+        self.viewport().installEventFilter(self)
+
+    def eventFilter(self, target, e):
+        """
+        Filter mouse events on disabled items
+        @param e:
+        @type e:
+        """
+        if e.type() in [QEvent.MouseButtonPress, QEvent.MouseMove, QEvent.MouseButtonRelease, QEvent.MouseButtonDblClick]:
+            item = self.itemAt(e.pos())
+            if item.flags() & Qt.ItemIsEnabled:
+                return False  # send to target
+            else:
+                return True
+        return False
 
     def select(self, item, callOnSelect=True):
         """
-        Item clicked event handler. It updates the states of the items and
+        Item clicked event handler. It updates the state of the items and
         the dict of options. Next, if callOnSelect is True, onSelect is called.
         @param item:
         @type item: QListWidgetItem
         @param callOnSelect:
         @type callOnSelect: bool
         """
+        if not(item.flags() & Qt.ItemIsEnabled):
+            return
         # Update item states:
         # if exclusive, clicking on an item should turn it
         # into (or keep it) checked. Otherwise, there is nothing to do
-        # since select is called after the item state has changed.
+        # because select is called after the item state has changed.
         if self.exclusive:
             for r in range(self.count()):
                 currentItem = self.item(r)
@@ -437,7 +505,7 @@ class optionsWidget(QListWidget):
         """
         item = self.items[name]
         if not checked and self.exclusive:
-            raise ValueError('For mutually exclusive options, unchecking is not possible. Please, check another item')
+            raise ValueError('For mutually exclusive options, unchecking is not possible. Please check another item')
         item.setCheckState(Qt.Checked if checked else Qt.Unchecked)
         self.select(item, callOnSelect=callOnSelect)
 
@@ -446,6 +514,12 @@ class optionsWidget(QListWidget):
             return
         for r in range(self.count()):
             self.item(r).setCheckState(Qt.Unchecked)
+
+    @property
+    def checkedItems(self):
+        return [self.item(i) for i in range(self.count()) if self.item(i).checkState() == Qt.Checked]
+
+
 
 
 def checkeredImage(format=QImage.Format_ARGB32):
@@ -465,26 +539,6 @@ def checkeredImage(format=QImage.Format_ARGB32):
     qp.fillRect(10, 10, 10, 10, Qt.gray)
     qp.end()
     return base
-    """
-    qp=QPainter(image)
-    qp.setCompositionMode(QPainter.CompositionMode_Source)
-    # draw the pattern once at 0,0
-    qp.drawImage(0, 0, base)
-    imageW, imageH = image.width(), image.height()
-    baseW, baseH = base.width(), base.height()
-    while ((baseW < imageW) or (baseH < imageH) ):
-        if (baseW < imageW) :
-            # Copy and draw the existing pattern to the right
-            qp.drawImage(QRect(baseW, 0, baseW, baseH), image, QRect(0, 0, baseW, baseH))
-            baseW *= 2
-        if (baseH < imageH) :
-            # Copy and draw the existing pattern to the bottom
-            qp.drawImage(QRect(0, baseH, baseW, baseH), image, QRect(0, 0, baseW, baseH))
-            # Update height of our pattern
-            baseH *= 2
-    qp.end()
-    return image
-    """
 
 
 class stateAwareQDockWidget(QDockWidget):
@@ -595,48 +649,8 @@ def clip(image, mask, inverted=False):
     bufImg[:, :, 3] = bufMask[:, :, 3]
 
 
-def boundingRect(img, pattern=0):
-    """
-    Given an image img, the function builds the bounding rectangle
-    of the region defined by (img == pattern). Rectangle coordinates are relative to img.
-    If the region is empty, the function returns an invalid rectangle.
-    @param img:
-    @type img: 2D array
-    @param pattern:
-    @type pattern: img.dtype
-    @return:
-    @rtype: QRect or None
-    """
-    def leftPattern(b):
-        """
-        For a 1-channel image, returns the leftmost
-        x-coordinate of max value.
-        @param b: image
-        @type b: 2D array, dtype=int or float
-        @return: leftmost x-coordinate of max value
-        @rtype: int
-        """
-        # we build the array of first occurrences of row max
-        XMin = np.argmax(b, axis=1)
-        # To exclude the rows with a max different of the global max,
-        # we assign to them a value greater than all possible indices.
-        XMin = np.where(np.diagonal(b[:, XMin]) == np.max(b), XMin, np.sum(b.shape)+1)
-        return np.min(XMin)
-    # indicator function of the region
-    img = np.where(img==pattern, 1, 0)
-    # empty region
-    if np.max(img) == 0:
-        return QRect(0, 0, -1, -1)
-    # build the enclosing rectangle
-    left = leftPattern(img)
-    right = img.shape[1] - 1 - leftPattern(img[::-1, ::-1])
-    top = leftPattern(img.T)
-    bottom = img.shape[0] - 1 - leftPattern(img.T[::-1, ::-1])
-    return QRect(left, top, right - left, bottom - top)
-
-
 if __name__ == '__main__':
-    a= np.ones(100, dtype=int).reshape(10, 10)
-    #b=strides_2d(a, (11,11))
-    m = movingVariance(a,7)
+    a = np.ones(100, dtype=int).reshape(10, 10)
+    # b=strides_2d(a, (11,11))
+    m = movingVariance(a, 7)
     print(m)
