@@ -266,7 +266,7 @@ class rotatingHandle(baseHandle):
         @param event:
         @type event:
         """
-        modifiers = QApplication.keyboardModifiers()
+        modifiers = event.modifiers()  # QApplication.keyboardModifiers()
         # mouse coordinates, relative to parent widget
         pos = self.mapToParent(event.pos())
         img = self.tool.layer.parentImage
