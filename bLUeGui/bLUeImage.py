@@ -35,8 +35,8 @@ class bImage(QImage):
     The pixmap is synchronized with the image by the
     method updatePixmap().
     """
-    @classmethod
-    def fromImage(cls, img, parentImage=None):
+    @staticmethod
+    def fromImage(img, parentImage=None):
         bImg = bImage(img)
         bImg.parentImage = parentImage
         return bImg
