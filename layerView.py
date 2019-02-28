@@ -158,23 +158,21 @@ class QLayerView(QTableView) :
             self.img.useThumb = (state == Qt.Checked)
             window.updateStatus()
             self.img.cacheInvalidate()
-            for layer in self.img.layersStack:
-                layer.autoclone = True  # auto update cloning layers
-                layer.knitted = False
+            #for layer in self.img.layersStack:
+                #layer.autoclone = True  # auto update cloning layers
+                # layer.knitted = False
             try:
                 QApplication.setOverrideCursor(Qt.WaitCursor)  # TODO 18/04/18 waitcursor is called by applytostack?
                 QApplication.processEvents()
                 # update the whole stack
                 self.img.layersStack[0].applyToStack()
-                self.img.onImageChanged()  # TODO added 30/11/18 validate
-
+                self.img.onImageChanged()
             finally:
-                for layer in self.img.layersStack:
-                    layer.autoclone = False  # reset flags
-                    layer.knitted = False
+                #for layer in self.img.layersStack:
+                    #layer.autoclone = False  # reset flags
+                    # layer.knitted = False
                 QApplication.restoreOverrideCursor()
                 QApplication.processEvents()
-            # window.label.repaint()  # TODO removed 30/11/18 replaced by onImageChange above
         self.previewOptionBox.stateChanged.connect(m)
         self.previewOptionBox.setChecked(True)  # m is not triggered
 

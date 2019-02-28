@@ -20,7 +20,7 @@ from os.path import isfile
 from time import time
 import numpy as np
 
-from PySide2.QtCore import Qt, QRectF, QMargins
+from PySide2.QtCore import Qt, QRectF, QMargins, QPoint
 
 import cv2
 from copy import copy
@@ -31,9 +31,7 @@ from PySide2.QtGui import QPixmap, QImage, QColor, QPainter
 from PySide2.QtCore import QRect
 
 from bLUeGui.bLUeImage import bImage, ndarrayToQImage
-from bLUeCore.tetrahedral import interpTetra
-from bLUeCore.trilinear import interpTriLinear
-from bLUeCore.multi import interpMulti, chosenInterp
+from bLUeCore.multi import chosenInterp
 
 from debug import tdec
 from graphicsBlendFilter import blendFilterIndex
@@ -50,8 +48,7 @@ from bLUeGui.dialog import dlgWarn
 from bLUeCore.kernel import getKernel
 from lutUtils import LUT3DIdentity
 from rawProcessing import rawPostProcess
-from settings import USE_TETRA
-from utils import boundingRect, UDict
+from utils import UDict
 from bLUeCore.dwtDenoising import dwtDenoiseChan
 
 
@@ -67,7 +64,6 @@ class metadataBag:
     def __init__(self, name=''):
         self.name, self.colorSpace, self.rawMetadata, self.profile, self.orientation, self.rating = \
                                                               name, ColorSpace.notSpecified, {}, '', None, 5
-
 
 class vImage(bImage):
     """
@@ -149,6 +145,19 @@ class vImage(bImage):
         # record mask alpha in the G channel
         buf[:, :, 1] = (255 - buf[:, :, 2]) * 0.75
         return mask
+
+    @staticmethod
+    def color2BinaryArray(mask):
+        """
+        Return a binary array with values 0/255.
+        0 corresponds to masked pixels and 255 to unmasked ones.
+        @param mask:
+        @type mask: QImage
+        @return:
+        @rtype: ndarray dtype= uint8, shape (h, w)
+        """
+        buf = np.copy(QImageBuffer(mask))
+        return np.where(buf[:, :, 2] == 0, np.uint8(0), np.uint8(255))
 
     @ classmethod
     def isAllMasked(cls, mask):
@@ -251,58 +260,6 @@ class vImage(bImage):
     def maskSmooth(mask, ks=11):
         kernelMean = np.ones((ks, ks), np.float) / (ks * ks)
         return cv2.filter2D(mask, -1, kernelMean)
-
-    @ classmethod
-    def seamlessMerge(cls, dest, source, mask, cloningMethod):
-        """
-        Seamless cloning of source into dest.
-        The cloning area corresponds to the unmasked region.
-        The dest image is modified.
-        @param dest:
-        @type dest: vImage
-        @param source:
-        @type source: vImage
-        @param mask: color mask
-        @type mask: QImage
-        @param cloningMethod:
-        @type cloningMethod:
-        """
-        # scale the mask to source size and convert to an opacity mask
-        src_mask = vImage.color2OpacityMask(mask).scaled(source.size())
-        # turn the mask into a 1-channel buffer. The cloning area corresponds to
-        # cloning_mask == 255.
-        buf = QImageBuffer(src_mask)
-        cloning_mask = np.where(buf[:, :, 3] == 0, 0, 255)
-        # calculate the bounding rect of the cloning area.
-        # coordinates are relative to tmp (or src_mask)
-        oRect = boundingRect(cloning_mask, pattern=255)
-        if not oRect.isValid():
-            dlgWarn("seamlessMerge : no cloning region found")
-            return
-        margin = 0
-        bRect = oRect + QMargins(margin, margin, margin, margin)
-        if not bRect.isValid():
-            dlgWarn("seamlessMerge : no cloning region found")
-            return
-        inRect = bRect & QImage.rect(src_mask)
-        bt, bb, bl, br = inRect.top(), inRect.bottom(), inRect.left(), inRect.right()
-        # cv2.seamlesClone uses a white mask, so we turn cloning_mask into
-        # a 3-channel buffer.
-        src_maskBuf = np.dstack((cloning_mask, cloning_mask, cloning_mask)).astype(np.uint8)[bt:bb+1, bl:br+1, :]
-        sourceBuf = QImageBuffer(source)[bt:bb+1, bl:br+1, :]
-        destBuf = QImageBuffer(dest)[bt:bb+1, bl:br+1, :]
-        # The cloning center is the center of oRect. We look for its coordinates
-        # relative to inRect
-        center = (oRect.width()//2 + oRect.left() - inRect.left(), oRect.height()//2 + oRect.top() - inRect.top())
-        # center = (oRect.left()+oRect.right()) // 2, (oRect.top()+oRect.bottom()) // 2
-        output = cv2.seamlessClone(np.ascontiguousarray(sourceBuf[:, :, :3][:, :, ::-1]),  # source
-                                   np.ascontiguousarray(destBuf[:, :, :3][:, :, ::-1]),    # dest
-                                   src_maskBuf,
-                                   center,
-                                   cloningMethod
-                                   )
-        # copy output into dest
-        destBuf[:, :, :3][:, :, ::-1] = output  # assign src_ maskBuf for testing
 
     def __init__(self, filename=None, cv2Img=None, QImg=None, format=QImage.Format_ARGB32,
                  name='', colorSpace=-1, orientation=None, rating=5, meta=None, rawMetadata=None, profile=''):
@@ -558,8 +515,6 @@ class vImage(bImage):
         """
         self.isModified = b
 
-
-
     def updatePixmap(self, maskOnly=False):
         """
         For the sake of performance and memory usage,
@@ -651,12 +606,14 @@ class vImage(bImage):
 
     def applyCloning(self, seamless=True, showTranslated=False, moving=False):
         """
-        Seamless cloning. The method uses a virtual layer which can
-        be interactively translated and zoomed.
-        If showTranslated is True (default False) the output image
-        is the virtual layer.
-        If seamless is True (default) actual cloning is done.
-        If moving is True (default False) the input image is not updated
+        Seamless cloning. In addition to the layer input image, (output) image
+        and mask, the method uses a source pixmap. The pixmap can
+        be interactively translated and zoomed and (next) cloned into the layer
+        input image to produce the layer (output) image. The cloning
+        source and output regions correspond to the unmasked areas.
+        If seamless is True (default) actual cloning is done, otherwise
+        the source is simply copied into the layer.
+        If moving is True (default False) the input image is not updated.
         @param seamless:
         @type seamless: boolean
         @param showTranslated:
@@ -664,13 +621,28 @@ class vImage(bImage):
         @param moving: flag indicating if the method is triggered by a mouse event
         @type moving: boolean
         """
-        # when moving the virtual layer no change is made to
-        # lower layers : we set redo to False
+        adjustForm = self.getGraphicsForm()
+        options = adjustForm.options
+        #  No change is made to lower layers
+        # while moving the virtual layer: then we set redo to False
         imgIn = self.inputImg(redo=not moving)
-        pxIn = imgIn.rPixmap # QPixmap.fromImage(imgIn)
-        if pxIn is None:
+        if not moving:
+            self.updateSourcePixmap()
+        """
+        # no source loaded yet : init source pixmap
+        # to layer input image
+        if adjustForm.sourcePixmap is None:
             imgIn.rPixmap = QPixmap.fromImage(imgIn)
-            pxIn = imgIn.rPixmap
+            adjustForm.sourcePixmap = imgIn.rPixmap
+            adjustForm.sourcePixmapThumb = adjustForm.sourcePixmap.scaled(adjustForm.pwSize, adjustForm.pwSize, Qt.KeepAspectRatio)
+            self.widgetImg.setFixedSize(self.sourcePixmapThumb.size())
+            adjustForm.sourceFromFile = False
+        elif not (adjustForm.sourceFromFile or moving):
+            # changes might occur in lower layers or preview/full mode
+            self.updateSourcePixmap()
+        """
+        sourcePixmap = adjustForm.sourcePixmap
+        sourcePixmapThumb = adjustForm.sourcePixmapThumb
         imgOut = self.getCurrentImage()
         ########################
         # hald pass through
@@ -680,29 +652,59 @@ class vImage(bImage):
             buf1[...] = buf0
             return
         ########################
-        # erase previous transformed image : reset imgOut to ImgIn;
-        # Next, draw the translated and zoomed input image on imgOut
-        if seamless or showTranslated:
-            qp = QPainter(imgOut)
-            qp.setCompositionMode(QPainter.CompositionMode_Source)
-            qp.drawPixmap(QRect(0, 0, imgOut.width(), imgOut.height()), pxIn, pxIn.rect())
-            # get translation relative to current Image
-            currentAltX, currentAltY = self.full2CurrentXY(self.xAltOffset, self.yAltOffset)
-            # draw translated and zoomed input image (nothing is drawn outside of dest image)
-            qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
-            rect = QRectF(currentAltX, currentAltY, imgOut.width()*self.AltZoom_coeff, imgOut.height()*self.AltZoom_coeff)
-            qp.drawPixmap(rect, pxIn, pxIn.rect())
-            qp.end()
+
+        if not (seamless or showTranslated):  # nothing to do
+            return
+        ##############################################
+        # update the marker in the positioning window
+        ##############################################
+        # mask center coordinates relative to full size image
+        r = self.monts['m00']
+        if r == 0:
+            dlgWarn('No cloning mask found')
+            return
+        x, y = self.monts['m10'] / r, self.monts['m01'] / r
+        ratioX, ratioY = sourcePixmapThumb.width() / self.width(), sourcePixmapThumb.height() / self.height()  # (sourcePixmap.width()
+        pxInScaled_Copy = sourcePixmapThumb.copy()
+        qptemp = QPainter(pxInScaled_Copy)
+        qptemp.setPen(Qt.white)
+        qptemp.drawEllipse(QPoint((x - self.xAltOffset) * ratioX, (y- self.yAltOffset) * ratioY), 10, 10)
+        qptemp.end()
+        adjustForm.widgetImg.setPixmap(pxInScaled_Copy)
+        adjustForm.widgetImg.repaint()
+        ##############################################################
+        # erase previous transformed image : reset imgOut to ImgIn and
+        # draw the translated and zoomed source pixmap on imgOut
+        ##############################################################
+        qp = QPainter(imgOut)
+        qp.setCompositionMode(QPainter.CompositionMode_Source)
+        qp.drawPixmap(QRect(0, 0, imgOut.width(), imgOut.height()), sourcePixmap, sourcePixmap.rect())
+        # get translation relative to current Image
+        currentAltX, currentAltY = self.full2CurrentXY(self.xAltOffset, self.yAltOffset)
+        # draw translated and zoomed source pixmap (nothing is drawn outside of dest image)
+        qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
+        bRect = QRectF(currentAltX, currentAltY, imgOut.width() * self.AltZoom_coeff, imgOut.height() * self.AltZoom_coeff)
+        qp.drawPixmap(bRect, sourcePixmap, sourcePixmap.rect())
+        """
+        w1, h1 = sourcePixmap.width(), sourcePixmap.height()
+        w2, h2 = imgOut.width(), imgOut.height()
+        k = max(w1 / w2, h1 / h2)
+        qp.drawPixmap(bRect, sourcePixmap, QRect(0, 0, w2 * k, h2 * k))
+        """
+        qp.end()
+
+        #####################
         # do seamless cloning
+        #####################
         if seamless:
             try:
                 QApplication.setOverrideCursor(Qt.WaitCursor)
                 QApplication.processEvents()
                 # temporary dest image
                 imgInc = imgIn.copy()
-                # source image is the previous translated image
-                src = imgOut
-                vImage.seamlessMerge(imgInc, src, self.mask, self.cloningMethod)
+                # clone imgOut into imgInc
+                self.seamlessMerge(imgInc, imgOut, self.mask, self.cloningMethod,
+                                     version="blue" if options['blue'] else 'opencv', w=16)
                 bufOut = QImageBuffer(imgOut)
                 bufOut[:, :, :3] = QImageBuffer(imgInc)[:, :, :3]
             finally:
@@ -715,7 +717,8 @@ class vImage(bImage):
         # the presentation layer must be updated here because
         # applyCloning is called directly (mouse and Clone button events).
         self.parentImage.prLayer.update()  # = applyNone()
-        self.parentImage.onImageChanged()
+        self.parentImage.onImageChanged(hist=False)
+
 
     def applyGrabcut(self, nbIter=2, mode=cv2.GC_INIT_WITH_MASK):
         """

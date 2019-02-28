@@ -44,6 +44,7 @@ segmentation, geometric transformations, curves, 2.5D LUTs, 3D LUTs.
 * RGB, HSV, CMYK, Lab color models
 * Fast skin tone correction
 * Automatic contrast enhancement (histogram warping and CLAHE)
+* Fast Laplace Solver (cloning)
 * Crop tool
 * Multiple blending modes; adjustable layer opacity
 * Import and export of 3D LUTs in .cube format

@@ -17,82 +17,89 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 import cv2
-from PySide2.QtCore import Qt
-from PySide2.QtWidgets import QVBoxLayout, QHBoxLayout, QPushButton
+from PySide2.QtCore import Qt, QRect
+from PySide2.QtGui import QImage, QPixmap, QPainter
+from PySide2.QtWidgets import QVBoxLayout, QHBoxLayout, QPushButton, QWidget, QLabel, QFileDialog
 
 from bLUeGui.graphicsForm import baseForm
-from bLUeGui.dialog import dlgWarn
+from bLUeGui.dialog import dlgWarn, IMAGE_FILE_EXTENSIONS
 
 from versatileImg import vImage
-from utils import optionsWidget
+from utils import optionsWidget, UDict
 
 
 class patchForm (baseForm):
     """
     Seamless cloning form.
-    Cloning is slow, so it is never automatic.
-    It is executed only when the user press a "clone" button.
-    As a consequence, this form does not use the signal dataChanged.
     """
-    @classmethod
-    def getNewWindow(cls, targetImage=None, axeSize=200, layer=None, parent=None):
-        wdgt = patchForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
-        wdgt.setWindowTitle(layer.name)
-        return wdgt
+    # positioning window size
+    pwSize = 200
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super().__init__(layer=layer, targetImage=targetImage, parent=parent)
-        # self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        # self.setMinimumSize(axeSize, axeSize)
-        # self.setAttribute(Qt.WA_DeleteOnClose)
-        # back links to image
-        # self.targetImage = weakProxy(targetImage)
-        # self.img = weakProxy(targetImage)
-        # self.layer = weakProxy(layer)
-        # options
-        options_dict = {'Normal Clone': cv2.NORMAL_CLONE,
+        # positioning window
+        self.widgetImg = QLabel(parent=parent)
+        # stay on top and center
+        self.widgetImg.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.Dialog )
+        # source pixmap
+        self.sourcePixmap = None
+        self.sourcePixmapThumb = None
+        # flag indicating where source pixmap come from
+        self.sourceFromFile = False
+        # opencv flags
+        cv2Flag_dict = {'Normal Clone': cv2.NORMAL_CLONE,
                         'Mixed Clone': cv2.MIXED_CLONE,
                         'Monochrome Transfer': cv2.MONOCHROME_TRANSFER}
-        options = list(options_dict.keys())
-        self.layer.cloningMethod = options_dict['Normal Clone']
+        cv2Flags = list(cv2Flag_dict.keys())
+
+        self.layer.cloningMethod = cv2Flag_dict['Normal Clone']
         self.layer.maskIsEnabled = True
         self.layer.maskIsSelected = True
         # mask all pixels, use a semi transparent mask
         self.layer.resetMask(maskAll=True, alpha=128)
-        self.layer.autoclone = False  # cloning is slow : no cloning is performed by applyToStack() calls
-        self.layer.cloningMethod = cv2.NORMAL_CLONE
-        self.options = {}
-        for op in options:
-            self.options[op] = False
-        self.listWidget1 = optionsWidget(options=options, exclusive=True)
-        sel = options[0]
-        self.listWidget1.select(self.listWidget1.items[sel])
-        self.options[sel] = True
-        # select slot
+        self.layer.autoclone = True
 
-        def onSelect1(item):
-            for key in self.options:
-                self.options[key] = item is self.listWidget1.items[key]
-                if self.options[key]:
-                    self.layer.cloningMethod = options_dict[key]
-        self.listWidget1.onSelect = onSelect1
-        # set initial selection to normal cloning
-        item = self.listWidget1.items[options[0]]
-        item.setCheckState(Qt.Checked)
-        self.listWidget1.select(item)
-        pushButton1 = QPushButton('Clone')
+        self.listWidget1 = optionsWidget(options=cv2Flags, exclusive=True, changed=self.dataChanged)
+        # init flags
+        for i in range(self.listWidget1.count()):
+            item = self.listWidget1.item(i)
+            item.setData(Qt.UserRole, cv2Flag_dict[item.text()])
+        self.options = self.listWidget1.options
+        self.listWidget1.checkOption(self.listWidget1.intNames[0])
 
-        # Clone button clicked slot
+        optionList2, optionListNames2 = ['opencv', 'blue'], ['OpenCV Cloning', 'bLUe Cloning']
+        self.listWidget2 = optionsWidget(options=optionList2, optionNames=optionListNames2,
+                                         exclusive=True, changed=self.dataChanged)
+        self.listWidget2.checkOption(self.listWidget2.intNames[1])
+
+        self.options = UDict((self.options, self.listWidget2.options))
+
+        pushButton1 = QPushButton('Load Image From File')
+
+        # Load Image button clicked slot
         def f():
-            layer = self.layer
-            if vImage.isAllMasked(layer.mask):
-                dlgWarn('Nothing to clone: unmask some pixels')
-                return
-            if layer.xAltOffset == 0.0 and layer.yAltOffset == 0.0:
-                dlgWarn('Nothing to clone: Ctr+Alt+Drag the image ')
-                return
-            layer.applyCloning(seamless=True)
-            layer.parentImage.onImageChanged()
+            from QtGui1 import window
+            lastDir = str(window.settings.value('paths/dlgdir', '.'))
+            dlg = QFileDialog(window, "select", lastDir, " *".join(IMAGE_FILE_EXTENSIONS))
+            if dlg.exec_():
+                filenames = dlg.selectedFiles()
+                newDir = dlg.directory().absolutePath()
+                window.settings.setValue('paths/dlgdir', newDir)
+                img = QImage(filenames[0])
+                # scale img while keeping its aspect ratio
+                # into a QPixmap having the same size as self layer
+                sourcePixmap = QPixmap.fromImage(img).scaled(self.layer.size(), Qt.KeepAspectRatio)
+                self.sourcePixmap = QPixmap(self.layer.size())
+                self.sourcePixmap.fill(Qt.black)
+                qp = QPainter(self.sourcePixmap)
+                qp.drawPixmap(QRect(0, 0, sourcePixmap.width(), sourcePixmap.height()), sourcePixmap)
+                qp.end()
+                self.sourcePixmapThumb = self.sourcePixmap.scaled(self.pwSize, self.pwSize, aspectMode=Qt.KeepAspectRatio)
+                self.widgetImg.setPixmap(self.sourcePixmapThumb)
+                self.widgetImg.setFixedSize(self.sourcePixmapThumb.size())
+                self.sourceFromFile = True
+            self.widgetImg.show()
+
         pushButton1.clicked.connect(f)
         pushButton2 = QPushButton('Reset')
 
@@ -108,10 +115,12 @@ class patchForm (baseForm):
             layer.applyCloning(seamless=False, showTranslated=True)
             layer.parentImage.onImageChanged()
         pushButton2.clicked.connect(g)
+
         # layout
         layout = QVBoxLayout()
         layout.setContentsMargins(20, 0, 20, 25)  # left, top, right, bottom
         self.setLayout(layout)
+        layout.addWidget(self.listWidget2)
         layout.addWidget(self.listWidget1)
         hl = QHBoxLayout()
         hl.addWidget(pushButton1)
@@ -124,22 +133,52 @@ class patchForm (baseForm):
                             """
                             <b>Cloning</b> :
                             Seamless replacement of a region of the image by another region from the same image 
-                            (e.g. to erase an object):<br>
-                               &nbsp; 1) Select the Unmask/FG tool and paint the pixels to erase 
-                                         (use the Mask/BG tool to adjust if needed); <br>
-                               &nbsp; 2) Select the drag tool and while pressing <b>Ctrl-Alt</b>, drag
-                                         or zoom the image shown in the painted region with the mouse;<br>
-                               &nbsp; 3) Click the Clone button to start the cloning.<br>
-                            Redo steps 1 to 3 until the result is satisfactory. Eventually 
-                            use <b>Mask Erode</b> from the layer context menu to smooth mask edges.<br>
-                            <b> While executing steps 1 to 4 above, make sure that
-                            the cloning layer is the topmost visible layer</b><br>
-                            
+                            or by another image (e.g. to erase an object):<br>
+                               &nbsp; 1) <b> make sure that the cloning layer is the topmost visible layer</b><br>
+                               &nbsp; 2) Select the Unmask/FG tool and paint the pixels to erase 
+                                         (use the Mask/BG tool to adjust the mask if needed); <br>
+                               &nbsp; 3) Select the drag tool and while pressing <b>Ctrl-Alt</b> use
+                                         the mouse to drag or zoom the image shown in the painted region;<br>
+                            Eventually use <b>Mask Erode</b> from the layer context menu to smooth mask edges.<br>
                             """
                         )  # end of setWhatsthis
 
     def setDefaults(self):
-        pass
+        self.enableOptions()
+        self.listWidget1.checkOption(self.listWidget1.intNames[0])
+        self.layer.cloningMethod = self.listWidget1.checkedItems[0].data(Qt.UserRole)
+        #self.widgetImg.setPixmap(QPixmap.fromImage(self.layer.inputImg().scaled(200, 200, aspectMode=Qt.KeepAspectRatio)))
+        # init positioning window
+        img = self.layer.inputImg()
+        if img.rPixmap is None:
+            img.rPixmap = QPixmap.fromImage(img)
+        self.sourcePixmap = img.rPixmap
+        self.sourcePixmapThumb = self.sourcePixmap.scaled(200, 200, aspectMode=Qt.KeepAspectRatio)
+        self.widgetImg.setPixmap(self.sourcePixmapThumb)
+        self.widgetImg.setFixedSize(self.sourcePixmapThumb.size())
+        self.widgetImg.show()
+        try:
+            self.dataChanged.disconnect()
+        except RuntimeError:
+            pass
+        self.dataChanged.connect(self.updateLayer)
+
+    def enableOptions(self):
+        if self.options['blue']:
+            # make sure disabled options are unchecked
+            self.listWidget1.checkOption('Normal Clone')
+        for item in [self.listWidget1.item(i) for i in (1, 2) ]:  # mixed clone, monochrome transfer
+            if self.options['opencv']:
+                item.setFlags(item.flags() | Qt.ItemIsEnabled)
+            else:
+                item.setFlags(item.flags() & ~Qt.ItemIsEnabled)
 
     def updateLayer(self):
-        pass
+        """
+        data changed slot
+        """
+        self.enableOptions()
+        layer = self.layer
+        layer.cloningMethod = self.listWidget1.checkedItems[0].data(Qt.UserRole)
+        layer.applyToStack()
+        layer.parentImage.onImageChanged()

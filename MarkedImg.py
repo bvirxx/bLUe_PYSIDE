@@ -31,6 +31,7 @@ from PySide2.QtCore import QRect
 
 import exiftool
 from bLUeGui.memory import weakProxy
+from cloning import contours, moments, seamlessClone
 
 from colorManagement import icc, cmsConvertQImage
 from bLUeGui.bLUeImage import QImageBuffer, ndarrayToQImage, bImage
@@ -605,7 +606,9 @@ class QLayer(vImage):
     @classmethod
     def fromImage(cls, mImg, parentImage=None):
         """
-        Returns a QLayer object initialized with mImg.
+        Return a QLayer object initialized with mImg.
+        Derived classes get an instance of themselves
+        without overriding.
         @param mImg:
         @type mImg: QImage
         @param parentImage:
@@ -613,7 +616,7 @@ class QLayer(vImage):
         @return:
         @rtype: Qlayer
         """
-        layer = QLayer(QImg=mImg, parentImage=parentImage)
+        layer = cls(QImg=mImg, parentImage=parentImage)
         layer.parentImage = parentImage
         return layer
 
@@ -825,7 +828,7 @@ class QLayer(vImage):
         If redo is True(default), containers are updated.
         layer.applyToStack() always calls inputImg() with redo=True.
         So, to keep the containers up to date we only have to follow
-        each layer modification with a call to layer.applyToStack().
+        each layer modification by a call to layer.applyToStack().
         @param redo:
         @type redo: boolean
         @return:
@@ -1225,6 +1228,145 @@ class QPresentationLayer(QLayer):
 
     def update(self):
         self.applyNone()
+
+
+class QCloningLayer(QLayer):
+    """
+    Cloning layer.
+    To make easier image retouching the cloning mask is
+    taken from the destination image
+    """
+    """
+    @classmethod
+    def fromImage(cls, mImg, parentImage=None):
+        Return a QCloningLayer object initialized with mImg.
+        @param mImg:
+        @type mImg: QImage
+        @param parentImage:
+        @type parentImage: mImage
+        @return:
+        @rtype: QCloninglayer
+        layer = QCloningLayer(QImg=mImg, parentImage=parentImage)
+        layer.parentImage = parentImage
+        return layer
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # cloning source image
+        self.srcImg = None
+        # virtual layer moved flag
+        self.vlChanged = False
+        # cloning mask
+        self.cloning_mask = None  # binary mask : array dtype= np.uint8 shape (h, w) values 0/255
+        self.conts = None  # mask contours
+        self.monts = None  # mask moments
+
+    def updateCloningMask(self):
+        """
+        Update the binary cloning mask and its moments
+        """
+        if not self.isCloningLayer():
+            return
+        self.cloning_mask = vImage.color2BinaryArray(self.mask)
+        self.monts = moments(self.cloning_mask)
+        """
+        # calculate the contours and moments  of the mask
+        self.conts = contours(self.cloning_mask)
+        cont = self.conts[0]
+        # simplify the contour and get its bounding rect
+        epsilon = 0.01 * cv2.arcLength(cont, True)
+        acont = cv2.approxPolyDP(cont, epsilon, True)
+        self.bRect = QRect(*cv2.boundingRect(acont))
+        """
+
+    def updateSourcePixmap(self):
+        """
+        If the cloning source is the layer input image
+        the method refreshes the source pixmap and the
+        positioning window, otherwise it does nothing.
+        The method should be called every time the lower
+        stack is modified.
+        """
+        adjustForm = self.getGraphicsForm()
+        if not adjustForm.sourceFromFile:
+            img = self.inputImg()
+            if img.rPixmap is None:
+                img.rPixmap = QPixmap.fromImage(img)
+            adjustForm.sourcePixmap = img.rPixmap
+            adjustForm.sourcePixmapThumb = adjustForm.sourcePixmap.scaled(adjustForm.pwSize, adjustForm.pwSize, aspectMode=Qt.KeepAspectRatio)
+            adjustForm.widgetImg.setPixmap(adjustForm.sourcePixmapThumb)
+            adjustForm.widgetImg.setFixedSize(adjustForm.sourcePixmapThumb.size())
+        adjustForm.widgetImg.show()
+
+    def seamlessMerge(self, outImg, inImg, mask, cloningMethod, version='opencv', w=3):
+        """
+        Seamless cloning of inImg into outImg.
+        The cloning (destination) area corresponds to the unmasked region.
+        @param outImg:
+        @type outImg: vImage
+        @param inImg:
+        @type inImg: vImage
+        @param mask: color mask
+        @type mask: QImage
+        @param tr: translation
+        @type tr: 2-uple of float
+        @param cloningMethod:
+        @type cloningMethod:
+        """
+        # scale the mask to dest size and convert to a binary mask
+        #src_mask = vImage.color2OpacityMask(mask.scaled(dest.size())).copy(QRect(QPoint(0, 0), source.size())) #scaled(source.size())
+        src_mask = mask.scaled(outImg.size()).copy(QRect(QPoint(0, 0), inImg.size())) #scaled(source.size())
+        cloning_mask = vImage.color2BinaryArray(src_mask)
+        # get the contour of the mask
+        conts = contours(cloning_mask)
+        cv2.moments(cloning_mask)
+        cont = conts[0]
+        # simplify the contour and get its bounding rect
+        epsilon = 0.01 * cv2.arcLength(cont, True)
+        acont = cv2.approxPolyDP(cont, epsilon, True)
+        bRect = QRect( * cv2.boundingRect(acont))
+        """
+        self.updateCloningMask()
+        cloning_mask = self.cloning_mask
+        conts = self.conts
+        bRect =self.bRect
+        """
+        if not bRect.isValid():
+            dlgWarn("seamlessMerge : no cloning region found")
+            return
+        inRect = bRect & QImage.rect(src_mask)
+        bt, bb, bl, br = inRect.top(), inRect.bottom(), inRect.left(), inRect.right()
+        # cv2.seamlesClone uses a white mask, so we turn cloning_mask into
+        # a 3-channel buffer.
+        src_maskBuf = np.dstack((cloning_mask, cloning_mask, cloning_mask)).astype(np.uint8)[bt:bb+1, bl:br+1, :]
+        sourceBuf = QImageBuffer(inImg)
+        destBuf = QImageBuffer(outImg)
+        if version == 'opencv':
+            sourceBuf = sourceBuf[bt:bb + 1, bl:br + 1, :]
+            destBuf = destBuf[bt:bb + 1, bl:br + 1, :]
+            # The cloning center is the center of oRect. We look for its coordinates
+            # relative to inRect
+            center = (
+            bRect.width() // 2 + bRect.left() - inRect.left(), bRect.height() // 2 + bRect.top() - inRect.top())
+            # center = (oRect.left()+oRect.right()) // 2, (oRect.top()+oRect.bottom()) // 2
+            output = cv2.seamlessClone(np.ascontiguousarray(sourceBuf[:, :, :3]),  # source
+                                       np.ascontiguousarray(destBuf[:, :, :3]),    # dest
+                                       src_maskBuf,
+                                       center,
+                                       cloningMethod
+                                       )
+            destBuf[:, :, :3] = output  # assign src_ maskBuf for testing
+        else:
+            output = seamlessClone(sourceBuf[:,:,:3],
+                                    destBuf[:,:,:3],
+                                    cloning_mask,
+                                    conts,
+                                    bRect,
+                                    (0, 0),
+                                    (0, 0),
+                                    w=w)
+            destBuf[:, :, :3] = output
 
 
 class QLayerImage(QLayer):

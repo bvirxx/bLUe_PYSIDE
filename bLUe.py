@@ -149,7 +149,7 @@ from graphicsRaw import rawForm
 from graphicsTransform import transForm, imageForm
 from bLUeGui.bLUeImage import QImageBuffer, QImageFormats
 from versatileImg import vImage, metadataBag
-from MarkedImg import imImage, QRawLayer
+from MarkedImg import imImage, QRawLayer, QCloningLayer
 from graphicsRGBLUT import graphicsForm
 from graphicsLUT3D import graphicsForm3DLUT
 from lutUtils import LUTSIZE, LUT3D, LUT3DIdentity
@@ -329,8 +329,7 @@ def mouseEvent(widget, event):  # TODO split into 3 handlers
     r = img.resize_coeff(widget)
     # x, y coordinates (relative to widget)
     x, y = event.x(), event.y()
-    # keyboard modifiers
-    modifiers = app.keyboardModifiers()
+    modifiers = event.modifiers() # app.keyboardModifiers()
     eventType = event.type()
     ###################
     # mouse press event
@@ -349,7 +348,12 @@ def mouseEvent(widget, event):  # TODO split into 3 handlers
         if window.btnValues['drawFG'] or window.btnValues['drawBG']:
             if layer.maskIsEnabled:
                 layer.historyListMask.addItem(layer.mask.copy())
-        return  # no update needed
+        # dragBtn or arrow
+        elif modifiers == Qt.ControlModifier | Qt.AltModifier:
+            if layer.isCloningLayer():
+                layer.updateCloningMask()
+                layer.updateSourcePixmap()
+        return
     ##################
     # mouse move event
     ##################
@@ -447,13 +451,9 @@ def mouseEvent(widget, event):  # TODO split into 3 handlers
                     if layer.isCloningLayer():
                         layer.xAltOffset += (x - State['ix'])
                         layer.yAltOffset += (y - State['iy'])
-                        layer.autoclone = False
+                        layer.vlChanged = True
                         if layer.maskIsSelected or not layer.maskIsEnabled:
                             layer.setMaskEnabled(color=False)
-                        """
-                        layer.maskIsEnabled = True
-                        layer.maskIsSelected = False
-                        """
                         layer.applyCloning(seamless=False, showTranslated=True, moving=True)
         # not mouse selectable widget : probably before window alone !
         else:
@@ -528,6 +528,12 @@ def mouseEvent(widget, event):  # TODO split into 3 handlers
                 else: # not clicked
                     if window.btnValues['rectangle']:
                         layer.selectionChanged.sig.emit()
+                    # cloning layer
+                    elif layer.isCloningLayer():
+                        if layer.vlChanged:
+                            # the virtual layer was moved : clone
+                            layer.applyCloning(seamless=True, showTranslated=True, moving=True)
+                            layer.vlChanged = False
     # updates
     widget.repaint()
     # sync split views
@@ -549,11 +555,10 @@ def wheelEvent(widget, img, event):
     @param event: mouse wheel event (type QWheelEvent)
     """
     pos = event.pos()
+    modifiers = event.modifiers()
     # delta unit is 1/8 of degree
     # Most mice have a resolution of 15 degrees
     numSteps = event.delta() / 1200.0
-    # keyboard modifiers
-    modifiers = QApplication.keyboardModifiers()
     layer = img.getActiveLayer()
     if modifiers == Qt.NoModifier:
         img.Zoom_coeff *= (1.0 + numSteps)
@@ -580,7 +585,7 @@ def wheelEvent(widget, img, event):
         # under the cursor : (pos - offset) / resize_coeff is invariant
         layer.xAltOffset = -pos.x() * numSteps + (1.0 + numSteps) * layer.xAltOffset
         layer.yAltOffset = -pos.y() * numSteps + (1.0 + numSteps) * layer.yAltOffset
-        layer.autoclone = False
+        # layer.autoclone = False
         layer.applyCloning(seamless=False, showTranslated=True, moving=True)
     widget.repaint()
     # sync split views
@@ -965,10 +970,12 @@ def setDocumentImage(img):
     window.histView.targetImage = window.label.img
     # image changed event handler
 
-    def f():
+    def f(hist=True):
         # refresh windows (use repaint for faster update)
         window.label.repaint()
         window.label_3.repaint()
+        if not hist:
+            return
         # recompute and display histogram for the right image
         if window.histView.listWidget1.items['Original Image'].checkState() is Qt.Checked:
             histImg = vImage(QImg=window.label.img.getCurrentImage())  # must be vImage : histogram method needed
@@ -1310,8 +1317,8 @@ def menuLayer(name):
     # cloning
     elif name == 'actionNew_Cloning_Layer':
         lname = 'Cloning'
-        layer = window.label.img.addAdjustmentLayer(name=lname, role='CLONING')
-        grWindow = patchForm.getNewWindow(targetImage=window.label.img, layer=layer)
+        layer = window.label.img.addAdjustmentLayer(layerType=QCloningLayer, name=lname, role='CLONING')
+        grWindow = patchForm.getNewWindow(targetImage=window.label.img, layer=layer, parent=window)
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyCloning(seamless=l.autoclone)
     # segmentation
     elif name == 'actionNew_segmentation_layer':
@@ -1845,6 +1852,7 @@ if __name__ == '__main__':
                                         QTableView, QLabel, QGroupBox {background-color: rgb(40,40,40); 
                                                                        color: rgb(220,220,220)}
                            QListWidget::item{background-color: rgb(40, 40, 40); color: white}
+                           QListWidget::item:disabled{color: gray}
                            QMenu, QTableView {selection-background-color: blue;
                                                selection-color: white;}
                            QWidget, QComboBox, QTableView, QTableView * {font-size: 9pt}
