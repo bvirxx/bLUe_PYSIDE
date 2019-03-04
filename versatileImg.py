@@ -663,12 +663,12 @@ class vImage(bImage):
         if r == 0:
             dlgWarn('No cloning mask found')
             return
-        x, y = self.monts['m10'] / r, self.monts['m01'] / r
+        xC, yC = self.monts['m10'] / r, self.monts['m01'] / r
         ratioX, ratioY = sourcePixmapThumb.width() / self.width(), sourcePixmapThumb.height() / self.height()  # (sourcePixmap.width()
         pxInScaled_Copy = sourcePixmapThumb.copy()
         qptemp = QPainter(pxInScaled_Copy)
         qptemp.setPen(Qt.white)
-        qptemp.drawEllipse(QPoint((x - self.xAltOffset) * ratioX, (y- self.yAltOffset) * ratioY), 10, 10)
+        qptemp.drawEllipse(QPoint((xC - self.xAltOffset) * ratioX, (yC- self.yAltOffset) * ratioY), 10, 10)
         qptemp.end()
         adjustForm.widgetImg.setPixmap(pxInScaled_Copy)
         adjustForm.widgetImg.repaint()
@@ -681,16 +681,15 @@ class vImage(bImage):
         qp.drawPixmap(QRect(0, 0, imgOut.width(), imgOut.height()), sourcePixmap, sourcePixmap.rect())
         # get translation relative to current Image
         currentAltX, currentAltY = self.full2CurrentXY(self.xAltOffset, self.yAltOffset)
-        # draw translated and zoomed source pixmap (nothing is drawn outside of dest image)
+        # get mask center coordinates relative to the translated current image
+        xC_current, yC_current = self.full2CurrentXY(xC, yC)
+        xC_current, yC_current = xC_current - currentAltX, yC_current - currentAltY
+        # draw the translated and zoomed source pixmap (nothing is drawn outside of dest image)
+        # The translation is adjusted to keep the point (xC_current, yC_current) invariant while zooming.
         qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
-        bRect = QRectF(currentAltX, currentAltY, imgOut.width() * self.AltZoom_coeff, imgOut.height() * self.AltZoom_coeff)
+        bRect = QRectF(currentAltX + (1 - self.AltZoom_coeff) * xC_current, currentAltY + (1 - self.AltZoom_coeff) * yC_current,
+                       imgOut.width() * self.AltZoom_coeff, imgOut.height() * self.AltZoom_coeff)
         qp.drawPixmap(bRect, sourcePixmap, sourcePixmap.rect())
-        """
-        w1, h1 = sourcePixmap.width(), sourcePixmap.height()
-        w2, h2 = imgOut.width(), imgOut.height()
-        k = max(w1 / w2, h1 / h2)
-        qp.drawPixmap(bRect, sourcePixmap, QRect(0, 0, w2 * k, h2 * k))
-        """
         qp.end()
 
         #####################

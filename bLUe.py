@@ -567,7 +567,7 @@ def wheelEvent(widget, img, event):
             img.Zoom_coeff /= (1.0 + numSteps)
             return
         # correct image offset to keep unchanged the image point
-        # under the cursor : (pos - offset) / resize_coeff should be invariant
+        # under the cursor : (pos - offset) / resize_coeff is invariant
         img.xOffset = -pos.x() * numSteps + (1.0+numSteps)*img.xOffset
         img.yOffset = -pos.y() * numSteps + (1.0+numSteps)*img.yOffset
         if window.btnValues['Crop_Button']:
@@ -581,11 +581,6 @@ def wheelEvent(widget, img, event):
     # cloning layer zoom
     elif layer.isCloningLayer and modifiers == Qt.ControlModifier | Qt.AltModifier:
         layer.AltZoom_coeff *= (1.0 + numSteps)
-        # correct image offset to keep unchanged the image point
-        # under the cursor : (pos - offset) / resize_coeff is invariant
-        layer.xAltOffset = -pos.x() * numSteps + (1.0 + numSteps) * layer.xAltOffset
-        layer.yAltOffset = -pos.y() * numSteps + (1.0 + numSteps) * layer.yAltOffset
-        # layer.autoclone = False
         layer.applyCloning(seamless=False, showTranslated=True, moving=True)
     widget.repaint()
     # sync split views
