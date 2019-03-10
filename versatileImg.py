@@ -777,14 +777,12 @@ class vImage(bImage):
         segMask[m] = cv2.GC_BGD
         # segMask will be modified by grabcut : save a copy
         segMask_save = segMask.copy()
-
         # sanity check : at least one (FGD or PR_FGD)  pixel and one (BGD or PR_BGD) pixel
         if not ((np.any(segMask == cv2.GC_FGD) or np.any(segMask == cv2.GC_PR_FGD))
                 and
                 (np.any(segMask == cv2.GC_BGD) or np.any(segMask == cv2.GC_PR_BGD))):
             dlgWarn('You must select some background or foreground pixels', info='Use selection rectangle or Mask/Unmask tools')
             return
-
         #############
         # do segmentation
         #############

@@ -131,7 +131,7 @@ from types import MethodType
 import rawpy
 
 from bLUeCore.bLUeLUT3D import HaldArray
-from grabcut import segmentForm
+from graphicsSegment import segmentForm
 from PySide2.QtCore import QRect, QEvent, QUrl, QSize, QFileInfo, QRectF, QObject, QPoint, QPointF
 from PySide2.QtGui import QPixmap, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, \
     QPainterPath, QTransform, QContextMenuEvent, QColor, QImage
@@ -192,7 +192,7 @@ This product includes DNG technology under license by Adobe Systems Incorporated
 
 ##############
 #  Version number
-VERSION = "v1.4.0"
+VERSION = "v1.4.1"
 ##############
 
 ##############
