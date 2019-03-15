@@ -20,14 +20,14 @@ from os.path import isfile
 from time import time
 import numpy as np
 
-from PySide2.QtCore import Qt, QRectF, QMargins, QPoint
+from PySide2.QtCore import Qt, QRectF, QPoint
 
 import cv2
 from copy import copy
 
 from PySide2.QtGui import QImageReader, QTransform
 from PySide2.QtWidgets import QApplication, QSplitter
-from PySide2.QtGui import QPixmap, QImage, QColor, QPainter
+from PySide2.QtGui import QImage, QColor, QPainter
 from PySide2.QtCore import QRect
 
 from bLUeGui.bLUeImage import bImage, ndarrayToQImage
@@ -404,7 +404,7 @@ class vImage(bImage):
         """
         if not self.cachesEnabled:
             return
-        s = int((LUT3DIdentity.size)**(3.0/2.0)) + 1
+        s = int(LUT3DIdentity.size**(3.0/2.0)) + 1
         buf0 = LUT3DIdentity.toHaldArray(s, s).haldBuffer
         buf1 = QImageBuffer(self.Hald)
         buf1[:, :, :] = buf0
@@ -718,12 +718,11 @@ class vImage(bImage):
         self.parentImage.prLayer.update()  # = applyNone()
         self.parentImage.onImageChanged(hist=False)
 
-
     def applyGrabcut(self, nbIter=2, mode=cv2.GC_INIT_WITH_MASK):
         """
         Segmentation.
         The segmentation mask is built from the selection rectangle, if any, and from
-        the user painted pixels.
+        the user selection.
         @param nbIter:
         @type nbIter: int
         @param mode:
@@ -747,7 +746,7 @@ class vImage(bImage):
         ##################################################################
         # selection rectangle
         rect = self.rect
-        # resizing coeff fitting selection rectangle with current image
+        # resizing coeff fitting selection rectangle to the current image
         r = inputImg.width() / self.width()
         ############################
         # build the segmentation mask
@@ -763,7 +762,8 @@ class vImage(bImage):
         # add info from current self.mask
         # initially (i.e. before any painting with BG/FG tools and before first call to applygrabcut)
         # all mask pixels are marked as invalid. Painting a pixel marks it as valid, Ctrl+paint
-        # switches it back to invalid. Only valid pixels are added to segMask, fixing them as FG or BG
+        # switches it back to invalid.
+        # Only valid pixels are added to segMask, fixing them as FG or BG
         if inputImg.size() != self.size():
             scaledMask = self.mask.scaled(inputImg.width(), inputImg.height())
         else:
@@ -775,8 +775,6 @@ class vImage(bImage):
         segMask[m] = cv2.GC_FGD
         m = (scaledMaskBuf[:, :, 2] == 0) * (scaledMaskBuf[:, :, 1] != invalid)
         segMask[m] = cv2.GC_BGD
-        # segMask will be modified by grabcut : save a copy
-        segMask_save = segMask.copy()
         # sanity check : at least one (FGD or PR_FGD)  pixel and one (BGD or PR_BGD) pixel
         if not ((np.any(segMask == cv2.GC_FGD) or np.any(segMask == cv2.GC_PR_FGD))
                 and
@@ -786,8 +784,8 @@ class vImage(bImage):
         #############
         # do segmentation
         #############
-        bgdmodel = np.zeros((1, 13 * 5), np.float64)  # Temporary array for the background model
-        fgdmodel = np.zeros((1, 13 * 5), np.float64)  # Temporary array for the foreground model
+        bgdmodel = np.zeros((1, 13 * 5), np.float64)  # Temporary array for the background GMM model
+        fgdmodel = np.zeros((1, 13 * 5), np.float64)  # Temporary array for the foreground GMM model
         t0 = time()
         inputBuf = QImageBuffer(inputImg)
         # get the fastest available grabcut function
@@ -798,15 +796,12 @@ class vImage(bImage):
         bGrabcut(inputBuf[:, :, :3], segMask, None, bgdmodel, fgdmodel, nbIter, mode)
         print('%s : %.2f' % (bGrabcut.__name__, (time()-t0)))
 
-        # restore initial FGD and BGD pixels : #TODO 22/06/18 useless: already done by the cv2 function grabcut
-        # segMask = np.where((segMask_save == cv2.GC_BGD) + (segMask_save == cv2.GC_FGD), segMask_save, segMask)
-
         # back to mask
         unmasked = vImage.defaultColor_UnMasked.red()
         masked = vImage.defaultColor_Masked.red()
         buf = QImageBuffer(scaledMask)
         buf[:, :, 2] = np.where((segMask == cv2.GC_FGD) + (segMask == cv2.GC_PR_FGD), unmasked, masked)
-        buf[:, :, 3] = 128
+        buf[:, :, 3] = 128  # 50% opacity
 
         # mark all mask pixels as valid, thus
         # further calls to applyGrabcut will not be
@@ -1187,7 +1182,7 @@ class vImage(bImage):
         ndImg0 = ndImg0a[:, :, :3]
         ndImg1 = ndImg1a[:, :, :3]
         # apply LUTS to channels
-        s = ndImg0[:,:,0].shape
+        s = ndImg0[:, :, 0].shape
         for c in range(3):  # 0.36s for 15Mpx
             ndImg1[:, :, c] = np.take(stackedLUT[2-c, :], ndImg0[:, :, c].reshape((-1,))).reshape(s)
         # rList = np.array([2,1,0])  # B, G, R
@@ -1357,13 +1352,13 @@ class vImage(bImage):
                 dlgWarn("Empty selection\nSelect a region with the marquee tool")
                 return
             # reset layer image
-            bufOut[:,:,:] = QImageBuffer(inputImage)
+            bufOut[:, :, :] = QImageBuffer(inputImage)
         else:
             w1, w2, h1, h2 = 0, self.inputImg().width(), 0, self.inputImg().height()
         # get HSV buffer, range H: 0..180, S:0..255 V:0..255
         HSVImg0 = inputImage.getHSVBuffer()
         HSVImg0 = HSVImg0.astype(np.float)
-        HSVImg0[:,:,0] *= 2
+        HSVImg0[:, :, 0] *= 2
         bufHSV_CV32 = HSVImg0[h1:h2 + 1, w1:w2 + 1, :]
 
         divs = LUT.divs
@@ -1436,7 +1431,6 @@ class vImage(bImage):
             # forward the alpha channel
             imgBuffer[h1:h2 + 1, w1:w2 + 1, 3] = inputBuffer[:, :, 3]
         self.updatePixmap()
-
 
     def applyFilter2D(self, options=None):
         """
