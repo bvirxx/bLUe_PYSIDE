@@ -17,7 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 from PySide2.QtCore import Qt
-from PySide2.QtWidgets import QHBoxLayout, QPushButton, QSizePolicy, QVBoxLayout, QSpinBox, QLabel
+from PySide2.QtWidgets import QHBoxLayout, QPushButton, QVBoxLayout, QSpinBox, QLabel
 
 from versatileImg import vImage
 from QtGui1 import window

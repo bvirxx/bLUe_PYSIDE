@@ -982,6 +982,9 @@ Screen</string>
    </property>
   </action>
   <action name="actionBlue_help">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
    <property name="text">
     <string>Help</string>
    </property>
