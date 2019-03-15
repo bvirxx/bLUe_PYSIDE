@@ -5,23 +5,22 @@ Copyright (C) 2017-2018 Bernard Virot <bernard.virot@libertysurf.fr>
 ## DESCRIPTION
 
  bLUe proposes a modular and comprehensive GUI for photo edition, featuring a large set of controls as adjustment layers, including
- 3D LUTs, 2.5D LUTs, 2D curves and 1D curves for various color models.
+3D LUTs, 2.5D LUTs, 2D curves and 1D curves for various color models.
 
 A 3D LUT is a table representing a 3D cube of color nodes. Image pixels are associated
-to nodes, based on their color, and changes are applied to each node individually,
+with nodes, based on their color. Changes are applied to each node individually,
 giving full control over colors. When changes in color do not depend on the pixel brightnesses,
-the table is called a 2.5D LUT.
-bLUe creates interactive 2.5D LUTs which can be edited by selecting, grouping and moving nodes as control points over
+the table is called a 2.5D LUT. bLUe can create and edit 3D and 2.5D LUTs.
+
+  * 2.5D LUTs are edited by selecting, grouping and moving nodes as control points over
 a (hue, saturation) color wheel. Nodes are bound to an elastic grid and a grid smoothing algorithm is provided
-to even the changes in color. Full 3D LUTs are created and edited by combining 2.5 LUTs with curve layers.
+to even the changes in color. Selection masks are automatically created from 2.5D LUTs, based on the node selection. 
+They can be freely edited.
 
-Alternatively 3D LUTs can be created from curves defining changes (additive or multiplicative shifts)
-for a color channel, depending on the value of another channel. bLUe can create and edit interactive 3D LUTs for
-HSV shifts.
+ * 3D LUTs are controlled by curves defining changes (additive or multiplicative shifts)
+in a color channel, depending on the value of another channel. 
 
-curves to selectively modify the brightness of pixels, depending of their hue.
-
-Masks are automatically created from 2.5D LUTs, based on the node selection. They can be freely edited.
+Multiple adjustment layers can be exported as a single 3D LUT in .cube format.
 
 In addition to color images in formats jpg, tif, png, bLUe develops raw files in all usual formats : nef, cr2, dng, ...
 It supports dng/dcp dual illuminant camera profiles. Camera model dcp profiles can be applied to any format
@@ -39,8 +38,8 @@ The program is written in Python.
 ## FUNCTIONALITY
 
 * Edition of images in formats jpg, png, tif, nef, cr2, dng,...
-* Adjustment layers : exposure, brightness, saturation, contrast, channel mixer, color temperature, inversion, filters, noise reduction, cloning,
-segmentation, geometric transformations, curves, 2.5D LUTs, 3D LUTs.
+* Adjustment layers : exposure, brightness, saturation, contrast, channel mixer, color temperature, inversion, filters, noise reduction,
+seamless cloning, segmentation, geometric transformations, curves, 2.5D LUTs, 3D LUTs.
 * RGB, HSV, CMYK, Lab color models
 * Fast skin tone correction
 * Automatic contrast enhancement (histogram warping and CLAHE)
@@ -54,7 +53,7 @@ segmentation, geometric transformations, curves, 2.5D LUTs, 3D LUTs.
 * Adjustable profile tone curve
 * Library viewer
 * Slide show
-* Context help
+* Context sensitive help
 
 ## REQUIREMENTS
 
