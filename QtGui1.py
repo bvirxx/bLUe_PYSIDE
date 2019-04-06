@@ -183,7 +183,7 @@ if getattr(sys, 'frozen', False) and len(sys.argv) <= 1:
 ############
 # launch app
 ############
-QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)  # needed because some plugin (PIL ?)seems to initialize a WebEngine
+QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)  # needed when a plugin initializes a Qt WebEngine ?
 app = QApplication(sys.argv)
 # get root widget for screen management
 rootWidget = app.desktop()
