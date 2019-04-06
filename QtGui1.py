@@ -18,7 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import os
 
 from PySide2 import QtWidgets, QtCore
-from PySide2.QtCore import QSettings
+from PySide2.QtCore import QSettings, Qt
 import sys
 
 from PySide2.QtWidgets import QApplication, QLabel, QMainWindow
@@ -183,6 +183,7 @@ if getattr(sys, 'frozen', False) and len(sys.argv) <= 1:
 ############
 # launch app
 ############
+QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)  # needed because some plugin (PIL ?)seems to initialize a WebEngine
 app = QApplication(sys.argv)
 # get root widget for screen management
 rootWidget = app.desktop()
