@@ -89,7 +89,7 @@ class icc:
             cls.COLOR_MANAGE = cls.HAS_COLOR_MANAGE and cls.COLOR_MANAGE
         except (OSError, IOError) as e:
             print("I/O error({0}): {1}".format(e.errno, e.strerror))
-        except ValueError:
+        except (ValueError, TypeError):
             pass
         except:
             print("Unexpected error:", sys.exc_info()[0])
