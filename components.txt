@@ -1,6 +1,6 @@
-NumPy 1.15.4+mkl required >= 1.15.0
+NumPy 1.16.2+mkl required >= 1.15.0
 PySide2 5.9.6
-Pillow 5.1.0
+Pillow 6.0.0
 RawPy 0.13.0
 OpenCV 3
 PyWavelets
