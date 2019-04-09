@@ -18,10 +18,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import sys
 
 import numpy as np
-from PIL import Image
+from PIL import Image, _imagingcms
 
 from PIL.ImageCms import getOpenProfile, get_display_profile, getProfileInfo, \
-    buildTransformFromOpenProfiles, applyTransform, INTENT_PERCEPTUAL, ImageCmsProfile
+    buildTransformFromOpenProfiles, applyTransform, INTENT_PERCEPTUAL, ImageCmsProfile, PyCMSError, core
 from PySide2.QtGui import QImage
 
 from bLUeGui.bLUeImage import QImageBuffer
@@ -58,10 +58,14 @@ class icc:
         @param workingProfile:
         @type workingProfile:
         """
+        cls.HAS_COLOR_MANAGE = False
+        # look for valid profiles
         try:
             # get monitor profile as CmsProfile object.
             if qscreen is not None:
                 cls.monitorProfile = cls.getMonitorProfile(qscreen=qscreen)
+                if cls.monitorProfile is None:  # not handled in PIL
+                    raise ValueError
                 # get profile info, a PyCmsError exception is raised if monitorProfile is invalid
                 cls.monitorProfileInfo = getProfileInfo(cls.monitorProfile)
             # get working profile as CmsProfile object
@@ -89,11 +93,38 @@ class icc:
             cls.COLOR_MANAGE = cls.HAS_COLOR_MANAGE and cls.COLOR_MANAGE
         except (OSError, IOError) as e:
             print("I/O error({0}): {1}".format(e.errno, e.strerror))
-        except (ValueError, TypeError):
+        except (ValueError, TypeError, PyCMSError):
             pass
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
+
+    @staticmethod
+    def B_get_display_profile(handle=None):
+        """
+        bLUe version for get_display_profile: should be
+        tested and completed.
+        Note. The PIL function ImageCms.get_display_profile is system dependent,
+        it fails (at least) for win64.
+        @param handle: screen handle (Windows)
+        @type handle: int
+        @return: monitor profile
+        @rtype: ImpageCmsprofile
+        """
+        if sys.platform == "win32":
+            # from PIL import ImageWin
+            # if isinstance(handle, ImageWin.HDC):
+            profile = core.get_display_profile_win32(handle, 1)
+            # else:
+                # profile = core.get_display_profile_win32(handle or 0)
+        else:
+            try:
+                get = _imagingcms.get_display_profile
+            except AttributeError:
+                return None
+            else:
+                profile = get()
+        return ImageCmsProfile(profile)
 
     @classmethod
     def getMonitorProfile(cls, qscreen=None):
@@ -107,12 +138,13 @@ class icc:
         @return: monitor profile
         @rtype: CmsProfile
         """
+        # from PIL.ImageWin import HDC
         try:
             if qscreen is not None and sys.platform == 'win32':
-                dc = win32gui.CreateDC(qscreen.name(), None, None)
-                monitorProfile = get_display_profile(dc)    # cf. imageCms.get_display_profile_win32 v5.1.0 patch
+                dc = win32gui.CreateDC(str(qscreen.name()), None, None)
+                monitorProfile = cls.B_get_display_profile(dc)
             else:
-                monitorProfile = get_display_profile()
+                monitorProfile = cls.B_get_display_profile()
         except (RuntimeError, OSError):
             monitorProfile = None
         return monitorProfile
