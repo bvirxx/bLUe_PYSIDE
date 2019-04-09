@@ -64,7 +64,7 @@ class icc:
             # get monitor profile as CmsProfile object.
             if qscreen is not None:
                 cls.monitorProfile = cls.getMonitorProfile(qscreen=qscreen)
-                if cls.monitorProfile is None:  # not handled in PIL
+                if cls.monitorProfile is None:  # not handled by PIL
                     raise ValueError
                 # get profile info, a PyCmsError exception is raised if monitorProfile is invalid
                 cls.monitorProfileInfo = getProfileInfo(cls.monitorProfile)
