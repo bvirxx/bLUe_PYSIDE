@@ -20,14 +20,14 @@ import sys
 import numpy as np
 from PIL import Image, _imagingcms
 
-from PIL.ImageCms import getOpenProfile, get_display_profile, getProfileInfo, \
+from PIL.ImageCms import getOpenProfile, getProfileInfo, \
     buildTransformFromOpenProfiles, applyTransform, INTENT_PERCEPTUAL, ImageCmsProfile, PyCMSError, core
 from PySide2.QtGui import QImage
 
 from bLUeGui.bLUeImage import QImageBuffer
 from debug import tdec
 
-from settings import SRGB_PROFILE_PATH, ADOBE_RGB_PROFILE_PATH
+from settings import SRGB_PROFILE_PATH, ADOBE_RGB_PROFILE_PATH, DEFAULT_MONITOR_PROFILE_PATH
 
 if sys.platform == 'win32':
     import win32gui
@@ -42,7 +42,6 @@ class icc:
     COLOR_MANAGE = False  # no color management
     monitorProfile, workingProfile, workToMonTransform = (None,)*3
     workingProfileInfo, monitorProfileInfo = '', ''
-
 
     @classmethod
     def configure(cls, qscreen=None, colorSpace=-1, workingProfile=None):
@@ -71,7 +70,7 @@ class icc:
             # get working profile as CmsProfile object
             if colorSpace == 1:
                 cls.workingProfile = getOpenProfile(SRGB_PROFILE_PATH)
-            elif colorSpace==2:
+            elif colorSpace == 2:
                 cls.workingProfile = getOpenProfile(ADOBE_RGB_PROFILE_PATH)
             elif type(workingProfile) is ImageCmsProfile:
                 cls.workingProfile = workingProfile
@@ -103,13 +102,13 @@ class icc:
     def B_get_display_profile(handle=None):
         """
         bLUe version for get_display_profile: should be
-        tested and completed.
+        completed.
         Note. The PIL function ImageCms.get_display_profile is system dependent,
         it fails (at least) for win64.
         @param handle: screen handle (Windows)
         @type handle: int
         @return: monitor profile
-        @rtype: ImpageCmsprofile
+        @rtype: ImageCmsProfile
         """
         if sys.platform == "win32":
             # from PIL import ImageWin
@@ -118,12 +117,15 @@ class icc:
             # else:
                 # profile = core.get_display_profile_win32(handle or 0)
         else:
+            profile = DEFAULT_MONITOR_PROFILE_PATH
+            """
             try:
                 get = _imagingcms.get_display_profile
             except AttributeError:
                 return None
             else:
                 profile = get()
+            """
         return ImageCmsProfile(profile)
 
     @classmethod
@@ -145,7 +147,7 @@ class icc:
                 monitorProfile = cls.B_get_display_profile(dc)
             else:
                 monitorProfile = cls.B_get_display_profile()
-        except (RuntimeError, OSError):
+        except (RuntimeError, OSError, TypeError):
             monitorProfile = None
         return monitorProfile
 
