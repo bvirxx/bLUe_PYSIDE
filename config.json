@@ -6,7 +6,8 @@
   },
   "PROFILES" : {
     "ADOBE_RGB_PROFILE" : "AdobeRGB1998.icc",
-    "SRGB_PROFILE": "sRGB Color Space Profile.icm"
+    "SRGB_PROFILE": "sRGB Color Space Profile.icm",
+    "DEFAULT_MONITOR_PROFILE_NAME": "xxxx"
   },
   "DNG_PROFILES" : {
      "DIR1" : "C:\\Users\\All Users\\Adobe\\CameraRaw\\CameraProfiles\\Adobe Standard\\",
