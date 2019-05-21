@@ -17,7 +17,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import numpy as np
 
-
 def interpTriLinear(LUT, LUTSTEP, ndImg, convert=True):
     """
     Implement a vectorized version of trilinear interpolation.
@@ -29,7 +28,7 @@ def interpTriLinear(LUT, LUTSTEP, ndImg, convert=True):
     Output values are interpolated from the LUT.
 
     LUTSTEP is the integer or the 3-uple of integers representing the unitary interpolation
-    steps for each axis of the LUT table.
+    step for each axis of the LUT table.
 
     All input values for axis i must be in the (right opened)
     interval [0, max[ with max = (s[i] - 1) * LUTSTEP[i]. Closed intervals
@@ -95,7 +94,7 @@ def interpTriLinear(LUT, LUTSTEP, ndImg, convert=True):
     I12Value = ndImg10 + alpha * (ndImg12 - ndImg10)  # oneMinusAlpha * ndImg10 + alpha * ndImg12
     I21Value = ndImg01 + alpha * (ndImg03 - ndImg01)  # oneMinusAlpha * ndImg01 + alpha * ndImg03
     I22Value = ndImg00 + alpha * (ndImg02 - ndImg00)  # oneMinusAlpha * ndImg00 + alpha * ndImg02
-
+    # allowing to free memory
     del ndImg00, ndImg01, ndImg02, ndImg03, ndImg10, ndImg11, ndImg12, ndImg13
 
     beta = ndImgF[:, :, 0] - r0

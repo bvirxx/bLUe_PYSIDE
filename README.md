@@ -1,6 +1,6 @@
 This File is part of bLUe software.
 
-Copyright (C) 2017-2018 Bernard Virot <bernard.virot@libertysurf.fr>
+Copyright (C) 2017-2019 Bernard Virot <bernard.virot@libertysurf.fr>
 
 ## DESCRIPTION
 
@@ -22,7 +22,7 @@ in a color channel, depending on the value of another channel.
 
 Multiple adjustment layers can be exported as a single 3D LUT in .cube format.
 
-In addition to color images in formats jpg, tif, png, bLUe develops raw files in all usual formats : nef, cr2, dng, ...
+In addition to color images in formats jpg, tif, png, bLUe can develop raw files in all usual formats : nef, cr2, dng, ...
 It supports dng/dcp dual illuminant camera profiles. Camera model dcp profiles can be applied to any format
 of raw file, eliminating the burden of a pre-conversion to the dng format.
 
@@ -43,7 +43,7 @@ seamless cloning, segmentation, geometric transformations, curves, 2.5D LUTs, 3D
 * RGB, HSV, CMYK, Lab color models
 * Fast skin tone correction
 * Automatic contrast enhancement (histogram warping and CLAHE)
-* Fast Laplace Solver (cloning)
+* Fast Laplace Solver for seamless cloning
 * Crop tool
 * Multiple blending modes; adjustable layer opacity
 * Import and export of 3D LUTs in .cube format

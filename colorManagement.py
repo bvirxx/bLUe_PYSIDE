@@ -18,7 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import sys
 
 import numpy as np
-from PIL import Image, _imagingcms
+from PIL import Image
 
 from PIL.ImageCms import getOpenProfile, getProfileInfo, \
     buildTransformFromOpenProfiles, applyTransform, INTENT_PERCEPTUAL, ImageCmsProfile, PyCMSError, core
