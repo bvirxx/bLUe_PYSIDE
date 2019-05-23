@@ -129,12 +129,12 @@ class colorInfoView(QDockWidget):
         self.label.setWindowTitle('Info')
         self.setWidget(self.label)
         self.setWindowTitle(self.label.windowTitle())
-        self.setFocusPolicy(Qt.ClickFocus)
+        self.label.setFocusPolicy(Qt.ClickFocus)
         self.label.setStyleSheet("font-family: 'courier'; font-size: 8pt")
         self.label.setWhatsThis(
-                                """<b>ActiveLayer input/output</b><br>
-                                For each color space (RGB, CMYK, HSV) input values are displayed in the left column
-                                and output values in the right column.<br>
+                                """<b>Active layer input/output</b><br>
+                                For each color space (RGB, CMYK, HSV) input colors are displayed in the left column
+                                and output colors in the right column.<br>
                                 """
                                 )  # end of setWhatsThis
 

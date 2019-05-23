@@ -963,8 +963,8 @@ def setDocumentImage(img):
     window.label.img = img
     # init histogram
     window.histView.targetImage = window.label.img
-    # image changed event handler
 
+    # image changed event handler
     def f(hist=True):
         # refresh windows (use repaint for faster update)
         window.label.repaint()

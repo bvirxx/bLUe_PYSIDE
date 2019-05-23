@@ -32,6 +32,7 @@ class histForm (baseForm):
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.setMinimumSize(size, 100)
         self.Label_Hist = QLabel()
+        self.Label_Hist.setFocusPolicy(Qt.ClickFocus)
         self.Label_Hist.setScaledContents(True)
         self.Label_Hist.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.setStyleSheet("QListWidget{border: 0px; font-size: 12px}")
@@ -49,6 +50,11 @@ class histForm (baseForm):
         self.listWidget2.item(0).setCheckState(Qt.Checked)
 
         self.options = {option: True for option in options1 + options2}
+        self.setWhatsThis("""
+        <b>Image Histogram</b><br>
+        The histogram shows the color ditributions for the final image unless
+        the <I>Source Image</I> option is checked. 
+        """)
 
         def onSelect1(item):
             self.options[options1[0]] = item.checkState() is Qt.Checked
