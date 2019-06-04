@@ -697,7 +697,6 @@ def widgetChange(button):
             for b in window.cropTool.btnDict.values():
                 b.hide()
         window.label.img.isCropped = button.isChecked()
-        # window.label.repaint()
     elif button is window.rulerButton:  # wdgName == "rulerButton":
         window.label.img.isRuled = button.isChecked()
     elif button is window.eyeDropper:  # wdgName == 'eyeDropper':
@@ -712,6 +711,7 @@ def widgetChange(button):
         else:
             if getattr(window, 'colorChooser', None) is not None:
                 window.colorChooser.hide()
+    updateStatus()  # TODO added 04/06/19 validate
     window.label.repaint()
 
 
@@ -1701,7 +1701,8 @@ def updateStatus():
         s += '&nbsp;&nbsp;&nbsp;&nbsp;Press Space Bar to toggle Before/After view'
     # cropping
     if window.label.img.isCropped:
-        s = s + '&nbsp;&nbsp;&nbsp;&nbsp;Crop Tool : h/w ratio %.2f ' % window.cropTool.formFactor
+        w, h = window.cropTool.crWidth, window.cropTool.crHeight
+        s = s + '&nbsp;&nbsp;&nbsp;&nbsp;Cropped : %dx%d h/w=%.2f ' % (w, h, h / w)
     window.Label_status.setText(s)
 
 

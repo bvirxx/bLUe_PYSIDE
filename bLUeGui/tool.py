@@ -153,8 +153,8 @@ class croppingHandle(baseHandle):
 
     def mousePressEvent(self, event):
         img = self.parent().img
-        self.tool.formFactor = (img.height() - self.tool.btnDict['top'].margin - self.tool.btnDict['bottom'].margin) / (
-                    img.width() - self.tool.btnDict['left'].margin - self.tool.btnDict['right'].margin)
+        self.tool.crHeight = img.height() - int(img.cropTop) - int(img.cropBottom) # self.tool.btnDict['top'].margin - self.tool.btnDict['bottom'].margin
+        self.tool.crWidth = img.width() - int(img.cropLeft) - int(img.cropRight) # self.tool.btnDict['left'].margin - self.tool.btnDict['right'].margin
 
     def mouseMoveEvent(self, event):
         img = self.parent().img
@@ -168,8 +168,8 @@ class croppingHandle(baseHandle):
         else:
             self.setPosition(pos)
         self.tool.drawCropTool(self.parent().img)
-        self.tool.formFactor = (img.height() - self.tool.btnDict['top'].margin - self.tool.btnDict['bottom'].margin) / (
-                img.width() - self.tool.btnDict['left'].margin - self.tool.btnDict['right'].margin)
+        self.tool.crHeight = img.height() - int(img.cropTop) - int(img.cropBottom) # self.tool.btnDict['top'].margin - self.tool.btnDict['bottom'].margin
+        self.tool.crWidth = img.width() - int(img.cropLeft) - int(img.cropRight) # self.tool.btnDict['left'].margin - self.tool.btnDict['right'].margin
         self.parent().updateStatus()
         self.parent().repaint()
 
@@ -191,8 +191,7 @@ class cropTool(QObject):
         btnList = [cropButtonLeft, cropButtonRight, cropButtonTop, cropButtonBottom,
                    cropButtonTopLeft, cropButtonTopRight, cropButtonBottomLeft, cropButtonBottomRight]
         self.btnDict = {btn.role: btn for btn in btnList}
-        # self.cRect = QRect(0, 0, 0, 0)
-        self.formFactor = 1.0
+        self.crHeight, self.crWidth = 1, 1
 
     def drawCropTool(self, img):
         """
@@ -223,6 +222,7 @@ class cropTool(QObject):
         bottomLeft.move(x - bottomLeft.width(), y + h)
         bottomRight = self.btnDict['bottomRight']
         bottomRight.move(x + w, y + h)
+        self.crWidth, self.crHeight = img.width() - int(img.cropLeft) - int(img.cropRight), img.height() - int(img.cropTop) - int(img.cropBottom)
 
 
 class rotatingHandle(baseHandle):
