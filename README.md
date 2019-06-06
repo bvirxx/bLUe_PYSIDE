@@ -1,11 +1,13 @@
 This File is part of bLUe software.
 
-Copyright (C) 2017-2019 Bernard Virot <bernard.virot@libertysurf.fr>
+Copyright (C) 2017-2019 Bernard Virot
+
+[bLUe web site](http://bernard.virot.free.fr/)
 
 ## DESCRIPTION
 
  bLUe proposes a modular and comprehensive GUI for photo edition, featuring a large set of controls as adjustment layers, including
-3D LUTs, 2.5D LUTs, 2D curves and 1D curves for various color models.
+3D LUTs, 2.5D LUTs and curves in various color spaces.
 
 A 3D LUT is a table representing a 3D cube of color nodes. Image pixels are associated
 with nodes, based on their color. Changes are applied to each node individually,
@@ -15,7 +17,7 @@ the table is called a 2.5D LUT. bLUe can create and edit 3D and 2.5D LUTs.
   * 2.5D LUTs are edited by selecting, grouping and moving nodes as control points over
 a (hue, saturation) color wheel. Nodes are bound to an elastic grid and a grid smoothing algorithm is provided
 to even the changes in color. Selection masks are automatically created from 2.5D LUTs, based on the node selection. 
-They can be freely edited.
+Masks can be freely edited.
 
  * 3D LUTs are controlled by curves defining changes (additive or multiplicative shifts)
 in a color channel, depending on the value of another channel. 
@@ -74,4 +76,3 @@ Make sure to download the latest release.
 ## LICENSE
 
  This project is licensed under the LGPL V 3.
-
