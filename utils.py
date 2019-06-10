@@ -210,6 +210,7 @@ def inversion(m):
 class UDict(object):
     """
     Union of dictionaries. The dictionaries are neither copied nor changed.
+    Examples :  UDict(()), UDict((d1,)), UDict((d1,d2))
     """
     def __init__(self, *args):
         """
@@ -218,18 +219,19 @@ class UDict(object):
         value corresponding to the key, and None if the key is not present
         in any of the dictionaries. No exception is raised if the key does not
         exist.
-        @param args: empty or sequence of dict
+        @param args: tuple of dict
         @type args:
         """
         if args:
-            self.__dictionaries = tuple(args[0])
+            self.__dictionaries = args[0]  # tuple of dict
         else:
             self.__dictionaries = ()
 
     def __getitem__(self, item):
-        for i in range(len(self.__dictionaries)):
-            if item in self.__dictionaries[i]:
-                return self.__dictionaries[i][item]
+        if self.__dictionaries:
+            for i in range(len(self.__dictionaries)):
+                if item in self.__dictionaries[i]:
+                    return self.__dictionaries[i][item]
         return None
 
 
