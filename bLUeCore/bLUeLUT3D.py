@@ -265,7 +265,7 @@ class LUT3D (object):
             for g in range(self.size):
                 for r in range(self.size):
                     # r1, g1, b1 = LUT[r, g, b]  # order RGB
-                    b1, g1, r1 = LUT[b, g, r]  # order BGR
+                    b1, g1, r1 = LUT[b, g, r][:3]  # order BGR
                     outStream.write("%.7f %.7f %.7f\n" % (r1 / coeff, g1 / coeff, b1 / coeff))
 
     def writeToTextFile(self, filename):
