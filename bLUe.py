@@ -159,7 +159,7 @@ from graphicsCoBrSat import CoBrSatForm
 from graphicsExp import ExpForm
 from graphicsPatch import patchForm
 from settings import USE_POOL, POOL_SIZE, THEME, MAX_ZOOM, TABBING
-from utils import QbLUeColorDialog, colorInfoView
+from utils import QbLUeColorDialog, colorInfoView, UDict
 from bLUeGui.tool import cropTool, rotatingTool
 from graphicsTemp import temperatureForm
 from time import sleep
@@ -1475,7 +1475,7 @@ def menuLayer(name):
             pool = getPool()
             layer.execute = lambda l=layer, pool=pool: l.tLayer.apply3DLUT(lut.LUT3DArray,
                                                                            lut.step,
-                                                                           {'use selection': False},
+                                                                           UDict(({'use selection': False, 'keep alpha' : True},)),
                                                                            pool=pool)
             window.tableView.setLayers(window.label.img)
             layer.applyToStack()
