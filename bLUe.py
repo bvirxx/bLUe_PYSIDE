@@ -880,34 +880,43 @@ def addRawAdjustmentLayer():
     window.tableView.setLayers(window.label.img)
 
 
+def loadImage(img):
+    """
+    load a vImage into bLUe
+    @param img:
+    @type img: vImage
+    """
+    setDocumentImage(img)
+    # switch to preview mode and process stack
+    window.tableView.previewOptionBox.setChecked(True)
+    window.tableView.previewOptionBox.stateChanged.emit(Qt.Checked)
+    # add development layer for raw image, and develop
+    if img.rawImage is not None:
+        addRawAdjustmentLayer()
+    # add default adjustment layers
+    addBasicAdjustmentLayers(img)
+    # updates
+    img.layersStack[0].applyToStack()
+    img.onImageChanged()
+
+
 def openFile(f):
     """
     Top level function for file opening, used by File Menu actions
     @param f: file name
     @type f: str
     """
-    # close opened document, if any
+    # close open document, if any
     if not closeFile():
         return
-    # load file
     try:
         QApplication.setOverrideCursor(Qt.WaitCursor)
         QApplication.processEvents()
+        # load imImage from file
         img = loadImageFromFile(f)
         # init layers
         if img is not None:
-            setDocumentImage(img)
-            # switch to preview mode and process stack
-            window.tableView.previewOptionBox.setChecked(True)
-            window.tableView.previewOptionBox.stateChanged.emit(Qt.Checked)
-            # add development layer for raw image, and develop
-            if img.rawImage is not None:
-                addRawAdjustmentLayer()
-            # add default adjustment layers
-            addBasicAdjustmentLayers(img)
-            # updates
-            img.layersStack[0].applyToStack()
-            img.onImageChanged()
+            loadImage(img)
             updateStatus()
             # update list of recent files
             recentFiles = window.settings.value('paths/recent', [])
@@ -1170,6 +1179,15 @@ def menuImage(name):
     @type name: str
     """
     img = window.label.img
+    # new image from clipboard
+    if name == 'actionNew':
+        # close open document, if any
+        if not closeFile():
+            return
+        cb = QApplication.clipboard()
+        img = imImage(QImg=cb.image())
+        if not img.isNull():
+            loadImage(img)
     # display image info
     if name == 'actionImage_info':
         # Format
@@ -1177,8 +1195,9 @@ def menuImage(name):
         # dimensions
         s = s + "\n\ndim : %d x %d" % (img.width(), img.height())
         # profile info
-        if img.meta.profile is not None:  # len(img.meta.profile) > 0:
-            s = s + "\n\nEmbedded profile found"  # length %d" % len(img.meta.profile)
+        if img.meta.profile is not None:
+            if len(img.meta.profile) > 0:
+                s = s + "\n\nEmbedded profile found"  # length %d" % len(img.meta.profile)
         workingProfileInfo = icc.workingProfileInfo
         s = s + "\n\nWorking Profile : %s" % workingProfileInfo
         # rating

@@ -733,6 +733,7 @@ Screen</string>
      <addaction name="action90_CCW"/>
      <addaction name="action180"/>
     </widget>
+    <addaction name="actionNew"/>
     <addaction name="menuColor_settings"/>
     <addaction name="actionImage_info"/>
     <addaction name="menuImage_Rotation"/>
@@ -1179,6 +1180,11 @@ Screen</string>
   <action name="action2D_LUT_HV">
    <property name="text">
     <string>3D LUT HSV Shift</string>
+   </property>
+  </action>
+  <action name="actionNew">
+   <property name="text">
+    <string>Paste clipboard</string>
    </property>
   </action>
  </widget>

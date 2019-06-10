@@ -287,6 +287,8 @@ class vImage(bImage):
         @param profile: embedded profile (default '')
         @type profile: str
         """
+        self.imageInfo ='no data found'  # default
+
         if rawMetadata is None:
             rawMetadata = {}  # []  # TODO modified 21/11/18
         self.isModified = False
