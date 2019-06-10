@@ -1185,9 +1185,12 @@ def menuImage(name):
         if not closeFile():
             return
         cb = QApplication.clipboard()
-        img = imImage(QImg=cb.image())
+        img = cb.image()
         if not img.isNull():
+            img = imImage(QImg=img)
             loadImage(img)
+        else:
+            dlgWarn("Clipboard : no image found")
     # display image info
     if name == 'actionImage_info':
         # Format
