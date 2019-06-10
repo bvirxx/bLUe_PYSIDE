@@ -253,7 +253,7 @@ class LUT3D (object):
         """
         Writes a 3D LUT to a text stream in format .cube.
         Values are divided by 255.
-        The 3D LUT must be in BGR order.
+        The 3D LUT must be in BGR or BGRA order.
         @param outStream:
         @type outStream: TextIoWrapper
         """
@@ -265,7 +265,7 @@ class LUT3D (object):
             for g in range(self.size):
                 for r in range(self.size):
                     # r1, g1, b1 = LUT[r, g, b]  # order RGB
-                    b1, g1, r1 = LUT[b, g, r][:3]  # order BGR
+                    b1, g1, r1 = LUT[b, g, r][:3]  # order BGR; BGRA values are allowed, so [:3] is mandatory
                     outStream.write("%.7f %.7f %.7f\n" % (r1 / coeff, g1 / coeff, b1 / coeff))
 
     def writeToTextFile(self, filename):
