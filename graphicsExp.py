@@ -108,7 +108,7 @@ class ExpForm (baseForm):
         self.expValue.setText(str("{:+.1f}".format(self.defaultExpCorrection)))
         self.expCorrection = self.defaultExpCorrection * self.defaultStep
         self.dataChanged.connect(self.updateLayer)
-
+    """
     def writeToStream(self, outStream):
         layer = self.layer
         outStream.writeQString(layer.actionName)
@@ -129,3 +129,4 @@ class ExpForm (baseForm):
         self.sliderExp.setValue(temp)
         self.update()
         return inStream
+    """

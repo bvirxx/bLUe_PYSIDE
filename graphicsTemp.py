@@ -199,7 +199,7 @@ class temperatureForm (baseForm):
     @staticmethod
     def sliderTint2User(v):
         return int((v - 50) / 5.0)
-
+    """
     def writeToStream(self, outStream):
         layer = self.layer
         outStream.writeQString(layer.actionName)
@@ -220,4 +220,5 @@ class temperatureForm (baseForm):
         self.sliderTemp.setValue(temp//100)
         self.update()
         return inStream
+    """
 

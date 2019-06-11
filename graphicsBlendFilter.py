@@ -119,7 +119,7 @@ class blendFilterForm (baseForm):
                 break
         self.layer.applyToStack()
         self.layer.parentImage.onImageChanged()
-
+    """
     def writeToStream(self, outStream):
         layer = self.layer
         outStream.writeQString(layer.actionName)
@@ -143,3 +143,4 @@ class blendFilterForm (baseForm):
         self.sliderAmount.setValue(amount)
         self.repaint()
         return inStream
+    """

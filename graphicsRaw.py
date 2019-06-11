@@ -838,7 +838,7 @@ class rawForm (baseForm):
         self.cameraProfilesCombo.setStyleSheet("QComboBox QAbstractItemView { min-width: 250px;}")
         # return the currently selected item
         return self.cameraProfilesCombo.itemData(0)
-
+    """
     def writeToStream(self, outStream):
         layer = self.layer
         outStream.writeQString(layer.actionName)
@@ -859,3 +859,4 @@ class rawForm (baseForm):
         self.sliderExp.setValue(temp)
         self.update()
         return inStream
+    """

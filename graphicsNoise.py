@@ -137,7 +137,7 @@ class noiseForm (baseForm):
         self.dataChanged.emit()
         self.sliderThr.valueChanged.connect(self.thrUpdate)  # send new value as parameter
         self.sliderThr.sliderReleased.connect(lambda: self.thrUpdate(self.sliderThr.value()))  # signal has no parameter
-
+    """
     def writeToStream(self, outStream):
         layer = self.layer
         outStream.writeQString(layer.actionName)
@@ -158,4 +158,5 @@ class noiseForm (baseForm):
         self.sliderTemp.setValue(temp//100)
         self.update()
         return inStream
+    """
 

@@ -353,6 +353,7 @@ class CoBrSatForm(baseForm):
         else:
             cf.hide()
 
+    """
     def writeToStream(self, outStream):
         layer = self.layer
         outStream.writeQString(layer.actionName)
@@ -374,3 +375,4 @@ class CoBrSatForm(baseForm):
         self.sliderContrast.setValue(temp)
         self.update()
         return inStream
+    """

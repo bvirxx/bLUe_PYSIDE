@@ -193,7 +193,7 @@ class filterForm (baseForm):
         self.radiusLabel.setEnabled(self.sliderRadius.isEnabled())
         self.amountLabel.setEnabled(self.sliderAmount.isEnabled())
         self.toneLabel.setEnabled(self.sliderTone.isEnabled())
-
+    """
     def writeToStream(self, outStream):
         layer = self.layer
         outStream.writeQString(layer.actionName)
@@ -217,4 +217,5 @@ class filterForm (baseForm):
         self.sliderAmount.setValue(amount)
         self.repaint()
         return inStream
+    """
 

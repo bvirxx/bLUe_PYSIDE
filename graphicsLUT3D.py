@@ -1247,7 +1247,7 @@ class graphicsForm3DLUT(baseGraphicsForm):
         mask[:, :, 2] = imgmask
         layer.applyToStack()
         layer.parentImage.onImageChanged()
-
+    """
     def writeToStream(self, outStream):
         layer = self.layer
         outStream.writeQString(layer.actionName)
@@ -1269,6 +1269,7 @@ class graphicsForm3DLUT(baseGraphicsForm):
         byteData = inStream.readRawData(l)
         self.graphicsScene.lut.LUT3DArray = np.fromstring(byteData, dtype=int).reshape((size, size, size, 3))
         return inStream
+    """
 
 
 if __name__ == '__main__':

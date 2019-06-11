@@ -196,15 +196,8 @@ class HVLUT2DForm(graphicsCurveForm):
             self.marker.setPos(h * 300/360, -self.axeSize//2)
             self.markerLabel.setText("%d" % h)
             self.update()
-
+    """
     def writeToStream(self, outStream):
-        """
-
-        @param outStream:
-        @type outStream: QDataStream
-        @return:
-        @rtype: QDataStream
-        """
         graphicsScene = self.scene()
         layer = graphicsScene.layer
         outStream.writeQString(layer.actionName)
@@ -227,4 +220,5 @@ class HVLUT2DForm(graphicsCurveForm):
         graphicsScene.cubicG.readFromStream(inStream)
         graphicsScene.cubicB.readFromStream(inStream)
         return inStream
+    """
 

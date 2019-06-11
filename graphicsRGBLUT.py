@@ -292,15 +292,8 @@ class graphicsForm(graphicsCurveForm):
         l = graphicsScene.layer
         l.applyToStack()
         l.parentImage.onImageChanged()
-
+    """
     def writeToStream(self, outStream):
-        """
-
-        @param outStream:
-        @type outStream: QDataStream
-        @return:
-        @rtype: QDataStream
-        """
         graphicsScene = self.scene()
         layer = graphicsScene.layer
         outStream.writeQString(layer.actionName)
@@ -323,6 +316,7 @@ class graphicsForm(graphicsCurveForm):
         graphicsScene.cubicG.readFromStream(inStream)
         graphicsScene.cubicB.readFromStream(inStream)
         return inStream
+    """
 
 
 

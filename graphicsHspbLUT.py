@@ -187,7 +187,7 @@ class graphicsHspbForm(graphicsCurveForm):
         layer = graphicsScene.layer
         layer.applyToStack()
         layer.parentImage.onImageChanged()
-
+    """
     def writeToStream(self, outStream):
         graphicsScene = self.scene()
         layer = graphicsScene.layer
@@ -211,4 +211,5 @@ class graphicsHspbForm(graphicsCurveForm):
         graphicsScene.cubicG.readFromStream(inStream)
         graphicsScene.cubicB.readFromStream(inStream)
         return inStream
+    """
 

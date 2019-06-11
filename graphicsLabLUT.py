@@ -361,7 +361,7 @@ class graphicsLabForm(graphicsCurveForm):
         l = graphicsScene.layer
         l.applyToStack()
         l.parentImage.onImageChanged()
-
+    """
     def writeToStream(self, outStream):
         graphicsScene = self.scene()
         layer = graphicsScene.layer
@@ -383,4 +383,5 @@ class graphicsLabForm(graphicsCurveForm):
         graphicsScene.cubicG.readFromStream(inStream)
         graphicsScene.cubicB.readFromStream(inStream)
         return inStream
+    """
 
