@@ -353,26 +353,3 @@ class CoBrSatForm(baseForm):
         else:
             cf.hide()
 
-    """
-    def writeToStream(self, outStream):
-        layer = self.layer
-        outStream.writeQString(layer.actionName)
-        outStream.writeQString(layer.name)
-        for item in self.listWidget1.selectedItems():
-            outStream.writeQString(item.text())
-        outStream.writeInt32(self.sliderContrast.value())
-        return outStream
-
-    def readFromStream(self, inStream):
-        actionName = inStream.readQString()
-        name = inStream.readQString()
-        sel = inStream.readQString()
-        temp = inStream.readInt32()
-        for r in range(self.listWidget1.count()):
-            currentItem = self.listWidget1.item(r)
-            if currentItem.text() == sel:
-                self.listWidget.select(currentItem)
-        self.sliderContrast.setValue(temp)
-        self.update()
-        return inStream
-    """
