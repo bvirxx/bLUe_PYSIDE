@@ -457,7 +457,7 @@ class mImage(vImage):
             raise IOError("Cannot write file %s " % filename)
         # self.setModified(False) # cannot be reset if the image is modified again
         return thumb
-
+    """
     def writeStackToStream(self, dataStream):
         dataStream.writeInt32(len(self.layersStack))
         for layer in self.layersStack:
@@ -493,7 +493,7 @@ class mImage(vImage):
         script = self.readStackFromStream(dataStream)
         #qf.close()
         return script, qf, dataStream
-
+    """
 
 class imImage(mImage):
     """
