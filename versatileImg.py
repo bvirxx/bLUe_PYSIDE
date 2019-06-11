@@ -1137,7 +1137,7 @@ class vImage(bImage):
                     if self.parentImage.isHald and not options['manualCurve']:
                         raise ValueError('Check option Show Contrast Curve in Cont/Bright/Sat layer')
                     buf32 = HSVBuf[:, :, 2].astype(np.float) / 255
-                    auto = self.autoSpline and not self.parentImage.isHald
+                    auto = self.autoSpline and not self.parentImage.isHald  # flag for manual/auto spline
                     res, a, b, d, T = warpHistogram(buf32, warp=contrastCorrection, preserveHigh=options['High'],
                                                     spline=None if auto else self.getMmcSpline())
                     res = (res*255.0).astype(np.uint8)
