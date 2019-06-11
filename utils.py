@@ -228,10 +228,9 @@ class UDict(object):
             self.__dictionaries = ()
 
     def __getitem__(self, item):
-        if self.__dictionaries:
-            for i in range(len(self.__dictionaries)):
-                if item in self.__dictionaries[i]:
-                    return self.__dictionaries[i][item]
+        for i in range(len(self.__dictionaries)):
+            if item in self.__dictionaries[i]:
+                return self.__dictionaries[i][item]
         return None
 
 
