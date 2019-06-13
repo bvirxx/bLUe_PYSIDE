@@ -2,6 +2,8 @@ This File is part of bLUe software.
 
 Copyright (C) 2017-2019 Bernard Virot
 
+## WEB SITE
+
 See the [bLUe web site](http://bernard.virot.free.fr/) for images and tutorials.
 
 ## DESCRIPTION
