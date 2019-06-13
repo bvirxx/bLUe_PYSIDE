@@ -25,8 +25,7 @@ in a color channel, depending on the value of another channel.
 Multiple adjustment layers can be exported as a single 3D LUT in .cube format.
 
 In addition to color images in formats jpg, tif, png, bLUe can develop raw files in all usual formats : nef, cr2, dng, ...
-It supports dng/dcp dual illuminant camera profiles. Camera model dcp profiles can be applied to any format
-of raw file, eliminating the burden of a pre-conversion to the dng format.
+It supports dng/dcp dual illuminant camera profiles. 
 
 The program is fully modular : controls are implemented as independent
 adjustment layers using a common GUI. New functionality can be added very quickly and
