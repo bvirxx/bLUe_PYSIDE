@@ -301,7 +301,7 @@ class ExifTool(object):
         @param createsidecar: flag
         @type ceatesidecar: bool
         @return: profile, metadata
-        @rtype: 2-uple profile: bytes, metadata: (length 1) list of dict
+        @rtype: 2-uple profile: bytes, metadata: dict
         """
         # Using PIL _getexif is simpler.
         # However, exiftool is much more powerful

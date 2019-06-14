@@ -752,7 +752,7 @@ def loadImageFromFile(f, createsidecar=True):
             imageInfo = e.get_formatted_metadata(f)
     except ValueError:
         # Default metadata and profile
-        metadata = [{'SourceFile': f}]
+        metadata = {'SourceFile': f}  # TODO removed list 14/06/19 validate
         profile = ''
         imageInfo = 'No data found'
     # color space : 1=sRGB 65535=uncalibrated
