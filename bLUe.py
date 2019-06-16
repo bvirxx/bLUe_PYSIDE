@@ -1753,17 +1753,7 @@ def screenUpdate(newScreenIndex):
         window.label_2.update()
     threading.Thread(target=bgTask)
     window.screenChanged.connect(screenUpdate)
-
-def getColorInfoView():
-    """
-    Return a color info view
-    @return:
-    @rtype: QDockWidget
-    """
-    infoView = colorInfoView()
-    infoView.label.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Minimum)
-    infoView.label.setMaximumSize(400, 80)
-    return infoView
+    
 
 def setRightPane():
     """
@@ -1818,7 +1808,6 @@ def setRightPane():
     window.addDockWidget(Qt.RightDockWidgetArea, window.dockWidget)
     window.dockWidget.show()
     # tabify colorInfoView with histView
-    window.infoView = getColorInfoView()
     window.tabifyDockWidget(histViewDock, window.infoView)
 
 

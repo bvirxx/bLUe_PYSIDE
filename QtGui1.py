@@ -21,11 +21,11 @@ from PySide2 import QtWidgets, QtCore
 from PySide2.QtCore import QSettings, Qt
 import sys
 
-from PySide2.QtWidgets import QApplication, QLabel, QMainWindow
+from PySide2.QtWidgets import QApplication, QLabel, QMainWindow, QSizePolicy
 
 import resources_rc   # MANDATORY - DO NOT REMOVE !!!!
 from pyside_dynamicLoader import loadUi
-from utils import hideConsole, showConsole, QbLUeColorDialog
+from utils import hideConsole, showConsole, QbLUeColorDialog, colorInfoView
 
 
 class Form1(QMainWindow):
@@ -40,13 +40,21 @@ class Form1(QMainWindow):
         # we presume that the form will be shown first on screen 0;
         # No detection possible before it is effectively shown !
         self.currentScreenIndex = 0
-        self.__colorChooser = None
+        self.__colorChooser, self.__infoView = (None ,) * 2
 
     @property
     def colorChooser(self):
         if self.__colorChooser is None:
             self.__colorChooser = QbLUeColorDialog(parent=self)
         return self.__colorChooser
+
+    @property
+    def infoView(self):
+        if self.__infoView is None:
+            self.__infoView = colorInfoView()
+            self.__infoView.label.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Minimum)
+            self.__infoView.label.setMaximumSize(400, 80)
+        return self.__infoView
 
     def init(self):
         """
