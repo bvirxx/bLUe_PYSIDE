@@ -1548,7 +1548,7 @@ class vImage(bImage):
         """
         Warming/cooling filter.
         The method implements two algorithms.
-        - Photo filter : Blending using mode multiply, plus correction of luminosity
+        - Photo/Color filter : Blending using mode multiply, plus correction of luminosity
             by blending the output image with the inputImage, using mode luminosity.
         - Chromatic adaptation : multipliers in linear sRGB.
         """
@@ -1559,19 +1559,24 @@ class vImage(bImage):
         inputImage = self.inputImg()
         buf1 = QImageBuffer(inputImage)
         currentImage = self.getCurrentImage()
-        # neutral point : forward input image and return
-        if abs(temperature - 6500) < 200 and tint == 0:
-            buf0 = QImageBuffer(currentImage)
-            buf0[:, :, :] = buf1
-            self.updatePixmap()
-            return
+        if not options['Color Filter']:
+            # neutral point : forward input image and return
+            if abs(temperature - 6500) < 200 and tint == 0:
+                buf0 = QImageBuffer(currentImage)
+                buf0[:, :, :] = buf1
+                self.updatePixmap()
+                return
         ################
         # photo filter
         ################
-        if options['Photo Filter']:
-            # get black body color
-            r, g, b = bbTemperature2RGB(temperature)
-            # r,g,b = (1 -  r/255) * 255, (1 -  g/255) * 255, (1 -  b/255) * 255
+        if options['Photo Filter'] or options['Color Filter']:
+            if options['Photo Filter']:
+                # get black body color
+                r, g, b = bbTemperature2RGB(temperature)
+            else:
+                # get current color from color chooser dialog
+                # parent() is a dockWidget, parent().parent() is the main window
+                r, g, b = adjustForm.filterColor.getRgb()[:3]
             filter = QImage(inputImage.size(), inputImage.format())
             filter.fill(QColor(r, g, b, 255))
             # draw image on filter using mode multiply

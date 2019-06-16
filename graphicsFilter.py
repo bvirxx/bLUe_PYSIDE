@@ -193,29 +193,5 @@ class filterForm (baseForm):
         self.radiusLabel.setEnabled(self.sliderRadius.isEnabled())
         self.amountLabel.setEnabled(self.sliderAmount.isEnabled())
         self.toneLabel.setEnabled(self.sliderTone.isEnabled())
-    """
-    def writeToStream(self, outStream):
-        layer = self.layer
-        outStream.writeQString(layer.actionName)
-        outStream.writeQString(layer.name)
-        outStream.writeQString(self.listWidget1.selectedItems()[0].text())
-        outStream.writeFloat32(self.sliderRadius.value())
-        outStream.writeFloat32(self.sliderAmount.value())
-        return outStream
 
-    def readFromStream(self, inStream):
-        actionName = inStream.readQString()
-        name = inStream.readQString()
-        sel = inStream.readQString()
-        radius = inStream.readFloat32()
-        amount = inStream.readFloat32()
-        for r in range(self.listWidget1.count()):
-            currentItem = self.listWidget1.item(r)
-            if currentItem.text() == sel:
-                self.listWidget.select(currentItem)
-        self.sliderRadius.setValue(radius)
-        self.sliderAmount.setValue(amount)
-        self.repaint()
-        return inStream
-    """
 

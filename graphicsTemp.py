@@ -17,12 +17,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 from PySide2.QtCore import Qt
-from PySide2.QtGui import QFontMetrics
+from PySide2.QtGui import QFontMetrics, QColor
 from PySide2.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout
 
 from bLUeGui.colorCIE import sRGBWP
 from bLUeGui.graphicsForm import baseForm
-from utils import optionsWidget, QbLUeSlider, QbLUeLabel
+from utils import optionsWidget, QbLUeSlider, QbLUeLabel, QbLUePushButton
 
 
 class temperatureForm (baseForm):
@@ -37,15 +37,24 @@ class temperatureForm (baseForm):
         super().__init__(layer=layer, targetImage=targetImage, parent=parent)
         self.tempCorrection = 6500
         self.tintCorrection = 1.0
+        self.filterColor = QColor(255, 255, 255)
         self.defaultTemp = sRGBWP  # ref temperature D65
         self.defaultTint = 0
 
         # options
-        optionList, optionNames = ['Photo Filter', 'Chromatic Adaptation'], ['Photo Filter', 'Chromatic Adaptation']
+        optionList, optionNames = ['Color Filter', 'Photo Filter', 'Chromatic Adaptation'], ['Color Filter', 'Photo Filter', 'Chromatic Adaptation']
         self.listWidget1 = optionsWidget(options=optionList, optionNames=optionNames, exclusive=True,
                                          changed=lambda: self.dataChanged.emit())
-        self.listWidget1.checkOption(self.listWidget1.intNames[1])
+        self.listWidget1.checkOption(self.listWidget1.intNames[0])
         self.options = self.listWidget1.options
+        # link to app color dialog
+        self.colorChooser = self.parent().colorChooser
+        # color viewer
+        self.colorLabel = QLabel()
+        self.colorLabel.setMaximumSize(50, 50)
+        # color chooser button
+        self.colorChooserBtn = QbLUePushButton('Select Filter Color')
+        self.colorChooserBtn.clicked.connect(self.showColorChooser)
 
         # temp slider
         self.sliderTemp = QbLUeSlider(Qt.Horizontal)
@@ -53,10 +62,10 @@ class temperatureForm (baseForm):
         self.sliderTemp.setRange(17, 100)  # 250)  # valid range for spline approximation is 1667..25000, cf. colorConv.temperature2xyWP
         self.sliderTemp.setSingleStep(1)
 
-        tempLabel = QbLUeLabel()
-        tempLabel.setMaximumSize(150, 30)
-        tempLabel.setText("Filter Temperature")
-        tempLabel.doubleClicked.connect(lambda: self.sliderTemp.setValue(self.temp2Slider(self.defaultTemp)))
+        self.tempLabel = QbLUeLabel()
+        self.tempLabel.setMaximumSize(150, 30)
+        self.tempLabel.setText("Filter Temperature")
+        self.tempLabel.doubleClicked.connect(lambda: self.sliderTemp.setValue(self.temp2Slider(self.defaultTemp)))
 
         self.tempValue = QLabel()
         font = self.tempValue.font()
@@ -87,48 +96,20 @@ class temperatureForm (baseForm):
         self.tintValue.setMaximumSize(w, h)
         self.tintValue.setText(str("{:d}".format(self.sliderTint2User(self.sliderTint.value()))))
 
-        # temp change slot
-        def tempUpdate(value):
-            self.tempValue.setText(str("{:d}".format(self.sliderTemp2User(value))))
-            # move not yet terminated or values not modified
-            if self.sliderTemp.isSliderDown() or self.slider2Temp(value) == self.tempCorrection:
-                return
-            try:
-                self.sliderTemp.valueChanged.disconnect()
-                self.sliderTemp.sliderReleased.disconnect()
-            except RuntimeError:
-                pass
-            self.tempCorrection = self.slider2Temp(value)
-            self.dataChanged.emit()
-            self.sliderTemp.valueChanged.connect(tempUpdate)
-            self.sliderTemp.sliderReleased.connect(lambda: tempUpdate(self.sliderTemp.value()))
-
-        # tint change slot
-        def tintUpdate(value):
-            self.tintValue.setText(str("{:d}".format(self.sliderTint2User(value))))
-            # move not yet terminated or values not modified
-            if self.sliderTint.isSliderDown() or self.slider2Tint(value) == self.tintCorrection:
-                return
-            try:
-                self.sliderTint.valueChanged.disconnect()
-                self.sliderTint.sliderReleased.disconnect()
-            except RuntimeError:
-                pass
-            self.tintCorrection = self.slider2Tint(value)
-            self.dataChanged.emit()
-            self.sliderTint.valueChanged.connect(tintUpdate)
-            self.sliderTint.sliderReleased.connect(lambda: tintUpdate(self.sliderTint.value()))
-
-        self.sliderTemp.valueChanged.connect(tempUpdate)
-        self.sliderTemp.sliderReleased.connect(lambda: tempUpdate(self.sliderTemp.value()))
-        self.sliderTint.valueChanged.connect(tintUpdate)
-        self.sliderTint.sliderReleased.connect(lambda: tintUpdate(self.sliderTint.value()))
+        self.sliderTemp.valueChanged.connect(self.tempUpdate)
+        self.sliderTemp.sliderReleased.connect(lambda: self.tempUpdate(self.sliderTemp.value()))
+        self.sliderTint.valueChanged.connect(self.tintUpdate)
+        self.sliderTint.sliderReleased.connect(lambda: self.tintUpdate(self.sliderTint.value()))
 
         # layout
         l = QVBoxLayout()
         l.setAlignment(Qt.AlignTop)
         l.addWidget(self.listWidget1)
-        l.addWidget(tempLabel)
+        hl2 = QHBoxLayout()
+        hl2.addWidget(self.colorLabel)
+        hl2.addWidget(self.colorChooserBtn)
+        l.addLayout(hl2)
+        l.addWidget(self.tempLabel)
         hl = QHBoxLayout()
         hl.addWidget(self.tempValue)
         hl.addWidget(self.sliderTemp)
@@ -142,16 +123,19 @@ class temperatureForm (baseForm):
         self.adjustSize()
         self.setDefaults()
         self.setWhatsThis(
-                        """<b>Color Temperature</b><br>
-                        <b>Photo Filter</b> uses the multiply blending mode to mimic a warming or cooling filter
-                        put in front of the camera lens. The luminosity of the resulting image is corrected.<br>
+                        """<b> Color Filter</b> and <b>Photo Filter</b> use the multiply blending mode
+                        to mimic a warming or cooling filter put in front of the camera lens. 
+                        The luminosity of the resulting image is corrected.<br>
                         <b>Chromatic Adaptation</b> uses multipliers in the linear sRGB
                         color space to adjust <b>temperature</b> and <b>tint</b>.
                         """
                         )  # end of setWhatsThis
 
     def enableSliders(self):
-        self.sliderTemp.setEnabled(True)
+        for item in [self.colorLabel, self.colorChooserBtn]:
+            item.setEnabled(self.options['Color Filter'])
+        for item in [self.sliderTemp, self.tempLabel]:
+            item.setEnabled(not self.options['Color Filter'])
         for item in [self.sliderTint, self.tintLabel, self.tintValue]:
             item.setEnabled(self.options['Chromatic Adaptation'])
 
@@ -168,6 +152,60 @@ class temperatureForm (baseForm):
         self.sliderTint.setValue(round(self.tint2Slider(self.defaultTint)))
         self.dataChanged.connect(self.updateLayer)
 
+        self.filterColor = self.colorChooser.currentColor()
+        # set colorLabel background
+        self.colorLabel.setAutoFillBackground(True)
+        colorstr = ''.join('%02x'%i for i in self.filterColor.getRgb()[:3])
+        self.colorLabel.setStyleSheet("background:#%s" % colorstr)
+
+    def colorUpdate(self, color):
+        """
+        color Changed slot
+        @param color:
+        @type color: QColor
+        """
+        self.dataChanged.emit()
+
+    def tempUpdate(self, value):
+        """
+        temp change slot
+        @param value:
+        @type value: int
+        """
+        self.tempValue.setText(str("{:d}".format(self.sliderTemp2User(value))))
+        # move not yet terminated or values not modified
+        if self.sliderTemp.isSliderDown() or self.slider2Temp(value) == self.tempCorrection:
+            return
+        try:
+            self.sliderTemp.valueChanged.disconnect()
+            self.sliderTemp.sliderReleased.disconnect()
+        except RuntimeError:
+            pass
+        self.tempCorrection = self.slider2Temp(value)
+        self.dataChanged.emit()
+        self.sliderTemp.valueChanged.connect(self.tempUpdate)
+        self.sliderTemp.sliderReleased.connect(lambda: self.tempUpdate(self.sliderTemp.value()))
+
+    def tintUpdate(self, value):
+        """
+        tint change slot
+        @param value:
+        @type value: int
+        """
+        self.tintValue.setText(str("{:d}".format(self.sliderTint2User(value))))
+        # move not yet terminated or values not modified
+        if self.sliderTint.isSliderDown() or self.slider2Tint(value) == self.tintCorrection:
+            return
+        try:
+            self.sliderTint.valueChanged.disconnect()
+            self.sliderTint.sliderReleased.disconnect()
+        except RuntimeError:
+            pass
+        self.tintCorrection = self.slider2Tint(value)
+        self.dataChanged.emit()
+        self.sliderTint.valueChanged.connect(self.tintUpdate)
+        self.sliderTint.sliderReleased.connect(lambda: self.tintUpdate(self.sliderTint.value()))
+
     def updateLayer(self):
         """
         data changed slot
@@ -175,6 +213,27 @@ class temperatureForm (baseForm):
         self.enableSliders()
         self.layer.applyToStack()
         self.layer.parentImage.onImageChanged()
+
+    def setFilterColor(self, color):
+        """
+        currentColorChanged slot
+        @param color:
+        @type color: QColor
+        """
+        self.filterColor = color
+        self.colorLabel.setAutoFillBackground(True)
+        colorstr = ''.join('%02x' % i for i in color.getRgb()[:3])
+        self.colorLabel.setStyleSheet("background:#%s" % colorstr)
+
+    def showColorChooser(self):
+        self.colorChooser.show()
+        try:
+            self.colorChooser.currentColorChanged.disconnect()
+        except RuntimeError:
+            pass
+        self.colorChooser.setCurrentColor(self.filterColor)
+        self.colorChooser.currentColorChanged.connect(self.setFilterColor)
+        self.colorChooser.colorSelected.connect(self.colorUpdate)
 
     @staticmethod
     def slider2Temp(v):
@@ -199,26 +258,5 @@ class temperatureForm (baseForm):
     @staticmethod
     def sliderTint2User(v):
         return int((v - 50) / 5.0)
-    """
-    def writeToStream(self, outStream):
-        layer = self.layer
-        outStream.writeQString(layer.actionName)
-        outStream.writeQString(layer.name)
-        outStream.writeQString(self.listWidget1.selectedItems()[0].text())
-        outStream.writeInt32(self.sliderTemp.value()*100)
-        return outStream
 
-    def readFromStream(self, inStream):
-        actionName = inStream.readQString()
-        name = inStream.readQString()
-        sel = inStream.readQString()
-        temp = inStream.readInt32()
-        for r in range(self.listWidget1.count()):
-            currentItem = self.listWidget1.item(r)
-            if currentItem.text() == sel:
-                self.listWidget.select(currentItem)
-        self.sliderTemp.setValue(temp//100)
-        self.update()
-        return inStream
-    """
 

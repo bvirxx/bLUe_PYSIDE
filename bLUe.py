@@ -701,16 +701,15 @@ def widgetChange(button):
         window.label.img.isRuled = button.isChecked()
     elif button is window.eyeDropper:  # wdgName == 'eyeDropper':
         if button.isChecked():  # window.btnValues['colorPicker']:
-            openColorChooser()
             dlg = window.colorChooser
+            dlg.show()
             try:
                 dlg.closeSignal.sig.disconnect()
             except RuntimeError:
                 pass
             dlg.closeSignal.sig.connect(lambda: button.setChecked(False))
         else:
-            if getattr(window, 'colorChooser', None) is not None:
-                window.colorChooser.hide()
+            window.colorChooser.close()  # TODO changed hide to close 15/06/19 validate
     updateStatus()  # TODO added 04/06/19 validate
     window.label.repaint()
 
@@ -1153,23 +1152,8 @@ def menuView(name):
     # Color Chooser
     ###############
     elif name == 'actionColor_Chooser':
-        openColorChooser()
+        window.colorChooser.show()
     updateStatus()
-
-
-def openColorChooser():
-    if getattr(window, 'colorChooser', None) is None:
-        window.colorChooser = QbLUeColorDialog(parent=window)
-        window.colorChooser.setWhatsThis(
-            """
-            <b>ColorChooser</b><br>
-            To <b>display the color of a pixel</b> click it in the image window:<br>
-            &nbsp;&nbsp;<b>Click</b> : image pixel<br>
-            &nbsp;&nbsp;<b>Ctrl + Click</b> : active layer pixel<br>
-            &nbsp;&nbsp;<b>Ctrl+Shift + Click</b> : input pixel of active layer (adjustment layer only) <br>
-            """
-        )  # end of whatsthis
-    window.colorChooser.show()
 
 
 def menuImage(name):
@@ -1379,7 +1363,7 @@ def menuLayer(name):
         tool.showTool()
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyImage(grWindow.options)
         layer.actioname = name
-    # Temperature
+    # Color filter
     elif name == 'actionColor_Temperature':
         lname = 'Color Filter'
         layer = window.label.img.addAdjustmentLayer(name=lname)
@@ -1860,6 +1844,13 @@ if __name__ == '__main__':
     splash.finish(window)
     # app title
     window.setWindowTitle('bLUe')
+
+    #######################
+    # docking areas options
+    #######################
+    # The right docking area extends to window bottom
+    window.setCorner(Qt.BottomRightCorner, Qt.RightDockWidgetArea)
+
     # app style sheet
     if THEME == "light":
         app.setStyleSheet("""QMainWindow, QGraphicsView, QListWidget, QMenu, QTableView {background-color: rgb(200, 200, 200)}\

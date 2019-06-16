@@ -242,6 +242,12 @@ class QbLUeColorDialog(QColorDialog):
 
     def closeEvent(self, e):
         self.closeSignal.sig.emit()
+        # remove possible links to an adjust form
+        try:
+            self.currentColorChanged.disconnect()
+            self.colorSelected.disconnect()
+        except RuntimeError:
+            pass
 
 
 class QbLUeSlider(QSlider):
