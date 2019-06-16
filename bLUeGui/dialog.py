@@ -21,7 +21,8 @@ from tempfile import mktemp
 from PySide2.QtCore import Qt, QDir
 from os.path import isfile
 
-from PySide2.QtWidgets import QMessageBox, QPushButton, QFileDialog, QDialog, QSlider, QVBoxLayout, QHBoxLayout, QLabel
+from PySide2.QtWidgets import QMessageBox, QPushButton, QFileDialog, QDialog, QSlider, QVBoxLayout, QHBoxLayout, QLabel, \
+    QCheckBox
 from utils import QbLUeSlider
 
 ##################
@@ -80,7 +81,7 @@ def saveChangeDialog(img):
 
 class savingDialog(QDialog):
     """
-    File dialog with quality and compression sliders.
+    File dialog with options.
     We use a standard QFileDialog as a child widget and we
     forward its methods to the top level.
     """
@@ -99,6 +100,7 @@ class savingDialog(QDialog):
         self.setWindowTitle(text)
         # File Dialog
         self.dlg = QFileDialog(caption=text, directory=lastDir)
+        self.metaOption = QCheckBox('Remove Meta')
         # sliders
         self.sliderComp = QbLUeSlider(Qt.Horizontal)
         self.sliderComp.setTickPosition(QSlider.TicksBelow)
@@ -114,6 +116,7 @@ class savingDialog(QDialog):
         l = QVBoxLayout()
         h = QHBoxLayout()
         l.addWidget(self.dlg)
+        h.addWidget(self.metaOption)
         h.addWidget(QLabel("Quality"))
         h.addWidget(self.sliderQual)
         h.addWidget(QLabel("Compression"))
@@ -201,14 +204,17 @@ def saveDlg(img, mainWidget):
         # get parameters
         quality = dlg.sliderQual.value()
         compression = dlg.sliderComp.value()
-        # call mImage.save to write image to file : throw ValueError or IOError
+        # call mImage.save to write image to file and return a thumbnail
+        # throw ValueError or IOError
         thumb = img.save(filename, quality=quality, compression=compression)
-        tempFilename = mktemp('.jpg')
-        # save jpg to temp file
-        thumb.save(tempFilename)
-        # copy temp file to image file
-        img.restoreMeta(img.filename, filename, thumbfile=tempFilename)
-        os.remove(tempFilename)
+        # write metadata
+        if not dlg.metaOption.isChecked():
+            tempFilename = mktemp('.jpg')
+            # save thumb jpg to temp file
+            thumb.save(tempFilename)
+            # copy temp file to image file
+            img.restoreMeta(img.filename, filename, thumbfile=tempFilename)
+            os.remove(tempFilename)
         return filename
     else:
         raise ValueError("Saving Operation Failure")

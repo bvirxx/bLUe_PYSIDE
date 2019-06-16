@@ -63,8 +63,9 @@ class mImage(vImage):
     def restoreMeta(cls, srcFile, destFile, defaultorientation=True, thumbfile=None):
         """
         # copy metadata from sidecar to image file. The sidecar is not removed.
-        If defaultorientaion is True the orientaion of the destination file is
+        If defaultorientation is True the orientation of the destination file is
         set to "no change" (1). This way, saved images are shown as they were edited.
+        The thumbnail is updated if thumbfile is provided. Other metadata are kept unchanged.
         @param srcFile: source image or sidecar (the extension is replaced by .mie).
         @type srcFile: str
         @param destFile: image file

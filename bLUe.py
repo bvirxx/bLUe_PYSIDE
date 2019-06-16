@@ -1753,7 +1753,7 @@ def screenUpdate(newScreenIndex):
         window.label_2.update()
     threading.Thread(target=bgTask)
     window.screenChanged.connect(screenUpdate)
-    
+
 
 def setRightPane():
     """
