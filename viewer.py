@@ -268,7 +268,6 @@ class viewer :
         dock.setAttribute(Qt.WA_DeleteOnClose)
         self.dock = dock
         window.addDockWidget(Qt.BottomDockWidgetArea, dock)
-
         newWin.setCentralWidget(listWdg)
         self.listWdg = listWdg
         self.newWin.setWhatsThis(
