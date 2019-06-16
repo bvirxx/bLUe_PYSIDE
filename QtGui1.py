@@ -25,7 +25,7 @@ from PySide2.QtWidgets import QApplication, QLabel, QMainWindow
 
 import resources_rc   # MANDATORY - DO NOT REMOVE !!!!
 from pyside_dynamicLoader import loadUi
-from utils import hideConsole, showConsole
+from utils import hideConsole, showConsole, QbLUeColorDialog
 
 
 class Form1(QMainWindow):
@@ -40,7 +40,13 @@ class Form1(QMainWindow):
         # we presume that the form will be shown first on screen 0;
         # No detection possible before it is effectively shown !
         self.currentScreenIndex = 0
+        self.__colorChooser = None
 
+    @property
+    def colorChooser(self):
+        if self.__colorChooser is None:
+            self.__colorChooser = QbLUeColorDialog(parent=self)
+        return self.__colorChooser
 
     def init(self):
         """
