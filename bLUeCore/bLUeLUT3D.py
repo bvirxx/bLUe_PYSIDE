@@ -210,7 +210,7 @@ class LUT3D (object):
             raise ValueError('LUT3D : wrong size')
 
         if LUT3DArray is None:
-            # build default LUT3DArray
+            # build default (identity) LUT3DArray
             a = np.arange(size, dtype=dtype) * self.step
             c = cartesianProduct((a, a, a))
             self.LUT3DArray = c
@@ -229,7 +229,7 @@ class LUT3D (object):
     def toHaldArray(self, w, h):
         """
         Convert a LUT3D object to a haldArray object with shape (w,h,3).
-        The 3D LUT is flattened, padded with 0, and reshaped
+        The 3D LUT is clipped to 0..255, flattened, padded with 0, and reshaped
         to a 2D array. The product w * h must be greater than (self.size)**3
         Hald channels, LUT channels and LUT axes must follow the same ordering (BGR or RGB).
         To simplify, we only handle halds and LUTs of type BGR.
@@ -244,8 +244,8 @@ class LUT3D (object):
         if (s ** 3) > w * h:
             raise ValueError("toHaldArray : incorrect sizes)")
         buf = np.zeros((w * h * 3), dtype=np.uint8)
-        count = (s ** 3) * 3  # TODO may be clip LUT array to 0,255 ?
-        buf[:count] = self.LUT3DArray.ravel()
+        count = (s ** 3) * 3
+        buf[:count] = np.clip(self.LUT3DArray.ravel(),0 , 255)  # TODO added clip 17/06/19 validate
         buf = buf.reshape(h, w, 3)
         return HaldArray(buf, s)
 
