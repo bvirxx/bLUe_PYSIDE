@@ -16,7 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 #####################################
-# Initializes LUT3D constants and objects
+# Initializes LUT3D related constants
 #####################################
 
 import numpy as np
@@ -26,6 +26,6 @@ LUTSIZE = LUT3D.defaultSize
 LUT3DIdentity = LUT3D(None, size=LUTSIZE)
 LUTSTEP = LUT3DIdentity.step
 LUT3D_ORI = LUT3DIdentity.LUT3DArray
-a,b,c,d = LUT3D_ORI.shape
-LUT3D_SHADOW = np.zeros((a,b,c,d+1))
+__a, __b, __c, __d = LUT3D_ORI.shape
+LUT3D_SHADOW = np.zeros((__a, __b, __c, __d+1))
 LUT3D_SHADOW[:,:,:,:3] = LUT3D_ORI
