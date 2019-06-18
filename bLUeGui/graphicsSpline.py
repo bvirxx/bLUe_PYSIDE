@@ -17,7 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 import numpy as np
-from PySide2.QtGui import QPainterPathStroker, QBrush
+from PySide2.QtGui import QPainterPathStroker, QBrush, QPainter
 from PySide2.QtCore import QRect, QPointF, QPoint
 from PySide2.QtWidgets import QPushButton, QGraphicsPathItem
 from PySide2.QtGui import QColor, QPen, QPainterPath, QPolygonF
@@ -48,8 +48,9 @@ class activePoint(QGraphicsPathItem):
     Interactive point
     """
 
-    def __init__(self, x, y, persistent=False, rect=None, parentItem=None):
+    def __init__(self, x, y, color=Qt.white, fillColor=None, persistent=False, rect=None, parentItem=None):
         super().__init__(parent=parentItem)
+        self.color = color
         self.setAcceptHoverEvents(True)
         self.persistent = persistent
         self.rect = rect
@@ -59,7 +60,10 @@ class activePoint(QGraphicsPathItem):
             y = min(max(y, self.ymin), self.ymax)
         self.setPos(QPointF(x, y))
         self.clicked = False
-        self.setPen(QPen(QColor(255, 255, 255), 2))
+        self.setPen(QPen(color, 2))
+        # filling brush
+        if fillColor is not  None:
+            self.setBrush(QBrush(fillColor))
         qpp = QPainterPath()
         # coordinates are relative to activePoint
         qpp.addEllipse(-4, -4, 8, 8)
@@ -81,7 +85,7 @@ class activePoint(QGraphicsPathItem):
         self.update()
 
     def hoverLeaveEvent(self, *args, **kwargs):
-        self.setPen(QPen(QColor(255, 255, 255), 2))
+        self.setPen(QPen(self.color, 2))
         self.update()
 
 
