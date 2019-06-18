@@ -18,11 +18,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 from PySide2.QtCore import Qt, QSize, QPointF
 from PySide2.QtGui import QImage, QColor, QPixmap, QPainter, QBrush, QPen
-from PySide2.QtWidgets import QGraphicsPixmapItem
+from PySide2.QtWidgets import QGraphicsPixmapItem, QGridLayout
 
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.graphicsForm import baseGraphicsForm
 from bLUeGui.graphicsSpline import activePoint
+from utils import optionsWidget
 
 
 class activeMixerPoint(activePoint):
@@ -31,8 +32,12 @@ class activeMixerPoint(activePoint):
         super().mouseMoveEvent(e)
 
     def mouseReleaseEvent(self, e):
-        self.scene().update()
         grForm = self.scene().layer.view.widget()
+        if grForm.options['Monochrome']:
+            for p in [grForm.rPoint, grForm.gPoint, grForm.bPoint]:
+                if p is not self:
+                    p.setPos(self.pos())
+        self.scene().update()
         grForm.dataChanged.emit()
 
     def paint(self, qpainter, options, widget):
@@ -66,11 +71,20 @@ class mixerForm(baseGraphicsForm):
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super().__init__(parent=parent, targetImage=targetImage, layer=layer)
-        self.setMinimumSize(axeSize, axeSize)
+        self.setMinimumSize(axeSize, axeSize + 80)
+        # color wheel size
+        self.cwSize = axeSize * 0.95
         self.setAttribute(Qt.WA_DeleteOnClose)
-        self.options = None
+        # options
+        optionList = ['Monochrome']
+        listWidget1 = optionsWidget(options=optionList, exclusive=False, changed=self.dataChanged)
+        listWidget1.setMinimumWidth(listWidget1.sizeHintForColumn(0) + 5)
+        listWidget1.setMinimumHeight(listWidget1.sizeHintForRow(0) * len(optionList) + 5)
+        self.options = listWidget1.options
         # barycentric coordinate basis : the 3 base points form an equilateral triangle
-        self.R, self.G, self.B = QPointF(20, 235), QPointF(235, 235), QPointF(128, 13)
+        h = self.cwSize - 50
+        s = h * 2 / np.sqrt(3)
+        self.R, self.G, self.B = QPointF(10, h + 20), QPointF(10 + s, h + 20), QPointF(10 + s / 2, 20)
         # Conversion matrix from cartesian coordinates (x, y, 1) to barycentric coordinates (alpha, beta, gamma)
         self.M = np.array([[self.R.x(), self.G.x(), self.B.x()],
                            [self.R.y(), self.G.y(), self.B.y()],
@@ -78,20 +92,24 @@ class mixerForm(baseGraphicsForm):
         self.invM = np.linalg.inv(self.M)
         self.setBackgroundImage()
         # active points
-        self.rPoint = activeMixerPoint(20, 235)
+        self.rPoint = activeMixerPoint(self.R.x(), self.R.y(), color=Qt.red, fillColor=Qt.white)
         self.rPoint.source = self.R
-        self.gPoint = activeMixerPoint(235, 235)
+        self.gPoint = activeMixerPoint(self.G.x(), self.G.y(), color=Qt.green, fillColor=Qt.white)
         self.gPoint.source = self.G
-        self.bPoint = activeMixerPoint(128, 13)
+        self.bPoint = activeMixerPoint(self.B.x(), self.B.y(), color=Qt.blue, fillColor=Qt.white)
         self.bPoint.source = self.B
         graphicsScene = self.scene()
         for point in [self.rPoint, self.gPoint, self.bPoint]:
             graphicsScene.addItem(point)
+        gl = QGridLayout()
+        gl.addWidget(listWidget1, 0, 0, 2, 2)
+        self.addCommandLayout(gl)
         self.setDefaults()
         self.setWhatsThis(
-                        """
-                        <b>Channel Mixer</b><br>
+                        """<b>Channel Mixer</b><br>
                         To <b>mix the R, G, B channels</b>, drag the 3 control points inside the triangle.<br>
+                        The triangle vertices and the control points correspond to channels.
+                        The closer a control point is to a vertex, the greater the corresponding channel contribution.  
                         """
                         )  # end of setWhatsThis
 
@@ -122,10 +140,13 @@ class mixerForm(baseGraphicsForm):
         buf2 = np.tensordot(buf1, self.invM, axes=(-1, -1)) * 255
         np.clip(buf2, 0, 255, out=buf2)
         buf1[...] = buf2
+        img = img.scaled(self.cwSize, self.cwSize)
         qp = QPainter(img)
+        # draw edges
         qp.drawLine(self.R, self.G)
         qp.drawLine(self.G, self.B)
         qp.drawLine(self.B, self.R)
+        # draw center
         b = (self.B + self.R + self.G) / 3.0
         qp.drawLine(b-QPointF(10, 0), b + QPointF(10, 0))
         qp.drawLine(b - QPointF(0, 10), b + QPointF(0, 10))
