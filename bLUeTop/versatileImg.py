@@ -47,7 +47,7 @@ from bLUeGui.dialog import dlgWarn
 from bLUeCore.kernel import getKernel
 from bLUeTop.lutUtils import LUT3DIdentity
 from bLUeTop.rawProcessing import rawPostProcess
-from utils import UDict
+from bLUeTop.utils import UDict
 from bLUeCore.dwtDenoising import dwtDenoiseChan
 
 

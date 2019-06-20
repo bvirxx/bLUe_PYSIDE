@@ -22,7 +22,7 @@ from PySide2.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout, QGroupBox
 
 from bLUeGui.graphicsSpline import graphicsSplineForm
 from bLUeGui.graphicsForm import baseForm
-from utils import optionsWidget, QbLUeSlider, UDict, QbLUeLabel, stateAwareQDockWidget
+from bLUeTop.utils import optionsWidget, QbLUeSlider, UDict, QbLUeLabel, stateAwareQDockWidget
 
 
 class CoBrSatForm(baseForm):
