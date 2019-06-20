@@ -20,7 +20,7 @@ import numpy as np
 
 from bLUeCore.tetrahedral import interpTetra
 from bLUeCore.trilinear import interpTriLinear
-from settings import USE_TETRA
+from bLUeTop.settings import USE_TETRA
 
 
 def interpMulti(LUT, LUTSTEP, ndImg, pool=None, use_tetra=False, convert=True):

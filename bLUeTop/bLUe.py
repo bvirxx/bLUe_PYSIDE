@@ -126,52 +126,51 @@ from os import path, walk
 from io import BytesIO
 
 from PIL.ImageCms import ImageCmsProfile
-from os.path import basename, isfile
 from types import MethodType
 import rawpy
 
 from bLUeCore.bLUeLUT3D import HaldArray
-from graphicsSegment import segmentForm
-from PySide2.QtCore import QRect, QEvent, QUrl, QSize, QFileInfo, QRectF, QObject, QPoint, QPointF
+from bLUeTop.graphicsSegment import segmentForm
+from PySide2.QtCore import QRect, QEvent, QUrl, QSize, QFileInfo, QRectF, QObject, QPointF
 from PySide2.QtGui import QPixmap, QPainter, QCursor, QKeySequence, QBrush, QPen, QDesktopServices, QFont, \
     QPainterPath, QTransform, QContextMenuEvent, QColor, QImage
 from PySide2.QtWidgets import QApplication, QAction, \
     QMainWindow, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QWidget, \
     QStyle, QTabWidget
-from QtGui1 import app, window, rootWidget
-import exiftool
-from graphicsBlendFilter import blendFilterForm
-from graphicsHVLUT2D import HVLUT2DForm
-from graphicsInvert import invertForm
-from graphicsMixer import mixerForm
-from graphicsNoise import noiseForm
-from graphicsRaw import rawForm
-from graphicsTransform import transForm, imageForm
+from bLUeTop.QtGui1 import app, window, rootWidget
+from bLUeTop import exiftool
+from bLUeTop.graphicsBlendFilter import blendFilterForm
+from bLUeTop.graphicsHVLUT2D import HVLUT2DForm
+from bLUeTop.graphicsInvert import invertForm
+from bLUeTop.graphicsMixer import mixerForm
+from bLUeTop.graphicsNoise import noiseForm
+from bLUeTop.graphicsRaw import rawForm
+from bLUeTop.graphicsTransform import transForm, imageForm
 from bLUeGui.bLUeImage import QImageBuffer, QImageFormats
-from versatileImg import vImage, metadataBag
-from MarkedImg import imImage, QRawLayer, QCloningLayer
-from graphicsRGBLUT import graphicsForm
-from graphicsLUT3D import graphicsForm3DLUT
-from lutUtils import LUTSIZE, LUT3D, LUT3DIdentity
+from bLUeTop.versatileImg import vImage, metadataBag
+from bLUeTop.MarkedImg import imImage, QRawLayer, QCloningLayer
+from bLUeTop.graphicsRGBLUT import graphicsForm
+from bLUeTop.graphicsLUT3D import graphicsForm3DLUT
+from bLUeTop.lutUtils import LUTSIZE, LUT3D, LUT3DIdentity
 from bLUeGui.colorPatterns import cmHSP, cmHSB
-from colorManagement import icc
-from graphicsCoBrSat import CoBrSatForm
-from graphicsExp import ExpForm
-from graphicsPatch import patchForm
-from settings import USE_POOL, POOL_SIZE, THEME, MAX_ZOOM, TABBING
-from utils import QbLUeColorDialog, colorInfoView, UDict
+from bLUeTop.colorManagement import icc
+from bLUeTop.graphicsCoBrSat import CoBrSatForm
+from bLUeTop.graphicsExp import ExpForm
+from bLUeTop.graphicsPatch import patchForm
+from bLUeTop.settings import USE_POOL, POOL_SIZE, THEME, MAX_ZOOM, TABBING
+from bLUeTop.utils import UDict
 from bLUeGui.tool import cropTool, rotatingTool
-from graphicsTemp import temperatureForm
+from bLUeTop.graphicsTemp import temperatureForm
 from time import sleep
 import gc
-from graphicsFilter import filterForm
-from graphicsHspbLUT import graphicsHspbForm
-from graphicsLabLUT import graphicsLabForm
-from splittedView import splittedWindow
+from bLUeTop.graphicsFilter import filterForm
+from bLUeTop.graphicsHspbLUT import graphicsHspbForm
+from bLUeTop.graphicsLabLUT import graphicsLabForm
+from bLUeTop.splittedView import splittedWindow
 
 from bLUeCore.demosaicing import demosaic
 from bLUeGui.dialog import *
-from viewer import playDiaporama, viewer
+from bLUeTop.viewer import playDiaporama, viewer
 
 ##################
 #  Software Attributions

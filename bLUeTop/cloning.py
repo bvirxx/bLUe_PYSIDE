@@ -16,10 +16,9 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import cv2
-from PySide2.QtCore import Qt, QRect
+from PySide2.QtCore import QRect
 
-from debug import tdec
-from utils import array2DSlices
+from bLUeTop.utils import array2DSlices
 import numpy as np
 
 def show(bufList):

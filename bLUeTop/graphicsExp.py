@@ -21,7 +21,7 @@ from PySide2.QtGui import QFontMetrics
 from PySide2.QtWidgets import QVBoxLayout, QHBoxLayout
 
 from bLUeGui.graphicsForm import baseForm
-from utils import QbLUeSlider, QbLUeLabel
+from bLUeTop.utils import QbLUeSlider, QbLUeLabel
 
 
 class ExpForm (baseForm):

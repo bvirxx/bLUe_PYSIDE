@@ -24,7 +24,7 @@ from PySide2.QtCore import Qt, QRectF
 
 from bLUeGui.colorCIE import sRGB2LabVec
 from bLUeGui.graphicsSpline import activeCubicSpline, graphicsCurveForm, activeSplinePoint, channelValues
-from utils import optionsWidget
+from bLUeTop.utils import optionsWidget
 
 
 class graphicsLabForm(graphicsCurveForm):

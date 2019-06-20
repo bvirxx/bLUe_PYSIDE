@@ -19,7 +19,7 @@ from PySide2.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout
 
 from bLUeGui.graphicsForm import baseForm
 from bLUeGui.qrangeslider import QRangeSlider
-from utils import optionsWidget
+from bLUeTop.utils import optionsWidget
 
 
 class blendFilterIndex:

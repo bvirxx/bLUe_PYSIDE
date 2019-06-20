@@ -17,7 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import ctypes
 import threading
-from os.path import isfile, basename
+from os.path import basename
 from itertools import product
 import numpy as np
 
@@ -30,7 +30,6 @@ from PySide2.QtCore import Qt, QObject, QRect, QEvent
 from bLUeCore.rollingStats import movingVariance
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.baseSignal import baseSignal_No
-from debug import tdec
 
 
 def shift2D(arr, tr, fill=0):
@@ -585,7 +584,7 @@ class loader(threading.Thread):
         # If wdg internal C++ object was destroyed by main thread (form closing)
         # a RuntimeError exception is raised and causes thread termination too.
         # Thus, no further synchronization is needed.
-        import exiftool
+        from bLUeTop import exiftool
         with exiftool.ExifTool() as e:
             while True:
                 try:

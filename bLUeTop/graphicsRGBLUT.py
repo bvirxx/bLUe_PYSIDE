@@ -21,7 +21,7 @@ from PySide2.QtCore import Qt, QRectF
 from PySide2.QtWidgets import QGraphicsScene, QGridLayout
 
 from bLUeGui.graphicsSpline import activeCubicSpline, graphicsCurveForm, activeSplinePoint, channelValues
-from utils import optionsWidget, QbLUePushButton
+from bLUeTop.utils import optionsWidget, QbLUePushButton
 
 
 class graphicsForm(graphicsCurveForm):

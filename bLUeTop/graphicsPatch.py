@@ -19,13 +19,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import cv2
 from PySide2.QtCore import Qt, QRect
 from PySide2.QtGui import QImage, QPixmap, QPainter
-from PySide2.QtWidgets import QVBoxLayout, QHBoxLayout, QPushButton, QWidget, QLabel, QFileDialog
+from PySide2.QtWidgets import QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog
 
 from bLUeGui.graphicsForm import baseForm
-from bLUeGui.dialog import dlgWarn, IMAGE_FILE_EXTENSIONS
+from bLUeGui.dialog import IMAGE_FILE_EXTENSIONS
 
-from versatileImg import vImage
-from utils import optionsWidget, UDict
+from bLUeTop.utils import optionsWidget, UDict
 
 
 class patchForm (baseForm):
@@ -78,7 +77,7 @@ class patchForm (baseForm):
 
         # Load Image button clicked slot
         def f():
-            from QtGui1 import window
+            from bLUeTop.QtGui1 import window
             lastDir = str(window.settings.value('paths/dlgdir', '.'))
             dlg = QFileDialog(window, "select", lastDir, " *".join(IMAGE_FILE_EXTENSIONS))
             if dlg.exec_():

@@ -22,8 +22,8 @@ from PySide2.QtWidgets import QLabel, QGridLayout
 
 from bLUeCore.bLUeLUT3D import DeltaLUT3D
 from bLUeGui.graphicsSpline import graphicsCurveForm, activeBSpline
-from graphicsLUT3D import activeMarker
-from utils import QbLUeSlider
+from bLUeTop.graphicsLUT3D import activeMarker
+from bLUeTop.utils import QbLUeSlider
 
 
 class HVLUT2DForm(graphicsCurveForm):

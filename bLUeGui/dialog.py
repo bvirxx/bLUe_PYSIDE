@@ -23,7 +23,7 @@ from os.path import isfile
 
 from PySide2.QtWidgets import QMessageBox, QPushButton, QFileDialog, QDialog, QSlider, QVBoxLayout, QHBoxLayout, QLabel, \
     QCheckBox
-from utils import QbLUeSlider
+from bLUeTop.utils import QbLUeSlider
 
 ##################
 # file extension constants

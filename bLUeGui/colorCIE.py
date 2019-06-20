@@ -17,7 +17,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import cv2
 import numpy as np
-from debug import tdec
 
 #############################################################################
 # This module implements temperature dependent                              #

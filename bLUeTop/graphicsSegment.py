@@ -19,10 +19,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 from PySide2.QtCore import Qt
 from PySide2.QtWidgets import QHBoxLayout, QPushButton, QVBoxLayout, QSpinBox, QLabel
 
-from versatileImg import vImage
-from QtGui1 import window
+from bLUeTop.versatileImg import vImage
+from bLUeTop.QtGui1 import window
 from bLUeGui.graphicsForm import baseForm
-from utils import optionsWidget
+from bLUeTop.utils import optionsWidget
 
 
 class segmentForm(baseForm):

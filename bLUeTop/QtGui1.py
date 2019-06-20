@@ -23,9 +23,8 @@ import sys
 
 from PySide2.QtWidgets import QApplication, QLabel, QMainWindow, QSizePolicy
 
-import resources_rc   # MANDATORY - DO NOT REMOVE !!!!
-from pyside_dynamicLoader import loadUi
-from utils import hideConsole, showConsole, QbLUeColorDialog, colorInfoView
+from bLUeTop.pyside_dynamicLoader import loadUi
+from bLUeTop.utils import hideConsole, showConsole, QbLUeColorDialog, colorInfoView
 
 
 class Form1(QMainWindow):
@@ -61,8 +60,8 @@ class Form1(QMainWindow):
         Load the form from the .ui file
 
         """
-        from graphicsHist import histForm
-        from layerView import QLayerView
+        from bLUeTop.graphicsHist import histForm
+        from bLUeTop.layerView import QLayerView
         loadUi('bLUe.ui', baseinstance=self,
                customWidgets={'QLayerView': QLayerView, 'QLabel': QLabel, 'histForm': histForm})
         # hook called by event slots

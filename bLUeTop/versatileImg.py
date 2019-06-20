@@ -33,10 +33,9 @@ from PySide2.QtCore import QRect
 from bLUeGui.bLUeImage import bImage, ndarrayToQImage
 from bLUeCore.multi import chosenInterp
 
-from debug import tdec
-from graphicsBlendFilter import blendFilterIndex
+from bLUeTop.graphicsBlendFilter import blendFilterIndex
 
-from graphicsFilter import filterIndex
+from bLUeTop.graphicsFilter import filterIndex
 from bLUeGui.histogramWarping import warpHistogram
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.colorCube import rgb2hspVec, hsp2rgbVec, hsv2rgbVec
@@ -46,8 +45,8 @@ from bLUeGui.colorCIE import sRGB2LabVec, Lab2sRGBVec, rgb2rgbLinearVec, \
 from bLUeGui.multiplier import temperatureAndTint2Multipliers
 from bLUeGui.dialog import dlgWarn
 from bLUeCore.kernel import getKernel
-from lutUtils import LUT3DIdentity
-from rawProcessing import rawPostProcess
+from bLUeTop.lutUtils import LUT3DIdentity
+from bLUeTop.rawProcessing import rawPostProcess
 from utils import UDict
 from bLUeCore.dwtDenoising import dwtDenoiseChan
 

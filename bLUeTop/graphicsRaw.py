@@ -27,8 +27,8 @@ from PySide2.QtGui import QFontMetrics, QBrush, QPolygonF
 from PySide2.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBox, QComboBox, QGraphicsPolygonItem
 from bLUeGui.graphicsSpline import graphicsSplineForm
 from bLUeGui.graphicsForm import baseForm
-from dng import getDngProfileList, getDngProfileDict, dngProfileToneCurve
-from utils import optionsWidget, UDict, QbLUeSlider, stateAwareQDockWidget
+from bLUeTop.dng import getDngProfileList, getDngProfileDict, dngProfileToneCurve
+from bLUeTop.utils import optionsWidget, UDict, QbLUeSlider, stateAwareQDockWidget
 from bLUeGui.multiplier import *
 
 

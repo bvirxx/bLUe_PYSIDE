@@ -26,9 +26,9 @@ from PySide2.QtGui import QKeySequence, QImage, QDrag
 from PySide2.QtWidgets import QMainWindow, QLabel, QSizePolicy, QAction, QMenu, QListWidget, QAbstractItemView, \
     QApplication
 
-import exiftool
-from QtGui1 import app, window
-from utils import loader, stateAwareQDockWidget
+from bLUeTop import exiftool
+from bLUeTop.QtGui1 import app, window
+from bLUeTop.utils import loader, stateAwareQDockWidget
 from bLUeGui.dialog import IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS
 
 # global variable recording diaporama state
@@ -56,7 +56,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
     newWin.setCentralWidget(label)
     # newWin.showMaximized()
     newWin.showFullScreen()
-    from bLUe import set_event_handlers
+    from bLUeTop import set_event_handlers
     set_event_handlers(label)
     # Pause key shortcut
     actionEsc = QAction('Pause', None)
@@ -118,7 +118,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
         """
     )  # end of setWhatsThis
     # play diaporama
-    from bLUe import loadImageFromFile
+    from bLUeTop import loadImageFromFile
     window.modeDiaporama = True
     while True:
         if isSuspended:
@@ -304,7 +304,7 @@ To <b>open an image</b> drag it onto the main window.<br>
         display full size image in a new window
         Unused yet
         """
-        from bLUe import window, set_event_handlers, loadImageFromFile
+        from bLUeTop import window, set_event_handlers, loadImageFromFile
         parent = window
         newWin = QMainWindow(parent)
         newWin.setAttribute(Qt.WA_DeleteOnClose)

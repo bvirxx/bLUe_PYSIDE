@@ -25,9 +25,8 @@ from PIL.ImageCms import getOpenProfile, getProfileInfo, \
 from PySide2.QtGui import QImage
 
 from bLUeGui.bLUeImage import QImageBuffer
-from debug import tdec
 
-from settings import SRGB_PROFILE_PATH, ADOBE_RGB_PROFILE_PATH, DEFAULT_MONITOR_PROFILE_PATH
+from bLUeTop.settings import SRGB_PROFILE_PATH, ADOBE_RGB_PROFILE_PATH, DEFAULT_MONITOR_PROFILE_PATH
 
 if sys.platform == 'win32':
     import win32gui

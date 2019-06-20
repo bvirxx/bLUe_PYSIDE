@@ -22,7 +22,7 @@ from PySide2.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout
 
 from bLUeGui.colorCIE import sRGBWP
 from bLUeGui.graphicsForm import baseForm
-from utils import optionsWidget, QbLUeSlider, QbLUeLabel, QbLUePushButton
+from bLUeTop.utils import optionsWidget, QbLUeSlider, QbLUeLabel, QbLUePushButton
 
 
 class temperatureForm (baseForm):

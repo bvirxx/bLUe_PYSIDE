@@ -19,7 +19,7 @@ from PySide2.QtCore import Qt
 from PySide2.QtWidgets import QVBoxLayout
 
 from bLUeGui.graphicsForm import baseForm
-from utils import optionsWidget
+from bLUeTop.utils import optionsWidget
 
 
 class invertForm(baseForm):

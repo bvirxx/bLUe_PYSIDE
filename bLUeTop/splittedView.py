@@ -43,7 +43,7 @@ class splittedWindow:
         self.mainWin.label_3.show()
         # wait for size updates
         watchDog = 0
-        from QtGui1 import app
+        from bLUeTop.QtGui1 import app
         while not (self.mainWin.label_2.width() > 0 and self.mainWin.label_3.width() > 0):
             if watchDog >= 3:
                 break

@@ -18,10 +18,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import os
 from os.path import basename
 
-import exiftool
+from bLUeTop import exiftool
 import numpy as np
 from bLUeGui.spline import cubicSpline
-from settings import DNG_PROFILES_DIR2, DNG_PROFILES_DIR1
+from bLUeTop.settings import DNG_PROFILES_DIR2, DNG_PROFILES_DIR1
 
 #########################################################################################
 # Functions and classes related to dng/dcp profile tags.

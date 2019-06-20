@@ -27,7 +27,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
 
-from dng import interpolate, dngProfileDual, interpolatedColorMatrix
+from bLUeTop.dng import interpolate, dngProfileDual, interpolatedColorMatrix
 from .colorCIE import temperatureAndTint2xy, temperature2xyWP
 
 

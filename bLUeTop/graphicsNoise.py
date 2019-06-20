@@ -17,10 +17,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 from PySide2.QtCore import Qt
 from PySide2.QtGui import QFontMetrics
-from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QSlider, QLabel, QHBoxLayout
+from PySide2.QtWidgets import QVBoxLayout, QSlider, QLabel, QHBoxLayout
 
 from bLUeGui.graphicsForm import baseForm
-from utils import optionsWidget, QbLUeSlider
+from bLUeTop.utils import optionsWidget, QbLUeSlider
 
 
 class noiseForm (baseForm):

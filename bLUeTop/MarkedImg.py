@@ -19,7 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 import gc
 
-from PySide2.QtCore import Qt, QDataStream, QFile, QIODevice, QSize, QPoint
+from PySide2.QtCore import Qt, QSize, QPoint
 
 import cv2
 from copy import copy
@@ -29,20 +29,20 @@ from PySide2.QtWidgets import QApplication
 from PySide2.QtGui import QPixmap, QImage, QPainter
 from PySide2.QtCore import QRect
 
-import exiftool
+from bLUeTop import exiftool
 from bLUeGui.memory import weakProxy
-from cloning import contours, moments, seamlessClone
+from bLUeTop.cloning import contours, moments, seamlessClone
 
-from colorManagement import icc, cmsConvertQImage
+from bLUeTop.colorManagement import icc, cmsConvertQImage
 from bLUeGui.bLUeImage import QImageBuffer, ndarrayToQImage, bImage
 from bLUeGui.dialog import dlgWarn
 from time import time
 
-from lutUtils import LUT3DIdentity
+from bLUeTop.lutUtils import LUT3DIdentity
 from bLUeGui.baseSignal import baseSignal_bool, baseSignal_Int2, baseSignal_No
-from utils import qColorToRGB, historyList
+from bLUeTop.utils import qColorToRGB, historyList
 
-from versatileImg import vImage
+from bLUeTop.versatileImg import vImage
 
 
 class ColorSpace:

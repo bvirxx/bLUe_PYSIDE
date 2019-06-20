@@ -18,23 +18,19 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import gc
 from collections import OrderedDict
 
-import cv2
-import numpy as np
-
 from PySide2 import QtCore
-from PySide2.QtCore import QRectF, QSize, Qt, QModelIndex, QPointF, QPoint
+from PySide2.QtCore import QRectF, QSize, Qt, QModelIndex, QPoint
 from PySide2.QtGui import QImage, QPalette, QKeySequence, QFontMetrics, QTextOption, QPixmap, QIcon, QPainter, QStandardItem, QStandardItemModel
 from PySide2.QtWidgets import QAction, QMenu, QSlider, QStyle, QCheckBox, QApplication
 from PySide2.QtWidgets import QComboBox, QHBoxLayout, QLabel, QTableView, QAbstractItemView, QStyledItemDelegate, QHeaderView, QVBoxLayout
 
-from QtGui1 import window
+from bLUeTop.QtGui1 import window
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.dialog import openDlg, dlgWarn
 from bLUeGui.memory import weakProxy
-from settings import TABBING
-from utils import  QbLUeSlider
-import resources_rc  # hidden import mandatory : DO NOT REMOVE !!!
-from versatileImg import vImage
+from bLUeTop.settings import TABBING
+from bLUeTop.utils import  QbLUeSlider
+from bLUeTop.versatileImg import vImage
 
 
 class layerModel(QStandardItemModel):

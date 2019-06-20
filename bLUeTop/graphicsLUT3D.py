@@ -32,16 +32,13 @@ from PySide2.QtGui import QImage
 from PySide2.QtWidgets import QMenu, QRubberBand
 
 from bLUeCore.bLUeLUT3D import LUT3D
-from MarkedImg import QLayer
 from bLUeCore.trilinear import interpTriLinear
 from bLUeGui.colorCube import rgb2hsB, cmyk2rgb
 from bLUeGui.graphicsForm import baseGraphicsForm
-from debug import tdec
-from lutUtils import LUTSIZE, LUTSTEP, LUT3D_SHADOW, LUT3D_ORI, LUT3DIdentity
-from versatileImg import vImage
+from bLUeTop.lutUtils import LUTSIZE, LUTSTEP, LUT3D_SHADOW, LUT3D_ORI, LUT3DIdentity
 from bLUeGui.colorPatterns import hueSatPattern, brightnessPattern
 from bLUeGui.bLUeImage import QImageBuffer
-from utils import optionsWidget, UDict, QbLUePushButton
+from bLUeTop.utils import optionsWidget, UDict, QbLUePushButton
 from bLUeGui.dialog import dlgWarn, dlgInfo
 
 

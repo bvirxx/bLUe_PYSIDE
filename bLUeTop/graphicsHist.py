@@ -20,7 +20,7 @@ from PySide2.QtCore import Qt
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout
 
 from bLUeGui.graphicsForm import baseForm
-from utils import optionsWidget
+from bLUeTop.utils import optionsWidget
 
 
 class histForm (baseForm):

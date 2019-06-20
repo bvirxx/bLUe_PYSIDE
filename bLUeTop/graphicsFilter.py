@@ -22,7 +22,7 @@ from PySide2.QtGui import QFontMetrics
 
 from bLUeGui.graphicsForm import baseForm
 from bLUeCore.kernel import filterIndex
-from utils import optionsWidget, QbLUeSlider
+from bLUeTop.utils import optionsWidget, QbLUeSlider
 
 
 class filterForm (baseForm):

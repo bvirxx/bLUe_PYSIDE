@@ -29,8 +29,8 @@ import json
 
 from PySide2.QtCore import QByteArray
 from PySide2.QtGui import QTransform, QImage
-from os.path import isfile, basename
-from settings import EXIFTOOL_PATH
+from os.path import isfile
+from bLUeTop.settings import EXIFTOOL_PATH
 from bLUeGui.dialog import dlgWarn
 
 

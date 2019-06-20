@@ -23,7 +23,7 @@ from PySide2.QtWidgets import QGraphicsPixmapItem, QGridLayout
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.graphicsForm import baseGraphicsForm
 from bLUeGui.graphicsSpline import activePoint
-from utils import optionsWidget
+from bLUeTop.utils import optionsWidget
 
 
 class activeMixerPoint(activePoint):
