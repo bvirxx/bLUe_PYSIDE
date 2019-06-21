@@ -49,8 +49,8 @@ def dwtDenoiseChan(image, chan=0, thr=1.0, thrmode='hard', wavelet='haar', level
     Fridrich, "Digital Image Forensics," IEEE Signal Processing
     Magazine, vol. 26, 2009, pp. 26-37,
     and also :
-    M. K. Mihcak, I. Kozintsev, and K. Ramchandran, “Spatially adaptive statistical
-    modeling of wavelet image coefficients and its application to denoising,” in
+    M. K. Mihcak, I. Kozintsev, and K. Ramchandran, - Spatially adaptive statistical
+    modeling of wavelet image coefficients and its application to denoising - , in
     Proc. IEEE Int. Conf. Acoustics, Speech, and Signal Processing, Phoenix, AZ,
     Mar. 1999, vol. 6, pp. 3253–3256
     See also U{https://github.com/stefanv} for a similar approach, differing in
