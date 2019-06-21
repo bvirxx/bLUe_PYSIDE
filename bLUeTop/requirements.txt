@@ -1,0 +1,6 @@
+rawpy==0.13.0
+pywin32==223
+numpy==1.16.2+mkl
+Pillow==6.0.0
+PySide2==5.12.4
+win32gui==221.6
