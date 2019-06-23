@@ -54,9 +54,8 @@ def playDiaporama(diaporamaGenerator, parent=None):
     label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
     label.img = None
     newWin.setCentralWidget(label)
-    # newWin.showMaximized()
     newWin.showFullScreen()
-    from bLUeTop import set_event_handlers
+    from bLUe import set_event_handlers
     set_event_handlers(label)
     # Pause key shortcut
     actionEsc = QAction('Pause', None)
@@ -118,7 +117,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
         """
     )  # end of setWhatsThis
     # play diaporama
-    from bLUeTop import loadImageFromFile
+    from bLUe import loadImageFromFile
     window.modeDiaporama = True
     while True:
         if isSuspended:
@@ -232,14 +231,12 @@ class viewer :
         self.mainWin = mainWin
         # init form
         self.initWins()
-        # checkable action must be initialized only once
-        # to keep its state.
         actionSub = QAction('Show SubFolders', None)
         actionSub.setCheckable(True)
         actionSub.setChecked(False)
         actionSub.triggered.connect(lambda checked=False, action=actionSub: self.hSubfolders(action))  # named arg checked is always sent
         self.actionSub = actionSub
-        # context menu
+        # init context menu
         self.initCMenu()
 
     def initWins(self):
@@ -283,7 +280,6 @@ To <b>open an image</b> drag it onto the main window.<br>
         Context menu initialization
         """
         menu = QMenu()
-        # menu.addAction('View image in a separate window', self.viewImage)  # too large overload and limited usage: removed
         menu.addAction("Copy Image to Clipboard", self.hCopy)
         menu.addAction(self.actionSub)
         subMenuRating = menu.addMenu('Rating')
@@ -304,7 +300,7 @@ To <b>open an image</b> drag it onto the main window.<br>
         display full size image in a new window
         Unused yet
         """
-        from bLUeTop import window, set_event_handlers, loadImageFromFile
+        from bLUe import window, set_event_handlers, loadImageFromFile
         parent = window
         newWin = QMainWindow(parent)
         newWin.setAttribute(Qt.WA_DeleteOnClose)
