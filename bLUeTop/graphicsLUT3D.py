@@ -35,7 +35,7 @@ from bLUeCore.bLUeLUT3D import LUT3D
 from bLUeCore.trilinear import interpTriLinear
 from bLUeGui.colorCube import rgb2hsB, cmyk2rgb
 from bLUeGui.graphicsForm import baseGraphicsForm
-from bLUeTop.lutUtils import LUTSIZE, LUTSTEP, LUT3D_SHADOW, LUT3D_ORI, LUT3DIdentity
+from bLUeTop.lutUtils import LUTSIZE, LUTSTEP, LUT3D_ORI, LUT3DIdentity
 from bLUeGui.colorPatterns import hueSatPattern, brightnessPattern
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeTop.utils import optionsWidget, UDict, QbLUePushButton
@@ -51,9 +51,9 @@ spread = 1
 class index(object):
     """
     the class index is designed to handle sets of
-    4-dim coordinates.
+    4D coordinates.
     An index object represents a 4-uple (p, i, j, k),
-    i, j, k are indices in a 3D LUT and p is the corresponding brightness.
+    i, j, k are indices in a 3D LUT and p is a brightness.
     A set of index objects contains unique (i, j, k) 3-uples
     """
     def __init__(self, p, i, j, k):
@@ -241,11 +241,12 @@ class nodeGroup(QGraphicsItemGroup):
 class activeNode(QGraphicsPathItem):
     """
     Grid node class.
-    Each node holds the r,g,b and h,s,p values  corresponding to its
-    position on the color wheel.
-    The attribute LUTIndices holds the list of LUT indices
-    matching h and s.
-        """
+    Each node owns a fixed color, depending on its initial position on the color wheel.
+    The node is bound to a fixed list of LUT vertices, corresponding to its initial hue and sat values.
+    When a node is moved over the color wheel, calling the method setState synchronizes
+    the values of the LUT vertices with the current node position.
+    """
+
     # paths for node drawing
     qppE = QPainterPath()
     qppE.addEllipse(-3, -3, 6, 6)
@@ -270,16 +271,14 @@ class activeNode(QGraphicsPathItem):
 
     def __init__(self, position, cModel, gridRow=0, gridCol=0, parent=None, grid=None):
         """
-        Grid Node class.
-        Each node owns a fixed color, depending on its
-        initial position on the color wheel. The node is bound to a fixed list
-        of LUT vertices, corresponding to its initial color.
-        When a node is moved over the color wheel, calling the method setState synchronizes
-        the values of the LUT vertices with the current node position.
+        Each node holds the r,g,b and h,s,p values corresponding to its
+        initial position on the color wheel.
+        The attribute LUTIndices holds the list of LUT vertices
+        matching h and s.
         @param position: node position (relative to parent item)
         @type position: QPointF
-        @param cModel:
-        @type cModel:
+        @param cModel: color model converter
+        @type cModel: cmConverter
         @param gridRow:
         @type gridRow:
         @param gridCol:
@@ -312,7 +311,7 @@ class activeNode(QGraphicsPathItem):
         self.hue, self.sat, self.pB = self.cModel.rgb2cm(self.r, self.g, self.b)
         # modified colors (LUT output)
         self.rM, self.gM, self.bM = self.r, self.g, self.b
-        # build the list of LUT vertices bound to the node:
+        # To build the list of LUT vertices bound to the node,
         # we convert the list of HSV coord. (self.hue, self.sat, V) to RGB values
         # and search for the nearest neighbor vertices in the 3D LUT.
         # BrgbBuf axis 0 is brightness
@@ -322,10 +321,12 @@ class activeNode(QGraphicsPathItem):
         clipped.extend([tuple(self.LUTIndices[len(clipped)])] if len(clipped) < len(self.LUTIndices) else [])
         # remove duplicate vertices
         self.LUTIndices = set([index(p/100.0, i, j, k) for p, (i, j, k) in enumerate(clipped)])
+        """
         for x in self.LUTIndices:
             (i, j, k) = x.ind
             LUT3D_SHADOW[max(i-spread, 0):i + spread + 1, max(j - spread, 0):j + spread + 1,
-                         max(k - spread, 0):k + spread + 1, 3] = 1
+                         max(k - spread, 0):k + spread + 1, 3] = 1 Removed 03/07/19
+        """
         # mark central node
         c = grid.size//2  # PYTHON 3 integer quotient
         if self.gridRow == c and self.gridCol == c:
@@ -336,7 +337,7 @@ class activeNode(QGraphicsPathItem):
         self.delta = QPointF(0, 0)
         self.initialPosition = position
         self.newPos = QPointF()
-        self.isControlPoint = False  # 28/10
+        self.isControlPoint = False
 
     @property  # read only
     def gridRow(self):
@@ -490,14 +491,21 @@ class activeNode(QGraphicsPathItem):
 
 
 class activeGrid(QGraphicsPathItem):
+    """
+    Grid of active nodes
+    """
 
     selectionList = []
 
     def __init__(self, size, cModel, parent=None):
         """
 
-        @param size: node count in each dim.
+        @param size: grid size
+        @type size: int
+        @param cModel: color model converter
+        @type cModel: cmConverter
         @param parent:
+        @type parent:
         """
         super().__init__()
         self.setParentItem(parent)
@@ -837,8 +845,8 @@ class graphicsForm3DLUT(baseGraphicsForm):
         """
         build a graphicsForm3DLUT object. The parameter size represents the size of
         the color wheel, border not included (the size of the window is adjusted).
-        @param cModel
-        @type cModel:
+        @param cModel: color Model converter
+        @type cModel: cmConverter
         @param targetImage
         @type targetImage:
         @param axeSize: size of the color wheel (default 500)
