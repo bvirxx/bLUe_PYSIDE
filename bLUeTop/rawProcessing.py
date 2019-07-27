@@ -25,7 +25,7 @@ from PySide2.QtGui import QImage
 
 from bLUeCore.multi import chosenInterp
 from bLUeGui.bLUeImage import QImageBuffer, bImage
-from bLUeGui.colorCIE import rgbLinear2rgbVec, sRGB_lin2XYZInverse, bradfordAdaptationMatrix
+from bLUeGui.colorCIE import rgbLinear2rgb, sRGB_lin2XYZInverse, bradfordAdaptationMatrix
 from bLUeGui.graphicsSpline import channelValues
 from bLUeGui.histogramWarping import warpHistogram
 from bLUeTop.dng import dngProfileLookTable, dngProfileToneCurve, interpolatedForwardMatrix
@@ -291,7 +291,7 @@ def rawPostProcess(rawLayer, pool=None):
     ###################
     # apply gamma curve
     ###################
-    bufpostF32_255 = rgbLinear2rgbVec(bufpostF32_1)
+    bufpostF32_255 = rgbLinear2rgb(bufpostF32_1)  # TODO modified 19/07 19 validate rgbLinear2rgbVec(bufpostF32_1)
     # np.clip(bufpostF32_255, 0, 255, out=bufpostF32_255)  # clip not needed after rgbLinear2rgbVec thresholds correction 8/11/18
     #############################
     # Conversion to 8 bits/channel

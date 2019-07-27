@@ -40,8 +40,8 @@ from bLUeGui.histogramWarping import warpHistogram
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.colorCube import rgb2hspVec, hsp2rgbVec, hsv2rgbVec
 from bLUeGui.blend import blendLuminosity
-from bLUeGui.colorCIE import sRGB2LabVec, Lab2sRGBVec, rgb2rgbLinearVec, \
-    rgbLinear2rgbVec, sRGB2XYZVec, sRGB_lin2XYZInverse, bbTemperature2RGB
+from bLUeGui.colorCIE import sRGB2LabVec, Lab2sRGBVec, rgb2rgbLinear, \
+    rgbLinear2rgb, sRGB2XYZ, sRGB_lin2XYZInverse, bbTemperature2RGB
 from bLUeGui.multiplier import temperatureAndTint2Multipliers
 from bLUeGui.dialog import dlgWarn
 from bLUeCore.kernel import getKernel
@@ -885,12 +885,12 @@ class vImage(bImage):
         bufIn = QImageBuffer(self.inputImg())
         buf = bufIn[:, :, :3][:, :, ::-1]
         # convert to linear
-        buf = rgb2rgbLinearVec(buf)
+        buf = rgb2rgbLinear(buf)  # TODO modified 19/07/19 validate rgb2rgbLinearVec(buf)
         # apply correction
         buf[:, :, :] = buf * (2 ** exposureCorrection)
         np.clip(buf, 0.0, 1.0, out=buf)
         # convert back to RGB
-        buf = rgbLinear2rgbVec(buf)
+        buf = rgbLinear2rgb(buf)  # TODO modified 19/07/19 validate rgbLinear2rgbVec(buf)
         np.clip(buf, 0.0, 255.0, out=buf)
         currentImage = self.getCurrentImage()
         ndImg1a = QImageBuffer(currentImage)
@@ -904,14 +904,14 @@ class vImage(bImage):
         bufIn = QImageBuffer(self.inputImg())
         buf = bufIn[:, :, :3][:, :, ::-1]
         # convert to linear
-        buf = rgb2rgbLinearVec(buf)
+        buf = rgb2rgbLinear(buf)  # TODO modified 19/07/19 validate rgb2rgbLinearVec(buf)
         # mix channels
         currentImage = self.getCurrentImage()
         bufOut = QImageBuffer(currentImage)
         buf = np.tensordot(buf, form.mixerMatrix, axes=(-1, -1))
         np.clip(buf, 0, 1.0, out=buf)
         # convert back to RGB
-        buf = rgbLinear2rgbVec(buf)
+        buf = rgbLinear2rgb(buf)  # TODO modified 19/07/19 validate  rgbLinear2rgbVec(buf)
         bufOut[:, :, :3][:, :, ::-1] = buf
         # forward the alpha channel
         bufOut[:, :, 3] = bufIn[:, :, 3]
@@ -1606,14 +1606,14 @@ class vImage(bImage):
             # get RGB multipliers
             m1, m2, m3, _ = temperatureAndTint2Multipliers(temperature, 2 ** tint, sRGB_lin2XYZInverse)
             buf = QImageBuffer(inputImage)[:, :, :3]
-            bufXYZ = sRGB2XYZVec(buf[:, :, ::-1])
+            bufXYZ = sRGB2XYZ(buf[:, :, ::-1])
             bufsRGBLinear = np.tensordot(bufXYZ, sRGB_lin2XYZInverse, axes=(-1, -1))
             # apply multipliers
             bufsRGBLinear *= [m1, m2, m3]
             # brightness correction
             M = np.max(bufsRGBLinear)
             bufsRGBLinear /= M
-            bufOutRGB = rgbLinear2rgbVec(bufsRGBLinear)
+            bufOutRGB = rgbLinear2rgb(bufsRGBLinear)  # TODO modified 19/07/19 validate rgbLinear2rgbVec(bufsRGBLinear)
             np.clip(bufOutRGB, 0, 255, out=bufOutRGB)
             bufOutRGB = bufOutRGB.astype(np.uint8)
         else:

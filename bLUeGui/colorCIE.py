@@ -19,9 +19,8 @@ import cv2
 import numpy as np
 
 #############################################################################
-# This module implements temperature dependent                              #
-# conversion functions :                                                    #
-# sRGB2LabVec, lab2sRGBVec, XYZ2sRGBVec, sRGB2XYZVec.                       #
+# Temperature dependent conversion functions are located in this module:    #
+# sRGB2LabVec, lab2sRGBVec, XYZ2sRGB, sRGB2XYZ, XYZ2sRGBLinear.             #
 # Other conversion functions are change of coordinates in                   #
 # a single RGB color space. They are located in the module                  #
 # colorCube.py :                                                            #
@@ -29,21 +28,18 @@ import numpy as np
 # rgb2hsBVec, rgb2hspVec                                                    #
 #############################################################################
 
+sRGBWP = 6500
+
 #####################
 # Conversion Matrices
 #####################
+# According to Python and Numpy conventions, the following definitions of matrix
+# constants M as lists and/or arrays correspond to
+# M[row_index, col_index] = M[row_index][col_index] values.
 
-
-sRGBWP = 6500
-
-# According to Python and Numpy conventions, the below definitions of matrix
-# constants as lists and/or arrays give M[row_index][col_index] values.
-
-############################################
 # The Bradford matrix converts from
 # CIE XYZ to the cone response domain.
 # Cf. http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html
-#############################################
 
 Bradford = [[0.8951000, 0.2664000, -0.1614000],
             [-0.7502000, 1.7135000, 0.0367000],
@@ -53,11 +49,9 @@ BradfordInverse = [[0.9869929, -0.1470543, 0.1599627],
                    [0.4323053, 0.5183603, 0.0492912],
                    [-0.0085287, 0.0400428, 0.9684867]]
 
-######################################################################
-# conversion matrices from LINEAR sRGB  to XYZ (D65) and back.
+# conversion matrices from LINEAR sRGB (D65) to XYZ and back.
 # Cf. http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
 # and https://en.wikipedia.org/wiki/SRGB
-#######################################################################
 
 sRGB_lin2XYZ = [[0.4124564, 0.3575761, 0.1804375],
                 [0.2126729, 0.7151522, 0.0721750],
@@ -67,11 +61,9 @@ sRGB_lin2XYZInverse = [[3.2404542, -1.5371385, -0.4985314],
                        [-0.9692660, 1.8760108, 0.0415560],
                        [0.0556434, -0.2040259, 1.0572252]]
 
-######################################################################
-# conversion matrices from LINEAR sRGB  to XYZ (D50) and back.
+# conversion matrices from LINEAR sRGB (D50) to XYZ  and back.
 # Cf. http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
 # and https://en.wikipedia.org/wiki/SRGB
-#######################################################################
 
 sRGB_lin2XYZ_D50 = [[0.4360747,  0.3850649,  0.1430804],
                     [0.2225045,  0.7168786,  0.0606169],
@@ -81,130 +73,158 @@ sRGB_lin2XYZ_D50Inverse = [[3.1338561, -1.6168667, -0.4906146],
                            [-0.9787684,  1.9161415,  0.0334540],
                            [0.0719453, -0.2289914,  1.4052427]]
 
-
-###########################################################
 # XYZ/sRGB/Lab conversion :
-# D65 illuminant Xn, Yn, Zn
+# D65 illuminant Xn, Yn, Zn and
 # conversion constants Ka, Kb
 # See https://en.wikipedia.org/wiki/Lab_color_space
-###########################################################
+
 Xn, Yn, Zn = 0.95047, 1.0, 1.08883
 Ka, Kb = 172.355, 67.038
 
-##########################################
-# Constants and precomputed tables for the
-# RGB linearizing functions
-# rgbLinear2rgbVec and rgb2rgbLinearVec.
-#########################################
 
-##########
-# sRGB
-# Cf. https://en.wikipedia.org/wiki/SRGB
-a = 0.055
-gamma = 2.4
-d = 12.92
-thr=0.0031
-gammaLinearTreshold1 = 0.0031308
-gammaLinearTreshold2 = 0.04045
-#########
-# REC BT 709
-a=0.099
-gamma=2.2
-d=4.5
-gammaLinearTreshold1 = 0.018
-gammaLinearTreshold2 = 0.081
-#########
+USE_BT_709 = False
 
-beta = 1.0 / gamma
-b = (a / (1.0 + a)) ** gamma
-# c = 255.0 * d
-
-F = 255.0 ** beta
-table0 = np.arange(256, dtype=np.float64)
-table2 = table0 / (255 * d)
-# tabulate ( (x + a) / (1 + a) )**gamma
-table3 = np.power((table0 / 255 + a) / (1 + a), gamma)    # np.power(table0 / 255.0, gamma) TODO 5/11/18 missing a corrected validate
-# tabulate (1 + a) * x**(1/gamma) - a
-table5 = np.power(table0, beta) * (1.0 + a) / F - a   # TODO 5/11/18 missing -a corrected validate
-
-def rgbLinear2rgb(r, g, b):
+class gammaTables:
     """
-    Conversion from linear RGB to sRGB.
-    Cf. U{https://en.wikipedia.org/wiki/SRGB}
-    Linear r,g,b values are in range 0..1.
-    Converted values are in range 0..255
-    @param r:
-    @param g:
-    @param b:
-    @return: The converted values
+    # Constants, methods and precomputed tables for
+    # RGB gamma adaptation.
+    # The sRGB and REC BT 709 versions are available.
+    # Cf. https://en.wikipedia.org/wiki/SRGB
+    # Use the USE_BT_709 flag to switch between version.
     """
-    def cl2c(c):
-        if c <= gammaLinearTreshold1:
-            c = d * c
-        else:
-            c = (1.0 + a) * (c ** beta) - a
-        return c
+    if USE_BT_709:
+        # REC BT 709
+        gamma = 2.2
+        a = 0.099
+        d = 4.5
+        gammaLinearTreshold1 = 0.018
+        gammaLinearTreshold2 = 0.081
+    else:
+        # sRGB
+        gamma = 2.4
+        a = 0.055
+        d = 12.92
+        gammaLinearTreshold1 = 0.0031308
+        gammaLinearTreshold2 = 0.04045
 
-    return cl2c(r) * 255, cl2c(g) * 255, cl2c(b) * 255
+    beta = 1.0 / gamma
 
-def rgbLinear2rgbVec(img):
+    @classmethod
+    def getInstance(cls):
+        """
+        Returns a unique instance : a new instance
+        is created only if there exists no instance yet.
+        @return: gammaTables instance
+        @rtype: gammaTables
+        """
+        if getattr(cls, 'instance', None) is None:
+            cls.instance = gammaTables()
+        return cls.instance
+
+    def __init__(self):
+        F = 255.0 ** self.beta
+        table0 = np.arange(256, dtype=np.float64)
+        # tabulate ( (x + a) / (1 + a) )**gamma
+        # inputs should be integers in range 0..255.They are scaled to[0..1].
+        self.__table3 = np.power((table0 / 255.0 + self.a) / (1 + self.a), self.gamma)
+        trh = int(self.gammaLinearTreshold2 * 255)
+        self.__table3[0: trh + 1] = np.arange(trh + 1) / ((255.0) * self.d)
+        # tabulate (1 + a) * x**(1/gamma) - a :
+        # inputs should be integers in range 0..255. They are scaled to [0..1].
+        self.__table5 = np.power(table0, self.beta) * (1.0 + self.a) / F - self.a
+        trh = int(self.gammaLinearTreshold1 * 255)
+        self.__table5[0: trh + 1] = np.arange(trh + 1) * self.d
+        self.__table5 *= 255
+
+    @property
+    def table3(self):
+        """
+        Gamma-Linearizing table.
+        Values (outputs) are in range 0..1
+        @return:
+        @rtype: ndarray shape (255,)
+        """
+        return self.__table3
+
+    @property
+    def table5(self):
+        """
+        Gamma-adaptation table.
+        Values (outputs) are in range 0..255
+        @return:
+        @rtype: ndarray shape (255,)
+        """
+        return self.__table5
+
+def rgbLinear2rgb(rgbColors):
     """
-    Vectorized conversion from linear RGB to sRGB.
+    conversion from linear RGB to sRGB.
     See U{https://en.wikipedia.org/wiki/SRGB}
-    Linear r,g,b values are in range 0..1.
+    Linear RGB values should be in range 0..1.
     Output values are in range 0..255.
-    @param img: linear RGB image, range 0..1
-    @type img: numpy array, dtype=float
-    @return: converted RGB image
-    @rtype: numpy array, dtype=float, range 0..255
+    @param rgbColors: RGB color or array of RGB colors
+    @type rgbColors: tuple or list of 3 scalars, or ndarray with last_dim = 3
+    @return: gamma adapted RGB  colors
+    @rtype: identical to type of input
     """
-    img2 = img * d
-    imgDiscretized = (img * 255.0).astype(int)
-    #np.clip(imgDiscretized, 0, 255, out=imgDiscretized)  # TODO 5/11/18 removed
-    img3 = table5[imgDiscretized]
-    return np.where(imgDiscretized <= gammaLinearTreshold1 * 255, img2, img3) * 255 # TODO 5/11/18 bug corrected img--> imgDiscretized
+    try:
+        vectorize = (rgbColors.ndim > 1)
+    except AttributeError:
+        vectorize = False
+    if vectorize:
+        gt = gammaTables.getInstance()
+        imgDiscretized = (rgbColors * 255.0).astype(int)
+        # np.clip(imgDiscretized, 0, 255, out=imgDiscretized)
+        return gt.table5[imgDiscretized]
+    else:
+        gt = gammaTables
+        def cl2c(c):
+            if c <= gt.gammaLinearTreshold1:
+                c = gt.d * c
+            else:
+                c = (1.0 + gt.a) * (c ** gt.beta) - gt.a
+            return c
+        r, g, b = rgbColors
+        return cl2c(r) * 255, cl2c(g) * 255, cl2c(b) * 255
 
-def rgb2rgbLinear(r, g, b):
+
+def rgb2rgbLinear(rgbColors):
     """
-       Conversion from sRGB to LINEAR RGB.
-       All values are in range 0..1.
-       See https://en.wikipedia.org/wiki/SRGB
-       @param r:
-       @param g:
-       @param b:
-       @return: The converted values
-       """
-
-    def c2cl(c):
-        if c <= gammaLinearTreshold2:
-            # consider linear
-            c = c / d
-        else:
-            c = ((c + a) / (1 + a)) ** gamma
-        return c
-
-    return c2cl(r), c2cl(g), c2cl(b)
-
-def rgb2rgbLinearVec(img):
-    """
-    Converts image from sRGB to linear RGB.
-    Input values are integers in range 0..255.
-    Output values are float in interval [0, 1]
+    Conversion from RGB to linear RGB.
     See https://en.wikipedia.org/wiki/SRGB
-    @param img: RGB image, range 0..255
-    @type img: numpy array, dtype int
-    @return: converted linear RGB image
-    @rtype: numpy array, dtype=float
+    Input Input values should be integers in range 0..255.
+    Output values are in range 0..1.
+    @param rgbColors: color or array of RGB colors
+    @type rgbColors: tuple or list of 3 scalars, or ndarray with last_dim = 3
+    @return: linear RGB colors
+    @rtype: identical to type of input
     """
-    img2 = table2[img[...]]  # img2 = img / c, faster
-    img3 = table3[img[...]]  # img3 = ( (img + a) / (1+a) ) ** gamma
-    tr = gammaLinearTreshold2 * 255.0
-    return np.where(img <= tr, img2, img3)
+    try:
+        vectorize = (rgbColors.ndim > 1)
+    except AttributeError:
+        vectorize = False
+    if vectorize:
+        gt = gammaTables.getInstance()
+        return gt.table3[rgbColors]
+    else:
+        gt = gammaTables
+        def c2cl(c):
+            if c <= gt.gammaLinearTreshold2:
+                # consider linear
+                c = c / gt.d
+            else:
+                c = ((c + gt.a) / (1 + gt.a)) ** gt.gamma
+            return c
+        r, g, b = rgbColors
+        return c2cl(r), c2cl(g), c2cl(b)
 
 
-def sRGB2XYZVec(imgBuf):
+def sRGB2XYZ(rgbColors):
     """
-    Vectorized conversion from sRGB to XYZ (D65).
+    Conversion from sRGB (D65) to XYZ.
+    Input values should be in integers in range 0..255 AND
+    gamma-corrected.
+    Output values are in range 0..1.
     opencv cvtColor does NOT perform gamma conversion
     for RGB<-->XYZ cf.
     U{http://docs.opencv.org/trunk/de/d25/imgproc_color_conversions.html#color_convert_rgb_xyz}.
@@ -213,39 +233,59 @@ def sRGB2XYZVec(imgBuf):
     As a workaround, we first convert to rgbLinear,
     and next use the conversion matrices from
     U{http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html}
-    @param imgBuf: Array of RGB values, range 0..255
-    @type imgBuf: ndarray, dtype numpy uint8
-    @return: image buffer, XYZ color space
+    @param rgbColors: color or array of RGB colors
+    @type rgbColors: tuple or list of 3 scalars, or ndarray with last_dim = 3
+    @return: colors converted to the XYZ color space
     @rtype: ndarray, dtype numpy float64
     """
-    bufLinear = rgb2rgbLinearVec(imgBuf)
+    bufLinear = rgb2rgbLinear(rgbColors)  # TODO modified 19/07/19 validate rgb2rgbLinearVec(imgBuf)
     bufXYZ = np.tensordot(bufLinear, sRGB_lin2XYZ, axes=(-1, -1))
     return bufXYZ
 
 
-def XYZ2sRGBVec(imgBuf):
+def XYZ2sRGBLinear(imgBuf):
     """
-    Vectorized conversion from XYZ to sRGB (D65).
-    opencv cvtColor does NOT perform gamma conversion
-    for RGB<-->XYZ, cf.
+    vectorized conversion from XYZ to LINEAR sRGB (D65)
+    @param imgBuf: image buffer,  XYZ color space
+    @type imgBuf: list or 3-uple of scalars or ndarray shape (w, h, 3)
+    @return: image buffer mode sRGB LINEAR, range 0..1
+    @rtype: ndarray, shape (w, h, 3), dtype numpy.float64
+    """
+    return np.tensordot(imgBuf, sRGB_lin2XYZInverse, axes=(-1, -1))
+
+
+def XYZ2sRGB(XYZColors):
+    """
+    Converts XYZ colors to gamma-adapted sRGB (D65) colors.
+    Input values should be in range 0..1.
+    Output values are in range 0..255
+    opencv cvtColor does NOT perform gamma correction
+    for RGB<-->XYZ conversion, cf.
     U{http://docs.opencv.org/trunk/de/d25/imgproc_color_conversions.html#color_convert_rgb_xyz}.
     Moreover, RGB-->XYZ and XYZ-->RGB matrices are not inverse transformations!
     This yields incorrect results. As a workaround, we first convert to rgbLinear,
     and next use the sRGB <--> XYZ conversion matrices from
     U{http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html}
-    @param imgBuf: image buffer,  XYZ color space
-    @type imgBuf: ndarray
-    @return: image buffer, mode sRGB, range 0..255
-    @rtype: ndarray, dtype numpy.float64
+    @param XYZColors: color, mode XYZ, range 0..1
+    @type XYZColors: tuple or list of 3 scalars, or ndarray with last_dim = 3
+    @return: RGB colors
+    @rtype:  identical to type of input
     """
-    # test for out of gamut image
-    M = np.max(imgBuf[:, :, 1])
+    try:
+        vectorize = (XYZColors.ndim > 1)
+    except AttributeError:
+        vectorize = False
+    if vectorize:
+        M = np.max(XYZColors[..., 1])
+    else:
+        M = XYZColors[1]
+        XYZColors = np.array(XYZColors)
     if M > 1:
-        imgBuf /= M
+        XYZColors /= M       # TODO a better approach is to to clip c1 ?
         print('XYZ2sRGBVec warning : Y channel max %.5f' % M)
-    bufsRGBLinear = np.tensordot(imgBuf, sRGB_lin2XYZInverse, axes=(-1, -1))
-    bufsRGB = rgbLinear2rgbVec(bufsRGBLinear)
-    return bufsRGB
+    c1 = XYZ2sRGBLinear(XYZColors)
+    c2 = rgbLinear2rgb(c1)  # TODO modified 19/07/19 validate rgbLinear2rgb(*c1)
+    return c2
 
 
 def sRGB2LabVec(bufsRGB, useOpencv=True):
@@ -272,7 +312,7 @@ def sRGB2LabVec(bufsRGB, useOpencv=True):
         bufLab[:, :, 1:] -= 128
     else:
         oldsettings = np.seterr(all='ignore')
-        bufXYZ = sRGB2XYZVec(bufsRGB)  # * 100.0
+        bufXYZ = sRGB2XYZ(bufsRGB)  # * 100.0
         YoverYn = bufXYZ[:, :, 1] / Yn
         bufL = np.sqrt(YoverYn)
         bufa = Ka * (bufXYZ[:, :, 0] / Xn - YoverYn) / bufL
@@ -308,9 +348,9 @@ def Lab2sRGBVec(bufLab, useOpencv=True):
         bufL2 = bufL * bufL
         bufY = bufL2 * Yn
         bufX = Xn * ((bufa / Ka) * bufL + bufL2)
-        bufZ = Zn * (bufL2 - ((bufb / Kb)) * bufL)
+        bufZ = Zn * (bufL2 - (bufb / Kb) * bufL)
         bufXYZ = np.dstack((bufX, bufY, bufZ))  # /100.0
-        bufsRGB = XYZ2sRGBVec(bufXYZ)
+        bufsRGB = XYZ2sRGB(bufXYZ)  # TODO modified 19/07/19 validate XYZ2sRGBVec(bufXYZ)
         # converting invalid values to int gives indeterminate results
         bufsRGB[np.isnan(bufsRGB)] = 0.0  # TODO should be np.inf ?
     return bufsRGB
@@ -409,6 +449,8 @@ def temperature2xyWP(T):
 #   1) Wyszecki and Stiles book "Color Science", 2nd edition, p 228.
 #   2) http://www.brucelindbloom.com/index.html?Eqn_XYZ_to_T.html
 ###################################################################################################
+
+
 uvtTable = [
     [0, 0.18006, 0.26352, -0.24341],
     [10, 0.18066, 0.26589, -0.25479],
@@ -443,6 +485,7 @@ uvtTable = [
     [600, 0.33724, 0.36051, -116.45]
 ]
 
+
 def xy2uv(x, y):
     """
     convert from xy to Yuv color space
@@ -463,7 +506,6 @@ def uv2xy(u, v):
     x, y = 1.5 * u / d, v / d
     return x, y
 
-#TintScale = -300.0
 
 def xy2TemperatureAndTint(x, y):
     """
@@ -508,7 +550,7 @@ def xy2TemperatureAndTint(x, y):
             du, dv = du * (1.0 - w) + last_du * w, dv * (1.0 - w) + last_dv * w
             n = np.sqrt(du * du + dv * dv)
             du, dv = du / n, dv / n
-            tint = (u * du + v * dv) # * TintScale
+            tint = (u * du + v * dv)  # * TintScale
             break
         last_dt, last_du, last_dv = dt, du, dv
     return temp, tint
@@ -553,6 +595,24 @@ def temperatureAndTint2xy(temp, tint):
             break
     return result
 
+
+def wp2Rho(x, y):
+    """
+    Returns the cone responses (multipliers) for the (x, y) white point
+    see https://web.stanford.edu/~sujason/ColorBalancing/adaptation.html for details.
+    @param x: white point x-coord
+    @type x: float
+    @param y: white point y-coord
+    @type y: float
+    @return: cones responses
+    @rtype: 3-uple of float
+    """
+    # expand x, y to XYZ coordinates
+    X, Y, Z = x / y, 1.0, (1.0 - x - y) / y
+    rho1, rho2, rho3 = np.dot(np.array(Bradford), np.array([X, Y, Z]))
+    return rho1, rho2, rho3
+
+
 def temperature2Rho(T):
     """
     Returns the cone responses (multipliers) for temperature T (Kelvin).
@@ -564,10 +624,43 @@ def temperature2Rho(T):
     """
     # get CIE chromaticity coordinates of white point
     x, y = temperature2xyWP(T)
-    # expand to XYZ coordinates
-    X, Y, Z = x / y, 1.0, (1.0 - x - y) / y
-    rho1, rho2, rho3 = np.dot(np.array(Bradford), np.array([X, Y, Z]))
-    return rho1, rho2, rho3
+    return wp2Rho(x, y)
+
+
+def rho2BAM(rhod, rhos):
+    """
+    Build the Bradford adaptation matrix from source multipliers rhos
+    to destination multipliers rhod
+    @param rhod:
+    @type rhod: 3-uple of float
+    @param rhos:
+    @type rhos: 3-uple of float
+    @return: adaptation matrix
+    @rtype: ndarray, shape=(3,3), dtype=float
+    """
+    rhos1, rhos2, rhos3 = rhos
+    rhod1, rhod2, rhod3 = rhod
+    D = np.diag((rhod1 / rhos1, rhod2 / rhos2, rhod3 / rhos3))
+    N = np.dot(np.array(BradfordInverse), D)  # N = (B**-1) D
+    P = np.dot(N, np.array(Bradford))  # P = N B = (B**-1) D B
+    return P
+
+
+def bradfordAdaptationMatrix_wp(wpd, wps):
+    """
+    Returns the conversion matrix in the XYZ color space, from
+    wps to wpd. We apply the method described in
+    https://web.stanford.edu/~sujason/ColorBalancing/adaptation.html.
+    @param wpd: destination white point xy coordinates
+    @type wpd: 2-uple of float
+    @param wps: source white point xy coordinates
+    @type wps: 2-uple of float
+    @return: adaptation matrix
+    @rtype: ndarray, shape=(3,3), dtype=float
+    """
+    rhos1, rhos2, rhos3 = wp2Rho(*wps)
+    rhod1, rhod2, rhod3 = wp2Rho(*wpd)
+    return rho2BAM((rhod1, rhod2, rhod3), (rhos1, rhos2, rhos3))
 
 
 def bradfordAdaptationMatrix(Tdest, Tsource):
@@ -584,12 +677,31 @@ def bradfordAdaptationMatrix(Tdest, Tsource):
     """
     rhos1, rhos2, rhos3 = temperature2Rho(Tsource)
     rhod1, rhod2, rhod3 = temperature2Rho(Tdest)
-    D = np.diag((rhod1 / rhos1, rhod2 / rhos2, rhod3 / rhos3))
-    N = np.dot(np.array(BradfordInverse), D)  # N = (B**-1) D
-    P = np.dot(N, np.array(Bradford))  # P = N B = (B**-1) D B
-    return P
+    return rho2BAM((rhod1, rhod2, rhod3), (rhos1, rhos2, rhos3))
 
 
+def xyY2XYZ(xyYColors):
+    """
+    Converts a xyY color or an array of xyY colors into the XYZ color space.
+    @param xyYColors: color or array of colors in the xyY color space
+    @type xyYColors: tuple or list of 3 scalars, or ndarray with last_dim = 3
+    @return: color or array of colors in the XYZ color space
+    @rtype: identical to the input type
+    """
+    try:
+        vectorize = (xyYColors.ndim > 1)
+    except AttributeError:
+        vectorize = False
+    if vectorize:
+        x, y, Y = xyYColors[..., :]
+    else:
+        x, y, Y = xyYColors
+    Y_over_y = Y / y
+    r = x * Y_over_y, Y, (1 - x - y) * Y_over_y
+    return np.dstack(r) if vectorize else r
+
+
+"""
 if __name__ == '__main__':
     T = 4000.0
     r, g, b = bbTemperature2RGB(T)
@@ -599,4 +711,4 @@ if __name__ == '__main__':
     r2, g2, b2 = rgbLinear2rgb(r1, g1, b1)
     # print r,g,b
     # print r2, g2, b2
-
+"""
