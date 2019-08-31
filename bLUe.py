@@ -2075,7 +2075,6 @@ For a segmentation layer only, all pixels outside the rectangle are set to backg
     # get current QScreen instance
     window.currentScreenIndex = window.windowHandle().screen()
     # update the color management object with the current monitor profile
-    #icc.configure(qscreen=rootWidget.screen(scn).windowHandle().screen())
     icc.configure(qscreen=window.currentScreenIndex)
     icc.COLOR_MANAGE = icc.HAS_COLOR_MANAGE
     window.actionColor_manage.setEnabled(icc.HAS_COLOR_MANAGE)
