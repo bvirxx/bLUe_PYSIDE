@@ -21,6 +21,7 @@ from PySide2 import QtWidgets, QtCore
 from PySide2.QtCore import QSettings, Qt
 import sys
 
+from PySide2.QtGui import QScreen
 from PySide2.QtWidgets import QApplication, QLabel, QMainWindow, QSizePolicy
 
 from bLUeTop.pyside_dynamicLoader import loadUi
@@ -32,7 +33,8 @@ class Form1(QMainWindow):
     Main form class.
     """
     # screen changed signal
-    screenChanged = QtCore.Signal(int)
+    # screenChanged = QtCore.Signal(int)
+    screenChanged = QtCore.Signal(QScreen)
     def __init__(self):
         super(Form1, self).__init__()
         self.settings = QSettings("bLUe.ini", QSettings.IniFormat)
@@ -141,10 +143,12 @@ class Form1(QMainWindow):
         @type event:
         """
         super(Form1,self).moveEvent(event)
-        # detect screen changes
-        c = self.frameGeometry().center()
-        sn = rootWidget.screenNumber(c)
-        if sn != self.currentScreenIndex:
+        # detecting screen changes
+        # c = self.frameGeometry().center()
+        # sn = rootWidget.screenNumber(c)
+        sn = window.windowHandle().screen()  # get QScreen instance
+        # if sn != self.currentScreenIndex:
+        if sn is not self.currentScreenIndex:
             # screen changed detected
             self.currentScreenIndex = sn
             self.screenChanged.emit(sn)

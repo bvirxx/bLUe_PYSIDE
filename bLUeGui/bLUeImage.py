@@ -153,7 +153,7 @@ class bImage(QImage):
         self.rPixmap = QPixmap.fromImage(self)
 
     def histogram(self, size=QSize(200, 200), bgColor=Qt.white, range=(0, 255),
-                  chans=channelValues.RGB, chanColors=Qt.gray, mode='RGB', addMode=''):
+                  chans=channelValues.RGB, chanColors=Qt.gray, mode='RGB', addMode='', clipping_threshold = 0.02):
         """
         Plot the image histogram with the
         specified color mode and channels.
@@ -163,7 +163,7 @@ class bImage(QImage):
         @type size: int or QSize
         @param bgColor: background color
         @type bgColor: QColor
-        @param range: plot data range
+        @param range: plotted data range
         @type range: 2-uple of int or float
         @param chans: channels to plot b=0, G=1, R=2
         @type chans: list of indices
@@ -173,14 +173,14 @@ class bImage(QImage):
         @type mode: str
         @param addMode:
         @type addMode:
+        @param clipping_threshold: alert threshold for clipped areas
+        @type clipping_threshold: float
         @return: histogram plot
         @rtype: QImage
         """
         # convert size to QSize
         if type(size) is int:
             size = QSize(size, size)
-        # alert threshold for clipped areas
-        clipping_threshold = 0.02
         # clipping threshold for black and white points
         # scaling factor for the bin edges
         spread = float(range[1] - range[0])
@@ -208,12 +208,12 @@ class bImage(QImage):
                 rect = QRect(int((bin_edges[i] - range[0]) * scale), max(img.height() - h, 0),
                              int((bin_edges[i + 1] - bin_edges[i]) * scale+1), h)
                 painter.fillRect(rect, color)
-                # clipping indicators
+                # clipping indicators for first and last bins
                 if i == 0 or i == len(hist)-1:
                     left = bin_edges[0 if i == 0 else -1]
-                    if range[0] < left < range[1]:
-                        continue
-                    left = left - (10 if i > 0 else 0)
+                    #if range[0] < left < range[1]:
+                        #continue
+                    left = left - (20 if i > 0 else 0)  # shift the right indicator
                     percent = hist[i] * (bin_edges[i+1]-bin_edges[i])
                     if percent > clipping_threshold:
                         # calculate the color of the indicator according to percent value

@@ -1,7 +1,7 @@
 {
   "PATHS": {
     "EXIFTOOL_PATH_BUNDLED": "bin\\exiftool.exe",
-    "EXIFTOOL_PATH": "C:\\standalone\\exiftool\\exiftool.exe",
+    "EXIFTOOL_PATH": "C:\\standalone\\exiftool(-k).exe",
     "SYSTEM_PROFILE_DIR": "C:\\Windows\\System32\\spool\\drivers\\color\\"
   },
   "PROFILES" : {

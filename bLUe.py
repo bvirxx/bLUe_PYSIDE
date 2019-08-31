@@ -962,6 +962,36 @@ def closeFile():
     return True
 
 
+def showHistogram():
+    """
+    Update and display the histogram of the
+    currently opened document
+    """
+    if window.histView.listWidget1.items['Original Image'].checkState() is Qt.Checked:
+        histImg = vImage(QImg=window.label.img.getCurrentImage())  # must be vImage : histogram method needed
+    else:
+        histImg = window.label.img.layersStack[-1].getCurrentMaskedImage()
+    if window.histView.listWidget2.items['Color Chans'].checkState() is Qt.Checked:
+        window.histView.mode = 'RGB'
+        window.histView.chanColors = [QColor(255, 0, 0), QColor(0, 255, 0), QColor(10, 10, 255)]
+    else:
+        window.histView.mode = 'Luminosity'
+        window.histView.chanColors = [Qt.gray]
+    histView = histImg.histogram(QSize(window.histView.width(), window.histView.height()),
+                                 chans=list(range(3)), bgColor=Qt.black,
+                                 chanColors=window.histView.chanColors, mode=window.histView.mode, addMode='')
+    window.histView.cache = QPixmap.fromImage(histView)
+    window.histView.Label_Hist.setPixmap(window.histView.cache.scaled(window.histView.width() - 20, window.histView.height()-50))
+    window.histView.Label_Hist.repaint()
+
+
+def adjustHistogramSize():
+    pxm = getattr(window.histView, 'cache', None)
+    if pxm is not None:
+        window.histView.Label_Hist.setPixmap(pxm.scaled(window.histView.width() - 20, window.histView.height()-50))
+        window.histView.Label_Hist.repaint()
+
+
 def setDocumentImage(img):
     """
     Inits GUI and displays the current document
@@ -981,29 +1011,18 @@ def setDocumentImage(img):
         window.label_3.repaint()
         if not hist:
             return
-        # recompute and display histogram for the right image
-        if window.histView.listWidget1.items['Original Image'].checkState() is Qt.Checked:
-            histImg = vImage(QImg=window.label.img.getCurrentImage())  # must be vImage : histogram method needed
-        else:
-            histImg = window.label.img.layersStack[-1].getCurrentMaskedImage()
-        if window.histView.listWidget2.items['Color Chans'].checkState() is Qt.Checked:
-            window.histView.mode = 'RGB'
-            window.histView.chanColors = [QColor(255, 0, 0), QColor(0, 255, 0), QColor(10, 10, 255)]
-        else:
-            window.histView.mode = 'Luminosity'
-            window.histView.chanColors = [Qt.gray]
-        histView = histImg.histogram(QSize(window.histView.width(), window.histView.height()),
-                                     chans=list(range(3)), bgColor=Qt.black,
-                                     chanColors=window.histView.chanColors, mode=window.histView.mode, addMode='')
-        window.histView.Label_Hist.setPixmap(QPixmap.fromImage(histView))
-        window.histView.Label_Hist.repaint()
+        # recompute and display histogram for the selected image
+        showHistogram()
+
+    window.label.img.onImageChanged = f
+
     ###################################
     # init displayed images
     # label.img : working image
     # label_2.img  : before image (copy of the initial state of working image)
     # label_3.img : reference to working image
     ###################################
-    window.label.img.onImageChanged = f
+
     # before image : the stack is not copied
     window.label_2.img = imImage(QImg=img, meta=img.meta)
     # after image : ref to the opened document
@@ -1155,6 +1174,8 @@ def menuView(name):
     ###############
     elif name == 'actionColor_Chooser':
         window.colorChooser.show()
+    elif name == 'actionHistogram':
+        window.histViewDock.show()
     updateStatus()
 
 
@@ -1738,11 +1759,15 @@ def initDefaultImage():
 
 def screenUpdate(newScreenIndex):
     """
-    screenChanged event handler. The image is updated in background
+    screenChanged event handler.
+    The image is updated in background
+    @param newScreenIndex:
+    @type newScreenIndex: QScreen
     """
     window.screenChanged.disconnect()
     # update the color management object with the monitor profile associated to the current monitor
-    icc.configure(qscreen=rootWidget.screen(newScreenIndex).windowHandle().screen())
+    #icc.configure(qscreen=rootWidget.screen(newScreenIndex).windowHandle().screen())
+    icc.configure(qscreen=newScreenIndex)
     window.actionColor_manage.setEnabled(icc.HAS_COLOR_MANAGE)
     window.actionColor_manage.setChecked(icc.COLOR_MANAGE)
     updateStatus()
@@ -1756,6 +1781,9 @@ def screenUpdate(newScreenIndex):
     threading.Thread(target=bgTask)
     window.screenChanged.connect(screenUpdate)
 
+class HistQDockWidget(QDockWidget):
+    def resizeEvent(self, e):
+        adjustHistogramSize()
 
 def setRightPane():
     """
@@ -1780,16 +1808,20 @@ def setRightPane():
         # dock the histogram on top
         if w.objectName() == 'histView':
             w.setWindowTitle('Hist')
-            histViewDock = QDockWidget()
+            histViewDock = HistQDockWidget()
             hl = QHBoxLayout()
-            hl.addStretch(1)
+            #hl.addStretch(1)
+            hl.setAlignment(Qt.AlignLeft)
             hl.addWidget(w)
-            hl.addStretch(1)
+            w.setMaximumSize(140000, 140000)  # TODO 27/07/19 remove
+           # hl.addStretch(1)
             wdg = QWidget()
+            wdg.setMaximumSize(140000, 140000) # TODO 27/07/19 remove
             wdg.setLayout(hl)
             histViewDock.setWidget(wdg)
             histViewDock.setWindowTitle(w.windowTitle())
             window.addDockWidget(Qt.RightDockWidgetArea, histViewDock)
+            window.histViewDock = histViewDock
         # add other widgets to layout
         else:
             tmpV.addWidget(w)
@@ -2040,11 +2072,11 @@ For a segmentation layer only, all pixels outside the rectangle are set to backg
     ################################
     window.screenChanged.connect(screenUpdate)
     # screen detection
-    c = window.frameGeometry().center()
-    scn = rootWidget.screenNumber(c)
-    window.currentScreenIndex = scn
+    # get current QScreen instance
+    window.currentScreenIndex = window.windowHandle().screen()
     # update the color management object with the current monitor profile
-    icc.configure(qscreen=rootWidget.screen(scn).windowHandle().screen())
+    #icc.configure(qscreen=rootWidget.screen(scn).windowHandle().screen())
+    icc.configure(qscreen=window.currentScreenIndex)
     icc.COLOR_MANAGE = icc.HAS_COLOR_MANAGE
     window.actionColor_manage.setEnabled(icc.HAS_COLOR_MANAGE)
     window.actionColor_manage.setChecked(icc.COLOR_MANAGE)

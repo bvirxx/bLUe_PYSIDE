@@ -20,7 +20,7 @@ from PySide2.QtCore import Qt
 from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout
 
 from bLUeGui.graphicsForm import baseForm
-from bLUeTop.utils import optionsWidget
+from bLUeTop.utils import optionsWidget, QbLUeSlider
 
 
 class histForm (baseForm):
@@ -29,12 +29,14 @@ class histForm (baseForm):
     """
     def __init__(self, targetImage=None, size=200, layer=None, parent=None):
         super().__init__(layer=layer, targetImage=targetImage, parent=parent)
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(size, 100)
         self.Label_Hist = QLabel()
         self.Label_Hist.setFocusPolicy(Qt.ClickFocus)
-        self.Label_Hist.setScaledContents(True)
-        self.Label_Hist.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        #self.Label_Hist.setScaledContents(True)
+        self.Label_Hist.setMaximumSize(140000, 140000) # TODO 27/07/19 remove
+
+        self.Label_Hist.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setStyleSheet("QListWidget{border: 0px; font-size: 12px}")
 
         # options
@@ -86,6 +88,7 @@ class histForm (baseForm):
         vl.addLayout(h)
         vl.setContentsMargins(0, 0, 0, 2)  # left, top, right, bottom
         self.setLayout(vl)
+        self.adjustSize()
 
 
 
