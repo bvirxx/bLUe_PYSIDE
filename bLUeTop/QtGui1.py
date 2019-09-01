@@ -33,7 +33,6 @@ class Form1(QMainWindow):
     Main form class.
     """
     # screen changed signal
-    # screenChanged = QtCore.Signal(int)
     screenChanged = QtCore.Signal(QScreen)
     def __init__(self):
         super(Form1, self).__init__()
@@ -143,11 +142,9 @@ class Form1(QMainWindow):
         @type event:
         """
         super(Form1,self).moveEvent(event)
-        # detecting screen changes
-        # c = self.frameGeometry().center()
-        # sn = rootWidget.screenNumber(c)
-        sn = window.windowHandle().screen()  # get QScreen instance
-        # if sn != self.currentScreenIndex:
+        # detecting screen changes :
+        # getting current QScreen instance
+        sn = self.windowHandle().screen()
         if sn is not self.currentScreenIndex:
             # screen changed detected
             self.currentScreenIndex = sn
@@ -202,7 +199,7 @@ if getattr(sys, 'frozen', False) and len(sys.argv) <= 1:
 ############
 QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)  # needed when a plugin initializes a Qt WebEngine
 app = QApplication(sys.argv)
-# get root widget for screen management
+# get root widget
 rootWidget = app.desktop()
 
 #################

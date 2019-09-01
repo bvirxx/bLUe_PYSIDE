@@ -234,10 +234,8 @@ class mImage(vImage):
     def updatePixmap(self):
         """
         Update the presentation layer only.
-        Used when a change in color managnement occurs
+        Used when a change in color management occurs
         """
-        # for layer in self.layersStack:  # TODO removed 29/12/18 validate
-            # vImage.updatePixmap(layer)
         self.prLayer.updatePixmap()
 
     def getStackIndex(self, layer):
