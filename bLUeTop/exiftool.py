@@ -47,7 +47,6 @@ class ExifTool(object):
     # exiftool synchronization token
     sentinel = "{ready}"
 
-
     def __init__(self, executable=EXIFTOOL_PATH):
         self.executable = executable
 
@@ -290,7 +289,6 @@ class ExifTool(object):
         command = ['-%s=%s' % (tagName, value)] + [fmie, '-overwrite_original']
         self.execute(*command)
 
-
     def get_metadata(self, f, tags=None, createsidecar=True):
         """
         Read metadata from file : data are read
@@ -298,8 +296,10 @@ class ExifTool(object):
         createsidecar is True (default).
         @param f: file name
         @type f: str
+        @param tags:
+        @type tags:
         @param createsidecar: flag
-        @type ceatesidecar: bool
+        @type createsidecar: bool
         @return: profile, metadata
         @rtype: 2-uple profile: bytes, metadata: dict
         """
@@ -332,6 +332,7 @@ class ExifTool(object):
         command = ["-a", f]
         out = self.execute(* command)
         return out
+
 
 def decodeExifOrientation(value):
     """

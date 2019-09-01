@@ -27,12 +27,13 @@ from PySide2.QtWidgets import QMainWindow, QLabel, QSizePolicy, QAction, QMenu, 
     QApplication
 
 from bLUeTop import exiftool
-from bLUeTop.QtGui1 import app, window
+from bLUeTop.QtGui1 import app, window, set_event_handlers
 from bLUeTop.utils import loader, stateAwareQDockWidget
 from bLUeGui.dialog import IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS
 
 # global variable recording diaporama state
 isSuspended = False
+
 
 def playDiaporama(diaporamaGenerator, parent=None):
     """
@@ -61,6 +62,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
     actionEsc = QAction('Pause', None)
     actionEsc.setShortcut(QKeySequence(Qt.Key_Escape))
     newWin.addAction(actionEsc)
+
     # context menu event handler
     def contextMenuHandler(action):
         global isSuspended
@@ -85,6 +87,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
     # connect shortkey action
     actionEsc.triggered.connect(
         lambda checked=False, name=actionEsc: contextMenuHandler(name))  # named arg checked is sent
+
     # context menu
     def contextMenu(position):
         menu = QMenu()
@@ -175,6 +178,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
         app.processEvents()
     window.modeDiaporama = False
 
+
 class dragQListWidget(QListWidget):
     """
     This Class is used by playViewer instead of QListWidget.
@@ -185,7 +189,7 @@ class dragQListWidget(QListWidget):
         # call to super needed for selections
         super().mousePressEvent(event)
         if event.button() == Qt.LeftButton:
-            drag= QDrag(self)
+            drag = QDrag(self)
             mimeData = QMimeData()
             item = self.itemAt(event.pos())
             if item is None:
@@ -195,10 +199,11 @@ class dragQListWidget(QListWidget):
             # set dragging pixmap
             drag.setPixmap(item.icon().pixmap(QSize(160, 120)))
             # roughly center the cursor relative to pixmap
-            drag.setHotSpot(QPoint(60,60))
+            drag.setHotSpot(QPoint(60, 60))
             dropAction = drag.exec_()
 
-class viewer :
+
+class viewer:
     """
     Folder browser
     """
@@ -294,13 +299,12 @@ To <b>open an image</b> drag it onto the main window.<br>
         globalPos = self.listWdg.mapToGlobal(pos)
         self.cMenu.exec_(globalPos)
 
-
     def viewImage(self):
         """
         display full size image in a new window
         Unused yet
         """
-        from bLUe import window, set_event_handlers, loadImageFromFile
+        from bLUe import loadImageFromFile
         parent = window
         newWin = QMainWindow(parent)
         newWin.setAttribute(Qt.WA_DeleteOnClose)
@@ -317,7 +321,6 @@ To <b>open an image</b> drag it onto the main window.<br>
         imImg = loadImageFromFile(filename, createsidecar=False)
         label.img = imImg
         newWin.showMaximized()
-
 
     def hCopy(self):
         """

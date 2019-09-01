@@ -22,11 +22,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 from itertools import cycle
 from PySide2.QtCore import Qt
 
+
 class splittedWindow:
     """
     before/afetr viewing
     """
-    splittedViews = cycle(('H','V','B'))
+    splittedViews = cycle(('H', 'V', 'B'))
 
     def __init__(self, win):
         self.mainWin = win
@@ -97,9 +98,9 @@ class splittedWindow:
             return
         widg1.img.Zoom_coeff = widg2.img.Zoom_coeff
         if self.mainWin.splitter.currentState == 'H':
-            if widg1.objectName() == 'label_2': # dest is right
+            if widg1.objectName() == 'label_2':  # dest is right
                 widg1.img.xOffset = widg2.img.xOffset - widg2.width()
-            else: # dest is left
+            else:  # dest is left
                 widg1.img.xOffset = widg2.img.xOffset + widg1.width()
             widg1.img.yOffset = widg2.img.yOffset
         else:

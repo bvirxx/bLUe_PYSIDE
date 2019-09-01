@@ -441,7 +441,7 @@ class mImage(vImage):
             w, h = self.width(), self.height()
             w1, w2 = int(self.cropLeft), w - int(self.cropRight)
             h1, h2 = int(self.cropTop), h - int(self.cropBottom)
-            buf = buf[h1:h2, w1:w2,:]
+            buf = buf[h1:h2, w1:w2, :]
         # build thumbnail from (evenyually) cropped image
         # choose thumb size
         wf, hf = buf.shape[1], buf.shape[0]
@@ -450,7 +450,7 @@ class mImage(vImage):
         else:
             wt, ht = 120, 160
         thumb = ndarrayToQImage(np.ascontiguousarray(buf[:, :, :3][:, :, ::-1]),
-                                format=QImage.Format_RGB888).scaled(wt,ht, Qt.KeepAspectRatio)
+                                format=QImage.Format_RGB888).scaled(wt, ht, Qt.KeepAspectRatio)
         written = cv2.imwrite(filename, buf, params)  # BGR order
         if not written:
             raise IOError("Cannot write file %s " % filename)
@@ -493,6 +493,7 @@ class mImage(vImage):
         #qf.close()
         return script, qf, dataStream
     """
+
 
 class imImage(mImage):
     """
@@ -896,7 +897,7 @@ class QLayer(vImage):
                     qp.setCompositionMode(layer.compositionMode)
                 if layer.rPixmap is None:
                     layer.rPixmap = QPixmap.fromImage(layer.getCurrentImage())  # TODO modified 9/12/18 validate
-                qp.drawPixmap(QRect(0,0,img.width(), img.height()), layer.rPixmap)
+                qp.drawPixmap(QRect(0, 0, img.width(), img.height()), layer.rPixmap)
                 # clipping
                 if layer.isClipping and layer.maskIsEnabled:
                     # draw mask as opacity mask
@@ -999,7 +1000,7 @@ class QLayer(vImage):
         rImg = self.getCurrentImage()
         # apply layer transformation. Missing pixels are set to QColor(0,0,0,0)
         if self.xOffset != 0 or self.yOffset != 0:
-            x,y = self.full2CurrentXY(self.xOffset, self.yOffset)
+            x, y = self.full2CurrentXY(self.xOffset, self.yOffset)
             rImg = rImg.copy(QRect(-x, -y, rImg.width()*self.Zoom_coeff, rImg.height()*self.Zoom_coeff))
         if self.maskIsEnabled:
             rImg = vImage.visualizeMask(rImg, self.mask, color=self.maskIsSelected, clipping=True)  # self.isClipping)
@@ -1099,7 +1100,7 @@ class QLayer(vImage):
         elif not lower.group:
             if not any(o is lower for o in self.group):
                 self.group.append(lower)
-            lower.group  = self.group
+            lower.group = self.group
         elif not self.group:
             if not any(item is self for item in lower.group):
                 lower.group.append(self)
@@ -1308,14 +1309,16 @@ class QCloningLayer(QLayer):
         @type inImg: vImage
         @param mask: color mask
         @type mask: QImage
-        @param tr: translation
-        @type tr: 2-uple of float
         @param cloningMethod:
         @type cloningMethod:
+        @param version:
+        @type version: str
+        @param w:
+        @type w:
         """
         # scale the mask to dest size and convert to a binary mask
-        #src_mask = vImage.color2OpacityMask(mask.scaled(dest.size())).copy(QRect(QPoint(0, 0), source.size())) #scaled(source.size())
-        src_mask = mask.scaled(outImg.size()).copy(QRect(QPoint(0, 0), inImg.size())) #scaled(source.size())
+        # src_mask = vImage.color2OpacityMask(mask.scaled(dest.size())).copy(QRect(QPoint(0, 0), source.size())) #scaled(source.size())
+        src_mask = mask.scaled(outImg.size()).copy(QRect(QPoint(0, 0), inImg.size()))  # scaled(source.size())
         cloning_mask = vImage.color2BinaryArray(src_mask)
         # get the contour of the mask
         conts = contours(cloning_mask)
@@ -1324,7 +1327,7 @@ class QCloningLayer(QLayer):
         # simplify the contour and get its bounding rect
         epsilon = 0.01 * cv2.arcLength(cont, True)
         acont = cv2.approxPolyDP(cont, epsilon, True)
-        bRect = QRect( * cv2.boundingRect(acont))
+        bRect = QRect(* cv2.boundingRect(acont))
         """
         self.updateCloningMask()
         cloning_mask = self.cloning_mask
@@ -1357,8 +1360,8 @@ class QCloningLayer(QLayer):
                                        )
             destBuf[:, :, :3] = output  # assign src_ maskBuf for testing
         else:
-            output = seamlessClone(sourceBuf[:,:,:3],
-                                    destBuf[:,:,:3],
+            output = seamlessClone(sourceBuf[:, :, :3],
+                                    destBuf[:, :, :3],
                                     cloning_mask,
                                     conts,
                                     bRect,
