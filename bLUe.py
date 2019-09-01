@@ -2085,7 +2085,7 @@ For a segmentation layer only, all pixels outside the rectangle are set to backg
     # Color Management
     ##################
     setColorManagement()
-    
+
     window.label.setWhatsThis(
 """ <b>Main Window<br>
 Menu File > Open</b> to edit a photo.<br>
