@@ -1765,20 +1765,19 @@ def screenUpdate(newScreenIndex):
     @type newScreenIndex: QScreen
     """
     window.screenChanged.disconnect()
-    # update the color management object with the monitor profile associated to the current monitor
-    #icc.configure(qscreen=rootWidget.screen(newScreenIndex).windowHandle().screen())
+    # update the color management object using the profile associated with the current monitor
     icc.configure(qscreen=newScreenIndex)
     window.actionColor_manage.setEnabled(icc.HAS_COLOR_MANAGE)
     window.actionColor_manage.setChecked(icc.COLOR_MANAGE)
     updateStatus()
 
-    # launch a bg task for image update
+    # launch a bg task for updating of presentation layers
     def bgTask():
         window.label.img.updatePixmap()
         window.label_2.img.updatePixmap()
         window.label.update()
         window.label_2.update()
-    threading.Thread(target=bgTask)
+    threading.Thread(target=bgTask).start()
     window.screenChanged.connect(screenUpdate)
 
 class HistQDockWidget(QDockWidget):
@@ -1844,6 +1843,21 @@ def setRightPane():
     # tabify colorInfoView with histView
     window.tabifyDockWidget(histViewDock, window.infoView)
 
+def setColorManagement():
+    """
+    color management configuration
+    must be done after showing window
+    """
+    window.screenChanged.connect(screenUpdate)
+    # screen detection
+    # get current QScreen instance
+    window.currentScreenIndex = window.windowHandle().screen()
+    # update the color management object with the current monitor profile
+    icc.configure(qscreen=window.currentScreenIndex)
+    icc.COLOR_MANAGE = icc.HAS_COLOR_MANAGE
+    window.actionColor_manage.setEnabled(icc.HAS_COLOR_MANAGE)
+    window.actionColor_manage.setChecked(icc.COLOR_MANAGE)
+    updateStatus()
 
 if __name__ == '__main__':
     #################
@@ -2066,20 +2080,12 @@ For a segmentation layer only, all pixels outside the rectangle are set to backg
     # from blue.ui
     ########################################
     setRightPane()
-    ################################
-    # color management configuration
-    # must be done after showing window
-    ################################
-    window.screenChanged.connect(screenUpdate)
-    # screen detection
-    # get current QScreen instance
-    window.currentScreenIndex = window.windowHandle().screen()
-    # update the color management object with the current monitor profile
-    icc.configure(qscreen=window.currentScreenIndex)
-    icc.COLOR_MANAGE = icc.HAS_COLOR_MANAGE
-    window.actionColor_manage.setEnabled(icc.HAS_COLOR_MANAGE)
-    window.actionColor_manage.setChecked(icc.COLOR_MANAGE)
-    updateStatus()
+
+    ##################
+    # Color Management
+    ##################
+    setColorManagement()
+    
     window.label.setWhatsThis(
 """ <b>Main Window<br>
 Menu File > Open</b> to edit a photo.<br>
