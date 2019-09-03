@@ -1,6 +1,6 @@
 {
   "PATHS": {
-    "EXIFTOOL_PATH_BUNDLED": "bin\\exiftool.exe",
+    "EXIFTOOL_PATH_BUNDLED": "bin\\exiftool(-k).exe",
     "EXIFTOOL_PATH": "C:\\standalone\\exiftool(-k).exe",
     "SYSTEM_PROFILE_DIR": "C:\\Windows\\System32\\spool\\drivers\\color\\"
   },
@@ -10,8 +10,9 @@
     "DEFAULT_MONITOR_PROFILE_NAME": "xxxx"
   },
   "DNG_PROFILES" : {
-     "DIR1" : "C:\\Users\\All Users\\Adobe\\CameraRaw\\CameraProfiles\\Adobe Standard\\",
-     "DIR2" : "C:\\Users\\Bernard\\AppData\\Roaming\\Adobe\\CameraRaw\\CameraProfiles\\"
+     "//" : "Paths to camera profiles. To get the standard profiles, download and install the free Adobe DNG converter",
+     "DIR1" : "C:\\ProgramData\\Adobe\\CameraRaw\\CameraProfiles\\Adobe Standard\\",
+     "DIR2" : "C:\\ProgramData\\Adobe\\CameraRaw\\CameraProfiles\\Camera\\"
   },
   "ENV" : {
     "//" : "3D LUT : Use tetrahedral interpolation instead of trilinear; trilinear is faster",
