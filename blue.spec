@@ -2,13 +2,14 @@
 
 block_cipher = None
 
-imageformats = [('D:\\Python36\\Lib\site-packages\\PySide2\plugins\\imageformats', 'plugins\\imageformats')]
-platforms = [('D:\\Python36\\Lib\site-packages\\PySide2\\plugins\\platforms', 'plugins\\platforms')]
+imageformats = [('C:\Program Files\Python37\Lib\site-packages\\PySide2\plugins\\imageformats', 'plugins\\imageformats')]
+platforms = [('C:\Program Files\Python37\Lib\site-packages\\PySide2\\plugins\\platforms', 'plugins\\platforms')]
+numpy_dlls = [('C:\Program Files\\Python37\\Lib\\site-packages\\numpy\\dlls\\*.dll', '.')]
 
 
 a = Analysis(['bLUe.py'],
              pathex=['D:\\PycharmProject\\CS4_PYSIDE'],
-             binaries=[('C:\\standalone\\exiftool\\exiftool.exe', 'bin')] + imageformats + platforms,
+             binaries=[('C:\\standalone\\exiftool(-k).exe', 'bin')] + imageformats + platforms + numpy_dlls,
              datas=[('blue.ui', '.'), ('README.TXT', '.'), ('LICENSE.TXT', '.'), ('logo.png', '.'), ('logo.ico', '.'), ('config.json', '.')],
              hiddenimports=['PySide2.QtXml', 'pywt._extensions._cwt'],
              hookspath=[],
