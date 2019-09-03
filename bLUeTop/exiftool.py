@@ -70,7 +70,7 @@ class ExifTool(object):
                                         startupinfo=startupinfo
                                        )
         except OSError:
-            dlgWarn("cannot execute exiftool :\nset EXIFTOOL_PATH in settings.py")
+            dlgWarn("cannot execute exiftool :\nset EXIFTOOL_PATH in config.json")
             # exit program
             exit()
         return self
