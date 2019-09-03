@@ -127,6 +127,8 @@ import threading
 from itertools import cycle
 from os import path, walk
 from io import BytesIO
+from time import sleep
+import gc
 
 from PIL.ImageCms import ImageCmsProfile
 from types import MethodType
@@ -164,8 +166,6 @@ from bLUeTop.settings import USE_POOL, POOL_SIZE, THEME, TABBING
 from bLUeTop.utils import UDict
 from bLUeGui.tool import cropTool, rotatingTool
 from bLUeTop.graphicsTemp import temperatureForm
-from time import sleep
-import gc
 from bLUeTop.graphicsFilter import filterForm
 from bLUeTop.graphicsHspbLUT import graphicsHspbForm
 from bLUeTop.graphicsLabLUT import graphicsLabForm
@@ -193,7 +193,7 @@ This product includes DNG technology under license by Adobe Systems Incorporated
 
 ##############
 #  Version number
-VERSION = "v1.4.4"
+VERSION = "v1.5.0"
 ##############
 
 ##############
@@ -358,6 +358,9 @@ def loadImageFromFile(f, createsidecar=True, icc=icc):
         rawBuf = np.dstack((rawBuf[:, :, ::-1], np.zeros(rawBuf.shape[:2], dtype=np.uint8)+255))
         img = imImage(cv2Img=rawBuf, colorSpace=colorSpace, orientation=transformation,
                       rawMetadata=metadata, profile=profile, name=name, rating=rating)
+        # keeping a reference to rawBuf along with img is
+        # needed to protect the buffer from garbage collector
+        img.rawBuf = rawBuf
         img.filename = f
         # keep references to rawPy instance. rawpyInst.raw_image is the (linearized) sensor image
         img.rawImage = rawpyInst
