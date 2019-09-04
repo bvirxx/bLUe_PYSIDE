@@ -11,8 +11,8 @@
   },
   "DNG_PROFILES" : {
      "//" : "Paths to camera profiles. To get the standard profiles, download and install the free Adobe DNG converter",
-     "DIR1" : "C:\\ProgramData\\Adobe\\CameraRaw\\CameraProfiles\\Adobe Standard\\",
-     "DIR2" : "C:\\ProgramData\\Adobe\\CameraRaw\\CameraProfiles\\Camera\\"
+     "DIR1" : "C:\\ProgramData\\Adobe\\CameraRaw\\CameraProfiles\\Adobe Standard",
+     "DIR2" : "C:\\ProgramData\\Adobe\\CameraRaw\\CameraProfiles\\Camera"
   },
   "ENV" : {
     "//" : "3D LUT : Use tetrahedral interpolation instead of trilinear; trilinear is faster",

@@ -75,7 +75,7 @@ def getDngProfileList(cameraName):
         try:
             for filename in os.listdir(folder):
                 if cameraName in basename(filename.lower()):
-                    plist.append(folder + filename)
+                    plist.append(os.path.join(folder, filename))
         except OSError:
             pass
     return plist
