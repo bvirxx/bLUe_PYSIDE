@@ -1074,7 +1074,7 @@ class graphicsForm3DLUT(baseGraphicsForm):
         gl.addWidget(pushButton4, 1, 0)
         gl.addWidget(infoCombo, 1, 1)
         for i, widget in enumerate([self.listWidget1, self.listWidget2, self.listWidget3]):
-            gl.addWidget(widget, 2 if i < 2 else 1, i, 1 if i < 2 else 2, 1, 0)
+            gl.addWidget(widget, 2 if i < 2 else 1, i, 1 if i < 2 else 2, 1)
         hl = QHBoxLayout()
         hl.addWidget(labelFormat)
         hl.addWidget(self.info)
