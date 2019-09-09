@@ -36,7 +36,7 @@ class transForm (baseForm):
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super().__init__(layer=layer, targetImage=targetImage, parent=parent)
         # options
-        optionList1, optionNames1 = ['Free', 'Rotation', 'Translation'], ['Free Transformation', 'Rotation', 'Translation']
+        optionList1, optionNames1 = ['Free', 'Rotation', 'Translation', 'Align'], ['Free Transformation', 'Rotation', 'Translation', 'Align']
         self.listWidget1 = optionsWidget(options=optionList1, optionNames=optionNames1, exclusive=True, changed=self.dataChanged)
         optionList2, optionNames2 = ['Transparent'], ['Set Transparent Pixels To Black']
         self.listWidget2 = optionsWidget(options=optionList2, optionNames=optionNames2, exclusive=False, changed=self.dataChanged)
@@ -66,7 +66,9 @@ class transForm (baseForm):
                         <b>Geometric transformation :</b><br>
                           Choose a transformation type and drag either corner of the image 
                           using the small square red buttons.<br>
-                          Ctrl+Alt+Drag to change the <b>initial positions</b> of buttons.
+                          Ctrl+Alt+Drag to change the <b>initial positions</b> of buttons.<br>
+                          Check <i>Align</i> to align the image with the underlying layers (for example to blend bracketed images). 
+                          Note that this option may modify or cancel the current transformation.
                         """
                         )  # end of setWhatsThis
 

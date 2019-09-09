@@ -42,7 +42,7 @@ The program is written in Python.
 
 * Edition of images in formats jpg, png, tif, nef, cr2, dng,...
 * Adjustment layers : exposure, brightness, saturation, contrast, channel mixer, color temperature, inversion, filters, noise reduction,
-seamless cloning, segmentation, geometric transformations, curves, 2.5D LUTs, 3D LUTs.
+seamless cloning, segmentation, geometric transformations, automatic image alignment, curves, 2.5D LUTs, 3D LUTs.
 * RGB, HSV, CMYK, Lab color models
 * Fast skin tone correction
 * Automatic contrast enhancement (histogram warping and CLAHE)
@@ -62,7 +62,7 @@ seamless cloning, segmentation, geometric transformations, curves, 2.5D LUTs, 3D
 
 * OpenCV-Python
 * NumPy >= 1.15.0
-* PySide2
+* Qt for Python (PySide2)
 * PIL
 * RawPy
 * PyWavelets

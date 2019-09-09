@@ -32,6 +32,7 @@ from PySide2.QtCore import QRect
 
 from bLUeGui.bLUeImage import bImage, ndarrayToQImage
 from bLUeCore.multi import chosenInterp
+from bLUeTop.align import alignImages
 
 from bLUeTop.graphicsBlendFilter import blendFilterIndex
 
@@ -969,6 +970,14 @@ class vImage(bImage):
 
     def applyImage(self, options):
         self.applyTransForm(options)
+        if options['Align']:
+            inImg = self.inputImg()
+            buf0 = QImageBuffer(inImg)
+            outImg = self.getCurrentImage()
+            buf1 = QImageBuffer(outImg)
+            imalgn, h = alignImages(buf1, buf0)
+            buf1[...] = imalgn
+            self.updatePixmap()
 
     def applyNoiseReduction(self):
         """
