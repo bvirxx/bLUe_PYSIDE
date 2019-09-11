@@ -300,6 +300,8 @@ def ndarrayToQImage(ndimg, format=QImage.Format_ARGB32):
         raise ValueError("ndarrayToQImage : conversion error")
     # build QImage from buffer
     qimg = QImage(ndimg.data, ndimg.shape[1], ndimg.shape[0], bytePerLine, format)
+    # keep a ref. to buffer to protect it from garbage collector
+    qimg.buf_ = ndimg.data
     if qimg.format() == QImage.Format_Invalid:
         raise ValueError("ndarrayToQImage : wrong conversion")
     return qimg
