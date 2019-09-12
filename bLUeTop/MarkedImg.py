@@ -657,7 +657,12 @@ class QLayer(vImage):
         # layer opacity, range 0.0...1.0
         self.opacity = 1.0
         self.compositionMode = QPainter.CompositionMode_SourceOver
-        # The next two attributes are used by adjustment layers only.
+        ###################################################################################
+        # For the sake of conciseness, QLayer is not subclassed to define multiple types of adjustment layers.
+        # Instead, we use the attribute execute as a wrapper to the right applyXXX method, depending
+        # on the intended "type" of layer.
+        # Note : execute should always end by calling updatePixmap.
+        ##################################################################################
         self.execute = lambda l=None, pool=None: l.updatePixmap() if l is not None else None
         self.options = {}
         # actionName is used by methods graphics***.writeToStream()
@@ -896,7 +901,7 @@ class QLayer(vImage):
                     qp.setOpacity(layer.opacity)
                     qp.setCompositionMode(layer.compositionMode)
                 if layer.rPixmap is None:
-                    layer.rPixmap = QPixmap.fromImage(layer.getCurrentImage())  # TODO modified 9/12/18 validate
+                    layer.rPixmap = QPixmap.fromImage(layer.getCurrentImage())
                 qp.drawPixmap(QRect(0, 0, img.width(), img.height()), layer.rPixmap)
                 # clipping
                 if layer.isClipping and layer.maskIsEnabled:
@@ -1220,8 +1225,11 @@ class QPresentationLayer(QLayer):
             img = currentImage
         qImg = img
         rImg = currentImage
+        """
+        Presentation Layer has not any mask !
         if self.maskIsEnabled:
             rImg = vImage.visualizeMask(rImg, self.mask, color=self.maskIsSelected, clipping=self.isClipping)
+        """
         self.qPixmap = QPixmap.fromImage(qImg)
         self.rPixmap = QPixmap.fromImage(rImg)
         self.setModified(True)

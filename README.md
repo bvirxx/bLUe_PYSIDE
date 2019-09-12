@@ -51,6 +51,7 @@ seamless cloning, segmentation, geometric transformations, automatic image align
 * Multiple blending modes; adjustable layer opacity
 * Import and export of 3D LUTs in .cube format
 * Adjustable masks
+* Luminosity masks
 * History
 * Automatic import of camera specific dual illuminant dng/dcp profiles
 * Adjustable profile tone curve

@@ -117,7 +117,7 @@ class vImage(bImage):
     def color2OpacityMask(mask):
         """
         Return a copy of mask with the opacity channel set
-        from the red channel (alpha = 0 if Red==0 else 255),
+        from the red channel (alpha = red),
         B, G, R channels are kept unchanged.
         @param mask: mask
         @type mask: QImage
@@ -133,8 +133,8 @@ class vImage(bImage):
     @staticmethod
     def color2ViewMask(mask):
         """
-        Return a colored representation of mask.
-        B, R, A channels are not modified, mask is kept unchanged.
+        Return a colored representation of mask,
+        B, R, A channels are not modified. mask is kept unchanged.
         @param mask: mask
         @type mask: QImage
         @return: opacity mask
@@ -182,7 +182,6 @@ class vImage(bImage):
         using its own colors. If color is False the alpha channel of the mask is set from
         its red channel and, next, the mask is drawn over the image using the mode destinationIn :
         destination opacity is set to that of source.
-        If clipping is True (default False), an opaque checker is drawn under the image.
         @param img:
         @type img: QImage
         @param mask:
@@ -550,6 +549,18 @@ class vImage(bImage):
         """
         buf = QImageBuffer(self.mask)
         buf[:, :, 2] = 255 - buf[:, :, 2]
+
+    def setMaskLuminosity(self, min=0, max=255):
+        """
+        Build the (bright 1) luminosity mask
+        """
+        buf = self.getHSVBuffer()
+        buf = cv2.resize(buf, (self.mask.width(), self.mask.height()))
+        LUT = np.arange(256)
+        LUT[:min] = 0
+        LUT[max + 1:] = 0
+        mbuf = QImageBuffer(self.mask)
+        mbuf[...,2] = LUT[buf[:,:,2]]
 
     def resize(self, pixels, interpolation=cv2.INTER_CUBIC):
         """
@@ -924,9 +935,10 @@ class vImage(bImage):
         @param options:
         @type options:
         """
-        if self.maskIsEnabled:
-            dlgWarn("A masked layer cannot be transformed.\nDisable the mask")
-            return
+        #if self.maskIsEnabled:
+            #dlgWarn("A masked layer cannot be transformed.\nDisable the mask")
+            #self.updatePixmap()
+            #return
         inImg = self.inputImg()
         outImg = self.getCurrentImage()
         buf0 = QImageBuffer(outImg)

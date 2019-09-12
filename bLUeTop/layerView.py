@@ -29,7 +29,7 @@ from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.dialog import openDlg, dlgWarn
 from bLUeGui.memory import weakProxy
 from bLUeTop.settings import TABBING
-from bLUeTop.utils import  QbLUeSlider
+from bLUeTop.utils import QbLUeSlider
 from bLUeTop.versatileImg import vImage
 
 
@@ -82,7 +82,7 @@ class itemDelegate(QStyledItemDelegate):
             painter.save()
             bgColor = option.palette.color(QPalette.Window)
             bgColor = bgColor.red(), bgColor.green(), bgColor.blue()
-            dark = (max(bgColor) <=128)
+            dark = (max(bgColor) <= 128)
             if option.state & QStyle.State_Selected:
                 c = option.palette.color(QPalette.Highlight)
                 painter.fillRect(rect, c)
@@ -97,7 +97,7 @@ class itemDelegate(QStyledItemDelegate):
             QStyledItemDelegate.paint(self, painter, option, index)
 
 
-class QLayerView(QTableView) :
+class QLayerView(QTableView):
     """
     Display the stack of image layers.
     """
@@ -122,7 +122,7 @@ class QLayerView(QTableView) :
         ic2.invertPixels()
         delegate.inv_px1 = QPixmap.fromImage(ic1)
         delegate.inv_px2 = QPixmap.fromImage(ic2)
-        self.setIconSize(QSize(20,15))
+        self.setIconSize(QSize(20, 15))
         self.verticalHeader().setMinimumSectionSize(-1)
         self.verticalHeader().setDefaultSectionSize(self.verticalHeader().minimumSectionSize())
         self.horizontalHeader().setMinimumSectionSize(40)
@@ -154,8 +154,8 @@ class QLayerView(QTableView) :
             self.img.useThumb = (state == Qt.Checked)
             window.updateStatus()
             self.img.cacheInvalidate()
-            #for layer in self.img.layersStack:
-                #layer.autoclone = True  # auto update cloning layers
+            # for layer in self.img.layersStack:
+                # layer.autoclone = True  # auto update cloning layers
                 # layer.knitted = False
             try:
                 QApplication.setOverrideCursor(Qt.WaitCursor)  # TODO 18/04/18 waitcursor is called by applytostack?
@@ -164,8 +164,8 @@ class QLayerView(QTableView) :
                 self.img.layersStack[0].applyToStack()
                 self.img.onImageChanged()
             finally:
-                #for layer in self.img.layersStack:
-                    #layer.autoclone = False  # reset flags
+                # for layer in self.img.layersStack:
+                    # layer.autoclone = False  # reset flags
                     # layer.knitted = False
                 QApplication.restoreOverrideCursor()
                 QApplication.processEvents()
@@ -286,7 +286,7 @@ class QLayerView(QTableView) :
         self.blendingModeCombo.currentIndexChanged.connect(g)
         # self.blendingModeCombo.activated.connect(g)  # TODO activated changed to currentIndexChanged 08/10/18 validate
 
-        #layout
+        # layout
         l = QVBoxLayout()
         l.setAlignment(Qt.AlignTop)
         hl0 = QHBoxLayout()
@@ -294,7 +294,7 @@ class QLayerView(QTableView) :
         hl0.addStretch(1)
         hl0.addWidget(self.previewOptionBox)
         l.addLayout(hl0)
-        hl =  QHBoxLayout()
+        hl = QHBoxLayout()
         hl.addWidget(QLabel('Opacity'))
         hl.addWidget(self.opacityValue)
         hl.addWidget(self.opacitySlider)
@@ -304,7 +304,7 @@ class QLayerView(QTableView) :
         hl1.addWidget(self.maskValue)
         hl1.addWidget(self.maskSlider)
         l.addLayout(hl1)
-        l.setContentsMargins(0,0,10,0) # left, top, right, bottom
+        l.setContentsMargins(0, 0, 10, 0)  # left, top, right, bottom
         hl2 = QHBoxLayout()
         hl2.addWidget(compLabel)
         hl2.addWidget(self.blendingModeCombo)
@@ -318,6 +318,7 @@ class QLayerView(QTableView) :
         self.actionDup = QAction('Duplicate layer', None)
         self.actionDup.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_J))
         self.addAction(self.actionDup)
+
         def dup():
             row = self.selectedIndexes()[0].row()
             # Stack index
@@ -341,7 +342,6 @@ Note that upper visible layers slow down mask edition.<br>
 """
                         )  # end of setWhatsThis
 
-
     def closeAdjustForms(self, delete=False):
         """
         Close all layer forms. If delete is True (default False),
@@ -352,7 +352,7 @@ Note that upper visible layers slow down mask edition.<br>
         if self.img is None:
             return
         stack = self.img.layersStack
-        for layer in  stack:
+        for layer in stack:
             if hasattr(layer, "view"):
                 if layer.view is not None:
                     dock = layer.view
@@ -389,9 +389,11 @@ Note that upper visible layers slow down mask edition.<br>
         Displays the layer stack of a mImage instance.
         @param mImg: image
         @type mImg: mImage
+        @param delete:
+        @type delete:
         """
         # close open adjustment windows
-        #self.closeAdjustForms()
+        # self.closeAdjustForms()
         self.clear(delete=delete)
         mImg.layerView = self
         # back link to image
@@ -425,7 +427,7 @@ Note that upper visible layers slow down mask edition.<br>
             lay.maskSettingsChanged.sig.connect(self.updateRows)
             items = []
             # col 0 : visibility icon
-            if lay.visible :
+            if lay.visible:
                 item_visible = QStandardItem(QIcon(":/images/resources/eye-icon.png"), "")
             else:
                 item_visible = QStandardItem(QIcon(":/images/resources/eye-icon-strike.png"), "")
@@ -441,7 +443,7 @@ Note that upper visible layers slow down mask edition.<br>
                 # icon with very small dim causes QPainter error
                 # QPixmap.fromImage bug ?
                 smallImg = lay.resize(50 * 50)
-                w,h = smallImg.width(), smallImg.height()
+                w, h = smallImg.width(), smallImg.height()
                 if w < h / 5 or h < w / 5:
                     item_name = QStandardItem(name)
                 else:
@@ -476,7 +478,6 @@ Note that upper visible layers slow down mask edition.<br>
                     item.view.widget().sourceCombo.addItem(x.name, i)
                 combo.setCurrentIndex(combo.findText(currentText))
 
-
     def updateForm(self):
         activeLayer = self.img.getActiveLayer()
         if hasattr(activeLayer, 'view'):
@@ -484,7 +485,6 @@ Note that upper visible layers slow down mask edition.<br>
         if self.currentWin is not None:
             self.currentWin.show()
             self.currentWin.activateWindow()
-
 
     def updateRow(self, row):
         minInd, maxInd = self.model().index(row, 0), self.model().index(row, 3)
@@ -511,7 +511,7 @@ Note that upper visible layers slow down mask edition.<br>
         rStack = self.img.layersStack[::-1]
         layers = [rStack[i] for i in rows]
         linked = any(l.group for l in layers)
-        if linked and len(rows)> 1:
+        if linked and len(rows) > 1:
             return
         # get target row and layer
         targetRow = self.indexAt(event.pos()).row()
@@ -554,17 +554,17 @@ Note that upper visible layers slow down mask edition.<br>
             result = self.model().insertRow(targetRow, QModelIndex())
         # copy moved rows to their final place
         colCount = self.model().columnCount()
-        for srcRow, tgtRow in sorted(rowMapping.items()): # python 3 iteritems->items
+        for srcRow, tgtRow in sorted(rowMapping.items()):  # python 3 iteritems->items
             for col in range(0, colCount):
                 # CAUTION : setItem calls the data changed event handler (cf. setLayers above)
                 self.model().setItem(tgtRow, col, self.model().takeItem(srcRow, col))
         # remove moved rows from their initial place and keep track of moved items
         movedDict = rowMapping.copy()
-        for row in reversed(sorted(rowMapping.keys())): # python 3 iterkeys -> keys
+        for row in reversed(sorted(rowMapping.keys())):  # python 3 iterkeys -> keys
             self.model().removeRow(row)
             for s, t in rowMapping.items():
                 if t > row:
-                    movedDict[s]-=1
+                    movedDict[s] -= 1
         ######################################### sanity check
         for r in range(self.model().rowCount()):
             id = self.model().index(r, 1)
@@ -580,15 +580,14 @@ Note that upper visible layers slow down mask edition.<br>
         itemSelection = QtCore.QItemSelection(index1, index2)
         self.selectionModel().select(itemSelection,  QtCore.QItemSelectionModel.Rows | QtCore.QItemSelectionModel.Select)
         # multiple selection : display no window
-        if len(sel) > 1 :
+        if len(sel) > 1:
             self.currentWin.hide()
             self.currentWin = None
         elif len(sel) == 1:
-            self.img.setActiveLayer(len(self.img.layersStack) - sel[0] -1)
+            self.img.setActiveLayer(len(self.img.layersStack) - sel[0] - 1)
         # update stack
         self.img.layersStack[0].applyToStack()
         self.img.onImageChanged()
-
 
     def select(self, row, col):
         """
@@ -603,7 +602,6 @@ Note that upper visible layers slow down mask edition.<br>
         model = self.model()
         self.viewClicked(model.index(row, col))
 
-
     def viewClicked(self, clickedIndex):
         """
         Mouse clicked event handler.
@@ -612,19 +610,19 @@ Note that upper visible layers slow down mask edition.<br>
         """
         row = clickedIndex.row()
         rows = set([mi.row() for mi in self.selectedIndexes()])
-        #multiple selection : go to top of selection
+        # multiple selection : go to top of selection
         m = min(rows)
-        if row != m :
+        if row != m:
             clickedIndex = self.model().index(m, clickedIndex.column())
         layer = self.img.layersStack[-1 - row]
         self.actionDup.setEnabled(not layer.isAdjustLayer())
         # toggle layer visibility
-        if clickedIndex.column() == 0 :
+        if clickedIndex.column() == 0:
             # background layer is always visible
             if row == len(self.img.layersStack) - 1:
                 return
-            #layer.visible = not(layer.visible)
-            layer.setVisible(not(layer.visible))
+            # layer.visible = not(layer.visible)
+            layer.setVisible(not layer.visible)
             if self.currentWin is not None:
                 self.currentWin.setVisible(layer.visible)
                 if not layer.visible:
@@ -636,7 +634,7 @@ Note that upper visible layers slow down mask edition.<br>
                 layer.applyToStack()
             else:
                 i = layer.getUpperVisibleStackIndex()
-                if i >=0:
+                if i >= 0:
                     layer.parentImage.layersStack[i].applyToStack()
                 else:
                     # top layer : update only the presentation layer
@@ -650,9 +648,9 @@ Note that upper visible layers slow down mask edition.<br>
         self.maskSlider.setEnabled(activeLayer.maskIsSelected)
         self.maskValue.setEnabled(activeLayer.maskIsSelected)
         if self.currentWin is not None:
-                if not self.currentWin.isFloating():
-                    #self.currentWin.hide()
-                    self.currentWin = None
+            if not self.currentWin.isFloating():
+                # self.currentWin.hide()
+                self.currentWin = None
         if hasattr(self.img.layersStack[activeStackIndex], "view"):
             self.currentWin = self.img.layersStack[activeStackIndex].view
         if self.currentWin is not None and activeLayer.visible:
@@ -673,13 +671,13 @@ Note that upper visible layers slow down mask edition.<br>
 
     def initContextMenu(self):
         """
-        return the context menu
+        Context menu initialization
         @return:
         @rtype: QMenu
         """
         menu = QMenu()
         # menu.actionReset = QAction('Reset To Default', None)
-        menu.actionLoadImage = QAction('Load New Image', None)
+        # menu.actionLoadImage = QAction('Load New Image', None)
         menu.actionGroupSelection = QAction('Group Selection', None)
         menu.actionAdd2Group = QAction('Add to Group', None)
         # Active layer is not in a group or right clicked layer is in a group
@@ -689,10 +687,6 @@ Note that upper visible layers slow down mask edition.<br>
         # multiple selections
         menu.actionMerge = QAction('Merge Lower', None)
         # merge only adjustment layer with image layer
-
-        # don't dup adjustment layers
-        menu.actionUnselect = QAction('Unselect All', None)
-
         menu.actionRepositionLayer = QAction('Reposition Layer(s)', None)
         menu.actionColorMaskEnable = QAction('Color', None)
         menu.actionOpacityMaskEnable = QAction('Opacity', None)
@@ -710,6 +704,15 @@ Note that upper visible layers slow down mask edition.<br>
         menu.actionMaskDilate = QAction('Dilate Mask', None)
         menu.actionMaskErode = QAction('Erode Mask', None)
         menu.actionMaskSmooth = QAction('Smooth Mask', None)
+        menu.actionMaskBright1 = QAction('Bright 1 Mask', None)
+        menu.actionMaskBright2 = QAction('Bright 2 Mask', None)
+        menu.actionMaskBright3 = QAction('Bright 3 Mask', None)
+        menu.actionMaskDark1 = QAction('Dark 1 Mask', None)
+        menu.actionMaskDark2 = QAction('Dark 2 Mask', None)
+        menu.actionMaskDark3 = QAction('Dark 3 Mask', None)
+        menu.actionMaskMid1 = QAction('Mid 1 Mask', None)
+        menu.actionMaskMid2 = QAction('Mid 2 Mask', None)
+        menu.actionMaskMid3 = QAction('Mid 3 Mask', None)
         menu.actionColorMaskEnable.setCheckable(True)
         menu.actionOpacityMaskEnable.setCheckable(True)
         menu.actionClippingMaskEnable.setCheckable(True)
@@ -717,8 +720,6 @@ Note that upper visible layers slow down mask edition.<br>
         ####################
         # Build menu
         ###################
-        menu.addAction(menu.actionUnselect)
-        menu.addSeparator()
         menu.addAction(menu.actionRepositionLayer)
         menu.addSeparator()
         # layer
@@ -734,6 +735,10 @@ Note that upper visible layers slow down mask edition.<br>
         menu.addAction(menu.actionMaskUndo)
         menu.addAction(menu.actionMaskRedo)
         menu.addAction(menu.actionMaskInvert)
+        menu.subMenuLum = menu.addMenu('Luminosity Mask...')
+        for a in [menu.actionMaskBright1, menu.actionMaskBright2, menu.actionMaskBright3, menu.actionMaskDark1, menu.actionMaskDark2, menu.actionMaskDark3,
+                  menu.actionMaskMid1, menu.actionMaskMid2, menu.actionMaskMid3]:
+            menu.subMenuLum.addAction(a)
         menu.addAction(menu.actionMaskReset_UM)
         menu.addAction(menu.actionMaskReset_M)
         menu.addAction(menu.actionMaskCopy)
@@ -743,14 +748,13 @@ Note that upper visible layers slow down mask edition.<br>
         menu.addAction(menu.actionMaskSmooth)
         menu.addSeparator()
         # miscellaneous
-        menu.addAction(menu.actionLoadImage)
+        # menu.addAction(menu.actionLoadImage)
         # to link actionDup with a shortcut,
         # it must be set in __init__
         menu.addAction(self.actionDup)
         menu.addAction(menu.actionMerge)
         # menu.addAction(menu.actionReset)
         return menu
-
 
     def contextMenuEvent(self, event):
         """
@@ -788,20 +792,13 @@ Note that upper visible layers slow down mask edition.<br>
         self.cMenu.actionColorMaskEnable.setChecked(layer.maskIsSelected and layer.maskIsEnabled)
         self.cMenu.actionOpacityMaskEnable.setChecked((not layer.maskIsSelected) and layer.maskIsEnabled)
         self.cMenu.actionClippingMaskEnable.setChecked(layer.isClipping and (layer.maskIsSelected or layer.maskIsEnabled))
-        self.cMenu.actionMaskDisable.setChecked( not(layer.isClipping or layer.maskIsSelected or layer.maskIsEnabled))
+        self.cMenu.actionMaskDisable.setChecked(not(layer.isClipping or layer.maskIsSelected or layer.maskIsEnabled))
         self.cMenu.actionMaskUndo.setEnabled(layer.historyListMask.canUndo())
         self.cMenu.actionMaskRedo.setEnabled(layer.historyListMask.canRedo())
-        self.cMenu.actionUnselect.setEnabled(layer.rect is None)
-        self.cMenu.subMenuEnable.setEnabled(len(rows)==1)
+        self.cMenu.subMenuEnable.setEnabled(len(rows) == 1)
         self.cMenu.actionMaskPaste.setEnabled(not QApplication.clipboard().image().isNull())
         self.cMenu.actionImagePaste.setEnabled(not QApplication.clipboard().image().isNull())
         # Event handlers
-
-        def f():
-            self.opacitySlider.show()
-
-        def unselectAll():
-            layer.rect = None
 
         def RepositionLayer():
             layer.xOffset, layer.yOffset = 0, 0
@@ -810,13 +807,6 @@ Note that upper visible layers slow down mask edition.<br>
             layer.xAltOffset, layer.yAltOffset = 0, 0
             layer.updatePixmap()
             self.img.onImageChanged()
-
-        def loadImage():
-            return # TODO 26/06/18 action to remove from menu? replaced by new image layer
-            filename = openDlg(window)
-            img = QImage(filename)
-            layer.thumb = None
-            layer.setImage(img)
 
         def merge():
             layer.merge_with_layer_immediately_below()
@@ -869,7 +859,7 @@ Note that upper visible layers slow down mask edition.<br>
             self.maskLabel.setEnabled(layer.maskIsSelected)
             self.maskSlider.setEnabled(layer.maskIsSelected)
             self.maskValue.setEnabled(layer.maskIsSelected)
-            layer.isClipping = False  # TODO added 28/11/18
+            layer.isClipping = False
             layer.applyToStack()
             self.img.onImageChanged()
 
@@ -891,8 +881,6 @@ Note that upper visible layers slow down mask edition.<br>
             layer.invertMask()
             # update mask stack
             layer.applyToStack()
-            #for l in self.img.layersStack:
-                #l.updatePixmap(maskOnly=True)
             self.img.onImageChanged()
 
         def maskReset_UM():
@@ -900,6 +888,7 @@ Note that upper visible layers slow down mask edition.<br>
             # update mask stack
             for l in self.img.layersStack:
                 l.updatePixmap(maskOnly=True)
+            self.img.prLayer.execute(l=None, pool=None)
             self.img.onImageChanged()
 
         def maskReset_M():
@@ -907,6 +896,7 @@ Note that upper visible layers slow down mask edition.<br>
             # update mask stack
             for l in self.img.layersStack:
                 l.updatePixmap(maskOnly=True)
+            self.img.prLayer.execute(l=None, pool=None)
             self.img.onImageChanged()
 
         def maskCopy():
@@ -928,6 +918,7 @@ Note that upper visible layers slow down mask edition.<br>
                 else:
                     layer.mask = img.scaled(layer.mask.size())
             layer.applyToStack()
+            self.img.prLayer.execute(l=None, pool=None)
             self.img.onImageChanged()
 
         def imagePaste():
@@ -953,7 +944,7 @@ Note that upper visible layers slow down mask edition.<br>
             buf[:, :, 2] = vImage.maskDilate(buf[:, :, 2])
             for l in self.img.layersStack:
                 l.updatePixmap(maskOnly=True)
-            self.img.prLayer.applyNone()
+            self.img.prLayer.update()
             self.img.onImageChanged()
 
         def maskErode():
@@ -964,7 +955,7 @@ Note that upper visible layers slow down mask edition.<br>
             buf[:, :, 2] = vImage.maskErode(buf[:, :, 2])
             for l in self.img.layersStack:
                 l.updatePixmap(maskOnly=True)
-            self.img.prLayer.applyNone()
+            self.img.prLayer.update()
             self.img.onImageChanged()
 
         def maskSmooth():
@@ -972,15 +963,73 @@ Note that upper visible layers slow down mask edition.<br>
             Smooth the mask boundary
             """
             buf = QImageBuffer(layer.mask)
-            buf[:,:,2] = vImage.maskSmooth(buf[:,:,2])
+            buf[:, :, 2] = vImage.maskSmooth(buf[:, :, 2])
             for l in self.img.layersStack:
                 l.updatePixmap(maskOnly=True)
-            self.img.prLayer.applyNone()
+            self.img.prLayer.update()
+            self.img.onImageChanged()
+
+        def maskBright1():
+            layer.setMaskLuminosity(min=128, max=255)
+            for l in self.img.layersStack:
+                l.updatePixmap(maskOnly=True)
+            self.img.prLayer.update()
+            self.img.onImageChanged()
+
+        def maskBright2():
+            layer.setMaskLuminosity(min=192, max=255)
+            for l in self.img.layersStack:
+                l.updatePixmap(maskOnly=True)
+            self.img.prLayer.update()
+            self.img.onImageChanged()
+
+        def maskBright3():
+            layer.setMaskLuminosity(min=224, max=255)
+            for l in self.img.layersStack:
+                l.updatePixmap(maskOnly=True)
+            self.img.prLayer.update()
+            self.img.onImageChanged()
+
+        def maskDark1():
+            layer.setMaskLuminosity(min=0, max=128)
+
+        def maskDark2():
+            layer.setMaskLuminosity(min=0, max=64)
+            for l in self.img.layersStack:
+                l.updatePixmap(maskOnly=True)
+            self.img.prLayer.update()
+            self.img.onImageChanged()
+
+        def maskDark3():
+            layer.setMaskLuminosity(min=0, max=32)
+            for l in self.img.layersStack:
+                l.updatePixmap(maskOnly=True)
+            self.img.prLayer.update()
+            self.img.onImageChanged()
+
+        def maskMid1():
+            layer.setMaskLuminosity(min=64, max=192)
+            for l in self.img.layersStack:
+                l.updatePixmap(maskOnly=True)
+            self.img.prLayer.update()
+            self.img.onImageChanged()
+
+        def maskMid2():
+            layer.setMaskLuminosity(min=96, max=160)
+            for l in self.img.layersStack:
+                l.updatePixmap(maskOnly=True)
+            self.img.prLayer.update()
+            self.img.onImageChanged()
+
+        def maskMid3():
+            layer.setMaskLuminosity(min=112, max=144)
+            for l in self.img.layersStack:
+                l.updatePixmap(maskOnly=True)
+            self.img.prLayer.update()
             self.img.onImageChanged()
 
         self.cMenu.actionRepositionLayer.triggered.connect(RepositionLayer)
-        self.cMenu.actionUnselect.triggered.connect(unselectAll)
-        self.cMenu.actionLoadImage.triggered.connect(loadImage)
+        # self.cMenu.actionLoadImage.triggered.connect(loadImage)
         self.cMenu.actionMerge.triggered.connect(merge)
         self.cMenu.actionColorMaskEnable.triggered.connect(colorMaskEnable)
         self.cMenu.actionOpacityMaskEnable.triggered.connect(opacityMaskEnable)
@@ -998,6 +1047,15 @@ Note that upper visible layers slow down mask edition.<br>
         self.cMenu.actionMaskDilate.triggered.connect(maskDilate)
         self.cMenu.actionMaskErode.triggered.connect(maskErode)
         self.cMenu.actionMaskSmooth.triggered.connect(maskSmooth)
+        self.cMenu.actionMaskBright1.triggered.connect(maskBright1)
+        self.cMenu.actionMaskBright2.triggered.connect(maskBright2)
+        self.cMenu.actionMaskBright3.triggered.connect(maskBright3)
+        self.cMenu.actionMaskDark1.triggered.connect(maskDark1)
+        self.cMenu.actionMaskDark2.triggered.connect(maskDark2)
+        self.cMenu.actionMaskDark3.triggered.connect(maskDark3)
+        self.cMenu.actionMaskMid1.triggered.connect(maskMid1)
+        self.cMenu.actionMaskMid2.triggered.connect(maskMid2)
+        self.cMenu.actionMaskMid3.triggered.connect(maskMid3)
         # self.cMenu.actionReset.triggered.connect(layerReset)
         self.cMenu.exec_(event.globalPos() - QPoint(400, 0))
         # update table
