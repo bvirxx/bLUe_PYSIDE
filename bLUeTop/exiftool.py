@@ -111,7 +111,10 @@ class ExifTool(object):
         args = args + ("-execute\n",)
         # convert command to bytes and write it to process stdin
         stdin = self.process.stdin
-        stdin.write(bytearray(str.join("\n", args), 'ascii'))
+        try:
+            stdin.write(bytearray(str.join("\n", args), 'ascii'))
+        except UnicodeEncodeError as e:
+            dlgWarn(str.join("\n", args), str(e))
         # flush and sync stdin - both are mandatory here
         stdin.flush()
         os.fsync(stdin.fileno())
@@ -248,7 +251,7 @@ class ExifTool(object):
         command = ['-%s=%s' % ('Orientation', value)] + ['-n'] + [filename, '-overwrite_original']
         self.execute(*command)
 
-    def readXMPTag(self, filename, tagName):
+    def readXMPTag(self, filename, tagName, ext='.mie'):
         """
         Read a tag from a sidecar (.mie) file. Despite its name, the method can read
         a tag of any type. A ValueError exception is raised if the file does not exist.
@@ -256,10 +259,12 @@ class ExifTool(object):
         @type filename: str
         @param tagName:
         @type tagName: str
+        @param ext:
+        @type ext: str
         @return: tag info
         @rtype: str
         """
-        filename = filename[:-4] + '.mie'
+        filename = filename[:-4] + ext
         if not isfile(filename):
             raise ValueError
         command = ['-%s' % tagName] + [filename]

@@ -117,6 +117,7 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
+from rawpy._rawpy import LibRawFatalError
 
 from bLUeTop import resources_rc  # mandatory
 
@@ -351,7 +352,11 @@ def loadImageFromFile(f, createsidecar=True, icc=icc):
         # Another curve (array, shape=65536) can be loaded here before unpacking.
         # NO EFFECT with files where the curve is calculated on unpack() phase (e.g.Nikon lossy NEF files).
         #####################################################################################
-        rawpyInst.unpack()
+        try:
+            rawpyInst.unpack()
+        except LibRawFatalError as e:
+            dlgWarn('LibRaw Fatal Error', 'Only flat raw images are supported' )
+            raise
         # postprocess raw image, applying default settings (cf. vImage.applyRawPostProcessing)
         rawBuf = rawpyInst.postprocess(use_camera_wb=True)
         # build Qimage

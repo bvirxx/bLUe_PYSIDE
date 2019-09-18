@@ -552,15 +552,16 @@ class vImage(bImage):
 
     def setMaskLuminosity(self, min=0, max=255):
         """
-        Build the (bright 1) luminosity mask
+        Build the a luminosity mask
         """
         buf = self.getHSVBuffer()
         buf = cv2.resize(buf, (self.mask.width(), self.mask.height()))
         LUT = np.arange(256)
         LUT[:min] = 0
         LUT[max + 1:] = 0
+        LUT[min:max] = 255
         mbuf = QImageBuffer(self.mask)
-        mbuf[...,2] = LUT[buf[:,:,2]]
+        mbuf[..., 2] = LUT[buf[:, :, 2]]
 
     def resize(self, pixels, interpolation=cv2.INTER_CUBIC):
         """
