@@ -95,6 +95,16 @@ class bImage(QImage):
     def HSVBuffer(self, buffer):
         self.__HSVBuffer = buffer
 
+    #################################
+    # convenience comparison operators,
+    # implicitely used by 'in' op.
+    #################################
+    def __eq__(self, other):
+        return self is other
+
+    def __ne__(self, other):
+        return self is not other
+
     def getHspbBuffer(self):
         """
         return the image buffer in color mode HSpB.
