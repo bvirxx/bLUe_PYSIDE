@@ -23,6 +23,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 # https://stackoverflow.com/questions/10075115/call-exiftool-from-a-python-script
 # We gratefully acknowledge the contribution of the author.
 
+import re
 import subprocess
 import os
 import json
@@ -361,6 +362,21 @@ def decodeExifOrientation(value):
     else:
         raise ValueError("decodeExifOrientation : unhandled orientation tag: %d" % value)
     return tr
+
+def readExpTime(filename):
+    """
+    Convenience method. It returns the exposure time.
+    @param filename: path to image file
+    @type filename: str
+    @return: exposure time
+    @rtype: float
+    """
+    p = re.compile('[0-9]+/?[0-9]+')
+    with ExifTool() as e:
+        expTime = e.readXMPTag(filename, 'ExposureTime', ext='.jpg')
+    s = p.findall(expTime)
+    # time may be recorded as a fraction, so we use eval
+    return eval(s[0])
 
 
 """
