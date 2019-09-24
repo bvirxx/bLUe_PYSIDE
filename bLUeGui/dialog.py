@@ -219,7 +219,7 @@ def saveDlg(img, mainWidget):
     else:
         raise ValueError("Saving Operation Failure")
 
-def openDlg(mainWidget, ask=True):
+def openDlg(mainWidget, ask=True, multiple=False):
     """
     Returns a file name or None.
     @param mainWidget:
@@ -242,6 +242,11 @@ def openDlg(mainWidget, ask=True):
     # don't ask again for saving
     mainWidget.label.img.isModified = False
     lastDir = str(mainWidget.settings.value('paths/dlgdir', '.'))
+    if multiple:
+        # allow multiple selections
+        filenames = QFileDialog.getOpenFileNames(mainWidget, "select", lastDir, " *".join(IMAGE_FILE_EXTENSIONS) + " *".join(RAW_FILE_EXTENSIONS))
+        return filenames[0]
+    # select a single file
     dlg = QFileDialog(mainWidget, "select", lastDir, " *".join(IMAGE_FILE_EXTENSIONS) + " *".join(RAW_FILE_EXTENSIONS))
     if dlg.exec_():
         filenames = dlg.selectedFiles()
