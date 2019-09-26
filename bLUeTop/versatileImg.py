@@ -50,6 +50,7 @@ from bLUeTop.lutUtils import LUT3DIdentity
 from bLUeTop.rawProcessing import rawPostProcess
 from bLUeTop.utils import UDict
 from bLUeCore.dwtDenoising import dwtDenoiseChan
+from bLUeTop.mergeImages import expFusion
 
 
 class ColorSpace:
@@ -289,7 +290,7 @@ class vImage(bImage):
         self.imageInfo ='no data found'  # default
 
         if rawMetadata is None:
-            rawMetadata = {}  # []  # TODO modified 21/11/18
+            rawMetadata = {}
         self.isModified = False
         self.rect = None
         self.isCropped = False
@@ -876,6 +877,41 @@ class vImage(bImage):
         np.clip(tmp, 0, 255, out=tmp)
         # invert
         bufOut[:, :, :3] = 255.0 - tmp
+        self.updatePixmap()
+
+    def applyHDRMerge(self, options):
+        form = self.getGraphicsForm()
+        # search for layers to merge, below the merging layer
+        stack = self.parentImage.layersStack
+        i = self.getStackIndex()
+        mergingLayers = []
+        for layer in stack[:i]:
+            if layer.visible and layer.mergingFlag:
+                mergingLayers.append(layer)
+        #pass through
+        if not mergingLayers:
+            inputImg = self.inputImg()
+            inBuf = QImageBuffer(inputImg)
+            outputImg = self.getCurrentImage()
+            outBuf = QImageBuffer(outputImg)
+            outBuf[:, :, :] = inBuf
+            self.updatePixmap()
+            return
+        bufList = []
+        pred = None
+        for layer in mergingLayers:
+            img = layer.getCurrentImage()
+            buf = QImageBuffer(img)
+            if pred is not None:
+                buf[...] = alignImages(buf, pred)
+            bufList.append(buf[:, :, :3])
+
+        #buf = np.stack(bufList, axis=-1)
+        #buf = np.median(buf, axis=-1)
+        buf = expFusion(bufList)
+        imgOut = self.getCurrentImage()
+        bufOut = QImageBuffer(imgOut)
+        bufOut[..., :3] = buf
         self.updatePixmap()
 
     def applyExposure(self, options):

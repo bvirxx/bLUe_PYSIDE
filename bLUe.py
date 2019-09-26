@@ -136,6 +136,8 @@ from types import MethodType
 import rawpy
 
 from bLUeCore.bLUeLUT3D import HaldArray
+from bLUeTop.exiftool import readExpTime
+from bLUeTop.graphicsHDRMerge import HDRMergeForm
 from bLUeTop.graphicsSegment import segmentForm
 from PySide2.QtCore import QUrl, QSize, QFileInfo
 from PySide2.QtGui import QPixmap, QCursor, QKeySequence, QDesktopServices, QFont, \
@@ -857,6 +859,32 @@ def menuLayer(name, window=window):
     @param window:
     @type window: QWidget
     """
+    # postlude function
+    def post(layer):
+        # adding a new layer may modify the resulting image
+        # (cf. actionNew_Image_Layer), so we update the presentation layer
+        layer.parentImage.prLayer.update()
+        layer.parentImage.onImageChanged()  # TODO added 06/09/18 validate
+        # record action name for scripting
+        layer.actionName = name
+        # docking the form
+        dock = QDockWidget(window)
+        dock.setWidget(grWindow)
+        # dock.setWindowFlags(grWindow.windowFlags())  # TODO removed 02/01/19 as spurious
+        dock.setWindowTitle(grWindow.windowTitle())
+        if TABBING:
+            # add form to docking area
+            forms = [item.view for item in layer.parentImage.layersStack if getattr(item, 'view', None) is not None]
+            dockedForms = [item for item in forms if not item.isFloating()]
+            if dockedForms:
+                window.tabifyDockWidget(dockedForms[-1], dock)
+            else:
+                window.addDockWidget(Qt.RightDockWidgetArea, dock)
+        else:
+            window.addDockWidget(Qt.RightDockWidgetArea, dock)
+        layer.view = dock
+        # update the view of layer stack
+        window.tableView.setLayers(window.label.img)
 
     # curves
     if name in ['actionCurves_RGB', 'actionCurves_HSpB', 'actionCurves_Lab']:
@@ -916,24 +944,28 @@ def menuLayer(name, window=window):
         # mask was modified
         # l.updatePixmap()
     # load an image from file
-    elif name == 'actionLoad_Image_from_File':  # 'actionNew_Image_Layer':
-        filename = openDlg(window, ask=False)
-        if filename is None:
+    elif name == 'actionLoad_Image_from_File':
+        filenames = openDlg(window, ask=False, multiple=True)
+        if not filenames:
             return
-        # load image from file, alpha channel is mandatory for applyTransform()
-        imgNew = QImage(filename).convertToFormat(QImage.Format_ARGB32)  # QImage(filename, QImage.Format_ARGB32) does not work !
-        if imgNew.isNull():
-            dlgWarn("Cannot load %s: " % filename)
-            return
-        lname = path.basename(filename)
-        layer = window.label.img.addAdjustmentLayer(name=lname, sourceImg=imgNew, role='GEOMETRY')
-        grWindow = imageForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
-        # add transformation tool to parent widget
-        tool = rotatingTool(parent=window.label)  # , layer=l, form=grWindow)
-        layer.addTool(tool)
-        tool.showTool()
-        layer.execute = lambda l=layer, pool=None: l.tLayer.applyImage(grWindow.options)
-        layer.actioname = name
+        for filename in filenames:
+            # load image from file, alpha channel is mandatory for applyTransform()
+            imgNew = QImage(filename).convertToFormat(QImage.Format_ARGB32)  # QImage(filename, QImage.Format_ARGB32) does not work !
+            if imgNew.isNull():
+                dlgWarn("Cannot load %s: " % filename)
+                return
+            lname = path.basename(filename)
+            layer = window.label.img.addAdjustmentLayer(name=lname, sourceImg=imgNew, role='Image')  # role='GEOMETRY')
+            grWindow = imageForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
+            # add transformation tool to parent widget
+            tool = rotatingTool(parent=window.label)  # , layer=l, form=grWindow)
+            layer.addTool(tool)
+            tool.showTool()
+            layer.execute = lambda l=layer, pool=None: l.tLayer.applyImage(grWindow.options)
+            layer.actioname = name
+            layer.filename = filename
+            post(layer)
+        return
     # empty new image
     elif name == 'actionNew_Layer':
         processedImg = window.label.img
@@ -973,15 +1005,13 @@ def menuLayer(name, window=window):
         layer = window.label.img.addAdjustmentLayer(name=lname)
         layer.clipLimit = ExpForm.defaultExpCorrection
         grWindow = ExpForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
-        """
-        # clipLimit change event handler
-        def h(lay, clipLimit):
-            lay.clipLimit = clipLimit
-            lay.applyToStack()
-            window.label.img.onImageChanged()
-        grWindow.onUpdateExposure = h
-        """
         layer.execute = lambda l=layer,  pool=None: l.tLayer.applyExposure(grWindow.options)
+    elif name == 'actionHDR_Merge':
+        lname = 'Merge'
+        layer = window.label.img.addAdjustmentLayer(name=lname)
+        layer.clipLimit = ExpForm.defaultExpCorrection
+        grWindow = HDRMergeForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
+        layer.execute = lambda l=layer,  pool=None: l.tLayer.applyHDRMerge(grWindow.options)
     elif name == 'actionGeom_Transformation':
         lname = 'Transformation'
         layer = window.label.img.addAdjustmentLayer(name=lname, role='GEOMETRY')
@@ -1114,30 +1144,7 @@ def menuLayer(name, window=window):
     # unknown action
     else:
         return
-    # adding a new layer may modify the resulting image
-    # (cf. actionNew_Image_Layer), so we update the presentation layer
-    layer.parentImage.prLayer.update()
-    layer.parentImage.onImageChanged()  # TODO added 06/09/18 validate
-    # record action name for scripting
-    layer.actionName = name
-    # docking the form
-    dock = QDockWidget(window)
-    dock.setWidget(grWindow)
-    # dock.setWindowFlags(grWindow.windowFlags())  # TODO removed 02/01/19 as spurious
-    dock.setWindowTitle(grWindow.windowTitle())
-    if TABBING:
-        # add form to docking area
-        forms = [item.view for item in layer.parentImage.layersStack if getattr(item, 'view', None) is not None]
-        dockedForms = [item for item in forms if not item.isFloating()]
-        if dockedForms:
-            window.tabifyDockWidget(dockedForms[-1], dock)
-        else:
-            window.addDockWidget(Qt.RightDockWidgetArea, dock)
-    else:
-        window.addDockWidget(Qt.RightDockWidgetArea, dock)
-    layer.view = dock
-    # update the view of layer stack
-    window.tableView.setLayers(window.label.img)
+    post(layer)
 
 
 def menuHelp(name, window=window):

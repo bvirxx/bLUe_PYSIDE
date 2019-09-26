@@ -1019,7 +1019,7 @@ class QLayer(vImage):
         @return:
         @rtype: int
         """
-        i = -1  # TODO added 5/11/18 validate
+        i = -1
         for i, l in enumerate(self.parentImage.layersStack):
             if l is self:
                 break
@@ -1057,16 +1057,19 @@ class QLayer(vImage):
                 return i
         return -1
 
-    def getUpperVisibleStackIndex(self):
+    def getUpperVisibleStackIndex(self, stHeight=None):
         """
         Returns the index of the next upper visible layer,
-        -1 if it does not exists
+        -1 if it does not exists. If stHeight is given the search is limited
+        to a sub-stack of height stHeight.
+        @param stHeight:
+        @type stHeight: int
         @return:
         @rtype: int
         """
         ind = self.getStackIndex()
         stack = self.parentImage.layersStack
-        lg = len(stack)
+        lg = len(stack) if stHeight == None else min(stHeight, len(stack))
         for i in range(ind+1, lg, 1):
             if stack[i].visible:
                 return i

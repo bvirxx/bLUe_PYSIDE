@@ -54,6 +54,7 @@ class bImage(QImage):
         self.maskIsEnabled = False
         self.maskIsSelected = False
         self.colorMaskOpacity = 255
+        self.mergingFlag = False
 
     @property
     def filename(self):

@@ -61,7 +61,7 @@ class itemDelegate(QStyledItemDelegate):
         """
         rect = QRectF(option.rect)
         layer = self.parent().img.layersStack[-1 - index.row()]
-        # mask
+        # mask and merged layer flag (for exposure fusion and HDR merge)
         if index.column() == 2:
             if self.parent().img is not None:
                 if layer.maskIsSelected:
@@ -70,6 +70,8 @@ class itemDelegate(QStyledItemDelegate):
                     text = index.data() + '  '
                 if layer.group:
                     text = text + ' |'
+                if layer.mergingFlag:
+                    text = text + ' +'
                 if layer.maskIsEnabled:
                     painter.save()
                     painter.setPen(Qt.red)
@@ -432,7 +434,7 @@ Note that upper visible layers slow down mask edition.<br>
             else:
                 item_visible = QStandardItem(QIcon(":/images/resources/eye-icon-strike.png"), "")
             items.append(item_visible)
-            # col 1 : image icon (for non-adjustment layeronly) and name
+            # col 1 : image icon (for non-adjustment layer only) and name
             if len(lay.name) <= 30:
                 name = lay.name
             else:
@@ -713,6 +715,8 @@ Note that upper visible layers slow down mask edition.<br>
         menu.actionMaskMid1 = QAction('Mid 1 Mask', None)
         menu.actionMaskMid2 = QAction('Mid 2 Mask', None)
         menu.actionMaskMid3 = QAction('Mid 3 Mask', None)
+        menu.actionMergingFlag = QAction('Merged Layer', None)
+        menu.actionMergingFlag.setCheckable(True)
         menu.actionColorMaskEnable.setCheckable(True)
         menu.actionOpacityMaskEnable.setCheckable(True)
         menu.actionClippingMaskEnable.setCheckable(True)
@@ -725,6 +729,7 @@ Note that upper visible layers slow down mask edition.<br>
         # layer
         menu.addAction(menu.actionImageCopy)
         menu.addAction(menu.actionImagePaste)
+        menu.addAction(menu.actionMergingFlag)
         menu.addSeparator()
         # mask
         menu.subMenuEnable = menu.addMenu('Mask...')
@@ -787,6 +792,7 @@ Note that upper visible layers slow down mask edition.<br>
         lowerVisible = self.img.layersStack[layer.getLowerVisibleStackIndex()]
         lower = self.img.layersStack[layerStackIndex - 1]  # case index == 0 doesn't matter
         # toggle actions
+        self.cMenu.actionMergingFlag.setChecked(layer.mergingFlag)
         self.cMenu.actionMerge.setEnabled(not (hasattr(layer, 'inputImg') or hasattr(lowerVisible, 'inputImg')))
         self.actionDup.setEnabled(not layer.isAdjustLayer())
         self.cMenu.actionColorMaskEnable.setChecked(layer.maskIsSelected and layer.maskIsEnabled)
@@ -1028,6 +1034,9 @@ Note that upper visible layers slow down mask edition.<br>
             self.img.prLayer.update()
             self.img.onImageChanged()
 
+        def mergingFlag():
+            layer.mergingFlag = not layer.mergingFlag
+
         self.cMenu.actionRepositionLayer.triggered.connect(RepositionLayer)
         # self.cMenu.actionLoadImage.triggered.connect(loadImage)
         self.cMenu.actionMerge.triggered.connect(merge)
@@ -1056,6 +1065,7 @@ Note that upper visible layers slow down mask edition.<br>
         self.cMenu.actionMaskMid1.triggered.connect(maskMid1)
         self.cMenu.actionMaskMid2.triggered.connect(maskMid2)
         self.cMenu.actionMaskMid3.triggered.connect(maskMid3)
+        self.cMenu.actionMergingFlag.triggered.connect(mergingFlag)
         # self.cMenu.actionReset.triggered.connect(layerReset)
         self.cMenu.exec_(event.globalPos() - QPoint(400, 0))
         # update table

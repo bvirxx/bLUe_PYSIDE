@@ -42,11 +42,12 @@ The program is written in Python.
 
 * Edition of images in formats jpg, png, tif, nef, cr2, dng,...
 * Adjustment layers : exposure, brightness, saturation, contrast, channel mixer, color temperature, inversion, filters, noise reduction,
-seamless cloning, segmentation, geometric transformations, automatic image alignment, curves, 2.5D LUTs, 3D LUTs.
+seamless cloning, segmentation, geometric transformations, merging, curves, 2.5D LUTs, 3D LUTs.
 * RGB, HSV, CMYK, Lab color models
 * Fast skin tone correction
 * Automatic contrast enhancement (histogram warping and CLAHE)
 * Fast Laplace Solver for seamless cloning
+* Exposure fusion
 * Crop tool
 * Multiple blending modes; adjustable layer opacity
 * Import and export of 3D LUTs in .cube format
