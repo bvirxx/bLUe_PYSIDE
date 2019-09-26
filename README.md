@@ -47,7 +47,7 @@ seamless cloning, segmentation, geometric transformations, merging, curves, 2.5D
 * Fast skin tone correction
 * Automatic contrast enhancement (histogram warping and CLAHE)
 * Fast Laplace Solver for seamless cloning
-* Exposure fusion
+* Exposure fusion of (bracketed) images
 * Crop tool
 * Multiple blending modes; adjustable layer opacity
 * Import and export of 3D LUTs in .cube format
