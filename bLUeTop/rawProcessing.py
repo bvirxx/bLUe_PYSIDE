@@ -22,14 +22,34 @@ import itertools
 import numpy as np
 import rawpy
 from PySide2.QtGui import QImage
+from rawpy._rawpy import LibRawFatalError
 
 from bLUeCore.multi import chosenInterp
 from bLUeGui.bLUeImage import QImageBuffer, bImage
 from bLUeGui.colorCIE import rgbLinear2rgb, sRGB_lin2XYZInverse, bradfordAdaptationMatrix
+from bLUeGui.dialog import dlgWarn
 from bLUeGui.graphicsSpline import channelValues
 from bLUeGui.histogramWarping import warpHistogram
 from bLUeTop.dng import dngProfileLookTable, dngProfileToneCurve, interpolatedForwardMatrix
 
+def rawRead(filename):
+    """
+    Loads a raw image file into a RawPy instance.
+    The image file is closed after reading.
+    @param filename:
+    @tyep filename: str
+    @return:
+    @rtype: RawPy instance
+    """
+    rawpyInst = rawpy.RawPy()
+    with open(filename, "rb") as bufio:
+        rawpyInst.open_buffer(bufio)
+    try:
+        rawpyInst.unpack()
+    except LibRawFatalError as e:
+        dlgWarn('LibRaw Fatal Error', 'Only flat raw images are supported')
+        raise
+    return rawpyInst
 
 def rawPostProcess(rawLayer, pool=None):
     """

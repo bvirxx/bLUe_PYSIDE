@@ -68,8 +68,6 @@ class itemDelegate(QStyledItemDelegate):
                     text = index.data() + ' *'
                 else:
                     text = index.data() + '  '
-                if layer.group:
-                    text = text + ' |'
                 if layer.mergingFlag:
                     text = text + ' +'
                 if layer.maskIsEnabled:
@@ -286,7 +284,6 @@ class QLayerView(QTableView):
                 return
 
         self.blendingModeCombo.currentIndexChanged.connect(g)
-        # self.blendingModeCombo.activated.connect(g)  # TODO activated changed to currentIndexChanged 08/10/18 validate
 
         # layout
         l = QVBoxLayout()
@@ -512,17 +509,9 @@ Note that upper visible layers slow down mask edition.<br>
         rows = set([mi.row() for mi in self.selectedIndexes()])
         rStack = self.img.layersStack[::-1]
         layers = [rStack[i] for i in rows]
-        linked = any(l.group for l in layers)
-        if linked and len(rows) > 1:
-            return
         # get target row and layer
         targetRow = self.indexAt(event.pos()).row()
         targetLayer = rStack[targetRow]
-        if linked:
-            if layers[0].group is not targetLayer.group:
-                return
-        if bool(targetLayer.group) != linked:
-            return
         # remove target from selection
         if targetRow in rows:
             rows.discard(targetRow)
@@ -680,12 +669,6 @@ Note that upper visible layers slow down mask edition.<br>
         menu = QMenu()
         # menu.actionReset = QAction('Reset To Default', None)
         # menu.actionLoadImage = QAction('Load New Image', None)
-        menu.actionGroupSelection = QAction('Group Selection', None)
-        menu.actionAdd2Group = QAction('Add to Group', None)
-        # Active layer is not in a group or right clicked layer is in a group
-
-        menu.actionUnGroup = QAction('Ungroup', None)
-
         # multiple selections
         menu.actionMerge = QAction('Merge Lower', None)
         # merge only adjustment layer with image layer
@@ -770,21 +753,13 @@ Note that upper visible layers slow down mask edition.<br>
         selection = self.selectedIndexes()
         if not selection:
             return
-        # get fresh context menu
+        # get a fresh context menu without connected actions
+        # and with state corresponding to the currently clicked layer
         self.cMenu = self.initContextMenu()
         # get current selection
         rows = set([mi.row() for mi in selection])
         rStack = self.img.layersStack[::-1]
         layers = [rStack[r] for r in rows]
-        group = []  # TODO added 5/11/18 validate
-        if layers:
-            group = layers[0].group
-        for l in layers:
-            # different groups
-            if l.group and group:
-                if l.group is not group:
-                    dlgWarn("Select a single group")
-                    return
         # get current position
         index = self.indexAt(event.pos())
         layerStackIndex = len(self.img.layersStack) - 1 - index.row()
@@ -1034,8 +1009,8 @@ Note that upper visible layers slow down mask edition.<br>
             self.img.prLayer.update()
             self.img.onImageChanged()
 
-        def mergingFlag():
-            layer.mergingFlag = not layer.mergingFlag
+        def mergingFlag(flag):
+            layer.mergingFlag = flag
 
         self.cMenu.actionRepositionLayer.triggered.connect(RepositionLayer)
         # self.cMenu.actionLoadImage.triggered.connect(loadImage)
@@ -1065,8 +1040,7 @@ Note that upper visible layers slow down mask edition.<br>
         self.cMenu.actionMaskMid1.triggered.connect(maskMid1)
         self.cMenu.actionMaskMid2.triggered.connect(maskMid2)
         self.cMenu.actionMaskMid3.triggered.connect(maskMid3)
-        self.cMenu.actionMergingFlag.triggered.connect(mergingFlag)
-        # self.cMenu.actionReset.triggered.connect(layerReset)
+        self.cMenu.actionMergingFlag.toggled.connect(mergingFlag)
         self.cMenu.exec_(event.globalPos() - QPoint(400, 0))
         # update table
         for row in rows:

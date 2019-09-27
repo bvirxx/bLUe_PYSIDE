@@ -155,6 +155,7 @@ from bLUeTop.graphicsNoise import noiseForm
 from bLUeTop.graphicsRaw import rawForm
 from bLUeTop.graphicsTransform import transForm, imageForm
 from bLUeGui.bLUeImage import QImageBuffer, QImageFormats
+from bLUeTop.rawProcessing import rawRead
 from bLUeTop.versatileImg import vImage, metadataBag
 from bLUeTop.MarkedImg import imImage, QRawLayer, QCloningLayer
 from bLUeTop.graphicsRGBLUT import graphicsForm
@@ -340,28 +341,15 @@ def loadImageFromFile(f, createsidecar=True, icc=icc):
     elif ext in list(RAW_FILE_EXTENSIONS):
         # load raw image file in a RawPy instance
         # rawpy.imread keeps f open. Calling raw.close() deletes the raw object.
-        # As a workaround we use a file buffer .
+        # As a workaround we use low-level file buffer and unpack().
         # Relevant RawPy attributes are black_level_per_channel, camera_white_balance, color_desc, color_matrix,
         # daylight_whitebalance, num_colors, raw_colors_visible, raw_image, raw_image_visible, raw_pattern,
         # raw_type, rgb_xyz_matrix, sizes, tone_curve.
-        # raw_image and raw_image_visble are sensor data
-        rawpyInst = rawpy.RawPy()
-        with open(f, "rb") as bufio:
-            rawpyInst.open_buffer(bufio)
-        ######################################################################################
-        # unpack always applies the current tone curve (cf. https://www.libraw.org/node/2003)
-        # read from file for Nikon, Sony and some other cameras.
-        # Another curve (array, shape=65536) can be loaded here before unpacking.
-        # NO EFFECT with files where the curve is calculated on unpack() phase (e.g.Nikon lossy NEF files).
-        #####################################################################################
-        try:
-            rawpyInst.unpack()
-        except LibRawFatalError as e:
-            dlgWarn('LibRaw Fatal Error', 'Only flat raw images are supported' )
-            raise
+        # raw_image and raw_image_visible are sensor data
+        rawpyInst = rawRead(f)
         # postprocess raw image, applying default settings (cf. vImage.applyRawPostProcessing)
         rawBuf = rawpyInst.postprocess(use_camera_wb=True)
-        # build Qimage
+        # build Qimage : switch to BGR and add alpha channel
         rawBuf = np.dstack((rawBuf[:, :, ::-1], np.zeros(rawBuf.shape[:2], dtype=np.uint8)+255))
         img = imImage(cv2Img=rawBuf, colorSpace=colorSpace, orientation=transformation,
                       rawMetadata=metadata, profile=profile, name=name, rating=rating)
@@ -859,7 +847,7 @@ def menuLayer(name, window=window):
     @param window:
     @type window: QWidget
     """
-    # postlude function
+    # postlude
     def post(layer):
         # adding a new layer may modify the resulting image
         # (cf. actionNew_Image_Layer), so we update the presentation layer
@@ -941,8 +929,6 @@ def menuLayer(name, window=window):
         layer = window.label.img.addSegmentationLayer(name=lname)
         grWindow = segmentForm.getNewWindow(targetImage=window.label.img, layer=layer)
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyGrabcut(nbIter=grWindow.nbIter)
-        # mask was modified
-        # l.updatePixmap()
     # load an image from file
     elif name == 'actionLoad_Image_from_File':
         filenames = openDlg(window, ask=False, multiple=True)
@@ -950,7 +936,21 @@ def menuLayer(name, window=window):
             return
         for filename in filenames:
             # load image from file, alpha channel is mandatory for applyTransform()
-            imgNew = QImage(filename).convertToFormat(QImage.Format_ARGB32)  # QImage(filename, QImage.Format_ARGB32) does not work !
+            ext = filename[-4:]
+            if ext in list(IMAGE_FILE_EXTENSIONS):
+                imgNew = QImage(filename).convertToFormat(QImage.Format_ARGB32)  # QImage(filename, QImage.Format_ARGB32) does not work !
+            elif ext in list(RAW_FILE_EXTENSIONS):
+                rawpyInst = rawRead(filename)
+                # postprocess raw image, applying default settings (cf. vImage.applyRawPostProcessing)
+                rawBuf = rawpyInst.postprocess(use_camera_wb=True)
+                # build Qimage : swittch to BGR and add alpha channel
+                rawBuf = np.dstack((rawBuf[:, :, ::-1], np.zeros(rawBuf.shape[:2], dtype=np.uint8) + 255))
+                imgNew = vImage(cv2Img=rawBuf)
+                # keeping a reference to rawBuf along with img is
+                # needed to protect the buffer from garbage collector
+                imgNew.rawBuf = rawBuf
+            else:
+                return
             if imgNew.isNull():
                 dlgWarn("Cannot load %s: " % filename)
                 return

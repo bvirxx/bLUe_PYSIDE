@@ -331,11 +331,13 @@ class mImage(vImage):
         # init thumb
         if layer.parentImage.useThumb:
             layer.thumb = layer.inputImg().copy()
+        """
         group = self.layersStack[index].group
         if group:
             layer.group = group
             layer.mask = self.layersStack[index].mask
             layer.maskIsEnabled = True
+        """
         # sync caches
         layer.updatePixmap()
         return layer
@@ -672,9 +674,6 @@ class QLayer(vImage):
         self.view = None
         # undo/redo mask history
         self.historyListMask = historyList(size=5)
-        # consecutive layers can be grouped.
-        # A group is a list of QLayer objects
-        self.group = []
         # layer offsets
         self.xOffset, self.yOffset = 0, 0
         self.Zoom_coeff = 1.0
@@ -1089,12 +1088,8 @@ class QLayer(vImage):
                 return i
         return -1
 
+    """
     def linkMask2Lower(self):
-        """
-        share mask with next lower layer
-        @return:
-        @rtype:
-        """
         ind = self.getStackIndex()
         if ind == 0:
             return
@@ -1126,7 +1121,7 @@ class QLayer(vImage):
                     self.group.pop(0)
                 break
         self.group = []
-
+    """
     def merge_with_layer_immediately_below(self):
         """
         Merges a layer with the next lower visible layer. Does nothing
