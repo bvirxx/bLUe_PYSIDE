@@ -189,8 +189,9 @@ The Python Imaging Library (PIL) is
 Pillow Copyright © 2010-2018 by Alex Clark and contributors
 libraw Copyright (C) 2008-2018 
 rawpy Copyright (c) 2014 Maik Riechert
-seamlessClone and CLAHE are Opencv3 functions
-grabCut is a parallel version of an Opencv3 function
+seamlessClone and CLAHE are Opencv functions
+mergeMertens is an Opencv class
+grabCut is a parallel version of an Opencv function
 This product includes DNG technology under license by Adobe Systems Incorporated
 """
 #################
@@ -1177,10 +1178,10 @@ def menuHelp(name, window=window):
         w, label = handleTextWindow(parent=window, title='About bLUe', center=False)
         label.setStyleSheet("background-image: url(logo.png); color: white;")
         label.setAlignment(Qt.AlignCenter)
-        label.setText(VERSION + "\n" + attributions)
+        label.setText(VERSION + "\n" + attributions + "\n" + "http://bernard.virot.free.fr")
         # center window on screen
         w.setGeometry(QStyle.alignedRect(Qt.LeftToRight, Qt.AlignCenter, w.size(),
-                                         rootWidget.availableGeometry()))
+                                         rootWidget.availableGeometry(w)))
         w.show()
 
 
@@ -1481,7 +1482,7 @@ if __name__ == '__main__':
     splash.showMessage("Loading .", color=Qt.white, alignment=Qt.AlignCenter)
     app.processEvents()
     sleep(1)
-    splash.showMessage(VERSION + "\n" + attributions, color=Qt.white, alignment=Qt.AlignCenter)
+    splash.showMessage(VERSION + "\n" + attributions + "\n" + "http://bernard.virot.free.fr", color=Qt.white, alignment=Qt.AlignCenter)
     app.processEvents()
     sleep(1)
     splash.finish(window)
