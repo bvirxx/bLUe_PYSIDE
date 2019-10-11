@@ -115,9 +115,7 @@ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
 LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 """
-from rawpy._rawpy import LibRawFatalError
 
 from bLUeTop import resources_rc  # mandatory
 
@@ -136,7 +134,6 @@ from types import MethodType
 import rawpy
 
 from bLUeCore.bLUeLUT3D import HaldArray
-from bLUeTop.exiftool import readExpTime
 from bLUeTop.graphicsHDRMerge import HDRMergeForm
 from bLUeTop.graphicsSegment import segmentForm
 from PySide2.QtCore import QUrl, QSize, QFileInfo
