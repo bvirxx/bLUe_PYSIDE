@@ -1,8 +1,8 @@
-PyWavelets==0.5.2
-numpy==1.16.2+mkl
-pywin32==223
-rawpy==0.13.0
-Pillow==6.0.0
-PySide2==5.12.4
-pywt==1.0.6
-win32gui==221.6
+PyWavelets>=0.5.2
+numpy>=1.16.2+mkl
+pywin32>=223
+rawpy>=0.13.0
+Pillow>=6.0.0
+PySide2>=5.12.4
+pywt>=1.0.6
+
