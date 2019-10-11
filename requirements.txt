@@ -5,4 +5,3 @@ rawpy>=0.13.0
 Pillow>=6.0.0
 PySide2>=5.12.4
 pywt>=1.0.6
-
