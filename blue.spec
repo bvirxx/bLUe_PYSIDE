@@ -6,7 +6,6 @@ imageformats = [('C:\Program Files\Python37\Lib\site-packages\\PySide2\plugins\\
 platforms = [('C:\Program Files\Python37\Lib\site-packages\\PySide2\\plugins\\platforms', 'plugins\\platforms')]
 numpy_dlls = [('C:\Program Files\\Python37\\Lib\\site-packages\\numpy\\dlls\\*.dll', '.')]
 
-
 a = Analysis(['bLUe.py'],
              pathex=['D:\\PycharmProject\\CS4_PYSIDE'],
              binaries=[('C:\\standalone\\exiftool(-k).exe', 'bin')] + imageformats + platforms + numpy_dlls,
