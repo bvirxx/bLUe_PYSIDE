@@ -410,7 +410,7 @@ class vImage(bImage):
         buf0 = LUT3DIdentity.toHaldArray(s, s).haldBuffer
         buf1 = QImageBuffer(self.Hald)
         buf1[:, :, :] = buf0
-        buf1[:, :, 3] = 255  # TODO added 15/11/17 for coherence with the overriding function QLayer.initHald()
+        buf1[:, :, 3] = 255  # added for coherence with the overriding function QLayer.initHald()
 
     def resize_coeff(self, widget):
         """
@@ -432,7 +432,7 @@ class vImage(bImage):
         w, h = self.width(), self.height()
         r_w, r_h = float(widget.width()) / w, float(widget.height()) / h
         if h > w:
-            r = min(r_w, r_h)  # TODO modified 17/09/18 validate to prevent cropping in diaporama for portrait mode
+            r = min(r_w, r_h)  # prevent cropping in diaporama for portrait mode
         else:
             r = max(r_w, r_h)
         return r * self.Zoom_coeff
@@ -725,8 +725,7 @@ class vImage(bImage):
                 self.parentImage.setModified(True)
                 QApplication.restoreOverrideCursor()
                 QApplication.processEvents()
-        # forward the alpha channel
-        # TODO 23/06/18 should forward ?
+        # should we forward the alpha channel ?
         self.updatePixmap()
         # the presentation layer must be updated here because
         # applyCloning is called directly (mouse and Clone button events).
@@ -850,7 +849,7 @@ class vImage(bImage):
             self.mask = scaledMask
 
         # forward the alpha channel
-        # TODO 23/06/18 should we forward ?
+        # should we forward it?
         self.updatePixmap()
 
     def applyInvert(self):
@@ -934,12 +933,12 @@ class vImage(bImage):
         bufIn = QImageBuffer(self.inputImg())
         buf = bufIn[:, :, :3][:, :, ::-1]
         # convert to linear
-        buf = rgb2rgbLinear(buf)  # TODO modified 19/07/19 validate rgb2rgbLinearVec(buf)
+        buf = rgb2rgbLinear(buf)
         # apply correction
         buf[:, :, :] = buf * (2 ** exposureCorrection)
         np.clip(buf, 0.0, 1.0, out=buf)
         # convert back to RGB
-        buf = rgbLinear2rgb(buf)  # TODO modified 19/07/19 validate rgbLinear2rgbVec(buf)
+        buf = rgbLinear2rgb(buf)
         np.clip(buf, 0.0, 255.0, out=buf)
         currentImage = self.getCurrentImage()
         ndImg1a = QImageBuffer(currentImage)
@@ -953,14 +952,14 @@ class vImage(bImage):
         bufIn = QImageBuffer(self.inputImg())
         buf = bufIn[:, :, :3][:, :, ::-1]
         # convert to linear
-        buf = rgb2rgbLinear(buf)  # TODO modified 19/07/19 validate rgb2rgbLinearVec(buf)
+        buf = rgb2rgbLinear(buf)
         # mix channels
         currentImage = self.getCurrentImage()
         bufOut = QImageBuffer(currentImage)
         buf = np.tensordot(buf, form.mixerMatrix, axes=(-1, -1))
         np.clip(buf, 0, 1.0, out=buf)
         # convert back to RGB
-        buf = rgbLinear2rgb(buf)  # TODO modified 19/07/19 validate  rgbLinear2rgbVec(buf)
+        buf = rgbLinear2rgb(buf)
         bufOut[:, :, :3][:, :, ::-1] = buf
         # forward the alpha channel
         bufOut[:, :, 3] = bufIn[:, :, 3]
@@ -1671,7 +1670,7 @@ class vImage(bImage):
             # brightness correction
             M = np.max(bufsRGBLinear)
             bufsRGBLinear /= M
-            bufOutRGB = rgbLinear2rgb(bufsRGBLinear)  # TODO modified 19/07/19 validate rgbLinear2rgbVec(bufsRGBLinear)
+            bufOutRGB = rgbLinear2rgb(bufsRGBLinear)
             np.clip(bufOutRGB, 0, 255, out=bufOutRGB)
             bufOutRGB = bufOutRGB.astype(np.uint8)
         else:

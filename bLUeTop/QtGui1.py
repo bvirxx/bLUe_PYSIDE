@@ -245,7 +245,7 @@ def paintEvent(widg, e, qp=qp):
     r = mimg.resize_coeff(widg)
     qp.begin(widg)
     # smooth painting
-    qp.setRenderHint(QPainter.SmoothPixmapTransform)  # TODO may be useless
+    qp.setRenderHint(QPainter.SmoothPixmapTransform)  #  may be useless
     # fill background
     qp.fillRect(QRect(0, 0, widg.width(), widg.height()), vImage.defaultBgColor)
     # draw the presentation layer.
@@ -410,8 +410,6 @@ def mouseEvent(widget, event, qp=qp, window=window):  # TODO split into 3 handle
                                 window.btnValues['drawFG'] else vImage.defaultColor_Masked
                     else:
                         color = vImage.defaultColor_UnMasked_Invalid
-                    # reduce color opacity by  current colorMaskOpacity
-                    # color.setAlpha(color.alpha() * layer.colorMaskOpacity // 255)  # TODO removed 10/01/19 for grabcut
                     qp.begin(layer.mask)
                     # get pen width (relative to image)
                     w_pen = window.verticalSlider1.value() // r
@@ -439,7 +437,7 @@ def mouseEvent(widget, event, qp=qp, window=window):  # TODO split into 3 handle
                     ############################
                     # update upper stack
                     # should be layer.applyToStack() if any upper layer visible : too slow
-                    layer.updatePixmap(maskOnly=True)  # TODO maskOnly not used: remove
+                    layer.updatePixmap()  # maskOnly=True not used: removed
                     #############################
                     img.prLayer.applyNone()
                     window.label.repaint()
@@ -527,7 +525,7 @@ def mouseEvent(widget, event, qp=qp, window=window):  # TODO split into 3 handle
                             if not r.isEmpty():
                                 color = np.sum(bufRaw[r.top():r.bottom()+1, r.left():r.right()+1], axis=(0, 1))/(r.width()*r.height())
                             else:
-                                color = bufRaw[y_img, x_img, :]  # TODO added 25/06/18 to avoid uninit. color validate
+                                color = bufRaw[y_img, x_img, :]
                             color = [color[i] - layer.parentImage.rawImage.black_level_per_channel[i] for i in range(3)]
                             form = layer.getGraphicsForm()
                             if form.sampleMultipliers:

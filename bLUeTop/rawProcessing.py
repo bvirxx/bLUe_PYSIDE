@@ -252,7 +252,7 @@ def rawPostProcess(rawLayer, pool=None):
         hsvLUT = dngProfileLookTable(adjustForm.dngDict)
         if hsvLUT.isValid:
             divs = hsvLUT.divs
-            steps = tuple([360 / divs[0], 1.0 / (divs[1] - 1), 1.0 / (divs[2] - 1)]) # TODO -1 added 16/01/18 validate
+            steps = tuple([360 / divs[0], 1.0 / (divs[1] - 1), 1.0 / (divs[2] - 1)])
             interp = chosenInterp(pool, currentImage.width() * currentImage.height())
             coeffs = interp(hsvLUT.data, steps, bufHSV_CV32, convert=False)
             bufHSV_CV32[:, :, 0] = np.mod(bufHSV_CV32[:, :, 0] + coeffs[:, :, 0], 360)
@@ -306,17 +306,15 @@ def rawPostProcess(rawLayer, pool=None):
         bufHSV_CV32[:, :, 1] = LUT[(bufHSV_CV32[:, :, 1] * 255).astype(int)]
     # back to RGB
     bufpostF32_1 = cv2.cvtColor(bufHSV_CV32, cv2.COLOR_HSV2RGB)  #* 65535 # .astype(np.uint16)
-    # np.clip(bufpostF32_1, 0, 1, out=bufpostF32_1) # TODO 8/11/18 removed
 
     ###################
     # apply gamma curve
     ###################
-    bufpostF32_255 = rgbLinear2rgb(bufpostF32_1)  # TODO modified 19/07 19 validate rgbLinear2rgbVec(bufpostF32_1)
-    # np.clip(bufpostF32_255, 0, 255, out=bufpostF32_255)  # clip not needed after rgbLinear2rgbVec thresholds correction 8/11/18
+    bufpostF32_255 = rgbLinear2rgb(bufpostF32_1)
     #############################
     # Conversion to 8 bits/channel
     #############################
-    bufpostUI8 = bufpostF32_255.astype(np.uint8)  # (bufpost16.astype(np.float32) / 256).astype(np.uint8) TODO 5/11/18 changed
+    bufpostUI8 = bufpostF32_255.astype(np.uint8)
     ###################################################
     # bufpostUI8 = (bufpost16/256).astype(np.uint8)
     #################################################

@@ -204,7 +204,7 @@ class rawForm (baseForm):
         # temperature slider
         self.sliderTemp = QbLUeSlider(Qt.Horizontal)
         self.sliderTemp.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
-        self.sliderTemp.setRange(0, 100)  # TODO 130 changed to 100 12/11/18 validate
+        self.sliderTemp.setRange(0, 100)
         self.sliderTemp.setSingleStep(1)
 
         self.tempLabel = QLabel()
@@ -460,7 +460,6 @@ class rawForm (baseForm):
         self.sliderSat.valueChanged.connect(satUpdate)  # send new value as parameter
         self.sliderSat.sliderReleased.connect(lambda: satUpdate(self.sliderSat.value()))  # signal has no parameter
 
-        # self.dataChanged.connect(self.updateLayer) # TODO 30/10/18 moved to base class
         self.setStyleSheet("QListWidget, QLabel {font : 7pt;}")
 
         # layout
@@ -656,7 +655,7 @@ class rawForm (baseForm):
         else:
             form = self.contrastForm
         # update the curve
-        form.scene().setSceneRect(-25, -axeSize - 25, axeSize + 50, axeSize + 50)  # TODO added 15/07/18
+        form.scene().setSceneRect(-25, -axeSize - 25, axeSize + 50, axeSize + 50)
         form.scene().quadricB.setCurve(a * axeSize, b * axeSize, d, T * axeSize)
         self.dockC.showNormal()
 
@@ -709,9 +708,7 @@ class rawForm (baseForm):
         mi = min(m0, m1, m2)
         m0, m1, m2 = m0/mi, m1/mi, m2/mi
         self.rawMultipliers = [m0, m1, m2, m1]
-        # convert multipliers to White Point RGB coordinates, modulo tint green correction (mult[1] = tint*WP_G)
-        # invMultipliers = [self.daylight[i] / self.rawMultipliers[i] for i in range(3)]
-        invMultipliers = [1 / self.rawMultipliers[i] for i in range(3)]  # TODO modified 11/11/18 validate
+        invMultipliers = [1 / self.rawMultipliers[i] for i in range(3)]
         try:
             self.sliderTemp.valueChanged.disconnect()
             self.sliderTint.valueChanged.disconnect()
@@ -793,7 +790,7 @@ class rawForm (baseForm):
         self.tintCorrection = 1.0
         self.expCorrection = 1.0
         # self.highCorrection = 3.0  # restoration of overexposed highlights. 0: clip 1:unclip, 2: blend, 3...: rebuild
-        self.contCorrection = 0.0  # TODO change 5.0 to 0.0 6/11/2018 validate
+        self.contCorrection = 0.0
         # self.noiseCorrection = 0
         self.satCorrection = 0.0
         self.brCorrection = 1.0

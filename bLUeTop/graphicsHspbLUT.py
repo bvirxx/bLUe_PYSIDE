@@ -25,7 +25,7 @@ from bLUeTop.utils import optionsWidget
 
 class graphicsHspbForm(graphicsCurveForm):
     """
-    Form for HSV/HSpB curves   # TODO take a look at the histogram range for HSpB
+    Form for HSV/HSpB curves
     """
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, colorModel='HSV'):

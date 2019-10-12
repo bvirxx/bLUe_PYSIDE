@@ -188,7 +188,7 @@ class mImage(vImage):
         x, y = self.full2CurrentXY(x, y)
         activeLayer = self.getActiveLayer()
         qClr = activeLayer.inputImg(redo=False).pixelColor(x, y) if fromInputImg \
-                                else activeLayer.getCurrentImage().pixelColor(x, y)  # TODO 06/01/18 added redo=False
+                                else activeLayer.getCurrentImage().pixelColor(x, y)
         # pixelColor returns an invalid color if (x,y) is out of range
         # we return black
         if not qClr.isValid():
@@ -267,13 +267,13 @@ class mImage(vImage):
             trialname = name + '_' + str(a)
             a = a+1
         if layer is None:
-            layer = QLayer(QImg=self, parentImage=self)  # TODO 11/09/18 added parentImage validate
+            layer = QLayer(QImg=self, parentImage=self)
             layer.fill(Qt.white)
         layer.name = trialname
         if index is None:
             if self.activeLayerIndex is not None:
                 # add on top of active layer if any
-                index = self.activeLayerIndex + 1  # TODO +1 added 03/05/18 validate
+                index = self.activeLayerIndex + 1
             else:
                 # empty stack
                 index = 0
@@ -721,10 +721,10 @@ class QLayer(vImage):
         tool.modified = False
         tool.layer = self
         try:
-            tool.layer.visibilityChanged.sig.disconnect()  # TODO signals removed 30/09/18 validate
+            tool.layer.visibilityChanged.sig.disconnect()
         except RuntimeError:
             pass
-        tool.layer.visibilityChanged.sig.connect(tool.setVisible)  # TODO signals removed 30/09/18 validate
+        tool.layer.visibilityChanged.sig.connect(tool.setVisible)
         tool.img = self.parentImage
         w, h = tool.img.width(), tool.img.height()
         for role, pos in zip(['topLeft', 'topRight', 'bottomRight', 'bottomLeft'],
@@ -741,7 +741,7 @@ class QLayer(vImage):
         @type value: bool
         """
         self.visible = value
-        self.visibilityChanged.sig.emit(value)  # TODO signals removed 30/09/18 validate
+        self.visibilityChanged.sig.emit(value)
 
     def bTransformed(self, transformation, parentImage):
         """
@@ -763,9 +763,7 @@ class QLayer(vImage):
         tLayer.name = self.name
         tLayer.actionName = self.actionName
         tLayer.view = self.view
-        tLayer.visible = self.visible  # TODO added 25/09/18 validate
-        # cut link from old layer to graphic form
-        # self.view = None                        # TODO 04/12/17 validate
+        tLayer.visible = self.visible
         tLayer.execute = self.execute
         tLayer.mask = self.mask.transformed(transformation)
         tLayer.maskIsEnabled, tLayer.maskIsSelected = self.maskIsEnabled, self.maskIsSelected

@@ -399,7 +399,7 @@ class activeNode(QGraphicsPathItem):
         @rtype:
         """
         if self.gridRow > 0:
-            return self.grid.gridNodes[self.gridRow-1][self.gridCol]  # TODO verify grid/col
+            return self.grid.gridNodes[self.gridRow-1][self.gridCol]
         return None
 
     def left(self):

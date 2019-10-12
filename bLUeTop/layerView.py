@@ -158,7 +158,7 @@ class QLayerView(QTableView):
                 # layer.autoclone = True  # auto update cloning layers
                 # layer.knitted = False
             try:
-                QApplication.setOverrideCursor(Qt.WaitCursor)  # TODO 18/04/18 waitcursor is called by applytostack?
+                QApplication.setOverrideCursor(Qt.WaitCursor)  # TODO 18/04/18 waitcursor already called by applytostack
                 QApplication.processEvents()
                 # update the whole stack
                 self.img.layersStack[0].applyToStack()
@@ -462,7 +462,7 @@ Note that upper visible layers slow down mask edition.<br>
         header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
         # select active layer
         self.selectRow(len(mImg.layersStack) - 1 - mImg.activeLayerIndex)
-        layerview = mImg.getActiveLayer().view  # TODO added 25/11/18
+        layerview = mImg.getActiveLayer().view
         if layerview is not None:
             layerview.show()
             if TABBING:

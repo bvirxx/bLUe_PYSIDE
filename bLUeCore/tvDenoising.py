@@ -93,12 +93,10 @@ def denoise(img, weight=0.1, eps=1e-3, num_iter_max=200):
             err_prev = error
         else:
             # break if error small enough
-            if np.abs(err_prev - error) < eps * err_init:  # TODO err_prev, err_init may be referenced before assigned
+            if np.abs(err_prev - error) < eps * err_init:
                 break
             else:
                 e_prev = error
-
-            # don't forget to update iterator
         i += 1
 
     return u

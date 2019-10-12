@@ -238,7 +238,7 @@ def sRGB2XYZ(rgbColors):
     @return: colors converted to the XYZ color space
     @rtype: ndarray, dtype numpy float64
     """
-    bufLinear = rgb2rgbLinear(rgbColors)  # TODO modified 19/07/19 validate rgb2rgbLinearVec(imgBuf)
+    bufLinear = rgb2rgbLinear(rgbColors)
     bufXYZ = np.tensordot(bufLinear, sRGB_lin2XYZ, axes=(-1, -1))
     return bufXYZ
 
@@ -284,7 +284,7 @@ def XYZ2sRGB(XYZColors):
         XYZColors /= M       # TODO a better approach is to to clip c1 ?
         print('XYZ2sRGBVec warning : Y channel max %.5f' % M)
     c1 = XYZ2sRGBLinear(XYZColors)
-    c2 = rgbLinear2rgb(c1)  # TODO modified 19/07/19 validate rgbLinear2rgb(*c1)
+    c2 = rgbLinear2rgb(c1)
     return c2
 
 
@@ -320,7 +320,7 @@ def sRGB2LabVec(bufsRGB, useOpencv=True):
         np.seterr(**oldsettings)
         bufLab = np.dstack((bufL, bufa, bufb))
         # converting invalid values to int gives indeterminate results
-        bufLab[np.isnan(bufLab)] = 0.0  # TODO should be np.inf ?
+        bufLab[np.isnan(bufLab)] = 0.0  # TODO should be np.inf or np.isfinite?
     return bufLab
 
 
@@ -350,9 +350,9 @@ def Lab2sRGBVec(bufLab, useOpencv=True):
         bufX = Xn * ((bufa / Ka) * bufL + bufL2)
         bufZ = Zn * (bufL2 - (bufb / Kb) * bufL)
         bufXYZ = np.dstack((bufX, bufY, bufZ))  # /100.0
-        bufsRGB = XYZ2sRGB(bufXYZ)  # TODO modified 19/07/19 validate XYZ2sRGBVec(bufXYZ)
+        bufsRGB = XYZ2sRGB(bufXYZ)
         # converting invalid values to int gives indeterminate results
-        bufsRGB[np.isnan(bufsRGB)] = 0.0  # TODO should be np.inf ?
+        bufsRGB[np.isnan(bufsRGB)] = 0.0  # TODO should be np.inf or np.isfinite ?
     return bufsRGB
 
 

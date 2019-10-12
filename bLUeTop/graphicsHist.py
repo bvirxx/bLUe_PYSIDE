@@ -33,8 +33,7 @@ class histForm (baseForm):
         self.setMinimumSize(size, 100)
         self.Label_Hist = QLabel()
         self.Label_Hist.setFocusPolicy(Qt.ClickFocus)
-        #self.Label_Hist.setScaledContents(True)
-        self.Label_Hist.setMaximumSize(140000, 140000) # TODO 27/07/19 remove
+        self.Label_Hist.setMaximumSize(140000, 140000)
 
         self.Label_Hist.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setStyleSheet("QListWidget{border: 0px; font-size: 12px}")

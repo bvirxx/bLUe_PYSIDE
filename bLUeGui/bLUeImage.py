@@ -234,7 +234,7 @@ class bImage(QImage):
         # green percent for clipping indicators
         gPercent = 1.0
         bufL = cv2.cvtColor(QImageBuffer(self)[:, :, :3], cv2.COLOR_BGR2GRAY)[..., np.newaxis]  # returns Y (YCrCb) : Y = 0.299*R + 0.587*G + 0.114*B
-        buf = None  # TODO added 5/11/18 validate
+        buf = None
         if mode == 'RGB':
             buf = QImageBuffer(self)[:, :, :3][:, :, ::-1]  # RGB
         elif mode == 'HSV':

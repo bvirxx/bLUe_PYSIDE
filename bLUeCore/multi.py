@@ -65,7 +65,7 @@ def interpMulti(LUT, LUTSTEP, ndImg, pool=None, use_tetra=False, convert=True):
     for i, (s1, s2) in enumerate(slices):
             outImg[s2, s1] = res[i]
     # np.clip(outImg, 0, 255, out=outImg) # chunks are already clipped
-    return outImg # .astype(np.uint8)  # TODO 07/09/18 validate
+    return outImg
 
 def chosenInterp(pool, size):
     """

@@ -245,7 +245,7 @@ class LUT3D (object):
             raise ValueError("toHaldArray : incorrect sizes)")
         buf = np.zeros((w * h * 3), dtype=np.uint8)
         count = (s ** 3) * 3
-        buf[:count] = np.clip(self.LUT3DArray.ravel(),0 , 255)  # TODO added clip 17/06/19 validate
+        buf[:count] = np.clip(self.LUT3DArray.ravel(),0 , 255)
         buf = buf.reshape(h, w, 3)
         return HaldArray(buf, s)
 

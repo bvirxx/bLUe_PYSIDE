@@ -252,19 +252,9 @@ def widgetChange(button, window=window):
                 pass
             dlg.closeSignal.sig.connect(lambda: button.setChecked(False))
         else:
-            window.colorChooser.close()  # TODO changed hide to close 15/06/19 validate
-    updateStatus()  # TODO added 04/06/19 validate
+            window.colorChooser.close()
+    updateStatus()
     window.label.repaint()
-
-
-def contextMenu(pos, widget):
-    """
-    Context menu for image QLabel
-    @param pos:
-    @param widget:
-    @return:
-    """
-    pass
 
 
 def loadImageFromFile(f, createsidecar=True, icc=icc):
@@ -296,7 +286,7 @@ def loadImageFromFile(f, createsidecar=True, icc=icc):
             imageInfo = e.get_formatted_metadata(f)
     except ValueError:
         # Default metadata and profile
-        metadata = {'SourceFile': f}  # TODO removed list 14/06/19 validate
+        metadata = {'SourceFile': f}
         profile = ''
         imageInfo = 'No data found'
     # color space : 1=sRGB 65535=uncalibrated
@@ -577,7 +567,7 @@ def setDocumentImage(img, window=window):
     window.label_2.update()
     window.label_3.update()
     # back links used by graphicsForm3DLUT.onReset
-    window.label.img.window = window.label  # TODO 4/11/18 probably graphicsForm3DLUT.onReset should be modified to remove this dependency
+    window.label.img.window = window.label  # TODO 4/11/18 graphicsForm3DLUT.onReset should be modified to remove this dependency
     window.label_2.img.window = window.label_2
     window.label.img.setModified(True)
 
@@ -850,13 +840,12 @@ def menuLayer(name, window=window):
         # adding a new layer may modify the resulting image
         # (cf. actionNew_Image_Layer), so we update the presentation layer
         layer.parentImage.prLayer.update()
-        layer.parentImage.onImageChanged()  # TODO added 06/09/18 validate
+        layer.parentImage.onImageChanged()
         # record action name for scripting
         layer.actionName = name
         # docking the form
         dock = QDockWidget(window)
         dock.setWidget(grWindow)
-        # dock.setWindowFlags(grWindow.windowFlags())  # TODO removed 02/01/19 as spurious
         dock.setWindowTitle(grWindow.windowTitle())
         if TABBING:
             # add form to docking area
@@ -1386,9 +1375,9 @@ def setRightPane(window=window):
             #hl.addStretch(1)
             hl.setAlignment(Qt.AlignLeft)
             hl.addWidget(w)
-            w.setMaximumSize(140000, 140000)  # TODO 27/07/19 remove
+            w.setMaximumSize(140000, 140000)
             wdg = QWidget()
-            wdg.setMaximumSize(140000, 140000)  # TODO 27/07/19 remove
+            wdg.setMaximumSize(140000, 140000)
             wdg.setLayout(hl)
             histViewDock.setWidget(wdg)
             histViewDock.setWindowTitle(w.windowTitle())
