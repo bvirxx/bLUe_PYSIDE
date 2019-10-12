@@ -1,2 +1,2 @@
-numpy==1.16.2+mkl
-PySide2==5.12.4
+numpy>=1.16.2+mkl
+PySide2>=5.12.4
