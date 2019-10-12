@@ -132,7 +132,6 @@ class croppingHandle(baseHandle):
             w = img.width() - lMargin - rMargin
             h = w * self.tool.formFactor
             bMargin = img.height() - h - tMargin
-            #if lMargin < 0 or lMargin >= img.width() - rMargin or tMargin < 0 or tMargin >= img.height() - bMargin: # TODO modified 15/10/18
             if lMargin < 0 or lMargin >= img.width() - rMargin or bMargin < 0 or tMargin >= img.height() - bMargin:
                 return
             self.tool.btnDict['bottom'].margin = bMargin
@@ -271,7 +270,7 @@ class rotatingHandle(baseHandle):
         pos = self.mapToParent(event.pos())
         img = self.tool.layer.parentImage
         r = self.tool.resizingCoeff
-        self.tool.targetQuad_old = self.tool.getTargetQuad()  # TODO added 15/05/18 validate
+        self.tool.targetQuad_old = self.tool.getTargetQuad()
         self.posRelImg = (pos - QPoint(img.xOffset, img.yOffset)) / r
         if modifiers == Qt.ControlModifier | Qt.AltModifier:
             if self.tool.isModified():
@@ -347,7 +346,7 @@ class rotatingTool(QObject):
         else:
             self.layer.tool = self
             self.img = layer.parentImage
-            self.layer.visibilityChanged.sig.connect(self.setVisible)  # TODO 30/09/18 signals removed validate
+            self.layer.visibilityChanged.sig.connect(self.setVisible)
             w, h = self.img.width(), self.img.height()
         # init tool buttons. The parameter pos is relative to the full size image.
         rotatingButtonLeft = rotatingHandle(role='topLeft', tool=self, pos=QPoint(0, 0), parent=parent)
