@@ -259,7 +259,6 @@ class graphicsCurveForm(baseGraphicsForm):
         # additional inactive curve to draw (QPolyLineF or list of QPointF)
         self.baseCurve = None
         self.setMinimumSize(axeSize + 60, axeSize + 140)
-        # self.setAttribute(Qt.WA_DeleteOnClose)  # TODO removed 02/01/19 validate
         self.graphicsScene.bgColor = QColor(200, 200, 200)
         self.graphicsScene.axeSize = axeSize
         self.axeSize = axeSize

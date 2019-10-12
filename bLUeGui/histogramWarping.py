@@ -51,7 +51,7 @@ class dstb(object):
         self.maxVal = max(maxVal, np.ceil(bins[-1]))
         self.CDFTable = None
         self.DTable = None
-        self.setDist(hist=hist, bins=bins, maxVal=maxVal)  # TODO removed assignments (done by setDist) 5/11/18 validate
+        self.setDist(hist=hist, bins=bins, maxVal=maxVal)
         self.bins = bins
         self.hist = hist
         # plot curve
@@ -112,12 +112,11 @@ class dstb(object):
                     1 if (np.floor(bins[r]) != bins[r] or r == len(bins) - 1) else 0)
                 # assign equal probabilities to all these integers
                 dist += [hist[r - 1] * lg / n]
-            self.DTable = dist  # TODO self added 05/11/18 validate
+            self.DTable = dist
         self.CDFTable = np.cumsum(self.DTable)                             # len(CDFTable) = len(DTable) = maxVal + 1
         # sanity check
         if np.abs(self.CDFTable[-1] - 1) > 0.00000001:
             raise ValueError('setDistribution: invalid distribution')
-        # return DTable, CDFTable   TODO removed 05/11/18 validate
 
     def F(self, x):
         """
@@ -377,7 +376,7 @@ def autoQuadSpline(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True):
     for k in range(2, len(b)-2):                                # 2..K-1
         b[k] = (dist.F(V[k]) - dist.F(a[k])) * V[k-1] + (dist.F(a[k]) - dist.F(V[k-1])) * V[k]
         b[k] = b[k] / (dist.F(V[k]) - dist.F(V[k-1]))*s + a[k]*(1-s)     # F(V[k]) - F(V[k-1] >= valleyAperture
-        b[k] = min(b[k], oneMinusTau)  # TODO added 23/11/18 to keep b non decreasing
+        b[k] = min(b[k], oneMinusTau)  # b should be non decreasing
     if np.min(b[1:] - b[:-1]) < 0:
         raise ValueError('warpHistogram : array b must be non decreasing')
 
@@ -411,8 +410,8 @@ def autoQuadSpline(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True):
     # highlight correction
     if preserveHigh:
         skyInd = np.argmax(a > 0.75*a[-1])
-        b[-1] = 0.99  # 0.98-->0.99 20/07/18
-        for i in range(len(b) - skyInd - 1):  # TODO 31/05/18 skyInd is array, should be int
+        b[-1] = 0.99
+        for i in range(len(b) - skyInd - 1):
             b[-i-2] = min(np.power(a[-i-2], 0.30), b[-i-1]) - 0.02
         b[skyInd-1] = np.power(b[skyInd-1], 0.9)
         d[skyInd:] = 0.2

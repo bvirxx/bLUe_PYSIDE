@@ -644,7 +644,7 @@ class activeQuadricSpline(activeSpline):
         @param T: spline array
         @type T: ndarray
         """
-        self.a, self.b, self.d, self.T = a, b, d, T  # TODO added 15/07/18. validate
+        self.a, self.b, self.d, self.T = a, b, d, T
         rect = QRectF(0.0, -self.size, self.size, self.size)
         # half tangent length and orientation
         alpha = [self.halfTgLen] * len(d)
