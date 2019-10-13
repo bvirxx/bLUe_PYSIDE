@@ -22,10 +22,10 @@ import cv2
 def demosaic(raw_image_visible, raw_colors_visible, black_level_per_channel):
     """
     demosaic a sensor bitmap. The input array raw_image_visble is the image from sensor. It has
-    same dimensions as the image, BUT NO CHANNEL. The array raw_colors_visible (identical shape)
+    the same dimensions as the image, BUT NO CHANNEL. The array raw_colors_visible (identical shape)
     gives the color channels (0=R, 1=G, 2=B) corresponding to each point.
 
-    Black levels are substracted from raw_image_visible before the conversion.
+    Black levels are subtracted from raw_image_visible before the conversion.
 
     @param raw_image_visible: image from sensor
     @type raw_image_visible: nd_array, dtype uint16, shape(img_h, img_w)
