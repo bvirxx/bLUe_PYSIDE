@@ -21,14 +21,14 @@ def interpTriLinear(LUT, LUTSTEP, ndImg, convert=True):
     """
     Implement a vectorized version of trilinear interpolation.
 
-    Convert a array ndImg with shape (w, h, d)  with d >=3 by interpolating
-    its values in a 3D LUT array LUT with shape s = (s1, s2, s3, d).
-    Inputs are taken from the third axis of ndImg[:,:,:3]. they are input to
-    the three first axes of the LUT, keeping the same ordering (i.e. v[i] is input to axis i).
-    Output values are interpolated from the LUT.
+    Convert an array ndImg with shape (w, h, d)  with d >=3 by interpolating
+    its values from a 3D LUT array LUT with shape s = (s1, s2, s3, d).
+    Values from the third axis of ndImg[:,:,:3] are input to
+    the three first axes of LUT, keeping the same ordering (i.e. v[i] is input to axis i).
+    Output values are interpolated from LUT.
 
     LUTSTEP is the integer or the 3-uple of integers representing the unitary interpolation
-    step for each axis of the LUT table.
+    step for each axis of LUT.
 
     All input values for axis i must be in the (right opened)
     interval [0, max[ with max = (s[i] - 1) * LUTSTEP[i]. Closed intervals
