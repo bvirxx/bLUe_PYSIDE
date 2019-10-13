@@ -893,8 +893,9 @@ def menuLayer(name, window=window):
         # init pool only once
         pool = getPool()
         sc = grWindow.scene()
-        layer.execute = lambda l=layer, pool=pool: l.tLayer.apply3DLUT(sc.lut.LUT3DArray, sc.lut.step,
-                                                                       options=sc.options, pool=pool)
+        layer.execute = lambda l=layer, pool=pool: l.tLayer.apply3DLUT(sc.lut,
+                                                                       options=sc.options,
+                                                                       pool=pool)
     elif name == 'action2D_LUT_HV':
         layerName = '3D LUT HSV Shift'
         layer = window.label.img.addAdjustmentLayer(name=layerName, role='2DLUT')
@@ -1060,8 +1061,7 @@ def menuLayer(name, window=window):
             lname = path.basename(name)
             layer = window.label.img.addAdjustmentLayer(name=lname)
             pool = getPool()
-            layer.execute = lambda l=layer, pool=pool: l.tLayer.apply3DLUT(lut.LUT3DArray,
-                                                                           lut.step,
+            layer.execute = lambda l=layer, pool=pool: l.tLayer.apply3DLUT(lut,
                                                                            UDict(({'use selection': False, 'keep alpha': True},)),
                                                                            pool=pool)
             window.tableView.setLayers(window.label.img)

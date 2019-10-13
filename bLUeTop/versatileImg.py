@@ -1433,22 +1433,22 @@ class vImage(bImage):
         bufOut[h1:h2 + 1, w1:w2 + 1, :3] = bufpostF32_1[:,:,::-1]
         self.updatePixmap()
 
-    def apply3DLUT(self, LUT, LUTSTEP, options=None, pool=None):
+    def apply3DLUT(self, lut3D, options=None, pool=None):
         """
         Apply a 3D LUT to the current view of the image (self or self.thumb).
         If pool is not None and the size of the current view is > 3000000,
         parallel interpolation on image slices is used.
         If options['keep alpha'] is False, alpha channel is interpolated too.
-        The order of LUT axes, LUT channels and image channels must be BGR.
-        @param LUT: LUT3D array (cf. colorCube.py)
-        @type LUT: 3d ndarray, dtype = int
-        @param LUTSTEP:
-        @type LUTSTEP:
+        LUT axes, LUT channels and image channels must be in BGR order.
+        @param lut3D: LUT3D
+        @type lut3D: LUT3D
         @param options:
         @type options: UDict
         @param pool:
         @type pool:
         """
+        LUT = lut3D.LUT3DArray
+        LUTSTEP = lut3D.step
         if options is None:
             options = UDict()
         # get buffers
