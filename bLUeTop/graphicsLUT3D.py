@@ -321,6 +321,8 @@ class activeNode(QGraphicsPathItem):
         clipped.extend([tuple(self.LUTIndices[len(clipped)])] if len(clipped) < len(self.LUTIndices) else [])
         # remove duplicate vertices
         self.LUTIndices = set([index(p/100.0, i, j, k) for p, (i, j, k) in enumerate(clipped)])
+        # sort indices by increasing brightnesses
+        self.LUTindices = sorted(self.LUTIndices, key=lambda x : x.p)
         """
         for x in self.LUTIndices:
             (i, j, k) = x.ind
@@ -366,6 +368,10 @@ class activeNode(QGraphicsPathItem):
         # A neighborhood of the vertex is built and the corresponding values
         # in the LUT are shifted by the same vector, defined by the position of the
         # node on the color wheel. The transformation keeps hue and saturation.
+        # LUTIndices contains unique (i,j,k) 3-uples, but using a spread >= 1 can induce
+        # conflicts between translations applied to a node. As LUTIndices are sorted by increasing
+        # brightnesses, these conflicts are solved by giving priority to the translation corresponding
+        # to the highest brightness.
         lut = self.scene().lut.LUT3DArray
         for x in self.LUTIndices:
             i, j, k = x.ind
