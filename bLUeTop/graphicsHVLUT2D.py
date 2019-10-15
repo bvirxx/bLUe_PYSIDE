@@ -16,8 +16,8 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 from PySide2 import QtCore
-from PySide2.QtCore import Qt
-from PySide2.QtGui import QFontMetrics
+from PySide2.QtCore import Qt, QRect
+from PySide2.QtGui import QFontMetrics, QColor
 from PySide2.QtWidgets import QLabel, QGridLayout
 
 from bLUeCore.bLUeLUT3D import DeltaLUT3D
@@ -48,6 +48,15 @@ class HVLUT2DForm(graphicsCurveForm):
         dSplineItem.initFixedPoints()
         self.dSplineItemB = dSplineItem
         graphicsScene.dSplineItemB = dSplineItem
+        text = graphicsScene.addText('Hue (0-360)')
+        text.setDefaultTextColor(Qt.white)
+        text.setPos(-40, 10)
+        text = graphicsScene.addText('delta H')
+        text.setDefaultTextColor(Qt.white)
+        text.setPos(-40, -self.axeSize  // 4)
+        text = graphicsScene.addText('delta B')
+        text.setDefaultTextColor(Qt.white)
+        text.setPos(-40, -(self.axeSize * 3) //  4)
 
         dSplineItem = activeBSpline(axeSize, period=axeSize, yZero=-axeSize // 4)
         graphicsScene.addItem(dSplineItem)
@@ -60,7 +69,8 @@ class HVLUT2DForm(graphicsCurveForm):
         self.LUT = DeltaLUT3D((34, 32, 32))
 
         self.marker = activeMarker.fromTriangle(parent=self.dSplineItemB)
-        self.marker.setPos(0, -axeSize//2)
+        self.marker.setPos(0, 0)  # -(axeSize * 3) // 4)
+        self.marker.setMoveRange(QRect(0, 0, axeSize, 0))
         self.scene().addItem(self.marker)
 
         def showPos(e, x, y):
@@ -118,10 +128,10 @@ class HVLUT2DForm(graphicsCurveForm):
 
         self.setWhatsThis(
             """<b>3D LUT Shift HSV</b><br>
-            x-axes represent hue values from 0 to 360.
+            All pixel colors are changed by the specific hue and brightness shifts corresponding to their hue.<br>
+            x-axis represents hue values from 0 to 360. 
             The upper curve shows brightness multiplicative shifts (initially 1) and
-            the lower curve hue additive shifts (initially 0). 
-            All pixel colors are changed by the specific shifts corresponding to their hue.
+            the lower curve hue additive shifts (initially 0). <br>
             Each curve is controlled by bump triangles.<br>
             To <b>add a bump triangle</b> to the curve click anywhere on the curve.
             To <b>remove the triangle</b> click on any vertex.<br>
@@ -162,6 +172,7 @@ class HVLUT2DForm(graphicsCurveForm):
         d = activeSpline.yZero
         # reinit the LUT
         data[...] = 0, 1, 1
+        # update brightness
         for i in range(hdivs):
             pt = sp[int(i * hstep * axeSize/360)]
             data[i, sThr:, :, 2] = 1.0 - (pt.y() - d) / 100
@@ -193,32 +204,8 @@ class HVLUT2DForm(graphicsCurveForm):
         color = self.scene().targetImage.getActivePixel(x, y, qcolor=True)
         h = color.hsvHue()
         if modifiers & QtCore.Qt.ControlModifier:
-            self.marker.setPos(h * 300/360, -self.axeSize//2)
+            self.marker.setPos(h * 300/360, 0) # -(self.axeSize * 3) // 4)
             self.markerLabel.setText("%d" % h)
             self.update()
-    """
-    def writeToStream(self, outStream):
-        graphicsScene = self.scene()
-        layer = graphicsScene.layer
-        outStream.writeQString(layer.actionName)
-        outStream.writeQString(layer.name)
-        if layer.actionName in ['actionBrightness_Contrast', 'actionCurves_HSpB', 'actionCurves_Lab']:
-            outStream.writeQString(self.listWidget1.selectedItems()[0].text())
-            graphicsScene.cubicRGB.writeToStream(outStream)
-            graphicsScene.cubicR.writeToStream(outStream)
-            graphicsScene.cubicG.writeToStream(outStream)
-            graphicsScene.cubicB.writeToStream(outStream)
-        return outStream
 
-    def readFromStream(self, inStream):
-        actionName = inStream.readQString()
-        name = inStream.readQString()
-        sel = inStream.readQString()
-        graphicsScene = self.scene()
-        graphicsScene.cubicRGB.readFromStream(inStream)
-        graphicsScene.cubicR.readFromStream(inStream)
-        graphicsScene.cubicG.readFromStream(inStream)
-        graphicsScene.cubicB.readFromStream(inStream)
-        return inStream
-    """
 
