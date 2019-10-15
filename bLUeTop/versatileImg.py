@@ -1413,7 +1413,7 @@ class vImage(bImage):
             bufOut[:, :, :] = QImageBuffer(inputImage)
         else:
             w1, w2, h1, h2 = 0, self.inputImg().width(), 0, self.inputImg().height()
-        # get HSV buffer, range H: 0..180, S:0..255 V:0..255
+        # get HSV buffer, range H: 0..180, S:0..255 V:0..255  (opencv convention for 8 bits images)
         HSVImg0 = inputImage.getHSVBuffer()
         HSVImg0 = HSVImg0.astype(np.float)
         HSVImg0[:, :, 0] *= 2
