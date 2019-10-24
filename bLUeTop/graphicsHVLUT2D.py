@@ -192,7 +192,7 @@ class HVLUT2DForm(graphicsCurveForm):
 
     def colorPickedSlot(self, x, y, modifiers):
         """
-        sets black/white points
+        Updates cursor from the hue of an image pixel.
         (x,y) coordinates are relative to the full size image.
         @param x:
         @type x:

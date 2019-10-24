@@ -164,7 +164,7 @@ def rawPostProcess(rawLayer, pool=None):
                     gamma=gamma,
                     exp_preserve_highlights=exp_preserve_highlights,
                     bright=bright,
-                    hightlightmode=highlightmode,
+                    highlight_mode=highlightmode,
                     fbdd_noise_reduction=rawpy.FBDDNoiseReductionMode.Off
                 )
                 row = i // 3
@@ -190,10 +190,10 @@ def rawPostProcess(rawLayer, pool=None):
                 fbdd_noise_reduction=fbdd_noise_reduction,
                 median_filter_passes=1
             )
-            # save image into post processing cache
-            rawLayer.postProcessCache = cv2.cvtColor(((bufpost16.astype(np.float32)) / max_ouput).astype(np.float32), cv2.COLOR_RGB2HSV)
-            rawLayer.half = half_size
-            rawLayer.bufpost16 = bufpost16
+        # save image into post processing cache
+        rawLayer.postProcessCache = cv2.cvtColor(((bufpost16.astype(np.float32)) / max_ouput).astype(np.float32), cv2.COLOR_RGB2HSV)
+        rawLayer.half = half_size
+        rawLayer.bufpost16 = bufpost16
     else:
         pass
 

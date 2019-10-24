@@ -516,7 +516,7 @@ def mouseEvent(widget, event, qp=qp, window=window):  # TODO split into 3 handle
                         if window.btnValues['rectangle'] and (modifiers == Qt.ControlModifier):
                                 layer.rect = None
                                 layer.selectionChanged.sig.emit()
-                        # for raw layer, set multipliers to get selected pixel as White Point
+                        # for raw layer, set multipliers to get selected pixel as White Point : NOT USED YET
                         if layer.isRawLayer() and window.btnValues['colorPicker']:
                             # get demosaic buffer and sample raw pixels
                             bufRaw = layer.parentImage.demosaic

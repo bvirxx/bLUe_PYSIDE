@@ -897,7 +897,7 @@ def menuLayer(name, window=window):
                                                                        options=sc.options,
                                                                        pool=pool)
     elif name == 'action2D_LUT_HV':
-        layerName = '3D LUT HSV Shift'
+        layerName = '3D LUT HV Shift'
         layer = window.label.img.addAdjustmentLayer(name=layerName, role='2DLUT')
         grWindow = HVLUT2DForm.getNewWindow(axeSize=300, targetImage=window.label.img,
                                                   layer=layer, parent=window)
