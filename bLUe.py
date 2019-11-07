@@ -141,7 +141,7 @@ from PySide2.QtGui import QPixmap, QCursor, QKeySequence, QDesktopServices, QFon
     QTransform, QColor, QImage
 from PySide2.QtWidgets import QApplication, QAction, \
     QMainWindow, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QWidget, \
-    QStyle, QTabWidget
+    QStyle, QTabWidget, QToolBar
 from bLUeTop.QtGui1 import app, window, rootWidget, splittedWin, set_event_handlers
 from bLUeTop import exiftool
 from bLUeTop.graphicsBlendFilter import blendFilterForm
@@ -195,7 +195,7 @@ This product includes DNG technology under license by Adobe Systems Incorporated
 
 ##############
 #  Version number
-VERSION = "v1.6.0"
+VERSION = "v1.6.1"
 ##############
 
 ##############
@@ -482,6 +482,7 @@ def closeFile(window=window):
         return False
     window.tableView.clear(delete=True)
     window.histView.targetImage = None
+    defaultImImage = initDefaultImage()
     window.label.img = defaultImImage
     window.label_2.img = defaultImImage
     window.label_3.img = defaultImImage
@@ -1452,23 +1453,16 @@ def dropEvent(widget, img, event):
     mimeData = event.mimeData()
     openFile(mimeData.text())
 
-if __name__ == '__main__':
-    #################
-    # multiprocessing
-    # freeze_support() must be called at the start of __main__
-    # to enable multiprocessing when the executable is frozen.
-    # Otherwise, it does nothing.
-    #################
-    multiprocessing.freeze_support()
-    # load UI
-    window.init()
+
+def setupGUI(window=window):
     # splash screen
     splash = QSplashScreen(QPixmap('logo.png'), Qt.WindowStaysOnTopHint)
     splash.show()
     splash.showMessage("Loading .", color=Qt.white, alignment=Qt.AlignCenter)
     app.processEvents()
     sleep(1)
-    splash.showMessage(VERSION + "\n" + attributions + "\n" + "http://bernard.virot.free.fr", color=Qt.white, alignment=Qt.AlignCenter)
+    splash.showMessage(VERSION + "\n" + attributions + "\n" + "http://bernard.virot.free.fr", color=Qt.white,
+                       alignment=Qt.AlignCenter)
     app.processEvents()
     sleep(1)
     splash.finish(window)
@@ -1484,79 +1478,80 @@ if __name__ == '__main__':
     # app style sheet
     if THEME == "light":
         app.setStyleSheet("""QMainWindow, QGraphicsView, QListWidget, QMenu, QTableView {background-color: rgb(200, 200, 200)}\
-                           QWidget, QTableView, QTableView * {font-size: 9pt} QPushButton {font-size: 6pt}"""
-                         )
+                               QWidget, QTableView, QTableView * {font-size: 9pt} QPushButton {font-size: 6pt}"""
+                          )
     else:
         app.setStyleSheet("""QMainWindow, QMainWindow *, QGraphicsView, QListWidget, QMenu,
-                                        QTableView, QLabel, QGroupBox {background-color: rgb(40,40,40); 
-                                                                       color: rgb(220,220,220)}
-                           QListWidget::item{background-color: rgb(40, 40, 40); color: white}
-                           QListWidget::item:disabled{color: gray}
-                           QMenu, QTableView {selection-background-color: blue;
-                                               selection-color: white;}
-                           QWidget, QComboBox, QTableView, QTableView * {font-size: 9pt}
-                           QWidget:disabled {color: rgb(96,96,96)}
-                           QbLUeSlider::handle:horizontal {
-                                                background: white; 
-                                                width: 15px;
-                                                border: 1px solid black; 
-                                                border-radius: 4px; 
-                                                margin: -3px;
-                                                }
-                           QbLUeSlider::handle:horizontal:hover {
-                                                background: #DDDDFF;
-                                                }
-                           QbLUeSlider::groove:horizontal {
-                                                margin: 3px;
-                                               }
-                           QbLUeSlider::groove:horizontal:enabled { 
-                                                background-color: rgb(196,196,196);}
-                           QbLUeSlider::groove:horizontal:disabled { 
-                                                background-color: rgb(96,96,96)}
-                           QPushButton {font-size: 8pt;}
-                           QbLUePushButton {font-size: 7pt;
-                                            background-color: rgb(100,100,100);
-                                            color: white;
-                                            border: 2px solid gray;
-                                            border-radius: 5px;
-                                            padding: 4px;}
-                           QbLUePushButton:hover, QbLUePushButton:pressed {background-color: rgb(150,150,200);}
-                           QbLUePushButton:disabled {color: rgb(50,50,50)}
-                           QGraphicsView QPushButton:hover, baseForm QPushButton:hover {background-color: gray;
-                                                                                        color: black}
-                           QToolButton {background-color: #444455;
-                                        color: rgb(200,200,200);
-                                        border: 1px solid gray;
-                                        border-radius: 6px}
-                           QToolButton:hover {background-color: #555588;
-                                              color: black}
-                           QToolButton:checked {background-color: blue}
-                           QGroupBox#groupbox_btn {border: 1px solid gray;}
-                           QGroupBox#groupBox {border: 1px solid gray;}
-                           QMessageBox QLabel, QDialog QLabel {background-color: white; 
-                                                               color: black}
-                           QColorDialog QLabel {background-color: gray; 
-                                                color: white}
-                           QStatusBar::item {border: none}
-                           QTabBar::tab {background: #444455; 
-                                         color: lightgray;
-                                         min-width: 8ex; 
-                                         border: 2px solid white; 
-                                         border-color: gray;
-                                         border-bottom-left-radius: 4px; 
-                                         border-bottom-right-radius: 4px;
-                                         margin: 3px;
-                                         padding: 2px}
-                           QTabBar::tab:hover {color: white}
-                           QTabBar::tab:selected {border-top-color: white; 
-                                                  color: white;}
-                           QTabBar::tab:!selected {margin-bottom: 2px}
-                           QDockWidget::title {background-color: #444455}
-                           QDockWidget::title:hover{background-color: #555588}
-                           QToolTip {border: 0px;
-                                    background-color: lightyellow;
-                                    color: black}"""  # border must be set, otherwise background-color has no effect : Qt bug?
-                         )
+                                            QTableView, QLabel, QGroupBox {background-color: rgb(40,40,40); 
+                                                                           color: rgb(220,220,220)}
+                               QListWidget::item{background-color: rgb(40, 40, 40); color: white}
+                               QListWidget::item:disabled{color: gray}
+                               QMenu, QTableView {selection-background-color: blue;
+                                                   selection-color: white;}
+                               QWidget, QComboBox, QTableView, QTableView * {font-size: 9pt}
+                               QWidget:disabled {color: rgb(96,96,96)}
+                               QbLUeSlider::handle:horizontal {
+                                                    background: white; 
+                                                    width: 15px;
+                                                    border: 1px solid black; 
+                                                    border-radius: 4px; 
+                                                    margin: -3px;
+                                                    }
+                               QbLUeSlider::handle:horizontal:hover {
+                                                    background: #DDDDFF;
+                                                    }
+                               QbLUeSlider::groove:horizontal {
+                                                    margin: 3px;
+                                                   }
+                               QbLUeSlider::groove:horizontal:enabled { 
+                                                    background-color: rgb(196,196,196);}
+                               QbLUeSlider::groove:horizontal:disabled { 
+                                                    background-color: rgb(96,96,96)}
+                               QPushButton {font-size: 8pt;}
+                               QbLUePushButton {font-size: 7pt;
+                                                background-color: rgb(100,100,100);
+                                                color: white;
+                                                border: 2px solid gray;
+                                                border-radius: 5px;
+                                                padding: 4px;}
+                               QbLUePushButton:hover, QbLUePushButton:pressed {background-color: rgb(150,150,200);}
+                               QbLUePushButton:disabled {color: rgb(50,50,50)}
+                               QGraphicsView QPushButton:hover, baseForm QPushButton:hover {background-color: gray;
+                                                                                            color: black}
+                               QToolButton {background-color: #444455;
+                                            color: rgb(200,200,200);
+                                            border: 1px solid gray;
+                                            border-radius: 6px}
+                               QToolButton:hover {background-color: #555588;
+                                                  color: black}
+                               QToolButton:checked {background-color: blue}
+                               QGroupBox#groupbox_btn {border: 1px solid gray;}
+                               QGroupBox#groupBox {border: 1px solid gray;}
+                               QMessageBox QLabel, QDialog QLabel {background-color: white; 
+                                                                   color: black}
+                               QColorDialog QLabel {background-color: gray; 
+                                                    color: white}
+                               QStatusBar::item {border: none}
+                               QTabBar::tab {background: #444455; 
+                                             color: lightgray;
+                                             min-width: 8ex; 
+                                             border: 2px solid white; 
+                                             border-color: gray;
+                                             border-bottom-left-radius: 4px; 
+                                             border-bottom-right-radius: 4px;
+                                             margin: 3px;
+                                             padding: 2px}
+                               QTabBar::tab:hover {color: white}
+                               QTabBar::tab:selected {border-top-color: white; 
+                                                      color: white;}
+                               QTabBar::tab:!selected {margin-bottom: 2px}
+                               QDockWidget::title {background-color: #444455}
+                               QDockWidget::title:hover{background-color: #555588}
+                               QToolTip {border: 0px;
+                                        background-color: lightyellow;
+                                        color: black}"""
+                          # border must be set, otherwise background-color has no effect : Qt bug?
+                          )
 
     # status bar
     window.Label_status = QLabel()
@@ -1570,33 +1565,61 @@ if __name__ == '__main__':
     # crop tool
     window.cropTool = cropTool(parent=window.label)
 
+    # init button tool bars
+    toolBar = QToolBar()
+    # toolBar.setAttribute(Qt.WA_AlwaysShowToolTips )
+    window.verticalSlider1, window.verticalSlider2 = QSlider(Qt.Horizontal), QSlider(Qt.Horizontal)
+    window.verticalSlider1.setAccessibleName('verticalSlider1')
+    window.verticalSlider1.setRange(2, 100)
+    window.verticalSlider1.setSliderPosition(20)
+    window.verticalSlider1.setToolTip('Brush Size')
+    window.verticalSlider2.setAccessibleName('verticalSlider2')
+    window.verticalSlider2.setRange(0, 100)
+    window.verticalSlider2.setSliderPosition(100)
+    window.verticalSlider2.setToolTip('Brush Opacity')
+    for slider in [window.verticalSlider1, window.verticalSlider2]:
+        slider.setTickPosition(QSlider.TicksBelow)
+        slider.setMaximumSize(150, 15)
+        toolBar.addWidget(slider)
+        empty = QWidget()
+        empty.setFixedHeight(30)
+        empty.setFixedWidth(50)
+        empty.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        toolBar.addWidget(empty)
+    # link tooLBar to the main group of tool buttons
+    for button in window.drawFG.group().buttons():
+        button.toolBar = toolBar
+    window.addToolBar(toolBar)
+
     # whatsThis
-    window.cropButton.setWhatsThis("""To crop the image drag a gray curtain on either side using the 8 small square buttons around the image""")
+    window.cropButton.setWhatsThis(
+        """To crop the image drag a gray curtain on either side using the 8 small square buttons around the image""")
     window.rulerButton.setWhatsThis("""Draw horizontal and vertical rulers over the image""")
     window.fitButton.setWhatsThis("""Reset the image size to the window size""")
     window.eyeDropper.setWhatsThis("""Color picker\n Click on the image to sample pixel colors""")
-    window.dragBtn.setWhatsThis("""Drag\n left button : drag the whole image\n Ctrl+Left button : drag the active layer only""")
+    window.dragBtn.setWhatsThis(
+        """Drag\n left button : drag the whole image\n Ctrl+Left button : drag the active layer only""")
     window.rectangle.setWhatsThis(
-"""<b>Marquee Tool/Selection Rectangle</b><br>
-Draw a selection rectangle on the active layer.<br>
-For a segmentation layer only, all pixels outside the rectangle are set to background.
-"""
-                                )
+        """<b>Marquee Tool/Selection Rectangle</b><br>
+        Draw a selection rectangle on the active layer.<br>
+        For a segmentation layer only, all pixels outside the rectangle are set to background.
+        """
+    )
     window.drawFG.setWhatsThis(
-"""
-<b>Foreground/Unmask tool</b><br>
-  Paint on the active layer to <b>unmask</b> a previously masked region or to <b>select foreground pixels</b> (segmentation layer only);
-  the mask must be enabled as opacity or color mask in the layer panel.<br>
-  With <b>Color Mask</b> enabled, masked pixels are grayed and unmasked pixels are reddish.<br>
-  Use the <b>Brush Size slider</b> below to choose the size of the tool. 
-"""                             )
+        """
+        <b>Foreground/Unmask tool</b><br>
+          Paint on the active layer to <b>unmask</b> a previously masked region or to <b>select foreground pixels</b> (segmentation layer only);
+          the mask must be enabled as opacity or color mask in the layer panel.<br>
+          With <b>Color Mask</b> enabled, masked pixels are grayed and unmasked pixels are reddish.<br>
+          Use the <b>Brush Size slider</b> below to choose the size of the tool. 
+        """)
     window.drawBG.setWhatsThis(
-"""<b>Background/Mask tool</b><br>
-  Paint on the active layer to mask a region or to select background pixels (segmentation layer only);
-  (the mask must be enabled as opacity or color mask in the layer panel).<br>
-  With <b>Color Mask</b> enabled, masked pixels are grayed and unmasked pixels are reddish.<br>
-  Use the 'Brush Size' slider below to choose the size of the tool. 
-"""                             )
+        """<b>Background/Mask tool</b><br>
+          Paint on the active layer to mask a region or to select background pixels (segmentation layer only);
+          (the mask must be enabled as opacity or color mask in the layer panel).<br>
+          With <b>Color Mask</b> enabled, masked pixels are grayed and unmasked pixels are reddish.<br>
+          Use the 'Brush Size' slider below to choose the size of the tool. 
+        """)
     window.verticalSlider1.setWhatsThis("""Set the diameter of the painting brush""")
     window.verticalSlider2.setWhatsThis("""Set the opacity of the painting brush""")
 
@@ -1662,6 +1685,7 @@ For a segmentation layer only, all pixels outside the rectangle are set to backg
         window.viewState = 'Before/After'
         splittedWin.nextSplittedView()
         updateStatus()
+
     action1.triggered.connect(f)
     window.addAction(action1)
 
@@ -1677,27 +1701,42 @@ For a segmentation layer only, all pixels outside the rectangle are set to backg
     setColorManagement()
 
     window.label.setWhatsThis(
-""" <b>Main Window<br>
-Menu File > Open</b> to edit a photo.<br>
-<b>Menu Layer > New Adjustment Layer</b> to add an adjustment layer.<br>
-<b>Ctrl+L or Menu View > Library Viewer</b> to browse a folder.<br>
-<b>Ctrl+C or Menu View > Color Chooser</b> to display the color chooser.<br>
-"""
+        """ <b>Main Window<br>
+        Menu File > Open</b> to edit a photo.<br>
+        <b>Menu Layer > New Adjustment Layer</b> to add an adjustment layer.<br>
+        <b>Ctrl+L or Menu View > Library Viewer</b> to browse a folder.<br>
+        <b>Ctrl+C or Menu View > Color Chooser</b> to display the color chooser.<br>
+        """
     )  # end of setWhatsThis
     window.label_3.setWhatsThis(
-""" <b>Before/After View : After Window</b><br>
-Shows the modified image.<br>
-<b>Ctrl+Space</b> to cycle through views.<br>
-<b>Space</b> to switch back to normal view.<br>
-"""
+        """ <b>Before/After View : After Window</b><br>
+        Shows the modified image.<br>
+        <b>Ctrl+Space</b> to cycle through views.<br>
+        <b>Space</b> to switch back to normal view.<br>
+        """
     )  # end of setWhatsThis
     window.label_2.setWhatsThis(
-""" <b>Before/After View : Before Window</b><br>
-Shows the initial image.<br>
-<b>Ctrl+Space</b> to cycle through views.<br>
-<b>Space</b> to switch back to normal view.
-"""
+        """ <b>Before/After View : Before Window</b><br>
+        Shows the initial image.<br>
+        <b>Ctrl+Space</b> to cycle through views.<br>
+        <b>Space</b> to switch back to normal view.
+        """
     )  # end of setWhatsThis
+
+
+if __name__ == '__main__':
+    #################
+    # multiprocessing
+    # freeze_support() must be called at the start of __main__
+    # to enable multiprocessing when the executable is frozen.
+    # Otherwise, it does nothing.
+    #################
+    multiprocessing.freeze_support()
+    # load UI
+    window.init()
+
+    setupGUI(window)
+
     ###############
     # launch app
     ###############

@@ -118,13 +118,17 @@ class Form1(QMainWindow):
         """
         button clicked/toggled slot.
         The toggled signal is triggered only by checkable buttons,
-        when the button state changes. Thus, the method is called
+        when the button state changes. Thus, the method should be called
         by all auto exclusive buttons in a group to correctly update
         the btnValues dictionary.
         @param button:
         @type button: QButton
         """
-        self.btnValues[str(button.accessibleName())] = button.isChecked()
+        checked = button.isChecked()
+        self.btnValues[str(button.accessibleName())] = checked
+        # show/hide toolBar
+        if getattr(button, 'toolBar', None) is not None:
+            button.toolBar.setVisible(checked)
         self.onWidgetChange(button)
 
     def handleSliderMoved(self, value, slider):
