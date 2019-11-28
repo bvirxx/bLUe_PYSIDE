@@ -33,6 +33,8 @@ The program is fully modular : controls are implemented as independent
 adjustment layers using a common GUI. New functionality can be added very quickly and
 any imaging library exposing Python bindings can take advantage of the GUI.
 
+In addition, bLUe provides drawing layers and versatile paint brushes.
+
 bLUe is aware of multi-screen environments and color profiles : it uses image and
 monitor profiles in conjunction to display accurate colors.
 
@@ -43,6 +45,7 @@ The program is written in Python.
 * Edition of images in formats jpg, png, tif, nef, cr2, dng,...
 * Adjustment layers : exposure, brightness, saturation, contrast, channel mixer, color temperature, inversion, filters, noise reduction,
 seamless cloning, segmentation, geometric transformations, merging, curves, 2.5D LUTs, 3D LUTs.
+* Drawing layers
 * RGB, HSV, CMYK, Lab color models
 * Fast skin tone correction
 * Automatic contrast enhancement (histogram warping and CLAHE)
