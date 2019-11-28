@@ -614,7 +614,8 @@ class vImage(bImage):
         """
         Pass through
         """
-        bufIn = QImageBuffer(self.inputImg())
+        imgIn = self.inputImg()
+        bufIn = QImageBuffer(imgIn)
         bufOut = QImageBuffer(self.getCurrentImage())
         bufOut[:, :, :] = bufIn
         self.updatePixmap()

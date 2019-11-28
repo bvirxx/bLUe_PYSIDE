@@ -520,6 +520,132 @@ Screen</string>
             </widget>
            </widget>
           </item>
+          <item>
+           <widget class="QToolButton" name="bucketButton">
+            <property name="minimumSize">
+             <size>
+              <width>50</width>
+              <height>26</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>50</width>
+              <height>30</height>
+             </size>
+            </property>
+            <property name="focusPolicy">
+             <enum>Qt::ClickFocus</enum>
+            </property>
+            <property name="toolTip">
+             <string>Paint Bucket</string>
+            </property>
+            <property name="accessibleName">
+             <string>bucket</string>
+            </property>
+            <property name="text">
+             <string>...</string>
+            </property>
+            <property name="icon">
+             <iconset resource="bLUeTop/resources.qrc">
+              <normaloff>:/images/resources/icons8-windows-metro-26.png</normaloff>:/images/resources/icons8-windows-metro-26.png</iconset>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
+            <property name="autoExclusive">
+             <bool>true</bool>
+            </property>
+            <property name="autoRaise">
+             <bool>true</bool>
+            </property>
+            <attribute name="buttonGroup">
+             <string notr="true">buttonGroup</string>
+            </attribute>
+           </widget>
+          </item>
+          <item>
+           <widget class="QToolButton" name="brushButton">
+            <property name="minimumSize">
+             <size>
+              <width>50</width>
+              <height>26</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>50</width>
+              <height>30</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>Brush</string>
+            </property>
+            <property name="accessibleName">
+             <string>brushButton</string>
+            </property>
+            <property name="text">
+             <string>...</string>
+            </property>
+            <property name="icon">
+             <iconset resource="bLUeTop/resources.qrc">
+              <normaloff>:/images/resources/icons8-pinceau-de-maquillage-24.png</normaloff>:/images/resources/icons8-pinceau-de-maquillage-24.png</iconset>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
+            <property name="autoExclusive">
+             <bool>true</bool>
+            </property>
+            <property name="autoRaise">
+             <bool>true</bool>
+            </property>
+            <attribute name="buttonGroup">
+             <string notr="true">buttonGroup</string>
+            </attribute>
+           </widget>
+          </item>
+          <item>
+           <widget class="QToolButton" name="eraserButton">
+            <property name="minimumSize">
+             <size>
+              <width>50</width>
+              <height>26</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>50</width>
+              <height>30</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>Eraser</string>
+            </property>
+            <property name="accessibleName">
+             <string>eraserButton</string>
+            </property>
+            <property name="text">
+             <string>...</string>
+            </property>
+            <property name="icon">
+             <iconset resource="bLUeTop/resources.qrc">
+              <normaloff>:/images/resources/icons8-gomme-30.png</normaloff>:/images/resources/icons8-gomme-30.png</iconset>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
+            <property name="autoExclusive">
+             <bool>true</bool>
+            </property>
+            <property name="autoRaise">
+             <bool>true</bool>
+            </property>
+            <attribute name="buttonGroup">
+             <string notr="true">buttonGroup</string>
+            </attribute>
+           </widget>
+          </item>
          </layout>
         </widget>
        </widget>
@@ -707,6 +833,7 @@ Screen</string>
     <addaction name="actionNew_segmentation_layer"/>
     <addaction name="menuNew_Image_Layer"/>
     <addaction name="actionHDR_Merge"/>
+    <addaction name="actionNew_Drawing_Layer"/>
     <addaction name="separator"/>
     <addaction name="actionSave_Layer_Stack_as_LUT_Cube"/>
     <addaction name="actionLoad_3D_LUT"/>
@@ -1126,6 +1253,11 @@ Screen</string>
   <action name="actionHDR_Merge">
    <property name="text">
     <string>New Merging Layer</string>
+   </property>
+  </action>
+  <action name="actionNew_Drawing_Layer">
+   <property name="text">
+    <string>New Drawing Layer</string>
    </property>
   </action>
  </widget>

@@ -845,18 +845,20 @@ Note that upper visible layers slow down mask edition.<br>
             self.img.onImageChanged()
 
         def undoMask():
-            mask = layer.historyListMask.undo(saveitem=layer.mask.copy())
-            if mask is not None:
-                layer.mask = mask
-            layer.applyToStack()
-            self.img.onImageChanged()
+            try:
+                layer.mask = layer.historyListMask.undo(saveitem=layer.mask.copy())
+                layer.applyToStack()
+                self.img.onImageChanged()
+            except ValueError:
+                pass
 
         def redoMask():
-            mask = layer.historyListMask.redo()
-            if mask is not None:
-                layer.mask = mask
-            layer.applyToStack()
-            self.img.onImageChanged()
+            try:
+                layer.mask = layer.historyListMask.redo()
+                layer.applyToStack()
+                self.img.onImageChanged()
+            except ValueError:
+                pass
 
         def maskInvert():
             layer.invertMask()

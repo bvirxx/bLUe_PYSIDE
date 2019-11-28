@@ -17,7 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 from PySide2.QtCore import Qt
-from PySide2.QtWidgets import QVBoxLayout, QPushButton
+from PySide2.QtWidgets import QVBoxLayout, QPushButton, QLabel
 
 from bLUeGui.graphicsForm import baseForm
 
@@ -36,6 +36,9 @@ class HDRMergeForm(baseForm):
         # options
         self.options = None
         self.mergeButton = QPushButton('Refresh')
+        self.mergeButton.setMaximumWidth(80)
+        self.warn = QLabel('Use the layer stack context menu\nto add or remove layers to merge.')
+        # self.warn.setStyleSheet("QLabel {color : yellow; }")
 
         # button slot
         def f():
@@ -45,9 +48,11 @@ class HDRMergeForm(baseForm):
 
         # layout
         l = QVBoxLayout()
-        l.setAlignment(Qt.AlignTop)
+        l.setAlignment(Qt.AlignTop | Qt.AlignHCenter)
         l.addSpacing(30)
         l.addWidget(self.mergeButton)
+        l.addSpacing(100)
+        l.addWidget(self.warn)
         l.setContentsMargins(20, 0, 20, 25)  # left, top, right, bottom
         self.setLayout(l)
         self.adjustSize()

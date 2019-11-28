@@ -332,15 +332,18 @@ class QbLUePushButton(QPushButton):
 class historyList(list):
     """
     History management.
-    Implements undo/redo methods.
+    Successive states are saved into a stack,
+    implemented by a list, with top of stack
+    at index 0.
+    The stack alaways contains the size latest states.
+    No copy is done, so objects should be copied
+    before and after calling addItem, undo and redo.
     """
 
     def __init__(self, size=5):
         """
-        The attribute self.current indicates the
-        index of the last restored item, -1 if no
-        restoration was done since the last saving:
-        next item to restore has always index self.current+1
+        self.current is the list index of the last restored state, -1 if
+        no state was restored since the last call to addItem.
         @param size: max history size
         @type size: int
         """
@@ -349,27 +352,31 @@ class historyList(list):
         self.current = -1
 
     def addItem(self, item):
-        super().insert(0, item)
+        """
+        Pushes an item on the stack.
+        @param item:
+        @type item: any type
+        """
+        if self.current == - 1:
+            super().insert(0, item)
         if len(self) > self.size:
             self.pop()
-        # next item to save has index 0.
         self.current = -1
 
     def undo(self, saveitem=None):
         """
-        Return the next item in history.
-        Parameter saveitem should be the old value
-        (before restoration) of the variable to restore.
-        IL is saved to history if it not already a  restored state
-        (i.e. if self.current == -1).
-        @param saveitem: item possibly to save, depending on history state
+        Returns the previous item from history.
+        The Parameter saveitem is used to save the current state before undo
+        (i.e. before restoration), if it is not already a restored state.
+        The method raises ValueError if there is no more item to restore.
+        @param saveitem:
         @type saveitem: object
         @return:
         @rtype: object
         """
         if self.current >= len(self) - 1:
             # no more items to restore
-            return None
+            raise ValueError
         # stack a possibly unsaved (i.e. not restored) item
         if (self.current == -1) and (saveitem is not None):
             self.addItem(saveitem)
@@ -379,8 +386,14 @@ class historyList(list):
         return item
 
     def redo(self):
+        """
+        Returns the next item in stack, if any.
+        Otherwise, raises ValueError.
+        @return:
+        @rtype: object
+        """
         if self.current <= 0:
-            return None
+            raise ValueError
         self.current -= 1
         return self[self.current]
 

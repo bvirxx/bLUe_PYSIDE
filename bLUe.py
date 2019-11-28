@@ -134,15 +134,17 @@ from types import MethodType
 import rawpy
 
 from bLUeCore.bLUeLUT3D import HaldArray
+from bLUeTop.drawing import brushFamily, initBrushes
+from bLUeTop.graphicsDraw import drawForm
 from bLUeTop.graphicsHDRMerge import HDRMergeForm
 from bLUeTop.graphicsSegment import segmentForm
 from PySide2.QtCore import QUrl, QSize, QFileInfo
 from PySide2.QtGui import QPixmap, QCursor, QKeySequence, QDesktopServices, QFont, \
-    QTransform, QColor, QImage
+    QTransform, QColor, QImage, QPainterPath
 from PySide2.QtWidgets import QApplication, QAction, \
     QMainWindow, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QWidget, \
-    QStyle, QTabWidget, QToolBar
-from bLUeTop.QtGui1 import app, window, rootWidget, splittedWin, set_event_handlers
+    QStyle, QTabWidget, QToolBar, QComboBox
+from bLUeTop.QtGui1 import app, window, rootWidget, splittedWin, set_event_handlers, brushUpdate
 from bLUeTop import exiftool
 from bLUeTop.graphicsBlendFilter import blendFilterForm
 from bLUeTop.graphicsHVLUT2D import HVLUT2DForm
@@ -190,6 +192,7 @@ seamlessClone and CLAHE are Opencv functions
 mergeMertens is an Opencv class
 grabCut is a parallel version of an Opencv function
 This product includes DNG technology under license by Adobe Systems Incorporated
+credit https://icones8.fr/
 """
 #################
 
@@ -970,6 +973,17 @@ def menuLayer(name, window=window):
         tool.showTool()
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyImage(grWindow.options)
         layer.actioname = name
+    elif name == 'actionNew_Drawing_Layer':
+        processedImg = window.label.img
+        w, h = processedImg.width(), processedImg.height()
+        imgNew = QImage(w, h, QImage.Format_ARGB32)
+        #imgNew.fill(Qt.white)
+        imgNew.fill(QColor(0,0,0,0))
+        lname = 'Drawing'
+        layer = window.label.img.addAdjustmentLayer(name=lname, sourceImg=imgNew, role='DRW')
+        grWindow = drawForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
+        layer.execute = lambda l=layer, pool=None: l.tLayer.applyNone()
+        layer.actioname = name
     # Color filter
     elif name == 'actionColor_Temperature':
         lname = 'Color Filter'
@@ -1567,8 +1581,8 @@ def setupGUI(window=window):
 
     # init button tool bars
     toolBar = QToolBar()
-    # toolBar.setAttribute(Qt.WA_AlwaysShowToolTips )
-    window.verticalSlider1, window.verticalSlider2 = QSlider(Qt.Horizontal), QSlider(Qt.Horizontal)
+    window.verticalSlider1, window.verticalSlider2, window.verticalSlider3, window.verticalSlider4\
+        = QSlider(Qt.Horizontal), QSlider(Qt.Horizontal), QSlider(Qt.Horizontal), QSlider(Qt.Horizontal)
     window.verticalSlider1.setAccessibleName('verticalSlider1')
     window.verticalSlider1.setRange(2, 100)
     window.verticalSlider1.setSliderPosition(20)
@@ -1577,16 +1591,31 @@ def setupGUI(window=window):
     window.verticalSlider2.setRange(0, 100)
     window.verticalSlider2.setSliderPosition(100)
     window.verticalSlider2.setToolTip('Brush Opacity')
-    for slider in [window.verticalSlider1, window.verticalSlider2]:
+    window.verticalSlider3.setAccessibleName('verticalSlider3')
+    window.verticalSlider3.setRange(0, 100)
+    window.verticalSlider3.setSliderPosition(100)
+    window.verticalSlider3.setToolTip('Brush Hardness')
+    window.verticalSlider4.setAccessibleName('verticalSlider4')
+    window.verticalSlider4.setRange(0, 100)
+    window.verticalSlider4.setSliderPosition(100)
+    window.verticalSlider4.setToolTip('Brush Flow')
+    brushes = initBrushes()
+    window.brushCombo = QComboBox()
+    for b in brushes[:-1]:  # don't add eraser to combo
+        window.brushCombo.addItem(b.name, b)
+    for slider in [window.verticalSlider1, window.verticalSlider2, window.verticalSlider3, window.verticalSlider4]:
         slider.setTickPosition(QSlider.TicksBelow)
-        slider.setMaximumSize(150, 15)
+        slider.setMaximumSize(100, 15)
         toolBar.addWidget(slider)
         empty = QWidget()
         empty.setFixedHeight(30)
         empty.setFixedWidth(50)
         empty.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         toolBar.addWidget(empty)
-    # link tooLBar to the main group of tool buttons
+    toolBar.addWidget(window.brushCombo)
+    # record the (initial) current brush
+    brushUpdate()
+    # link tooLBar to the group of tool buttons
     for button in window.drawFG.group().buttons():
         button.toolBar = toolBar
     window.addToolBar(toolBar)

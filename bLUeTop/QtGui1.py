@@ -24,10 +24,12 @@ from PySide2.QtCore import QSettings, Qt, QRect, QRectF, QEvent, QPointF
 import sys
 
 from PySide2.QtGui import QScreen, QPainter, QFont, QPainterPath, QColor, QBrush, QContextMenuEvent, QImage, QPen, \
-    QCursor
+    QCursor, QPixmap, QRegion
 from PySide2.QtWidgets import QApplication, QLabel, QMainWindow, QSizePolicy
 
+from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.dialog import dlgWarn
+from bLUeTop.drawing import bLUeFloodFill
 from bLUeTop.pyside_dynamicLoader import loadUi
 from bLUeTop.settings import MAX_ZOOM
 from bLUeTop.splittedView import splittedWindow
@@ -315,6 +317,43 @@ State = {'ix': 0, 'iy': 0, 'ix_begin': 0, 'iy_begin': 0}
 # Before/After view
 splittedWin = splittedWindow(window)
 
+def brushUpdate(mouseState=State):
+    """
+    Records the current brush defined by the tool context in mouseState.
+    @param mouseState:
+    @type mouseState: dict
+    @return: current brush size
+    @rtype: int
+    """
+    bSize = window.verticalSlider1.value()
+    bOpacity = window.verticalSlider2.value() / 100
+    bHardness = window.verticalSlider3.value() / 100
+    bFlow = window.verticalSlider4.value() / 100
+    if getattr(window, 'colorChooser', None):
+        bColor = window.colorChooser.selectedColor()
+    else:
+        bColor = Qt.black
+    mouseState['brush'] = window.brushCombo.currentData().getBrush(bSize, bOpacity, bColor, bHardness, bFlow)
+    return bSize
+
+def syncBrush(zooming, window=window):
+    """
+    Sync current brush with tool bar and zoom coeff.
+    Overrides the application cursor with the brush cursor.
+    @param zooming:
+    @type zooming: float
+    @param window:
+    @type window:
+    """
+    bSize = brushUpdate()
+    if bSize > 10:
+        cursor = QCursor(State['brush']['cursor'].scaled(bSize * zooming, bSize * zooming), hotX=0, hotY=0)  # window.cursor_Circle_Pixmap.scaled(w * 2.0, w * 2.0), hotX=w, hotY=w))
+    else:
+        cursor = Qt.CrossCursor
+    if QApplication.overrideCursor():
+        QApplication.changeOverrideCursor(cursor)
+    else:
+        QApplication.setOverrideCursor(cursor)
 
 def mouseEvent(widget, event, qp=qp, window=window):  # TODO split into 3 handlers
     """
@@ -359,6 +398,16 @@ def mouseEvent(widget, event, qp=qp, window=window):  # TODO split into 3 handle
         State['ix'], State['iy'] = x, y
         State['ix_begin'], State['iy_begin'] = x, y
         State['x_imagePrecPos'], State['y_imagePrecPos'] = (x - img.xOffset) // r, (y - img.yOffset) // r
+        if layer.isDrawLayer():
+            if window.btnValues['brushButton'] or window.btnValues['bucket']:
+                layer.history.addItem(layer.sourceImg.copy())
+                # starting new stroke : save initial image for atomic stroke painting  and init intermediate layer
+                layer.strokeDest = layer.sourceImg.copy()
+                layer.stroke.fill(QColor(0, 0, 0, 0))
+                if window.btnValues['brushButton']:
+                    syncBrush(r)
+            if window.btnValues['eraserButton']:
+                layer.stroke = layer.sourceImg.copy()
         # add current mask to history
         if window.btnValues['drawFG'] or window.btnValues['drawBG']:
             if layer.maskIsEnabled:
@@ -401,7 +450,58 @@ def mouseEvent(widget, event, qp=qp, window=window):  # TODO split into 3 handle
                 w = abs(State['ix_begin'] - x) // r
                 h = abs(State['iy_begin'] - y) // r
                 layer.rect = QRect(x_img, y_img, w, h)
-            # drawing tools
+            # drawing tool
+            elif layer.isDrawLayer():
+                if window.btnValues['brushButton'] or window.btnValues['eraserButton']:
+                    tmp_x = (x - img.xOffset) // r
+                    tmp_y = (y - img.yOffset) // r
+                    radius = State['brush']['size'] / 2
+                    # paint the brush tips spaced by 0.25 * radius (using 1-norm for the sake of performance)
+                    a_x, a_y = tmp_x - State['x_imagePrecPos'], tmp_y - State['y_imagePrecPos']
+                    d = abs(a_x) + abs(a_y)
+                    x, y = State['x_imagePrecPos'], State['y_imagePrecPos']
+                    # drawing into stroke intermediate layer
+                    if  window.btnValues['brushButton']:
+                        cp = layer.stroke
+                        qp.begin(cp)
+                        qp.setCompositionMode(qp.CompositionMode_SourceOver)
+                        step = 1 if d == 0 else radius * 0.25 / d
+                        count = 0
+                        while count * step < 1:
+                            count += 1
+                            qp.drawPixmap(QPointF(x, y), State['brush']['pixmap'])
+                            x, y = x + a_x * step, y + a_y * step
+                        qp.end()
+                        # paint the whole stroke with current brush opacity
+                        layer.sourceImg = layer.strokeDest.copy()
+                        qp.begin(layer.sourceImg)
+                        qp.setOpacity(State['brush']['opacity'])
+                        qp.setCompositionMode(qp.CompositionMode_SourceOver)
+                        qp.drawImage(QPointF(0, 0), layer.stroke)
+                        qp.end()
+                    elif window.btnValues['eraserButton']:
+                        cp = layer.stroke
+                        qp.begin(cp)
+                        qp.setCompositionMode(qp.CompositionMode_DestinationIn)
+                        step = 1 if d == 0 else radius * 0.25 / d
+                        count = 0
+                        while count * step < 1:
+                            count += 1
+                            qp.drawPixmap(QPointF(x, y), State['brush']['pixmap'])
+                            x, y = x + a_x * step, y + a_y * step
+                        qp.end()
+                        layer.sourceImg = layer.strokeDest.copy()
+                        qp.begin(layer.sourceImg)
+                        qp.setOpacity(State['brush']['opacity'])
+                        qp.setCompositionMode(qp.CompositionMode_SourceOver)
+                        qp.drawImage(QPointF(0, 0), layer.stroke)
+                        qp.end()
+                State['x_imagePrecPos'], State['y_imagePrecPos'] = tmp_x, tmp_y
+                # update layer - should be layer.applyToStack() if any upper layer visible : too slow !
+                #layer.updatePixmap()
+                layer.execute()
+                img.prLayer.applyNone()
+                window.label.repaint()
             elif window.btnValues['drawFG'] or window.btnValues['drawBG']:
                 if layer.maskIsEnabled:
                     toolOpacity = window.verticalSlider2.value() / 100
@@ -441,7 +541,7 @@ def mouseEvent(widget, event, qp=qp, window=window):  # TODO split into 3 handle
                     ############################
                     # update upper stack
                     # should be layer.applyToStack() if any upper layer visible : too slow
-                    layer.updatePixmap()  # maskOnly=True not used: removed
+                    layer.updatePixmap()
                     #############################
                     img.prLayer.applyNone()
                     window.label.repaint()
@@ -520,6 +620,14 @@ def mouseEvent(widget, event, qp=qp, window=window):  # TODO split into 3 handle
                         if window.btnValues['rectangle'] and (modifiers == Qt.ControlModifier):
                                 layer.rect = None
                                 layer.selectionChanged.sig.emit()
+                        # Flood fill tool
+                        if layer.isDrawLayer() and window.btnValues['bucket']:
+                            if getattr(window, 'colorChooser', None):
+                                bucketColor = window.colorChooser.selectedColor()
+                            else:
+                                bucketColor = Qt.black
+                            bLUeFloodFill(layer, int(x_img), int(y_img), bucketColor)
+                            layer.applyToStack()
                         # for raw layer, set multipliers to get selected pixel as White Point : NOT USED YET
                         if layer.isRawLayer() and window.btnValues['colorPicker']:
                             # get demosaic buffer and sample raw pixels
@@ -588,6 +696,8 @@ def wheelEvent(widget, img, event, window=window):
         # under the cursor : (pos - offset) / resize_coeff is invariant
         img.xOffset = -pos.x() * numSteps + (1.0+numSteps)*img.xOffset
         img.yOffset = -pos.y() * numSteps + (1.0+numSteps)*img.yOffset
+        if layer.isDrawLayer() and window.btnValues['brushButton']: #  or window.btnValues['bucket']):
+            syncBrush(img.resize_coeff(widget))
         if window.btnValues['Crop_Button']:
             window.cropTool.drawCropTool(img)
         if layer.isGeomLayer():
@@ -626,16 +736,19 @@ def enterEvent(widget, img, event, window=window):
     if QApplication.overrideCursor():
         # don't stack multiple cursors
         return
+    # tool cursors
+    w = window.verticalSlider1.value()
+    layer = window.label.img.getActiveLayer()
     if window.btnValues['drawFG'] or window.btnValues['drawBG']:
-        w = window.verticalSlider1.value()
-        if w > 5:
+        if w > 10:
             QApplication.setOverrideCursor(QCursor(window.cursor_Circle_Pixmap.scaled(w * 2.0, w * 2.0), hotX=w, hotY=w))
         else:
             QApplication.setOverrideCursor(Qt.CrossCursor)
+    elif layer.isDrawLayer() and window.btnValues['brushButton'] or window.btnValues['eraserButton']:
+        syncBrush(img.resize_coeff(widget))
     elif window.btnValues['drag']:
         QApplication.setOverrideCursor(Qt.OpenHandCursor)
     elif window.btnValues['colorPicker']:
-        layer = window.label.img.getActiveLayer()
         if layer.isAdjustLayer():
             if layer.view.isVisible():
                 QApplication.setOverrideCursor(window.cursor_EyeDropper)
@@ -643,7 +756,6 @@ def enterEvent(widget, img, event, window=window):
 
 def leaveEvent(widget, img, event):
     QApplication.restoreOverrideCursor()
-
 
 def set_event_handlers(widg, enterAndLeave=True):
     """

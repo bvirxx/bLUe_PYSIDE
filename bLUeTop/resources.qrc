@@ -1,5 +1,7 @@
 <RCC>
   <qresource prefix="images">
+    <file>resources/icons8-gomme-30.png</file>
+    <file>resources/icons8-pinceau-de-maquillage-24.png</file>
     <file>resources/Mouse_pointer_small.png</file>
     <file>resources/eye-icon.png</file>
     <file>resources/eye-icon-strike.png</file>
@@ -12,5 +14,6 @@
     <file>resources/1465232786_f-zoom-out_128.png</file>
     <file>resources/Eyedropper-icon.png</file>
     <file>resources/cursor_circle.png</file>
+    <file>resources/icons8-windows-metro-26.png</file>
   </qresource>
 </RCC>

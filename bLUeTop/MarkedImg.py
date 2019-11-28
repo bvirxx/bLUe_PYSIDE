@@ -986,6 +986,9 @@ class QLayer(vImage):
     def isRawLayer(self):
         return 'RAW' in self.role
 
+    def isDrawLayer(self):
+        return 'DRW' in self.role
+
     def updatePixmap(self, maskOnly=False):
         """
         Synchronize rPixmap with the layer image and mask.
@@ -1377,18 +1380,50 @@ class QCloningLayer(QLayer):
 
 class QLayerImage(QLayer):
     """
-    QLayer containing its own source image
+    QLayer containing a source image.
+    The input image built from the stack is merged with the source image,
+    using the blending mode and opacity of the layer.
+    The source image is resized to fit the size of the current document.
     """
-    @classmethod
-    def fromImage(cls, mImg, parentImage=None, sourceImg=None):
+    @staticmethod
+    def fromImage(mImg, parentImage=None, sourceImg=None):
         layer = QLayerImage(QImg=mImg, parentImage=parentImage)
         layer.parentImage = parentImage
         layer.sourceImg = sourceImg
+        # drawing buffers
+        if sourceImg is not None:
+            # intermediate layer
+            layer.stroke = QImage(sourceImg.size(), sourceImg.format())
+            # atomic stroke painting is needed to handle brush opacity
+            layer.strokeDest = None
+        # undo/redo functionality
+        layer.history = historyList()
         return layer
 
     def __init__(self, *args, **kwargs):
-        self.sourceImg = QImage()
+        self.sourceImg = None
         super().__init__(*args, **kwargs)
+
+    def inputImg(self, redo=True):
+        """
+        Overrides QLayer.inputImg()
+        @return:
+        @rtype: QImage
+        """
+        img1 = super().inputImg()
+        # merging with sourceImg
+        qp = QPainter(img1)
+        qp.setOpacity(self.opacity)
+        qp.setCompositionMode(self.compositionMode)
+        qp.drawImage(QRect(0, 0, img1.width(), img1.height()), self.sourceImg)
+        return img1
+    """
+    def undo(self):
+        self.sourceImg = self.history.undo(saveitem=self.sourceImg)
+
+    def redo(self):
+        self.sourceImg = self.history.redo()
+    """
 
     def bTransformed(self, transformation, parentImage):
         """
@@ -1400,20 +1435,11 @@ class QLayerImage(QLayer):
         @return: transformed layer
         @rtype: QLayerImage
         """
-
         tLayer = super().bTransformed(transformation, parentImage)
         if tLayer.tool is not None:
             tLayer.tool.layer = tLayer
             tLayer.tool.img = tLayer.parentImage
         return tLayer
-
-    def inputImg(self, redo=True):
-        """
-        Overrides QLayer.inputImg()
-        @return:
-        @rtype: QImage
-        """
-        return self.sourceImg.scaled(self.getCurrentImage().size())
 
 
 class QRawLayer(QLayer):
