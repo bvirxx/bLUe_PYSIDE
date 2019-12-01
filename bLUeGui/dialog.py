@@ -22,7 +22,7 @@ from PySide2.QtCore import Qt, QDir
 from os.path import isfile
 
 from PySide2.QtWidgets import QMessageBox, QPushButton, QFileDialog, QDialog, QSlider, QVBoxLayout, QHBoxLayout, QLabel, \
-    QCheckBox
+    QCheckBox, QFormLayout, QLineEdit, QDialogButtonBox
 from bLUeTop.utils import QbLUeSlider
 
 ##################
@@ -32,6 +32,45 @@ IMAGE_FILE_EXTENSIONS = (".jpg", ".JPG", ".png", ".PNG", ".tif", ".TIF", ".bmp",
 RAW_FILE_EXTENSIONS = (".nef", ".NEF", ".dng", ".DNG", ".cr2", ".CR2")
 IMAGE_FILE_NAME_FILTER = ['Image Files (*.jpg *.png *.tif *.JPG *.PNG *.TIF)']
 #################
+
+
+class dimsInputDialog(QDialog):
+    """
+    Simple input Dialog for image width and height.
+    """
+    def __init__(self, dims):
+        """
+
+        @param dims: {'w': width, 'h': height}
+        @type dims: dict
+        """
+        super().__init__()
+        self.setAttribute(Qt.WA_DeleteOnClose)
+        self.setWindowTitle('Image Dimensions')
+        self.dims = dims
+        fLayout = QFormLayout()
+        self.fields = []
+        for i in range(2):
+            lineEdit = QLineEdit()
+            label = "Width (px)" if i == 0 else "Height (px)"
+            fLayout.addRow(label, lineEdit)
+            self.fields.append(lineEdit)
+        buttonBox = QDialogButtonBox(QDialogButtonBox.Ok, Qt.Horizontal)
+        fLayout.addRow(buttonBox)
+        self.setLayout(fLayout)
+        buttonBox.accepted.connect(self.accept)
+
+    def accept(self):
+        """
+        button slot
+        """
+        try:
+            self.dims['w'] = int(self.fields[0].text())
+            self.dims['h'] = int(self.fields[1].text())
+        except ValueError:
+            pass
+        super().accept()
+
 
 def dlgInfo(text, info=''):
     """
@@ -48,6 +87,7 @@ def dlgInfo(text, info=''):
     msg.setInformativeText(info)
     msg.exec_()
 
+
 def dlgWarn(text, info=''):
     """
     Shows a simple warning dialog.
@@ -62,6 +102,7 @@ def dlgWarn(text, info=''):
     msg.setText(text)
     msg.setInformativeText(info)
     msg.exec_()
+
 
 def saveChangeDialog(img):
     """
@@ -78,6 +119,7 @@ def saveChangeDialog(img):
     reply.setDefaultButton(QMessageBox.Save)
     ret = reply.exec_()
     return ret
+
 
 class savingDialog(QDialog):
     """
@@ -124,6 +166,7 @@ class savingDialog(QDialog):
         l.addLayout(h)
         self.setLayout(l)
         # file dialog close event handler
+
         def f():
             self.close()
         self.dlg.finished.connect(f)
@@ -219,15 +262,19 @@ def saveDlg(img, mainWidget):
     else:
         raise ValueError("Saving Operation Failure")
 
+
 def openDlg(mainWidget, ask=True, multiple=False):
     """
-    Returns a file name or None.
+    if multiple is true returns a list of file names,
+     otherwise returns a file name or None.
     @param mainWidget:
     @type mainWidget:
     @param ask:
     @type ask:
+    @param multiple:
+    @type multiple: boolean
     @return:
-    @rtype:
+    @rtype: string or list of strings
     """
     if ask and mainWidget.label.img.isModified:
         ret = saveChangeDialog(mainWidget.label.img)
@@ -253,3 +300,4 @@ def openDlg(mainWidget, ask=True, multiple=False):
         newDir = dlg.directory().absolutePath()
         mainWidget.settings.setValue('paths/dlgdir', newDir)
         return filenames[0]
+    return None
