@@ -134,13 +134,13 @@ from types import MethodType
 import rawpy
 
 from bLUeCore.bLUeLUT3D import HaldArray
-from bLUeTop.drawing import brushFamily, initBrushes
+from bLUeTop.drawing import initBrushes
 from bLUeTop.graphicsDraw import drawForm
 from bLUeTop.graphicsHDRMerge import HDRMergeForm
 from bLUeTop.graphicsSegment import segmentForm
 from PySide2.QtCore import QUrl, QSize, QFileInfo
 from PySide2.QtGui import QPixmap, QCursor, QKeySequence, QDesktopServices, QFont, \
-    QTransform, QColor, QImage, QPainterPath
+    QTransform, QColor, QImage
 from PySide2.QtWidgets import QApplication, QAction, \
     QMainWindow, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QWidget, \
     QStyle, QTabWidget, QToolBar, QComboBox
@@ -410,11 +410,13 @@ def addRawAdjustmentLayer(window=window):
     window.tableView.setLayers(window.label.img)
 
 
-def loadImage(img, window=window):
+def loadImage(img, withBasic=True, window=window):
     """
     load a vImage into bLUe
     @param img:
     @type img: vImage
+    @param withBasic:
+    @type withBasic: boolean
     @param window:
     @type window: QWidget
     """
@@ -426,7 +428,8 @@ def loadImage(img, window=window):
     if img.rawImage is not None:
         addRawAdjustmentLayer()
     # add default adjustment layers
-    addBasicAdjustmentLayers(img)
+    if withBasic:
+        addBasicAdjustmentLayers(img)
     # updates
     img.layersStack[0].applyToStack()
     img.onImageChanged()
@@ -612,8 +615,28 @@ def menuFile(name, window=window):
     @param window:
     @type window: QWidget
     """
+    # new image
+    if name == 'actionNew_2':
+        # close open document, if any
+        if not closeFile():
+            return
+        img = None
+        cb = QApplication.clipboard()
+        Qimg = cb.image()
+        if not Qimg.isNull():
+            img = imImage(QImg=Qimg)
+        else:
+            dims = {'w': 200, 'h': 200}
+            dlg = dimsInputDialog(dims)
+            if dlg.exec_():
+                imgNew = QImage(dims['w'], dims['h'], QImage.Format_ARGB32)
+                imgNew.fill(Qt.white)
+                img = imImage(QImg=imgNew)
+        if img is None:
+            return
+        loadImage(img, withBasic=False)
     # load image from file
-    if name in ['actionOpen']:
+    elif name in ['actionOpen']:
         # get file name from dialog
         filename = openDlg(window)
         # open file
@@ -978,7 +1001,7 @@ def menuLayer(name, window=window):
         w, h = processedImg.width(), processedImg.height()
         imgNew = QImage(w, h, QImage.Format_ARGB32)
         #imgNew.fill(Qt.white)
-        imgNew.fill(QColor(0,0,0,0))
+        imgNew.fill(QColor(0, 0, 0, 0))
         lname = 'Drawing'
         layer = window.label.img.addAdjustmentLayer(name=lname, sourceImg=imgNew, role='DRW')
         grWindow = drawForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
@@ -1586,24 +1609,28 @@ def setupGUI(window=window):
     window.verticalSlider1.setAccessibleName('verticalSlider1')
     window.verticalSlider1.setRange(2, 100)
     window.verticalSlider1.setSliderPosition(20)
-    window.verticalSlider1.setToolTip('Brush Size')
+    window.verticalSlider1.setToolTip('Size')
     window.verticalSlider2.setAccessibleName('verticalSlider2')
     window.verticalSlider2.setRange(0, 100)
     window.verticalSlider2.setSliderPosition(100)
-    window.verticalSlider2.setToolTip('Brush Opacity')
+    window.verticalSlider2.setToolTip('Opacity')
     window.verticalSlider3.setAccessibleName('verticalSlider3')
     window.verticalSlider3.setRange(0, 100)
     window.verticalSlider3.setSliderPosition(100)
-    window.verticalSlider3.setToolTip('Brush Hardness')
+    window.verticalSlider3.setToolTip('Hardness')
     window.verticalSlider4.setAccessibleName('verticalSlider4')
     window.verticalSlider4.setRange(0, 100)
     window.verticalSlider4.setSliderPosition(100)
-    window.verticalSlider4.setToolTip('Brush Flow')
-    brushes = initBrushes()
+    window.verticalSlider4.setToolTip('Flow')
+    # get brush and eraser families
+    window.brushes = initBrushes()
     window.brushCombo = QComboBox()
-    for b in brushes[:-1]:  # don't add eraser to combo
+    for b in window.brushes[:-1]:  # don't add eraser to combo
         window.brushCombo.addItem(b.name, b)
+    # init tool bar
+    toolBar.addWidget(QLabel(' Brush  '))
     for slider in [window.verticalSlider1, window.verticalSlider2, window.verticalSlider3, window.verticalSlider4]:
+        toolBar.addWidget(QLabel(slider.toolTip() + '  '))
         slider.setTickPosition(QSlider.TicksBelow)
         slider.setMaximumSize(100, 15)
         toolBar.addWidget(slider)

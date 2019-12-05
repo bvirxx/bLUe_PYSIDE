@@ -733,6 +733,7 @@ Screen</string>
      </property>
      <addaction name="actionSub"/>
     </widget>
+    <addaction name="actionNew_2"/>
     <addaction name="actionOpen"/>
     <addaction name="actionSave"/>
     <addaction name="menuOpen_recent"/>
@@ -789,7 +790,6 @@ Screen</string>
      <addaction name="action90_CCW"/>
      <addaction name="action180"/>
     </widget>
-    <addaction name="actionNew"/>
     <addaction name="menuColor_settings"/>
     <addaction name="actionImage_info"/>
     <addaction name="menuImage_Rotation"/>
@@ -1258,6 +1258,11 @@ Screen</string>
   <action name="actionNew_Drawing_Layer">
    <property name="text">
     <string>New Drawing Layer</string>
+   </property>
+  </action>
+  <action name="actionNew_2">
+   <property name="text">
+    <string>New...</string>
    </property>
   </action>
  </widget>
