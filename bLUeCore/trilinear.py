@@ -17,6 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import numpy as np
 
+
 def interpTriLinear(LUT, LUTSTEP, ndImg, convert=True):
     """
     Implement a vectorized version of trilinear interpolation.
@@ -68,9 +69,9 @@ def interpTriLinear(LUT, LUTSTEP, ndImg, convert=True):
     s = LUT.shape
     st = np.array(LUT.strides)
     st = st // st[-1]  # we count items instead of bytes
-    flatIndex = np.ravel_multi_index((r0[...,np.newaxis],
-                                      g0[...,np.newaxis],
-                                      b0[...,np.newaxis],
+    flatIndex = np.ravel_multi_index((r0[..., np.newaxis],
+                                      g0[..., np.newaxis],
+                                      b0[..., np.newaxis],
                                       np.arange(s[-1])),
                                       s)  # broadcasted to shape (w,h,3)
 
@@ -108,7 +109,7 @@ def interpTriLinear(LUT, LUTSTEP, ndImg, convert=True):
 
     gamma = ndImgF[:, :, 2] - b0
     # gamma = np.dstack((gamma, gamma, gamma))
-    gamma = gamma[...,np.newaxis]
+    gamma = gamma[..., np.newaxis]
 
     IValue = I2Value + gamma * (I1Value - I2Value)  # (1 - gamma) * I2Value + gamma * I1Value
 

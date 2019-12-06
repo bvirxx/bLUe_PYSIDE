@@ -470,6 +470,8 @@ class optionsWidget(QListWidget):
     def eventFilter(self, target, e):
         """
         Filter mouse events on disabled items
+        @param target:
+        @type target:
         @param e:
         @type e:
         """
@@ -537,8 +539,6 @@ class optionsWidget(QListWidget):
     @property
     def checkedItems(self):
         return [self.item(i) for i in range(self.count()) if self.item(i).checkState() == Qt.Checked]
-
-
 
 
 def checkeredImage(format=QImage.Format_ARGB32):

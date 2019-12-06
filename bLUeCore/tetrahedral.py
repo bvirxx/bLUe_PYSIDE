@@ -120,7 +120,7 @@ def interpTetra(LUT, LUTSTEP, ndImg, convert=True):
     X5 = oneMinusFR - fBR * ndImg01 - fGB * ndImg11 + fG  # fR >=fB >=fG
 
     Y1 = np.select(
-                [C2 * C3, C3 * C1, np.logical_not(np.logical_or(C1, C2)), C1 * C2, np.logical_not(np.logical_or(C1,C3))],
+                [C2 * C3, C3 * C1, np.logical_not(np.logical_or(C1, C2)), C1 * C2, np.logical_not(np.logical_or(C1, C3))],
                 [X0, X1, X2, X3, X4],  # clockwise ordering: X3, X5, X1, X2, X0, X4
                 default=X5
                 )

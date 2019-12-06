@@ -52,7 +52,7 @@ def interpMulti(LUT, LUTSTEP, ndImg, pool=None, use_tetra=False, convert=True):
     sl_w = [slice((w * i) // SLF, (w * (i+1)) // SLF) for i in range(SLF)]
     sl_h = [slice((h * i) // SLF, (h * (i + 1)) // SLF) for i in range(SLF)]
 
-    slices = [ (s1, s2) for s1 in sl_w for s2 in sl_h]
+    slices = [(s1, s2) for s1 in sl_w for s2 in sl_h]
     imgList = [ndImg[s2, s1] for s1, s2 in slices]
     if pool is None:
         raise ValueError('interpMulti: no processing pool')
@@ -63,9 +63,10 @@ def interpMulti(LUT, LUTSTEP, ndImg, pool=None, use_tetra=False, convert=True):
     outImg = np.empty(ndImg.shape)
     # collect results
     for i, (s1, s2) in enumerate(slices):
-            outImg[s2, s1] = res[i]
+        outImg[s2, s1] = res[i]
     # np.clip(outImg, 0, 255, out=outImg) # chunks are already clipped
     return outImg
+
 
 def chosenInterp(pool, size):
     """
@@ -82,3 +83,4 @@ def chosenInterp(pool, size):
     else:
         interp = interpTetra if USE_TETRA else interpTriLinear
     return interp
+

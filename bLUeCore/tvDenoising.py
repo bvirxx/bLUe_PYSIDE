@@ -16,13 +16,14 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
+import numpy as np
+
 """
 Credit : Michael Beyeler
 http://www.askaswiss.com/2016/12/how-to-denoise-images-in-python.html
 LICENSE CC-BY 4.0 Cf. https://creativecommons.org/licenses/by/4.0/
 """
 
-import numpy as np
 
 def denoise(img, weight=0.1, eps=1e-3, num_iter_max=200):
     """Perform total-variation denoising on a grayscale image.
@@ -52,7 +53,6 @@ def denoise(img, weight=0.1, eps=1e-3, num_iter_max=200):
     -----
     Rudin, Osher and Fatemi algorithm.
     """
-
 
     u = np.zeros_like(img)
     px = np.zeros_like(img)

@@ -29,7 +29,7 @@ from .spline import interpolationCubSpline, interpolationQuadSpline, displacemen
 
 
 class channelValues:
-    RGB, Red, Green, Blue =[0, 1, 2], [0], [1], [2]
+    RGB, Red, Green, Blue = [0, 1, 2], [0], [1], [2]
     HSB, Hue, Sat, Br = [0, 1, 2], [0], [1], [2]
     Lab, L, a, b = [0, 1, 2], [0], [1], [2]
 
@@ -62,7 +62,7 @@ class activePoint(QGraphicsPathItem):
         self.clicked = False
         self.setPen(QPen(color, 2))
         # filling brush
-        if fillColor is not  None:
+        if fillColor is not None:
             self.setBrush(QBrush(fillColor))
         qpp = QPainterPath()
         # coordinates are relative to activePoint
@@ -146,7 +146,7 @@ class activeTriangle(QGraphicsPathItem):
         # get scene current spline
         sc = self.scene()
         # get parent spline
-        activeSpline = self.parentItem() # sc.cubicItem
+        activeSpline = self.parentItem()  # sc.cubicItem
         # click event : remove point
         if self.clicked:
             if self.persistent:
@@ -164,6 +164,7 @@ class activeTriangle(QGraphicsPathItem):
     def hoverLeaveEvent(self, *args, **kwargs):
         self.setPen(QPen(QColor(255, 255, 255), 2))
         self.update()
+
 
 class activeSplinePoint(activePoint):
     """
@@ -478,14 +479,14 @@ class activeBSpline(activeSpline):
         axeSize = self.size
         yZero = self.yZero
         try:
-            X=[]
+            X = []
             for item in self.fixedPoints:
                 X.extend([item.B.x() + item.x(), item.C.x() + item.x()])
             X = np.array(X)
             Y = np.array([-(item.A.y() + item.y()) for item in self.fixedPoints]) + yZero
             T = displacementSpline(X, Y, self.xCoords,
                                    clippingInterval=[-self.scene().axeSize, 0], period=self.period)
-            self.spline = [QPointF(x, y + yZero)  for x, y in zip(self.xCoords, -T)]  # scene coord.
+            self.spline = [QPointF(x, y + yZero) for x, y in zip(self.xCoords, -T)]  # scene coord.
             # build path
             polygon = QPolygonF(self.spline)
             qpp = QPainterPath()
@@ -529,7 +530,7 @@ class activeCubicSpline(activeSpline):
         # interpolate
         try:
             # interpolationCubSpline raises an exception if two points have identical x-coordinates
-            self.spline = interpolationCubSpline(np.array(X), np.array(Y), clippingInterval= [-self.scene().axeSize, 0])
+            self.spline = interpolationCubSpline(np.array(X), np.array(Y), clippingInterval=[-self.scene().axeSize, 0])
             # set the curve constant outside ]X0..X1[
             for P in self.spline:
                 if P.x() < X0:
@@ -734,7 +735,7 @@ class graphicsSplineForm(graphicsCurveForm):
         graphicsScene.quadricB = curve
         curve.channel = channelValues.Br
         curve.histImg = graphicsScene.layer.inputImg().histogram(size=graphicsScene.axeSize, bgColor=graphicsScene.bgColor,
-                                                       range=(0,255), chans=channelValues.Br)  # , mode='Luminosity')
+                                                       range=(0, 255), chans=channelValues.Br)  # , mode='Luminosity')
         curve.initFixedPoints()
         # set current curve
         graphicsScene.cubicItem = graphicsScene.quadricB

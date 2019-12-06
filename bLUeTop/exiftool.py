@@ -224,7 +224,7 @@ class ExifTool(object):
         @rtype: QImage
         """
         thumbnail = self.readBinaryData(f, tagname=thumbname)
-        return QImage.fromData(QByteArray.fromRawData(thumbnail), 'JPG')
+        return QImage.fromData(QByteArray.fromRawData(thumbnail), 'JPG')  # Pyside2 fromRawData takes 1 arg only
 
     def writeThumbnail(self, filename, thumbfile):
         """
@@ -362,6 +362,7 @@ def decodeExifOrientation(value):
     else:
         raise ValueError("decodeExifOrientation : unhandled orientation tag: %d" % value)
     return tr
+
 
 def readExpTime(filename):
     """

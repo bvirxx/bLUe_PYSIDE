@@ -53,10 +53,10 @@ class HVLUT2DForm(graphicsCurveForm):
         text.setPos(-40, 10)
         text = graphicsScene.addText('delta H')
         text.setDefaultTextColor(Qt.white)
-        text.setPos(-40, -self.axeSize  // 4)
+        text.setPos(-40, -self.axeSize // 4)
         text = graphicsScene.addText('delta B')
         text.setDefaultTextColor(Qt.white)
-        text.setPos(-40, -(self.axeSize * 3) //  4)
+        text.setPos(-40, -(self.axeSize * 3) // 4)
 
         dSplineItem = activeBSpline(axeSize, period=axeSize, yZero=-axeSize // 4)
         graphicsScene.addItem(dSplineItem)
@@ -204,7 +204,7 @@ class HVLUT2DForm(graphicsCurveForm):
         color = self.scene().targetImage.getActivePixel(x, y, qcolor=True)
         h = color.hsvHue()
         if modifiers & QtCore.Qt.ControlModifier:
-            self.marker.setPos(h * 300/360, 0) # -(self.axeSize * 3) // 4)
+            self.marker.setPos(h * 300/360, 0)  # -(self.axeSize * 3) // 4)
             self.markerLabel.setText("%d" % h)
             self.update()
 

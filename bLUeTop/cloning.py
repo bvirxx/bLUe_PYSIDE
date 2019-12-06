@@ -21,13 +21,15 @@ from PySide2.QtCore import QRect
 from bLUeTop.utils import array2DSlices
 import numpy as np
 
+
 def show(bufList):
     i = 0
     for buf in bufList:
-        cv2.namedWindow("output%d" %i, cv2.WINDOW_NORMAL)
-        cv2.imshow("output%d" %i, buf)
+        cv2.namedWindow("output%d" % i, cv2.WINDOW_NORMAL)
+        cv2.imshow("output%d" % i, buf)
         i += 1
     cv2.waitKey(0)
+
 
 def createLineIterator(P1, P2, img):
     """
@@ -54,54 +56,56 @@ def createLineIterator(P1, P2, img):
     dYa = np.abs(dY)
 
     # predefine numpy array for output based on distance between points
-    itbuffer = np.empty(shape=(np.maximum(dYa,dXa),3),dtype=np.float32)
+    itbuffer = np.empty(shape=(np.maximum(dYa, dXa), 3),dtype=np.float32)
     itbuffer.fill(np.nan)
 
     # Obtain coordinates along the line using a form of Bresenham's algorithm
     negY = P1Y > P2Y
     negX = P1X > P2X
-    if P1X == P2X: #vertical line segment
+    if P1X == P2X:  # vertical line segment
         itbuffer[:, 0] = P1X
         if negY:
-            itbuffer[:, 1] = np.arange(P1Y - 1,P1Y - dYa - 1,-1)
+            itbuffer[:, 1] = np.arange(P1Y - 1, P1Y - dYa - 1, -1)
         else:
-            itbuffer[:, 1] = np.arange(P1Y+1,P1Y+dYa+1)
-    elif P1Y == P2Y: #horizontal line segment
+            itbuffer[:, 1] = np.arange(P1Y + 1, P1Y + dYa +1)
+    elif P1Y == P2Y: # horizontal line segment
         itbuffer[:, 1] = P1Y
         if negX:
-            itbuffer[:, 0] = np.arange(P1X-1,P1X-dXa-1,-1)
+            itbuffer[:, 0] = np.arange(P1X - 1, P1X - dXa - 1, -1)
         else:
-            itbuffer[:, 0] = np.arange(P1X+1,P1X+dXa+1)
-    else: #diagonal line segment
+            itbuffer[:, 0] = np.arange(P1X + 1, P1X + dXa + 1)
+    else:  # diagonal line segment
         steepSlope = dYa > dXa
         if steepSlope:
-            slope = dX.astype(np.float32)/dY.astype(np.float32)
+            slope = dX.astype(np.float32) / dY.astype(np.float32)
             if negY:
-                itbuffer[:,1] = np.arange(P1Y-1,P1Y-dYa-1,-1)
+                itbuffer[:, 1] = np.arange(P1Y - 1, P1Y - dYa - 1, -1)
             else:
-                itbuffer[:,1] = np.arange(P1Y+1,P1Y+dYa+1)
-            itbuffer[:,0] = (slope*(itbuffer[:,1]-P1Y)).astype(np.int) + P1X
+                itbuffer[:, 1] = np.arange(P1Y + 1, P1Y + dYa + 1)
+            itbuffer[:, 0] = (slope*(itbuffer[:, 1] - P1Y)).astype(np.int) + P1X
         else:
             slope = dY.astype(np.float32)/dX.astype(np.float32)
             if negX:
-                itbuffer[:, 0] = np.arange(P1X-1,P1X-dXa-1,-1)
+                itbuffer[:, 0] = np.arange(P1X - 1,P1X - dXa - 1, -1)
             else:
-                itbuffer[:, 0] = np.arange(P1X+1,P1X+dXa+1)
-            itbuffer[:, 1] = (slope*(itbuffer[:, 0]-P1X)).astype(np.int) + P1Y
+                itbuffer[:, 0] = np.arange(P1X + 1,P1X + dXa + 1)
+            itbuffer[:, 1] = (slope*(itbuffer[:, 0] - P1X)).astype(np.int) + P1Y
 
     # Remove points outside of image
     colX = itbuffer[:, 0]
     colY = itbuffer[:, 1]
-    itbuffer = itbuffer[(colX >= 0) & (colY >=0) & (colX<imageW) & (colY<imageH)]
+    itbuffer = itbuffer[(colX >= 0) & (colY >= 0) & (colX < imageW) & (colY < imageH)]
 
-    #Get intensities from img ndarray
-    itbuffer[:,2] = img[itbuffer[:, 1].astype(np.uint),itbuffer[:, 0].astype(np.uint)]
+    # Get intensities from img ndarray
+    itbuffer[:, 2] = img[itbuffer[:, 1].astype(np.uint),itbuffer[:, 0].astype(np.uint)]
     return itbuffer
+
 
 def alphaBlend(imgBuf1, imgBuf2, mask):
     mask = mask / 255.0
     mask = mask[..., np.newaxis]
     return (imgBuf1 - imgBuf2) * mask + imgBuf2
+
 
 def contours(maskBuf, thres=0):
     """
@@ -113,8 +117,6 @@ def contours(maskBuf, thres=0):
     @type maskBuf: ndarray shape=(h, w)
     @param thres: binary threshold
     @type thres: int
-    @param w: contour width
-    @type w: int
     @return: list of contours
     @rtype: list of vectors; each vector is a list of 2-uples of point coordinates.
     """
@@ -122,20 +124,22 @@ def contours(maskBuf, thres=0):
     _, contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)  # cv2.CHAIN_APPROX_SIMPLE)
     return contours
 
+
 def moments(maskBuf):
     return cv2.moments(maskBuf)
 
-def membrane(imgBuf, maskBuf, maskContour,  w=3):
+
+def membrane(imgBuf, maskBuf, maskContour):  # TODO 6/12/19 removed w=3 validate
     """
     Compute the harmonic function with boundary
     values imgBuf on the contour of
     maskBuf (Dirichlet conditions).
-    @param img1Buf1: source image
-    @type imgBuf1: ndarray, shape (h, w, d)
-    @param imgBuf2: target image
-    @type imgBuf2: ndarray, shape (h, w, d)
+    @param imgBuf: source image
+    @type imgBuf: ndarray, shape (h, w, d)
     @param maskBuf: mask image
     @type maskBuf: ndarray, shape (h, w)
+    @param maskContour:
+    @type maskContour:
     @return: membrane buffer
     @rtype: ndarray, shape (h, w, d), dtype=np.float
     """
@@ -155,7 +159,7 @@ def membrane(imgBuf, maskBuf, maskContour,  w=3):
         bMask1 = bMask[::step, ::step]
         buf1 = cv2.blur(dBuf, (step, step))
         buf1 = buf1[::step, ::step, :]
-        c=0
+        c = 0
         while True:
             c += 1
             outBuf1 = cv2.filter2D(buf1, -1, lpKernel)
@@ -168,6 +172,7 @@ def membrane(imgBuf, maskBuf, maskContour,  w=3):
         buf1 = cv2.resize(buf1, (dBuf.shape[1], dBuf.shape[0]))
         dBuf[maskBuf == 255] = buf1[maskBuf == 255]
     return dBuf
+
 
 def seamlessClone(srcBuf, destBuf, mask, conts, bRect, srcTr, destTr, w=3):
     """
@@ -214,9 +219,9 @@ if __name__ == '__main__':
     mask = np.zeros(img2.shape, dtype=np.uint8)
     cv2.circle(mask, (600, 600), 600, (255,255,255), -1)
     img2[:2000, :2000, :] = seamlessClone(img1[:2000, :2000, :], img2[:2000, :2000, :], mask[:2000, :2000, 2], (500, 800), (800, 800))
-    #buf = membrane(img2[100:2100, 100:2100, :].astype(np.float) - img1[:2000, :2000, :].astype(np.float), mask[:2000, :2000, 2])
-    #tmp = (buf + img1[:2000,:2000, :])#[1000:1600, 1000:1600, :]
-    #np.clip(tmp, 0, 255, tmp)
-    #img2[:2000,:2000,:] = alphaBlend(tmp, img2[:2000, :2000, :], mask[:2000, :2000, :]) #tmp #(buf + img1[:2000,:2000, :]).astype(np.uint8)[1000:1600, 1000:1600,:]
+    # buf = membrane(img2[100:2100, 100:2100, :].astype(np.float) - img1[:2000, :2000, :].astype(np.float), mask[:2000, :2000, 2])
+    # tmp = (buf + img1[:2000,:2000, :])#[1000:1600, 1000:1600, :]
+    # np.clip(tmp, 0, 255, tmp)
+    # img2[:2000,:2000,:] = alphaBlend(tmp, img2[:2000, :2000, :], mask[:2000, :2000, :]) #tmp #(buf + img1[:2000,:2000, :]).astype(np.uint8)[1000:1600, 1000:1600,:]
     show((img2,))
 

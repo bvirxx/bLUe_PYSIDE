@@ -19,6 +19,7 @@ import numpy as np
 import pywt
 from .rollingStats import movingAverage
 
+
 def noiseEstimation(DWT_coeffs):
     """
     Returns an estimation of the noise variance, using the Mean
@@ -33,6 +34,7 @@ def noiseEstimation(DWT_coeffs):
     flattened_coeffs = a[s[-1]['dd'][0], s[-1]['dd'][1]].ravel()
     MAD = np.median(abs(flattened_coeffs))
     return MAD*MAD / (0.6745*0.6745)
+
 
 def dwtDenoiseChan(image, chan=0, thr=1.0, thrmode='hard', wavelet='haar', level=None):
     """
@@ -71,7 +73,7 @@ def dwtDenoiseChan(image, chan=0, thr=1.0, thrmode='hard', wavelet='haar', level
     @rtype: ndarray, same shape as the image channel, dtype= np.float
 
     """
-    imArray = image[:,:,chan]
+    imArray = image[:, :, chan]
     w,h = imArray.shape[1], imArray.shape[0]
     #################
     # apply DWT
@@ -85,11 +87,11 @@ def dwtDenoiseChan(image, chan=0, thr=1.0, thrmode='hard', wavelet='haar', level
         # stack all arrays from coeffs in a single ndims-dimensional array
         a, s = pywt.coeffs_to_array(DWT_coeffs)  # a:array, s:strides
         # keep details coefficients only
-        mask = np.ones(a.shape, dtype = np.bool)
-        mask[s[0][0],s[0][1]] = False
+        mask = np.ones(a.shape, dtype=np.bool)
+        mask[s[0][0], s[0][1]] = False
         # hard threshold: cut coeffs under thr
         if thrmode == 'hard':
-            a[mask] = np.where(np.abs(a[mask])<thr, 0, a[mask])
+            a[mask] = np.where(np.abs(a[mask]) < thr, 0, a[mask])
             DWT_coeffs = pywt.array_to_coeffs(a, s)
         # soft threshold: filter h = max(0, (|a| - thr)) * sgn(a) / a
         elif thrmode == 'soft':
@@ -128,9 +130,11 @@ def dwtDenoiseChan(image, chan=0, thr=1.0, thrmode='hard', wavelet='haar', level
     # waverecn sometimes returns a padded array
     return imArray[:h, :w]
 
+
 def dwtDenoise(image, thr=1.0, thrmode='hard', wavelet='haar', level=None):
     for chan in image.shape[2]:
-        image[:,:,chan] = dwtDenoiseChan(image, chan=chan, thr=thr, thrmode=thrmode, wavelet=wavelet, level=level)
+        image[:, :, chan] = dwtDenoiseChan(image, chan=chan, thr=thr, thrmode=thrmode, wavelet=wavelet, level=level)
+
 
 if __name__== '__main__':
    dwtDenoiseChan(np.arange(10000).reshape(100, 100), wavelet='haar', level=3)

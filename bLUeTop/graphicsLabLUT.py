@@ -201,7 +201,7 @@ class graphicsLabForm(graphicsCurveForm):
                 fp.remove(p)
                 sc.removeItem(p)
         # add new black point if needed
-        if bPoint > 0.0 :
+        if bPoint > 0.0:
             a = activeSplinePoint(bPoint, 0.0, parentItem=cubicL)
             fp.append(a)
         fp.sort(key=lambda z: z.scenePos().x())
@@ -268,7 +268,7 @@ class graphicsLabForm(graphicsCurveForm):
             for i, cubic in enumerate([cubica, cubicb]):
                 fp = cubic.fixedPoints
                 scale = cubic.size / (127 * 2.0)
-                wPoint = a * scale if i==0 else b * scale
+                wPoint = a * scale if i == 0 else b * scale
                 # remove all control points but the first and the last
                 for p in list(fp[1:-1]):
                         fp.remove(p)

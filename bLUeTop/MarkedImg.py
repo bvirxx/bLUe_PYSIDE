@@ -1069,7 +1069,7 @@ class QLayer(vImage):
         """
         ind = self.getStackIndex()
         stack = self.parentImage.layersStack
-        lg = len(stack) if stHeight == None else min(stHeight, len(stack))
+        lg = len(stack) if stHeight is None else min(stHeight, len(stack))
         for i in range(ind+1, lg, 1):
             if stack[i].visible:
                 return i

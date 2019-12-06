@@ -53,7 +53,7 @@ def blendLuminosity(dest, source):
     return img
 
 
-def blendColor(dest, source, usePerceptual=False, coeff=1.0):
+def blendColor(dest, source):
     """
     Implements blending using color mode, which is missing
     in Qt. We use the HLS color model as intermediate color space.
@@ -68,19 +68,5 @@ def blendColor(dest, source, usePerceptual=False, coeff=1.0):
     @type source: QImage
     @return: The blended image
     @rtype: QImage QImage same size and format as source
-    """
-    """
-    sourceBuf = QImageBuffer(source)[:, :, :3]
-    destBuf = QImageBuffer(dest)[:, :, :3]
-
-    hsvSourceBuf = rgb2hsBVec(sourceBuf[:, :, ::-1], perceptual=True)
-    hsvDestBuf = rgb2hsBVec(destBuf[:, :, ::-1], perceptual=True)
-    hsvDestBuf[:, :, :2] = hsvSourceBuf[:, :, :2]
-    blendBuf = hsp2rgbVec(hsvDestBuf)
-
-    img = QImage(source.size(), source.format())
-    tmp = QImageBuffer(img)
-    tmp[:, :, :3][:, :, ::-1] = blendBuf
-    tmp[:, :, 3] = 255
     """
     return blendLuminosity(source, dest)

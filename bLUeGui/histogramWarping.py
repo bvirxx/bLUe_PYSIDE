@@ -141,7 +141,7 @@ class dstb(object):
             k2 = k1 + 1
             v2 = self.CDFTable[k2]
             return (k2 - xs) * v1 + (xs - k1) * v2
-        return v1 # self.CDFTable[int(x * s)]
+        return v1  # self.CDFTable[int(x * s)]
 
     def FVec(self, x):
         """
@@ -464,6 +464,6 @@ def warpHistogram(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True, spli
 
 
 if __name__ == '__main__':
-    #img = (np.arange(1000*800, dtype=np.float)/800000).reshape(1000, 800)
+    # img = (np.arange(1000*800, dtype=np.float)/800000).reshape(1000, 800)
     img = np.zeros((1000, 800))
     dist = dstb.FromImage(img)

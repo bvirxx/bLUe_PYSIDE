@@ -65,7 +65,7 @@ class graphicsToneForm(graphicsSplineForm):
             x, y = x//2, y//2
         color = rImg.linearImg.pixelColor(x, y)
         r, g, b = color.red(), color.green(), color.blue()
-        h, s, v = cv2.cvtColor((np.array([r, g, b])/255).astype(np.float32)[np.newaxis, np.newaxis,:],
+        h, s, v = cv2.cvtColor((np.array([r, g, b])/255).astype(np.float32)[np.newaxis, np.newaxis, :],
                                cv2.COLOR_RGB2HSV)[0, 0, :]
         self.inputMarker.setPos(v*self.scene().axeSize, 0.0)
 
@@ -270,7 +270,7 @@ class rawForm (baseForm):
                 self.toneForm.update()
             # recompute as shot temp and tint using new profile
             self.asShotTemp, self.asShotTint = multipliers2TemperatureAndTint(*1 / np.array(self.asShotMultipliers[:3]),
-                                                                              self.XYZ2CameraMatrix, self.dngDict)
+                                                                              self.XYZ2CameraMatrix, dngDict=self.dngDict)  # TODO 6/12/19 added keyword dngDict validate
             # display updated as shot temp
             item = self.listWidget2.item(1)
             item.setText(item.text().split(":")[0] + ': %d' % self.asShotTemp)
@@ -672,7 +672,7 @@ class rawForm (baseForm):
             pass
         self.tempCorrection = self.slider2Temp(self.sliderTemp.value())
         # get multipliers (temperatureAndTint2Multipliers returns the camera neutral)
-        multipliers = [1/m for m in temperatureAndTint2Multipliers(self.tempCorrection, 1.0, self.XYZ2CameraMatrix, self.dngDict)]
+        multipliers = [1/m for m in temperatureAndTint2Multipliers(self.tempCorrection, 1.0, self.XYZ2CameraMatrix, dngDict=self.dngDict)]  # TODO 6/12/19 added keyword dngDict validate
         multipliers[1] *= self.tintCorrection
         self.rawMultipliers = multipliers
         m = multipliers[1]
@@ -695,7 +695,7 @@ class rawForm (baseForm):
         self.tintCorrection = self.slider2Tint(self.sliderTint.value())
         # get multipliers (temperatureAndTint2Multipliers returns the camera neutral)
         multipliers = [1/m for m in temperatureAndTint2Multipliers(self.tempCorrection, 1.0,
-                                                                   self.XYZ2CameraMatrix, self.dngDict)]
+                                                                   self.XYZ2CameraMatrix, dngDict=self.dngDict)]  # TODO 6/12/19 added keyword dngDict validate
         multipliers[1] *= self.tintCorrection
         self.rawMultipliers = multipliers
         m = multipliers[1]

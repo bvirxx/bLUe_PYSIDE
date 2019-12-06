@@ -26,6 +26,7 @@ try:
 except ImportError:
     pass
 
+
 def rolling_window(a, winsize):
     """
     Add a last axis to an array, filled with the values of a
@@ -41,6 +42,7 @@ def rolling_window(a, winsize):
     shape = a.shape[:-1] + (a.shape[-1] - winsize + 1, winsize)
     strides = a.strides + (a.strides[-1],)
     return np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
+
 
 def strides_2d(a, r, linear=True):
     """
@@ -66,20 +68,21 @@ def strides_2d(a, r, linear=True):
     ax[r[0]:ax.shape[0] - r[0], r[1]:ax.shape[1] - r[1]] = a
     # reflection mode for rows:  ...2,1,0,1,2...
     for i in range(r[0]):
-        imod = (i+1) % a.shape[0] - 1 # cycle through rows if r[0] >= a.shape[0]
-        ax[r[0]-i-1, r[1]:-r[1]]= a[imod+1,:]  # copy rows a[1,:]... to  ax[r[0]-1,:]...
-        ax[i-r[0], r[1]:-r[1]] = a[-imod-2,:]  # copy rows a[-2,:]... to  ax[-r[0],:]...
-    #ax[:r[0],r[1]:-r[1]] = a[::-1,:][-r[0]-1:-1,:]
-    #ax[-r[0]:,r[1]:-r[1]] = a[::-1,:][1:r[0]+1,:]
+        imod = (i+1) % a.shape[0] - 1  # cycle through rows if r[0] >= a.shape[0]
+        ax[r[0]-i-1, r[1]:-r[1]] = a[imod+1, :]  # copy rows a[1,:]... to  ax[r[0]-1,:]...
+        ax[i-r[0], r[1]:-r[1]] = a[-imod-2, :]  # copy rows a[-2,:]... to  ax[-r[0],:]...
+    # ax[:r[0],r[1]:-r[1]] = a[::-1,:][-r[0]-1:-1,:]
+    # ax[-r[0]:,r[1]:-r[1]] = a[::-1,:][1:r[0]+1,:]
     # reflection mode for cols: cf rows above
-    ax[:,:r[1]] = ax[:,::-1][:,-2*r[1]-1:-r[1]-1]
-    ax[:,-r[1]:] = ax[:,::-1][:,r[1]+1:2*r[1]+1]
+    ax[:, :r[1]] = ax[:, ::-1][:, -2*r[1]-1:-r[1]-1]
+    ax[:, -r[1]:] = ax[:, ::-1][:, r[1]+1:2*r[1]+1]
     # add two axes and strides for the windows
-    shape = a.shape + (1 + 2 * r[0], 1 + 2 * r[1]) # concatenate t-uples
-    strides = ax.strides + ax.strides # concatenate t-uples
+    shape = a.shape + (1 + 2 * r[0], 1 + 2 * r[1])  # concatenate t-uples
+    strides = ax.strides + ax.strides  # concatenate t-uples
     s = as_strided(ax, shape=shape, strides=strides)
     # reshape
     return s.reshape(a.shape + (shape[2] * shape[3],)) if linear else s
+
 
 def movingAverage(a, winsize, version='kernel'):
     """
@@ -113,10 +116,11 @@ def movingAverage(a, winsize, version='kernel'):
         else:
             r = int((winsize - 1) / 2)
             b = strides_2d(a, (r, r), linear=False)
-            m = np.mean(b, axis=(-2,-1))
+            m = np.mean(b, axis=(-2, -1))
             return m
     else:
         raise ValueError('array ndims must be 1 or 2')
+
 
 def movingVariance(a, winsize, version='kernel'):
     """
@@ -130,6 +134,8 @@ def movingVariance(a, winsize, version='kernel'):
     @type a: ndarray ndims = 1 or 2
     @param winsize: size of moving window
     @type winsize: int
+    @param version:
+    @type version: str
     @return: array of moving variances
     @rtype: ndarray, dtype = np.float32 or np.float64
     """

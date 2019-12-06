@@ -21,6 +21,7 @@ from PySide2.QtGui import QImage
 
 from bLUeGui.bLUeImage import bImage, QImageBuffer
 
+
 class cmConverter(object):
     """
     Gather conversion functions color space<-->RGB
@@ -32,11 +33,13 @@ class cmConverter(object):
 ##########################################
 # init color converters for HSpB and HSB
 #########################################
+
 cmHSP = cmConverter()
 cmHSP.cm2rgb, cmHSP.cm2rgbVec, cmHSP.rgb2cm, cmHSP.rgb2cmVec = hsp2rgb, hsp2rgbVec, rgb2hsp, rgb2hspVec
 
 cmHSB = cmConverter()
 cmHSB.cm2rgb, cmHSB.cm2rgbVec, cmHSB.rgb2cm, cmHSB.rgb2cmVec = hsv2rgb, hsv2rgbVec, rgb2hsB, rgb2hsBVec
+
 
 class hueSatPattern(bImage):
     """
@@ -66,7 +69,7 @@ class hueSatPattern(bImage):
         """
         w += 2 * border
         h += 2 * border
-        super().__init__(w,h, QImage.Format_ARGB32)
+        super().__init__(w, h, QImage.Format_ARGB32)
         self.pb = bright
         self.hsArray = None
         self.cModel = converter
@@ -107,14 +110,14 @@ class hueSatPattern(bImage):
         imgBuf[:, :, :] = self.BrgbBuf[p, ...]
         self.updatePixmap()
 
-    def setPb(self,pb):
+    def setPb(self, pb):
         """
         Set brightness and update image
         @param pb: perceptive brightness (range 0,..,1)
         """
         self.pb = pb
-        self.hsArray[:,:,2] = pb
-        imgBuf = QImageBuffer(self)[:,:,:3][:,:,::-1]
+        self.hsArray[:, :, 2] = pb
+        imgBuf = QImageBuffer(self)[:, :, :3][:, :, ::-1]
         #imgBuf[:,:,:] = ccm2rgbVec(self.hsArray)
         imgBuf[:, :, :] = self.cModel.cm2rgbVec(self.hsArray)
         self.updatePixmap()
@@ -144,7 +147,7 @@ class hueSatPattern(bImage):
         @return: cartesian coordinates
         @rtype: ndarray, shape=(w,h,2)
         """
-        h, s = hsarray[:,:,0], hsarray[:, :, 1]
+        h, s = hsarray[:, :, 0], hsarray[:, :, 1]
         cx = self.width() / 2
         cy = self.height() / 2
         x, y = (cx-self.border) * s * np.cos((h - self.rotation) * np.pi / 180.0), \
@@ -175,7 +178,7 @@ class brightnessPattern(bImage):
         @return: the image of gradient
         @rtype: bImage
         """
-        super().__init__(w,h, QImage.Format_ARGB32)
+        super().__init__(w, h, QImage.Format_ARGB32)
         self.cModel = converter
         imgBuf = QImageBuffer(self)
         # set alpha

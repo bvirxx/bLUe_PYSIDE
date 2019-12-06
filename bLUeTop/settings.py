@@ -27,11 +27,11 @@ with open("config.json", "r") as fd:
 ############
 # exiftool path
 ############
-if getattr( sys, 'frozen', False ) :
+if getattr( sys, 'frozen', False):
     # running in a bundle
-    EXIFTOOL_PATH = CONFIG["PATHS"]["EXIFTOOL_PATH_BUNDLED"] #"bin\exiftool.exe"
-else :
-    EXIFTOOL_PATH = CONFIG["PATHS"]["EXIFTOOL_PATH"] # C:\standalone\exiftool\exiftool.exe"
+    EXIFTOOL_PATH = CONFIG["PATHS"]["EXIFTOOL_PATH_BUNDLED"]  # "bin\exiftool.exe"
+else:
+    EXIFTOOL_PATH = CONFIG["PATHS"]["EXIFTOOL_PATH"]  # C:\standalone\exiftool\exiftool.exe"
 
 ##############
 # Paths to system profiles
@@ -53,8 +53,8 @@ USE_TETRA = CONFIG["ENV"]["USE_TETRA"]  # False
 ######################
 # parallel interpolation
 #######################
-USE_POOL = CONFIG["ENV"]["USE_POOL"] # True
-POOL_SIZE = CONFIG["ENV"]["POOL_SIZE"] # 4
+USE_POOL = CONFIG["ENV"]["USE_POOL"]  # True
+POOL_SIZE = CONFIG["ENV"]["POOL_SIZE"]  # 4
 
 ########
 # Theme

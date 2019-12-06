@@ -296,7 +296,7 @@ class CoBrSatForm(baseForm):
             form = self.contrastForm
         # update the curve
         form.scene().setSceneRect(-25, -axeSize-25, axeSize+50, axeSize+50)
-        form.scene().quadricB.setCurve(a*axeSize, b*axeSize,d, T*axeSize)
+        form.scene().quadricB.setCurve(a*axeSize, b*axeSize, d, T*axeSize)
         self.dock.showNormal()
 
     def updateHists(self):

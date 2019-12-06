@@ -18,8 +18,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 from math import erf
 
+
 class filterIndex():
     IDENTITY, UNSHARP, SHARPEN, BLUR1, BLUR2, SURFACEBLUR, GRADUALFILTER = range(7)
+
 
 def phi(x, mu, sigma):
     """
@@ -36,6 +38,7 @@ def phi(x, mu, sigma):
     """
     return (1.0 + erf((x-mu)/(sigma*np.sqrt(2)))) / 2.0
 
+
 def gaussianKernel(mu, w):
     """
     2D gaussian kernel of size w and mean mu.
@@ -51,8 +54,8 @@ def gaussianKernel(mu, w):
     interval = 4.0 * sigma
     points = np.linspace(-interval, interval, num=w + 1)
     # gaussian CDF
-    points = map(lambda x : phi(x,0, sigma), points)
-    #1D kernel
+    points = map(lambda x: phi(x, 0, sigma), points)
+    # 1D kernel
     kern1d = np.diff(list(points))  # python 3
     # 2D kernel
     kernel_raw = np.sqrt(np.outer(kern1d, kern1d))
@@ -60,9 +63,11 @@ def gaussianKernel(mu, w):
     kernel = kernel_raw / kernel_raw.sum()
     return kernel
 
+
 def kernelGaussianBlur(radius):
     gblur_kernel = gaussianKernel(0.0, radius + 2)
     return gblur_kernel
+
 
 def kernelUnsharpMask(radius, amount):
     amount = amount / 100.0
@@ -72,11 +77,13 @@ def kernelUnsharpMask(radius, amount):
     kernel[w//2, w//2] += 1.0 + amount  # python 3 integer quotient
     return kernel
 
+
 def kernelSharpen():
     kernel = np.array([[0.0, -1.0, 0.0],
                         [-1.0, 5.0, -1.0],
-                        [0.0,-1.0, 0.0]])
+                        [0.0, -1.0, 0.0]])
     return kernel
+
 
 def getKernel(category, radius=1, amount=1.0):
     if category == filterIndex.UNSHARP:
@@ -91,4 +98,4 @@ def getKernel(category, radius=1, amount=1.0):
 
 if __name__ == '__main__':
     pass
-    #print gaussianKernel(0, 5)*256
+    # print gaussianKernel(0, 5)*256

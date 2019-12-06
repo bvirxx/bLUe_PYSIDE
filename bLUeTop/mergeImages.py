@@ -19,6 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 import cv2
 
+
 def expFusion(imList):
     """
     Computes the exposure fusion of a list of images with identical sizes.

@@ -146,7 +146,7 @@ class patchForm (baseForm):
         self.enableOptions()
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
         self.layer.cloningMethod = self.listWidget1.checkedItems[0].data(Qt.UserRole)
-        #self.widgetImg.setPixmap(QPixmap.fromImage(self.layer.inputImg().scaled(200, 200, aspectMode=Qt.KeepAspectRatio)))
+        # self.widgetImg.setPixmap(QPixmap.fromImage(self.layer.inputImg().scaled(200, 200, aspectMode=Qt.KeepAspectRatio)))
         # init positioning window
         img = self.layer.inputImg()
         if img.rPixmap is None:
@@ -166,7 +166,7 @@ class patchForm (baseForm):
         if self.options['blue']:
             # make sure disabled options are unchecked
             self.listWidget1.checkOption('Normal Clone')
-        for item in [self.listWidget1.item(i) for i in (1, 2) ]:  # mixed clone, monochrome transfer
+        for item in [self.listWidget1.item(i) for i in (1, 2)]:  # mixed clone, monochrome transfer
             if self.options['opencv']:
                 item.setFlags(item.flags() | Qt.ItemIsEnabled)
             else:

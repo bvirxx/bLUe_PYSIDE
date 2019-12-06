@@ -18,10 +18,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 
 from PySide2.QtGui import QImage, QTransform, QPolygonF
-from PySide2.QtWidgets import QWidget, QToolButton, QApplication
+from PySide2.QtWidgets import QWidget, QToolButton
 from PySide2.QtCore import Qt, QPoint, QObject, QRect, QPointF
 
 from bLUeGui.dialog import dlgWarn
+
 
 class baseHandle(QToolButton):
     """
@@ -44,6 +45,7 @@ class baseHandle(QToolButton):
         self.setGeometry(0, 0, 10, 10)
         self.setAutoFillBackground(True)
         self.setAutoRaise(True)
+
 
 class croppingHandle(baseHandle):
     """
@@ -152,8 +154,8 @@ class croppingHandle(baseHandle):
 
     def mousePressEvent(self, event):
         img = self.parent().img
-        self.tool.crHeight = img.height() - int(img.cropTop) - int(img.cropBottom) # self.tool.btnDict['top'].margin - self.tool.btnDict['bottom'].margin
-        self.tool.crWidth = img.width() - int(img.cropLeft) - int(img.cropRight) # self.tool.btnDict['left'].margin - self.tool.btnDict['right'].margin
+        self.tool.crHeight = img.height() - int(img.cropTop) - int(img.cropBottom)  # self.tool.btnDict['top'].margin - self.tool.btnDict['bottom'].margin
+        self.tool.crWidth = img.width() - int(img.cropLeft) - int(img.cropRight)  # self.tool.btnDict['left'].margin - self.tool.btnDict['right'].margin
 
     def mouseMoveEvent(self, event):
         img = self.parent().img
@@ -167,10 +169,11 @@ class croppingHandle(baseHandle):
         else:
             self.setPosition(pos)
         self.tool.drawCropTool(self.parent().img)
-        self.tool.crHeight = img.height() - int(img.cropTop) - int(img.cropBottom) # self.tool.btnDict['top'].margin - self.tool.btnDict['bottom'].margin
-        self.tool.crWidth = img.width() - int(img.cropLeft) - int(img.cropRight) # self.tool.btnDict['left'].margin - self.tool.btnDict['right'].margin
+        self.tool.crHeight = img.height() - int(img.cropTop) - int(img.cropBottom)  # self.tool.btnDict['top'].margin - self.tool.btnDict['bottom'].margin
+        self.tool.crWidth = img.width() - int(img.cropLeft) - int(img.cropRight)  # self.tool.btnDict['left'].margin - self.tool.btnDict['right'].margin
         self.parent().updateStatus()
         self.parent().repaint()
+
 
 class cropTool(QObject):
     """

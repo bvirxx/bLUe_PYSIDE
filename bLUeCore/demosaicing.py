@@ -19,6 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 import cv2
 
+
 def demosaic(raw_image_visible, raw_colors_visible, black_level_per_channel):
     """
     demosaic a sensor bitmap. The input array raw_image_visble is the image from sensor. It has
@@ -38,13 +39,13 @@ def demosaic(raw_image_visible, raw_colors_visible, black_level_per_channel):
     """
     black_level_per_channel = np.array(black_level_per_channel, dtype=np.uint16)
     # Bayer bitmap (16 bits), subtract black level for each channel
-    if np.any(black_level_per_channel!=0):
+    if np.any(black_level_per_channel != 0):
         bayerBuf = raw_image_visible - black_level_per_channel[raw_colors_visible]
     else:
         bayerBuf = raw_image_visible
     # encode Bayer pattern to opencv constant
-    tmpdict = {0:'R', 1:'G', 2:'B'}
-    pattern = 'cv2.COLOR_BAYER_' + tmpdict[raw_colors_visible[1,1]] + tmpdict[raw_colors_visible[1,2]] + '2RGB'
+    tmpdict = {0: 'R', 1: 'G', 2: 'B'}
+    pattern = 'cv2.COLOR_BAYER_' + tmpdict[raw_colors_visible[1, 1]] + tmpdict[raw_colors_visible[1, 2]] + '2RGB'
     # demosaic
     demosaicBuffer = cv2.cvtColor(bayerBuf, eval(pattern))
     return demosaicBuffer

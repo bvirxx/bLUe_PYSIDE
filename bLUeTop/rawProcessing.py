@@ -51,6 +51,7 @@ def rawRead(filename):
         raise
     return rawpyInst
 
+
 def rawPostProcess(rawLayer, pool=None):
     """
     raw layer development.
@@ -206,7 +207,7 @@ def rawPostProcess(rawLayer, pool=None):
     # If we have no valid dng profile, we reinit the multipliers and
     # apply a Bradford chromatic adaptation matrix.
     m1, m2, m3 = adjustForm.asShotMultipliers[:3] if use_camera_wb else adjustForm.rawMultipliers[:3]
-    D = np.diag((1/m1,1/m2,1/m3))
+    D = np.diag((1/m1, 1/m2, 1/m3))
     tempCorrection = adjustForm.asShotTemp if use_camera_wb else adjustForm.tempCorrection
     MM = bradfordAdaptationMatrix(6500, tempCorrection)
     MM1 = bradfordAdaptationMatrix(6500, 5000)
@@ -305,7 +306,7 @@ def rawPostProcess(rawLayer, pool=None):
         # convert saturation s to s**alpha
         bufHSV_CV32[:, :, 1] = LUT[(bufHSV_CV32[:, :, 1] * 255).astype(int)]
     # back to RGB
-    bufpostF32_1 = cv2.cvtColor(bufHSV_CV32, cv2.COLOR_HSV2RGB)  #* 65535 # .astype(np.uint16)
+    bufpostF32_1 = cv2.cvtColor(bufHSV_CV32, cv2.COLOR_HSV2RGB)  # * 65535 # .astype(np.uint16)
 
     ###################
     # apply gamma curve

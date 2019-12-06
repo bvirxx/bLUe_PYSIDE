@@ -195,7 +195,7 @@ class graphicsForm(graphicsCurveForm):
         for i, cubic in enumerate([cubicRGB, cubicR, cubicG, cubicB]):
             scale = cubic.size / 255.0
             fp = cubic.fixedPoints
-            wPoint = max(r, g, b) if i == 0 else r if i==1 else g if i==2 else b
+            wPoint = max(r, g, b) if i == 0 else r if i == 1 else g if i == 2 else b
             # don't set white point to black!
             if wPoint <= 10:
                 wPoint += 10.0

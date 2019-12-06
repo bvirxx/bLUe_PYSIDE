@@ -322,7 +322,7 @@ class activeNode(QGraphicsPathItem):
         # remove duplicate vertices
         self.LUTIndices = set([index(p/100.0, i, j, k) for p, (i, j, k) in enumerate(clipped)])
         # sort indices by increasing brightnesses
-        self.LUTindices = sorted(self.LUTIndices, key=lambda x : x.p)
+        self.LUTindices = sorted(self.LUTIndices, key=lambda x: x.p)
         """
         for x in self.LUTIndices:
             (i, j, k) = x.ind

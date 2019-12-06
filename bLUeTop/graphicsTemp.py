@@ -155,7 +155,7 @@ class temperatureForm (baseForm):
         self.filterColor = self.colorChooser.currentColor()
         # set colorLabel background
         self.colorLabel.setAutoFillBackground(True)
-        colorstr = ''.join('%02x'%i for i in self.filterColor.getRgb()[:3])
+        colorstr = ''.join('%02x'% i for i in self.filterColor.getRgb()[:3])
         self.colorLabel.setStyleSheet("background:#%s" % colorstr)
 
     def colorUpdate(self, color):

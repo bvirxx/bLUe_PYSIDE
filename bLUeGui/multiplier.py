@@ -57,7 +57,7 @@ def XYZ2CIExyY(X, Y, Z):
     return X / s, Y / s
 
 
-def temperatureAndTint2Multipliers(temp, tint, XYZ2CameraMatrix, dngDict={}):
+def temperatureAndTint2Multipliers(temp, tint, XYZ2CameraMatrix, dngDict=None):  # TODO 6/12/19 changed {} to None validate
     """
     Convert temperature and tint to RGB multipliers and apply a
     tint shift : mG = WP_G * tint. The conversion algorithm is based on the
@@ -101,11 +101,11 @@ def temperatureAndTint2Multipliers(temp, tint, XYZ2CameraMatrix, dngDict={}):
     # apply tint shift (green-magenta shift) to G channel.
     m2 = m2 * tint
     mi = min((m1, m2, m3))
-    m1, m2, m3 = m1/m2, 1.0, m3/m2 #m1 / mi, m2 / mi, m3 / mi
+    m1, m2, m3 = m1 / m2, 1.0, m3 / m2  # m1 / mi, m2 / mi, m3 / mi
     return m1, m2, m3, m2
 
 
-def multipliers2TemperatureAndTint(mR, mG, mB, XYZ2CameraMatrix, dngDict={}):
+def multipliers2TemperatureAndTint(mR, mG, mB, XYZ2CameraMatrix, dngDict=None):  # TODO 6/12/19 changed {} to None validate
     """
     Inverse function of temperatureAndTint2RGBMultipliers.
     It calculates the CCT temperature and the tint correction corresponding to a

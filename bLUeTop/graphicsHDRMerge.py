@@ -21,6 +21,7 @@ from PySide2.QtWidgets import QVBoxLayout, QPushButton, QLabel
 
 from bLUeGui.graphicsForm import baseForm
 
+
 class HDRMergeForm(baseForm):
     defaultExpCorrection = 0.0
     defaultStep = 0.1

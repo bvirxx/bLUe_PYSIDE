@@ -66,6 +66,7 @@ class metadataBag:
         self.name, self.colorSpace, self.rawMetadata, self.profile, self.orientation, self.rating = \
                                                               name, ColorSpace.notSpecified, {}, '', None, 5
 
+
 class vImage(bImage):
     """
     Versatile image class.
@@ -287,7 +288,7 @@ class vImage(bImage):
         @param profile: embedded profile (default '')
         @type profile: str
         """
-        self.imageInfo ='no data found'  # default
+        self.imageInfo = 'no data found'  # default
 
         if rawMetadata is None:
             rawMetadata = {}
@@ -888,7 +889,7 @@ class vImage(bImage):
         for layer in stack[:i]:
             if layer.visible and layer.mergingFlag:
                 mergingLayers.append(layer)
-        #pass through
+        # pass through
         if not mergingLayers:
             inputImg = self.inputImg()
             inBuf = QImageBuffer(inputImg)
@@ -906,8 +907,8 @@ class vImage(bImage):
                 buf[...] = alignImages(buf, pred)
             bufList.append(buf[:, :, :3])
 
-        #buf = np.stack(bufList, axis=-1)
-        #buf = np.median(buf, axis=-1)
+        # buf = np.stack(bufList, axis=-1)
+        # buf = np.median(buf, axis=-1)
         buf = expFusion(bufList)
         imgOut = self.getCurrentImage()
         bufOut = QImageBuffer(imgOut)
@@ -1431,7 +1432,7 @@ class vImage(bImage):
 
         bufpostF32_1 = cv2.cvtColor(bufHSV_CV32.astype(np.uint8), cv2.COLOR_HSV2RGB)
         bufOut = QImageBuffer(currentImage)
-        bufOut[h1:h2 + 1, w1:w2 + 1, :3] = bufpostF32_1[:,:,::-1]
+        bufOut[h1:h2 + 1, w1:w2 + 1, :3] = bufpostF32_1[:, :, ::-1]
         self.updatePixmap()
 
     def apply3DLUT(self, lut3D, options=None, pool=None):

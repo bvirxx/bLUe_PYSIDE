@@ -84,6 +84,7 @@ Ka, Kb = 172.355, 67.038
 
 USE_BT_709 = False
 
+
 class gammaTables:
     """
     # Constants, methods and precomputed tables for
@@ -156,6 +157,7 @@ class gammaTables:
         """
         return self.__table5
 
+
 def rgbLinear2rgb(rgbColors):
     """
     conversion from linear RGB to sRGB.
@@ -178,6 +180,7 @@ def rgbLinear2rgb(rgbColors):
         return gt.table5[imgDiscretized]
     else:
         gt = gammaTables
+
         def cl2c(c):
             if c <= gt.gammaLinearTreshold1:
                 c = gt.d * c
@@ -208,6 +211,7 @@ def rgb2rgbLinear(rgbColors):
         return gt.table3[rgbColors]
     else:
         gt = gammaTables
+
         def c2cl(c):
             if c <= gt.gammaLinearTreshold2:
                 # consider linear

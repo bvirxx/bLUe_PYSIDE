@@ -22,6 +22,7 @@ from PySide2.QtCore import QPointF
 #####################
 # displacement spline
 #####################
+
 def displacementSpline(X, Y, V, period=0, clippingInterval=None):
     """
      Calculate the y-coordinates corresponding to the x-coordinates V for
@@ -35,6 +36,8 @@ def displacementSpline(X, Y, V, period=0, clippingInterval=None):
     @type V: ndarray, dtype=np.float
     @param period:
     @type period: int
+    @param clippingInterval:
+    @type clippingInterval:
     @return: y-coordinates of spline points
     @rtype: ndarray, dtype=np.float
     """
@@ -94,8 +97,8 @@ def interpolationQuadSpline(a, b, d):
     r = np.concatenate(([0], r))
     t = (x-a[k-1])/(a[k]-a[k-1])                   # t[k] = (x - a[k-1]) / (a[k] - a[k-1]) for x in a[k-1]..a[k]
     # sanity check
-    assert np.all(t>=0)
-    assert np.all(t<=1)
+    assert np.all(t >= 0)
+    assert np.all(t <= 1)
     # tabulate spline
     T = b[k-1] + (r[k]*t*t + d[k-1]*(1-t)*t)*(b[k]-b[k-1]) / (r[k]+(d[k]+d[k-1] - 2*r[k])*(1-t)*t)
     return T
@@ -125,21 +128,22 @@ def coeff(X, Y):
     old_settings = np.seterr(all='ignore')
     deltaX1 = X[1:] - X[:-1]
     deltaY1 = Y[1:] - Y[:-1]
-    D1= deltaY1 / deltaX1
+    D1 = deltaY1 / deltaX1
     np.seterr(**old_settings)
     if not np.isfinite(D1).all():
         raise ValueError()
     deltaX2 = np.zeros((X.shape[0]-1,))
-    deltaX2[1:] = 2.0 * (X[2:] - X[:-2])  #tangent
+    deltaX2[1:] = 2.0 * (X[2:] - X[:-2])  # tangent
     W = np.zeros((X.shape[0] - 1,))
-    W[1:] = 6 * (D1[1:] - D1[:-1]) # second derivative * deltaX1 *6
+    W[1:] = 6 * (D1[1:] - D1[:-1])  # second derivative * deltaX1 *6
     W[2:] = W[2:] - W[1:-1] * deltaX1[1:-1] / deltaX2[1:-1]
-    deltaX2[2:] =  deltaX2[2:] - deltaX1[1:-1] * deltaX1[1:-1] / deltaX2[1:-1]
+    deltaX2[2:] = deltaX2[2:] - deltaX1[1:-1] * deltaX1[1:-1] / deltaX2[1:-1]
     N = X.shape[0]
     R = np.zeros(X.shape)
     for i in range(N-2, 0, -1):
         R[i] = (W[i] - deltaX1[i] * R[i+1]) / deltaX2[i]
     return deltaX1, R
+
 
 def cubicSpline(X, Y, V):
     """
@@ -157,15 +161,16 @@ def cubicSpline(X, Y, V):
     """
     def P(t):
         return t**3 - t
-    deltaX1, R = coeff(X,Y)  # raises ValueError if two X values are equal
+    deltaX1, R = coeff(X, Y)  # raises ValueError if two X values are equal
     i = np.searchsorted(X, V, side='right') - 1
     isave = i
     i = np.clip(i,0, len(Y)-2)
     t = (V - X[i]) / deltaX1[i]
     values = t * Y[i+1] + (1-t)*Y[i] + deltaX1[i] * deltaX1[i] * (P(t) * R[i+1] + P(1-t) * R[i])/6.0
-    values = np.where(isave>len(Y)-2, Y[-1], values)
+    values = np.where(isave > len(Y) - 2, Y[-1], values)
     values = np.where(isave<0, Y[0], values)
     return values
+
 
 def interpolationCubSpline(X, Y, clippingInterval=None):
     """
@@ -182,11 +187,11 @@ def interpolationCubSpline(X, Y, clippingInterval=None):
     @return: the interpolated cubic spline
     @rtype: list of QPointF (length 256)
     """
-    m, M = np.min(X) , np.max(X)
+    m, M = np.min(X), np.max(X)
     step = (M - m) / 255.0
     xValues = np.arange(256) * step + m
     yValues = cubicSpline(X, Y, xValues)
     if clippingInterval is not None:
         minY, maxY = clippingInterval[0], clippingInterval[1]
         yValues = np.clip(yValues, minY, maxY)
-    return [QPointF(x,y) for x,y in zip(xValues, yValues)]
+    return [QPointF(x, y) for x, y in zip(xValues, yValues)]

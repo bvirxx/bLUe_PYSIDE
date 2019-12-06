@@ -23,6 +23,7 @@ from PySide2.QtGui import QColor, QPen, QPainterPath, QBrush
 from PySide2.QtCore import Qt
 from bLUeGui.memory import weakProxy
 
+
 class bottomWidget(QLabel):
     """
     ad hoc container to add non-zoomable

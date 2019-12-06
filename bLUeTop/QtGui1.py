@@ -250,7 +250,7 @@ def paintEvent(widg, e, qp=qp):
     r = mimg.resize_coeff(widg)
     qp.begin(widg)
     # smooth painting
-    qp.setRenderHint(QPainter.SmoothPixmapTransform)   #  may be useless
+    qp.setRenderHint(QPainter.SmoothPixmapTransform)   # may be useless
     # fill background
     qp.fillRect(QRect(0, 0, widg.width(), widg.height()), vImage.defaultBgColor)
     # draw the presentation layer.
