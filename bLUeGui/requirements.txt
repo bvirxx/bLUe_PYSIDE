@@ -1,2 +1,3 @@
 numpy>=1.16.2+mkl
 PySide2>=5.12.4
+opencv-python
