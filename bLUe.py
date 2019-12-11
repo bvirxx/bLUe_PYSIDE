@@ -508,14 +508,19 @@ def showHistogram(window=window):
         histImg = vImage(QImg=window.label.img.getCurrentImage())  # must be vImage : histogram method needed
     else:
         histImg = window.label.img.layersStack[-1].getCurrentMaskedImage()
-    if window.histView.listWidget2.items['Color Chans'].checkState() is Qt.Checked:
+    if window.histView.options['R'] or window.histView.options['G'] or window.histView.options['B']:
         window.histView.mode = 'RGB'
         window.histView.chanColors = [QColor(255, 0, 0), QColor(0, 255, 0), QColor(10, 10, 255)]
+        window.histView.chans = [ ['R', 'G', 'B'].index(ch) for ch in ['R', 'G', 'B'] if window.histView.options[ch]]
+    #if window.histView.listWidget2.items['Color Chans'].checkState() is Qt.Checked:
+        #window.histView.mode = 'RGB'
+        #window.histView.chanColors = [QColor(255, 0, 0), QColor(0, 255, 0), QColor(10, 10, 255)]
     else:
         window.histView.mode = 'Luminosity'
         window.histView.chanColors = [Qt.gray]
+        window.histView.chans=[]
     histView = histImg.histogram(QSize(window.histView.width(), window.histView.height()),
-                                 chans=list(range(3)), bgColor=Qt.black,
+                                 chans=window.histView.chans, bgColor=Qt.black,
                                  chanColors=window.histView.chanColors, mode=window.histView.mode, addMode='')
     window.histView.cache = QPixmap.fromImage(histView)
     window.histView.Label_Hist.setPixmap(window.histView.cache.scaled(window.histView.width() - 20, window.histView.height()-50))
@@ -1407,10 +1412,8 @@ def setRightPane(window=window):
         w = widget.layout().itemAt(0).widget()
         # dock the histogram on top
         if w.objectName() == 'histView':
-            w.setWindowTitle('Hist')
             histViewDock = HistQDockWidget()
             hl = QHBoxLayout()
-            #hl.addStretch(1)
             hl.setAlignment(Qt.AlignLeft)
             hl.addWidget(w)
             w.setMaximumSize(140000, 140000)
@@ -1418,6 +1421,7 @@ def setRightPane(window=window):
             wdg.setMaximumSize(140000, 140000)
             wdg.setLayout(hl)
             histViewDock.setWidget(wdg)
+            # short title
             histViewDock.setWindowTitle(w.windowTitle())
             window.addDockWidget(Qt.RightDockWidgetArea, histViewDock)
             window.histViewDock = histViewDock
@@ -1492,6 +1496,11 @@ def dropEvent(widget, img, event):
 
 
 def setupGUI(window=window):
+    """
+    Display splash screen and set app style sheet
+    @param window:
+    @type window:
+    """
     # splash screen
     splash = QSplashScreen(QPixmap('logo.png'), Qt.WindowStaysOnTopHint)
     splash.show()
@@ -1682,9 +1691,6 @@ def setupGUI(window=window):
     # Before/After views flag
     window.splittedView = False
 
-    window.histView.mode = 'Luminosity'
-    window.histView.chanColors = Qt.gray  # [Qt.red, Qt.green,Qt.blue]
-
     # close event handler
     window.onCloseEvent = canClose
 
@@ -1790,11 +1796,13 @@ if __name__ == '__main__':
     multiprocessing.freeze_support()
     # load UI
     window.init()
-
+    # display splash screen and set app style sheet
     setupGUI(window)
 
     ###############
     # launch app
     ###############
     sys.exit(app.exec_())
+
+
 
