@@ -128,12 +128,14 @@ class colorInfoView(QDockWidget):
         self.label.setWindowTitle('Info')
         self.setWidget(self.label)
         self.setWindowTitle(self.label.windowTitle())
-        self.label.setFocusPolicy(Qt.ClickFocus)
+        self.setFocusPolicy(Qt.ClickFocus)
         self.label.setStyleSheet("font-family: 'courier'; font-size: 8pt")
-        self.label.setWhatsThis(
-                                """<b>Active layer input/output</b><br>
-                                For each color space (RGB, CMYK, HSV) input colors are displayed in the left column
-                                and output colors in the right column.<br>
+        self.setWhatsThis(
+                                """<b>Info</b><br>
+                                Input/output pixel values for the active layer.<br>
+                                Values are displayed in the RGB, CMYK and HSV color spaces.
+                                For each space, inputs are shown in the left column
+                                and outputs in the right column.<br>
                                 """
                                 )  # end of setWhatsThis
 
@@ -146,17 +148,17 @@ class colorInfoView(QDockWidget):
         @type clrC: QColor
         """
         r0 = 'R ' + "".join([str(w).ljust(4) if type(w) is int else w
-                             for w in (clrI.red(), clrC.red(), 'C ', clrI.cyan() * 100 // 255,
-                                       clrC.cyan() * 100 // 255, 'H ', clrI.hue(), clrC.hue())])
+                             for w in (clrI.red(), clrC.red(), '|C ', clrI.cyan() * 100 // 255,
+                                       clrC.cyan() * 100 // 255, '|H ', clrI.hue(), clrC.hue())])
         r1 = 'G ' + "".join([str(w).ljust(4) if type(w) is int else w
-                             for w in (clrI.green(), clrC.green(), 'M ',
-                                       clrI.magenta() * 100 // 255, clrC.magenta() * 100 // 255, 'S ',
+                             for w in (clrI.green(), clrC.green(), '|M ',
+                                       clrI.magenta() * 100 // 255, clrC.magenta() * 100 // 255, '|S ',
                                        clrI.saturation() * 100 // 255, clrC.saturation() * 100 // 255)])
         r2 = 'B ' + "".join([str(w).ljust(4) if type(w) is int else w
-                             for w in (clrI.blue(), clrC.blue(), 'Y ',
-                                       clrI.yellow() * 100 // 255, clrC.yellow() * 100 // 255, 'V ',
+                             for w in (clrI.blue(), clrC.blue(), '|Y ',
+                                       clrI.yellow() * 100 // 255, clrC.yellow() * 100 // 255, '|V ',
                                        clrI.value() * 100 // 255, clrC.value() * 100 // 255)])
-        r3 = "".join((' ',) * 10) + 'K ' + "".join([str(w).ljust(4) for w in
+        r3 = "".join((' ',) * 10) + '|K ' + "".join([str(w).ljust(4) for w in
                                                      (clrI.black() * 100 // 255, clrC.black() * 100 // 255)])
         self.label.setText('\n'.join((r0, r1, r2, r3)))
 
