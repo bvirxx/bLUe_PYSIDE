@@ -301,11 +301,11 @@ class QbLUeSlider(QSlider):
     def mousePressEvent(self, event):
         """
         Update the slider value with a single jump when clicking on the groove.
-
+        # min is at left or top. Change upsideDown to True to reverse this behavior.
         @param event:
         @type event:
         """
-        pressVal = QStyle.sliderValueFromPosition(self.minimum(), self.maximum(), event.x(), self.width(), 0)  # 0 is for horizontal slider only
+        pressVal = QStyle.sliderValueFromPosition(self.minimum(), self.maximum(), event.x(), self.width(), upsideDown=False)
         if abs(pressVal - self.value()) > (self.maximum() - self.minimum()) * 20 / self.width():  # handle width should be near 20
             self.setValue(pressVal)
         else:
@@ -447,7 +447,8 @@ class optionsWidget(QListWidget):
         else:
             self.extNames = optionNames
         self.intNames = options
-        # dict of items with option internal name as keys
+        # dict of items with internal names of options as keys,
+        # unfortunately shadowing a QListWidget built-in method
         self.items = {}
         # dict of item states (True, False) with option internal name as key
         self.options = {}
@@ -457,7 +458,7 @@ class optionsWidget(QListWidget):
             self.addItem(listItem)
             self.items[intName] = listItem
             self.options[intName] = (listItem.checkState() == Qt.Checked)
-        self.setMinimumHeight(self.sizeHintForRow(0)*len(options))
+        self.setMinimumHeight(self.sizeHintForRow(0) * len(options))
         self.setMaximumHeight(self.sizeHintForRow(0) * len(options) + 10)
         self.exclusive = exclusive
         self.itemClicked.connect(self.select)
