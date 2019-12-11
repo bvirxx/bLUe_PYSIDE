@@ -689,6 +689,7 @@ def mouseEvent(widget, event, qp=qp, window=window):  # TODO split into 3 handle
                                 bucketColor = Qt.black
                             bLUeFloodFill(layer, int(x_img), int(y_img), bucketColor)
                             layer.applyToStack()
+                        """
                         # for raw layer, set multipliers to get selected pixel as White Point : NOT USED YET
                         if layer.isRawLayer() and window.btnValues['colorPicker']:
                             # get demosaic buffer and sample raw pixels
@@ -707,6 +708,7 @@ def mouseEvent(widget, event, qp=qp, window=window):  # TODO split into 3 handle
                                     form.setRawMultipliers(*form.samples[3*row + col], sampling=False)
                             else:
                                 form.setRawMultipliers(1/color[0], 1/color[1], 1/color[2], sampling=True)
+                        """
                 else:  # not clicked
                     if window.btnValues['rectangle']:
                         layer.selectionChanged.sig.emit()
