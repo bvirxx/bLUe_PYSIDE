@@ -565,6 +565,8 @@ def mouseEvent(widget, event, qp=qp, window=window):  # TODO split into 3 handle
             # mask
             elif window.btnValues['drawFG'] or window.btnValues['drawBG']:
                 if layer.maskIsEnabled:
+                    if layer.isCloningLayer:
+                        layer.setMaskEnabled(color=True)  # set mask to color mask
                     toolOpacity = window.verticalSlider2.value() / 100
                     if modifiers == Qt.NoModifier:
                         if layer.isSegmentLayer():
@@ -627,7 +629,7 @@ def mouseEvent(widget, event, qp=qp, window=window):  # TODO split into 3 handle
                         layer.yAltOffset += (y - State['iy'])
                         layer.vlChanged = True
                         if layer.maskIsSelected or not layer.maskIsEnabled:
-                            layer.setMaskEnabled(color=False)
+                            layer.setMaskEnabled(color=False)  # set to opacity mask
                         layer.applyCloning(seamless=False, showTranslated=True, moving=True)
         # not mouse selectable widget : probably before window alone !
         else:
