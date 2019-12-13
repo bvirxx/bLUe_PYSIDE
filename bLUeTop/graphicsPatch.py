@@ -43,7 +43,7 @@ class patchForm (baseForm):
         # source pixmap
         self.sourcePixmap = None
         self.sourcePixmapThumb = None
-        # flag indicating where source pixmap come from
+        # flag indicating where source pixmap comes from
         self.sourceFromFile = False
         # opencv flags
         cv2Flag_dict = {'Normal Clone': cv2.NORMAL_CLONE,
@@ -86,7 +86,7 @@ class patchForm (baseForm):
                 window.settings.setValue('paths/dlgdir', newDir)
                 img = QImage(filenames[0])
                 # scale img while keeping its aspect ratio
-                # into a QPixmap having the same size as self layer
+                # into a QPixmap having the same size as self.layer
                 sourcePixmap = QPixmap.fromImage(img).scaled(self.layer.size(), Qt.KeepAspectRatio)
                 self.sourcePixmap = QPixmap(self.layer.size())
                 self.sourcePixmap.fill(Qt.black)
@@ -108,11 +108,12 @@ class patchForm (baseForm):
             # mask all pixels
             layer.resetMask(maskAll=True, alpha=128)
             layer.setMaskEnabled(color=True)
-            # reset clone layer
+            # reset cloning layer
             layer.xAltOffset, layer.yAltOffset = 0.0, 0.0
             layer.AltZoom_coeff = 1.0
             layer.applyCloning(seamless=False, showTranslated=True)
             layer.parentImage.onImageChanged()
+
         pushButton2.clicked.connect(g)
 
         # layout
