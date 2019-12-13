@@ -827,7 +827,8 @@ class QLayer(vImage):
     def inputImg(self, redo=True):
         """
         return maskedImageContainer/maskedThumbContainer.
-        If redo is True(default), containers are updated.
+        If redo is True(default), containers are updated and
+        their rPixmap are invalidated to force refreshing.
         layer.applyToStack() always calls inputImg() with redo=True.
         So, to keep the containers up to date we only have to follow
         each layer modification by a call to layer.applyToStack().
@@ -839,11 +840,13 @@ class QLayer(vImage):
         lower = self.parentImage.layersStack[self.getLowerVisibleStackIndex()]
         container = lower.maskedThumbContainer if self.parentImage.useThumb else lower.maskedImageContainer
         if redo or container is None:
+            # update container and invalidate rPixmap
             container = lower.getCurrentMaskedImage()
-            container.rPixmap = None  # invalidate and don't update
+            container.rPixmap = None
         else:
+            # don't update container and rebuild invalid rPixmap only
             if container.rPixmap is None:
-                container.rPixmap = QPixmap.fromImage(container)  # will probably be reused : update
+                container.rPixmap = QPixmap.fromImage(container)
         return container
 
     def full2CurrentXY(self, x, y):
@@ -1028,6 +1031,11 @@ class QLayer(vImage):
     def setMaskEnabled(self, color=False):
         self.maskIsEnabled = True
         self.maskIsSelected = color
+        self.maskSettingsChanged.sig.emit()
+
+    def setMaskDisabled(self):  # TODO Added 11/12/19 validate
+        self.maskIsEnabled = False
+        self.maskIsSelected = False
         self.maskSettingsChanged.sig.emit()
 
     def getTopVisibleStackIndex(self):
@@ -1240,43 +1248,29 @@ class QPresentationLayer(QLayer):
 class QCloningLayer(QLayer):
     """
     Cloning layer.
-    To make easier image retouching the cloning mask is
-    taken from the destination image
+    To make mask retouching easier, the binary cloning mask
+    is taken from the destination image
     """
-    """
-    @classmethod
-    def fromImage(cls, mImg, parentImage=None):
-        Return a QCloningLayer object initialized with mImg.
-        @param mImg:
-        @type mImg: QImage
-        @param parentImage:
-        @type parentImage: mImage
-        @return:
-        @rtype: QCloninglayer
-        layer = QCloningLayer(QImg=mImg, parentImage=parentImage)
-        layer.parentImage = parentImage
-        return layer
-    """
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.role='CLONING'
         # cloning source image
         self.srcImg = None
         # virtual layer moved flag
         self.vlChanged = False
-        # cloning mask
-        self.cloning_mask = None  # binary mask : array dtype= np.uint8 shape (h, w) values 0/255
-        self.conts = None  # mask contours
-        self.monts = None  # mask moments
+        # init self.cloning mask, self.monts, self.conts
+        self.updateCloningMask()
 
     def updateCloningMask(self):
         """
-        Update the binary cloning mask and its moments
+        Update the binary cloning mask (relative to the full sized image)
+         and its moments
         """
         if not self.isCloningLayer():
             return
         self.cloning_mask = vImage.color2BinaryArray(self.mask)
         self.monts = moments(self.cloning_mask)
+        self.conts = contours(self.cloning_mask)
         """
         # calculate the contours and moments  of the mask
         self.conts = contours(self.cloning_mask)
@@ -1289,7 +1283,7 @@ class QCloningLayer(QLayer):
 
     def updateSourcePixmap(self):
         """
-        If the cloning source is the layer input image
+        If the cloning source is the (layer) input image
         the method refreshes the source pixmap and the
         positioning window, otherwise it does nothing.
         The method should be called every time the lower
@@ -1308,43 +1302,40 @@ class QCloningLayer(QLayer):
 
     def seamlessMerge(self, outImg, inImg, mask, cloningMethod, version='opencv', w=3):
         """
-        Seamless cloning of inImg into outImg.
-        The cloning (destination) area corresponds to the unmasked region.
-        @param outImg:
+        "low level" seamless cloning.
+        The cloning destination area corresponds to the unmasked region.
+        @param outImg: destination image
         @type outImg: vImage
-        @param inImg:
+        @param inImg: source image
         @type inImg: vImage
         @param mask: color mask
         @type mask: QImage
         @param cloningMethod:
-        @type cloningMethod:
+        @type cloningMethod: opencv cloning method
         @param version:
         @type version: str
         @param w:
         @type w:
         """
-        # scale the mask to dest size and convert to a binary mask
-        # src_mask = vImage.color2OpacityMask(mask.scaled(dest.size())).copy(QRect(QPoint(0, 0), source.size())) #scaled(source.size())
-        src_mask = mask.scaled(outImg.size()).copy(QRect(QPoint(0, 0), inImg.size()))  # scaled(source.size())
+        # build the working cloning mask.
+        # scale mask to dest current size,  and convert to a binary mask
+        src_mask = mask.scaled(outImg.size()).copy(QRect(QPoint(0, 0), inImg.size()))  # useless copy ?
         cloning_mask = vImage.color2BinaryArray(src_mask)
-        # get the contour of the mask
+
         conts = contours(cloning_mask)
-        cv2.moments(cloning_mask)
-        cont = conts[0]
+        if conts:
+            cont = conts[0]
+        else:
+            return
         # simplify the contour and get its bounding rect
         epsilon = 0.01 * cv2.arcLength(cont, True)
         acont = cv2.approxPolyDP(cont, epsilon, True)
         bRect = QRect(* cv2.boundingRect(acont))
-        """
-        self.updateCloningMask()
-        cloning_mask = self.cloning_mask
-        conts = self.conts
-        bRect =self.bRect
-        """
+
         if not bRect.isValid():
             dlgWarn("seamlessMerge : no cloning region found")
             return
-        inRect = bRect & QImage.rect(src_mask)
+        inRect = bRect & QImage.rect(inImg)  # QImage.rect(src_mask)
         bt, bb, bl, br = inRect.top(), inRect.bottom(), inRect.left(), inRect.right()
         # cv2.seamlesClone uses a white mask, so we turn cloning_mask into
         # a 3-channel buffer.

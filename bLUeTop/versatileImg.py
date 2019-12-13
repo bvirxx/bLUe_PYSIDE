@@ -633,18 +633,19 @@ class vImage(bImage):
         If moving is True (default False) the input image is not updated.
         @param seamless:
         @type seamless: boolean
-        @param showTranslated:
-        @type showTranslated: boolean
+        @param showTranslated:  unused, set to True in all calls
+        @type showTranslated:
         @param moving: flag indicating if the method is triggered by a mouse event
         @type moving: boolean
         """
         adjustForm = self.getGraphicsForm()
         options = adjustForm.options
-        #  No change is made to lower layers
+        # No change is made to lower layers
         # while moving the virtual layer: then we set redo to False
         imgIn = self.inputImg(redo=not moving)
         if not moving:
             self.updateSourcePixmap()
+        self.updateCloningMask()
         """
         # no source loaded yet : init source pixmap
         # to layer input image
@@ -670,17 +671,23 @@ class vImage(bImage):
             return
         ########################
 
-        if not (seamless or showTranslated):  # nothing to do
-            return
         ##############################################
         # update the marker in the positioning window
         ##############################################
         # mask center coordinates relative to full size image
         r = self.monts['m00']
-        if r == 0:
-            dlgWarn('No cloning mask found')
-            return
-        xC, yC = self.monts['m10'] / r, self.monts['m01'] / r
+        if (not self.conts) or r == 0:
+            # no mask found : reset
+            if moving:
+                dlgWarn('No cloning destination found.', info='Use the Unmask/FG brush to select a cloning region')
+            self.xAltOffset, self.yAltOffset = 0.0, 0.0
+            self.AltZoom_coeff = 1.0
+            self.setMaskEnabled(color=True)
+            seamless = False
+        if r > 0:
+            xC, yC = self.monts['m10'] / r, self.monts['m01'] / r
+        else:
+            xC, yC = 0.0, 0.0
         ratioX, ratioY = sourcePixmapThumb.width() / self.width(), sourcePixmapThumb.height() / self.height()  # (sourcePixmap.width()
         pxInScaled_Copy = sourcePixmapThumb.copy()
         qptemp = QPainter(pxInScaled_Copy)
@@ -693,9 +700,12 @@ class vImage(bImage):
         # erase previous transformed image : reset imgOut to ImgIn and
         # draw the translated and zoomed source pixmap on imgOut
         ##############################################################
+        buf0= QImageBuffer(imgOut)
+        buf1 = QImageBuffer(imgIn)
+        buf0[...] = buf1
         qp = QPainter(imgOut)
         qp.setCompositionMode(QPainter.CompositionMode_Source)
-        qp.drawPixmap(QRect(0, 0, imgOut.width(), imgOut.height()), sourcePixmap, sourcePixmap.rect())
+        # qp.drawPixmap(QRect(0, 0, imgOut.width(), imgOut.height()), sourcePixmap, sourcePixmap.rect())
         # get translation relative to current Image
         currentAltX, currentAltY = self.full2CurrentXY(self.xAltOffset, self.yAltOffset)
         # get mask center coordinates relative to the translated current image
@@ -707,6 +717,9 @@ class vImage(bImage):
         bRect = QRectF(currentAltX + (1 - self.AltZoom_coeff) * xC_current, currentAltY + (1 - self.AltZoom_coeff) * yC_current,
                        imgOut.width() * self.AltZoom_coeff, imgOut.height() * self.AltZoom_coeff)
         qp.drawPixmap(bRect, sourcePixmap, sourcePixmap.rect())
+        if adjustForm.sourceFromFile:
+            qp.setCompositionMode(qp.CompositionMode_DestinationIn)
+            qp.drawImage(0, 0, vImage.color2OpacityMask(self.mask.scaled(imgOut.size())))
         qp.end()
 
         #####################
@@ -721,6 +734,7 @@ class vImage(bImage):
                 # clone imgOut into imgInc
                 self.seamlessMerge(imgInc, imgOut, self.mask, self.cloningMethod,
                                      version="blue" if options['blue'] else 'opencv', w=16)
+                # copy imgInc into imgOut
                 bufOut = QImageBuffer(imgOut)
                 bufOut[:, :, :3] = QImageBuffer(imgInc)[:, :, :3]
             finally:
