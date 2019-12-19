@@ -20,12 +20,12 @@ from os.path import isfile
 from time import time
 import numpy as np
 
-from PySide2.QtCore import Qt, QRectF, QPoint
+from PySide2.QtCore import Qt, QRectF, QPoint, QSize, QPointF
 
 import cv2
 from copy import copy
 
-from PySide2.QtGui import QImageReader, QTransform
+from PySide2.QtGui import QImageReader, QTransform, QBitmap, QRegion
 from PySide2.QtWidgets import QApplication, QSplitter
 from PySide2.QtGui import QImage, QColor, QPainter
 from PySide2.QtCore import QRect
@@ -149,17 +149,36 @@ class vImage(bImage):
         return mask
 
     @staticmethod
-    def color2BinaryArray(mask):
+    def colorMask2BinaryArray(mask, invert=False):
         """
-        Return a binary array with values 0/255.
+        Returns a binary array with values 0/255.
         0 corresponds to masked pixels and 255 to unmasked ones.
         @param mask:
         @type mask: QImage
         @return:
         @rtype: ndarray dtype= uint8, shape (h, w)
         """
-        buf = np.copy(QImageBuffer(mask))
-        return np.where(buf[:, :, 2] == 0, np.uint8(0), np.uint8(255))
+        buf = np.copy(QImageBuffer(mask))  # TODO 17/12/19 useless copy
+        if invert:
+            return np.where(buf[:, :, 2] == 0, np.uint8(255), np.uint8(0))
+        else:
+            return np.where(buf[:, :, 2] == 0, np.uint8(0), np.uint8(255))
+
+    @staticmethod
+    def colorMask2QBitmap(mask, invert=False):
+        """
+        Returns a QBitmap object, with size identical to mask size.
+        Masked (resp. unmasked) pixels correspond to 0 (resp 1).
+        mask is a color mask: pixel opacity is defined by the red channel.
+        @param mask: color mask
+        @type mask: QImage
+        @param invert:
+        @type invert: boolean
+        @return:
+        @rtype: QBitmap
+        """
+        a = vImage.colorMask2BinaryArray(mask, invert=invert)
+        return QBitmap.fromData(QSize(mask.size()), np.packbits(a))
 
     @ classmethod
     def isAllMasked(cls, mask):
@@ -293,7 +312,7 @@ class vImage(bImage):
         if rawMetadata is None:
             rawMetadata = {}
         self.isModified = False
-        self.rect = None
+        self.rect, self.marker = None, None  # selection rectangle, marker
         self.isCropped = False
         self.cropTop, self.cropBottom, self.cropLeft, self.cropRight = (0,) * 4
         self.isRuled = False
@@ -457,7 +476,7 @@ class vImage(bImage):
 
     def full2CurrentXY(self, x, y):
         """
-        Maps x,y coordinates of pixel in the full image to
+        Maps x,y coordinates of pixel in the full size image to
         coordinates in current image.
         @param x:
         @type x: int or float
@@ -470,6 +489,23 @@ class vImage(bImage):
             currentImg = self.getThumb()
             x = (x * currentImg.width()) / self.width()
             y = (y * currentImg.height()) / self.height()
+        return int(x), int(y)
+
+    def current2FullXY(self, x, y):
+        """
+        Maps x,y coordinates of pixel in the current image to
+        coordinates in full size image.
+        @param x:
+        @type x: int or float
+        @param y:
+        @type y: int or float
+        @return:
+        @rtype: 2uple of int
+        """
+        if self.useThumb:
+            currentImg = self.getThumb()
+            x = (x * self.width()) / currentImg.width()
+            y = (y * self.height()) / currentImg.height()
         return int(x), int(y)
 
     def getHspbBuffer(self):
@@ -642,7 +678,7 @@ class vImage(bImage):
         options = adjustForm.options
         # No change is made to lower layers
         # while moving the virtual layer: then we set redo to False
-        imgIn = self.inputImg(redo=not moving)
+        imgIn = self.inputImg(redo=not moving, drawTranslated=False)  # TODO modified 16/12/19 validate
         if not moving:
             self.updateSourcePixmap()
         self.updateCloningMask()
@@ -678,24 +714,26 @@ class vImage(bImage):
         r = self.monts['m00']
         if (not self.conts) or r == 0:
             # no mask found : reset
-            if moving:
-                dlgWarn('No cloning destination found.', info='Use the Unmask/FG brush to select a cloning region')
+            #if moving:  # TODO 17/12/19 removed for testing
+                #dlgWarn('No cloning destination found.', info='Use the Unmask/FG brush to select a cloning region')
             self.xAltOffset, self.yAltOffset = 0.0, 0.0
             self.AltZoom_coeff = 1.0
-            self.setMaskEnabled(color=True)
+            #self.setMaskEnabled(color=True)
             seamless = False
         if r > 0:
             xC, yC = self.monts['m10'] / r, self.monts['m01'] / r
         else:
             xC, yC = 0.0, 0.0
-        ratioX, ratioY = sourcePixmapThumb.width() / self.width(), sourcePixmapThumb.height() / self.height()  # (sourcePixmap.width()
+        ratioX, ratioY = sourcePixmapThumb.width() / self.width(), sourcePixmapThumb.height() / self.height()
+        ##############################
+        # update source image pointer
+        ##############################
         pxInScaled_Copy = sourcePixmapThumb.copy()
         qptemp = QPainter(pxInScaled_Copy)
         qptemp.setPen(Qt.white)
-        qptemp.drawEllipse(QPoint((xC - self.xAltOffset) * ratioX, (yC- self.yAltOffset) * ratioY), 10, 10)
+        qptemp.drawEllipse(QPoint((xC - self.xAltOffset) * ratioX, (yC- self.yAltOffset) * ratioY), 5, 5)
         qptemp.end()
         adjustForm.widgetImg.setPixmap(pxInScaled_Copy)
-        adjustForm.widgetImg.repaint()
         ##############################################################
         # erase previous transformed image : reset imgOut to ImgIn and
         # draw the translated and zoomed source pixmap on imgOut
@@ -711,17 +749,20 @@ class vImage(bImage):
         # get mask center coordinates relative to the translated current image
         xC_current, yC_current = self.full2CurrentXY(xC, yC)
         xC_current, yC_current = xC_current - currentAltX, yC_current - currentAltY
-        # draw the translated and zoomed source pixmap (nothing is drawn outside of dest image)
+        ###################################################################################################
+        # Draw the translated and zoomed source pixmap into imgOut (nothing is drawn outside of dest image).
+        # In this way, when adjusting the mask, the unmasked region of imgOut stays always
+        # a copy of the corresponding region of source.
         # The translation is adjusted to keep the point (xC_current, yC_current) invariant while zooming.
+        ###################################################################################################
         qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
         bRect = QRectF(currentAltX + (1 - self.AltZoom_coeff) * xC_current, currentAltY + (1 - self.AltZoom_coeff) * yC_current,
                        imgOut.width() * self.AltZoom_coeff, imgOut.height() * self.AltZoom_coeff)
         qp.drawPixmap(bRect, sourcePixmap, sourcePixmap.rect())
-        if adjustForm.sourceFromFile:
+        if self.sourceFromFile:
             qp.setCompositionMode(qp.CompositionMode_DestinationIn)
             qp.drawImage(0, 0, vImage.color2OpacityMask(self.mask.scaled(imgOut.size())))
         qp.end()
-
         #####################
         # do seamless cloning
         #####################
@@ -731,12 +772,27 @@ class vImage(bImage):
                 QApplication.processEvents()
                 # temporary dest image
                 imgInc = imgIn.copy()
+                ###########################
                 # clone imgOut into imgInc
+                ###########################
                 self.seamlessMerge(imgInc, imgOut, self.mask, self.cloningMethod,
                                      version="blue" if options['blue'] else 'opencv', w=16)
-                # copy imgInc into imgOut
-                bufOut = QImageBuffer(imgOut)
-                bufOut[:, :, :3] = QImageBuffer(imgInc)[:, :, :3]
+                #########################################
+                # copy imgInc into imgOut.
+                # To ensure interactive mask
+                # adjustments (painting brush effect)
+                # we copy the cloned region only.
+                #########################################
+                """
+                #bufOut = QImageBuffer(imgOut)
+                #bufOut[:, :, :3] = QImageBuffer(imgInc)[:, :, :3]
+                """
+                qp =QPainter(imgOut)
+                #qp.setCompositionMode(QPainter.CompositionMode_Source)
+                qp.setClipRegion(QRegion(vImage.colorMask2QBitmap(self.mask).scaled(imgOut.size())))
+                qp.drawImage(QPointF(), imgInc)
+                buf = QImageBuffer(self.mask)[..., 2]
+                buf[...] = vImage.maskDilate(buf, iterations=5)
             finally:
                 self.parentImage.setModified(True)
                 QApplication.restoreOverrideCursor()

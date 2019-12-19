@@ -56,7 +56,7 @@ def createLineIterator(P1, P2, img):
     dYa = np.abs(dY)
 
     # predefine numpy array for output based on distance between points
-    itbuffer = np.empty(shape=(np.maximum(dYa, dXa), 3),dtype=np.float32)
+    itbuffer = np.empty(shape=(np.maximum(dYa, dXa), 3), dtype=np.float32)
     itbuffer.fill(np.nan)
 
     # Obtain coordinates along the line using a form of Bresenham's algorithm
@@ -67,8 +67,8 @@ def createLineIterator(P1, P2, img):
         if negY:
             itbuffer[:, 1] = np.arange(P1Y - 1, P1Y - dYa - 1, -1)
         else:
-            itbuffer[:, 1] = np.arange(P1Y + 1, P1Y + dYa +1)
-    elif P1Y == P2Y: # horizontal line segment
+            itbuffer[:, 1] = np.arange(P1Y + 1, P1Y + dYa + 1)
+    elif P1Y == P2Y:  # horizontal line segment
         itbuffer[:, 1] = P1Y
         if negX:
             itbuffer[:, 0] = np.arange(P1X - 1, P1X - dXa - 1, -1)
@@ -86,9 +86,9 @@ def createLineIterator(P1, P2, img):
         else:
             slope = dY.astype(np.float32)/dX.astype(np.float32)
             if negX:
-                itbuffer[:, 0] = np.arange(P1X - 1,P1X - dXa - 1, -1)
+                itbuffer[:, 0] = np.arange(P1X - 1, P1X - dXa - 1, -1)
             else:
-                itbuffer[:, 0] = np.arange(P1X + 1,P1X + dXa + 1)
+                itbuffer[:, 0] = np.arange(P1X + 1, P1X + dXa + 1)
             itbuffer[:, 1] = (slope*(itbuffer[:, 0] - P1X)).astype(np.int) + P1Y
 
     # Remove points outside of image
@@ -97,7 +97,7 @@ def createLineIterator(P1, P2, img):
     itbuffer = itbuffer[(colX >= 0) & (colY >= 0) & (colX < imageW) & (colY < imageH)]
 
     # Get intensities from img ndarray
-    itbuffer[:, 2] = img[itbuffer[:, 1].astype(np.uint),itbuffer[:, 0].astype(np.uint)]
+    itbuffer[:, 2] = img[itbuffer[:, 1].astype(np.uint), itbuffer[:, 0].astype(np.uint)]
     return itbuffer
 
 
@@ -152,6 +152,9 @@ def membrane(imgBuf, maskBuf, maskContour):  # TODO 6/12/19 removed w=3 validate
     dBuf = imgBuf.copy()
     # compute means per color channel over contour
     m = np.mean(dBuf[maskContour == 255], axis=0)
+    if np.any(np.isnan(m)):  # TODO added 19/12/19  validate
+        print('membrane :', m)  # TODO added 19/12/19 for testing remove
+        return dBuf
     # init the interior area
     dBuf[bMask] = m
     # solve Laplace equation using a grid with unit cells of size step.
@@ -164,7 +167,7 @@ def membrane(imgBuf, maskBuf, maskContour):  # TODO 6/12/19 removed w=3 validate
             c += 1
             outBuf1 = cv2.filter2D(buf1, -1, lpKernel)
             if c % 10 == 0:
-                if np.max(np.abs(buf1 - outBuf1)[bMask1], initial=0) < 0.00001:
+                if (np.max(np.abs(buf1 - outBuf1)[bMask1], initial=0) < 0.00001) or c > 10**7:  # TODO added watchdog 19/12/19 validate
                     break
             # update the interior region
             buf1[bMask1] = outBuf1[bMask1]
@@ -185,13 +188,15 @@ def seamlessClone(srcBuf, destBuf, mask, conts, bRect, srcTr, destTr, w=3):
     @param mask:
     @type mask: ndarray
     @param conts: contours
-    @type conts: list of 2-uple
+    @type conts: list of ndarrays
     @param bRect:  bounding rect of cloning area
     @type bRect: QRect
     @param srcTr: mask translation in source
     @type srcTr: 2-uple
     @param destTr: mask translation in destination
     @type destTr: 2-uple
+    @param w: contour thickness
+    @type w: int
     @return: cloned image
     @rtype: ndarray
     """
@@ -203,8 +208,8 @@ def seamlessClone(srcBuf, destBuf, mask, conts, bRect, srcTr, destTr, w=3):
     rectDest = (bRect[0] + destTr[0], bRect[1] + destTr[1], bRect[2], bRect[3])
     srcBufT = srcBuf[array2DSlices(srcBuf, rectSrc)]
     destBufT = destBuf[array2DSlices(destBuf, rectDest)]
-    maskContour = np.zeros(mask.shape, dtype=mask.dtype)
-    cv2.drawContours(maskContour, conts, 0, 255, w)  # -1: draw all contours; 0: draw contour 0
+    maskContour = np.zeros(mask.shape, dtype=mask.dtype)  # dest of contours
+    cv2.drawContours(maskContour, conts, -1, 255, w)  # -1: draw all contours; 0: draw contour 0  # TODO 1912/19 changed 0 to -1
     buf = membrane(destBufT.astype(np.float) - srcBufT.astype(np.float), mask[array2DSlices(mask, bRect)], maskContour[array2DSlices(maskContour, bRect)])
     tmp = buf + srcBufT
     np.clip(tmp, 0, 255, tmp)
@@ -213,15 +218,4 @@ def seamlessClone(srcBuf, destBuf, mask, conts, bRect, srcTr, destTr, w=3):
     return result
 
 
-if __name__ == '__main__':
-    img1 = cv2.imread("D:\Photos\Russie\leningrad\RL21r.jpg")
-    img2 = cv2.imread("D:\Photos\\Numerique\D5100Src\DSC_0014.jpg")
-    mask = np.zeros(img2.shape, dtype=np.uint8)
-    cv2.circle(mask, (600, 600), 600, (255,255,255), -1)
-    img2[:2000, :2000, :] = seamlessClone(img1[:2000, :2000, :], img2[:2000, :2000, :], mask[:2000, :2000, 2], (500, 800), (800, 800))
-    # buf = membrane(img2[100:2100, 100:2100, :].astype(np.float) - img1[:2000, :2000, :].astype(np.float), mask[:2000, :2000, 2])
-    # tmp = (buf + img1[:2000,:2000, :])#[1000:1600, 1000:1600, :]
-    # np.clip(tmp, 0, 255, tmp)
-    # img2[:2000,:2000,:] = alphaBlend(tmp, img2[:2000, :2000, :], mask[:2000, :2000, :]) #tmp #(buf + img1[:2000,:2000, :]).astype(np.uint8)[1000:1600, 1000:1600,:]
-    show((img2,))
 

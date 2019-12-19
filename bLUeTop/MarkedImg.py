@@ -19,7 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 import gc
 
-from PySide2.QtCore import Qt, QSize, QPoint
+from PySide2.QtCore import Qt, QSize, QPoint, QPointF
 
 import cv2
 from copy import copy
@@ -624,7 +624,7 @@ class QLayer(vImage):
 
     def __init__(self, *args, **kwargs):
         ############################################################
-        # Signals
+        # Signals :
         # Making QLayer inherit from QObject leads to
         # a bugged behavior of hasattr and getattr.
         # So, we don't add signals as first level class attributes.
@@ -677,8 +677,9 @@ class QLayer(vImage):
         # layer offsets
         self.xOffset, self.yOffset = 0, 0
         self.Zoom_coeff = 1.0
-        # clone dup layer shift and zoom  relative to current layer
+        # clone/dup virtual layer shift and zoom (relative to the full sized image)
         self.xAltOffset, self.yAltOffset = 0, 0
+        self.sourceX, self.sourceY = 0, 0
         self.AltZoom_coeff = 1.0
         self.updatePixmap()
 
@@ -851,7 +852,7 @@ class QLayer(vImage):
 
     def full2CurrentXY(self, x, y):
         """
-        Maps x,y coordinates of pixel in the full image to
+        Maps x,y coordinates of pixel in the full size image to
         coordinates in current image.
         @param x:
         @type x: int or float
@@ -864,6 +865,23 @@ class QLayer(vImage):
             currentImg = self.getThumb()
             x = (x * currentImg.width()) / self.width()
             y = (y * currentImg.height()) / self.height()
+        return int(x), int(y)
+
+    def current2FullXY(self, x, y):
+        """
+        Maps x,y coordinates of pixel in the current image to
+        coordinates in full size image.
+        @param x:
+        @type x: int or float
+        @param y:
+        @type y: int or float
+        @return:
+        @rtype: 2uple of int
+        """
+        if self.parentImage.useThumb:
+            currentImg = self.getThumb()
+            x = (x * self.width()) / currentImg.width()
+            y = (y * self.height()) / currentImg.height()
         return int(x), int(y)
 
     def getCurrentMaskedImage(self):
@@ -1258,8 +1276,38 @@ class QCloningLayer(QLayer):
         self.srcImg = None
         # virtual layer moved flag
         self.vlChanged = False
-        # init self.cloning mask, self.monts, self.conts
+        # init self.cloning mask, self.monts, self.conts;
+        # these attributes are relative to full sized images
+        # and used in applyCloning() to speed up move display.
         self.updateCloningMask()
+
+    def inputImg(self, redo=True, drawTranslated=True):
+        """
+        Overrides QLayer.inputImg().
+        Draws the translated source image over
+        @param redo:
+        @type redo:
+        """
+        img1 = super().inputImg()
+        if not drawTranslated:
+            return img1
+        adjustForm = self.getGraphicsForm()
+        if adjustForm is None:
+            return img1
+        qp = QPainter(img1)
+        currentAltX, currentAltY = self.full2CurrentXY(self.xAltOffset, self.yAltOffset)
+        if self.sourceFromFile:
+            qp.drawPixmap(QPointF(currentAltX, currentAltY), adjustForm.sourcePixmap)
+        else:
+            qp.drawImage(QPointF(currentAltX, currentAltY), img1.copy())
+        """
+        # merging with sourceImg
+        qp = QPainter(img1)
+        qp.setOpacity(self.opacity)
+        qp.setCompositionMode(self.compositionMode)
+        qp.drawImage(QRect(0, 0, img1.width(), img1.height()), self.sourceImg)
+        """
+        return img1
 
     def updateCloningMask(self):
         """
@@ -1268,18 +1316,9 @@ class QCloningLayer(QLayer):
         """
         if not self.isCloningLayer():
             return
-        self.cloning_mask = vImage.color2BinaryArray(self.mask)
+        self.cloning_mask = vImage.colorMask2BinaryArray(self.mask)
         self.monts = moments(self.cloning_mask)
         self.conts = contours(self.cloning_mask)
-        """
-        # calculate the contours and moments  of the mask
-        self.conts = contours(self.cloning_mask)
-        cont = self.conts[0]
-        # simplify the contour and get its bounding rect
-        epsilon = 0.01 * cv2.arcLength(cont, True)
-        acont = cv2.approxPolyDP(cont, epsilon, True)
-        self.bRect = QRect(*cv2.boundingRect(acont))
-        """
 
     def updateSourcePixmap(self):
         """
@@ -1290,8 +1329,8 @@ class QCloningLayer(QLayer):
         stack is modified.
         """
         adjustForm = self.getGraphicsForm()
-        if not adjustForm.sourceFromFile:
-            img = self.inputImg()
+        if not self.sourceFromFile:
+            img = self.inputImg(drawTranslated=False)  # TODO added drawtranslated 16/12/19
             if img.rPixmap is None:
                 img.rPixmap = QPixmap.fromImage(img)
             adjustForm.sourcePixmap = img.rPixmap
@@ -1302,8 +1341,8 @@ class QCloningLayer(QLayer):
 
     def seamlessMerge(self, outImg, inImg, mask, cloningMethod, version='opencv', w=3):
         """
-        "low level" seamless cloning.
-        The cloning destination area corresponds to the unmasked region.
+        Seamless cloning.  The cloning mask and contours are
+        recomputed and scaled to image size.
         @param outImg: destination image
         @type outImg: vImage
         @param inImg: source image
@@ -1320,18 +1359,17 @@ class QCloningLayer(QLayer):
         # build the working cloning mask.
         # scale mask to dest current size,  and convert to a binary mask
         src_mask = mask.scaled(outImg.size()).copy(QRect(QPoint(0, 0), inImg.size()))  # useless copy ?
-        cloning_mask = vImage.color2BinaryArray(src_mask)
+        cloning_mask = vImage.colorMask2BinaryArray(src_mask)
 
         conts = contours(cloning_mask)
-        if conts:
-            cont = conts[0]
-        else:
+        if not conts:
             return
-        # simplify the contour and get its bounding rect
-        epsilon = 0.01 * cv2.arcLength(cont, True)
-        acont = cv2.approxPolyDP(cont, epsilon, True)
-        bRect = QRect(* cv2.boundingRect(acont))
-
+        # simplify contours and get bounding rect
+        epsilon = 0.01 * cv2.arcLength(conts[0], True)
+        bRect = QRect(0, 0, -1, -1)  # empty rect
+        for cont in conts:  # TODO 19/12/19 added for loop : validate
+            acont = cv2.approxPolyDP(cont, epsilon, True)
+            bRect |= QRect(* cv2.boundingRect(acont))  # union
         if not bRect.isValid():
             dlgWarn("seamlessMerge : no cloning region found")
             return
@@ -1373,7 +1411,8 @@ class QLayerImage(QLayer):
     """
     QLayer containing a source image.
     The input image built from the stack is merged with the source image,
-    using the blending mode and opacity of the layer.
+    using the blending mode and opacity of the layer. In this way, the layer
+    contribution to the stack is reduced to applyNone().
     The source image is resized to fit the size of the current document.
     """
     @staticmethod
@@ -1397,11 +1436,13 @@ class QLayerImage(QLayer):
 
     def inputImg(self, redo=True):
         """
-        Overrides QLayer.inputImg()
+        Overrides QLayer.inputImg().
+        The input image built from the stack is merged with the source image,
+        using the blending mode and opacity of the layer.
         @return:
         @rtype: QImage
         """
-        img1 = super().inputImg()
+        img1 = super().inputImg()  # TODO maybe missing redo=redo 16/12/19
         # merging with sourceImg
         qp = QPainter(img1)
         qp.setOpacity(self.opacity)

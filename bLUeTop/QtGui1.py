@@ -250,7 +250,7 @@ def paintEvent(widg, e, qp=qp):
     r = mimg.resize_coeff(widg)
     qp.begin(widg)
     # smooth painting
-    qp.setRenderHint(QPainter.SmoothPixmapTransform)   # may be useless
+    qp.setRenderHint(QPainter.SmoothPixmapTransform)   # TODO may be useless
     # fill background
     qp.fillRect(QRect(0, 0, widg.width(), widg.height()), vImage.defaultBgColor)
     # draw the presentation layer.
@@ -264,12 +264,16 @@ def paintEvent(widg, e, qp=qp):
     else:
         currentImage = mimg.prLayer.getCurrentImage()
         qp.drawImage(rectF, currentImage, QImage.rect(currentImage))  # CAUTION : vImage.rect() is overwritten by attribute rect
-    # draw the selection rectangle of the active layer, if any
+    # draw selection rectangle and cloning marker of the active layer, if any
     layer = mimg.getActiveLayer()
-    rect = layer.rect
-    if layer.visible and rect is not None:
-        qp.setPen(QColor(0, 255, 0))
-        qp.drawRect(rect.left()*r + mimg.xOffset, rect.top()*r + mimg.yOffset, rect.width()*r, rect.height()*r)
+    rect, mark = layer.rect, layer.marker
+    if layer.visible:
+        if rect is not None:
+            qp.setPen(Qt.green)
+            qp.drawRect(rect.left() * r + mimg.xOffset, rect.top() * r + mimg.yOffset, rect.width() * r, rect.height() * r)
+        if not (mark is None or layer.sourceFromFile):
+            qp.setPen(Qt.white)
+            qp.drawEllipse(mark.x() * r + mimg.xOffset, mark.y() * r + mimg.yOffset, 10, 10)
     # draw the cropping marks
     lm, rm, tm, bm = 0, 0, 0, 0
     if mimg.isCropped:
@@ -305,13 +309,12 @@ def paintEvent(widg, e, qp=qp):
     qp.end()
 
 
-##############################################################
-# global state variables used in mouseEvent.
+######################################################################
+# global state variables used by mouseEvent.
 pressed = False
 clicked = True
-# Recording of state and mouse coordinates (relative to widget)
-State = {'ix': 0, 'iy': 0, 'ix_begin': 0, 'iy_begin': 0}
-###############################################################
+State = {'ix': 0, 'iy': 0, 'ix_begin': 0, 'iy_begin': 0, 'cloning': ''}
+#######################################################################
 
 # Before/After view
 splittedWin = splittedWindow(window)
@@ -487,7 +490,11 @@ def mouseEvent(widget, event, qp=qp, window=window):  # TODO split into 3 handle
     img = widget.img
     layer = img.getActiveLayer()
     r = img.resize_coeff(widget)
-    # x, y coordinates (relative to widget)
+    ############################################################
+    # get mouse x, y coordinates (relative to widget).
+    # The mouse coordinates relative to the (full size) image are
+    # (x - img.xOffset) / r, (y - img.yOffset) / r
+    #############################################################
     x, y = event.x(), event.y()
     modifiers = event.modifiers()  # app.keyboardModifiers()
     eventType = event.type()
@@ -522,8 +529,15 @@ def mouseEvent(widget, event, qp=qp, window=window):  # TODO split into 3 handle
             if layer.maskIsEnabled:
                 layer.historyListMask.addItem(layer.mask.copy())
         # dragBtn or arrow
-        elif modifiers == Qt.ControlModifier | Qt.AltModifier:
-            if layer.isCloningLayer():
+        if layer.isCloningLayer():
+            if not (window.btnValues['drawFG'] or window.btnValues['drawBG']):
+                if modifiers == Qt.ControlModifier | Qt.AltModifier:  # prevent unwanted clicks # TODO test 16/12/19 changed elif to if
+                    layer.sourceX, layer.sourceY = (x - img.xOffset) / r, (y - img.yOffset) / r
+                    State['cloning'] = 'start'
+            elif State['cloning'] == 'start':
+                # set the virtual layer translation (relative to full size image)
+                layer.xAltOffset, layer.yAltOffset = (x -img.xOffset) / r - layer.sourceX, (y - img.yOffset) / r - layer.sourceY
+                State['cloning'] = 'continue'
                 layer.updateCloningMask()
                 layer.updateSourcePixmap()
         return
@@ -566,7 +580,9 @@ def mouseEvent(widget, event, qp=qp, window=window):  # TODO split into 3 handle
             elif window.btnValues['drawFG'] or window.btnValues['drawBG']:
                 if layer.maskIsEnabled:
                     if layer.isCloningLayer:
-                        layer.setMaskEnabled(color=True)  # set mask to color mask
+                        pass
+                        layer.vlChanged = True  # TODO added 16/12/19
+                        #layer.setMaskEnabled(color=True)  # set mask to color mask
                     toolOpacity = window.verticalSlider2.value() / 100
                     if modifiers == Qt.NoModifier:
                         if layer.isSegmentLayer():
@@ -600,10 +616,13 @@ def mouseEvent(widget, event, qp=qp, window=window):  # TODO split into 3 handle
                             qp.drawEllipse(QPointF(x, y), radius, radius)  # center, radius : QPointF mandatory, else bounding rect topleft and size
                             x, y = x + a_x * step, y + a_y * step
                     qp.end()
+                    if layer.isCloningLayer():
+                        layer.marker = QPointF(tmp_x - layer.xAltOffset, tmp_y - layer.yAltOffset)
                     State['x_imagePrecPos'], State['y_imagePrecPos'] = tmp_x, tmp_y
                     ############################
                     # update upper stack
                     # should be layer.applyToStack() if any upper layer visible : too slow
+                    # layer.applyToStack()
                     layer.updatePixmap()
                     #############################
                     img.prLayer.applyNone()
@@ -718,7 +737,7 @@ def mouseEvent(widget, event, qp=qp, window=window):  # TODO split into 3 handle
                     elif layer.isCloningLayer():
                         if layer.vlChanged:
                             # the virtual layer was moved : clone
-                            layer.applyCloning(seamless=True, showTranslated=True, moving=True)
+                            layer.applyCloning(seamless=True, showTranslated=True)#, moving=True)
                             layer.vlChanged = False
     # updates
     widget.repaint()
