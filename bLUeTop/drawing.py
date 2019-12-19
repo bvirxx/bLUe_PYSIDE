@@ -57,9 +57,18 @@ class brushFamily:
         self.baseCursor.fill(QColor(0, 0, 0, 0))
         qp = QPainter(self.baseCursor)
         qp.drawPath(contourPath)
+        self.__pxmp = None
         self.bOpacity = 1.0
         self.bFlow = 1.0
         self.bHardness = 1.0
+
+    @property
+    def pxmp(self):
+        return self.__pxmp
+
+    @pxmp.setter
+    def pxmp(self, pixmap):
+        self.__pxmp = pixmap
 
     def getBrush(self, size, opacity, color, hardness, flow):
         """
@@ -95,8 +104,9 @@ class brushFamily:
         qp.setCompositionMode(qp.CompositionMode_Source)
         qp.fillPath(self.contourPath, QBrush(gradient))
         qp.end()
-        pxmp = pxmp.scaled(size, size)
-        return {'name': self.name, 'pixmap': pxmp, 'size': size, 'color': color, 'opacity': opacity, 'hardness': hardness, 'flow': flow, 'cursor': self.baseCursor}
+        self.pxmp = pxmp.scaled(size, size)
+        return {'family': self, 'name': self.name, 'pixmap': self.pxmp, 'size': size, 'color': color, 'opacity': opacity,
+                'hardness': hardness, 'flow': flow, 'cursor': self.baseCursor}
 
 
 def initBrushes():
@@ -112,13 +122,13 @@ def initBrushes():
     baseSize = 25
     qpp = QPainterPath()
     qpp.addEllipse(QRect(0, 0, baseSize, baseSize))
-    roundBrushFamily = brushFamily('round', baseSize, qpp)
-    ###########
+    roundBrushFamily = brushFamily('Round', baseSize, qpp)
+    ##########
     # eraser
     ##########
     qpp = QPainterPath()
     qpp.addEllipse(QRect(0, 0, baseSize, baseSize))
-    eraserFamily = brushFamily('eraser', baseSize, qpp)
+    eraserFamily = brushFamily('Eraser', baseSize, qpp)
     # add new brush families before eraser
     brushes = [roundBrushFamily, eraserFamily]
     return brushes
