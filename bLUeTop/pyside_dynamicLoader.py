@@ -51,11 +51,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     .. moduleauthor::  Sebastian Wiesner  <lunaryorn@gmail.com>
 """
 
-import os
-import sys
 from PySide2.QtCore import Slot, QMetaObject
 from PySide2.QtUiTools import QUiLoader
-from PySide2.QtWidgets import QApplication, QMainWindow, QMessageBox
 
 class UiLoader(QUiLoader):
     """
