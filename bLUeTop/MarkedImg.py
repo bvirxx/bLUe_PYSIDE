@@ -1029,7 +1029,7 @@ class QLayer(vImage):
             x, y = self.full2CurrentXY(self.xOffset, self.yOffset)
             rImg = rImg.copy(QRect(-x, -y, rImg.width()*self.Zoom_coeff, rImg.height()*self.Zoom_coeff))
         if self.maskIsEnabled:
-            rImg = vImage.visualizeMask(rImg, self.mask, color=self.maskIsSelected, clipping=True)  # self.isClipping)
+            rImg = vImage.visualizeMask(rImg, self.mask, color=self.maskIsSelected)
         self.rPixmap = QPixmap.fromImage(rImg)
         self.setModified(True)
 
