@@ -27,7 +27,8 @@ from PySide2.QtWidgets import QMainWindow, QLabel, QSizePolicy, QAction, QMenu, 
     QApplication
 
 from bLUeTop import exiftool
-from bLUeTop.QtGui1 import app, window, set_event_handlers
+from bLUeTop.QtGui1 import app, window
+from bLUeTop.imLabel import imageLabel
 from bLUeTop.utils import loader, stateAwareQDockWidget
 from bLUeGui.dialog import IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS
 
@@ -51,13 +52,11 @@ def playDiaporama(diaporamaGenerator, parent=None):
     newWin.setAttribute(Qt.WA_DeleteOnClose)
     newWin.setContextMenuPolicy(Qt.CustomContextMenu)
     newWin.setWindowTitle(parent.tr('Slide show'))
-    label = QLabel()
+    label = imageLabel(mainForm=parent)  #QLabel()
     label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
     label.img = None
     newWin.setCentralWidget(label)
     newWin.showFullScreen()
-    from bLUe import set_event_handlers
-    set_event_handlers(label)
     # Pause key shortcut
     actionEsc = QAction('Pause', None)
     actionEsc.setShortcut(QKeySequence(Qt.Key_Escape))
@@ -309,11 +308,10 @@ To <b>open an image</b> drag it onto the main window.<br>
         newWin = QMainWindow(parent)
         newWin.setAttribute(Qt.WA_DeleteOnClose)
         newWin.setContextMenuPolicy(Qt.CustomContextMenu)
-        label = QLabel(parent=newWin)
+        label = imageLabel(parent=newWin)
         label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         label.img = None
         newWin.setCentralWidget(label)
-        set_event_handlers(label)
         sel = self.listWdg.selectedItems()
         item = sel[0]
         filename = item.data(Qt.UserRole)[0]

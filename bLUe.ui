@@ -651,7 +651,7 @@ Screen</string>
        </widget>
       </item>
       <item>
-       <widget class="QLabel" name="label">
+       <widget class="imageLabel" name="label">
         <property name="focusPolicy">
          <enum>Qt::ClickFocus</enum>
         </property>
@@ -674,7 +674,7 @@ Screen</string>
         <property name="orientation">
          <enum>Qt::Vertical</enum>
         </property>
-        <widget class="QLabel" name="label_3">
+        <widget class="imageLabel" name="label_3">
          <property name="focusPolicy">
           <enum>Qt::ClickFocus</enum>
          </property>
@@ -685,7 +685,7 @@ Screen</string>
           <string>TextLabel</string>
          </property>
         </widget>
-        <widget class="QLabel" name="label_2">
+        <widget class="imageLabel" name="label_2">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
            <horstretch>3</horstretch>
@@ -1276,6 +1276,11 @@ Screen</string>
    <class>histForm</class>
    <extends>QGraphicsView</extends>
    <header location="global">graphicsHist</header>
+  </customwidget>
+  <customwidget>
+   <class>imageLabel</class>
+   <extends>QLabel</extends>
+   <header>imLabel</header>
   </customwidget>
  </customwidgets>
  <resources>
