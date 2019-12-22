@@ -74,7 +74,7 @@ class vImage(bImage):
     classes, and for layer classes. It gathers all image information,
     including meta-data.
     A vImage object holds 4 images:
-           - full (self),
+           - full size (self),
            - thumbnail (self.thumb),
            - hald (self.hald) for LUT3D conversion,
            - mask (self.mask)
@@ -83,24 +83,24 @@ class vImage(bImage):
     and handled independently of the full size image.
     """
     ################
-    # max thumb size :
+    # max thumbnail size :
     # max(thumb.width(), thumb.height()) <= thumbsize
-    ################
     thumbSize = 1500
+    ################
 
     ###############
-    # default base color, painted as background color and to display transparent pixels
-    ###############
+    # default base color : background color and transparent pixels
     defaultBgColor = QColor(128, 128, 128, 255)
+    ###############
 
     ##############
     # Image Mask
     # QImage transformations sometimes give unexpected results
     # with fully transparent pixels. So, we use the red channel to record
-    # the mask opacity, instead of alpha channel.
+    # mask opacity, instead of alpha channel.
     # A mask acts only while image viewing or saving (cf the method vImage.visualizeMask())
     # It has two possible effects, depending on its flags :
-    #        - opacity mask : set the layer opacity to the value of mask red channel;
+    #        - opacity mask : set the layer opacity to the value of the mask red channel;
     #        - color mask : blend mask with layer (mode source over)
     # NOTE 1: The mode "color mask" is meant for viewing only; it should not be used while saving an image !
     # NOTE 2 : Modifying the B, G, A channels of a mask has no effect in mode "opacity mask"
@@ -118,7 +118,7 @@ class vImage(bImage):
     @staticmethod
     def color2OpacityMask(mask):
         """
-        Return a copy of mask with the opacity channel set
+        Returns a copy of mask with the opacity channel set
         from the red channel (alpha = red),
         B, G, R channels are kept unchanged.
         @param mask: mask
@@ -135,7 +135,7 @@ class vImage(bImage):
     @staticmethod
     def color2ViewMask(mask):
         """
-        Return a colored representation of mask,
+        Returns a colored representation of mask,
         B, R, A channels are not modified. mask is kept unchanged.
         @param mask: mask
         @type mask: QImage
@@ -153,12 +153,13 @@ class vImage(bImage):
         """
         Returns a binary array with values 0/255.
         0 corresponds to masked pixels and 255 to unmasked ones.
+        mask opacity is defined by the red channel.
         @param mask:
         @type mask: QImage
         @return:
         @rtype: ndarray dtype= uint8, shape (h, w)
         """
-        buf = np.copy(QImageBuffer(mask))  # TODO 17/12/19 useless copy
+        buf = QImageBuffer(mask)  # np.copy(QImageBuffer(mask))  # TODO 17/12/19 useless copy removed, validate
         if invert:
             return np.where(buf[:, :, 2] == 0, np.uint8(255), np.uint8(0))
         else:
@@ -168,8 +169,9 @@ class vImage(bImage):
     def colorMask2QBitmap(mask, invert=False):
         """
         Returns a QBitmap object, with size identical to mask size.
-        Masked (resp. unmasked) pixels correspond to 0 (resp 1).
-        mask is a color mask: pixel opacity is defined by the red channel.
+        If invert is False (default) masked (resp. unmasked) pixels
+        correspond to 0 (resp 1).
+        mask opacity is defined by the red channel.
         @param mask: color mask
         @type mask: QImage
         @param invert:
@@ -195,9 +197,9 @@ class vImage(bImage):
         return True
 
     @classmethod
-    def visualizeMask(cls, img, mask, color=True, clipping=False, inplace=False):
+    def visualizeMask(cls, img, mask, color=True, inplace=False):
         """
-        Blend img with mask. By default, img is copied before blending.
+        Blends img with mask. By default, img is copied before blending.
         If inplace is True no copy is made.
         If color is True (default), the mask is drawn over the image with opacity 0.5,
         using its own colors. If color is False the alpha channel of the mask is set from
@@ -209,8 +211,6 @@ class vImage(bImage):
         @type mask: QImage
         @param color:
         @type color: bool
-        @param clipping:
-        @type clipping: bool
         @param inplace:
         @type inplace: boolean
         @return:
@@ -238,7 +238,8 @@ class vImage(bImage):
     def maskDilate(mask, ks=5, iterations=1):
         """
         Increases the masked region by applying
-        a ksxks min filter. Returns the dilated mask.
+        a (ks, ks) min filter. Returns the dilated mask.
+        The source mask is not modified.
         @param mask:
         @type mask: image ndarray
         @param ks: kernel size, should be odd
@@ -259,7 +260,8 @@ class vImage(bImage):
     def maskErode(mask, ks=5, iterations=1):
         """
         Reduces the masked region by applying
-        a ksxks max filter. Returns the eroded mask
+        a (ks, ks) max filter. Returns the eroded mask.
+        The source mask is not modified.
         @param mask:
         @type mask: image ndarray
         @param ks: kernel size, should be odd
@@ -278,8 +280,17 @@ class vImage(bImage):
 
     @staticmethod
     def maskSmooth(mask, ks=11):
+        """
+        Smooths the mask by applying a mean kernel.
+        The source mask is not modified.
+        @type mask: image ndarray
+        @param ks: kernel size, should be odd
+        @type ks: int
+        @return: the smoothed mask
+        @rtype: ndarray
+        """
         kernelMean = np.ones((ks, ks), np.float) / (ks * ks)
-        return cv2.filter2D(mask, -1, kernelMean)
+        return cv2.filter2D(mask, -1, kernelMean)  # -1 : keep depth unchanged
 
     def __init__(self, filename=None, cv2Img=None, QImg=None, format=QImage.Format_ARGB32,
                  name='', colorSpace=-1, orientation=None, rating=5, meta=None, rawMetadata=None, profile=''):
@@ -439,7 +450,7 @@ class vImage(bImage):
         the widget paint event handler to display the image.
         The coefficient is chosen to initially (i.e. when self.Zoom_coeff = 1)
         fill the widget without cropping.
-        For splitted views we use the size of the QSplitter parent
+        For split views we use the size of the QSplitter parent
         container instead of the size of the widget.
         @param widget:
         @tyep widget: Qwidget
