@@ -17,24 +17,24 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 #########
-# Before/After View
+# Before/After view
 #########
 from itertools import cycle
 from PySide2.QtCore import Qt
 
 
-class splittedWindow:
+class splitWindow:
     """
-    before/afetr viewing
+    Before/After viewing
     """
-    splittedViews = cycle(('H', 'V', 'B'))
+    splitViews = cycle(('H', 'V', 'B'))
 
     def __init__(self, win):
         self.mainWin = win
 
-    def setSplittedView(self):
+    def setSplitView(self):
         """
-        Initialize a Before/After view
+        Switches to Before/After mode
         @return:
         @rtype:
         """
@@ -60,18 +60,17 @@ class splittedWindow:
             self.mainWin.label_2.img.xOffset = self.mainWin.label_3.img.xOffset
         else:
             # Only Before window
-            self.mainWin.label_2.img.xOffset, self.mainWin.label_2.img.yOffset = self.mainWin.label_3.img.xOffset, self.mainWin.label_3.img.yOffset
+            self.mainWin.label_2.img.xOffset, self.mainWin.label_2.img.yOffset = self.mainWin.label_3.img.xOffset,\
+                                                                                 self.mainWin.label_3.img.yOffset
             self.mainWin.label_3.hide()
         self.mainWin.label_2.update()
         self.mainWin.label_3.update()
 
-    def nextSplittedView(self):
+    def nextSplitView(self):
         """
-        Jump to next Before/After Mode
-        @return:
-        @rtype:
+        Jump to next Before/After mode
         """
-        self.mainWin.splitter.currentState = next(self.splittedViews)
+        self.mainWin.splitter.currentState = next(self.splitViews)
         if self.mainWin.splitter.currentState == 'H':
             self.mainWin.splitter.setOrientation(Qt.Horizontal)
         elif self.mainWin.splitter.currentState == 'V':
@@ -79,20 +78,18 @@ class splittedWindow:
         else:
             # Only Before window
             self.mainWin.label_3.hide()
-        self.setSplittedView()
+        self.setSplitView()
 
-    def syncSplittedView(self, widg1, widg2, linked):
+    def syncSplitView(self, widg1, widg2, linked):
         """
         Sync Before/After views.
-        Called by the mouse event handler
+        Called by mouse event handler
         @param widg1:
         @type widg1:
         @param widg2:
         @type widg2:
         @param linked:
         @type linked:
-        @return:
-        @rtype:
         """
         if not linked:
             return
