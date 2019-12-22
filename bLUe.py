@@ -144,7 +144,7 @@ from PySide2.QtGui import QPixmap, QCursor, QKeySequence, QDesktopServices, QFon
 from PySide2.QtWidgets import QApplication, QAction, \
     QMainWindow, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QWidget, \
     QStyle, QTabWidget, QToolBar, QComboBox
-from bLUeTop.QtGui1 import app, window, rootWidget, splittedWin, set_event_handlers, brushUpdate
+from bLUeTop.QtGui1 import app, window, rootWidget, splitWin
 from bLUeTop import exiftool
 from bLUeTop.graphicsBlendFilter import blendFilterForm
 from bLUeTop.graphicsHVLUT2D import HVLUT2DForm
@@ -681,12 +681,12 @@ def menuView(name, window=window):
     ##################
     if name == 'actionShow_hide_right_window_3':
         if window.splitter.isHidden():
-            splittedWin.setSplittedView()
+            splitWin.setSplitView()
             window.viewState = 'Before/After'
         else:
             window.splitter.hide()
             window.label.show()
-            window.splittedView = False
+            window.splitView = False
             window.viewState = 'After'
             if window.btnValues['Crop_Button']:
                 window.cropTool.drawCropTool(window.label.img)
@@ -1214,19 +1214,15 @@ def menuHelp(name, window=window):
         w.show()
 
 
-def handleNewWindow(imImg=None, parent=None, title='New window', show_maximized=False, event_handler=True, scroll=False):
+def handleNewWindow(parent=None, title='New window', show_maximized=False, scroll=False):
     """
     Shows a floating window containing a QLabel object. It can be used
-    to display text or image. If the parameter event_handler is True (default)
-    the QLabel object redefines its handlers for paint and mouse events to display
-    the image imImg
-    @param imImg: Image to display
-    @type imImg: imImage
+    to display text or image.
     @param parent:
+    @type parent:
     @param title:
+    @type title:
     @param show_maximized:
-    @param event_handler:
-    @type event_handler: boolean
     @param scroll:
     @type scroll:
     @return: new window, label
@@ -1245,10 +1241,7 @@ def handleNewWindow(imImg=None, parent=None, title='New window', show_maximized=
     else:
         newwindow.setCentralWidget(label)
     # The attribute img is used by event handlers
-    label.img = imImg
     label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
-    if event_handler:
-        set_event_handlers(label)
     if show_maximized:
         newwindow.showMaximized()
     else:
@@ -1271,7 +1264,7 @@ def handleTextWindow(parent=None, title='', center=True, wSize=QSize(500, 500)):
     @return new window, label
     @rtype: QMainWindow, QLabel
     """
-    w, label = handleNewWindow(parent=parent, title=title, event_handler=False, scroll=True)
+    w, label = handleNewWindow(parent=parent, title=title, scroll=True)
     w.setFixedSize(wSize)
     label.setAlignment(Qt.AlignTop)
     w.hide()
@@ -1649,8 +1642,6 @@ def setupGUI(window=window):
         empty.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         toolBar.addWidget(empty)
     toolBar.addWidget(window.brushCombo)
-    # record the (initial) current brush
-    brushUpdate()
     # link tooLBar to the group of tool buttons
     for button in window.drawFG.group().buttons():
         button.toolBar = toolBar
@@ -1689,7 +1680,7 @@ def setupGUI(window=window):
     window.verticalSlider2.setWhatsThis("""Set the opacity of the painting brush""")
 
     # Before/After views flag
-    window.splittedView = False
+    window.splitView = False
 
     # close event handler
     window.onCloseEvent = canClose
@@ -1710,18 +1701,28 @@ def setupGUI(window=window):
     window.menuWindow.triggered.connect(lambda a: menuView(a.objectName()))
     window.menuHelp.triggered.connect(lambda a: menuHelp(a.objectName()))
 
-    #  called by all main form button and slider slots (cf. QtGui1.py)
+    #  onWidgetChange is called by all main form button and slider slots (cf. QtGui1.py)
     window.onWidgetChange = widgetChange
 
-    set_event_handlers(window.label)
-    set_event_handlers(window.label_2, enterAndLeave=False)
-    set_event_handlers(window.label_3, enterAndLeave=False)
+    # init imageLabel objects
+    window.label.window = window
+    window.label.splitWin = splitWin
+    window.label_2.window = window
+    window.label_2.splitWin = splitWin
+    window.label_3.window = window
+    window.label_3.splitWin = splitWin
+    window.label.enterAndLeave = True
+    window.label_2.enterAndLeave = False
+    window.label_3.enterAndleave = False
     # drag and drop event handlers are specific for the main window
     window.label.dropEvent = MethodType(lambda instance, e, wdg=window.label: dropEvent(wdg, wdg.img, e),
                                         window.label.__class__)
     window.label.dragEnterEvent = MethodType(lambda instance, e, wdg=window.label: dragEnterEvent(wdg, wdg.img, e),
                                              window.label.__class__)
     window.label.setAcceptDrops(True)
+
+    # recording of the (initial) current brush in label.State
+    window.label.brushUpdate()
 
     defaultImImage = initDefaultImage()
     window.label.img = defaultImImage
@@ -1735,21 +1736,23 @@ def setupGUI(window=window):
 
     # init Before/after view and cycling action
     window.splitter.setOrientation(Qt.Horizontal)
-    window.splitter.currentState = next(splittedWin.splittedViews)
+    window.splitter.currentState = next(splitWin.splitViews)
     window.splitter.setSizes([2 ** 20, 2 ** 20])
     window.splitter.setHandleWidth(1)
     window.splitter.hide()
     window.viewState = 'After'
-    action1 = QAction('cycle', None)
-    action1.setShortcut(QKeySequence("Ctrl+ "))
+    actionCycle = QAction('cycle', window)
+    actionCycle.setShortcut(QKeySequence(Qt.CTRL+Qt.Key_Space) )
 
     def f():
         window.viewState = 'Before/After'
-        splittedWin.nextSplittedView()
+        splitWin.nextSplitView()
         updateStatus()
 
-    action1.triggered.connect(f)
-    window.addAction(action1)
+    actionCycle.triggered.connect(f)
+    window.addAction(actionCycle)
+    actionCycle.setShortcutContext(Qt.ApplicationShortcut)
+
 
     #########################################
     # dynamic modifications of the main form loaded
@@ -1772,16 +1775,16 @@ def setupGUI(window=window):
     )  # end of setWhatsThis
     window.label_3.setWhatsThis(
         """ <b>Before/After View : After Window</b><br>
-        Shows the modified image.<br>
-        <b>Ctrl+Space</b> to cycle through views.<br>
-        <b>Space</b> to switch back to normal view.<br>
+        Shows the edited image.<br>
+        <b>Ctrl+Space</b> cycles through views.<br>
+        <b>Space</b> switches back to normal view.<br>
         """
     )  # end of setWhatsThis
     window.label_2.setWhatsThis(
         """ <b>Before/After View : Before Window</b><br>
-        Shows the initial image.<br>
-        <b>Ctrl+Space</b> to cycle through views.<br>
-        <b>Space</b> to switch back to normal view.
+        Shows the initial (background) image.<br>
+        <b>Ctrl+Space</b> cycles through views.<br>
+        <b>Space</b> switches back to normal view.
         """
     )  # end of setWhatsThis
 
