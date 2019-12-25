@@ -17,30 +17,34 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 import cv2
-from PySide2.QtCore import Qt, QRect, QPointF
+from PySide2.QtCore import Qt, QPointF
 from PySide2.QtGui import QImage, QPixmap, QPainter
 from PySide2.QtWidgets import QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog
 
 from bLUeGui.graphicsForm import baseForm
 from bLUeGui.dialog import IMAGE_FILE_EXTENSIONS
-from bLUeTop import QtGui1
+from bLUeTop.QtGui1 import window
 
 from bLUeTop.utils import optionsWidget, UDict
 
 
 class BWidgetImg(QLabel):
+    """
+    Pointing window for source image
+    """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # stay on top and center
-        self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.Dialog )
+        self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.Dialog)
 
     def mousePressEvent(self, ev):
         super().mousePressEvent(ev)
         x, y = ev.x(), ev.y()
-        pwSize = self.parent().pwSize
-        x, y = x * self.parent().layer.width() / self.parent().sourcePixmapThumb.width(), x * self.parent().layer.height() /self.parent().sourcePixmapThumb.height()
+        x, y = x * self.parent().layer.width() / self.parent().sourcePixmapThumb.width(),\
+               x * self.parent().layer.height() / self.parent().sourcePixmapThumb.height()
         self.parent().layer.sourceX, self.parent().layer.sourceY = x, y
-        QtGui1.State['cloning'] = 'start'
+        if ev.modifiers() == Qt.ControlModifier | Qt.AltModifier:
+            window.label.State['cloning'] = 'start'
 
 
 class patchForm (baseForm):
@@ -52,8 +56,9 @@ class patchForm (baseForm):
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super().__init__(layer=layer, targetImage=targetImage, parent=parent)
-        # source window
+        # positioning window
         self.widgetImg = BWidgetImg(parent=self)
+        self.widgetImg.setWindowTitle("Pointing Source Window")
         # source pixmap
         self.sourcePixmap = None
         self.sourcePixmapThumb = None
@@ -65,11 +70,6 @@ class patchForm (baseForm):
                         'Monochrome Transfer': cv2.MONOCHROME_TRANSFER}
         cv2Flags = list(cv2Flag_dict.keys())
 
-        # self.layer.cloningMethod = cv2Flag_dict['Normal Clone']  # TODO removed 18/12/19 validate
-        # self.layer.maskIsEnabled = True
-        # self.layer.maskIsSelected = True
-        # mask all pixels, use a semi transparent mask
-        # self.layer.resetMask(maskAll=True, alpha=128)
         self.layer.autoclone = True
 
         self.listWidget1 = optionsWidget(options=cv2Flags, exclusive=True, changed=self.dataChanged)
@@ -146,15 +146,17 @@ class patchForm (baseForm):
 
         self.setWhatsThis(
                             """
-                            <b>Cloning</b> :
-                            Seamless replacement of a region of the image by another region from the same image 
+                            <b>Cloning/healing brush</b><br>
+                            Seamless replacement of a region of the image by another region of the same image 
                             or by another image (e.g. to erase an object):<br>
-                               &nbsp; 1) <b> make sure that the cloning layer is the topmost visible layer</b><br>
-                               &nbsp; 2) Select the Unmask/FG tool and paint the pixels to erase 
-                                         (use the Mask/BG tool to adjust the mask if needed); <br>
-                               &nbsp; 3) Select the drag tool and while pressing <b>Ctrl-Alt</b> use
-                                         the mouse to drag or zoom the image shown in the painted region;<br>
-                            Eventually use <b>Mask Erode</b> from the layer context menu to smooth mask edges.<br>
+                               &nbsp; 1) <b> Make sure that the cloning layer is the topmost visible layer</b><br>
+                               &nbsp; 2) With the <i>Pointer Tool</i> selected, <b>Ctrl+Alt+Click</b>
+                                          on the layer or the pointing window to mark the source starting point;<br> 
+                               &nbsp; 3) With the <i>Unmask/FG Tool</i> selected, <b>Ctrl+Alt+Click</b> on the 
+                                         layer to mark the destination starting point;<br>
+                               &nbsp; 4) Paint the destination region with the <i>Unmask/FG Tool</i> to copy and clone pixels. 
+                                         Use <i>the Mask/BG Tool</i> to adjust the mask if needed. <br>
+                            Eventually use <b>Mask Erode</b> from the layer context menu to smooth the contour of the mask.<br>
                             """
                         )  # end of setWhatsthis
 
@@ -163,7 +165,7 @@ class patchForm (baseForm):
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
         self.layer.cloningMethod = self.listWidget1.checkedItems[0].data(Qt.UserRole)
         self.layer.setMaskEnabled()  # TODO added 18/12/19 validate
-        self.layer.resetMask(maskAll=True) # , alpha=128)  # TODO added 18/12/19 validate
+        self.layer.resetMask(maskAll=True)  # , alpha=128)  # TODO added 18/12/19 validate
         # self.widgetImg.setPixmap(QPixmap.fromImage(self.layer.inputImg().scaled(200, 200, aspectMode=Qt.KeepAspectRatio)))
         # init positioning window
         img = self.layer.inputImg(drawTranslated=False)  # TODO added drawTranslated 16/12/19 validate
@@ -173,7 +175,8 @@ class patchForm (baseForm):
         self.sourcePixmapThumb = self.sourcePixmap.scaled(200, 200, aspectMode=Qt.KeepAspectRatio)
         self.widgetImg.setPixmap(self.sourcePixmapThumb)
         self.widgetImg.setFixedSize(self.sourcePixmapThumb.size())
-        self.widgetImg.show()
+        # show positioning window
+        self.widgetImg.hide()
         try:
             self.dataChanged.disconnect()
         except RuntimeError:

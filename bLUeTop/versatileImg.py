@@ -32,6 +32,7 @@ from PySide2.QtCore import QRect
 
 from bLUeGui.bLUeImage import bImage, ndarrayToQImage
 from bLUeCore.multi import chosenInterp
+from bLUeTop.QtGui1 import app
 from bLUeTop.align import alignImages
 
 from bLUeTop.graphicsBlendFilter import blendFilterIndex
@@ -159,7 +160,7 @@ class vImage(bImage):
         @return:
         @rtype: ndarray dtype= uint8, shape (h, w)
         """
-        buf = QImageBuffer(mask)  # np.copy(QImageBuffer(mask))  # TODO 17/12/19 useless copy removed, validate
+        buf = QImageBuffer(mask)  # TODO 17/12/19 useless copy removed, validate
         if invert:
             return np.where(buf[:, :, 2] == 0, np.uint8(255), np.uint8(0))
         else:
@@ -689,23 +690,10 @@ class vImage(bImage):
         options = adjustForm.options
         # No change is made to lower layers
         # while moving the virtual layer: then we set redo to False
-        imgIn = self.inputImg(redo=not moving, drawTranslated=False)  # TODO modified 16/12/19 validate
+        imgIn = self.inputImg(redo=not moving, drawTranslated=False)
         if not moving:
             self.updateSourcePixmap()
         self.updateCloningMask()
-        """
-        # no source loaded yet : init source pixmap
-        # to layer input image
-        if adjustForm.sourcePixmap is None:
-            imgIn.rPixmap = QPixmap.fromImage(imgIn)
-            adjustForm.sourcePixmap = imgIn.rPixmap
-            adjustForm.sourcePixmapThumb = adjustForm.sourcePixmap.scaled(adjustForm.pwSize, adjustForm.pwSize, Qt.KeepAspectRatio)
-            self.widgetImg.setFixedSize(self.sourcePixmapThumb.size())
-            adjustForm.sourceFromFile = False
-        elif not (adjustForm.sourceFromFile or moving):
-            # changes might occur in lower layers or preview/full mode
-            self.updateSourcePixmap()
-        """
         sourcePixmap = adjustForm.sourcePixmap
         sourcePixmapThumb = adjustForm.sourcePixmapThumb
         imgOut = self.getCurrentImage()
@@ -749,12 +737,12 @@ class vImage(bImage):
         # erase previous transformed image : reset imgOut to ImgIn and
         # draw the translated and zoomed source pixmap on imgOut
         ##############################################################
-        buf0= QImageBuffer(imgOut)
-        buf1 = QImageBuffer(imgIn)
-        buf0[...] = buf1
+        #buf0= QImageBuffer(imgOut)
+        #buf1 = QImageBuffer(imgIn)
+        #buf0[...] = buf1
         qp = QPainter(imgOut)
         qp.setCompositionMode(QPainter.CompositionMode_Source)
-        # qp.drawPixmap(QRect(0, 0, imgOut.width(), imgOut.height()), sourcePixmap, sourcePixmap.rect())
+        qp.drawPixmap(QRect(0, 0, imgOut.width(), imgOut.height()), sourcePixmap, sourcePixmap.rect())
         # get translation relative to current Image
         currentAltX, currentAltY = self.full2CurrentXY(self.xAltOffset, self.yAltOffset)
         # get mask center coordinates relative to the translated current image
@@ -766,6 +754,7 @@ class vImage(bImage):
         # a copy of the corresponding region of source.
         # The translation is adjusted to keep the point (xC_current, yC_current) invariant while zooming.
         ###################################################################################################
+        self.watch = True
         qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
         bRect = QRectF(currentAltX + (1 - self.AltZoom_coeff) * xC_current, currentAltY + (1 - self.AltZoom_coeff) * yC_current,
                        imgOut.width() * self.AltZoom_coeff, imgOut.height() * self.AltZoom_coeff)
@@ -780,9 +769,9 @@ class vImage(bImage):
         if seamless:
             try:
                 QApplication.setOverrideCursor(Qt.WaitCursor)
-                QApplication.processEvents()
+                app.processEvents() 
                 # temporary dest image
-                imgInc = imgIn.copy()
+                imgInc = QImage(imgIn)
                 ###########################
                 # clone imgOut into imgInc
                 ###########################
@@ -798,12 +787,12 @@ class vImage(bImage):
                 #bufOut = QImageBuffer(imgOut)
                 #bufOut[:, :, :3] = QImageBuffer(imgInc)[:, :, :3]
                 """
-                qp =QPainter(imgOut)
-                #qp.setCompositionMode(QPainter.CompositionMode_Source)
+                qp = QPainter(imgOut)
+                qp.setCompositionMode(QPainter.CompositionMode_Source)
                 qp.setClipRegion(QRegion(vImage.colorMask2QBitmap(self.mask).scaled(imgOut.size())))
                 qp.drawImage(QPointF(), imgInc)
-                buf = QImageBuffer(self.mask)[..., 2]
-                buf[...] = vImage.maskDilate(buf, iterations=5)
+                #buf = QImageBuffer(self.mask)[..., 2]
+                #buf[...] = vImage.maskDilate(buf, iterations=5)
             finally:
                 self.parentImage.setModified(True)
                 QApplication.restoreOverrideCursor()

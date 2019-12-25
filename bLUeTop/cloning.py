@@ -167,7 +167,7 @@ def membrane(imgBuf, maskBuf, maskContour):  # TODO 6/12/19 removed w=3 validate
             c += 1
             outBuf1 = cv2.filter2D(buf1, -1, lpKernel)
             if c % 10 == 0:
-                if (np.max(np.abs(buf1 - outBuf1)[bMask1], initial=0) < 0.00001) or c > 10**7:  # TODO added watchdog 19/12/19 validate
+                if (np.max(np.abs(buf1 - outBuf1)[bMask1], initial=0) < 0.00001) or (c > 10**7):  # TODO added watchdog 19/12/19 validate
                     break
             # update the interior region
             buf1[bMask1] = outBuf1[bMask1]
@@ -209,7 +209,7 @@ def seamlessClone(srcBuf, destBuf, mask, conts, bRect, srcTr, destTr, w=3):
     srcBufT = srcBuf[array2DSlices(srcBuf, rectSrc)]
     destBufT = destBuf[array2DSlices(destBuf, rectDest)]
     maskContour = np.zeros(mask.shape, dtype=mask.dtype)  # dest of contours
-    cv2.drawContours(maskContour, conts, -1, 255, w)  # -1: draw all contours; 0: draw contour 0  # TODO 1912/19 changed 0 to -1
+    cv2.drawContours(maskContour, conts, -1, 255, w)  # -1: draw all contours; 0: draw contour 0  # TODO 19/12/19 changed 0 to -1
     buf = membrane(destBufT.astype(np.float) - srcBufT.astype(np.float), mask[array2DSlices(mask, bRect)], maskContour[array2DSlices(maskContour, bRect)])
     tmp = buf + srcBufT
     np.clip(tmp, 0, 255, tmp)

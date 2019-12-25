@@ -682,6 +682,7 @@ class QLayer(vImage):
         self.sourceX, self.sourceY = 0, 0
         self.AltZoom_coeff = 1.0
         self.updatePixmap()
+        self.watch = False  ## TODO added 25/12/19 for testing remove
 
     def getGraphicsForm(self):
         """
@@ -1281,14 +1282,20 @@ class QCloningLayer(QLayer):
         # and used in applyCloning() to speed up move display.
         self.updateCloningMask()
 
-    def inputImg(self, redo=True, drawTranslated=True):
+    def equalityTest(self):
+        imgIn = self.inputImg(drawTranslated=False)
+        imgOut = self.getCurrentImage()
+        return (QImageBuffer(imgIn) == QImageBuffer(imgOut)).all()
+
+    def inputImg(self, redo=True, drawTranslated=False):  # True):
         """
         Overrides QLayer.inputImg().
-        Draws the translated source image over
+        If drawTranslated is True (default False), draws the translated source image over
+        the image.
         @param redo:
         @type redo:
         """
-        img1 = super().inputImg()
+        img1 = super().inputImg(redo=redo)
         if not drawTranslated:
             return img1
         adjustForm = self.getGraphicsForm()
@@ -1323,8 +1330,7 @@ class QCloningLayer(QLayer):
     def updateSourcePixmap(self):
         """
         If the cloning source is the (layer) input image
-        the method refreshes the source pixmap and the
-        positioning window, otherwise it does nothing.
+        the method refreshes the source pixmap, otherwise it does nothing.
         The method should be called every time the lower
         stack is modified.
         """
@@ -1334,10 +1340,10 @@ class QCloningLayer(QLayer):
             if img.rPixmap is None:
                 img.rPixmap = QPixmap.fromImage(img)
             adjustForm.sourcePixmap = img.rPixmap
-            adjustForm.sourcePixmapThumb = adjustForm.sourcePixmap.scaled(adjustForm.pwSize, adjustForm.pwSize, aspectMode=Qt.KeepAspectRatio)
-            adjustForm.widgetImg.setPixmap(adjustForm.sourcePixmapThumb)
-            adjustForm.widgetImg.setFixedSize(adjustForm.sourcePixmapThumb.size())
-        adjustForm.widgetImg.show()
+            # adjustForm.sourcePixmapThumb = adjustForm.sourcePixmap.scaled(adjustForm.pwSize, adjustForm.pwSize, aspectMode=Qt.KeepAspectRatio)
+            # adjustForm.widgetImg.setPixmap(adjustForm.sourcePixmapThumb)
+            # adjustForm.widgetImg.setFixedSize(adjustForm.sourcePixmapThumb.size())
+       # adjustForm.widgetImg.show()  # TODO 21/12/19 removed validate
 
     def seamlessMerge(self, outImg, inImg, mask, cloningMethod, version='opencv', w=3):
         """
@@ -1360,14 +1366,14 @@ class QCloningLayer(QLayer):
         # scale mask to dest current size,  and convert to a binary mask
         src_mask = mask.scaled(outImg.size()).copy(QRect(QPoint(0, 0), inImg.size()))  # useless copy ?
         cloning_mask = vImage.colorMask2BinaryArray(src_mask)
-
         conts = contours(cloning_mask)
         if not conts:
             return
         # simplify contours and get bounding rect
         epsilon = 0.01 * cv2.arcLength(conts[0], True)
-        bRect = QRect(0, 0, -1, -1)  # empty rect
-        for cont in conts:  # TODO 19/12/19 added for loop : validate
+        #bRect = QRect(0, 0, -1, -1)  # empty rect
+        bRect = QRect(* cv2.boundingRect(conts[0]))
+        for cont in conts[1:]:  # TODO 19/12/19 added for loop : validate
             acont = cv2.approxPolyDP(cont, epsilon, True)
             bRect |= QRect(* cv2.boundingRect(acont))  # union
         if not bRect.isValid():
@@ -1383,15 +1389,13 @@ class QCloningLayer(QLayer):
         if version == 'opencv':
             sourceBuf = sourceBuf[bt:bb + 1, bl:br + 1, :]
             destBuf = destBuf[bt:bb + 1, bl:br + 1, :]
-            # The cloning center is the center of oRect. We look for its coordinates
+            # The cloning center is the center of bRect. We look for its coordinates
             # relative to inRect
-            center = (
-            bRect.width() // 2 + bRect.left() - inRect.left(), bRect.height() // 2 + bRect.top() - inRect.top())
-            # center = (oRect.left()+oRect.right()) // 2, (oRect.top()+oRect.bottom()) // 2
+            # center = (bRect.width() // 2 + bRect.left() - inRect.left(), bRect.height() // 2 + bRect.top() - inRect.top())
             output = cv2.seamlessClone(np.ascontiguousarray(sourceBuf[:, :, :3]),  # source
                                        np.ascontiguousarray(destBuf[:, :, :3]),    # dest
-                                       src_maskBuf,
-                                       center,
+                                       src_maskBuf,  # src_maskBuf  # TODO modified 25/12/19
+                                       ((br-bl)//2, (bb-bt)//2), #, (br+1-bl)//2),  #  center,
                                        cloningMethod
                                        )
             destBuf[:, :, :3] = output  # assign src_ maskBuf for testing

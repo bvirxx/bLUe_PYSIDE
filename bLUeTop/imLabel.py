@@ -84,33 +84,33 @@ class imageLabel(QLabel):
         self.window = mainForm
         self.splitWin = splitWin
         self.enterAndLeave = enterAndLeave
-        # global state variables used by mouseEvent.
+        # global state variables used in mouseEvent.
         self.pressed = False
         self.clicked = True
         self.State = {'ix': 0, 'iy': 0, 'ix_begin': 0, 'iy_begin': 0, 'cloning': ''}
+        self.img = None
 
     def paintEvent(self, e):
         """
-        Paint event handler.
-        It displays the presentation layer of a vImage object in a Qlabel,
-        with current offset and zooming coefficient.
-        The widget must have a valid img attribute of type vImage.
+        Overrides QLabel paintEvent().
+        Displays the presentation layer of a vImage object,
+        with its current offset and zooming coefficient.
         @param e: paint event
         @type e:
         """
-        mimg = getattr(self, 'img', None)
+        mimg = self.img
         if mimg is None:
             return
         r = mimg.resize_coeff(self)
         qp = self.qp
         window = self.window
-        self.qp.begin(self)
+        qp.begin(self)
         # smooth painting
         qp.setRenderHint(QPainter.SmoothPixmapTransform)  # TODO may be useless
         # fill background
         qp.fillRect(QRect(0, 0, self.width(), self.height()), vImage.defaultBgColor)
-        # draw the presentation layer.
-        # As offsets can be float numbers, we use QRectF instead of QRect
+        # draw presentation layer.
+        # As offsets can be float numbers, we use a QRectF instead of a QRect.
         # r is relative to the full resolution image, so we use mimg width and height
         w, h = mimg.width() * r, mimg.height() * r
         rectF = QRectF(mimg.xOffset, mimg.yOffset, w, h)
@@ -120,7 +120,7 @@ class imageLabel(QLabel):
         else:
             currentImage = mimg.prLayer.getCurrentImage()
             qp.drawImage(rectF, currentImage,
-                         QImage.rect(currentImage))  # CAUTION : vImage.rect() is overwritten by attribute rect
+                         QImage.rect(currentImage))  # CAUTION : vImage.rect() is overwritten by the attribute rect
         # draw selection rectangle and cloning marker of the active layer, if any
         layer = mimg.getActiveLayer()
         rect, mark = layer.rect, layer.marker
@@ -140,14 +140,10 @@ class imageLabel(QLabel):
             rm = window.cropTool.btnDict['right'].margin * r
             tm = window.cropTool.btnDict['top'].margin * r
             bm = window.cropTool.btnDict['bottom'].margin * r
-            # left
-            qp.fillRect(QRectF(mimg.xOffset, mimg.yOffset, lm, h), c)
-            # top
-            qp.fillRect(QRectF(mimg.xOffset + lm, mimg.yOffset, w - lm, tm), c)
-            # right
-            qp.fillRect(QRectF(mimg.xOffset + w - rm, mimg.yOffset + tm, rm, h - tm), c)
-            # bottom
-            qp.fillRect(QRectF(mimg.xOffset + lm, mimg.yOffset + h - bm, w - lm - rm, bm), c)
+            qp.fillRect(QRectF(mimg.xOffset, mimg.yOffset, lm, h), c)  # left
+            qp.fillRect(QRectF(mimg.xOffset + lm, mimg.yOffset, w - lm, tm), c)  # top
+            qp.fillRect(QRectF(mimg.xOffset + w - rm, mimg.yOffset + tm, rm, h - tm), c)  # right
+            qp.fillRect(QRectF(mimg.xOffset + lm, mimg.yOffset + h - bm, w - lm - rm, bm), c)  # bottom
         # draw rulers
         if mimg.isRuled:
             deltaX, deltaY = (w - lm - rm) // 3, (h - tm - bm) // 3
@@ -283,11 +279,11 @@ class imageLabel(QLabel):
             if window.btnValues['rectangle'] or window.btnValues['drawFG'] or window.btnValues['drawBG']:
                 if not layer.visible:
                     dlgWarn('Select a visible layer for drawing or painting')
-                    pressed = False
+                    self.pressed = False
                     return
                 elif not window.btnValues['rectangle'] and not layer.maskIsEnabled:
                     dlgWarn('Enable the mask before painting')
-                    pressed = False
+                    self.pressed = False
                     return
             # marquee tool
             if window.btnValues['rectangle']:
@@ -494,7 +490,7 @@ class imageLabel(QLabel):
                     elif layer.isCloningLayer():
                         if layer.vlChanged:
                             # the virtual layer was moved : clone
-                            layer.applyCloning(seamless=True, showTranslated=True)  # , moving=True)
+                            layer.applyCloning(seamless=True, showTranslated=True, moving=True)
                             layer.vlChanged = False
         # updates
         self.repaint()

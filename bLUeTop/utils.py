@@ -419,6 +419,25 @@ class optionsWidgetItem(QListWidgetItem):
         return self.checkState() == Qt.CheckState.Checked
 
 
+class bLUeEventFilter(QObject):
+
+    def eventFilter(self, target, e):
+        """
+        Filter mouse events for disabled items
+        @param target:
+        @type target:
+        @param e:
+        @type e:
+        """
+        if e.type() in [QEvent.MouseButtonPress, QEvent.MouseMove, QEvent.MouseButtonRelease, QEvent.MouseButtonDblClick]:
+            item = target.itemAt(e.pos())
+            if item.flags() & Qt.ItemIsEnabled:
+                return False  # send to target
+            else:
+                return True
+        return False
+
+
 class optionsWidget(QListWidget):
     """
     Display a list of options with checkboxes.
@@ -468,23 +487,13 @@ class optionsWidget(QListWidget):
             self.itemClicked.connect(changed)
         # selection hook.
         self.onSelect = lambda x: 0
-        self.viewport().installEventFilter(self)
 
-    def eventFilter(self, target, e):
-        """
-        Filter mouse events on disabled items
-        @param target:
-        @type target:
-        @param e:
-        @type e:
-        """
+    def viewportEvent(self, e):
         if e.type() in [QEvent.MouseButtonPress, QEvent.MouseMove, QEvent.MouseButtonRelease, QEvent.MouseButtonDblClick]:
-            item = self.itemAt(e.pos())
-            if item.flags() & Qt.ItemIsEnabled:
-                return False  # send to target
-            else:
-                return True
-        return False
+            if self.itemAt(e.pos()).flags() &  Qt.ItemIsEnabled:
+                return super().viewportEvent(e)
+            return True
+        return super().viewportEvent(e)
 
     def select(self, item, callOnSelect=True):
         """
@@ -495,6 +504,7 @@ class optionsWidget(QListWidget):
         @param callOnSelect:
         @type callOnSelect: bool
         """
+        # don't react to mouse click on disabled items
         if not(item.flags() & Qt.ItemIsEnabled):
             return
         # Update item states:

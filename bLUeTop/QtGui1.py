@@ -215,10 +215,3 @@ window = Form1()
 
 # Before/After view
 splitWin = splitWindow(window)
-
-
-
-
-
-
-
