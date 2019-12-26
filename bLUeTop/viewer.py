@@ -23,7 +23,7 @@ from time import sleep
 
 from PySide2.QtCore import Qt, QUrl, QMimeData, QByteArray, QPoint, QSize
 from PySide2.QtGui import QKeySequence, QImage, QDrag
-from PySide2.QtWidgets import QMainWindow, QLabel, QSizePolicy, QAction, QMenu, QListWidget, QAbstractItemView, \
+from PySide2.QtWidgets import QMainWindow, QSizePolicy, QAction, QMenu, QListWidget, QAbstractItemView, \
     QApplication
 
 from bLUeTop import exiftool
@@ -52,7 +52,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
     newWin.setAttribute(Qt.WA_DeleteOnClose)
     newWin.setContextMenuPolicy(Qt.CustomContextMenu)
     newWin.setWindowTitle(parent.tr('Slide show'))
-    label = imageLabel(mainForm=parent)  #QLabel()
+    label = imageLabel(mainForm=parent)
     label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
     label.img = None
     newWin.setCentralWidget(label)
@@ -180,7 +180,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
 
 class dragQListWidget(QListWidget):
     """
-    This Class is used by playViewer instead of QListWidget.
+    This class is used by playViewer() instead of QListWidget.
     It reimplements mousePressEvent and inits
     a convenient QMimeData object for drag and drop events.
     """
@@ -335,7 +335,7 @@ To <b>open an image</b> drag it onto the main window.<br>
         q = QMimeData()
         # set some Windows magic values for copying files from system clipboard : Don't modify
         # 1 : copy; 2 : move
-        q.setData("Preferred DropEffect", QByteArray("2"))
+        q.setData("Preferred DropEffect", QByteArray(1, "2"))
         q.setUrls(l)
         # end of test code
         #####################
@@ -385,7 +385,7 @@ To <b>open an image</b> drag it onto the main window.<br>
 
     def playViewer(self, folder):
         """
-        Opens a window and displays all images from a folder.
+        Opens a window and displays all images in a folder.
         The images are loaded asynchronously by a separate thread.
         @param folder: path to folder
         @type folder: str
@@ -396,10 +396,11 @@ To <b>open an image</b> drag it onto the main window.<br>
         else:
             # clear form
             self.listWdg.clear()
+        self.newWin.showMaximized()
         # build generator:
         fileListGen = self.doGen(folder, withsub=self.actionSub.isChecked())
         self.dock.setWindowTitle(folder)
-        self.newWin.showMaximized()
+        #self.newWin.showMaximized()
         # launch loader instance
         thr = loader(fileListGen, self.listWdg)
         thr.start()
