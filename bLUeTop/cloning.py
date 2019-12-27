@@ -102,6 +102,19 @@ def createLineIterator(P1, P2, img):
 
 
 def alphaBlend(imgBuf1, imgBuf2, mask):
+    """
+    Returns the blending of imgBuf2 and imgBuf1 defined by mask.
+    The pixels in the unmasked (resp. masked) region are set to those of imgBuf1 (resp. imgBuf2).
+    @param imgBuf1: image buffer
+    @type imgBuf1: ndArray
+    @param imgBuf2: image buffer
+    @type imgBuf2: ndArray
+    @param mask: values in 0..255
+    @type mask: ndarray, shape(h, w)
+    @return:
+    @rtype: ndarray
+    """
+    # convert mask to 0/1
     mask = mask / 255.0
     mask = mask[..., np.newaxis]
     return (imgBuf1 - imgBuf2) * mask + imgBuf2
@@ -153,12 +166,11 @@ def membrane(imgBuf, maskBuf, maskContour):  # TODO 6/12/19 removed w=3 validate
     # compute means per color channel over contour
     m = np.mean(dBuf[maskContour == 255], axis=0)
     if np.any(np.isnan(m)):  # TODO added 19/12/19  validate
-        print('membrane :', m)  # TODO added 19/12/19 for testing remove
         return dBuf
     # init the interior area
     dBuf[bMask] = m
     # solve Laplace equation using a grid with unit cells of size step.
-    for step in [32]:
+    for step in [32, 16]:
         bMask1 = bMask[::step, ::step]
         buf1 = cv2.blur(dBuf, (step, step))
         buf1 = buf1[::step, ::step, :]
@@ -167,7 +179,7 @@ def membrane(imgBuf, maskBuf, maskContour):  # TODO 6/12/19 removed w=3 validate
             c += 1
             outBuf1 = cv2.filter2D(buf1, -1, lpKernel)
             if c % 10 == 0:
-                if (np.max(np.abs(buf1 - outBuf1)[bMask1], initial=0) < 0.00001) or (c > 10**7):  # TODO added watchdog 19/12/19 validate
+                if (np.max(np.abs(buf1 - outBuf1)[bMask1], initial=0) < 0.00001) or (c > 10**5):  # TODO added watchdog 19/12/19 validate
                     break
             # update the interior region
             buf1[bMask1] = outBuf1[bMask1]
@@ -185,8 +197,8 @@ def seamlessClone(srcBuf, destBuf, mask, conts, bRect, srcTr, destTr, w=3):
     @type srcBuf: ndarray
     @param destBuf: destination image
     @type destBuf: ndarray
-    @param mask:
-    @type mask: ndarray
+    @param mask: binary mask (0/255)
+    @type mask: ndarray shape (h, w)
     @param conts: contours
     @type conts: list of ndarrays
     @param bRect:  bounding rect of cloning area
@@ -209,11 +221,17 @@ def seamlessClone(srcBuf, destBuf, mask, conts, bRect, srcTr, destTr, w=3):
     srcBufT = srcBuf[array2DSlices(srcBuf, rectSrc)]
     destBufT = destBuf[array2DSlices(destBuf, rectDest)]
     maskContour = np.zeros(mask.shape, dtype=mask.dtype)  # dest of contours
-    cv2.drawContours(maskContour, conts, -1, 255, w)  # -1: draw all contours; 0: draw contour 0  # TODO 19/12/19 changed 0 to -1
-    buf = membrane(destBufT.astype(np.float) - srcBufT.astype(np.float), mask[array2DSlices(mask, bRect)], maskContour[array2DSlices(maskContour, bRect)])
+    cv2.drawContours(maskContour, conts, -1, 255, w)  # -1: draw all contours; 0: draw contour 0  # TODO 19/12/19 changed 0 to -1 validate
+    # solve Dirichlet for destBufT - srcBufT
+    buf = membrane(destBufT.astype(np.float) - srcBufT.astype(np.float), mask[array2DSlices(mask, bRect)],
+                   maskContour[array2DSlices(maskContour, bRect)])
     tmp = buf + srcBufT
     np.clip(tmp, 0, 255, tmp)
     result = destBuf.copy()
+    # set unmasked (resp. masked)  pixels to tmp (resp. destBufT)
+    # the mask is blurred to smooth the transition
+    mask = mask.copy()
+    mask = cv2.blur(mask, (31, 31))
     result[array2DSlices(destBuf, rectDest)] = alphaBlend(tmp, destBufT, mask[array2DSlices(mask, bRect)])
     return result
 

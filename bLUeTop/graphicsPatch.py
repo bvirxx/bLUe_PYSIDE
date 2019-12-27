@@ -44,7 +44,8 @@ class BWidgetImg(QLabel):
                x * self.parent().layer.height() / self.parent().sourcePixmapThumb.height()
         self.parent().layer.sourceX, self.parent().layer.sourceY = x, y
         if ev.modifiers() == Qt.ControlModifier | Qt.AltModifier:
-            window.label.State['cloning'] = 'start'
+            # window.label.State['cloning'] = 'start'
+            self.parent().layer.cloningState = 'start'
 
 
 class patchForm (baseForm):

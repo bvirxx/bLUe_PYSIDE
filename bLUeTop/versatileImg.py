@@ -34,6 +34,7 @@ from bLUeGui.bLUeImage import bImage, ndarrayToQImage
 from bLUeCore.multi import chosenInterp
 from bLUeTop.QtGui1 import app
 from bLUeTop.align import alignImages
+from bLUeTop.cloning import alphaBlend
 
 from bLUeTop.graphicsBlendFilter import blendFilterIndex
 
@@ -769,7 +770,7 @@ class vImage(bImage):
         if seamless:
             try:
                 QApplication.setOverrideCursor(Qt.WaitCursor)
-                app.processEvents() 
+                app.processEvents()
                 # temporary dest image
                 imgInc = QImage(imgIn)
                 ###########################
@@ -783,16 +784,23 @@ class vImage(bImage):
                 # adjustments (painting brush effect)
                 # we copy the cloned region only.
                 #########################################
-                """
-                #bufOut = QImageBuffer(imgOut)
-                #bufOut[:, :, :3] = QImageBuffer(imgInc)[:, :, :3]
+
+                bufOut = QImageBuffer(imgOut)
+                mask = self.mask.copy()
+                buf = QImageBuffer(mask)
+                buf[...]  = cv2.blur(buf, (21, 21))
+                bufOut[...] = alphaBlend(QImageBuffer(imgInc), bufOut, vImage.colorMask2BinaryArray(mask.scaled(imgOut.size())))  # self.mask changed to mask
                 """
                 qp = QPainter(imgOut)
                 qp.setCompositionMode(QPainter.CompositionMode_Source)
-                qp.setClipRegion(QRegion(vImage.colorMask2QBitmap(self.mask).scaled(imgOut.size())))
+                mask = self.mask.copy()
+                buf = QImageBuffer(mask)
+                buf[...] = vImage.maskErode(buf, iterations=5)
+                qp.setClipRegion(QRegion(vImage.colorMask2QBitmap(mask).scaled(imgOut.size())))
                 qp.drawImage(QPointF(), imgInc)
                 #buf = QImageBuffer(self.mask)[..., 2]
                 #buf[...] = vImage.maskDilate(buf, iterations=5)
+                """
             finally:
                 self.parentImage.setModified(True)
                 QApplication.restoreOverrideCursor()

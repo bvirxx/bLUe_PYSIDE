@@ -222,14 +222,19 @@ class imageLabel(QLabel):
         # dragBtn or arrow
         if layer.isCloningLayer():
             if not (window.btnValues['drawFG'] or window.btnValues['drawBG']):
-                if modifiers == Qt.ControlModifier | Qt.AltModifier:  # prevent unwanted clicks # TODO test 16/12/19 changed elif to if
+                if modifiers == Qt.ControlModifier | Qt.AltModifier:  # prevent unwanted clicks
+                    if layer.cloningState == 'continue':
+                        dlgWarn('Layer already cloned', 'To start a new cloning operation, add another cloning layer')
+                        return
                     layer.sourceX, layer.sourceY = (x - img.xOffset) / r, (y - img.yOffset) / r
-                    State['cloning'] = 'start'
-            elif State['cloning'] == 'start':
+                    # State['cloning'] = 'start'
+                    layer.cloningState = 'start'
+            elif layer.cloningState == 'start':  # State['cloning'] == 'start':
                 # set the virtual layer translation (relative to full size image)
-                layer.xAltOffset, layer.yAltOffset = (x - img.xOffset) / r - layer.sourceX, (
-                        y - img.yOffset) / r - layer.sourceY
-                State['cloning'] = 'continue'
+                layer.xAltOffset, layer.yAltOffset = (x - img.xOffset) / r - layer.sourceX,\
+                                                     (y - img.yOffset) / r - layer.sourceY
+                # State['cloning'] = 'continue'
+                layer.cloningState = 'continue'
                 layer.updateCloningMask()
                 layer.updateSourcePixmap()
 
@@ -270,7 +275,13 @@ class imageLabel(QLabel):
             clrC = img.getActivePixel(x_img, y_img, fromInputImg=False, qcolor=True)
             window.infoView.setText(clr, clrC)
             if layer.isCloningLayer():
-                layer.marker = QPointF(x_img - layer.xAltOffset, y_img - layer.yAltOffset)
+                if layer.cloningState == 'continue':
+                    mx, my = x_img - layer.xAltOffset, y_img - layer.yAltOffset
+                elif layer.cloningState == 'start':
+                    mx, my = layer.sourceX , layer.sourceY
+                else:
+                    mx, my = x_img, y_img
+                layer.marker = QPointF(mx, my)
                 window.label.repaint()
             return
         self.clicked = False

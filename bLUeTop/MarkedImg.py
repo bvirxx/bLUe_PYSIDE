@@ -1277,6 +1277,7 @@ class QCloningLayer(QLayer):
         self.srcImg = None
         # virtual layer moved flag
         self.vlChanged = False
+        self.cloningState = ''
         # init self.cloning mask, self.monts, self.conts;
         # these attributes are relative to full sized images
         # and used in applyCloning() to speed up move display.
@@ -1386,19 +1387,17 @@ class QCloningLayer(QLayer):
         src_maskBuf = np.dstack((cloning_mask, cloning_mask, cloning_mask)).astype(np.uint8)[bt:bb+1, bl:br+1, :]
         sourceBuf = QImageBuffer(inImg)
         destBuf = QImageBuffer(outImg)
+        # clone the unmasked region of source into dest.
         if version == 'opencv':
             sourceBuf = sourceBuf[bt:bb + 1, bl:br + 1, :]
             destBuf = destBuf[bt:bb + 1, bl:br + 1, :]
-            # The cloning center is the center of bRect. We look for its coordinates
-            # relative to inRect
-            # center = (bRect.width() // 2 + bRect.left() - inRect.left(), bRect.height() // 2 + bRect.top() - inRect.top())
             output = cv2.seamlessClone(np.ascontiguousarray(sourceBuf[:, :, :3]),  # source
                                        np.ascontiguousarray(destBuf[:, :, :3]),    # dest
-                                       src_maskBuf,  # src_maskBuf  # TODO modified 25/12/19
-                                       ((br-bl)//2, (bb-bt)//2), #, (br+1-bl)//2),  #  center,
+                                       src_maskBuf,
+                                       ((br-bl)//2, (bb-bt)//2),  # The cloning center is the center of bRect.
                                        cloningMethod
                                        )
-            destBuf[:, :, :3] = output  # assign src_ maskBuf for testing
+            destBuf[:, :, :3] = output
         else:
             output = seamlessClone(sourceBuf[:, :, :3],
                                     destBuf[:, :, :3],

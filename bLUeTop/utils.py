@@ -24,7 +24,7 @@ import numpy as np
 from PySide2 import QtCore
 from PySide2.QtGui import QColor, QImage, QPainter, QPixmap, QIcon
 from PySide2.QtWidgets import QListWidget, QListWidgetItem, \
-    QSlider, QLabel, QDockWidget, QStyle, QColorDialog, QPushButton
+    QSlider, QLabel, QDockWidget, QStyle, QColorDialog, QPushButton, QApplication
 from PySide2.QtCore import Qt, QObject, QRect, QEvent
 
 from bLUeCore.rollingStats import movingVariance
@@ -489,8 +489,13 @@ class optionsWidget(QListWidget):
         self.onSelect = lambda x: 0
 
     def viewportEvent(self, e):
+        """
+        Filters mouse clicks on disabled items.
+        @param e:
+        @type e:
+        """
         if e.type() in [QEvent.MouseButtonPress, QEvent.MouseMove, QEvent.MouseButtonRelease, QEvent.MouseButtonDblClick]:
-            if self.itemAt(e.pos()).flags() &  Qt.ItemIsEnabled:
+            if self.itemAt(e.pos()).flags() & Qt.ItemIsEnabled:
                 return super().viewportEvent(e)
             return True
         return super().viewportEvent(e)
