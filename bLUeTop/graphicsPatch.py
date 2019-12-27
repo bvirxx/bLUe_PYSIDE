@@ -44,7 +44,6 @@ class BWidgetImg(QLabel):
                x * self.parent().layer.height() / self.parent().sourcePixmapThumb.height()
         self.parent().layer.sourceX, self.parent().layer.sourceY = x, y
         if ev.modifiers() == Qt.ControlModifier | Qt.AltModifier:
-            # window.label.State['cloning'] = 'start'
             self.parent().layer.cloningState = 'start'
 
 
@@ -122,11 +121,12 @@ class patchForm (baseForm):
         def g():
             layer = self.layer
             # mask all pixels
-            layer.resetMask(maskAll=True, alpha=128)
-            layer.setMaskEnabled(color=True)
+            layer.resetMask(maskAll=True)
+            layer.setMaskEnabled(color=False)
             # reset cloning layer
             layer.xAltOffset, layer.yAltOffset = 0.0, 0.0
             layer.AltZoom_coeff = 1.0
+            layer.cloningState = ''
             layer.applyCloning(seamless=False, showTranslated=True)
             layer.parentImage.onImageChanged()
 
