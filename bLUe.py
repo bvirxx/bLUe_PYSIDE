@@ -732,12 +732,13 @@ def menuView(name, window=window):
         dlg = QFileDialog(window, "select", lastDir)
         dlg.setNameFilters(IMAGE_FILE_NAME_FILTER)
         dlg.setFileMode(QFileDialog.Directory)
+        dlg.setOptions(QFileDialog.DontUseNativeDialog)  # Native Dialog is too slow
         # open dialog
         if dlg.exec_():
             newDir = dlg.selectedFiles()[0]  # dlg.directory().absolutePath()
             window.settings.setValue('paths/dlgdir', newDir)
             viewerInstance = viewer.getViewerInstance(mainWin=window)
-            viewerInstance.playViewer(newDir)
+            viewerInstance.playViewer(newDir)  # asynchronous
     ###############
     # Color Chooser
     ###############
