@@ -30,7 +30,7 @@ from bLUeTop.utils import optionsWidget, UDict
 
 class BWidgetImg(QLabel):
     """
-    Pointing window for source image
+    Pointing window for cloning source image
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -39,13 +39,21 @@ class BWidgetImg(QLabel):
 
     def mousePressEvent(self, ev):
         super().mousePressEvent(ev)
+        if ev.modifiers() != Qt.ControlModifier | Qt.AltModifier:
+            return
         x, y = ev.x(), ev.y()
         x, y = x * self.parent().layer.width() / self.parent().sourcePixmapThumb.width(),\
-               x * self.parent().layer.height() / self.parent().sourcePixmapThumb.height()
+               y * self.parent().layer.height() / self.parent().sourcePixmapThumb.height()  # changed sourcePixmap to layer  29/12/19
+        # set source starting point
         self.parent().layer.sourceX, self.parent().layer.sourceY = x, y
-        if ev.modifiers() == Qt.ControlModifier | Qt.AltModifier:
-            self.parent().layer.cloningState = 'start'
+        self.parent().layer.cloningState = 'start'
 
+    def paintEvent(self, e):
+        super().paintEvent(e)
+        qp =QPainter(self)
+        x, y = self.parent().layer.marker.x() * self.parent().sourcePixmapThumb.width() / self.parent().sourcePixmap.width(), \
+               self.parent().layer.marker.y() * self.parent().sourcePixmapThumb.height() / self.parent().sourcePixmap.height()
+        qp.drawEllipse(x, y, 10, 10)
 
 class patchForm (baseForm):
     """
@@ -58,7 +66,7 @@ class patchForm (baseForm):
         super().__init__(layer=layer, targetImage=targetImage, parent=parent)
         # positioning window
         self.widgetImg = BWidgetImg(parent=self)
-        self.widgetImg.setWindowTitle("Pointing Source Window")
+        self.widgetImg.setWindowTitle("Pointing")
         # source pixmap
         self.sourcePixmap = None
         self.sourcePixmapThumb = None
@@ -153,10 +161,9 @@ class patchForm (baseForm):
                                &nbsp; 1) <b> Make sure that the cloning layer is the topmost visible layer</b><br>
                                &nbsp; 2) With the <i>Pointer Tool</i> selected, <b>Ctrl+Alt+Click</b>
                                           on the layer or the pointing window to mark the source starting point;<br> 
-                               &nbsp; 3) With the <i>Unmask/FG Tool</i> selected, <b>Ctrl+Alt+Click</b> on the 
-                                         layer to mark the destination starting point;<br>
-                               &nbsp; 4) Paint the destination region with the <i>Unmask/FG Tool</i> to copy and clone pixels. 
+                               &nbsp; 3) Select the <i>Unmask/FG Tool</i> and paint the destination region to copy and clone pixels. 
                                          Use <i>the Mask/BG Tool</i> to adjust the mask if needed. <br>
+                            Use <b>Ctrl+Alt+Mouse Wheel</b> to zoom in or out the cloned region.<br>
                             Eventually use <b>Mask Erode</b> from the layer context menu to smooth the contour of the mask.<br>
                             """
                         )  # end of setWhatsthis

@@ -139,16 +139,27 @@ def contours(maskBuf, thres=0):
 
 
 def moments(maskBuf):
+    """
+    Returns the moment dict for maskBuf
+    @param maskBuf:
+    @type maskBuf: ndarray
+    @return:
+    @rtype: dict
+    """
     return cv2.moments(maskBuf)
 
 
-def membrane(imgBuf, maskBuf, maskContour):  # TODO 6/12/19 removed w=3 validate
+def membrane(inMBuf, maskBuf, maskContour):  # TODO 6/12/19 removed w=3 validate
     """
-    Compute the harmonic function with boundary
+    Calculates the harmonic function with boundary
     values imgBuf on the contour of
     maskBuf (Dirichlet conditions).
-    @param imgBuf: source image
-    @type imgBuf: ndarray, shape (h, w, d)
+    The Laplacian kernel is applied to the interior
+    of the unmasked region only. The exterior is
+    returned unmodified.
+    The input arrays imgBuf, maskBuf and maskContour are not modified.
+    @param inMBuf: boundary values
+    @type inMBuf: ndarray, shape (h, w, d)
     @param maskBuf: mask image
     @type maskBuf: ndarray, shape (h, w)
     @param maskContour:
@@ -157,35 +168,42 @@ def membrane(imgBuf, maskBuf, maskContour):  # TODO 6/12/19 removed w=3 validate
     @rtype: ndarray, shape (h, w, d), dtype=np.float
     """
     # get the interior of the unmasked region (remove contour)
-    bMask = (maskContour != 255) & (maskBuf == 255)
+    innerRegion = (maskContour != 255) & (maskBuf == 255)
     # init the laplacian kernel
     r = 3
     lpKernel = np.zeros((r, r), dtype=np.float)
     lpKernel[0, r//2], lpKernel[r//2, 0], lpKernel[r-1, r//2], lpKernel[r//2, r-1] = (0.25,) * 4
-    dBuf = imgBuf.copy()
+    dBuf = inMBuf.copy()
     # compute means per color channel over contour
     m = np.mean(dBuf[maskContour == 255], axis=0)
     if np.any(np.isnan(m)):  # TODO added 19/12/19  validate
         return dBuf
     # init the interior area
-    dBuf[bMask] = m
+    dBuf[innerRegion] = m
     # solve Laplace equation using a grid with unit cells of size step.
-    for step in [32, 16]:
-        bMask1 = bMask[::step, ::step]
+    for step in [33]:
+        bMask1 = innerRegion[::step, ::step]
+        # init each grid vertex with the mean of dBuf values over a (step,step) neighborhood
+        # and restore initial values for contour vertices.
         buf1 = cv2.blur(dBuf, (step, step))
+        buf1[maskContour == 255] = inMBuf[maskContour == 255]
         buf1 = buf1[::step, ::step, :]
+        # iterate Laplacian kernel
         c = 0
         while True:
             c += 1
             outBuf1 = cv2.filter2D(buf1, -1, lpKernel)
-            if c % 10 == 0:
+            if (c & 31) == 0:
                 if (np.max(np.abs(buf1 - outBuf1)[bMask1], initial=0) < 0.00001) or (c > 10**5):  # TODO added watchdog 19/12/19 validate
                     break
             # update the interior region
             buf1[bMask1] = outBuf1[bMask1]
         # interpolate the grid for next step
         buf1 = cv2.resize(buf1, (dBuf.shape[1], dBuf.shape[0]))
-        dBuf[maskBuf == 255] = buf1[maskBuf == 255]
+        # copy the cloned region into dBuf
+        dBuf[innerRegion] = buf1[innerRegion]
+        maskContour = cv2.blur(maskContour, (20, 20))
+        dBuf[maskContour > 64] = buf1[maskContour > 64]
     return dBuf
 
 
@@ -194,9 +212,9 @@ def seamlessClone(srcBuf, destBuf, mask, conts, bRect, srcTr, destTr, w=3):
     The area in srcBuf delimited by the mask translated by srcTr is cloned
     into the area in destBuf delimited by the mask translated by destTr.
     @param srcBuf: source image
-    @type srcBuf: ndarray
+    @type srcBuf: ndarray, shape (h, w, d)
     @param destBuf: destination image
-    @type destBuf: ndarray
+    @type destBuf: ndarray, shape (h, w, d)
     @param mask: binary mask (0/255)
     @type mask: ndarray shape (h, w)
     @param conts: contours
@@ -216,22 +234,25 @@ def seamlessClone(srcBuf, destBuf, mask, conts, bRect, srcTr, destTr, w=3):
     destTr = np.array(destTr)
     # convert bRect into (x, y, w, h)
     bRect = (bRect.left(), bRect.top(), bRect.width(), bRect.height())
+    # translate bRect for source and dest.
     rectSrc = (bRect[0] + srcTr[0], bRect[1] + srcTr[1], bRect[2], bRect[3])
     rectDest = (bRect[0] + destTr[0], bRect[1] + destTr[1], bRect[2], bRect[3])
+    # finding source and dest regions in srcBuf and destBuf respectively
     srcBufT = srcBuf[array2DSlices(srcBuf, rectSrc)]
     destBufT = destBuf[array2DSlices(destBuf, rectDest)]
+    # obtaining contour of mask
     maskContour = np.zeros(mask.shape, dtype=mask.dtype)  # dest of contours
     cv2.drawContours(maskContour, conts, -1, 255, w)  # -1: draw all contours; 0: draw contour 0  # TODO 19/12/19 changed 0 to -1 validate
-    # solve Dirichlet for destBufT - srcBufT
+    # solving Laplace equation for delta = destBufT - srcBufT
     buf = membrane(destBufT.astype(np.float) - srcBufT.astype(np.float), mask[array2DSlices(mask, bRect)],
                    maskContour[array2DSlices(maskContour, bRect)])
     tmp = buf + srcBufT
     np.clip(tmp, 0, 255, tmp)
     result = destBuf.copy()
-    # set unmasked (resp. masked)  pixels to tmp (resp. destBufT)
+    # set unmasked (resp. masked)  pixels to cloned (resp. dest) pixels
     # the mask is blurred to smooth the transition
-    mask = mask.copy()
-    mask = cv2.blur(mask, (31, 31))
+    #mask = mask.copy()
+    #mask = cv2.blur(mask, (64, 64))
     result[array2DSlices(destBuf, rectDest)] = alphaBlend(tmp, destBufT, mask[array2DSlices(mask, bRect)])
     return result
 

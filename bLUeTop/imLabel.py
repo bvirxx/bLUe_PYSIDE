@@ -226,14 +226,13 @@ class imageLabel(QLabel):
                     if layer.cloningState == 'continue':
                         dlgWarn('Layer already cloned', 'To start a new cloning operation, add another cloning layer')
                         return
+                    # set source starting point (coordinates are relative to full size image)
                     layer.sourceX, layer.sourceY = (x - img.xOffset) / r, (y - img.yOffset) / r
-                    # State['cloning'] = 'start'
                     layer.cloningState = 'start'
-            elif layer.cloningState == 'start':  # State['cloning'] == 'start':
+            elif layer.cloningState == 'start':
                 # set the virtual layer translation (relative to full size image)
                 layer.xAltOffset, layer.yAltOffset = (x - img.xOffset) / r - layer.sourceX,\
                                                      (y - img.yOffset) / r - layer.sourceY
-                # State['cloning'] = 'continue'
                 layer.cloningState = 'continue'
                 layer.updateCloningMask()
                 layer.updateSourcePixmap()
@@ -281,8 +280,12 @@ class imageLabel(QLabel):
                     mx, my = layer.sourceX , layer.sourceY
                 else:
                     mx, my = x_img, y_img
+                if layer.sourceFromFile:
+                    mx, my = mx * layer.getGraphicsForm().sourcePixmap.width() / layer.width(), my * layer.getGraphicsForm().sourcePixmap.height() / layer.height()
                 layer.marker = QPointF(mx, my)
                 window.label.repaint()
+                if layer.sourceFromFile:
+                    layer.getGraphicsForm().widgetImg.repaint()
             return
         self.clicked = False
         if img.isMouseSelectable:
@@ -349,7 +352,11 @@ class imageLabel(QLabel):
                             x, y = x + a_x * step, y + a_y * step
                     qp.end()
                     if layer.isCloningLayer():
-                        layer.marker = QPointF(tmp_x - layer.xAltOffset, tmp_y - layer.yAltOffset)
+                        if not layer.sourceFromFile:
+                            layer.marker = QPointF(tmp_x - layer.xAltOffset, tmp_y - layer.yAltOffset)
+                        else:
+                            layer.marker = QPointF((tmp_x - layer.xAltOffset) * layer.getGraphicsForm().sourcePixmap.width() / layer.width(), (tmp_y - layer.yAltOffset) * layer.getGraphicsForm().sourcePixmap.height() / layer.height())
+                            layer.getGraphicsForm().widgetImg.repaint()
                     State['x_imagePrecPos'], State['y_imagePrecPos'] = tmp_x, tmp_y
                     ############################
                     # update upper stack
@@ -552,7 +559,7 @@ class imageLabel(QLabel):
         # cloning layer zoom
         elif layer.isCloningLayer and modifiers == Qt.ControlModifier | Qt.AltModifier:
             layer.AltZoom_coeff *= (1.0 + numSteps)
-            layer.applyCloning(seamless=False, showTranslated=True, moving=True)
+            layer.applyCloning(seamless=False, showTranslated=True, moving=True)  # autocloning (seamless=true) too slow
         self.repaint()
         # sync split views
         linked = True
