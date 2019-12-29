@@ -682,7 +682,6 @@ class QLayer(vImage):
         self.sourceX, self.sourceY = 0, 0
         self.AltZoom_coeff = 1.0
         self.updatePixmap()
-        self.watch = False  ## TODO added 25/12/19 for testing remove
 
     def getGraphicsForm(self):
         """
@@ -1308,13 +1307,6 @@ class QCloningLayer(QLayer):
             qp.drawPixmap(QPointF(currentAltX, currentAltY), adjustForm.sourcePixmap)
         else:
             qp.drawImage(QPointF(currentAltX, currentAltY), img1.copy())
-        """
-        # merging with sourceImg
-        qp = QPainter(img1)
-        qp.setOpacity(self.opacity)
-        qp.setCompositionMode(self.compositionMode)
-        qp.drawImage(QRect(0, 0, img1.width(), img1.height()), self.sourceImg)
-        """
         return img1
 
     def updateCloningMask(self):
@@ -1341,10 +1333,6 @@ class QCloningLayer(QLayer):
             if img.rPixmap is None:
                 img.rPixmap = QPixmap.fromImage(img)
             adjustForm.sourcePixmap = img.rPixmap
-            # adjustForm.sourcePixmapThumb = adjustForm.sourcePixmap.scaled(adjustForm.pwSize, adjustForm.pwSize, aspectMode=Qt.KeepAspectRatio)
-            # adjustForm.widgetImg.setPixmap(adjustForm.sourcePixmapThumb)
-            # adjustForm.widgetImg.setFixedSize(adjustForm.sourcePixmapThumb.size())
-       # adjustForm.widgetImg.show()  # TODO 21/12/19 removed validate
 
     def seamlessMerge(self, outImg, inImg, mask, cloningMethod, version='opencv', w=3):
         """

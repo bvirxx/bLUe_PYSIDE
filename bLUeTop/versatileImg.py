@@ -718,12 +718,13 @@ class vImage(bImage):
                 #dlgWarn('No cloning destination found.', info='Use the Unmask/FG brush to select a cloning region')
             self.xAltOffset, self.yAltOffset = 0.0, 0.0
             self.AltZoom_coeff = 1.0
-            #self.setMaskEnabled(color=True)
             seamless = False
+        # coordinates of the center of cloning_mask (relative to full size image)
         if r > 0:
             xC, yC = self.monts['m10'] / r, self.monts['m01'] / r
         else:
             xC, yC = 0.0, 0.0
+        """
         ratioX, ratioY = sourcePixmapThumb.width() / self.width(), sourcePixmapThumb.height() / self.height()
         ##############################
         # update source image pointer
@@ -734,9 +735,9 @@ class vImage(bImage):
         qptemp.drawEllipse(QPoint((xC - self.xAltOffset) * ratioX, (yC- self.yAltOffset) * ratioY), 5, 5)
         qptemp.end()
         adjustForm.widgetImg.setPixmap(pxInScaled_Copy)
+        """
         ##############################################################
-        # erase previous transformed image : reset imgOut to ImgIn and
-        # draw the translated and zoomed source pixmap on imgOut
+        # erase previous transformed image : reset imgOut to ImgIn
         ##############################################################
         #buf0= QImageBuffer(imgOut)
         #buf1 = QImageBuffer(imgIn)
@@ -751,18 +752,12 @@ class vImage(bImage):
         xC_current, yC_current = xC_current - currentAltX, yC_current - currentAltY
         ###################################################################################################
         # Draw the translated and zoomed source pixmap into imgOut (nothing is drawn outside of dest image).
-        # In this way, when adjusting the mask, the unmasked region of imgOut stays always
-        # a copy of the corresponding region of source.
         # The translation is adjusted to keep the point (xC_current, yC_current) invariant while zooming.
         ###################################################################################################
-        self.watch = True
         qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
         bRect = QRectF(currentAltX + (1 - self.AltZoom_coeff) * xC_current, currentAltY + (1 - self.AltZoom_coeff) * yC_current,
                        imgOut.width() * self.AltZoom_coeff, imgOut.height() * self.AltZoom_coeff)
         qp.drawPixmap(bRect, sourcePixmap, sourcePixmap.rect())
-        if self.sourceFromFile:
-            qp.setCompositionMode(qp.CompositionMode_DestinationIn)
-            qp.drawImage(0, 0, vImage.color2OpacityMask(self.mask.scaled(imgOut.size())))
         qp.end()
         #####################
         # do seamless cloning
@@ -783,24 +778,12 @@ class vImage(bImage):
                 # To ensure interactive mask
                 # adjustments (painting brush effect)
                 # we copy the cloned region only.
+                # In this way, when adjusting the mask,
+                # the unmasked region of imgOut stays always
+                # a copy of the corresponding region of source.
                 #########################################
-
                 bufOut = QImageBuffer(imgOut)
-                mask = self.mask.copy()
-                buf = QImageBuffer(mask)
-                buf[...]  = cv2.blur(buf, (21, 21))
-                bufOut[...] = alphaBlend(QImageBuffer(imgInc), bufOut, vImage.colorMask2BinaryArray(mask.scaled(imgOut.size())))  # self.mask changed to mask
-                """
-                qp = QPainter(imgOut)
-                qp.setCompositionMode(QPainter.CompositionMode_Source)
-                mask = self.mask.copy()
-                buf = QImageBuffer(mask)
-                buf[...] = vImage.maskErode(buf, iterations=5)
-                qp.setClipRegion(QRegion(vImage.colorMask2QBitmap(mask).scaled(imgOut.size())))
-                qp.drawImage(QPointF(), imgInc)
-                #buf = QImageBuffer(self.mask)[..., 2]
-                #buf[...] = vImage.maskDilate(buf, iterations=5)
-                """
+                bufOut[...] = alphaBlend(QImageBuffer(imgInc), bufOut, vImage.colorMask2BinaryArray(self.mask.scaled(imgOut.size())))
             finally:
                 self.parentImage.setModified(True)
                 QApplication.restoreOverrideCursor()
