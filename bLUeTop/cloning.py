@@ -249,10 +249,6 @@ def seamlessClone(srcBuf, destBuf, mask, conts, bRect, srcTr, destTr, w=3):
     tmp = buf + srcBufT
     np.clip(tmp, 0, 255, tmp)
     result = destBuf.copy()
-    # set unmasked (resp. masked)  pixels to cloned (resp. dest) pixels
-    # the mask is blurred to smooth the transition
-    #mask = mask.copy()
-    #mask = cv2.blur(mask, (64, 64))
     result[array2DSlices(destBuf, rectDest)] = alphaBlend(tmp, destBufT, mask[array2DSlices(mask, bRect)])
     return result
 

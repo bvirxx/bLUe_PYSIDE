@@ -1271,7 +1271,7 @@ class QCloningLayer(QLayer):
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.role='CLONING'
+        self.role = 'CLONING'
         # cloning source image
         self.srcImg = None
         # virtual layer moved flag
@@ -1294,6 +1294,8 @@ class QCloningLayer(QLayer):
         the image.
         @param redo:
         @type redo:
+        @param drawTranslated:
+        @type drawTranslated:
         """
         img1 = super().inputImg(redo=redo)
         if not drawTranslated:
@@ -1360,9 +1362,8 @@ class QCloningLayer(QLayer):
             return
         # simplify contours and get bounding rect
         epsilon = 0.01 * cv2.arcLength(conts[0], True)
-        #bRect = QRect(0, 0, -1, -1)  # empty rect
         bRect = QRect(* cv2.boundingRect(conts[0]))
-        for cont in conts[1:]:  # TODO 19/12/19 added for loop : validate
+        for cont in conts[1:]:
             acont = cv2.approxPolyDP(cont, epsilon, True)
             bRect |= QRect(* cv2.boundingRect(acont))  # union
         if not bRect.isValid():
