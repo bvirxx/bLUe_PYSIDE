@@ -50,10 +50,11 @@ class BWidgetImg(QLabel):
 
     def paintEvent(self, e):
         super().paintEvent(e)
-        qp =QPainter(self)
+        qp = QPainter(self)
         x, y = self.parent().layer.marker.x() * self.parent().sourcePixmapThumb.width() / self.parent().sourcePixmap.width(), \
                self.parent().layer.marker.y() * self.parent().sourcePixmapThumb.height() / self.parent().sourcePixmap.height()
         qp.drawEllipse(x, y, 10, 10)
+
 
 class patchForm (baseForm):
     """

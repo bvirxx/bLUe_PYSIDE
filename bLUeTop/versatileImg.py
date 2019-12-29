@@ -20,12 +20,12 @@ from os.path import isfile
 from time import time
 import numpy as np
 
-from PySide2.QtCore import Qt, QRectF, QPoint, QSize, QPointF
+from PySide2.QtCore import Qt, QRectF, QSize
 
 import cv2
 from copy import copy
 
-from PySide2.QtGui import QImageReader, QTransform, QBitmap, QRegion
+from PySide2.QtGui import QImageReader, QTransform, QBitmap
 from PySide2.QtWidgets import QApplication, QSplitter
 from PySide2.QtGui import QImage, QColor, QPainter
 from PySide2.QtCore import QRect
@@ -158,6 +158,8 @@ class vImage(bImage):
         mask opacity is defined by the red channel.
         @param mask:
         @type mask: QImage
+        @param invert:
+        @type invert:
         @return:
         @rtype: ndarray dtype= uint8, shape (h, w)
         """
@@ -670,7 +672,7 @@ class vImage(bImage):
         bufOut[:, :, :] = bufIn
         self.updatePixmap()
 
-    def applyCloning(self, seamless=True, showTranslated=False, moving=False):
+    def applyCloning(self, seamless=True, showTranslated=False, moving=False):  # TODO remove parameter showTranslated
         """
         Seamless cloning. In addition to the layer input image, (output) image
         and mask, the method uses a source pixmap. The pixmap can
@@ -696,7 +698,7 @@ class vImage(bImage):
             self.updateSourcePixmap()
         self.updateCloningMask()
         sourcePixmap = adjustForm.sourcePixmap
-        sourcePixmapThumb = adjustForm.sourcePixmapThumb
+        # sourcePixmapThumb = adjustForm.sourcePixmapThumb
         imgOut = self.getCurrentImage()
         ########################
         # hald pass through
@@ -714,7 +716,7 @@ class vImage(bImage):
         r = self.monts['m00']
         if (not self.conts) or r == 0:
             # no mask found : reset
-            #if moving:  # TODO 17/12/19 removed for testing
+            # if moving:  # TODO 17/12/19 removed for testing
                 #dlgWarn('No cloning destination found.', info='Use the Unmask/FG brush to select a cloning region')
             self.xAltOffset, self.yAltOffset = 0.0, 0.0
             self.AltZoom_coeff = 1.0
@@ -739,9 +741,6 @@ class vImage(bImage):
         ##############################################################
         # erase previous transformed image : reset imgOut to ImgIn
         ##############################################################
-        #buf0= QImageBuffer(imgOut)
-        #buf1 = QImageBuffer(imgIn)
-        #buf0[...] = buf1
         qp = QPainter(imgOut)
         qp.setCompositionMode(QPainter.CompositionMode_Source)
         qp.drawPixmap(QRect(0, 0, imgOut.width(), imgOut.height()), sourcePixmap, sourcePixmap.rect())
@@ -807,7 +806,7 @@ class vImage(bImage):
         """
         invalid = vImage.defaultColor_Invalid.green()
         form = self.getGraphicsForm()
-        formOptions = form.listWidget1
+        # formOptions = form.listWidget1
         inputImg = self.inputImg()
         ##################################################################
         # pass through
@@ -942,7 +941,7 @@ class vImage(bImage):
         self.updatePixmap()
 
     def applyHDRMerge(self, options):
-        form = self.getGraphicsForm()
+        # form = self.getGraphicsForm()
         # search for layers to merge, below the merging layer
         stack = self.parentImage.layersStack
         i = self.getStackIndex()
@@ -1034,10 +1033,10 @@ class vImage(bImage):
         @param options:
         @type options:
         """
-        #if self.maskIsEnabled:
-            #dlgWarn("A masked layer cannot be transformed.\nDisable the mask")
-            #self.updatePixmap()
-            #return
+        # if self.maskIsEnabled:
+            # dlgWarn("A masked layer cannot be transformed.\nDisable the mask")
+            # self.updatePixmap()
+            # return
         inImg = self.inputImg()
         outImg = self.getCurrentImage()
         buf0 = QImageBuffer(outImg)
