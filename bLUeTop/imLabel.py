@@ -27,11 +27,6 @@ from bLUeTop.versatileImg import vImage
 
 class imageLabel(QLabel):
 
-    # global state variables used by mouseEvent.
-    #pressed = False
-    #clicked = True
-    #State = {'ix': 0, 'iy': 0, 'ix_begin': 0, 'iy_begin': 0, 'cloning': ''}
-
     qp = QPainter()
     qp.font = QFont("Arial", 8)
     qp.markPath = QPainterPath()
@@ -277,11 +272,12 @@ class imageLabel(QLabel):
                 if layer.cloningState == 'continue':
                     mx, my = x_img - layer.xAltOffset, y_img - layer.yAltOffset
                 elif layer.cloningState == 'start':
-                    mx, my = layer.sourceX , layer.sourceY
+                    mx, my = layer.sourceX, layer.sourceY
                 else:
                     mx, my = x_img, y_img
                 if layer.sourceFromFile:
-                    mx, my = mx * layer.getGraphicsForm().sourcePixmap.width() / layer.width(), my * layer.getGraphicsForm().sourcePixmap.height() / layer.height()
+                    pxmp = layer.getGraphicsForm().sourcePixmap
+                    mx, my = mx * pxmp.width() / layer.width(), my * pxmp.height() / layer.height()
                 layer.marker = QPointF(mx, my)
                 window.label.repaint()
                 if layer.sourceFromFile:
@@ -355,7 +351,9 @@ class imageLabel(QLabel):
                         if not layer.sourceFromFile:
                             layer.marker = QPointF(tmp_x - layer.xAltOffset, tmp_y - layer.yAltOffset)
                         else:
-                            layer.marker = QPointF((tmp_x - layer.xAltOffset) * layer.getGraphicsForm().sourcePixmap.width() / layer.width(), (tmp_y - layer.yAltOffset) * layer.getGraphicsForm().sourcePixmap.height() / layer.height())
+                            pxmp = layer.getGraphicsForm().sourcePixmap
+                            layer.marker = QPointF((tmp_x - layer.xAltOffset) * pxmp.width() / layer.width(),
+                                                   (tmp_y - layer.yAltOffset) * pxmp.height() / layer.height())
                             layer.getGraphicsForm().widgetImg.repaint()
                     State['x_imagePrecPos'], State['y_imagePrecPos'] = tmp_x, tmp_y
                     ############################
@@ -423,7 +421,6 @@ class imageLabel(QLabel):
        @type event: QMouseEvent
        """
         window = self.window
-        p = self.qp
         eventType = event.type()
         # no context menu
         if eventType == QContextMenuEvent:
@@ -573,14 +570,8 @@ class imageLabel(QLabel):
     def enterEvent(self, event):
         """
         Mouse enter event handler
-        @param widget:
-        @type widget: QWidget
-        @param img:
-        @type img:
         @param event:
         @type event
-        @param window:
-        @type window: QMainWidget
         """
         if not self.enterAndLeave:
             return
@@ -658,8 +649,6 @@ class imageLabel(QLabel):
     def __strokePaint(self, layer, x, y, r):
         """
         Private drawing function. Should be called only by the mouse event handler
-        @param img:
-        @type img:
         @param layer:
         @type layer:
         @param x:
@@ -668,10 +657,6 @@ class imageLabel(QLabel):
         @type y:
         @param r:
         @type r:
-        @param window:
-        @type window:
-        @param State:
-        @type State:
         """
         img = self.img
         State = self.State
