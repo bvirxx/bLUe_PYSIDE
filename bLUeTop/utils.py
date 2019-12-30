@@ -24,7 +24,7 @@ import numpy as np
 from PySide2 import QtCore
 from PySide2.QtGui import QColor, QImage, QPainter, QPixmap, QIcon
 from PySide2.QtWidgets import QListWidget, QListWidgetItem, \
-    QSlider, QLabel, QDockWidget, QStyle, QColorDialog, QPushButton, QApplication
+    QSlider, QLabel, QDockWidget, QStyle, QColorDialog, QPushButton
 from PySide2.QtCore import Qt, QObject, QRect, QEvent
 
 from bLUeCore.rollingStats import movingVariance

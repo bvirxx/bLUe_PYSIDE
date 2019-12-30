@@ -19,7 +19,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 # Initializes LUT3D related constants
 #####################################
 
-import numpy as np
 from bLUeCore.bLUeLUT3D import LUT3D
 
 LUTSIZE = LUT3D.defaultSize

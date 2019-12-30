@@ -40,7 +40,7 @@ class SavitzkyGolayFilter:
             half_window = (cls.window_size - 1) // 2
             # compute the array m of filter coefficients
             b = np.mat([[k ** i for i in order_range] for k in range(-half_window, half_window + 1)])
-            cls.kernel = np.linalg.pinv(b).A[cls.deriv] * cls.rate ** cls.deriv * factorial(cls.deriv)
+            cls.kernel = np.linalg.pinv(b).A[cls.deriv] * cls.rate ** cls.deriv * factorial(cls.deriv)  # pinv(b).A : conversion of matrix to array
         return cls.kernel
 
     @classmethod

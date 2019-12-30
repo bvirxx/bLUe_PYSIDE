@@ -51,7 +51,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     .. moduleauthor::  Sebastian Wiesner  <lunaryorn@gmail.com>
 """
 
-from PySide2.QtCore import Slot, QMetaObject
+from PySide2.QtCore import QMetaObject
 from PySide2.QtUiTools import QUiLoader
 
 class UiLoader(QUiLoader):

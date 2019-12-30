@@ -454,9 +454,9 @@ class imageLabel(QLabel):
                     redP, greenP, blueP = img.getPrPixel(x_img, y_img)
                     # color chooser : when visible the colorPicked signal is not emitted
                     if getattr(window, 'colorChooser', None) and window.colorChooser.isVisible():
-                        if (modifiers & Qt.ControlModifier) and (modifiers & Qt.ShiftModifier):
+                        if modifiers == Qt.ControlModifier | Qt.ShiftModifier:  # (modifiers & Qt.ControlModifier) and (modifiers & Qt.ShiftModifier):
                             window.colorChooser.setCurrentColor(clr)
-                        elif modifiers & Qt.ControlModifier:
+                        elif modifiers == Qt.ControlModifier:  # modifiers & Qt.ControlModifier:
                             window.colorChooser.setCurrentColor(clrC)
                         else:
                             window.colorChooser.setCurrentColor(QColor(redP, greenP, blueP))

@@ -203,7 +203,7 @@ class HVLUT2DForm(graphicsCurveForm):
         """
         color = self.scene().targetImage.getActivePixel(x, y, qcolor=True)
         h = color.hsvHue()
-        if modifiers & QtCore.Qt.ControlModifier:
+        if modifiers == QtCore.Qt.ControlModifier:
             self.marker.setPos(h * 300/360, 0)  # -(self.axeSize * 3) // 4)
             self.markerLabel.setText("%d" % h)
             self.update()

@@ -26,7 +26,7 @@ from PySide2.QtWidgets import QComboBox, QHBoxLayout, QLabel, QTableView, QAbstr
 
 from bLUeTop.QtGui1 import window
 from bLUeGui.bLUeImage import QImageBuffer
-from bLUeGui.dialog import openDlg, dlgWarn
+from bLUeGui.dialog import dlgWarn
 from bLUeGui.memory import weakProxy
 from bLUeTop.settings import TABBING
 from bLUeTop.utils import QbLUeSlider
