@@ -27,7 +27,7 @@ with open("config.json", "r") as fd:
 ############
 # exiftool path
 ############
-if getattr( sys, 'frozen', False):
+if getattr(sys, 'frozen', False):
     # running in a bundle
     EXIFTOOL_PATH = CONFIG["PATHS"]["EXIFTOOL_PATH_BUNDLED"]  # "bin\exiftool.exe"
 else:

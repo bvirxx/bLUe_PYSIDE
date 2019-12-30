@@ -88,7 +88,7 @@ def interpolationQuadSpline(a, b, d):
     x = np.arange(256, dtype=np.float)/255
     x = np.clip(x, a[0], a[-1])
     # find  node intervals containing x : for each i, get smallest j s.t. a[j] > x[i]
-    tmp = np.fromiter(((a[j]> x[i]) for j in range(len(a)) for i in range(len(x))), dtype=bool)
+    tmp = np.fromiter(((a[j] > x[i]) for j in range(len(a)) for i in range(len(x))), dtype=bool)
     tmp = tmp.reshape(len(a), len(x))
     k = np.argmax(tmp, axis=0)                     # a[k[i]-1]<= x[i] < a[k[i]] if k[i] > 0, and x[i] out of a[0],..a[-1] otherwise
     k = np.where(x >= a[-1], len(a) - 1, k)
@@ -164,11 +164,11 @@ def cubicSpline(X, Y, V):
     deltaX1, R = coeff(X, Y)  # raises ValueError if two X values are equal
     i = np.searchsorted(X, V, side='right') - 1
     isave = i
-    i = np.clip(i,0, len(Y)-2)
+    i = np.clip(i, 0, len(Y)-2)
     t = (V - X[i]) / deltaX1[i]
     values = t * Y[i+1] + (1-t)*Y[i] + deltaX1[i] * deltaX1[i] * (P(t) * R[i+1] + P(1-t) * R[i])/6.0
     values = np.where(isave > len(Y) - 2, Y[-1], values)
-    values = np.where(isave<0, Y[0], values)
+    values = np.where(isave < 0, Y[0], values)
     return values
 
 

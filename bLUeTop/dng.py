@@ -133,7 +133,8 @@ class dngProfileLookTable:
         @type dngDict: dict
         """
         self.isValid = False
-        divs, encoding, data = dngDict.get('ProfileLookTableDims', None), dngDict.get('ProfileLookTableEncoding', None), dngDict.get('ProfileLookTableData', None)
+        divs, encoding, data = dngDict.get('ProfileLookTableDims', None), dngDict.get('ProfileLookTableEncoding', None),\
+                               dngDict.get('ProfileLookTableData', None)
         if divs is None or data is None:  # encoding not used yet : it seems to be missing in dng files
             return
         try:

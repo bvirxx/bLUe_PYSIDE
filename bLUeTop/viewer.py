@@ -400,7 +400,6 @@ To <b>open an image</b> drag it onto the main window.<br>
         # build generator:
         fileListGen = self.doGen(folder, withsub=self.actionSub.isChecked())
         self.dock.setWindowTitle(folder)
-        #self.newWin.showMaximized()
         # launch loader instance
         thr = loader(fileListGen, self.listWdg)
         thr.start()

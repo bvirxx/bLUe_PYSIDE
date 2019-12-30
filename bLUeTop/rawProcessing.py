@@ -32,6 +32,7 @@ from bLUeGui.graphicsSpline import channelValues
 from bLUeGui.histogramWarping import warpHistogram
 from bLUeTop.dng import dngProfileLookTable, dngProfileToneCurve, interpolatedForwardMatrix
 
+
 def rawRead(filename):
     """
     Loads a raw image file into a RawPy instance.

@@ -512,13 +512,10 @@ def showHistogram(window=window):
         window.histView.mode = 'RGB'
         window.histView.chanColors = [QColor(255, 0, 0), QColor(0, 255, 0), QColor(10, 10, 255)]
         window.histView.chans = [ ['R', 'G', 'B'].index(ch) for ch in ['R', 'G', 'B'] if window.histView.options[ch]]
-    #if window.histView.listWidget2.items['Color Chans'].checkState() is Qt.Checked:
-        #window.histView.mode = 'RGB'
-        #window.histView.chanColors = [QColor(255, 0, 0), QColor(0, 255, 0), QColor(10, 10, 255)]
     else:
         window.histView.mode = 'Luminosity'
         window.histView.chanColors = [Qt.gray]
-        window.histView.chans=[]
+        window.histView.chans = []
     histView = histImg.histogram(QSize(window.histView.width(), window.histView.height()),
                                  chans=window.histView.chans, bgColor=Qt.black,
                                  chanColors=window.histView.chanColors, mode=window.histView.mode, addMode='')
@@ -1743,7 +1740,7 @@ def setupGUI(window=window):
     window.splitter.hide()
     window.viewState = 'After'
     actionCycle = QAction('cycle', window)
-    actionCycle.setShortcut(QKeySequence(Qt.CTRL+Qt.Key_Space) )
+    actionCycle.setShortcut(QKeySequence(Qt.CTRL+Qt.Key_Space))
 
     def f():
         window.viewState = 'Before/After'
@@ -1753,7 +1750,6 @@ def setupGUI(window=window):
     actionCycle.triggered.connect(f)
     window.addAction(actionCycle)
     actionCycle.setShortcutContext(Qt.ApplicationShortcut)
-
 
     #########################################
     # dynamic modifications of the main form loaded

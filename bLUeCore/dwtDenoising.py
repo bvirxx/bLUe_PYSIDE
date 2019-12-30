@@ -74,7 +74,7 @@ def dwtDenoiseChan(image, chan=0, thr=1.0, thrmode='hard', wavelet='haar', level
 
     """
     imArray = image[:, :, chan]
-    w,h = imArray.shape[1], imArray.shape[0]
+    w, h = imArray.shape[1], imArray.shape[0]
     #################
     # apply DWT
     # DWT_coeffs is the list of DWT coefficients :
@@ -124,7 +124,7 @@ def dwtDenoiseChan(image, chan=0, thr=1.0, thrmode='hard', wavelet='haar', level
                 # The Wiener Estimator for a noisy signal Y with
                 # noise variance sigma is ~ max(0,E(Y**2) - sigma**2)/ (max(0, E(Y**2)-sigma**2) + sigma**2)
                 # here sigma**2 is the interactive threshold
-                coeff *= np.where(nY2_est> thr, 1.0 - thr / nY2_est, 0)
+                coeff *= np.where(nY2_est > thr, 1.0 - thr / nY2_est, 0)
     # apply inverse DWT
     imArray = pywt.waverecn(DWT_coeffs, wavelet)
     # waverecn sometimes returns a padded array
@@ -136,5 +136,5 @@ def dwtDenoise(image, thr=1.0, thrmode='hard', wavelet='haar', level=None):
         image[:, :, chan] = dwtDenoiseChan(image, chan=chan, thr=thr, thrmode=thrmode, wavelet=wavelet, level=level)
 
 
-if __name__== '__main__':
-   dwtDenoiseChan(np.arange(10000).reshape(100, 100), wavelet='haar', level=3)
+if __name__ == '__main__':
+    dwtDenoiseChan(np.arange(10000).reshape(100, 100), wavelet='haar', level=3)

@@ -71,11 +71,14 @@ QRangeSlider > QSplitter::handle {
     background: #393;
 }
 """
+
+
 def scale(val, src, dst):
     """
     Scale the given value from the scale of src to the scale of dst.
     """
     return int(((val - src[0]) / float(src[1]-src[0])) * (dst[1]-dst[0]) + dst[0])
+
 
 class Filter(QtCore.QObject):
     def eventFilter(self, obj, event):
@@ -92,6 +95,7 @@ class Filter(QtCore.QObject):
             rs.pressed = False
             rs.rangeDone.emit(*rs.getRange())
         return False
+
 
 class Ui_Form(object):
     """default range slider form"""
@@ -133,6 +137,7 @@ class Ui_Form(object):
         _translate = QtCore.QCoreApplication.translate
         Form.setWindowTitle(_translate("QRangeSlider", "QRangeSlider"))
 
+
 class Element(QtWidgets.QGroupBox):
     def __init__(self, parent, main):
         super().__init__(parent)
@@ -161,9 +166,12 @@ class Element(QtWidgets.QGroupBox):
         if self.main.drawValues():
             self.drawText(event, qp)
         qp.end()
+
+
 ###############
 FONT_SIZE = 6
 ###############
+
 class Head(Element):
     """area before the handle"""
     def __init__(self, parent, main):
@@ -174,6 +182,7 @@ class Head(Element):
         qp.setFont(QFont('Arial', FONT_SIZE))
         qp.drawText(event.rect(), QtCore.Qt.AlignLeft, str(self.main.min()))
 
+
 class Tail(Element):
     def __init__(self, parent, main):
         super().__init__(parent, main)
@@ -182,6 +191,7 @@ class Tail(Element):
         qp.setPen(self.textColor())
         qp.setFont(QFont('Arial', FONT_SIZE))
         qp.drawText(event.rect(), QtCore.Qt.AlignRight, str(self.main.max()))
+
 
 class Handle(Element):
     """handle area"""
@@ -215,6 +225,7 @@ class Handle(Element):
         e = self.main.end() + dx
         if s >= self.main.min() and e <= self.main.max():
             self.main.setRange(s, e)
+
 
 class QRangeSlider(QtWidgets.QWidget, Ui_Form):
     """
@@ -275,8 +286,8 @@ class QRangeSlider(QtWidgets.QWidget, Ui_Form):
     maxValueChanged = QtCore.Signal(int)
     minValueChanged = QtCore.Signal(int)
     # range boundary values change
-    startValueChanged = QtCore.Signal(int,int)
-    endValueChanged = QtCore.Signal(int,int)
+    startValueChanged = QtCore.Signal(int, int)
+    endValueChanged = QtCore.Signal(int, int)
     # mouse released over handle
     rangeDone = QtCore.Signal(int, int)
 
@@ -286,7 +297,6 @@ class QRangeSlider(QtWidgets.QWidget, Ui_Form):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setupUi(self)
-        #self.setMouseTracking(False)
         self.setMouseTracking(True)
         self._splitter.splitterMoved.connect(self._handleMoveSplitter)
         self._head_layout = QtWidgets.QHBoxLayout()
@@ -423,10 +433,12 @@ class QRangeSlider(QtWidgets.QWidget, Ui_Form):
         @rtype:
         """
         hw = self._splitter.handleWidth()
+
         def _lockWidth(widget):
             width = widget.size().width()
             widget.setMinimumWidth(width)
             widget.setMaximumWidth(width)
+
         def _unlockWidth(widget):
             widget.setMinimumWidth(0)
             widget.setMaximumWidth(16777215)

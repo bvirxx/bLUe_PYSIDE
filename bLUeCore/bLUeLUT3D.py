@@ -245,7 +245,7 @@ class LUT3D (object):
             raise ValueError("toHaldArray : incorrect sizes)")
         buf = np.zeros((w * h * 3), dtype=np.uint8)
         count = (s ** 3) * 3
-        buf[:count] = np.clip(self.LUT3DArray.ravel(),0 , 255)
+        buf[:count] = np.clip(self.LUT3DArray.ravel(), 0, 255)
         buf = buf.reshape(h, w, 3)
         return HaldArray(buf, s)
 
@@ -297,7 +297,6 @@ class DeltaLUT3D(object):
         """
         self.__divs = divs
         self.__data = np.zeros((divs[0] + 2, divs[1] + 1, divs[2] + 1, 3), dtype=np.float) + (0, 1, 1)
-
 
     @property
     def divs(self):

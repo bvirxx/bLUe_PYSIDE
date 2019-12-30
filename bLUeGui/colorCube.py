@@ -81,7 +81,7 @@ def rgb2hsB(r, g, b, perceptual=False):
     else:
         V = cMax
     V = V / 255.0
-    assert 0 <= H <= 360 and 0 <= S <= 1 and 0 <= V <= 1, "rgb2hsv conversion error r=%d, g=%d, b=%d, h=%f, s=%f, v=%f" %(r, g, b, H, S, V)
+    assert 0 <= H <= 360 and 0 <= S <= 1 and 0 <= V <= 1, "rgb2hsv conversion error r=%d, g=%d, b=%d, h=%f, s=%f, v=%f" % (r, g, b, H, S, V)
     return H, S, V
 
 
@@ -411,7 +411,7 @@ def hsp2rgbVecSmall(hspImg):
     part2 = part2 * part2
 
     X1 = np.where(Mm == np.inf, 0, p / np.sqrt(Perc_R * Mm2 + Perc_G * part1 + Perc_B))   # b
-    Y1 = np.where(Mm == np.inf, p / np.sqrt(Perc_R+ Perc_G * f *f), X1 * Mm)              # r
+    Y1 = np.where(Mm == np.inf, p / np.sqrt(Perc_R + Perc_G * f * f), X1 * Mm)              # r
 
     X2 = np.where(Mm == np.inf, 0, p / np.sqrt(Perc_G * Mm2 + Perc_R * part2 + Perc_B))   # b
     Y2 = np.where(Mm == np.inf, p / np.sqrt(Perc_G + Perc_R * (1-f) * (1-f)), X2 * Mm)    # g
@@ -435,7 +435,7 @@ def hsp2rgbVecSmall(hspImg):
 
     tmp = np.arange(np.prod(shape))[:, None]
 
-    rgbMax = clistMax[orderMax[i], tmp][:,0]
+    rgbMax = clistMax[orderMax[i], tmp][:, 0]
     rgbMax = rgbMax.clip(0, 1)
     hsv = np.dstack((h*60, s, rgbMax)).reshape(shape + (3,)) * [0.5, 255, 255]
 

@@ -377,8 +377,6 @@ class rotatingTool(QObject):
     def getForm(self):
         if self.layer is not None:
             return self.layer.getGraphicsForm()
-            #if self.layer.view is not None:
-                #return self.layer.view.widget()
         return None
 
     def setBaseTransform(self):

@@ -118,7 +118,6 @@ class hueSatPattern(bImage):
         self.pb = pb
         self.hsArray[:, :, 2] = pb
         imgBuf = QImageBuffer(self)[:, :, :3][:, :, ::-1]
-        #imgBuf[:,:,:] = ccm2rgbVec(self.hsArray)
         imgBuf[:, :, :] = self.cModel.cm2rgbVec(self.hsArray)
         self.updatePixmap()
 

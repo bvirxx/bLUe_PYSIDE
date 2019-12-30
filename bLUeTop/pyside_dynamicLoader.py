@@ -54,6 +54,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 from PySide2.QtCore import QMetaObject
 from PySide2.QtUiTools import QUiLoader
 
+
 class UiLoader(QUiLoader):
     """
     Subclass :QUiLoader` to create the user interface

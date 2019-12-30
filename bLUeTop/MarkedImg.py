@@ -80,7 +80,7 @@ class mImage(vImage):
             if defaultorientation:
                 e.writeOrientation(destFile, '1')
             if thumbfile is not None:
-                    e.writeThumbnail(destFile, thumbfile)
+                e.writeThumbnail(destFile, thumbfile)
 
     def __init__(self, *args, **kwargs):
         # as updatePixmap() uses layersStack, the latter must be initialized
