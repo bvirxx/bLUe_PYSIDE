@@ -1728,7 +1728,6 @@ def setupGUI(window=window):
     window.label_3.img = defaultImImage
 
     window.showMaximized()
-    splash.finish(window)
 
     initCursors()
 
