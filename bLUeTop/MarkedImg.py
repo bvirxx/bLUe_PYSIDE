@@ -1416,7 +1416,8 @@ class QLayerImage(QLayer):
         if sourceImg is not None:
             # intermediate layer
             layer.stroke = QImage(sourceImg.size(), sourceImg.format())
-            # atomic stroke painting is needed to handle brush opacity
+            # atomic stroke painting is needed to handle brush opacity:
+            # We save layer.sourceImg in layer.strokeDest at each stroke beginning.
             layer.strokeDest = None
         # undo/redo functionality
         layer.history = historyList()

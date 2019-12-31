@@ -200,16 +200,11 @@ class imageLabel(QLabel):
         if layer.isDrawLayer():
             layer.history.addItem(layer.sourceImg.copy())
             if window.btnValues['brushButton'] or window.btnValues['bucket']:
-                # starting new stroke : save initial image for atomic stroke painting  and init intermediate layer
+                # starting a new stroke : save initial image for atomic stroke painting  and init intermediate layer
                 layer.strokeDest = layer.sourceImg.copy()
                 layer.stroke.fill(QColor(0, 0, 0, 0))
                 if window.btnValues['brushButton']:
                     self.syncBrush(r)
-            """
-            elif window.btnValues['eraserButton']:
-                layer.stroke = layer.sourceImg.copy()
-                layer.strokeDest = layer.sourceImg.copy()
-            """
         # add current mask to history
         if window.btnValues['drawFG'] or window.btnValues['drawBG']:
             if layer.maskIsEnabled:
@@ -607,10 +602,12 @@ class imageLabel(QLabel):
         Private drawing function.
         Base function for painting tools. The radius and pixmap
         of the tool are passed by the parameters radius and pxmp.
-        The parameter qp must be an active QPainter.
         Starting coordinates of the move are recorded in State, ending coordinates
         are passed by parameters x, y.
+        Brush tips are drawn on the intermediate layer self.stroke,
+        using self.qp.
         Successive brush tips, spaced by 0.25 * radius, are paint on qp.
+        Note that self.qp must have been previously activated.
         @param x: move event x-coord
         @type x: float
         @param y: move event y-coord
@@ -662,20 +659,23 @@ class imageLabel(QLabel):
         State = self.State
         qp = self.qp
         radius = State['brush']['size'] / 2
-        # drawing into stroke intermediate layer
+        # draw the stroke
         if self.window.btnValues['brushButton']:
+            # drawing into stroke intermediate layer
             cp = layer.stroke
             qp.begin(cp)
             qp.setCompositionMode(qp.CompositionMode_SourceOver)
             State['x_imagePrecPos'], State['y_imagePrecPos'] = self.__movePaint(x, y, r, radius,
                                                                            pxmp=State['brush']['pixmap'])
             qp.end()
-            # paint the whole stroke with current brush opacity
-            layer.sourceImg = layer.strokeDest.copy()
+            # restore source image and paint
+            # the whole stroke with current brush opacity
             qp.begin(layer.sourceImg)
+            qp.setCompositionMode(qp.CompositionMode_Source)
+            qp.drawImage(QPointF(), layer.strokeDest)
             qp.setOpacity(State['brush']['opacity'])
             qp.setCompositionMode(qp.CompositionMode_SourceOver)
-            qp.drawImage(QPointF(0, 0), layer.stroke)
+            qp.drawImage(QPointF(), layer.stroke)
             qp.end()
         elif self.window.btnValues['eraserButton']:
             cp = layer.sourceImg  # layer.stroke
