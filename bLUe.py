@@ -125,11 +125,9 @@ import sys
 import threading
 from itertools import cycle
 from os import path, walk
-from io import BytesIO
 from time import sleep
 import gc
 
-from PIL.ImageCms import ImageCmsProfile
 from types import MethodType
 import rawpy
 
@@ -173,7 +171,6 @@ from bLUeTop.graphicsFilter import filterForm
 from bLUeTop.graphicsHspbLUT import graphicsHspbForm
 from bLUeTop.graphicsLabLUT import graphicsLabForm
 
-from bLUeCore.demosaicing import demosaic
 from bLUeGui.dialog import *
 from bLUeTop.viewer import playDiaporama, viewer
 
@@ -260,122 +257,6 @@ def widgetChange(button, window=window):
     window.label.repaint()
 
 
-def loadImageFromFile(f, createsidecar=True, icc=icc):
-    """
-    load an imImage (image and metadata) from file. Returns the loaded imImage :
-    For a raw file, it is the image postprocessed with default parameters.
-    metadata is a list of dicts with len(metadata) >=1.
-    metadata[0] contains at least 'SourceFile' : path.
-    profile is a string containing the profile binary data,
-    currently, we do not use these data : standard profiles
-    are loaded from disk, non standard profiles are ignored.
-    @param f: path to file
-    @type f: str
-    @param createsidecar:
-    @type createsidecar: boolean
-    @param icc:
-    @type icc: class icc
-    @return: image
-    @rtype: imImage
-    """
-    ###########
-    # read metadata
-    ##########
-    try:
-        # read metadata from sidecar (.mie) if it exists, otherwise from image file.
-        # The sidecar is created if it does not exist and createsidecar is True.
-        with exiftool.ExifTool() as e:
-            profile, metadata = e.get_metadata(f, tags=("colorspace", "profileDescription", "orientation", "model", "rating"), createsidecar=createsidecar)
-            imageInfo = e.get_formatted_metadata(f)
-    except ValueError:
-        # Default metadata and profile
-        metadata = {'SourceFile': f}
-        profile = ''
-        imageInfo = 'No data found'
-    # color space : 1=sRGB 65535=uncalibrated
-    tmp = [value for key, value in metadata.items() if 'colorspace' in key.lower()]
-    colorSpace = tmp[0] if tmp else -1
-    # try again to find a valid color space tag and/or an imbedded profile.
-    # If everything fails, assign sRGB.
-    if colorSpace == -1 or colorSpace == 65535:
-        tmp = [value for key, value in metadata.items() if 'profiledescription' in key.lower()]
-        desc_colorSpace = tmp[0] if tmp else ''
-        if isinstance(desc_colorSpace, str):
-            if not ('sRGB' in desc_colorSpace) or hasattr(window, 'modeDiaporama'):
-                # setOverrideCursor does not work correctly for a MessageBox :
-                # may be a Qt Bug, cf. https://bugreports.qt.io/browse/QTBUG-42117
-                QApplication.changeOverrideCursor(QCursor(Qt.ArrowCursor))
-                QApplication.processEvents()
-                if len(desc_colorSpace) > 0:
-                    # convert profile to ImageCmsProfile object
-                    profile = ImageCmsProfile(BytesIO(profile))
-                else:
-                    dlgInfo("Color profile is missing\nAssigning sRGB")  # modified 08/10/18 validate
-                    # assign sRGB profile
-                    colorSpace = 1
-    # update the color management object with the image profile.
-    icc.configure(colorSpace=colorSpace, workingProfile=profile)
-    # orientation
-    tmp = [value for key, value in metadata.items() if 'orientation' in key.lower()]
-    orientation = tmp[0] if tmp else 0  # metadata.get("EXIF:Orientation", 0)
-    transformation = exiftool.decodeExifOrientation(orientation)
-    # rating
-    tmp = [value for key, value in metadata.items() if 'rating' in key.lower()]
-    rating = tmp[0] if tmp else 0  # metadata.get("XMP:Rating", 5)
-    ############
-    # load image
-    ############
-    name = path.basename(f)
-    ext = name[-4:]
-    if ext in list(IMAGE_FILE_EXTENSIONS):
-        img = imImage(filename=f, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata, profile=profile, name=name, rating=rating)
-    elif ext in list(RAW_FILE_EXTENSIONS):
-        # load raw image file in a RawPy instance
-        # rawpy.imread keeps f open. Calling raw.close() deletes the raw object.
-        # As a workaround we use low-level file buffer and unpack().
-        # Relevant RawPy attributes are black_level_per_channel, camera_white_balance, color_desc, color_matrix,
-        # daylight_whitebalance, num_colors, raw_colors_visible, raw_image, raw_image_visible, raw_pattern,
-        # raw_type, rgb_xyz_matrix, sizes, tone_curve.
-        # raw_image and raw_image_visible are sensor data
-        rawpyInst = rawRead(f)
-        # postprocess raw image, applying default settings (cf. vImage.applyRawPostProcessing)
-        rawBuf = rawpyInst.postprocess(use_camera_wb=True)
-        # build Qimage : switch to BGR and add alpha channel
-        rawBuf = np.dstack((rawBuf[:, :, ::-1], np.zeros(rawBuf.shape[:2], dtype=np.uint8)+255))
-        img = imImage(cv2Img=rawBuf, colorSpace=colorSpace, orientation=transformation,
-                      rawMetadata=metadata, profile=profile, name=name, rating=rating)
-        # keeping a reference to rawBuf along with img is
-        # needed to protect the buffer from garbage collector
-        img.rawBuf = rawBuf
-        img.filename = f
-        # keep references to rawPy instance. rawpyInst.raw_image is the (linearized) sensor image
-        img.rawImage = rawpyInst
-        #########################################################
-        # Reconstructing the demosaic Bayer bitmap :
-        # we need it to calculate the multipliers corresponding
-        # to a user white point, and we cannot access the
-        # native rawpy demosaic buffer from the RawPy instance !!!!
-        #########################################################
-        # get 16 bits Bayer bitmap
-        img.demosaic = demosaic(rawpyInst.raw_image_visible, rawpyInst.raw_colors_visible, rawpyInst.black_level_per_channel)
-        # correct orientation
-        if orientation == 6:  # 90°
-            img.demosaic = np.swapaxes(img.demosaic, 0, 1)
-        elif orientation == 8:  # 270°
-            img.demosaic = np.swapaxes(img.demosaic, 0, 1)
-            img.demosaic = img.demosaic[:, ::-1, :]
-    else:
-        raise ValueError("Cannot read file %s" % f)
-    if img.isNull():
-        raise ValueError("Cannot read file %s" % f)
-    if img.format() in [QImage.Format_Invalid, QImage.Format_Mono, QImage.Format_MonoLSB, QImage.Format_Indexed8]:
-        raise ValueError("Cannot edit indexed formats\nConvert image to a non indexed mode first")
-    img.imageInfo = imageInfo
-    window.settings.setValue('paths/dlgdir', QFileInfo(f).absoluteDir().path())
-    img.initThumb()
-    return img
-
-
 def addBasicAdjustmentLayers(img, window=window):
     if img.rawImage is None:
         # menuLayer('actionColor_Temperature')
@@ -450,7 +331,7 @@ def openFile(f, window=window):
         QApplication.setOverrideCursor(Qt.WaitCursor)
         QApplication.processEvents()
         # load imImage from file
-        img = loadImageFromFile(f)
+        img = imImage.loadImageFromFile(f, window=window)
         # init layers
         if img is not None:
             loadImage(img)

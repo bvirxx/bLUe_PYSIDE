@@ -27,6 +27,7 @@ from PySide2.QtWidgets import QMainWindow, QSizePolicy, QAction, QMenu, QListWid
     QApplication
 
 from bLUeTop import exiftool
+from bLUeTop.MarkedImg import imImage
 from bLUeTop.QtGui1 import app, window
 from bLUeTop.imLabel import imageLabel
 from bLUeTop.utils import loader, stateAwareQDockWidget
@@ -119,7 +120,6 @@ def playDiaporama(diaporamaGenerator, parent=None):
         """
     )  # end of setWhatsThis
     # play diaporama
-    from bLUe import loadImageFromFile
     window.modeDiaporama = True
     while True:
         if isSuspended:
@@ -142,7 +142,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
             # don't display image with low rating
             if rating < 2:
                 app.processEvents()
-            imImg = loadImageFromFile(name, createsidecar=False)
+            imImg = imImage.loadImageFromFile(name, createsidecar=False, window=window)
             # zoom might be modified by the mouse wheel : remember
             if label.img is not None:
                 imImg.Zoom_coeff = label.img.Zoom_coeff
@@ -303,7 +303,6 @@ To <b>open an image</b> drag it onto the main window.<br>
         display full size image in a new window
         Unused yet
         """
-        from bLUe import loadImageFromFile
         parent = window
         newWin = QMainWindow(parent)
         newWin.setAttribute(Qt.WA_DeleteOnClose)
@@ -316,7 +315,7 @@ To <b>open an image</b> drag it onto the main window.<br>
         item = sel[0]
         filename = item.data(Qt.UserRole)[0]
         newWin.setWindowTitle(filename)
-        imImg = loadImageFromFile(filename, createsidecar=False)
+        imImg = imImage.loadImageFromFile(filename, createsidecar=False, window=window)
         label.img = imImg
         newWin.showMaximized()
 

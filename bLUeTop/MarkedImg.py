@@ -15,31 +15,36 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+from io import BytesIO
+from os import path
 
 import numpy as np
 import gc
 
-from PySide2.QtCore import Qt, QSize, QPoint, QPointF
+from PIL.ImageCms import ImageCmsProfile
+from PySide2.QtCore import Qt, QSize, QPoint, QPointF, QFileInfo
 
 import cv2
 from copy import copy
 
-from PySide2.QtGui import QTransform, QColor
+from PySide2.QtGui import QTransform, QColor, QCursor
 from PySide2.QtWidgets import QApplication
 from PySide2.QtGui import QPixmap, QImage, QPainter
 from PySide2.QtCore import QRect
 
+from bLUeCore.demosaicing import demosaic
 from bLUeTop import exiftool
 from bLUeGui.memory import weakProxy
 from bLUeTop.cloning import contours, moments, seamlessClone
 
 from bLUeTop.colorManagement import icc, cmsConvertQImage
 from bLUeGui.bLUeImage import QImageBuffer, ndarrayToQImage, bImage
-from bLUeGui.dialog import dlgWarn
+from bLUeGui.dialog import dlgWarn, dlgInfo, IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS
 from time import time
 
 from bLUeTop.lutUtils import LUT3DIdentity
 from bLUeGui.baseSignal import baseSignal_bool, baseSignal_Int2, baseSignal_No
+from bLUeTop.rawProcessing import rawRead
 from bLUeTop.utils import qColorToRGB, historyList
 
 from bLUeTop.versatileImg import vImage
@@ -502,6 +507,125 @@ class imImage(mImage):
     Zoomable and draggable multi-layer image :
     this is the base class for bLUe documents
     """
+    @staticmethod
+    def loadImageFromFile(f, createsidecar=True, icc=icc, window=None):
+        """
+        load an imImage (image and metadata) from file. Returns the loaded imImage :
+        For a raw file, it is the image postprocessed with default parameters.
+        metadata is a list of dicts with len(metadata) >=1.
+        metadata[0] contains at least 'SourceFile' : path.
+        profile is a string containing the profile binary data,
+        currently, we do not use these data : standard profiles
+        are loaded from disk, non standard profiles are ignored.
+        @param f: path to file
+        @type f: str
+        @param createsidecar:
+        @type createsidecar: boolean
+        @param icc:
+        @type icc: class icc
+        @return: image
+        @rtype: imImage
+        """
+        ###########
+        # read metadata
+        ##########
+        try:
+            # read metadata from sidecar (.mie) if it exists, otherwise from image file.
+            # The sidecar is created if it does not exist and createsidecar is True.
+            with exiftool.ExifTool() as e:
+                profile, metadata = e.get_metadata(f, tags=(
+                "colorspace", "profileDescription", "orientation", "model", "rating"), createsidecar=createsidecar)
+                imageInfo = e.get_formatted_metadata(f)
+        except ValueError:
+            # Default metadata and profile
+            metadata = {'SourceFile': f}
+            profile = ''
+            imageInfo = 'No data found'
+        # color space : 1=sRGB 65535=uncalibrated
+        tmp = [value for key, value in metadata.items() if 'colorspace' in key.lower()]
+        colorSpace = tmp[0] if tmp else -1
+        # try again to find a valid color space tag and/or an imbedded profile.
+        # If everything fails, assign sRGB.
+        if colorSpace == -1 or colorSpace == 65535:
+            tmp = [value for key, value in metadata.items() if 'profiledescription' in key.lower()]
+            desc_colorSpace = tmp[0] if tmp else ''
+            if isinstance(desc_colorSpace, str):
+                if not ('sRGB' in desc_colorSpace) or hasattr(window, 'modeDiaporama'):
+                    # setOverrideCursor does not work correctly for a MessageBox :
+                    # may be a Qt Bug, cf. https://bugreports.qt.io/browse/QTBUG-42117
+                    QApplication.changeOverrideCursor(QCursor(Qt.ArrowCursor))
+                    QApplication.processEvents()
+                    if len(desc_colorSpace) > 0:
+                        # convert profile to ImageCmsProfile object
+                        profile = ImageCmsProfile(BytesIO(profile))
+                    else:
+                        dlgInfo("Color profile is missing\nAssigning sRGB")  # modified 08/10/18 validate
+                        # assign sRGB profile
+                        colorSpace = 1
+        # update the color management object with the image profile.
+        icc.configure(colorSpace=colorSpace, workingProfile=profile)
+        # orientation
+        tmp = [value for key, value in metadata.items() if 'orientation' in key.lower()]
+        orientation = tmp[0] if tmp else 0  # metadata.get("EXIF:Orientation", 0)
+        transformation = exiftool.decodeExifOrientation(orientation)
+        # rating
+        tmp = [value for key, value in metadata.items() if 'rating' in key.lower()]
+        rating = tmp[0] if tmp else 0  # metadata.get("XMP:Rating", 5)
+        ############
+        # load image
+        ############
+        name = path.basename(f)
+        ext = name[-4:]
+        if ext in list(IMAGE_FILE_EXTENSIONS):
+            img = imImage(filename=f, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata,
+                          profile=profile, name=name, rating=rating)
+        elif ext in list(RAW_FILE_EXTENSIONS):
+            # load raw image file in a RawPy instance
+            # rawpy.imread keeps f open. Calling raw.close() deletes the raw object.
+            # As a workaround we use low-level file buffer and unpack().
+            # Relevant RawPy attributes are black_level_per_channel, camera_white_balance, color_desc, color_matrix,
+            # daylight_whitebalance, num_colors, raw_colors_visible, raw_image, raw_image_visible, raw_pattern,
+            # raw_type, rgb_xyz_matrix, sizes, tone_curve.
+            # raw_image and raw_image_visible are sensor data
+            rawpyInst = rawRead(f)
+            # postprocess raw image, applying default settings (cf. vImage.applyRawPostProcessing)
+            rawBuf = rawpyInst.postprocess(use_camera_wb=True)
+            # build Qimage : switch to BGR and add alpha channel
+            rawBuf = np.dstack((rawBuf[:, :, ::-1], np.zeros(rawBuf.shape[:2], dtype=np.uint8) + 255))
+            img = imImage(cv2Img=rawBuf, colorSpace=colorSpace, orientation=transformation,
+                          rawMetadata=metadata, profile=profile, name=name, rating=rating)
+            # keeping a reference to rawBuf along with img is
+            # needed to protect the buffer from garbage collector
+            img.rawBuf = rawBuf
+            img.filename = f
+            # keep references to rawPy instance. rawpyInst.raw_image is the (linearized) sensor image
+            img.rawImage = rawpyInst
+            #########################################################
+            # Reconstructing the demosaic Bayer bitmap :
+            # we need it to calculate the multipliers corresponding
+            # to a user white point, and we cannot access the
+            # native rawpy demosaic buffer from the RawPy instance !!!!
+            #########################################################
+            # get 16 bits Bayer bitmap
+            img.demosaic = demosaic(rawpyInst.raw_image_visible, rawpyInst.raw_colors_visible,
+                                    rawpyInst.black_level_per_channel)
+            # correct orientation
+            if orientation == 6:  # 90°
+                img.demosaic = np.swapaxes(img.demosaic, 0, 1)
+            elif orientation == 8:  # 270°
+                img.demosaic = np.swapaxes(img.demosaic, 0, 1)
+                img.demosaic = img.demosaic[:, ::-1, :]
+        else:
+            raise ValueError("Cannot read file %s" % f)
+        if img.isNull():
+            raise ValueError("Cannot read file %s" % f)
+        if img.format() in [QImage.Format_Invalid, QImage.Format_Mono, QImage.Format_MonoLSB, QImage.Format_Indexed8]:
+            raise ValueError("Cannot edit indexed formats\nConvert image to a non indexed mode first")
+        img.imageInfo = imageInfo
+        window.settings.setValue('paths/dlgdir', QFileInfo(f).absoluteDir().path())
+        img.initThumb()
+        return img
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Zoom coeff :
