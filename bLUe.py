@@ -141,7 +141,7 @@ from PySide2.QtGui import QPixmap, QCursor, QKeySequence, QDesktopServices, QFon
     QTransform, QColor, QImage
 from PySide2.QtWidgets import QApplication, QAction, \
     QMainWindow, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QWidget, \
-    QStyle, QTabWidget, QToolBar, QComboBox
+    QStyle, QTabWidget, QToolBar, QComboBox, QTabBar
 from bLUeTop.QtGui1 import app, window, rootWidget, splitWin
 from bLUeTop import exiftool
 from bLUeTop.graphicsBlendFilter import blendFilterForm
@@ -1678,7 +1678,21 @@ if __name__ == '__main__':
     window.init()
     # display splash screen and set app style sheet
     setupGUI(window)
-
+    tabBar = QTabBar()
+    tabBar.addTab('test')
+    tabBar.addTab('test1')
+    tabBar.setStyleSheet("QTabBar::tab { height: 15px; width: 100px; }")
+    vlay = QVBoxLayout()
+    hlay2 = QHBoxLayout()
+    hlay2.addWidget(tabBar)
+    hlay2.addStretch(100)
+    vlay.addLayout(hlay2)
+    hlay1 = QHBoxLayout()
+    hlay1.addWidget(window.label)
+    hlay1.addWidget(window.splitter)
+    vlay.addLayout(hlay1)
+    hlay = window.horizontalLayout_2
+    hlay.addLayout(vlay)
     ###############
     # launch app
     ###############
