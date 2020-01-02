@@ -49,11 +49,19 @@ class bImage(QImage):
         self.__HSVBuffer = None
         self.maskedImageContainer = None
         self.maskedThumbContainer = None
-        self.mask = None
+        self.__mask = None
         self.maskIsEnabled = False
         self.maskIsSelected = False
         self.colorMaskOpacity = 255
         self.mergingFlag = False
+
+    @property
+    def mask(self):
+        return self.__mask
+
+    @mask.setter
+    def mask(self, m):
+        self.__mask = m
 
     @property
     def filename(self):

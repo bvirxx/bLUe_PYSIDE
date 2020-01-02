@@ -775,11 +775,6 @@ class QLayer(vImage):
         parentImage = kwargs.pop('parentImage', None)
         self.parentImage = weakProxy(parentImage)
         super().__init__(*args, **kwargs)  # don't move backwards
-        # mask init, must be done after after calling super().__init__
-        if type(self) not in [QPresentationLayer]:
-            self.mask = QImage(self.width(), self.height(), QImage.Format_ARGB32)
-            # default : unmask all
-            self.mask.fill(self.defaultColor_UnMasked)
         # layer opacity, range 0.0...1.0
         self.opacity = 1.0
         self.compositionMode = QPainter.CompositionMode_SourceOver
@@ -806,6 +801,15 @@ class QLayer(vImage):
         self.sourceX, self.sourceY = 0, 0
         self.AltZoom_coeff = 1.0
         self.updatePixmap()
+
+    @property
+    def mask(self):
+        if self.__mask is None:
+            if type(self) not in [QPresentationLayer]:
+                self.mask = QImage(self.width(), self.height(), QImage.Format_ARGB32)
+                # default : unmask all
+                self.mask.fill(self.defaultColor_UnMasked)
+        return self.__mask
 
     def getGraphicsForm(self):
         """
