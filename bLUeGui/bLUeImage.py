@@ -49,7 +49,7 @@ class bImage(QImage):
         self.__HSVBuffer = None
         self.maskedImageContainer = None
         self.maskedThumbContainer = None
-        self.__mask = None
+        self._mask = None  # double underscore mangling conflicts with overriding
         self.maskIsEnabled = False
         self.maskIsSelected = False
         self.colorMaskOpacity = 255
@@ -57,11 +57,11 @@ class bImage(QImage):
 
     @property
     def mask(self):
-        return self.__mask
+        return self._mask
 
     @mask.setter
     def mask(self, m):
-        self.__mask = m
+        self._mask = m
 
     @property
     def filename(self):

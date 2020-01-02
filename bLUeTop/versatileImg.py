@@ -641,7 +641,7 @@ class vImage(bImage):
         # resize rect and mask
         if self.rect is not None:
             rszd.rect = QRect(self.rect.left() * hom, self.rect.top() * hom, self.rect.width() * hom, self.rect.height() * hom)
-        if self.mask is not None:
+        if self.mask is not None:  # TODO for QLayer and subclasses this initializes the mask
             rszd.mask = self.mask.scaled(w, h)
         self.setModified(True)
         return rszd

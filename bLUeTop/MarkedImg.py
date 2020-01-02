@@ -803,13 +803,13 @@ class QLayer(vImage):
         self.updatePixmap()
 
     @property
-    def mask(self):
-        if self.__mask is None:
+    def mask(self):  # the setter is inherited from bImage
+        if self._mask is None:
             if type(self) not in [QPresentationLayer]:
-                self.mask = QImage(self.width(), self.height(), QImage.Format_ARGB32)
+                self._mask = QImage(self.width(), self.height(), QImage.Format_ARGB32)
                 # default : unmask all
-                self.mask.fill(self.defaultColor_UnMasked)
-        return self.__mask
+                self._mask.fill(self.defaultColor_UnMasked)
+        return self._mask
 
     def getGraphicsForm(self):
         """
