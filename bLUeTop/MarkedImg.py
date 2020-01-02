@@ -800,6 +800,7 @@ class QLayer(vImage):
         self.xAltOffset, self.yAltOffset = 0, 0
         self.sourceX, self.sourceY = 0, 0
         self.AltZoom_coeff = 1.0
+        self.__mask = None
         self.updatePixmap()
 
     @property
@@ -810,6 +811,10 @@ class QLayer(vImage):
                 # default : unmask all
                 self.mask.fill(self.defaultColor_UnMasked)
         return self.__mask
+
+    @mask.setter
+    def mask(self, m):
+        self.__mask = m
 
     def getGraphicsForm(self):
         """
