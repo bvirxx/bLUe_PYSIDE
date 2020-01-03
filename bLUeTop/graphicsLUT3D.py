@@ -23,7 +23,7 @@ import numpy as np
 
 from PySide2.QtCore import QSize
 from PySide2.QtWidgets import QAction, QFileDialog, QToolTip, QHBoxLayout,\
-    QApplication, QLabel, QGridLayout, QComboBox, QLineEdit
+    QApplication, QGridLayout, QComboBox, QLineEdit
 from PySide2.QtGui import QPainter, QPolygonF, QPainterPath, QPen, QBrush, QColor, QPixmap
 from PySide2.QtWidgets import QGraphicsItem, QGraphicsItemGroup, QGraphicsPathItem,\
     QGraphicsPixmapItem, QGraphicsPolygonItem, QSizePolicy
@@ -1028,20 +1028,12 @@ class graphicsForm3DLUT(baseGraphicsForm):
 
         # color format combo
         infoCombo = QComboBox()
-        oDict = OrderedDict([('RGB', 0), ('CMYK', 1), ('HSV', 2)])
+        oDict = OrderedDict([('Marker RGB', 0), ('Marker CMYK', 1), ('Marker HSV', 2)])
         for key in oDict:
             infoCombo.addItem(key, oDict[key])
 
-        labelFormat = QLabel()
-
         def colorInfoFormatChanged(value):
             self.colorInfoFormat = infoCombo.itemData(value)
-            if self.colorInfoFormat == 0:
-                labelFormat.setText('RGB')
-            elif self.colorInfoFormat == 1:
-                labelFormat.setText('CMYK')
-            elif self.colorInfoFormat == 2:
-                labelFormat.setText('HSV')
             self.displayStatus()
 
         infoCombo.currentIndexChanged.connect(colorInfoFormatChanged)
@@ -1078,11 +1070,10 @@ class graphicsForm3DLUT(baseGraphicsForm):
         for i, button in enumerate([pushButton1, pushButton3, pushButton2]):
             gl.addWidget(button, 0, i)
         gl.addWidget(pushButton4, 1, 0)
-        gl.addWidget(infoCombo, 1, 1)
         for i, widget in enumerate([self.listWidget1, self.listWidget2, self.listWidget3]):
             gl.addWidget(widget, 2 if i < 2 else 1, i, 1 if i < 2 else 2, 1)
         hl = QHBoxLayout()
-        hl.addWidget(labelFormat)
+        hl.addWidget(infoCombo)
         hl.addWidget(self.info)
         gl.addLayout(hl, 3, 0, -1, -1)
         self.addCommandLayout(gl)
@@ -1258,29 +1249,6 @@ class graphicsForm3DLUT(baseGraphicsForm):
         mask[:, :, 2] = imgmask
         layer.applyToStack()
         layer.parentImage.onImageChanged()
-    """
-    def writeToStream(self, outStream):
-        layer = self.layer
-        outStream.writeQString(layer.actionName)
-        outStream.writeQString(layer.name)
-        outStream.writeInt32(self.graphicsScene.LUTSize)
-        outStream.writeInt32(self.graphicsScene.lut.step)
-        byteData = self.graphicsScene.lut.LUT3DArray.tostring()
-        outStream.writeInt32(len(byteData))
-        outStream.writeRawData(byteData)
-        return outStream
-
-    def readFromStream(self, inStream):
-        actionName = inStream.readQString()
-        name = inStream.readQString()
-        size = inStream.readInt32()
-        self.graphicsScene.LUTsize = size
-        self.graphicsScene.lut.step = inStream.readInt32()
-        l = inStream.readInt32()
-        byteData = inStream.readRawData(l)
-        self.graphicsScene.lut.LUT3DArray = np.fromstring(byteData, dtype=int).reshape((size, size, size, 3))
-        return inStream
-    """
 
 
 if __name__ == '__main__':

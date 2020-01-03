@@ -456,9 +456,9 @@ def setDocumentImage(img, window=window):
     window.label.update()
     window.label_2.update()
     window.label_3.update()
-    # back links used by graphicsForm3DLUT.onReset
-    window.label.img.window = window.label  # TODO 4/11/18 graphicsForm3DLUT.onReset should be modified to remove this dependency
-    window.label_2.img.window = window.label_2
+    # back links used by graphicsForm3DLUT.onReset  # TODO 3/1/20 unused removed validate
+    # window.label.img.window = window.label
+    # window.label_2.img.window = window.label_2
     window.label.img.setModified(True)
 
 
@@ -533,6 +533,7 @@ def menuFile(name, window=window):
             try:
                 filename = saveDlg(window.label.img, window)
                 dlgInfo("%s written" % filename)
+                window.label.img.setModified(False)
             except (ValueError, IOError) as e:
                 dlgWarn(str(e))
     # closing dialog : close opened document
