@@ -445,19 +445,18 @@ class activeNode(QGraphicsPathItem):
 
     def laplacian(self):
         """
-        Return the laplacian (the mean) of the neighbor nodes.
-        The laplacian coordinates are relative to the scene.
+        Returns the laplacian (mean) of the positions
+        of the neighbor nodes.
+        Coordinates are relative to the scene.
         @return:
         @rtype: QPointF
         """
-        nullvec = QPointF(0.0, 0.0)
-        laplacian = nullvec
+        laplacian = QPointF(0.0, 0.0)
         count = 0
         for item in self.neighbors():
             laplacian += item.scenePos()
             count += 1
-        laplacian = laplacian / count
-        return laplacian
+        return laplacian / count
 
     def mousePressEvent(self, e):
         self.mouseIsPressed = True

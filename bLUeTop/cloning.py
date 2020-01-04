@@ -153,7 +153,8 @@ def membrane(inMBuf, maskBuf, maskContour):  # TODO 6/12/19 removed w=3 validate
     """
     Calculates the harmonic function with boundary
     values imgBuf on the contour of
-    maskBuf (Dirichlet conditions).
+    maskBuf (Dirichlet conditions), using the Jacobi Method:
+    https://www.researchgate.net/publication/330900404_A_Numerical_Solution_of_the_2D_Laplace's_Equation_for_the_Estimation_of_Electric_Potential_Distribution
     The Laplacian kernel is applied to the interior
     of the unmasked region only. The exterior is
     returned unmodified.
@@ -171,8 +172,10 @@ def membrane(inMBuf, maskBuf, maskContour):  # TODO 6/12/19 removed w=3 validate
     innerRegion = (maskContour != 255) & (maskBuf == 255)
     # init the laplacian kernel
     r = 3
+    sorCoeff = 0.8  # successive over-relaxation coeff.
     lpKernel = np.zeros((r, r), dtype=np.float)
-    lpKernel[0, r//2], lpKernel[r//2, 0], lpKernel[r-1, r//2], lpKernel[r//2, r-1] = (0.25,) * 4
+    lpKernel[0, r//2], lpKernel[r//2, 0], lpKernel[r-1, r//2], lpKernel[r//2, r-1] = (0.25 * sorCoeff,) * 4
+    lpKernel[r//2, r//2] = 1.0 - sorCoeff
     dBuf = inMBuf.copy()
     # compute means per color channel over contour
     m = np.mean(dBuf[maskContour == 255], axis=0)
