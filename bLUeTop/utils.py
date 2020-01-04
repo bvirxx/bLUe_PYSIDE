@@ -495,9 +495,11 @@ class optionsWidget(QListWidget):
         @type e:
         """
         if e.type() in [QEvent.MouseButtonPress, QEvent.MouseMove, QEvent.MouseButtonRelease, QEvent.MouseButtonDblClick]:
-            if self.itemAt(e.pos()).flags() & Qt.ItemIsEnabled:
-                return super().viewportEvent(e)
-            return True
+            item = self.itemAt(e.pos())
+            if item is not None:
+                if item.flags() & Qt.ItemIsEnabled:
+                    return super().viewportEvent(e)
+            return True  # stop processing
         return super().viewportEvent(e)
 
     def select(self, item, callOnSelect=True):
