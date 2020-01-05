@@ -149,7 +149,7 @@ def moments(maskBuf):
     return cv2.moments(maskBuf)
 
 
-def membrane(inMBuf, maskBuf, maskContour):  # TODO 6/12/19 removed w=3 validate
+def membrane(inMBuf, maskBuf, maskContour, passes=1):
     """
     Calculates the harmonic function with boundary
     values imgBuf on the contour of
@@ -166,9 +166,13 @@ def membrane(inMBuf, maskBuf, maskContour):  # TODO 6/12/19 removed w=3 validate
     @type maskBuf: ndarray, shape (h, w)
     @param maskContour:
     @type maskContour:
+    @param passes: number of grid refinements
+    @type passes: int
     @return: membrane buffer
     @rtype: ndarray, shape (h, w, d), dtype=np.float
     """
+    steps = [33, 17, 9, 5]
+    passes = min(max(1, passes), len(steps))
     # get the interior of the unmasked region (remove contour)
     innerRegion = (maskContour != 255) & (maskBuf == 255)
     # init the laplacian kernel
@@ -185,7 +189,7 @@ def membrane(inMBuf, maskBuf, maskContour):  # TODO 6/12/19 removed w=3 validate
     # init the interior area
     dBuf[innerRegion] = m
     # solve Laplace equation using a grid with unit cells of size step.
-    for step in [33]:
+    for step in steps[:passes]:  # [33, 17]:
         bMask1 = innerRegion[::step, ::step]
         # init each grid vertex with the mean of dBuf values over a (step,step) neighborhood
         # and restore initial values for contour vertices.
@@ -204,14 +208,14 @@ def membrane(inMBuf, maskBuf, maskContour):  # TODO 6/12/19 removed w=3 validate
             buf1[bMask1] = outBuf1[bMask1]
         # interpolate the grid for next step
         buf1 = cv2.resize(buf1, (dBuf.shape[1], dBuf.shape[0]))
-        # copy the cloned region into dBuf
-        dBuf[innerRegion] = buf1[innerRegion]
-        maskContour = cv2.blur(maskContour, (20, 20))
-        dBuf[maskContour > 64] = buf1[maskContour > 64]
+    # copy the cloned region into dBuf
+    dBuf[innerRegion] = buf1[innerRegion]
+    maskContour = cv2.blur(maskContour, (20, 20))
+    dBuf[maskContour > 64] = buf1[maskContour > 64]
     return dBuf
 
 
-def seamlessClone(srcBuf, destBuf, mask, conts, bRect, srcTr, destTr, w=3):
+def seamlessClone(srcBuf, destBuf, mask, conts, bRect, srcTr, destTr, w=3, passes=1):
     """
     The area in srcBuf delimited by the mask translated by srcTr is cloned
     into the area in destBuf delimited by the mask translated by destTr.
@@ -231,6 +235,8 @@ def seamlessClone(srcBuf, destBuf, mask, conts, bRect, srcTr, destTr, w=3):
     @type destTr: 2-uple
     @param w: contour thickness
     @type w: int
+    @param passes: number of grid refinements
+    @type passes: int
     @return: cloned image
     @rtype: ndarray
     """
@@ -249,12 +255,10 @@ def seamlessClone(srcBuf, destBuf, mask, conts, bRect, srcTr, destTr, w=3):
     cv2.drawContours(maskContour, conts, -1, 255, w)  # -1: draw all contours; 0: draw contour 0  # TODO 19/12/19 changed 0 to -1 validate
     # solving Laplace equation for delta = destBufT - srcBufT
     buf = membrane(destBufT.astype(np.float) - srcBufT.astype(np.float), mask[array2DSlices(mask, bRect)],
-                   maskContour[array2DSlices(maskContour, bRect)])
+                   maskContour[array2DSlices(maskContour, bRect)], passes=passes)
     tmp = buf + srcBufT
     np.clip(tmp, 0, 255, tmp)
     result = destBuf.copy()
     result[array2DSlices(destBuf, rectDest)] = alphaBlend(tmp, destBufT, mask[array2DSlices(mask, bRect)])
     return result
-
-
 

@@ -771,6 +771,10 @@ class QLayer(vImage):
                 self._mask.fill(self.defaultColor_UnMasked)
         return self._mask
 
+    @mask.setter
+    def mask(self, m):
+        self._mask = m
+
     def getGraphicsForm(self):
         """
         Return the graphics form associated with the layer
@@ -1487,7 +1491,8 @@ class QCloningLayer(QLayer):
                                     bRect,
                                     (0, 0),
                                     (0, 0),
-                                    w=w)
+                                    w=w,
+                                   passes=2)
             destBuf[:, :, :3] = output
 
 
