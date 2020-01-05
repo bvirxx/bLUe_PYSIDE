@@ -155,6 +155,7 @@ def membrane(inMBuf, maskBuf, maskContour):  # TODO 6/12/19 removed w=3 validate
     values imgBuf on the contour of
     maskBuf (Dirichlet conditions), using the Jacobi Method:
     https://www.researchgate.net/publication/330900404_A_Numerical_Solution_of_the_2D_Laplace's_Equation_for_the_Estimation_of_Electric_Potential_Distribution
+    https://www.mps.mpg.de/phd/numerical-integration-partial-differential-equations-stationary-problems-elliptic-pde
     The Laplacian kernel is applied to the interior
     of the unmasked region only. The exterior is
     returned unmodified.
