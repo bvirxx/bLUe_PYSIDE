@@ -22,8 +22,8 @@ def interpTriLinear(LUT, LUTSTEP, ndImg, convert=True):
     """
     Implement a vectorized version of trilinear interpolation.
 
-    Convert an array ndImg with shape (w, h, d)  with d >=3 by interpolating
-    its values from a 3D LUT array LUT with shape s = (s1, s2, s3, d).
+    Convert an array ndImg with shape (h, w, dIn)  with dIn >=3 by interpolating
+    its values from a 3D LUT array LUT with shape s = (s1, s2, s3, dOut).
     Values from the third axis of ndImg[:,:,:3] are input to
     the three first axes of LUT, keeping the same ordering (i.e. v[i] is input to axis i).
     Output values are interpolated from LUT.
@@ -37,19 +37,18 @@ def interpTriLinear(LUT, LUTSTEP, ndImg, convert=True):
     max = (s[i] - 2) * LUTSTEP[i], the LUT values for sentinel sides are not used.
 
     if convert is True (default), the output array is clipped to (0, 255) and converted
-    to dtype=np.uint8, otherwise the output array has the same shape as ndImg and
-    dtype= np.float32.
+    to dtype=np.uint8, otherwise the output array has dtype= np.float32.
 
     @param LUT: 3D LUT array
-    @type LUT: ndarray, dtype float or int, shape(s1, s2, s3, 3)
+    @type LUT: ndarray, dtype float or int, shape(s1, s2, s3, dIn), dIn >= 3
     @param LUTSTEP: interpolation step
     @type LUTSTEP: number or 3-uple of numbers
     @param ndImg: input array
-    @type ndImg: ndarray dtype float or int, shape (w, h, 3)
+    @type ndImg: ndarray dtype float or int, shape (h, w, dOut), dOut >= 3
     @param convert: convert the output to dtype=np.uint8
     @type convert: boolean
     @return: interpolated array
-    @rtype: ndarray, same shape as the input image
+    @rtype: ndarray, shape (h, w, dOut)
     """
     # Probably due to a numpy bug, ravel_multi_index sometimes returns wrong indices
     # for non contiguous arrays.
