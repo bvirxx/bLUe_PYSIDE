@@ -136,6 +136,7 @@ class colorInfoView(QDockWidget):
                                 Values are displayed in the RGB, CMYK and HSV color spaces.
                                 For each space, inputs are shown in the left column
                                 and outputs in the right column.<br>
+                                The layer mask is ignored.<br>
                                 """
                                 )  # end of setWhatsThis
 
