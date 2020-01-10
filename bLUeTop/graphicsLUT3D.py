@@ -525,8 +525,8 @@ class activeNode(QGraphicsPathItem):
         self.mouseIsPressed = False
         self.mouseIsMoved = False
         self.grid.drawTrace = False
-        self.grid.drawGrid()
         super().mouseReleaseEvent(e)
+        self.grid.drawGrid()  # don't move upwards
 
     def contextMenuEvent(self, event):
         menu = QMenu()
@@ -901,6 +901,7 @@ class colorChooser(QGraphicsPixmapItem):
                     if type(grid.gridNodes[i][j].parentItem()) is nodeGroup:
                         grid.gridNodes[i][j].parentItem().setSelected(False)
                     grid.gridNodes[i][j].setSelected(False)
+        grid.drawGrid()  # TODO added 9/1/20 validate
         # pick color from self.QImg
         p = e.pos().toPoint()
         c = QColor(self.QImg.pixel(p - self.offset().toPoint()))
@@ -1161,10 +1162,10 @@ class graphicsForm3DLUT(baseGraphicsForm):
         # whatsthis
         self.setWhatsThis(
                         """ <b>2.5D LUT Perceptual Editor</b><br>
-                          <b>Select nodes</b> with mouse clicks on the image. Selected nodes are shown
+                          <b>Choose nodes to edit</b> with mouse clicks on the image. They are shown
                         as small black circles on the color wheel. Each node corresponds to a set of colors 
                         sharing the same hue and saturation.<br>
-                        <b>Modify the color</b> of a node by dragging it on
+                        <b>Modify the colors</b> of a node by Ctrl+Alt+dragging it on
                         the wheel. Several nodes can be moved simultaneously by grouping them.<br>
                         <b>Group nodes</b> :<br>
                                 &nbsp; 1 - group nodes with the mouse : while pressing the mouse left button,
