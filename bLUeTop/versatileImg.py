@@ -121,7 +121,8 @@ class vImage(bImage):
     def color2OpacityMask(mask):
         """
         Returns a copy of mask with the opacity channel set
-        from the red channel (alpha = red),
+        from the red channel (alpha = red). No thresholding
+        is done.
         B, G, R channels are kept unchanged.
         @param mask: mask
         @type mask: QImage
@@ -1543,6 +1544,7 @@ class vImage(bImage):
         else:
             ndImg0 = inputBuffer[:, :, :3]
             ndImg1 = imgBuffer[:, :, :3]
+            LUT = np.ascontiguousarray(LUT[..., :3])
         # choose the right interpolation method
         interp = chosenInterp(pool, (w2 - w1) * (h2 - h1))
         # apply LUT
