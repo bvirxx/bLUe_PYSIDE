@@ -1102,6 +1102,12 @@ class QLayer(vImage):
     def isDrawLayer(self):
         return 'DRW' in self.role
 
+    def isImageLayer(self):
+        return 'Image' in self.role
+
+    def isMergingLayer(self):
+        return 'MERGING' in self.role
+
     def updatePixmap(self, maskOnly=False):
         """
         Synchronize rPixmap with the layer image and mask.

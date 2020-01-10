@@ -855,7 +855,7 @@ def menuLayer(name, window=window):
                 dlgWarn("Cannot load %s: " % filename)
                 return
             lname = path.basename(filename)
-            layer = window.label.img.addAdjustmentLayer(name=lname, sourceImg=imgNew, role='Image')  # role='GEOMETRY')
+            layer = window.label.img.addAdjustmentLayer(name=lname, sourceImg=imgNew, role='Image')
             grWindow = imageForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
             # add transformation tool to parent widget
             tool = rotatingTool(parent=window.label)  # , layer=l, form=grWindow)
@@ -919,7 +919,7 @@ def menuLayer(name, window=window):
         layer.execute = lambda l=layer,  pool=None: l.tLayer.applyExposure(grWindow.options)
     elif name == 'actionHDR_Merge':
         lname = 'Merge'
-        layer = window.label.img.addAdjustmentLayer(name=lname)
+        layer = window.label.img.addAdjustmentLayer(name=lname, role='MERGING')
         layer.clipLimit = ExpForm.defaultExpCorrection
         grWindow = HDRMergeForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
         layer.execute = lambda l=layer,  pool=None: l.tLayer.applyHDRMerge(grWindow.options)
