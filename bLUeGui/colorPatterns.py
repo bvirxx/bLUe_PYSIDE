@@ -113,7 +113,7 @@ class hueSatPattern(bImage):
     def setPb(self, pb):
         """
         Set brightness and update image
-        @param pb: perceptive brightness (range 0,..,1)
+        @param pb: perceived brightness (range 0,..,1)
         """
         self.pb = pb
         self.hsArray[:, :, 2] = pb
