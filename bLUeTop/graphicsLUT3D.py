@@ -1178,7 +1178,8 @@ class graphicsForm3DLUT(baseGraphicsForm):
                                 &nbsp; 3 - on the image, click the pixels to unselect.<br>
                         <b>Warning</b> : Selecting/unselecting nodes with the mouse is enabled only when
                         the Color Chooser is closed.<br>
-                        Press the <b> Smooth Grid</b> button to smooth color transitions between neighbor nodes.<br>
+                        Press the <b> Smooth Grid</b> button to smooth color transitions between neighbor nodes. 
+                        Reiterate until you are pleased with the result<br>
                         <b>Crosshair</b> markers indicate neutral gray tones and average 
                         skin tones. They can be moved with the mouse.
                         The position of the second marker is reflected in the editable 

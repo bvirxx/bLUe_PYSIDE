@@ -18,7 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import cv2
 from PySide2.QtCore import Qt, QPointF
-from PySide2.QtGui import QImage, QPixmap, QPainter
+from PySide2.QtGui import QImage, QPixmap, QPainter, QTransform
 from PySide2.QtWidgets import QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog
 
 from bLUeGui.graphicsForm import baseForm
@@ -68,7 +68,8 @@ class patchForm (baseForm):
         # positioning window
         self.widgetImg = BWidgetImg(parent=self)
         self.widgetImg.setWindowTitle("Pointing")
-        # source pixmap
+        # source
+        self.sourceImage = None  # keep for eventual rotation
         self.sourcePixmap = None
         self.sourcePixmapThumb = None
         # flag indicating where source pixmap comes from
@@ -107,10 +108,12 @@ class patchForm (baseForm):
                 filenames = dlg.selectedFiles()
                 newDir = dlg.directory().absolutePath()
                 window.settings.setValue('paths/dlgdir', newDir)
-                img = QImage(filenames[0])
+                self.sourceImage = QImage(filenames[0])
+                self.updateSource()
+                """
                 # scale img while keeping its aspect ratio
                 # into a QPixmap having the same size than self.layer
-                sourcePixmap = QPixmap.fromImage(img).scaled(self.layer.size(), Qt.KeepAspectRatio)
+                sourcePixmap = QPixmap.fromImage(self.sourceImage).scaled(self.layer.size(), Qt.KeepAspectRatio)
                 self.sourceSize = sourcePixmap.size()
                 self.sourcePixmap = QPixmap(self.layer.size())
                 self.sourcePixmap.fill(Qt.black)
@@ -121,6 +124,7 @@ class patchForm (baseForm):
                 self.widgetImg.setPixmap(self.sourcePixmapThumb)
                 self.widgetImg.setFixedSize(self.sourcePixmapThumb.size())
                 self.layer.sourceFromFile = True
+                """
             self.widgetImg.show()
 
         pushButton1.clicked.connect(f)
@@ -141,6 +145,14 @@ class patchForm (baseForm):
 
         pushButton2.clicked.connect(g)
 
+        pushButton3 = QPushButton('Rotate Image')
+
+        def h():
+            self.sourceImage = self.sourceImage.transformed(QTransform().rotate(90))
+            self.updateSource()
+
+        pushButton3.clicked.connect(h)
+
         # layout
         layout = QVBoxLayout()
         layout.setContentsMargins(20, 0, 20, 25)  # left, top, right, bottom
@@ -149,8 +161,10 @@ class patchForm (baseForm):
         layout.addWidget(self.listWidget1)
         hl = QHBoxLayout()
         hl.addWidget(pushButton1)
+        hl.addWidget(pushButton3)
         hl.addWidget(pushButton2)
         layout.addLayout(hl)
+
 
         self.setDefaults()
 
@@ -191,6 +205,25 @@ class patchForm (baseForm):
         except RuntimeError:
             pass
         self.dataChanged.connect(self.updateLayer)
+
+    def updateSource(self):
+        """
+        sets the pointing window, using self.sourceImage
+        """
+        # scale img while keeping its aspect ratio
+        # into a QPixmap having the same size than self.layer
+        sourcePixmap = QPixmap.fromImage(self.sourceImage).scaled(self.layer.size(), Qt.KeepAspectRatio)
+        self.sourceSize = sourcePixmap.size()
+        self.sourcePixmap = QPixmap(self.layer.size())
+        self.sourcePixmap.fill(Qt.black)
+        qp = QPainter(self.sourcePixmap)
+        qp.drawPixmap(QPointF(),
+                      sourcePixmap)  # (QRect(0, 0, sourcePixmap.width(), sourcePixmap.height()), sourcePixmap)
+        qp.end()
+        self.sourcePixmapThumb = self.sourcePixmap.scaled(self.pwSize, self.pwSize, aspectMode=Qt.KeepAspectRatio)
+        self.widgetImg.setPixmap(self.sourcePixmapThumb)
+        self.widgetImg.setFixedSize(self.sourcePixmapThumb.size())
+        self.layer.sourceFromFile = True
 
     def enableOptions(self):
         if self.options['blue']:
