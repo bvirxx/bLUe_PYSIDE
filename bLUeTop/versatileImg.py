@@ -783,7 +783,11 @@ class vImage(bImage):
                 # a copy of the corresponding region of source.
                 #########################################
                 bufOut = QImageBuffer(imgOut)
-                bufOut[...] = alphaBlend(QImageBuffer(imgInc), bufOut, vImage.colorMask2BinaryArray(self.mask.scaled(imgOut.size())))
+                if self.parentImage.useThumb:
+                    mask = self.mask.scaled(imgOut.size())
+                else:
+                    mask = self.mask
+                bufOut[...] = alphaBlend(QImageBuffer(imgInc), bufOut, vImage.colorMask2BinaryArray(mask))
             finally:
                 self.parentImage.setModified(True)
                 QApplication.restoreOverrideCursor()

@@ -15,11 +15,11 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+import numpy as np
 import cv2
 from PySide2.QtCore import QRect
 
 from bLUeTop.utils import array2DSlices
-import numpy as np
 
 
 def show(bufList):
@@ -153,9 +153,9 @@ def membrane(inMBuf, maskBuf, maskContour, passes=1):
     """
     Calculates the harmonic function with boundary
     values imgBuf on the contour of
-    maskBuf (Dirichlet conditions), using the Jacobi Method:
-    https://www.researchgate.net/publication/330900404_A_Numerical_Solution_of_the_2D_Laplace's_Equation_for_the_Estimation_of_Electric_Potential_Distribution
-    https://www.mps.mpg.de/phd/numerical-integration-partial-differential-equations-stationary-problems-elliptic-pde
+    maskBuf (Dirichlet conditions), using either the Jacobi Method or the Gauss Seidel Method:
+    http://www.math.umbc.edu/~kogan/technical_papers/2007/Yang_Gobbert.pdf
+    https://web.stanford.edu/class/cme324/saad.pdf
     The Laplacian kernel is applied to the interior
     of the unmasked region only. The exterior is
     returned unmodified.
@@ -175,20 +175,23 @@ def membrane(inMBuf, maskBuf, maskContour, passes=1):
     passes = min(max(1, passes), len(steps))
     # get the interior of the unmasked region (remove contour)
     innerRegion = (maskContour != 255) & (maskBuf == 255)
-    # init the laplacian kernel
-    r = 3
-    sorCoeff = 0.8  # successive over-relaxation coeff.
-    lpKernel = np.zeros((r, r), dtype=np.float)
-    lpKernel[0, r//2], lpKernel[r//2, 0], lpKernel[r-1, r//2], lpKernel[r//2, r-1] = (0.25 * sorCoeff,) * 4
-    lpKernel[r//2, r//2] = 1.0 - sorCoeff
+    ##############
+    # stop criterion
+    threshold = 1
+    ##############
     dBuf = inMBuf.copy()
     # compute means per color channel over contour
     m = np.mean(dBuf[maskContour == 255], axis=0)
-    if np.any(np.isnan(m)):  # TODO added 19/12/19  validate
+    if np.any(np.isnan(m)):
         return dBuf
     # init the interior area
     dBuf[innerRegion] = m
     # solve Laplace equation using a grid with unit cells of size step.
+    # init the laplacian kernel
+    r = 3
+    lpKernel = np.zeros((r, r), dtype=np.float)
+    lpKernel[0, r // 2], lpKernel[r // 2, 0], lpKernel[r - 1, r // 2], lpKernel[r // 2, r - 1] = (0.25,) * 4
+    lpKernel[r // 2, r // 2] = 0.0
     for step in steps[:passes]:  # [33, 17]:
         bMask1 = innerRegion[::step, ::step]
         # init each grid vertex with the mean of dBuf values over a (step,step) neighborhood
@@ -196,16 +199,23 @@ def membrane(inMBuf, maskBuf, maskContour, passes=1):
         buf1 = cv2.blur(dBuf, (step, step))
         buf1[maskContour == 255] = inMBuf[maskContour == 255]
         buf1 = buf1[::step, ::step, :]
-        # iterate Laplacian kernel
+        ####################################
+        # evaluation of SOR coeff
+        # exact formula sorCoeff = 2 / (1 + sin(pi * h)) with h = 1 / ( N + 1),
+        # where  N + 2 is the (square) grid size (= width or height)
+        # We approximate it by sorCoeff = 2 * (1 - pi * h)
+        ####################################
+        # sorCoeff = 2.0 * (1.0 - np.pi / (np.amax(buf1.shape) - 1 ))
+        # iterate the Laplacian kernel
         c = 0
         while True:
             c += 1
             outBuf1 = cv2.filter2D(buf1, -1, lpKernel)
-            if (c & 31) == 0:
-                if (np.max(np.abs(buf1 - outBuf1)[bMask1], initial=0) < 0.00001) or (c > 10**5):  # TODO added watchdog 19/12/19 validate
-                    break
+            tmpa = (buf1 - outBuf1)[bMask1]
             # update the interior region
             buf1[bMask1] = outBuf1[bMask1]
+            if (max(tmpa.max(initial=0), -tmpa.min(initial=0)) < threshold) or (c > 10 * 3):  # watchdog added
+                break
         # interpolate the grid for next step
         buf1 = cv2.resize(buf1, (dBuf.shape[1], dBuf.shape[0]))
     # copy the cloned region into dBuf
