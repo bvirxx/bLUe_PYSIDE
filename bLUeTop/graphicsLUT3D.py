@@ -117,7 +117,6 @@ class nodeGroup(QGraphicsItemGroup):
     def addToGroup(self, item):
         item.setSelected(False)  # TODO removed 9/1/20 validate
         super().addToGroup(item)
-        print(item.pos())
         item.setPen(QPen(Qt.yellow))
 
     def mousePressEvent(self, e):
