@@ -117,7 +117,9 @@ def alphaBlend(imgBuf1, imgBuf2, mask):
     # convert mask to 0/1
     mask = mask / 255.0
     mask = mask[..., np.newaxis]
-    return (imgBuf1 - imgBuf2) * mask + imgBuf2
+    tmp = (imgBuf1 - imgBuf2) * mask
+    tmp[...] += imgBuf2
+    return tmp  # (imgBuf1 - imgBuf2) * mask + imgBuf2  # TODO modified 21/01/20 reduce calls to memory allocation validate
 
 
 def contours(maskBuf, thres=0):

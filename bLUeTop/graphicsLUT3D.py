@@ -406,9 +406,11 @@ class activeNode(QGraphicsPathItem):
             slc3 = slice(max(i - spread, 0), i + spread + 1)
             nbghd = LUT3D_ORI[slc1, slc2, slc3, ::-1]
             nbghd1 = lut[slc1, slc2, slc3, :]
-            translat = np.array(self.cModel.cm2rgb(hue, sat, p)) - LUT3D_ORI[k, j, i, ::-1]
+            translat = self.cModel.cm2rgb(hue, sat, p) - LUT3D_ORI[k, j, i, ::-1]  # TODO 21/01/20 removed np.array validate
             trgNbghd = lut[slc1, slc2, slc3, :3][..., ::-1]
-            trgNbghd[...] = nbghd + translat
+            # trgNbghd[...] = nbghd + translat
+            trgNbghd[...] = nbghd
+            trgNbghd += translat  # TODO modified 21/01/20 no call to memory allocation validate
             # alpha is set to 0 for LUT vertices bound to  non moved nodes
             # and to 255 otherwise, allowing to build a mask based on color
             # selection.
