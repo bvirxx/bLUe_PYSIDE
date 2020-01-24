@@ -97,7 +97,6 @@ class mImage(vImage):
         # background layer
         bgLayer = QLayer.fromImage(self, parentImage=self)
         bgLayer.isClipping = True
-        self.setModified(False)
         self.activeLayerIndex = None
         self.addLayer(bgLayer, name='Background')
         # color management : we assume that the image profile is the working profile
@@ -109,7 +108,6 @@ class mImage(vImage):
         prLayer.execute = lambda l=prLayer, pool=None: prLayer.applyNone()
         prLayer.updatePixmap()  # mandatory here as vImage init. can't do it
         self.prLayer = prLayer
-        self.isModified = False
         # link to rawpy instance
         self.rawImage = None
 
@@ -461,45 +459,7 @@ class mImage(vImage):
         written = cv2.imwrite(filename, buf, params)  # BGR order
         if not written:
             raise IOError("Cannot write file %s " % filename)
-        # self.setModified(False) # cannot be reset if the image is modified again
         return thumb
-    """
-    def writeStackToStream(self, dataStream):
-        dataStream.writeInt32(len(self.layersStack))
-        for layer in self.layersStack:
-            dataStream.writeQString(layer.actionName)
-        for layer in self.layersStack:
-            grForm = layer.getGraphicsForm()
-            if grForm is not None:
-                grForm.writeToStream(dataStream)
-
-    def readStackFromStream(self, dataStream):
-        # stack length
-        count = dataStream.readInt32()
-        script = []
-        for i in range(count):
-            actionName = dataStream.readQString()
-            script.append('menuLayer(None, "%s")' % actionName)
-            script.append('if "%s" != "actionNull":\n dataStream=window.label.img.layersStack[-1].readFromStream(dataStream)' % actionName)
-        return script
-
-    def saveStackToFile(self, filename):
-        qf = QFile(filename)
-        if not qf.open(QIODevice.WriteOnly):
-            raise IOError('cannot open file %s' % filename)
-        dataStream = QDataStream(qf)
-        self.writeStackToStream(dataStream)
-        qf.close()
-
-    def loadStackFromFile(self, filename):
-        qf = QFile(filename)
-        if not qf.open(QIODevice.ReadOnly):
-            raise IOError('cannot open file %s' % filename)
-        dataStream = QDataStream(qf)
-        script = self.readStackFromStream(dataStream)
-        #qf.close()
-        return script, qf, dataStream
-    """
 
 
 class imImage(mImage):
@@ -810,6 +770,10 @@ class QLayer(vImage):
                 # default : unmask all
                 self._mask.fill(self.defaultColor_UnMasked)
         return self._mask
+
+    @mask.setter
+    def mask(self, m):
+        self._mask = m
 
     def getGraphicsForm(self):
         """
@@ -1138,6 +1102,12 @@ class QLayer(vImage):
     def isDrawLayer(self):
         return 'DRW' in self.role
 
+    def isImageLayer(self):
+        return 'Image' in self.role
+
+    def isMergingLayer(self):
+        return 'MERGING' in self.role
+
     def updatePixmap(self, maskOnly=False):
         """
         Synchronize rPixmap with the layer image and mask.
@@ -1387,6 +1357,10 @@ class QPresentationLayer(QLayer):
         self.rPixmap = QPixmap.fromImage(rImg)
         self.setModified(True)
 
+    def applyNone(self):
+        super().applyNone()
+        self.parentImage.setModified(True)
+
     def update(self):
         self.applyNone()
 
@@ -1523,7 +1497,8 @@ class QCloningLayer(QLayer):
                                     bRect,
                                     (0, 0),
                                     (0, 0),
-                                    w=w)
+                                    w=w,
+                                   passes=2)
             destBuf[:, :, :3] = output
 
 

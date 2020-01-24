@@ -136,6 +136,7 @@ class colorInfoView(QDockWidget):
                                 Values are displayed in the RGB, CMYK and HSV color spaces.
                                 For each space, inputs are shown in the left column
                                 and outputs in the right column.<br>
+                                The layer mask is ignored.<br>
                                 """
                                 )  # end of setWhatsThis
 
@@ -495,9 +496,11 @@ class optionsWidget(QListWidget):
         @type e:
         """
         if e.type() in [QEvent.MouseButtonPress, QEvent.MouseMove, QEvent.MouseButtonRelease, QEvent.MouseButtonDblClick]:
-            if self.itemAt(e.pos()).flags() & Qt.ItemIsEnabled:
-                return super().viewportEvent(e)
-            return True
+            item = self.itemAt(e.pos())
+            if item is not None:
+                if item.flags() & Qt.ItemIsEnabled:
+                    return super().viewportEvent(e)
+            return True  # stop processing
         return super().viewportEvent(e)
 
     def select(self, item, callOnSelect=True):

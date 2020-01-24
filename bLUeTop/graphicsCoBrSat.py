@@ -240,6 +240,7 @@ class CoBrSatForm(baseForm):
         hl2.addWidget(self.saturationValue)
         hl2.addWidget(self.sliderSaturation)
         l.addLayout(hl2)
+        l.addStretch(1)
         self.setLayout(l)
         self.adjustSize()
         self.setStyleSheet("QListWidget, QLabel {font : 7pt;}")

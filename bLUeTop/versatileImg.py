@@ -121,7 +121,8 @@ class vImage(bImage):
     def color2OpacityMask(mask):
         """
         Returns a copy of mask with the opacity channel set
-        from the red channel (alpha = red),
+        from the red channel (alpha = red). No thresholding
+        is done.
         B, G, R channels are kept unchanged.
         @param mask: mask
         @type mask: QImage
@@ -782,7 +783,11 @@ class vImage(bImage):
                 # a copy of the corresponding region of source.
                 #########################################
                 bufOut = QImageBuffer(imgOut)
-                bufOut[...] = alphaBlend(QImageBuffer(imgInc), bufOut, vImage.colorMask2BinaryArray(self.mask.scaled(imgOut.size())))
+                if self.parentImage.useThumb:
+                    mask = self.mask.scaled(imgOut.size())
+                else:
+                    mask = self.mask
+                bufOut[...] = alphaBlend(QImageBuffer(imgInc), bufOut, vImage.colorMask2BinaryArray(mask))
             finally:
                 self.parentImage.setModified(True)
                 QApplication.restoreOverrideCursor()
@@ -934,7 +939,8 @@ class vImage(bImage):
         currentImage = self.getCurrentImage()
         bufOut = QImageBuffer(currentImage)
         # eliminate mask
-        tmp = (bufIn[:, :, :3] / [Mask0, Mask1, Mask2]) * 255
+        tmp = bufIn[:, :, :3] / [Mask0, Mask1, Mask2]
+        tmp *= 255  # TODO modified 23/01/20 validate
         np.clip(tmp, 0, 255, out=tmp)
         # invert
         bufOut[:, :, :3] = 255.0 - tmp
@@ -1239,7 +1245,8 @@ class vImage(bImage):
             if brightnessCorrection != 0:
                 alpha = 1.0 / (0.501 + adjustForm.brightnessCorrection) - 1.0  # approx. map -0.5...0.0...0.5 --> +inf...1.0...0.0
                 # tabulate x**alpha
-                LUT = np.power(np.arange(256) / 255, alpha) * 255.0
+                LUT = np.power(np.arange(256) / 255, alpha)
+                LUT *= 255.0  # TODO modified 23/01/20 validate
                 # convert V to V**alpha
                 HSVBuf[:, :, 2] = LUT[HSVBuf[:, :, 2]]  # faster than take
             if contrastCorrection > 0:
@@ -1267,7 +1274,8 @@ class vImage(bImage):
             if satCorrection != 0:
                 alpha = 1.0 / (0.501 + adjustForm.satCorrection) - 1.0  # approx. map -0.5...0.0...0.5 --> +inf...1.0...0.0
                 # tabulate x**alpha
-                LUT = np.power(np.arange(256) / 255, alpha) * 255
+                LUT = np.power(np.arange(256) / 255, alpha)
+                LUT *= 255  # TODO modified 23/01/20 validate
                 # convert saturation s to s**alpha
                 HSVBuf[:, :, 1] = LUT[HSVBuf[:, :, 1]]  # faster than take
             # back to RGB
@@ -1543,6 +1551,7 @@ class vImage(bImage):
         else:
             ndImg0 = inputBuffer[:, :, :3]
             ndImg1 = imgBuffer[:, :, :3]
+            LUT = np.ascontiguousarray(LUT[..., :3])
         # choose the right interpolation method
         interp = chosenInterp(pool, (w2 - w1) * (h2 - h1))
         # apply LUT

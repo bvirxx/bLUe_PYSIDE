@@ -195,7 +195,7 @@ credit https://icones8.fr/
 
 ##############
 #  Version number
-VERSION = "v1.7.1"
+VERSION = "v1.7.2"
 ##############
 
 ##############
@@ -456,9 +456,9 @@ def setDocumentImage(img, window=window):
     window.label.update()
     window.label_2.update()
     window.label_3.update()
-    # back links used by graphicsForm3DLUT.onReset
-    window.label.img.window = window.label  # TODO 4/11/18 graphicsForm3DLUT.onReset should be modified to remove this dependency
-    window.label_2.img.window = window.label_2
+    # back links used by graphicsForm3DLUT.onReset  # TODO 3/1/20 unused removed validate
+    # window.label.img.window = window.label
+    # window.label_2.img.window = window.label_2
     window.label.img.setModified(True)
 
 
@@ -533,6 +533,7 @@ def menuFile(name, window=window):
             try:
                 filename = saveDlg(window.label.img, window)
                 dlgInfo("%s written" % filename)
+                window.label.img.setModified(False)
             except (ValueError, IOError) as e:
                 dlgWarn(str(e))
     # closing dialog : close opened document
@@ -854,7 +855,7 @@ def menuLayer(name, window=window):
                 dlgWarn("Cannot load %s: " % filename)
                 return
             lname = path.basename(filename)
-            layer = window.label.img.addAdjustmentLayer(name=lname, sourceImg=imgNew, role='Image')  # role='GEOMETRY')
+            layer = window.label.img.addAdjustmentLayer(name=lname, sourceImg=imgNew, role='Image')
             grWindow = imageForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
             # add transformation tool to parent widget
             tool = rotatingTool(parent=window.label)  # , layer=l, form=grWindow)
@@ -918,7 +919,7 @@ def menuLayer(name, window=window):
         layer.execute = lambda l=layer,  pool=None: l.tLayer.applyExposure(grWindow.options)
     elif name == 'actionHDR_Merge':
         lname = 'Merge'
-        layer = window.label.img.addAdjustmentLayer(name=lname)
+        layer = window.label.img.addAdjustmentLayer(name=lname, role='MERGING')
         layer.clipLimit = ExpForm.defaultExpCorrection
         grWindow = HDRMergeForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
         layer.execute = lambda l=layer,  pool=None: l.tLayer.applyHDRMerge(grWindow.options)

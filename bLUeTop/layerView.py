@@ -779,6 +779,7 @@ Note that upper visible layers slow down mask edition.<br>
         self.cMenu.subMenuEnable.setEnabled(len(rows) == 1)
         self.cMenu.actionMaskPaste.setEnabled(not QApplication.clipboard().image().isNull())
         self.cMenu.actionImagePaste.setEnabled(not QApplication.clipboard().image().isNull())
+        self.cMenu.actionMergingFlag.setEnabled(layer.isImageLayer())
         # Event handlers
 
         def RepositionLayer():

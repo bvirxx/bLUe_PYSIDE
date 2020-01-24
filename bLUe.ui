@@ -493,7 +493,7 @@ Screen</string>
                  <string>drawBG</string>
                 </property>
                 <property name="styleSheet">
-                 <string notr="true">QToolButton:checked{background-color:#606060}</string>
+                 <string notr="true">QToolButton:checked{background-color:#009900}</string>
                 </property>
                 <property name="text">
                  <string>...</string>

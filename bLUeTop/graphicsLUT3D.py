@@ -23,7 +23,7 @@ import numpy as np
 
 from PySide2.QtCore import QSize
 from PySide2.QtWidgets import QAction, QFileDialog, QToolTip, QHBoxLayout,\
-    QApplication, QLabel, QGridLayout, QComboBox, QLineEdit
+    QApplication, QGridLayout, QComboBox, QLineEdit
 from PySide2.QtGui import QPainter, QPolygonF, QPainterPath, QPen, QBrush, QColor, QPixmap
 from PySide2.QtWidgets import QGraphicsItem, QGraphicsItemGroup, QGraphicsPathItem,\
     QGraphicsPixmapItem, QGraphicsPolygonItem, QSizePolicy
@@ -83,7 +83,7 @@ class nodeGroup(QGraphicsItemGroup):
     def groupFromList(cls, items, grid=None, position=QPointF(), parent=None):
         """
         Inits a new group and adds all activeNode objects from list to the group.
-        @param items: 
+        @param items: list of nodes
         @type items: list
         @param grid: 
         @type grid: activeGrid
@@ -102,11 +102,6 @@ class nodeGroup(QGraphicsItemGroup):
         newGroup.setSelected(True)
         return newGroup
 
-    @classmethod
-    def unGroup(cls, group):
-        for item in group.childItems():
-            group.removeFromGroup(item)
-
     def __init__(self, grid=None, position=QPointF(), parent=None):
         super().__init__(parent=parent)
         self.setFlag(QGraphicsItem.ItemIsSelectable, True)
@@ -115,38 +110,49 @@ class nodeGroup(QGraphicsItemGroup):
         self.mouseIsMoved = False
         self.initialPosition = position
         self.setPos(position)
+        # record the coordinates (relative to group)
+        # of the last pressed point.
+        self.pressedPoint = QPointF()
 
     def addToGroup(self, item):
-        item.setSelected(False)
+        item.setSelected(False)  # TODO removed 9/1/20 validate
         super().addToGroup(item)
+        item.setPen(QPen(Qt.yellow))
 
     def mousePressEvent(self, e):
         super().mousePressEvent(e)
         self.mouseIsPressed = True
+        self.pressedPoint = e.pos()
         # draw links to neighbors
         self.grid.drawTrace = True
+        # update grid
+        self.grid.drawGrid()
 
     def mouseMoveEvent(self, e):
         self.mouseIsMoved = True
-        # move children
-        self.setPos(e.scenePos())
+        rect = self.scene().sceneRect()
+        newPos = e.scenePos() - self.pressedPoint
+        rect1 = self.boundingRect().translated(newPos)
+        if not rect.contains(rect1):
+            return
+        self.setPos(newPos)
         # update grid
         self.grid.drawGrid()
 
     def mouseReleaseEvent(self, e):
-        super().mouseReleaseEvent(e)
         # move child nodes and synchronize LUT
-        self.grid.drawTrace = False
         if self.mouseIsMoved:
             for i in self.childItems():
                 i.syncLUT()
-                i.isControlPoint = True  # 28/10
-            self.grid.drawGrid()
+                i.setControl(True)  # i.isControl = True  # 28/10
             l = self.scene().layer
             l.applyToStack()
             l.parentImage.onImageChanged()
         self.mouseIsPressed = False
         self.mouseIsMoved = False
+        self.grid.drawTrace = False
+        self.grid.drawGrid()
+        super().mouseReleaseEvent(e)
 
     def contextMenuEvent(self, event):
         menu = QMenu()
@@ -155,7 +161,9 @@ class nodeGroup(QGraphicsItemGroup):
         menu.addAction(actionUnGroup)
 
         def f1():
-            nodeGroup.unGroup(self)
+            for item in self.childItems():
+                item.setPen(QPen(Qt.red if item.isControl() else Qt.black))
+            self.scene().destroyItemGroup(self)
             self.grid.drawGrid()
             # self.scene().onUpdateLUT(options=self.scene().options)
         actionUnGroup.triggered.connect(f1)
@@ -180,7 +188,7 @@ class nodeGroup(QGraphicsItemGroup):
             self.setScale(self.scale() / 1.1)
             self.grid.drawGrid()
             for i in self.childItems():
-                i.syncLUT(i.pos())
+                i.syncLUT()
             # self.scene().onUpdateLUT(options=self.scene().options)
             l = self.scene().layer
             l.applyToStack()
@@ -216,26 +224,6 @@ class nodeGroup(QGraphicsItemGroup):
         actionRotateCCW.triggered.connect(f5)
 
         menu.exec_(event.screenPos())
-
-    def paint(self, qpainter, options, widget):
-        """
-        Overrides QGraphicsItemGroup paint
-        @param qpainter: 
-        @param options: 
-        @param widget: 
-        @return: 
-        """
-        # local coordinates
-        qpainter.save()
-        if self.isSelected():
-            qpainter.setBrush(QBrush(QColor(255, 255, 255)))
-        else:
-            qpainter.setBrush(QBrush(QColor(0, 0, 0)))
-        if self.isSelected():  # self.mouseIsPressed:
-            qpainter.setPen(QPen(Qt.white, 1, Qt.DotLine, Qt.RoundCap))
-            for child in self.childItems():
-                qpainter.drawLine(QPointF(), child.pos())
-        qpainter.restore()
 
 
 class activeNode(QGraphicsPathItem):
@@ -289,6 +277,7 @@ class activeNode(QGraphicsPathItem):
         @type grid:
         """
         super().__init__()
+        # add node to the scene
         self.setParentItem(parent)
         self.cModel = cModel
         self.mouseIsPressed = False
@@ -298,7 +287,10 @@ class activeNode(QGraphicsPathItem):
         self.__gridRow, self.__gridCol = gridRow, gridCol
         self.setFlag(QGraphicsItem.ItemIsSelectable, True)
         self.setFlag(QGraphicsItem.ItemIgnoresTransformations, True)
-        self.setVisible(False)
+        # recording of  node state
+        self.control = False  # aspect and smoothing
+        self.visible = False
+        self.setVisible(self.visible)
         # read color from the color wheel.
         # Node parent is the grid, and its grandfather is the color wheel
         # grid is at pos (0,0) on the color wheel (colorPicker object)
@@ -323,23 +315,14 @@ class activeNode(QGraphicsPathItem):
         self.LUTIndices = set([index(p/100.0, i, j, k) for p, (i, j, k) in enumerate(clipped)])
         # sort indices by increasing brightnesses
         self.LUTindices = sorted(self.LUTIndices, key=lambda x: x.p)
-        """
-        for x in self.LUTIndices:
-            (i, j, k) = x.ind
-            LUT3D_SHADOW[max(i-spread, 0):i + spread + 1, max(j - spread, 0):j + spread + 1,
-                         max(k - spread, 0):k + spread + 1, 3] = 1 Removed 03/07/19
-        """
-        # mark central node
-        c = grid.size//2  # PYTHON 3 integer quotient
+        # set path
+        c = grid.size // 2
         if self.gridRow == c and self.gridCol == c:
             self.setPath(self.qppR)
         else:
             self.setPath(self.qppE)
         self.grid = grid
-        self.delta = QPointF(0, 0)
         self.initialPosition = position
-        self.newPos = QPointF()
-        self.isControlPoint = False
 
     @property  # read only
     def gridRow(self):
@@ -348,6 +331,48 @@ class activeNode(QGraphicsPathItem):
     @property  # read only
     def gridCol(self):
         return self.__gridCol
+
+    def mapGrid2Parent(self, point):
+        """
+        Maps grid coordinates to node parent coordinates.
+        @param point:
+        @type point: QPointF
+        @return:
+        @rtype: QPointF
+        """
+        p = self.parentItem()
+        if p is self.grid:
+            return point
+        else:
+            return point + self.grid.scenePos() - p.scenePos()
+
+    def setVisible(self, b):
+        """
+        Toggles and records node visibility.
+        Call the super method to toggle visibility without
+        changing the recorded state.
+        Note that isVisible() always returns the actual visibility which
+        may differ from the recorded one. This is useful to toggle all nodes visibility
+        on/off at once. Use isVisibleState() to get the recorded state.
+        @param b:
+        @type b: boolean
+        """
+        super().setVisible(b)
+        self.visible = b  # remember
+
+    def isVisibleState(self):
+        return self.visible
+
+    def setControl(self, b):
+        self.control = b
+        if type(self.parentItem()) is not nodeGroup:  # priority to group settings
+            self.setPen(QPen(Qt.red if self.isControl() else Qt.black))
+
+    def isControl(self):
+        return self.control
+
+    def isTrackable(self):
+        return self.isSelected()  # or self.isControl
 
     def syncLUT(self):
         """
@@ -381,10 +406,14 @@ class activeNode(QGraphicsPathItem):
             slc3 = slice(max(i - spread, 0), i + spread + 1)
             nbghd = LUT3D_ORI[slc1, slc2, slc3, ::-1]
             nbghd1 = lut[slc1, slc2, slc3, :]
-            translat = np.array(self.cModel.cm2rgb(hue, sat, p)) - LUT3D_ORI[k, j, i, ::-1]
+            translat = self.cModel.cm2rgb(hue, sat, p) - LUT3D_ORI[k, j, i, ::-1]  # TODO 21/01/20 removed np.array validate
             trgNbghd = lut[slc1, slc2, slc3, :3][..., ::-1]
-            trgNbghd[...] = nbghd + translat  # np.array(self.cModel.cm2rgb(hue, sat, p))
-            # set alpha channel
+            # trgNbghd[...] = nbghd + translat
+            trgNbghd[...] = nbghd
+            trgNbghd += translat  # TODO modified 21/01/20 no call to memory allocation validate
+            # alpha is set to 0 for LUT vertices bound to  non moved nodes
+            # and to 255 otherwise, allowing to build a mask based on color
+            # selection.
             if np.all(translat == 0):
                 nbghd1[..., 3] = 0
             else:
@@ -420,7 +449,7 @@ class activeNode(QGraphicsPathItem):
 
     def neighbors(self):
         """
-        Returns the list of grid neighbors
+        Returns the list of grid neighbors (self excluded)
         @return: neighbors
         @rtype: list of activeNode objects
         """
@@ -445,41 +474,60 @@ class activeNode(QGraphicsPathItem):
 
     def laplacian(self):
         """
-        Return the laplacian (the mean) of the neighbor nodes.
-        The laplacian coordinates are relative to the scene.
+        Returns the laplacian (mean) of the positions
+        of the neighbor nodes.
+        Coordinates are relative to the scene.
         @return:
         @rtype: QPointF
         """
-        nullvec = QPointF(0.0, 0.0)
-        laplacian = nullvec
+        laplacian = QPointF(0.0, 0.0)
         count = 0
         for item in self.neighbors():
             laplacian += item.scenePos()
             count += 1
-        laplacian = laplacian / count
-        return laplacian
+        return laplacian / count
 
     def mousePressEvent(self, e):
         self.mouseIsPressed = True
         super().mousePressEvent(e)
-
-    def mouseMoveEvent(self, e):
-        self.mouseIsMoved = True
-        self.setPos(e.scenePos())
+        # TODO added 4 lines 7/1/19 validate
+        # draw links to neighbors
         self.grid.drawTrace = True
+        # update grid
         self.grid.drawGrid()
 
+    def mouseMoveEvent(self, e):
+        if e.modifiers() == Qt.ControlModifier | Qt.AltModifier:
+            self.mouseIsMoved = True
+            # item is not in a group, because
+            # groups do not send mouse move events to child items.
+            rect = self.scene().sceneRect()
+            newPos = e.scenePos()
+            if not rect.contains(newPos):
+                return
+            self.setPos(newPos)
+            # moved nodes are visible and selected
+            self.setVisible(True)
+            self.setSelected(True)
+            # make sure the move trace is shown.
+            self.grid.drawTrace = True
+            self.grid.drawGrid()
+
     def mouseReleaseEvent(self, e):
-        self.isControlPoint = True
         self.syncLUT()
         if self.mouseIsMoved:
             l = self.scene().layer
             l.applyToStack()
             l.parentImage.onImageChanged()
+        # Ctrl+click
+        elif e.modifiers() == Qt.ControlModifier:
+            # toggle control flag
+            self.setControl(not self.control)
         self.mouseIsPressed = False
         self.mouseIsMoved = False
         self.grid.drawTrace = False
         super().mouseReleaseEvent(e)
+        self.grid.drawGrid()  # don't move upwards
 
     def contextMenuEvent(self, event):
         menu = QMenu()
@@ -498,10 +546,10 @@ class activeNode(QGraphicsPathItem):
 
 class activeGrid(QGraphicsPathItem):
     """
-    Grid of active nodes
+    Grid of active nodes.
+    It includes a positioning grid and
+    a trace item showing node moves.
     """
-
-    selectionList = []
 
     def __init__(self, size, cModel, parent=None):
         """
@@ -519,16 +567,45 @@ class activeGrid(QGraphicsPathItem):
         # parent should be the color wheel. step is the unitary coordinate increment
         # between consecutive nodes in each direction
         self.step = parent.size / float((self.size - 1))
-        # set pos relative to parent
+        # set pos (relative to parent)
         self.setPos(0, 0)
+        # add nodes to the scene
         # np.fromiter does not handle dtype object, so we cannot use a generator
         self.gridNodes = [[activeNode(QPointF(i*self.step, j * self.step), cModel, gridRow=j,
                                       gridCol=i, parent=self, grid=self)
                                     for i in range(self.size)] for j in range(self.size)]
+        # add an item for proper visualization of node moves
+        self.traceGraphicsPathItem = QGraphicsPathItem(parent=parent)
+        # set pens
+        self.setPen(QPen(QColor(128, 128, 128)))  # , 1, Qt.DotLine, Qt.RoundCap))
+        self.traceGraphicsPathItem.setPen(QPen(QColor(255, 255, 255), 1, Qt.DotLine, Qt.RoundCap))
+        # default : don't show trace of moves
         self.drawTrace = False
         self.drawGrid()
-        self.selectedGroup = None
         self.setFlag(QGraphicsItem.ItemIsSelectable, True)
+        self.setDefaultControlNodes()
+        self.showAllNodes = False
+
+    def setDefaultControlNodes(self):
+        """
+        set border nodes as control nodes
+        """
+        for i in range(self.size):
+            self.gridNodes[i][0].setControl(True)
+            self.gridNodes[i][self.size - 1].setControl(True)
+            self.gridNodes[0][i].setControl(True)
+            self.gridNodes[self.size - 1][i].setControl(True)
+
+    def toggleAllNodes(self):
+        """
+        Toggles full grid display on and off.
+        Nodes having the visible flag set are shown in the two modes;
+        this allows a nice toggling.
+        """
+        self.showAllNodes = not self.showAllNodes
+        for i in range(self.size):
+            for j in range(self.size):
+                super(activeNode, self.gridNodes[i][j]).setVisible(self.showAllNodes or self.gridNodes[i][j].visible)
 
     def getNodeAt(self, row, col):
         """
@@ -542,96 +619,94 @@ class activeGrid(QGraphicsPathItem):
         """
         return self.gridNodes[col][row]
 
-    def paint(self, qpainter, options, widget):
-        qpainter.save()
-        qpainter.setPen(QPen(QColor(255, 255, 255), 1, Qt.DotLine, Qt.RoundCap))
-        qpainter.drawPath(self.path())
-        qpainter.restore()
-
-    def reset(self):
+    def reset(self, unSmoothOnly=False):
         """
-        unselect and reset all nodes to their initial position
+        unselect and reset nodes to their initial position.
+        If unSmoothOnly is False all nodes are reset,
+        otherwise control points are not moved.
         """
+        if not unSmoothOnly:
+            # explode all node groups  # TODO moved from onReset  7/1/20 validate
+            groupList = [item for item in self.childItems() if type(item) is nodeGroup]
+            for item in groupList:
+                item.prepareGeometryChange()
+                self.scene().destroyItemGroup(item)
         for i in range(self.size):
             for j in range(self.size):
                 node = self.gridNodes[i][j]
-                node.setPos(node.initialPosition)
+                if unSmoothOnly:
+                    if node.control:
+                        continue
+                node.setPos(node.mapGrid2Parent(node.initialPosition)) # node may still belong to a group
                 node.setSelected(False)
-                node.setVisible(False)
-                node.isControlPoint = False
+                node.setControl(False)  # TODO added 7/1/20 validate
+                node.setVisible(False)  # TODO added 7/1/20 validate
+        self.setDefaultControlNodes()
+        self.showAllNodes = False
 
     def smooth(self):
         """
-        Try to smooth the grid by moving each non fixed point to the position of the laplacian
+        Try to smooth the grid by moving each non control point to the position of the laplacian
         of its neighbors.
-        """
-        """
-        weight = 0.5
-        # current positions of nodes
-        f = lambda p: (p.scenePos().x(), p.scenePos().y())
-        posArray = np.array([[[* f(self.gridNodes[i][j])] for j in range(self.size)] for i in range(self.size)])  # not transposed
-        # get array of deltas : d[i,j,k,l] = coordinates of the vector gridNodes[i][j] --> gridNodes[k][l]
-        d = posArray[None, None,:,:,:] - posArray[:,:,None, None,:]
-        # square norms of deltas
-        n2 = np.sum(np.square(d), axis=-1)
-        # compute
-        vel = (d / n2[...,None]) * weight
-        vel = np.nan_to_num(vel)
-        vel = - np.sum(vel, axis=(2,3))  # pulling nodes away
         """
         try:
             QApplication.setOverrideCursor(Qt.WaitCursor)
             QApplication.processEvents()
+            # apply laplacian kernel
             for i in range(self.size):
                 for j in range(self.size):
                     curnode = self.gridNodes[i][j]
-                    curnode.newPos = curnode.laplacian()
-            for i in range(self.size):
-                for j in range(self.size):
-                    curnode = self.gridNodes[i][j]
-                    if abs(curnode.newPos.x()) < 0.1 and abs(curnode.newPos.y()) < 0.1:
+                    newPos = curnode.laplacian()  # scene coordinates
+                    if curnode.control:
                         continue
-                    if curnode.gridRow == 0 or curnode.gridCol == 0 or curnode.gridRow == self.size - 1 or \
-                                                    curnode.gridCol == self.size - 1 or curnode.isControlPoint:
-                        continue
-                    newPos = curnode.newPos
+                    # update position
                     if curnode.scenePos() != newPos:
                         position = newPos - curnode.parentItem().scenePos()
                         curnode.setPos(position)  # parent coordinates
                         curnode.syncLUT()
+            # LUT vertices are possibly bound to several nodes. Hence,
+            # output color of vertices bound to a control point may have been changed
+            # by the syncLUT() above. Uncomment to restore them now :
+            """
             for i in range(self.size):
                 for j in range(self.size):
-                    if self.gridNodes[i][j].isControlPoint:
+                    if self.gridNodes[i][j].isControl:
                         self.gridNodes[i][j].syncLUT()
+            """
         finally:
             QApplication.restoreOverrideCursor()
             QApplication.processEvents()
 
     def drawGrid(self):
+        """
+        Builds and sets the path of the grid.
+        """
         step = 4
         qpp = QPainterPath()
+        qppTrace = QPainterPath()
         for i in range(self.size):
             for j in range(self.size):
                 node = self.gridNodes[i][j]
                 if i % step == 0 and j % step == 0:
                     if i > 0:
-                        qpp.moveTo(node.gridPos())
-                        qpp.lineTo(self.gridNodes[i-step][j].gridPos())
+                        qpp.moveTo(node.initialPos)  # gridPos())
+                        qpp.lineTo(self.gridNodes[i-step][j].initialPos)    # gridPos())  # TODO modified 7/1/20
                     if j > 0:
-                        qpp.moveTo(node.gridPos())
-                        qpp.lineTo(self.gridNodes[i][j-step].gridPos())
-                if not node.isSelected():
+                        qpp.moveTo(node.initialPos)  # gridPos())
+                        qpp.lineTo(self.gridNodes[i][j-step].initialPos)  # gridPos())  # TODO modified 7/1/20
+                if not node.isTrackable():  # node.isSelected():  # TODO changed 7/1/19 validate
                     continue
-                # mark initial position
-                qpp.moveTo(node.gridPos())
-                qpp.lineTo(node.initialPos)
-                qpp.addEllipse(node.initialPos, 5, 5)
-                # mark visible neighbors
-                for n in node.neighbors():
-                    if n.isVisible():
-                        qpp.moveTo(n.gridPos())
-                        qpp.lineTo(node.gridPos())
+                # Visualize displacement for trackable nodes
+                qppTrace.moveTo(node.gridPos())
+                qppTrace.lineTo(node.initialPos)
+                qppTrace.addEllipse(node.initialPos, 3, 3)
+                if self.drawTrace:
+                    for n in node.neighbors():
+                        if n.isVisible():
+                            qppTrace.moveTo(n.gridPos())
+                            qppTrace.lineTo(node.gridPos())
         self.setPath(qpp)
+        self.traceGraphicsPathItem.setPath(qppTrace)
 
 
 class activeMarker(QGraphicsPolygonItem):
@@ -809,7 +884,7 @@ class colorChooser(QGraphicsPixmapItem):
         self.rubberBand.show()
 
     def mouseMoveEvent(self, e):
-        self.rubberBand.setGeometry(QRect(self.origin, e.screenPos()).normalized())
+        self.rubberBand.setGeometry(QRect(self.origin, e.screenPos()).normalized())  # topLeft, bottomRight
 
     def mouseReleaseEvent(self, e):
         # rubberBand selection
@@ -818,7 +893,7 @@ class colorChooser(QGraphicsPixmapItem):
         self.rubberBand.hide()
         grid = self.scene().grid
         screenOrigin = e.screenPos() - e.pos().toPoint()
-        rubberRect = QRect(self.origin, e.screenPos()).normalized()
+        rubberRect = QRect(self.origin, e.screenPos()).normalized()  # topLeft, bottomRight
         for i in range(grid.size):
             for j in range(grid.size):
                 if rubberRect.contains((grid.gridNodes[i][j].pos() + screenOrigin).toPoint()):
@@ -827,6 +902,7 @@ class colorChooser(QGraphicsPixmapItem):
                     if type(grid.gridNodes[i][j].parentItem()) is nodeGroup:
                         grid.gridNodes[i][j].parentItem().setSelected(False)
                     grid.gridNodes[i][j].setSelected(False)
+        grid.drawGrid()  # TODO added 9/1/20 validate
         # pick color from self.QImg
         p = e.pos().toPoint()
         c = QColor(self.QImg.pixel(p - self.offset().toPoint()))
@@ -836,11 +912,8 @@ class colorChooser(QGraphicsPixmapItem):
 
 class graphicsForm3DLUT(baseGraphicsForm):
     """
-    Form for 3D LUT editing.
+    3D LUT perceptual editor
     """
-    # node markers
-    qpp0 = activeNode.qppR
-    qpp1 = activeNode.qppE
     selectBrush = QBrush(QColor(255, 255, 255))
     unselectBrush = QBrush()
     # default brightness
@@ -980,10 +1053,14 @@ class graphicsForm3DLUT(baseGraphicsForm):
         pushButton2.clicked.connect(self.saveLUT)
         pushButton3 = QbLUePushButton("Smooth Grid")
         pushButton3.clicked.connect(self.onSmoothGrid)
+        pushButton31 = QbLUePushButton("Unsmooth Grid")
+        pushButton31.clicked.connect(self.onUnsmoothGrid)
         pushButton4 = QbLUePushButton('Set Mask')
-        pushButton4.clicked.connect(self.setMask)
+        pushButton4.clicked.connect(self.setMaskFromAlpha)
         # pushButton4 needs enabling/disabling
         self.pushButton4 = pushButton4
+        pushButton5 = QbLUePushButton("Show/Hide All")
+        pushButton5.clicked.connect(self.toggleAllNodes)
 
         # options
         options1, optionNames1 = ['use image', 'use selection'], ['Use Image', 'Use Selection']
@@ -1028,27 +1105,19 @@ class graphicsForm3DLUT(baseGraphicsForm):
 
         # color format combo
         infoCombo = QComboBox()
-        oDict = OrderedDict([('RGB', 0), ('CMYK', 1), ('HSV', 2)])
+        oDict = OrderedDict([('Marker RGB', 0), ('Marker CMYK', 1), ('Marker HSV', 2)])
         for key in oDict:
             infoCombo.addItem(key, oDict[key])
 
-        labelFormat = QLabel()
-
         def colorInfoFormatChanged(value):
             self.colorInfoFormat = infoCombo.itemData(value)
-            if self.colorInfoFormat == 0:
-                labelFormat.setText('RGB')
-            elif self.colorInfoFormat == 1:
-                labelFormat.setText('CMYK')
-            elif self.colorInfoFormat == 2:
-                labelFormat.setText('HSV')
             self.displayStatus()
 
         infoCombo.currentIndexChanged.connect(colorInfoFormatChanged)
 
         # working marker position editor
         self.info = QLineEdit()
-        self.info.setMaximumSize(120, 40)
+        self.info.setMaximumSize(120, 25)
 
         # returnPressed slot
         def infoDone():
@@ -1075,14 +1144,14 @@ class graphicsForm3DLUT(baseGraphicsForm):
 
         # layout
         gl = QGridLayout()
-        for i, button in enumerate([pushButton1, pushButton3, pushButton2]):
+        for i, button in enumerate([pushButton1, pushButton3, pushButton31, pushButton2]):
             gl.addWidget(button, 0, i)
         gl.addWidget(pushButton4, 1, 0)
-        gl.addWidget(infoCombo, 1, 1)
+        gl.addWidget(pushButton5, 1, 1)
         for i, widget in enumerate([self.listWidget1, self.listWidget2, self.listWidget3]):
             gl.addWidget(widget, 2 if i < 2 else 1, i, 1 if i < 2 else 2, 1)
         hl = QHBoxLayout()
-        hl.addWidget(labelFormat)
+        hl.addWidget(infoCombo)
         hl.addWidget(self.info)
         gl.addLayout(hl, 3, 0, -1, -1)
         self.addCommandLayout(gl)
@@ -1093,10 +1162,11 @@ class graphicsForm3DLUT(baseGraphicsForm):
 
         # whatsthis
         self.setWhatsThis(
-                        """ <b>2.5D LUT Editor</b><br>
-                          <b>Select nodes</b> with mouse clicks on the image. Selected nodes are shown
-                        as small black circles on the color wheel.<br>
-                        <b>Modify the color</b> of a node by dragging it on
+                        """ <b>2.5D LUT Perceptual Editor</b><br>
+                          <b>Choose nodes to edit</b> with mouse clicks on the image. They are shown
+                        as small black circles on the color wheel. Each node corresponds to a set of colors 
+                        sharing the same hue and saturation.<br>
+                        <b>Modify the colors</b> of a node by Ctrl+Alt+dragging it on
                         the wheel. Several nodes can be moved simultaneously by grouping them.<br>
                         <b>Group nodes</b> :<br>
                                 &nbsp; 1 - group nodes with the mouse : while pressing the mouse left button,
@@ -1109,7 +1179,9 @@ class graphicsForm3DLUT(baseGraphicsForm):
                                 &nbsp; 3 - on the image, click the pixels to unselect.<br>
                         <b>Warning</b> : Selecting/unselecting nodes with the mouse is enabled only when
                         the Color Chooser is closed.<br>
-                        Press the <b> Smooth Grid</b> button to smooth color transitions between neighbor nodes.<br>
+                        Press the <b> Smooth Grid</b> button to smooth color transitions between neighbor nodes.
+                        Control nodes (red circles) are not moved. Use Ctrl+click to toggle the control flag on and off.
+                        Reiterate until you are pleased with the result<br>
                         <b>Crosshair</b> markers indicate neutral gray tones and average 
                         skin tones. They can be moved with the mouse.
                         The position of the second marker is reflected in the editable 
@@ -1117,23 +1189,18 @@ class graphicsForm3DLUT(baseGraphicsForm):
                         of the CMYK color model, CMYK input values may be modified silently.<br>
                         <b>The grid can be zoomed</b> with the mouse wheel.<br>
                         Check the <b>Keep Alpha</b> option to forward the alpha channel without modifications.<br>
-                        This option must be unchecked to build a mask from the 3D LUT.<br>
+                        This option must be unchecked to be able to build a mask from the selection.<br>
                         HSpB layer is slower than HSV, but usually gives better results.<br>    
                         """
                           )  # end of setWhatsThis
 
     def selectGridNode(self, r, g, b):
         """
-        select the nearest grid nodes corresponding to r,g,b values.
+        selects the nearest grid nodes corresponding to r,g,b values.
         @param r: color
         @param g: color
         @param b: color
         """
-        # reset previous selected marker
-        if self.selected is not None:
-            self.selected.setPath(self.qpp1)
-            self.selected.setBrush(self.unselectBrush)
-
         h, s, p = self.cModel.rgb2cm(r, g, b)
         # currently selected values in adjust layer
         self.currentHue, self.currentSat, self.currentPb = h, s, p
@@ -1149,23 +1216,33 @@ class graphicsForm3DLUT(baseGraphicsForm):
 
         # select and mark selected node
         mode = self.graphicsScene.options['add node']
+        # reset previous selected marker
         if self.selected is not None:
             self.selected.setSelected(False)
+            # self.selected.setPath(activeNode.qppE)  #  TODO removed 7/1/20 validate
+            self.selected.setBrush(self.unselectBrush)
         self.selected = NNN
         self.selected.setSelected(True)
         self.selected.setBrush(self.selectBrush)
-        self.selected.setPath(self.qpp0)
+        # self.selected.setPath(activeNode.qppR)  #  TODO removed 7/1/20 validate
         self.selected.setVisible(mode)
-        nodesToSelect = NNN.neighbors() if self.graphicsScene.options['select neighbors'] else [NNN]
+        nodesToSelect = NNN.neighbors() + [NNN] if self.graphicsScene.options['select neighbors'] else [NNN]  # TODO + [NNN] added 7/1/20
         for n in nodesToSelect:
             n.setVisible(mode)
             if self.graphicsScene.options['reset removed nodes'] and not mode:
                 if isinstance(n.parentItem(), nodeGroup):
-                    n.parentItem().removeFromGroup(n)
+                    group = n.parentItem()
+                    group.removeFromGroup(n)
+                    if not group.childItems():
+                        self.graphicsScene.destroyItemGroup(group)
                 n.setPos(n.initialPos)
                 n.syncLUT()
+        self.grid.drawGrid()  # TODO added 7/1/20 validate
         # update status
         self.onSelectGridNode(h, s)
+
+    def toggleAllNodes(self):
+        self.grid.toggleAllNodes()
 
     def displayStatus(self):
         """
@@ -1201,17 +1278,28 @@ class graphicsForm3DLUT(baseGraphicsForm):
         self.layer.applyToStack()
         self.layer.parentImage.onImageChanged()
 
+    def onUnsmoothGrid(self):
+        """
+        Button slot
+        """
+        self.grid.reset(unSmoothOnly=True)
+        self.grid.drawGrid()
+        self.layer.applyToStack()
+        self.layer.parentImage.onImageChanged()
+
     def onReset(self):
         """
         reset grid and LUT
         """
         # get a fresh LUT
         self.graphicsScene.lut = LUT3D(None, size=self.graphicsScene.lut.size, alpha=True)
-        # explode all node groups
+        """
+        # explode all node groups  moved to reset()
         groupList = [item for item in self.grid.childItems() if type(item) is nodeGroup]
         for item in groupList:
             item.prepareGeometryChange()
             self.scene().destroyItemGroup(item)
+        """
         # reset grid
         self.grid.reset()
         self.selected = None
@@ -1242,10 +1330,10 @@ class graphicsForm3DLUT(baseGraphicsForm):
         except IOError as e:
             dlgWarn(str(e))
 
-    def setMask(self):
+    def setMaskFromAlpha(self):
         """
-        Build the layer mask from the image alpha channel.
-        The Image alpha channel is recorded
+        Sets the layer mask from the image alpha channel:
+        the image alpha channel is recorded
         in the red channel of the mask.
         """
         layer = self.graphicsScene.layer
@@ -1258,29 +1346,6 @@ class graphicsForm3DLUT(baseGraphicsForm):
         mask[:, :, 2] = imgmask
         layer.applyToStack()
         layer.parentImage.onImageChanged()
-    """
-    def writeToStream(self, outStream):
-        layer = self.layer
-        outStream.writeQString(layer.actionName)
-        outStream.writeQString(layer.name)
-        outStream.writeInt32(self.graphicsScene.LUTSize)
-        outStream.writeInt32(self.graphicsScene.lut.step)
-        byteData = self.graphicsScene.lut.LUT3DArray.tostring()
-        outStream.writeInt32(len(byteData))
-        outStream.writeRawData(byteData)
-        return outStream
-
-    def readFromStream(self, inStream):
-        actionName = inStream.readQString()
-        name = inStream.readQString()
-        size = inStream.readInt32()
-        self.graphicsScene.LUTsize = size
-        self.graphicsScene.lut.step = inStream.readInt32()
-        l = inStream.readInt32()
-        byteData = inStream.readRawData(l)
-        self.graphicsScene.lut.LUT3DArray = np.fromstring(byteData, dtype=int).reshape((size, size, size, 3))
-        return inStream
-    """
 
 
 if __name__ == '__main__':

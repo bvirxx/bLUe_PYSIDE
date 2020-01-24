@@ -356,8 +356,8 @@ class imageLabel(QLabel):
                     # should be layer.applyToStack() if any upper layer visible : too slow
                     # layer.applyToStack()
                     layer.updatePixmap()
+                    img.prLayer.update()  # =applyNone()
                     #############################
-                    img.prLayer.applyNone()
                     window.label.repaint()
             # dragBtn or arrow
             else:
@@ -372,7 +372,7 @@ class imageLabel(QLabel):
                     layer.xOffset += (x - State['ix'])
                     layer.yOffset += (y - State['iy'])
                     layer.updatePixmap()
-                    img.prLayer.applyNone()
+                    img.prLayer.update()  # =applyNone()
                 # drag cloning virtual layer
                 elif modifiers == Qt.ControlModifier | Qt.AltModifier:
                     if layer.isCloningLayer():
@@ -687,7 +687,7 @@ class imageLabel(QLabel):
         # update layer - should be layer.applyToStack() if any upper layer visible : too slow !
         # layer.updatePixmap()
         layer.execute()
-        img.prLayer.applyNone()
+        img.prLayer.update()  # =applyNone()
         self.window.label.repaint()
 
 

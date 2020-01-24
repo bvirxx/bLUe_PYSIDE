@@ -15,11 +15,11 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+import numpy as np
 import cv2
 from PySide2.QtCore import QRect
 
 from bLUeTop.utils import array2DSlices
-import numpy as np
 
 
 def show(bufList):
@@ -117,7 +117,9 @@ def alphaBlend(imgBuf1, imgBuf2, mask):
     # convert mask to 0/1
     mask = mask / 255.0
     mask = mask[..., np.newaxis]
-    return (imgBuf1 - imgBuf2) * mask + imgBuf2
+    tmp = (imgBuf1 - imgBuf2) * mask
+    tmp[...] += imgBuf2
+    return tmp  # (imgBuf1 - imgBuf2) * mask + imgBuf2  # TODO modified 21/01/20 reduce calls to memory allocation validate
 
 
 def contours(maskBuf, thres=0):
@@ -149,11 +151,13 @@ def moments(maskBuf):
     return cv2.moments(maskBuf)
 
 
-def membrane(inMBuf, maskBuf, maskContour):  # TODO 6/12/19 removed w=3 validate
+def membrane(inMBuf, maskBuf, maskContour, passes=1):
     """
     Calculates the harmonic function with boundary
     values imgBuf on the contour of
-    maskBuf (Dirichlet conditions).
+    maskBuf (Dirichlet conditions), using either the Jacobi Method or the Gauss Seidel Method:
+    http://www.math.umbc.edu/~kogan/technical_papers/2007/Yang_Gobbert.pdf
+    https://web.stanford.edu/class/cme324/saad.pdf
     The Laplacian kernel is applied to the interior
     of the unmasked region only. The exterior is
     returned unmodified.
@@ -164,50 +168,66 @@ def membrane(inMBuf, maskBuf, maskContour):  # TODO 6/12/19 removed w=3 validate
     @type maskBuf: ndarray, shape (h, w)
     @param maskContour:
     @type maskContour:
+    @param passes: number of grid refinements
+    @type passes: int
     @return: membrane buffer
     @rtype: ndarray, shape (h, w, d), dtype=np.float
     """
+    steps = [33, 17, 9, 5]
+    passes = min(max(1, passes), len(steps))
     # get the interior of the unmasked region (remove contour)
     innerRegion = (maskContour != 255) & (maskBuf == 255)
-    # init the laplacian kernel
-    r = 3
-    lpKernel = np.zeros((r, r), dtype=np.float)
-    lpKernel[0, r//2], lpKernel[r//2, 0], lpKernel[r-1, r//2], lpKernel[r//2, r-1] = (0.25,) * 4
+    ##############
+    # stop criterion
+    threshold = 1
+    ##############
     dBuf = inMBuf.copy()
     # compute means per color channel over contour
     m = np.mean(dBuf[maskContour == 255], axis=0)
-    if np.any(np.isnan(m)):  # TODO added 19/12/19  validate
+    if np.any(np.isnan(m)):
         return dBuf
     # init the interior area
     dBuf[innerRegion] = m
     # solve Laplace equation using a grid with unit cells of size step.
-    for step in [33]:
+    # init the laplacian kernel
+    r = 3
+    lpKernel = np.zeros((r, r), dtype=np.float)
+    lpKernel[0, r // 2], lpKernel[r // 2, 0], lpKernel[r - 1, r // 2], lpKernel[r // 2, r - 1] = (0.25,) * 4
+    lpKernel[r // 2, r // 2] = 0.0
+    for step in steps[:passes]:  # [33, 17]:
         bMask1 = innerRegion[::step, ::step]
         # init each grid vertex with the mean of dBuf values over a (step,step) neighborhood
         # and restore initial values for contour vertices.
         buf1 = cv2.blur(dBuf, (step, step))
         buf1[maskContour == 255] = inMBuf[maskContour == 255]
         buf1 = buf1[::step, ::step, :]
-        # iterate Laplacian kernel
+        ####################################
+        # evaluation of SOR coeff
+        # exact formula sorCoeff = 2 / (1 + sin(pi * h)) with h = 1 / ( N + 1),
+        # where  N + 2 is the (square) grid size (= width or height)
+        # We approximate it by sorCoeff = 2 * (1 - pi * h)
+        ####################################
+        # sorCoeff = 2.0 * (1.0 - np.pi / (np.amax(buf1.shape) - 1 ))
+        # iterate the Laplacian kernel
         c = 0
         while True:
             c += 1
             outBuf1 = cv2.filter2D(buf1, -1, lpKernel)
-            if (c & 31) == 0:
-                if (np.max(np.abs(buf1 - outBuf1)[bMask1], initial=0) < 0.00001) or (c > 10**5):  # TODO added watchdog 19/12/19 validate
-                    break
+            tmpa = (buf1 - outBuf1)[bMask1]
             # update the interior region
             buf1[bMask1] = outBuf1[bMask1]
+            if (max(tmpa.max(initial=0), -tmpa.min(initial=0)) < threshold) or (c > 10 * 3):  # watchdog added
+                break
         # interpolate the grid for next step
         buf1 = cv2.resize(buf1, (dBuf.shape[1], dBuf.shape[0]))
-        # copy the cloned region into dBuf
-        dBuf[innerRegion] = buf1[innerRegion]
-        maskContour = cv2.blur(maskContour, (20, 20))
-        dBuf[maskContour > 64] = buf1[maskContour > 64]
+    # copy the cloned region into dBuf
+    dBuf[innerRegion] = buf1[innerRegion]
+    maskContour = cv2.blur(maskContour, (20, 20))
+    dBuf[maskContour > 64] = buf1[maskContour > 64]
     return dBuf
 
 
-def seamlessClone(srcBuf, destBuf, mask, conts, bRect, srcTr, destTr, w=3):
+def seamlessClone(srcBuf, destBuf, mask, conts, bRect, srcTr, destTr, w=3, passes=1):
     """
     The area in srcBuf delimited by the mask translated by srcTr is cloned
     into the area in destBuf delimited by the mask translated by destTr.
@@ -227,6 +247,8 @@ def seamlessClone(srcBuf, destBuf, mask, conts, bRect, srcTr, destTr, w=3):
     @type destTr: 2-uple
     @param w: contour thickness
     @type w: int
+    @param passes: number of grid refinements
+    @type passes: int
     @return: cloned image
     @rtype: ndarray
     """
@@ -245,12 +267,10 @@ def seamlessClone(srcBuf, destBuf, mask, conts, bRect, srcTr, destTr, w=3):
     cv2.drawContours(maskContour, conts, -1, 255, w)  # -1: draw all contours; 0: draw contour 0  # TODO 19/12/19 changed 0 to -1 validate
     # solving Laplace equation for delta = destBufT - srcBufT
     buf = membrane(destBufT.astype(np.float) - srcBufT.astype(np.float), mask[array2DSlices(mask, bRect)],
-                   maskContour[array2DSlices(maskContour, bRect)])
+                   maskContour[array2DSlices(maskContour, bRect)], passes=passes)
     tmp = buf + srcBufT
     np.clip(tmp, 0, 255, tmp)
     result = destBuf.copy()
     result[array2DSlices(destBuf, rectDest)] = alphaBlend(tmp, destBufT, mask[array2DSlices(mask, bRect)])
     return result
-
-
 

@@ -16,7 +16,6 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import cv2
-import gc
 import numpy as np
 
 ###############################################
@@ -99,12 +98,16 @@ def rgb2hsBVec(rgbImg, perceptual=False):
     @rtype: (n,m,3) array, dtype=float
     """
     buf = cv2.cvtColor(rgbImg.astype(np.uint8), cv2.COLOR_RGB2HSV)
-    buf = buf.astype(np.float) * [2, 1.0 / 255.0, 1.0 / 255.0]  # scale to 0..360, 0..1, 0..1
+    buf = buf.astype(np.float)
+    buf *= [2, 1.0 / 255.0, 1.0 / 255.0]  # scale to 0..360, 0..1, 0..1
     if perceptual:
-        rgbImg2 = rgbImg.astype(float) * rgbImg
-        pB = np.tensordot(rgbImg2, [Perc_R, Perc_G, Perc_B], axes=(-1, -1)) / (255.0 * 255)
-        pB = np.sqrt(pB)
-        buf[:, :, 2] = pB
+        rgbImg2 = rgbImg.astype(float)
+        rgbImg2 *= rgbImg2
+        pB = np.tensordot(rgbImg2, [Perc_R, Perc_G, Perc_B], axes=(-1, -1))
+        pB /= 255.0 * 255
+        # pB = np.sqrt(pB)
+        # buf[:, :, 2] = pB
+        np.sqrt(pB, out=buf[:, :, 2])  # TODO modified 21/01/20 validate
     return buf
 
 
@@ -121,7 +124,8 @@ def rgb2hlsVec(rgbImg):
     @rtype: (n,m,3) array, dtype=float
     """
     buf = cv2.cvtColor(rgbImg.astype(np.uint8), cv2.COLOR_RGB2HLS)
-    buf = buf.astype(np.float) * [2, 1.0 / 255.0, 1.0 / 255.0]  # scale to 0..360, 0..1, 0..1
+    buf = buf.astype(np.float)
+    buf *= [2, 1.0 / 255.0, 1.0 / 255.0]  # scale to 0..360, 0..1, 0..1
     return buf
 
 
@@ -142,6 +146,8 @@ def hls2rgbVec(hlsImg, cvRange=False):
     # scale to 0..180, 0..255, 0..255 (opencv convention)
     if not cvRange:
         buf = hlsImg * [1.0 / 2.0, 255.0, 255.0]
+    else:
+        buf = hlsImg  # TODO added 21/01/20 validate
     # convert to rgb
     buf = cv2.cvtColor(buf.astype(np.uint8), cv2.COLOR_HLS2RGB)
     return buf
@@ -201,7 +207,7 @@ def hsv2rgbVec(hsvImg, cvRange=False):
         s = hsvImg.shape
         hsvImg = hsvImg.reshape(np.prod(s[:-1]), 1, s[-1])
     if not cvRange:
-        hsvImg = hsvImg * [0.5, 255.0, 255.0]  # scale to 0..180, 0..255, 0..255 (opencv convention)
+        hsvImg *= [0.5, 255.0, 255.0]  # scale to 0..180, 0..255, 0..255 (opencv convention)
     rgbImg = cv2.cvtColor(hsvImg.astype(np.uint8), cv2.COLOR_HSV2RGB)
     if flatten:
         rgbImg = rgbImg.reshape(s)
@@ -312,7 +318,7 @@ def hsp2rgbVec(hspImg):
     h = np.ravel(h)
     s = np.ravel(s)
     p = np.ravel(p)
-    h = h / 60.0
+    h /= 60.0
     i = np.floor(h).astype(int)
     f = h - i
 
@@ -324,52 +330,70 @@ def hsp2rgbVec(hspImg):
     oneMinusMm = 1.0 - Mm
     oneMinusf2 = oneMinusf * oneMinusf
     p2 = p * p
+    bMask = (Mm == np.inf)
 
-    part1 = 1.0 - f * oneMinusMm
-    part1 = np.where(Mm == np.inf, f, part1)  # s == 1 corresponds to Mm == np.inf. However this supposes s clipped to 1.
-    part2 = 1.0 - oneMinusf * oneMinusMm
-    part2 = np.where(Mm == np.inf, oneMinusf, part2)
+    part1 = (-f) * oneMinusMm
+    part1 += 1.0  # 1.0 - f * oneMinusMm
+    part1[bMask] = f[bMask]  # np.where(Mm == np.inf, f, part1)  s == 1 corresponds to Mm == np.inf. However this supposes s clipped to 1
+    part2 = (-oneMinusf) * oneMinusMm
+    part2 += 1.0  # 1.0 - oneMinusf * oneMinusMm
+    part2[bMask] = oneMinusf[bMask]  # np.where(Mm == np.inf, oneMinusf, part2)
 
-    part1 = part1 * part1
-    part2 = part2 * part2
-    # In each of the 6 regions defined by j=i+1, Yj=max(R,G,B)**2
-    X1 = np.where(Mm == np.inf, 0, p2 / (Perc_R * Mm2 + Perc_G * part1 + Perc_B))        # b
-    Y1 = np.where(Mm == np.inf, p2 / (Perc_R + Perc_G * f2), X1 * Mm2)                   # r
-    X1 = None
+    ###################################################
+    # Auxiliary functions for optimized computations of array expressions
+    def pOverABplusCDplusE(A, B, C, D, E, P):
+        """
+        X = P / (A * B + C * D + E)
+        """
+        X = A * B
+        X += C * D
+        X += E
+        X = np.reciprocal(X, out=X)
+        X *= P
+        return X
 
-    X2 = np.where(Mm == np.inf, 0, p2 / (Perc_G * Mm2 + Perc_R * part2 + Perc_B))        # b
-    Y2 = np.where(Mm == np.inf, p2 / (Perc_G + Perc_R * oneMinusf2), X2 * Mm2)           # g
-    X2 = None
+    def pOverAplusCD(A, C, D, P):
+        """
+        X = P / (A + C * D)
+        """
+        X = C * D
+        X += A
+        X = np.reciprocal(X, out=X)
+        X *= P
+        return X
 
-    X3 = np.where(Mm == np.inf, 0, p2 / (Perc_G * Mm2 + Perc_B * part1 + Perc_R))        # r
-    Y3 = np.where(Mm == np.inf, p2 / (Perc_G + Perc_B * f2), X3 * Mm2)                   # g
-    X3 = None
+    def region(A, B, C, D, E, F, P):
+        """
+        X = np.where(Mm == np.inf, 0, p2 / (Perc_R * Mm2 + Perc_G * part1 + Perc_B))
+        Y = np.where(Mm == np.inf, p2 / (Perc_R + Perc_G * f2), X * Mm2)
+        """
+        X = pOverABplusCDplusE(A, B, C, D, E, P)
+        X[bMask] = 0
+        Y = pOverAplusCD(A, C, F, P)
+        X *= B
+        Y[~bMask] = X[~bMask]
+        return Y
+    ######################################################
 
-    gc.collect()
+    part1 *= part1
+    part2 *= part2
 
-    X4 = np.where(Mm == np.inf, 0, p2 / (Perc_B * Mm2 + Perc_G * part2 + Perc_R))        # r
-    Y4 = np.where(Mm == np.inf, p2 / (Perc_B + Perc_G * oneMinusf2), X4 * Mm2)           # b
-    X4 = None
-
-    X5 = np.where(Mm == np.inf, 0, p2 / (Perc_B * Mm2 + Perc_R * part1 + Perc_G))        # g
-    Y5 = np.where(Mm == np.inf, p2 / (Perc_B + Perc_R * f2), X5 * Mm2)                   # b
-    X5 = None
-
-    X6 = np.where(Mm == np.inf, 0, p2 / (Perc_R * Mm2 + Perc_B * part2 + Perc_G))        # g
-    Y6 = np.where(Mm == np.inf, p2 / (Perc_R + Perc_B * oneMinusf2), X6 * Mm2)           # r
-    X6 = None
-
-    gc.collect()
+    Y1 = region(Perc_R, Mm2, Perc_G, part1, Perc_B, f2, p2)
+    Y2 = region(Perc_G, Mm2, Perc_R, part2, Perc_B, oneMinusf2, p2)
+    Y3 = region(Perc_G, Mm2, Perc_B, part1, Perc_R, f2, p2)
+    Y4 = region(Perc_B, Mm2, Perc_G, part2, Perc_R, oneMinusf2, p2)
+    Y5 = region(Perc_B, Mm2, Perc_R, part1, Perc_G, f2, p2)
+    Y6 = region(Perc_R, Mm2, Perc_B, part2, Perc_G, oneMinusf2, p2)
 
     np.seterr(**old_settings)
     # stack as rows
     clistMax = np.vstack((Y1, Y2, Y3, Y4, Y5, Y6))
 
-    orderMax= np.arange(6)
+    orderMax = np.arange(6)
     tmp = np.arange(np.prod(shape))
 
     rgbMax = clistMax[orderMax[i], tmp]
-    rgbMax = np.sqrt(rgbMax)
+    np.sqrt(rgbMax, out=rgbMax)
     np.clip(rgbMax, 0, 1, out=rgbMax)
     hsv = np.dstack((h, s, rgbMax))
     hsv *= [30.0, 255.0, 255.0]

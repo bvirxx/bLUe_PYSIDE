@@ -91,7 +91,7 @@ class gammaTables:
     # RGB gamma adaptation.
     # The sRGB and REC BT 709 versions are available.
     # Cf. https://en.wikipedia.org/wiki/SRGB
-    # Use the USE_BT_709 flag to switch between version.
+    # Use the USE_BT_709 flag to switch between versions.
     """
     if USE_BT_709:
         # REC BT 709
@@ -129,10 +129,10 @@ class gammaTables:
         # inputs should be integers in range 0..255.They are scaled to[0..1].
         self.__table3 = np.power((table0 / 255.0 + self.a) / (1 + self.a), self.gamma)
         trh = int(self.gammaLinearTreshold2 * 255)
-        self.__table3[0: trh + 1] = np.arange(trh + 1) / ((255.0) * self.d)
+        self.__table3[0: trh + 1] = np.arange(trh + 1) / (255.0 * self.d)
         # tabulate (1 + a) * x**(1/gamma) - a :
         # inputs should be integers in range 0..255. They are scaled to [0..1].
-        self.__table5 = np.power(table0, self.beta) * (1.0 + self.a) / F - self.a
+        self.__table5 = np.power(table0, self.beta) * ((1.0 + self.a) / F) - self.a
         trh = int(self.gammaLinearTreshold1 * 255)
         self.__table5[0: trh + 1] = np.arange(trh + 1) * self.d
         self.__table5 *= 255
@@ -165,7 +165,7 @@ def rgbLinear2rgb(rgbColors):
     Linear RGB values should be in range 0..1.
     Output values are in range 0..255.
     @param rgbColors: RGB color or array of RGB colors
-    @type rgbColors: tuple or list of 3 scalars, or ndarray with last_dim = 3
+    @type rgbColors: tuple or list of 3 scalars, or ndarray with last dim = 3
     @return: gamma adapted RGB  colors
     @rtype: identical to type of input
     """
@@ -198,7 +198,7 @@ def rgb2rgbLinear(rgbColors):
     Input Input values should be integers in range 0..255.
     Output values are in range 0..1.
     @param rgbColors: color or array of RGB colors
-    @type rgbColors: tuple or list of 3 scalars, or ndarray with last_dim = 3
+    @type rgbColors: tuple or list of 3 scalars, or ndarray with last dim = 3
     @return: linear RGB colors
     @rtype: identical to type of input
     """
@@ -271,7 +271,7 @@ def XYZ2sRGB(XYZColors):
     and next use the sRGB <--> XYZ conversion matrices from
     U{http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html}
     @param XYZColors: color, mode XYZ, range 0..1
-    @type XYZColors: tuple or list of 3 scalars, or ndarray with last_dim = 3
+    @type XYZColors: tuple or list of 3 scalars, or ndarray with last dim = 3
     @return: RGB colors
     @rtype:  identical to type of input
     """
