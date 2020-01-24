@@ -231,7 +231,7 @@ def rawPostProcess(rawLayer, pool=None):
     s = rawLayer.postProcessCache.shape
     tmp = bImage(s[1], s[0], QImage.Format_RGB32)
     buf = QImageBuffer(tmp)
-    buf[:, :, :] = (rawLayer.postProcessCache[:, :, 2, np.newaxis] * 255).astype(np.uint8)
+    buf[:, :, :] = (rawLayer.postProcessCache[:, :, 2, np.newaxis] * 255).astype(np.uint8)  # TODO optimize
     rawLayer.linearImg = tmp
 
     if getattr(adjustForm, "toneForm", None) is not None:
@@ -270,13 +270,13 @@ def rawPostProcess(rawLayer, pool=None):
     # apply profile tone curve, if any
     if buf:  # non empty list
         LUTXY = dngProfileToneCurve(buf).toLUTXY(maxrange=255)
-        bufHSV_CV32[:, :, 2] = LUTXY[(bufHSV_CV32[:, :, 2] * 255).astype(np.uint16)] / 255.0
+        bufHSV_CV32[:, :, 2] = LUTXY[(bufHSV_CV32[:, :, 2] * 255).astype(np.uint16)] / 255.0  # TODO optimize
     # apply user tone curve
     toneForm = adjustForm.toneForm
     if toneForm is not None:
         if toneForm.isVisible():
             userLUTXY = toneForm.scene().quadricB.LUTXY
-            bufHSV_CV32[:, :, 2] = userLUTXY[(bufHSV_CV32[:, :, 2] * 255).astype(np.uint16)] / 255
+            bufHSV_CV32[:, :, 2] = userLUTXY[(bufHSV_CV32[:, :, 2] * 255).astype(np.uint16)] / 255  # TODO optimize
     rawLayer.bufCache_HSV_CV32 = bufHSV_CV32.copy()  # CAUTION : must be outside of if toneForm.
 
     # beginning of the contrast-saturation phase : update buffer from the last camera profile applcation
@@ -305,7 +305,7 @@ def rawPostProcess(rawLayer, pool=None):
         # tabulate x**alpha
         LUT = np.power(np.arange(256) / 255, alpha)
         # convert saturation s to s**alpha
-        bufHSV_CV32[:, :, 1] = LUT[(bufHSV_CV32[:, :, 1] * 255).astype(int)]
+        bufHSV_CV32[:, :, 1] = LUT[(bufHSV_CV32[:, :, 1] * 255).astype(int)]  # TODO optimize
     # back to RGB
     bufpostF32_1 = cv2.cvtColor(bufHSV_CV32, cv2.COLOR_HSV2RGB)  # * 65535 # .astype(np.uint16)
 
