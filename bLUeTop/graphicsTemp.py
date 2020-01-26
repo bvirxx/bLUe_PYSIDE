@@ -228,12 +228,12 @@ class temperatureForm (baseForm):
     def showColorChooser(self):
         self.colorChooser.show()
         try:
-            self.colorChooser.currentColorChanged.disconnect()
+            self.colorChooser.currentColorChanged.disconnect()  # TODO conflict with other usages of app colorchooser
         except RuntimeError:
             pass
         self.colorChooser.setCurrentColor(self.filterColor)
         self.colorChooser.currentColorChanged.connect(self.setFilterColor)
-        self.colorChooser.colorSelected.connect(self.colorUpdate)
+        self.colorChooser.colorSelected.connect(self.colorUpdate)  # TODO conflict with other usages of app colorchooser
 
     @staticmethod
     def slider2Temp(v):
