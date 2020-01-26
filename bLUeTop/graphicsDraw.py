@@ -34,16 +34,6 @@ class drawForm (baseForm):
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super().__init__(layer=layer, targetImage=targetImage, parent=parent)
         self.options = None
-        """
-        # options
-        optionList1, optionNames1 = ['Free', 'Rotation', 'Translation', 'Align'], ['Free Transformation', 'Rotation', 'Translation', 'Align']
-        self.listWidget1 = optionsWidget(options=optionList1, optionNames=optionNames1, exclusive=True, changed=self.dataChanged)
-        optionList2, optionNames2 = ['Transparent'], ['Set Transparent Pixels To Black']
-        self.listWidget2 = optionsWidget(options=optionList2, optionNames=optionNames2, exclusive=False, changed=self.dataChanged)
-        self.options = UDict((self.listWidget1.options, self.listWidget2.options))
-        # set initial selection to Perspective
-        self.listWidget1.checkOption(optionList1[0])
-        """
         pushButton1 = QPushButton(' Undo ')
         pushButton1.adjustSize()
         pushButton2 = QPushButton(' Redo ')
