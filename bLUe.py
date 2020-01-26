@@ -116,6 +116,7 @@ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
+from os.path import basename
 
 from bLUeTop import resources_rc  # mandatory
 
@@ -195,7 +196,7 @@ credit https://icones8.fr/
 
 ##############
 #  Version number
-VERSION = "v1.7.2"
+VERSION = "v2.0.1"
 ##############
 
 ##############
@@ -302,6 +303,10 @@ def loadImage(img, withBasic=True, window=window):
     @type window: QWidget
     """
     setDocumentImage(img)
+    tabBar = window.tabBar
+    ind = tabBar.addTab(basename(img.filename))
+    tabBar.setCurrentIndex(ind)
+    tabBar.setTabData(ind, img)
     # switch to preview mode and process stack
     window.tableView.previewOptionBox.setChecked(True)
     window.tableView.previewOptionBox.stateChanged.emit(Qt.Checked)
@@ -325,8 +330,8 @@ def openFile(f, window=window):
     @type window: QWidget
     """
     # close open document, if any
-    if not closeFile():
-        return
+    #if not closeFile():
+        #return
     try:
         QApplication.setOverrideCursor(Qt.WaitCursor)
         QApplication.processEvents()
@@ -411,6 +416,23 @@ def adjustHistogramSize(window=window):
         window.histView.Label_Hist.setPixmap(pxm.scaled(window.histView.width() - 20, window.histView.height()-50))
         window.histView.Label_Hist.repaint()
 
+def restoreBrush(d):
+    """
+    Sync brush tools with values in d
+    @param d:
+    @type d: dict
+    """
+    if d is None:
+        return
+    window.verticalSlider1.setValue(d['size'])
+    window.verticalSlider2.setValue(int(d['opacity'] * 100.0))
+    window.verticalSlider3.setValue(int(d['hardness'] * 100.0))
+    window.verticalSlider4.setValue(int(d['flow'] * 100.0))
+    ind = window.brushCombo.findText(d['name'])
+    if ind != -1:
+        window.brushCombo.setCurrentIndex(ind)
+    window.colorChooser.setCurrentColor(d['color'])
+    window.label.State['brush'] = d.copy()
 
 def setDocumentImage(img, window=window):
     """
@@ -420,8 +442,19 @@ def setDocumentImage(img, window=window):
     @param window:
     @type window: QWidget
     """
-    window.cropButton.setChecked(False)
-    window.rulerButton.setChecked(False)
+    # restore GUI
+    window.label.img.savedBtnValues = window.btnValues.copy()
+    d = img.savedBtnValues
+    if d:  # a saved dict exists
+        window.btnValues = d.copy()
+    # default autoexclusive
+    #window.btns['pointer'].setChecked(True)
+    # set button state
+    for btn in window.btns.values():
+        s = btn.autoExclusive()
+        btn.setAutoExclusive(False)
+        btn.setChecked(window.btnValues[btn.accessibleName()])
+        btn.setAutoExclusive(s)
     window.label.img = img
     # init histogram
     window.histView.targetImage = window.label.img
@@ -436,8 +469,17 @@ def setDocumentImage(img, window=window):
         # recompute and display histogram for the selected image
         showHistogram()
 
-    window.label.img.onImageChanged = f
+    # active layer changed event handler
+    def g():
+        layer = window.label.img.getActiveLayer()
+        if layer.isDrawLayer():
+            restoreBrush(layer.brushDict)
 
+    window.label.img.onImageChanged = f
+    window.label.img.onActiveLayerChanged = g
+
+    # init = first change
+    g()
     ###################################
     # init displayed images
     # label.img : working image
@@ -637,7 +679,8 @@ def menuImage(name, window=window):
     @type window: QWidget
     """
     img = window.label.img
-    # new image from clipboard
+    """
+    # new image from clipboard  # TODO 24/01/20 unsused removed validate
     if name == 'actionNew':
         # close open document, if any
         if not closeFile():
@@ -649,6 +692,7 @@ def menuImage(name, window=window):
             loadImage(img)
         else:
             dlgWarn("Clipboard : no image found")
+    """
     # display image info
     if name == 'actionImage_info':
         # Format
@@ -1461,7 +1505,7 @@ def setupGUI(window=window):
                                              margin: 3px;
                                              padding: 2px}
                                QTabBar::tab:hover {color: white}
-                               QTabBar::tab:selected {border-top-color: white; 
+                               QTabBar::tab:selected {border-top-color: red; 
                                                       color: white;}
                                QTabBar::tab:!selected {margin-bottom: 2px}
                                QDockWidget::title {background-color: #444455}
@@ -1509,6 +1553,12 @@ def setupGUI(window=window):
     window.brushCombo = QComboBox()
     for b in window.brushes[:-1]:  # don't add eraser to combo
         window.brushCombo.addItem(b.name, b)
+    window.verticalSlider1.sliderReleased.connect(window.label.brushUpdate)
+    window.verticalSlider2.sliderReleased.connect(window.label.brushUpdate)
+    window.verticalSlider3.sliderReleased.connect(window.label.brushUpdate)
+    window.verticalSlider4.sliderReleased.connect(window.label.brushUpdate)
+    window.brushCombo.currentIndexChanged.connect(window.label.brushUpdate)
+    window.colorChooser.colorSelected.connect(window.label.brushUpdate)
     # init tool bar
     toolBar.addWidget(QLabel(' Brush  '))
     for slider in [window.verticalSlider1, window.verticalSlider2, window.verticalSlider3, window.verticalSlider4]:
@@ -1666,6 +1716,34 @@ def setupGUI(window=window):
         """
     )  # end of setWhatsThis
 
+def switchDoc(index):
+    """
+    tabBarClicked slot
+    @param index: tab index
+    @type index: int
+    """
+    img = window.tabBar.tabData(index)
+    setDocumentImage(img)
+
+def setupTabBar(window=window):
+    tabBar = QTabBar()
+    tabBar.tabBarClicked.connect(switchDoc)
+    tabBar.setMaximumHeight(25)
+    tabBar.setAutoHide(True)
+    tabBar.setStyleSheet("QTabBar::tab {height: 15px; width: 100px;}")
+    vlay = QVBoxLayout()
+    hlay2 = QHBoxLayout()
+    hlay2.addWidget(tabBar)
+    hlay2.addStretch(100)
+    vlay.addLayout(hlay2)
+    hlay1 = QHBoxLayout()
+    hlay1.addWidget(window.label)
+    hlay1.addWidget(window.splitter)
+    vlay.addLayout(hlay1)
+    hlay = window.horizontalLayout_2
+    hlay.addLayout(vlay)
+    window.tabBar = tabBar
+
 
 if __name__ == '__main__':
     #################
@@ -1679,21 +1757,8 @@ if __name__ == '__main__':
     window.init()
     # display splash screen and set app style sheet
     setupGUI(window)
-    tabBar = QTabBar()
-    tabBar.addTab('test')
-    tabBar.addTab('test1')
-    tabBar.setStyleSheet("QTabBar::tab { height: 15px; width: 100px; }")
-    vlay = QVBoxLayout()
-    hlay2 = QHBoxLayout()
-    hlay2.addWidget(tabBar)
-    hlay2.addStretch(100)
-    vlay.addLayout(hlay2)
-    hlay1 = QHBoxLayout()
-    hlay1.addWidget(window.label)
-    hlay1.addWidget(window.splitter)
-    vlay.addLayout(hlay1)
-    hlay = window.horizontalLayout_2
-    hlay.addLayout(vlay)
+    setupTabBar()
+
     ###############
     # launch app
     ###############

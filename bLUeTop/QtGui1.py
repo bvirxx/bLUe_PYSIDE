@@ -74,6 +74,7 @@ class Form1(QMainWindow):
         # State recording.
         self.slidersValues = {}
         self.btnValues = {}
+        self.btns = {}
         # connect slider and button signals to slots
         for slider in self.findChildren(QtWidgets.QSlider):
             slider.valueChanged.connect(
@@ -88,6 +89,7 @@ class Form1(QMainWindow):
                 lambda *args, button=button: self.handlePushButtonClicked(button)
             )
             self.btnValues[str(button.accessibleName())] = button.isChecked()
+            self.btns[str(button.accessibleName())] = button
 
         for button in self.findChildren(QtWidgets.QToolButton):
             button.toggled.connect(
@@ -100,6 +102,7 @@ class Form1(QMainWindow):
                     lambda *args, button=button: self.handleToolButtonClicked(button)
                 )
             self.btnValues[str(button.accessibleName())] = button.isChecked()
+            self.btns[str(button.accessibleName())] = button
 
     def handlePushButtonClicked(self, button):
         """

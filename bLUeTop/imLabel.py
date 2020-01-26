@@ -49,9 +49,14 @@ class imageLabel(QLabel):
         else:
             bColor = Qt.black
         if window.btnValues['eraserButton']:
-            self.State['brush'] = window.brushes[-1].getBrush(bSize, bOpacity, bColor, bHardness, bFlow)
+            self.State[''] = window.brushes[-1].getBrush(bSize, bOpacity, bColor, bHardness, bFlow)
         else:
             self.State['brush'] = window.brushCombo.currentData().getBrush(bSize, bOpacity, bColor, bHardness, bFlow)
+        # record current brush into layer brushDict
+        if self.img is not None:
+            layer = self.img.getActiveLayer()
+            if layer.isDrawLayer():
+                layer.brushDict = self.State['brush'].copy()
         return bSize
 
     def syncBrush(self, zooming):
@@ -62,7 +67,8 @@ class imageLabel(QLabel):
         @type zooming: float
         """
         minSize = 16
-        bSize = self.brushUpdate()
+        # bSize = self.brushUpdate()
+        bSize = self.State['brush']['size']  # TODO modified 26/01/20 validate
         w = bSize * zooming
         if w >= minSize:
             cursor = QCursor(self.State['brush']['cursor'].scaled(w, w), hotX=0, hotY=0)

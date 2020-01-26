@@ -94,6 +94,7 @@ class mImage(vImage):
         # link to QLayerView instance
         self.layerView = None
         super().__init__(*args, **kwargs)  # must be done before prLayer init.
+        self.onActiveLayerChanged = lambda: 0
         # background layer
         bgLayer = QLayer.fromImage(self, parentImage=self)
         bgLayer.isClipping = True
@@ -168,6 +169,7 @@ class mImage(vImage):
         active = self.getActiveLayer()
         if active.tool is not None and active.visible:
             active.tool.showTool()
+        self.onActiveLayerChanged()
         return active
 
     def getActivePixel(self, x, y, fromInputImg=True, qcolor=False):
@@ -588,6 +590,7 @@ class imImage(mImage):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.savedBtnValues = {}  # saving of app button states for multi-docs edition
         # Zoom coeff :
         # Zoom_coeff = 1.0 displays an image fitting the
         # size of the current window ( NOT the actual pixels of the image).
@@ -1522,6 +1525,8 @@ class QLayerImage(QLayer):
             # atomic stroke painting is needed to handle brush opacity:
             # We save layer.sourceImg in layer.strokeDest at each stroke beginning.
             layer.strokeDest = None
+            # cache for current brush dict
+            layer.brushDict = None
         # undo/redo functionality
         layer.history = historyList()
         return layer

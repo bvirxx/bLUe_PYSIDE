@@ -147,16 +147,16 @@ class QLayerView(QTableView):
         self.previewOptionBox = QCheckBox('Preview')
         self.previewOptionBox.setMaximumSize(100, 30)
 
-        # View/Preview changed event handler
+        # View/Preview changed slot
         def m(state):  # state : Qt.Checked Qt.UnChecked
             if self.img is None:
                 return
-            self.img.useThumb = (state == Qt.Checked)
+            useThumb = (state == Qt.Checked)
+            if useThumb == self.img.useThumb:
+                return
+            self.img.useThumb = useThumb
             window.updateStatus()
             self.img.cacheInvalidate()
-            # for layer in self.img.layersStack:
-                # layer.autoclone = True  # auto update cloning layers
-                # layer.knitted = False
             try:
                 QApplication.setOverrideCursor(Qt.WaitCursor)  # TODO 18/04/18 waitcursor already called by applytostack
                 QApplication.processEvents()
@@ -164,11 +164,9 @@ class QLayerView(QTableView):
                 self.img.layersStack[0].applyToStack()
                 self.img.onImageChanged()
             finally:
-                # for layer in self.img.layersStack:
-                    # layer.autoclone = False  # reset flags
-                    # layer.knitted = False
                 QApplication.restoreOverrideCursor()
                 QApplication.processEvents()
+
         self.previewOptionBox.stateChanged.connect(m)
         self.previewOptionBox.setChecked(True)  # m is not triggered
 
@@ -272,16 +270,16 @@ class QLayerView(QTableView):
         for key in self.compositionModeDict:
             self.blendingModeCombo.addItem(key, self.compositionModeDict[key])
 
-        # combo box item chosen event handler
+        # combo box item changed slot
         def g(ind):
+            layer = self.img.getActiveLayer()
             s = self.blendingModeCombo.currentText()
-            try:
-                layer = self.img.getActiveLayer()
-                layer.compositionMode = self.compositionModeDict[str(s)]
-                layer.applyToStack()
-                self.img.onImageChanged()
-            except AttributeError:
+            newMode = self.compositionModeDict[str(s)]
+            if newMode == layer.compositionMode:
                 return
+            layer.compositionMode = newMode
+            layer.applyToStack()
+            self.img.onImageChanged()
 
         self.blendingModeCombo.currentIndexChanged.connect(g)
 
@@ -365,8 +363,10 @@ Note that upper visible layers slow down mask edition.<br>
                         dock.setAttribute(Qt.WA_DeleteOnClose)
                         dock.close()
                         layer.view = None
-                    elif not TABBING:  # tabbed forms should not be closed
-                        dock.close()
+                    else:  # if not TABBING:  # tabbed forms should not be closed
+                        dock.setFloating(True)
+                        window.removeDockWidget(dock)
+                        dock.hide()
         if delete:
             self.currentWin = None
             gc.collect()
@@ -379,8 +379,8 @@ Note that upper visible layers slow down mask edition.<br>
         self.closeAdjustForms(delete=delete)
         self.img = None
         self.currentWin = None
-        model = layerModel()
-        model.setColumnCount(3)
+        # model = layerModel()
+        # model.setColumnCount(3)  # TODO removed 21/01/20 validate
         self.setModel(None)
 
     def setLayers(self, mImg, delete=False):
@@ -460,14 +460,34 @@ Note that upper visible layers slow down mask edition.<br>
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        # lay out  the graphic forms into right pane
+        forms = [item.view for item in mImg.layersStack if getattr(item, 'view', None) is not None]
+        for dock in forms:
+            if TABBING:
+                dockedForms = [item for item in forms if not item.isFloating()]
+                if dockedForms:
+                    window.tabifyDockWidget(dockedForms[-1], dock)
+                else:
+                    window.addDockWidget(Qt.RightDockWidgetArea, dock)
+            else:
+                window.addDockWidget(Qt.RightDockWidgetArea, dock)
+            dock.setFloating(False)
         # select active layer
         self.selectRow(len(mImg.layersStack) - 1 - mImg.activeLayerIndex)
-        layerview = mImg.getActiveLayer().view
+        activeLayer = mImg.getActiveLayer()
+        layerview = activeLayer.view
         if layerview is not None:
             layerview.show()
             if TABBING:
                 layerview.raise_()
+        self.opacitySlider.setSliderPosition(int(activeLayer.opacity * 100))
+        self.maskSlider.setSliderPosition(int(activeLayer.colorMaskOpacity * 100.0 / 255.0))
+        ind = self.blendingModeCombo.findData(activeLayer.compositionMode)
+        self.blendingModeCombo.setCurrentIndex(ind)
+        self.previewOptionBox.setChecked(activeLayer.parentImage.useThumb)
+        #activeLayer.maskColor
         self.updateForm()
+        """                                                   # TODO removed 25/01/20 useless validate
         for item in self.img.layersStack:
             if hasattr(item, 'sourceIndex'):
                 combo = item.getGraphicsForm().sourceCombo
@@ -476,6 +496,7 @@ Note that upper visible layers slow down mask edition.<br>
                 for i, x in enumerate(self.img.layersStack):
                     item.view.widget().sourceCombo.addItem(x.name, i)
                 combo.setCurrentIndex(combo.findText(currentText))
+        """
 
     def updateForm(self):
         activeLayer = self.img.getActiveLayer()
