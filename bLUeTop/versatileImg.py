@@ -353,6 +353,7 @@ class vImage(bImage):
         # the full size image.
         self.thumb = None
         self.onImageChanged = lambda: 0
+
         if meta is None:
             # init metadata container
             self.meta = metadataBag()
