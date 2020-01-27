@@ -555,7 +555,7 @@ class imageLabel(QLabel):
             layer.Zoom_coeff *= (1.0 + numSteps)
             layer.updatePixmap()
         # cloning layer zoom
-        elif layer.isCloningLayer and modifiers == Qt.ControlModifier | Qt.AltModifier:
+        elif layer.isCloningLayer() and modifiers == Qt.ControlModifier | Qt.AltModifier:
             layer.AltZoom_coeff *= (1.0 + numSteps)
             layer.applyCloning(seamless=False, showTranslated=True, moving=True)  # autocloning (seamless=true) too slow
         self.repaint()

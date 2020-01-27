@@ -125,8 +125,8 @@ class Form1(QMainWindow):
         checked = button.isChecked()
         self.btnValues[str(button.accessibleName())] = checked
         # show/hide toolBar
-        if getattr(button, 'toolBar', None) is not None:
-            button.toolBar.setVisible(checked)
+        # if getattr(button, 'toolBar', None) is not None:
+            # button.toolBar.setVisible(checked)  # TODO removed 27/01/20 useless validate
         self.onWidgetChange(button)
 
     def handleSliderMoved(self, value, slider):

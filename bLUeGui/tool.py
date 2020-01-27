@@ -19,7 +19,7 @@ import numpy as np
 
 from PySide2.QtGui import QImage, QTransform, QPolygonF
 from PySide2.QtWidgets import QWidget, QToolButton
-from PySide2.QtCore import Qt, QPoint, QObject, QRect, QPointF
+from PySide2.QtCore import Qt, QPoint, QObject, QPointF, QRectF
 
 from bLUeGui.dialog import dlgWarn
 
@@ -32,7 +32,6 @@ class baseHandle(QToolButton):
     A tool is a collection of buttons, recorded in a dictionary.
     Each button is draggable with the mouse and holds a role attribute,
     defining the type of action executed when the button is moved.
-
 
     """
     def __init__(self, role='', tool=None, parent=None):
@@ -195,6 +194,15 @@ class cropTool(QObject):
         self.btnDict = {btn.role: btn for btn in btnList}
         self.crHeight, self.crWidth = 1, 1
 
+    def fit(self, img):
+        """
+
+        @param img:
+        @type img: vImage
+        """
+        for role, margin in zip(['left', 'top', 'right', 'bottom'], [img.cropLeft, img.cropTop, img.cropRight, img.cropBottom]):
+            self.btnDict[role].margin = margin
+
     def drawCropTool(self, img):
         """
         Draws the 8 crop buttons around the displayed image,
@@ -203,12 +211,15 @@ class cropTool(QObject):
         @type img: QImage
         """
         r = self.parent().img.resize_coeff(self.parent())
+        self.formFactor = img.height() / img.width()
         left = self.btnDict['left']
         top = self.btnDict['top']
         bottom = self.btnDict['bottom']
         right = self.btnDict['right']
-        cRect = QRect(round(left.margin), round(top.margin), img.width() - round(right.margin + left.margin),
-                      img.height() - round(bottom.margin + top.margin))
+        # cRect = QRect(round(left.margin), round(top.margin), img.width() - round(right.margin + left.margin),
+                      # img.height() - round(bottom.margin + top.margin))
+        cRect = QRectF(left.margin, top.margin, img.width() - right.margin - left.margin,
+                      img.height() - bottom.margin - top.margin)
         p = cRect.topLeft() * r + QPoint(img.xOffset, img.yOffset)
         x, y = p.x(), p.y()
         w, h = cRect.width() * r, cRect.height() * r

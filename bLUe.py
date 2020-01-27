@@ -231,8 +231,7 @@ def widgetChange(button, window=window):
         window.label.img.fit_window()
         # update crop button positions
         window.cropTool.drawCropTool(window.label.img)
-        # window.label.repaint()
-    elif button is window.cropButton:  # wdgName == "cropButton":
+    elif button is window.cropButton:
         if button.isChecked():
             window.cropTool.drawCropTool(window.label.img)
             for b in window.cropTool.btnDict.values():
@@ -447,15 +446,18 @@ def setDocumentImage(img, window=window):
     d = img.savedBtnValues
     if d:  # a saved dict exists
         window.btnValues = d.copy()
-    # default autoexclusive
-    #window.btns['pointer'].setChecked(True)
-    # set button state
+    else: # reset to default
+        for k in window.btnValues:
+            window.btnValues[k] = False
+    window.label.img = img
+    window.cropTool.fit(img)
+    window.cropTool.drawCropTool(img)
+    # set button states
     for btn in window.btns.values():
         s = btn.autoExclusive()
         btn.setAutoExclusive(False)
         btn.setChecked(window.btnValues[btn.accessibleName()])
         btn.setAutoExclusive(s)
-    window.label.img = img
     # init histogram
     window.histView.targetImage = window.label.img
 
@@ -486,9 +488,13 @@ def setDocumentImage(img, window=window):
     # label_2.img  : before image (copy of the initial state of working image)
     # label_3.img : reference to working image
     ###################################
-
     # before image : the stack is not copied
     window.label_2.img = imImage(QImg=img, meta=img.meta)
+    # restore normal mode
+    if window.viewState != 'After':
+        window.viewState = 'After'
+        window.splitter.hide()
+        window.label.show()
     # after image : ref to the opened document
     window.label_3.img = img
     # no mouse drawing or painting
@@ -498,10 +504,11 @@ def setDocumentImage(img, window=window):
     window.label.update()
     window.label_2.update()
     window.label_3.update()
+    updateStatus()
     # back links used by graphicsForm3DLUT.onReset  # TODO 3/1/20 unused removed validate
     # window.label.img.window = window.label
     # window.label_2.img.window = window.label_2
-    window.label.img.setModified(True)
+    # window.label.img.setModified(True)  # TODO removed 27/01/20 validate
 
 
 def updateMenuOpenRecent(window=window):
