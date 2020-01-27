@@ -481,6 +481,7 @@ def setDocumentImage(img, window=window):
     window.label.img.onActiveLayerChanged = g
 
     # init = first change
+    f()
     g()
     ###################################
     # init displayed images

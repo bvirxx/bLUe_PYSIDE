@@ -214,7 +214,8 @@ class bImage(QImage):
             # param hist: histogram to draw
             # smooth the histogram (first and last bins excepted) for a better visualization of clipping.
             # hist = np.concatenate(([hist[0]], SavitzkyGolayFilter.filter(hist[1:-1]), [hist[-1]]))
-            M = max(hist)  # max(hist[1:-1])
+            # To emphasize significant values we clip the first bin to max height of the others
+            M = max(hist[1: ])  # max(hist)  # max(hist[1:-1])
             imgH = size.height()
             # drawing  trapezia instead of rectangles to quickly "smooth" the histogram
             # the rightmost trapezium is not drawn
