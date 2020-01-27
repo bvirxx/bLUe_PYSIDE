@@ -377,8 +377,9 @@ def autoQuadSpline(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True):
         b[k] = (dist.F(V[k]) - dist.F(a[k])) * V[k-1] + (dist.F(a[k]) - dist.F(V[k-1])) * V[k]
         b[k] = b[k] / (dist.F(V[k]) - dist.F(V[k-1]))*s + a[k]*(1-s)     # F(V[k]) - F(V[k-1] >= valleyAperture
         b[k] = min(b[k], oneMinusTau)  # b should be non decreasing
-    if np.min(b[1:] - b[:-1]) < 0:
-        raise ValueError('warpHistogram : array b must be non decreasing')
+    b = np.maximum.accumulate(b) # should do nothing ! TODO added 27/01/20 validate
+    #if np.min(b[1:] - b[:-1]) < 0:
+        #raise ValueError('warpHistogram : array b must be non decreasing')
 
     # calculate curve slopes at (a[k], b[k]).
     bPlus = (b[:-1] + b[1:]) / 2                                 # bPlus[k] = (b[k] + b[k+1])/ 2
@@ -414,6 +415,7 @@ def autoQuadSpline(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True):
         for i in range(len(b) - skyInd - 1):
             b[-i-2] = min(np.power(a[-i-2], 0.30), b[-i-1]) - 0.02
         b[skyInd-1] = np.power(b[skyInd-1], 0.9)
+        b = np.maximum.accumulate(b)  # should do nothing ! TODO added 27/01/20 validate
         d[skyInd:] = 0.2
         d[-1] = 2
     # build and apply the spline.
