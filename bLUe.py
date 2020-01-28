@@ -1237,6 +1237,7 @@ def canClose(window=window):
         except (ValueError, IOError) as e:
             dlgWarn(str(e))
             return False
+    # discard changes and close tab
     ind = window.tabBar.currentIndex()
     if ind > 0:
         switchDoc(0)

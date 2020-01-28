@@ -42,7 +42,7 @@ The program is written in Python.
 
 ## FUNCTIONALITY
 
-* Edition of images in formats jpg, png, tif, nef, cr2, dng,...
+* Simultaneous edition of multiple images in formats jpg, png, tif, nef, cr2, dng,...
 * Adjustment layers : exposure, brightness, saturation, contrast, channel mixer, color temperature, inversion, filters, noise reduction,
 seamless cloning, segmentation, geometric transformations, merging, curves, 2.5D LUTs, 3D LUTs.
 * Drawing layers
