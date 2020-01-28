@@ -556,6 +556,7 @@ def menuFile(name, window=window):
         Qimg = cb.image()
         if not Qimg.isNull():
             img = imImage(QImg=Qimg)
+            cb.clear()
         else:
             dims = {'w': 200, 'h': 200}
             dlg = dimsInputDialog(dims)
