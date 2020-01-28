@@ -1220,17 +1220,28 @@ def canClose(window=window):
             # save/discard dialog
             ret = saveChangeDialog(window.label.img)
             if ret == QMessageBox.Save:
+                if window.label.img.useThumb:
+                    dlgWarn("Uncheck Preview mode before saving")
+                    return False
                 # save dialog
                 filename = saveDlg(window.label.img, window)
                 # confirm saving
                 dlgInfo("%s written" % filename)
-                return True
+                ind = window.tabBar.currentIndex()
+                if ind > 0:
+                    switchDoc(0)
+                window.tabBar.removeTab(window.tabBar.currentIndex())
+                return window.tabBar.count() == 0  # True
             elif ret == QMessageBox.Cancel:
                 return False
         except (ValueError, IOError) as e:
             dlgWarn(str(e))
             return False
-    return True
+    ind = window.tabBar.currentIndex()
+    if ind > 0:
+        switchDoc(0)
+    window.tabBar.removeTab(window.tabBar.currentIndex())
+    return window.tabBar.count() == 0  # True
 
 
 def updateStatus(window=window):
