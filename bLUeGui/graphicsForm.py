@@ -269,8 +269,7 @@ class graphicsCurveForm(baseGraphicsForm):
         # default WhatsThis for interactive curves
         self.setWhatsThis(
             """
-            The background histogram is the <i>input</i> histogram; it is refreshed only
-            when the curve is reset.<br>
+            The background histogram is the <i>input</i> histogram.<br>
             <b>Drag control points</b> with the mouse.<br>
             <b>Add a control point</b> by clicking on the curve.<br>
             <b>Remove a control point</b> by clicking it.<br>
