@@ -158,11 +158,10 @@ class graphicsLabForm(graphicsCurveForm):
         @type modifiers:
         """
         r, g, b = self.scene().targetImage.getActivePixel(x, y)
-        if modifiers == QtCore.Qt.ControlModifier:
-            if modifiers == QtCore.Qt.ShiftModifier:
-                self.setBlackPoint(r, g, b)
-            else:
-                self.setWhitePoint(r, g, b, luminance=True, balance=False)
+        if modifiers == QtCore.Qt.ControlModifier | QtCore.Qt.ShiftModifier:
+            self.setBlackPoint(r, g, b)
+        elif modifiers == QtCore.Qt.ControlModifier:
+            self.setWhitePoint(r, g, b, luminance=True, balance=False)
         elif modifiers == QtCore.Qt.ShiftModifier:
             self.setWhitePoint(r, g, b, luminance=False, balance=True)
 

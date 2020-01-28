@@ -588,11 +588,11 @@ def menuFile(name, window=window):
     # closing dialog : close opened document
     elif name == 'actionClose':
         closeFile()
-        global pool
-        if pool is not None:
-            pool.close()
-            pool.join()
-            pool = None
+        # global pool
+        # if pool is not None:
+            # pool.close()
+            # pool.join()
+            # pool = None  # TODO removed 28/01/20 for multi doc
     updateStatus()
 
 
