@@ -449,6 +449,7 @@ def setDocumentImage(img, window=window):
     else: # reset to default
         for k in window.btnValues:
             window.btnValues[k] = False
+        window.btnValues['pointer'] = True  # default checked autoexclusive button (needed)
     window.label.img = img
     window.cropTool.fit(img)
     window.cropTool.drawCropTool(img)
@@ -550,9 +551,6 @@ def menuFile(name, window=window):
     """
     # new image
     if name == 'actionNew_2':
-        # close open document, if any
-        if not closeFile():
-            return
         img = None
         cb = QApplication.clipboard()
         Qimg = cb.image()
@@ -567,11 +565,12 @@ def menuFile(name, window=window):
                 img = imImage(QImg=imgNew)
         if img is None:
             return
+        img.filename ='unnamed'
         loadImage(img, withBasic=False)
     # load image from file
     elif name in ['actionOpen']:
         # get file name from dialog
-        filename = openDlg(window)
+        filename = openDlg(window, ask=False)
         # open file
         if filename is not None:
             openFile(filename)
