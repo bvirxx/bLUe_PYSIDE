@@ -793,6 +793,7 @@ Screen</string>
     <addaction name="menuColor_settings"/>
     <addaction name="actionImage_info"/>
     <addaction name="menuImage_Rotation"/>
+    <addaction name="actionImage_Resizing"/>
     <addaction name="menuRating"/>
    </widget>
    <widget class="QMenu" name="menuLayer">
@@ -1263,6 +1264,11 @@ Screen</string>
   <action name="actionNew_2">
    <property name="text">
     <string>New...</string>
+   </property>
+  </action>
+  <action name="actionImage_Resizing">
+   <property name="text">
+    <string>Image Resizing</string>
    </property>
   </action>
  </widget>

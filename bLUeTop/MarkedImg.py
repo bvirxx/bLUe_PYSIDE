@@ -112,6 +112,44 @@ class mImage(vImage):
         # link to rawpy instance
         self.rawImage = None
 
+    def copyStack(self, source):
+       """
+       Replaces layer stack, graphic forms and
+       meta data by these from source.
+       @param source:
+       @type source: mImage
+       """
+       self.meta = source.meta
+       self.onImageChanged = source.onImageChanged
+       self.useThumb = source.useThumb
+       self.useHald = source.useHald
+       self.rect = source.rect
+       for l in source.layersStack[1:]:
+           lr = QLayer.fromImage(l.scaled(self.size()), parentImage=self)
+           lr.execute = l.execute
+           lr.name = l.name
+           lr.role = l.role
+           lr.view = l.view
+           lr.view.widget().targetImage = self
+           lr.view.widget().layer = lr
+           self.layersStack.append(lr)
+
+    def resize(self, pixels, interpolation=cv2.INTER_CUBIC):
+        """
+        Resizes the image and the layer stack, while keeping the aspect ratio.
+        @param pixels:
+        @param interpolation:
+        @return: resized imImage object
+        @rtype: same type as self
+        """
+        # resized vImage
+        rszd0, buf = super().resize(pixels, interpolation=interpolation)
+        # get resized image (with a background layer)
+        rszd = type(self)(QImg=rszd0, meta=copy(self.meta))
+        rszd.__buf = buf  # protect buf from g.c.
+        rszd.copyStack(self)
+        return rszd
+
     def bTransformed(self, transformation):
         """
         Applies transformation to all layers in stack and returns
@@ -588,6 +626,7 @@ class imImage(mImage):
         img.initThumb()
         return img
 
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.savedBtnValues = {}  # saving of app button states for multi-docs edition
@@ -628,41 +667,14 @@ class imImage(mImage):
                 # for historical reasons, graphic forms inheriting
                 # from QGraphicsView use form.scene().layer attribute,
                 # others use form.layer
-                """
-                # use weak refs for back links
-                if type(tLayer) in weakref.ProxyTypes:
-                    wtLayer = tLayer
-                else:
-                    wtLayer = weakref.proxy(tLayer)
-                """
                 grForm = tLayer.getGraphicsForm()
                 # the grForm.layer property handles weak refs
                 grForm.layer = tLayer
-                grForm.scene().layer = grForm.layer  # wtLayer
+                if getattr(grForm, 'scene', None) is not None:
+                    grForm.scene().layer = grForm.layer  # wtLayer
             stack.append(tLayer)
         img.layersStack = stack
-        gc.collect()
         return img
-
-    def resize(self, pixels, interpolation=cv2.INTER_CUBIC):
-        """
-        Resize image and layers
-        @param pixels:
-        @param interpolation:
-        @return: resized imImage object
-        @rtype: imImage
-        """
-        # resized vImage
-        rszd0 = super().resize(pixels, interpolation=interpolation)
-        # resized imImage
-        rszd = imImage(QImg=rszd0, meta=copy(self.meta))
-        rszd.rect = rszd0.rect
-        for k, l in enumerate(self.layersStack):
-            if l.name != "background" and l.name != 'drawlayer':
-                img = QLayer.fromImage(l.resize(pixels, interpolation=interpolation), parentImage=rszd)
-                rszd.layersStack.append(img)
-        self.isModified = True
-        return rszd
 
     def view(self):
         return self.Zoom_coeff, self.xOffset, self.yOffset

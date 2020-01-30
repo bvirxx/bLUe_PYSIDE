@@ -381,8 +381,8 @@ class vImage(bImage):
         elif QImg is not None:
             # build image from QImage, shallow copy
             super().__init__(QImg)
-            if hasattr(QImg, "meta"):
-                self.meta = copy(QImg.meta)
+            # if hasattr(QImg, "meta"):
+                # self.meta = copy(QImg.meta)  # TODO removed 30/01/20 validate
         elif cv2Img is not None:
             # build image from buffer
             super().__init__(ndarrayToQImage(cv2Img, format=format))
@@ -623,13 +623,14 @@ class vImage(bImage):
         Resizes an image while keeping its aspect ratio. We use
         the opencv function cv2.resize() to perform the resizing operation, so we
         can choose among several interpolation methods (default cv2.INTER_CUBIC).
-        The original image is not modified.
+        The original image is not modified. A link to the ndarray buffer must be kept along
+        with the resized image.
         @param pixels: pixel count for the resized image
         @type pixels: int
         @param interpolation: interpolation method (default cv2.INTER_CUBIC)
         @type interpolation:
-        @return : the resized vImage
-        @rtype : vImage
+        @return : the resized vImage and the corresponding buffer
+        @rtype : vImage, ndarray
         """
         ratio = self.width() / float(self.height())
         w, h = int(np.sqrt(pixels * ratio)), int(np.sqrt(pixels / ratio))
@@ -639,14 +640,14 @@ class vImage(bImage):
         cv2Img = cv2.resize(Buf, (w, h), interpolation=interpolation)
         rszd = vImage(cv2Img=cv2Img, meta=copy(self.meta), format=self.format())
         # prevent buffer from garbage collector
-        rszd.dummy = cv2Img
+        # rszd.dummy = cv2Img  #TODO removed 29/01/20 validate
         # resize rect and mask
         if self.rect is not None:
             rszd.rect = QRect(self.rect.left() * hom, self.rect.top() * hom, self.rect.width() * hom, self.rect.height() * hom)
         if self.mask is not None:  # TODO for QLayer and subclasses this initializes the mask
             rszd.mask = self.mask.scaled(w, h)
         self.setModified(True)
-        return rszd
+        return rszd, cv2Img
 
     def bTransformed(self, transformation):
         """

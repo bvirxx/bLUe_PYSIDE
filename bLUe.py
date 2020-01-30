@@ -301,11 +301,11 @@ def loadImage(img, withBasic=True, window=window):
     @param window:
     @type window: QWidget
     """
-    setDocumentImage(img)
     tabBar = window.tabBar
     ind = tabBar.addTab(basename(img.filename))
     tabBar.setCurrentIndex(ind)
     tabBar.setTabData(ind, img)
+    setDocumentImage(img)
     # switch to preview mode and process stack
     window.tableView.previewOptionBox.setChecked(True)
     window.tableView.previewOptionBox.stateChanged.emit(Qt.Checked)
@@ -433,6 +433,7 @@ def restoreBrush(d):
     window.colorChooser.setCurrentColor(d['color'])
     window.label.State['brush'] = d.copy()
 
+
 def setDocumentImage(img, window=window):
     """
     Inits GUI and displays the current document
@@ -441,6 +442,8 @@ def setDocumentImage(img, window=window):
     @param window:
     @type window: QWidget
     """
+    if img is None:
+        return
     # restore GUI
     window.label.img.savedBtnValues = window.btnValues.copy()
     d = img.savedBtnValues
@@ -451,6 +454,10 @@ def setDocumentImage(img, window=window):
             window.btnValues[k] = False
         window.btnValues['pointer'] = True  # default checked autoexclusive button (needed)
     window.label.img = img
+    ind = window.tabBar.currentIndex()
+    if window.tabBar.tabData(ind) is not img:
+        window.tabBar.setTabText(ind, basename(img.filename))
+        window.tabBar.setTabData(ind, img)
     window.cropTool.fit(img)
     window.cropTool.drawCropTool(img)
     # set button states
@@ -503,10 +510,14 @@ def setDocumentImage(img, window=window):
     window.label_2.img.isMouseSelectable = False
     # init layer view
     window.tableView.setLayers(window.label.img)
+    tool = window.label.img.getActiveLayer().tool
+    if tool is not None:
+        tool.showTool()
     window.label.update()
     window.label_2.update()
     window.label_3.update()
     updateStatus()
+    gc.collect()  # tested (very) efficient here
     # back links used by graphicsForm3DLUT.onReset  # TODO 3/1/20 unused removed validate
     # window.label.img.window = window.label
     # window.label_2.img.window = window.label_2
@@ -687,20 +698,6 @@ def menuImage(name, window=window):
     @type window: QWidget
     """
     img = window.label.img
-    """
-    # new image from clipboard  # TODO 24/01/20 unsused removed validate
-    if name == 'actionNew':
-        # close open document, if any
-        if not closeFile():
-            return
-        cb = QApplication.clipboard()
-        img = cb.image()
-        if not img.isNull():
-            img = imImage(QImg=img)
-            loadImage(img)
-        else:
-            dlgWarn("Clipboard : no image found")
-    """
     # display image info
     if name == 'actionImage_info':
         # Format
@@ -760,15 +757,22 @@ def menuImage(name, window=window):
             # get new imImage
             tImg = img.bTransformed(QTransform().rotate(angle))
             setDocumentImage(tImg)
-            # attempting to free old imImage
-            del img.prLayer
-            del img
-            gc.collect()
             tImg.layersStack[0].applyToStack()
             tImg.onImageChanged()
         finally:
             QApplication.restoreOverrideCursor()
             QApplication.processEvents()
+    # resize
+    elif name == 'actionImage_Resizing':
+        w, h = img.width(), img.height()
+        dims = {'w': w, 'h': h}
+        dlg = dimsInputDialog(dims, keepBox=True)
+        if dlg.exec_():
+            img = window.label.img.resize(dims['w'] * dims['h'])
+            img.filename = 'unnamed'
+            window.tabBar.find
+            setDocumentImage(img)
+            img.layersStack[0].applyToStack()
     # rating
     elif name in ['action0', 'action1', 'action2', 'action3', 'action4', 'action5']:
         img.meta.rating = int(name[-1:])
@@ -1742,12 +1746,16 @@ def switchDoc(index):
     @param index: tab index
     @type index: int
     """
+    # clean up
+    layer = window.label.img.getActiveLayer()
+    if layer.tool is not None:
+        layer.tool.hideTool()
     img = window.tabBar.tabData(index)
     setDocumentImage(img)
 
 def setupTabBar(window=window):
     tabBar = QTabBar()
-    tabBar.tabBarClicked.connect(switchDoc)
+    tabBar.currentChanged.connect(switchDoc)
     tabBar.setMaximumHeight(25)
     tabBar.setAutoHide(True)
     tabBar.setStyleSheet("QTabBar::tab {height: 15px; width: 100px;}")
