@@ -38,7 +38,7 @@ class dimsInputDialog(QDialog):
     """
     Simple input Dialog for image width and height.
     """
-    def __init__(self, dims):
+    def __init__(self, dims, keepBox=False):
         """
 
         @param dims: {'w': width, 'h': height}
@@ -48,17 +48,51 @@ class dimsInputDialog(QDialog):
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.setWindowTitle('Image Dimensions')
         self.dims = dims
+        self.r = 1.0
+        if dims['w'] > 0:
+            self.r = dims['h'] / dims['w']
         fLayout = QFormLayout()
         self.fields = []
+        self.checkBox = None
         for i in range(2):
             lineEdit = QLineEdit()
             label = "Width (px)" if i == 0 else "Height (px)"
+            lineEdit.setText(str(dims['w']) if i == 0 else str(dims['h']))
             fLayout.addRow(label, lineEdit)
             self.fields.append(lineEdit)
+            lineEdit.textEdited.connect(self.keepRatioW if i == 0 else self.keepRatioH)
+        if keepBox:
+            label1 = "Keep Aspect Ratio"
+            self.checkBox = QCheckBox()
+            fLayout.addRow(label1, self.checkBox)
         buttonBox = QDialogButtonBox(QDialogButtonBox.Ok, Qt.Horizontal)
         fLayout.addRow(buttonBox)
         self.setLayout(fLayout)
         buttonBox.accepted.connect(self.accept)
+
+    def keepRatioH(self, text):
+        if self.checkBox is None:
+            return
+        elif not self.checkBox.isChecked():
+            return
+        try:
+            w1, h1 = int(self.fields[0].text()), int(self.fields[1].text())
+        except ValueError:
+            return
+        w1 = int(h1 / self.r)
+        self.fields[0].setText(str(w1))
+
+    def keepRatioW(self, text):
+        if self.checkBox is None:
+            return
+        elif not self.checkBox.isChecked():
+            return
+        try:
+            w1, h1 = int(self.fields[0].text()), int(self.fields[1].text())
+        except ValueError:
+            return
+        h1 = int(w1 * self.r)
+        self.fields[1].setText(str(h1))
 
     def accept(self):
         """
@@ -68,7 +102,7 @@ class dimsInputDialog(QDialog):
             self.dims['w'] = int(self.fields[0].text())
             self.dims['h'] = int(self.fields[1].text())
         except ValueError:
-            pass
+            return
         super().accept()
 
 
