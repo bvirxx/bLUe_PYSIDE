@@ -189,7 +189,7 @@ class baseGraphicsForm(QGraphicsView, abstractForm):
         """
         # delta unit is 1/8 of degree
         # Most mice have a resolution of 15 degrees
-        numSteps = 1 + e.delta() / 1200.0
+        numSteps = 1 + e.delta() / 2400.0 # 1200.0
         self.scale(numSteps, numSteps)
 
     def addCommandLayout(self, glayout):
@@ -202,16 +202,18 @@ class baseGraphicsForm(QGraphicsView, abstractForm):
         @param glayout:
         @type glayout: Qlayout
         """
-        vl = QVBoxLayout()
-        vl.addLayout(glayout)
+        #vl = QVBoxLayout()
+        #vl.addLayout(glayout)
         container = bottomWidget()
-        container.setLayout(vl)
+        #container.setLayout(vl)
+        container.setLayout(glayout)  # TODO modified 02/02/20 validate
         vl1 = QVBoxLayout()
         vl1.setAlignment(Qt.AlignBottom)
         vl1.addWidget(container)
         hl = QHBoxLayout()
         hl.addStretch(1)
         hl.addLayout(vl1)
+        hl.addStretch(1)
         container.adjustSize()  # needed
         self.setLayout(hl)
 
