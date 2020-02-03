@@ -141,10 +141,10 @@ class graphicsLabForm(graphicsCurveForm):
 
         # layout
         gl = QGridLayout()
+        self.addCommandLayout(gl)
         gl.addWidget(self.listWidget1, 0, 0, 2, 1)
         for i, button in enumerate([pushButton1, pushButton2]):
             gl.addWidget(button, i, 1)
-        self.addCommandLayout(gl)
 
     def colorPickedSlot(self, x, y, modifiers):
         """

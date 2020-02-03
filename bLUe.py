@@ -813,24 +813,16 @@ def menuLayer(name, window=window):
         layer.actionName = name
         # docking the form
         dock = QDockWidget(window)
+        # add an attribute to record the last user tabbing state.
+        # Needed to restore the workspace when switching from a document to another one.
+        # This attribute should be restored if the change does not result from a user
+        # drag and drop (see layerView.closeAdjustForms for an example)
         dock.tabbed = TABBING
         def f(b):
             dock.tabbed = not b
         dock.topLevelChanged.connect(f)
         dock.setWidget(grWindow)
         dock.setWindowTitle(grWindow.windowTitle())
-        """
-        if TABBING:
-            # add form to docking area
-            forms = [item.view for item in layer.parentImage.layersStack if getattr(item, 'view', None) is not None]
-            dockedForms = [item for item in forms if not item.isFloating()]
-            if dockedForms:
-                window.tabifyDockWidget(dockedForms[-1], dock)
-            else:
-                window.addDockWidget(Qt.RightDockWidgetArea, dock)
-        else:
-            window.addDockWidget(Qt.RightDockWidgetArea, dock)
-        """
         layer.view = dock
         # update the view of layer stack
         window.tableView.setLayers(window.label.img)

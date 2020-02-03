@@ -117,12 +117,12 @@ class HVLUT2DForm(graphicsCurveForm):
 
         # layout
         gl = QGridLayout()
+        self.addCommandLayout(gl)
         gl.addWidget(QLabel('Hue '), 0, 0)
         gl.addWidget(self.markerLabel, 0, 1)
         gl.addWidget(QLabel('Sat Thr '), 1, 0)
         gl.addWidget(self.satValue, 1, 1)
         gl.addWidget(self.sliderSat, 1, 2, 4, 1)
-        self.addCommandLayout(gl)
 
         self.setDefaults()
 

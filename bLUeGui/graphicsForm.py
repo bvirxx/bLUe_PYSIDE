@@ -31,7 +31,7 @@ class bottomWidget(QLabel):
     """
     def __init__(self):
         super().__init__()
-        self.setMaximumSize(300, 180)
+        self.setMaximumSize(400, 180)
         self.setMinimumSize(200, 80)
         self.setObjectName('container')
         ss = """QWidget#container{background-color: black}
@@ -203,8 +203,6 @@ class baseGraphicsForm(QGraphicsView, abstractForm):
         @param glayout:
         @type glayout: Qlayout
         """
-        #vl = QVBoxLayout()
-        #vl.addLayout(glayout)
         container = bottomWidget()
         container.setLayout(glayout)
         vl1 = QVBoxLayout()
@@ -212,11 +210,9 @@ class baseGraphicsForm(QGraphicsView, abstractForm):
         vl1.addWidget(container)
         hl = QHBoxLayout()
         hl.setAlignment(Qt.AlignLeft)
-        #hl.addStretch(1)
         hl.addLayout(vl1)
-        #hl.addStretch(1)
-        container.adjustSize()  # needed
         self.setLayout(hl)
+        self.setViewportMargins(0, 0, 0, container.height())
 
 
 class graphicsCurveForm(baseGraphicsForm):

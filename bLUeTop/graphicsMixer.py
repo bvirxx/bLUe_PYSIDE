@@ -102,8 +102,8 @@ class mixerForm(baseGraphicsForm):
         for point in [self.rPoint, self.gPoint, self.bPoint]:
             graphicsScene.addItem(point)
         gl = QGridLayout()
-        gl.addWidget(listWidget1, 0, 0, 2, 2)
         self.addCommandLayout(gl)
+        gl.addWidget(listWidget1, 0, 0, 2, 2)
         self.setDefaults()
         self.setWhatsThis(
                         """<b>Channel Mixer</b><br>

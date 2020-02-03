@@ -1144,6 +1144,7 @@ class graphicsForm3DLUT(baseGraphicsForm):
 
         # layout
         gl = QGridLayout()
+        self.addCommandLayout(gl)  # add before populating
         for i, button in enumerate([pushButton1, pushButton3, pushButton31, pushButton2]):
             gl.addWidget(button, 0, i)
         gl.addWidget(pushButton4, 1, 0)
@@ -1154,7 +1155,6 @@ class graphicsForm3DLUT(baseGraphicsForm):
         hl.addWidget(infoCombo)
         hl.addWidget(self.info)
         gl.addLayout(hl, 3, 0, -1, -1)
-        self.addCommandLayout(gl)
 
         # set defaults
         self.colorInfoFormat = 0  # RGB
