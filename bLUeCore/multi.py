@@ -79,8 +79,12 @@ def chosenInterp(pool, size):
     @rtype: interpolation function
     """
     if (pool is not None) and size > 3000000:
-        interp = lambda x, y, z, convert=True: interpMulti(x, y, z, pool=pool, use_tetra=USE_TETRA, convert=convert)  # TODO use a def
+        def f(x, y, z, convert=True):
+            return interpMulti(x, y, z, pool=pool, use_tetra=USE_TETRA, convert=convert)
+        interp = f  # lambda x, y, z, convert=True: interpMulti(x, y, z, pool=pool, use_tetra=USE_TETRA, convert=convert)
+    elif USE_TETRA:
+        interp = interpTetra
     else:
-        interp = interpTetra if USE_TETRA else interpTriLinear
-    return interp  # TODO use a def
+        interp = interpTriLinear
+    return interp
 
