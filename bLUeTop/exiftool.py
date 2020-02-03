@@ -335,7 +335,7 @@ class ExifTool(object):
         @return:
         @rtype: str
         """
-        command = ["-a", f]
+        command = ["-a", "-G0:1", f]  # G0:1 add group names to output
         out = self.execute(* command)
         return out
 
