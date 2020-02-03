@@ -64,12 +64,12 @@ class mImage(vImage):
     To correctly render a mImage, widgets should override their
     paint event handler.
     """
-    @classmethod
-    def restoreMeta(cls, srcFile, destFile, defaultorientation=True, thumbfile=None):
+    @staticmethod
+    def restoreMeta(srcFile, destFile, defaultorientation=True, thumbfile=None):
         """
-        # copy metadata from sidecar to image file. The sidecar is not removed.
+        # copy metadata from sidecar into image file. The sidecar is not removed.
         If defaultorientation is True the orientation of the destination file is
-        set to "no change" (1). This way, saved images are shown as they were edited.
+        set to "no change" (1). In this way, saved images are displayed as they were edited.
         The thumbnail is updated if thumbfile is provided. Other metadata are kept unchanged.
         @param srcFile: source image or sidecar (the extension is replaced by .mie).
         @type srcFile: str
