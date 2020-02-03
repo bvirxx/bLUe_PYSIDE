@@ -148,7 +148,7 @@ class vImage(bImage):
         mask = mask.copy()
         buf = QImageBuffer(mask)
         # record mask alpha in the G channel
-        buf[:, :, 1] = (255 - buf[:, :, 2]) * 0.75
+        buf[:, :, 1] = (255 - buf[:, :, 2])  # * 0.75
         return mask
 
     @staticmethod
