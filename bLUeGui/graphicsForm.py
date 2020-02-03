@@ -31,7 +31,8 @@ class bottomWidget(QLabel):
     """
     def __init__(self):
         super().__init__()
-        self.setMaximumSize(160000, 180)
+        self.setMaximumSize(300, 180)
+        self.setMinimumSize(200, 80)
         self.setObjectName('container')
         ss = """QWidget#container{background-color: black}
                                QListWidget{background-color: black; selection-background-color: black; border: none; font-size: 7pt}
@@ -205,15 +206,15 @@ class baseGraphicsForm(QGraphicsView, abstractForm):
         #vl = QVBoxLayout()
         #vl.addLayout(glayout)
         container = bottomWidget()
-        #container.setLayout(vl)
-        container.setLayout(glayout)  # TODO modified 02/02/20 validate
+        container.setLayout(glayout)
         vl1 = QVBoxLayout()
         vl1.setAlignment(Qt.AlignBottom)
         vl1.addWidget(container)
         hl = QHBoxLayout()
-        hl.addStretch(1)
+        hl.setAlignment(Qt.AlignLeft)
+        #hl.addStretch(1)
         hl.addLayout(vl1)
-        hl.addStretch(1)
+        #hl.addStretch(1)
         container.adjustSize()  # needed
         self.setLayout(hl)
 
