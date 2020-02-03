@@ -329,12 +329,13 @@ class QLayerView(QTableView):
             self.setLayers(self.img)
         self.actionDup.triggered.connect(dup)
         self.setWhatsThis(
-"""<b>Layer Stack</b>
+"""<b>Layer Stack</b><br>
 To <b>toggle the layer visibility</b> click on the Eye icon.<br>
 To <b>add a mask</b> use the context menu to enable it and paint pixels with the Mask/Unmask tools in the left pane.<br>
 For <b>color mask<b/b>: <br>
     &nbsp; green pixels are masked,<br>
     &nbsp; red pixels are unmasked.<br>
+    &nbsp; Other colors correspond to partially masked pixels.<br>
 Note that upper visible layers slow down mask edition.<br>
 """
                         )  # end of setWhatsThis
@@ -364,7 +365,9 @@ Note that upper visible layers slow down mask edition.<br>
                         dock.close()
                         layer.view = None
                     else:  # if not TABBING:  # tabbed forms should not be closed
+                        temp = dock.tabbed
                         dock.setFloating(True)
+                        dock.tabbed = temp  # rememmber last state
                         window.removeDockWidget(dock)
                         dock.hide()
         if delete:
@@ -465,12 +468,12 @@ Note that upper visible layers slow down mask edition.<br>
         for dock in forms:
             if TABBING:
                 dockedForms = [item for item in forms if not item.isFloating()]
-                if dockedForms:
-                    window.tabifyDockWidget(dockedForms[-1], dock)
-                else:
-                    window.addDockWidget(Qt.RightDockWidgetArea, dock)
-            else:
-                window.addDockWidget(Qt.RightDockWidgetArea, dock)
+                dock.show()  # needed to get working tabbing
+                if dock not in dockedForms and getattr(dock, "tabbed", None):
+                    if dockedForms:
+                        window.tabifyDockWidget(dockedForms[-1], dock)
+                    else:
+                        window.addDockWidget(Qt.RightDockWidgetArea, dock)
             dock.setFloating(False)
         # select active layer
         self.selectRow(len(mImg.layersStack) - 1 - mImg.activeLayerIndex)
@@ -663,8 +666,8 @@ Note that upper visible layers slow down mask edition.<br>
             if not self.currentWin.isFloating():
                 # self.currentWin.hide()
                 self.currentWin = None
-        if hasattr(self.img.layersStack[activeStackIndex], "view"):
-            self.currentWin = self.img.layersStack[activeStackIndex].view
+        if hasattr(activeLayer, "view"):
+            self.currentWin = activeLayer.view
         if self.currentWin is not None and activeLayer.visible:
             self.currentWin.show()
             self.currentWin.raise_()

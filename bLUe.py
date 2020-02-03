@@ -813,8 +813,13 @@ def menuLayer(name, window=window):
         layer.actionName = name
         # docking the form
         dock = QDockWidget(window)
+        dock.tabbed = TABBING
+        def f(b):
+            dock.tabbed = not b
+        dock.topLevelChanged.connect(f)
         dock.setWidget(grWindow)
         dock.setWindowTitle(grWindow.windowTitle())
+        """
         if TABBING:
             # add form to docking area
             forms = [item.view for item in layer.parentImage.layersStack if getattr(item, 'view', None) is not None]
@@ -825,6 +830,7 @@ def menuLayer(name, window=window):
                 window.addDockWidget(Qt.RightDockWidgetArea, dock)
         else:
             window.addDockWidget(Qt.RightDockWidgetArea, dock)
+        """
         layer.view = dock
         # update the view of layer stack
         window.tableView.setLayers(window.label.img)
