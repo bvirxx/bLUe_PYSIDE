@@ -160,13 +160,25 @@ class nodeGroup(QGraphicsItemGroup):
         actionUnGroup = QAction('UnGroup', None)
         menu.addAction(actionUnGroup)
 
+        #reset
+        actionReset = QAction('Reset', None)
+        menu.addAction(actionReset)
+
+        def f0():
+            self.setPos(self.initialPosition)
+
+        actionReset.triggered.connect(f0)
+        # ungroup
         def f1():
-            for item in self.childItems():
-                item.setPen(QPen(Qt.red if item.isControl() else Qt.black))
+            childs = self.childItems()
             self.scene().destroyItemGroup(self)
+            for item in childs:
+                item.setPen(QPen(Qt.red if item.isControl() else Qt.black))
+                item.setSelected(True)
             self.grid.drawGrid()
             # self.scene().onUpdateLUT(options=self.scene().options)
         actionUnGroup.triggered.connect(f1)
+
         # scale up
         actionScaleUp = QAction('scale up', None)
         menu.addAction(actionScaleUp)
@@ -180,6 +192,7 @@ class nodeGroup(QGraphicsItemGroup):
             l.applyToStack()
             l.parentImage.onImageChanged()
         actionScaleUp.triggered.connect(f2)
+
         # scale down
         actionScaleDown = QAction('scale down', None)
         menu.addAction(actionScaleDown)
@@ -194,6 +207,7 @@ class nodeGroup(QGraphicsItemGroup):
             l.applyToStack()
             l.parentImage.onImageChanged()
         actionScaleDown.triggered.connect(f3)
+
         # rotate cw
         actionRotateCW = QAction('rotate CW', None)
         menu.addAction(actionRotateCW)
@@ -207,7 +221,9 @@ class nodeGroup(QGraphicsItemGroup):
             l = self.scene().layer
             l.applyToStack()
             l.parentImage.onImageChanged()
+
         actionRotateCW.triggered.connect(f4)
+
         # rotate ccw
         actionRotateCCW = QAction('rotate CCW', None)
         menu.addAction(actionRotateCCW)
@@ -694,7 +710,7 @@ class activeGrid(QGraphicsPathItem):
                     if j > 0:
                         qpp.moveTo(node.initialPos)  # gridPos())
                         qpp.lineTo(self.gridNodes[i][j-step].initialPos)  # gridPos())  # TODO modified 7/1/20
-                if not node.isTrackable():  # node.isSelected():  # TODO changed 7/1/19 validate
+                if not node.isTrackable():
                     continue
                 # Visualize displacement for trackable nodes
                 qppTrace.moveTo(node.gridPos())
@@ -894,9 +910,14 @@ class colorChooser(QGraphicsPixmapItem):
         grid = self.scene().grid
         screenOrigin = e.screenPos() - e.pos().toPoint()
         rubberRect = QRect(self.origin, e.screenPos()).normalized()  # topLeft, bottomRight
+        # get QGraphicsView instance
+        view = self.scene().views()[0]
+        # select nodes in rubberband, unselect others
         for i in range(grid.size):
             for j in range(grid.size):
-                if rubberRect.contains((grid.gridNodes[i][j].pos() + screenOrigin).toPoint()):
+                viewCoords = view.mapFromScene(grid.gridNodes[i][j].scenePos().toPoint())
+                screenCoords = view.mapToGlobal(viewCoords)
+                if rubberRect.contains(screenCoords):
                     grid.gridNodes[i][j].setSelected(True)
                 else:
                     if type(grid.gridNodes[i][j].parentItem()) is nodeGroup:
@@ -1063,12 +1084,12 @@ class graphicsForm3DLUT(baseGraphicsForm):
         pushButton5.clicked.connect(self.toggleAllNodes)
 
         # options
-        options1, optionNames1 = ['use image', 'use selection'], ['Use Image', 'Use Selection']
-        self.listWidget1 = optionsWidget(options=options1, optionNames=optionNames1, exclusive=True)
+        # options1, optionNames1 = ['use image', 'use selection'], ['Use Image', 'Use Selection']
+        # self.listWidget1 = optionsWidget(options=options1, optionNames=optionNames1, exclusive=True)
 
-        self.listWidget1.setFocusPolicy(Qt.NoFocus)
+        #self.listWidget1.setFocusPolicy(Qt.NoFocus)
         # set initial selection to 'use image'
-        self.listWidget1.checkOption(self.listWidget1.intNames[0])
+        #self.listWidget1.checkOption(self.listWidget1.intNames[0])
 
         options2, optionNames2 = ['add node', 'remove node'], ['Add Node', 'Remove Node']
         self.listWidget2 = optionsWidget(options=options2, optionNames=optionNames2, exclusive=True)
@@ -1096,10 +1117,9 @@ class graphicsForm3DLUT(baseGraphicsForm):
         # set initial selection to 'select naighbors'
         item = self.listWidget3.items[options3[0]]
         item.setCheckState(Qt.Checked)
-        self.graphicsScene.options = UDict((self.listWidget1.options, self.listWidget2.options,
-                                            self.listWidget3.options))
+        self.graphicsScene.options = UDict((self.listWidget2.options, self.listWidget3.options))
 
-        for wdg in [self.listWidget1, self.listWidget2, self.listWidget3]:
+        for wdg in [self.listWidget2, self.listWidget3]:
             wdg.setMinimumWidth(wdg.sizeHintForColumn(0))
             wdg.setMinimumHeight(wdg.sizeHintForRow(0)*len(wdg.items))
 
@@ -1142,6 +1162,13 @@ class graphicsForm3DLUT(baseGraphicsForm):
 
         self.info.returnPressed.connect(infoDone)
 
+        # marquee tool slot
+        def selectionSlot():
+            self.layer.applyToStack()
+            self.layer.parentImage.onImageChanged()
+
+        self.layer.selectionChanged.sig.connect(selectionSlot)
+
         # layout
         gl = QGridLayout()
         self.addCommandLayout(gl)  # add before populating
@@ -1149,8 +1176,8 @@ class graphicsForm3DLUT(baseGraphicsForm):
             gl.addWidget(button, 0, i)
         gl.addWidget(pushButton4, 1, 0)
         gl.addWidget(pushButton5, 1, 1)
-        for i, widget in enumerate([self.listWidget1, self.listWidget2, self.listWidget3]):
-            gl.addWidget(widget, 2 if i < 2 else 1, i, 1 if i < 2 else 2, 1)
+        for i, widget in enumerate([self.listWidget2, self.listWidget3]):
+            gl.addWidget(widget, 2 if i == 0 else 1, i + 1, 1 if i == 0 else 2, 1)
         hl = QHBoxLayout()
         hl.addWidget(infoCombo)
         hl.addWidget(self.info)
@@ -1166,7 +1193,7 @@ class graphicsForm3DLUT(baseGraphicsForm):
                           <b>Choose nodes to edit</b> with mouse clicks on the image. They are shown
                         as small black circles on the color wheel. Each node corresponds to a set of colors 
                         sharing the same hue and saturation.<br>
-                        <b>Modify the colors</b> of a node by Ctrl+Alt+dragging it on
+                        <b>To modify the colors</b> of a node <i>Ctrl+Alt+drag</i> it on
                         the wheel. Several nodes can be moved simultaneously by grouping them.<br>
                         <b>Group nodes</b> :<br>
                                 &nbsp; 1 - group nodes with the mouse : while pressing the mouse left button,
@@ -1197,10 +1224,16 @@ class graphicsForm3DLUT(baseGraphicsForm):
     def selectGridNode(self, r, g, b):
         """
         selects the nearest grid nodes corresponding to r,g,b values.
+        According to current options, selected nodes can be shown or
+        hidden or reset. The function returns True if nodes are
+        moved and False otherwise.
         @param r: color
         @param g: color
         @param b: color
+        @return:
+        @rtype: boolean
         """
+        movedNodes = False
         h, s, p = self.cModel.rgb2cm(r, g, b)
         # currently selected values in adjust layer
         self.currentHue, self.currentSat, self.currentPb = h, s, p
@@ -1235,11 +1268,14 @@ class graphicsForm3DLUT(baseGraphicsForm):
                     group.removeFromGroup(n)
                     if not group.childItems():
                         self.graphicsScene.destroyItemGroup(group)
-                n.setPos(n.initialPos)
+                if n.pos() != n.initialPos:
+                    n.setPos(n.initialPos)
+                    movedNodes = True
                 n.syncLUT()
         self.grid.drawGrid()  # TODO added 7/1/20 validate
         # update status
         self.onSelectGridNode(h, s)
+        return movedNodes
 
     def toggleAllNodes(self):
         self.grid.toggleAllNodes()

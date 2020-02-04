@@ -466,7 +466,9 @@ class imageLabel(QLabel):
                         layer.colorPicked.sig.emit(x_img, y_img, modifiers)
                         # select grid node for 3DLUT form
                         if layer.is3DLUTLayer():
-                            layer.getGraphicsForm().selectGridNode(red, green, blue)
+                            movedNodes = layer.getGraphicsForm().selectGridNode(red, green, blue)
+                            if movedNodes:
+                                layer.applyToStack()
                         # rectangle selection
                         if window.btnValues['rectangle'] and (modifiers == Qt.ControlModifier):
                             layer.rect = None

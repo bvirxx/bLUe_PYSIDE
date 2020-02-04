@@ -1528,8 +1528,10 @@ class vImage(bImage):
         currentImage = self.getCurrentImage()
         # get selection
         w1, w2, h1, h2 = (0.0,) * 4
-        # use selection
-        if options['use selection']:
+        useSelection = False
+        if self.rect is not None:
+            useSelection = self.rect.isValid()
+        if useSelection:
             w, wF = self.getCurrentImage().width(), self.width()
             h, hF = self.getCurrentImage().height(), self.height()
             wRatio, hRatio = float(w) / wF, float(h) / hF
@@ -1540,10 +1542,10 @@ class vImage(bImage):
             if w1 >= w2 or h1 >= h2:
                 dlgWarn("Empty selection\nSelect a region with the marquee tool")
                 return
-        # use image
         else:
             w1, w2, h1, h2 = 0, self.inputImg().width(), 0, self.inputImg().height()
-        inputBuffer = QImageBuffer(inputImage)[h1:h2 + 1, w1:w2 + 1, :]
+        inputBuffer0 = QImageBuffer(inputImage)
+        inputBuffer = inputBuffer0[h1:h2 + 1, w1:w2 + 1, :]
         imgBuffer = QImageBuffer(currentImage)[:, :, :]
         interpAlpha = not options['keep alpha']
         if interpAlpha:
@@ -1557,6 +1559,9 @@ class vImage(bImage):
         # choose the right interpolation method
         interp = chosenInterp(pool, (w2 - w1) * (h2 - h1))
         # apply LUT
+        if useSelection:
+            # need to reset the outside of the current selection
+            ndImg1[:, :, :] = inputBuffer0
         ndImg1[h1:h2 + 1, w1:w2 + 1, :] = interp(LUT, LUTSTEP, ndImg0)
         if not interpAlpha:
             # forward the alpha channel
