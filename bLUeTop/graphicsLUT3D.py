@@ -21,10 +21,10 @@ import cv2
 
 import numpy as np
 
-from PySide2.QtCore import QSize
+from PySide2.QtCore import QSize, QPoint
 from PySide2.QtWidgets import QAction, QFileDialog, QToolTip, QHBoxLayout,\
     QApplication, QGridLayout, QComboBox, QLineEdit
-from PySide2.QtGui import QPainter, QPolygonF, QPainterPath, QPen, QBrush, QColor, QPixmap
+from PySide2.QtGui import QPainter, QPolygonF, QPainterPath, QPen, QBrush, QColor, QPixmap, QTransform
 from PySide2.QtWidgets import QGraphicsItem, QGraphicsItemGroup, QGraphicsPathItem,\
     QGraphicsPixmapItem, QGraphicsPolygonItem, QSizePolicy
 from PySide2.QtCore import Qt, QPointF, QRect, QRectF
@@ -166,6 +166,11 @@ class nodeGroup(QGraphicsItemGroup):
 
         def f0():
             self.setPos(self.initialPosition)
+            for i in self.childItems():
+                i.syncLUT()
+            l = self.scene().layer
+            l.applyToStack()
+            l.parentImage.onImageChanged()
 
         actionReset.triggered.connect(f0)
         # ungroup
@@ -261,11 +266,15 @@ class activeNode(QGraphicsPathItem):
     def resetNodes(cls, nodeList):
         if not nodeList:
             return
+        grid = None
         for n in nodeList:
             if type(n) is activeNode:
                 n.setPos(n.initialPos)
                 n.syncLUT()
-        grid = nodeList[0].grid
+                grid = n.grid
+        if grid is None:
+            # not any node selected
+            return
         grid.drawTrace = True
         grid.drawGrid()
         grid.drawTrace = False
@@ -437,11 +446,37 @@ class activeNode(QGraphicsPathItem):
 
     def gridPos(self):
         """
-        Current node position, relative to grid
+        Returns the current node position, relative to the grid.
+        In contrast with self.pos(), it works for
+        individual nodes and grouped nodes.
+        The current grid transformation is applied.
         @return: position
         @rtype: QpointF
         """
-        return self.scenePos() - self.grid.scenePos()
+        trans = self.grid.transform()
+        if type(self.parentItem()) is not nodeGroup:
+            if trans.isIdentity():
+                return self.pos()
+            else:
+                return trans.map(self.pos())
+        else:
+            p = self.pos() + self.parentItem().pos()
+            if trans.isIdentity():
+                return p
+            else:
+                return trans.map(p)
+
+    def gridPos_U(self):
+        """
+        Returns the current node position, relative to the grid.
+        In contrast with self.pos(), it works for
+        individual nodes and grouped nodes.
+        The grid transformation is NOT applied.
+        @return: position relative to grid axes.
+        @rtype: QPointF
+        """
+        t = type(self.parentItem())
+        return self.pos() + self.parentItem().pos() if t is nodeGroup else self.pos()
 
     def top(self):
         """
@@ -492,58 +527,109 @@ class activeNode(QGraphicsPathItem):
         """
         Returns the laplacian (mean) of the positions
         of the neighbor nodes.
-        Coordinates are relative to the scene.
+        Coordinates are relative to the grid
         @return:
         @rtype: QPointF
         """
         laplacian = QPointF(0.0, 0.0)
         count = 0
         for item in self.neighbors():
-            laplacian += item.scenePos()
+            laplacian += item.gridPos_U()  # scenePos()
             count += 1
         return laplacian / count
 
     def mousePressEvent(self, e):
         self.mouseIsPressed = True
+        self.mouseIsMoved = False
         super().mousePressEvent(e)
         # TODO added 4 lines 7/1/19 validate
         # draw links to neighbors
         self.grid.drawTrace = True
         # update grid
         self.grid.drawGrid()
+        # starting grid warping :
+        # build dict of transformed grid vertex coordinates
+        if e.modifiers() == Qt.ControlModifier | Qt.AltModifier:
+            trans = self.grid.transform()
+            size = self.grid.size
+            self.vertexDict = {(r, c): trans.map(self.grid.gridNodes[r][c].pos()) for (c, r) in
+                                            [(0, 0), (size - 1, 0), (size - 1, size - 1), (0, size - 1)]}
+        self.startingRect = self.scene().sceneRect()
 
     def mouseMoveEvent(self, e):
-        if e.modifiers() == Qt.ControlModifier | Qt.AltModifier:
-            self.mouseIsMoved = True
+        if e.modifiers() == Qt.ControlModifier:
             # item is not in a group, because
             # groups do not send mouse move events to child items.
-            rect = self.scene().sceneRect()
+            # rect = self.scene().sceneRect()
             newPos = e.scenePos()
-            if not rect.contains(newPos):
+            if not self.startingRect.contains(newPos):
                 return
             self.setPos(newPos)
+            self.mouseIsMoved = True
             # moved nodes are visible and selected
             self.setVisible(True)
             self.setSelected(True)
             # make sure the move trace is shown.
             self.grid.drawTrace = True
             self.grid.drawGrid()
+        # grid warping
+        elif e.modifiers() == Qt.ControlModifier | Qt.AltModifier:
+            row, col = self.gridRow, self.gridCol
+            size = self.grid.size
+            # Warping is led by corner vertices only
+            if row not in [0, size - 1] or col not in [0, size - 1]:
+                return
+            # get grid width
+            s = self.grid.gridNodes[size - 1][0].pos().y()
+            self.mouseIsMoved = True
+            # rect = self.scene().sceneRect()
+            newPos = e.scenePos()
+            if not self.startingRect.contains(newPos):
+                return
+            # build "before" quad from the ACTUAL transformed positions of vertices
+            trans = self.grid.transform()
+            quad0 = QPolygonF()
+            for (c, r) in [(0, 0), (size - 1, 0), (size - 1, size - 1), (0, size - 1)]:
+                quad0.append(trans.map(self.grid.gridNodes[r][c].pos()))
+            # update vertexDict and build "after" quad from the EXPECTED new transformed positions of vertices.
+            # This prevents the propagation of floating point errors.
+            self.vertexDict[(row, col)] = newPos
+            quad1 = QPolygonF()
+            for (c, r) in [(0, 0), (size - 1, 0), (size - 1, size - 1), (0, size - 1)]:
+                quad1.append(self.vertexDict[(r, c)])
+            newTrans = QTransform.quadToQuad(quad0, quad1)
+            if newTrans is None:
+                return
+            finalTrans = newTrans * trans
+            rect = QRect(-5,-5, s+10, s+10)
+            vertices = [QPoint(0,0), QPoint(0, s), QPoint(s, 0), QPoint(s, s)]
+            for v in vertices :
+                if not rect.contains(finalTrans.map(v)):
+                    return
+            self.grid.setTransform(finalTrans)
+            self.mouseIsMoved = True
 
     def mouseReleaseEvent(self, e):
         self.syncLUT()
+        if e.modifiers() == Qt.ControlModifier:
+            # toggle control flag
+            self.setControl(not self.control)
+        self.mouseIsPressed = False
+        self.grid.drawTrace = False
+        super().mouseReleaseEvent(e)
+        # grid warping: update all nodes
+        if e.modifiers() == Qt.ControlModifier | Qt.AltModifier:
+            try:
+                QApplication.setOverrideCursor(Qt.WaitCursor)
+                QApplication.processEvents()
+                self.grid.gridSyncLUT()
+            finally:
+                QApplication.restoreOverrideCursor()
+                QApplication.processEvents()
         if self.mouseIsMoved:
             l = self.scene().layer
             l.applyToStack()
             l.parentImage.onImageChanged()
-        # Ctrl+click
-        elif e.modifiers() == Qt.ControlModifier:
-            # toggle control flag
-            self.setControl(not self.control)
-        self.mouseIsPressed = False
-        self.mouseIsMoved = False
-        self.grid.drawTrace = False
-        super().mouseReleaseEvent(e)
-        self.grid.drawGrid()  # don't move upwards
 
     def contextMenuEvent(self, event):
         menu = QMenu()
@@ -591,7 +677,8 @@ class activeGrid(QGraphicsPathItem):
                                       gridCol=i, parent=self, grid=self)
                                     for i in range(self.size)] for j in range(self.size)]
         # add an item for proper visualization of node moves
-        self.traceGraphicsPathItem = QGraphicsPathItem(parent=parent)
+        self.traceGraphicsPathItem = QGraphicsPathItem()
+        self.traceGraphicsPathItem.setParentItem(self)
         # set pens
         self.setPen(QPen(QColor(128, 128, 128)))  # , 1, Qt.DotLine, Qt.RoundCap))
         self.traceGraphicsPathItem.setPen(QPen(QColor(255, 255, 255), 1, Qt.DotLine, Qt.RoundCap))
@@ -641,6 +728,8 @@ class activeGrid(QGraphicsPathItem):
         If unSmoothOnly is False all nodes are reset,
         otherwise control points are not moved.
         """
+        # reset current transformation to identity
+        self.setTransform(QTransform())
         if not unSmoothOnly:
             # explode all node groups  # TODO moved from onReset  7/1/20 validate
             groupList = [item for item in self.childItems() if type(item) is nodeGroup]
@@ -672,11 +761,11 @@ class activeGrid(QGraphicsPathItem):
             for i in range(self.size):
                 for j in range(self.size):
                     curnode = self.gridNodes[i][j]
-                    newPos = curnode.laplacian()  # scene coordinates
+                    newPos = curnode.laplacian()  # grid coordinates
                     if curnode.control:
                         continue
                     # update position
-                    if curnode.scenePos() != newPos:
+                    if curnode.gridPos_U() != newPos:
                         position = newPos - curnode.parentItem().scenePos()
                         curnode.setPos(position)  # parent coordinates
                         curnode.syncLUT()
@@ -713,16 +802,21 @@ class activeGrid(QGraphicsPathItem):
                 if not node.isTrackable():
                     continue
                 # Visualize displacement for trackable nodes
-                qppTrace.moveTo(node.gridPos())
+                qppTrace.moveTo(node.gridPos_U())
                 qppTrace.lineTo(node.initialPos)
                 qppTrace.addEllipse(node.initialPos, 3, 3)
                 if self.drawTrace:
                     for n in node.neighbors():
                         if n.isVisible():
-                            qppTrace.moveTo(n.gridPos())
-                            qppTrace.lineTo(node.gridPos())
+                            qppTrace.moveTo(n.gridPos_U())
+                            qppTrace.lineTo(node.gridPos_U())
         self.setPath(qpp)
         self.traceGraphicsPathItem.setPath(qppTrace)
+
+    def gridSyncLUT(self):
+        for i in range(self.size):
+            for j in range(self.size):
+                self.gridNodes[i][j].syncLUT()
 
 
 class activeMarker(QGraphicsPolygonItem):
@@ -1204,17 +1298,21 @@ class graphicsForm3DLUT(baseGraphicsForm):
                                 &nbsp; 1 - check the option Remove Node;<br>
                                 &nbsp; 2 -  ungroup;<br>
                                 &nbsp; 3 - on the image, click the pixels to unselect.<br>
+                        <b>Gamut warping</b> can be applied to the whole grid by using Ctrl+Alt+Drag on any of 
+                        the four corner vertices of the grid (Press <i>Show/Hide All</i> to show corner vertices).<br>
+                        All transformations can be freely mixed.<br>
                         <b>Warning</b> : Selecting/unselecting nodes with the mouse is enabled only when
                         the Color Chooser is closed.<br>
                         Press the <b> Smooth Grid</b> button to smooth color transitions between neighbor nodes.
-                        Control nodes (red circles) are not moved. Use Ctrl+click to toggle the control flag on and off.
+                        Control nodes (red circles) are not moved. Use Ctrl+click to <b>toggle the control flag</b> on and off.
                         Reiterate until you are pleased with the result<br>
                         <b>Crosshair</b> markers indicate neutral gray tones and average 
                         skin tones. They can be moved with the mouse.
                         The position of the second marker is reflected in the editable 
                         bottom right box. Due to inherent properties
                         of the CMYK color model, CMYK input values may be modified silently.<br>
-                        <b>The grid can be zoomed</b> with the mouse wheel.<br>
+                        The editor window can be <b>zoomed</b> with the mouse wheel.<br>
+                        
                         Check the <b>Keep Alpha</b> option to forward the alpha channel without modifications.<br>
                         This option must be unchecked to be able to build a mask from the selection.<br>
                         HSpB layer is slower than HSV, but usually gives better results.<br>    
