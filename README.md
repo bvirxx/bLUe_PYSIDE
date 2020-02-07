@@ -18,11 +18,13 @@ the table is called a 2.5D LUT. bLUe can create and edit 3D and 2.5D LUTs.
 
   * 2.5D LUTs are edited in a *perceptual editor* by selecting, grouping and moving nodes as projections onto
 a (hue, saturation) color wheel. Nodes are bound to an elastic grid and a grid smoothing algorithm is provided
-to even the changes in color. Selection masks are automatically created from 2.5D LUTs, based on the node selection. 
-Masks can be freely edited.
+to even the changes in color. Grid transformations are supported to interactively modify the overall gamut.
 
  * 3D LUTs are controlled by curves defining changes (additive or multiplicative shifts)
 in a color channel, depending on the value of another channel. 
+
+ Selection masks are automatically created from 2.5D LUTs, based on the node selection. 
+Masks can be freely edited.
 
 Multiple adjustment layers can be exported as a single 3D LUT in .cube format.
 
