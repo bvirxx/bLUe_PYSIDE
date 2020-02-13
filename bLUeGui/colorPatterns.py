@@ -103,7 +103,7 @@ class hueSatPattern(bImage):
         pBuf = np.tile(pArray[:, np.newaxis, np.newaxis], (1, h, w))  # 101, h, w
         hspBuf = np.stack((hsBuf[:, :, :, 0], hsBuf[:, :, :, 1], pBuf), axis=-1)  # 101, h, w, 3
         # convert the buffers to rgb
-        self.BrgbBuf = converter.cm2rgbVec(hspBuf)  # 101, h, w, 3
+        self.BrgbBuf = converter.cm2rgbVec(hspBuf)  # shape 101, h, w, 3
         p = int(bright * 100.0)
         # select the right image buffer
         self.hsArray = hspBuf[p, ...]
