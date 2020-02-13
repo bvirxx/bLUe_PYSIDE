@@ -714,14 +714,6 @@ class activeGrid(QGraphicsPathItem):
         self.initialQuad = QPolygonF( )
         for p in [QPointF(0, 0), QPointF(w, 0), QPointF(w, w), QPointF(0, w)]:
             self.initialQuad.append(p)
-        self.countArray = np.zeros((self.scene().lut.size,)*3, dtype=np.int)
-        for c in range(size):
-            for r in range(size):
-                for x in self.gridNodes[r][c].LUTIndices:
-                    self.countArray[x.ind[0], x.ind[1], x.ind[2]] += 1
-        z = [(i,j,k) for i in range(size) for j in range(size) for k in range(size) if np.sum(self.countArray[max(i-1,0):min(i+2, size),max(j-1,0):min(j+2, size),max(k-1,0):min(k+2, size)]) == 0]
-        print(len(z))
-        print(z)
 
     def setDefaultControlNodes(self):
         """
