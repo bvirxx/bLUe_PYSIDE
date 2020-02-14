@@ -655,7 +655,7 @@ class activeNode(QGraphicsPathItem):
         menu.addAction(actionGroup)
         actionGroup.triggered.connect(lambda: nodeGroup.groupFromList(self.scene().selectedItems(),
                                                                       grid=self.grid,
-                                                                      position=self.scenePos(),
+                                                                      position=self.pos(),  # scenePos(),  # TODO modified 14/02/20 validate
                                                                       parent=self.parentItem()))
         actionGroup.setEnabled(len(self.scene().selectedItems()) > 1)
         actionReset = QAction('Reset', None)
