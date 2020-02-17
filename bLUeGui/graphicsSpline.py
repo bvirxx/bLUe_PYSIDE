@@ -17,9 +17,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 import numpy as np
-from PySide2.QtGui import QPainterPathStroker, QBrush
+from PySide2.QtGui import QPainterPathStroker, QBrush, QPixmap
 from PySide2.QtCore import QRect, QPointF, QPoint
-from PySide2.QtWidgets import QPushButton, QGraphicsPathItem
+from PySide2.QtWidgets import QPushButton, QGraphicsPathItem, QGraphicsPixmapItem, QGraphicsPolygonItem, \
+    QGraphicsSceneMouseEvent
 from PySide2.QtGui import QColor, QPen, QPainterPath, QPolygonF
 from PySide2.QtCore import Qt, QRectF
 
@@ -165,6 +166,111 @@ class activeTriangle(QGraphicsPathItem):
         self.setPen(QPen(QColor(255, 255, 255), 2))
         self.update()
 
+class activeMarker(QGraphicsPolygonItem):
+    """
+    Movable marker
+    """
+
+    size = 10
+    triangle = QPolygonF()
+    triangle.append(QPointF(-size, size))
+    triangle.append(QPointF(0, 0))
+    triangle.append(QPointF(size, size))
+
+    cross = QPolygonF()
+    cross.append(QPointF(-size/2, -size/2))
+    cross.append(QPointF(0, 0))
+    cross.append(QPointF(size / 2, size / 2))
+    cross.append(QPointF(0, 0))
+    cross.append(QPointF(-size / 2, size / 2))
+    cross.append(QPointF(0, 0))
+    cross.append(QPointF(size / 2, -size / 2))
+    cross.append(QPointF(0, 0))
+
+    @classmethod
+    def fromTriangle(cls, *args, **kwargs):
+        color = QColor(255, 255, 255)
+        item = cls(*args, **kwargs)
+        item.setPolygon(cls.triangle)
+        item.setPen(QPen(color))
+        item.setBrush(QBrush(color))
+        # set move range to parent bounding rect
+        item.moveRange = item.parentItem().boundingRect()
+        return item
+
+    @classmethod
+    def fromCross(cls, *args, **kwargs):
+        color = QColor(0, 0, 0)
+        item = cls(*args, **kwargs)
+        item.setPolygon(cls.cross)
+        item.setPen(QPen(color))
+        item.setBrush(QBrush(color))
+        # set move range to parent bounding rect
+        item.moveRange = item.parentItem().boundingRect()
+        return item
+
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+        self.onMouseMove, self.onMouseRelease = lambda e, x, y: 0, lambda e, x, y: 0
+        self.moveRange = QRectF(0.0, 0.0, 0.0, 0.0)
+
+    @property  # read only
+    def currentColor(self):
+        return self.scene().slider2D.QImg.pixelColor((self.pos() - self.parentItem().offset()).toPoint())
+
+    def setMoveRange(self, rect):
+        self.moveRange = rect
+
+    def mousePressEvent(self, e):
+        pass
+
+    def mouseMoveEvent(self, e):
+        # event position relative to parent
+        pos = e.pos() + self.pos() #  e.scenePos() - self.parentItem().scenePos()  # TODO modified 16/02/20 validate
+        x, y = pos.x(), pos.y()
+        # limit move to moveRange
+        xmin, ymin = self.moveRange.left(), self.moveRange.top()
+        xmax, ymax = self.moveRange.right(), self.moveRange.bottom()
+        x, y = xmin if x < xmin else xmax if x > xmax else x, ymin if y < ymin else ymax if y > ymax else y
+        self.setPos(x, y)
+        self.onMouseMove(e, x, y)
+
+    def mouseReleaseEvent(self, e):
+        # event position relative to parent
+        pos = e.pos() + self.pos() #  e.scenePos() - self.parentItem().scenePos()
+        x, y = pos.x(), pos.y()
+        # limit move to (0,0) and moveRange
+        xmin, ymin = self.moveRange.left(), self.moveRange.top()
+        xmax, ymax = self.moveRange.right(), self.moveRange.bottom()
+        x, y = xmin if x < xmin else xmax if x > xmax else x, ymin if y < ymin else ymax if y > ymax else y
+        self.onMouseRelease(e, x, y)
+
+
+class activeRsMarker(activeMarker):
+    """
+    Marker for range slider. role is 'min' or 'max'
+    """
+
+    def __init__(self, parent=None, role=''):
+        super().__init__(parent=parent)
+        self.role = role
+
+    def sceneEventFilter(self, target, e):
+        """
+        Filtering of mouse events for range slider markers :
+        maintains marker order
+        @param target:
+        @type target:
+        @param e:
+        @type e:
+        """
+        if isinstance(e, QGraphicsSceneMouseEvent):
+            if self.role == 'min':
+                return e.scenePos().x() <= self.scenePos().x() + self.size
+            else:
+                return e.scenePos().x() >= self.scenePos().x() - self.size
+        return False
+
 
 class activeSplinePoint(activePoint):
     """
@@ -191,7 +297,11 @@ class activeSplinePoint(activePoint):
 
     def mouseMoveEvent(self, e):
         self.clicked = False
-        x, y = e.scenePos().x(), e.scenePos().y()
+        item = self.parentItem()
+        if item is None:
+            return
+        p = e.pos() + self.pos()
+        x, y = p.x(), p.y()  #  e.scenePos().x(), e.scenePos().y()  # TODO modified 20/02/20 validate
         if self.rect is not None:
             x = min(max(x, self.xmin), self.xmax)
             y = min(max(y, self.ymin), self.ymax)
@@ -203,13 +313,16 @@ class activeSplinePoint(activePoint):
             self.tangent.contactPoint = contactPoint
             self.tangent.controlPoint = contactPoint + v
             self.tangent.setPos(contactPoint)
-        self.scene().cubicItem.fixedPoints.sort(key=lambda p: p.scenePos().x())
-        self.scene().cubicItem.updatePath()
+        item.fixedPoints.sort(key=lambda p: p.scenePos().x())
+        item.updatePath()
 
     def mouseReleaseEvent(self, e):
         # get scene current spline
-        item = self.scene().cubicItem
-        x, y = e.scenePos().x(), e.scenePos().y()
+        item = self.parentItem()  # self.scene().cubicItem  # TODO modified 16/02/20 validate
+        if item is None:
+            return
+        p = e.pos() + self.pos()
+        x, y = p.x(), p.y()  #  e.scenePos().x(), e.scenePos().y()  # TODO modified 15/02/20 validate
         if self.rect is not None:
             x = min(max(x, self.xmin), self.xmax)
             y = min(max(y, self.ymin), self.ymax)
@@ -227,9 +340,9 @@ class activeSplinePoint(activePoint):
                 sc.removeItem(self.tangent)
             sc.removeItem(self)
             return
-        self.scene().cubicItem.updatePath()
-        self.scene().cubicItem.updateLUTXY()
-        self.scene().cubicItem.curveChanged.sig.emit()
+        item.updatePath()
+        item.updateLUTXY()
+        item.curveChanged.sig.emit()
 
 
 class activeTangent(QGraphicsPathItem):
@@ -410,7 +523,7 @@ class activeSpline(QGraphicsPathItem):
         outStream.writeInt32(self.size)
         outStream.writeInt32(len(self.fixedPoints))
         for point in self.fixedPoints:
-            outStream << point.scenePos()
+            outStream << point.pos()
         return outStream
 
     def readFromStream(self, inStream):
@@ -530,7 +643,7 @@ class activeCubicSpline(activeSpline):
         # interpolate
         try:
             # interpolationCubSpline raises an exception if two points have identical x-coordinates
-            self.spline = interpolationCubSpline(np.array(X), np.array(Y), clippingInterval=[-self.scene().axeSize, 0])
+            self.spline = interpolationCubSpline(np.array(X), np.array(Y), clippingInterval= [-self.size, 0])     #  [-self.scene().axeSize, 0])  # TODO modified 16/02/20 validate
             # set the curve constant outside ]X0..X1[
             for P in self.spline:
                 if P.x() < X0:
@@ -549,9 +662,17 @@ class activeCubicSpline(activeSpline):
         except ValueError:
             pass
 
+    def getLUTXY(self):
+        """
+        Returns the LUT
+        @return: LUT
+        @rtype: ndarray
+        """
+        return self.LUTXY
+
     def getStackedLUTXY(self):
         """
-        Returns the  LUT (A row LUT for each channel)
+        Returns the stacked LUT (A row for each channel)
         @return: LUT
         @rtype: ndarray, shape (3,n)
         """
@@ -711,6 +832,61 @@ class activeQuadricSpline(activeSpline):
         self.LUTXY = np.array(LUT)  # buildLUT(LUT)
         """
 
+class graphicsSplineItem(QGraphicsPixmapItem):
+    """
+    graphic spline component
+    """
+
+    def __init__(self, size=100, parentItem=None):
+        super().__init__()
+        self.setParentItem(parentItem)
+        self.targetObject = None
+        self.axeSize = size
+        # background
+        pxmp = QPixmap(size, size)
+        pxmp.fill(Qt.lightGray)
+        self.setPixmap(pxmp)
+        # curve
+        cubic = activeCubicSpline(size)
+        cubic.setVisible(True)
+        cubic.setParentItem(self)
+        cubic.setPos(0, size)
+        self.defaultAxes = graphicsCurveForm.drawPlotGrid(size)
+        cubic.axes = self.defaultAxes
+        cubic.initFixedPoints()
+        self.cubic = cubic
+        # graphicsScene.cubicR = cubic
+        # cubic.channel = channelValues.L
+        # get histogram as a Qimage
+        # cubic.histImg = graphicsScene.layer.inputImg().histogram(size=graphicsScene.axeSize,
+        # bgColor=graphicsScene.bgColor, range=(0, 1),
+        # chans=channelValues.L, mode='Lab')
+
+class graphicsThrSplineItem(graphicsSplineItem):
+    """
+     graphic spline + range slider component
+    """
+
+    def __init__(self, size=100, border=20,  parentItem=None):
+        super().__init__(size=size, parentItem=parentItem)
+        # brightness sliders
+        self.brightnessSliderHeight = 20
+        self.brightnessSliderWidth = size #+ 2 * border
+        px = QPixmap(self.brightnessSliderWidth, self.brightnessSliderHeight)
+        px.fill(Qt.gray)
+        self.brightnessSlider = QGraphicsPixmapItem(px, parent=self)
+        self.brightnessSlider.setPos(0, size + 20)
+        # brightnessSlider handles
+        self.brightnessThr0 = activeRsMarker.fromTriangle(parent=self.brightnessSlider, role='min')
+        self.brightnessThr0.setMoveRange(
+            QRectF(0.0, self.brightnessThr0.size, self.brightnessSlider.pixmap().width(), 0.0))
+        self.brightnessThr0.setPos(0, self.brightnessSlider.pixmap().height() - self.brightnessThr0.size)
+        self.brightnessThr0.val = 0.0
+        self.brightnessThr1 = activeRsMarker.fromTriangle(parent=self.brightnessSlider, role='max')
+        self.brightnessThr1.setMoveRange(
+            QRectF(0.0, self.brightnessThr0.size, self.brightnessSlider.pixmap().width(), 0.0))
+        self.brightnessThr1.setPos(self.brightnessSlider.pixmap().width(), self.brightnessSlider.pixmap().height() - self.brightnessThr0.size)
+        self.brightnessThr1.val = 1.0
 
 class graphicsSplineForm(graphicsCurveForm):
     """

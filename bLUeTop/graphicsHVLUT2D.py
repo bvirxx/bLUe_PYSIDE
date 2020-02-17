@@ -22,7 +22,7 @@ from PySide2.QtWidgets import QLabel, QGridLayout
 
 from bLUeCore.bLUeLUT3D import DeltaLUT3D
 from bLUeGui.graphicsSpline import graphicsCurveForm, activeBSpline
-from bLUeTop.graphicsLUT3D import activeMarker
+from bLUeGui.graphicsSpline import activeMarker
 from bLUeTop.utils import QbLUeSlider
 
 
@@ -117,12 +117,14 @@ class HVLUT2DForm(graphicsCurveForm):
 
         # layout
         gl = QGridLayout()
-        self.addCommandLayout(gl)
+        container = self.addCommandLayout(gl)
         gl.addWidget(QLabel('Hue '), 0, 0)
         gl.addWidget(self.markerLabel, 0, 1)
         gl.addWidget(QLabel('Sat Thr '), 1, 0)
         gl.addWidget(self.satValue, 1, 1)
         gl.addWidget(self.sliderSat, 1, 2, 4, 1)
+        container.adjustSize()
+        self.setViewportMargins(0, 0, 0, container.height() + 15)
 
         self.setDefaults()
 

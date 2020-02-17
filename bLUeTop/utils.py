@@ -22,7 +22,7 @@ from itertools import product
 import numpy as np
 
 from PySide2 import QtCore
-from PySide2.QtGui import QColor, QImage, QPainter, QPixmap, QIcon
+from PySide2.QtGui import QColor, QImage, QPainter, QPixmap, QIcon, QMouseEvent
 from PySide2.QtWidgets import QListWidget, QListWidgetItem, \
     QSlider, QLabel, QDockWidget, QStyle, QColorDialog, QPushButton
 from PySide2.QtCore import Qt, QObject, QRect, QEvent
@@ -430,12 +430,8 @@ class bLUeEventFilter(QObject):
         @param e:
         @type e:
         """
-        if e.type() in [QEvent.MouseButtonPress, QEvent.MouseMove, QEvent.MouseButtonRelease, QEvent.MouseButtonDblClick]:
-            item = target.itemAt(e.pos())
-            if item.flags() & Qt.ItemIsEnabled:
-                return False  # send to target
-            else:
-                return True
+        if isinstance(e, QMouseEvent):
+            return not (target.flags() & Qt.itemIsEnabled)
         return False
 
 

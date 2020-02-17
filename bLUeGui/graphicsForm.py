@@ -24,7 +24,7 @@ from PySide2.QtCore import Qt
 from bLUeGui.memory import weakProxy
 
 
-class bottomWidget(QLabel):
+class bottomWidget(QWidget):
     """
     ad hoc container to add non-zoomable
     buttons and options below a scene.
@@ -202,6 +202,8 @@ class baseGraphicsForm(QGraphicsView, abstractForm):
         the form.
         @param glayout:
         @type glayout: Qlayout
+        @return:
+        @rtype QWidget
         """
         container = bottomWidget()
         container.setLayout(glayout)
@@ -212,15 +214,15 @@ class baseGraphicsForm(QGraphicsView, abstractForm):
         hl.setAlignment(Qt.AlignLeft)
         hl.addLayout(vl1)
         self.setLayout(hl)
-        self.setViewportMargins(0, 0, 0, container.height())
+        return container
 
 
 class graphicsCurveForm(baseGraphicsForm):
     """
     Base class for interactive curve forms
     """
-    @classmethod
-    def drawPlotGrid(cls, axeSize, gradient=None):
+    @staticmethod
+    def drawPlotGrid(axeSize, gradient=None):  # TODO 15/2/20 changed classmethod to staticmethod validate
         """
         Return a QGraphicsPathItem initialized with
         a square grid.

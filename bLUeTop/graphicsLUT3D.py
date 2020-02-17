@@ -22,12 +22,12 @@ import cv2
 
 import numpy as np
 
-from PySide2.QtCore import QSize, QPoint
+from PySide2.QtCore import QSize
 from PySide2.QtWidgets import QAction, QFileDialog, QToolTip, QHBoxLayout, \
     QApplication, QGridLayout, QComboBox, QLineEdit, QLabel
 from PySide2.QtGui import QPainter, QPolygonF, QPainterPath, QPen, QBrush, QColor, QPixmap, QTransform
 from PySide2.QtWidgets import QGraphicsItem, QGraphicsItemGroup, QGraphicsPathItem,\
-    QGraphicsPixmapItem, QGraphicsPolygonItem, QSizePolicy
+    QGraphicsPixmapItem, QSizePolicy
 from PySide2.QtCore import Qt, QPointF, QRect, QRectF
 from PySide2.QtGui import QImage
 from PySide2.QtWidgets import QMenu, QRubberBand
@@ -36,6 +36,7 @@ from bLUeCore.bLUeLUT3D import LUT3D
 from bLUeCore.trilinear import interpTriLinear
 from bLUeGui.colorCube import rgb2hsB, cmyk2rgb
 from bLUeGui.graphicsForm import baseGraphicsForm
+from bLUeGui.graphicsSpline import graphicsThrSplineItem, activeMarker
 from bLUeTop.lutUtils import LUTSIZE, LUTSTEP, LUT3D_ORI, LUT3DIdentity
 from bLUeGui.colorPatterns import hueSatPattern, brightnessPattern
 from bLUeGui.bLUeImage import QImageBuffer
@@ -115,6 +116,45 @@ class nodeGroup(QGraphicsItemGroup):
         # of the last pressed point.
         self.pressedPoint = QPointF()
 
+        # brightness item
+        graphicsForm = self.scene().views()[0]
+        axeSize = graphicsForm.size
+        border = graphicsForm.border
+        offset = self.scene().slider2D.offset()
+        self.brightnessItem = graphicsThrSplineItem(size=axeSize , border=border)
+        self.scene().addItem(self.brightnessItem)
+        self.brightnessItem.setPos(offset.x(), axeSize + 50)
+        self.brightnessItem.brightnessThr0.installSceneEventFilter(self.brightnessItem.brightnessThr1)
+        self.brightnessItem.brightnessThr1.installSceneEventFilter(self.brightnessItem.brightnessThr0)
+
+        def f5(e, x, y):
+            self.brightnessItem.brightnessThr0.val = self.brightnessItem.brightnessThr0.pos().x() / self.brightnessItem.brightnessSliderWidth
+            for i in self.childItems():
+                i.syncLUT()
+            l = self.scene().layer
+            l.applyToStack()
+            l.parentImage.onImageChanged()
+
+        def f6(e, x, y):
+            self.brightnessItem.brightnessThr1.val = self.brightnessItem.brightnessThr1.pos().x() / self.brightnessItem.brightnessSliderWidth
+            for i in self.childItems():
+                i.syncLUT()
+            l = self.scene().layer
+            l.applyToStack()
+            l.parentImage.onImageChanged()
+
+        def f7():
+            for i in self.childItems():
+                i.syncLUT()
+            l = self.scene().layer
+            l.applyToStack()
+            l.parentImage.onImageChanged()
+
+        self.brightnessItem.brightnessThr0.onMouseRelease, self.brightnessItem.brightnessThr1.onMouseRelease = f5, f6
+        self.brightnessItem.cubic.curveChanged.sig.connect(f7)
+
+        self.brightnessItem.setVisible(False)
+
     def addToGroup(self, item):
         item.setSelected(False)  # TODO removed 9/1/20 validate
         super().addToGroup(item)
@@ -160,9 +200,31 @@ class nodeGroup(QGraphicsItemGroup):
 
     def contextMenuEvent(self, event):
         menu = QMenu()
+
+        # brightness settings
+        actionBright = QAction('Brightness settings', None)
+        menu.addAction(actionBright)
+
+        def f6():
+            self.brightnessItem.setVisible(True)
+
+        actionBright.triggered.connect(f6)
+
         # ungroup
         actionUnGroup = QAction('UnGroup', None)
         menu.addAction(actionUnGroup)
+
+        def f1():
+            childs = self.childItems()
+            self.scene().removeItem(self.brightnessItem)
+            self.scene().destroyItemGroup(self)
+            for item in childs:
+                item.setPen(QPen(Qt.red if item.isControl() else Qt.black))
+                item.setSelected(True)
+            self.grid.drawGrid()
+            # self.scene().onUpdateLUT(options=self.scene().options)
+
+        actionUnGroup.triggered.connect(f1)
 
         #reset
         actionReset = QAction('Reset', None)
@@ -177,16 +239,7 @@ class nodeGroup(QGraphicsItemGroup):
             l.parentImage.onImageChanged()
 
         actionReset.triggered.connect(f0)
-        # ungroup
-        def f1():
-            childs = self.childItems()
-            self.scene().destroyItemGroup(self)
-            for item in childs:
-                item.setPen(QPen(Qt.red if item.isControl() else Qt.black))
-                item.setSelected(True)
-            self.grid.drawGrid()
-            # self.scene().onUpdateLUT(options=self.scene().options)
-        actionUnGroup.triggered.connect(f1)
+
 
         # scale up
         actionScaleUp = QAction('scale up', None)
@@ -441,17 +494,29 @@ class activeNode(QGraphicsPathItem):
         # brightnesses, these conflicts are solved by giving priority to the translation corresponding
         # to the highest brightness.
         lut = self.scene().lut.LUT3DArray
+        prt = self.parentItem()
+        if type(prt) is nodeGroup:
+            isGrouped = True
+            cubic = prt.brightnessItem.cubic
+            brLUT = cubic.getLUTXY()
+            thr0, thr1 = prt.brightnessItem.brightnessThr0.val, prt.brightnessItem.brightnessThr1.val
+        else:
+            isGrouped = False
+            thr0, thr1 = 0.0, 1.0
         for x in self.LUTIndices:
+            p = x.p
+            final_p = brLUT[int(p*255)] / 255 if isGrouped else p
             i, j, k = x.ind
             slc1 = slice(max(k - spread, 0), k + spread + 1)
             slc2 = slice(max(j - spread, 0), j + spread + 1)
             slc3 = slice(max(i - spread, 0), i + spread + 1)
             nbghd = LUT3D_ORI[slc1, slc2, slc3, ::-1]
             nbghd1 = lut[slc1, slc2, slc3, :]
-            translat = self.cModel.cm2rgb(hue, sat, x.p) - LUT3D_ORI[k, j, i, ::-1]
+            translat = self.cModel.cm2rgb(hue, sat, final_p) - LUT3D_ORI[k, j, i, ::-1]
             trgNbghd = lut[slc1, slc2, slc3, :3][..., ::-1]
             trgNbghd[...] = nbghd
-            trgNbghd += translat
+            if p >= thr0 and p <= thr1:
+                trgNbghd += translat
             # alpha is set to 0 for LUT vertices bound to  non moved nodes
             # and to 255 otherwise, allowing to build a mask based on color
             # selection.
@@ -842,85 +907,6 @@ class activeGrid(QGraphicsPathItem):
             for c in range(s):
                 self.gridNodes[r][c].syncLUT()
 
-class activeMarker(QGraphicsPolygonItem):
-    """
-    Movable marker
-    """
-
-    size = 10
-    triangle = QPolygonF()
-    triangle.append(QPointF(-size, size))
-    triangle.append(QPointF(0, 0))
-    triangle.append(QPointF(size, size))
-
-    cross = QPolygonF()
-    cross.append(QPointF(-size/2, -size/2))
-    cross.append(QPointF(0, 0))
-    cross.append(QPointF(size / 2, size / 2))
-    cross.append(QPointF(0, 0))
-    cross.append(QPointF(-size / 2, size / 2))
-    cross.append(QPointF(0, 0))
-    cross.append(QPointF(size / 2, -size / 2))
-    cross.append(QPointF(0, 0))
-
-    @classmethod
-    def fromTriangle(cls, parent=None):
-        color = QColor(255, 255, 255)
-        item = activeMarker(parent=parent)
-        item.setPolygon(cls.triangle)
-        item.setPen(QPen(color))
-        item.setBrush(QBrush(color))
-        # set move range to parent bounding rect
-        item.moveRange = item.parentItem().boundingRect()
-        return item
-
-    @classmethod
-    def fromCross(cls, parent=None):
-        color = QColor(0, 0, 0)
-        item = activeMarker(parent=parent)
-        item.setPolygon(cls.cross)
-        item.setPen(QPen(color))
-        item.setBrush(QBrush(color))
-        # set move range to parent bounding rect
-        item.moveRange = item.parentItem().boundingRect()
-        return item
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.onMouseMove, self.onMouseRelease = lambda e, x, y: 0, lambda e, x, y: 0
-        self.moveRange = QRectF(0.0, 0.0, 0.0, 0.0)
-
-    @property  # read only
-    def currentColor(self):
-        return self.scene().slider2D.QImg.pixelColor((self.pos() - self.parentItem().offset()).toPoint())
-
-    def setMoveRange(self, rect):
-        self.moveRange = rect
-
-    def mousePressEvent(self, e):
-        pass
-
-    def mouseMoveEvent(self, e):
-        # position relative to parent
-        pos = e.scenePos() - self.parentItem().scenePos()
-        x, y = pos.x(), pos.y()
-        # limit move to moveRange
-        xmin, ymin = self.moveRange.left(), self.moveRange.top()
-        xmax, ymax = self.moveRange.right(), self.moveRange.bottom()
-        x, y = xmin if x < xmin else xmax if x > xmax else x, ymin if y < ymin else ymax if y > ymax else y
-        self.setPos(x, y)
-        self.onMouseMove(e, x, y)
-
-    def mouseReleaseEvent(self, e):
-        # position relative to parent
-        pos = e.scenePos() - self.parentItem().scenePos()
-        x, y = pos.x(), pos.y()
-        # limit move to (0,0) and moveRange
-        xmin, ymin = self.moveRange.left(), self.moveRange.top()
-        xmax, ymax = self.moveRange.right(), self.moveRange.bottom()
-        x, y = xmin if x < xmin else xmax if x > xmax else x, ymin if y < ymin else ymax if y > ymax else y
-        self.onMouseRelease(e, x, y)
-
 
 class colorChooser(QGraphicsPixmapItem):
     """
@@ -1111,7 +1097,7 @@ class graphicsForm3DLUT(baseGraphicsForm):
         # context help tag
         self.helpId = "LUT3DForm"
         self.cModel = cModel
-        border = 20
+        self.border = 20
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(axeSize + 90, axeSize + 250)
         self.setAttribute(Qt.WA_DeleteOnClose)
@@ -1123,8 +1109,8 @@ class graphicsForm3DLUT(baseGraphicsForm):
         freshLUT3D = LUT3D(None, size=LUTSize, alpha=True)
         self.graphicsScene.lut = freshLUT3D
         # init 2D slider (color wheel)
-        swatchImg = hueSatPattern(axeSize, axeSize, cModel, bright=self.defaultColorWheelBr, border=border)
-        slider2D = colorChooser(cModel, swatchImg, target=self.targetImage, size=axeSize, border=border)
+        swatchImg = hueSatPattern(axeSize, axeSize, cModel, bright=self.defaultColorWheelBr, border=self.border)
+        slider2D = colorChooser(cModel, swatchImg, target=self.targetImage, size=axeSize, border=self.border)
         #########################################################################
         # CAUTION : sliedr2D has a non null offset
         # slider2D (and QImg) topleft corner is at scene pos -slider2D.offset()
@@ -1143,6 +1129,7 @@ class graphicsForm3DLUT(baseGraphicsForm):
         self.workingMarker.setPos(pt.x(), pt.y())
         self.workingMarker.onMouseMove = lambda e, x, y: self.displayStatus()
 
+
         # swatch event handler
         def f1(p, r, g, b):
             h, s, br = self.cModel.rgb2cm(r, g, b)
@@ -1157,7 +1144,7 @@ class graphicsForm3DLUT(baseGraphicsForm):
         self.bSliderWidth = self.graphicsScene.slider2D.QImg.width()
         px = brightnessPattern(self.bSliderWidth, self.bSliderHeight, cModel, self.currentHue, self.currentSat).rPixmap
         self.graphicsScene.bSlider = QGraphicsPixmapItem(px, parent=self.graphicsScene.slider2D)
-        self.graphicsScene.bSlider.setPos(QPointF(-border, self.graphicsScene.slider2D.QImg.height() - border))
+        self.graphicsScene.bSlider.setPos(QPointF(-self.border, self.graphicsScene.slider2D.QImg.height() - self.border))
         bSliderCursor = activeMarker.fromTriangle(parent=self.graphicsScene.bSlider)
         bSliderCursor.setMoveRange(QRectF(0.0, bSliderCursor.size, self.graphicsScene.bSlider.pixmap().width(), 0.0))
         bSliderCursor.setPos(self.graphicsScene.bSlider.pixmap().width() * self.defaultColorWheelBr, bSliderCursor.size)
@@ -1198,14 +1185,6 @@ class graphicsForm3DLUT(baseGraphicsForm):
         self.pushButton4 = pushButton4
         pushButton5 = QbLUePushButton("Show/Hide All")
         pushButton5.clicked.connect(self.toggleAllNodes)
-
-        # options
-        # options1, optionNames1 = ['use image', 'use selection'], ['Use Image', 'Use Selection']
-        # self.listWidget1 = optionsWidget(options=options1, optionNames=optionNames1, exclusive=True)
-
-        #self.listWidget1.setFocusPolicy(Qt.NoFocus)
-        # set initial selection to 'use image'
-        #self.listWidget1.checkOption(self.listWidget1.intNames[0])
 
         options2, optionNames2 = ['add node', 'remove node'], ['Add Node', 'Remove Node']
         self.listWidget2 = optionsWidget(options=options2, optionNames=optionNames2, exclusive=True)
@@ -1302,7 +1281,7 @@ class graphicsForm3DLUT(baseGraphicsForm):
 
         # layout
         gl = QGridLayout()
-        self.addCommandLayout(gl)  # add before populating
+        container = self.addCommandLayout(gl)  # add before populating
         for i, button in enumerate([pushButton1, pushButton3, pushButton31, pushButton2]):
             gl.addWidget(button, 0, i)
         gl.addWidget(pushButton4, 1, 0)
@@ -1315,6 +1294,8 @@ class graphicsForm3DLUT(baseGraphicsForm):
         hl.addWidget(infoCombo)
         hl.addWidget(self.info)
         gl.addLayout(hl, 3, 0, -1, -1)
+        container.adjustSize()
+        self.setViewportMargins(0, 0, 0, container.height() + 15)  # +15 for scroll bar
 
         # set defaults
         self.colorInfoFormat = 0  # RGB

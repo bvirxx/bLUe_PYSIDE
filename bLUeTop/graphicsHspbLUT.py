@@ -101,10 +101,13 @@ class graphicsHspbForm(graphicsCurveForm):
 
         # layout
         gl = QGridLayout()
-        self.addCommandLayout(gl)
+        container = self.addCommandLayout(gl)
         gl.addWidget(self.listWidget1, 0, 0, 2, 1)
         for i, button in enumerate([pushButton1, pushButton2]):
             gl.addWidget(button, i, 1)
+        container.adjustSize()
+        self.setViewportMargins(0, 0, 0, container.height() + 15)
+
 
         self.setWhatsThis("""<b>HSV curves</b><br>""" + self.whatsThis())
 
