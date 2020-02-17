@@ -1321,6 +1321,7 @@ class graphicsForm3DLUT(baseGraphicsForm):
                         <b>Gamut Warping</b> The whole grid of nodes can be twisted by using Ctrl+Alt+Drag on any of 
                         the four corner vertices of the grid (Press <i>Show/Hide All </i> if they are not visible).<br>
                         The two modes of edition can be freely mixed.<br>
+                        <b>Brightness Control</b> is found in the context menu of node groups.<br> 
                         <b>Warning</b> : Selecting/unselecting nodes with the mouse is enabled only when
                         the Color Chooser is closed.<br>
                         Press the <b> Smooth Grid</b> button to smooth color transitions between neighbor nodes.
