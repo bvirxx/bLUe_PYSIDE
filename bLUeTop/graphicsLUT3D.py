@@ -126,6 +126,13 @@ class nodeGroup(QGraphicsItemGroup):
         self.brightnessItem.setPos(offset.x(), axeSize + 50)
         self.brightnessItem.brightnessThr0.installSceneEventFilter(self.brightnessItem.brightnessThr1)
         self.brightnessItem.brightnessThr1.installSceneEventFilter(self.brightnessItem.brightnessThr0)
+        # group brightness curve
+        self.normalizedLUTXY = np.arange(256, dtype=np.float) / 255.0
+
+        def f8():
+            self.brightnessItem.setVisible(self.isSelected())
+
+        self.scene().selectionChanged.connect(f8)
 
         def f5(e, x, y):
             self.brightnessItem.brightnessThr0.val = self.brightnessItem.brightnessThr0.pos().x() / self.brightnessItem.brightnessSliderWidth
@@ -144,6 +151,7 @@ class nodeGroup(QGraphicsItemGroup):
             l.parentImage.onImageChanged()
 
         def f7():
+            self.normalizedLUTXY[...] = self.brightnessItem.cubic.getLUTXY() / 255.0
             for i in self.childItems():
                 i.syncLUT()
             l = self.scene().layer
@@ -210,12 +218,25 @@ class nodeGroup(QGraphicsItemGroup):
 
         actionBright.triggered.connect(f6)
 
+        actionSync = QAction('Resync', None)
+        menu.addAction(actionSync)
+
+        def f7():
+            for i in self.childItems():
+                i.syncLUT()
+            l = self.scene().layer
+            l.applyToStack()
+            l.parentImage.onImageChanged()
+
+        actionSync.triggered.connect(f7)
+
         # ungroup
         actionUnGroup = QAction('UnGroup', None)
         menu.addAction(actionUnGroup)
 
         def f1():
             childs = self.childItems()
+            self.scene().disconnect(self)
             self.scene().removeItem(self.brightnessItem)
             self.scene().destroyItemGroup(self)
             for item in childs:
@@ -311,6 +332,10 @@ class activeNode(QGraphicsPathItem):
     The node is bound to a fixed list of LUT vertices, corresponding to its initial hue and sat values.
     When a node is moved over the color wheel, calling the method setState synchronizes
     the values of the LUT vertices with the current node position.
+    A LUT vertex may be bound to several (initially neighboring) grid nodes, thereby allowing to
+    express antagonist constraints where nodes are moved away from each other. For the moment
+    we solve conflictings moves on a "last sync first served" basis. activeNode and nodeGroup context menus
+    provide Resync action to modify sync order.
     """
 
     # paths for node drawing
@@ -495,17 +520,17 @@ class activeNode(QGraphicsPathItem):
         # to the highest brightness.
         lut = self.scene().lut.LUT3DArray
         prt = self.parentItem()
+        isGrouped = False
         if type(prt) is nodeGroup:
             isGrouped = True
-            cubic = prt.brightnessItem.cubic
-            brLUT = cubic.getLUTXY()
+            # get group brightness curve : array shape (1, 256), dtype= float values [0..1]
+            brLUT = prt.normalizedLUTXY
             thr0, thr1 = prt.brightnessItem.brightnessThr0.val, prt.brightnessItem.brightnessThr1.val
         else:
-            isGrouped = False
             thr0, thr1 = 0.0, 1.0
         for x in self.LUTIndices:
             p = x.p
-            final_p = brLUT[int(p*255)] / 255 if isGrouped else p
+            final_p = brLUT[int(p * 255.0)] if isGrouped else p
             i, j, k = x.ind
             slc1 = slice(max(k - spread, 0), k + spread + 1)
             slc2 = slice(max(j - spread, 0), j + spread + 1)
@@ -723,6 +748,17 @@ class activeNode(QGraphicsPathItem):
                                                                       position=self.pos(),  # scenePos(),  # TODO modified 14/02/20 validate
                                                                       parent=self.parentItem()))
         actionGroup.setEnabled(len(self.scene().selectedItems()) > 1)
+        actionSync = QAction('Resync', None)
+        menu.addAction(actionSync)
+
+        def f1():
+            self.syncLUT()
+            l = self.scene().layer
+            l.applyToStack()
+            l.parentImage.onImageChanged()
+
+        actionSync.triggered.connect(f1)
+
         actionReset = QAction('Reset', None)
         menu.addAction(actionReset)
         actionReset.triggered.connect(lambda: activeNode.resetNodes(self.scene().selectedItems()))
@@ -1295,7 +1331,7 @@ class graphicsForm3DLUT(baseGraphicsForm):
         hl.addWidget(self.info)
         gl.addLayout(hl, 3, 0, -1, -1)
         container.adjustSize()
-        self.setViewportMargins(0, 0, 0, container.height() + 15)  # +15 for scroll bar
+        self.setViewportMargins(0, 0, 0, container.height() + 35)
 
         # set defaults
         self.colorInfoFormat = 0  # RGB
