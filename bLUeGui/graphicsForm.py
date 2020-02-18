@@ -31,7 +31,7 @@ class bottomWidget(QWidget):
     """
     def __init__(self):
         super().__init__()
-        self.setMaximumSize(400, 180)
+        self.setMaximumSize(400, 150)  # TODO 17/02/20 changed 180 to 150 validate
         self.setMinimumSize(200, 80)
         self.setObjectName('container')
         ss = """QWidget#container{background-color: black}
@@ -210,10 +210,7 @@ class baseGraphicsForm(QGraphicsView, abstractForm):
         vl1 = QVBoxLayout()
         vl1.setAlignment(Qt.AlignBottom)
         vl1.addWidget(container)
-        hl = QHBoxLayout()
-        hl.setAlignment(Qt.AlignLeft)
-        hl.addLayout(vl1)
-        self.setLayout(hl)
+        self.setLayout(vl1)
         return container
 
 
