@@ -146,7 +146,8 @@ class ExifTool(object):
         @param f: path to image file
         @type f: str
         """
-        command = ["-tagsFromFile", f, "-overwrite_original", f[:-4] + ".mie"]
+        # following exif doc, wild cards do not copy icc_profile : we must specify it explicitely TODO modified 19/2/20 validate
+        command = ["-tagsFromFile", f, "-all", "-icc_profile", "-overwrite_original", f[:-4] + ".mie"]
         self.execute(*command)
 
     def copySidecar(self, source, dest, removesidecar=False):
@@ -166,7 +167,8 @@ class ExifTool(object):
         sidecar = source[:-4] + '.mie'
         if isfile(sidecar):
             # copy metadata from sidecar to image file
-            command = ["-tagsFromFile", sidecar, "-overwrite_original", dest]
+            # following exif doc, wild cards do not copy icc_profile : we must specify it explicitely TODO modified 19/2/20 validate
+            command = ["-tagsFromFile", sidecar, "-all", "-icc_profile", "-overwrite_original", dest]
             self.execute(*command)
         else:
             return False
