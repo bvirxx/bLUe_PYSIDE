@@ -182,12 +182,12 @@ class savingDialog(QDialog):
         self.sliderComp.setTickPosition(QSlider.TicksBelow)
         self.sliderComp.setRange(0, 9)
         self.sliderComp.setSingleStep(1)
-        self.sliderComp.setValue(5)
+        self.sliderComp.setValue(3)  # 3 = default opencv imwrite value  TODO changed 5 to 3 20/02/20 validate
         self.sliderQual = QbLUeSlider(Qt.Horizontal)
         self.sliderQual.setTickPosition(QSlider.TicksBelow)
         self.sliderQual.setRange(0, 100)
         self.sliderQual.setSingleStep(10)
-        self.sliderQual.setValue(90)
+        self.sliderQual.setValue(95)  # 95 = default opencv imwrite value  # TODO changed 90 to 95 20/02/20 validate
         self.dlg.setVisible(True)
         l = QVBoxLayout()
         h = QHBoxLayout()
@@ -244,60 +244,16 @@ def saveDlg(img, mainWidget, selected=True):
     if selected:
         # default saving format jpg
         dlg.selectFile(img.filename[:-3] + 'jpg')
+    filename = ''
     if dlg.exec_():
         newDir = dlg.directory().absolutePath()
         mainWidget.settings.setValue('paths/dlgsavedir', newDir)
         filenames = dlg.selectedFiles()
         if filenames:
             filename = filenames[0]
-        else:
-            raise ValueError("You must select a file")
-        if isfile(filename):
-            reply = QMessageBox()
-            reply.setWindowTitle('Warning')
-            reply.setIcon(QMessageBox.Warning)
-            reply.setText("File %s already exists\n" % filename)
-            reply.setStandardButtons(QMessageBox.Cancel)
-            accButton = QPushButton("Save as New Copy")
-            rejButton = QPushButton("OverWrite")
-            reply.addButton(accButton, QMessageBox.AcceptRole)
-            reply.addButton(rejButton, QMessageBox.RejectRole)
-            reply.setDefaultButton(accButton)
-            reply.exec_()
-            retButton = reply.clickedButton()
-            # build a unique name
-            if retButton is accButton:
-                i = 0
-                base = filename
-                if '_copy' in base:
-                    flag = '_'
-                else:
-                    flag = '_copy'
-                while isfile(filename):
-                    filename = base[:-4] + flag + str(i) + base[-4:]
-                    i = i+1
-            # overwrite
-            elif retButton is rejButton:
-                pass
-            else:
-                raise ValueError("Saving Operation Failure")
-        # get parameters
-        quality = dlg.sliderQual.value()
-        compression = dlg.sliderComp.value()
-        # call mImage.save to write image to file and return a thumbnail
-        # throw ValueError or IOError
-        thumb = img.save(filename, quality=quality, compression=compression)
-        # write metadata
-        if not dlg.metaOption.isChecked():
-            tempFilename = mktemp('.jpg')
-            # save thumb jpg to temp file
-            thumb.save(tempFilename)
-            # copy temp file to image file, img.filename not updated yet
-            img.restoreMeta(img.filename, filename, thumbfile=tempFilename)
-            os.remove(tempFilename)
-        return filename
     else:
-        raise ValueError("Saving Operation Failure")
+        raise ValueError("You must select a file")
+    return filename, dlg.sliderQual.value(), dlg.sliderComp.value(), not dlg.metaOption.isChecked()
 
 
 def openDlg(mainWidget, ask=True, multiple=False):

@@ -360,6 +360,62 @@ def openFile(f, window=window):
         QApplication.restoreOverrideCursor()
         QApplication.processEvents()
 
+def saveFile(filename, img, quality=-1, compression=-1, writeMeta=True):
+    """
+    Save image and meta data to file
+    @param filename:
+    @type filename:
+    @param img:
+    @type img:
+    @param quality:
+    @type quality:
+    @param compression:
+    @type compression:
+    @param writeMeta:
+    @type writeMeta:
+    """
+    if isfile(filename):
+        reply = QMessageBox()
+        reply.setWindowTitle('Warning')
+        reply.setIcon(QMessageBox.Warning)
+        reply.setText("File %s already exists\n" % filename)
+        reply.setStandardButtons(QMessageBox.Cancel)
+        accButton = QPushButton("Save as New Copy")
+        rejButton = QPushButton("OverWrite")
+        reply.addButton(accButton, QMessageBox.AcceptRole)
+        reply.addButton(rejButton, QMessageBox.RejectRole)
+        reply.setDefaultButton(accButton)
+        reply.exec_()
+        retButton = reply.clickedButton()
+        # build a unique name
+        if retButton is accButton:
+            i = 0
+            base = filename
+            if '_copy' in base:
+                flag = '_'
+            else:
+                flag = '_copy'
+            while isfile(filename):
+                filename = base[:-4] + flag + str(i) + base[-4:]
+                i = i + 1
+        # overwrite
+        elif retButton is rejButton:
+            pass
+        else:
+            raise ValueError("Saving Operation Failure")
+    # call mImage.save to write image to file and return a thumbnail
+    # throw ValueError or IOError
+    thumb = img.save(filename, quality=quality, compression=compression)
+    # write metadata
+    if writeMeta:
+        tempFilename = mktemp('.jpg')
+        # save thumb jpg to temp file
+        thumb.save(tempFilename)
+        # copy temp file to image file, img.filename not updated yet
+        img.restoreMeta(img.filename, filename, thumbfile=tempFilename)
+        os.remove(tempFilename)
+    return filename
+
 
 def closeFile(window=window):
     """
@@ -593,11 +649,15 @@ def menuFile(name, window=window):
         if window.label.img.useThumb:
             dlgWarn("Uncheck Preview mode before saving")
         else:
+            img = window.label.img
             try:
-                filename = saveDlg(window.label.img, window, selected=not saveAs)
                 if saveAs:
-                    window.label.img.filename = filename
-                    window.tabBar.setTabText(window.tabBar.currentIndex(), basename(filename))
+                    filename, quality, compression, writeMeta = saveDlg(img, window, selected=not saveAs)
+                    filename = saveFile(filename, img, quality=quality, compression=compression, writeMeta=writeMeta)
+                else:
+                    filename = saveFile(img.filename, img, writeMeta=True)
+                img.filename = filename  # don't move up !
+                window.tabBar.setTabText(window.tabBar.currentIndex(), basename(filename))
                 dlgInfo("%s written" % filename)
                 window.label.img.setModified(False)
             except (ValueError, IOError) as e:

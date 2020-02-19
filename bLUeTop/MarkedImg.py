@@ -469,16 +469,18 @@ class mImage(vImage):
         # due to bugs in libtiff, hence we use opencv imwrite.
         fileFormat = filename[-3:].upper()
         buf = QImageBuffer(img)
+        params = []
         if fileFormat == 'JPG':
             transparencyCheck(buf)
             buf = buf[:, :, :3]
-            params = [cv2.IMWRITE_JPEG_QUALITY, quality]  # quality range 0..100
+            if quality >= 0 and quality <= 100:
+                params = [cv2.IMWRITE_JPEG_QUALITY, quality]  # quality range 0..100
         elif fileFormat == 'PNG':
-            params = [cv2.IMWRITE_PNG_COMPRESSION, compression]  # compression range 0..9
+            if compression >= 0 and compression <= 9:
+                params = [cv2.IMWRITE_PNG_COMPRESSION, compression]  # compression range 0..9
         elif fileFormat == 'TIF':
             transparencyCheck(buf)
             buf = buf[:, :, :3]
-            params = []
         else:
             raise IOError("Invalid File Format\nValid formats are jpg, png, tif ")
         if self.isCropped:
