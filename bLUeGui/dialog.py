@@ -221,29 +221,32 @@ class savingDialog(QDialog):
         return self.dlg.directory()
 
 
-def saveDlg(img, mainWidget):
+def saveDlg(img, mainWidget, selected=True):
     """
     Image saving dialogs. The actual saving is
     done by a call to mImage.save(). Metadata is copied from sidecar
     to image file. The function returns the image file name.
     Exception ValueError or IOError are raised if the saving fails.
+    If selected is False, the filename box is leaved empty and no file is selected.
     @param img:
     @type img: vImage
     @param mainWidget:
     @type mainWidget: QWidget
+    @param selected:
+    @type selected: boolean
     @return: filename
     @rtype: str
     """
     # get last accessed dir
-    lastDir = str(mainWidget.settings.value("paths/dlgdir", QDir.currentPath()))
+    lastDir = str(mainWidget.settings.value("paths/dlgsavedir", QDir.currentPath()))
     # file dialogs
     dlg = savingDialog(mainWidget, "Save", lastDir)
-    # default saving format JPG
-    dlg.selectFile(img.filename[:-3] + 'JPG')
-    dlg.dlg.currentChanged.connect(lambda f: print(f))
+    if selected:
+        # default saving format jpg
+        dlg.selectFile(img.filename[:-3] + 'jpg')
     if dlg.exec_():
         newDir = dlg.directory().absolutePath()
-        mainWidget.settings.setValue('paths/dlgdir', newDir)
+        mainWidget.settings.setValue('paths/dlgsavedir', newDir)
         filenames = dlg.selectedFiles()
         if filenames:
             filename = filenames[0]
@@ -289,7 +292,7 @@ def saveDlg(img, mainWidget):
             tempFilename = mktemp('.jpg')
             # save thumb jpg to temp file
             thumb.save(tempFilename)
-            # copy temp file to image file
+            # copy temp file to image file, img.filename not updated yet
             img.restoreMeta(img.filename, filename, thumbfile=tempFilename)
             os.remove(tempFilename)
         return filename
