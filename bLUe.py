@@ -196,7 +196,7 @@ credit https://icones8.fr/
 
 ##############
 #  Version number
-VERSION = "v2.1.0"
+VERSION = "v2.1.1"
 ##############
 
 ##############
@@ -549,6 +549,7 @@ def updateEnabledActions(window=window):
     """
     window.actionColor_manage.setChecked(icc.COLOR_MANAGE)
     window.actionSave.setEnabled(window.label.img.isModified)
+    window.actionSave_As.setEnabled(window.label.img.isModified)
     window.actionSave_Hald_Cube.setEnabled(window.label.img.isHald)
 
 
@@ -577,7 +578,7 @@ def menuFile(name, window=window):
                 img = imImage(QImg=imgNew)
         if img is None:
             return
-        img.filename ='unnamed'
+        img.filename = 'unnamed'
         loadImage(img, withBasic=False)
     # load image from file
     elif name in ['actionOpen']:
@@ -587,12 +588,16 @@ def menuFile(name, window=window):
         if filename is not None:
             openFile(filename)
     # saving dialog
-    elif name == 'actionSave':
+    elif name == 'actionSave' or name == 'actionSave_As':
+        saveAs = (name=='actionSave_As')
         if window.label.img.useThumb:
             dlgWarn("Uncheck Preview mode before saving")
         else:
             try:
-                filename = saveDlg(window.label.img, window)
+                filename = saveDlg(window.label.img, window, selected=not saveAs)
+                if saveAs:
+                    window.label.img.filename = filename
+                    window.tabBar.setTabText(window.tabBar.currentIndex(), basename(filename))
                 dlgInfo("%s written" % filename)
                 window.label.img.setModified(False)
             except (ValueError, IOError) as e:
@@ -706,7 +711,6 @@ def menuImage(name, window=window):
         s = s + "\n\ndim : %d x %d" % (img.width(), img.height())
         # profile info
         if img.meta.profile is not None:
-            if len(img.meta.profile) > 0:
                 s = s + "\n\nEmbedded profile found"  # length %d" % len(img.meta.profile)
         workingProfileInfo = icc.workingProfileInfo
         s = s + "\n\nWorking Profile : %s" % workingProfileInfo
@@ -770,7 +774,6 @@ def menuImage(name, window=window):
         if dlg.exec_():
             img = window.label.img.resize(dims['w'] * dims['h'])
             img.filename = 'unnamed'
-            window.tabBar.find
             setDocumentImage(img)
             img.layersStack[0].applyToStack()
     # rating
@@ -1251,7 +1254,6 @@ def canClose(window=window):
 def updateStatus(window=window):
     """
     Display current status
-
     """
     img = window.label.img
     # filename and rating
@@ -1268,7 +1270,7 @@ def updateStatus(window=window):
     if window.viewState == 'Before/After':
         s += '&nbsp;&nbsp;&nbsp;&nbsp;Before/After : Ctrl+Space : cycle through views - Space : switch back to workspace'
     else:
-        s += '&nbsp;&nbsp;&nbsp;&nbsp;Press Space Bar to toggle Before/After view'
+        s += '&nbsp;&nbsp;&nbsp;&nbsp;Space : toggle Before/After view'
     # cropping
     if window.label.img.isCropped:
         w, h = window.cropTool.crWidth, window.cropTool.crHeight
