@@ -109,9 +109,10 @@ class mixerForm(baseGraphicsForm):
         self.setDefaults()
         self.setWhatsThis(
                         """<b>Channel Mixer</b><br>
-                        To <b>mix the R, G, B channels</b>, drag the 3 control points inside the triangle.<br>
-                        The triangle vertices and the control points correspond to channels.
-                        The closer a control point is to a vertex, the greater the corresponding channel contribution.  
+                        The triangle vertices and the control points correspond to the R, G, B channels .<br>
+                        To <b>mix the channels</b>, drag the 3 control points inside the triangle.
+                        The closer a control point is to a vertex, the greater the corresponding channel contribution. <br>
+                        Checking the option <i>Monochrome</i> gives monochrome images only.
                         """
                         )  # end of setWhatsThis
 
