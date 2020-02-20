@@ -314,12 +314,14 @@ class ExifTool(object):
         # Using PIL _getexif is simpler.
         # However, exiftool is much more powerful
         if tags is None:
-            flags = ["-j", "-a", "-n", "-S"]  # -XMP:all", "-EXIF:all", "-n", "-S", "-G0", "-Orientation", "-ProfileDescription",
+            flags = ["-j", "-a", "-n", "-S"]  # -j = json export format
         else:
             flags = ["-j", "-n", "-S"] + ['-' + tag for tag in tags]
+        # try to extract profile
         extract_meta_flags = ["-icc_profile", "-b"]
         command = extract_meta_flags + [f]
         profile = self.execute(*command, ascii=False)
+        # extract tags
         command = flags + [f]
         data = json.loads(self.execute(*command))
         # create sidecar file
