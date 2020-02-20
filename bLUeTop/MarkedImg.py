@@ -516,9 +516,6 @@ class imImage(mImage):
         For a raw file, it is the image postprocessed with default parameters.
         metadata is a list of dicts with len(metadata) >=1.
         metadata[0] contains at least 'SourceFile' : path.
-        profile is a string containing the profile binary data,
-        currently, we do not use these data : standard profiles
-        are loaded from disk, non standard profiles are ignored.
         @param f: path to file
         @type f: str
         @param createsidecar:
@@ -528,12 +525,9 @@ class imImage(mImage):
         @return: image
         @rtype: imImage
         """
-        ###########
-        # read metadata
-        ##########
+        # read metadata from sidecar (.mie) if it exists, otherwise from image file.
+        # The sidecar is created if it does not exist and createsidecar is True.
         try:
-            # read metadata from sidecar (.mie) if it exists, otherwise from image file.
-            # The sidecar is created if it does not exist and createsidecar is True.
             with exiftool.ExifTool() as e:
                 profile, metadata = e.get_metadata(f, tags=(
                 "colorspace", "profileDescription", "orientation", "model", "rating"), createsidecar=createsidecar)
@@ -541,13 +535,14 @@ class imImage(mImage):
         except ValueError:
             # Default metadata and profile
             metadata = {'SourceFile': f}
-            profile = ''
+            profile = b''
             imageInfo = 'No data found'
-        # color space : 1=sRGB 65535=uncalibrated
+        # try to find a color space : 1=sRGB 65535=uncalibrated
         tmp = [value for key, value in metadata.items() if 'colorspace' in key.lower()]
         colorSpace = tmp[0] if tmp else -1
-        # try again to find a valid color space tag and/or an imbedded profile.
+        # try again to find a valid imbedded profile.
         # If everything fails, assign sRGB.
+        cmsProfile = None
         if colorSpace == -1 or colorSpace == 65535:
             tmp = [value for key, value in metadata.items() if 'profiledescription' in key.lower()]
             desc_colorSpace = tmp[0] if tmp else ''
@@ -557,15 +552,18 @@ class imImage(mImage):
                     # may be a Qt Bug, cf. https://bugreports.qt.io/browse/QTBUG-42117
                     QApplication.changeOverrideCursor(QCursor(Qt.ArrowCursor))
                     QApplication.processEvents()
-                    if len(desc_colorSpace) > 0:
-                        # convert profile to ImageCmsProfile object
-                        profile = ImageCmsProfile(BytesIO(profile))
-                    else:
-                        dlgInfo("Color profile is missing\nAssigning sRGB")  # modified 08/10/18 validate
+                    if len(desc_colorSpace) > 0:  # a probably valid profile was found
+                        try:
+                            # convert profile to ImageCmsProfile object
+                            cmsProfile = ImageCmsProfile(BytesIO(profile))
+                        except TypeError:  # raised by ImageCmsProfile()
+                            pass
+                    if cmsProfile is None:
+                        dlgInfo("Color profile is missing\nAssigning sRGB")
                         # assign sRGB profile
                         colorSpace = 1
         # update the color management object with the image profile.
-        icc.configure(colorSpace=colorSpace, workingProfile=profile)
+        icc.configure(colorSpace=colorSpace, workingProfile=cmsProfile)
         # orientation
         tmp = [value for key, value in metadata.items() if 'orientation' in key.lower()]
         orientation = tmp[0] if tmp else 0  # metadata.get("EXIF:Orientation", 0)
