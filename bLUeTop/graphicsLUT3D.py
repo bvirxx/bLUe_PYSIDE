@@ -22,7 +22,7 @@ import cv2
 
 import numpy as np
 
-from PySide2.QtCore import QSize
+from PySide2.QtCore import QSize, QObject
 from PySide2.QtWidgets import QAction, QFileDialog, QToolTip, QHBoxLayout, \
     QApplication, QGridLayout, QComboBox, QLineEdit, QLabel
 from PySide2.QtGui import QPainter, QPolygonF, QPainterPath, QPen, QBrush, QColor, QPixmap, QTransform
@@ -79,7 +79,7 @@ class index(object):
         return hash("%d%d%d" % self.ind)
 
 
-class nodeGroup(QGraphicsItemGroup):
+class nodeGroup(QGraphicsItemGroup, QObject):  # QObject needed by disconnect()
 
     @classmethod
     def groupFromList(cls, items, grid=None, position=QPointF(), parent=None):
@@ -243,7 +243,6 @@ class nodeGroup(QGraphicsItemGroup):
                 item.setPen(QPen(Qt.red if item.isControl() else Qt.black))
                 item.setSelected(True)
             self.grid.drawGrid()
-            # self.scene().onUpdateLUT(options=self.scene().options)
 
         actionUnGroup.triggered.connect(f1)
 
