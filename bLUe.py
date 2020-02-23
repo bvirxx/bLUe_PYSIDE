@@ -308,7 +308,7 @@ def loadImage(img, withBasic=True, window=window):
     setDocumentImage(img)
     # switch to preview mode and process stack
     window.tableView.previewOptionBox.setChecked(True)
-    window.tableView.previewOptionBox.stateChanged.emit(Qt.Checked)
+    # window.tableView.previewOptionBox.stateChanged.emit(Qt.Checked)  # TODO removed 22/02/20 stack is processed below validate
     # add development layer for raw image, and develop
     if img.rawImage is not None:
         addRawAdjustmentLayer()
@@ -335,7 +335,7 @@ def openFile(f, window=window):
         QApplication.setOverrideCursor(Qt.WaitCursor)
         QApplication.processEvents()
         # load imImage from file
-        img = imImage.loadImageFromFile(f, window=window)
+        img = imImage.loadImageFromFile(f, cmsConfigure=True, window=window)
         # init layers
         if img is not None:
             loadImage(img)
@@ -500,6 +500,8 @@ def setDocumentImage(img, window=window):
     """
     if img is None:
         return
+    # restore color management
+    icc.configure(colorSpace=img.colorSpace, workingProfile=img.cmsProfile)
     # restore GUI
     window.label.img.savedBtnValues = window.btnValues.copy()
     d = img.savedBtnValues

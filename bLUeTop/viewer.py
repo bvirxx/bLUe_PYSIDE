@@ -142,7 +142,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
             # don't display image with low rating
             if rating < 2:
                 app.processEvents()
-            imImg = imImage.loadImageFromFile(name, createsidecar=False, window=window)
+            imImg = imImage.loadImageFromFile(name, createsidecar=False, cmsConfigure=True, window=window)
             # zoom might be modified by the mouse wheel : remember
             if label.img is not None:
                 imImg.Zoom_coeff = label.img.Zoom_coeff

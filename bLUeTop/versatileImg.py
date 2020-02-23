@@ -35,6 +35,7 @@ from bLUeCore.multi import chosenInterp
 from bLUeTop.QtGui1 import app
 from bLUeTop.align import alignImages
 from bLUeTop.cloning import alphaBlend
+from bLUeTop.colorManagement import icc
 
 from bLUeTop.graphicsBlendFilter import blendFilterIndex
 
@@ -312,7 +313,7 @@ class vImage(bImage):
         @type format: QImage.Format
         @param name: image name
         @type name: str
-        @param colorSpace: color space (default : notSpecified)
+        @param colorSpace: color space (default : not specified)
         @type colorSpace: MarkedImg.colorSpace
         @param orientation: Qtransform object (default None)
         @type orientation: Qtransform
@@ -361,6 +362,8 @@ class vImage(bImage):
                                                                             name, colorSpace, rawMetadata, profile, orientation, rating
         else:
             self.meta = meta
+        self.colorSpace = self.meta.colorSpace
+        self.cmsProfile = icc.defaultWorkingProfile  # TODO 20/02/20 possibly does not match colorSpace
         if filename is None and cv2Img is None and QImg is None:
             # create a null image
             super().__init__()
@@ -411,7 +414,7 @@ class vImage(bImage):
 
     def cameraModel(self):
         tmp = [value for key, value in self.meta.rawMetadata.items() if 'model' in key.lower()]
-        return tmp[0] if tmp else ''  # self.meta.rawMetadata.get('EXIF:Model', '')  # UniqueCameraModel works for dng
+        return tmp[0] if tmp else ''
 
     def initThumb(self):
         """

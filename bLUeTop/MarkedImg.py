@@ -101,7 +101,7 @@ class mImage(vImage):
         self.activeLayerIndex = None
         self.addLayer(bgLayer, name='Background')
         # color management : we assume that the image profile is the working profile
-        self.colorTransformation = icc.workToMonTransform
+        # self.colorTransformation = icc.workToMonTransform  TODO turned into a property 22/02/20 validate
         # presentation layer
         prLayer = QPresentationLayer(QImg=self, parentImage=self)
         prLayer.name = 'presentation'
@@ -111,6 +111,15 @@ class mImage(vImage):
         self.prLayer = prLayer
         # link to rawpy instance
         self.rawImage = None
+
+    @property
+    def colorTransformation(self):
+        """
+        Returns the current cms transformation from working profile to monitor profile
+        @return:
+        @rtype: CmsTransform object
+        """
+        return icc.workToMonTransform
 
     def copyStack(self, source):
        """
@@ -510,7 +519,7 @@ class imImage(mImage):
     this is the base class for bLUe documents
     """
     @staticmethod
-    def loadImageFromFile(f, createsidecar=True, icc=icc, window=None):
+    def loadImageFromFile(f, createsidecar=True, icc=icc, cmsConfigure=False, window=None):
         """
         load an imImage (image and metadata) from file. Returns the loaded imImage :
         For a raw file, it is the image postprocessed with default parameters.
@@ -522,6 +531,8 @@ class imImage(mImage):
         @type createsidecar: boolean
         @param icc:
         @type icc: class icc
+        @param cmsConfigure:
+        @type cmsConfigure: boolean
         @return: image
         @rtype: imImage
         """
@@ -562,8 +573,9 @@ class imImage(mImage):
                         dlgInfo("Color profile is missing\nAssigning sRGB")
                         # assign sRGB profile
                         colorSpace = 1
-        # update the color management object with the image profile.
-        icc.configure(colorSpace=colorSpace, workingProfile=cmsProfile)
+        if cmsConfigure:
+            # update the color management object with the image profile.
+            icc.configure(colorSpace=colorSpace, workingProfile=cmsProfile)
         # orientation
         tmp = [value for key, value in metadata.items() if 'orientation' in key.lower()]
         orientation = tmp[0] if tmp else 0  # metadata.get("EXIF:Orientation", 0)
@@ -624,6 +636,9 @@ class imImage(mImage):
         img.imageInfo = imageInfo
         window.settings.setValue('paths/dlgdir', QFileInfo(f).absoluteDir().path())
         img.initThumb()
+        # update color management related attributes
+        img.colorSpace = colorSpace
+        img.cmsProfile = cmsProfile
         return img
 
 

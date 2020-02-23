@@ -39,8 +39,39 @@ class icc:
     """
     HAS_COLOR_MANAGE = False  # menu action "color manage" will be disabled
     COLOR_MANAGE = False  # no color management
+    defaultWorkingProfile = getOpenProfile(SRGB_PROFILE_PATH)
     monitorProfile, workingProfile, workToMonTransform = (None,)*3
     workingProfileInfo, monitorProfileInfo = '', ''
+
+    @staticmethod
+    def B_get_display_profile(handle=None):
+        """
+        bLUe version for get_display_profile: should be
+        completed.
+        Note. The PIL function ImageCms.get_display_profile is system dependent,
+        it fails (at least) for win64.
+        @param handle: screen handle (Windows)
+        @type handle: int
+        @return: monitor profile
+        @rtype: ImageCmsProfile
+        """
+        if sys.platform == "win32":
+            # from PIL import ImageWin
+            # if isinstance(handle, ImageWin.HDC):
+            profile = core.get_display_profile_win32(handle, 1)
+            # else:
+            # profile = core.get_display_profile_win32(handle or 0)
+        else:
+            profile = DEFAULT_MONITOR_PROFILE_PATH
+            """
+            try:
+                get = _imagingcms.get_display_profile
+            except AttributeError:
+                return None
+            else:
+                profile = get()
+            """
+        return ImageCmsProfile(profile)
 
     @classmethod
     def configure(cls, qscreen=None, colorSpace=-1, workingProfile=None):
@@ -68,7 +99,7 @@ class icc:
                 cls.monitorProfileInfo = getProfileInfo(cls.monitorProfile)
             # get working profile as CmsProfile object
             if colorSpace == 1:
-                cls.workingProfile = getOpenProfile(SRGB_PROFILE_PATH)
+                cls.workingProfile = cls.defaultWorkingProfile  # getOpenProfile(SRGB_PROFILE_PATH)
             elif colorSpace == 2:
                 cls.workingProfile = getOpenProfile(ADOBE_RGB_PROFILE_PATH)
             elif type(workingProfile) is ImageCmsProfile:
@@ -96,36 +127,6 @@ class icc:
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
-
-    @staticmethod
-    def B_get_display_profile(handle=None):
-        """
-        bLUe version for get_display_profile: should be
-        completed.
-        Note. The PIL function ImageCms.get_display_profile is system dependent,
-        it fails (at least) for win64.
-        @param handle: screen handle (Windows)
-        @type handle: int
-        @return: monitor profile
-        @rtype: ImageCmsProfile
-        """
-        if sys.platform == "win32":
-            # from PIL import ImageWin
-            # if isinstance(handle, ImageWin.HDC):
-            profile = core.get_display_profile_win32(handle, 1)
-            # else:
-                # profile = core.get_display_profile_win32(handle or 0)
-        else:
-            profile = DEFAULT_MONITOR_PROFILE_PATH
-            """
-            try:
-                get = _imagingcms.get_display_profile
-            except AttributeError:
-                return None
-            else:
-                profile = get()
-            """
-        return ImageCmsProfile(profile)
 
     @classmethod
     def getMonitorProfile(cls, qscreen=None):
