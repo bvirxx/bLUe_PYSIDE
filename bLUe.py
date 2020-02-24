@@ -287,6 +287,7 @@ def addRawAdjustmentLayer(window=window):
     rlayer.view = dock
     # add to docking area
     window.addDockWidget(Qt.RightDockWidgetArea, dock)
+    dock.tabbed = True  # TODO added 24/02/20 validate
     # update layer stack view
     window.tableView.setLayers(window.label.img)
 
