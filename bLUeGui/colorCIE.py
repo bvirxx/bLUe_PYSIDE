@@ -19,7 +19,7 @@ import cv2
 import numpy as np
 
 #############################################################################
-# Temperature dependent conversion functions are located in this module:    #
+# Profile dependent conversion functions are located in this module:        #
 # sRGB2LabVec, lab2sRGBVec, XYZ2sRGB, sRGB2XYZ, XYZ2sRGBLinear.             #
 # Other conversion functions are change of coordinates in                   #
 # a single RGB color space. They are located in the module                  #
@@ -223,7 +223,7 @@ def rgb2rgbLinear(rgbColors):
         return c2cl(r), c2cl(g), c2cl(b)
 
 
-def sRGB2XYZ(rgbColors):
+def RGB2XYZ(rgbColors, RGB_lin2XYZ=sRGB_lin2XYZ):
     """
     Conversion from sRGB (D65) to XYZ.
     Input values should be in integers in range 0..255 AND
@@ -235,30 +235,35 @@ def sRGB2XYZ(rgbColors):
     Moreover, RGB-->XYZ and XYZ-->RGB matrices are not inverse transformations!
     This yields incorrect results.
     As a workaround, we first convert to rgbLinear,
-    and next use the conversion matrices from
-    U{http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html}
+    and next, we use the conversion matrix from RGB_linear to XYZ, which
+    defaults to the matrix from D65 sRGB to XYZ provided in
+    U{http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html}.
     @param rgbColors: color or array of RGB colors
     @type rgbColors: tuple or list of 3 scalars, or ndarray with last_dim = 3
+    @param RGB_lin2XYZ: conversion matrix
+    @type RGB_lin2XYZ: ndarray, shape=(3,3)
     @return: colors converted to the XYZ color space
     @rtype: ndarray, dtype numpy float64
     """
     bufLinear = rgb2rgbLinear(rgbColors)
-    bufXYZ = np.tensordot(bufLinear, sRGB_lin2XYZ, axes=(-1, -1))
+    bufXYZ = np.tensordot(bufLinear, RGB_lin2XYZ, axes=(-1, -1))
     return bufXYZ
 
 
-def XYZ2sRGBLinear(imgBuf):
+def XYZ2RGBLinear(imgBuf, RGB_lin2XYZInverse=sRGB_lin2XYZInverse):
     """
     vectorized conversion from XYZ to LINEAR sRGB (D65)
     @param imgBuf: image buffer,  XYZ color space
     @type imgBuf: list or 3-uple of scalars or ndarray shape (w, h, 3)
+    @param RGB_lin2XYZInverse: conversion matrix
+    @type RGB_lin2XYZInverse: ndarray, shape=(3,3)
     @return: image buffer mode sRGB LINEAR, range 0..1
     @rtype: ndarray, shape (w, h, 3), dtype numpy.float64
     """
-    return np.tensordot(imgBuf, sRGB_lin2XYZInverse, axes=(-1, -1))
+    return np.tensordot(imgBuf, RGB_lin2XYZInverse, axes=(-1, -1))
 
 
-def XYZ2sRGB(XYZColors):
+def XYZ2RGB(XYZColors, RGB_lin2XYZInverse=sRGB_lin2XYZInverse):
     """
     Converts XYZ colors to gamma-adapted sRGB (D65) colors.
     Input values should be in range 0..1.
@@ -267,11 +272,14 @@ def XYZ2sRGB(XYZColors):
     for RGB<-->XYZ conversion, cf.
     U{http://docs.opencv.org/trunk/de/d25/imgproc_color_conversions.html#color_convert_rgb_xyz}.
     Moreover, RGB-->XYZ and XYZ-->RGB matrices are not inverse transformations!
-    This yields incorrect results. As a workaround, we first convert to rgbLinear,
-    and next use the sRGB <--> XYZ conversion matrices from
+    This yields incorrect results. As a workaround, we first convert to RGB_linear,
+    and next we use the XYZ --> RGB_linear conversion matrix, which defaults to the
+    conversion matrix from XYZ to D65 sRGB_linear provided by
     U{http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html}
     @param XYZColors: color, mode XYZ, range 0..1
     @type XYZColors: tuple or list of 3 scalars, or ndarray with last dim = 3
+    @param RGB_lin2XYZInverse: conversion matrix
+    @type RGB_lin2XYZInverse: ndarray, shape=(3, 3)
     @return: RGB colors
     @rtype:  identical to type of input
     """
@@ -287,14 +295,14 @@ def XYZ2sRGB(XYZColors):
     if M > 1:
         XYZColors /= M       # TODO a better approach is to to clip c1 ?
         print('XYZ2sRGBVec warning : Y channel max %.5f' % M)
-    c1 = XYZ2sRGBLinear(XYZColors)
+    c1 = XYZ2RGBLinear(XYZColors, RGB_lin2XYZInverse=RGB_lin2XYZInverse)
     c2 = rgbLinear2rgb(c1)
     return c2
 
 
-def sRGB2LabVec(bufsRGB, useOpencv=True):
+def sRGB2LabVec(bufsRGB, RGB_lin2XYZ=sRGB_lin2XYZ, useOpencv=True):
     """
-    Vectorized sRGB to Lab conversion for 8 bits images only.  No clipping
+    Vectorized sRGB to Lab conversion for 8 bits images only. No clipping
     is performed. If useOpencv is True (default, faster),
     we use opencv cvtColor (Note that it seems to perform
     linearizations, in contrast to sRGB <---> XYZ conversions)
@@ -316,7 +324,7 @@ def sRGB2LabVec(bufsRGB, useOpencv=True):
         bufLab[:, :, 1:] -= 128
     else:
         oldsettings = np.seterr(all='ignore')
-        bufXYZ = sRGB2XYZ(bufsRGB)  # * 100.0
+        bufXYZ = RGB2XYZ(bufsRGB, RGB_lin2XYZ=RGB_lin2XYZ)
         YoverYn = bufXYZ[:, :, 1] / Yn
         bufL = np.sqrt(YoverYn)
         bufa = Ka * (bufXYZ[:, :, 0] / Xn - YoverYn) / bufL
@@ -328,13 +336,13 @@ def sRGB2LabVec(bufsRGB, useOpencv=True):
     return bufLab
 
 
-def Lab2sRGBVec(bufLab, useOpencv=True):
+def Lab2sRGBVec(bufLab, RGB_lin2XYZInverse=sRGB_lin2XYZInverse, useOpencv=True):
     """
     Vectorized Lab to sRGB conversion. No clipping
     is performed. If useOpencv is True (default, faster),
-    we use opencv cvtColor.
-
-    See U{https://en.wikipedia.org/wiki/Lab_color_space}
+    we use opencv cvtColor, the drawback being the impossibility
+    to specify the conversion matrix from XYZ to RGB. For direct conversion
+    see U{https://en.wikipedia.org/wiki/Lab_color_space}
     @param bufLab: image buffer, mode Lab, range 0..1
     @type bufLab: ndarray, dtype numpy float
     @param useOpencv:
@@ -354,7 +362,7 @@ def Lab2sRGBVec(bufLab, useOpencv=True):
         bufX = Xn * ((bufa / Ka) * bufL + bufL2)
         bufZ = Zn * (bufL2 - (bufb / Kb) * bufL)
         bufXYZ = np.dstack((bufX, bufY, bufZ))  # /100.0
-        bufsRGB = XYZ2sRGB(bufXYZ)
+        bufsRGB = XYZ2RGB(bufXYZ, RGB_lin2XYZInverse=RGB_lin2XYZInverse)
         # converting invalid values to int gives indeterminate results
         bufsRGB[np.isnan(bufsRGB)] = 0.0  # TODO should be np.inf or np.isfinite ?
     return bufsRGB

@@ -100,8 +100,6 @@ class mImage(vImage):
         bgLayer.isClipping = True
         self.activeLayerIndex = None
         self.addLayer(bgLayer, name='Background')
-        # color management : we assume that the image profile is the working profile
-        # self.colorTransformation = icc.workToMonTransform  TODO turned into a property 22/02/20 validate
         # presentation layer
         prLayer = QPresentationLayer(QImg=self, parentImage=self)
         prLayer.name = 'presentation'
@@ -553,7 +551,7 @@ class imImage(mImage):
         colorSpace = tmp[0] if tmp else -1
         # try again to find a valid imbedded profile.
         # If everything fails, assign sRGB.
-        cmsProfile = None
+        cmsProfile = icc.defaultWorkingProfile
         if colorSpace == -1 or colorSpace == 65535:
             tmp = [value for key, value in metadata.items() if 'profiledescription' in key.lower()]
             desc_colorSpace = tmp[0] if tmp else ''
@@ -569,10 +567,11 @@ class imImage(mImage):
                             cmsProfile = ImageCmsProfile(BytesIO(profile))
                         except TypeError:  # raised by ImageCmsProfile()
                             pass
-                    if cmsProfile is None:
+                    if not isinstance(cmsProfile, ImageCmsProfile):
                         dlgInfo("Color profile is missing\nAssigning sRGB")
                         # assign sRGB profile
                         colorSpace = 1
+                        cmsProfile = icc.defaultWorkingProfile
         if cmsConfigure:
             # update the color management object with the image profile.
             icc.configure(colorSpace=colorSpace, workingProfile=cmsProfile)
@@ -636,9 +635,9 @@ class imImage(mImage):
         img.imageInfo = imageInfo
         window.settings.setValue('paths/dlgdir', QFileInfo(f).absoluteDir().path())
         img.initThumb()
-        # update color management related attributes
+        # update profile related attributes
         img.colorSpace = colorSpace
-        img.cmsProfile = cmsProfile
+        img.setProfile(cmsProfile)
         return img
 
 

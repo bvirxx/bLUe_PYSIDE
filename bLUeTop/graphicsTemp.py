@@ -126,7 +126,7 @@ class temperatureForm (baseForm):
                         """<b> Color Filter</b> and <b>Photo Filter</b> use the multiply blending mode
                         to mimic a warming or cooling filter put in front of the camera lens. 
                         The luminosity of the resulting image is corrected.<br>
-                        <b>Chromatic Adaptation</b> uses multipliers in the linear sRGB
+                        <b>Chromatic Adaptation</b> uses multipliers in the linear RGB
                         color space to adjust <b>temperature</b> and <b>tint</b>.
                         """
                         )  # end of setWhatsThis

@@ -45,7 +45,7 @@ from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.colorCube import rgb2hspVec, hsp2rgbVec, hsv2rgbVec
 from bLUeGui.blend import blendLuminosity
 from bLUeGui.colorCIE import sRGB2LabVec, Lab2sRGBVec, rgb2rgbLinear, \
-    rgbLinear2rgb, sRGB2XYZ, sRGB_lin2XYZInverse, bbTemperature2RGB
+    rgbLinear2rgb, RGB2XYZ, sRGB_lin2XYZInverse, bbTemperature2RGB, sRGB_lin2XYZ
 from bLUeGui.multiplier import temperatureAndTint2Multipliers
 from bLUeGui.dialog import dlgWarn
 from bLUeCore.kernel import getKernel
@@ -363,7 +363,9 @@ class vImage(bImage):
         else:
             self.meta = meta
         self.colorSpace = self.meta.colorSpace
-        self.cmsProfile = icc.defaultWorkingProfile  # TODO 20/02/20 possibly does not match colorSpace
+        self.cmsProfile = icc.defaultWorkingProfile  # possibly does not match colorSpace : call setProfile()
+        self.RGB_lin2XYZ = sRGB_lin2XYZ
+        self.RGB_lin2XYZInverse = sRGB_lin2XYZInverse
         if filename is None and cv2Img is None and QImg is None:
             # create a null image
             super().__init__()
@@ -393,6 +395,20 @@ class vImage(bImage):
         if self.depth() != 32:
             raise ValueError('vImage : should be a 8 bits/channel color image')
         self.filename = filename if filename is not None else ''
+
+    def setProfile(self, profile):
+        """
+        Sets profile related attributes
+        @param cmsProfile:
+        @type cmsProfile: CmsProfile instance
+        """
+        self.cmsProfile = profile
+        if 'srgb' in profile.profile.profile_description.lower():
+            self.colorSpace = 1
+        else:
+            self.colorSpace = 65535
+        self.RGB_lin2XYZ = np.column_stack((profile.profile.red_colorant[0], profile.profile.green_colorant[0], profile.profile.blue_colorant[0]))
+        self.RGB_lin2XYZInverse = np.linalg.inv(self.RGB_lin2XYZ)
 
     def setImage(self, qimg):
         """
@@ -1742,10 +1758,10 @@ class vImage(bImage):
             bufXYZ = np.tensordot(bufXYZ, M, axes=(-1, -1))
             """
             # get RGB multipliers
-            m1, m2, m3, _ = temperatureAndTint2Multipliers(temperature, 2 ** tint, sRGB_lin2XYZInverse)
+            m1, m2, m3, _ = temperatureAndTint2Multipliers(temperature, 2 ** tint, self.parentImage.RGB_lin2XYZInverse)  # TODO modified 24/02/20 validate
             buf = QImageBuffer(inputImage)[:, :, :3]
-            bufXYZ = sRGB2XYZ(buf[:, :, ::-1])
-            bufsRGBLinear = np.tensordot(bufXYZ, sRGB_lin2XYZInverse, axes=(-1, -1))
+            bufXYZ = RGB2XYZ(buf[:, :, ::-1])
+            bufsRGBLinear = np.tensordot(bufXYZ, self.parentImage.RGB_lin2XYZInverse, axes=(-1, -1))  # TODO modified 24/02/20 validate
             # apply multipliers
             bufsRGBLinear *= [m1, m2, m3]
             # brightness correction
