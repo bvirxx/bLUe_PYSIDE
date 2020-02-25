@@ -580,7 +580,15 @@ def checkeredImage(format=QImage.Format_ARGB32):
 class stateAwareQDockWidget(QDockWidget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # Record the current tabbing state.
+        # Needed to restore the workspace when switching from a document to another one.
+        # This attribute should be restored if the change does not result from a user
+        # drag and drop action (see layerView.closeAdjustForms for an example)
+        self.tabbed = False
         self._closed = False
+        def f(b):
+            self.tabbed = not b
+        self.topLevelChanged.connect(f)
 
     def closeEvent(self, event):
         self._closed = True
