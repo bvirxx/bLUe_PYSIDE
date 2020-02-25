@@ -32,9 +32,9 @@ from bLUeTop.settings import DNG_PROFILES_DIR2, DNG_PROFILES_DIR1
 
 def getDngProfileDict(filename):
     """
-    Read profile related tags from a dng or dcp file.
+    Read profile related tags from a dng or dcp file or folder.
     Return a dictionary of (str) decoded {tagname : tagvalue} pairs.
-    @param filename:
+    @param filename: path
     @type filename: str
     @return: dictionary
     @rtype: dict
@@ -73,9 +73,15 @@ def getDngProfileList(cameraName):
     cameraName = cameraName.lower()
     for folder in [DNG_PROFILES_DIR1, DNG_PROFILES_DIR2]:
         try:
-            for filename in os.listdir(folder):
-                if cameraName in basename(filename.lower()):
-                    plist.append(os.path.join(folder, filename))
+            for entry in os.scandir(folder):
+                if cameraName in entry.name.lower():
+                    if entry.is_file():
+                        # camera file : add
+                        plist.append(entry.path)
+                    elif entry.is_dir():
+                        # camera folder : add all files
+                        for ent in os.scandir(entry.path):
+                            plist.append(ent.path)
         except OSError:
             pass
     return plist
