@@ -16,6 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import cv2
+import threading
 
 from collections import OrderedDict
 from math import log
@@ -25,6 +26,7 @@ from PySide2 import QtCore
 from PySide2.QtCore import Qt, QPointF
 from PySide2.QtGui import QFontMetrics, QBrush, QPolygonF
 from PySide2.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBox, QComboBox, QGraphicsPolygonItem
+
 from bLUeGui.graphicsSpline import graphicsSplineForm
 from bLUeGui.graphicsForm import baseForm
 from bLUeTop.dng import getDngProfileList, getDngProfileDict, dngProfileToneCurve
@@ -810,50 +812,47 @@ class rawForm (baseForm):
 
     def setCameraProfilesCombo(self):
         """
-        # for each item, text is the filename and data is the corresponding dict
+        Populates the camera profile Combo box.
+        for each item, text is the filename and data is the corresponding dict.
+        The function returns as soon as a first item is loaded. Remainning profiles are
+        loaded asynchronously.
         @return: the currently selected item data
         @rtype: dict
         """
         self.cameraProfilesCombo = QComboBox()
         files = [self.targetImage.filename]
         files.extend(getDngProfileList(self.targetImage.cameraModel()))
-        # load profiles
-        items = OrderedDict(
-            [(basename(f)[:-4] if i > 0 else 'Embedded Profile', getDngProfileDict(f)) for i, f in enumerate(files)])
-        # add 'None' and all found profiles for the current camera model: 'None' will be the default selection
-
-        # filter items to eliminate empty entries and
-        # add non empty dicts to cameraProfileCombo
-        for key in items:
-            # filter items[key]
-            d = {k: items[key][k] for k in items[key] if items[key][k] != ''}
+        if not files:
+            self.cameraProfilesCombo.addItem('None', {})
+            return {}
+        # load a first profile
+        nextInd, found = 0, False
+        while nextInd < len(files) and not found:
+            f = files[nextInd]
+            key = basename(f)[:-4] if nextInd > 0 else 'Embedded Profile'
+            d = getDngProfileDict(f)
+            # filter d
+            d = {k: d[k] for k in d if d[k] != ''}
             if d:
                 self.cameraProfilesCombo.addItem(key, d)
-        self.cameraProfilesCombo.addItem('None', {})
+                found = True
+            nextInd += 1
+
+        def load():
+            # load remaining profiles
+            for i, f in enumerate(files[nextInd: ]):
+                key = basename(f)[:-4] if i + nextInd > 0 else 'Embedded Profile'
+                d = getDngProfileDict(f)
+                # filter d
+                d = {k: d[k] for k in d if d[k] != ''}
+                if d:
+                    self.cameraProfilesCombo.addItem(key, d)
+            self.cameraProfilesCombo.addItem('None', {})
+
+        threading.Thread(target=load).start()
+
         self.cameraProfilesCombo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
         self.cameraProfilesCombo.setMaximumWidth(150)
         self.cameraProfilesCombo.setStyleSheet("QComboBox QAbstractItemView { min-width: 250px;}")
-        # return the currently selected item
+        # return the currently selected item data
         return self.cameraProfilesCombo.itemData(0)
-    """
-    def writeToStream(self, outStream):
-        layer = self.layer
-        outStream.writeQString(layer.actionName)
-        outStream.writeQString(layer.name)
-        outStream.writeQString(self.listWidget1.selectedItems()[0].text())
-        outStream.writeInt32(self.sliderExp.value())
-        return outStream
-
-    def readFromStream(self, inStream):
-        actionName = inStream.readQString()
-        name = inStream.readQString()
-        sel = inStream.readQString()
-        temp = inStream.readInt32()
-        for r in range(self.listWidget1.count()):
-            currentItem = self.listWidget1.item(r)
-            if currentItem.text() == sel:
-                self.listWidget.select(currentItem)
-        self.sliderExp.setValue(temp)
-        self.update()
-        return inStream
-    """
