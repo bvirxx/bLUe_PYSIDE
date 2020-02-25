@@ -165,7 +165,7 @@ from bLUeTop.graphicsCoBrSat import CoBrSatForm
 from bLUeTop.graphicsExp import ExpForm
 from bLUeTop.graphicsPatch import patchForm
 from bLUeTop.settings import USE_POOL, POOL_SIZE, THEME, TABBING
-from bLUeTop.utils import UDict
+from bLUeTop.utils import UDict, stateAwareQDockWidget
 from bLUeGui.tool import cropTool, rotatingTool
 from bLUeTop.graphicsTemp import temperatureForm
 from bLUeTop.graphicsFilter import filterForm
@@ -278,7 +278,8 @@ def addRawAdjustmentLayer(window=window):
     # record action name for scripting
     rlayer.actionName = ''
     # dock the form
-    dock = QDockWidget(window)
+    dock = stateAwareQDockWidget(window)
+    dock.tabbed = TABBING
     dock.setWidget(grWindow)
     dock.setWindowFlags(grWindow.windowFlags())
     dock.setWindowTitle(grWindow.windowTitle())
@@ -287,7 +288,6 @@ def addRawAdjustmentLayer(window=window):
     rlayer.view = dock
     # add to docking area
     window.addDockWidget(Qt.RightDockWidgetArea, dock)
-    dock.tabbed = True  # TODO added 24/02/20 validate
     # update layer stack view
     window.tableView.setLayers(window.label.img)
 
@@ -878,15 +878,8 @@ def menuLayer(name, window=window):
         # record action name for scripting
         layer.actionName = name
         # docking the form
-        dock = QDockWidget(window)
-        # add an attribute to record the last user tabbing state.
-        # Needed to restore the workspace when switching from a document to another one.
-        # This attribute should be restored if the change does not result from a user
-        # drag and drop (see layerView.closeAdjustForms for an example)
+        dock = stateAwareQDockWidget(window)
         dock.tabbed = TABBING
-        def f(b):
-            dock.tabbed = not b
-        dock.topLevelChanged.connect(f)
         dock.setWidget(grWindow)
         dock.setWindowTitle(grWindow.windowTitle())
         layer.view = dock

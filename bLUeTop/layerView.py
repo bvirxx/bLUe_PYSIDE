@@ -364,10 +364,10 @@ Note that upper visible layers slow down mask edition.<br>
                         dock.setAttribute(Qt.WA_DeleteOnClose)
                         dock.close()
                         layer.view = None
-                    else:  # if not TABBING:  # tabbed forms should not be closed
+                    else:  # tabbed forms should not be closed
                         temp = dock.tabbed
                         dock.setFloating(True)
-                        dock.tabbed = temp  # rememmber last state
+                        dock.tabbed = temp  # remember last state to restore
                         window.removeDockWidget(dock)
                         dock.hide()
         if delete:
@@ -469,7 +469,7 @@ Note that upper visible layers slow down mask edition.<br>
             if TABBING:
                 dockedForms = [item for item in forms if not item.isFloating()]
                 dock.show()  # needed to get working tabbing
-                if dock not in dockedForms and getattr(dock, "tabbed", None):
+                if dock not in dockedForms and dock.tabbed:
                     if dockedForms:
                         window.tabifyDockWidget(dockedForms[-1], dock)
                     else:
