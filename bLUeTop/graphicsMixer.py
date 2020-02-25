@@ -18,7 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 from PySide2.QtCore import Qt, QSize, QPointF
 from PySide2.QtGui import QImage, QColor, QPixmap, QPainter, QBrush, QPen
-from PySide2.QtWidgets import QGraphicsPixmapItem, QGridLayout
+from PySide2.QtWidgets import QGraphicsPixmapItem, QGridLayout, QLabel
 
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.graphicsForm import baseGraphicsForm
@@ -71,15 +71,15 @@ class mixerForm(baseGraphicsForm):
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super().__init__(parent=parent, targetImage=targetImage, layer=layer)
-        self.setMinimumSize(axeSize, axeSize + 80)
+        self.setMinimumSize(axeSize, axeSize + 100)
         # color wheel size
         self.cwSize = axeSize * 0.95
         self.setAttribute(Qt.WA_DeleteOnClose)
         # options
         optionList = ['Monochrome']
         listWidget1 = optionsWidget(options=optionList, exclusive=False, changed=self.dataChanged)
-        listWidget1.setMinimumWidth(listWidget1.sizeHintForColumn(0) + 5)
-        listWidget1.setMinimumHeight(listWidget1.sizeHintForRow(0) * len(optionList) + 5)
+        # listWidget1.setMinimumWidth(listWidget1.sizeHintForColumn(0) + 5)
+        # listWidget1.setMaximumHeight(listWidget1.sizeHintForRow(0) * len(optionList))
         self.options = listWidget1.options
         # barycentric coordinate basis : the 3 base points form an equilateral triangle
         h = self.cwSize - 50
@@ -103,7 +103,10 @@ class mixerForm(baseGraphicsForm):
             graphicsScene.addItem(point)
         gl = QGridLayout()
         container = self.addCommandLayout(gl)
-        gl.addWidget(listWidget1, 0, 0, 2, 2)
+        self.values = QLabel()
+        self.values.setMaximumSize(120, 60)
+        gl.addWidget(self.values, 0, 0, 4, 8)
+        gl.addWidget(listWidget1, 4, 0, 4, 2)
         container.adjustSize()
         self.setViewportMargins(0, 0, 0, container.height() + 15)
         self.setDefaults()
@@ -121,6 +124,8 @@ class mixerForm(baseGraphicsForm):
         baryCoordG = self.invM @ [self.gPoint.x(), self.gPoint.y(), 1]
         baryCoordB = self.invM @ [self.bPoint.x(), self.bPoint.y(), 1]
         self.mixerMatrix = np.vstack((baryCoordR, baryCoordG, baryCoordB))
+        with np.printoptions(precision=2, suppress=True):
+            self.values.setText(self.getChannelValues())
         self.layer.applyToStack()
         self.layer.parentImage.onImageChanged()
 
@@ -130,6 +135,8 @@ class mixerForm(baseGraphicsForm):
         except RuntimeError:
             pass
         self.mixerMatrix = np.identity(3, dtype=np.float)
+        with np.printoptions(precision=2, suppress=True):
+            self.values.setText(self.getChannelValues())
         self.dataChanged.connect(self.updateLayer)
 
     def setBackgroundImage(self):
@@ -155,3 +162,9 @@ class mixerForm(baseGraphicsForm):
         qp.drawLine(b - QPointF(0, 10), b + QPointF(0, 10))
         qp.end()
         self.scene().addItem(QGraphicsPixmapItem(QPixmap.fromImage(img)))
+
+    def getChannelValues(self):
+        return "\n".join(("      R      G      B",
+                          " R : %.2f  %.2f  %.2f" % tuple(self.mixerMatrix[0]),
+                          " G : %.2f  %.2f  %.2f" % tuple(self.mixerMatrix[1]),
+                          " B : %.2f  %.2f  %.2f" % tuple(self.mixerMatrix[2])))
