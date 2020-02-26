@@ -437,7 +437,7 @@ Screen</string>
                  <enum>Qt::ClickFocus</enum>
                 </property>
                 <property name="toolTip">
-                 <string>Unmask/FG Brush</string>
+                 <string>Unmask/FG/Cloning Brush</string>
                 </property>
                 <property name="accessibleName">
                  <string>drawFG</string>
