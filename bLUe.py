@@ -196,7 +196,7 @@ credit https://icones8.fr/
 
 ##############
 #  Version number
-VERSION = "v2.1.1"
+VERSION = "v2.1.2"
 ##############
 
 ##############
