@@ -45,23 +45,14 @@ class histForm (baseForm):
         self.listWidget1 = optionsWidget(options=options1, optionNames=optionNames1, exclusive=False)
         self.listWidget1.setMaximumSize(self.listWidget1.sizeHintForColumn(0) + 5,
                                         self.listWidget1.sizeHintForRow(0) * len(options1))
-        options2, optionNames2 = ['R'], ['R']
-        self.listWidget2 = optionsWidget(options=options2, optionNames=optionNames2, exclusive=False)
-        self.listWidget2.setMaximumSize(self.listWidget2.sizeHintForColumn(0) + 5,
-                                        self.listWidget2.sizeHintForRow(0) * len(options2))
-        options3, optionNames3 = ['G'], ['G']
-        self.listWidget3 = optionsWidget(options=options3, optionNames=optionNames3, exclusive=False)
-        self.listWidget3.setMaximumSize(self.listWidget3.sizeHintForColumn(0) + 5,
-                                        self.listWidget3.sizeHintForRow(0) * len(options3))
-        options4, optionNames4 = ['B'], ['B']
-        self.listWidget4 = optionsWidget(options=options4, optionNames=optionNames4, exclusive=False)
-        self.listWidget4.setMaximumSize(self.listWidget4.sizeHintForColumn(0) + 5,
-                                        self.listWidget4.sizeHintForRow(0) * len(options4))
+        options2, optionNames2 = ['R', 'G', 'B', 'L'], ['R', 'G', 'B', 'L']
+        self.listWidget2 = optionsWidget(options=options2, optionNames=optionNames2, exclusive=False, flow=optionsWidget.LeftToRight)
+        self.listWidget2.setFixedSize((self.listWidget2.sizeHintForRow(0) + 15) * len(options2), 20)
 
-        # default: show color hists
-        for w in [self.listWidget2, self.listWidget3, self.listWidget4]:
-            w.checkOption(w.intNames[0])
-        self.options = UDict((self.listWidget1.options, self.listWidget2.options, self.listWidget3.options, self.listWidget4.options))
+        # default: show color hists only
+        for i in range(3):
+            self.listWidget2.checkOption(self.listWidget2.intNames[i])
+        self.options = UDict((self.listWidget1.options, self.listWidget2.options))
         self.setWhatsThis("""
         <b>Histogram</b><br>
         The histogram shows the color ditributions for the edited image, unless
@@ -77,16 +68,12 @@ class histForm (baseForm):
 
         self.listWidget1.onSelect = onSelect
         self.listWidget2.onSelect = onSelect
-        self.listWidget3.onSelect = onSelect
-        self.listWidget4.onSelect = onSelect
 
         # layout
         h = QHBoxLayout()
         h.setContentsMargins(0, 0, 0, 2)
         h.addWidget(self.listWidget1)
         h.addWidget(self.listWidget2)
-        h.addWidget(self.listWidget3)
-        h.addWidget(self.listWidget4)
         vl = QVBoxLayout()
         vl.setAlignment(Qt.AlignTop)
         vl.addWidget(self.Label_Hist)

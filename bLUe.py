@@ -460,7 +460,7 @@ def showHistogram(window=window):
         window.histView.chans = []
     histView = histImg.histogram(QSize(window.histView.width(), window.histView.height()),
                                  chans=window.histView.chans, bgColor=Qt.black,
-                                 chanColors=window.histView.chanColors, mode=window.histView.mode, addMode='')
+                                 chanColors=window.histView.chanColors, mode=window.histView.mode, addMode='Luminosity' if window.histView.options['L'] else '')
     window.histView.cache = QPixmap.fromImage(histView)
     window.histView.Label_Hist.setPixmap(window.histView.cache.scaled(window.histView.width() - 20, window.histView.height()-50))
     window.histView.Label_Hist.repaint()
