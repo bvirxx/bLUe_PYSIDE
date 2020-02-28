@@ -444,7 +444,7 @@ class optionsWidget(QListWidget):
     if changed is not None, it is emitted/called when an item is clicked.
     """
 
-    def __init__(self, options=None, optionNames=None, exclusive=True, changed=None, parent=None):
+    def __init__(self, options=None, optionNames=None, exclusive=True, changed=None, parent=None, flow=None):
         """
         @param options: list of options
         @type options: list of str
@@ -456,8 +456,12 @@ class optionsWidget(QListWidget):
         @type changed: signal or function (0 or 1 argument)
         @param parent:
         @type parent: QObject
+        @param flow:  which direction the items layout should flow
+        @type flow: QListView.Flow
         """
         super().__init__(parent)
+        if flow is not None:
+            self.setFlow(flow)
         if options is None:
             options = []
         if optionNames is None:
@@ -476,8 +480,8 @@ class optionsWidget(QListWidget):
             self.addItem(listItem)
             self.items[intName] = listItem
             self.options[intName] = (listItem.checkState() == Qt.Checked)
-        self.setMinimumHeight(self.sizeHintForRow(0) * len(options))
-        self.setMaximumHeight(self.sizeHintForRow(0) * len(options) + 10)
+        self.setMinimumHeight(self.sizeHintForRow(0) * len(options))  # TODO should be corrected for flow=LeftToRight
+        self.setMaximumHeight(self.sizeHintForRow(0) * len(options) + 10)  # TODO should be corrected for flow=LeftToRight
         self.exclusive = exclusive
         self.itemClicked.connect(self.select)
         if changed is not None:
