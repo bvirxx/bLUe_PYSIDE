@@ -137,13 +137,13 @@ from bLUeTop.drawing import initBrushes
 from bLUeTop.graphicsDraw import drawForm
 from bLUeTop.graphicsHDRMerge import HDRMergeForm
 from bLUeTop.graphicsSegment import segmentForm
-from PySide2.QtCore import QUrl, QSize, QFileInfo
+from PySide2.QtCore import QUrl, QFileInfo
 from PySide2.QtGui import QPixmap, QCursor, QKeySequence, QDesktopServices, QFont, \
     QTransform, QColor, QImage
 from PySide2.QtWidgets import QApplication, QAction, \
-    QMainWindow, QDockWidget, QSizePolicy, QScrollArea, QSplashScreen, QWidget, \
-    QStyle, QTabWidget, QToolBar, QComboBox, QTabBar
-from bLUeTop.QtGui1 import app, window, rootWidget, splitWin
+    QDockWidget, QSizePolicy, QSplashScreen, QWidget, \
+    QTabWidget, QToolBar, QComboBox, QTabBar
+from bLUeTop.QtGui1 import app, window, splitWin
 from bLUeTop import exiftool
 from bLUeTop.graphicsBlendFilter import blendFilterForm
 from bLUeTop.graphicsHVLUT2D import HVLUT2DForm
@@ -782,11 +782,13 @@ def menuImage(name, window=window):
         # formatted meta data
         s = s + "\n\n" + img.imageInfo
         # display
-        _, label = handleTextWindow(parent=window, title='Image info', wSize=QSize(700, 700))
-        label.setWordWrap(True)
-        label.setFont(QFont("Courier New"))
-        label.setStyleSheet("background-color: white")
-        label.setText(s)
+        w = labelDlg(parent=window, title='Image info', wSize=QSize(700, 700), search=True)
+        w.label.setWordWrap(True)
+        w.label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        font = QFont("Courier New")
+        w.label.setFont(font)
+        w.label.setText(w.wrapped(s))
+        w.show()
     elif name == 'actionColor_manage':
         icc.COLOR_MANAGE = window.actionColor_manage.isChecked()
         try:
@@ -801,7 +803,7 @@ def menuImage(name, window=window):
         window.label_2.repaint()
         updateStatus()
     elif name == 'actionWorking_profile':
-        w, label = handleTextWindow(parent=window, title='profile info')
+        w = labelDlg(parent=window, title='profile info')
         s = 'Working Profile : '
         if icc.workingProfile is not None:
             s = s + icc.workingProfileInfo
@@ -813,8 +815,9 @@ def menuImage(name, window=window):
         s = s + '\nBoth profiles are used in conjunction to display exact colors. '
         s = s + 'If one of them is missing, bLUe cannot color manage the image.'
         s = s + '\nIf the monitor profile listed above is not the right profile for your monitor, please check the system settings for color management'
-        label.setWordWrap(True)
-        label.setText(s)
+        w.label.setWordWrap(True)
+        w.label.setText(s)
+        w.show()
     # rotations
     elif name in ['action90_CW', 'action90_CCW', 'action180']:
         try:
@@ -1197,78 +1200,11 @@ def menuHelp(name, window=window):
                 # url.setFragment(w.helpId)
         QDesktopServices.openUrl(url)
     elif name == "actionAbout_bLUe":
-        w, label = handleTextWindow(parent=window, title='About bLUe', center=False)
-        label.setStyleSheet("background-image: url(logo.png); color: white;")
-        label.setAlignment(Qt.AlignCenter)
-        label.setText(VERSION + "\n" + attributions + "\n" + "http://bernard.virot.free.fr")
-        # center window on screen
-        w.setGeometry(QStyle.alignedRect(Qt.LeftToRight, Qt.AlignCenter, w.size(),
-                                         rootWidget.availableGeometry(w)))
+        w = labelDlg(parent=window, title='About bLUe', wSize=QSize(520, 520))  # 500 + layout margins
+        w.label.setStyleSheet("background-image: url(logo.png); color: white;")
+        w.label.setAlignment(Qt.AlignCenter)
+        w.label.setText(VERSION + "\n" + attributions + "\n" + "http://bernard.virot.free.fr")
         w.show()
-
-
-def handleNewWindow(parent=None, title='New window', show_maximized=False, scroll=False):
-    """
-    Shows a floating window containing a QLabel object. It can be used
-    to display text or image.
-    @param parent:
-    @type parent:
-    @param title:
-    @type title:
-    @param show_maximized:
-    @param scroll:
-    @type scroll:
-    @return: new window, label
-    @rtype: QMainWindow, QLabel
-    """
-    newwindow = QMainWindow(parent)
-    newwindow.setAttribute(Qt.WA_DeleteOnClose)
-    newwindow.setWindowTitle(parent.tr(title))
-    newwindow.setStyleSheet("background-color: rgb(220, 220, 220); color: black")
-    label = QLabel()
-    if scroll:
-        scarea = QScrollArea(parent=newwindow)
-        scarea.setWidget(label)
-        newwindow.setCentralWidget(scarea)
-        scarea.setWidgetResizable(True)
-    else:
-        newwindow.setCentralWidget(label)
-    # The attribute img is used by event handlers
-    label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
-    if show_maximized:
-        newwindow.showMaximized()
-    else:
-        newwindow.show()
-    return newwindow, label
-
-
-def handleTextWindow(parent=None, title='', center=True, wSize=QSize(500, 500)):
-    """
-    Display a floating modal text window
-
-    @param parent:
-    @type parent:
-    @param title:
-    @type title:
-    @param center:
-    @type center:
-    @param wSize:
-    @type wSize:
-    @return new window, label
-    @rtype: QMainWindow, QLabel
-    """
-    w, label = handleNewWindow(parent=parent, title=title, scroll=True)
-    w.setFixedSize(wSize)
-    label.setAlignment(Qt.AlignTop)
-    w.hide()
-    if center:
-        # center at the parent current screen
-        pw = w.parent()
-        pw = w if pw is None else pw
-        w.move(pw.windowHandle().screen().geometry().center() - w.rect().center())
-    w.setWindowModality(Qt.WindowModal)
-    w.show()
-    return w, label
 
 
 def canClose(window=window):

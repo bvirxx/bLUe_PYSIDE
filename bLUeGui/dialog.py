@@ -15,14 +15,12 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-import os
-from tempfile import mktemp
+import textwrap
 
-from PySide2.QtCore import Qt, QDir
-from os.path import isfile
+from PySide2.QtCore import Qt, QDir, QSize
 
 from PySide2.QtWidgets import QMessageBox, QPushButton, QFileDialog, QDialog, QSlider, QVBoxLayout, QHBoxLayout, QLabel, \
-    QCheckBox, QFormLayout, QLineEdit, QDialogButtonBox
+    QCheckBox, QFormLayout, QLineEdit, QDialogButtonBox, QScrollArea
 from bLUeTop.utils import QbLUeSlider
 
 ##################
@@ -220,6 +218,97 @@ class savingDialog(QDialog):
     def directory(self):
         return self.dlg.directory()
 
+class labelDlg(QDialog):
+    """
+    Displays a floating modal text window.
+    If search is True, a search field is added on top of the window.
+    """
+
+    def __init__(self, parent=None, title='', wSize=QSize(500, 500), scroll=True, search=False, modal=True):
+        super().__init__(parent)
+        self.setWindowTitle(parent.tr(title))
+        self.setStyleSheet(" * {background-color: rgb(220, 220, 220); color: black}")
+        self.setModal(modal)
+        self.label = QLabel()
+        self.label.setAlignment(Qt.AlignTop)
+        vl = QVBoxLayout()
+        if search:
+            ed = QLineEdit()
+            ed.setMaximumWidth(300)
+            ed.setPlaceholderText('Search')
+            vl = QVBoxLayout()
+            hl = QHBoxLayout()
+            hl.addWidget(ed)
+            button = QPushButton('Next')
+            button.setAutoDefault(False);
+            button.setMaximumWidth(60)
+            hl.addWidget(button)
+            vl.addLayout(hl)
+            matches = []
+            current = 0
+
+            def f():
+                import re
+                nonlocal current
+                matches.clear()
+                current = 0
+                matches.extend([m.span() for m in
+                                re.finditer(ed.text(), self.label.text(), re.IGNORECASE | re.MULTILINE | re.DOTALL)])
+                if matches:
+                    item = matches[0]
+                    self.label.setSelection(item[0], item[1] - item[0])
+                    metrics = self.label.fontMetrics()
+                    tabSize = 4
+                    rect = metrics.boundingRect(0, 0, 150000, 150000, self.label.alignment() | Qt.TextExpandTabs,
+                                                self.label.text()[:item[1]], tabSize)
+                    scarea.ensureVisible(0, rect.height())
+
+            def g():
+                nonlocal current
+                if not matches or not button.isDown():
+                    return
+                current = (current + 1) % len(matches)
+                item = matches[current]
+                self.label.setSelection(item[0], item[1] - item[0])
+                metrics = self.label.fontMetrics()
+                tabSize = 4
+                rect = metrics.boundingRect(0, 0, 150000, 150000, self.label.alignment() | Qt.TextExpandTabs,
+                                            self.label.text()[:item[1]], tabSize)
+                scarea.ensureVisible(0, rect.height())
+
+            button.pressed.connect(g)
+            ed.returnPressed.connect(f)
+
+        if scroll:
+            scarea = QScrollArea()
+            scarea.setWidget(self.label)
+            scarea.setWidgetResizable(True)
+            vl.addWidget(scarea)
+        else:
+            vl.addWidget(self.label)
+        self.setLayout(vl)
+        self.setFixedSize(wSize)
+
+    def wrapped(self, s):
+        """
+        Returns wrapped text, according to the current font and size of label.
+        NOT updated when these parameters are modified.
+        @param s: text to wrap
+        @type s: str
+        @return:
+        @rtype: list of str
+        """
+        metrics = self.label.fontMetrics()
+        tabSize = 4
+        # get max character count per line
+        testText = 'WWWWWWWWWWWWWWW'  # start from a minimum width !
+        while metrics.boundingRect(0, 0, 150000, 150000, self.label.alignment() | Qt.TextExpandTabs,
+                                   testText, tabSize).width() < self.label.width():
+            testText += 'W'
+        # wrap text while keeping existing newlines
+        s = '\n'.join(['\n'.join(textwrap.wrap(line, len(testText), break_long_words=False, replace_whitespace=False))
+                       for line in s.splitlines()])
+        return s
 
 def saveDlg(img, mainWidget, selected=True):
     """
