@@ -312,19 +312,17 @@ class labelDlg(QDialog):
 
 def saveDlg(img, mainWidget, selected=True):
     """
-    Image saving dialogs. The actual saving is
-    done by a call to mImage.save(). Metadata is copied from sidecar
-    to image file. The function returns the image file name.
-    Exception ValueError or IOError are raised if the saving fails.
-    If selected is False, the filename box is leaved empty and no file is selected.
+    Image saving dialog.
+    If selected is False, initially the filename box is left empty and no file is selected.
+    A ValueError exception is raised if the dialog is aborted.
     @param img:
     @type img: vImage
     @param mainWidget:
     @type mainWidget: QWidget
     @param selected:
     @type selected: boolean
-    @return: filename
-    @rtype: str
+    @return: filename, quality, compression, metaOption
+    @rtype: str, int, int, boolean
     """
     # get last accessed dir
     lastDir = str(mainWidget.settings.value("paths/dlgsavedir", QDir.currentPath()))
