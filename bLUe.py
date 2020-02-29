@@ -116,7 +116,9 @@ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
-from os.path import basename
+from os import path, walk, remove
+from os.path import basename, isfile
+from tempfile import mktemp
 
 from bLUeTop import resources_rc  # mandatory
 
@@ -125,7 +127,6 @@ import multiprocessing
 import sys
 import threading
 from itertools import cycle
-from os import path, walk
 from time import sleep
 import gc
 
@@ -329,9 +330,6 @@ def openFile(f, window=window):
     @param window:
     @type window: QWidget
     """
-    # close open document, if any
-    #if not closeFile():
-        #return
     try:
         QApplication.setOverrideCursor(Qt.WaitCursor)
         QApplication.processEvents()
@@ -414,20 +412,17 @@ def saveFile(filename, img, quality=-1, compression=-1, writeMeta=True):
         thumb.save(tempFilename)
         # copy temp file to image file, img.filename not updated yet
         img.restoreMeta(img.filename, filename, thumbfile=tempFilename)
-        os.remove(tempFilename)
+        remove(tempFilename)
     return filename
 
 
-def closeFile(window=window):
+def closeTabs(index=None, window=window):
     """
-    Top Level function for file closing.
-    Close the opened document and reset windows.
-    return True if succeed, False otherwise.
-    @return:
-    @rtype: boolean
+    Tries to save and close the opened document in tab index, or all opened documents if index is None .
+    If it succeeds to close all opened documents, the method resets the GUI to default.
     """
-    if not canClose():
-        return False
+    if not canClose(index=index) or window.tabBar.count() > 0:
+        return
     window.tableView.clear(delete=True)
     window.histView.targetImage = None
     defaultImImage = initDefaultImage()
@@ -438,7 +433,6 @@ def closeFile(window=window):
     window.label.update()
     window.label_2.update()
     window.label_3.update()
-    return True
 
 
 def showHistogram(window=window):
@@ -667,7 +661,7 @@ def menuFile(name, window=window):
                 dlgWarn(str(e))
     # closing dialog : close opened document
     elif name == 'actionClose':
-        closeFile()
+        closeTabs()
         # global pool
         # if pool is not None:
             # pool.close()
@@ -1207,40 +1201,71 @@ def menuHelp(name, window=window):
         w.show()
 
 
-def canClose(window=window):
+def canClose(index=None, window=window):
     """
-    Saves the current image. Returns True if success.
+    If index is None, tries to save and close all opened documents, otherwise only
+    the document in index tab is considered.
+    Returns True if all requested tabs could be closed, False otherwise.
+    Called by the application closeEvent slot, by closeTabs() and by closeTab().
+    @param index: a valid tab index or None
+    @type index: int or None
+    @param window:
+    @type window:
     @return:
     @rtype: boolean
     """
-    if window.label.img.isModified:
-        try:
-            # save/discard dialog
-            ret = saveChangeDialog(window.label.img)
-            if ret == QMessageBox.Save:
-                if window.label.img.useThumb:
-                    dlgWarn("Uncheck Preview mode before saving")
-                    return False
-                # save dialog
-                filename = saveDlg(window.label.img, window)
-                # confirm saving
-                dlgInfo("%s written" % filename)
-                ind = window.tabBar.currentIndex()
-                if ind > 0:
-                    switchDoc(0)
-                window.tabBar.removeTab(window.tabBar.currentIndex())
-                return window.tabBar.count() == 0  # True
-            elif ret == QMessageBox.Cancel:
+    if window.tabBar.count() == 0:
+        return True
+    closeAllRequested = (index is None)
+
+    def canCloseTab(ind):
+        img = window.tabBar.tabData(ind)
+        if img.isModified:
+            if ind != window.tabBar.currentIndex():
+                dlgWarn('Image was modified', info='Save it first' )
                 return False
-        except (ValueError, IOError) as e:
-            dlgWarn(str(e))
-            return False
-    # discard changes and close tab
-    ind = window.tabBar.currentIndex()
-    if ind > 0:
-        switchDoc(0)
-    window.tabBar.removeTab(window.tabBar.currentIndex())
-    return window.tabBar.count() == 0  # True
+            try:
+                # save/discard dialog
+                ret = saveChangeDialog(img)
+                if ret == QMessageBox.Save:
+                    if img.useThumb:
+                        dlgWarn("Uncheck Preview Mode before saving")
+                        return False
+                    # save dialog
+                    filename, quality, compression, writeMeta = saveDlg(img, window, selected=False)
+                    # actual saving
+                    filename = saveFile(filename, img, quality=quality, compression=compression,
+                                            writeMeta=writeMeta)
+                    # confirm saving
+                    dlgInfo("%s written" % filename)
+                    if ind > 0:
+                        switchDoc(ind - 1)
+                    window.tabBar.removeTab(ind)
+                    return True # window.tabBar.count() == 0
+                elif ret == QMessageBox.Cancel:
+                    return False
+            except (ValueError, IOError) as e:
+                dlgWarn(str(e))
+                return False
+        # discard changes or img not modified : remove tab
+        if ind > 0:
+            switchDoc(ind - 1)
+        window.tabBar.removeTab(ind)
+        return True
+
+    if closeAllRequested:
+        indList = list(range(window.tabBar.count()))
+        while indList:
+            ind = window.tabBar.currentIndex()
+            if not canCloseTab(ind):
+                break
+            try:
+                indList.remove(ind)
+            except ValueError:
+                pass
+    else:
+        return canCloseTab(index)
+    return window.tabBar.count() == 0
 
 
 def updateStatus(window=window):
@@ -1745,12 +1770,27 @@ def switchDoc(index):
     img = window.tabBar.tabData(index)
     setDocumentImage(img)
 
+
+def closeTab(index, window=window):
+    """
+    tabCloseRequested Slot.
+    Tries to save and close a single document.
+    @param index: valid tab index
+    @type index: int
+    @param window:
+    @type window:
+    """
+    closeTabs(index=index)
+
+
 def setupTabBar(window=window):
     tabBar = QTabBar()
     tabBar.currentChanged.connect(switchDoc)
+    tabBar.tabCloseRequested.connect(closeTab)
     tabBar.setMaximumHeight(25)
-    tabBar.setAutoHide(True)
+    # tabBar.setAutoHide(True)
     tabBar.setStyleSheet("QTabBar::tab {height: 15px; width: 100px;}")
+    tabBar.setTabsClosable(True)
     vlay = QVBoxLayout()
     hlay2 = QHBoxLayout()
     hlay2.addWidget(tabBar)
