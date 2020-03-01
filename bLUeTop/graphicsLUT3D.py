@@ -15,7 +15,7 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-
+import threading
 from collections import OrderedDict
 
 import cv2
@@ -945,10 +945,10 @@ class activeGrid(QGraphicsPathItem):
 
 class colorChooser(QGraphicsPixmapItem):
     """
-    Color wheel wrapper : it is a 2D slider-like
-    providing color selection from the wheel and
-    rubber band selection from a grid
-    of activeNode objects moving over the wheel.
+    Color wheel wrapper : it is a 2D-slider-like
+    object providing color selection from the wheel and
+    rubber band selection from a grid of activeNode objects
+    moving over the wheel.
     """
     def __init__(self, cModel, QImg, target=None, size=0, border=0):
         """
@@ -965,25 +965,43 @@ class colorChooser(QGraphicsPixmapItem):
         """
         self.QImg = QImg  # not a back link !!!
         self.border = border
+        self.cModel = cModel
+        self.targetLayer = target
         if size == 0:
             self.size = min(QImg.width(), QImg.heigth()) - 2 * border
         else:
             self.size = size
         self.origin = 0
-        # calculate target histogram
+        # 2D-histogram of target image
         self.targetHist = None
-        if target is not None:
+        # if target is not None:
+           # self.updateTargetHist()
+        self.showTargetHist = False
+        super().__init__(self.QImg.rPixmap)
+        self.setPixmap(self.QImg.rPixmap)
+        self.setOffset(QPointF(-border, -border))
+        self.onMouseRelease = lambda p, x, y, z: 0
+        self.rubberBand = None
+
+    def updateTargetHist(self):
+        """
+        Updates the 2D hist of target image.
+        The computation is done in background.
+        """
+
+        def bgTask():
             # convert to current color space
-            hsxImg = cModel.rgb2cmVec(QImageBuffer(target)[:, :, :3][:, :, ::-1])
+            img = self.targetLayer.inputImg()
+            hsxImg = self.cModel.rgb2cmVec(QImageBuffer(img)[:, :, :3][:, :, ::-1])
             # get polar coordinates relative to the color wheel
             xyarray = self.QImg.GetPointVec(hsxImg).astype(int)
             maxVal = self.QImg.width()
             STEP = 10
             # build 2D histogram for xyarray
             H, xedges, yedges = np.histogram2d(xyarray[:, :, 0].ravel(), xyarray[:, :, 1].ravel(),
-                                               bins=[np.arange(0, maxVal+STEP, STEP), np.arange(0, maxVal + STEP, STEP)],
+                                               bins=[np.arange(0, maxVal + STEP, STEP), np.arange(0, maxVal + STEP, STEP)],
                                                normed=True)
-            w, h = QImg.width(), QImg.height()
+            w, h = self.QImg.width(), self.QImg.height()
             b = QImage(w, h, QImage.Format_ARGB32)
             b.fill(0)
             buf = QImageBuffer(b)
@@ -1000,12 +1018,9 @@ class colorChooser(QGraphicsPixmapItem):
             # alpha channel
             buf[xyarray[:, :, 1], xyarray[:, :, 0], 3] = 90 + 128.0 * tmp / norma
             self.targetHist = b
-            self.showTargetHist = False
-        super().__init__(self.QImg.rPixmap)
-        self.setPixmap(self.QImg.rPixmap)
-        self.setOffset(QPointF(-border, -border))
-        self.onMouseRelease = lambda p, x, y, z: 0
-        self.rubberBand = None
+            self.updatePixmap()
+
+        threading.Thread(target=bgTask).start()
 
     def setPixmap(self, pxmap):
         """
@@ -1023,9 +1038,6 @@ class colorChooser(QGraphicsPixmapItem):
         super().setPixmap(pxmap)
 
     def updatePixmap(self):
-        """
-        Convenience method
-        """
         self.setPixmap(self.QImg.rPixmap)
 
     def mousePressEvent(self, e):
@@ -1145,7 +1157,7 @@ class graphicsForm3DLUT(baseGraphicsForm):
         self.graphicsScene.lut = freshLUT3D
         # init 2D slider (color wheel)
         swatchImg = hueSatPattern(axeSize, axeSize, cModel, bright=self.defaultColorWheelBr, border=self.border)
-        slider2D = colorChooser(cModel, swatchImg, target=self.targetImage, size=axeSize, border=self.border)
+        slider2D = colorChooser(cModel, swatchImg, target=self.layer, size=axeSize, border=self.border)  # TODO changed self.targetImage to self.layer 01/03/20 validate
         #########################################################################
         # CAUTION : sliedr2D has a non null offset
         # slider2D (and QImg) topleft corner is at scene pos -slider2D.offset()
@@ -1236,8 +1248,12 @@ class graphicsForm3DLUT(baseGraphicsForm):
         def onSelect3(item):
             option = item.internalName
             if option == 'show histogram':
-                self.graphicsScene.slider2D.showTargetHist = self.graphicsScene.options[option]
-                self.graphicsScene.slider2D.updatePixmap()
+                opt = self.graphicsScene.options[option]
+                self.graphicsScene.slider2D.showTargetHist = opt
+                if opt:
+                    self.graphicsScene.slider2D.updateTargetHist()  # bg task
+                else:
+                    self.graphicsScene.slider2D.updatePixmap()
                 return
             if option == 'keep alpha':
                 self.enableButtons()

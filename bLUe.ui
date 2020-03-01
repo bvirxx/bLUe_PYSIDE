@@ -1055,7 +1055,13 @@ Screen</string>
   </action>
   <action name="actionClose">
    <property name="text">
-    <string>Close...</string>
+    <string>Close All</string>
+   </property>
+   <property name="iconText">
+    <string>Close All</string>
+   </property>
+   <property name="toolTip">
+    <string>Close All</string>
    </property>
   </action>
   <action name="actionCurves_HSpB">
