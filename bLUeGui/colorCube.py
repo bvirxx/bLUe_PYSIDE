@@ -207,7 +207,8 @@ def hsv2rgbVec(hsvImg, cvRange=False):
         s = hsvImg.shape
         hsvImg = hsvImg.reshape(np.prod(s[:-1]), 1, s[-1])
     if not cvRange:
-        hsvImg *= [0.5, 255.0, 255.0]  # scale to 0..180, 0..255, 0..255 (opencv convention)
+        # scale to 0..180, 0..255, 0..255 (opencv convention)
+        hsvImg = hsvImg * [0.5, 255.0, 255.0]  # make sure a copy is done : do not use *=
     rgbImg = cv2.cvtColor(hsvImg.astype(np.uint8), cv2.COLOR_HSV2RGB)
     if flatten:
         rgbImg = rgbImg.reshape(s)
