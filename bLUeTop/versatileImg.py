@@ -1760,7 +1760,7 @@ class vImage(bImage):
             # get RGB multipliers
             m1, m2, m3, _ = temperatureAndTint2Multipliers(temperature, 2 ** tint, self.parentImage.RGB_lin2XYZInverse)  # TODO modified 24/02/20 validate
             buf = QImageBuffer(inputImage)[:, :, :3]
-            bufXYZ = RGB2XYZ(buf[:, :, ::-1])
+            bufXYZ = RGB2XYZ(buf[:, :, ::-1], RGB_lin2XYZ=self.parentImage.RGB_lin2XYZ)  # TODO modified 02/03/20 validate
             bufsRGBLinear = np.tensordot(bufXYZ, self.parentImage.RGB_lin2XYZInverse, axes=(-1, -1))  # TODO modified 24/02/20 validate
             # apply multipliers
             bufsRGBLinear *= [m1, m2, m3]
