@@ -170,6 +170,23 @@ class bImage(QImage):
         """
         self.rPixmap = QPixmap.fromImage(self)
 
+    def waveFront(self):
+        """
+        Experimental waveFront. Unused yet
+        @return:
+        @rtype:
+        """
+        wfi = QImage(QSize(self.width(), 256), QImage.Format_ARGB32)
+        wfi.fill(Qt.black)
+        wfiBuf = QImageBuffer(wfi)[:,:,:3]
+        frameWidth = 1
+        buf = QImageBuffer(self)
+        for x in range(0, self.width(), frameWidth):
+            bufFrame = buf[:, x:x+frameWidth, 1]
+            hist, bins = np.histogram(bufFrame, bins=128, range=(0, 255), density=True)
+            wfiBuf[::2, x:x+frameWidth, :] = (hist * 256000)[..., np.newaxis, np.newaxis]
+
+
     def histogram(self, size=QSize(200, 200), bgColor=Qt.white, range=(0, 255),
                   chans=channelValues.RGB, chanColors=Qt.gray, mode='RGB', addMode='', clipping_threshold=0.02):
         """
