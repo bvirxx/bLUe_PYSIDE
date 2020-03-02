@@ -888,6 +888,9 @@ class graphicsThrSplineItem(graphicsSplineItem):
         self.brightnessThr1.setPos(self.brightnessSlider.pixmap().width(), self.brightnessSlider.pixmap().height() - self.brightnessThr0.size)
         self.brightnessThr1.val = 1.0
 
+    def mousePressEvent(self, e):
+        pass  # don't select on click!
+
 class graphicsSplineForm(graphicsCurveForm):
     """
     Form for interactive cubic or quadratic spline.

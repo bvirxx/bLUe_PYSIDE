@@ -122,6 +122,7 @@ class nodeGroup(QGraphicsItemGroup, QObject):  # QObject needed by disconnect()
         border = graphicsForm.border
         offset = self.scene().slider2D.offset()
         self.brightnessItem = graphicsThrSplineItem(size=axeSize , border=border)
+        # self.brightnessItem.setAcceptedMouseButtons(Qt.NoButton)  # does not work : mouse clicks are not ignored
         self.scene().addItem(self.brightnessItem)
         self.brightnessItem.setPos(offset.x(), axeSize + 50)
         self.brightnessItem.brightnessThr0.installSceneEventFilter(self.brightnessItem.brightnessThr1)
@@ -132,7 +133,7 @@ class nodeGroup(QGraphicsItemGroup, QObject):  # QObject needed by disconnect()
         def f8():
             self.brightnessItem.setVisible(self.isSelected())
 
-        self.scene().selectionChanged.connect(f8)
+        self.scene().selectionChanged.connect(f8)  # don't forget to disconnect before destroying group !
 
         def f5(e, x, y):
             self.brightnessItem.brightnessThr0.val = self.brightnessItem.brightnessThr0.pos().x() / self.brightnessItem.brightnessSliderWidth
@@ -159,7 +160,7 @@ class nodeGroup(QGraphicsItemGroup, QObject):  # QObject needed by disconnect()
             l.parentImage.onImageChanged()
 
         self.brightnessItem.brightnessThr0.onMouseRelease, self.brightnessItem.brightnessThr1.onMouseRelease = f5, f6
-        self.brightnessItem.cubic.curveChanged.sig.connect(f7)
+        self.brightnessItem.cubic.curveChanged.sig.connect(f7)  # don't forget to disconnect before destroying group !
 
         self.brightnessItem.setVisible(False)
 
@@ -236,7 +237,12 @@ class nodeGroup(QGraphicsItemGroup, QObject):  # QObject needed by disconnect()
 
         def f1():
             childs = self.childItems()
-            self.scene().disconnect(self)
+            # disconnect all signals received by node group
+            try:
+                self.scene().disconnect(self)
+                self.brightnessItem.cubic.curveChanged.disconnect(self)
+            except RuntimeError:
+                pass
             self.scene().removeItem(self.brightnessItem)
             self.scene().destroyItemGroup(self)
             for item in childs:
@@ -861,6 +867,12 @@ class activeGrid(QGraphicsPathItem):
             groupList = [item for item in self.childItems() if type(item) is nodeGroup]
             for item in groupList:
                 item.prepareGeometryChange()
+                try:
+                    # disconnect all signals received by node group item
+                    self.scene().disconnect(item)
+                    item.brightnessItem.cubic.curveChanged.disconnect(item)
+                except RuntimeError:
+                    pass
                 self.scene().destroyItemGroup(item)
         for i in range(self.size):
             for j in range(self.size):
