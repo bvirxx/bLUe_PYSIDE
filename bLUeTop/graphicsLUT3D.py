@@ -131,7 +131,10 @@ class nodeGroup(QGraphicsItemGroup, QObject):  # QObject needed by disconnect()
         self.normalizedLUTXY = np.arange(256, dtype=np.float) / 255.0
 
         def f8():
-            self.brightnessItem.setVisible(self.isSelected())
+            try:  #  safety first : sometimes, disconnecting seems problematic
+                self.brightnessItem.setVisible(self.isSelected())
+            except RuntimeError:
+                print('nodeGroup : calling method of a destroyed group')
 
         self.scene().selectionChanged.connect(f8)  # don't forget to disconnect before destroying group !
 
@@ -871,6 +874,7 @@ class activeGrid(QGraphicsPathItem):
                     # disconnect all signals received by node group item
                     self.scene().disconnect(item)
                     item.brightnessItem.cubic.curveChanged.disconnect(item)
+                    self.scene().removeItem(item.brightnessItem)  # TODO added 3/3/20 validate
                 except RuntimeError:
                     pass
                 self.scene().destroyItemGroup(item)
