@@ -43,7 +43,7 @@ from bLUeTop.graphicsFilter import filterIndex
 from bLUeGui.histogramWarping import warpHistogram
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.colorCube import rgb2hspVec, hsp2rgbVec, hsv2rgbVec
-from bLUeGui.blend import blendLuminosity
+from bLUeGui.blend import blendLuminosity, blendLuminosityBuf
 from bLUeGui.colorCIE import sRGB2LabVec, Lab2sRGBVec, rgb2rgbLinear, \
     rgbLinear2rgb, RGB2XYZ, sRGB_lin2XYZInverse, bbTemperature2RGB, sRGB_lin2XYZ
 from bLUeGui.multiplier import temperatureAndTint2Multipliers
@@ -1049,7 +1049,10 @@ class vImage(bImage):
         np.clip(buf, 0, 1.0, out=buf)
         # convert back to RGB
         buf = rgbLinear2rgb(buf)
-        bufOut[:, :, :3][:, :, ::-1] = buf
+        if form.options['Luminosity']:
+            bufOut[:, :, :3][:, :, ::-1] = blendLuminosityBuf(bufIn[:, :, :3][:, :, ::-1], buf)
+        else:
+            bufOut[:, :, :3][:, :, ::-1] = buf
         # forward the alpha channel
         bufOut[:, :, 3] = bufIn[:, :, 3]
         self.updatePixmap()
