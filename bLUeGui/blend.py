@@ -20,6 +20,30 @@ from PySide2.QtGui import QImage
 from bLUeGui.colorCube import rgb2hlsVec, hls2rgbVec
 from bLUeGui.bLUeImage import QImageBuffer
 
+def blendLuminosityBuf(destBuf, sourceBuf):
+    """
+    Implements blending with luminosity mode,
+    which is missing in Qt.
+    The blended image retains the hue and saturation of dest,
+    with the luminosity of source.
+    We use the HLS color model:
+    see https://docs.opencv.org/3.3.0/de/d25/imgproc_color_conversions.html
+    Note blendColor and blendLuminosity are commuted versions of each other:
+    blendLuminosity(img1, img2) = blendColor(img2, img1)
+    @param destBuf: destination image buffer
+    @type destBuf: ndarray
+    @param sourceBuf: source image buffer
+    @type sourceBuf: ndarray
+    @return: the blended buffer
+    @rtype: ndarray
+    """
+    hlsSourceBuf = rgb2hlsVec(sourceBuf)
+    hlsDestBuf = rgb2hlsVec(destBuf)
+    # copy source luminosity to dest
+    hlsDestBuf[:, :, 1] = hlsSourceBuf[:, :, 1]
+    blendBuf = hls2rgbVec(hlsDestBuf)
+    return blendBuf
+
 
 def blendLuminosity(dest, source):
     """
@@ -41,16 +65,31 @@ def blendLuminosity(dest, source):
     """
     sourceBuf = QImageBuffer(source)[:, :, :3]
     destBuf = QImageBuffer(dest)[:, :, :3]
-    hlsSourceBuf = rgb2hlsVec(sourceBuf[:, :, ::-1])
-    hlsDestBuf = rgb2hlsVec(destBuf[:, :, ::-1])
-    # copy source luminosity to dest
-    hlsDestBuf[:, :, 1] = hlsSourceBuf[:, :, 1]
-    blendBuf = hls2rgbVec(hlsDestBuf)
+    blendBuf = blendLuminosityBuf(destBuf[..., ::-1], sourceBuf[..., ::-1])
     img = QImage(source.size(), source.format())
     tmp = QImageBuffer(img)
     tmp[:, :, :3][:, :, ::-1] = blendBuf
     tmp[:, :, 3] = 255
     return img
+
+
+def blendColorBuf(destBuf, sourceBuf):
+    """
+     Implements blending using color mode, which is missing
+    in Qt. We use the HLS color model as intermediate color space.
+    The blended image retains the hue and saturation of source, with the
+    luminosity of dest. We use the HLS color model:
+    see https://docs.opencv.org/3.3.0/de/d25/imgproc_color_conversions.html
+    Note blendColor and blendLuminosity are commuted versions of each other:
+    blendLuminosity(img1, img2) = blendColor(img2, img1)
+    @param destBuf: destination image buffer
+    @type destBuf: ndarray
+    @param sourceBuf: source image buffer
+    @type sourceBuf: ndarray
+    @return: the blended buffer
+    @rtype: ndarray
+    """
+    return blendLuminosityBuf(sourceBuf, destBuf)
 
 
 def blendColor(dest, source):
