@@ -31,13 +31,13 @@ class bottomWidget(QWidget):
     """
     def __init__(self):
         super().__init__()
-        self.setMaximumSize(400, 150)  # TODO 17/02/20 changed 180 to 150 validate
-        self.setMinimumSize(200, 80)
+        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+        self.setMaximumSize(400, 150)
+        self.setMinimumSize(200, 50)   # TODO 09/03/20 changed 80 to 50 validate
         self.setObjectName('container')
-        ss = """QWidget#container{background-color: black}
-                               QListWidget{background-color: black; selection-background-color: black; border: none; font-size: 7pt}
-                               QListWidget::item{color: white;}
-                               QListWidget::item::selected{background: black; border: none}"""
+        ss = """QWidget#container{background-color: black;}
+                               QListWidget {font-size: 7pt;}
+                               QListWidget::item{color: white;}"""
         self.setStyleSheet(ss)
 
 
@@ -183,7 +183,7 @@ class baseGraphicsForm(QGraphicsView, abstractForm):
 
     def wheelEvent(self, e):
         """
-        Override QGraphicsView wheelEvent.
+        Overrides QGraphicsView wheelEvent.
         Zoom the scene.
         @param e:
         @type e:
