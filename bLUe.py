@@ -120,6 +120,7 @@ from os import path, walk, remove
 from os.path import basename, isfile
 from tempfile import mktemp
 
+from bLUeGui.graphicsForm import baseGraphicsForm
 from bLUeTop import resources_rc  # mandatory
 
 import numpy as np
@@ -882,6 +883,9 @@ def menuLayer(name, window=window):
         layer.view = dock
         # update the view of layer stack
         window.tableView.setLayers(window.label.img)
+        # enhance graphic scene display
+        if isinstance(grWindow, baseGraphicsForm):
+            grWindow.fitInView(grWindow.scene().sceneRect(), Qt.KeepAspectRatio)
 
     # curves
     if name in ['actionCurves_RGB', 'actionCurves_HSpB', 'actionCurves_Lab']:
@@ -1490,6 +1494,7 @@ def setupGUI(window=window):
                                                                            color: rgb(220,220,220)}
                                QListWidget::item{background-color: rgb(40, 40, 40); color: white}
                                QListWidget::item:disabled{color: gray}
+                               optionsWidget {outline: none; border: none} 
                                QMenu, QTableView {selection-background-color: blue;
                                                    selection-color: white;}
                                QWidget, QComboBox, QTableView, QTableView * {font-size: 9pt}
