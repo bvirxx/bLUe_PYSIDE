@@ -457,15 +457,8 @@ def showHistogram(window=window):
                                  chans=window.histView.chans, bgColor=Qt.black,
                                  chanColors=window.histView.chanColors, mode=window.histView.mode, addMode='Luminosity' if window.histView.options['L'] else '')
     window.histView.cache = QPixmap.fromImage(histView)
-    window.histView.Label_Hist.setPixmap(window.histView.cache.scaled(window.histView.width() - 20, window.histView.height()-50))
-    window.histView.Label_Hist.repaint()
+    window.histView.Label_Hist.setPixmap(window.histView.cache)
 
-
-def adjustHistogramSize(window=window):
-    pxm = getattr(window.histView, 'cache', None)
-    if pxm is not None:
-        window.histView.Label_Hist.setPixmap(pxm.scaled(window.histView.width() - 20, window.histView.height()-50))
-        window.histView.Label_Hist.repaint()
 
 def restoreBrush(d):
     """
@@ -747,6 +740,9 @@ def menuView(name, window=window):
     ###############
     elif name == 'actionColor_Chooser':
         window.colorChooser.show()
+    ############
+    # Histogram
+    ############
     elif name == 'actionHistogram':
         window.histViewDock.show()
     updateStatus()
@@ -1348,8 +1344,7 @@ def screenUpdate(newScreenIndex, window=window):
 
 
 class HistQDockWidget(QDockWidget):
-    def resizeEvent(self, e):
-        adjustHistogramSize()
+    pass
 
 
 def setRightPane(window=window):
