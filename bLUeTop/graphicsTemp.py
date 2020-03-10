@@ -37,14 +37,14 @@ class temperatureForm (baseForm):
         super().__init__(layer=layer, targetImage=targetImage, parent=parent)
         self.tempCorrection = 6500
         self.tintCorrection = 1.0
-        self.filterColor = QColor(255, 255, 255)
+        self.filterColor = Qt.white
         self.defaultTemp = sRGBWP  # ref temperature D65
         self.defaultTint = 0
 
         # options
         optionList, optionNames = ['Color Filter', 'Photo Filter', 'Chromatic Adaptation'], ['Color Filter', 'Photo Filter', 'Chromatic Adaptation']
         self.listWidget1 = optionsWidget(options=optionList, optionNames=optionNames, exclusive=True,
-                                         changed=lambda: self.dataChanged.emit())
+                                         changed=self.dataChanged)
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
         self.options = self.listWidget1.options
         # link to app color dialog
@@ -104,11 +104,14 @@ class temperatureForm (baseForm):
         # layout
         l = QVBoxLayout()
         l.setAlignment(Qt.AlignTop)
+        l.addWidget(QLabel('Filter Type'))
         l.addWidget(self.listWidget1)
+        l.addStretch(1)
         hl2 = QHBoxLayout()
         hl2.addWidget(self.colorLabel)
         hl2.addWidget(self.colorChooserBtn)
         l.addLayout(hl2)
+        l.addStretch(1)
         l.addWidget(self.tempLabel)
         hl = QHBoxLayout()
         hl.addWidget(self.tempValue)
@@ -119,6 +122,7 @@ class temperatureForm (baseForm):
         hl1.addWidget(self.tintValue)
         hl1.addWidget(self.sliderTint)
         l.addLayout(hl1)
+        l.addStretch(1)
         self.setLayout(l)
         self.adjustSize()
         self.setDefaults()

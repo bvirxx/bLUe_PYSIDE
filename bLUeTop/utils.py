@@ -24,7 +24,7 @@ import numpy as np
 from PySide2 import QtCore
 from PySide2.QtGui import QColor, QImage, QPainter, QPixmap, QIcon, QMouseEvent
 from PySide2.QtWidgets import QListWidget, QListWidgetItem, \
-    QSlider, QLabel, QDockWidget, QStyle, QColorDialog, QPushButton
+    QSlider, QLabel, QDockWidget, QStyle, QColorDialog, QPushButton, QSizePolicy
 from PySide2.QtCore import Qt, QObject, QRect, QEvent
 
 from bLUeCore.rollingStats import movingVariance
@@ -444,7 +444,7 @@ class optionsWidget(QListWidget):
     if changed is not None, it is emitted/called when an item is clicked.
     """
 
-    def __init__(self, options=None, optionNames=None, exclusive=True, changed=None, parent=None, flow=None):
+    def __init__(self, options=None, optionNames=None, exclusive=True, changed=None, parent=None, flow=QListWidget.TopToBottom):
         """
         @param options: list of options
         @type options: list of str
@@ -480,8 +480,13 @@ class optionsWidget(QListWidget):
             self.addItem(listItem)
             self.items[intName] = listItem
             self.options[intName] = (listItem.checkState() == Qt.Checked)
-        self.setMinimumHeight(self.sizeHintForRow(0) * len(options))  # TODO should be corrected for flow=LeftToRight
-        self.setMaximumHeight(self.sizeHintForRow(0) * len(options) + 10)  # TODO should be corrected for flow=LeftToRight
+        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+        if flow == QListWidget.TopToBottom:
+            self.setMinimumHeight(self.sizeHintForRow(0) * len(options))
+            self.setMaximumHeight(self.sizeHintForRow(0) * len(options) + 10)
+        else: # QListWidget.LeftToRight
+            self.setMinimumWidth(self.sizeHintForColumn(0) * len(options))
+            self.setMaximumWidth(self.sizeHintForColumn(0) * len(options) + 10)
         self.exclusive = exclusive
         self.itemClicked.connect(self.select)
         if changed is not None:

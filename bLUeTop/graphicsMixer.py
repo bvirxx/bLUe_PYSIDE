@@ -17,8 +17,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import numpy as np
 from PySide2.QtCore import Qt, QSize, QPointF
-from PySide2.QtGui import QImage, QColor, QPixmap, QPainter, QBrush, QPen
-from PySide2.QtWidgets import QGraphicsPixmapItem, QGridLayout, QLabel
+from PySide2.QtGui import QImage, QColor, QPixmap, QPainter, QBrush, QPen, QFontMetrics, QTransform
+from PySide2.QtWidgets import QGraphicsPixmapItem, QLabel, QVBoxLayout, QSizePolicy
 
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.graphicsForm import baseGraphicsForm
@@ -28,17 +28,20 @@ from bLUeTop.utils import optionsWidget
 
 class activeMixerPoint(activePoint):
 
+    def __init__(self, x, y, color=Qt.white, fillColor=None, parentItem=None, grForm=None):
+        super().__init__(x, y, color=color, fillColor=fillColor, parentItem=parentItem)
+        self.grForm = grForm
+
     def mouseMoveEvent(self, e):
         super().mouseMoveEvent(e)
-
-    def mouseReleaseEvent(self, e):
-        grForm = self.scene().layer.view.widget()
-        if grForm.options['Monochrome']:
-            for p in [grForm.rPoint, grForm.gPoint, grForm.bPoint]:
+        if self.grForm.options['Monochrome']:
+            for p in [self.grForm.rPoint, self.grForm.gPoint, self.grForm.bPoint]:
                 if p is not self:
                     p.setPos(self.pos())
         self.scene().update()
-        grForm.dataChanged.emit()
+
+    def mouseReleaseEvent(self, e):
+        self.grForm.dataChanged.emit()
 
     def paint(self, qpainter, options, widget):
         """
@@ -54,7 +57,7 @@ class activeMixerPoint(activePoint):
         super().paint(qpainter, options, widget)
         # draw connecting lines
         qpainter.save()
-        qpainter.setBrush(QBrush(QColor(255, 255, 255)))
+        qpainter.setBrush(QBrush(Qt.white))
         qpainter.setPen(QPen(Qt.white, 1, Qt.DotLine, Qt.RoundCap))
         # local coordinates
         qpainter.drawLine(self.source - self.pos(), QPointF())
@@ -76,10 +79,9 @@ class mixerForm(baseGraphicsForm):
         self.cwSize = axeSize * 0.95
         self.setAttribute(Qt.WA_DeleteOnClose)
         # options
-        optionList = ['Monochrome']
-        listWidget1 = optionsWidget(options=optionList, exclusive=False, changed=self.dataChanged)
-        # listWidget1.setMinimumWidth(listWidget1.sizeHintForColumn(0) + 5)
-        # listWidget1.setMaximumHeight(listWidget1.sizeHintForRow(0) * len(optionList))
+        optionList = ['Monochrome', 'Luminosity']
+        listWidget1 = optionsWidget(options=optionList, exclusive=False, changed=self.dataChanged, flow=optionsWidget.LeftToRight)
+        #listWidget1.setMaximumHeight(listWidget1.sizeHintForRow(0) + 5)
         self.options = listWidget1.options
         # barycentric coordinate basis : the 3 base points form an equilateral triangle
         h = self.cwSize - 50
@@ -92,34 +94,41 @@ class mixerForm(baseGraphicsForm):
         self.invM = np.linalg.inv(self.M)
         self.setBackgroundImage()
         # active points
-        self.rPoint = activeMixerPoint(self.R.x(), self.R.y(), color=Qt.red, fillColor=Qt.white)
+        self.rPoint = activeMixerPoint(self.R.x(), self.R.y(), color=Qt.red, fillColor=Qt.white, grForm=self)
         self.rPoint.source = self.R
-        self.gPoint = activeMixerPoint(self.G.x(), self.G.y(), color=Qt.green, fillColor=Qt.white)
+        self.gPoint = activeMixerPoint(self.G.x(), self.G.y(), color=Qt.green, fillColor=Qt.white, grForm=self)
         self.gPoint.source = self.G
-        self.bPoint = activeMixerPoint(self.B.x(), self.B.y(), color=Qt.blue, fillColor=Qt.white)
+        self.bPoint = activeMixerPoint(self.B.x(), self.B.y(), color=Qt.blue, fillColor=Qt.white, grForm=self)
         self.bPoint.source = self.B
         graphicsScene = self.scene()
         for point in [self.rPoint, self.gPoint, self.bPoint]:
             graphicsScene.addItem(point)
-        gl = QGridLayout()
+        gl = QVBoxLayout()
+        gl.setAlignment(Qt.AlignTop)
         container = self.addCommandLayout(gl)
         self.values = QLabel()
-        self.values.setMaximumSize(120, 60)
-        gl.addWidget(self.values, 0, 0, 4, 8)
-        gl.addWidget(listWidget1, 4, 0, 4, 2)
-        container.adjustSize()
-        self.setViewportMargins(0, 0, 0, container.height() + 15)
+        vh = QFontMetrics(self.values.font()).height()
+        self.values.setMaximumSize(150, vh * 4)  # 4 lines
+        gl.addWidget(self.values)
+        gl.addWidget(listWidget1)
+        self.adjustSize()
+        self.setViewportMargins(0, 0, 0, container.height())
         self.setDefaults()
         self.setWhatsThis(
                         """<b>Channel Mixer</b><br>
-                        The triangle vertices and the control points correspond to the R, G, B channels .<br>
+                        The triangle vertices and the three control points correspond to the R, G, B channels.<br>
                         To <b>mix the channels</b>, drag the 3 control points inside the triangle.
                         The closer a control point is to a vertex, the greater the corresponding channel contribution. <br>
-                        Checking the option <i>Monochrome</i> gives monochrome images only.
+                        To obtain <b>monochrome images</b> only, check the option <i>Monochrome.</i><br>
+                        To modify the <b>luminosity channel</b> only (volume mode), check the option <i>Luminosity.</i><br>
                         """
                         )  # end of setWhatsThis
 
     def updateLayer(self):
+        if self.options['Monochrome']:
+            for p in [self.gPoint, self.bPoint]:
+                    p.setPos(self.rPoint.pos())
+            self.scene().update()
         baryCoordR = self.invM @ [self.rPoint.x(), self.rPoint.y(), 1]
         baryCoordG = self.invM @ [self.gPoint.x(), self.gPoint.y(), 1]
         baryCoordB = self.invM @ [self.bPoint.x(), self.bPoint.y(), 1]
@@ -164,7 +173,7 @@ class mixerForm(baseGraphicsForm):
         self.scene().addItem(QGraphicsPixmapItem(QPixmap.fromImage(img)))
 
     def getChannelValues(self):
-        return "\n".join(("      R      G      B",
-                          " R : %.2f  %.2f  %.2f" % tuple(self.mixerMatrix[0]),
-                          " G : %.2f  %.2f  %.2f" % tuple(self.mixerMatrix[1]),
-                          " B : %.2f  %.2f  %.2f" % tuple(self.mixerMatrix[2])))
+        return "\n".join(("         R      G      B",
+                          " R <- %.2f  %.2f  %.2f" % tuple(self.mixerMatrix[0]),
+                          " G <- %.2f  %.2f  %.2f" % tuple(self.mixerMatrix[1]),
+                          " B <- %.2f  %.2f  %.2f" % tuple(self.mixerMatrix[2])))
