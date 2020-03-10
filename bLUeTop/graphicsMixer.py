@@ -81,7 +81,7 @@ class mixerForm(baseGraphicsForm):
         # options
         optionList = ['Monochrome', 'Luminosity']
         listWidget1 = optionsWidget(options=optionList, exclusive=False, changed=self.dataChanged, flow=optionsWidget.LeftToRight)
-        #listWidget1.setMaximumHeight(listWidget1.sizeHintForRow(0) + 5)
+        listWidget1.setMaximumHeight(listWidget1.sizeHintForRow(0) + 5)  # mandatory although sizePolicy is set to minimum !
         self.options = listWidget1.options
         # barycentric coordinate basis : the 3 base points form an equilateral triangle
         h = self.cwSize - 50
@@ -111,9 +111,10 @@ class mixerForm(baseGraphicsForm):
         self.values.setMaximumSize(150, vh * 4)  # 4 lines
         gl.addWidget(self.values)
         gl.addWidget(listWidget1)
+        # don't commute the 3 next lines !
+        self.setDefaults()
         self.adjustSize()
         self.setViewportMargins(0, 0, 0, container.height())
-        self.setDefaults()
         self.setWhatsThis(
                         """<b>Channel Mixer</b><br>
                         The triangle vertices and the three control points correspond to the R, G, B channels.<br>
