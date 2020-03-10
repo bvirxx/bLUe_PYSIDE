@@ -1243,7 +1243,7 @@ class vImage(bImage):
                 # warping
                 else:
                     if self.parentImage.isHald and not options['manualCurve']:
-                        raise ValueError('Check option Show Contrast Curve in Cont/Bright/Sat layer')
+                        raise ValueError('A contrast curve was found.\nCheck the option Show Contrast Curve in Cont/Bright/Sat layer')
                     auto = self.autoSpline and not self.parentImage.isHald
                     res, a, b, d, T = warpHistogram(LBuf[:, :, 0], warp=contrastCorrection, preserveHigh=options['High'],
                                                 spline=None if auto else self.getMmcSpline())
@@ -1284,7 +1284,7 @@ class vImage(bImage):
                 # warping
                 else:
                     if self.parentImage.isHald and not options['manualCurve']:
-                        raise ValueError('Check option Show Contrast Curve in Cont/Bright/Sat layer')
+                        raise ValueError('A contrast curve was found.\nCheck the option Show Contrast Curve in Cont/Bright/Sat layer')
                     buf32 = HSVBuf[:, :, 2].astype(np.float) / 255
                     auto = self.autoSpline and not self.parentImage.isHald  # flag for manual/auto spline
                     res, a, b, d, T = warpHistogram(buf32, warp=contrastCorrection, preserveHigh=options['High'],
@@ -1309,16 +1309,12 @@ class vImage(bImage):
         ndImg1a[:, :, 3] = tmpBuf[:, :, 3]
         self.updatePixmap()
 
-    def apply1DLUT(self, stackedLUT, options=None):
+    def apply1DLUT(self, stackedLUT):
         """
         Apply 1D LUTS to R, G, B channels (one for each channel)
         @param stackedLUT: array of color values (in range 0..255) : a row for each R, G, B channel
         @type stackedLUT : ndarray, shape=(3, 256), dtype=int
-        @param options:
-        @type options : dictionary
         """
-        if options is None:
-            options = UDict()
         # neutral point: by pass
         if not np.any(stackedLUT - np.arange(256)):  # last dims are equal : broadcast works
             buf1 = QImageBuffer(self.inputImg())
@@ -1326,6 +1322,8 @@ class vImage(bImage):
             buf2[:, :, :] = buf1
             self.updatePixmap()
             return
+        adjustForm = self.getGraphicsForm()
+        options = adjustForm.graphicsScene.options
         inputImage = self.inputImg()
         currentImage = self.getCurrentImage()
         # get image buffers
@@ -1335,8 +1333,15 @@ class vImage(bImage):
         ndImg1 = ndImg1a[:, :, :3]
         # apply LUTS to channels
         s = ndImg0[:, :, 0].shape
-        for c in range(3):  # 0.36s for 15Mpx
-            ndImg1[:, :, c] = np.take(stackedLUT[2-c, :], ndImg0[:, :, c].reshape((-1,))).reshape(s)
+        if options['Luminosity']:
+            buf = np.empty_like(ndImg1)
+            for c in range(3):  # 0.36s for 15Mpx
+                buf[:, :, c] = np.take(stackedLUT[2-c, :], ndImg0[:, :, c].reshape((-1,))).reshape(s)
+            ndImg1[...] = blendLuminosityBuf(ndImg0, buf)
+        else:
+            for c in range(3):  # 0.36s for 15Mpx
+                ndImg1[:, :, c] = np.take(stackedLUT[2-c, :], ndImg0[:, :, c].reshape((-1,))).reshape(s)
+
         # rList = np.array([2,1,0])  # B, G, R
         # ndImg1[:, :, :] = stackedLUT[rList, ndImg0]  # last dims of index arrays are equal : broadcast works. slower 0.66s for 15Mpx
         # forward alpha channel

@@ -21,7 +21,7 @@ from PySide2.QtCore import Qt, QRectF
 from PySide2.QtWidgets import QGraphicsScene, QGridLayout
 
 from bLUeGui.graphicsSpline import activeCubicSpline, graphicsCurveForm, activeSplinePoint, channelValues
-from bLUeTop.utils import optionsWidget, QbLUePushButton
+from bLUeTop.utils import optionsWidget, QbLUePushButton, UDict
 
 
 class graphicsForm(graphicsCurveForm):
@@ -80,13 +80,18 @@ class graphicsForm(graphicsCurveForm):
         pushButton2.clicked.connect(self.resetAllCurves)
 
         # options
-        options = ['RGB', 'Red', 'Green', 'Blue']
-        self.listWidget1 = optionsWidget(options=options, exclusive=True)
+        options1 = ['RGB', 'Red', 'Green', 'Blue']
+        self.listWidget1 = optionsWidget(options=options1)
+        """
         self.listWidget1.setGeometry(0, 0, self.listWidget1.sizeHintForColumn(0) + 5,
-                                     self.listWidget1.sizeHintForRow(0)*len(options) + 5)
+                                     self.listWidget1.sizeHintForRow(0)*len(options1) + 5)
+        """
+        options2 = ['Luminosity']
+        self.listWidget2 =  optionsWidget(options=options2, exclusive=False)
+        self.graphicsScene.options = UDict((self.listWidget1.options, self.listWidget2.options))
         # selection changed handler
         curves = [graphicsScene.cubicRGB, graphicsScene.cubicR, graphicsScene.cubicG, graphicsScene.cubicB]
-        curveDict = dict(zip(options, curves))
+        curveDict = dict(zip(options1, curves))
 
         def onSelect1(item):
             self.scene().cubicItem.setVisible(False)
@@ -100,8 +105,24 @@ class graphicsForm(graphicsCurveForm):
             self.scene().invalidate(QRectF(0.0, -self.scene().axeSize, self.scene().axeSize, self.scene().axeSize),
                                     QGraphicsScene.BackgroundLayer)
         self.listWidget1.onSelect = onSelect1
+
+        def onSelect2(item):
+            itemRGB = self.listWidget1.items[options1[0]]
+            if item.isChecked():
+                if itemRGB.isChecked():
+                    self.listWidget1.unCheckAll()
+                    self.listWidget1.checkOption(self.listWidget1.intNames[1])
+                itemRGB.setFlags(itemRGB.flags() & ~Qt.ItemIsEnabled)
+            else:
+                itemRGB.setFlags(itemRGB.flags() | Qt.ItemIsEnabled)
+            l = self.scene().layer
+            l.applyToStack()
+            l.parentImage.onImageChanged()
+
+        self.listWidget2.onSelect = onSelect2
+
         # set initial selection to RGB
-        item = self.listWidget1.items[options[0]]
+        item = self.listWidget1.items[options1[0]]
         item.setCheckState(Qt.Checked)
         self.listWidget1.select(item)
 
@@ -109,9 +130,10 @@ class graphicsForm(graphicsCurveForm):
         gl = QGridLayout()
         container = self.addCommandLayout(gl)
         gl.addWidget(self.listWidget1, 0, 0, 2, 1)
+        gl.addWidget(self.listWidget2, 0, 1)
         for i, button in enumerate([pushButton1, pushButton2]):
-            gl.addWidget(button, i, 1)
-        container.adjustSize()
+            gl.addWidget(button, i, 2)
+        self.adjustSize()
         self.setViewportMargins(0, 0, 0, container.height() + 15)
 
         self.setWhatsThis("""<b>RGB curves</b><br>""" + self.whatsThis())
@@ -294,31 +316,7 @@ class graphicsForm(graphicsCurveForm):
         l = graphicsScene.layer
         l.applyToStack()
         l.parentImage.onImageChanged()
-    """
-    def writeToStream(self, outStream):
-        graphicsScene = self.scene()
-        layer = graphicsScene.layer
-        outStream.writeQString(layer.actionName)
-        outStream.writeQString(layer.name)
-        if layer.actionName in ['actionBrightness_Contrast', 'actionCurves_HSpB', 'actionCurves_Lab']:
-            outStream.writeQString(self.listWidget1.selectedItems()[0].text())
-            graphicsScene.cubicRGB.writeToStream(outStream)
-            graphicsScene.cubicR.writeToStream(outStream)
-            graphicsScene.cubicG.writeToStream(outStream)
-            graphicsScene.cubicB.writeToStream(outStream)
-        return outStream
 
-    def readFromStream(self, inStream):
-        actionName = inStream.readQString()
-        name = inStream.readQString()
-        sel = inStream.readQString()
-        graphicsScene = self.scene()
-        graphicsScene.cubicRGB.readFromStream(inStream)
-        graphicsScene.cubicR.readFromStream(inStream)
-        graphicsScene.cubicG.readFromStream(inStream)
-        graphicsScene.cubicB.readFromStream(inStream)
-        return inStream
-    """
 
 
 
