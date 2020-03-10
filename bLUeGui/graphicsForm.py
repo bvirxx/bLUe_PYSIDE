@@ -37,7 +37,8 @@ class bottomWidget(QWidget):
         self.setObjectName('container')
         ss = """QWidget#container{background-color: black;}
                                QListWidget {font-size: 7pt;}
-                               QListWidget::item{color: white;}"""
+                               QListWidget::item{color: white;}
+                               QListWidget::item:disabled {color: gray;}"""
         self.setStyleSheet(ss)
 
 
