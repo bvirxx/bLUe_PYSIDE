@@ -1151,7 +1151,7 @@ def menuLayer(name, window=window):
                 LUT.writeToTextFile(filename)
                 dlgInfo('3D LUT written')
         except (ValueError, IOError) as e:
-            dlgWarn(str(e))
+            dlgWarn("Cannot build the 3D LUT:", str(e))
         finally:
             # restore stack
             img.removeLayer(1)
