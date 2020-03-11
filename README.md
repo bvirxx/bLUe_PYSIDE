@@ -44,13 +44,13 @@ The editor's workflow is based on the grouping of nodes.
   * To edit the colors of all pixels in a group while keeping their brightnesses, simply move the group over 
   the color wheel;
   
-  * To control the brightnesses of pixels in a group, edit the brightness curve(s) of the group.
+  * To control the brightnesses of pixels in a group, edit the brightness curve of the group.
 
 ##### CHANGING THE GAMUT
 The grid of nodes can be warped to produce a particular look (orange-teal, moonlight, ...)
 
-##### COMPLEX 3D LUT
-Complex color transformations such as temperature, channel mixing, ... can be easily integrated in the 3D LUT, in any order, 
+##### COMPLETING THE 3D LUT
+Color transformations such as RGB curves, channel mixing, temperature,... can be easily integrated in the 3D LUT, in any order, 
 by adding the corresponding adjustment layers to the bLUe layer stack and recording the stack as a single 3D LUT. 
 
 ## FUNCTIONALITY
