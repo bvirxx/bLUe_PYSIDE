@@ -82,7 +82,6 @@ class CoBrSatForm(baseForm):
         self.listWidget1 = optionsWidget(options=optionList1, optionNames=optionNames1, exclusive=True,
                                          changed=lambda: self.dataChanged.emit())
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
-        self.listWidget1.setStyleSheet("QListWidget {border: 0px;} QListWidget::item {border: 0px; padding-left: 0px;}")
         optionList2, optionNames2 = ['High', 'manualCurve'], ['Preserve Highlights', 'Show Contrast Curve']
 
         def optionList2Change(item):
@@ -93,7 +92,6 @@ class CoBrSatForm(baseForm):
         self.listWidget2 = optionsWidget(options=optionList2, optionNames=optionNames2, exclusive=False,
                                          changed=optionList2Change)
         self.listWidget2.checkOption(self.listWidget2.intNames[0])
-        self.listWidget2.setStyleSheet("QListWidget {border: 0px;} QListWidget::item {border: 0px; padding-left: 0px;}")
         self.options = UDict((self.listWidget1.options, self.listWidget2.options))
 
         # contrast slider
@@ -215,12 +213,9 @@ class CoBrSatForm(baseForm):
         l = QVBoxLayout()
         l.setAlignment(Qt.AlignTop)
         gb1 = QGroupBox()
-        gb1.setStyleSheet("QGroupBox {border: 1px solid gray; border-radius: 4px}")
+        gb1.setTitle('Contrast')
         l1 = QVBoxLayout()
-        ct = QLabel()
-        ct.setText('Contrast')
-        l.setAlignment(Qt.AlignTop)
-        l1.addWidget(ct)
+        l1.setAlignment(Qt.AlignTop)
         l1.addWidget(self.listWidget1)
         gb1.setLayout(l1)
         l.addWidget(gb1)
@@ -243,7 +238,6 @@ class CoBrSatForm(baseForm):
         l.addStretch(1)
         self.setLayout(l)
         self.adjustSize()
-        self.setStyleSheet("QListWidget, QLabel {font : 7pt;}")
         self.setDefaults()
         self.setWhatsThis(
             """<b>Contrast Brightness Saturation</b><br>

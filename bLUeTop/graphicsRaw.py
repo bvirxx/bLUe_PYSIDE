@@ -462,8 +462,6 @@ class rawForm (baseForm):
         self.sliderSat.valueChanged.connect(satUpdate)  # send new value as parameter
         self.sliderSat.sliderReleased.connect(lambda: satUpdate(self.sliderSat.value()))  # signal has no parameter
 
-        self.setStyleSheet("QListWidget, QLabel {font : 7pt;}")
-
         # layout
         l = QVBoxLayout()
         l.addWidget(self.listWidget3)
@@ -490,12 +488,10 @@ class rawForm (baseForm):
         hl8.addWidget(self.sliderBrightness)
         l.addLayout(hl8)
         l.addWidget(self.listWidget1)
-        self.listWidget2.setStyleSheet("QListWidget {border: 0px;} QListWidget::item {border: 0px; padding-left: 20px;}")
         vl1 = QVBoxLayout()
-        vl1.addWidget(QLabel('White Balance'))
         vl1.addWidget(self.listWidget2)
         gb1 = QGroupBox()
-        gb1.setStyleSheet("QGroupBox {border: 1px solid gray; border-radius: 4px}")
+        gb1.setTitle('White Balance')
         hl2 = QHBoxLayout()
         hl2.addWidget(self.tempLabel)
         hl2.addWidget(self.tempValue)

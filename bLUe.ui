@@ -41,7 +41,7 @@
       <item>
        <widget class="QGroupBox" name="groupbox_btn">
         <property name="sizePolicy">
-         <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+         <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
           <horstretch>0</horstretch>
           <verstretch>0</verstretch>
          </sizepolicy>
@@ -54,7 +54,7 @@
         </property>
         <property name="maximumSize">
          <size>
-          <width>74</width>
+          <width>60</width>
           <height>16777215</height>
          </size>
         </property>
@@ -62,20 +62,29 @@
          <string/>
         </property>
         <property name="alignment">
-         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+         <set>Qt::AlignCenter</set>
+        </property>
+        <property name="flat">
+         <bool>false</bool>
         </property>
         <widget class="QWidget" name="layoutWidget">
          <property name="geometry">
           <rect>
            <x>10</x>
            <y>10</y>
-           <width>52</width>
+           <width>47</width>
            <height>801</height>
           </rect>
          </property>
          <layout class="QVBoxLayout" name="verticalLayout_3">
           <property name="sizeConstraint">
            <enum>QLayout::SetDefaultConstraint</enum>
+          </property>
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
           </property>
           <item>
            <widget class="QToolButton" name="rulerButton">
@@ -87,13 +96,13 @@
             </property>
             <property name="minimumSize">
              <size>
-              <width>50</width>
+              <width>40</width>
               <height>25</height>
              </size>
             </property>
             <property name="maximumSize">
              <size>
-              <width>50</width>
+              <width>40</width>
               <height>30</height>
              </size>
             </property>
@@ -127,13 +136,13 @@
             </property>
             <property name="minimumSize">
              <size>
-              <width>50</width>
+              <width>40</width>
               <height>25</height>
              </size>
             </property>
             <property name="maximumSize">
              <size>
-              <width>50</width>
+              <width>40</width>
               <height>30</height>
              </size>
             </property>
@@ -173,13 +182,13 @@
             </property>
             <property name="minimumSize">
              <size>
-              <width>50</width>
+              <width>40</width>
               <height>40</height>
              </size>
             </property>
             <property name="maximumSize">
              <size>
-              <width>50</width>
+              <width>40</width>
               <height>40</height>
              </size>
             </property>
@@ -217,13 +226,13 @@ Screen</string>
             </property>
             <property name="minimumSize">
              <size>
-              <width>50</width>
+              <width>40</width>
               <height>25</height>
              </size>
             </property>
             <property name="maximumSize">
              <size>
-              <width>50</width>
+              <width>40</width>
               <height>30</height>
              </size>
             </property>
@@ -261,13 +270,13 @@ Screen</string>
             </property>
             <property name="minimumSize">
              <size>
-              <width>50</width>
+              <width>40</width>
               <height>26</height>
              </size>
             </property>
             <property name="maximumSize">
              <size>
-              <width>50</width>
+              <width>40</width>
               <height>30</height>
              </size>
             </property>
@@ -308,13 +317,13 @@ Screen</string>
            <widget class="QToolButton" name="toolButton">
             <property name="minimumSize">
              <size>
-              <width>50</width>
+              <width>40</width>
               <height>26</height>
              </size>
             </property>
             <property name="maximumSize">
              <size>
-              <width>50</width>
+              <width>40</width>
               <height>30</height>
              </size>
             </property>
@@ -349,13 +358,13 @@ Screen</string>
            <widget class="QGroupBox" name="groupBox">
             <property name="minimumSize">
              <size>
-              <width>50</width>
+              <width>40</width>
               <height>90</height>
              </size>
             </property>
             <property name="maximumSize">
              <size>
-              <width>50</width>
+              <width>40</width>
               <height>120</height>
              </size>
             </property>
@@ -365,14 +374,14 @@ Screen</string>
             <widget class="QWidget" name="layoutWidget">
              <property name="geometry">
               <rect>
-               <x>10</x>
+               <x>0</x>
                <y>20</y>
-               <width>34</width>
+               <width>41</width>
                <height>92</height>
               </rect>
              </property>
              <layout class="QVBoxLayout" name="verticalLayout">
-              <item>
+              <item alignment="Qt::AlignHCenter">
                <widget class="QToolButton" name="rectangle">
                 <property name="sizePolicy">
                  <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
@@ -382,8 +391,14 @@ Screen</string>
                 </property>
                 <property name="minimumSize">
                  <size>
-                  <width>32</width>
+                  <width>30</width>
                   <height>26</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>35</width>
+                  <height>16777215</height>
                  </size>
                 </property>
                 <property name="focusPolicy">
@@ -403,7 +418,7 @@ Screen</string>
                 </property>
                 <property name="icon">
                  <iconset resource="bLUeTop/resources.qrc">
-                  <normaloff>:/images/resources/rectangle-icone-3783-48.png</normaloff>:/images/resources/rectangle-icone-3783-48.png</iconset>
+                  <normaloff>:/images/resources/rectangle-icone-3783-48_white.png</normaloff>:/images/resources/rectangle-icone-3783-48_white.png</iconset>
                 </property>
                 <property name="checkable">
                  <bool>true</bool>
@@ -419,7 +434,7 @@ Screen</string>
                 </attribute>
                </widget>
               </item>
-              <item>
+              <item alignment="Qt::AlignHCenter">
                <widget class="QToolButton" name="drawFG">
                 <property name="sizePolicy">
                  <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
@@ -429,8 +444,14 @@ Screen</string>
                 </property>
                 <property name="minimumSize">
                  <size>
-                  <width>32</width>
+                  <width>30</width>
                   <height>26</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>35</width>
+                  <height>16777215</height>
                  </size>
                 </property>
                 <property name="focusPolicy">
@@ -469,7 +490,7 @@ Screen</string>
                 </attribute>
                </widget>
               </item>
-              <item>
+              <item alignment="Qt::AlignHCenter">
                <widget class="QToolButton" name="drawBG">
                 <property name="sizePolicy">
                  <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
@@ -479,8 +500,14 @@ Screen</string>
                 </property>
                 <property name="minimumSize">
                  <size>
-                  <width>32</width>
+                  <width>30</width>
                   <height>26</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>35</width>
+                  <height>16777215</height>
                  </size>
                 </property>
                 <property name="focusPolicy">
@@ -524,13 +551,13 @@ Screen</string>
            <widget class="QToolButton" name="bucketButton">
             <property name="minimumSize">
              <size>
-              <width>50</width>
+              <width>40</width>
               <height>26</height>
              </size>
             </property>
             <property name="maximumSize">
              <size>
-              <width>50</width>
+              <width>40</width>
               <height>30</height>
              </size>
             </property>
@@ -568,13 +595,13 @@ Screen</string>
            <widget class="QToolButton" name="brushButton">
             <property name="minimumSize">
              <size>
-              <width>50</width>
+              <width>40</width>
               <height>26</height>
              </size>
             </property>
             <property name="maximumSize">
              <size>
-              <width>50</width>
+              <width>40</width>
               <height>30</height>
              </size>
             </property>
@@ -609,13 +636,13 @@ Screen</string>
            <widget class="QToolButton" name="eraserButton">
             <property name="minimumSize">
              <size>
-              <width>50</width>
+              <width>40</width>
               <height>26</height>
              </size>
             </property>
             <property name="maximumSize">
              <size>
-              <width>50</width>
+              <width>40</width>
               <height>30</height>
              </size>
             </property>

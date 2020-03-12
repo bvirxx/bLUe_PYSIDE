@@ -1487,7 +1487,9 @@ def setupGUI(window=window):
         app.setStyleSheet("""QMainWindow, QMainWindow *, QGraphicsView, QListWidget, QMenu,
                                             QTableView, QLabel, QGroupBox {background-color: rgb(40,40,40); 
                                                                            color: rgb(220,220,220)}
-                               QListWidget::item{background-color: rgb(40, 40, 40); color: white}
+                               QGroupBox {margin-top: 7px; border: 1px solid gray; border-radius: 4px;}               
+                               QGroupBox::title {subcontrol-origin: margin; left: 2px; padding: 0px 2px 0px 2px;}
+                               QListWidget::item {background-color: rgb(40, 40, 40); color: white}
                                QListWidget::item:disabled{color: gray}
                                optionsWidget {outline: none; border: none} 
                                QMenu, QTableView {selection-background-color: blue;
@@ -1783,24 +1785,31 @@ def closeTab(index, window=window):
     closeTabs(index=index)
 
 
-def setupTabBar(window=window):
+def setTabBar(window=window):
     tabBar = QTabBar()
     tabBar.currentChanged.connect(switchDoc)
     tabBar.tabCloseRequested.connect(closeTab)
     tabBar.setMaximumHeight(25)
     # tabBar.setAutoHide(True)
-    tabBar.setStyleSheet("QTabBar::tab {height: 15px; width: 100px;}")
+    tabBar.setDrawBase(False)  # remove base line
+    tabBar.setStyleSheet("QTabBar::tab {height: 15px; width: 100px; border-top-right-radius: 4px}")
     tabBar.setTabsClosable(True)
     vlay = QVBoxLayout()
     hlay2 = QHBoxLayout()
     hlay2.addWidget(tabBar)
-    hlay2.addStretch(100)
+    hlay2.addStretch(1)
     vlay.addLayout(hlay2)
     hlay1 = QHBoxLayout()
     hlay1.addWidget(window.label)
     hlay1.addWidget(window.splitter)
     vlay.addLayout(hlay1)
     hlay = window.horizontalLayout_2
+    window.groupbox_btn.setParent(None)
+    hlay.addWidget(window.groupbox_btn)
+    # layoutWidget is silently added by Qt Designer as child of groupbox_btn
+    # and parent of its layout. This widget overlaps a part of groupbox_btn border,
+    # so we set its background to transparent.
+    window.groupbox_btn.setStyleSheet("QWidget#layoutWidget {background-color: transparent}")
     hlay.addLayout(vlay)
     window.tabBar = tabBar
 
@@ -1817,7 +1826,7 @@ if __name__ == '__main__':
     window.init()
     # display splash screen and set app style sheet
     setupGUI(window)
-    setupTabBar()
+    setTabBar()
 
     ###############
     # launch app

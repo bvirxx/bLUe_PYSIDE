@@ -152,6 +152,7 @@ class baseForm(QWidget, abstractForm):
         # layer color picked signal
         if layer is not None:
             layer.colorPicked.sig.connect(self.colorPickedSlot)
+        self.setStyleSheet("QListWidget, QLabel, QGroupBox {font-size : 7pt;}")
 
 
 class baseGraphicsForm(QGraphicsView, abstractForm):

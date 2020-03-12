@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="images">
+    <file>resources/rectangle-icone-3783-48_white.png</file>
     <file>resources/icons8-gomme-30.png</file>
     <file>resources/icons8-pinceau-de-maquillage-24.png</file>
     <file>resources/Mouse_pointer_small.png</file>
