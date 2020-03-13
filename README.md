@@ -6,6 +6,8 @@ Copyright (C) 2017-2020 Bernard Virot
 
 See the [bLUe site](http://bernard.virot.free.fr/) for images, tutorials and user manual.
 
+Download an [example 3D LUT](http://bernard.virot.free.fr/sunrise.cube)
+
 ## DESCRIPTION
 
 bLUe is a layer-based image editor. Its goal is to integrate a 3D LUT editor with more traditional tools to propose a powerful GUI for photo editing. The program is fully modular : tools are implemented as independent
