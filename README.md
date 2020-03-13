@@ -6,7 +6,7 @@ Copyright (C) 2017-2020 Bernard Virot
 
 See the [bLUe site](http://bernard.virot.free.fr/) for images, tutorials and user manual.
 
-Download an [example 3D LUT](http://bernard.virot.free.fr/sunrise.cube)
+Download an [example 3D LUT](http://bernard.virot.free.fr/sunrise.cube) and test it with your own images ( menu Layer > Load 3D LUT)
 
 ## DESCRIPTION
 
