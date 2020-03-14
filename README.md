@@ -6,8 +6,6 @@ Copyright (C) 2017-2020 Bernard Virot
 
 See the [bLUe site](http://bernard.virot.free.fr/) for images, tutorials and user manual.
 
-Download an [example 3D LUT](http://bernard.virot.free.fr/sunrise.cube) and test it with your own images ( menu Layer > Load 3D LUT)
-
 ## DESCRIPTION
 
 bLUe is a layer-based image editor. Its goal is to integrate a 3D LUT editor with more traditional tools to propose a powerful GUI for photo editing. The program is fully modular : tools are implemented as independent
@@ -54,6 +52,8 @@ The grid of nodes can be warped to produce a particular look (orange-teal, moonl
 ##### COMPLETING THE 3D LUT
 Color transformations such as RGB curves, channel mixing, temperature,... can be easily integrated in the 3D LUT, in any order, 
 by adding the corresponding adjustment layers to the bLUe layer stack and recording the stack as a single 3D LUT. 
+
+Download an [example 3D LUT](http://bernard.virot.free.fr/sunrise.cube) and test it with your own images ( menu Layer > Load 3D LUT)
 
 ## FUNCTIONALITY
 
