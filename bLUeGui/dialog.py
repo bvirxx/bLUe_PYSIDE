@@ -36,26 +36,26 @@ class dimsInputDialog(QDialog):
     """
     Simple input Dialog for image width and height.
     """
-    def __init__(self, dims, keepBox=False):
+    def __init__(self, w, h, keepAspectRatio=True, keepBox=False):
         """
 
-        @param dims: {'w': width, 'h': height}
+        @param dims: {'w': width, 'h': height, 'kr': bool}
         @type dims: dict
         """
         super().__init__()
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.setWindowTitle('Image Dimensions')
-        self.dims = dims
+        self.dims = {'w': w, 'h':h, 'kr': keepAspectRatio}
         self.r = 1.0
-        if dims['w'] > 0:
-            self.r = dims['h'] / dims['w']
+        if w > 0:
+            self.r = h / w
         fLayout = QFormLayout()
         self.fields = []
         self.checkBox = None
         for i in range(2):
             lineEdit = QLineEdit()
             label = "Width (px)" if i == 0 else "Height (px)"
-            lineEdit.setText(str(dims['w']) if i == 0 else str(dims['h']))
+            lineEdit.setText(str(w) if i == 0 else str(h))
             fLayout.addRow(label, lineEdit)
             self.fields.append(lineEdit)
             lineEdit.textEdited.connect(self.keepRatioW if i == 0 else self.keepRatioH)
@@ -66,6 +66,7 @@ class dimsInputDialog(QDialog):
         buttonBox = QDialogButtonBox(QDialogButtonBox.Ok, Qt.Horizontal)
         fLayout.addRow(buttonBox)
         self.setLayout(fLayout)
+        self.onAccept = lambda: None
         buttonBox.accepted.connect(self.accept)
 
     def keepRatioH(self, text):
@@ -99,9 +100,11 @@ class dimsInputDialog(QDialog):
         try:
             self.dims['w'] = int(self.fields[0].text())
             self.dims['h'] = int(self.fields[1].text())
+            self.dims['kr'] = self.checkBox.isChecked()
         except ValueError:
             return
         super().accept()
+        self.onAccept()
 
 
 def dlgInfo(text, info=''):
@@ -221,16 +224,19 @@ class savingDialog(QDialog):
 class labelDlg(QDialog):
     """
     Displays a floating modal text window.
-    If search is True, a search field is added on top of the window.
+    If search is True, a search field editor is added on top of the window.
     """
 
     def __init__(self, parent=None, title='', wSize=QSize(500, 500), scroll=True, search=False, modal=True):
         super().__init__(parent)
         self.setWindowTitle(parent.tr(title))
-        self.setStyleSheet(" * {background-color: rgb(220, 220, 220); color: black}")
+        self.setStyleSheet(" * {background-color: rgb(220, 220, 220); color: black;}\
+                            QLabel {selection-background-color: blue; selection-color: white}\
+                            QLineEdit {background-color: white;}")
         self.setModal(modal)
         self.label = QLabel()
         self.label.setAlignment(Qt.AlignTop)
+        #self.label.setStyleSheet("selection-background-color: blue; selection-color: white}")
         vl = QVBoxLayout()
         if search:
             ed = QLineEdit()
@@ -247,13 +253,13 @@ class labelDlg(QDialog):
             matches = []
             current = 0
 
-            def f():
+            def f(searchedText):
                 import re
                 nonlocal current
                 matches.clear()
                 current = 0
                 matches.extend([m.span() for m in
-                                re.finditer(ed.text(), self.label.text(), re.IGNORECASE | re.MULTILINE | re.DOTALL)])
+                                re.finditer(searchedText, self.label.text(), re.IGNORECASE | re.MULTILINE | re.DOTALL)])
                 if matches:
                     item = matches[0]
                     self.label.setSelection(item[0], item[1] - item[0])
@@ -277,7 +283,7 @@ class labelDlg(QDialog):
                 scarea.ensureVisible(0, rect.height())
 
             button.pressed.connect(g)
-            ed.returnPressed.connect(f)
+            ed.textEdited.connect(f)
 
         if scroll:
             scarea = QScrollArea()

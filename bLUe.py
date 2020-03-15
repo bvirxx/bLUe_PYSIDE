@@ -501,6 +501,7 @@ def setDocumentImage(img, window=window):
             window.btnValues[k] = False
         window.btnValues['pointer'] = True  # default checked autoexclusive button (needed)
     window.label.img = img
+    # update img in current tab, if it was recreated (rotation, resizing,...)
     ind = window.tabBar.currentIndex()
     if window.tabBar.tabData(ind) is not img:
         window.tabBar.setTabText(ind, basename(img.filename))
@@ -817,6 +818,9 @@ def menuImage(name, window=window):
             QApplication.processEvents()
             # get new imImage
             tImg = img.bTransformed(QTransform().rotate(angle))
+            # copy info strings
+            tImg.filename = img.filename
+            tImg.imageInfo = img.imageInfo
             setDocumentImage(tImg)
             tImg.layersStack[0].applyToStack()
             tImg.onImageChanged()
@@ -826,13 +830,16 @@ def menuImage(name, window=window):
     # resize
     elif name == 'actionImage_Resizing':
         w, h = img.width(), img.height()
-        dims = {'w': w, 'h': h}
-        dlg = dimsInputDialog(dims, keepBox=True)
-        if dlg.exec_():
-            img = window.label.img.resize(dims['w'] * dims['h'])
+        dlg = dimsInputDialog(w, h, keepBox=True)
+        dlg.open()
+
+        def f():
+            img = window.label.img.resized(dlg.dims['w'], dlg.dims['h'], keepAspectRatio=dlg.dims['kr'])
             img.filename = 'unnamed'
             setDocumentImage(img)
             img.layersStack[0].applyToStack()
+
+        dlg.onAccept = f
     # rating
     elif name in ['action0', 'action1', 'action2', 'action3', 'action4', 'action5']:
         img.meta.rating = int(name[-1:])
@@ -1238,31 +1245,22 @@ def canClose(index=None, window=window):
                                             writeMeta=writeMeta)
                     # confirm saving
                     dlgInfo("%s written" % filename)
-                    if ind > 0:
-                        switchDoc(ind - 1)
                     window.tabBar.removeTab(ind)
-                    return True # window.tabBar.count() == 0
+                    return True
                 elif ret == QMessageBox.Cancel:
                     return False
             except (ValueError, IOError) as e:
                 dlgWarn(str(e))
                 return False
         # discard changes or img not modified : remove tab
-        if ind > 0:
-            switchDoc(ind - 1)
         window.tabBar.removeTab(ind)
         return True
 
     if closeAllRequested:
-        indList = list(range(window.tabBar.count()))
-        while indList:
+        while window.tabBar.count() > 0:
             ind = window.tabBar.currentIndex()
             if not canCloseTab(ind):
                 break
-            try:
-                indList.remove(ind)
-            except ValueError:
-                pass
     else:
         return canCloseTab(index)
     return window.tabBar.count() == 0
@@ -1761,7 +1759,7 @@ def setupGUI(window=window):
 
 def switchDoc(index):
     """
-    tabBarClicked slot
+    tabBarClicked slot : make visble the document in tab index
     @param index: tab index
     @type index: int
     """

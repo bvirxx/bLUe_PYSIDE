@@ -324,7 +324,8 @@ class vImage(bImage):
         @param profile: embedded profile (default '')
         @type profile: str
         """
-        self.imageInfo = 'no data found'  # default
+        # formatted EXIF data (str)
+        self.imageInfo = 'no EXIF data'  # default
 
         if rawMetadata is None:
             rawMetadata = {}
@@ -637,35 +638,40 @@ class vImage(bImage):
         mbuf = QImageBuffer(self.mask)
         mbuf[..., 2] = LUT[buf[:, :, 2]]
 
-    def resize(self, pixels, interpolation=cv2.INTER_CUBIC):
+    def resized(self, w, h, keepAspectRatio=True, interpolation=cv2.INTER_CUBIC):
         """
-        Resizes an image while keeping its aspect ratio. We use
+        Returns a resized vImage and the corresponding buffer.
+         We use
         the opencv function cv2.resize() to perform the resizing operation, so we
         can choose among several interpolation methods (default cv2.INTER_CUBIC).
         The original image is not modified. A link to the ndarray buffer must be kept along
         with the resized image.
-        @param pixels: pixel count for the resized image
-        @type pixels: int
+        @param w: new width
+        @type w: int
+        @param h: new height
+        @type h: int
+        @param keepAspectRatio:
+        @type keepAspectRatio: boolean
         @param interpolation: interpolation method (default cv2.INTER_CUBIC)
         @type interpolation:
-        @return : the resized vImage and the corresponding buffer
-        @rtype : vImage, ndarray
+        @return: the resized vImage and the corresponding buffer
+        @rtype: vImage, ndArray
         """
-        ratio = self.width() / float(self.height())
-        w, h = int(np.sqrt(pixels * ratio)), int(np.sqrt(pixels / ratio))
-        hom = w / float(self.width())
-        # resizing
+        if keepAspectRatio:
+            pixels = w * h
+            ratio = self.width() / float(self.height())
+            w, h = int(np.sqrt(pixels * ratio)), int(np.sqrt(pixels / ratio))
         Buf = QImageBuffer(self)
         cv2Img = cv2.resize(Buf, (w, h), interpolation=interpolation)
         rszd = vImage(cv2Img=cv2Img, meta=copy(self.meta), format=self.format())
-        # prevent buffer from garbage collector
-        # rszd.dummy = cv2Img  #TODO removed 29/01/20 validate
         # resize rect and mask
         if self.rect is not None:
-            rszd.rect = QRect(self.rect.left() * hom, self.rect.top() * hom, self.rect.width() * hom, self.rect.height() * hom)
+            homX, homY = w / self.width() , h / self.height()
+            rszd.rect = QRect(self.rect.left() * homX, self.rect.top() * homY, self.rect.width() * homX,
+                              self.rect.height() * homY)
         if self.mask is not None:  # TODO for QLayer and subclasses this initializes the mask
             rszd.mask = self.mask.scaled(w, h)
-        self.setModified(True)
+        rszd.setModified(True)
         return rszd, cv2Img
 
     def bTransformed(self, transformation):

@@ -444,7 +444,7 @@ Note that upper visible layers slow down mask edition.<br>
             else:
                 # icon with very small dim causes QPainter error
                 # QPixmap.fromImage bug ?
-                smallImg = lay.resize(50 * 50)
+                smallImg = lay.resized(50, 50)
                 w, h = smallImg.width(), smallImg.height()
                 if w < h / 5 or h < w / 5:
                     item_name = QStandardItem(name)

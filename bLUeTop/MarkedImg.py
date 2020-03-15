@@ -132,16 +132,15 @@ class mImage(vImage):
        self.useHald = source.useHald
        self.rect = source.rect
        for l in source.layersStack[1:]:
-           lr = QLayer.fromImage(l.scaled(self.size()), parentImage=self)
+           lr = QLayer.fromImage(l.scaled(self.size()), role=l.role, parentImage=self)
            lr.execute = l.execute
            lr.name = l.name
-           lr.role = l.role
            lr.view = l.view
            lr.view.widget().targetImage = self
            lr.view.widget().layer = lr
            self.layersStack.append(lr)
 
-    def resize(self, pixels, interpolation=cv2.INTER_CUBIC):
+    def resized(self, w, h, keepAspectRatio=True, interpolation=cv2.INTER_CUBIC):
         """
         Resizes the image and the layer stack, while keeping the aspect ratio.
         @param pixels:
@@ -149,8 +148,7 @@ class mImage(vImage):
         @return: resized imImage object
         @rtype: same type as self
         """
-        # resized vImage
-        rszd0, buf = super().resize(pixels, interpolation=interpolation)
+        rszd0, buf = super().resized(w, h, keepAspectRatio=keepAspectRatio, interpolation=interpolation)
         # get resized image (with a background layer)
         rszd = type(self)(QImg=rszd0, meta=copy(self.meta))
         rszd.__buf = buf  # protect buf from g.c.
@@ -375,9 +373,6 @@ class mImage(vImage):
             layer = QLayerImage.fromImage(self.layersStack[index], parentImage=self, sourceImg=sourceImg)
         layer.role = role
         self.addLayer(layer, name=name, index=index + 1)
-        # add autoSpline attribute to contrast layer only
-        if role in ['CONTRAST', 'RAW']:
-            layer.autoSpline = True
         # init thumb
         if layer.parentImage.useThumb:
             layer.thumb = layer.inputImg().copy()
@@ -719,7 +714,7 @@ class QLayer(vImage):
     Base class for image layers
     """
     @classmethod
-    def fromImage(cls, mImg, parentImage=None):
+    def fromImage(cls, mImg, role='', parentImage=None):
         """
         Return a QLayer object initialized with mImg.
         Derived classes get an instance of themselves
@@ -731,7 +726,7 @@ class QLayer(vImage):
         @return:
         @rtype: Qlayer
         """
-        layer = cls(QImg=mImg, parentImage=parentImage)
+        layer = cls(QImg=mImg, role=role, parentImage=parentImage)
         layer.parentImage = parentImage
         return layer
 
@@ -759,6 +754,9 @@ class QLayer(vImage):
         self.visible = True
         self.isClipping = False
         self.role = kwargs.pop('role', '')
+        # add autoSpline attribute to contrast layer only
+        if self.role in ['CONTRAST', 'RAW']:
+            self.autoSpline = True
         self.tool = None
         # back link to parent image
         parentImage = kwargs.pop('parentImage', None)
