@@ -734,6 +734,7 @@ class vImage(bImage):
             buf0 = QImageBuffer(imgIn)
             buf1 = QImageBuffer(imgOut)
             buf1[...] = buf0
+            self.updatePixmap()
             return
         ########################
 
@@ -1614,6 +1615,7 @@ class vImage(bImage):
         # hald pass through
         if self.parentImage.isHald:
             buf1[...] = buf0
+            self.updatePixmap()
             return
         ########################
         w, h = self.width(), self.height()
@@ -1664,6 +1666,7 @@ class vImage(bImage):
         # hald pass through
         if self.parentImage.isHald:
             buf1[...] = buf0
+            self.updatePixmap()
             return
         ########################
         r = inputImage.width() / self.width()
