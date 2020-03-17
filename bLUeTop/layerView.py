@@ -342,8 +342,9 @@ Note that upper visible layers slow down mask edition.<br>
 
     def closeAdjustForms(self, delete=False):
         """
-        Close all layer forms. If delete is True (default False),
-        the forms and their dock containers are deleted.
+        Close all windows associated with image layers.
+        If delete is True (default False), the windows and
+        their dock containers are deleted.
         @param delete:
         @type delete: boolean
         """
@@ -351,25 +352,7 @@ Note that upper visible layers slow down mask edition.<br>
             return
         stack = self.img.layersStack
         for layer in stack:
-            if hasattr(layer, "view"):
-                if layer.view is not None:
-                    dock = layer.view
-                    if delete:
-                        form = dock.widget()
-                        # remove back link
-                        form.layer = None
-                        # QtGui1.window.removeDockWidget(dock)
-                        form.setAttribute(Qt.WA_DeleteOnClose)
-                        form.close()
-                        dock.setAttribute(Qt.WA_DeleteOnClose)
-                        dock.close()
-                        layer.view = None
-                    else:  # tabbed forms should not be closed
-                        temp = dock.tabbed
-                        dock.setFloating(True)
-                        dock.tabbed = temp  # remember last state to restore
-                        window.removeDockWidget(dock)
-                        dock.hide()
+            layer.closeView(delete=delete)
         if delete:
             self.currentWin = None
             gc.collect()
@@ -483,6 +466,12 @@ Note that upper visible layers slow down mask edition.<br>
             layerview.show()
             if TABBING:
                 layerview.raise_()
+            # lay out subcontrols of activeLayer
+            form = layerview.widget()
+            for dk in form.subControls:
+                dk.setVisible(form.options[dk.widget().optionName])
+                # clean up: we (re)dock all sucontrols
+                dk.setFloating(False)  # emit topLevelChanged signal
         self.opacitySlider.setSliderPosition(int(activeLayer.opacity * 100))
         self.maskSlider.setSliderPosition(int(activeLayer.colorMaskOpacity * 100.0 / 255.0))
         ind = self.blendingModeCombo.findData(activeLayer.compositionMode)
@@ -663,14 +652,20 @@ Note that upper visible layers slow down mask edition.<br>
         self.maskSlider.setEnabled(activeLayer.maskIsSelected)
         self.maskValue.setEnabled(activeLayer.maskIsSelected)
         if self.currentWin is not None:
-            if not self.currentWin.isFloating():
-                # self.currentWin.hide()
-                self.currentWin = None
+            # hide sucontrols
+            for dk in self.currentWin.widget().subControls:
+                dk.hide()
+            if self.currentWin.isFloating():
+                self.currentWin.hide()
+        self.currentWin = None
         if hasattr(activeLayer, "view"):
             self.currentWin = activeLayer.view
         if self.currentWin is not None and activeLayer.visible:
             self.currentWin.show()
             self.currentWin.raise_()
+            # display subcontrols
+            for dk in self.currentWin.widget().subControls:
+                dk.setVisible(self.currentWin.widget().options[dk.widget().optionName])
             # make self.currentWin the active window
             self.currentWin.activateWindow()
         # update opacity and composition mode for current layer

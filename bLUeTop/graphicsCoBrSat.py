@@ -271,10 +271,12 @@ class CoBrSatForm(baseForm):
             form = graphicsSplineForm.getNewWindow(targetImage=None, axeSize=axeSize, layer=self.layer, parent=None)
             form.setAttribute(Qt.WA_DeleteOnClose, on=False)
             form.setWindowTitle('Contrast Curve')
-            form.setMaximumSize(300, 400)
+            form.setFixedHeight(axeSize+140)
             self.contrastForm = form
+            self.contrastForm.optionName = 'manualCurve'
+            # dock contrastForm
             window = self.parent().parent()
-            dock = stateAwareQDockWidget(self.parent())
+            dock = self.addSubcontrol(self.parent())  # stateAwareQDockWidget(self.parent())
             dock.setWidget(form)
             dock.setWindowFlags(form.windowFlags())
             dock.setWindowTitle(form.windowTitle())

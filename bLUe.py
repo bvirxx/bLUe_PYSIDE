@@ -1757,6 +1757,7 @@ def setupGUI(window=window):
         """
     )  # end of setWhatsThis
 
+
 def switchDoc(index):
     """
     tabBarClicked slot : make visble the document in tab index

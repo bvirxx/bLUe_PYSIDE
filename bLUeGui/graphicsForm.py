@@ -17,11 +17,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 from PySide2 import QtCore
 from PySide2.QtCore import QPoint
-from PySide2.QtWidgets import QGraphicsView, QGraphicsScene, QSizePolicy, QGraphicsPathItem, QWidget, QVBoxLayout, \
-    QLabel, QHBoxLayout
+from PySide2.QtWidgets import QGraphicsView, QGraphicsScene, QSizePolicy, QGraphicsPathItem, QWidget, QVBoxLayout
 from PySide2.QtGui import QColor, QPen, QPainterPath, QBrush
 from PySide2.QtCore import Qt
 from bLUeGui.memory import weakProxy
+from bLUeTop.utils import stateAwareQDockWidget
 
 
 class bottomWidget(QWidget):
@@ -148,11 +148,18 @@ class baseForm(QWidget, abstractForm):
         # back link to image layer (weak ref)
         self.layer = layer              # property setter
         self.targetImage = targetImage  # property setter
+        # list of subcontrols
+        self.subControls = []
         self.dataChanged.connect(self.updateLayer)
         # layer color picked signal
         if layer is not None:
             layer.colorPicked.sig.connect(self.colorPickedSlot)
         self.setStyleSheet("QListWidget, QLabel, QGroupBox {font-size : 7pt;}")
+
+    def addSubcontrol(self, parent=None):
+        dock = stateAwareQDockWidget(parent)
+        self.subControls.append(dock)
+        return dock
 
 
 class baseGraphicsForm(QGraphicsView, abstractForm):
@@ -172,6 +179,8 @@ class baseGraphicsForm(QGraphicsView, abstractForm):
         # back links to image
         self.layer = layer
         self.targetImage = targetImage
+        # list of subcontrols
+        self.subControls = []
         self.setScene(QGraphicsScene())
         # convenience attributes
         self.graphicsScene = weakProxy(self.scene())
@@ -194,6 +203,11 @@ class baseGraphicsForm(QGraphicsView, abstractForm):
         # Most mice have a resolution of 15 degrees
         numSteps = 1 + e.delta() / 2400.0 # 1200.0
         self.scale(numSteps, numSteps)
+
+    def addSubcontrol(self, parent=None):
+        dock = stateAwareQDockWidget(parent)
+        self.subControls.append(dock)
+        return dock
 
     def addCommandLayout(self, glayout):
         """
@@ -221,7 +235,7 @@ class graphicsCurveForm(baseGraphicsForm):
     Base class for interactive curve forms
     """
     @staticmethod
-    def drawPlotGrid(axeSize, gradient=None):  # TODO 15/2/20 changed classmethod to staticmethod validate
+    def drawPlotGrid(axeSize, gradient=None):
         """
         Return a QGraphicsPathItem initialized with
         a square grid.

@@ -23,7 +23,8 @@ from PySide2.QtGui import QPixmap, QRadialGradient
 from PySide2.QtCore import Qt, QRectF
 
 from bLUeGui.colorCIE import sRGB2LabVec
-from bLUeGui.graphicsSpline import activeCubicSpline, graphicsCurveForm, activeSplinePoint, channelValues
+from bLUeGui.const import channelValues
+from bLUeGui.graphicsSpline import activeCubicSpline, graphicsCurveForm, activeSplinePoint
 from bLUeTop.utils import optionsWidget
 
 

@@ -23,7 +23,7 @@ from PySide2.QtGui import QImage, QPixmap, QColor, QPainter, QPainterPath, QBrus
 
 from bLUeGui.colorCIE import sRGB2LabVec
 from bLUeGui.colorCube import rgb2hspVec
-from bLUeGui.graphicsSpline import channelValues
+from bLUeGui.const import channelValues
 
 
 class bImage(QImage):

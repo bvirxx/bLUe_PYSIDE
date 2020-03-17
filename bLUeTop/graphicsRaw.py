@@ -25,7 +25,8 @@ from os.path import basename
 from PySide2 import QtCore
 from PySide2.QtCore import Qt, QPointF
 from PySide2.QtGui import QFontMetrics, QBrush, QPolygonF
-from PySide2.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBox, QComboBox, QGraphicsPolygonItem
+from PySide2.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBox, QComboBox, QGraphicsPolygonItem, \
+    QSizePolicy
 
 from bLUeGui.graphicsSpline import graphicsSplineForm
 from bLUeGui.graphicsForm import baseForm
@@ -575,6 +576,7 @@ class rawForm (baseForm):
                                                   curveType='cubic')
             form.setWindowFlags(Qt.WindowStaysOnTopHint)
             form.setAttribute(Qt.WA_DeleteOnClose, on=False)
+            form.setFixedHeight(axeSize + 140)
             form.setWindowTitle('Cam Tone Curve')
             form.setButtonText('Reset Curve')
             # get base curve from profile
@@ -588,7 +590,8 @@ class rawForm (baseForm):
                 layer.parentImage.onImageChanged()
             form.scene().quadricB.curveChanged.sig.connect(f)
             self.toneForm = form
-            dockT = stateAwareQDockWidget(self.parent())
+            self.toneForm.optionName = 'cpToneCurve'
+            dockT = self.addSubcontrol(self.parent()) # )stateAwareQDockWidget(self.parent())
             dockT.setWindowFlags(form.windowFlags())
             dockT.setWindowTitle(form.windowTitle())
             dockT.setStyleSheet(
@@ -632,6 +635,7 @@ class rawForm (baseForm):
         axeSize = 200
         if self.contrastForm is None:
             form = graphicsSplineForm.getNewWindow(targetImage=None, axeSize=axeSize, layer=self.layer, parent=None)
+            form.setFixedHeight(axeSize+140)
             form.setWindowFlags(Qt.WindowStaysOnTopHint)
             form.setAttribute(Qt.WA_DeleteOnClose, on=False)
             form.setWindowTitle('Contrast Curve')
@@ -640,9 +644,11 @@ class rawForm (baseForm):
                 layer = self.layer
                 layer.applyToStack()
                 layer.parentImage.onImageChanged()
+
             form.scene().quadricB.curveChanged.sig.connect(f)
             self.contrastForm = form
-            dockC = stateAwareQDockWidget(self.parent())
+            self.contrastForm.optionName = 'manualCurve'
+            dockC = self.addSubcontrol(self.parent())  # stateAwareQDockWidget(self.parent())
             dockC.setWindowFlags(form.windowFlags())
             dockC.setWindowTitle(form.windowTitle())
             dockC.setStyleSheet("QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")

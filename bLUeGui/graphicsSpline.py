@@ -27,12 +27,8 @@ from PySide2.QtCore import Qt, QRectF
 from bLUeGui.graphicsForm import graphicsCurveForm
 from .baseSignal import baseSignal_No
 from .spline import interpolationCubSpline, interpolationQuadSpline, displacementSpline
+from .const import channelValues
 
-
-class channelValues:
-    RGB, Red, Green, Blue = [0, 1, 2], [0], [1], [2]
-    HSB, Hue, Sat, Br = [0, 1, 2], [0], [1], [2]
-    Lab, L, a, b = [0, 1, 2], [0], [1], [2]
 
 ##########################################################################################
 # GUI for interactive construction of 1D LUTs and 2D LUTs.

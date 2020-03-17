@@ -1669,11 +1669,10 @@ class vImage(bImage):
             self.updatePixmap()
             return
         ########################
-        r = inputImage.width() / self.width()
-        ####################
+
         # We blend a neutral filter with density range 0.5*s...0.5 with the image b,
         # using blending mode overlay : f(a,b) = 2*a*b if b < 0.5 else f(a,b) = 1 - 2*(1-a)(1-b)
-        ####################
+
         buf32Lab = cv2.cvtColor(((buf0.astype(np.float32)) / 256).astype(np.float32), cv2.COLOR_BGR2Lab)
         # get height of current image
         h = buf0.shape[0]

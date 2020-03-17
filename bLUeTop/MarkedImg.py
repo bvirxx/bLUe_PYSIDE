@@ -812,6 +812,43 @@ class QLayer(vImage):
             return self.view.widget()
         return None
 
+    def closeView(self, delete=False):
+        """
+        Closes all windows associated with layer
+        @param delete:
+        @type delete: boolean
+        """
+
+        def closeDock(dock, delete=False):
+            if dock is None:
+                return
+            if delete:
+                form = dock.widget()
+                # break back link
+                if hasattr(form, 'layer'):
+                    form.layer = None
+                form.setAttribute(Qt.WA_DeleteOnClose)
+                form.close()
+                dock.setAttribute(Qt.WA_DeleteOnClose)
+                dock.close()
+                self.view = None
+            else:  # tabbed forms should not be closed
+                temp = dock.tabbed
+                dock.setFloating(True)
+                dock.tabbed = temp  # remember last state to restore
+                # window.removeDockWidget(dock)
+                dock.hide()
+
+        view = getattr(self, 'view', None)
+        if view is None:
+            return
+        # close all possible subwindows
+        form = self.view.widget()
+        for dock in form.subControls: # [getattr(form, 'dock', None), getattr(form, 'dockC', None), getattr(form, 'dockT', None)]:
+            closeDock(dock, delete=delete)
+        # close window
+        closeDock(getattr(self, 'view', None), delete=delete)
+
     def isActiveLayer(self):
         if self.parentImage.getActiveLayer() is self:
             return True

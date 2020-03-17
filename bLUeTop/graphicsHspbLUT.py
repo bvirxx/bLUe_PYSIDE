@@ -19,7 +19,8 @@ from PySide2.QtCore import QRect
 from PySide2.QtWidgets import QGraphicsScene, QPushButton, QGridLayout
 from PySide2.QtCore import Qt, QRectF
 
-from bLUeGui.graphicsSpline import activeCubicSpline, graphicsCurveForm, channelValues
+from bLUeGui.const import channelValues
+from bLUeGui.graphicsSpline import activeCubicSpline, graphicsCurveForm
 from bLUeTop.utils import optionsWidget
 
 

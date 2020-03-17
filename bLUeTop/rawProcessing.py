@@ -28,7 +28,7 @@ from bLUeCore.multi import chosenInterp
 from bLUeGui.bLUeImage import QImageBuffer, bImage
 from bLUeGui.colorCIE import rgbLinear2rgb, sRGB_lin2XYZInverse, bradfordAdaptationMatrix
 from bLUeGui.dialog import dlgWarn
-from bLUeGui.graphicsSpline import channelValues
+from bLUeGui.const import channelValues
 from bLUeGui.histogramWarping import warpHistogram
 from bLUeTop.dng import dngProfileLookTable, dngProfileToneCurve, interpolatedForwardMatrix
 
