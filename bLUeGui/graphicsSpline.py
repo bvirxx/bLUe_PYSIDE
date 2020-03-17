@@ -19,12 +19,13 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 from PySide2.QtGui import QPainterPathStroker, QBrush, QPixmap
 from PySide2.QtCore import QRect, QPointF, QPoint
-from PySide2.QtWidgets import QPushButton, QGraphicsPathItem, QGraphicsPixmapItem, QGraphicsPolygonItem, \
-    QGraphicsSceneMouseEvent
+from PySide2.QtWidgets import QGraphicsPathItem, QGraphicsPixmapItem, QGraphicsPolygonItem, \
+    QGraphicsSceneMouseEvent, QHBoxLayout
 from PySide2.QtGui import QColor, QPen, QPainterPath, QPolygonF
 from PySide2.QtCore import Qt, QRectF
 
 from bLUeGui.graphicsForm import graphicsCurveForm
+from bLUeTop.utils import optionsWidget, QbLUePushButton
 from .baseSignal import baseSignal_No
 from .spline import interpolationCubSpline, interpolationQuadSpline, displacementSpline
 from .const import channelValues
@@ -698,6 +699,18 @@ class activeQuadricSpline(activeSpline):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fixedTangents = []
+        self.hasVisibleTangents = False  # default: tangents not shown
+
+    def setTangentsVisible(self, flag):
+        """
+        Toggles tangents visibility
+
+        @param flag:
+        @type flag: boolean
+        """
+        self.hasVisibleTangents = flag
+        for t in self.fixedTangents:
+            t.setVisible(flag)
 
     def updatePath(self, calculate=True):
         """
@@ -782,6 +795,7 @@ class activeQuadricSpline(activeSpline):
         # link contact point to tangent
         for i1, i2 in zip(self.fixedPoints, self.fixedTangents):
             i1.tangent = i2
+            i1.tangent.setVisible(self.hasVisibleTangents)
         self.spline = [QPointF(x, y) for x, y in zip(np.arange(256)*(self.size/255), -T)]
         self.updatePath(calculate=False)  # don't recalculate the spline!
         self.updateLUTXY()
@@ -799,6 +813,7 @@ class activeQuadricSpline(activeSpline):
             self.fixedPoints.append(a)
             self.fixedPoints.sort(key=lambda z: z.scenePos().x())
             t = activeTangent(controlPoint=p+QPointF(0.7, -0.7) * self.halfTgLen, contactPoint=p, parentItem=self)
+            t.setVisible(self.hasVisibleTangents)
             a.tangent = t
             self.fixedTangents.insert(self.fixedPoints.index(a), t)
             self.updatePath()
@@ -919,7 +934,7 @@ class graphicsSplineForm(graphicsCurveForm):
                         """<b>Contrast Curve</b><br>
                         Drag <b>control points</b> and <b>tangents</b> with the mouse.<br>
                         <b>Add</b> a control point by clicking on the curve.<br>
-                        <b>Remove</b> a control point by clicking on it.<br>
+                        <b>Remove</b> a control point by clicking it.<br>
                         <b>Zoom</b> with the mouse wheel.<br>
                         """
                            )
@@ -934,10 +949,27 @@ class graphicsSplineForm(graphicsCurveForm):
             l.parentImage.onImageChanged()
 
         # buttons
-        pushButton1 = QPushButton("Reset to Auto Curve")
+        pushButton1 = QbLUePushButton("Reset to Auto Curve")
         pushButton1.setGeometry(10, 20, 100, 30)  # x,y,w,h
-        pushButton1.adjustSize()
         pushButton1.clicked.connect(onResetCurve)
+        if curveType == 'quadric':
+            optionList1, optionNames1 = ['Show Tangents'], ['Show Tangents']
+            self.listWidget1 = optionsWidget(options=optionList1, optionNames=optionNames1, exclusive=False)
+
+            def f():
+                curve.setTangentsVisible(self.listWidget1.options['Show Tangents'])
+
+            self.listWidget1.itemClicked.connect(f)
+
+        # layout
+        gl = QHBoxLayout()
+        container = self.addCommandLayout(gl)
+        if curveType == 'quadric':
+            gl.addWidget(self.listWidget1)
+        gl.addWidget(pushButton1)
+        self.adjustSize()
+        self.setViewportMargins(0, 0, 0, container.height() + 15)
+
         graphicsScene.addWidget(pushButton1)
         self.pushButton = pushButton1
 

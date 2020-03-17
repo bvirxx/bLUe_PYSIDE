@@ -588,6 +588,7 @@ class rawForm (baseForm):
                 layer.bufCache_HSV_CV32 = None
                 layer.applyToStack()
                 layer.parentImage.onImageChanged()
+
             form.scene().quadricB.curveChanged.sig.connect(f)
             self.toneForm = form
             self.toneForm.optionName = 'cpToneCurve'
