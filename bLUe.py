@@ -618,16 +618,20 @@ def menuFile(name, window=window):
             img = imImage(QImg=Qimg)
             cb.clear()
         else:
-            dims = {'w': 200, 'h': 200}
-            dlg = dimsInputDialog(dims['w'], dims['h'])
-            if dlg.exec_():
-                imgNew = QImage(dims['w'], dims['h'], QImage.Format_ARGB32)
+            dlg = dimsInputDialog(200, 200)
+            dlg.open()
+
+            def f():
+                imgNew = QImage(dlg.dims['w'], dlg.dims['h'], QImage.Format_ARGB32)
                 imgNew.fill(Qt.white)
                 img = imImage(QImg=imgNew)
-        if img is None:
-            return
-        img.filename = 'unnamed'
-        loadImage(img, withBasic=False)
+                if img is None:
+                    return
+                img.filename = 'unnamed'
+                loadImage(img, withBasic=False)
+
+            dlg.onAccept = f
+
     # load image from file
     elif name in ['actionOpen']:
         # get file name from dialog
