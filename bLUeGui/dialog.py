@@ -100,7 +100,8 @@ class dimsInputDialog(QDialog):
         try:
             self.dims['w'] = int(self.fields[0].text())
             self.dims['h'] = int(self.fields[1].text())
-            self.dims['kr'] = self.checkBox.isChecked()
+            if self.checkBox is not None:
+                self.dims['kr'] = self.checkBox.isChecked()
         except ValueError:
             return
         super().accept()

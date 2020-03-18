@@ -619,7 +619,7 @@ def menuFile(name, window=window):
             cb.clear()
         else:
             dims = {'w': 200, 'h': 200}
-            dlg = dimsInputDialog(dims)
+            dlg = dimsInputDialog(dims['w'], dims['h'])
             if dlg.exec_():
                 imgNew = QImage(dims['w'], dims['h'], QImage.Format_ARGB32)
                 imgNew.fill(Qt.white)
