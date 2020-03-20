@@ -15,8 +15,11 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+from math import sqrt
+
 from PySide2.QtCore import QRect, QRectF, Qt, QPointF
-from PySide2.QtGui import QPainter, QImage, QColor, QBrush, QContextMenuEvent, QCursor, QPen, QFont, QPainterPath
+from PySide2.QtGui import QPainter, QImage, QColor, QBrush, QContextMenuEvent, QCursor, QPen, QFont, QPainterPath, \
+    QTransform
 from PySide2.QtWidgets import QLabel, QApplication
 
 from bLUeGui.dialog import dlgWarn
@@ -71,7 +74,7 @@ class imageLabel(QLabel):
         bSize = self.State['brush']['size']  # TODO modified 26/01/20 validate
         w = bSize * zooming
         if w >= minSize:
-            cursor = QCursor(self.State['brush']['cursor'].scaled(w, w), hotX=0, hotY=0)
+            cursor = QCursor(self.State['brush']['cursor'].scaled(w, w), hotX=w/2, hotY=w/2)
         else:
             d = int((minSize - w) / 2)
             cursor = QCursor(self.State['brush']['cursor'].scaled(minSize, minSize), hotX=d, hotY=d)
@@ -637,16 +640,21 @@ class imageLabel(QLabel):
         # vector of the move
         a_x, a_y = tmp_x - State['x_imagePrecPos'], tmp_y - State['y_imagePrecPos']
         # move length : use 1-norm for performance
-        d = abs(a_x) + abs(a_y)
-        step = 1 if d == 0 else radius * 0.25 / d
+        d = sqrt(a_x * a_x + a_y * a_y)
+        step = 1 if d == 0 else radius * 0.3 / d  # 0.25
         p_x, p_y = State['x_imagePrecPos'], State['y_imagePrecPos']
+        if d != 0.0:
+            cosTheta, sinTheta = a_x / d, a_y / d
+            transform = QTransform(cosTheta, -sinTheta, sinTheta, cosTheta, 0, 0)
+            pxmp = pxmp.transformed(transform)
         count = 0
-        while count * step < 1:
+        maxCount = int( 1.0 / step)
+        while count < maxCount:
             count += 1
             if pxmp is None:
                 qp.drawEllipse(QPointF(p_x, p_y), radius, radius)
             else:
-                qp.drawPixmap(QPointF(p_x, p_y), pxmp)
+                qp.drawPixmap(QPointF(p_x - radius, p_y - radius), pxmp)  # TODO radius added 19/03/20 validate
             p_x, p_y = p_x + a_x * step, p_y + a_y * step
         # return last painted position
         return p_x, p_y
@@ -674,7 +682,7 @@ class imageLabel(QLabel):
             qp.begin(cp)
             qp.setCompositionMode(qp.CompositionMode_SourceOver)
             State['x_imagePrecPos'], State['y_imagePrecPos'] = self.__movePaint(x, y, r, radius,
-                                                                           pxmp=State['brush']['pixmap'])
+                                                                                pxmp=State['brush']['pixmap'])
             qp.end()
             # restore source image and paint
             # the whole stroke with current brush opacity

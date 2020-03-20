@@ -141,7 +141,7 @@ from bLUeTop.graphicsHDRMerge import HDRMergeForm
 from bLUeTop.graphicsSegment import segmentForm
 from PySide2.QtCore import QUrl, QFileInfo
 from PySide2.QtGui import QPixmap, QCursor, QKeySequence, QDesktopServices, QFont, \
-    QTransform, QColor, QImage
+    QTransform, QColor, QImage, QIcon
 from PySide2.QtWidgets import QApplication, QAction, \
     QDockWidget, QSizePolicy, QSplashScreen, QWidget, \
     QTabWidget, QToolBar, QComboBox, QTabBar
@@ -198,7 +198,7 @@ credit https://icones8.fr/
 
 ##############
 #  Version number
-VERSION = "v2.2.0"
+VERSION = "v2.2.1"
 ##############
 
 ##############
@@ -1596,8 +1596,12 @@ def setupGUI(window=window):
     # get brush and eraser families
     window.brushes = initBrushes()
     window.brushCombo = QComboBox()
+    window.brushCombo.setIconSize(QSize(50, 20))
     for b in window.brushes[:-1]:  # don't add eraser to combo
-        window.brushCombo.addItem(b.name, b)
+        if b.preset is None:
+            window.brushCombo.addItem(b.name, b)
+        else:
+            window.brushCombo.addItem(QIcon(b.preset), b.name, b)
     window.verticalSlider1.sliderReleased.connect(window.label.brushUpdate)
     window.verticalSlider2.sliderReleased.connect(window.label.brushUpdate)
     window.verticalSlider3.sliderReleased.connect(window.label.brushUpdate)

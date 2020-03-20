@@ -56,6 +56,11 @@ USE_TETRA = CONFIG["ENV"]["USE_TETRA"]  # False
 USE_POOL = CONFIG["ENV"]["USE_POOL"]  # True
 POOL_SIZE = CONFIG["ENV"]["POOL_SIZE"]  # 4
 
+##############
+# Brush folder
+#############
+BRUSHES_PATH = CONFIG["BRUSHES"]["DIR"]
+
 ########
 # Theme
 ########

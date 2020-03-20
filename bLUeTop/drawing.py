@@ -15,14 +15,16 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+import os
 
 import numpy as np
 import cv2
 
-from PySide2.QtCore import QRect, QPointF
-from PySide2.QtGui import QPixmap, QColor, QPainter, QRadialGradient, QBrush, QPainterPath
+from PySide2.QtCore import QRect, QPointF, QPoint
+from PySide2.QtGui import QPixmap, QColor, QPainter, QRadialGradient, QBrush, QPainterPath, QImage
 
 from bLUeGui.bLUeImage import QImageBuffer
+from bLUeTop.settings import BRUSHES_PATH
 
 
 class brushFamily:
@@ -30,10 +32,13 @@ class brushFamily:
     A brush family is a set of brushes sharing a common shape.
     The shape is defined by a QPainterPath instance and scaled
     by individual brushes.
+    A preset can be defined for each brush family. A preset is a mask
+    describing the alpha channel of the brush. It is built from the luminosity
+    channel of a png or jpg image.
     A cursor pixmap corresponding to the shape is associated with the brush family.
-    To build brushes from the family use the method getBrush.
+    To build individual brushes from the family use the method getBrush.
     """
-    def __init__(self, name, baseSize, contourPath):
+    def __init__(self, name, baseSize, contourPath, presetFilename=None):
         """
 
         @param name:
@@ -42,6 +47,8 @@ class brushFamily:
         @type baseSize: int
         @param contourPath: base shape of the brush family
         @type contourPath: QPainterPath
+        @param presetFilename: preset file
+        @type presetFilename: str
         """
         self.name = name
         self.baseSize = baseSize
@@ -52,15 +59,28 @@ class brushFamily:
         if self.name == 'eraser':
             self.basePixmap.fill(QColor(0, 0, 0, 255))
         self.contourPath = contourPath
-        # init brush cursor pixmap
+        # init brush cursor
         self.baseCursor = QPixmap(self.baseSize, self.baseSize)
         self.baseCursor.fill(QColor(0, 0, 0, 0))
         qp = QPainter(self.baseCursor)
+        pen = qp.pen()
+        pen.setWidth(self.baseSize / 20)
+        qp.setPen(pen)  # needed!!
         qp.drawPath(contourPath)
+        qp.end()
         self.__pxmp = None
         self.bOpacity = 1.0
         self.bFlow = 1.0
         self.bHardness = 1.0
+        self.preset = None
+        if presetFilename is not None:
+            img = QImage(presetFilename)
+            img = img.convertToFormat(QImage.Format_ARGB32)
+            buf = QImageBuffer(img)
+            b = np.sum(buf[...,:3], axis=-1, dtype=np.float)
+            b /= 3
+            buf[..., 3] = b
+            self.preset = QPixmap.fromImage(img)
 
     @property
     def pxmp(self):
@@ -103,6 +123,9 @@ class brushFamily:
         qp = QPainter(pxmp)
         qp.setCompositionMode(qp.CompositionMode_Source)
         qp.fillPath(self.contourPath, QBrush(gradient))
+        if self.preset is not None:
+            qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
+            qp.drawPixmap(QRect(QPoint(0,0), pxmp.size()), self.preset)
         qp.end()
         self.pxmp = pxmp.scaled(size, size)
         return {'family': self, 'name': self.name, 'pixmap': self.pxmp, 'size': size, 'color': color, 'opacity': opacity,
@@ -116,21 +139,41 @@ def initBrushes():
     @return:
     @rtype: list of brushFamily instances
     """
+    brushes = []
     ######################
     # standard round brush
     ######################
-    baseSize = 25
+    baseSize = 400 # 25
     qpp = QPainterPath()
     qpp.addEllipse(QRect(0, 0, baseSize, baseSize))
-    roundBrushFamily = brushFamily('Round', baseSize, qpp)
+    roundBrushFamily = brushFamily('Round', baseSize, qpp, presetFilename=None)
+    brushes.append(roundBrushFamily)
+    ######################
+    # preset brushes
+    ######################
+    try:
+        rank = 1
+        for entry in os.scandir(BRUSHES_PATH):
+            if entry.is_file():
+                if entry.name[-4:].lower() in ['.png', '.jpg']:
+                    try:
+                        qpp = QPainterPath()
+                        qpp.addEllipse(QRect(0, 0, baseSize, baseSize))
+                        presetBrushFamily = brushFamily('Preset ' + str(rank), baseSize, qpp, presetFilename=os.getcwd() + '\\' + BRUSHES_PATH + '\\' + entry.name)
+                        brushes.append(presetBrushFamily)
+                        rank += 1
+                    except IOError:
+                        pass
+    except IOError:
+        pass
     ##########
     # eraser
     ##########
     qpp = QPainterPath()
     qpp.addEllipse(QRect(0, 0, baseSize, baseSize))
     eraserFamily = brushFamily('Eraser', baseSize, qpp)
-    # add new brush families before eraser
-    brushes = [roundBrushFamily, eraserFamily]
+    # eraser must be added last
+    brushes.append(eraserFamily)
     return brushes
 
 

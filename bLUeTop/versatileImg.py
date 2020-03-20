@@ -627,7 +627,7 @@ class vImage(bImage):
 
     def setMaskLuminosity(self, min=0, max=255):
         """
-        Build the a luminosity mask
+        luminosity mask
         """
         buf = self.getHSVBuffer()
         buf = cv2.resize(buf, (self.mask.width(), self.mask.height()))

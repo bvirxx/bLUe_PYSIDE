@@ -14,6 +14,10 @@
      "DIR1" : "C:\\ProgramData\\Adobe\\CameraRaw\\CameraProfiles\\Adobe Standard",
      "DIR2" : "C:\\ProgramData\\Adobe\\CameraRaw\\CameraProfiles\\Camera"
   },
+  "BRUSHES" : {
+     "//" : "Path to brush strokes",
+     "DIR" : "brushes"
+  },
   "ENV" : {
     "//" : "3D LUT : Use tetrahedral interpolation instead of trilinear; trilinear is faster",
     "USE_TETRA": false,
