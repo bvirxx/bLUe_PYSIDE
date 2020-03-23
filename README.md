@@ -8,12 +8,13 @@ See the [bLUe site](http://bernard.virot.free.fr/) for images, tutorials and use
 
 ## DESCRIPTION
 
-bLUe is a layer-based image editor. Its goal is to integrate a 3D LUT editor with more traditional tools to propose a powerful GUI for photo editing. The program is fully modular : tools are implemented as independent
+bLUe is a layer-based image editor. Its goal is to integrate a 3D LUT editor with more traditional tools in order to propose a powerful GUI for photo editing. The program is fully modular : tools are implemented as independent
 adjustment layers using a common GUI. New features can be added easily:
 any imaging library exposing Python bindings can take advantage of the GUI.
 
 bLUe can develop raw images in all usual formats : nef, cr2, dng, ...
-It supports dng/dcp dual illuminant camera profiles. 
+It supports dng/dcp dual illuminant camera profiles : they are essential for rendering colors similar to whose produced by 
+camera software.
 
 bLUe provides drawing layers and paint brushes with adjustable parameters: size, flow, hardness, opacity.
 
@@ -41,7 +42,7 @@ The editor's workflow is based on the grouping of nodes.
 
   *  Nodes are selected and grouped from the image;
   
-  * To edit the colors of all pixels in a group while keeping their brightnesses, simply move the group over 
+  * To edit the colors of all pixels in a group while keeping their brightnesses, simply move the group on 
   the color wheel;
   
   * To control the brightnesses of pixels in a group, edit the brightness curve of the group.
