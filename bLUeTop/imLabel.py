@@ -645,7 +645,7 @@ class imageLabel(QLabel):
         p_x, p_y = State['x_imagePrecPos'], State['y_imagePrecPos']
         if d != 0.0:
             cosTheta, sinTheta = a_x / d, a_y / d
-            transform = QTransform(cosTheta, -sinTheta, sinTheta, cosTheta, 0, 0)
+            transform = QTransform(cosTheta, sinTheta, -sinTheta, cosTheta, 0, 0)  # Caution: angles > 0 correspond to counterclockwise rotations of pxmp
             pxmp = pxmp.transformed(transform)
         count = 0
         maxCount = int( 1.0 / step)

@@ -116,6 +116,7 @@ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
+import os
 from os import path, walk, remove
 from os.path import basename, isfile
 from tempfile import mktemp
@@ -135,7 +136,7 @@ from types import MethodType
 import rawpy
 
 from bLUeCore.bLUeLUT3D import HaldArray
-from bLUeTop.drawing import initBrushes
+from bLUeTop.drawing import initBrushes, loadPresets
 from bLUeTop.graphicsDraw import drawForm
 from bLUeTop.graphicsHDRMerge import HDRMergeForm
 from bLUeTop.graphicsSegment import segmentForm
@@ -166,7 +167,7 @@ from bLUeTop.colorManagement import icc
 from bLUeTop.graphicsCoBrSat import CoBrSatForm
 from bLUeTop.graphicsExp import ExpForm
 from bLUeTop.graphicsPatch import patchForm
-from bLUeTop.settings import USE_POOL, POOL_SIZE, THEME, TABBING
+from bLUeTop.settings import USE_POOL, POOL_SIZE, THEME, TABBING, BRUSHES_PATH
 from bLUeTop.utils import UDict, stateAwareQDockWidget
 from bLUeGui.tool import cropTool, rotatingTool
 from bLUeTop.graphicsTemp import temperatureForm
@@ -589,11 +590,35 @@ def updateMenuOpenRecent(window=window):
         window.menuOpen_recent.addAction(filename, lambda x=filename: openFile(x))
 
 
+def updateMenuLoadPreset():
+    """
+    Menu aboutToShow handler
+
+    """
+
+    def f(filename):
+        try:
+            QApplication.setOverrideCursor(Qt.WaitCursor)
+            brushes = loadPresets(filename)
+            window.brushes.extend(brushes)
+            for b in brushes:
+                if b.preset is None:
+                    window.brushCombo.addItem(b.name, b)
+                else:
+                    window.brushCombo.addItem(QIcon(b.preset), b.name, b)
+        finally:
+            QApplication.restoreOverrideCursor()
+
+    for entry in os.scandir(BRUSHES_PATH):
+        if entry.is_file():
+            if entry.name[-4:].lower() in ['.png', '.jpg', '.abr']:
+                filename = os.getcwd() + '\\' + BRUSHES_PATH + '\\' + entry.name
+                window.menuLoad_Preset.addAction(entry.name, lambda: f(filename))
+
+
 def updateEnabledActions(window=window):
     """
     Menu aboutToShow handler
-    @return:
-    @rtype:
     """
     window.actionColor_manage.setChecked(icc.COLOR_MANAGE)
     window.actionSave.setEnabled(window.label.img.isModified)
@@ -666,6 +691,20 @@ def menuFile(name, window=window):
             # pool.close()
             # pool.join()
             # pool = None  # TODO removed 28/01/20 for multi doc
+    """
+    elif name == 'actionLoad_Preset':
+        try:
+            QApplication.setOverrideCursor(Qt.WaitCursor)
+            brushes = loadPresets()
+            window.brushes.extend(brushes)
+            for b in brushes:
+                if b.preset is None:
+                    window.brushCombo.addItem(b.name, b)
+                else:
+                    window.brushCombo.addItem(QIcon(b.preset), b.name, b)
+        finally:
+            QApplication.restoreOverrideCursor()
+    """
     updateStatus()
 
 
@@ -1594,9 +1633,11 @@ def setupGUI(window=window):
     window.verticalSlider4.setSliderPosition(100)
     window.verticalSlider4.setToolTip('Flow')
     # get brush and eraser families
-    window.brushes = initBrushes()
     window.brushCombo = QComboBox()
+    window.brushCombo.setToolTip('Brush Family')
     window.brushCombo.setIconSize(QSize(50, 20))
+    window.brushes = []
+    window.brushes = initBrushes()
     for b in window.brushes[:-1]:  # don't add eraser to combo
         if b.preset is None:
             window.brushCombo.addItem(b.name, b)
@@ -1674,6 +1715,7 @@ def setupGUI(window=window):
     window.menuWindow.aboutToShow.connect(updateEnabledActions)
     window.menuHelp.aboutToShow.connect(updateEnabledActions)
     window.menuOpen_recent.aboutToShow.connect(updateMenuOpenRecent)
+    window.menuLoad_Preset.aboutToShow.connect(updateMenuLoadPreset)
     window.menu_File.triggered.connect(lambda a: menuFile(a.objectName()))
     window.menuLayer.triggered.connect(lambda a: menuLayer(a.objectName()))
     window.menuImage.triggered.connect(lambda a: menuImage(a.objectName()))
@@ -1834,6 +1876,7 @@ if __name__ == '__main__':
     # display splash screen and set app style sheet
     setupGUI(window)
     setTabBar()
+
 
     ###############
     # launch app

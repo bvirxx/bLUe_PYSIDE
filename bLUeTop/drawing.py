@@ -20,10 +20,11 @@ import os
 import numpy as np
 import cv2
 
-from PySide2.QtCore import QRect, QPointF, QPoint
+from PySide2.QtCore import QRect, QPointF
 from PySide2.QtGui import QPixmap, QColor, QPainter, QRadialGradient, QBrush, QPainterPath, QImage
 
-from bLUeGui.bLUeImage import QImageBuffer
+from bLUeGui.bLUeImage import QImageBuffer, ndarrayToQImage
+from bLUeTop.presetReader import aParser
 from bLUeTop.settings import BRUSHES_PATH
 
 
@@ -38,7 +39,7 @@ class brushFamily:
     A cursor pixmap corresponding to the shape is associated with the brush family.
     To build individual brushes from the family use the method getBrush.
     """
-    def __init__(self, name, baseSize, contourPath, presetFilename=None):
+    def __init__(self, name, baseSize, contourPath, presetFilename=None, image=None):
         """
 
         @param name:
@@ -75,12 +76,16 @@ class brushFamily:
         self.preset = None
         if presetFilename is not None:
             img = QImage(presetFilename)
-            img = img.convertToFormat(QImage.Format_ARGB32)
-            buf = QImageBuffer(img)
-            b = np.sum(buf[...,:3], axis=-1, dtype=np.float)
-            b /= 3
-            buf[..., 3] = b
-            self.preset = QPixmap.fromImage(img)
+        elif image is not None:
+            img = image
+        else:
+            return
+        img = img.convertToFormat(QImage.Format_ARGB32)
+        buf = QImageBuffer(img)
+        b = np.sum(buf[...,:3], axis=-1, dtype=np.float)
+        b /= 3
+        buf[..., 3] = b
+        self.preset = QPixmap.fromImage(img)
 
     @property
     def pxmp(self):
@@ -106,26 +111,59 @@ class brushFamily:
         @return:
         @rtype: dict
         """
-        # set brush color
         s = float(self.baseSize) / 2
+        # set brush color
         if self.name == 'eraser':
             color = QColor(0, 0, 0, 0)
         else:
-            color = QColor.fromRgb(color.red(), color.green(), color.blue(), int(64 * flow))
+            color = QColor(color.red(), color.green(), color.blue(), int(64 * flow))
         gradient = QRadialGradient(QPointF(s, s), s)
         gradient.setColorAt(0, color)
         gradient.setColorAt(hardness, color)
-        if self.name == 'eraser':
-            gradient.setColorAt(1, QColor.fromRgb(0, 0, 0, 255))
-        else:
-            gradient.setColorAt(1, QColor.fromRgb(0, 0, 0, 0))
+        if hardness < 1.0:
+            # fade action to 0, starting from hardness to 1
+            if self.name == 'eraser':
+                gradient.setColorAt(1, QColor(0, 0, 0, 255))
+            else:
+                gradient.setColorAt(1, QColor(0, 0, 0, 0))
         pxmp = self.basePixmap.copy()
         qp = QPainter(pxmp)
+        # fill brush contour with gradient (pxmp color is (0,0,0,0)
+        # outside of contourPath)
         qp.setCompositionMode(qp.CompositionMode_Source)
         qp.fillPath(self.contourPath, QBrush(gradient))
         if self.preset is not None:
+            ################################################
+            # we adjust the preset pixmap to pxmp size while keeping
+            # its aspect ratio and we center it into pxmp
+            ################################################
+            w, h = self.preset.width(), self.preset.height()
+            # get the bounding rect of the scaled and centered preset
+            # and the 2 complementary rects
+            if w > h:
+                rh = int(self.baseSize * h / w)   # height of bounding rect
+                m = int((self.baseSize - rh) / 2.0)  # top and bottom margins
+                r = QRect(0, m, self.baseSize, rh)
+                r1 = QRect(0, 0, self.baseSize, m)
+                r2 = QRect(0, rh + m, self.baseSize, m)
+            else:
+                rw = int(self.baseSize * w / h)  # width of bounding rect
+                m = int((self.baseSize - rw) / 2.0)  # left and right margins
+                r = QRect(m, 0, rw, self.baseSize)
+                r1 = QRect(0, 0, m, self.baseSize)
+                r2 = QRect(rw + m, 0, m, self.baseSize)
+            # set opacity of r to that of preset
             qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
-            qp.drawPixmap(QRect(QPoint(0,0), pxmp.size()), self.preset)
+            qp.drawPixmap(r, self.preset)
+            # paint the outside of r with transparent color
+            pxmp1 = QPixmap(pxmp.size())
+            #pxmp1.fill(QColor(color.red(), color.green(), color.blue(), 0))
+            pxmp1.fill(QColor(0, 0, 0, 0))
+            qp.drawPixmap(r1, pxmp1)
+            qp.drawPixmap(r2, pxmp1)
+            #img = pxmp.toImage().convertToFormat(QImage.Format_ARGB32)
+            #buf = QImageBuffer(img)[...,3] * 3
+            #cv2.imshow('toto', buf)
         qp.end()
         self.pxmp = pxmp.scaled(size, size)
         return {'family': self, 'name': self.name, 'pixmap': self.pxmp, 'size': size, 'color': color, 'opacity': opacity,
@@ -148,24 +186,6 @@ def initBrushes():
     qpp.addEllipse(QRect(0, 0, baseSize, baseSize))
     roundBrushFamily = brushFamily('Round', baseSize, qpp, presetFilename=None)
     brushes.append(roundBrushFamily)
-    ######################
-    # preset brushes
-    ######################
-    try:
-        rank = 1
-        for entry in os.scandir(BRUSHES_PATH):
-            if entry.is_file():
-                if entry.name[-4:].lower() in ['.png', '.jpg']:
-                    try:
-                        qpp = QPainterPath()
-                        qpp.addEllipse(QRect(0, 0, baseSize, baseSize))
-                        presetBrushFamily = brushFamily('Preset ' + str(rank), baseSize, qpp, presetFilename=os.getcwd() + '\\' + BRUSHES_PATH + '\\' + entry.name)
-                        brushes.append(presetBrushFamily)
-                        rank += 1
-                    except IOError:
-                        pass
-    except IOError:
-        pass
     ##########
     # eraser
     ##########
@@ -174,6 +194,41 @@ def initBrushes():
     eraserFamily = brushFamily('Eraser', baseSize, qpp)
     # eraser must be added last
     brushes.append(eraserFamily)
+    return brushes
+
+def loadPresets(filename):
+    """
+    Loads installed presets
+    @return:
+    @rtype:  list of brushFamily instances
+    """
+    brushes = []
+    baseSize = 400  # 25
+    try:
+        rank = 1
+        entry = os.path.basename(filename)
+        if entry[-4:].lower() in ['.png', '.jpg']:
+            try:
+                qpp = QPainterPath()
+                qpp.addEllipse(QRect(0, 0, baseSize, baseSize))
+                presetBrushFamily = brushFamily('Preset ' + str(rank), baseSize, qpp,
+                                                presetFilename=os.getcwd() + '\\' + BRUSHES_PATH + '\\' + entry)
+                brushes.append(presetBrushFamily)
+                rank += 1
+            except IOError:
+                pass
+        elif entry[-4:].lower() in ['.abr']:
+            images = aParser.readFile(os.getcwd() + '\\' + BRUSHES_PATH + '\\' + entry)
+            for im in images:
+                qpp = QPainterPath()
+                qpp.addEllipse(QRect(0, 0, baseSize, baseSize))
+                im = np.dstack((im, im, im, im))
+                qim = ndarrayToQImage(im, format=QImage.Format_ARGB32)
+                presetBrushFamily = brushFamily('Preset ' + str(rank), baseSize, qpp, image=qim)
+                brushes.append(presetBrushFamily)
+                rank += 1
+    except IOError:
+        pass
     return brushes
 
 
