@@ -156,6 +156,7 @@ from bLUeTop.graphicsNoise import noiseForm
 from bLUeTop.graphicsRaw import rawForm
 from bLUeTop.graphicsTransform import transForm, imageForm
 from bLUeGui.bLUeImage import QImageBuffer, QImageFormats
+from bLUeTop.presetReader import aParser
 from bLUeTop.rawProcessing import rawRead
 from bLUeTop.versatileImg import vImage, metadataBag
 from bLUeTop.MarkedImg import imImage, QRawLayer, QCloningLayer
@@ -593,7 +594,6 @@ def updateMenuOpenRecent(window=window):
 def updateMenuLoadPreset():
     """
     Menu aboutToShow handler
-
     """
 
     def f(filename):
@@ -609,11 +609,19 @@ def updateMenuLoadPreset():
         finally:
             QApplication.restoreOverrideCursor()
 
+    window.menuLoad_Preset.clear()
     for entry in os.scandir(BRUSHES_PATH):
         if entry.is_file():
-            if entry.name[-4:].lower() in ['.png', '.jpg', '.abr']:
+            ext = entry.name[-4:].lower()
+            if ext in ['.png', '.jpg', '.abr']:
                 filename = os.getcwd() + '\\' + BRUSHES_PATH + '\\' + entry.name
-                window.menuLoad_Preset.addAction(entry.name, lambda: f(filename))
+                # filter .abr versions
+                if ext == '.abr':
+                    v = aParser.getVersion(filename)
+                    if v != '6.2':
+                        continue
+                # add file to sub menu
+                window.menuLoad_Preset.addAction(entry.name, lambda x=filename: f(x))
 
 
 def updateEnabledActions(window=window):
@@ -691,20 +699,6 @@ def menuFile(name, window=window):
             # pool.close()
             # pool.join()
             # pool = None  # TODO removed 28/01/20 for multi doc
-    """
-    elif name == 'actionLoad_Preset':
-        try:
-            QApplication.setOverrideCursor(Qt.WaitCursor)
-            brushes = loadPresets()
-            window.brushes.extend(brushes)
-            for b in brushes:
-                if b.preset is None:
-                    window.brushCombo.addItem(b.name, b)
-                else:
-                    window.brushCombo.addItem(QIcon(b.preset), b.name, b)
-        finally:
-            QApplication.restoreOverrideCursor()
-    """
     updateStatus()
 
 
@@ -1636,6 +1630,7 @@ def setupGUI(window=window):
     window.brushCombo = QComboBox()
     window.brushCombo.setToolTip('Brush Family')
     window.brushCombo.setIconSize(QSize(50, 20))
+    window.brushCombo.setMinimumWidth(150)
     window.brushes = []
     window.brushes = initBrushes()
     for b in window.brushes[:-1]:  # don't add eraser to combo

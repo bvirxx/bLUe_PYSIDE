@@ -1322,7 +1322,7 @@ Screen</string>
   </action>
   <action name="actionsub">
    <property name="text">
-    <string>sub1</string>
+    <string>sub</string>
    </property>
   </action>
  </widget>

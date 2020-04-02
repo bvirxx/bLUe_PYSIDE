@@ -66,8 +66,8 @@ class aParser():
     def getVersion(filename):
         try:
             with open(filename, "rb") as f:
-                buf = f.read()
-            v = struct.unpack(">2h", buf[:4])
+                buf = f.read(4)
+            v = struct.unpack(">2h", buf)
         except IOError as e:
             print("cannot open %s" % filename, e)
             raise
@@ -283,8 +283,6 @@ class aParser():
     def readFile(filename):
         with open(filename, "rb") as f:
             buf = f.read()
-        print(' raed bytes ', len(buf))
-
         taggedBlocks = aParser.findTaggedBlocks(buf)
         images = []
         for tb in taggedBlocks:

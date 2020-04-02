@@ -198,7 +198,9 @@ def initBrushes():
 
 def loadPresets(filename):
     """
-    Loads installed presets
+    Loads brush preset from file
+    @param filename:
+    @type filename: str
     @return:
     @rtype:  list of brushFamily instances
     """
