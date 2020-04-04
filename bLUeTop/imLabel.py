@@ -16,6 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 from math import sqrt
+from random import choice
 
 from PySide2.QtCore import QRect, QRectF, Qt, QPointF
 from PySide2.QtGui import QPainter, QImage, QColor, QBrush, QContextMenuEvent, QCursor, QPen, QFont, QPainterPath, \
@@ -27,6 +28,8 @@ from bLUeTop.drawing import bLUeFloodFill
 from bLUeTop.settings import MAX_ZOOM
 from bLUeTop.versatileImg import vImage
 
+# range of brush stroke jittering
+jitterRange = range(-5, 5)
 
 class imageLabel(QLabel):
 
@@ -42,6 +45,17 @@ class imageLabel(QLabel):
         @return: current brush size
         @rtype: int
         """
+        bSpacing, bJitter = 1.0, 0.0
+        current = self.State.get('brush', None)
+        if current is not None:
+            bSpacing = current['spacing']
+            bJitter = current['jitter']
+        s = self.sender()
+        if s is not None:
+            if s.objectName() == 'spacingSlider':
+                bSpacing = s.value() / 10
+            elif s.objectName() == 'jitterSlider':
+                bJitter = s.value() / 10
         window = self.window
         bSize = window.verticalSlider1.value()
         bOpacity = window.verticalSlider2.value() / 100
@@ -54,7 +68,7 @@ class imageLabel(QLabel):
         if window.btnValues['eraserButton']:
             self.State[''] = window.brushes[-1].getBrush(bSize, bOpacity, bColor, bHardness, bFlow)
         else:
-            self.State['brush'] = window.brushCombo.currentData().getBrush(bSize, bOpacity, bColor, bHardness, bFlow)
+            self.State['brush'] = window.brushCombo.currentData().getBrush(bSize, bOpacity, bColor, bHardness, bFlow, spacing=bSpacing, jitter=bJitter)
         # record current brush into layer brushDict
         if self.img is not None:
             layer = self.img.getActiveLayer()
@@ -641,7 +655,10 @@ class imageLabel(QLabel):
         a_x, a_y = tmp_x - State['x_imagePrecPos'], tmp_y - State['y_imagePrecPos']
         # move length : use 1-norm for performance
         d = sqrt(a_x * a_x + a_y * a_y)
-        step = 1 if d == 0 else radius * 0.3 / d  # 0.25
+        spacing, jitter = State['brush']['spacing'], State['brush']['jitter']
+        step = 1 if d == 0 else radius * 0.3 * spacing / d  # 0.25
+        if jitter != 0.0:
+            step *= (1.0 + choice(jitterRange) * jitter / 100.0)
         p_x, p_y = State['x_imagePrecPos'], State['y_imagePrecPos']
         if d != 0.0:
             cosTheta, sinTheta = a_x / d, a_y / d

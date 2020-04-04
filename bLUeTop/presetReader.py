@@ -20,8 +20,36 @@ import struct
 import cv2
 import numpy as np
 from PySide2.QtCore import QRect, QPoint
-from PySide2.QtWidgets import QApplication
 
+"""
+.abr version 6.2 : example of Tagged Block structure.
+See https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
+
+'patt' Tagged Block
+    4 signature '8BIM'
+    4 tag 'patt'
+    4 length of following data
+    sub block  (repeated)
+        4 length of following data
+        4 version (=1)
+        4 mode (1=grayscale)
+        4 Point
+          UString (unicode string)
+          PString (Pascal string)
+          Index color table (present only when mode is indexed color)
+          VMAL (Virtual Memory Array List)
+            4 version (=3)
+            4 length
+            4 rectangle top
+            4 Rectangle left
+            4 rectangle bottom
+            4 rectangle right
+            4 number of channels
+            VMA (Virtual Memory Array) repeated for each channel
+                4 written
+                4 length of following data
+                  data
+"""
 
 class aTaggedBlock():
     """
@@ -186,12 +214,9 @@ class aParser():
         """
         prst = preset()
         prst.id, s = aParser.readPString(buf)
-        print('samp sub-block id : ', prst.id)
         # skip 4 bytes 00 01 00 00
         s1 = prst.readVMALHeader(buf[s + 4:])
-        print(prst.VMALHeader)
         offset = s + 4 + s1
-        print('channelCount', prst.channelCount)
         # init preset vmaList
         for i in range(prst.channelCount):
             count = prst.readVMA(buf[offset:])
@@ -223,9 +248,7 @@ class aParser():
         # next is one VMAL
         prst= preset()
         s2 = prst.readVMALHeader(buf[12+s+s1:])
-        print(prst.VMALHeader)
         offset = 12 + s + s1 +s2
-        print('channelCount', prst.channelCount)
         # init preset VMAList
         for i in range(prst.channelCount):
             count = prst.readVMA(buf[offset:])
@@ -284,7 +307,8 @@ class aParser():
         with open(filename, "rb") as f:
             buf = f.read()
         taggedBlocks = aParser.findTaggedBlocks(buf)
-        images = []
+        sImages = []
+        pImages = []
         for tb in taggedBlocks:
             if tb.tag == 'desc':
                 continue
@@ -293,14 +317,14 @@ class aParser():
                 if tb.tag == 'samp':
                     for addr in blocks:
                         prst = aParser.readSubSamp(buf[addr + 4:])  # skip header : sub-block size (4 bytes)
-                        images.extend([vma.imgBuf for vma in prst.vmaList])
+                        sImages.extend([vma.imgBuf for vma in prst.vmaList])
                 elif tb.tag == 'patt':
                     for addr in blocks:
                         prst = aParser.readSubPatt(buf[addr + 4:])  # skip header : sub-block size (4 bytes)
-                        images.extend([vma.imgBuf for vma in prst.vmaList])
+                        pImages.extend([vma.imgBuf for vma in prst.vmaList])
             except ValueError as e:
                 print(e, addr)
-        return images
+        return sImages, pImages
 
 
 class aVMA:
@@ -367,9 +391,9 @@ if __name__ == "__main__":
     path = "C:\\users\\berna\\desktop\\20 WaterFall Brushes.abr"
     version = aParser.getVersion(path)
     print("version :" , version)
-    images = aParser.readFile(path)
-    print ("%d images found" % len(images))
-    for i, im in enumerate(images):
+    sImages, pImages = aParser.readFile(path)
+    print ("%d images found" % len(sImages)+len(pImages))
+    for i, im in enumerate(sImages + pImages):
         print('image size :', im.shape[1], im.shape[0])
         cv2.namedWindow('toto%d' %i, cv2.WINDOW_NORMAL)
         cv2.resizeWindow('toto%d' %i, im.shape[1], im.shape[0])

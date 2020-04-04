@@ -16,7 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 from PySide2.QtCore import Qt
-from PySide2.QtWidgets import QPushButton, QVBoxLayout, QHBoxLayout
+from PySide2.QtWidgets import QPushButton, QVBoxLayout, QHBoxLayout, QSlider, QLabel
 
 from bLUeGui.graphicsForm import baseForm
 
@@ -42,6 +42,22 @@ class drawForm (baseForm):
         pushButton1.clicked.connect(self.undo)
         pushButton2.clicked.connect(self.redo)
 
+        spacingSlider = QSlider(Qt.Horizontal)
+        spacingSlider.setObjectName('spacingSlider')
+        spacingSlider.setRange(1,60)
+        spacingSlider.setTickPosition(QSlider.TicksBelow)
+        spacingSlider.setSliderPosition(10)
+        spacingSlider.sliderReleased.connect(self.parent().label.brushUpdate)
+        self.spacingSlider = spacingSlider
+
+        jitterSlider = QSlider(Qt.Horizontal)
+        jitterSlider.setObjectName('jitterSlider')
+        jitterSlider.setRange(0, 100)
+        jitterSlider.setTickPosition(QSlider.TicksBelow)
+        jitterSlider.setSliderPosition(0)
+        jitterSlider.sliderReleased.connect(self.parent().label.brushUpdate)
+        self.jitterSlider = jitterSlider
+
         # layout
         l = QVBoxLayout()
         l.setAlignment(Qt.AlignTop)
@@ -50,6 +66,15 @@ class drawForm (baseForm):
         hl.addWidget(pushButton1)
         hl.addWidget(pushButton2)
         l.addLayout(hl)
+        l.addWidget(QLabel('Brush Dynamics'))
+        hl1 = QHBoxLayout()
+        hl1.addWidget(QLabel('Spacing'))
+        hl1.addWidget(spacingSlider)
+        l.addLayout(hl1)
+        hl2 = QHBoxLayout()
+        hl2.addWidget(QLabel('Jitter'))
+        hl2.addWidget(jitterSlider)
+        l.addLayout(hl2)
         self.setLayout(l)
         self.adjustSize()
 

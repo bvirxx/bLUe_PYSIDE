@@ -462,12 +462,13 @@ def showHistogram(window=window):
     window.histView.Label_Hist.setPixmap(window.histView.cache)
 
 
-def restoreBrush(d):
+def restoreBrush(layer):
     """
-    Sync brush tools with values in d
+    Sync brush tools with brushDict
     @param d:
     @type d: dict
     """
+    d = layer.brushDict
     if d is None:
         return
     window.verticalSlider1.setValue(d['size'])
@@ -478,6 +479,11 @@ def restoreBrush(d):
     if ind != -1:
         window.brushCombo.setCurrentIndex(ind)
     window.colorChooser.setCurrentColor(d['color'])
+    graphicsForm = layer.getGraphicsForm()
+    # graphicsForm may be None if the layer is being created
+    if graphicsForm is not None:
+        graphicsForm.spacingSlider.setValue(int(d['spacing']) * 10)
+        graphicsForm.jitterSlider.setValue(int(d['jitter']) * 10)
     window.label.State['brush'] = d.copy()
 
 
@@ -533,7 +539,10 @@ def setDocumentImage(img, window=window):
     def g():
         layer = window.label.img.getActiveLayer()
         if layer.isDrawLayer():
-            restoreBrush(layer.brushDict)
+            if layer.brushDict is None:  # no brush set yet
+                window.label.brushUpdate()
+                layer.brushDict = window.label.State['brush']
+            restoreBrush(layer)
 
     window.label.img.onImageChanged = f
     window.label.img.onActiveLayerChanged = g

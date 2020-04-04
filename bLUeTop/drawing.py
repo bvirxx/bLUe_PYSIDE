@@ -95,7 +95,7 @@ class brushFamily:
     def pxmp(self, pixmap):
         self.__pxmp = pixmap
 
-    def getBrush(self, size, opacity, color, hardness, flow):
+    def getBrush(self, size, opacity, color, hardness, flow, spacing=1.0, jitter=0.0):
         """
         initializes and returns a brush as a dictionary
         @param size: brush size
@@ -167,7 +167,7 @@ class brushFamily:
         qp.end()
         self.pxmp = pxmp.scaled(size, size)
         return {'family': self, 'name': self.name, 'pixmap': self.pxmp, 'size': size, 'color': color, 'opacity': opacity,
-                'hardness': hardness, 'flow': flow, 'cursor': self.baseCursor}
+                'hardness': hardness, 'flow': flow, 'spacing': spacing, 'jitter': jitter, 'cursor': self.baseCursor}
 
 
 def initBrushes():
@@ -220,8 +220,8 @@ def loadPresets(filename):
             except IOError:
                 pass
         elif entry[-4:].lower() in ['.abr']:
-            images = aParser.readFile(os.getcwd() + '\\' + BRUSHES_PATH + '\\' + entry)
-            for im in images:
+            sImages, pImages = aParser.readFile(os.getcwd() + '\\' + BRUSHES_PATH + '\\' + entry)
+            for im in sImages:
                 qpp = QPainterPath()
                 qpp.addEllipse(QRect(0, 0, baseSize, baseSize))
                 im = np.dstack((im, im, im, im))
