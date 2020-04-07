@@ -24,12 +24,9 @@ from PySide2.QtGui import QPainter, QImage, QColor, QBrush, QContextMenuEvent, Q
 from PySide2.QtWidgets import QLabel, QApplication
 
 from bLUeGui.dialog import dlgWarn
-from bLUeTop.drawing import bLUeFloodFill
+from bLUeTop.drawing import bLUeFloodFill, brushFamily
 from bLUeTop.settings import MAX_ZOOM
 from bLUeTop.versatileImg import vImage
-
-# range of brush stroke jittering
-jitterRange = range(-5, 5)
 
 class imageLabel(QLabel):
 
@@ -41,21 +38,24 @@ class imageLabel(QLabel):
 
     def brushUpdate(self):
         """
-        Records the current brush/eraser in self.State
-        @return: current brush size
-        @rtype: int
+        Sync the current brush/eraser with self.State
+        and update the current brush sample.
         """
-        bSpacing, bJitter = 1.0, 0.0
+        bSpacing, bJitter, bOrientation  = 1.0, 0.0, 0
         current = self.State.get('brush', None)
         if current is not None:
             bSpacing = current['spacing']
             bJitter = current['jitter']
+            bOrientation = current['orientation']
         s = self.sender()
         if s is not None:
-            if s.objectName() == 'spacingSlider':
+            name = s.objectName()
+            if name == 'spacingSlider':
                 bSpacing = s.value() / 10
-            elif s.objectName() == 'jitterSlider':
+            elif name == 'jitterSlider':
                 bJitter = s.value() / 10
+            elif name == 'orientationSlider':
+                bOrientation = s.value() - 180
         window = self.window
         bSize = window.verticalSlider1.value()
         bOpacity = window.verticalSlider2.value() / 100
@@ -68,13 +68,15 @@ class imageLabel(QLabel):
         if window.btnValues['eraserButton']:
             self.State[''] = window.brushes[-1].getBrush(bSize, bOpacity, bColor, bHardness, bFlow)
         else:
-            self.State['brush'] = window.brushCombo.currentData().getBrush(bSize, bOpacity, bColor, bHardness, bFlow, spacing=bSpacing, jitter=bJitter)
+            self.State['brush'] = window.brushCombo.currentData().getBrush(bSize, bOpacity, bColor, bHardness, bFlow, spacing=bSpacing, jitter=bJitter, orientation=bOrientation)
         # record current brush into layer brushDict
         if self.img is not None:
             layer = self.img.getActiveLayer()
             if layer.isDrawLayer():
                 layer.brushDict = self.State['brush'].copy()
-        return bSize
+                grForm = layer.getGraphicsForm()
+                if grForm is not None:
+                    grForm.updateSample()
 
     def syncBrush(self, zooming):
         """
@@ -658,7 +660,7 @@ class imageLabel(QLabel):
         spacing, jitter = State['brush']['spacing'], State['brush']['jitter']
         step = 1 if d == 0 else radius * 0.3 * spacing / d  # 0.25
         if jitter != 0.0:
-            step *= (1.0 + choice(jitterRange) * jitter / 100.0)
+            step *= (1.0 + choice(brushFamily.jitterRange) * jitter / 100.0)
         p_x, p_y = State['x_imagePrecPos'], State['y_imagePrecPos']
         if d != 0.0:
             cosTheta, sinTheta = a_x / d, a_y / d
@@ -691,18 +693,26 @@ class imageLabel(QLabel):
         img = self.img
         State = self.State
         qp = self.qp
-        radius = State['brush']['size'] / 2
+        # get image coordinates
+        x_img = (x - img.xOffset) // r
+        y_img = (y - img.yOffset) // r
         # draw the stroke
         if self.window.btnValues['brushButton']:
             # drawing into stroke intermediate layer
             cp = layer.stroke
             qp.begin(cp)
             qp.setCompositionMode(qp.CompositionMode_SourceOver)
-            State['x_imagePrecPos'], State['y_imagePrecPos'] = self.__movePaint(x, y, r, radius,
-                                                                                pxmp=State['brush']['pixmap'])
+            # draw move
+            State['x_imagePrecPos'], State['y_imagePrecPos'] = brushFamily.brushStrokeSeg(qp,
+                                                                                          State['x_imagePrecPos'],
+                                                                                          State['y_imagePrecPos'],
+                                                                                          x_img, y_img,
+                                                                                          State['brush'])
             qp.end()
             # restore source image and paint
-            # the whole stroke with current brush opacity
+            # the whole stroke with current brush opacity.
+            # Restoring source image enables iterative calls showing
+            # stroke progress
             qp.begin(layer.sourceImg)
             qp.setCompositionMode(qp.CompositionMode_Source)
             qp.drawImage(QPointF(), layer.strokeDest)
@@ -711,21 +721,16 @@ class imageLabel(QLabel):
             qp.drawImage(QPointF(), layer.stroke)
             qp.end()
         elif self.window.btnValues['eraserButton']:
-            cp = layer.sourceImg  # layer.stroke
+            cp = layer.sourceImg
             qp.begin(cp)
             qp.setCompositionMode(qp.CompositionMode_DestinationIn)
-            State['x_imagePrecPos'], State['y_imagePrecPos'] = self.__movePaint(x, y, r, radius,
-                                                                           pxmp=State['brush']['pixmap'])
+            State['x_imagePrecPos'], State['y_imagePrecPos'] = brushFamily.brushStrokeSeg(qp,
+                                                                                          State['x_imagePrecPos'],
+                                                                                          State['y_imagePrecPos'],
+                                                                                          x_img, y_img,
+                                                                                          State['brush'])
             qp.end()
         # update layer - should be layer.applyToStack() if any upper layer visible : too slow !
-        # layer.updatePixmap()
         layer.execute()
-        img.prLayer.update()  # =applyNone()
+        img.prLayer.update()
         self.window.label.repaint()
-
-
-
-
-
-
-

@@ -16,12 +16,14 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import os
+from math import sqrt
+from random import choice
 
 import numpy as np
 import cv2
 
 from PySide2.QtCore import QRect, QPointF
-from PySide2.QtGui import QPixmap, QColor, QPainter, QRadialGradient, QBrush, QPainterPath, QImage
+from PySide2.QtGui import QPixmap, QColor, QPainter, QRadialGradient, QBrush, QPainterPath, QImage, QTransform
 
 from bLUeGui.bLUeImage import QImageBuffer, ndarrayToQImage
 from bLUeTop.presetReader import aParser
@@ -37,8 +39,108 @@ class brushFamily:
     describing the alpha channel of the brush. It is built from the luminosity
     channel of a png or jpg image.
     A cursor pixmap corresponding to the shape is associated with the brush family.
-    To build individual brushes from the family use the method getBrush.
+    Individual brushes from the family are dictionaries. They are instantiated by
+    the method getBrush().
     """
+    # range of brush stroke jittering
+    jitterRange = range(-5, 5)
+
+    @staticmethod
+    def brushStrokeSeg(qp, x0, y0, x, y, brush):
+        """
+        Base method for brush painting.
+        It paints the straight line ((x0,y0), (x, y)) on an active QPainter instance qp,
+        using the brush defined by brush.
+        The method returns the last painted position, or the initial position if
+        not any painting occurs, due to spacing constraints.
+        @param x0: image x-coord
+        @type x0: float
+        @param y0: image y-coord
+        @type y0: float
+        @param x: image x-coord
+        @type x: float
+        @param y: image y-coord
+        @type y: float
+        @param brush: painting brush or eraser
+        @type brush: dict
+        @return: last painted position
+        @rtype: 2-uple of float
+        """
+        tmp_x = x
+        tmp_y = y
+        # vector of the move
+        a_x, a_y = tmp_x - x0, tmp_y - y0
+        # move length : use 1-norm for performance
+        d = sqrt(a_x * a_x + a_y * a_y)
+        spacing, jitter, radius, pxmp = brush['spacing'], brush['jitter'], brush['size'] / 2, brush['pixmap']
+        step = 1 if d == 0 else radius * 0.3 * spacing / d  # 0.25
+        sinBeta, cosBeta = 0.0, 1.0
+        if jitter != 0.0:
+            step *= (1.0 + choice(brushFamily.jitterRange) * jitter / 100.0)
+            sinBeta = choice(brushFamily.jitterRange) * jitter / 100
+            cosbeta = sqrt(1 - sinBeta * sinBeta)
+        p_x, p_y = x0, y0
+        if d != 0.0:
+            cosTheta, sinTheta = a_x / d, a_y / d
+            if jitter != 0.0:
+                cosTheta = cosTheta * cosBeta + sinTheta * sinBeta
+                sinTheta = sinTheta * cosBeta - cosTheta * sinBeta
+            transform = QTransform(cosTheta, sinTheta, -sinTheta, cosTheta, 0, 0)  # Caution: angles > 0 correspond to counterclockwise rotations of pxmp
+            pxmp = pxmp.transformed(transform)
+        count = 0
+        maxCount = int(1.0 / step)
+        while count < maxCount:
+            count += 1
+            if pxmp is None:
+                qp.drawEllipse(QPointF(p_x, p_y), radius, radius)
+            else:
+                qp.drawPixmap(QPointF(p_x - radius, p_y - radius), pxmp)  # TODO radius added 19/03/20 validate
+            p_x, p_y = p_x + a_x * step, p_y + a_y * step
+        # return last brush position
+        return p_x, p_y
+
+    @staticmethod
+    def brushStrokePoly(pixmap, poly, brush):
+        """
+        Draws the brush stroke defined by a QPolygon
+        @param layer:
+        @type layer:
+        @param x:
+        @type x:
+        @param y:
+        @type y:
+        @param r:
+        @type r:
+        """
+        # draw the stroke
+        if brush['name'] == 'eraser':
+            return
+        # drawing into stroke intermediate layer
+        pxmp_temp = pixmap.copy()
+        qp = QPainter()
+        qp.begin(pxmp_temp)
+        qp.setCompositionMode(qp.CompositionMode_SourceOver)
+        # draw lines
+        x_last, y_last = poly.first().x(), poly.first().y()
+        for i in range(poly.length() - 1):
+            x0, y0 = poly.at(i).x(), poly.at(i).y()
+            x, y = poly.at(i + 1).x(), poly.at(i + 1).y()
+            x_last, y_last = brushFamily.brushStrokeSeg(qp,
+                                                        x_last,
+                                                        y_last,
+                                                        x, y,
+                                                        brush)
+        qp.end()
+        # restore source image and paint
+        # the whole stroke with current brush opacity
+        qp.begin(pixmap)
+        # qp.setCompositionMode(qp.CompositionMode_Source)
+        # qp.drawImage(QPointF(), layer.strokeDest)
+        qp.setOpacity(brush['opacity'])
+        qp.setCompositionMode(qp.CompositionMode_SourceOver)
+        qp.drawPixmap(QPointF(), pxmp_temp)
+        qp.end()
+
     def __init__(self, name, baseSize, contourPath, presetFilename=None, image=None):
         """
 
@@ -95,7 +197,7 @@ class brushFamily:
     def pxmp(self, pixmap):
         self.__pxmp = pixmap
 
-    def getBrush(self, size, opacity, color, hardness, flow, spacing=1.0, jitter=0.0):
+    def getBrush(self, size, opacity, color, hardness, flow, spacing=1.0, jitter=0.0, orientation=0):
         """
         initializes and returns a brush as a dictionary
         @param size: brush size
@@ -157,17 +259,14 @@ class brushFamily:
             qp.drawPixmap(r, self.preset)
             # paint the outside of r with transparent color
             pxmp1 = QPixmap(pxmp.size())
-            #pxmp1.fill(QColor(color.red(), color.green(), color.blue(), 0))
             pxmp1.fill(QColor(0, 0, 0, 0))
             qp.drawPixmap(r1, pxmp1)
             qp.drawPixmap(r2, pxmp1)
-            #img = pxmp.toImage().convertToFormat(QImage.Format_ARGB32)
-            #buf = QImageBuffer(img)[...,3] * 3
-            #cv2.imshow('toto', buf)
         qp.end()
-        self.pxmp = pxmp.scaled(size, size)
+        s = size / self.baseSize
+        self.pxmp = pxmp.transformed(QTransform().scale(s, s).rotate(orientation)) # pxmp.scaled(size, size)
         return {'family': self, 'name': self.name, 'pixmap': self.pxmp, 'size': size, 'color': color, 'opacity': opacity,
-                'hardness': hardness, 'flow': flow, 'spacing': spacing, 'jitter': jitter, 'cursor': self.baseCursor}
+                'hardness': hardness, 'flow': flow, 'spacing': spacing, 'jitter': jitter, 'orientation': orientation, 'cursor': self.baseCursor}
 
 
 def initBrushes():
@@ -196,7 +295,7 @@ def initBrushes():
     brushes.append(eraserFamily)
     return brushes
 
-def loadPresets(filename):
+def loadPresets(filename, first=1):
     """
     Loads brush preset from file
     @param filename:
@@ -207,7 +306,7 @@ def loadPresets(filename):
     brushes = []
     baseSize = 400  # 25
     try:
-        rank = 1
+        rank = first
         entry = os.path.basename(filename)
         if entry[-4:].lower() in ['.png', '.jpg']:
             try:

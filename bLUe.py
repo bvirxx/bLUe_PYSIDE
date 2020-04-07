@@ -200,7 +200,7 @@ credit https://icones8.fr/
 
 ##############
 #  Version number
-VERSION = "v2.2.1"
+VERSION = "v2.3.1"
 ##############
 
 ##############
@@ -484,6 +484,7 @@ def restoreBrush(layer):
     if graphicsForm is not None:
         graphicsForm.spacingSlider.setValue(int(d['spacing']) * 10)
         graphicsForm.jitterSlider.setValue(int(d['jitter']) * 10)
+        graphicsForm.orientationSlider.setValue(int(d['orientation']) + 180)
     window.label.State['brush'] = d.copy()
 
 
@@ -608,7 +609,7 @@ def updateMenuLoadPreset():
     def f(filename):
         try:
             QApplication.setOverrideCursor(Qt.WaitCursor)
-            brushes = loadPresets(filename)
+            brushes = loadPresets(filename, first=window.brushCombo.count() + 1)
             window.brushes.extend(brushes)
             for b in brushes:
                 if b.preset is None:
@@ -1638,7 +1639,7 @@ def setupGUI(window=window):
     # get brush and eraser families
     window.brushCombo = QComboBox()
     window.brushCombo.setToolTip('Brush Family')
-    window.brushCombo.setIconSize(QSize(50, 20))
+    window.brushCombo.setIconSize(QSize(50, 50))
     window.brushCombo.setMinimumWidth(150)
     window.brushes = []
     window.brushes = initBrushes()

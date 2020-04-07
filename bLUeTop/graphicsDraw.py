@@ -15,10 +15,12 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-from PySide2.QtCore import Qt
+from PySide2.QtCore import Qt, QPointF
+from PySide2.QtGui import QPixmap, QColor, QPainterPath, QTransform
 from PySide2.QtWidgets import QPushButton, QVBoxLayout, QHBoxLayout, QSlider, QLabel
 
 from bLUeGui.graphicsForm import baseForm
+from bLUeTop.drawing import brushFamily
 
 
 class drawForm (baseForm):
@@ -58,6 +60,27 @@ class drawForm (baseForm):
         jitterSlider.sliderReleased.connect(self.parent().label.brushUpdate)
         self.jitterSlider = jitterSlider
 
+        orientationSlider = QSlider(Qt.Horizontal)
+        orientationSlider.setObjectName('orientationSlider')
+        orientationSlider.setRange(0, 360)
+        orientationSlider.setTickPosition(QSlider.TicksBelow)
+        orientationSlider.setSliderPosition(180)
+        orientationSlider.sliderReleased.connect(self.parent().label.brushUpdate)
+        self.orientationSlider = orientationSlider
+
+        # sample
+        self.sample = QLabel()
+        #self.sample.setMinimumSize(200, 100)
+        pxmp = QPixmap(250,100)
+        pxmp.fill(QColor(255, 255, 255, 255))
+        self.sample.setPixmap(pxmp)
+        qpp = QPainterPath()
+        qpp.moveTo(QPointF(20, 50))
+        qpp.cubicTo(QPointF(80, 25), QPointF(145, 70), QPointF(230, 60))  # c1, c2, endPoint
+        self.samplePoly = qpp.toFillPolygon(QTransform())
+        # we want an unclosed polygon
+        self.samplePoly.removeLast()
+
         # layout
         l = QVBoxLayout()
         l.setAlignment(Qt.AlignTop)
@@ -75,6 +98,11 @@ class drawForm (baseForm):
         hl2.addWidget(QLabel('Jitter'))
         hl2.addWidget(jitterSlider)
         l.addLayout(hl2)
+        hl3 = QHBoxLayout()
+        hl3.addWidget(QLabel('Orientation'))
+        hl3.addWidget(self.orientationSlider)
+        l.addLayout(hl3)
+        l.addWidget(self.sample)
         self.setLayout(l)
         self.adjustSize()
 
@@ -92,6 +120,7 @@ class drawForm (baseForm):
         except RuntimeError:
             pass
         self.dataChanged.connect(self.updateLayer)
+        self.updateSample()
 
     def updateLayer(self):
         """
@@ -101,6 +130,12 @@ class drawForm (baseForm):
         # l.tool.setBaseTransform()
         l.applyToStack()
         l.parentImage.onImageChanged()
+
+    def updateSample(self):
+        pxmp = self.sample.pixmap()
+        pxmp.fill(Qt.white)
+        brushFamily.brushStrokePoly(pxmp, self.samplePoly, self.layer.brushDict)
+        self.sample.repaint()
 
     def undo(self):
         try:
