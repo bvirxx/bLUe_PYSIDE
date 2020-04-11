@@ -1063,7 +1063,9 @@ class QLayer(vImage):
             img = self.maskedThumbContainer
         else:
             img = self.maskedImageContainer
-        # draw lower stack
+        # reset the container
+        img.fill(QColor(0,0,0,0))  # TODO added 10/04/20 : needed for (semi-)transparent background - validate
+        # blend lower stack
         qp = QPainter(img)
         top = self.parentImage.getStackIndex(self)
         bottom = 0
@@ -1071,6 +1073,7 @@ class QLayer(vImage):
             if layer.visible:
                 if i == 0:
                     qp.setCompositionMode(QPainter.CompositionMode_Source)
+                    qp.setOpacity(layer.opacity)  # TODO added 10/04/20 : enables semi transparent background layer - validate
                 else:
                     qp.setOpacity(layer.opacity)
                     qp.setCompositionMode(layer.compositionMode)

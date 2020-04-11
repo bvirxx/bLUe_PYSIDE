@@ -29,6 +29,14 @@ from bLUeGui.bLUeImage import QImageBuffer, ndarrayToQImage
 from bLUeTop.presetReader import aParser
 from bLUeTop.settings import BRUSHES_PATH
 
+class pattern:
+    """
+    Brus pattern
+    """
+    def __init__(self, name, im=None, pxmp=None):
+        self.name = name
+        self.im = im
+        self.pxmp = pxmp
 
 class brushFamily:
     """
@@ -49,9 +57,9 @@ class brushFamily:
     def brushStrokeSeg(qp, x0, y0, x, y, brush):
         """
         Base method for brush painting.
-        It paints the straight line ((x0,y0), (x, y)) on an active QPainter instance qp,
-        using the brush defined by brush.
-        The method returns the last painted position, or the initial position if
+        The method paints the straight line ((x0,y0), (x, y)) with the brush defined by brush,
+        using an active QPainter instance qp,
+        It returns the last painted position, or the initial position if
         not any painting occurs, due to spacing constraints.
         @param x0: image x-coord
         @type x0: float
@@ -131,6 +139,17 @@ class brushFamily:
                                                         x, y,
                                                         brush)
         qp.end()
+        # draw texture aligned with image
+        strokeTex = pxmp_temp
+        p = brush['pattern']
+        if p is not None:
+            if p.pxmp is not None:
+                strokeTex = pxmp_temp.copy()
+                qp1 = QPainter(strokeTex)
+                qp1.setCompositionMode(qp.CompositionMode_DestinationIn)
+                qp1.setBrush(QBrush(p.pxmp))
+                qp1.fillRect(QRect(0, 0, strokeTex.width(), strokeTex.height()), QBrush(p.pxmp))
+                qp1.end()
         # restore source image and paint
         # the whole stroke with current brush opacity
         qp.begin(pixmap)
@@ -138,7 +157,7 @@ class brushFamily:
         # qp.drawImage(QPointF(), layer.strokeDest)
         qp.setOpacity(brush['opacity'])
         qp.setCompositionMode(qp.CompositionMode_SourceOver)
-        qp.drawPixmap(QPointF(), pxmp_temp)
+        qp.drawPixmap(QPointF(), strokeTex )  # pxmp_temp)
         qp.end()
 
     def __init__(self, name, baseSize, contourPath, presetFilename=None, image=None):
@@ -197,7 +216,7 @@ class brushFamily:
     def pxmp(self, pixmap):
         self.__pxmp = pixmap
 
-    def getBrush(self, size, opacity, color, hardness, flow, spacing=1.0, jitter=0.0, orientation=0):
+    def getBrush(self, size, opacity, color, hardness, flow, spacing=1.0, jitter=0.0, orientation=0, pattern=None):
         """
         initializes and returns a brush as a dictionary
         @param size: brush size
@@ -218,7 +237,8 @@ class brushFamily:
         if self.name == 'eraser':
             color = QColor(0, 0, 0, 0)
         else:
-            color = QColor(color.red(), color.green(), color.blue(), int(64 * flow))
+            op_max = 255  # 64
+            color = QColor(color.red(), color.green(), color.blue(), int(op_max * flow))
         gradient = QRadialGradient(QPointF(s, s), s)
         gradient.setColorAt(0, color)
         gradient.setColorAt(hardness, color)
@@ -265,8 +285,10 @@ class brushFamily:
         qp.end()
         s = size / self.baseSize
         self.pxmp = pxmp.transformed(QTransform().scale(s, s).rotate(orientation)) # pxmp.scaled(size, size)
+        pattern = pattern
         return {'family': self, 'name': self.name, 'pixmap': self.pxmp, 'size': size, 'color': color, 'opacity': opacity,
-                'hardness': hardness, 'flow': flow, 'spacing': spacing, 'jitter': jitter, 'orientation': orientation, 'cursor': self.baseCursor}
+                'hardness': hardness, 'flow': flow, 'spacing': spacing, 'jitter': jitter, 'orientation': orientation,
+                'pattern': pattern, 'cursor': self.baseCursor}
 
 
 def initBrushes():
@@ -304,6 +326,7 @@ def loadPresets(filename, first=1):
     @rtype:  list of brushFamily instances
     """
     brushes = []
+    patterns = []
     baseSize = 400  # 25
     try:
         rank = first
@@ -323,20 +346,29 @@ def loadPresets(filename, first=1):
             for im in sImages:
                 qpp = QPainterPath()
                 qpp.addEllipse(QRect(0, 0, baseSize, baseSize))
-                im = np.dstack((im, im, im, im))
+                alpha = np.full_like(im, 255)
+                im = np.dstack((im, im, im, im) ) # alpha))
                 qim = ndarrayToQImage(im, format=QImage.Format_ARGB32)
                 presetBrushFamily = brushFamily('Preset ' + str(rank), baseSize, qpp, image=qim)
                 brushes.append(presetBrushFamily)
                 rank += 1
+            rank = first
+            for im in pImages:
+                #alpha = np.full_like(im, 255)
+                im = np.dstack((im, im, im, im))
+                qim = ndarrayToQImage(im, format=QImage.Format_ARGB32)
+                p = pattern('pattern ' + str(rank), im=qim, pxmp=QPixmap.fromImage(qim))
+                patterns.append(p)
+                rank += 1
     except IOError:
         pass
-    return brushes
+    return brushes, patterns
 
 
 def bLUeFloodFill(layer, x, y, color):
     """
     Flood fills a region of a drawing layer
-    x, y are the source coordinates
+    x, y are the seed coordinates
     @param layer:
     @type layer: QLayerImage
     @param x:
@@ -353,7 +385,8 @@ def bLUeFloodFill(layer, x, y, color):
     buf = np.ascontiguousarray(buf0[..., :3][..., ::-1])
     mask = np.zeros((h+2, w+2), dtype=np.uint8)
     # flood filling
-    cv2.floodFill(buf, mask, (x, y), (color.red(), color.green(), color.blue()))
+    if 0 <= x < w  and 0 <= y < h:
+        cv2.floodFill(buf, mask, (x, y), (color.red(), color.green(), color.blue()))
     buf0[..., :3] = buf[..., ::-1]
     # set the alpha channel of the filled region
     buf0[mask[1:-1, 1:-1] == 1, 3] = color.alpha()

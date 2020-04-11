@@ -310,7 +310,7 @@ class aParser():
         sImages = []
         pImages = []
         for tb in taggedBlocks:
-            if tb.tag == 'desc':
+            if tb.tag == 'desc' or tb.length == 0:
                 continue
             blocks = aParser.findSubBlocks(buf, tb)
             try:

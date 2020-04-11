@@ -133,7 +133,7 @@ class drawForm (baseForm):
 
     def updateSample(self):
         pxmp = self.sample.pixmap()
-        pxmp.fill(Qt.white)
+        pxmp.fill(QColor(0,0,0,0))
         brushFamily.brushStrokePoly(pxmp, self.samplePoly, self.layer.brushDict)
         self.sample.repaint()
 

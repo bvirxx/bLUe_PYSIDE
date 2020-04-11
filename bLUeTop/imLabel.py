@@ -26,6 +26,7 @@ from PySide2.QtWidgets import QLabel, QApplication
 from bLUeGui.dialog import dlgWarn
 from bLUeTop.drawing import bLUeFloodFill, brushFamily
 from bLUeTop.settings import MAX_ZOOM
+from bLUeTop.utils import checkeredImage
 from bLUeTop.versatileImg import vImage
 
 class imageLabel(QLabel):
@@ -35,6 +36,8 @@ class imageLabel(QLabel):
     qp.markPath = QPainterPath()
     qp.markRect = QRect(0, 0, 50, 20)
     qp.markPath.addRoundedRect(qp.markRect, 5, 5)
+
+    checkerBrush = QBrush(checkeredImage())
 
     def brushUpdate(self):
         """
@@ -68,7 +71,8 @@ class imageLabel(QLabel):
         if window.btnValues['eraserButton']:
             self.State[''] = window.brushes[-1].getBrush(bSize, bOpacity, bColor, bHardness, bFlow)
         else:
-            self.State['brush'] = window.brushCombo.currentData().getBrush(bSize, bOpacity, bColor, bHardness, bFlow, spacing=bSpacing, jitter=bJitter, orientation=bOrientation)
+            pattern = window.patternCombo.currentData()
+            self.State['brush'] = window.brushCombo.currentData().getBrush(bSize, bOpacity, bColor, bHardness, bFlow, spacing=bSpacing, jitter=bJitter, orientation=bOrientation, pattern=pattern)
         # record current brush into layer brushDict
         if self.img is not None:
             layer = self.img.getActiveLayer()
@@ -134,6 +138,8 @@ class imageLabel(QLabel):
         # r is relative to the full resolution image, so we use mimg width and height
         w, h = mimg.width() * r, mimg.height() * r
         rectF = QRectF(mimg.xOffset, mimg.yOffset, w, h)
+        # draw a checker background to view (semi-)transparent images
+        qp.fillRect(rectF, imageLabel.checkerBrush)
         px = mimg.prLayer.qPixmap
         if px is not None:
             qp.drawPixmap(rectF, px, px.rect())
@@ -624,8 +630,9 @@ class imageLabel(QLabel):
             return
         QApplication.restoreOverrideCursor()
 
+    """
     def __movePaint(self, x, y, r, radius, pxmp=None):
-        """
+        
         Private drawing function.
         Base function for painting tools. The radius and pixmap
         of the tool are passed by the parameters radius and pxmp.
@@ -647,7 +654,7 @@ class imageLabel(QLabel):
         @type pxmp: QPixmap
         @return: last painted position
         @rtype: 2-uple of float
-        """
+        
         img = self.img
         State = self.State
         qp = self.qp
@@ -677,6 +684,7 @@ class imageLabel(QLabel):
             p_x, p_y = p_x + a_x * step, p_y + a_y * step
         # return last painted position
         return p_x, p_y
+    """
 
     def __strokePaint(self, layer, x, y, r):
         """
@@ -698,9 +706,8 @@ class imageLabel(QLabel):
         y_img = (y - img.yOffset) // r
         # draw the stroke
         if self.window.btnValues['brushButton']:
-            # drawing into stroke intermediate layer
-            cp = layer.stroke
-            qp.begin(cp)
+            # drawing onto stroke intermediate layer
+            qp.begin(layer.stroke)
             qp.setCompositionMode(qp.CompositionMode_SourceOver)
             # draw move
             State['x_imagePrecPos'], State['y_imagePrecPos'] = brushFamily.brushStrokeSeg(qp,
@@ -709,6 +716,17 @@ class imageLabel(QLabel):
                                                                                           x_img, y_img,
                                                                                           State['brush'])
             qp.end()
+            # draw texture aligned with image
+            strokeTex = layer.stroke
+            p = State['brush']['pattern']
+            if p is not None:
+                if p.pxmp is not None:
+                    strokeTex = layer.stroke.copy()
+                    qp1 = QPainter(strokeTex)
+                    qp1.setCompositionMode(qp.CompositionMode_DestinationIn)
+                    qp1.setBrush(QBrush(p.pxmp))
+                    qp1.fillRect(QRect(0, 0, strokeTex.width(), strokeTex.height()), QBrush(p.pxmp))
+                    qp1.end()
             # restore source image and paint
             # the whole stroke with current brush opacity.
             # Restoring source image enables iterative calls showing
@@ -718,11 +736,10 @@ class imageLabel(QLabel):
             qp.drawImage(QPointF(), layer.strokeDest)
             qp.setOpacity(State['brush']['opacity'])
             qp.setCompositionMode(qp.CompositionMode_SourceOver)
-            qp.drawImage(QPointF(), layer.stroke)
+            qp.drawImage(QPointF(), strokeTex)  # layer.stroke)
             qp.end()
         elif self.window.btnValues['eraserButton']:
-            cp = layer.sourceImg
-            qp.begin(cp)
+            qp.begin(layer.sourceImg)
             qp.setCompositionMode(qp.CompositionMode_DestinationIn)
             State['x_imagePrecPos'], State['y_imagePrecPos'] = brushFamily.brushStrokeSeg(qp,
                                                                                           State['x_imagePrecPos'],

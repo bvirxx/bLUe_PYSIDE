@@ -142,7 +142,7 @@ from bLUeTop.graphicsHDRMerge import HDRMergeForm
 from bLUeTop.graphicsSegment import segmentForm
 from PySide2.QtCore import QUrl, QFileInfo
 from PySide2.QtGui import QPixmap, QCursor, QKeySequence, QDesktopServices, QFont, \
-    QTransform, QColor, QImage, QIcon
+    QTransform, QColor, QImage, QIcon, QPalette
 from PySide2.QtWidgets import QApplication, QAction, \
     QDockWidget, QSizePolicy, QSplashScreen, QWidget, \
     QTabWidget, QToolBar, QComboBox, QTabBar
@@ -609,13 +609,15 @@ def updateMenuLoadPreset():
     def f(filename):
         try:
             QApplication.setOverrideCursor(Qt.WaitCursor)
-            brushes = loadPresets(filename, first=window.brushCombo.count() + 1)
+            brushes, patterns = loadPresets(filename, first=window.brushCombo.count() + 1)
             window.brushes.extend(brushes)
             for b in brushes:
                 if b.preset is None:
                     window.brushCombo.addItem(b.name, b)
                 else:
                     window.brushCombo.addItem(QIcon(b.preset), b.name, b)
+            for p in patterns:
+                window.patternCombo.addItem(QIcon(p.pxmp), p.name, p)
         finally:
             QApplication.restoreOverrideCursor()
 
@@ -652,29 +654,36 @@ def menuFile(name, window=window):
     @param window:
     @type window: QWidget
     """
-    # new image
+    # new document
     if name == 'actionNew_2':
-        img = None
+        # get image from clipboard, if any
         cb = QApplication.clipboard()
-        Qimg = cb.image()
-        if not Qimg.isNull():
-            img = imImage(QImg=Qimg)
+        cbImg = cb.image()
+        w, h = (200,) * 2
+        if not cbImg.isNull():
+            w, h = cbImg.width(), cbImg.height()
             cb.clear()
-        else:
-            dlg = dimsInputDialog(200, 200)
-            dlg.open()
+        dlg = dimsInputDialog(w, h)
+        dlg.open()
 
-            def f():
+        def f():
+            nonlocal cbImg
+            if cbImg.isNull():
+                # new image
                 imgNew = QImage(dlg.dims['w'], dlg.dims['h'], QImage.Format_ARGB32)
+                # set background color for the new document
                 imgNew.fill(Qt.white)
                 img = imImage(QImg=imgNew)
-                if img is None:
-                    return
-                img.filename = 'unnamed'
-                loadImage(img, withBasic=False)
+            else:
+                # paste
+                if w == dlg.dims['w'] and h == dlg.dims['h']:
+                    img = imImage(QImg=cbImg)
+                else:
+                    img = imImage(QImg=cbImg.scaled(dlg.dims['w'], dlg.dims['h']))
+            img.filename = 'unnamed'
+            loadImage(img, withBasic=False)  # don't add any adjustment layer
 
-            dlg.onAccept = f
-
+        dlg.onAccept = f
     # load image from file
     elif name in ['actionOpen']:
         # get file name from dialog
@@ -1637,22 +1646,26 @@ def setupGUI(window=window):
     window.verticalSlider4.setSliderPosition(100)
     window.verticalSlider4.setToolTip('Flow')
     # get brush and eraser families
-    window.brushCombo = QComboBox()
+    window.brushCombo, window.patternCombo= QComboBox(), QComboBox()
     window.brushCombo.setToolTip('Brush Family')
+    window.patternCombo.setToolTip('Patterns')
     window.brushCombo.setIconSize(QSize(50, 50))
+    window.patternCombo.setIconSize(QSize(50, 50))
     window.brushCombo.setMinimumWidth(150)
-    window.brushes = []
+    window.patternCombo.setMinimumWidth(150)
     window.brushes = initBrushes()
     for b in window.brushes[:-1]:  # don't add eraser to combo
         if b.preset is None:
             window.brushCombo.addItem(b.name, b)
         else:
             window.brushCombo.addItem(QIcon(b.preset), b.name, b)
+    window.patternCombo.addItem('None', None)
     window.verticalSlider1.sliderReleased.connect(window.label.brushUpdate)
     window.verticalSlider2.sliderReleased.connect(window.label.brushUpdate)
     window.verticalSlider3.sliderReleased.connect(window.label.brushUpdate)
     window.verticalSlider4.sliderReleased.connect(window.label.brushUpdate)
     window.brushCombo.currentIndexChanged.connect(window.label.brushUpdate)
+    window.patternCombo.currentIndexChanged.connect(window.label.brushUpdate)
     window.colorChooser.colorSelected.connect(window.label.brushUpdate)
     # init tool bar
     toolBar.addWidget(QLabel(' Brush  '))
@@ -1667,6 +1680,7 @@ def setupGUI(window=window):
         empty.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         toolBar.addWidget(empty)
     toolBar.addWidget(window.brushCombo)
+    toolBar.addWidget(window.patternCombo)
     # link tooLBar to the group of tool buttons
     for button in window.drawFG.group().buttons():
         button.toolBar = toolBar
