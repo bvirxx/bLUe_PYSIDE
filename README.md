@@ -63,7 +63,7 @@ Download an [example 3D LUT](http://bernard.virot.free.fr/sunrise.cube) and test
 * Adjustment layers : exposure, brightness, saturation, contrast, channel mixer, color temperature, inversion, filters, noise reduction,
 seamless cloning, segmentation, exposure fusion, curves, 2.5D LUTs, 3D LUTs.
 * Drawing layers
-* brush preset parser (.abr files)
+* Extensible set of brushes and patterns; import of abr files
 * Automatic contrast enhancement (histogram warping and CLAHE)
 * Seamless cloning
 * Exposure fusion
