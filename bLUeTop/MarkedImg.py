@@ -33,6 +33,7 @@ from PySide2.QtGui import QPixmap, QImage, QPainter
 from PySide2.QtCore import QRect
 
 from bLUeCore.demosaicing import demosaic
+from bLUeGui.blend import blendLuminosityBuf, blendColorBuf
 from bLUeTop import exiftool
 from bLUeGui.memory import weakProxy
 from bLUeTop.cloning import contours, moments, seamlessClone
@@ -1076,10 +1077,20 @@ class QLayer(vImage):
                     qp.setOpacity(layer.opacity)  # TODO added 10/04/20 : enables semi transparent background layer - validate
                 else:
                     qp.setOpacity(layer.opacity)
-                    qp.setCompositionMode(layer.compositionMode)
+                    if type(layer.compositionMode) is QPainter.CompositionMode:
+                        qp.setCompositionMode(layer.compositionMode)
                 if layer.rPixmap is None:
                     layer.rPixmap = QPixmap.fromImage(layer.getCurrentImage())
-                qp.drawPixmap(QRect(0, 0, img.width(), img.height()), layer.rPixmap)
+                # blend layer
+                if type(layer.compositionMode) is QPainter.CompositionMode:
+                    qp.drawPixmap(QRect(0, 0, img.width(), img.height()), layer.rPixmap)
+                else:
+                    buf = QImageBuffer(img)[..., :3][..., ::-1]
+                    buf0 = QImageBuffer(layer.getCurrentImage())[..., :3][..., ::-1]
+                    if layer.compositionMode == -1:
+                        buf[...] = blendLuminosityBuf(buf, buf0) * layer.opacity + buf * (1.0 - layer.opacity)
+                    elif layer.compositionMode == -2:
+                        buf[...] = blendColorBuf(buf, buf0)  * layer.opacity + buf * (1.0 - layer.opacity)
                 # clipping
                 if layer.isClipping and layer.maskIsEnabled:
                     # draw mask as opacity mask
@@ -1333,11 +1344,18 @@ class QLayer(vImage):
         # update stack
         self.parentImage.layersStack[0].applyToStack()
         # merge
-        # target.setImage(self)
-        qp = QPainter(target)
-        qp.setCompositionMode(self.compositionMode)
-        qp.setOpacity(self.opacity)
-        qp.drawImage(QRect(0, 0, self.width(), self.height()), self)
+        if type(self.compositionMode) is QPainter.CompositionMode:
+            qp = QPainter(target)
+            qp.setCompositionMode(self.compositionMode)
+            #qp.setOpacity(self.opacity)
+            qp.drawImage(QRect(0, 0, self.width(), self.height()), self)
+            qp.end()
+        else:
+            buf = QImageBuffer(target)[..., :3][..., ::-1]
+            if self.compositionMode == -1:
+                buf[...] = blendLuminosityBuf(buf, QImageBuffer(self.getCUrrentImage()[..., :3][..., ::-1]))
+            elif self.compositionMode == -2:
+                buf[...] = blendColorBuf(buf, QImageBuffer(self.getCUrrentImage()[..., :3][..., ::-1]))
         target.updatePixmap()
         self.parentImage.layerView.clear(delete=False)
         currentIndex = self.getStackIndex()
@@ -1602,25 +1620,29 @@ class QLayerImage(QLayer):
     def inputImg(self, redo=True):
         """
         Overrides QLayer.inputImg().
-        The input image built from the stack is merged with the source image,
-        using the blending mode and opacity of the layer.
+        The source image is blended with the input image built from the stack,
+        using the opacity and the blending mode of the layer.
         @return:
         @rtype: QImage
         """
         img1 = super().inputImg()  # TODO maybe missing redo=redo 16/12/19
         # merging with sourceImg
-        qp = QPainter(img1)
-        qp.setOpacity(self.opacity)
-        qp.setCompositionMode(self.compositionMode)
-        qp.drawImage(QRect(0, 0, img1.width(), img1.height()), self.sourceImg)
+        if type(self.compositionMode) is QPainter.CompositionMode:
+            qp = QPainter(img1)
+            qp.setOpacity(self.opacity)
+            qp.setCompositionMode(self.compositionMode)
+            qp.drawImage(QRect(0, 0, img1.width(), img1.height()), self.sourceImg)
+            qp.end()
+        else:
+            buf = QImageBuffer(img1)[..., :3][..., ::-1]
+            img0 = (self.sourceImg.scaled(img1.size()))
+            buf0 = QImageBuffer(img0)[..., :3][..., ::-1]
+            buf0 = buf0 * self.opacity
+            if self.compositionMode == -1:
+                buf[...] = blendLuminosityBuf(buf, buf0.astype(np.uint8))
+            elif self.compositionMode == -2:
+                buf[...] = blendColorBuf(buf,  buf0.astype(np.uint8))
         return img1
-    """
-    def undo(self):
-        self.sourceImg = self.history.undo(saveitem=self.sourceImg)
-
-    def redo(self):
-        self.sourceImg = self.history.redo()
-    """
 
     def bTransformed(self, transformation, parentImage):
         """

@@ -22,7 +22,8 @@ from bLUeGui.bLUeImage import QImageBuffer
 
 def blendLuminosityBuf(destBuf, sourceBuf):
     """
-    Implements blending with luminosity mode,
+    Important : Buffer channels should be in r,g,b order.
+    The method implements blending in luminosity mode,
     which is missing in Qt.
     The blended image retains the hue and saturation of dest,
     with the luminosity of source.
@@ -30,9 +31,9 @@ def blendLuminosityBuf(destBuf, sourceBuf):
     see https://docs.opencv.org/3.3.0/de/d25/imgproc_color_conversions.html
     Note blendColor and blendLuminosity are commuted versions of each other:
     blendLuminosity(img1, img2) = blendColor(img2, img1)
-    @param destBuf: destination image buffer
+    @param destBuf: destination r,g,b image buffer
     @type destBuf: ndarray
-    @param sourceBuf: source image buffer
+    @param sourceBuf: source r,g,b image buffer
     @type sourceBuf: ndarray
     @return: the blended buffer
     @rtype: ndarray
@@ -47,7 +48,7 @@ def blendLuminosityBuf(destBuf, sourceBuf):
 
 def blendLuminosity(dest, source):
     """
-    Implements blending with luminosity mode,
+    Implements blending in luminosity mode,
     which is missing in Qt.
     The blended image retains the hue and saturation of dest,
     with the luminosity of source.
@@ -75,16 +76,17 @@ def blendLuminosity(dest, source):
 
 def blendColorBuf(destBuf, sourceBuf):
     """
-     Implements blending using color mode, which is missing
+    Important : Buffer channels should be in r,g,b order.
+    The method implements blending in color mode, which is missing
     in Qt. We use the HLS color model as intermediate color space.
     The blended image retains the hue and saturation of source, with the
     luminosity of dest. We use the HLS color model:
     see https://docs.opencv.org/3.3.0/de/d25/imgproc_color_conversions.html
     Note blendColor and blendLuminosity are commuted versions of each other:
     blendLuminosity(img1, img2) = blendColor(img2, img1)
-    @param destBuf: destination image buffer
+    @param destBuf: destination r,g,b image buffer
     @type destBuf: ndarray
-    @param sourceBuf: source image buffer
+    @param sourceBuf: source r,g,b image buffer
     @type sourceBuf: ndarray
     @return: the blended buffer
     @rtype: ndarray
@@ -94,7 +96,7 @@ def blendColorBuf(destBuf, sourceBuf):
 
 def blendColor(dest, source):
     """
-    Implements blending using color mode, which is missing
+    Implements blending in color mode, which is missing
     in Qt. We use the HLS color model as intermediate color space.
     The blended image retains the hue and saturation of source, with the
     luminosity of dest. We use the HLS color model:

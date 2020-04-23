@@ -1059,7 +1059,7 @@ class vImage(bImage):
         if form.options['Luminosity']:
             bufOut[:, :, :3][:, :, ::-1] = blendLuminosityBuf(bufIn[:, :, :3][:, :, ::-1], buf)
         else:
-            bufOut[:, :, :3][:, :, ::-1] = buf
+            bufOut[:, :, :3][:, :, ::-1] = np.round(buf)  # truncation would be harmful here
         # forward the alpha channel
         bufOut[:, :, 3] = bufIn[:, :, 3]
         self.updatePixmap()
@@ -1344,7 +1344,7 @@ class vImage(bImage):
             buf = np.empty_like(ndImg1)
             for c in range(3):  # 0.36s for 15Mpx
                 buf[:, :, c] = np.take(stackedLUT[2-c, :], ndImg0[:, :, c].reshape((-1,))).reshape(s)
-            ndImg1[...] = blendLuminosityBuf(ndImg0, buf)
+            ndImg1[..., :: -1] = blendLuminosityBuf(ndImg0[..., ::-1], buf[..., ::-1])
         else:
             for c in range(3):  # 0.36s for 15Mpx
                 ndImg1[:, :, c] = np.take(stackedLUT[2-c, :], ndImg0[:, :, c].reshape((-1,))).reshape(s)
@@ -1785,7 +1785,7 @@ class vImage(bImage):
             bufsRGBLinear /= M
             bufOutRGB = rgbLinear2rgb(bufsRGBLinear)
             np.clip(bufOutRGB, 0, 255, out=bufOutRGB)
-            bufOutRGB = bufOutRGB.astype(np.uint8)
+            bufOutRGB = np.round(bufOutRGB).astype(np.uint8)  # TODO np.round added 18/04/20 validate
         else:
             raise ValueError('applyTemperature : wrong option')
         # set output image

@@ -264,8 +264,13 @@ class QLayerView(QTableView):
                                                 ('Hard Light', QPainter.CompositionMode_HardLight),
                                                 ('Soft Light', QPainter.CompositionMode_SoftLight),
                                                 ('Difference', QPainter.CompositionMode_Difference),
-                                                ('Exclusion', QPainter.CompositionMode_Exclusion)
+                                                ('Exclusion', QPainter.CompositionMode_Exclusion),
+                                                # Type of previous modes is QPainter.CompositionMode (Shiboken enum-type).
+                                                # Next additional modes are not implemented by QPainter:
+                                                ('Luminosity', -1),
+                                                ('color', -2)
                                                 ])
+
         self.blendingModeCombo = QComboBox()
         for key in self.compositionModeDict:
             self.blendingModeCombo.addItem(key, self.compositionModeDict[key])

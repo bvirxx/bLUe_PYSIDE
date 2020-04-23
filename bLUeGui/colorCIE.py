@@ -93,6 +93,9 @@ class gammaTables:
     # Cf. https://en.wikipedia.org/wiki/SRGB
     # Use the USE_BT_709 flag to switch between versions.
     """
+    #
+    tableSize = 10000
+
     if USE_BT_709:
         # REC BT 709
         gamma = 2.2
@@ -126,15 +129,14 @@ class gammaTables:
         F = 255.0 ** self.beta
         table0 = np.arange(256, dtype=np.float64)
         # tabulate ( (x + a) / (1 + a) )**gamma
-        # inputs should be integers in range 0..255.They are scaled to[0..1].
         self.__table3 = np.power((table0 / 255.0 + self.a) / (1 + self.a), self.gamma)
         trh = int(self.gammaLinearTreshold2 * 255)
         self.__table3[0: trh + 1] = np.arange(trh + 1) / (255.0 * self.d)
         # tabulate (1 + a) * x**(1/gamma) - a :
-        # inputs should be integers in range 0..255. They are scaled to [0..1].
+        table0, F = np.arange(self.tableSize + 1, dtype=np.float64), self.tableSize ** self.beta
         self.__table5 = np.power(table0, self.beta) * ((1.0 + self.a) / F) - self.a
-        trh = int(self.gammaLinearTreshold1 * 255)
-        self.__table5[0: trh + 1] = np.arange(trh + 1) * self.d
+        trh = int(self.gammaLinearTreshold1 * self.tableSize)
+        self.__table5[0: trh + 1] = np.arange(trh + 1) * self.d / self.tableSize
         self.__table5 *= 255
 
     @property
@@ -175,8 +177,7 @@ def rgbLinear2rgb(rgbColors):
         vectorize = False
     if vectorize:
         gt = gammaTables.getInstance()
-        imgDiscretized = (rgbColors * 255.0).astype(int)
-        # np.clip(imgDiscretized, 0, 255, out=imgDiscretized)
+        imgDiscretized = (rgbColors * gammaTables.tableSize).astype(int)
         return gt.table5[imgDiscretized]
     else:
         gt = gammaTables
