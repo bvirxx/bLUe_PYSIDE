@@ -18,7 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import os
 
 from PySide2 import QtWidgets, QtCore
-from PySide2.QtCore import QSettings
+from PySide2.QtCore import QSettings, Qt
 import sys
 
 from PySide2.QtGui import QScreen
@@ -202,10 +202,10 @@ QtCore.QCoreApplication.addLibraryPath(plugin_path)
 if getattr(sys, 'frozen', False) and len(sys.argv) <= 1:
     hideConsole()
 
-############
-# launch app
-############
-#QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)  # needed when a plugin initializes a Qt WebEngine
+##################
+# constructing app
+##################
+QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)  # needed when a plugin initializes a web engine
 app = QApplication(sys.argv)
 # get root widget
 rootWidget = app.desktop()

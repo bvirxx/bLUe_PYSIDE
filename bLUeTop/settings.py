@@ -16,6 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import sys
+from os.path import expanduser
 from json import load
 
 ########################
@@ -36,7 +37,11 @@ else:
 ##############
 # Paths to system profiles
 ##############
-SYSTEM_PROFILE_DIR = CONFIG["PATHS"]["SYSTEM_PROFILE_DIR"]  # "C:\Windows\System32\spool\drivers\color"
+if sys.platform == 'win32':
+    SYSTEM_PROFILE_DIR = CONFIG["PATHS"]["SYSTEM_PROFILE_DIR"]  # "C:\Windows\System32\spool\drivers\color"
+else:
+    SYSTEM_PROFILE_DIR = expanduser(CONFIG["PATHS"]["SYSTEM_PROFILE_DIR"])
+
 ADOBE_RGB_PROFILE_PATH = SYSTEM_PROFILE_DIR + CONFIG["PROFILES"]["ADOBE_RGB_PROFILE"]  # "\AdobeRGB1998.icc"
 SRGB_PROFILE_PATH = SYSTEM_PROFILE_DIR + CONFIG["PROFILES"]["SRGB_PROFILE"]  # "\sRGB Color Space Profile.icm"
 DEFAULT_MONITOR_PROFILE_PATH = SYSTEM_PROFILE_DIR + CONFIG["PROFILES"]["DEFAULT_MONITOR_PROFILE_NAME"]

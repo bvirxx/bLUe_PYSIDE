@@ -121,6 +121,8 @@ from os import path, walk, remove
 from os.path import basename, isfile
 from tempfile import mktemp
 
+from PySide2 import QtCore
+
 from bLUeGui.graphicsForm import baseGraphicsForm
 from bLUeTop import resources_rc  # mandatory
 
@@ -856,13 +858,22 @@ def menuImage(name, window=window):
         if icc.workingProfile is not None:
             s = s + icc.workingProfileInfo
         s = s + '-------------\n' + 'Monitor Profile : '
-        if icc.monitorProfile is not None:
-            s = s + icc.monitorProfileInfo + '-------------\n'
-        s = s + 'Note :\nThe working profile is the color profile assigned to the image.'
-        s = s + 'The monitor profile should correspond to your monitor.'
-        s = s + '\nBoth profiles are used in conjunction to display exact colors. '
-        s = s + 'If one of them is missing, bLUe cannot color manage the image.'
-        s = s + '\nIf the monitor profile listed above is not the right profile for your monitor, please check the system settings for color management'
+        if icc.monitorProfile is None:
+            s = s + 'Automatic detection failed and no default profile was found\n\n'
+            s = s + 'Define SYSTEM_PROFILE_DIR and DEFAULT_MONITOR_PROFILE_NAME in '\
+                     'the configuration file config.json '\
+                     'to match the path to your current display profile.\n'\
+                     'Usual Profile dirs are on Linux ~/.local/share/icc\n'\
+                     'and on Windows C:\Windows\System32\spool\drivers\color\n'
+        else:
+            s = s + icc.monitorProfileInfo + '-------------\n\n'
+
+        s = s + 'Note :\nThe working profile is the color profile assigned to the image.'\
+                 'The monitor profile should correspond to your monitor. '\
+                 'Both profiles are used in conjunction to display exact colors. '\
+                 'If one of them is missing, bLUe cannot color manage the image. '\
+                 'If the monitor profile listed above is not the right profile for your monitor, '\
+                 'please check the system settings for color management.'
         w.label.setWordWrap(True)
         w.label.setText(s)
         w.show()
@@ -1898,9 +1909,5 @@ if __name__ == '__main__':
 
 
     ###############
-    # launch app
-    ###############
+    # launching app
     sys.exit(app.exec_())
-
-
-

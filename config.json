@@ -1,13 +1,13 @@
 {
   "PATHS": {
     "EXIFTOOL_PATH_BUNDLED": "bin\\exiftool(-k).exe",
-    "EXIFTOOL_PATH": "C:\\standalone\\exiftool(-k).exe",
-    "SYSTEM_PROFILE_DIR": "C:\\Windows\\System32\\spool\\drivers\\color\\"
+    "EXIFTOOL_PATH": "/usr/bin/exiftool",
+    "SYSTEM_PROFILE_DIR": "~/.local/share/icc/"
   },
   "PROFILES" : {
     "ADOBE_RGB_PROFILE" : "AdobeRGB1998.icc",
     "SRGB_PROFILE": "sRGB Color Space Profile.icm",
-    "DEFAULT_MONITOR_PROFILE_NAME": "xxxx"
+    "DEFAULT_MONITOR_PROFILE_NAME": "CS240(34381075)02Paper.iccxx"
   },
   "DNG_PROFILES" : {
      "//" : "Paths to camera profiles. To get the standard profiles, download and install the free Adobe DNG converter",

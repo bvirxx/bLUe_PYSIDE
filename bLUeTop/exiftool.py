@@ -27,6 +27,7 @@ import re
 import subprocess
 import os
 import json
+from sys import platform
 
 from PySide2.QtCore import QByteArray
 from PySide2.QtGui import QTransform, QImage
@@ -57,20 +58,22 @@ class ExifTool(object):
         According to the documentation stdin, stdout and stderr are open in binary mode.
         """
         try:
-            # hide sub-window to prevent flashing console
-            # when the program is frozen by PyInstaller with
-            # console set to False.
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW  # prevent subprocess from opening a window.
-            startupinfo.wShowWindow = subprocess.SW_HIDE            # This is needed when the application is frozen with PyInstaller
-            # -@ FILE : read command line args from FILE
-            # -stay_open True: keep reading -@ argFILE even after EOF
+            startupinfo = None
+
+            if platform == 'win32':
+                # hide sub-window to prevent flashing console when the program is frozen by PyInstaller with
+                # console set to False.
+                startupinfo = subprocess.STARTUPINFO()
+                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW  # prevent subprocess from opening a window.
+                startupinfo.wShowWindow = subprocess.SW_HIDE            # This is needed when the app is frozen with PyInstaller
+
             self.process = subprocess.Popen(
-                                        [self.executable, "-stay_open", "True",  "-@", "-"],
+                                        [self.executable, "-stay_open", "True",  "-@", "-"], # -@ FILE : read command line args from FILE, -stay_open True: keep reading -@ argFILE even after EOF
                                         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,  # subprocess.DEVNULL
                                         startupinfo=startupinfo
                                        )
-        except OSError:
+
+        except (AttributeError, OSError):
             dlgWarn("cannot execute exiftool :\nset EXIFTOOL_PATH in config.json")
             # exit program
             exit()
@@ -80,7 +83,7 @@ class ExifTool(object):
         """
         exit "with" block:
         Terminate process. The function is always executed,
-        even if an exception has occurred within the block.
+        even if an exception occurred within the block.
         Return True to catch the exception.
         @param exc_type: type of exception (if any)
         @param exc_value: 
@@ -108,7 +111,6 @@ class ExifTool(object):
         @return: command output
         @rtype: str or bytes according to the ascii flag.
         """
-        # append synchronization token to args (args type is tuple)
         args = args + ("-execute\n",)
         # convert command to bytes and write it to process stdin
         stdin = self.process.stdin
@@ -116,9 +118,10 @@ class ExifTool(object):
             stdin.write(bytearray(str.join("\n", args), 'ascii'))
         except UnicodeEncodeError as e:
             dlgWarn(str.join("\n", args), str(e))
-        # flush and sync stdin - both are mandatory here
+        # flush and sync stdin : both are mandatory on Windows
         stdin.flush()
-        os.fsync(stdin.fileno())
+        if platform == 'win32':
+            os.fsync(stdin.fileno())
         # get exiftool response : data, if any, followed by sentinel
         output = bytearray()
         fdout = self.process.stdout.fileno()
@@ -126,10 +129,14 @@ class ExifTool(object):
         sb = self.sentinel.encode('ascii')
         # read stdout up to sentinel
         # NOTE: os.read is blocking; termination is granted by the sentinel
-        while not output[:-2].endswith(sb):
+        if platform == 'win32':
+            eol = 2  # CRLF
+        else:
+            eol = 1  # CR
+        while not output[:-eol].endswith(sb):
             output.extend(os.read(fdout, 4096))
         # cut off sentinel and CRLF
-        output = output[:-len(self.sentinel) - 2]
+        output = output[:-len(self.sentinel) - eol]
         if ascii:
             output = str(output, encoding='ascii')
         else:
