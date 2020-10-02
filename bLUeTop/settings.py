@@ -22,8 +22,12 @@ from json import load
 ########################
 # read configuration file
 ########################
-with open("config.json", "r") as fd:
-    CONFIG = load(fd)
+if sys.platform == 'win32':
+    with open("config_win.json", "r") as fd:
+        CONFIG = load(fd)
+else:
+    with open("config.json", "r") as fd:
+        CONFIG = load(fd)
 
 ############
 # exiftool path
