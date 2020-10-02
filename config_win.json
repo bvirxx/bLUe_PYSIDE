@@ -1,0 +1,35 @@
+{
+  "PATHS": {
+    "EXIFTOOL_PATH_BUNDLED": "bin\\exiftool(-k).exe",
+    "EXIFTOOL_PATH": "C:\\standalone\\exiftool(-k).exe",
+    "SYSTEM_PROFILE_DIR": "C:\\Windows\\System32\\spool\\drivers\\color\\"
+  },
+  "PROFILES" : {
+    "ADOBE_RGB_PROFILE" : "AdobeRGB1998.icc",
+    "SRGB_PROFILE": "sRGB Color Space Profile.icm",
+    "DEFAULT_MONITOR_PROFILE_NAME": "xxxx"
+  },
+  "DNG_PROFILES" : {
+     "//" : "Paths to camera profiles. To get the standard profiles, download and install the free Adobe DNG converter",
+     "DIR1" : "C:\\ProgramData\\Adobe\\CameraRaw\\CameraProfiles\\Adobe Standard",
+     "DIR2" : "C:\\ProgramData\\Adobe\\CameraRaw\\CameraProfiles\\Camera"
+  },
+  "BRUSHES" : {
+     "//" : "Path to brush strokes",
+     "DIR" : "brushes"
+  },
+  "ENV" : {
+    "//" : "3D LUT : Use tetrahedral interpolation instead of trilinear; trilinear is faster",
+    "USE_TETRA": false,
+    "//" : "3D LUT : Parallel interpolation",
+    "USE_POOL": true,
+    "POOL_SIZE": 4
+  },
+  "LOOK" : {
+    "THEME" : "dark"
+  },
+  "PARAMS" : {
+    "MAX_ZOOM" : 8,
+    "TABBING"   : true
+  }
+}
