@@ -441,8 +441,11 @@ class optionsWidget(QListWidget):
     The choices can be mutually exclusive (default) or not
     exclusive. Actions can be done on item selection by assigning
     a function to onSelect. It is called after the selection of the new item.
-    if changed is not None, it is emitted/called when an item is clicked.
+    Passing a signal or function to the parameter changed enables to trigger an action when,
+    and only when, clicking an item induces a change in checkbox states.
     """
+    # ad hoc signal triggered when item clicked AND change in checkbox states (see method select)
+    userCheckStateChanged = QtCore.Signal(QListWidgetItem)
 
     def __init__(self, options=None, optionNames=None, exclusive=True, changed=None, parent=None, flow=QListWidget.TopToBottom):
         """
@@ -453,13 +456,14 @@ class optionsWidget(QListWidget):
         @param exclusive:
         @type exclusive: bool
         @param changed: signal or slot for itemclicked signal
-        @type changed: signal or function (0 or 1 argument)
+        @type changed: signal or function (0 or 1 parameter of type QListWidgetItem)
         @param parent:
         @type parent: QObject
         @param flow:  which direction the items layout should flow
         @type flow: QListView.Flow
         """
         super().__init__(parent)
+
         if flow is not None:
             self.setFlow(flow)
         if options is None:
@@ -474,6 +478,7 @@ class optionsWidget(QListWidget):
         self.items = {}
         # dict of item states (True, False) with option internal name as key
         self.options = {}
+        self.changed = changed
         for intName, name in zip(self.intNames, self.extNames):
             listItem = optionsWidgetItem(name, self, intName=intName)
             listItem.setCheckState(Qt.Unchecked)
@@ -489,29 +494,16 @@ class optionsWidget(QListWidget):
             self.setMaximumWidth(self.sizeHintForColumn(0) * len(options) + 10)
         self.exclusive = exclusive
         self.itemClicked.connect(self.select)
-        if changed is not None:
-            self.itemClicked.connect(changed)
+        self.userCheckStateChanged.connect(self.changed)
         # selection hook.
         self.onSelect = lambda x: 0
 
-    def viewportEvent(self, e):
-        """
-        Filters mouse clicks on disabled items.
-        @param e:
-        @type e:
-        """
-        if e.type() in [QEvent.MouseButtonPress, QEvent.MouseMove, QEvent.MouseButtonRelease, QEvent.MouseButtonDblClick]:
-            item = self.itemAt(e.pos())
-            if item is not None:
-                if item.flags() & Qt.ItemIsEnabled:
-                    return super().viewportEvent(e)
-            return True  # stop processing
-        return super().viewportEvent(e)
-
     def select(self, item, callOnSelect=True):
         """
-        Item clicked event handler. It updates the state of the items and
+        Item clicked slot. It updates the state of the items and
         the dict of options. Next, if callOnSelect is True, onSelect is called.
+        Finally, if an item was modified by a mouse click, then
+        self.changed is called/emitted.
         @param item:
         @type item: QListWidgetItem
         @param callOnSelect:
@@ -532,10 +524,17 @@ class optionsWidget(QListWidget):
                 else:
                     currentItem.setCheckState(Qt.Checked)
         # update options dict
+        modified = False
         for option in self.options.keys():
-            self.options[option] = (self.items[option].checkState() == Qt.Checked)
-        if callOnSelect:
+            newState = self.items[option].checkState() == Qt.Checked
+            if self.options[option] != newState:
+                self.options[option] = newState
+                modified = True
+        if callOnSelect and modified:
             self.onSelect(item)
+        if modified and self.sender() is not None:
+            # item clicked and checkbox state modified
+            self.userCheckStateChanged.emit(item)
 
     def checkOption(self, name, checked=True, callOnSelect=True):
         """
