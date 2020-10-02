@@ -80,7 +80,7 @@ class CoBrSatForm(baseForm):
         # options
         optionList1, optionNames1 = ['Multi-Mode', 'CLAHE'], ['Multi-Mode', 'CLAHE']
         self.listWidget1 = optionsWidget(options=optionList1, optionNames=optionNames1, exclusive=True,
-                                         changed=lambda: self.dataChanged.emit())
+                                         changed=self.dataChanged)
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
         optionList2, optionNames2 = ['High', 'manualCurve'], ['Preserve Highlights', 'Show Contrast Curve']
 

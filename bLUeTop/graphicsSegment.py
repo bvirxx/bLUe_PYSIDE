@@ -83,7 +83,7 @@ class segmentForm(baseForm):
         # options
         optionList1, optionNames1 = ['Clipping Layer'], ['Clipping Layer']
         self.listWidget1 = optionsWidget(options=optionList1, optionNames=optionNames1, exclusive=False,
-                                         changed=lambda: self.dataChanged.emit())
+                                         changed=self.dataChanged)
         self.options = self.listWidget1.options
 
         # option changed slot
