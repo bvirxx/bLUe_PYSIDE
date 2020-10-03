@@ -1556,6 +1556,7 @@ def setupGUI(window=window):
                                QGroupBox::title {subcontrol-origin: margin; left: 2px; padding: 0px 2px 0px 2px;}
                                QListWidget::item {background-color: rgb(40, 40, 40); color: white}
                                QListWidget::item:disabled{color: gray}
+                               QCheckBox::indicator:unchecked, QListWidget::indicator:unchecked{background-color: white}
                                optionsWidget {outline: none; border: none} 
                                QMenu, QTableView {selection-background-color: blue;
                                                    selection-color: white;}
@@ -1605,13 +1606,12 @@ def setupGUI(window=window):
                                QStatusBar::item {border: none}
                                QTabBar::tab {background: #444455; 
                                              color: lightgray;
-                                             min-width: 8ex; 
                                              border: 2px solid white; 
                                              border-color: gray;
                                              border-bottom-left-radius: 4px; 
                                              border-bottom-right-radius: 4px;
-                                             margin: 3px;
-                                             padding: 2px}
+                                             margin: 2px;
+                                             padding: 1px}
                                QTabBar::tab:hover {color: white}
                                QTabBar::tab:selected {border-top-color: red; 
                                                       color: white;}

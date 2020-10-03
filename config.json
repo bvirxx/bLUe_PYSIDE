@@ -7,7 +7,7 @@
   "PROFILES" : {
     "ADOBE_RGB_PROFILE" : "AdobeRGB1998.icc",
     "SRGB_PROFILE": "sRGB Color Space Profile.icm",
-    "DEFAULT_MONITOR_PROFILE_NAME": "CS240(34381075)02Paper.iccxx"
+    "DEFAULT_MONITOR_PROFILE_NAME": "CS240(34381075)02Paper.icc"
   },
   "DNG_PROFILES" : {
      "//" : "Paths to camera profiles. To get the standard profiles, download and install the free Adobe DNG converter",
