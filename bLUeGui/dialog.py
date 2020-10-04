@@ -376,12 +376,13 @@ def openDlg(mainWidget, ask=True, multiple=False):
     # don't ask again for saving
     mainWidget.label.img.isModified = False
     lastDir = str(mainWidget.settings.value('paths/dlgdir', '.'))
+    filter = "Images ( *" + " *".join(IMAGE_FILE_EXTENSIONS) + " *" + " *".join(RAW_FILE_EXTENSIONS) + ")"
     if multiple:
         # allow multiple selections
-        filenames = QFileDialog.getOpenFileNames(mainWidget, "select", lastDir, " *".join(IMAGE_FILE_EXTENSIONS) + " *".join(RAW_FILE_EXTENSIONS))
+        filenames = QFileDialog.getOpenFileNames(mainWidget, "select", lastDir, filter)
         return filenames[0]
     # select a single file
-    dlg = QFileDialog(mainWidget, "select", lastDir, " *".join(IMAGE_FILE_EXTENSIONS) + " *".join(RAW_FILE_EXTENSIONS))
+    dlg = QFileDialog(mainWidget, "select", lastDir, filter)
     if dlg.exec_():
         filenames = dlg.selectedFiles()
         newDir = dlg.directory().absolutePath()
