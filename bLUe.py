@@ -121,8 +121,6 @@ from os import path, walk, remove
 from os.path import basename, isfile
 from tempfile import mktemp
 
-from PySide2 import QtCore
-
 from bLUeGui.graphicsForm import baseGraphicsForm
 from bLUeTop import resources_rc  # mandatory
 
@@ -144,7 +142,7 @@ from bLUeTop.graphicsHDRMerge import HDRMergeForm
 from bLUeTop.graphicsSegment import segmentForm
 from PySide2.QtCore import QUrl, QFileInfo
 from PySide2.QtGui import QPixmap, QCursor, QKeySequence, QDesktopServices, QFont, \
-    QTransform, QColor, QImage, QIcon, QPalette
+    QTransform, QColor, QImage, QIcon
 from PySide2.QtWidgets import QApplication, QAction, \
     QDockWidget, QSizePolicy, QSplashScreen, QWidget, \
     QTabWidget, QToolBar, QComboBox, QTabBar
@@ -1525,6 +1523,9 @@ def setupGUI(window=window):
     """
     # splash screen
     splash = QSplashScreen(QPixmap('logo.png'), Qt.WindowStaysOnTopHint)
+    font = splash.font()
+    font.setPixelSize(12)
+    splash.setFont(font)
     splash.show()
     splash.showMessage("Loading .", color=Qt.white, alignment=Qt.AlignCenter)
     app.processEvents()
