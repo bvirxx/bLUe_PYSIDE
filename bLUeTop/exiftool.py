@@ -97,6 +97,7 @@ class ExifTool(object):
         self.process.stdin.write(bytearray("-stay_open\nFalse\n", 'ascii'))
         self.process.stdin.flush()
         self.process.terminate()
+        self.process.wait()  # mandatory to prevent defunct on linux
 
     def execute(self, *args, ascii=True):
         """
