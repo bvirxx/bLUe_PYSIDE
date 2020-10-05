@@ -18,7 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import os
 
 from PySide2 import QtWidgets, QtCore
-from PySide2.QtCore import QSettings, Qt
+from PySide2.QtCore import QSettings, Qt, QtMsgType
 import sys
 
 from PySide2.QtGui import QScreen
@@ -187,6 +187,14 @@ def enumerateMenuActions(menu):
             actions.append(action)
     return actions
 
+#######################
+# app message handler
+#######################
+def message_handler(kind, context, msg):
+    if kind != QtMsgType.QtWarningMsg:
+        print(msg, file=sys.stderr)
+
+QtCore.qInstallMessageHandler(message_handler)
 
 ########################
 # Add plugin path to library path : mandatory to enable

@@ -1517,7 +1517,7 @@ def dropEvent(widget, img, event):
 
 def setupGUI(window=window):
     """
-    Display splash screen and set app style sheet
+    Display splash screen, set app style sheet
     @param window:
     @type window:
     """
@@ -1535,6 +1535,7 @@ def setupGUI(window=window):
     app.processEvents()
     sleep(1)
     splash.finish(window)
+
     # app title
     window.setWindowTitle('bLUe')
 
@@ -1640,7 +1641,9 @@ def setupGUI(window=window):
     # init button tool bars
     toolBar = QToolBar()
     window.verticalSlider1, window.verticalSlider2, window.verticalSlider3, window.verticalSlider4\
-        = QSlider(Qt.Horizontal), QSlider(Qt.Horizontal), QSlider(Qt.Horizontal), QSlider(Qt.Horizontal)
+        = QbLUeSlider(Qt.Horizontal), QbLUeSlider(Qt.Horizontal), QbLUeSlider(Qt.Horizontal), QbLUeSlider(Qt.Horizontal)
+    for slider in (window.verticalSlider1, window.verticalSlider2, window.verticalSlider3, window.verticalSlider4):
+        slider.setStyleSheet(QbLUeSlider.bLueSliderDefaultBWStylesheet)
     window.verticalSlider1.setAccessibleName('verticalSlider1')
     window.verticalSlider1.setRange(2, 100)
     window.verticalSlider1.setSliderPosition(20)
