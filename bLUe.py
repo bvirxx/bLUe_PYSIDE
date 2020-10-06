@@ -1907,6 +1907,7 @@ if __name__ == '__main__':
     multiprocessing.freeze_support()
     # load UI
     window.init()
+    window.setWindowIcon(QIcon('logo.png'))
     # display splash screen and set app style sheet
     setupGUI(window)
     setTabBar()
