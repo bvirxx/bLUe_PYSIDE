@@ -16,6 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import cv2
+from sys import byteorder
 
 import numpy as np
 from PySide2.QtCore import QSize, Qt, QPointF
@@ -34,6 +35,9 @@ class bImage(QImage):
     The pixmap is synchronized with the image by the
     method updatePixmap().
     """
+
+    bigEndian = (byteorder == "big")
+
     @staticmethod
     def fromImage(img, parentImage=None):
         bImg = bImage(img)
@@ -344,8 +348,8 @@ def ndarrayToQImage(ndimg, format=QImage.Format_ARGB32):
 def QImageBuffer(qimg):
     """
     Returns the buffer of a QImage as a numpy ndarray, dtype=uint8. The size of the
-    3rd axis (raw pixels) depends on the image type. Pixels are in
-    BGRA order (little endian arch. (intel)) or ARGB (big  endian arch.)
+    3rd axis (channels) depends on the image type.
+    Channels are always returned in BGRA order, regardless of architecture.
     Format 1 bit per pixel is not supported.
     Performance : 20 ms for a 15 Mpx image.
     @param qimg:
@@ -366,4 +370,8 @@ def QImageBuffer(qimg):
     ptr = qimg.bits()  # type memoryview, items are bytes : ptr.itemsize = 1
     # convert buffer to ndarray and reshape
     h, w = qimg.height(), qimg.width()
-    return np.asarray(ptr, dtype=np.uint8).reshape(h, w, Bpp)  # specifying dtype is mandatory to prevent copy of data
+    buf = np.asarray(ptr, dtype=np.uint8).reshape(h, w, Bpp)  # specifying dtype is mandatory to prevent copy of data
+    if bImage.bigEndian:
+        return buf[..., ::-1]
+    else:
+        return buf

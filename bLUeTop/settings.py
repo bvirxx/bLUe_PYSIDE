@@ -16,13 +16,18 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import sys
+from os.path import expanduser
 from json import load
 
 ########################
 # read configuration file
 ########################
-with open("config.json", "r") as fd:
-    CONFIG = load(fd)
+if sys.platform == 'win32':
+    with open("config_win.json", "r") as fd:
+        CONFIG = load(fd)
+else:
+    with open("config.json", "r") as fd:
+        CONFIG = load(fd)
 
 ############
 # exiftool path
@@ -36,13 +41,18 @@ else:
 ##############
 # Paths to system profiles
 ##############
-SYSTEM_PROFILE_DIR = CONFIG["PATHS"]["SYSTEM_PROFILE_DIR"]  # "C:\Windows\System32\spool\drivers\color"
+if sys.platform == 'win32':
+    SYSTEM_PROFILE_DIR = CONFIG["PATHS"]["SYSTEM_PROFILE_DIR"]  # "C:\Windows\System32\spool\drivers\color"
+    DNG_PROFILES_DIR1 = CONFIG["DNG_PROFILES"]["DIR1"]
+    DNG_PROFILES_DIR2 = CONFIG["DNG_PROFILES"]["DIR2"]
+else:
+    SYSTEM_PROFILE_DIR = expanduser(CONFIG["PATHS"]["SYSTEM_PROFILE_DIR"])
+    DNG_PROFILES_DIR1 = expanduser(CONFIG["DNG_PROFILES"]["DIR1"])
+    DNG_PROFILES_DIR2 = expanduser(CONFIG["DNG_PROFILES"]["DIR2"])
+
 ADOBE_RGB_PROFILE_PATH = SYSTEM_PROFILE_DIR + CONFIG["PROFILES"]["ADOBE_RGB_PROFILE"]  # "\AdobeRGB1998.icc"
 SRGB_PROFILE_PATH = SYSTEM_PROFILE_DIR + CONFIG["PROFILES"]["SRGB_PROFILE"]  # "\sRGB Color Space Profile.icm"
 DEFAULT_MONITOR_PROFILE_PATH = SYSTEM_PROFILE_DIR + CONFIG["PROFILES"]["DEFAULT_MONITOR_PROFILE_NAME"]
-
-DNG_PROFILES_DIR1 = CONFIG["DNG_PROFILES"]["DIR1"]
-DNG_PROFILES_DIR2 = CONFIG["DNG_PROFILES"]["DIR2"]
 
 #############
 # 3D LUT

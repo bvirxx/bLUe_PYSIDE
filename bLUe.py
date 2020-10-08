@@ -142,7 +142,7 @@ from bLUeTop.graphicsHDRMerge import HDRMergeForm
 from bLUeTop.graphicsSegment import segmentForm
 from PySide2.QtCore import QUrl, QFileInfo
 from PySide2.QtGui import QPixmap, QCursor, QKeySequence, QDesktopServices, QFont, \
-    QTransform, QColor, QImage, QIcon, QPalette
+    QTransform, QColor, QImage, QIcon
 from PySide2.QtWidgets import QApplication, QAction, \
     QDockWidget, QSizePolicy, QSplashScreen, QWidget, \
     QTabWidget, QToolBar, QComboBox, QTabBar
@@ -856,13 +856,22 @@ def menuImage(name, window=window):
         if icc.workingProfile is not None:
             s = s + icc.workingProfileInfo
         s = s + '-------------\n' + 'Monitor Profile : '
-        if icc.monitorProfile is not None:
-            s = s + icc.monitorProfileInfo + '-------------\n'
-        s = s + 'Note :\nThe working profile is the color profile assigned to the image.'
-        s = s + 'The monitor profile should correspond to your monitor.'
-        s = s + '\nBoth profiles are used in conjunction to display exact colors. '
-        s = s + 'If one of them is missing, bLUe cannot color manage the image.'
-        s = s + '\nIf the monitor profile listed above is not the right profile for your monitor, please check the system settings for color management'
+        if icc.monitorProfile is None:
+            s = s + 'Automatic detection failed and no default profile was found\n\n'
+            s = s + 'Define SYSTEM_PROFILE_DIR and DEFAULT_MONITOR_PROFILE_NAME in '\
+                     'the configuration file config.json '\
+                     'to match the path to your current display profile.\n'\
+                     'Usual Profile dirs are on Linux ~/.local/share/icc\n'\
+                     'and on Windows C:\Windows\System32\spool\drivers\color\n'
+        else:
+            s = s + icc.monitorProfileInfo + '-------------\n\n'
+
+        s = s + 'Note :\nThe working profile is the color profile assigned to the image.'\
+                 'The monitor profile should correspond to your monitor. '\
+                 'Both profiles are used in conjunction to display exact colors. '\
+                 'If one of them is missing, bLUe cannot color manage the image. '\
+                 'If the monitor profile listed above is not the right profile for your monitor, '\
+                 'please check the system settings for color management.'
         w.label.setWordWrap(True)
         w.label.setText(s)
         w.show()
@@ -1508,12 +1517,15 @@ def dropEvent(widget, img, event):
 
 def setupGUI(window=window):
     """
-    Display splash screen and set app style sheet
+    Display splash screen, set app style sheet
     @param window:
     @type window:
     """
     # splash screen
     splash = QSplashScreen(QPixmap('logo.png'), Qt.WindowStaysOnTopHint)
+    font = splash.font()
+    font.setPixelSize(12)
+    splash.setFont(font)
     splash.show()
     splash.showMessage("Loading .", color=Qt.white, alignment=Qt.AlignCenter)
     app.processEvents()
@@ -1523,6 +1535,7 @@ def setupGUI(window=window):
     app.processEvents()
     sleep(1)
     splash.finish(window)
+
     # app title
     window.setWindowTitle('bLUe')
 
@@ -1545,6 +1558,7 @@ def setupGUI(window=window):
                                QGroupBox::title {subcontrol-origin: margin; left: 2px; padding: 0px 2px 0px 2px;}
                                QListWidget::item {background-color: rgb(40, 40, 40); color: white}
                                QListWidget::item:disabled{color: gray}
+                               QCheckBox::indicator:unchecked, QListWidget::indicator:unchecked{background-color: white}
                                optionsWidget {outline: none; border: none} 
                                QMenu, QTableView {selection-background-color: blue;
                                                    selection-color: white;}
@@ -1594,13 +1608,12 @@ def setupGUI(window=window):
                                QStatusBar::item {border: none}
                                QTabBar::tab {background: #444455; 
                                              color: lightgray;
-                                             min-width: 8ex; 
                                              border: 2px solid white; 
                                              border-color: gray;
                                              border-bottom-left-radius: 4px; 
                                              border-bottom-right-radius: 4px;
-                                             margin: 3px;
-                                             padding: 2px}
+                                             margin: 2px;
+                                             padding: 1px}
                                QTabBar::tab:hover {color: white}
                                QTabBar::tab:selected {border-top-color: red; 
                                                       color: white;}
@@ -1628,7 +1641,9 @@ def setupGUI(window=window):
     # init button tool bars
     toolBar = QToolBar()
     window.verticalSlider1, window.verticalSlider2, window.verticalSlider3, window.verticalSlider4\
-        = QSlider(Qt.Horizontal), QSlider(Qt.Horizontal), QSlider(Qt.Horizontal), QSlider(Qt.Horizontal)
+        = QbLUeSlider(Qt.Horizontal), QbLUeSlider(Qt.Horizontal), QbLUeSlider(Qt.Horizontal), QbLUeSlider(Qt.Horizontal)
+    for slider in (window.verticalSlider1, window.verticalSlider2, window.verticalSlider3, window.verticalSlider4):
+        slider.setStyleSheet(QbLUeSlider.bLueSliderDefaultBWStylesheet)
     window.verticalSlider1.setAccessibleName('verticalSlider1')
     window.verticalSlider1.setRange(2, 100)
     window.verticalSlider1.setSliderPosition(20)
@@ -1892,15 +1907,12 @@ if __name__ == '__main__':
     multiprocessing.freeze_support()
     # load UI
     window.init()
+    window.setWindowIcon(QIcon('logo.png'))
     # display splash screen and set app style sheet
     setupGUI(window)
     setTabBar()
 
 
     ###############
-    # launch app
-    ###############
+    # launching app
     sys.exit(app.exec_())
-
-
-

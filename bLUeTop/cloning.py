@@ -136,7 +136,7 @@ def contours(maskBuf, thres=0):
     @rtype: list of vectors; each vector is a list of 2-uples of point coordinates.
     """
     _, binary = cv2.threshold(maskBuf, thres, 255, cv2.THRESH_BINARY)
-    _, contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)  # cv2.CHAIN_APPROX_SIMPLE)
+    contours = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)[-2]  # old versions of findContours may return a 3-uple
     return contours
 
 

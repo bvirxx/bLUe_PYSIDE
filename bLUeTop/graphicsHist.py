@@ -45,8 +45,8 @@ class histForm (baseForm):
         self.listWidget1.setFixedSize((self.listWidget1.sizeHintForColumn(0) + 15) * len(options1), 20)
         options2, optionNames2 = ['R', 'G', 'B', 'L'], ['R', 'G', 'B', 'L']
         self.listWidget2 = optionsWidget(options=options2, optionNames=optionNames2, exclusive=False, flow=optionsWidget.LeftToRight)
-        self.listWidget2.setFixedSize((self.listWidget2.sizeHintForRow(0) + 15) * len(options2), 20)
-
+        #self.listWidget2.setFixedSize((self.listWidget2.sizeHintForRow(0) + 15) * len(options2), 20)
+        self.listWidget2.setFixedSize((self.listWidget2.sizeHintForRow(0) + 20) * len(options2), 20)  # + 20 needed to prevent scroll bar on ubuntu
         # default: show color hists only
         for i in range(3):
             self.listWidget2.checkOption(self.listWidget2.intNames[i])

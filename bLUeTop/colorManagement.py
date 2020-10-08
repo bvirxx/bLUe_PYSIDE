@@ -18,7 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import sys
 
 import numpy as np
-from PIL import Image
+from PIL import Image, _imagingcms
 
 from PIL.ImageCms import getOpenProfile, getProfileInfo, \
     buildTransformFromOpenProfiles, applyTransform, INTENT_PERCEPTUAL, ImageCmsProfile, PyCMSError, core
@@ -63,14 +63,12 @@ class icc:
             # profile = core.get_display_profile_win32(handle or 0)
         else:
             profile = DEFAULT_MONITOR_PROFILE_PATH
-            """
             try:
                 get = _imagingcms.get_display_profile
             except AttributeError:
-                return None
+                pass
             else:
                 profile = get()
-            """
         return ImageCmsProfile(profile)
 
     @classmethod

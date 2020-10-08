@@ -38,7 +38,7 @@ class invertForm(baseForm):
         # options
         optionList, optionNames = ['Auto'], ['Auto Orange Mask Removing']
         self.listWidget1 = optionsWidget(options=optionList, optionNames=optionNames, exclusive=False,
-                                         changed=lambda: self.dataChanged.emit())
+                                         changed=self.dataChanged)
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
         self.options = self.listWidget1.options
 

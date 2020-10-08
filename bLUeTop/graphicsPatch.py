@@ -103,7 +103,8 @@ class patchForm (baseForm):
         def f():
             from bLUeTop.QtGui1 import window
             lastDir = str(window.settings.value('paths/dlgdir', '.'))
-            dlg = QFileDialog(window, "select", lastDir, " *".join(IMAGE_FILE_EXTENSIONS))
+            filter = "Images ( *" + " *".join(IMAGE_FILE_EXTENSIONS) + ")"
+            dlg = QFileDialog(window, "select", lastDir, filter)
             if dlg.exec_():
                 filenames = dlg.selectedFiles()
                 newDir = dlg.directory().absolutePath()
