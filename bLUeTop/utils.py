@@ -592,6 +592,7 @@ class stateAwareQDockWidget(QDockWidget):
         # Needed to restore the workspace when switching from a document to another one.
         # This attribute should be restored if the change does not result from a user
         # drag and drop action (see layerView.closeAdjustForms for an example)
+        self.setFloating(True)  # default :  left docking area
         self.tabbed = False
         self._closed = False
         def f(b):
