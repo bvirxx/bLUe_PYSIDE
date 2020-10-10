@@ -19,9 +19,9 @@
      "DIR" : "brushes"
   },
   "ENV" : {
-    "//" : "3D LUT : Use tetrahedral interpolation instead of trilinear; trilinear is faster",
+    "//a" : "3D LUT : Use tetrahedral interpolation instead of trilinear; trilinear is faster",
     "USE_TETRA": false,
-    "//" : "3D LUT : Parallel interpolation",
+    "//b" : "3D LUT : Parallel interpolation",
     "USE_POOL": true,
     "POOL_SIZE": 4
   },
