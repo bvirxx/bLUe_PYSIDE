@@ -850,6 +850,10 @@ def menuImage(name, window=window):
         window.label.repaint()
         window.label_2.repaint()
         updateStatus()
+    # force current display profile redetection
+    elif name == 'actionUpdate_display_profile':
+        icc.configure(qscreen=window.currentScreenIndex)
+    # show info for display and working profiles
     elif name == 'actionWorking_profile':
         w = labelDlg(parent=window, title='profile info')
         s = 'Working Profile : '

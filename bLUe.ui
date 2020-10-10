@@ -793,18 +793,9 @@ Screen</string>
      <property name="title">
       <string>Color settings</string>
      </property>
-     <widget class="QMenu" name="menuAssign_profile">
-      <property name="enabled">
-       <bool>false</bool>
-      </property>
-      <property name="title">
-       <string>Assign profile</string>
-      </property>
-      <addaction name="actionProfile_1"/>
-     </widget>
-     <addaction name="menuAssign_profile"/>
      <addaction name="actionColor_manage"/>
      <addaction name="actionWorking_profile"/>
+     <addaction name="actionUpdate_display_profile"/>
     </widget>
     <widget class="QMenu" name="menuRating">
      <property name="title">
@@ -1323,6 +1314,11 @@ Screen</string>
   <action name="actionsub">
    <property name="text">
     <string>sub</string>
+   </property>
+  </action>
+  <action name="actionUpdate_display_profile">
+   <property name="text">
+    <string>Update display profile</string>
    </property>
   </action>
  </widget>
