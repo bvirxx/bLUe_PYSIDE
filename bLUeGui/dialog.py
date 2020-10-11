@@ -178,6 +178,7 @@ class savingDialog(QDialog):
         self.setWindowTitle(text)
         # File Dialog
         self.dlg = QFileDialog(caption=text, directory=lastDir)
+        self.dlg.setOption(QFileDialog.DontUseNativeDialog)
         self.metaOption = QCheckBox('Remove Meta')
         # sliders
         self.sliderComp = QbLUeSlider(Qt.Horizontal)
@@ -201,10 +202,11 @@ class savingDialog(QDialog):
         h.addWidget(self.sliderComp)
         l.addLayout(h)
         self.setLayout(l)
-        # file dialog close event handler
 
+        # file dialog close event handler
         def f():
             self.close()
+
         self.dlg.finished.connect(f)
 
     def exec_(self):
