@@ -573,6 +573,9 @@ def setDocumentImage(img, window=window):
     tool = window.label.img.getActiveLayer().tool
     if tool is not None:
         tool.showTool()
+    # color management settings may have changed : update presentation layers
+    window.label.img.updatePixmap()
+    window.label_2.img.updatePixmap()
     window.label.update()
     window.label_2.update()
     window.label_3.update()
@@ -850,9 +853,13 @@ def menuImage(name, window=window):
         window.label.repaint()
         window.label_2.repaint()
         updateStatus()
-    # force current display profile redetection
+    # force current display profile re-detection
     elif name == 'actionUpdate_display_profile':
-        icc.configure(qscreen=window.currentScreenIndex)
+        icc.configure(qscreen=window.currentScreenIndex, workingProfile=icc.workingProfile)
+        window.label.img.updatePixmap()
+        window.label_2.img.updatePixmap()
+        window.label.update()
+        window.label_2.update()
     # show info for display and working profiles
     elif name == 'actionWorking_profile':
         w = labelDlg(parent=window, title='profile info')
