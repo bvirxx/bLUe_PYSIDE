@@ -364,7 +364,7 @@ class vImage(bImage):
         else:
             self.meta = meta
         self.colorSpace = self.meta.colorSpace
-        self.cmsProfile = icc.defaultWorkingProfile  # possibly does not match colorSpace : call setProfile()
+        self.cmsProfile = None # icc.defaultWorkingProfile  # possibly does not match colorSpace : call setProfile()
         self.RGB_lin2XYZ = sRGB_lin2XYZ
         self.RGB_lin2XYZInverse = sRGB_lin2XYZInverse
         if filename is None and cv2Img is None and QImg is None:

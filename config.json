@@ -1,14 +1,18 @@
 {
+"GENERAL": {
+  "//" : "Use monitor profile to display accurate colors",
+  "COLOR_MANAGE" : true
+  },
   "PATHS": {
     "EXIFTOOL_PATH_BUNDLED": "bin\\exiftool(-k).exe",
     "EXIFTOOL_PATH": "/usr/bin/exiftool",
     "SYSTEM_PROFILE_DIR": "~/.local/share/icc/"
   },
   "PROFILES" : {
-    "//a" : "Default profiles",
-    "ADOBE_RGB_PROFILE" : "AdobeRGB1998.icc",
-    "SRGB_PROFILE" : "sRGB Color Space Profile.icm",
-    "//b" : "Default monitor profile is needed if automatic detection of system settings fails",
+    "//a" : "Default image profiles. A valid sRGB profile is mandatory",
+    "SRGB_PROFILE_NAME": "sRGB Color Space Profile.icm",
+    "ADOBE_RGB_PROFILE_NAME": "AdobeRGB1998.icc",
+    "//b" : "Default monitor profile is used when automatic detection fails",
     "DEFAULT_MONITOR_PROFILE_NAME" : "CS240(34381075)02Paper.icc"
   },
   "DNG_PROFILES" : {

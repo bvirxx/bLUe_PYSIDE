@@ -168,7 +168,7 @@ from bLUeTop.colorManagement import icc
 from bLUeTop.graphicsCoBrSat import CoBrSatForm
 from bLUeTop.graphicsExp import ExpForm
 from bLUeTop.graphicsPatch import patchForm
-from bLUeTop.settings import USE_POOL, POOL_SIZE, THEME, TABBING, BRUSHES_PATH
+from bLUeTop.settings import USE_POOL, POOL_SIZE, THEME, TABBING, BRUSHES_PATH, COLOR_MANAGE_OPT
 from bLUeTop.utils import UDict, stateAwareQDockWidget
 from bLUeGui.tool import cropTool, rotatingTool
 from bLUeTop.graphicsTemp import temperatureForm
@@ -766,7 +766,7 @@ def menuView(name, window=window):
             # start from parent dir of the last used directory
             lastDir = path.join(str(window.settings.value('paths/dlgdir', '.')), path.pardir)
             dlg = QFileDialog(window, "Select a folder to start the diaporama", lastDir)
-            dlg.setNameFilters(IMAGE_FILE_NAME_FILTER)
+            #dlg.setNameFilters(IMAGE_FILE_NAME_FILTER)
             dlg.setFileMode(QFileDialog.Directory)
             diaporamaList = []
             # directory dialog
@@ -868,7 +868,10 @@ def menuImage(name, window=window):
             s = s + icc.workingProfileInfo
         s = s + '-------------\n' + 'Monitor Profile : '
         if icc.monitorProfile is None:
-            s = s + 'Automatic detection failed and no default profile was found\n\n'
+            if not COLOR_MANAGE_OPT:
+                s = s + 'Color Management is disabled : check your config.json file\n\n'
+            else:
+                s = s + 'Automatic detection failed and no default profile was found\n\n'
             s = s + 'Define SYSTEM_PROFILE_DIR and DEFAULT_MONITOR_PROFILE_NAME in '\
                      'the configuration file config.json '\
                      'to match the path to your current display profile.\n'\
@@ -1491,6 +1494,7 @@ def setColorManagement(window=window):
     # update the color management object with the current monitor profile
     icc.configure(qscreen=window.currentScreenIndex)
     icc.COLOR_MANAGE = icc.HAS_COLOR_MANAGE
+    window.actionUpdate_display_profile.setEnabled(COLOR_MANAGE_OPT)
     window.actionColor_manage.setEnabled(icc.HAS_COLOR_MANAGE)
     window.actionColor_manage.setChecked(icc.COLOR_MANAGE)
     updateStatus()
@@ -1612,7 +1616,7 @@ def setupGUI(window=window):
                                QToolButton:checked {background-color: blue}
                                QGroupBox#groupbox_btn {border: 1px solid gray;}
                                QGroupBox#groupBox {border: 1px solid gray;}
-                               QMessageBox QLabel, QDialog QLabel {background-color: white; 
+                               QMessageBox, QMessageBox QLabel, QDialog QLabel {background-color: white; 
                                                                    color: black}
                                QColorDialog QLabel {background-color: gray; 
                                                     color: white}

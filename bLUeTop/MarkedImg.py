@@ -46,6 +46,7 @@ from time import time
 from bLUeTop.lutUtils import LUT3DIdentity
 from bLUeGui.baseSignal import baseSignal_bool, baseSignal_Int2, baseSignal_No
 from bLUeTop.rawProcessing import rawRead
+from bLUeTop.settings import COLOR_MANAGE_OPT
 from bLUeTop.utils import qColorToRGB, historyList
 
 from bLUeTop.versatileImg import vImage
