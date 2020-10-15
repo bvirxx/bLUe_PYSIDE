@@ -108,15 +108,17 @@ class dimsInputDialog(QDialog):
         self.onAccept()
 
 
-def dlgInfo(text, info=''):
+def dlgInfo(text, info='', parent=None):
     """
     Shows a simple information dialog.
+    @param parent:
+    @type parent: QWidget
     @param text:
     @type text: str
     @param info:
     @type info: str
     """
-    msg = QMessageBox()
+    msg = QMessageBox(parent=parent)
     msg.setWindowTitle('Information')
     msg.setIcon(QMessageBox.Information)
     msg.setText(text)
@@ -124,15 +126,17 @@ def dlgInfo(text, info=''):
     msg.exec_()
 
 
-def dlgWarn(text, info=''):
+def dlgWarn(text, info='', parent=None):
     """
     Shows a simple warning dialog.
+    @param parent:
+    @type parent: QWidget
     @param text:
     @type text: str
     @param info:
     @type info: str
     """
-    msg = QMessageBox()
+    msg = QMessageBox(parent=parent)
     msg.setWindowTitle('Warning')
     msg.setIcon(QMessageBox.Warning)
     msg.setText(text)
