@@ -103,7 +103,7 @@ def rawPostProcess(rawLayer, pool=None):
         if (rawLayer.half and not parentImage.useThumb) or (not rawLayer.half and parentImage.useThumb):
             rawLayer.postProcessCache, rawLayer.bufCache_HSV_CV32 = (None,) * 2
             doALL = True
-    doCameraLookTable = options['cpLookTable'] and (doALL or rawLayer.bufCache_HSV_CV32 is None)
+    doCameraLookTable = options['cpLookTable']  # and (doALL or rawLayer.bufCache_HSV_CV32 is None)
     half_size = rawLayer.parentImage.useThumb
     #################
 
@@ -282,7 +282,7 @@ def rawPostProcess(rawLayer, pool=None):
     # beginning of the contrast-saturation phase : update buffer from the last camera profile applcation
     bufHSV_CV32 = rawLayer.bufCache_HSV_CV32.copy()
     ###########
-    # contrast and saturation correction (V channel).
+    # contrast (V channel) and saturation correction.
     # We apply an automatic histogram equalization
     # algorithm, well suited for multimodal histograms.
     ###########

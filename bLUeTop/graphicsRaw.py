@@ -788,6 +788,7 @@ class rawForm (baseForm):
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
         self.listWidget1.checkOption(self.listWidget1.intNames[1])
         self.listWidget2.checkOption(self.listWidget2.intNames[1])
+        self.listWidget3.checkOption(self.listWidget3.intNames[0])
         self.enableSliders()
         self.denoiseValue = 0  # denoising off
         self.overexpValue = 0  # clip
