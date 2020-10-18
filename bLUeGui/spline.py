@@ -66,10 +66,13 @@ def displacementSpline(X, Y, V, period=0, clippingInterval=None):
 def interpolationQuadSpline(a, b, d):
     """
     Builds a monotonic transformation curve T from [0,1] onto b[0], b[-1],
-    as a piecewise rational quadratic interpolation spline to a set of (a[k], b[k]) 2D nodes.
+    as a piecewise quadratic interpolation spline to a set of (a[k], b[k]) 2D points.
     Coefficients d[k] are the slopes at nodes. The function returns a tabulation of T as
     a list of T[k/255] for k in range(256).
     a and b must be non decreasing sequences in range 0..1, with a strictly increasing.
+    We assume d >=0 and d[k] = d[k-1] = 0 if b[k]=b[k-1]. These conditions are
+    necessary conditions for the existence of a non decreasing interpolation spline
+    cf https://pdfs.semanticscholar.org/1fee/3b0eab9828dd772cc4e735d132bd153b007f.pdf
     The 3 arrays must have the same length.
     Note. for k < a[0], T[k]=b[0] and, for k > a[-1], T[k]=b[-1]
     @param a: x-coordinates of nodes
@@ -92,7 +95,6 @@ def interpolationQuadSpline(a, b, d):
     tmp = tmp.reshape(len(a), len(x))
     k = np.argmax(tmp, axis=0)                     # a[k[i]-1]<= x[i] < a[k[i]] if k[i] > 0, and x[i] out of a[0],..a[-1] otherwise
     k = np.where(x >= a[-1], len(a) - 1, k)
-
     r = (b[1:] - b[:-1]) / (a[1:] - a[:-1])        # r[k] = (b[k] - b[k-1]) / (a[k] - a[k-1])
     r = np.concatenate(([0], r))
     t = (x-a[k-1])/(a[k]-a[k-1])                   # t[k] = (x - a[k-1]) / (a[k] - a[k-1]) for x in a[k-1]..a[k]
@@ -100,8 +102,14 @@ def interpolationQuadSpline(a, b, d):
     assert np.all(t >= 0)
     assert np.all(t <= 1)
     # tabulate spline
-    T = b[k-1] + (r[k]*t*t + d[k-1]*(1-t)*t)*(b[k]-b[k-1]) / (r[k]+(d[k]+d[k-1] - 2*r[k])*(1-t)*t)
-    return T
+    t1 = (1 - t) * t
+    with np.errstate(divide='ignore', invalid='ignore'):
+        T = b[k-1] + (r[k] * t * t + d[k-1] * t1) * (b[k] - b[k-1]) / (r[k] + (d[k] + d[k-1] - 2 * r[k]) * t1)
+    # T should be constant in intervals where r[k] = 0 : we replace nan by the preceding (non NaN) value in T.
+    # To enable arithmetic comparisons, we use  a value < b[0] to mark the components to be replaced.
+    T = np.where(np.isnan(T), b[0] - 100, T)
+    T[0] = max(b[0], T[0])
+    return np.maximum.accumulate(T)
 
 
 #################################################################################################

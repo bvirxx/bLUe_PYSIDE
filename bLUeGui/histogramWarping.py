@@ -392,21 +392,21 @@ def autoQuadSpline(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True):
     aMinus = np.concatenate(([0.0], aPlus[:-1]))                # aMinus[k] = FInv( (F(a[k] + F(a[k-1])) / 2 ), k>=1
     # eps = np.finfo(np.float64).eps
 
-    alpha = (dist.FVec(a[1:-1]) - dist.FVec(a[:-2])) / (dist.FVec(a[2:]) - dist.FVec(a[:-2]))
-    alpha = np.concatenate(([0], alpha))                       # alpha[k] = (F(a[k]) - F(a[k-1])/(F(a[k+1]) - F(a[k-1]), K-1>=k>=1
-    beta = (dist.FVec(a[2:]) - dist.FVec(a[1:-1])) / (dist.FVec(a[2:]) - dist.FVec(a[:-2]))
-    beta = np.concatenate(([0], beta))                         # beta[k] = (F(a[k+1] - F(a[k])/(F(a[k+1]) - F([a[k-1])), K-1>=k>=1
-    r1 = np.zeros(len(a), dtype=np.float)
-    r2 = np.zeros(len(a), dtype=np.float)
-    r1[1:-1] = (b[1:-1] - bMinus[1:-1]) / (a[1:-1] - aMinus[1:-1])  # r1[k] = (b[k] - bMinus[k])/((a[k] - aMinus[k]), k>=1
-    r2[1:-1] = (bPlus[1:-1] - b[1:-1]) / (aPlus[1:-1] - a[1:-1])    # r2[k] = (bPlus[k] - b[k])/((aPlus[k] - a[k]), k>=1
-    # array of slopes
-    d = np.zeros(len(a), dtype=np.float)                          # len(a) = len(b) = len(d) = K+2
-    d[1:-1] = np.power(r1[1:-1], alpha[1:]) * np.power(r2[1:-1], beta[1:])
-    d[0] = bPlus[0] / aPlus[0]
     with np.errstate(divide='ignore', invalid='ignore'):
+        alpha = (dist.FVec(a[1:-1]) - dist.FVec(a[:-2])) / (dist.FVec(a[2:]) - dist.FVec(a[:-2]))
+        alpha = np.concatenate(([0], alpha))                       # alpha[k] = (F(a[k]) - F(a[k-1])/(F(a[k+1]) - F(a[k-1]), K-1>=k>=1
+        beta = (dist.FVec(a[2:]) - dist.FVec(a[1:-1])) / (dist.FVec(a[2:]) - dist.FVec(a[:-2]))
+        beta = np.concatenate(([0], beta))                         # beta[k] = (F(a[k+1] - F(a[k])/(F(a[k+1]) - F([a[k-1])), K-1>=k>=1
+        r1 = np.zeros(len(a), dtype=np.float)
+        r2 = np.zeros(len(a), dtype=np.float)
+        r1[1:-1] = (b[1:-1] - bMinus[1:-1]) / (a[1:-1] - aMinus[1:-1])  # r1[k] = (b[k] - bMinus[k])/((a[k] - aMinus[k]), k>=1
+        r2[1:-1] = (bPlus[1:-1] - b[1:-1]) / (aPlus[1:-1] - a[1:-1])    # r2[k] = (bPlus[k] - b[k])/((aPlus[k] - a[k]), k>=1
+        # array of slopes
+        d = np.zeros(len(a), dtype=np.float)                          # len(a) = len(b) = len(d) = K+2
+        d[1:-1] = np.power(r1[1:-1], alpha[1:]) * np.power(r2[1:-1], beta[1:])
+        d[0] = bPlus[0] / aPlus[0]
         d[-1] = (1-bMinus[-1]) / (1 - aMinus[-1])                 # d[K+1] = (1 - bMinus[K+1]) / ((1-aMinus[K+1])
-    d = np.where(d == np.NaN, 1.0, d)
+    d = np.where(np.isnan(d), 1.0, d)  # np.where(d == np.NaN, 1.0, d)
     d = np.clip(d, 0.25, 5)
     # highlight correction
     if preserveHigh:
