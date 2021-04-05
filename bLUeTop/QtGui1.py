@@ -215,8 +215,6 @@ if getattr(sys, 'frozen', False) and len(sys.argv) <= 1:
 ##################
 QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)  # needed when a plugin initializes a web engine
 app = QApplication(sys.argv)
-# get root widget
-rootWidget = app.desktop()
 
 #################
 # init main form
