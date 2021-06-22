@@ -91,6 +91,10 @@ Under Windows,  pywin32 is needed for multi-screen management.
 Binary packages containing all dependencies are available for Windows.
 Make sure to download the latest release.
 
+#### NOTE
+
+The [PySide6 version of bLUe](https://github.com/bvirxx/bLUe_PYSIDE6) is ready.
+
 ## LICENSE
 
  This project is licensed under the LGPL V 3.
