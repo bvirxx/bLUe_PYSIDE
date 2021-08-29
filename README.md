@@ -23,7 +23,7 @@ monitor profiles in conjunction to display accurate colors.
 
 The program is written in Python.
 
-### THE bLUe 3D LUT PERCEPTUAL EDITOR
+### THE 3D LUT PERCEPTUAL EDITOR
 
 A 3D LUT is a table representing a 3D cube of color nodes. Image pixels are associated
 with nodes, according to their color. Changes are applied to each node individually,
