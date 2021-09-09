@@ -13,7 +13,7 @@ adjustment layers using a common GUI. New features can be added easily:
 any imaging library exposing Python bindings can take advantage of the GUI.
 
 bLUe can develop raw images in all usual formats : nef, cr2, dng, ...
-It supports dng/dcp dual illuminant camera profiles : they are essential for rendering colors similar to whose produced by 
+It supports dng/dcp dual illuminant camera profiles : they are essential for rendering colors similar to that produced by 
 camera software.
 
 bLUe provides drawing layers and paint brushes with adjustable parameters: size, flow, hardness, opacity.
