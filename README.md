@@ -1,10 +1,10 @@
 This File is part of bLUe software.
 
-Copyright (C) 2017-2020 Bernard Virot
+Copyright (C) 2017-2021 Bernard Virot
 
 ## WEB SITE
 
-See the [bLUe site](http://bernard.virot.free.fr/) for images, tutorials and user manual.
+See the [bLUe site](http://bernard.virot.free.fr/) for screenshots, tutorials and user manual.
 
 ## DESCRIPTION
 
