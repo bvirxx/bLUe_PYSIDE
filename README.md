@@ -8,7 +8,7 @@ See the [bLUe site](http://bernard.virot.free.fr/) for screenshots, tutorials an
 
 ## DESCRIPTION
 
-bLUe is a layer-based image editor. Its goal is to integrate a 3D LUT editor with more traditional tools in order to propose a powerful GUI for photo editing. The program is fully modular : tools are implemented as independent
+bLUe is a layer-based image editor. It aims to integrate a 3D LUT editor with more traditional tools in order to provide a powerful GUI for photo editing. The program is fully modular : tools are implemented as independent
 adjustment layers using a common GUI. New features can be added easily:
 any imaging library exposing Python bindings can take advantage of the GUI.
 
@@ -89,7 +89,6 @@ ExifTool should be installed.
 Under Windows,  pywin32 is needed for multi-screen management.
 
 Binary packages containing all dependencies are available for Windows.
-Make sure to download the latest release.
 
 #### NOTE
 
