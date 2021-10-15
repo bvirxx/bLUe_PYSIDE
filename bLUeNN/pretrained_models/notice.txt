@@ -1,0 +1,2 @@
+The files contained in this directory are taken from https://github.com/HuiZeng/Image-Adaptive-3DLUT/tree/master/pretrained_models
+They can be distributed and/or modified under the terms of the Apache-2.0 License.

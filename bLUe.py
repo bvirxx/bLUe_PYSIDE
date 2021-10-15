@@ -162,6 +162,7 @@ from bLUeTop.versatileImg import vImage, metadataBag
 from bLUeTop.MarkedImg import imImage, QRawLayer, QCloningLayer
 from bLUeTop.graphicsRGBLUT import graphicsForm
 from bLUeTop.graphicsLUT3D import graphicsForm3DLUT
+from bLUeTop.graphicsAutoLUT3D import graphicsFormAuto3DLUT
 from bLUeTop.lutUtils import LUTSIZE, LUT3D, LUT3DIdentity
 from bLUeGui.colorPatterns import cmHSP, cmHSB
 from bLUeTop.colorManagement import icc
@@ -200,7 +201,7 @@ credit https://icones8.fr/
 
 ##############
 #  Version number
-VERSION = "v3.0.2"
+VERSION = "v4.0.0"
 ##############
 
 ##############
@@ -968,7 +969,9 @@ def menuLayer(name, window=window):
         # enhance graphic scene display
         if isinstance(grWindow, baseGraphicsForm):
             grWindow.fitInView(grWindow.scene().sceneRect(), Qt.KeepAspectRatio)
-
+        if isinstance(grWindow, graphicsFormAuto3DLUT):
+            # apply auto 3D LUT immediately when the layer is added
+            grWindow.dataChanged.emit()
     # curves
     if name in ['actionCurves_RGB', 'actionCurves_HSpB', 'actionCurves_Lab']:
         if name == 'actionCurves_RGB':
@@ -990,6 +993,14 @@ def menuLayer(name, window=window):
             layer.execute = lambda l=layer, pool=None: l.tLayer.applyHSV1DLUT(grWindow.scene().cubicItem.getStackedLUTXY(), pool=pool)
         elif name == 'actionCurves_Lab':
             layer.execute = lambda l=layer, pool=None: l.tLayer.applyLab1DLUT(grWindow.scene().cubicItem.getStackedLUTXY())
+    elif name == 'actionAuto_3D_LUT':
+        layerName = 'Auto 3D LUT'
+        layer = window.label.img.addAdjustmentLayer(name=layerName, role='AutoLUT')  # do not use a role containing '3DLUT'
+        grWindow = graphicsFormAuto3DLUT.getNewWindow(axeSize=300, targetImage=window.label.img,
+                                                  LUTSize=LUTSIZE, layer=layer, parent=window,
+                                                  mainForm=window)  # mainForm mandatory here
+        pool = getPool()
+        layer.execute = lambda l=layer, pool=pool: l.tLayer.applyAuto3DLUT(pool=pool)
     # 3D LUT
     elif name in ['action3D_LUT', 'action3D_LUT_HSB']:
         # color model

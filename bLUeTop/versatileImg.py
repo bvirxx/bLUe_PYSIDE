@@ -35,7 +35,6 @@ from bLUeCore.multi import chosenInterp
 from bLUeTop.QtGui1 import app
 from bLUeTop.align import alignImages
 from bLUeTop.cloning import alphaBlend
-from bLUeTop.colorManagement import icc
 
 from bLUeTop.graphicsBlendFilter import blendFilterIndex
 
@@ -54,7 +53,8 @@ from bLUeTop.rawProcessing import rawPostProcess
 from bLUeTop.utils import UDict
 from bLUeCore.dwtDenoising import dwtDenoiseChan
 from bLUeTop.mergeImages import expFusion
-
+from bLUeCore.bLUeLUT3D import LUT3D
+from bLUeNN.classify import generateLUTfromQImage
 
 class ColorSpace:
     notSpecified = -1
@@ -1538,6 +1538,34 @@ class vImage(bImage):
         bufOut = QImageBuffer(currentImage)
         bufOut[h1:h2 + 1, w1:w2 + 1, :3] = bufpostF32_1[:, :, ::-1]
         self.updatePixmap()
+
+    def applyAuto3DLUT(self, options=None, pool=None):
+        adjustForm = self.getGraphicsForm()
+        #if options is None:
+            # options = UDict()
+        # get buffers
+        inputImage = self.inputImg()
+        currentImage = self.getCurrentImage()
+        inputBuffer = QImageBuffer(inputImage)[:, :, :3]
+        imgBuffer = QImageBuffer(currentImage)[:, :, :3]
+        ndImg0 = inputBuffer[:, :, :3]
+        # get manual corrections
+        coeffs = [adjustForm.slider1.value(), adjustForm.slider2.value(), adjustForm.slider3.value()]
+        # get auto lut
+        lutarray, pred = generateLUTfromQImage(inputImage, coeffs)
+
+        adjustForm.predLabel1.setText('%f' % pred[0])
+        adjustForm.predLabel2.setText('%f' % pred[1])
+        adjustForm.predLabel3.setText('%f' % pred[2])
+
+        lut3D = LUT3D(lutarray, dtype=np.float32)
+
+        interp = chosenInterp(pool, inputImage.width() * inputImage.height())
+        buf = interp(lut3D.LUT3DArray, lut3D.step, ndImg0.astype(np.float32), convert=False)
+        imgBuffer[:, :, :3] = buf.clip(0, 255)
+
+        self.updatePixmap()
+
 
     def apply3DLUT(self, lut3D, options=None, pool=None):
         """
