@@ -93,10 +93,9 @@ ExifTool should be installed.
 
 Under Windows,  pywin32 is needed for multi-screen management.
 
-[Binary packages containing all dependencies](https://github.com/bvirxx/bLUe_PYSIDE2/releases) are available for Windows 
-#### NOTE
+[Binary packages (Version <= 3.0.1) containing all dependencies](https://github.com/bvirxx/bLUe_PYSIDE2/releases) are available for Windows 
 
-The [PySide6 version of bLUe](https://github.com/bvirxx/bLUe_PYSIDE6) is ready.
+The [PySide6 version of bLUe (Version 3.0.1)](https://github.com/bvirxx/bLUe_PYSIDE6) is ready.
 
 ## LICENSE
 
