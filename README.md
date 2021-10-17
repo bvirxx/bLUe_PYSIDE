@@ -8,7 +8,7 @@ See the [bLUe site](http://bernard.virot.free.fr/) for screenshots, tutorials an
 
 ## New : Image Adaptive 3D LUT
 
-bLUe Version 4 (Git Branch : NN)  uses a pretrained neural network to provide automatic 3D LUTs for enhancement of images (menu Layer > New Adjustment Layer > Auto 3D LUT). The pretrained model and the code are taken from the [recent work](https://github.com/HuiZeng/Image-Adaptive-3DLUT) of of Hui Zeng, Jianrui Cai, Lida Li, Zisheng Cao, and Lei Zhang. 
+bLUe Version 4 (Git Branch : NN)  uses a pretrained neural network to provide automatic 3D LUTs for enhancement of images (menu Layer > New Adjustment Layer > Auto 3D LUT). The pretrained model and the code are taken from the [recent work](https://github.com/HuiZeng/Image-Adaptive-3DLUT) of Hui Zeng, Jianrui Cai, Lida Li, Zisheng Cao, and Lei Zhang. 
  
 ## DESCRIPTION
 

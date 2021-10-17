@@ -190,10 +190,11 @@ The Python Imaging Library (PIL) is
     Copyright © 1995-2011 by Fredrik Lundh
 Pillow Copyright © 2010-2018 by Alex Clark and contributors
 libraw Copyright (C) 2008-2018 
-rawpy Copyright (c) 2014 Maik Riechert
+rawpy Copyright (C) 2014 Maik Riechert
 seamlessClone and CLAHE are Opencv functions
 mergeMertens is an Opencv class
 grabCut is a parallel version of an Opencv function
+Pretrained classifier (C) Hui Zeng, Jianrui Cai, Lida Li, Zisheng Cao, and Lei Zhang
 This product includes DNG technology under license by Adobe Systems Incorporated
 credit https://icones8.fr/
 """
