@@ -88,9 +88,9 @@ def generateLUTfromQImage(img, coeffs):
 
     pred = generatePred(img1)
 
-    scale = 1.0 / 1000.0
+    scale = 1.0 / 500.0
 
-    pred1 = pred[0] * (1 + coeffs[0] * scale), pred[1] * (1 + coeffs[1] * scale), pred[2] * (1 + coeffs[2]) * scale
+    pred1 = pred[0] * (1 + coeffs[0] * scale), pred[1] * (1 + coeffs[1] * scale), pred[2] * (1 + coeffs[2] * scale)
 
     LUT = pred1[0] * LUT0.LUT + pred1[1] * LUT1.LUT + pred1[2] * LUT2.LUT
 
