@@ -1031,7 +1031,7 @@ class vImage(bImage):
         # convert to linear
         buf = rgb2rgbLinear(buf)
         # apply correction
-        buf[:, :, :] = buf * (2 ** exposureCorrection)
+        buf *= (2 ** exposureCorrection)
         np.clip(buf, 0.0, 1.0, out=buf)
         # convert back to RGB
         buf = rgbLinear2rgb(buf)

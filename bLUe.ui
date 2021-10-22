@@ -1321,6 +1321,9 @@ Screen</string>
    <property name="text">
     <string>Update display profile</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+U</string>
+   </property>
   </action>
   <action name="actionAuto_3D_LUT">
    <property name="text">
