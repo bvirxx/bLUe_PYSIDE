@@ -462,7 +462,8 @@ def showHistogram(window=window):
                                  chanColors=window.histView.chanColors, mode=window.histView.mode, addMode='Luminosity' if window.histView.options['L'] else '')
     window.histView.cache = QPixmap.fromImage(histView)
     window.histView.Label_Hist.setPixmap(window.histView.cache)
-
+    window.histView.Label_Hist.drawingWidth = histView.drawingWidth
+    window.histView.Label_Hist.drawingScale = histView.drawingScale
 
 def restoreBrush(layer):
     """
@@ -842,6 +843,30 @@ def menuImage(name, window=window):
         w.label.setFont(font)
         w.label.setText(w.wrapped(s))
         w.show()
+    elif name == 'actionSoft_proofing':
+        proofingOn = window.actionSoft_proofing.isChecked()
+        from PIL.ImageCms import getOpenProfile, PyCMSError
+        if proofingOn:
+            lastDir = str(window.settings.value('paths/profdlgdir', '.'))
+            filter = "Profiles ( *" + " *".join(['.icc', '.icm']) + ")"
+            dlg = QFileDialog(window, "Select", lastDir, filter)
+            try:
+                if dlg.exec_():
+                    filenames = dlg.selectedFiles()
+                    newDir = dlg.directory().absolutePath()
+                    window.settings.setValue('paths/profdlgdir', newDir)
+                    icc.configure(qscreen=window.currentScreenIndex, workingProfile=icc.workingProfile, softproofingwp=getOpenProfile(filenames[0]))
+                else:
+                    raise PyCMSError
+            except PyCMSError:
+                window.actionSoft_proofing.setChecked(False)
+        else:
+            icc.configure(qscreen=window.currentScreenIndex, workingProfile=icc.workingProfile)
+        window.label.img.updatePixmap()
+        window.label_2.img.updatePixmap()
+        window.label.update()
+        window.label_2.update()
+        updateStatus()
     elif name == 'actionColor_manage':
         icc.COLOR_MANAGE = window.actionColor_manage.isChecked()
         try:
@@ -857,7 +882,7 @@ def menuImage(name, window=window):
         updateStatus()
     # force current display profile re-detection
     elif name == 'actionUpdate_display_profile':
-        icc.configure(qscreen=window.currentScreenIndex, workingProfile=icc.workingProfile)
+        icc.configure(qscreen=window.currentScreenIndex, workingProfile=icc.workingProfile, softproofingwp=icc.softProofingProfile)
         window.label.img.updatePixmap()
         window.label_2.img.updatePixmap()
         window.label.update()
@@ -1365,13 +1390,15 @@ def updateStatus(window=window):
     # filename and rating
     s = '&nbsp;&nbsp;&nbsp;&nbsp;' + img.filename + '&nbsp;&nbsp;&nbsp;&nbsp;' + (' '.join(['*']*img.meta.rating))
     # color management
-    s = s + '&nbsp;&nbsp;&nbsp;&nbsp;CM : ' + ('On' if icc.COLOR_MANAGE else 'Off')
+    s += '&nbsp;&nbsp;&nbsp;&nbsp;CM : ' + ('On' if icc.COLOR_MANAGE else 'Off')
+    if window.actionSoft_proofing.isChecked():
+        s += '<font color=red<b>&nbsp;&nbsp;Soft Proofing :%s</b></font>' % basename(icc.softProofingProfile.filename)
     # Preview
     if img.useThumb:
-        s = s + '<font color=red><b>&nbsp;&nbsp;&nbsp;&nbsp;Preview</b></font> '
+        s += '<font color=red><b>&nbsp;&nbsp;&nbsp;&nbsp;Preview</b></font> '
     else:
         # mandatory to toggle html mode
-        s = s + '<font color=black><b>&nbsp;&nbsp;&nbsp;&nbsp;</b></font> '
+        s += '<font color=black><b>&nbsp;&nbsp;&nbsp;&nbsp;</b></font> '
     # Before/After
     if window.viewState == 'Before/After':
         s += '&nbsp;&nbsp;&nbsp;&nbsp;Before/After : Ctrl+Space : cycle through views - Space : switch back to workspace'
@@ -1380,7 +1407,7 @@ def updateStatus(window=window):
     # cropping
     if window.label.img.isCropped:
         w, h = window.cropTool.crWidth, window.cropTool.crHeight
-        s = s + '&nbsp;&nbsp;&nbsp;&nbsp;Cropped : %dx%d h/w=%.2f ' % (w, h, h / w)
+        s += '&nbsp;&nbsp;&nbsp;&nbsp;Cropped : %dx%d h/w=%.2f ' % (w, h, h / w)
     window.Label_status.setText(s)
 
 

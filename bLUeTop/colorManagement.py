@@ -20,7 +20,8 @@ import sys
 import numpy as np
 from PIL import Image
 from PIL.ImageCms import getOpenProfile, getProfileInfo, \
-    buildTransformFromOpenProfiles, applyTransform, INTENT_PERCEPTUAL, ImageCmsProfile, PyCMSError, core
+    buildTransformFromOpenProfiles, buildProofTransformFromOpenProfiles, applyTransform, INTENT_PERCEPTUAL, INTENT_ABSOLUTE_COLORIMETRIC, INTENT_RELATIVE_COLORIMETRIC,\
+    FLAGS,ImageCmsProfile, PyCMSError, core
 from PySide2.QtGui import QImage
 
 from bLUeGui.bLUeImage import QImageBuffer
@@ -87,6 +88,11 @@ class icc:
     monitorProfile, workingProfile, workToMonTransform = (None,)*3
     workingProfileInfo, monitorProfileInfo = '', ''
 
+    softProofingProfile = None
+
+    # a (default) working image profile is always needed, at least for RGB<-->XYZ conversions
+    defaultWorkingProfile = get_default_working_profile()
+
     @staticmethod
     def B_get_display_profile(handle=None, device_id=None):
         """
@@ -147,27 +153,28 @@ class icc:
         return monitorProfile
 
     @classmethod
-    def configure(cls, qscreen=None, colorSpace=-1, workingProfile=None):
+    def configure(cls, qscreen=None, colorSpace=-1, workingProfile=None, softproofingwp=None):
         """
         Try to configure color management for the monitor
         specified by QScreen, and build an image transformation
         from the working profile (default sRGB) to the monitor profile.
-        This transformation is convenient to map image colors to screen colors.
+        if softproofingwp is provided, switch to soft proofing mode
         @param qscreen: QScreen instance
         @type qscreen: QScreep
         @param colorSpace:
         @type colorSpace
         @param workingProfile:
-        @type workingProfile:
+        @type workingProfile: ImageCmsProfile
+        @param softproofingwp: profile for the device to simulate
+        @type softproofingwp: ImageCmsProfile
         """
         cls.HAS_COLOR_MANAGE = False
-        # a (default) working image profile is always needed, at least for RGB<-->XYZ conversions
-        cls.defaultWorkingProfile = get_default_working_profile()
+
         cls.workingProfile = cls.defaultWorkingProfile
         cls.workingProfileInfo = getProfileInfo(cls.workingProfile)
         if not COLOR_MANAGE_OPT:
             return
-        # looking for valid profiles
+        # looking for specific profiles
         try:
             # get monitor profile as CmsProfile object.
             if qscreen is not None:
@@ -177,7 +184,7 @@ class icc:
                 # get profile info, a PyCmsError exception is raised if monitorProfile is invalid
                 cls.monitorProfileInfo = getProfileInfo(cls.monitorProfile)
             # get working profile as CmsProfile object
-            if colorSpace == 1:
+            elif colorSpace == 1:
                 cls.workingProfile = cls.defaultWorkingProfile  # getOpenProfile(SRGB_PROFILE_PATH)
             elif colorSpace == 2:
                 cls.workingProfile = getOpenProfile(ADOBE_RGB_PROFILE_PATH)
@@ -188,8 +195,17 @@ class icc:
 
             cls.workingProfileInfo = getProfileInfo(cls.workingProfile)
             # init CmsTransform object : working profile ---> monitor profile
-            cls.workToMonTransform = buildTransformFromOpenProfiles(cls.workingProfile, cls.monitorProfile,
+            if type(softproofingwp) is ImageCmsProfile:
+                cls.softProofingProfile = softproofingwp
+                cls.workToMonTransform = buildProofTransformFromOpenProfiles(cls.workingProfile, cls.monitorProfile, softproofingwp,
+                                                                             "RGB", "RGB", renderingIntent=INTENT_PERCEPTUAL,
+                                                                             proofRenderingIntent=INTENT_RELATIVE_COLORIMETRIC,
+                                                                             flags=FLAGS['SOFTPROOFING'] | FLAGS['BLACKPOINTCOMPENSATION']) #  | FLAGS['GAMUTCHECK'])
+                cls.softProofingProfile = softproofingwp
+            else:
+                cls.workToMonTransform = buildTransformFromOpenProfiles(cls.workingProfile, cls.monitorProfile,
                                                                      "RGB", "RGB", renderingIntent=INTENT_PERCEPTUAL)
+                cls.softProofingProfile = None
             """
                                     INTENT_PERCEPTUAL            = 0 (DEFAULT) (ImageCms.INTENT_PERCEPTUAL)
                                     INTENT_RELATIVE_COLORIMETRIC = 1 (ImageCms.INTENT_RELATIVE_COLORIMETRIC)

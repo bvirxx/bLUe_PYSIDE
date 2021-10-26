@@ -793,6 +793,7 @@ Screen</string>
      <property name="title">
       <string>Color settings</string>
      </property>
+     <addaction name="actionSoft_proofing"/>
      <addaction name="actionColor_manage"/>
      <addaction name="actionWorking_profile"/>
      <addaction name="actionUpdate_display_profile"/>
@@ -1050,7 +1051,7 @@ Screen</string>
   </action>
   <action name="actionWorking_profile">
    <property name="text">
-    <string>profile infos</string>
+    <string>Profile infos</string>
    </property>
   </action>
   <action name="action3D_LUT_HSB">
@@ -1328,6 +1329,14 @@ Screen</string>
   <action name="actionAuto_3D_LUT">
    <property name="text">
     <string>Auto 3D LUT</string>
+   </property>
+  </action>
+  <action name="actionSoft_proofing">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Soft proofing</string>
    </property>
   </action>
  </widget>

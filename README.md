@@ -63,7 +63,8 @@ Download an [example 3D LUT](http://bernard.virot.free.fr/sunrise.cube) and test
 
 ## FUNCTIONALITY
 
-* NN based automatic 3D LUT for image enhancement
+* Neural network based automatic 3D LUT for image enhancement
+* Soft proofing
 * Simultaneous edition of multiple images in formats jpg, png, tif, nef, cr2, dng,...
 * Color profile management
 * Adjustment layers : exposure, brightness, saturation, contrast, channel mixer, color temperature, inversion, filters, noise reduction,
