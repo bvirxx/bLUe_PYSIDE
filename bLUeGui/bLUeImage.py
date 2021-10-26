@@ -26,6 +26,14 @@ from bLUeGui.colorCIE import sRGB2LabVec
 from bLUeGui.colorCube import rgb2hspVec
 from bLUeGui.const import channelValues
 
+class trackImage(QImage):
+    """
+    Used to draw histograms with mouse tracking
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.drawingScale, self.drawingWidth = (1.0,) * 2
 
 class bImage(QImage):
     """
@@ -194,10 +202,8 @@ class bImage(QImage):
     def histogram(self, size=QSize(200, 200), bgColor=Qt.white, range=(0, 255),
                   chans=channelValues.RGB, chanColors=Qt.gray, mode='RGB', addMode='', clipping_threshold=0.02):
         """
-        Plot the image histogram with the
-        specified color mode and channels.
-        Histograms are smoothed using a Savisky-Golay filter and curves are scaled individually
-        to fit the height of the plot.
+        Plots the image histogram with the specified color mode and channels.
+        Channel curves are scaled individually to fit the height of the plot.
         @param size: size of the histogram plot
         @type size: int or QSize
         @param bgColor: background color
@@ -218,49 +224,57 @@ class bImage(QImage):
         @rtype: QImage
         """
         binCount = 85  # 255 = 85 * 3
-        # convert size to QSize
         if type(size) is int:
             size = QSize(size, size)
         # scaling factor for bin drawing
         spread = float(range[1] - range[0])
-        scale = size.width() / spread
-        # the last bin is drawn as a vertical line (width = 0),
-        # so we correct the scale factor accordingly
-        scale *= binCount / (binCount - 1)
+        scaleH = size.width() / spread
+        upMargin = 10 # keep space for indicators on image top
 
         # per channel histogram function
         def drawChannelHistogram(painter, hist, bin_edges, color):
             # Draw histogram for a single channel.
             # param painter: QPainter
             # param hist: histogram to draw
-            # smooth the histogram (first and last bins excepted) for a better visualization of clipping.
-            # hist = np.concatenate(([hist[0]], SavitzkyGolayFilter.filter(hist[1:-1]), [hist[-1]]))
-            # To emphasize significant values we clip the first bin to max height of the others
-            M = max(hist[1: ])  # max(hist)  # max(hist[1:-1])
+            # To emphasize significant values we try to clip the first bin to max height of the others
+            MA = max(hist)
+            try:
+                with np.errstate(divide='ignore', invalid='ignore'):
+                    MA_I = 1.0 / MA
+                if not np.isfinite(MA_I):
+                    raise ValueError
+            except (ValueError, ArithmeticError, FloatingPointError, ZeroDivisionError):
+                # if MA is too small we do not draw the histogram for this channel
+                return
+            M = max(hist[1:])
+            try:
+                with np.errstate(divide='ignore', invalid='ignore'):
+                    M_I = 1.0 / M
+                if not np.isfinite(M_I):
+                    raise ValueError
+            except (ValueError, ArithmeticError, FloatingPointError, ZeroDivisionError):
+                # if M is too small we do not clip the first bin
+                M_I = MA_I
             imgH = size.height()
+            scaleV = imgH * M_I
             # drawing  trapezia instead of rectangles to quickly "smooth" the histogram
-            # the rightmost trapezium is not drawn
             poly = QPolygonF()
             poly.append(QPointF(range[0], imgH))  # bottom left point
             for i, y in enumerate(hist):
-                try:
-                    h = imgH * y / M
-                    if np.isnan(h):
-                        raise ValueError
-                except (ValueError, ArithmeticError, FloatingPointError, ZeroDivisionError):
-                    # don't draw the histogram for this channel if M is too small
-                    return
-                poly.append(QPointF((bin_edges[i] - range[0]) * scale, max(imgH - h, 0)))
+                h = scaleV * y
+                poly.append(QPointF((bin_edges[i] - range[0]) * scaleH, max(imgH - h, upMargin)))
                 # clipping indicators
                 if i == 0 or i == len(hist)-1:
-                    left = bin_edges[0 if i == 0 else -1] * scale
-                    left = left - (20 if i > 0 else 0)  # shift the indicator at right
+                    left = bin_edges[0 if i == 0 else -1] * scaleH
+                    left = left - (10 if i > 0 else 0)  # shift the indicator at right
                     percent = hist[i] * (bin_edges[i+1]-bin_edges[i])
                     if percent > clipping_threshold:
                         # set the color of the indicator according to percent value
                         nonlocal gPercent
                         gPercent = min(gPercent, np.clip((0.05 - percent) / 0.03, 0, 1))
                         painter.fillRect(left, 0, 10, 10, QColor(255, 255*gPercent, 0))
+            # complete last bin
+            poly.append(QPointF((bin_edges[-1] - range[0]) * scaleH, max(imgH - h, upMargin)))
             # draw the filled polygon
             poly.append(QPointF(poly.constLast().x(), imgH))  # bottom right point
             path = QPainterPath()
@@ -274,7 +288,7 @@ class bImage(QImage):
         gPercent = 1.0
         buf = None
         if mode == 'RGB':
-            buf = QImageBuffer(self)[:, :, :3][:, :, ::-1]  # RGB
+            buf = QImageBuffer(self)[:, :, :3][:, :, ::-1]
         elif mode == 'HSV':
             buf = self.getHSVBuffer()
         elif mode == 'HSpB':
@@ -284,8 +298,9 @@ class bImage(QImage):
         elif mode == 'Luminosity':
             chans = []
         # drawing the histogram onto img
-        img = QImage(size.width(), size.height(), QImage.Format_ARGB32)
+        img = trackImage(size.width(), size.height(), QImage.Format_ARGB32)
         img.fill(bgColor)
+
         qp = QPainter(img)
         if type(chanColors) is QColor or type(chanColors) is Qt.GlobalColor:
             chanColors = [chanColors]*3
@@ -293,7 +308,7 @@ class bImage(QImage):
         # bins='auto' sometimes causes a huge number of bins ( >= 10**9) and memory error
         # even for small data size (<=250000), so we don't use it.
         if mode == 'Luminosity' or addMode == 'Luminosity':
-            bufL = cv2.cvtColor(QImageBuffer(self)[:, :, :3], cv2.COLOR_BGR2GRAY)[..., np.newaxis]  # returns Y (YCrCb) : Y = 0.299*R + 0.587*G + 0.114*B
+            bufL = cv2.cvtColor(QImageBuffer(self)[:, :, :3], cv2.COLOR_BGR2GRAY)[..., np.newaxis]
             hist, bin_edges = np.histogram(bufL, range=range, bins=binCount, density=True)
             drawChannelHistogram(qp, hist, bin_edges, Qt.gray)
         hist_L, bin_edges_L = [0]*len(chans), [0]*len(chans)
@@ -304,13 +319,8 @@ class bImage(QImage):
             # subsequent images are added using composition mode Plus
             # qp.setCompositionMode(QPainter.CompositionMode_Plus)  # uncomment for semi-transparent hists
         qp.end()
-        """
-        buf = QImageBuffer(img)
-        # if len(chans) > 1, clip gray area to improve the aspect of the histogram
-        if len(chans) > 1:
-            buf[:, :, :3] = np.where(np.min(buf, axis=-1)[:, :, np.newaxis] >= 100,
-                                     np.array((100, 100, 100))[np.newaxis, np.newaxis, :], buf[:, :, :3])
-        """
+
+        img.drawingScale, img.drawingWidth = scaleH, size.width()
         return img
 
 
