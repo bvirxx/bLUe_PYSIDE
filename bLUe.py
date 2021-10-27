@@ -861,7 +861,7 @@ def menuImage(name, window=window):
             except PyCMSError:
                 window.actionSoft_proofing.setChecked(False)
         else:
-            icc.configure(qscreen=window.currentScreenIndex, workingProfile=icc.workingProfile)
+            icc.configure(qscreen=window.currentScreenIndex, workingProfile=icc.workingProfile, softproofingwp=None)
         window.label.img.updatePixmap()
         window.label_2.img.updatePixmap()
         window.label.update()
@@ -1345,6 +1345,7 @@ def canClose(index=None, window=window):
         img = window.tabBar.tabData(ind)
         if img.isModified:
             if ind != window.tabBar.currentIndex():
+                window.tabBar.setCurrentIndex(ind)
                 dlgWarn('Image was modified', info='Save it first' )
                 return False
             try:

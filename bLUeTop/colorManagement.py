@@ -153,12 +153,13 @@ class icc:
         return monitorProfile
 
     @classmethod
-    def configure(cls, qscreen=None, colorSpace=-1, workingProfile=None, softproofingwp=None):
+    def configure(cls, qscreen=None, colorSpace=-1, workingProfile=None, softproofingwp=-1):
         """
         Try to configure color management for the monitor
         specified by QScreen, and build an image transformation
         from the working profile (default sRGB) to the monitor profile.
-        if softproofingwp is provided, switch to soft proofing mode
+        if softproofingwp is provided, toggle soft proofing mode off (if it is None) and
+        on (if it is a valid ImageCmsProfile)
         @param qscreen: QScreen instance
         @type qscreen: QScreep
         @param colorSpace:
@@ -166,7 +167,7 @@ class icc:
         @param workingProfile:
         @type workingProfile: ImageCmsProfile
         @param softproofingwp: profile for the device to simulate
-        @type softproofingwp: ImageCmsProfile
+        @type softproofingwp:
         """
         cls.HAS_COLOR_MANAGE = False
 
@@ -184,7 +185,7 @@ class icc:
                 # get profile info, a PyCmsError exception is raised if monitorProfile is invalid
                 cls.monitorProfileInfo = getProfileInfo(cls.monitorProfile)
             # get working profile as CmsProfile object
-            elif colorSpace == 1:
+            if colorSpace == 1:  # elif changed to if 29/10/21
                 cls.workingProfile = cls.defaultWorkingProfile  # getOpenProfile(SRGB_PROFILE_PATH)
             elif colorSpace == 2:
                 cls.workingProfile = getOpenProfile(ADOBE_RGB_PROFILE_PATH)
@@ -195,6 +196,8 @@ class icc:
 
             cls.workingProfileInfo = getProfileInfo(cls.workingProfile)
             # init CmsTransform object : working profile ---> monitor profile
+            if softproofingwp == -1:
+                softproofingwp = cls.softProofingProfile  # default : do not change the current soft proofing mode
             if type(softproofingwp) is ImageCmsProfile:
                 cls.softProofingProfile = softproofingwp
                 cls.workToMonTransform = buildProofTransformFromOpenProfiles(cls.workingProfile, cls.monitorProfile, softproofingwp,
