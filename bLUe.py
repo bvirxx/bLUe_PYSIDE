@@ -1308,6 +1308,7 @@ def canClose(index=None, window=window):
         img = window.tabBar.tabData(ind)
         if img.isModified:
             if ind != window.tabBar.currentIndex():
+                window.tabBar.setCurrentIndex(ind)
                 dlgWarn('Image was modified', info='Save it first' )
                 return False
             try:
