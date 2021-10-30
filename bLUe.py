@@ -645,8 +645,8 @@ def updateEnabledActions(window=window):
     Menu aboutToShow handler
     """
     window.actionColor_manage.setChecked(icc.COLOR_MANAGE)
-    #window.actionSave.setEnabled(window.label.img.isModified)  # TODO commented out 30/10/21 validate
-    #window.actionSave_As.setEnabled(window.label.img.isModified)
+    window.actionSave.setEnabled(window.label.img.isModified)
+    window.actionSave_As.setEnabled(window.label.img.isModified)
     window.actionSave_Hald_Cube.setEnabled(window.label.img.isHald)
 
 
