@@ -460,8 +460,7 @@ def showHistogram(window=window):
                                  chanColors=window.histView.chanColors, mode=window.histView.mode, addMode='Luminosity' if window.histView.options['L'] else '')
     window.histView.cache = QPixmap.fromImage(histView)
     window.histView.Label_Hist.setPixmap(window.histView.cache)
-    window.histView.Label_Hist.drawingWidth = histView.drawingWidth
-    window.histView.Label_Hist.drawingScale = histView.drawingScale
+
 
 def restoreBrush(layer):
     """
