@@ -189,7 +189,7 @@ The Python Imaging Library (PIL) is
     Copyright © 1995-2011 by Fredrik Lundh
 Pillow Copyright © 2010-2018 by Alex Clark and contributors
 libraw Copyright (C) 2008-2018 
-rawpy Copyright (c) 2014 Maik Riechert
+rawpy Copyright (C) 2014 Maik Riechert
 seamlessClone and CLAHE are Opencv functions
 mergeMertens is an Opencv class
 grabCut is a parallel version of an Opencv function
@@ -460,7 +460,8 @@ def showHistogram(window=window):
                                  chanColors=window.histView.chanColors, mode=window.histView.mode, addMode='Luminosity' if window.histView.options['L'] else '')
     window.histView.cache = QPixmap.fromImage(histView)
     window.histView.Label_Hist.setPixmap(window.histView.cache)
-
+    window.histView.Label_Hist.drawingWidth = histView.drawingWidth
+    window.histView.Label_Hist.drawingScale = histView.drawingScale
 
 def restoreBrush(layer):
     """
@@ -703,7 +704,7 @@ def menuFile(name, window=window):
             img = window.label.img
             try:
                 if saveAs:
-                    filename, quality, compression, writeMeta = saveDlg(img, window, selected=not saveAs)
+                    filename, quality, compression, writeMeta = saveDlg(img, window, selected=True) # not saveAs)
                     filename = saveFile(filename, img, quality=quality, compression=compression, writeMeta=writeMeta)
                 else:
                     filename = saveFile(img.filename, img, writeMeta=True)
