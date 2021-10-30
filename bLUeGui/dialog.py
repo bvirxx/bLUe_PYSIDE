@@ -16,7 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import textwrap
-
+from os.path import basename
 from PySide2.QtCore import Qt, QDir, QSize
 
 from PySide2.QtWidgets import QMessageBox, QPushButton, QFileDialog, QDialog, QSlider, QVBoxLayout, QHBoxLayout, QLabel, \
@@ -343,7 +343,7 @@ def saveDlg(img, mainWidget, selected=True):
     dlg = savingDialog(mainWidget, "Save", lastDir)
     if selected:
         # default saving format jpg
-        dlg.selectFile(img.filename[:-3] + 'jpg')
+        dlg.selectFile(basename(img.filename)[:-3] + 'jpg')
     filename = ''
     if dlg.exec_():
         newDir = dlg.directory().absolutePath()
