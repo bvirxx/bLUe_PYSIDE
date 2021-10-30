@@ -131,6 +131,7 @@ import threading
 from itertools import cycle
 from time import sleep
 import gc
+import tifffile
 
 from types import MethodType
 import rawpy
@@ -263,6 +264,11 @@ def widgetChange(button, window=window):
     window.label.repaint()
 
 
+def addAdjustmentLayers(layers):
+    for actionName in layers:
+        menuLayer(layers[actionName])
+
+
 def addBasicAdjustmentLayers(img, window=window):
     if img.rawImage is None:
         # menuLayer('actionColor_Temperature')
@@ -300,7 +306,8 @@ def addRawAdjustmentLayer(window=window):
 
 def loadImage(img, withBasic=True, window=window):
     """
-    load a vImage into bLUe
+    load a vImage into bLUe and build layer stack.
+    Try to import layer stack from image tiff file
     @param img:
     @type img: vImage
     @param withBasic:
@@ -313,6 +320,14 @@ def loadImage(img, withBasic=True, window=window):
     tabBar.setCurrentIndex(ind)
     tabBar.setTabData(ind, img)
     setDocumentImage(img)
+
+    if img.filename[-4:].upper() == '.TIF':
+        with tifffile.TiffFile(img.filename) as tfile:
+            # get ordered dict of layers
+            layers = tfile.imagej_metadata
+            withBasic = False  # priority to the imported layer stack
+            addAdjustmentLayers(layers)
+
     # switch to preview mode and process stack
     window.tableView.previewOptionBox.setChecked(True)
     # window.tableView.previewOptionBox.stateChanged.emit(Qt.Checked)  # TODO removed 22/02/20 stack is processed below validate
@@ -647,8 +662,8 @@ def updateEnabledActions(window=window):
     Menu aboutToShow handler
     """
     window.actionColor_manage.setChecked(icc.COLOR_MANAGE)
-    #window.actionSave.setEnabled(window.label.img.isModified)  # TODO commented out 30/10/21 validate
-    #window.actionSave_As.setEnabled(window.label.img.isModified)
+    window.actionSave.setEnabled(window.label.img.isModified)
+    window.actionSave_As.setEnabled(window.label.img.isModified)
     window.actionSave_Hald_Cube.setEnabled(window.label.img.isHald)
 
 

@@ -175,8 +175,10 @@ class ExifTool(object):
         sidecar = source[:-4] + '.mie'
         if isfile(sidecar):
             # copy metadata from sidecar to image file
-            # following exif doc, wild cards do not copy icc_profile : we must specify it explicitely TODO modified 19/2/20 validate
-            command = ["-tagsFromFile", sidecar, "-all", "-icc_profile", "-overwrite_original", dest]
+            # following exif doc, wild cards do not copy icc_profile : we must specify it explicitely
+            #command = ["-tagsFromFile", sidecar, "-all", "-icc_profile", "-overwrite_original", dest]
+            # 31/10/21 changed -all to -exif to prevent restoration of initial layer stack when saving tiff document
+            command = ["-tagsFromFile", sidecar, "-exif", "-icc_profile", "-overwrite_original", dest]
             self.execute(*command)
         else:
             return False
