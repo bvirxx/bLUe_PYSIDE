@@ -647,8 +647,8 @@ def updateEnabledActions(window=window):
     Menu aboutToShow handler
     """
     window.actionColor_manage.setChecked(icc.COLOR_MANAGE)
-    window.actionSave.setEnabled(window.label.img.isModified)
-    window.actionSave_As.setEnabled(window.label.img.isModified)
+    #window.actionSave.setEnabled(window.label.img.isModified)  # TODO commented out 30/10/21 validate
+    #window.actionSave_As.setEnabled(window.label.img.isModified)
     window.actionSave_Hald_Cube.setEnabled(window.label.img.isHald)
 
 
@@ -706,7 +706,7 @@ def menuFile(name, window=window):
             img = window.label.img
             try:
                 if saveAs:
-                    filename, quality, compression, writeMeta = saveDlg(img, window, selected=not saveAs)
+                    filename, quality, compression, writeMeta = saveDlg(img, window, selected=True) # not saveAs)
                     filename = saveFile(filename, img, quality=quality, compression=compression, writeMeta=writeMeta)
                 else:
                     filename = saveFile(img.filename, img, writeMeta=True)
