@@ -321,7 +321,7 @@ def loadImage(img, withBasic=True, window=window):
     tabBar.setTabData(ind, img)
     setDocumentImage(img)
 
-    if img.filename[-4:].upper() == '.TIF':
+    if img.filename[-4:].upper() == '.BLU':
         with tifffile.TiffFile(img.filename) as tfile:
             # get ordered dict of layers
             layers = tfile.imagej_metadata

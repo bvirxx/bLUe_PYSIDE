@@ -486,7 +486,7 @@ class mImage(vImage):
         elif fileFormat == 'PNG':
             if compression >= 0 and compression <= 9:
                 params = [cv2.IMWRITE_PNG_COMPRESSION, compression]  # compression range 0..9
-        elif fileFormat == 'TIF':
+        elif fileFormat in ['TIF', 'BLU']:
             transparencyCheck(buf)
             buf = buf[:, :, :3]
         else:
@@ -507,8 +507,7 @@ class mImage(vImage):
         thumb = ndarrayToQImage(np.ascontiguousarray(buf[:, :, :3][:, :, ::-1]),
                                 format=QImage.Format_RGB888).scaled(wt, ht, Qt.KeepAspectRatio)
 
-        if fileFormat == 'TIF':
-            dlgWarn('By default TIFF format only saves source image and bLUe Layer Stack', 'Use JPEG or PNG format to save the edited image')
+        if fileFormat == 'BLU':
             # save source image and layer stack in image file. Currently, layer parameters are not saved
             names = OrderedDict([(layer.actionName, layer.actionName) for layer in self.layersStack])  # must be a dict
             img_ori = self.getCurrentImage()

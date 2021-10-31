@@ -375,10 +375,9 @@ class vImage(bImage):
                 raise ValueError('Cannot find file %s' % filename)
             # load image from file (should be a 8 bits/channel color image)
             if self.meta.orientation is not None:
-                tmp = QImage(filename, format=format).transformed(self.meta.orientation)
+                tmp = QImage(filename).transformed(self.meta.orientation)
             else:
-                tmp = QImage(filename, format=format)
-            # ensure format is format: JPEG are loaded with format RGB32 !!
+                tmp = QImage(filename)
             tmp = tmp.convertToFormat(format)
             if tmp.isNull():
                 raise ValueError('Cannot load %s\nSupported image formats\n%s' % (filename, QImageReader.supportedImageFormats()))

@@ -25,6 +25,9 @@ bLUe provides drawing layers and paint brushes with adjustable parameters: size,
 bLUe is aware of multi-screen environments and color profiles : it uses image and
 monitor profiles in conjunction to display accurate colors.
 
+bLUe documents can be saved and reloaded  by bLUe, using .blu files (user parameters are not saved yet).
+The blu format is fully compatible with TIFF. 
+
 The program is written in Python.
 
 
