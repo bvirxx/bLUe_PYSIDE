@@ -1320,9 +1320,6 @@ Screen</string>
    <property name="text">
     <string>Update display profile</string>
    </property>
-   <property name="shortcut">
-    <string>Ctrl+U</string>
-   </property>
   </action>
  </widget>
  <customwidgets>

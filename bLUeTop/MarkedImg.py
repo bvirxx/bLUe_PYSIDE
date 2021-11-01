@@ -21,6 +21,10 @@ from os import path
 import numpy as np
 import gc
 
+from collections import OrderedDict
+
+import tifffile
+
 from PIL.ImageCms import ImageCmsProfile
 from PySide2.QtCore import Qt, QSize, QPoint, QPointF, QFileInfo
 
@@ -482,7 +486,7 @@ class mImage(vImage):
         elif fileFormat == 'PNG':
             if compression >= 0 and compression <= 9:
                 params = [cv2.IMWRITE_PNG_COMPRESSION, compression]  # compression range 0..9
-        elif fileFormat == 'TIF':
+        elif fileFormat in ['TIF', 'BLU']:
             transparencyCheck(buf)
             buf = buf[:, :, :3]
         else:
@@ -502,7 +506,18 @@ class mImage(vImage):
             wt, ht = 120, 160
         thumb = ndarrayToQImage(np.ascontiguousarray(buf[:, :, :3][:, :, ::-1]),
                                 format=QImage.Format_RGB888).scaled(wt, ht, Qt.KeepAspectRatio)
-        written = cv2.imwrite(filename, buf, params)  # BGR order
+
+        if fileFormat == 'BLU':
+            # save source image and layer stack in image file. Currently, layer parameters are not saved
+            names = OrderedDict([(layer.actionName, layer.actionName) for layer in self.layersStack])  # must be a dict
+            img_ori = self.getCurrentImage()
+            buf_ori = QImageBuffer(img_ori)[:,:, :3]
+            result = tifffile.imsave(filename, data=buf_ori[:,:,::-1], imagej=True, returnoffset=True, metadata=names)
+            written = result[1] > 0  # bytecount
+        else:
+            # save edited image
+            written = cv2.imwrite(filename, buf, params)  # BGR order
+
         if not written:
             raise IOError("Cannot write file %s " % filename)
         return thumb

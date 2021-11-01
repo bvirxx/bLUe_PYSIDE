@@ -2,14 +2,17 @@
 
 block_cipher = None
 
-imageformats = [('C:\Program Files\Python37\Lib\site-packages\\PySide2\plugins\\imageformats', 'plugins\\imageformats')]
-platforms = [('C:\Program Files\Python37\Lib\site-packages\\PySide2\\plugins\\platforms', 'plugins\\platforms')]
-numpy_dlls = [('C:\Program Files\\Python37\\Lib\\site-packages\\numpy\\dlls\\*.dll', '.')]
+imageformats = [('.\\venv\\Lib\site-packages\\PySide2\plugins\\imageformats', 'plugins\\imageformats')]
+platforms = [('.\\venv\\\\Lib\site-packages\\PySide2\\plugins\\platforms', 'plugins\\platforms')]
+
+data_0 = [(HOMEPATH + '\\Pyside2\\*.*', 'Pyside2')]  # PyInstaller bug workaround
+data_1 = [('bLUeNN\\pretrained_models\\sRGB\\*', 'bLUeNN\\pretrained_models\\sRGB')]
+data_2 = [('blue.ui', '.'), ('README.md', '.'), ('LICENSE.TXT', '.'), ('logo.png', '.'), ('logo.ico', '.'), ('config_win.json', '.'), ('brushes\README.TXT', 'brushes')]
 
 a = Analysis(['bLUe.py'],
-             pathex=['D:\\PycharmProject\\CS4_PYSIDE'],
-             binaries=[('C:\\standalone\\exiftool(-k).exe', 'bin')] + imageformats + platforms + numpy_dlls,
-             datas=[('blue.ui', '.'), ('README.md', '.'), ('LICENSE.TXT', '.'), ('logo.png', '.'), ('logo.ico', '.'), ('config_win.json', '.'), ('brushes\README.TXT', 'brushes')],
+             pathex=[('C:\\Windows\\System32\\downlevel')],
+             binaries=[('C:\\standalone\\exiftool(-k).exe', 'bin')] + imageformats + platforms,
+             datas=data_0 + data_1 + data_2,
              hiddenimports=['PySide2.QtXml', 'pywt._extensions._cwt'],
              hookspath=[],
              runtime_hooks=[],
@@ -17,6 +20,7 @@ a = Analysis(['bLUe.py'],
              win_no_prefer_redirects=False,
              win_private_assemblies=False,
              cipher=block_cipher)
+
 pyz = PYZ(a.pure, a.zipped_data,
              cipher=block_cipher)
 exe = EXE(pyz,
@@ -28,6 +32,7 @@ exe = EXE(pyz,
           upx=True,
           icon='logo.ico',
           console=False )
+
 coll = COLLECT(exe,
                a.binaries,
                a.zipfiles,

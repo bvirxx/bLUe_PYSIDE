@@ -131,6 +131,7 @@ import threading
 from itertools import cycle
 from time import sleep
 import gc
+import tifffile
 
 from types import MethodType
 import rawpy
@@ -162,13 +163,14 @@ from bLUeTop.versatileImg import vImage, metadataBag
 from bLUeTop.MarkedImg import imImage, QRawLayer, QCloningLayer
 from bLUeTop.graphicsRGBLUT import graphicsForm
 from bLUeTop.graphicsLUT3D import graphicsForm3DLUT
+from bLUeTop.graphicsAutoLUT3D import graphicsFormAuto3DLUT
 from bLUeTop.lutUtils import LUTSIZE, LUT3D, LUT3DIdentity
 from bLUeGui.colorPatterns import cmHSP, cmHSB
 from bLUeTop.colorManagement import icc
 from bLUeTop.graphicsCoBrSat import CoBrSatForm
 from bLUeTop.graphicsExp import ExpForm
 from bLUeTop.graphicsPatch import patchForm
-from bLUeTop.settings import USE_POOL, POOL_SIZE, THEME, TABBING, BRUSHES_PATH, COLOR_MANAGE_OPT
+from bLUeTop.settings import USE_POOL, POOL_SIZE, THEME, TABBING, BRUSHES_PATH, COLOR_MANAGE_OPT, HAS_TORCH
 from bLUeTop.utils import UDict, stateAwareQDockWidget
 from bLUeGui.tool import cropTool, rotatingTool
 from bLUeTop.graphicsTemp import temperatureForm
@@ -193,6 +195,7 @@ rawpy Copyright (C) 2014 Maik Riechert
 seamlessClone and CLAHE are Opencv functions
 mergeMertens is an Opencv class
 grabCut is a parallel version of an Opencv function
+Pretrained classifier (C) Hui Zeng, Jianrui Cai, Lida Li, Zisheng Cao, and Lei Zhang
 This product includes DNG technology under license by Adobe Systems Incorporated
 credit https://icones8.fr/
 """
@@ -200,7 +203,7 @@ credit https://icones8.fr/
 
 ##############
 #  Version number
-VERSION = "v3.0.2"
+VERSION = "v4.0.0"
 ##############
 
 ##############
@@ -261,6 +264,11 @@ def widgetChange(button, window=window):
     window.label.repaint()
 
 
+def addAdjustmentLayers(layers):
+    for actionName in layers:
+        menuLayer(layers[actionName])
+
+
 def addBasicAdjustmentLayers(img, window=window):
     if img.rawImage is None:
         # menuLayer('actionColor_Temperature')
@@ -298,7 +306,8 @@ def addRawAdjustmentLayer(window=window):
 
 def loadImage(img, withBasic=True, window=window):
     """
-    load a vImage into bLUe
+    load a vImage into bLUe and build layer stack.
+    Try to import layer stack from image tiff file
     @param img:
     @type img: vImage
     @param withBasic:
@@ -311,6 +320,14 @@ def loadImage(img, withBasic=True, window=window):
     tabBar.setCurrentIndex(ind)
     tabBar.setTabData(ind, img)
     setDocumentImage(img)
+
+    if img.filename[-4:].upper() == '.BLU':
+        with tifffile.TiffFile(img.filename) as tfile:
+            # get ordered dict of layers
+            layers = tfile.imagej_metadata
+            withBasic = False  # priority to the imported layer stack
+            addAdjustmentLayers(layers)
+
     # switch to preview mode and process stack
     window.tableView.previewOptionBox.setChecked(True)
     # window.tableView.previewOptionBox.stateChanged.emit(Qt.Checked)  # TODO removed 22/02/20 stack is processed below validate
@@ -460,7 +477,8 @@ def showHistogram(window=window):
                                  chanColors=window.histView.chanColors, mode=window.histView.mode, addMode='Luminosity' if window.histView.options['L'] else '')
     window.histView.cache = QPixmap.fromImage(histView)
     window.histView.Label_Hist.setPixmap(window.histView.cache)
-
+    window.histView.Label_Hist.drawingWidth = histView.drawingWidth
+    window.histView.Label_Hist.drawingScale = histView.drawingScale
 
 def restoreBrush(layer):
     """
@@ -647,6 +665,7 @@ def updateEnabledActions(window=window):
     window.actionSave.setEnabled(window.label.img.isModified)
     window.actionSave_As.setEnabled(window.label.img.isModified)
     window.actionSave_Hald_Cube.setEnabled(window.label.img.isHald)
+    window.actionAuto_3D_LUT.setEnabled(HAS_TORCH)
 
 
 def menuFile(name, window=window):
@@ -840,6 +859,30 @@ def menuImage(name, window=window):
         w.label.setFont(font)
         w.label.setText(w.wrapped(s))
         w.show()
+    elif name == 'actionSoft_proofing':
+        proofingOn = window.actionSoft_proofing.isChecked()
+        from PIL.ImageCms import getOpenProfile, PyCMSError
+        if proofingOn:
+            lastDir = str(window.settings.value('paths/profdlgdir', '.'))
+            filter = "Profiles ( *" + " *".join(['.icc', '.icm']) + ")"
+            dlg = QFileDialog(window, "Select", lastDir, filter)
+            try:
+                if dlg.exec_():
+                    filenames = dlg.selectedFiles()
+                    newDir = dlg.directory().absolutePath()
+                    window.settings.setValue('paths/profdlgdir', newDir)
+                    icc.configure(qscreen=window.currentScreenIndex, workingProfile=icc.workingProfile, softproofingwp=getOpenProfile(filenames[0]))
+                else:
+                    raise PyCMSError
+            except PyCMSError:
+                window.actionSoft_proofing.setChecked(False)
+        else:
+            icc.configure(qscreen=window.currentScreenIndex, workingProfile=icc.workingProfile, softproofingwp=None)
+        window.label.img.updatePixmap()
+        window.label_2.img.updatePixmap()
+        window.label.update()
+        window.label_2.update()
+        updateStatus()
     elif name == 'actionColor_manage':
         icc.COLOR_MANAGE = window.actionColor_manage.isChecked()
         try:
@@ -855,7 +898,7 @@ def menuImage(name, window=window):
         updateStatus()
     # force current display profile re-detection
     elif name == 'actionUpdate_display_profile':
-        icc.configure(qscreen=window.currentScreenIndex, workingProfile=icc.workingProfile)
+        icc.configure(qscreen=window.currentScreenIndex, workingProfile=icc.workingProfile, softproofingwp=icc.softProofingProfile)
         window.label.img.updatePixmap()
         window.label_2.img.updatePixmap()
         window.label.update()
@@ -968,6 +1011,9 @@ def menuLayer(name, window=window):
         # enhance graphic scene display
         if isinstance(grWindow, baseGraphicsForm):
             grWindow.fitInView(grWindow.scene().sceneRect(), Qt.KeepAspectRatio)
+        if isinstance(grWindow, graphicsFormAuto3DLUT):
+            # apply auto 3D LUT immediately when the layer is added
+            grWindow.dataChanged.emit()
 
     # curves
     if name in ['actionCurves_RGB', 'actionCurves_HSpB', 'actionCurves_Lab']:
@@ -990,6 +1036,14 @@ def menuLayer(name, window=window):
             layer.execute = lambda l=layer, pool=None: l.tLayer.applyHSV1DLUT(grWindow.scene().cubicItem.getStackedLUTXY(), pool=pool)
         elif name == 'actionCurves_Lab':
             layer.execute = lambda l=layer, pool=None: l.tLayer.applyLab1DLUT(grWindow.scene().cubicItem.getStackedLUTXY())
+    elif name == 'actionAuto_3D_LUT' and HAS_TORCH:
+        layerName = 'Auto 3D LUT'
+        layer = window.label.img.addAdjustmentLayer(name=layerName, role='AutoLUT')  # do not use a role containing '3DLUT'
+        grWindow = graphicsFormAuto3DLUT.getNewWindow(axeSize=300, targetImage=window.label.img,
+                                                  LUTSize=LUTSIZE, layer=layer, parent=window,
+                                                  mainForm=window)  # mainForm mandatory here
+        pool = getPool()
+        layer.execute = lambda l=layer, pool=pool: l.tLayer.applyAuto3DLUT(pool=pool)
     # 3D LUT
     elif name in ['action3D_LUT', 'action3D_LUT_HSB']:
         # color model
@@ -1247,7 +1301,7 @@ def menuLayer(name, window=window):
             img.prLayer.update()
             window.label.repaint()
             return
-    # unknown action
+    # unknown or null action
     else:
         return
     post(layer)
@@ -1354,13 +1408,15 @@ def updateStatus(window=window):
     # filename and rating
     s = '&nbsp;&nbsp;&nbsp;&nbsp;' + img.filename + '&nbsp;&nbsp;&nbsp;&nbsp;' + (' '.join(['*']*img.meta.rating))
     # color management
-    s = s + '&nbsp;&nbsp;&nbsp;&nbsp;CM : ' + ('On' if icc.COLOR_MANAGE else 'Off')
+    s += '&nbsp;&nbsp;&nbsp;&nbsp;CM : ' + ('On' if icc.COLOR_MANAGE else 'Off')
+    if window.actionSoft_proofing.isChecked():
+        s += '<font color=red<b>&nbsp;&nbsp;Soft Proofing :%s</b></font>' % basename(icc.softProofingProfile.filename)
     # Preview
     if img.useThumb:
-        s = s + '<font color=red><b>&nbsp;&nbsp;&nbsp;&nbsp;Preview</b></font> '
+        s += '<font color=red><b>&nbsp;&nbsp;&nbsp;&nbsp;Preview</b></font> '
     else:
         # mandatory to toggle html mode
-        s = s + '<font color=black><b>&nbsp;&nbsp;&nbsp;&nbsp;</b></font> '
+        s += '<font color=black><b>&nbsp;&nbsp;&nbsp;&nbsp;</b></font> '
     # Before/After
     if window.viewState == 'Before/After':
         s += '&nbsp;&nbsp;&nbsp;&nbsp;Before/After : Ctrl+Space : cycle through views - Space : switch back to workspace'
@@ -1369,7 +1425,7 @@ def updateStatus(window=window):
     # cropping
     if window.label.img.isCropped:
         w, h = window.cropTool.crWidth, window.cropTool.crHeight
-        s = s + '&nbsp;&nbsp;&nbsp;&nbsp;Cropped : %dx%d h/w=%.2f ' % (w, h, h / w)
+        s += '&nbsp;&nbsp;&nbsp;&nbsp;Cropped : %dx%d h/w=%.2f ' % (w, h, h / w)
     window.Label_status.setText(s)
 
 

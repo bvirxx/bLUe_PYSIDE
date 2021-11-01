@@ -22,6 +22,16 @@ from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout
 from bLUeGui.graphicsForm import baseForm
 from bLUeTop.utils import optionsWidget, UDict
 
+class trackLabel(QLabel):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setMouseTracking(True)
+        self.drawingWidth = 1.0
+        self.drawingScale = 1.0
+
+    def mouseMoveEvent(self, e):
+        self.parent().trackView.setText("%.0f" % (e.x() * self.drawingWidth / (self.drawingScale * self.width())))
 
 class histForm (baseForm):
     """
@@ -34,7 +44,7 @@ class histForm (baseForm):
         self.setWindowTitle('Histogram')
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(size, 100)
-        self.Label_Hist = QLabel()
+        self.Label_Hist = trackLabel() #QLabel()
         self.Label_Hist.setScaledContents(True)
         self.Label_Hist.setFocusPolicy(Qt.ClickFocus)
         self.setStyleSheet("QListWidget{border: 0px; font-size: 12px}")
@@ -51,6 +61,8 @@ class histForm (baseForm):
         for i in range(3):
             self.listWidget2.checkOption(self.listWidget2.intNames[i])
         self.options = UDict((self.listWidget1.options, self.listWidget2.options))
+        self.trackView = QLabel()
+        self.trackView.setFixedWidth(20)
         self.setWhatsThis("""
         <b>Histogram</b><br>
         The histogram shows the initial or final color ditribution of the image, depending on 
@@ -70,6 +82,8 @@ class histForm (baseForm):
         # layout
         h = QHBoxLayout()
         h.setContentsMargins(0, 0, 0, 2)
+        # h.addStretch(1)
+        h.addWidget(self.trackView)
         h.addStretch(1)
         h.addWidget(self.listWidget1)
         h.addStretch(1)

@@ -8,8 +8,8 @@ See the [bLUe site](http://bernard.virot.free.fr/) for screenshots, tutorials an
 
 ## New : Image Adaptive 3D LUT
 
-bLUe Version 4 (Git Branch : NN)  uses a pretrained neural network to provide automatic 3D LUTs for enhancement of images (menu Layer > New Adjustment Layer > Auto 3D LUT). The pretrained model and the code are taken from the [recent work](https://github.com/HuiZeng/Image-Adaptive-3DLUT) of of Hui Zeng, Jianrui Cai, Lida Li, Zisheng Cao, and Lei Zhang. 
-
+bLUe Version 4 uses a pretrained neural network to provide automatic 3D LUTs for enhancement of images (menu Layer > New Adjustment Layer > Auto 3D LUT). The pretrained model and the code are taken from the [recent work](https://github.com/HuiZeng/Image-Adaptive-3DLUT) of Hui Zeng, Jianrui Cai, Lida Li, Zisheng Cao, and Lei Zhang. 
+ 
 ## DESCRIPTION
 
 bLUe is a layer-based image editor. It aims to integrate a new 3D LUT editor with more traditional tools in order to provide a powerful GUI for photo editing. The program is fully modular : tools are implemented as independent
@@ -25,7 +25,11 @@ bLUe provides drawing layers and paint brushes with adjustable parameters: size,
 bLUe is aware of multi-screen environments and color profiles : it uses image and
 monitor profiles in conjunction to display accurate colors.
 
+bLUe documents can be saved and reloaded in bLUe, using .blu files (user parameters are not saved yet).
+The blu format is compatible with TIFF. 
+
 The program is written in Python.
+
 
 ### THE 3D LUT PERCEPTUAL EDITOR
 
@@ -62,6 +66,8 @@ Download an [example 3D LUT](http://bernard.virot.free.fr/sunrise.cube) and test
 
 ## FUNCTIONALITY
 
+* Neural network based automatic 3D LUT for image enhancement
+* Soft proofing
 * Simultaneous edition of multiple images in formats jpg, png, tif, nef, cr2, dng,...
 * Color profile management
 * Adjustment layers : exposure, brightness, saturation, contrast, channel mixer, color temperature, inversion, filters, noise reduction,
@@ -88,14 +94,12 @@ seamless cloning, segmentation, exposure fusion, curves, 2.5D LUTs, 3D LUTs.
 * PIL
 * RawPy
 * PyWavelets
+* PyTorch >= 1.4 and torchvision for auto adaptive 3D LUT
+* tifffile
 
 ExifTool should be installed.
 
 Under Windows,  pywin32 is needed for multi-screen management.
-
-[Binary packages (Version <= 3.0.1) containing all dependencies](https://github.com/bvirxx/bLUe_PYSIDE2/releases) are available for Windows 
-
-The [PySide6 version of bLUe (Version 3.0.1)](https://github.com/bvirxx/bLUe_PYSIDE6) is ready.
 
 ## LICENSE
 
