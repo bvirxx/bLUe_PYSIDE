@@ -170,7 +170,7 @@ from bLUeTop.colorManagement import icc
 from bLUeTop.graphicsCoBrSat import CoBrSatForm
 from bLUeTop.graphicsExp import ExpForm
 from bLUeTop.graphicsPatch import patchForm
-from bLUeTop.settings import USE_POOL, POOL_SIZE, THEME, TABBING, BRUSHES_PATH, COLOR_MANAGE_OPT
+from bLUeTop.settings import USE_POOL, POOL_SIZE, THEME, TABBING, BRUSHES_PATH, COLOR_MANAGE_OPT, HAS_TORCH
 from bLUeTop.utils import UDict, stateAwareQDockWidget
 from bLUeGui.tool import cropTool, rotatingTool
 from bLUeTop.graphicsTemp import temperatureForm
@@ -665,6 +665,7 @@ def updateEnabledActions(window=window):
     window.actionSave.setEnabled(window.label.img.isModified)
     window.actionSave_As.setEnabled(window.label.img.isModified)
     window.actionSave_Hald_Cube.setEnabled(window.label.img.isHald)
+    window.actionAuto_3D_LUT.setEnabled(HAS_TORCH)
 
 
 def menuFile(name, window=window):
@@ -1013,6 +1014,7 @@ def menuLayer(name, window=window):
         if isinstance(grWindow, graphicsFormAuto3DLUT):
             # apply auto 3D LUT immediately when the layer is added
             grWindow.dataChanged.emit()
+
     # curves
     if name in ['actionCurves_RGB', 'actionCurves_HSpB', 'actionCurves_Lab']:
         if name == 'actionCurves_RGB':
@@ -1034,7 +1036,7 @@ def menuLayer(name, window=window):
             layer.execute = lambda l=layer, pool=None: l.tLayer.applyHSV1DLUT(grWindow.scene().cubicItem.getStackedLUTXY(), pool=pool)
         elif name == 'actionCurves_Lab':
             layer.execute = lambda l=layer, pool=None: l.tLayer.applyLab1DLUT(grWindow.scene().cubicItem.getStackedLUTXY())
-    elif name == 'actionAuto_3D_LUT':
+    elif name == 'actionAuto_3D_LUT' and HAS_TORCH:
         layerName = 'Auto 3D LUT'
         layer = window.label.img.addAdjustmentLayer(name=layerName, role='AutoLUT')  # do not use a role containing '3DLUT'
         grWindow = graphicsFormAuto3DLUT.getNewWindow(axeSize=300, targetImage=window.label.img,
@@ -1299,7 +1301,7 @@ def menuLayer(name, window=window):
             img.prLayer.update()
             window.label.repaint()
             return
-    # unknown action
+    # unknown or null action
     else:
         return
     post(layer)

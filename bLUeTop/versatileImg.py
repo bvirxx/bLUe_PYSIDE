@@ -54,7 +54,11 @@ from bLUeTop.utils import UDict
 from bLUeCore.dwtDenoising import dwtDenoiseChan
 from bLUeTop.mergeImages import expFusion
 from bLUeCore.bLUeLUT3D import LUT3D
-from bLUeNN.classify import generateLUTfromQImage
+
+from bLUeTop.settings import HAS_TORCH
+if HAS_TORCH:
+    from bLUeNN.classify import generateLUTfromQImage
+
 
 class ColorSpace:
     notSpecified = -1
