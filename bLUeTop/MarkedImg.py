@@ -15,6 +15,7 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+import pickle
 from io import BytesIO
 from os import path
 
@@ -31,9 +32,8 @@ from PySide2.QtCore import Qt, QSize, QPoint, QPointF, QFileInfo
 import cv2
 from copy import copy
 
-from PySide2.QtGui import QTransform, QColor, QCursor
+from PySide2.QtGui import QTransform, QColor, QCursor, QPixmap, QImage, QPainter
 from PySide2.QtWidgets import QApplication
-from PySide2.QtGui import QPixmap, QImage, QPainter
 from PySide2.QtCore import QRect
 
 from bLUeCore.demosaicing import demosaic
@@ -44,13 +44,12 @@ from bLUeTop.cloning import contours, moments, seamlessClone
 
 from bLUeTop.colorManagement import icc, cmsConvertQImage
 from bLUeGui.bLUeImage import QImageBuffer, ndarrayToQImage, bImage
-from bLUeGui.dialog import dlgWarn, dlgInfo, IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS
+from bLUeGui.dialog import dlgWarn, dlgInfo, IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, BLUE_FILE_EXTENSIONS
 from time import time
 
 from bLUeTop.lutUtils import LUT3DIdentity
 from bLUeGui.baseSignal import baseSignal_bool, baseSignal_Int2, baseSignal_No
 from bLUeTop.rawProcessing import rawRead
-from bLUeTop.settings import COLOR_MANAGE_OPT
 from bLUeTop.utils import qColorToRGB, historyList
 
 from bLUeTop.versatileImg import vImage
@@ -475,18 +474,18 @@ class mImage(vImage):
         img = self.prLayer.getCurrentImage()
         # imagewriter and QImage.save are unusable for tif files,
         # due to bugs in libtiff, hence we use opencv imwrite.
-        fileFormat = filename[-3:].upper()
+        fileFormat = filename[-4:].upper()
         buf = QImageBuffer(img)
         params = []
-        if fileFormat == 'JPG':
+        if fileFormat == '.JPG':
             transparencyCheck(buf)
             buf = buf[:, :, :3]
             if quality >= 0 and quality <= 100:
                 params = [cv2.IMWRITE_JPEG_QUALITY, quality]  # quality range 0..100
-        elif fileFormat == 'PNG':
+        elif fileFormat == '.PNG':
             if compression >= 0 and compression <= 9:
                 params = [cv2.IMWRITE_PNG_COMPRESSION, compression]  # compression range 0..9
-        elif fileFormat in ['TIF', 'BLU']:
+        elif fileFormat in ['.TIF'] + list(BLUE_FILE_EXTENSIONS):
             transparencyCheck(buf)
             buf = buf[:, :, :3]
         else:
@@ -507,13 +506,28 @@ class mImage(vImage):
         thumb = ndarrayToQImage(np.ascontiguousarray(buf[:, :, :3][:, :, ::-1]),
                                 format=QImage.Format_RGB888).scaled(wt, ht, Qt.KeepAspectRatio)
 
-        if fileFormat == 'BLU':
-            # save source image and layer stack in image file. Currently, layer parameters are not saved
-            names = OrderedDict([(layer.actionName, layer.actionName) for layer in self.layersStack])  # must be a dict
-            img_ori = self.getCurrentImage()
-            buf_ori = QImageBuffer(img_ori)[:,:, :3]
-            result = tifffile.imsave(filename, data=buf_ori[:,:,::-1], imagej=True, returnoffset=True, metadata=names)
-            written = result[1] > 0  # bytecount
+        if fileFormat in BLUE_FILE_EXTENSIONS:
+            names = OrderedDict([(layer.name, pickle.dumps({layer.actionName : layer.__getstate__()})) for layer in self.layersStack] +
+                                [('sourceformat', self.sourceformat)])
+
+            if  self.sourceformat in RAW_FILE_EXTENSIONS:
+                # copy raw file and layer stack to .bLU
+                with open(self.filename, 'rb') as f:
+                    bytes = f.read()
+                buf_ori = np.frombuffer(bytes, dtype=np.uint8)
+                result = tifffile.imsave(filename, data=buf_ori.reshape(buf_ori.size, 1, 1),
+                                         imagej=True,
+                                         returnoffset=True,
+                                         metadata=names)
+                written = result[1] > 0  # byte count
+            elif self.sourceformat in IMAGE_FILE_EXTENSIONS:
+                # copy source image and layer stack to .BLU. Currently, user parameters are not saved
+                img_ori = self.getCurrentImage()
+                buf_ori = QImageBuffer(img_ori)[:,:, :3]
+                result = tifffile.imsave(filename, data=buf_ori[:,:,::-1], imagej=True, returnoffset=True, metadata=names)
+                written = result[1] > 0  # byte count
+            else:
+                written = False
         else:
             # save edited image
             written = cv2.imwrite(filename, buf, params)  # BGR order
@@ -529,14 +543,14 @@ class imImage(mImage):
     this is the base class for bLUe documents
     """
     @staticmethod
-    def loadImageFromFile(f, createsidecar=True, icc=icc, cmsConfigure=False, window=None):
+    def loadImageFromFile(f, rawiobuf=None, createsidecar=True, icc=icc, cmsConfigure=False, window=None):
         """
         load an imImage (image and metadata) from file. Returns the loaded imImage :
         For a raw file, it is the image postprocessed with default parameters.
-        metadata is a list of dicts with len(metadata) >=1.
-        metadata[0] contains at least 'SourceFile' : path.
         @param f: path to file
         @type f: str
+        @param rawiobuf: raw data
+        @type rawiobuf:
         @param createsidecar:
         @type createsidecar: boolean
         @param icc:
@@ -547,6 +561,7 @@ class imImage(mImage):
         @rtype: imImage
         """
         # read metadata from sidecar (.mie) if it exists, otherwise from image file.
+        # metadata is a non empty list of dicts. metadata[0] contains 'SourceFile': path at least .
         # The sidecar is created if it does not exist and createsidecar is True.
         try:
             with exiftool.ExifTool() as e:
@@ -594,15 +609,18 @@ class imImage(mImage):
         # rating
         tmp = [value for key, value in metadata.items() if 'rating' in key.lower()]
         rating = tmp[0] if tmp else 0  # metadata.get("XMP:Rating", 5)
+
         ############
         # load image
         ############
         name = path.basename(f)
         ext = name[-4:]
-        if ext in list(IMAGE_FILE_EXTENSIONS):
+        if (ext in list(IMAGE_FILE_EXTENSIONS) + list(BLUE_FILE_EXTENSIONS)) and rawiobuf is None:
+            # standard image file or .blu from image
             img = imImage(filename=f, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata,
                           profile=profile, name=name, rating=rating)
-        elif ext in list(RAW_FILE_EXTENSIONS):
+        elif ext in list(RAW_FILE_EXTENSIONS) + list(BLUE_FILE_EXTENSIONS):
+            # standard raw file or .blu from raw
             # load raw image file in a RawPy instance
             # rawpy.imread keeps f open. Calling raw.close() deletes the raw object.
             # As a workaround we use low-level file buffer and unpack().
@@ -610,7 +628,12 @@ class imImage(mImage):
             # daylight_whitebalance, num_colors, raw_colors_visible, raw_image, raw_image_visible, raw_pattern,
             # raw_type, rgb_xyz_matrix, sizes, tone_curve.
             # raw_image and raw_image_visible are sensor data
-            rawpyInst = rawRead(f)
+            if rawiobuf is None:
+                # standard raw file
+                rawpyInst = rawRead(f)
+            else:
+                # .blu from raw
+                rawpyInst = rawRead(rawiobuf)
             # postprocess raw image, applying default settings (cf. vImage.applyRawPostProcessing)
             rawBuf = rawpyInst.postprocess(use_camera_wb=True)
             # build Qimage : switch to BGR and add alpha channel
@@ -805,6 +828,17 @@ class QLayer(vImage):
         self.sourceX, self.sourceY = 0, 0
         self.AltZoom_coeff = 1.0
         self.updatePixmap()
+
+    def __getstate__(self):
+        grForm = self.getGraphicsForm()
+        if grForm is not None:
+            return grForm.__getstate__()
+        return {}
+
+    def __setstate__(self, state):
+        grForm = self.getGraphicsForm()
+        if grForm is not None:
+            grForm.__setstate__(state)
 
     @property
     def mask(self):  # the setter is inherited from bImage

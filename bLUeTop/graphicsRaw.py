@@ -814,6 +814,7 @@ class rawForm (baseForm):
         self.sliderSat.setValue(self.sat2Slider(self.satCorrection))
         self.dataChanged.connect(self.updateLayer)
 
+
     def setCameraProfilesCombo(self):
         """
         Populates the camera profile Combo box.
@@ -860,3 +861,19 @@ class rawForm (baseForm):
         self.cameraProfilesCombo.setStyleSheet("QComboBox QAbstractItemView { min-width: 250px;}")
         # return the currently selected item data
         return self.cameraProfilesCombo.itemData(0)
+
+    def __getstate__(self):
+        import pickle
+        d = {}
+        for a in self.__dir__():
+            obj = getattr(self, a)
+            if type(obj) in [optionsWidget, QbLUeSlider]:
+                d.update({a : obj.__getstate__()})
+        return d
+
+
+    def __setstate__(self,d):
+        for name in d['Develop']:
+            obj = getattr(self, name)
+            if type(obj) in [optionsWidget, QbLUeSlider]:
+                obj.__setstate__(d['Develop'][name])

@@ -33,22 +33,28 @@ from bLUeGui.histogramWarping import warpHistogram
 from bLUeTop.dng import dngProfileLookTable, dngProfileToneCurve, interpolatedForwardMatrix
 
 
-def rawRead(filename):
+def rawRead(file):
     """
-    Loads a raw image file into a RawPy instance.
+    Loads a raw image file or a buffer into a RawPy instance.
     The image file is closed after reading.
-    @param filename:
-    @tyep filename: str
+    @param file:
+    @type file: str or file-like object
     @return:
     @rtype: RawPy instance
     """
     rawpyInst = rawpy.RawPy()
-    with open(filename, "rb") as bufio:
-        rawpyInst.open_buffer(bufio)
     try:
+        if type(file) is str:
+            with open(file, "rb") as bufio:
+                rawpyInst.open_buffer(bufio)
+        else:  # should be BytesIO
+            rawpyInst.open_buffer(file)
         rawpyInst.unpack()
+    except IOError as e:
+        dlgWarn('rawRead : IO error', str(e))
+        raise
     except LibRawFatalError as e:
-        dlgWarn('LibRaw Fatal Error', 'Only flat raw images are supported')
+        dlgWarn('rawRead : LibRaw Fatal Error', str(e))
         raise
     return rawpyInst
 

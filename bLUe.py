@@ -116,6 +116,7 @@ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
+import io
 import os
 from os import path, walk, remove
 from os.path import basename, isfile
@@ -265,8 +266,18 @@ def widgetChange(button, window=window):
 
 
 def addAdjustmentLayers(layers):
-    for actionName in layers:
-        menuLayer(layers[actionName])
+    """
+    Adds dict entries to current document.
+    Entries not corresponding to menu layers actions are skipped.
+    @param layers:
+    @type layers: dict
+    """
+    if layers is None:
+        return
+    for layername in layers:
+        layer = menuLayer(layers[layername])
+        if layer is not None:
+            layer.__setstate__(layers[layername])
 
 
 def addBasicAdjustmentLayers(img, window=window):
@@ -288,7 +299,7 @@ def addRawAdjustmentLayer(window=window):
     pool = getPool()
     rlayer.execute = lambda l=rlayer, pool=pool: l.tLayer.applyRawPostProcessing(pool=pool)
     # record action name for scripting
-    rlayer.actionName = ''
+    rlayer.actionName = 'Develop'  # not a menu action !
     # dock the form
     dock = stateAwareQDockWidget(window)
     dock.tabbed = TABBING
@@ -302,12 +313,13 @@ def addRawAdjustmentLayer(window=window):
     window.addDockWidget(Qt.RightDockWidgetArea, dock)
     # update layer stack view
     window.tableView.setLayers(window.label.img)
+    return rlayer
 
 
 def loadImage(img, withBasic=True, window=window):
     """
     load a vImage into bLUe and build layer stack.
-    Try to import layer stack from image tiff file
+    Try to import layer stack from .BLU file
     @param img:
     @type img: vImage
     @param withBasic:
@@ -321,22 +333,30 @@ def loadImage(img, withBasic=True, window=window):
     tabBar.setTabData(ind, img)
     setDocumentImage(img)
 
-    if img.filename[-4:].upper() == '.BLU':
+    # add development layer for raw image, and develop
+    rlayer = None
+    if img.rawImage is not None:
+        rlayer = addRawAdjustmentLayer()
+
+    # import layer stack from .BLU file
+    if img.filename[-4:].upper() in BLUE_FILE_EXTENSIONS:
+        from ast import literal_eval
         with tifffile.TiffFile(img.filename) as tfile:
             # get ordered dict of layers
-            layers = tfile.imagej_metadata
-            withBasic = False  # priority to the imported layer stack
-            addAdjustmentLayers(layers)
+            import pickle
+            meta_dict = tfile.imagej_metadata
+            rlayer.__setstate__(pickle.loads(literal_eval(meta_dict['develop'])))  # UNSAFE
+            # build layer stack
+            withBasic = False  # the imported layer stack only
+            addAdjustmentLayers(meta_dict)
 
     # switch to preview mode and process stack
     window.tableView.previewOptionBox.setChecked(True)
-    # window.tableView.previewOptionBox.stateChanged.emit(Qt.Checked)  # TODO removed 22/02/20 stack is processed below validate
-    # add development layer for raw image, and develop
-    if img.rawImage is not None:
-        addRawAdjustmentLayer()
+
     # add default adjustment layers
     if withBasic:
         addBasicAdjustmentLayers(img)
+
     # updates
     img.layersStack[0].applyToStack()
     img.onImageChanged()
@@ -353,8 +373,19 @@ def openFile(f, window=window):
     try:
         QApplication.setOverrideCursor(Qt.WaitCursor)
         QApplication.processEvents()
+        sourceformat = path.basename(f)[-4:].upper()
+        iobuf = None
+        if sourceformat in BLUE_FILE_EXTENSIONS:
+            with tifffile.TiffFile(f) as tfile:
+                meta_dict = tfile.imagej_metadata
+                sourceformat = meta_dict.get('sourceformat')
+                if sourceformat in RAW_FILE_EXTENSIONS:
+                    # is .blu file from raw
+                    rawbuf = tfile.series[0].pages[0].asarray()[:, 0]
+                    iobuf = io.BytesIO(rawbuf.tobytes())
         # load imImage from file
-        img = imImage.loadImageFromFile(f, cmsConfigure=True, window=window)
+        img = imImage.loadImageFromFile(f, rawiobuf=iobuf, cmsConfigure=True, window=window)
+        img.sourceformat = sourceformat
         # init layers
         if img is not None:
             loadImage(img)
@@ -1305,6 +1336,7 @@ def menuLayer(name, window=window):
     else:
         return
     post(layer)
+    return layer # added 3/11/21 used by __setstate__ refactoring needed
 
 
 def menuHelp(name, window=window):

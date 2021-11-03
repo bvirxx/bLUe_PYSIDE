@@ -25,8 +25,8 @@ from bLUeTop.utils import QbLUeSlider
 
 ##################
 # file extension constants
-
-IMAGE_FILE_EXTENSIONS = (".jpg", ".JPG", ".png", ".PNG", ".tif", ".TIF", ".bmp", ".BMP", ".blu", ".BLU", ".bLU")
+BLUE_FILE_EXTENSIONS = (".blu", ".BLU", ".bLU")
+IMAGE_FILE_EXTENSIONS = (".jpg", ".JPG", ".png", ".PNG", ".tif", ".TIF", ".bmp", ".BMP")
 RAW_FILE_EXTENSIONS = (".nef", ".NEF", ".dng", ".DNG", ".cr2", ".CR2")
 IMAGE_FILE_NAME_FILTER = ['Image Files (*.jpg *.png *.tif *.JPG *.PNG *.TIF)']
 #################
@@ -382,7 +382,7 @@ def openDlg(mainWidget, ask=True, multiple=False):
     # don't ask again for saving
     mainWidget.label.img.isModified = False
     lastDir = str(mainWidget.settings.value('paths/dlgdir', '.'))
-    filter = "Images ( *" + " *".join(IMAGE_FILE_EXTENSIONS) + " *" + " *".join(RAW_FILE_EXTENSIONS) + ")"
+    filter = "Images ( *" + " *".join(IMAGE_FILE_EXTENSIONS) + " *" + " *".join(RAW_FILE_EXTENSIONS) + " *".join(BLUE_FILE_EXTENSIONS) + ")"
     if multiple:
         # allow multiple selections
         filenames = QFileDialog.getOpenFileNames(mainWidget, "select", lastDir, filter)

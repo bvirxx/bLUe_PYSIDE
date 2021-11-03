@@ -301,6 +301,12 @@ class QbLUeSlider(QSlider):
         self.setTickPosition(QSlider.NoTicks)
         self.setMaximumSize(16777215, 10)
 
+    def __getstate__(self):
+        return {'value': self.value()}
+
+    def __setstate__(self, state):
+        self.setValue(state['value'])
+
     def mousePressEvent(self, event):
         """
         Update the slider value with a single jump when clicking on the groove.
@@ -497,6 +503,27 @@ class optionsWidget(QListWidget):
         self.userCheckStateChanged.connect(self.changed)
         # selection hook.
         self.onSelect = lambda x: 0
+
+    def __getstate__(self):
+        """
+        returns a pickable dict capturing instance state
+        @return:
+        @rtype: dict
+        """
+        return dict([(it, self.items[it].checkState()) for it in self.items])
+
+    def __setstate__(self, state):
+        """
+
+        @param state:
+        @type state: dict
+        """
+        for itemName in state:
+            self.items[itemName].setCheckState(state[itemName])
+            if state[itemName] == Qt.Checked:
+                self.select(self.items[itemName])
+
+
 
     def select(self, item, callOnSelect=True):
         """
