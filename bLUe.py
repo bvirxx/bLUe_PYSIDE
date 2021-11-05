@@ -133,8 +133,9 @@ from itertools import cycle
 from time import sleep
 import gc
 import tifffile
-
+from ast import literal_eval
 from types import MethodType
+import pickle
 import rawpy
 
 from bLUeCore.bLUeLUT3D import HaldArray
@@ -204,7 +205,7 @@ credit https://icones8.fr/
 
 ##############
 #  Version number
-VERSION = "v4.1.0"
+VERSION = "v4.2.0"
 ##############
 
 ##############
@@ -267,17 +268,17 @@ def widgetChange(button, window=window):
 
 def addAdjustmentLayers(layers):
     """
-    Adds dict entries to current document.
+    Adds a list of layers to the current document.
     Entries not corresponding to menu layers actions are skipped.
     @param layers:
-    @type layers: dict
+    @type layers: list
     """
     if layers is None:
         return
-    for layername in layers:
-        layer = menuLayer(layers[layername])
+    for item in layers:
+        layer = menuLayer(item[1]['actionname'])
         if layer is not None:
-            layer.__setstate__(layers[layername])
+            layer.__setstate__(item[1]['state'])
 
 
 def addBasicAdjustmentLayers(img, window=window):
@@ -340,15 +341,26 @@ def loadImage(img, withBasic=True, window=window):
 
     # import layer stack from .BLU file
     if img.filename[-4:].upper() in BLUE_FILE_EXTENSIONS:
-        from ast import literal_eval
         with tifffile.TiffFile(img.filename) as tfile:
             # get ordered dict of layers
-            import pickle
             meta_dict = tfile.imagej_metadata
-            rlayer.__setstate__(pickle.loads(literal_eval(meta_dict['develop'])))  # UNSAFE
-            # build layer stack
-            withBasic = False  # the imported layer stack only
-            addAdjustmentLayers(meta_dict)
+            try:
+                if rlayer is not None:
+                    rlayer.__setstate__(pickle.loads(literal_eval(meta_dict['develop'])))  # tifffile turns meta_dict keys to lower
+                # build layer stack
+                withBasic = False  # the imported layer stack only
+                layers = []
+                for key in meta_dict:
+                    try:
+                        d = pickle.loads(literal_eval(meta_dict[key]))
+                        if type(d) is dict:
+                            layers.append((key, d))
+                    except (SyntaxError, ValueError):
+                        pass
+            except (SyntaxError, ValueError) as e:
+                dlgWarn('Invalid format %s' % img.filename, str(e))
+                raise
+            addAdjustmentLayers(layers)
 
     # switch to preview mode and process stack
     window.tableView.previewOptionBox.setChecked(True)
@@ -382,7 +394,7 @@ def openFile(f, window=window):
                 if sourceformat in RAW_FILE_EXTENSIONS:
                     # is .blu file from raw
                     rawbuf = tfile.series[0].pages[0].asarray()[:, 0]
-                    iobuf = io.BytesIO(rawbuf.tobytes())
+                    iobuf = io.BytesIO(rawbuf.tobytes())  # TODO optimize memory usage
         # load imImage from file
         img = imImage.loadImageFromFile(f, rawiobuf=iobuf, cmsConfigure=True, window=window)
         img.sourceformat = sourceformat
@@ -456,6 +468,7 @@ def saveFile(filename, img, quality=-1, compression=-1, writeMeta=True):
     # call mImage.save to write image to file and return a thumbnail
     # throw ValueError or IOError
     thumb = img.save(filename, quality=quality, compression=compression)
+
     # write metadata
     if writeMeta:
         tempFilename = mktemp('.jpg')
@@ -464,6 +477,7 @@ def saveFile(filename, img, quality=-1, compression=-1, writeMeta=True):
         # copy temp file to image file, img.filename not updated yet
         img.restoreMeta(img.filename, filename, thumbfile=tempFilename)
         remove(tempFilename)
+
     return filename
 
 

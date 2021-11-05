@@ -25,13 +25,12 @@ from os.path import basename
 from PySide2 import QtCore
 from PySide2.QtCore import Qt, QPointF
 from PySide2.QtGui import QFontMetrics, QBrush, QPolygonF
-from PySide2.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBox, QComboBox, QGraphicsPolygonItem, \
-    QSizePolicy
+from PySide2.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBox, QComboBox, QGraphicsPolygonItem
 
 from bLUeGui.graphicsSpline import graphicsSplineForm
 from bLUeGui.graphicsForm import baseForm
 from bLUeTop.dng import getDngProfileList, getDngProfileDict, dngProfileToneCurve
-from bLUeTop.utils import optionsWidget, UDict, QbLUeSlider, stateAwareQDockWidget
+from bLUeTop.utils import optionsWidget, UDict, QbLUeSlider
 from bLUeGui.multiplier import *
 
 
@@ -261,10 +260,10 @@ class rawForm (baseForm):
         # Cf. https://www.cambridgeincolour.com/forums/thread653.htm
         #####################
 
-        # profile combo
+        # populate profile combo
         self.dngDict = self.setCameraProfilesCombo()
-        # cameraProfilesCombo index changed event handler
 
+        # cameraProfilesCombo index changed event handler
         def cameraProfileUpdate(value):
             self.dngDict = self.cameraProfilesCombo.itemData(value)
             if self.options['cpToneCurve']:
@@ -873,7 +872,7 @@ class rawForm (baseForm):
 
 
     def __setstate__(self,d):
-        for name in d['Develop']:
+        for name in d['state']:
             obj = getattr(self, name)
             if type(obj) in [optionsWidget, QbLUeSlider]:
-                obj.__setstate__(d['Develop'][name])
+                obj.__setstate__(d['state'][name])

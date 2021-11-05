@@ -161,6 +161,12 @@ class baseForm(QWidget, abstractForm):
         self.subControls.append(dock)
         return dock
 
+    def __getstate__(self):
+        pass
+
+    def __setstate__(self, state):
+        pass
+
 
 class baseGraphicsForm(QGraphicsView, abstractForm):
     """
@@ -191,6 +197,12 @@ class baseGraphicsForm(QGraphicsView, abstractForm):
         # layer color picked signal
         if layer is not None:
             layer.colorPicked.sig.connect(self.colorPickedSlot)
+
+    def __getstate__(self):
+        pass
+
+    def __setstate__(self, state):
+        pass
 
     def wheelEvent(self, e):
         """

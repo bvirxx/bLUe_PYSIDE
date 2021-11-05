@@ -506,15 +506,22 @@ class mImage(vImage):
         thumb = ndarrayToQImage(np.ascontiguousarray(buf[:, :, :3][:, :, ::-1]),
                                 format=QImage.Format_RGB888).scaled(wt, ht, Qt.KeepAspectRatio)
 
-        if fileFormat in BLUE_FILE_EXTENSIONS:
-            names = OrderedDict([(layer.name, pickle.dumps({layer.actionName : layer.__getstate__()})) for layer in self.layersStack] +
+        if fileFormat in BLUE_FILE_EXTENSIONS:  # dest format
+
+            names = OrderedDict([(layer.name, pickle.dumps({'actionname' : layer.actionName, 'state' : layer.__getstate__()})) for layer in self.layersStack] +
                                 [('sourceformat', self.sourceformat)])
 
-            if  self.sourceformat in RAW_FILE_EXTENSIONS:
+            if  self.sourceformat in RAW_FILE_EXTENSIONS:  # source data format
                 # copy raw file and layer stack to .bLU
-                with open(self.filename, 'rb') as f:
-                    bytes = f.read()
-                buf_ori = np.frombuffer(bytes, dtype=np.uint8)
+                originFormat = self.filename[-4:]  # loaded file format
+                if originFormat in BLUE_FILE_EXTENSIONS:
+                    with tifffile.TiffFile(self.filename) as tfile:
+                        sourcedata = tfile.series[0].pages[0].asarray()
+                        buf_ori  = sourcedata[:, 0]
+                elif originFormat in RAW_FILE_EXTENSIONS:  # loaded file format
+                    with open(self.filename, 'rb') as f:
+                        bytes = f.read()
+                    buf_ori = np.frombuffer(bytes, dtype=np.uint8)
                 result = tifffile.imsave(filename, data=buf_ori.reshape(buf_ori.size, 1, 1),
                                          imagej=True,
                                          returnoffset=True,
@@ -534,6 +541,7 @@ class mImage(vImage):
 
         if not written:
             raise IOError("Cannot write file %s " % filename)
+
         return thumb
 
 
@@ -565,8 +573,13 @@ class imImage(mImage):
         # The sidecar is created if it does not exist and createsidecar is True.
         try:
             with exiftool.ExifTool() as e:
-                profile, metadata = e.get_metadata(f, tags=(
-                "colorspace", "profileDescription", "orientation", "model", "rating"), createsidecar=createsidecar)
+                profile, metadata = e.get_metadata(f,
+                                                   tags=( "colorspace",
+                                                          "profileDescription",
+                                                          "orientation",
+                                                          "model",
+                                                          "rating"),
+                                                   createsidecar=createsidecar)
                 imageInfo = e.get_formatted_metadata(f)
         except ValueError:
             # Default metadata and profile
