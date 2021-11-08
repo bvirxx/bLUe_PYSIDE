@@ -89,7 +89,7 @@ def getDngProfileList(cameraName):
 
 class dngProfileToneCurve:
     """
-    Toen curve class.
+    Tone curve class.
     Attributes dataX and dataY are the arrays of x-coordinates
     and y-coordinates of the tone curve. They share the same length.
     All coordinates are floats in the interval [0, 1].

@@ -24,8 +24,8 @@ import numpy as np
 from PySide2 import QtCore
 from PySide2.QtGui import QColor, QImage, QPainter, QPixmap, QIcon, QMouseEvent
 from PySide2.QtWidgets import QListWidget, QListWidgetItem, \
-    QSlider, QLabel, QDockWidget, QStyle, QColorDialog, QPushButton, QSizePolicy
-from PySide2.QtCore import Qt, QObject, QRect, QEvent
+    QSlider, QLabel, QDockWidget, QStyle, QColorDialog, QPushButton, QSizePolicy, QComboBox
+from PySide2.QtCore import Qt, QObject, QRect
 
 from bLUeCore.rollingStats import movingVariance
 from bLUeGui.bLUeImage import QImageBuffer
@@ -250,6 +250,17 @@ class QbLUeColorDialog(QColorDialog):
             self.colorSelected.disconnect()
         except RuntimeError:
             pass
+
+
+class QbLUeComboBox(QComboBox):
+
+    def __getstate__(self):
+        return {'text' : self.currentText()}
+
+    def __setstate__(self, state):
+        ind = self.findText(state['text'])
+        if ind != -1:
+            self.setCurrentIndex(ind)
 
 
 class QbLUeSlider(QSlider):

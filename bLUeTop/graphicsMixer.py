@@ -17,8 +17,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import numpy as np
 from PySide2.QtCore import Qt, QSize, QPointF
-from PySide2.QtGui import QImage, QColor, QPixmap, QPainter, QBrush, QPen, QFontMetrics, QTransform
-from PySide2.QtWidgets import QGraphicsPixmapItem, QLabel, QVBoxLayout, QSizePolicy
+from PySide2.QtGui import QImage, QColor, QPixmap, QPainter, QBrush, QPen, QFontMetrics
+from PySide2.QtWidgets import QGraphicsPixmapItem, QLabel, QVBoxLayout
 
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.graphicsForm import baseGraphicsForm

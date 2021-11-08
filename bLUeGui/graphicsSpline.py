@@ -15,6 +15,7 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+import pickle
 
 import numpy as np
 from PySide2.QtGui import QPainterPathStroker, QBrush, QPixmap
@@ -500,6 +501,18 @@ class activeSpline(QGraphicsPathItem):
                             activeSplinePoint(axeSize / 2, -axeSize / 2, rect=rect, parentItem=self),
                             activeSplinePoint(axeSize, -axeSize, persistent=True, rect=rect, parentItem=self)]
 
+    def setFixedPoints(self, points):
+        for p in self.fixedPoints:
+            sc = p.scene()
+            if sc is not None:
+                sc.removeItem(p)
+        for p in points:
+            p.setParentItem(self)
+        self.fixedPoints = points
+        self.updatePath()
+        self.updateLUTXY()
+
+
     def updatePath(self):
         """
         Update and display the spline. Derived classes should
@@ -515,6 +528,13 @@ class activeSpline(QGraphicsPathItem):
         """
         scale = 255.0 / self.size
         self.LUTXY = np.array([int((-p.y()) * scale) for p in self.spline])
+
+    def __getstate__(self):
+        return {'fixedpoints' : [(p.x(), p.y()) for p in self.fixedPoints]}
+
+    def __setstate__(self, state):
+        fixedPoints = [activeSplinePoint(item[0], item[1]) for item in state['fixedpoints']]
+        self.setFixedPoints(fixedPoints)
 
     def writeToStream(self, outStream):
         outStream.writeInt32(self.size)
@@ -843,6 +863,39 @@ class activeQuadricSpline(activeSpline):
         self.LUTXY = np.array(LUT)  # buildLUT(LUT)
         """
 
+    def setFixed(self, points, tangents):
+        for p in self.fixedPoints:
+            sc = p.scene()
+            if sc is not None:
+                sc.removeItem(p)
+        for p in points:
+            p.setParentItem(self)
+        self.fixedPoints = points
+        for t in self.fixedTangents:
+            sc = t.scene()
+            if sc is not None:
+                sc.removeItem(t)
+        for t in tangents:
+            t.setParentItem(self)
+        for p, t in zip(points, tangents):
+            p.tangent = t
+        self.fixedTangents = tangents
+        self.updatePath()
+        self.updateLUTXY()
+
+    def __getstate__(self):
+        d = {}
+        d['fixedpoints'] = [(p.pos().x(), p.pos().y()) for p in self.fixedPoints]
+        d['fixedtangentcontact'] = [(p.x(), p.y()) for p in [tg.contactPoint for tg in self.fixedTangents]]
+        d['fixedtangentcontrol'] = [(p.x(), p.y()) for p in [tg.controlPoint for tg in self.fixedTangents]]
+        return d
+
+    def __setstate__(self, state):
+        fixedPoints = [activeSplinePoint(item[0], item[1]) for item in state['fixedpoints']]
+        fixedTangents = [activeTangent(contactPoint=QPointF(item[0][0], item[0][1]), controlPoint=QPointF(item[1][0], item[1][1]))
+                         for item in zip(state['fixedtangentcontact'], state['fixedtangentcontrol'])]
+        self.setFixed(fixedPoints, fixedTangents)
+
 class graphicsSplineItem(QGraphicsPixmapItem):
     """
     graphic spline component
@@ -1007,6 +1060,14 @@ class graphicsSplineForm(graphicsCurveForm):
         # Force to redraw histogram
         sc.invalidate(QRectF(0.0, -sc.axeSize, sc.axeSize, sc.axeSize),
                              sc.BackgroundLayer)
+
+    def __getstate__(self):
+        return self.scene().quadricB.__getstate__()
+
+
+    def __setstate__(self, state):
+        self.scene().quadricB.__setstate__(state)
+
 
     def writeToStream(self, outStream):
         graphicsScene = self.scene()

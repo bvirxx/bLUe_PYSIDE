@@ -162,7 +162,7 @@ class baseForm(QWidget, abstractForm):
         return dock
 
     def __getstate__(self):
-        pass
+        return {}
 
     def __setstate__(self, state):
         pass
@@ -199,7 +199,7 @@ class baseGraphicsForm(QGraphicsView, abstractForm):
             layer.colorPicked.sig.connect(self.colorPickedSlot)
 
     def __getstate__(self):
-        pass
+        return {}
 
     def __setstate__(self, state):
         pass

@@ -522,16 +522,20 @@ class mImage(vImage):
                     with open(self.filename, 'rb') as f:
                         bytes = f.read()
                     buf_ori = np.frombuffer(bytes, dtype=np.uint8)
-                result = tifffile.imsave(filename, data=buf_ori.reshape(buf_ori.size, 1, 1),
+
+                result = tifffile.imsave(filename, data=buf_ori.reshape(buf_ori.size, 1, 1),  # reshape is mandatory
                                          imagej=True,
                                          returnoffset=True,
                                          metadata=names)
+
                 written = result[1] > 0  # byte count
             elif self.sourceformat in IMAGE_FILE_EXTENSIONS:
-                # copy source image and layer stack to .BLU. Currently, user parameters are not saved
+                # copy source image and layer stack to .BLU.
                 img_ori = self.getCurrentImage()
-                buf_ori = QImageBuffer(img_ori)[:,:, :3]
-                result = tifffile.imsave(filename, data=buf_ori[:,:,::-1], imagej=True, returnoffset=True, metadata=names)
+                buf_ori = QImageBuffer(img_ori)[:,:, :3][:,:,::-1]
+
+                result = tifffile.imsave(filename, data=buf_ori, imagej=True, returnoffset=True, metadata=names)
+
                 written = result[1] > 0  # byte count
             else:
                 written = False
@@ -841,17 +845,6 @@ class QLayer(vImage):
         self.sourceX, self.sourceY = 0, 0
         self.AltZoom_coeff = 1.0
         self.updatePixmap()
-
-    def __getstate__(self):
-        grForm = self.getGraphicsForm()
-        if grForm is not None:
-            return grForm.__getstate__()
-        return {}
-
-    def __setstate__(self, state):
-        grForm = self.getGraphicsForm()
-        if grForm is not None:
-            grForm.__setstate__(state)
 
     @property
     def mask(self):  # the setter is inherited from bImage
@@ -1449,6 +1442,22 @@ class QLayer(vImage):
         self.colorMaskOpacity = value
         buf = QImageBuffer(self.mask)
         buf[:, :, 3] = np.uint8(value)
+
+    def __getstate__(self):
+        d = {}
+        grForm = self.getGraphicsForm()
+        if grForm is not None:
+            d = grForm.__getstate__()
+        d['compositionMode'] = self.compositionMode
+        d['opacity'] = self.opacity
+        return d
+
+    def __setstate__(self, state):
+        self.compositionMode = state['state']['compositionMode']
+        self.opacity = state['state']['opacity']
+        grForm = self.getGraphicsForm()
+        if grForm is not None:
+            grForm.__setstate__(state)
 
     def readFromStream(self, dataStream):
         grForm = self.getGraphicsForm()

@@ -205,7 +205,7 @@ credit https://icones8.fr/
 
 ##############
 #  Version number
-VERSION = "v4.2.0"
+VERSION = "v4.3.0"
 ##############
 
 ##############
@@ -278,7 +278,7 @@ def addAdjustmentLayers(layers):
     for item in layers:
         layer = menuLayer(item[1]['actionname'])
         if layer is not None:
-            layer.__setstate__(item[1]['state'])
+            layer.__setstate__(item[1])
 
 
 def addBasicAdjustmentLayers(img, window=window):
@@ -343,7 +343,7 @@ def loadImage(img, withBasic=True, window=window):
     if img.filename[-4:].upper() in BLUE_FILE_EXTENSIONS:
         with tifffile.TiffFile(img.filename) as tfile:
             # get ordered dict of layers
-            meta_dict = tfile.imagej_metadata
+            meta_dict = imagej_description_metadata(tfile.pages[0].is_imagej)
             try:
                 if rlayer is not None:
                     rlayer.__setstate__(pickle.loads(literal_eval(meta_dict['develop'])))  # tifffile turns meta_dict keys to lower
@@ -394,7 +394,7 @@ def openFile(f, window=window):
                 if sourceformat in RAW_FILE_EXTENSIONS:
                     # is .blu file from raw
                     rawbuf = tfile.series[0].pages[0].asarray()[:, 0]
-                    iobuf = io.BytesIO(rawbuf.tobytes())  # TODO optimize memory usage
+                    iobuf = io.BytesIO(rawbuf.tobytes())
         # load imImage from file
         img = imImage.loadImageFromFile(f, rawiobuf=iobuf, cmsConfigure=True, window=window)
         img.sourceformat = sourceformat
@@ -487,6 +487,7 @@ def closeTabs(index=None, window=window):
     If it succeeds to close all opened documents, the method resets the GUI to default.
     """
     if not canClose(index=index) or window.tabBar.count() > 0:
+        gc.collect()
         return
     window.tableView.clear(delete=True)
     window.histView.targetImage = None
@@ -2013,6 +2014,41 @@ def setTabBar(window=window):
     window.groupbox_btn.setStyleSheet("QWidget#layoutWidget {background-color: transparent}")
     hlay.addLayout(vlay)
     window.tabBar = tabBar
+
+
+def imagej_description_metadata(description):
+    """
+    Modified version of tifffile.imagej_description_metadata()
+    Return metatata from ImageJ image description as dict.
+    Raise ValueError if not a valid ImageJ description.
+    @param description:
+    @type description: str
+    @return:
+    @rtype: dict
+    """
+
+    def _bool(val):
+        return {'true': True, 'false': False}[val.lower()]
+
+    result = {}
+    for line in description.splitlines():
+        try:
+            key, val = line.split('=', 1)  # stop at first match, so char '=' is allowed in tag text
+        except ValueError:
+            continue
+        key = key.strip()
+        val = val.strip()
+        for dtype in (int, float, _bool):
+            try:
+                val = dtype(val)
+                break
+            except (ValueError, KeyError):
+                pass
+        result[key] = val
+
+    if 'ImageJ' not in result:
+        raise ValueError('not an ImageJ image description')
+    return result
 
 
 if __name__ == '__main__':
