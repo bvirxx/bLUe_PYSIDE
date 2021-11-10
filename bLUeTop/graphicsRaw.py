@@ -27,7 +27,7 @@ from PySide2.QtCore import Qt, QPointF
 from PySide2.QtGui import QFontMetrics, QBrush, QPolygonF
 from PySide2.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBox, QGraphicsPolygonItem
 
-from bLUeGui.graphicsSpline import graphicsSplineForm, activeCubicSpline
+from bLUeGui.graphicsSpline import graphicsSplineForm
 from bLUeGui.graphicsForm import baseForm
 from bLUeTop.dng import getDngProfileList, getDngProfileDict, dngProfileToneCurve
 from bLUeTop.utils import optionsWidget, UDict, QbLUeSlider, QbLUeComboBox
@@ -623,10 +623,11 @@ class rawForm (baseForm):
 
     def setContrastSpline(self, a, b, d, T, withcurve=True):
         """
-        Updates and displays the contrast spline Form.
+        Updates and displays the contrast spline Form and curve.
         The form is created if needed. If withcurve is True (default),
-        the spline is built from parameters a, b, d, T. Otherwise
-        these parameters are not used.
+        the spline is set from parameters a, b, d, T, corresponding
+        to values returned by warpHistogram(). If withCurve is False
+        these parameters are not used and the spline is not set.
         (Cf. also CoBrSatForm setContrastSpline).
         @param a: x_coordinates
         @type a:

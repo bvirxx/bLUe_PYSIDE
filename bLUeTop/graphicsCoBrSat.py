@@ -22,7 +22,7 @@ from PySide2.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout, QGroupBox
 
 from bLUeGui.graphicsSpline import graphicsSplineForm
 from bLUeGui.graphicsForm import baseForm
-from bLUeTop.utils import optionsWidget, QbLUeSlider, UDict, QbLUeLabel, stateAwareQDockWidget
+from bLUeTop.utils import optionsWidget, QbLUeSlider, UDict, QbLUeLabel
 
 
 class CoBrSatForm(baseForm):
@@ -252,11 +252,14 @@ class CoBrSatForm(baseForm):
             """
                         )  # end setWhatsThis
 
-    def setContrastSpline(self, a, b, d, T):
+    def setContrastSpline(self, a, b, d, T, withcurve=True):
         """
-        Updates and displays the contrast spline viewer.
-        The form is created only once.
-        (Cf also rawForm.setCoBrSat.setContrastSpline).
+        Updates and displays the contrast spline Form and curve.
+        The form is created if needed. If withcurve is True (default),
+        the spline is set from parameters a, b, d, T, corresponding
+        to values returned by warpHistogram(). If withCurve is False
+        these parameters are not used and the spline is not set.
+        (cf. also rawForm.setContrastSpline)
         @param a: x_coordinates
         @type a:
         @param b: y-coordinates
@@ -265,6 +268,8 @@ class CoBrSatForm(baseForm):
         @type d:
         @param T: spline
         @type T: ndarray dtype=float
+        @param withcurve:
+        @type withcurve: boolean
         """
         axeSize = 200
         if self.contrastForm is None:
@@ -293,7 +298,8 @@ class CoBrSatForm(baseForm):
             form = self.contrastForm
         # update the curve
         form.scene().setSceneRect(-25, -axeSize-25, axeSize+50, axeSize+50)
-        form.scene().quadricB.setCurve(a*axeSize, b*axeSize, d, T*axeSize)
+        if withcurve:
+            form.scene().quadricB.setCurve(a*axeSize, b*axeSize, d, T*axeSize)
         self.dock.showNormal()
 
     def updateHists(self):
@@ -350,3 +356,28 @@ class CoBrSatForm(baseForm):
         else:
             cf.hide()
 
+    def __getstate__(self):
+        d = {}
+        for a in self.__dir__():
+            obj = getattr(self, a)
+            if type(obj) in [optionsWidget, QbLUeSlider, graphicsSplineForm]:
+                d[a] = obj.__getstate__()
+        return d
+
+    def __setstate__(self, d):
+        # prevent multiple updates
+        try:
+            self.dataChanged.disconnect()
+        except RuntimeError:
+            pass
+        for name in d['state']:
+            if name == 'contrastForm':
+                # init contrastForm, spline not loaded yet
+                self.setContrastSpline(0, 0, 0, 0, withcurve=False)
+                self.layer.autoSpline = False
+            obj = getattr(self, name, None)
+            if type(obj) in [optionsWidget, QbLUeSlider, graphicsSplineForm]:
+                obj.__setstate__(d['state'][name])
+        self.layer.autoSpline = False
+        self.dataChanged.connect(self.updateLayer)
+        self.dataChanged.emit()

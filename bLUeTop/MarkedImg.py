@@ -1450,11 +1450,14 @@ class QLayer(vImage):
             d = grForm.__getstate__()
         d['compositionMode'] = self.compositionMode
         d['opacity'] = self.opacity
+        d['visible'] = self.visible
         return d
 
     def __setstate__(self, state):
-        self.compositionMode = state['state']['compositionMode']
-        self.opacity = state['state']['opacity']
+        d = state['state']
+        self.compositionMode = d['compositionMode']
+        self.opacity = d['opacity']
+        self.visible = d['visible']
         grForm = self.getGraphicsForm()
         if grForm is not None:
             grForm.__setstate__(state)

@@ -530,10 +530,12 @@ class activeSpline(QGraphicsPathItem):
         self.LUTXY = np.array([int((-p.y()) * scale) for p in self.spline])
 
     def __getstate__(self):
-        return {'fixedpoints' : [(p.x(), p.y()) for p in self.fixedPoints]}
+        s = self.size
+        return {'fixedpoints' : [(p.x() / s, p.y() / s) for p in self.fixedPoints]}
 
     def __setstate__(self, state):
-        fixedPoints = [activeSplinePoint(item[0], item[1]) for item in state['fixedpoints']]
+        s = self.size
+        fixedPoints = [activeSplinePoint(item[0] * s, item[1] * s) for item in state['fixedpoints']]
         self.setFixedPoints(fixedPoints)
 
     def writeToStream(self, outStream):
@@ -784,16 +786,23 @@ class activeQuadricSpline(activeSpline):
 
     def setCurve(self, a, b, d, T):
         """
-        Initialises the spline and the LUT.
-        a, b, d must have identical sizes
+        Initialises the spline and the LUT. See also setFixed().
+        Parameters a, b, d, T  correspond to values
+        returned by warpHistogram(), scaled by the size of curve axes.
+        Class instance attributes self.a, self.b, self.d, self.T store
+        the method parameters used in the last call,
+        to enable auto curve reset. They should not be used for
+        other purposes.
+        a, b, d must have identical sizes.
+        a, b, T values are in range 0.. self.size
         @param a: x-ccoordinates of control points
-        @type a:
+        @type a: ndarray
         @param b: y-coordinates of control points
-        @type b:
+        @type b: ndarray
         @param d: tangent slopes
-        @type d:
+        @type d: ndarray
         @param T: spline array
-        @type T: ndarray
+        @type T: ndarray, size 256
         """
         self.a, self.b, self.d, self.T = a, b, d, T
         rect = QRectF(0.0, -self.size, self.size, self.size)
@@ -864,6 +873,14 @@ class activeQuadricSpline(activeSpline):
         """
 
     def setFixed(self, points, tangents):
+        """
+        Initialises the spline and the LUT.
+        See also setCurve()
+        @param points:
+        @type points: list of activeSplinePoint
+        @param tangents:
+        @type tangents: list of activeTangent
+        """
         for p in self.fixedPoints:
             sc = p.scene()
             if sc is not None:
@@ -882,17 +899,25 @@ class activeQuadricSpline(activeSpline):
         self.fixedTangents = tangents
         self.updatePath()
         self.updateLUTXY()
+        # enable resetting to this curve (see method setCurve())
+        self.a = np.array([p.x() for p in self.fixedPoints])
+        self.b = np.array([- p.y() for p in self.fixedPoints])
+        self.d = np.array([ - (t.controlPoint.y() - t.contactPoint.y()) / (t.controlPoint.x() - t.contactPoint.x())
+                  for t in self.fixedTangents])
+        self.T = self.LUTXY / 256 * self.size
 
     def __getstate__(self):
         d = {}
-        d['fixedpoints'] = [(p.pos().x(), p.pos().y()) for p in self.fixedPoints]
-        d['fixedtangentcontact'] = [(p.x(), p.y()) for p in [tg.contactPoint for tg in self.fixedTangents]]
-        d['fixedtangentcontrol'] = [(p.x(), p.y()) for p in [tg.controlPoint for tg in self.fixedTangents]]
+        s = self.size
+        d['fixedpoints'] = [(p.x() / s, p.y() / s) for p in self.fixedPoints]
+        d['fixedtangentcontact'] = [(p.x() / s, p.y() / s) for p in [tg.contactPoint for tg in self.fixedTangents]]
+        d['fixedtangentcontrol'] = [(p.x() / s, p.y() / s) for p in [tg.controlPoint for tg in self.fixedTangents]]
         return d
 
     def __setstate__(self, state):
-        fixedPoints = [activeSplinePoint(item[0], item[1]) for item in state['fixedpoints']]
-        fixedTangents = [activeTangent(contactPoint=QPointF(item[0][0], item[0][1]), controlPoint=QPointF(item[1][0], item[1][1]))
+        s = self.size
+        fixedPoints = [activeSplinePoint(item[0] * s, item[1] * s) for item in state['fixedpoints']]
+        fixedTangents = [activeTangent(contactPoint=QPointF(item[0][0] * s, item[0][1] * s), controlPoint=QPointF(item[1][0] * s, item[1][1] * s))
                          for item in zip(state['fixedtangentcontact'], state['fixedtangentcontrol'])]
         self.setFixed(fixedPoints, fixedTangents)
 
