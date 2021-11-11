@@ -323,7 +323,7 @@ class labelDlg(QDialog):
                        for line in s.splitlines()])
         return s
 
-def saveDlg(img, mainWidget, selected=True):
+def saveDlg(img, mainWidget, ext='jpg', selected=True):
     """
     Image saving dialog.
     If selected is False, initially the filename box is left empty and no file is selected.
@@ -343,7 +343,7 @@ def saveDlg(img, mainWidget, selected=True):
     dlg = savingDialog(mainWidget, "Save", lastDir)
     if selected:
         # default saving format jpg
-        dlg.selectFile(basename(img.filename)[:-3] + 'jpg')
+        dlg.selectFile(basename(img.filename)[:-3] + ext)
     filename = ''
     if dlg.exec_():
         newDir = dlg.directory().absolutePath()

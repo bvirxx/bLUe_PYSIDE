@@ -466,8 +466,8 @@ class mImage(vImage):
             if np.any(buf[:, :, 3] < 255):
                 dlgWarn('Transparency will be lost. Use PNG format instead')
         # don't save thumbnails
-        if self.useThumb:
-            return None
+        #if self.useThumb:
+            #return None
         # get the final image from the presentation layer.
         # This image is NOT color managed (prLayer.qPixmap
         # only is color managed)

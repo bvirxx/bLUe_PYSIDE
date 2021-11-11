@@ -170,8 +170,7 @@ class rawForm (baseForm):
         self.asShotMultipliers = (m1/m2, 1.0, m3/m2, m4/m2)  # normalization is mandatory : for nef files white balance is around 256
         self.asShotTemp, self.asShotTint = multipliers2TemperatureAndTint(*1 / np.array(self.asShotMultipliers[:3]), self.XYZ2CameraMatrix)
         self.rawMultipliers = self.asShotMultipliers  # rawpyObj.camera_whitebalance # = 1/(dng ASSHOTNEUTRAL tag value)
-        self.sampleMultipliers = False
-        self.samples = []
+
         ########################################
         # XYZ-->Camera conversion matrix:
         # Last row is zero for RGB cameras (cf. rawpy and libraw docs).
@@ -191,7 +190,7 @@ class rawForm (baseForm):
         optionList0, optionNames0 = ['Auto Brightness', 'Preserve Highlights'], ['Auto Expose', 'Preserve Highlights']
         optionList1, optionNames1 = ['Auto WB', 'Camera WB', 'User WB'], ['Auto', 'Camera (As Shot)', 'User']
         optionList2, optionNames2 = ['cpLookTable', 'cpToneCurve', 'manualCurve'], ['Use Camera Profile Look Table',
-                                                                                    'Show Tone Curves', 'Show Contrast Curve']
+                                                                                    'Use Tone Curves', 'Show Contrast Curve']
         self.listWidget1 = optionsWidget(options=optionList0, optionNames=optionNames0, exclusive=False,
                                          changed=lambda: self.dataChanged.emit(1))
         self.listWidget2 = optionsWidget(options=optionList1, optionNames=optionNames1,  exclusive=True,
@@ -717,6 +716,7 @@ class rawForm (baseForm):
         self.sliderTint.valueChanged.connect(self.tintUpdate)
         self.sliderTint.sliderReleased.connect(lambda: self.tintUpdate(self.sliderTint.value()))  # signal has no parameter)
 
+    """
     def setRawMultipliers(self, m0, m1, m2, sampling=True):
         mi = min(m0, m1, m2)
         m0, m1, m2 = m0/mi, m1/mi, m2/mi
@@ -738,6 +738,7 @@ class rawForm (baseForm):
         self.sliderTint.valueChanged.connect(self.tintUpdate)
         self.sampleMultipliers = sampling
         self.dataChanged.emit(1)
+    """
 
     def updateLayer(self, level):
         """
@@ -763,6 +764,8 @@ class rawForm (baseForm):
             else:
                 cf.hide()
         # tone curve
+        if self.listWidget3.options['cpToneCurve']:
+            self.showToneSpline()
         ct = getattr(self, 'dockT', None)
         if ct is not None:
             if self.options['cpToneCurve']:

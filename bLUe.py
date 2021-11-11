@@ -334,6 +334,8 @@ def loadImage(img, withBasic=True, window=window):
     tabBar.setTabData(ind, img)
     setDocumentImage(img)
 
+    window.tableView.previewOptionBox.setChecked(True)
+
     # add development layer for raw image, and develop
     rlayer = None
     if img.rawImage is not None:
@@ -361,9 +363,6 @@ def loadImage(img, withBasic=True, window=window):
                 dlgWarn('Invalid format %s' % img.filename, str(e))
                 raise
             addAdjustmentLayers(layers)
-
-    # switch to preview mode and process stack
-    window.tableView.previewOptionBox.setChecked(True)
 
     # add default adjustment layers
     if withBasic:
@@ -470,7 +469,7 @@ def saveFile(filename, img, quality=-1, compression=-1, writeMeta=True):
     thumb = img.save(filename, quality=quality, compression=compression)
 
     # write metadata
-    if writeMeta:
+    if writeMeta and thumb is not None:
         tempFilename = mktemp('.jpg')
         # save thumb jpg to temp file
         thumb.save(tempFilename)
@@ -710,6 +709,7 @@ def updateEnabledActions(window=window):
     window.actionColor_manage.setChecked(icc.COLOR_MANAGE)
     window.actionSave.setEnabled(window.label.img.isModified)
     window.actionSave_As.setEnabled(window.label.img.isModified)
+    window.actionSave_As_bLU_Doc.setEnabled(window.label.img.isModified)
     window.actionSave_Hald_Cube.setEnabled(window.label.img.isHald)
     window.actionAuto_3D_LUT.setEnabled(HAS_TORCH)
 
@@ -760,15 +760,17 @@ def menuFile(name, window=window):
         if filename is not None:
             openFile(filename)
     # saving dialog
-    elif name == 'actionSave' or name == 'actionSave_As':
-        saveAs = (name=='actionSave_As')
-        if window.label.img.useThumb:
+    elif name in ['actionSave', 'actionSave_As', 'actionSave_As_bLU_Doc']:
+        saveAsBLU = (name == 'actionSave_As_bLU_Doc')
+        saveAs = (name=='actionSave_As') or saveAsBLU
+        if window.label.img.useThumb and not saveAsBLU:
             dlgWarn("Uncheck Preview mode before saving")
         else:
             img = window.label.img
             try:
                 if saveAs:
-                    filename, quality, compression, writeMeta = saveDlg(img, window, selected=True) # not saveAs)
+                    ext = 'blu' if saveAsBLU else 'jpg'
+                    filename, quality, compression, writeMeta = saveDlg(img, window, ext=ext, selected=True) # not saveAs)
                     filename = saveFile(filename, img, quality=quality, compression=compression, writeMeta=writeMeta)
                 else:
                     filename = saveFile(img.filename, img, writeMeta=True)
@@ -781,11 +783,6 @@ def menuFile(name, window=window):
     # closing dialog : close opened document
     elif name == 'actionClose':
         closeTabs()
-        # global pool
-        # if pool is not None:
-            # pool.close()
-            # pool.join()
-            # pool = None  # TODO removed 28/01/20 for multi doc
     updateStatus()
 
 

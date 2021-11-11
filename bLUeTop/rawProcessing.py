@@ -87,12 +87,6 @@ def rawPostProcess(rawLayer, pool=None):
     adjustForm = rawLayer.getGraphicsForm()  # self.view.widget()
     options = adjustForm.options
 
-    # show the Tone Curve form
-    if options['cpToneCurve']:
-        toneCurveShowFirst = adjustForm.showToneSpline()
-    else:
-        toneCurveShowFirst = False
-
     # get RawPy instance
     rawImage = getattr(rawLayer.parentImage, 'rawImage', None)
     if rawImage is None:
@@ -101,7 +95,7 @@ def rawPostProcess(rawLayer, pool=None):
 
     ##################
     # Control flags
-    # postProcessCache is invalidated (reset to None) to by graphicsRaw.updateLayer (graphicsRaw.dataChanged event handler).
+    # postProcessCache is invalidated (reset to None) by graphicsRaw.updateLayer (graphicsRaw.dataChanged event handler).
     # bufCache_HSV_CV32 is invalidated (reset to None) by camera profile related events.
     doALL = rawLayer.postProcessCache is None
     if not doALL:
@@ -148,6 +142,7 @@ def rawPostProcess(rawLayer, pool=None):
         fbdd_noise_reduction = rawpy.FBDDNoiseReductionMode.Off if dv == 0 \
             else rawpy.FBDDNoiseReductionMode.Light if dv == 1 \
             else rawpy.FBDDNoiseReductionMode.Full
+        """
         #############################################
         # build sample images for a set of multipliers
         if adjustForm.sampleMultipliers:
@@ -180,32 +175,34 @@ def rawPostProcess(rawLayer, pool=None):
                 w, h = int(bufpost_temp.shape[1] / 3), int(bufpost_temp.shape[0] / 3)
                 bufpost_temp = cv2.resize(bufpost_temp, (w, h))
                 bufpost16[row * h:(row + 1) * h, col * w:(col + 1) * w, :] = bufpost_temp
+        """
+        ##########
         # develop
-        else:
-            bufpost16 = rawImage.postprocess(
-                half_size=half_size,
-                output_color=rawpy.ColorSpace.raw,  # XYZ
-                output_bps=output_bpc,
-                exp_shift=exp_shift,
-                no_auto_bright=no_auto_bright,
-                use_auto_wb=use_auto_wb,
-                use_camera_wb=use_camera_wb,
-                user_wb=adjustForm.rawMultipliers,
-                gamma=(1, 1),
-                exp_preserve_highlights=exp_preserve_highlights,
-                bright=bright,
-                highlight_mode=highlightmode,
-                fbdd_noise_reduction=fbdd_noise_reduction,
-                median_filter_passes=1
-            )
-        # save image into post processing cache
+        ##########
+        bufpost16 = rawImage.postprocess(
+            half_size=half_size,
+            output_color=rawpy.ColorSpace.raw,  # XYZ
+            output_bps=output_bpc,
+            exp_shift=exp_shift,
+            no_auto_bright=no_auto_bright,
+            use_auto_wb=use_auto_wb,
+            use_camera_wb=use_camera_wb,
+            user_wb=adjustForm.rawMultipliers,
+            gamma=(1, 1),
+            exp_preserve_highlights=exp_preserve_highlights,
+            bright=bright,
+            highlight_mode=highlightmode,
+            fbdd_noise_reduction=fbdd_noise_reduction,
+            median_filter_passes=1
+        )
+        # save image to post processing cache
         rawLayer.postProcessCache = cv2.cvtColor(((bufpost16.astype(np.float32)) / max_ouput).astype(np.float32), cv2.COLOR_RGB2HSV)
         rawLayer.half = half_size
         rawLayer.bufpost16 = bufpost16
     else:
         pass
 
-    # postProcessCache is in raw color space.
+    # postProcessCache is in raw color space
     # and must be converted to linear RGB. We follow
     # the guidelines of Adobe dng spec. (chapter 6).
     # If we have a valid dng profile and valid ForwardMatrix1
@@ -229,7 +226,7 @@ def rawPostProcess(rawLayer, pool=None):
                      sRGB_lin2XYZInverse @ MM @ adjustForm.XYZ2CameraInverseMatrix @ D
     bufpost16 = np.tensordot(rawLayer.bufpost16, raw2sRGBMatrix, axes=(-1, -1))
     M = np.max(bufpost16) / 255.0
-    bufpost16 = bufpost16 / M
+    bufpost16 /= M
     np.clip(bufpost16, 0, 255, out=bufpost16)
     rawLayer.postProcessCache = cv2.cvtColor(((bufpost16.astype(np.float32)) / max_ouput).astype(np.float32), cv2.COLOR_RGB2HSV)
 
@@ -237,7 +234,7 @@ def rawPostProcess(rawLayer, pool=None):
     s = rawLayer.postProcessCache.shape
     tmp = bImage(s[1], s[0], QImage.Format_RGB32)
     buf = QImageBuffer(tmp)
-    buf[:, :, :] = (rawLayer.postProcessCache[:, :, 2, np.newaxis] * 255).astype(np.uint8)  # TODO optimize
+    buf[:, :, :] = (rawLayer.postProcessCache[:, :, 2, np.newaxis] * 255).astype(np.uint8)
     rawLayer.linearImg = tmp
 
     if getattr(adjustForm, "toneForm", None) is not None:
@@ -264,11 +261,10 @@ def rawPostProcess(rawLayer, pool=None):
             interp = chosenInterp(pool, currentImage.width() * currentImage.height())
             coeffs = interp(hsvLUT.data, steps, bufHSV_CV32, convert=False)
             bufHSV_CV32[:, :, 0] = np.mod(bufHSV_CV32[:, :, 0] + coeffs[:, :, 0], 360)
-            bufHSV_CV32[:, :, 1:] = bufHSV_CV32[:, :, 1:] * coeffs[:, :, 1:]
+            bufHSV_CV32[:, :, 1:] *= coeffs[:, :, 1:]
             np.clip(bufHSV_CV32, (0, 0, 0), (360, 1, 1), out=bufHSV_CV32)
             rawLayer.bufCache_HSV_CV32 = bufHSV_CV32.copy()
-    else:
-        pass
+
     #############
     # tone curve
     ############
@@ -276,13 +272,17 @@ def rawPostProcess(rawLayer, pool=None):
     # apply profile tone curve, if any
     if buf:  # non empty list
         LUTXY = dngProfileToneCurve(buf).toLUTXY(maxrange=255)
-        bufHSV_CV32[:, :, 2] = LUTXY[(bufHSV_CV32[:, :, 2] * 255).astype(np.uint16)] / 255.0  # TODO optimize
+        # bufHSV_CV32[:, :, 2] = LUTXY[(bufHSV_CV32[:, :, 2] * 255).astype(np.uint16)]
+        bufHSV_CV32[:, :, 2] = np.take(LUTXY, (bufHSV_CV32[:, :, 2] * 255).astype(np.uint16))
+        bufHSV_CV32[:, :, 2] /= 255.0
     # apply user tone curve
     toneForm = adjustForm.toneForm
     if toneForm is not None:
         if toneForm.isVisible():
             userLUTXY = toneForm.scene().quadricB.LUTXY
-            bufHSV_CV32[:, :, 2] = userLUTXY[(bufHSV_CV32[:, :, 2] * 255).astype(np.uint16)] / 255  # TODO optimize
+            # bufHSV_CV32[:, :, 2] = userLUTXY[(bufHSV_CV32[:, :, 2] * 255).astype(np.uint16)]
+            bufHSV_CV32[:, :, 2] = np.take(userLUTXY, (bufHSV_CV32[:, :, 2] * 255).astype(np.uint16))
+            bufHSV_CV32[:, :, 2] /= 255
     rawLayer.bufCache_HSV_CV32 = bufHSV_CV32.copy()  # CAUTION : must be outside of if toneForm.
 
     # beginning of the contrast-saturation phase : update buffer from the last camera profile applcation
@@ -311,7 +311,8 @@ def rawPostProcess(rawLayer, pool=None):
         # tabulate x**alpha
         LUT = np.power(np.arange(256) / 255, alpha)
         # convert saturation s to s**alpha
-        bufHSV_CV32[:, :, 1] = LUT[(bufHSV_CV32[:, :, 1] * 255).astype(int)]  # TODO optimize
+        # bufHSV_CV32[:, :, 1] = LUT[(bufHSV_CV32[:, :, 1] * 255).astype(int)]
+        bufHSV_CV32[:, :, 1] = np.take(LUT, (bufHSV_CV32[:, :, 1] * 255).astype(int))
     # back to RGB
     bufpostF32_1 = cv2.cvtColor(bufHSV_CV32, cv2.COLOR_HSV2RGB)  # * 65535 # .astype(np.uint16)
 
@@ -319,10 +320,12 @@ def rawPostProcess(rawLayer, pool=None):
     # apply gamma curve
     ###################
     bufpostF32_255 = rgbLinear2rgb(bufpostF32_1)
+
     #############################
     # Conversion to 8 bits/channel
     #############################
     bufpostUI8 = bufpostF32_255.astype(np.uint8)
+
     ###################################################
     # bufpostUI8 = (bufpost16/256).astype(np.uint8)
     #################################################
