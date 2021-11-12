@@ -80,7 +80,7 @@ class index(object):
 
 
 class nodeGroup(QGraphicsItemGroup, QObject):  # QObject needed by disconnect()
-
+    UID = 0
     @classmethod
     def groupFromList(cls, items, grid=None, position=QPointF(), parent=None):
         """
@@ -106,6 +106,8 @@ class nodeGroup(QGraphicsItemGroup, QObject):  # QObject needed by disconnect()
 
     def __init__(self, grid=None, position=QPointF(), parent=None):
         super().__init__(parent=parent)
+        self.uid = self.UID  # unique identifier
+        self.UID += 1        # not thread safe !
         self.setFlag(QGraphicsItem.ItemIsSelectable, True)
         self.grid = grid
         self.mouseIsPressed = False
@@ -168,7 +170,7 @@ class nodeGroup(QGraphicsItemGroup, QObject):  # QObject needed by disconnect()
         self.brightnessItem.setVisible(False)
 
     def addToGroup(self, item):
-        item.setSelected(False)  # TODO removed 9/1/20 validate
+        item.setSelected(False)
         super().addToGroup(item)
         item.setPen(QPen(Qt.yellow))
 
@@ -512,6 +514,14 @@ class activeNode(QGraphicsPathItem):
         # get (transformation aware) position relative to grid parentItem (=colorChooser)
         p = (self.gridPos() - self.grid.parentItem().offset()).toPoint()
         x, y = p.x(), p.y()
+
+        # update grid move history
+        try:
+            self.grid.historyListMove.remove(self)
+        except ValueError:
+            pass
+        self.grid.historyListMove.append(self)
+
         # clipping
         x, y = min(w-1, max(0, x)), min(h - 1, max(0, y))
         # read current color
@@ -794,6 +804,7 @@ class activeGrid(QGraphicsPathItem):
         self.setParentItem(parent)
         self.size = size
         self.cModel = cModel
+        self.historyListMove = []
 
         # parent should be the color wheel. step is the unitary coordinate increment
         # between consecutive nodes in each direction
@@ -1562,6 +1573,36 @@ class graphicsForm3DLUT(baseGraphicsForm):
         layer.applyToStack()
         layer.parentImage.onImageChanged()
 
+    def __getstate__(self):
+        return {'history' : [(p.gridRow,
+                              p.gridCol,
+                              p.gridPos_U().x(),
+                              p.gridPos_U().y(),
+                              p.parentItem().uid if type(p.parentItem()) is nodeGroup else -1,
+                              #p.parentItem().x(), p.parentItem().y()
+                              )
+                            for p in self.grid.historyListMove]}
+
+    def __setstate__(self, state):
+        groupList = []
+        for item in state['state']['history']:
+            p = self.grid.getNodeAt(item[1], item[0])
+            p. setPos(item[2], item[3])  # parentItem is grid
+            if item[4] != -1:
+                uidList = [g.uid for g in groupList]
+                if item[4] in uidList:
+                    gr = groupList[uidList.index(item[4])]
+                    gr.addToGroup(p)
+                else:
+                    gr = nodeGroup(grid=self.grid, position=p.pos(), parent=p.parentItem())
+                    gr.addToGroup(p)
+                    groupList.append(gr)
+                    #gr.setPos(item[5], item[6])
+            p.setSelected(True)
+            p.setVisible(True)
+            p.syncLUT()
+
+        self.grid.drawGrid()
 
 if __name__ == '__main__':
     size = 4000
