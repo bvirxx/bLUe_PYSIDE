@@ -106,8 +106,8 @@ class nodeGroup(QGraphicsItemGroup, QObject):  # QObject needed by disconnect()
 
     def __init__(self, grid=None, position=QPointF(), parent=None):
         super().__init__(parent=parent)
-        self.uid = self.UID  # unique identifier
-        self.UID += 1        # not thread safe !
+        self.uid = nodeGroup.UID  # unique identifier
+        nodeGroup.UID += 1        # not thread safe !
         self.setFlag(QGraphicsItem.ItemIsSelectable, True)
         self.grid = grid
         self.mouseIsPressed = False
@@ -516,11 +516,7 @@ class activeNode(QGraphicsPathItem):
         x, y = p.x(), p.y()
 
         # update grid move history
-        try:
-            self.grid.historyListMove.remove(self)
-        except ValueError:
-            pass
-        self.grid.historyListMove.append(self)
+        self.grid.updateHistoryListMove(self)
 
         # clipping
         x, y = min(w-1, max(0, x)), min(h - 1, max(0, y))
@@ -845,6 +841,19 @@ class activeGrid(QGraphicsPathItem):
             self.gridNodes[0][i].setControl(True, forceEdges=True)
             self.gridNodes[self.size - 1][i].setControl(True, forceEdges=True)
 
+    def updateHistoryListMove(self, node):
+        """
+        Update history of node moves over the grid:
+        parameter node is added or moved to the end of history list.
+        @param n:
+        @type n:  activeNode
+        """
+        try:
+            self.historyListMove.remove(node)
+        except ValueError:
+            pass
+        self.historyListMove.append(node)
+
     def toggleAllNodes(self):
         """
         Toggles full grid display on and off.
@@ -901,6 +910,8 @@ class activeGrid(QGraphicsPathItem):
                 node.setVisible(False)  # TODO added 7/1/20 validate
         self.setDefaultControlNodes()
         self.showAllNodes = False
+        # empty list of moves
+        self.historyListMove = []
 
     def smooth(self):
         """
@@ -1587,17 +1598,19 @@ class graphicsForm3DLUT(baseGraphicsForm):
         groupList = []
         for item in state['state']['history']:
             p = self.grid.getNodeAt(item[1], item[0])
-            p. setPos(item[2], item[3])  # parentItem is grid
+            p. setPos(item[2], item[3])
             if item[4] != -1:
-                uidList = [g.uid for g in groupList]
-                if item[4] in uidList:
-                    gr = groupList[uidList.index(item[4])]
+                readuidList = [g.readuid for g in groupList]
+                if item[4] in readuidList:
+                    gr = groupList[readuidList.index(item[4])]
                     gr.addToGroup(p)
                 else:
                     gr = nodeGroup(grid=self.grid, position=p.pos(), parent=p.parentItem())
+                    gr.readuid = item[4]
                     gr.addToGroup(p)
                     groupList.append(gr)
                     #gr.setPos(item[5], item[6])
+            self.grid.updateHistoryListMove(p)
             p.setSelected(True)
             p.setVisible(True)
             p.syncLUT()
