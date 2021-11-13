@@ -472,6 +472,14 @@ class activeNode(QGraphicsPathItem):
         else:
             return point + self.grid.scenePos() - p.scenePos()
 
+    def hasMoved(self):
+        """
+        Test for initial position, no matter if node belongs to a group
+        @return:
+        @rtype: boolean
+        """
+        return self.pos() != self.mapGrid2Parent(self.initialPosition)
+
     def setVisible(self, b):
         """
         Toggles and records node visibility.
@@ -515,7 +523,7 @@ class activeNode(QGraphicsPathItem):
         p = (self.gridPos() - self.grid.parentItem().offset()).toPoint()
         x, y = p.x(), p.y()
 
-        # update grid move history
+        # update move history
         self.grid.updateHistoryListMove(self)
 
         # clipping
@@ -845,6 +853,7 @@ class activeGrid(QGraphicsPathItem):
         """
         Update history of node moves over the grid:
         parameter node is added or moved to the end of history list.
+        An unmoved node is removed from history.
         @param n:
         @type n:  activeNode
         """
@@ -852,7 +861,8 @@ class activeGrid(QGraphicsPathItem):
             self.historyListMove.remove(node)
         except ValueError:
             pass
-        self.historyListMove.append(node)
+        if node.hasMoved():
+            self.historyListMove.append(node)
 
     def toggleAllNodes(self):
         """
@@ -1610,7 +1620,7 @@ class graphicsForm3DLUT(baseGraphicsForm):
                     gr.addToGroup(p)
                     groupList.append(gr)
                     #gr.setPos(item[5], item[6])
-            self.grid.updateHistoryListMove(p)
+            #self.grid.updateHistoryListMove(p) # called by syncLUT()
             p.setSelected(True)
             p.setVisible(True)
             p.syncLUT()
