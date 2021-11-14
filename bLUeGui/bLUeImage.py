@@ -45,6 +45,7 @@ class bImage(QImage):
     """
 
     bigEndian = (byteorder == "big")
+    defaultColorMaskOpacity = 128
 
     @staticmethod
     def fromImage(img, parentImage=None):
@@ -64,7 +65,7 @@ class bImage(QImage):
         self._mask = None  # double underscore mangling conflicts with overriding
         self.maskIsEnabled = False
         self.maskIsSelected = False
-        self.colorMaskOpacity = 255
+        self.colorMaskOpacity = bImage.defaultColorMaskOpacity
         self.mergingFlag = False
 
     @property
