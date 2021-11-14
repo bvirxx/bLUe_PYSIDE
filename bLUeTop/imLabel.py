@@ -346,6 +346,7 @@ class imageLabel(QLabel):
                         else:
                             color = vImage.defaultColor_UnMasked if \
                                 window.btnValues['drawFG'] else vImage.defaultColor_Masked
+                            color.setAlpha(layer.colorMaskOpacity)  # TODO added 15/11/21 for semi transparent color brush when color mask mode is enabled - validate
                     else:
                         color = vImage.defaultColor_UnMasked_Invalid
                     qp.begin(layer.mask)

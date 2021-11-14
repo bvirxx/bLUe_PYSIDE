@@ -158,7 +158,7 @@ from bLUeTop.graphicsMixer import mixerForm
 from bLUeTop.graphicsNoise import noiseForm
 from bLUeTop.graphicsRaw import rawForm
 from bLUeTop.graphicsTransform import transForm, imageForm
-from bLUeGui.bLUeImage import QImageBuffer, QImageFormats
+from bLUeGui.bLUeImage import QImageBuffer, QImageFormats, ndarrayToQImage
 from bLUeTop.presetReader import aParser
 from bLUeTop.rawProcessing import rawRead
 from bLUeTop.versatileImg import vImage, metadataBag
@@ -266,7 +266,7 @@ def widgetChange(button, window=window):
     window.label.repaint()
 
 
-def addAdjustmentLayers(layers):
+def addAdjustmentLayers(layers, images):
     """
     Adds a list of layers to the current document.
     Entries not corresponding to menu layers actions are skipped.
@@ -275,10 +275,15 @@ def addAdjustmentLayers(layers):
     """
     if layers is None:
         return
+    count = 1
     for item in layers:
         layer = menuLayer(item[1]['actionname'])
         if layer is not None:
-            layer.__setstate__(item[1])
+            if item[1]['state']['mask'] == 1:
+                buf = images[count].asarray()
+                layer.mask = ndarrayToQImage(buf, QImage.Format_RGB888).convertToFormat(QImage.Format_ARGB32)
+                count += 1
+            layer.__setstate__(item[1])  # keep after mask init
 
 
 def addBasicAdjustmentLayers(img, window=window):
@@ -345,10 +350,10 @@ def loadImage(img, withBasic=True, window=window):
     if img.filename[-4:].upper() in BLUE_FILE_EXTENSIONS:
         with tifffile.TiffFile(img.filename) as tfile:
             # get ordered dict of layers
-            meta_dict = imagej_description_metadata(tfile.pages[0].is_imagej)
+            meta_dict = imagej_description_metadata(tfile.pages[0].is_imagej) # unpickling needed here, so we use imagej_description
             try:
                 if rlayer is not None:
-                    rlayer.__setstate__(pickle.loads(literal_eval(meta_dict['develop'])))  # tifffile turns meta_dict keys to lower
+                    rlayer.__setstate__(pickle.loads(literal_eval(meta_dict['develop'])))  # tifffile turns meta_dict keys to lower !
                 # build layer stack
                 withBasic = False  # the imported layer stack only
                 layers = []
@@ -362,7 +367,7 @@ def loadImage(img, withBasic=True, window=window):
             except (SyntaxError, ValueError) as e:
                 dlgWarn('Invalid format %s' % img.filename, str(e))
                 raise
-            addAdjustmentLayers(layers)
+            addAdjustmentLayers(layers, tfile.series[0])
 
     # add default adjustment layers
     if withBasic:
@@ -388,7 +393,7 @@ def openFile(f, window=window):
         iobuf = None
         if sourceformat in BLUE_FILE_EXTENSIONS:
             with tifffile.TiffFile(f) as tfile:
-                meta_dict = tfile.imagej_metadata
+                meta_dict = tfile.imagej_metadata  # no unpickling needed here, so we use imagej_metadata
                 sourceformat = meta_dict.get('sourceformat')
                 if sourceformat in RAW_FILE_EXTENSIONS:
                     # is .blu file from raw
