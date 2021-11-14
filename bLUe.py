@@ -205,7 +205,7 @@ credit https://icones8.fr/
 
 ##############
 #  Version number
-VERSION = "v4.3.0"
+VERSION = "v4.3.1"
 ##############
 
 ##############
@@ -280,7 +280,8 @@ def addAdjustmentLayers(layers, images):
         layer = menuLayer(item[1]['actionname'])
         if layer is not None:
             if item[1]['state']['mask'] == 1:
-                buf = images[count].asarray()
+                buf = images.asarray()[count] #images[count].asarray()
+                buf = buf.reshape(layer.height(), layer.width(), 3)
                 layer.mask = ndarrayToQImage(buf, QImage.Format_RGB888).convertToFormat(QImage.Format_ARGB32)
                 count += 1
             layer.__setstate__(item[1])  # keep after mask init
@@ -397,7 +398,8 @@ def openFile(f, window=window):
                 sourceformat = meta_dict.get('sourceformat')
                 if sourceformat in RAW_FILE_EXTENSIONS:
                     # is .blu file from raw
-                    rawbuf = tfile.series[0].pages[0].asarray()[:, 0]
+                    buf_ori_len = meta_dict['buf_ori_len']
+                    rawbuf = tfile.series[0].pages[0].asarray()[:buf_ori_len] # , 0]
                     iobuf = io.BytesIO(rawbuf.tobytes())
         # load imImage from file
         img = imImage.loadImageFromFile(f, rawiobuf=iobuf, cmsConfigure=True, window=window)

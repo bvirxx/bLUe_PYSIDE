@@ -25,7 +25,7 @@ from PySide2.QtWidgets import QAction, QMenu, QSlider, QStyle, QCheckBox, QAppli
 from PySide2.QtWidgets import QComboBox, QHBoxLayout, QLabel, QTableView, QAbstractItemView, QStyledItemDelegate, QHeaderView, QVBoxLayout
 
 from bLUeTop.QtGui1 import window
-from bLUeGui.bLUeImage import QImageBuffer
+from bLUeGui.bLUeImage import QImageBuffer, bImage
 from bLUeGui.dialog import dlgWarn
 from bLUeGui.memory import weakProxy
 from bLUeTop.settings import TABBING
@@ -215,7 +215,9 @@ class QLayerView(QTableView):
         maskSlider.setTickPosition(QSlider.TicksBelow)
         maskSlider.setRange(0, 100)
         maskSlider.setSingleStep(1)
-        maskSlider.setSliderPosition(100)
+        defval = int(bImage.defaultColorMaskOpacity / 255 * 100)
+        maskSlider.setSliderPosition(defval)
+
         self.maskSlider = maskSlider
 
         self.maskValue = QLabel()
@@ -225,7 +227,7 @@ class QLayerView(QTableView):
         h = metrics.height()
         self.maskValue.setMinimumSize(w, h)
         self.maskValue.setMaximumSize(w, h)
-        self.maskValue.setText('100 ')
+        self.maskValue.setText('%d ' % defval)
         # masks are disbled by default
         self.maskLabel.setEnabled(False)
         self.maskSlider.setEnabled(False)
@@ -484,16 +486,6 @@ Note that upper visible layers slow down mask edition.<br>
         self.previewOptionBox.setChecked(activeLayer.parentImage.useThumb)
         #activeLayer.maskColor
         self.updateForm()
-        """                                                   # TODO removed 25/01/20 useless validate
-        for item in self.img.layersStack:
-            if hasattr(item, 'sourceIndex'):
-                combo = item.getGraphicsForm().sourceCombo
-                currentText = combo.currentText()
-                combo.clear()
-                for i, x in enumerate(self.img.layersStack):
-                    item.view.widget().sourceCombo.addItem(x.name, i)
-                combo.setCurrentIndex(combo.findText(currentText))
-        """
 
     def updateForm(self):
         activeLayer = self.img.getActiveLayer()
@@ -833,6 +825,7 @@ Note that upper visible layers slow down mask edition.<br>
             testUpperVisibility()
             layer.maskIsEnabled = True
             layer.maskIsSelected = True
+            layer.setColorMaskOpacity(self.maskSlider.value() * 255 /100)
             self.maskLabel.setEnabled(layer.maskIsSelected)
             self.maskSlider.setEnabled(layer.maskIsSelected)
             self.maskValue.setEnabled(layer.maskIsSelected)

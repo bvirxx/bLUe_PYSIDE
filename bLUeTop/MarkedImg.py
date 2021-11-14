@@ -511,6 +511,8 @@ class mImage(vImage):
             names = OrderedDict([(layer.name, pickle.dumps({'actionname' : layer.actionName, 'state' : layer.__getstate__()})) for layer in self.layersStack] +
                                 [('sourceformat', self.sourceformat)])
 
+            mask_list = [layer._mask for layer in self.layersStack if layer._mask is not None]
+
             if  self.sourceformat in RAW_FILE_EXTENSIONS:  # source data format
                 # copy raw file and layer stack to .bLU
                 originFormat = self.filename[-4:]  # loaded file format
@@ -523,20 +525,42 @@ class mImage(vImage):
                         bytes = f.read()
                     buf_ori = np.frombuffer(bytes, dtype=np.uint8)
 
-                result = tifffile.imsave(filename, data=buf_ori.reshape(buf_ori.size, 1, 1),  # reshape is mandatory
+                w, h = self.width(), self.height()
+                images = np.empty((len(mask_list) + 1, max(len(buf_ori), w * h * 3)), dtype=np.uint8)
+                for i, m in enumerate(mask_list):
+                    images[i + 1, :w * h * 3] = QImageBuffer(m)[:, :, :3][:, :, ::-1].flatten()
+                images[0, :len(buf_ori)] = buf_ori
+                names['mask_len'] = w * h * 3
+                names['buf_ori_len'] = len(buf_ori)
+
+
+                result = tifffile.imsave(filename,
+                                         data=images,  # buf_ori.reshape(buf_ori.size, 1, 1),  # reshape is mandatory
+                                         compress=6,
                                          imagej=True,
                                          returnoffset=True,
                                          metadata=names)
 
-                written = result[1] > 0  # byte count
+                written = True  # result[1] > 0  # byte count
             elif self.sourceformat in IMAGE_FILE_EXTENSIONS:
                 # copy source image and layer stack to .BLU.
-                img_ori = self.getCurrentImage()
+                img_ori = self # .getCurrentImage()  # always save full size image
                 buf_ori = QImageBuffer(img_ori)[:,:, :3][:,:,::-1]
 
-                result = tifffile.imsave(filename, data=buf_ori, imagej=True, returnoffset=True, metadata=names)
+                w, h = self.width(), self.height()
+                images = np.empty((len(mask_list) + 1, h, w, 3), dtype=np.uint8)
+                for i, m in enumerate(mask_list):
+                    images[i + 1, ...] = QImageBuffer(m)[:,:, :3][:,:,::-1]
+                images[0, ...] = buf_ori
 
-                written = result[1] > 0  # byte count
+                result = tifffile.imsave(filename,
+                                         data=images,
+                                         compress=6,
+                                         imagej=True,
+                                         returnoffset=True,
+                                         metadata=names)
+
+                written = True  #result[1] > 0  # byte count
             else:
                 written = False
         else:
@@ -847,7 +871,7 @@ class QLayer(vImage):
         self.updatePixmap()
 
     @property
-    def mask(self):  # the setter is inherited from bImage
+    def mask(self):
         if self._mask is None:
             if type(self) not in [QPresentationLayer]:
                 self._mask = QImage(self.width(), self.height(), QImage.Format_ARGB32)
@@ -856,7 +880,7 @@ class QLayer(vImage):
         return self._mask
 
     @mask.setter
-    def mask(self, m):
+    def mask(self, m): # the setter is NOT inherited from bImage
         self._mask = m
 
     def getGraphicsForm(self):
@@ -1451,6 +1475,9 @@ class QLayer(vImage):
         d['compositionMode'] = self.compositionMode
         d['opacity'] = self.opacity
         d['visible'] = self.visible
+        d['maskIsEnabled'] = self.maskIsEnabled
+        d['maskIsSelected'] = self.maskIsSelected
+        d['mask'] = 0 if self._mask is None else 1  # flag used by addAdjustmentLayers()
         return d
 
     def __setstate__(self, state):
@@ -1458,6 +1485,10 @@ class QLayer(vImage):
         self.compositionMode = d['compositionMode']
         self.opacity = d['opacity']
         self.visible = d['visible']
+        self.maskIsEnabled = d['maskIsEnabled']
+        self.maskIsSelected = d['maskIsSelected']
+        if self.maskIsSelected:
+            self.setColorMaskOpacity(self.colorMaskOpacity)
         grForm = self.getGraphicsForm()
         if grForm is not None:
             grForm.__setstate__(state)
