@@ -401,7 +401,7 @@ def openFile(f, window=window):
             if sourceformat in RAW_FILE_EXTENSIONS:
                 # is .blu file from raw
                 buf_ori_len = meta_dict['buf_ori_len']
-                rawbuf = tfile.series[0].pages[0].asarray()[:buf_ori_len]
+                rawbuf = tfile.series[0].pages[0].asarray()[0, :buf_ori_len]
                 iobuf = io.BytesIO(rawbuf.tobytes())
         # load imImage instance from file
         img = imImage.loadImageFromFile(f, rawiobuf=iobuf, cmsConfigure=True, window=window)
