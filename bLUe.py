@@ -323,12 +323,14 @@ def addRawAdjustmentLayer(window=window):
     return rlayer
 
 
-def loadImage(img, withBasic=True, window=window):
+def loadImage(img, tfile=None, withBasic=True, window=window):
     """
     load a vImage into bLUe and build layer stack.
     Try to import layer stack from .BLU file
     @param img:
     @type img: vImage
+    @param tfile
+    @type tfile: TiffFile instance
     @param withBasic:
     @type withBasic: boolean
     @param window:
@@ -348,27 +350,26 @@ def loadImage(img, withBasic=True, window=window):
         rlayer = addRawAdjustmentLayer()
 
     # import layer stack from .BLU file
-    if img.filename[-4:].upper() in BLUE_FILE_EXTENSIONS:
-        with tifffile.TiffFile(img.filename) as tfile:
-            # get ordered dict of layers
-            meta_dict = imagej_description_metadata(tfile.pages[0].is_imagej) # unpickling needed here, so we use imagej_description
-            try:
-                if rlayer is not None:
-                    rlayer.__setstate__(pickle.loads(literal_eval(meta_dict['develop'])))  # tifffile turns meta_dict keys to lower !
-                # build layer stack
-                withBasic = False  # the imported layer stack only
-                layers = []
-                for key in meta_dict:
-                    try:
-                        d = pickle.loads(literal_eval(meta_dict[key]))
-                        if type(d) is dict:
-                            layers.append((key, d))
-                    except (SyntaxError, ValueError):
-                        pass
-            except (SyntaxError, ValueError) as e:
-                dlgWarn('Invalid format %s' % img.filename, str(e))
-                raise
-            addAdjustmentLayers(layers, tfile.series[0])
+    if tfile is not None and img.filename[-4:].upper() in BLUE_FILE_EXTENSIONS:
+        # get ordered dict of layers
+        meta_dict = imagej_description_metadata(tfile.pages[0].is_imagej) # unpickling needed here, so we use imagej_description
+        try:
+            if rlayer is not None:
+                rlayer.__setstate__(pickle.loads(literal_eval(meta_dict['develop'])))  # tifffile turns meta_dict keys to lower !
+            # build layer stack
+            withBasic = False  # the imported layer stack only
+            layers = []
+            for key in meta_dict:
+                try:
+                    d = pickle.loads(literal_eval(meta_dict[key]))
+                    if type(d) is dict:
+                        layers.append((key, d))
+                except (SyntaxError, ValueError):
+                    pass
+        except (SyntaxError, ValueError) as e:
+            dlgWarn('Invalid format %s' % img.filename, str(e))
+            raise
+        addAdjustmentLayers(layers, tfile.series[0])
 
     # add default adjustment layers
     if withBasic:
@@ -387,26 +388,27 @@ def openFile(f, window=window):
     @param window:
     @type window: QWidget
     """
+    iobuf = None
+    sourceformat = path.basename(f)[-4:].upper()
+    tfile = None
     try:
         QApplication.setOverrideCursor(Qt.WaitCursor)
         QApplication.processEvents()
-        sourceformat = path.basename(f)[-4:].upper()
-        iobuf = None
         if sourceformat in BLUE_FILE_EXTENSIONS:
-            with tifffile.TiffFile(f) as tfile:
-                meta_dict = tfile.imagej_metadata  # no unpickling needed here, so we use imagej_metadata
-                sourceformat = meta_dict.get('sourceformat')
-                if sourceformat in RAW_FILE_EXTENSIONS:
-                    # is .blu file from raw
-                    buf_ori_len = meta_dict['buf_ori_len']
-                    rawbuf = tfile.series[0].pages[0].asarray()[:buf_ori_len] # , 0]
-                    iobuf = io.BytesIO(rawbuf.tobytes())
-        # load imImage from file
+            tfile = tifffile.TiffFile(f)
+            meta_dict = tfile.imagej_metadata  # no unpickling needed here, so we use imagej_metadata
+            sourceformat = meta_dict.get('sourceformat')
+            if sourceformat in RAW_FILE_EXTENSIONS:
+                # is .blu file from raw
+                buf_ori_len = meta_dict['buf_ori_len']
+                rawbuf = tfile.series[0].pages[0].asarray()[:buf_ori_len]
+                iobuf = io.BytesIO(rawbuf.tobytes())
+        # load imImage instance from file
         img = imImage.loadImageFromFile(f, rawiobuf=iobuf, cmsConfigure=True, window=window)
         img.sourceformat = sourceformat
         # init layers
         if img is not None:
-            loadImage(img)
+            loadImage(img, tfile=tfile)
             updateStatus()
             # update list of recent files
             recentFiles = window.settings.value('paths/recent', [])
@@ -425,6 +427,8 @@ def openFile(f, window=window):
         QApplication.processEvents()
         dlgWarn(str(e))
     finally:
+        if tfile is not None:
+            tfile.close()
         QApplication.restoreOverrideCursor()
         QApplication.processEvents()
 
@@ -473,17 +477,21 @@ def saveFile(filename, img, quality=-1, compression=-1, writeMeta=True):
             raise ValueError("Saving Operation Failure")
     # call mImage.save to write image to file and return a thumbnail
     # throw ValueError or IOError
-    thumb = img.save(filename, quality=quality, compression=compression)
-
-    # write metadata
-    if writeMeta and thumb is not None:
-        tempFilename = mktemp('.jpg')
-        # save thumb jpg to temp file
-        thumb.save(tempFilename)
-        # copy temp file to image file, img.filename not updated yet
-        img.restoreMeta(img.filename, filename, thumbfile=tempFilename)
-        remove(tempFilename)
-
+    try:
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        QApplication.processEvents()
+        thumb = img.save(filename, quality=quality, compression=compression)
+        # write metadata
+        if writeMeta and thumb is not None:
+            tempFilename = mktemp('.jpg')
+            # save thumb jpg to temp file
+            thumb.save(tempFilename)
+            # copy temp file to image file, img.filename not updated yet
+            img.restoreMeta(img.filename, filename, thumbfile=tempFilename)
+            remove(tempFilename)
+    finally:
+        QApplication.restoreOverrideCursor()
+        QApplication.processEvents()
     return filename
 
 
@@ -650,11 +658,7 @@ def setDocumentImage(img, window=window):
     window.label_2.update()
     window.label_3.update()
     updateStatus()
-    gc.collect()  # tested (very) efficient here
-    # back links used by graphicsForm3DLUT.onReset  # TODO 3/1/20 unused removed validate
-    # window.label.img.window = window.label
-    # window.label_2.img.window = window.label_2
-    # window.label.img.setModified(True)  # TODO removed 27/01/20 validate
+    gc.collect()  # tested : (very) efficient here
 
 
 def updateMenuOpenRecent(window=window):

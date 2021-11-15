@@ -513,14 +513,14 @@ class mImage(vImage):
 
             mask_list = [layer._mask for layer in self.layersStack if layer._mask is not None]
 
-            if  self.sourceformat in RAW_FILE_EXTENSIONS:  # source data format
+            if  self.sourceformat in RAW_FILE_EXTENSIONS:  # bLUe data format  is flattened images
                 # copy raw file and layer stack to .bLU
-                originFormat = self.filename[-4:]  # loaded file format
-                if originFormat in BLUE_FILE_EXTENSIONS:
+                originFormat = self.filename[-4:]  # format of opened document
+                if originFormat in BLUE_FILE_EXTENSIONS: # opened document is bLUe doc
                     with tifffile.TiffFile(self.filename) as tfile:
                         sourcedata = tfile.series[0].pages[0].asarray()
-                        buf_ori  = sourcedata[:, 0]
-                elif originFormat in RAW_FILE_EXTENSIONS:  # loaded file format
+                        buf_ori  = sourcedata[0]  # [:, 0]
+                elif originFormat in RAW_FILE_EXTENSIONS:  # opened document is raw doc
                     with open(self.filename, 'rb') as f:
                         bytes = f.read()
                     buf_ori = np.frombuffer(bytes, dtype=np.uint8)
@@ -533,7 +533,6 @@ class mImage(vImage):
                 names['mask_len'] = w * h * 3
                 names['buf_ori_len'] = len(buf_ori)
 
-
                 result = tifffile.imsave(filename,
                                          data=images,  # buf_ori.reshape(buf_ori.size, 1, 1),  # reshape is mandatory
                                          compress=6,
@@ -541,8 +540,8 @@ class mImage(vImage):
                                          returnoffset=True,
                                          metadata=names)
 
-                written = True  # result[1] > 0  # byte count
-            elif self.sourceformat in IMAGE_FILE_EXTENSIONS:
+                written = True  # with compression result is None
+            elif self.sourceformat in IMAGE_FILE_EXTENSIONS: # bLUe data format  is (w, h, 3) shaped images
                 # copy source image and layer stack to .BLU.
                 img_ori = self # .getCurrentImage()  # always save full size image
                 buf_ori = QImageBuffer(img_ori)[:,:, :3][:,:,::-1]
@@ -560,7 +559,7 @@ class mImage(vImage):
                                          returnoffset=True,
                                          metadata=names)
 
-                written = True  #result[1] > 0  # byte count
+                written = True  # with compression result is None
             else:
                 written = False
         else:
