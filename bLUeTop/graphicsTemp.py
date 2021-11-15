@@ -263,4 +263,29 @@ class temperatureForm (baseForm):
     def sliderTint2User(v):
         return int((v - 50) / 5.0)
 
+    def __getstate__(self):
+        d = {}
+        for a in self.__dir__():
+            obj = getattr(self, a)
+            if type(obj) in [optionsWidget, QbLUeSlider]:
+                d[a] = obj.__getstate__()
+        c = self.filterColor
+        d['filterColor'] = (c.red(), c.green(), c.blue(), c.alpha())
+        return d
+
+    def __setstate__(self, d):
+        # prevent multiple updates
+        try:
+            self.dataChanged.disconnect()
+        except RuntimeError:
+            pass
+        for name in d['state']:
+            obj = getattr(self, name, None)
+            if type(obj) in [optionsWidget, QbLUeSlider]:
+                obj.__setstate__(d['state'][name])
+        r, g, b, a = d['state']['filterColor']
+        self.setFilterColor(QColor(r, g, b, a=a))
+        self.dataChanged.connect(self.updateLayer)
+        self.dataChanged.emit()
+
 

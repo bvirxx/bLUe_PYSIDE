@@ -318,6 +318,24 @@ class graphicsForm(graphicsCurveForm):
         l.applyToStack()
         l.parentImage.onImageChanged()
 
+    def __getstate__(self):
+        d = {}
+        for a in self.__dir__():
+            obj = getattr(self, a)
+            if type(obj) in [optionsWidget]:
+                d[a] = obj.__getstate__()
+        sc = self.scene()
+        for a in ['cubicRGB', 'cubicR', 'cubicG', 'cubicB']:
+            d[a] = getattr(sc, a).__getstate__()
+        return d
 
+    def __setstate__(self, d):
+        for name in d['state']:
+            obj = getattr(self, name, None)
+            if type(obj) in [optionsWidget]:
+                obj.__setstate__(d['state'][name])
+        sc = self.scene()
+        for name in ['cubicRGB', 'cubicR', 'cubicG', 'cubicB']:
+            getattr(sc, name).__setstate__(d['state'][name])
 
 

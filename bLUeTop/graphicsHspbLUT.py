@@ -39,7 +39,7 @@ class graphicsHspbForm(graphicsCurveForm):
         super().__init__(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
         graphicsScene = self.scene()
         graphicsScene.colorModel = colorModel
-
+        # for the sake of simplicity attributes are still named cubicR, cubicG, cubicB instead of cubicH, cubicS, cubicV
         # hue curve init.
         cubic = activeCubicSpline(axeSize)
         graphicsScene.addItem(cubic)
@@ -191,29 +191,25 @@ class graphicsHspbForm(graphicsCurveForm):
         layer = graphicsScene.layer
         layer.applyToStack()
         layer.parentImage.onImageChanged()
-    """
-    def writeToStream(self, outStream):
-        graphicsScene = self.scene()
-        layer = graphicsScene.layer
-        outStream.writeQString(layer.actionName)
-        outStream.writeQString(layer.name)
-        if layer.actionName in ['actionBrightness_Contrast', 'actionCurves_HSpB', 'actionCurves_Lab']:
-            outStream.writeQString(self.listWidget1.selectedItems()[0].text())
-            graphicsScene.cubicR.writeToStream(outStream)
-            graphicsScene.cubicG.writeToStream(outStream)
-            graphicsScene.cubicB.writeToStream(outStream)
-        return outStream
 
-    def readFromStream(self, inStream):
-        # for i in range(3):
-        # cubic = cubicItem.readFromStream(inStream)
-        # cubics.append(cubic)
-        # kwargs = dict(zip(['cubicR', 'cubicG', 'cubicB'], cubics))
-        # self.setEntries(sel=sel, **kwargs)
-        graphicsScene = self.scene()
-        graphicsScene.cubicR.readFromStream(inStream)
-        graphicsScene.cubicG.readFromStream(inStream)
-        graphicsScene.cubicB.readFromStream(inStream)
-        return inStream
-    """
+    def __getstate__(self):
+        d = {}
+        for a in self.__dir__():
+            obj = getattr(self, a)
+            if type(obj) in [optionsWidget]:
+                d[a] = obj.__getstate__()
+        sc = self.scene()
+        for a in ['cubicR', 'cubicG', 'cubicB']:
+            d[a] = getattr(sc, a).__getstate__()
+        return d
+
+    def __setstate__(self, d):
+        for name in d['state']:
+            obj = getattr(self, name, None)
+            if type(obj) in [optionsWidget]:
+                obj.__setstate__(d['state'][name])
+        sc = self.scene()
+        for name in ['cubicR', 'cubicG', 'cubicB']:
+            getattr(sc, name).__setstate__(d['state'][name])
+
 
