@@ -82,6 +82,7 @@ class mixerForm(baseGraphicsForm):
         optionList = ['Monochrome', 'Luminosity']
         listWidget1 = optionsWidget(options=optionList, exclusive=False, changed=self.dataChanged, flow=optionsWidget.LeftToRight)
         listWidget1.setMaximumHeight(listWidget1.sizeHintForRow(0) + 5)  # mandatory although sizePolicy is set to minimum !
+        self.listWidget1 = listWidget1  # mandatory for __getstate__()
         self.options = listWidget1.options
         # barycentric coordinate basis : the 3 base points form an equilateral triangle
         h = self.cwSize - 50
@@ -126,6 +127,9 @@ class mixerForm(baseGraphicsForm):
                         )  # end of setWhatsThis
 
     def updateLayer(self):
+        """
+        dataChanged slot
+        """
         if self.options['Monochrome']:
             for p in [self.gPoint, self.bPoint]:
                     p.setPos(self.rPoint.pos())
@@ -178,3 +182,30 @@ class mixerForm(baseGraphicsForm):
                           " R <- %.2f  %.2f  %.2f" % tuple(self.mixerMatrix[0]),
                           " G <- %.2f  %.2f  %.2f" % tuple(self.mixerMatrix[1]),
                           " B <- %.2f  %.2f  %.2f" % tuple(self.mixerMatrix[2])))
+
+    def __getstate__(self):
+        d = {}
+        for a in self.__dir__():
+            obj = getattr(self, a)
+            if type(obj) in [optionsWidget]:
+                d[a] = obj.__getstate__()
+        d['rPoint'] = self.rPoint.pos()
+        d['gPoint'] = self.gPoint.pos()
+        d['bPoint'] = self.bPoint.pos()
+        return d
+
+    def __setstate__(self, d):
+        # prevent multiple updates
+        try:
+            self.dataChanged.disconnect()
+        except RuntimeError:
+            pass
+        for name in d['state']:
+            obj = getattr(self, name, None)
+            if type(obj) in [optionsWidget]:
+                obj.__setstate__(d['state'][name])
+            elif type(obj) in [activeMixerPoint]:
+                p = d['state'][name]
+                obj.setPos(p)
+        self.dataChanged.connect(self.updateLayer)
+        self.dataChanged.emit()

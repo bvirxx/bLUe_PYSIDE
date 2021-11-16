@@ -774,6 +774,8 @@ def menuFile(name, window=window):
         if window.label.img.useThumb and not saveAsBLU:
             dlgWarn("Uncheck Preview mode before saving")
         else:
+            if saveAsBLU and not window.label.img.useThumb:
+                dlgWarn("for better performances switch to Preview mode before saving a bLU document")
             img = window.label.img
             try:
                 if saveAs:
