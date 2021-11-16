@@ -16,7 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-from PySide2.QtCore import Qt
+from PySide2.QtCore import Qt, QPointF
 from PySide2.QtWidgets import QVBoxLayout, QPushButton, QHBoxLayout
 
 from bLUeGui.graphicsForm import baseForm
@@ -90,6 +90,35 @@ class transForm (baseForm):
 
     def reset(self):
         self.layer.tool.resetTrans()
+
+    def __getstate__(self):
+        d = {}
+        for a in self.__dir__():
+            obj = getattr(self, a)
+            if type(obj) in [optionsWidget]:
+                d[a] = obj.__getstate__()
+        for role in ['topLeft', 'topRight', 'bottomRight', 'bottomLeft']:
+            btn = self.layer.tool.btnDict[role]
+            d[role] = (btn.posRelImg.x(), btn.posRelImg.y())
+        return d
+
+    def __setstate__(self, d):
+        # prevent multiple updates
+        d = d['state']
+        try:
+            self.dataChanged.disconnect()
+        except RuntimeError:
+            pass
+        for name in d:
+            obj = getattr(self, name, None)
+            if type(obj) in [optionsWidget]:
+                obj.__setstate__(d[name])
+        for role in ['topLeft', 'topRight', 'bottomRight', 'bottomLeft']:
+            btn = self.layer.tool.btnDict[role]
+            btn.posRelImg = QPointF(*d[role])
+        self.layer.tool.moveRotatingTool()
+        self.dataChanged.connect(self.updateLayer)
+        self.dataChanged.emit()
 
 
 class imageForm(transForm):
