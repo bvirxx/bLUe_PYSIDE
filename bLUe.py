@@ -183,6 +183,8 @@ from bLUeTop.graphicsLabLUT import graphicsLabForm
 from bLUeGui.dialog import *
 from bLUeTop.viewer import playDiaporama, viewer
 
+from version import BLUE_VERSION
+
 ##################
 #  Software Attributions
 attributions = """
@@ -201,12 +203,6 @@ Pretrained classifier (C) Hui Zeng, Jianrui Cai, Lida Li, Zisheng Cao, and Lei Z
 This product includes DNG technology under license by Adobe Systems Incorporated
 credit https://icones8.fr/
 """
-#################
-
-##############
-#  Version number
-VERSION = "v4.3.1"
-##############
 
 ##############
 # default adjustment form size
@@ -397,6 +393,7 @@ def openFile(f, window=window):
         if sourceformat in BLUE_FILE_EXTENSIONS:
             tfile = tifffile.TiffFile(f)
             meta_dict = tfile.imagej_metadata  # no unpickling needed here, so we use imagej_metadata
+            version = meta_dict.get('version', 'unknown') # unused yet
             sourceformat = meta_dict.get('sourceformat')
             if sourceformat in RAW_FILE_EXTENSIONS:
                 # is .blu file from raw
@@ -1392,7 +1389,7 @@ def menuHelp(name, window=window):
         w = labelDlg(parent=window, title='About bLUe', wSize=QSize(520, 520))  # 500 + layout margins
         w.label.setStyleSheet("background-image: url(logo.png); color: white;")
         w.label.setAlignment(Qt.AlignCenter)
-        w.label.setText(VERSION + "\n" + attributions + "\n" + "http://bernard.virot.free.fr")
+        w.label.setText(BLUE_VERSION + "\n" + attributions + "\n" + "http://bernard.virot.free.fr")
         w.show()
 
 
@@ -1657,7 +1654,7 @@ def setupGUI(window=window):
     splash.showMessage("Loading .", color=Qt.white, alignment=Qt.AlignCenter)
     app.processEvents()
     sleep(1)
-    splash.showMessage(VERSION + "\n" + attributions + "\n" + "http://bernard.virot.free.fr", color=Qt.white,
+    splash.showMessage(BLUE_VERSION + "\n" + attributions + "\n" + "http://bernard.virot.free.fr", color=Qt.white,
                        alignment=Qt.AlignCenter)
     app.processEvents()
     sleep(1)

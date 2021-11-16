@@ -155,9 +155,9 @@ class ExifTool(object):
         @type f: str
         """
         # following exif doc, wild cards do not copy icc_profile : we must specify it explicitly
-        # Tag ImageDescription is added by tifffile in .blu files to hold the layer stack.
+        # Tag ImageDescription is added by tifffile to .blu files to hold the layer stack.
         # Copying it to sidecar will restore old stack.
-        command = ["-tagsFromFile", f, "-all", "-icc_profile", "-overwrite_original", "-ImageDescription=", f[:-4] + ".mie"]
+        command = ["-tagsFromFile", f, "-all", "-icc_profile", "-overwrite_original", "--ImageDescription", f[:-4] + ".mie"]
         self.execute(*command)
 
     def copySidecar(self, source, dest, removesidecar=False):
@@ -177,7 +177,7 @@ class ExifTool(object):
         sidecar = source[:-4] + '.mie'
         if isfile(sidecar):
             # copy metadata from sidecar to image file
-            # following exif doc, wild cards do not copy icc_profile : we must specify it explicitely
+            # following exif doc, wild cards do not copy icc_profile : we must specify it explicitly
             command = ["-tagsFromFile", sidecar, "-all", "-icc_profile", "-overwrite_original", dest]
             self.execute(*command)
         else:
@@ -349,7 +349,7 @@ class ExifTool(object):
         @return:
         @rtype: str
         """
-        command = ["-a", "-G0:1", f]  # G0:1 add group names to output
+        command = ["-a", "-G0:1", "--ImageDescription", f]  # remove Imagej tag from output, G0:1 add group names to output
         out = self.execute(* command)
         return out
 

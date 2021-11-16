@@ -54,6 +54,8 @@ from bLUeTop.utils import qColorToRGB, historyList
 
 from bLUeTop.versatileImg import vImage
 
+from version import BLUE_VERSION
+
 
 class ColorSpace:
     notSpecified = -1
@@ -509,7 +511,8 @@ class mImage(vImage):
         if fileFormat in BLUE_FILE_EXTENSIONS:  # dest format
 
             names = OrderedDict([(layer.name, pickle.dumps({'actionname' : layer.actionName, 'state' : layer.__getstate__()})) for layer in self.layersStack] +
-                                [('sourceformat', self.sourceformat)])
+                                [('sourceformat', self.sourceformat)] +
+                                [('version', BLUE_VERSION)])
 
             mask_list = [layer._mask for layer in self.layersStack if layer._mask is not None]
 
