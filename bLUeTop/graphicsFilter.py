@@ -194,4 +194,25 @@ class filterForm (baseForm):
         self.amountLabel.setEnabled(self.sliderAmount.isEnabled())
         self.toneLabel.setEnabled(self.sliderTone.isEnabled())
 
+    def __getstate__(self):
+        d = {}
+        for a in self.__dir__():
+            obj = getattr(self, a)
+            if type(obj) in [optionsWidget, QbLUeSlider]:
+                d[a] = obj.__getstate__()
+        return d
+
+    def __setstate__(self, d):
+        # prevent multiple updates
+        try:
+            self.dataChanged.disconnect()
+        except RuntimeError:
+            pass
+        for name in d['state']:
+            obj = getattr(self, name, None)
+            if type(obj) in [optionsWidget, QbLUeSlider]:
+                obj.__setstate__(d['state'][name])
+        self.dataChanged.connect(self.updateLayer)
+        self.dataChanged.emit()
+
 

@@ -137,26 +137,25 @@ class noiseForm (baseForm):
         self.dataChanged.emit()
         self.sliderThr.valueChanged.connect(self.thrUpdate)  # send new value as parameter
         self.sliderThr.sliderReleased.connect(lambda: self.thrUpdate(self.sliderThr.value()))  # signal has no parameter
-    """
-    def writeToStream(self, outStream):
-        layer = self.layer
-        outStream.writeQString(layer.actionName)
-        outStream.writeQString(layer.name)
-        outStream.writeQString(self.listWidget1.selectedItems()[0].text())
-        outStream.writeInt32(self.sliderTemp.value()*100)
-        return outStream
 
-    def readFromStream(self, inStream):
-        actionName = inStream.readQString()
-        name = inStream.readQString()
-        sel = inStream.readQString()
-        temp = inStream.readInt32()
-        for r in range(self.listWidget1.count()):
-            currentItem = self.listWidget1.item(r)
-            if currentItem.text() == sel:
-                self.listWidget.select(currentItem)
-        self.sliderTemp.setValue(temp//100)
-        self.update()
-        return inStream
-    """
+    def __getstate__(self):
+        d = {}
+        for a in self.__dir__():
+            obj = getattr(self, a)
+            if type(obj) in [optionsWidget, QbLUeSlider]:
+                d[a] = obj.__getstate__()
+        return d
+
+    def __setstate__(self, d):
+        # prevent multiple updates
+        try:
+            self.dataChanged.disconnect()
+        except RuntimeError:
+            pass
+        for name in d['state']:
+            obj = getattr(self, name, None)
+            if type(obj) in [optionsWidget, QbLUeSlider]:
+                obj.__setstate__(d['state'][name])
+        self.dataChanged.connect(self.updateLayer)
+        self.dataChanged.emit()
 

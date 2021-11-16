@@ -16,7 +16,8 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-from PySide2.QtWidgets import QApplication, QVBoxLayout, QHBoxLayout, QSizePolicy, QLabel, QSlider
+from PySide2.QtWidgets import QApplication, QVBoxLayout, QHBoxLayout, QSizePolicy, QLabel
+from bLUeTop.utils import QbLUeSlider
 
 from PySide2.QtCore import Qt
 
@@ -93,17 +94,17 @@ class graphicsFormAuto3DLUT(baseForm):
             slider.setMaximum(100)
             slider.setSliderPosition(0)
 
-        self.slider1 = QSlider(Qt.Horizontal)
+        self.slider1 = QbLUeSlider(Qt.Horizontal)
         hlay1 = QHBoxLayout()
         hlay1.addWidget(self.predLabel1)
         hlay1.addWidget(self.slider1)
 
-        self.slider2 = QSlider(Qt.Horizontal)
+        self.slider2 = QbLUeSlider(Qt.Horizontal)
         hlay2 = QHBoxLayout()
         hlay2.addWidget(self.predLabel2)
         hlay2.addWidget(self.slider2)
 
-        self.slider3 = QSlider(Qt.Horizontal)
+        self.slider3 = QbLUeSlider(Qt.Horizontal)
         hlay3 = QHBoxLayout()
         hlay3.addWidget(self.predLabel3)
         hlay3.addWidget(self.slider3)
@@ -127,7 +128,7 @@ class graphicsFormAuto3DLUT(baseForm):
         self.adjustSize()
         self.setWhatsThis(
             """<b>Auto 3D LUT</b><br>
-            Use the sliders to add a personal touch to the image.<br>
+            Use the sliders to add a personal touch to the image (auto corresponds to central positions).<br>
             """
         )  # end setWhatsThis
 
@@ -138,3 +139,24 @@ class graphicsFormAuto3DLUT(baseForm):
         layer = self.layer
         layer.applyToStack()
         layer.parentImage.onImageChanged()
+
+    def __getstate__(self):
+        d = {}
+        for a in self.__dir__():
+            obj = getattr(self, a)
+            if type(obj) in [QbLUeSlider]:
+                d[a] = obj.__getstate__()
+        return d
+
+    def __setstate__(self, d):
+        # prevent multiple updates
+        try:
+            self.dataChanged.disconnect()
+        except RuntimeError:
+            pass
+        for name in d['state']:
+            obj = getattr(self, name, None)
+            if type(obj) in [QbLUeSlider]:
+                obj.__setstate__(d['state'][name])
+        self.dataChanged.connect(self.updateLayer)
+        self.dataChanged.emit()
