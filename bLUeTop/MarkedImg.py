@@ -498,7 +498,7 @@ class mImage(vImage):
             w1, w2 = int(self.cropLeft), w - int(self.cropRight)
             h1, h2 = int(self.cropTop), h - int(self.cropBottom)
             buf = buf[h1:h2, w1:w2, :]
-        # build thumbnail from (evenyually) cropped image
+        # build thumbnail from (eventually) cropped image
         # choose thumb size
         wf, hf = buf.shape[1], buf.shape[0]
         if wf > hf:
@@ -510,50 +510,70 @@ class mImage(vImage):
 
         if fileFormat in BLUE_FILE_EXTENSIONS:  # dest format
 
-            names = OrderedDict([(layer.name, pickle.dumps({'actionname' : layer.actionName, 'state' : layer.__getstate__()})) for layer in self.layersStack] +
-                                [('sourceformat', self.sourceformat)] +
-                                [('version', BLUE_VERSION)])
+            names = OrderedDict(
+                [(layer.name, pickle.dumps({'actionname': layer.actionName, 'state': layer.__getstate__()})) for layer
+                 in self.layersStack] +
+                [('sourceformat', self.sourceformat)] +
+                [('version', BLUE_VERSION)])
 
             mask_list = [layer._mask for layer in self.layersStack if layer._mask is not None]
 
-            if  self.sourceformat in RAW_FILE_EXTENSIONS:  # bLUe data format  is flattened images
+            image_list = []
+            for layer in self.layersStack:
+                if layer.innerImages:
+                    image_list.extend([getattr(layer, aname) for aname in layer.innerImages])
+
+            if  self.sourceformat in RAW_FILE_EXTENSIONS:
                 # copy raw file and layer stack to .bLU
                 originFormat = self.filename[-4:]  # format of opened document
-                if originFormat in BLUE_FILE_EXTENSIONS: # opened document is bLUe doc
+                if originFormat in BLUE_FILE_EXTENSIONS: # format of source file
                     with tifffile.TiffFile(self.filename) as tfile:
                         sourcedata = tfile.series[0].pages[0].asarray()
                         buf_ori  = sourcedata[0]  # [:, 0]
-                elif originFormat in RAW_FILE_EXTENSIONS:  # opened document is raw doc
+                elif originFormat in RAW_FILE_EXTENSIONS:
                     with open(self.filename, 'rb') as f:
                         bytes = f.read()
                     buf_ori = np.frombuffer(bytes, dtype=np.uint8)
 
                 w, h = self.width(), self.height()
-                images = np.empty((len(mask_list) + 1, max(len(buf_ori), w * h * 3)), dtype=np.uint8)
-                for i, m in enumerate(mask_list):
-                    images[i + 1, :w * h * 3] = QImageBuffer(m)[:, :, :3][:, :, ::-1].flatten()
+                images = np.empty((len(mask_list) + len(image_list) + 1, max(len(buf_ori), w * h * 4)), dtype=np.uint8)
+
                 images[0, :len(buf_ori)] = buf_ori
-                names['mask_len'] = w * h * 3
+
+                for i, m in enumerate(mask_list + image_list):
+                    if m is not None:
+                        b = QImageBuffer(m)
+                        images[i + 1, :w * h * 4] = b.ravel()
+
+                names['mask_len'] = w * h * 4
                 names['buf_ori_len'] = len(buf_ori)
 
                 result = tifffile.imsave(filename,
-                                         data=images,  # buf_ori.reshape(buf_ori.size, 1, 1),  # reshape is mandatory
+                                         data=images,
                                          compress=6,
                                          imagej=True,
                                          returnoffset=True,
-                                         metadata=names)
+                                         metadata=names
+                                         )
+                written = True  # with compression > 0 result is None
 
-                written = True  # with compression result is None
-            elif self.sourceformat in IMAGE_FILE_EXTENSIONS: # bLUe data format  is (w, h, 3) shaped images
+            elif self.sourceformat in IMAGE_FILE_EXTENSIONS or self.sourceformat == '':  # format == '' for new document
                 # copy source image and layer stack to .BLU.
-                img_ori = self # .getCurrentImage()  # always save full size image
-                buf_ori = QImageBuffer(img_ori)[:,:, :3][:,:,::-1]
+                img_ori = self
 
                 w, h = self.width(), self.height()
-                images = np.empty((len(mask_list) + 1, h, w, 3), dtype=np.uint8)
-                for i, m in enumerate(mask_list):
-                    images[i + 1, ...] = QImageBuffer(m)[:,:, :3][:,:,::-1]
+                images = np.empty((len(mask_list) + len(image_list) + 1, h, w, 4), dtype=np.uint8)
+
+                buf_ori = QImageBuffer(img_ori)
+                # BGRA to RGBA conversion needed : to reload image
+                # the bLU file will be read as tiff by QImageReader
+                tmpview = buf_ori[...,:3]
+                tmpview[...] = tmpview[...,::-1]
                 images[0, ...] = buf_ori
+
+                for i, m in enumerate(mask_list + image_list):
+                    if m is not None:
+                        images[i + 1, ...] = QImageBuffer(m)
 
                 result = tifffile.imsave(filename,
                                          data=images,
@@ -729,6 +749,7 @@ class imImage(mImage):
         self.xOffset, self.yOffset = 0, 0
         self.isMouseSelectable = True
         self.isModified = False
+        self.sourceformat = ''  # needed to save as bLU file
 
     def bTransformed(self, transformation):
         """
@@ -849,20 +870,22 @@ class QLayer(vImage):
         self.opacity = 1.0
         self.compositionMode = QPainter.CompositionMode_SourceOver
         ###################################################################################
-        # For the sake of conciseness, QLayer is not subclassed to define multiple types of adjustment layers.
+        # To avoid changing signature of inherited methods,
+        # QLayer is not subclassed to define multiple types of adjustment layers.
         # Instead, we use the attribute execute as a wrapper to the right applyXXX method, depending
         # on the intended "type" of layer.
         # Note : execute should always end by calling updatePixmap.
         ##################################################################################
         self.execute = lambda l=None, pool=None: l.updatePixmap() if l is not None else None
         self.options = {}
-        # actionName is used by methods graphics***.writeToStream()
         self.actionName = 'actionNull'
         # view is the dock widget containing
         # the graphics form associated with the layer
         self.view = None
         # undo/redo mask history
         self.historyListMask = historyList(size=5)
+        # list of auxiliary images to be saved/restored (drawing, cloning, merging,...)
+        self.innerImages = []
         # layer offsets
         self.xOffset, self.yOffset = 0, 0
         self.Zoom_coeff = 1.0
@@ -1479,7 +1502,8 @@ class QLayer(vImage):
         d['visible'] = self.visible
         d['maskIsEnabled'] = self.maskIsEnabled
         d['maskIsSelected'] = self.maskIsSelected
-        d['mask'] = 0 if self._mask is None else 1  # flag used by addAdjustmentLayers()
+        d['mask'] = 0 if self._mask is None else 1  # used by addAdjustmentLayers()
+        d['images'] = len(self.innerImages) # used by addAdjustmentLayers()
         return d
 
     def __setstate__(self, state):
@@ -1722,8 +1746,10 @@ class QLayerImage(QLayer):
         return layer
 
     def __init__(self, *args, **kwargs):
-        self.sourceImg = None
         super().__init__(*args, **kwargs)
+        self.sourceImg = None
+        # bLU files must save/restore source image
+        self.innerImages.append('sourceImg')
 
     def inputImg(self, redo=True):
         """
@@ -1801,14 +1827,3 @@ class QRawLayer(QLayer):
     @postProcessCache.setter
     def postProcessCache(self, buf):
         self.__postProcessCache = buf
-
-    @property
-    def bufCache_HSV_CV32(self):
-        return self.__bufCache_HSV_CV32
-
-    @bufCache_HSV_CV32.setter
-    def bufCache_HSV_CV32(self, buffer):
-        self.__bufCache_HSV_CV32 = buffer
-
-
-

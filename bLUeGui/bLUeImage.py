@@ -26,6 +26,7 @@ from bLUeGui.colorCIE import sRGB2LabVec
 from bLUeGui.colorCube import rgb2hspVec
 from bLUeGui.const import channelValues
 
+
 class trackImage(QImage):
     """
     Used to draw histograms with mouse tracking
@@ -34,6 +35,7 @@ class trackImage(QImage):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.drawingScale, self.drawingWidth = (1.0,) * 2
+
 
 class bImage(QImage):
     """
@@ -191,14 +193,13 @@ class bImage(QImage):
         """
         wfi = QImage(QSize(self.width(), 256), QImage.Format_ARGB32)
         wfi.fill(Qt.black)
-        wfiBuf = QImageBuffer(wfi)[:,:,:3]
+        wfiBuf = QImageBuffer(wfi)[:, :, :3]
         frameWidth = 1
         buf = QImageBuffer(self)
         for x in range(0, self.width(), frameWidth):
-            bufFrame = buf[:, x:x+frameWidth, 1]
+            bufFrame = buf[:, x:x + frameWidth, 1]
             hist, bins = np.histogram(bufFrame, bins=128, range=(0, 255), density=True)
-            wfiBuf[::2, x:x+frameWidth, :] = (hist * 256000)[..., np.newaxis, np.newaxis]
-
+            wfiBuf[::2, x:x + frameWidth, :] = (hist * 256000)[..., np.newaxis, np.newaxis]
 
     def histogram(self, size=QSize(200, 200), bgColor=Qt.white, range=(0, 255),
                   chans=channelValues.RGB, chanColors=Qt.gray, mode='RGB', addMode='', clipping_threshold=0.02):
@@ -230,7 +231,7 @@ class bImage(QImage):
         # scaling factor for bin drawing
         spread = float(range[1] - range[0])
         scaleH = size.width() / spread
-        upMargin = 10 # keep space for indicators on image top
+        upMargin = 10  # keep space for indicators on image top
 
         # per channel histogram function
         def drawChannelHistogram(painter, hist, bin_edges, color):
@@ -265,15 +266,15 @@ class bImage(QImage):
                 h = scaleV * y
                 poly.append(QPointF((bin_edges[i] - range[0]) * scaleH, max(imgH - h, upMargin)))
                 # clipping indicators
-                if i == 0 or i == len(hist)-1:
+                if i == 0 or i == len(hist) - 1:
                     left = bin_edges[0 if i == 0 else -1] * scaleH
                     left = left - (10 if i > 0 else 0)  # shift the indicator at right
-                    percent = hist[i] * (bin_edges[i+1]-bin_edges[i])
+                    percent = hist[i] * (bin_edges[i + 1] - bin_edges[i])
                     if percent > clipping_threshold:
                         # set the color of the indicator according to percent value
                         nonlocal gPercent
                         gPercent = min(gPercent, np.clip((0.05 - percent) / 0.03, 0, 1))
-                        painter.fillRect(left, 0, 10, 10, QColor(255, 255*gPercent, 0))
+                        painter.fillRect(left, 0, 10, 10, QColor(255, 255 * gPercent, 0))
             # complete last bin
             poly.append(QPointF((bin_edges[-1] - range[0]) * scaleH, max(imgH - h, upMargin)))
             # draw the filled polygon
@@ -283,6 +284,7 @@ class bImage(QImage):
             path.closeSubpath()
             painter.setPen(Qt.NoPen)
             painter.fillPath(path, QBrush(color))
+
         # end of drawChannelHistogram
 
         # green percent for clipping indicators
@@ -304,7 +306,7 @@ class bImage(QImage):
 
         qp = QPainter(img)
         if type(chanColors) is QColor or type(chanColors) is Qt.GlobalColor:
-            chanColors = [chanColors]*3
+            chanColors = [chanColors] * 3
         # compute histograms
         # bins='auto' sometimes causes a huge number of bins ( >= 10**9) and memory error
         # even for small data size (<=250000), so we don't use it.
@@ -312,7 +314,7 @@ class bImage(QImage):
             bufL = cv2.cvtColor(QImageBuffer(self)[:, :, :3], cv2.COLOR_BGR2GRAY)[..., np.newaxis]
             hist, bin_edges = np.histogram(bufL, range=range, bins=binCount, density=True)
             drawChannelHistogram(qp, hist, bin_edges, Qt.gray)
-        hist_L, bin_edges_L = [0]*len(chans), [0]*len(chans)
+        hist_L, bin_edges_L = [0] * len(chans), [0] * len(chans)
         for i, ch in enumerate(chans):
             buf0 = buf[:, :, ch]
             hist_L[i], bin_edges_L[i] = np.histogram(buf0, range=range, bins=binCount, density=True)
@@ -325,9 +327,22 @@ class bImage(QImage):
         return img
 
 
-QImageFormats = {0: 'invalid', 1: 'mono', 2: 'monoLSB', 3: 'indexed8', 4: 'RGB32', 5: 'ARGB32', 6: 'ARGB32 Premultiplied',
-                 7: 'RGB16', 8: 'ARGB8565 Premultiplied', 9: 'RGB666', 10: 'ARGB6666 Premultiplied', 11: 'RGB555',
-                 12: 'ARGB8555 Premultiplied', 13: 'RGB888', 14: 'RGB444', 15: 'ARGB4444 Premultiplied'}
+QImageFormats = {0: 'invalid',
+                 1: 'mono',
+                 2: 'monoLSB',
+                 3: 'indexed8',
+                 4: 'RGB32',
+                 5: 'ARGB32',
+                 6: 'ARGB32 Premultiplied',
+                 7: 'RGB16',
+                 8: 'ARGB8565 Premultiplied',
+                 9: 'RGB666',
+                 10:'ARGB6666 Premultiplied',
+                 11:'RGB555',
+                 12:'ARGB8555 Premultiplied',
+                 13: 'RGB888',
+                 14: 'RGB444',
+                 15: 'ARGB4444 Premultiplied'}
 
 
 def ndarrayToQImage(ndimg, format=QImage.Format_ARGB32):
@@ -335,17 +350,18 @@ def ndarrayToQImage(ndimg, format=QImage.Format_ARGB32):
     Converts a 3D numpy ndarray to a QImage. No sanity check is
     done regarding the compatibility of the ndarray shape with
     the QImage format.
-    @param ndimg: The ndarray to be converted
-    @type ndimg: ndarray
+    @param ndimg: The ndarray to convert, ndimg.data order must be BGRA (little-endian arch.) or ARGB (big-endian)
+    @type ndimg: ndarray, dtype np.uint8
     @param format: The QImage format (default ARGB32)
     @type format:
     @return: The converted image
     @rtype: QImage
     """
     if ndimg.ndim != 3 or ndimg.dtype != 'uint8':
-        raise ValueError("ndarray2QImage : array must be 3D with dtype=uint8, found ndim=%d, dtype=%s" % (ndimg.ndim, ndimg.dtype))
+        raise ValueError(
+            "ndarray2QImage : array must be 3D with dtype=uint8, found ndim=%d, dtype=%s" % (ndimg.ndim, ndimg.dtype))
     bytePerLine = ndimg.shape[1] * ndimg.shape[2]
-    if len(np.ravel(ndimg).data) != ndimg.shape[0]*bytePerLine:
+    if ndimg.size != ndimg.shape[0] * bytePerLine:
         raise ValueError("ndarrayToQImage : conversion error")
     # build QImage from buffer
     qimg = QImage(ndimg.data, ndimg.shape[1], ndimg.shape[0], bytePerLine, format)

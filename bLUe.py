@@ -162,7 +162,7 @@ from bLUeGui.bLUeImage import QImageBuffer, QImageFormats, ndarrayToQImage
 from bLUeTop.presetReader import aParser
 from bLUeTop.rawProcessing import rawRead
 from bLUeTop.versatileImg import vImage, metadataBag
-from bLUeTop.MarkedImg import imImage, QRawLayer, QCloningLayer
+from bLUeTop.MarkedImg import imImage, QRawLayer, QCloningLayer, QLayerImage
 from bLUeTop.graphicsRGBLUT import graphicsForm
 from bLUeTop.graphicsLUT3D import graphicsForm3DLUT
 from bLUeTop.graphicsAutoLUT3D import graphicsFormAuto3DLUT
@@ -264,23 +264,42 @@ def widgetChange(button, window=window):
 
 def addAdjustmentLayers(layers, images):
     """
-    Adds a list of layers to the current document.
+    Adds a list of layers to the current document and restore their states.
     Entries not corresponding to menu layers actions are skipped.
     @param layers:
-    @type layers: list
+    @type layers: list of (key, dict)
+    @param images
+    @type images ndarray
     """
     if layers is None:
         return
     count = 1
+    waitImages = []
     for item in layers:
+        d = item[1]['state']
+        # add layer to stack
         layer = menuLayer(item[1]['actionname'])
-        if layer is not None:
-            if item[1]['state']['mask'] == 1:
-                buf = images.asarray()[count] #images[count].asarray()
-                buf = buf.reshape(layer.height(), layer.width(), 3)
-                layer.mask = ndarrayToQImage(buf, QImage.Format_RGB888).convertToFormat(QImage.Format_ARGB32)
-                count += 1
-            layer.__setstate__(item[1])  # keep after mask init
+        if d['mask'] == 1:
+            if layer is not None:
+                buf = images.asarray()[count]
+                buf = buf.reshape(layer.height(), layer.width(), 4)
+                layer.mask = ndarrayToQImage(buf, QImage.Format_ARGB32)
+                layer.__setstate__(item[1])  # keep after mask init
+            count += 1
+        else:
+            if layer is not None:
+                layer.__setstate__(item[1])  # keep after mask init
+        if 'images' in d:  # for retro compatibility with previous bLU file formats
+            n = d['images']
+            if n > 0:
+                waitImages.append((layer, n))  # image offset not known yet
+
+    for layer, n in waitImages:
+        if type(layer) is QLayerImage:
+            buf = images.asarray()[count]
+            buf = buf.reshape(layer.height(), layer.width(), 4)
+            layer.sourceImg = ndarrayToQImage(buf, QImage.Format_ARGB32)
+        count += n
 
 
 def addBasicAdjustmentLayers(img, window=window):
@@ -322,7 +341,7 @@ def addRawAdjustmentLayer(window=window):
 def loadImage(img, tfile=None, withBasic=True, window=window):
     """
     load a vImage into bLUe and build layer stack.
-    Try to import layer stack from .BLU file
+    if tfile is an opened TiffFile instance, import layer stack from file
     @param img:
     @type img: vImage
     @param tfile
@@ -347,11 +366,20 @@ def loadImage(img, tfile=None, withBasic=True, window=window):
 
     # import layer stack from .BLU file
     if tfile is not None and img.filename[-4:].upper() in BLUE_FILE_EXTENSIONS:
-        # get ordered dict of layers
-        meta_dict = imagej_description_metadata(tfile.pages[0].is_imagej) # unpickling needed here, so we use imagej_description
+        # get ordered dict of layers.
+        # Tifffile relies on Python 3 formatting for bytes --> str decoding.
+        # It implicitly calls __str__() to get "standard" string representation of bytes
+        # (cf. the function imagej_description() in tifffile.py)
+        # This last representation is then encoded/decoded to and from the tiff file.
+        # str representations of tag values may contain arbitrary '=' char, so we need
+        # our modified version of imagej_description_metadata() to get the dict.
+        # Next, str representation of tag values are decoded to bytes by applying literal_eval
+        # as inverse of __str__(), and finally tag values are unpickled.
+        meta_dict = imagej_description_metadata(tfile.pages[0].is_imagej)
         try:
             if rlayer is not None:
-                rlayer.__setstate__(pickle.loads(literal_eval(meta_dict['develop'])))  # tifffile turns meta_dict keys to lower !
+                d = pickle.loads(literal_eval(meta_dict['develop'])) # tifffile turns meta_dict keys to lower !
+                rlayer.__setstate__(d)
             # build layer stack
             withBasic = False  # the imported layer stack only
             layers = []
@@ -394,13 +422,14 @@ def openFile(f, window=window):
             tfile = tifffile.TiffFile(f)
             meta_dict = tfile.imagej_metadata  # no unpickling needed here, so we use imagej_metadata
             version = meta_dict.get('version', 'unknown') # unused yet
-            sourceformat = meta_dict.get('sourceformat')
+            sourceformat = meta_dict.get('sourceformat')  # read actual source format
             if sourceformat in RAW_FILE_EXTENSIONS:
                 # is .blu file from raw
                 buf_ori_len = meta_dict['buf_ori_len']
                 rawbuf = tfile.series[0].pages[0].asarray()[0, :buf_ori_len]
                 iobuf = io.BytesIO(rawbuf.tobytes())
-        # load imImage instance from file
+        # load imImage instance from file, bLU file included
+        # if rawiobuf is None the image file is read using QImageReader
         img = imImage.loadImageFromFile(f, rawiobuf=iobuf, cmsConfigure=True, window=window)
         img.sourceformat = sourceformat
         # init layers
@@ -1068,6 +1097,11 @@ def menuLayer(name, window=window):
             # apply auto 3D LUT immediately when the layer is added
             grWindow.dataChanged.emit()
 
+    # check open document
+    if window.tabBar.count() == 0:
+        dlgWarn('Cannot add layer : no document found', 'Open an existing image or create a new one')
+        return
+
     # curves
     if name in ['actionCurves_RGB', 'actionCurves_HSpB', 'actionCurves_Lab']:
         if name == 'actionCurves_RGB':
@@ -1146,7 +1180,7 @@ def menuLayer(name, window=window):
                 rawpyInst = rawRead(filename)
                 # postprocess raw image, applying default settings (cf. vImage.applyRawPostProcessing)
                 rawBuf = rawpyInst.postprocess(use_camera_wb=True)
-                # build Qimage : swittch to BGR and add alpha channel
+                # build Qimage : switch to BGR and add alpha channel
                 rawBuf = np.dstack((rawBuf[:, :, ::-1], np.zeros(rawBuf.shape[:2], dtype=np.uint8) + 255))
                 imgNew = vImage(cv2Img=rawBuf)
                 # keeping a reference to rawBuf along with img is

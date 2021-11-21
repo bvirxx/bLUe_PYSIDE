@@ -20,7 +20,9 @@ from PySide2.QtGui import QPixmap, QColor, QPainterPath, QTransform
 from PySide2.QtWidgets import QPushButton, QVBoxLayout, QHBoxLayout, QSlider, QLabel
 
 from bLUeGui.graphicsForm import baseForm
+from bLUeGui.dialog import dlgWarn
 from bLUeTop.drawing import brushFamily
+from bLUeTop.utils import QbLUeSlider
 
 
 class drawForm (baseForm):
@@ -44,7 +46,7 @@ class drawForm (baseForm):
         pushButton1.clicked.connect(self.undo)
         pushButton2.clicked.connect(self.redo)
 
-        spacingSlider = QSlider(Qt.Horizontal)
+        spacingSlider = QbLUeSlider(Qt.Horizontal)
         spacingSlider.setObjectName('spacingSlider')
         spacingSlider.setRange(1,60)
         spacingSlider.setTickPosition(QSlider.TicksBelow)
@@ -52,7 +54,7 @@ class drawForm (baseForm):
         spacingSlider.sliderReleased.connect(self.parent().label.brushUpdate)
         self.spacingSlider = spacingSlider
 
-        jitterSlider = QSlider(Qt.Horizontal)
+        jitterSlider = QbLUeSlider(Qt.Horizontal)
         jitterSlider.setObjectName('jitterSlider')
         jitterSlider.setRange(0, 100)
         jitterSlider.setTickPosition(QSlider.TicksBelow)
@@ -60,13 +62,17 @@ class drawForm (baseForm):
         jitterSlider.sliderReleased.connect(self.parent().label.brushUpdate)
         self.jitterSlider = jitterSlider
 
-        orientationSlider = QSlider(Qt.Horizontal)
+        orientationSlider = QbLUeSlider(Qt.Horizontal)
         orientationSlider.setObjectName('orientationSlider')
         orientationSlider.setRange(0, 360)
         orientationSlider.setTickPosition(QSlider.TicksBelow)
         orientationSlider.setSliderPosition(180)
         orientationSlider.sliderReleased.connect(self.parent().label.brushUpdate)
         self.orientationSlider = orientationSlider
+
+        # self.brushFamilyList = self.mainForm.brushes
+        self.mainForm = self.parent()
+        self.colorChooser = self.parent().colorChooser
 
         # sample
         self.sample = QLabel()
@@ -153,3 +159,56 @@ class drawForm (baseForm):
 
     def reset(self):
         self.layer.tool.resetTrans()
+
+    def __getstate__(self):
+        d = {}
+        for a in self.__dir__():
+            obj = getattr(self, a)
+            if type(obj) in [QbLUeSlider]:
+                d[a] = obj.__getstate__()
+        brushDict = self.layer.brushDict
+        d['brush'] = {name : brushDict[name] for name in ['name', 'size', 'color', 'opacity', 'hardness', 'flow', 'spacing', 'jitter', 'orientation']}
+        return d
+
+    def __setstate__(self, d):
+        # prevent multiple updates
+        try:
+            self.dataChanged.disconnect()
+        except RuntimeError:
+            pass
+        for name in d['state']:
+            obj = getattr(self, name, None)
+            if type(obj) in [QbLUeSlider]:
+                obj.__setstate__(d['state'][name])
+
+        bdict = d['state']['brush']
+        brushFamilyNames = [family.name.lower() for family in self.mainForm.brushes]
+        try:
+            ind = brushFamilyNames.index(bdict['name'].lower())
+            family = self.mainForm.brushes[ind]
+        except ValueError:
+            dlgWarn('Cannot restore brush', 'Reload presets')
+            family = None
+        bSize = bdict['size']
+        bOpacity = bdict['opacity']
+        bColor = bdict['color']
+        bHardness = bdict['hardness']
+        bFlow = bdict['flow']
+        bSpacing = bdict['spacing']
+        bJitter = bdict['jitter']
+        bOrientation = bdict['orientation']
+        #pattern = bdict['pattern']
+        if family is not None:
+            self.layer.brushDict = family.getBrush(bSize, bOpacity, bColor, bHardness, bFlow, spacing=bSpacing, jitter=bJitter, orientation=bOrientation) # pattern=pattern
+            self.mainForm.label.State['brush'] = self.layer.brushDict
+
+        if self.layer.brushDict is None:  # no brush set yet
+            self.mainForm.label.brushUpdate()
+            self.layer.brushDict = self.mainForm.label.State['brush']
+
+        self.mainForm.label.img.onActiveLayerChanged()  # alias to restorebrush()
+
+        self.updateSample()
+        self.colorChooser.setCurrentColor(bColor)
+        self.dataChanged.connect(self.updateLayer)
+        self.dataChanged.emit()

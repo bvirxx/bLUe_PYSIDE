@@ -111,14 +111,12 @@ class brushFamily:
     def brushStrokePoly(pixmap, poly, brush):
         """
         Draws the brush stroke defined by a QPolygon
-        @param layer:
-        @type layer:
-        @param x:
-        @type x:
-        @param y:
-        @type y:
-        @param r:
-        @type r:
+        @param pixmap:
+        @type pixmap:
+        @param poly:
+        @type poly:
+        @param brush:
+        @type brush:
         """
         # draw the stroke
         if brush['name'] == 'eraser':

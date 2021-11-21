@@ -65,7 +65,7 @@ class imageLabel(QLabel):
         bHardness = window.verticalSlider3.value() / 100
         bFlow = window.verticalSlider4.value() / 100
         if getattr(window, 'colorChooser', None):
-            bColor = window.colorChooser.selectedColor()
+            bColor = window.colorChooser.currentColor()  # selectedColor() cannot be set TODO modified 18/11/21 validate
         else:
             bColor = Qt.black
         if window.btnValues['eraserButton']:
