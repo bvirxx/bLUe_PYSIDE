@@ -672,7 +672,8 @@ Note that upper visible layers slow down mask edition.<br>
         compositionMode = layer.compositionMode
         ind = self.blendingModeCombo.findData(compositionMode)
         self.blendingModeCombo.setCurrentIndex(ind)
-
+        if layer.tool is not None:
+            layer.tool.moveRotatingTool()  # TODO added 23/11/21 keep last - validate
         # draw the right rectangle
         window.label.repaint()
 

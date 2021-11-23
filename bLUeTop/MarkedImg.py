@@ -377,6 +377,8 @@ class mImage(vImage):
                 layer = layerType.fromImage(self.layersStack[index], parentImage=self)
         else:
             # set layer from image :
+            if self.size() != sourceImg.size():  # TODO added 22/11/21
+                sourceImg = sourceImg.scaled(self.size())
             layer = QLayerImage.fromImage(self.layersStack[index], parentImage=self, sourceImg=sourceImg)
         layer.role = role
         self.addLayer(layer, name=name, index=index + 1)
@@ -1502,6 +1504,7 @@ class QLayer(vImage):
         d['visible'] = self.visible
         d['maskIsEnabled'] = self.maskIsEnabled
         d['maskIsSelected'] = self.maskIsSelected
+        d['mergingFlag'] = self.mergingFlag
         d['mask'] = 0 if self._mask is None else 1  # used by addAdjustmentLayers()
         d['images'] = len(self.innerImages) # used by addAdjustmentLayers()
         return d
@@ -1513,6 +1516,8 @@ class QLayer(vImage):
         self.visible = d['visible']
         self.maskIsEnabled = d['maskIsEnabled']
         self.maskIsSelected = d['maskIsSelected']
+        if 'mergingFlag' in d:
+            self.mergingFlag = d['mergingFlag']
         if self.maskIsSelected:
             self.setColorMaskOpacity(self.colorMaskOpacity)
         grForm = self.getGraphicsForm()
@@ -1748,6 +1753,7 @@ class QLayerImage(QLayer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.sourceImg = None
+        self.filename = ''  # path to sourceImg file
         # bLU files must save/restore source image
         self.innerImages.append('sourceImg')
 

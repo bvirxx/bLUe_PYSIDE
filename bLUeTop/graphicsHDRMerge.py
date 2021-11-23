@@ -38,7 +38,7 @@ class HDRMergeForm(baseForm):
         self.options = None
         self.mergeButton = QPushButton('Refresh')
         self.mergeButton.setMaximumWidth(80)
-        self.warn = QLabel('Use the layer stack context menu\nto add or remove layers to merge.')
+        self.warn = QLabel('Use the layer context menu to\nadd or remove lower layers to merge.')
         # self.warn.setStyleSheet("QLabel {color : yellow; }")
 
         # button slot
@@ -59,7 +59,7 @@ class HDRMergeForm(baseForm):
         self.adjustSize()
         self.setWhatsThis(
                         """<b>Exposure Fusion</b>
-                        In the layer stack use the context menu to select the layers to be merged. Next, press
+                        Use the layer context menu to select lower layers to merge. Next, press
                         the <i>Refresh</i> button.<br>
                         """
                          )  # end setWhatsThis

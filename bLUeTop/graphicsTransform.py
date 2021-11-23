@@ -103,8 +103,8 @@ class transForm (baseForm):
         return d
 
     def __setstate__(self, d):
-        # prevent multiple updates
         d = d['state']
+        # prevent multiple updates
         try:
             self.dataChanged.disconnect()
         except RuntimeError:
@@ -116,9 +116,9 @@ class transForm (baseForm):
         for role in ['topLeft', 'topRight', 'bottomRight', 'bottomLeft']:
             btn = self.layer.tool.btnDict[role]
             btn.posRelImg = QPointF(*d[role])
-        self.layer.tool.moveRotatingTool()
         self.dataChanged.connect(self.updateLayer)
         self.dataChanged.emit()
+        self.layer.tool.moveRotatingTool()  # keep after update
 
 
 class imageForm(transForm):

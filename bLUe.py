@@ -145,7 +145,7 @@ from bLUeTop.graphicsHDRMerge import HDRMergeForm
 from bLUeTop.graphicsSegment import segmentForm
 from PySide2.QtCore import QUrl, QFileInfo
 from PySide2.QtGui import QPixmap, QCursor, QKeySequence, QDesktopServices, QFont, \
-    QTransform, QColor, QImage, QIcon
+    QTransform, QColor, QImage, QIcon, QImageReader
 from PySide2.QtWidgets import QApplication, QAction, \
     QDockWidget, QSizePolicy, QSplashScreen, QWidget, \
     QTabWidget, QToolBar, QComboBox, QTabBar
@@ -278,7 +278,9 @@ def addAdjustmentLayers(layers, images):
     for item in layers:
         d = item[1]['state']
         # add layer to stack
-        layer = menuLayer(item[1]['actionname'])
+        layer = menuLayer(item[1]['actionname'], script=True)
+        if layer is not None:
+            layer.name = item[0]
         if d['mask'] == 1:
             if layer is not None:
                 buf = images.asarray()[count]
@@ -294,12 +296,19 @@ def addAdjustmentLayers(layers, images):
             if n > 0:
                 waitImages.append((layer, n))  # image offset not known yet
 
+    images_loaded = False
     for layer, n in waitImages:
         if type(layer) is QLayerImage:
+            images_loaded = True
             buf = images.asarray()[count]
             buf = buf.reshape(layer.height(), layer.width(), 4)
             layer.sourceImg = ndarrayToQImage(buf, QImage.Format_ARGB32)
+            parentImage = layer.parentImage
+            layer.applyToStack()  # TODO added 22/11/21 : images are loaded after all calls to __setstate__() - validate
         count += n
+
+    if images_loaded:  # TODO added 22/11/21 because images are loaded after all calls to __setstate__() - validate
+        parentImage.onImageChanged()
 
 
 def addBasicAdjustmentLayers(img, window=window):
@@ -364,8 +373,9 @@ def loadImage(img, tfile=None, withBasic=True, window=window):
     if img.rawImage is not None:
         rlayer = addRawAdjustmentLayer()
 
+    fromBlue = tfile is not None and img.filename[-4:].upper() in BLUE_FILE_EXTENSIONS
     # import layer stack from .BLU file
-    if tfile is not None and img.filename[-4:].upper() in BLUE_FILE_EXTENSIONS:
+    if fromBlue:  #tfile is not None and img.filename[-4:].upper() in BLUE_FILE_EXTENSIONS:
         # get ordered dict of layers.
         # Tifffile relies on Python 3 formatting for bytes --> str decoding.
         # It implicitly calls __str__() to get "standard" string representation of bytes
@@ -400,8 +410,10 @@ def loadImage(img, tfile=None, withBasic=True, window=window):
         addBasicAdjustmentLayers(img)
 
     # updates
-    img.layersStack[0].applyToStack()
-    img.onImageChanged()
+    # for bLU file loading updates are already done by __setstate__() methods of graphic forms
+    if not fromBlue:  # TODO added 22/11/21 validate
+        img.layersStack[0].applyToStack()
+        img.onImageChanged()
 
 
 def openFile(f, window=window):
@@ -1066,7 +1078,7 @@ def getPool():
     return pool
 
 
-def menuLayer(name, window=window):
+def menuLayer(name, window=window, script=False):
     """
     Menu Layer handler
     @param name: action name
@@ -1123,6 +1135,7 @@ def menuLayer(name, window=window):
             layer.execute = lambda l=layer, pool=None: l.tLayer.applyHSV1DLUT(grWindow.scene().cubicItem.getStackedLUTXY(), pool=pool)
         elif name == 'actionCurves_Lab':
             layer.execute = lambda l=layer, pool=None: l.tLayer.applyLab1DLUT(grWindow.scene().cubicItem.getStackedLUTXY())
+
     elif name == 'actionAuto_3D_LUT' and HAS_TORCH:
         layerName = 'Auto 3D LUT'
         layer = window.label.img.addAdjustmentLayer(name=layerName, role='AutoLUT')  # do not use a role containing '3DLUT'
@@ -1131,6 +1144,7 @@ def menuLayer(name, window=window):
                                                   mainForm=window)  # mainForm mandatory here
         pool = getPool()
         layer.execute = lambda l=layer, pool=pool: l.tLayer.applyAuto3DLUT(pool=pool)
+
     # 3D LUT
     elif name in ['action3D_LUT', 'action3D_LUT_HSB']:
         # color model
@@ -1154,28 +1168,36 @@ def menuLayer(name, window=window):
         pool = getPool()
         sc = grWindow.scene()
         layer.execute = lambda l=layer, pool=pool: l.tLayer.applyHVLUT2D(grWindow.LUT, options=sc.options, pool=pool)
+
     # cloning
     elif name == 'actionNew_Cloning_Layer':
         lname = 'Cloning'
         layer = window.label.img.addAdjustmentLayer(layerType=QCloningLayer, name=lname, role='CLONING')
         grWindow = patchForm.getNewWindow(targetImage=window.label.img, layer=layer, parent=window)
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyCloning(seamless=l.autoclone)
+
     # segmentation
     elif name == 'actionNew_segmentation_layer':
         lname = 'Segmentation'
         layer = window.label.img.addSegmentationLayer(name=lname)
         grWindow = segmentForm.getNewWindow(targetImage=window.label.img, layer=layer)
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyGrabcut(nbIter=grWindow.nbIter)
-    # load an image from file
+
+    # load images from file
     elif name == 'actionLoad_Image_from_File':
-        filenames = openDlg(window, ask=False, multiple=True)
+        if script:
+            filenames = ['nofiles']
+        else:
+            filenames = openDlg(window, ask=False, multiple=True)
         if not filenames:
             return
         for filename in filenames:
             # load image from file, alpha channel is mandatory for applyTransform()
             ext = filename[-4:]
             if ext in list(IMAGE_FILE_EXTENSIONS):
-                imgNew = QImage(filename).convertToFormat(QImage.Format_ARGB32)  # QImage(filename, QImage.Format_ARGB32) does not work !
+                reader = QImageReader(filename)
+                reader.setAutoTransform(True)  # handle orientation tag
+                imgNew = reader.read()
             elif ext in list(RAW_FILE_EXTENSIONS):
                 rawpyInst = rawRead(filename)
                 # postprocess raw image, applying default settings (cf. vImage.applyRawPostProcessing)
@@ -1187,12 +1209,13 @@ def menuLayer(name, window=window):
                 # needed to protect the buffer from garbage collector
                 imgNew.rawBuf = rawBuf
             else:
-                return
+                imgNew = QImage(1000, 1000, QImage.Format_ARGB32)  # will be resized later
+                imgNew.fill(QColor(0, 0, 0, 0))
             if imgNew.isNull():
                 dlgWarn("Cannot load %s: " % filename)
                 return
             lname = path.basename(filename)
-            layer = window.label.img.addAdjustmentLayer(name=lname, sourceImg=imgNew, role='Image')
+            layer = window.label.img.addAdjustmentLayer(name=lname, sourceImg=imgNew, role='Image+GEOM')
             grWindow = imageForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
             # add transformation tool to parent widget
             tool = rotatingTool(parent=window.label)  # , layer=l, form=grWindow)
@@ -1202,7 +1225,11 @@ def menuLayer(name, window=window):
             layer.actioname = name
             layer.filename = filename
             post(layer)
-        return
+        if script:  # only one layer added
+            return layer  # added 22/11/21 used by __setstate__ refactoring needed
+        else:
+            return
+
     # empty new image
     elif name == 'actionNew_Layer':
         processedImg = window.label.img
@@ -1218,6 +1245,7 @@ def menuLayer(name, window=window):
         tool.showTool()
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyImage(grWindow.options)
         layer.actioname = name
+
     elif name == 'actionNew_Drawing_Layer':
         processedImg = window.label.img
         w, h = processedImg.width(), processedImg.height()
@@ -1229,6 +1257,7 @@ def menuLayer(name, window=window):
         grWindow = drawForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyNone()
         layer.actioname = name
+
     # Color filter
     elif name == 'actionColor_Temperature':
         lname = 'Color Filter'
@@ -1236,6 +1265,7 @@ def menuLayer(name, window=window):
         grWindow = temperatureForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
         # wrapper for the right apply method
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyTemperature()
+
     elif name == 'actionContrast_Correction':
         layer = window.label.img.addAdjustmentLayer(name=CoBrSatForm.layerTitle, role='CONTRAST')
         grWindow = CoBrSatForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
@@ -1248,18 +1278,21 @@ def menuLayer(name, window=window):
         grWindow.onUpdateContrast = h
         # wrapper for the right apply method
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyContrast()
+
     elif name == 'actionExposure_Correction':
         lname = 'Exposure'
         layer = window.label.img.addAdjustmentLayer(name=lname)
         layer.clipLimit = ExpForm.defaultExpCorrection
         grWindow = ExpForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
         layer.execute = lambda l=layer,  pool=None: l.tLayer.applyExposure(grWindow.options)
+
     elif name == 'actionHDR_Merge':
         lname = 'Merge'
         layer = window.label.img.addAdjustmentLayer(name=lname, role='MERGING')
         layer.clipLimit = ExpForm.defaultExpCorrection
         grWindow = HDRMergeForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
         layer.execute = lambda l=layer,  pool=None: l.tLayer.applyHDRMerge(grWindow.options)
+
     elif name == 'actionGeom_Transformation':
         lname = 'Transformation'
         layer = window.label.img.addAdjustmentLayer(name=lname, role='GEOMETRY')
@@ -1269,12 +1302,14 @@ def menuLayer(name, window=window):
         layer.addTool(tool)
         tool.showTool()
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyTransForm(grWindow.options)
+
     elif name == 'actionFilter':
         lname = 'Filter'
         layer = window.label.img.addAdjustmentLayer(name=lname)
         grWindow = filterForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer)
         # wrapper for the right apply method
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyFilter2D()
+
     elif name == 'actionGradual_Filter':
         lname = 'Gradual Filter'
         layer = window.label.img.addAdjustmentLayer(name=lname)
@@ -1282,12 +1317,14 @@ def menuLayer(name, window=window):
                                                 layer=layer, parent=window)
         # wrapper for the right apply method
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyBlendFilter()
+
     elif name == 'actionNoise_Reduction':
         lname = 'Noise Reduction'
         layer = window.label.img.addAdjustmentLayer(name=lname)
         grWindow = noiseForm.getNewWindow(axeSize=axeSize, layer=layer, parent=window)
         # wrapper for the right apply method
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyNoiseReduction()
+
     # invert image
     elif name == 'actionInvert':
         lname = 'Invert'
@@ -1296,12 +1333,14 @@ def menuLayer(name, window=window):
                                            layer=layer, parent=window)
         layer.execute = lambda l=layer: l.tLayer.applyInvert()
         layer.applyToStack()
+
     elif name == 'actionChannel_Mixer':
         lname = 'Channel Mixer'
         layer = window.label.img.addAdjustmentLayer(name=lname)
         grWindow = mixerForm.getNewWindow(axeSize=260, targetImage=window.label.img,
                                            layer=layer, parent=window)
         layer.execute = lambda l=layer: l.tLayer.applyMixer(grWindow.options)
+
     # load 3D LUT from .cube file
     elif name == 'actionLoad_3D_LUT':
         lastDir = window.settings.value('paths/dlg3DLUTdir', '.')
@@ -1331,6 +1370,7 @@ def menuLayer(name, window=window):
             layer.parentImage.prLayer.update()
             layer.parentImage.onImageChanged()
         return
+
     elif name == 'actionSave_Layer_Stack_as_LUT_Cube':
         img = window.label.img
         # get current size
