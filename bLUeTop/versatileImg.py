@@ -28,7 +28,7 @@ from copy import copy
 from PySide2.QtGui import QImageReader, QTransform, QBitmap
 from PySide2.QtWidgets import QApplication, QSplitter
 from PySide2.QtGui import QImage, QColor, QPainter
-from PySide2.QtCore import QRect
+from PySide2.QtCore import QRect, QPoint
 
 from bLUeGui.bLUeImage import bImage, ndarrayToQImage
 from bLUeCore.multi import chosenInterp
@@ -758,29 +758,18 @@ class vImage(bImage):
             xC, yC = self.monts['m10'] / r, self.monts['m01'] / r
         else:
             xC, yC = 0.0, 0.0
-        """
-        ratioX, ratioY = sourcePixmapThumb.width() / self.width(), sourcePixmapThumb.height() / self.height()
-        ##############################
-        # update source image pointer
-        ##############################
-        pxInScaled_Copy = sourcePixmapThumb.copy()
-        qptemp = QPainter(pxInScaled_Copy)
-        qptemp.setPen(Qt.white)
-        qptemp.drawEllipse(QPoint((xC - self.xAltOffset) * ratioX, (yC- self.yAltOffset) * ratioY), 5, 5)
-        qptemp.end()
-        adjustForm.widgetImg.setPixmap(pxInScaled_Copy)
-        """
-        ##############################################################
+
         # erase previous transformed image : reset imgOut to ImgIn
-        ##############################################################
         qp = QPainter(imgOut)
         qp.setCompositionMode(QPainter.CompositionMode_Source)
-        qp.drawPixmap(QRect(0, 0, imgOut.width(), imgOut.height()), sourcePixmap, sourcePixmap.rect())
+        qp.drawImage(QRect(QPoint(0, 0), imgOut.size()), imgIn, imgIn.rect())  # TODO modified 26/11/21 validate
+
         # get translation relative to current Image
         currentAltX, currentAltY = self.full2CurrentXY(self.xAltOffset, self.yAltOffset)
         # get mask center coordinates relative to the translated current image
         xC_current, yC_current = self.full2CurrentXY(xC, yC)
         xC_current, yC_current = xC_current - currentAltX, yC_current - currentAltY
+
         ###################################################################################################
         # Draw the translated and zoomed source pixmap into imgOut (nothing is drawn outside of dest image).
         # The translation is adjusted to keep the point (xC_current, yC_current) invariant while zooming.
@@ -790,6 +779,7 @@ class vImage(bImage):
                        imgOut.width() * self.AltZoom_coeff, imgOut.height() * self.AltZoom_coeff)
         qp.drawPixmap(bRect, sourcePixmap, sourcePixmap.rect())
         qp.end()
+
         #####################
         # do seamless cloning
         #####################

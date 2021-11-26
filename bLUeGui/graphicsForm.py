@@ -149,6 +149,8 @@ class baseForm(QWidget, abstractForm):
         self.layer = layer              # property setter
         self.targetImage = targetImage  # property setter
         # list of subcontrols
+        # The visibility of subcontrols is managed by QLayerView
+        # together with the visibility of graphic forms
         self.subControls = []
         self.dataChanged.connect(self.updateLayer)
         # layer color picked signal

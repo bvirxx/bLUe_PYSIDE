@@ -301,13 +301,14 @@ class mImage(vImage):
                 break
         return i
 
-    def addLayer(self, layer, name='', index=None):
+    def addLayer(self, layer, name='noname', index=None):
         """
-        Adds a layer.
-
+        Adds a layer to stack (If the parameter layer is None a fresh layer is added).
+        The layer name may be modified to get a unique (case insensitive) name.
+        The layer is returned.
         @param layer: layer to add (if None, add a fresh layer)
         @type layer: QLayer
-        @param name:
+        @param name: layer proposed name
         @type name: str
         @param index: index of insertion in layersStack (top of active layer if index=None)
         @type index: int
@@ -315,10 +316,10 @@ class mImage(vImage):
         @rtype: QLayer
         """
         # build a unique name
-        usedNames = [l.name for l in self.layersStack]
+        usedNames = [l.name.lower() for l in self.layersStack]
         a = 1
-        trialname = name if len(name) > 0 else 'noname'
-        while trialname in usedNames:
+        trialname = name.lower() if len(name) > 0 else 'noname'
+        while trialname.lower() in usedNames:
             trialname = name + '_' + str(a)
             a = a+1
         if layer is None:
@@ -523,7 +524,7 @@ class mImage(vImage):
             image_list = []
             for layer in self.layersStack:
                 if layer.innerImages:
-                    image_list.extend([getattr(layer, aname) for aname in layer.innerImages])
+                    image_list.extend([getattr(layer, aname, None) for aname in layer.innerImages])
 
             if  self.sourceformat in RAW_FILE_EXTENSIONS:
                 # copy raw file and layer stack to .bLU
@@ -1597,7 +1598,7 @@ class QCloningLayer(QLayer):
         super().__init__(*args, **kwargs)
         self.role = 'CLONING'
         # cloning source image
-        self.srcImg = None
+        self.sourceFromFile = False
         # virtual layer moved flag
         self.vlChanged = False
         self.cloningState = ''
@@ -1605,6 +1606,17 @@ class QCloningLayer(QLayer):
         # these attributes are relative to full sized images
         # and used in applyCloning() to speed up move display.
         self.updateCloningMask()
+
+    #############################################
+    # compatibility with QImageLayer attribute sourceImg
+    @property
+    def sourceImg(self):
+        return self.getGraphicsForm().sourceImage
+
+    @sourceImg.setter
+    def sourceImg(self, img):
+        self.getGraphicsForm().sourceImage = img
+    ############################################
 
     def equalityTest(self):
         imgIn = self.inputImg(drawTranslated=False)
@@ -1655,7 +1667,7 @@ class QCloningLayer(QLayer):
         """
         adjustForm = self.getGraphicsForm()
         if not self.sourceFromFile:
-            img = self.inputImg(drawTranslated=False)  # TODO added drawtranslated 16/12/19
+            img = self.inputImg(drawTranslated=False)
             if img.rPixmap is None:
                 img.rPixmap = QPixmap.fromImage(img)
             adjustForm.sourcePixmap = img.rPixmap
@@ -1723,6 +1735,29 @@ class QCloningLayer(QLayer):
                                    passes=2)
             destBuf[:, :, :3] = output
 
+    def __getstate__(self):
+        tmp = self.innerImages
+        if self.sourceImg is None:
+            self.innerImages = []  # no image to save
+        d = super().__getstate__()
+        d['sourceX'] = self.sourceX
+        d['sourceY'] = self.sourceY
+        d['xAltOffset'] = self.xAltOffset
+        d['yAltOffset'] = self.yAltOffset
+        d['cloningState'] = self.cloningState
+        self.innerImages = tmp # restore
+        return d
+
+    def __setstate__(self, d):
+        super().__setstate__(d)
+        d = d['state']
+        self.sourceX = d['sourceX']
+        self.sourceY = d['sourceY']
+        self.xAltOffset = d['xAltOffset']
+        self.yAltOffset = d['yAltOffset']
+        self.cloningState = d['cloningState']
+        self.updateCloningMask()
+        self.applyCloning()
 
 class QLayerImage(QLayer):
     """

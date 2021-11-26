@@ -22,7 +22,7 @@ from itertools import product
 import numpy as np
 
 from PySide2 import QtCore
-from PySide2.QtGui import QColor, QImage, QPainter, QPixmap, QIcon, QMouseEvent
+from PySide2.QtGui import QColor, QImage, QPainter, QPixmap, QIcon, QMouseEvent, QImageReader
 from PySide2.QtWidgets import QListWidget, QListWidgetItem, \
     QSlider, QLabel, QDockWidget, QStyle, QColorDialog, QPushButton, QSizePolicy, QComboBox
 from PySide2.QtCore import Qt, QObject, QRect
@@ -234,6 +234,15 @@ class UDict(object):
             if item in self.__dictionaries[i]:
                 return self.__dictionaries[i][item]
         return None
+
+    @property
+    def dictionaries(self):
+        """
+
+        @return:
+        @rtype: tuple of dictionaries
+        """
+        return self.__dictionaries
 
 
 class QbLUeColorDialog(QColorDialog):
@@ -534,8 +543,6 @@ class optionsWidget(QListWidget):
             if state[itemName] == Qt.Checked:
                 self.select(self.items[itemName])
 
-
-
     def select(self, item, callOnSelect=True):
         """
         Item clicked slot. It updates the state of the items and
@@ -599,6 +606,12 @@ class optionsWidget(QListWidget):
         for r in range(self.count()):
             self.item(r).setCheckState(Qt.Unchecked)
 
+    def checkAll(self):
+        if self.exclusive:
+            return
+        for r in range(self.count()):
+            self.item(r).setCheckState(Qt.Checked)
+
     @property
     def checkedItems(self):
         return [self.item(i) for i in range(self.count()) if self.item(i).checkState() == Qt.Checked]
@@ -624,12 +637,14 @@ def checkeredImage(format=QImage.Format_ARGB32):
 
 
 class stateAwareQDockWidget(QDockWidget):
+    """
+    Record the current tabbing state.
+    Needed to restore the workspace when switching from a document to another one.
+    This attribute should be restored if the change does not result from a user
+    drag and drop action (see layerView.closeAdjustForms for an example)
+    """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Record the current tabbing state.
-        # Needed to restore the workspace when switching from a document to another one.
-        # This attribute should be restored if the change does not result from a user
-        # drag and drop action (see layerView.closeAdjustForms for an example)
         self.setFloating(True)  # default :  left docking area
         self.tabbed = False
         self._closed = False
@@ -738,6 +753,19 @@ def clip(image, mask, inverted=False):
         bufMask = bufMask.copy()
         bufMask[:, :, 3] = 255 - bufMask[:, :, 3]
     bufImg[:, :, 3] = bufMask[:, :, 3]
+
+
+def QImageFromFile(filename):
+    """
+
+    @param filename:
+    @type filename: str
+    @return:
+    @rtype: QImage
+    """
+    reader = QImageReader(filename)
+    reader.setAutoTransform(True)  # handle orientation tag
+    return reader.read()
 
 
 if __name__ == '__main__':

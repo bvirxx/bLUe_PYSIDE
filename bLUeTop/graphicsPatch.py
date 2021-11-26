@@ -15,45 +15,56 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+from os.path import basename
 
 import cv2
-from PySide2.QtCore import Qt, QPointF
-from PySide2.QtGui import QImage, QPixmap, QPainter, QTransform
-from PySide2.QtWidgets import QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog
+from PySide2.QtCore import Qt, QPoint, QPointF, QRect
+from PySide2.QtGui import QImage, QPixmap, QPainter, QTransform, QImageReader
+from PySide2.QtWidgets import QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog, QWidget
 
 from bLUeGui.graphicsForm import baseForm
-from bLUeGui.dialog import IMAGE_FILE_EXTENSIONS
-from bLUeTop.QtGui1 import window
+from bLUeGui.dialog import IMAGE_FILE_EXTENSIONS, dlgWarn
 
-from bLUeTop.utils import optionsWidget, UDict
+from bLUeTop.utils import optionsWidget, UDict, QImageFromFile
 
 
 class BWidgetImg(QLabel):
     """
-    Pointing window for cloning source image
+    Pointing window for cloning source image. It manages
+    the pointing cursor.
     """
     def __init__(self, *args, **kwargs):
+        """
+
+        @param args:
+        @type args:
+        @param kwargs: parent should be the graphic form
+        @type kwargs:
+        """
         super().__init__(*args, **kwargs)
-        # stay on top and center
-        self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.Dialog)
+        if 'parent' in kwargs:
+            self.grForm = kwargs['parent']
 
     def mousePressEvent(self, ev):
         super().mousePressEvent(ev)
         if ev.modifiers() != Qt.ControlModifier | Qt.AltModifier:
             return
         x, y = ev.x(), ev.y()
-        x, y = x * self.parent().layer.width() / self.parent().sourcePixmapThumb.width(),\
-               y * self.parent().layer.height() / self.parent().sourcePixmapThumb.height()  # changed sourcePixmap to layer  29/12/19
+        grForm = self.grForm
+        x, y = x * grForm.layer.width() / grForm.sourcePixmapThumb.width(),\
+               y * grForm.layer.height() / grForm.sourcePixmapThumb.height()  # changed sourcePixmap to layer  29/12/19
         # set source starting point
-        self.parent().layer.sourceX, self.parent().layer.sourceY = x, y
-        self.parent().layer.cloningState = 'start'
+        grForm.layer.sourceX, grForm.layer.sourceY = x, y
+        grForm.layer.cloningState = 'start'
 
     def paintEvent(self, e):
         super().paintEvent(e)
         qp = QPainter(self)
-        x, y = self.parent().layer.marker.x() * self.parent().sourcePixmapThumb.width() / self.parent().sourcePixmap.width(), \
-               self.parent().layer.marker.y() * self.parent().sourcePixmapThumb.height() / self.parent().sourcePixmap.height()
-        qp.drawEllipse(x, y, 10, 10)
+        grForm = self.grForm
+        if grForm.layer.marker is not None:
+            x, y = grForm.layer.marker.x() * grForm.sourcePixmapThumb.width() / grForm.sourcePixmap.width(), \
+                        grForm.layer.marker.y() * grForm.sourcePixmapThumb.height() / grForm.sourcePixmap.height()
+            qp.drawEllipse(x, y, 10, 10)
 
 
 class patchForm (baseForm):
@@ -65,15 +76,18 @@ class patchForm (baseForm):
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super().__init__(layer=layer, targetImage=targetImage, parent=parent)
-        # positioning window
+        # source window
         self.widgetImg = BWidgetImg(parent=self)
-        self.widgetImg.setWindowTitle("Pointing")
+        self.widgetImg.setWindowFlags(Qt.WindowStaysOnTopHint)
+        self.widgetImg.setAttribute(Qt.WA_DeleteOnClose, on=False)
+        self.widgetImg.setWindowTitle("Source")
+        self.widgetImg.optionName = 'source'  # needed by subcontrol visibility manager
+        self.dockT = None
         # source
-        self.sourceImage = None  # keep for eventual rotation
+        self.sourceImage = None
         self.sourcePixmap = None
         self.sourcePixmapThumb = None
-        # flag indicating where source pixmap comes from
-        self.layer.sourceFromFile = False
+        self.layer.innerImages = ['sourceImg']  # must be the name of corresponding QCloningLayer attribute
         # opencv flags
         cv2Flag_dict = {'Normal Clone': cv2.NORMAL_CLONE,
                         'Mixed Clone': cv2.MIXED_CLONE,
@@ -95,13 +109,28 @@ class patchForm (baseForm):
                                          exclusive=True, changed=self.dataChanged)
         self.listWidget2.checkOption(self.listWidget2.intNames[1])
 
-        self.options = UDict((self.options, self.listWidget2.options))
+        def h():
+            if self.dockT is None:
+                return
+            self.dockT.setVisible(self.listWidget3.options['source'])
 
-        pushButton1 = QPushButton('Load Image From File')
+        optionList3, optionListNames3 = ['source'], ['Show Source Image']
+        self.listWidget3 = optionsWidget(options=optionList3, optionNames=optionListNames3,
+                                         exclusive=False, changed=h)
+
+        self.listWidget3.unCheckAll()
+        self.listWidget3.setEnabled(False)
+
+        self.options = UDict((self.options, self.listWidget2.options, self.listWidget3.options))
+
+        pushButton1 = QPushButton('Load Source')
+        pushButton2 = QPushButton('Reset')
 
         # Load Image button clicked slot
         def f():
             from bLUeTop.QtGui1 import window
+            if self.sourceImage is not None:
+                dlgWarn('A source image is already open', 'Reset the cloning layer before\nloading a new image')
             lastDir = str(window.settings.value('paths/dlgdir', '.'))
             filter = "Images ( *" + " *".join(IMAGE_FILE_EXTENSIONS) + ")"
             dlg = QFileDialog(window, "select", lastDir, filter)
@@ -109,27 +138,16 @@ class patchForm (baseForm):
                 filenames = dlg.selectedFiles()
                 newDir = dlg.directory().absolutePath()
                 window.settings.setValue('paths/dlgdir', newDir)
-                self.sourceImage = QImage(filenames[0])
+                filename = filenames[0]
+                im = QImageFromFile(filename)
+                im = im.scaled(self.layer.size(), Qt.KeepAspectRatio)
+                self.sourceImage = im.copy(QRect(QPoint(0, 0), self.layer.size()))
+                self.widgetImg.setWindowTitle(f"Source : {basename(filename)}")
                 self.updateSource()
-                """
-                # scale img while keeping its aspect ratio
-                # into a QPixmap having the same size than self.layer
-                sourcePixmap = QPixmap.fromImage(self.sourceImage).scaled(self.layer.size(), Qt.KeepAspectRatio)
-                self.sourceSize = sourcePixmap.size()
-                self.sourcePixmap = QPixmap(self.layer.size())
-                self.sourcePixmap.fill(Qt.black)
-                qp = QPainter(self.sourcePixmap)
-                qp.drawPixmap(QPointF(), sourcePixmap)  # (QRect(0, 0, sourcePixmap.width(), sourcePixmap.height()), sourcePixmap)
-                qp.end()
-                self.sourcePixmapThumb = self.sourcePixmap.scaled(self.pwSize, self.pwSize, aspectMode=Qt.KeepAspectRatio)
-                self.widgetImg.setPixmap(self.sourcePixmapThumb)
-                self.widgetImg.setFixedSize(self.sourcePixmapThumb.size())
-                self.layer.sourceFromFile = True
-                """
+
             self.widgetImg.show()
 
         pushButton1.clicked.connect(f)
-        pushButton2 = QPushButton('Reset')
 
         # reset button clicked slot
         def g():
@@ -146,23 +164,16 @@ class patchForm (baseForm):
 
         pushButton2.clicked.connect(g)
 
-        pushButton3 = QPushButton('Rotate Image')
-
-        def h():
-            self.sourceImage = self.sourceImage.transformed(QTransform().rotate(90))
-            self.updateSource()
-
-        pushButton3.clicked.connect(h)
-
         # layout
         layout = QVBoxLayout()
         layout.setContentsMargins(20, 0, 20, 25)  # left, top, right, bottom
         self.setLayout(layout)
         layout.addWidget(self.listWidget2)
         layout.addWidget(self.listWidget1)
+        layout.addWidget(self.listWidget3)
         hl = QHBoxLayout()
         hl.addWidget(pushButton1)
-        hl.addWidget(pushButton3)
+        #hl.addWidget(self.listWidget3)
         hl.addWidget(pushButton2)
         layout.addLayout(hl)
 
@@ -176,7 +187,7 @@ class patchForm (baseForm):
                             or by another image (e.g. to erase an object):<br>
                                &nbsp; 1) <b> Make sure that the cloning layer is the topmost visible layer</b><br>
                                &nbsp; 2) With the <i>Pointer Tool</i> selected, <b>Ctrl+Alt+Click</b>
-                                          on the layer or the pointing window to mark the source starting point;<br> 
+                                          on the layer or the source window to mark the source starting point;<br> 
                                &nbsp; 3) Select the <i>Unmask/FG Tool</i> and paint the destination region to copy and clone pixels. 
                                          Use <i>the Mask/BG Tool</i> to adjust the mask if needed. <br>
                             Use <b>Ctrl+Alt+Mouse Wheel</b> to zoom in or out the cloned region.<br>
@@ -211,6 +222,9 @@ class patchForm (baseForm):
         """
         sets the pointing window, using self.sourceImage
         """
+        if self.sourceImage is None:
+            return
+        from bLUeTop.QtGui1 import window
         # scale img while keeping its aspect ratio
         # into a QPixmap having the same size than self.layer
         sourcePixmap = QPixmap.fromImage(self.sourceImage).scaled(self.layer.size(), Qt.KeepAspectRatio)
@@ -224,7 +238,20 @@ class patchForm (baseForm):
         self.sourcePixmapThumb = self.sourcePixmap.scaled(self.pwSize, self.pwSize, aspectMode=Qt.KeepAspectRatio)
         self.widgetImg.setPixmap(self.sourcePixmapThumb)
         self.widgetImg.setFixedSize(self.sourcePixmapThumb.size())
+        # add subcontrol if needed
+        if self.dockT is None:
+            dockT = self.addSubcontrol(self.parent())
+            dockT.setWindowFlags(self.widgetImg.windowFlags())
+            dockT.setWindowTitle(self.widgetImg.windowTitle())
+            window.addDockWidget(Qt.LeftDockWidgetArea, dockT)
+            self.dockT = dockT
+            dockT.setWidget(self.widgetImg)
+        #  set option "show source image"
+        self.options.dictionaries[2]['source'] = True
+        self.widgetImg.show()
         self.layer.sourceFromFile = True
+        self.listWidget3.checkAll()
+        self.listWidget3.setEnabled(True)
 
     def enableOptions(self):
         if self.options['blue']:
@@ -245,3 +272,27 @@ class patchForm (baseForm):
         layer.cloningMethod = self.listWidget1.checkedItems[0].data(Qt.UserRole)
         layer.applyToStack()
         layer.parentImage.onImageChanged()
+
+    def __getstate__(self):
+        d = {}
+        for a in self.__dir__():
+            obj = getattr(self, a)
+            if type(obj) in [optionsWidget]:
+                d[a] = obj.__getstate__()
+
+        return d
+
+    def __setstate__(self, d):
+        # prevent multiple updates
+        d1 = d['state']
+        try:
+            self.dataChanged.disconnect()
+        except RuntimeError:
+            pass
+        for name in d1:
+            obj = getattr(self, name, None)
+            if type(obj) in [optionsWidget]:
+                obj.__setstate__(d1[name])
+        self.dataChanged.connect(self.updateLayer)
+        self.dataChanged.emit()
+
