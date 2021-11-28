@@ -29,11 +29,13 @@ class drawForm (baseForm):
     """
     Drawing form
     """
+    """
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=200, layer=None, parent=None):
         wdgt = drawForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
         wdgt.setWindowTitle(layer.name)
         return wdgt
+    """
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super().__init__(layer=layer, targetImage=targetImage, parent=parent)

@@ -27,11 +27,13 @@ from bLUeTop.utils import optionsWidget, QbLUeSlider, QbLUeLabel, QbLUePushButto
 
 class temperatureForm (baseForm):
 
+    """
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
         wdgt = temperatureForm(axeSize=axeSize, layer=layer, parent=parent)
         wdgt.setWindowTitle(layer.name)
         return wdgt
+    """
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super().__init__(layer=layer, targetImage=targetImage, parent=parent)

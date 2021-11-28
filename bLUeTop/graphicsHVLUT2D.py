@@ -30,11 +30,13 @@ class HVLUT2DForm(graphicsCurveForm):
     """
     Form for interactive HV 2D LUT
     """
+    """
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
         newWindow = HVLUT2DForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
         newWindow.setWindowTitle(layer.name)
         return newWindow
+    """
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super().__init__(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)

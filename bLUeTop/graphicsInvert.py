@@ -26,11 +26,13 @@ class invertForm(baseForm):
     """
     Form for negative inversion
     """
+    """
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
         newWindow = invertForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
         newWindow.setWindowTitle(layer.name)
         return newWindow
+    """
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super().__init__(layer=layer, targetImage=targetImage, parent=parent)

@@ -78,11 +78,13 @@ class rawForm (baseForm):
     """
     dataChanged = QtCore.Signal(int)
 
+    """
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
         wdgt = rawForm(axeSize=axeSize, targetImage=targetImage, layer=layer, parent=parent)
         wdgt.setWindowTitle(layer.name)
         return wdgt
+    """
 
     @staticmethod
     def slider2Temp(v):

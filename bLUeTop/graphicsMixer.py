@@ -66,11 +66,13 @@ class activeMixerPoint(activePoint):
 
 class mixerForm(baseGraphicsForm):
 
+    """
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
         wdgt = mixerForm(axeSize=axeSize, layer=layer, parent=parent)
         wdgt.setWindowTitle(layer.name)
         return wdgt
+    """
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super().__init__(parent=parent, targetImage=targetImage, layer=layer)

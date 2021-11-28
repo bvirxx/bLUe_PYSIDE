@@ -35,11 +35,13 @@ class noiseForm (baseForm):
     def thr2Slider(t):
         return t
 
+    """
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
         wdgt = noiseForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
         wdgt.setWindowTitle(layer.name)
         return wdgt
+    """
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super().__init__(layer=layer, targetImage=targetImage, parent=parent)

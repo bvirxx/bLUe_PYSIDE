@@ -34,11 +34,13 @@ class CoBrSatForm(baseForm):
     brightnessDefault = 0.0
     saturationDefault = 0.0
 
+    """
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
         wdgt = CoBrSatForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
         wdgt.setWindowTitle(layer.name)
         return wdgt
+    """
 
     @classmethod
     def slider2Contrast(cls, v):
