@@ -641,6 +641,10 @@ Note that upper visible layers slow down mask edition.<br>
                     # top layer : update only the presentation layer
                     layer.parentImage.prLayer.execute(l=None, pool=None)
             self.img.onImageChanged()
+        activeStackIndex = len(self.img.layersStack) - 1 - row
+        activeLayer = self.img.setActiveLayer(activeStackIndex)
+        self.currentWin = getattr(activeLayer, 'view', None)
+        """
         # update displayed window and active layer
         activeStackIndex = len(self.img.layersStack) - 1 - row
         activeLayer = self.img.setActiveLayer(activeStackIndex)
@@ -672,9 +676,10 @@ Note that upper visible layers slow down mask edition.<br>
         compositionMode = layer.compositionMode
         ind = self.blendingModeCombo.findData(compositionMode)
         self.blendingModeCombo.setCurrentIndex(ind)
+        """
         if layer.tool is not None:
             layer.tool.moveRotatingTool()  # TODO added 23/11/21 keep last - validate
-        # draw the right rectangle
+
         window.label.repaint()
 
     def initContextMenu(self):

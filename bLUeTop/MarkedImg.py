@@ -15,6 +15,7 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+
 import pickle
 from io import BytesIO
 from os import path
@@ -207,20 +208,54 @@ class mImage(vImage):
         lgStack = len(self.layersStack)
         if stackIndex < 0 or stackIndex >= lgStack:
             return
-        # clean old active layer
-        active = self.getActiveLayer()
-        if active is not None:
-            if active.tool is not None:
-                active.tool.hideTool()
-        # set new active layer
+
+        layer = self.layersStack[stackIndex]
         self.activeLayerIndex = stackIndex
+
+        # update controls in tableView
         if self.layerView is not None:
+            self.layerView.maskLabel.setEnabled(layer.maskIsSelected)
+            self.layerView.maskSlider.setEnabled(layer.maskIsSelected)
+            self.layerView.maskValue.setEnabled(layer.maskIsSelected)
+            # update opacity and composition mode for current layer
+            opacity = int(layer.opacity * 100)
+            self.layerView.opacityValue.setText(str('%d ' % opacity))
+            self.layerView.opacitySlider.setSliderPosition(opacity)
+            compositionMode = layer.compositionMode
+            ind = self.layerView.blendingModeCombo.findData(compositionMode)
+            self.layerView.blendingModeCombo.setCurrentIndex(ind)
             self.layerView.selectRow(lgStack - 1 - stackIndex)
-        active = self.getActiveLayer()
-        if active.tool is not None and active.visible:
-            active.tool.showTool()
+
+        # cleaning
+        for lay in self.layersStack:
+            currentWin = getattr(lay, 'view', None)
+            if currentWin is not None:
+                # hide sucontrols
+                for dk in currentWin.widget().subControls:
+                    dk.hide()
+                if currentWin.isFloating():
+                    currentWin.hide()
+                if lay.tool is not None:
+                    lay.tool.hideTool()
+        # setting
+        currentWin = getattr(layer, 'view', None)
+        if currentWin is not None and layer.visible:
+            currentWin.show()
+            currentWin.raise_()
+            # display subcontrols
+            for dk in currentWin.widget().subControls:
+                dk.setVisible(currentWin.widget().options[dk.widget().optionName])
+            # make self.currentWin the active window
+            currentWin.activateWindow()
+
+        # if layer.tool is not None:
+            # layer.tool.moveRotatingTool()  # TODO added 23/11/21 keep last
+
+        #active = self.getActiveLayer()
+        if layer.tool is not None and layer.visible:
+            layer.tool.showTool()
         self.onActiveLayerChanged()
-        return active
+        return layer
 
     def getActivePixel(self, x, y, fromInputImg=True, qcolor=False):
         """
@@ -452,11 +487,53 @@ class mImage(vImage):
         qp.end()
         return img
 
+    def snap(self):
+        """
+        Builds a snapshot of the document (imagej description dictionary, mask list, image list) for
+        saving to bLU file. All changes to the document made between the call to
+        snap() and the actual file writing will be ignored.
+        @return:
+        @rtype: 3uple (ordered dict, list of Qimage, list of QImage)
+        """
+        layernames = [(layer.name, pickle.dumps({'actionname': layer.actionName, 'state': layer.__getstate__()}))
+                      for layer in self.layersStack] + [('sourceformat', self.sourceformat)] + \
+                     [('version', BLUE_VERSION)]
+
+        names = OrderedDict(layernames)
+
+        if len(names) != len(layernames):
+            dlgWarn('Possibly duplicate layer name(s)', 'Please edit the names in layer stack')
+            raise IOError('Cannot save document')
+
+        ####################################################################################################
+        # tifffile calls imagej_description() internally with a wrong signature. Due to this bug
+        # an exception is raised if dictionary keys contain the string 'rgb'. As a workaround
+        # a layer named 'rgb' should be renamed by editing the corresponding layer stack item.
+        if 'rgb' in names:
+            dlgWarn('"rgb" is not allowed as a layer name', 'Please rename the layer')
+            raise IOError('Cannot save document')
+        ####################################################################################################
+
+        mask_list = [layer._mask for layer in self.layersStack if layer._mask is not None]
+
+        image_list = []
+        for layer in self.layersStack:
+            for aname in layer.innerImages:
+                im = getattr(layer, aname, None)
+                if im is not None:
+                    image_list.append(im)
+
+        return names, mask_list, image_list
+
     def save(self, filename, quality=-1, compression=-1):
         """
         Overrides QImage.save().
-        Writes the presentation layer to a file and returns a
-        thumbnail with standard size (160x120 or 120x160).
+        If filename extension is a standard image format the method writes
+        the presentation layer to filename and returns a
+        thumbnail with standard size (160x120 or 120x160). Parameters quality and compression
+        are passed to the writer.
+        If filename extension is 'bLU' the current state (stack, masks, images) of the document
+        is saved to filename.
         Raises IOError if the saving fails.
         @param filename:
         @type filename: str
@@ -511,20 +588,15 @@ class mImage(vImage):
         thumb = ndarrayToQImage(np.ascontiguousarray(buf[:, :, :3][:, :, ::-1]),
                                 format=QImage.Format_RGB888).scaled(wt, ht, Qt.KeepAspectRatio)
 
-        if fileFormat in BLUE_FILE_EXTENSIONS:  # dest format
+        written = False
 
-            names = OrderedDict(
-                [(layer.name, pickle.dumps({'actionname': layer.actionName, 'state': layer.__getstate__()})) for layer
-                 in self.layersStack] +
-                [('sourceformat', self.sourceformat)] +
-                [('version', BLUE_VERSION)])
+        if fileFormat in IMAGE_FILE_EXTENSIONS:  # dest format
+            # save edited image
+            written = cv2.imwrite(filename, buf, params)  # BGR order
 
-            mask_list = [layer._mask for layer in self.layersStack if layer._mask is not None]
-
-            image_list = []
-            for layer in self.layersStack:
-                if layer.innerImages:
-                    image_list.extend([getattr(layer, aname, None) for aname in layer.innerImages])
+        elif fileFormat in BLUE_FILE_EXTENSIONS:
+            # records current state and save to bLU file
+            names, mask_list, image_list = self.snap()
 
             if  self.sourceformat in RAW_FILE_EXTENSIONS:
                 # copy raw file and layer stack to .bLU
@@ -543,10 +615,12 @@ class mImage(vImage):
 
                 images[0, :len(buf_ori)] = buf_ori
 
-                for i, m in enumerate(mask_list + image_list):
+                i = 1
+                for m in mask_list + image_list:
                     if m is not None:
                         b = QImageBuffer(m)
-                        images[i + 1, :w * h * 4] = b.ravel()
+                        images[i, :w * h * 4] = b.ravel()
+                        i += 1
 
                 names['mask_len'] = w * h * 4
                 names['buf_ori_len'] = len(buf_ori)
@@ -567,16 +641,18 @@ class mImage(vImage):
                 w, h = self.width(), self.height()
                 images = np.empty((len(mask_list) + len(image_list) + 1, h, w, 4), dtype=np.uint8)
 
-                buf_ori = QImageBuffer(img_ori)
+                buf_ori = QImageBuffer(img_ori).copy()
                 # BGRA to RGBA conversion needed : to reload image
-                # the bLU file will be read as tiff by QImageReader
+                # the bLU file will be read as tiff file by QImageReader
                 tmpview = buf_ori[...,:3]
                 tmpview[...] = tmpview[...,::-1]
                 images[0, ...] = buf_ori
 
-                for i, m in enumerate(mask_list + image_list):
+                i = 1
+                for m in mask_list + image_list:
                     if m is not None:
-                        images[i + 1, ...] = QImageBuffer(m)
+                        images[i, ...] = QImageBuffer(m)
+                        i += 1
 
                 result = tifffile.imsave(filename,
                                          data=images,
@@ -586,11 +662,13 @@ class mImage(vImage):
                                          metadata=names)
 
                 written = True  # with compression result is None
+
             else:
+                # invalid sourceformat
                 written = False
         else:
-            # save edited image
-            written = cv2.imwrite(filename, buf, params)  # BGR order
+            # invalid extension
+            written = False
 
         if not written:
             raise IOError("Cannot write file %s " % filename)
@@ -888,7 +966,7 @@ class QLayer(vImage):
         # undo/redo mask history
         self.historyListMask = historyList(size=5)
         # list of auxiliary images to be saved/restored (drawing, cloning, merging,...)
-        self.innerImages = []
+        self.innerImages = ()
         # layer offsets
         self.xOffset, self.yOffset = 0, 0
         self.Zoom_coeff = 1.0
@@ -1507,7 +1585,8 @@ class QLayer(vImage):
         d['maskIsSelected'] = self.maskIsSelected
         d['mergingFlag'] = self.mergingFlag
         d['mask'] = 0 if self._mask is None else 1  # used by addAdjustmentLayers()
-        d['images'] = len(self.innerImages) # used by addAdjustmentLayers()
+        aux = [0 if getattr(self, name, None) is None else 1 for name in self.innerImages]
+        d['images'] = (*aux, )  #len(self.innerImages) # used by addAdjustmentLayers()
         return d
 
     def __setstate__(self, state):
@@ -1602,6 +1681,8 @@ class QCloningLayer(QLayer):
         # virtual layer moved flag
         self.vlChanged = False
         self.cloningState = ''
+        # bLU files must eventually save source Image
+        self.innerImages = ('sourceImg',)
         # init self.cloning mask, self.monts, self.conts;
         # these attributes are relative to full sized images
         # and used in applyCloning() to speed up move display.
@@ -1736,16 +1817,16 @@ class QCloningLayer(QLayer):
             destBuf[:, :, :3] = output
 
     def __getstate__(self):
-        tmp = self.innerImages
-        if self.sourceImg is None:
-            self.innerImages = []  # no image to save
+        #tmp = self.innerImages
+        #if self.sourceImg is None:
+            #self.innerImages = []  # no image to save
         d = super().__getstate__()
         d['sourceX'] = self.sourceX
         d['sourceY'] = self.sourceY
         d['xAltOffset'] = self.xAltOffset
         d['yAltOffset'] = self.yAltOffset
         d['cloningState'] = self.cloningState
-        self.innerImages = tmp # restore
+        #self.innerImages = tmp # restore
         return d
 
     def __setstate__(self, d):
@@ -1789,8 +1870,8 @@ class QLayerImage(QLayer):
         super().__init__(*args, **kwargs)
         self.sourceImg = None
         self.filename = ''  # path to sourceImg file
-        # bLU files must save/restore source image
-        self.innerImages.append('sourceImg')
+        # bLU files must eventually save/restore source image
+        self.innerImages = ('sourceImg', )
 
     def inputImg(self, redo=True):
         """

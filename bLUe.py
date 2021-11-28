@@ -290,13 +290,17 @@ def addAdjustmentLayers(layers, images):
             if layer is not None:
                 layer.__setstate__(item[1])  # keep after mask init
         if 'images' in d:  # for retro compatibility with previous bLU file formats
-            n = d['images']  # number of saved images
+            n = d['images']
+            if type(n) is tuple:
+                n =n.count(1)
             if n > 0:
                 waitImages.append((layer, n))  # image offset not known yet
 
     images_loaded = False
     for layer, n in waitImages:
         t = type(layer)
+        # all layers managing images should be subclasses of QLayer.
+        # TODO : to handle multiple images n should be a tuple of binary values
         if t in [QLayerImage, QCloningLayer]:
             images_loaded = True
             buf = images.asarray()[count]
@@ -307,7 +311,8 @@ def addAdjustmentLayers(layers, images):
             layer.applyToStack()  # TODO added 22/11/21 because images are loaded after all calls to __setstate__() - validate
             parentImage = layer.parentImage  # same for all layers
         count += n
-    if images_loaded:  # TODO added 22/11/21 - validate
+    if images_loaded:
+        parentImage.setActiveLayer(len(parentImage.layersStack) - 1)
         parentImage.onImageChanged()
 
 
@@ -1124,13 +1129,13 @@ def menuLayer(name, window=window, sname=None, script=False):
     # curves
     if name in ['actionCurves_RGB', 'actionCurves_HSpB', 'actionCurves_Lab']:
         if name == 'actionCurves_RGB':
-            layerName = 'RGB'
+            layerName = 'Curves RGB'
             form = graphicsForm
         elif name == 'actionCurves_HSpB':  # displayed as HSV in the layer menu !!
-            layerName = 'HSV'
+            layerName = 'Curves HSV'
             form = graphicsHspbForm
         elif name == 'actionCurves_Lab':
-            layerName = 'Lab'
+            layerName = 'Curves Lab'
             form = graphicsLabForm
         # add new layer on top of active layer
         layer = window.label.img.addAdjustmentLayer(name=gn(layerName))
@@ -1148,7 +1153,7 @@ def menuLayer(name, window=window, sname=None, script=False):
         layer = window.label.img.addAdjustmentLayer(name=gn(layerName), role='AutoLUT')  # do not use a role containing '3DLUT'
         grWindow = graphicsFormAuto3DLUT.getNewWindow(axeSize=300, targetImage=window.label.img,
                                                   LUTSize=LUTSIZE, layer=layer, parent=window,
-                                                  mainForm=window)  # mainForm mandatory here
+                                                  mainForm=window)
         pool = getPool()
         layer.execute = lambda l=layer, pool=pool: l.tLayer.applyAuto3DLUT(pool=pool)
 
@@ -1159,7 +1164,7 @@ def menuLayer(name, window=window, sname=None, script=False):
         layerName = '2.5D LUT HSpB' if name == 'action3D_LUT' else '2.5D LUT HSV'
         layer = window.label.img.addAdjustmentLayer(name=gn(layerName), role='3DLUT')
         grWindow = graphicsForm3DLUT.getNewWindow(ccm, axeSize=300, targetImage=window.label.img,
-                                                  LUTSize=LUTSIZE, layer=layer, parent=window, mainForm=window)  # mainForm mandatory here
+                                                  LUTSize=LUTSIZE, layer=layer, parent=window, mainForm=window)
         # init pool only once
         pool = getPool()
         sc = grWindow.scene()
@@ -1261,7 +1266,8 @@ def menuLayer(name, window=window, sname=None, script=False):
         imgNew.fill(QColor(0, 0, 0, 0))
         lname = 'Drawing'
         layer = window.label.img.addAdjustmentLayer(name=gn(lname), sourceImg=imgNew, role='DRW')
-        grWindow = drawForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
+        grWindow = drawForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer,
+                                         parent=window, mainForm=window)
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyNone()
         layer.actioname = name
 

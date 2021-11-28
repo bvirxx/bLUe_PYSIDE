@@ -87,7 +87,6 @@ class patchForm (baseForm):
         self.sourceImage = None
         self.sourcePixmap = None
         self.sourcePixmapThumb = None
-        self.layer.innerImages = ['sourceImg']  # must be the name of corresponding QCloningLayer attribute
         # opencv flags
         cv2Flag_dict = {'Normal Clone': cv2.NORMAL_CLONE,
                         'Mixed Clone': cv2.MIXED_CLONE,

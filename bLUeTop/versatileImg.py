@@ -1765,7 +1765,6 @@ class vImage(bImage):
                 r, g, b = bbTemperature2RGB(temperature)
             else:
                 # get current color from color chooser dialog
-                # parent() is a dockWidget, parent().parent() is the main window
                 r, g, b = adjustForm.filterColor.getRgb()[:3]
             filter = QImage(inputImage.size(), inputImage.format())
             filter.fill(QColor(r, g, b, 255))

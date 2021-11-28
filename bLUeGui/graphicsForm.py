@@ -51,9 +51,11 @@ class abstractForm:
     """
 
     @classmethod
-    def getNewWindow(cls, targetImage=None, axeSize=200, layer=None, parent=None):
+    def getNewWindow(cls, targetImage=None, axeSize=200, layer=None, parent=None, mainForm=None):
         wdgt = cls(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
-        wdgt.setWindowTitle(layer.name)
+        wdgt.mainForm = weakProxy(mainForm)
+        if layer is not None:
+            wdgt.setWindowTitle(getattr(layer, 'name', 'noname'))
         return wdgt
 
     @property
@@ -184,9 +186,9 @@ class baseGraphicsForm(QGraphicsView, abstractForm):
         self.setAlignment(Qt.AlignTop)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setFocusPolicy(Qt.ClickFocus)
-        # back links to image
-        self.layer = layer
-        self.targetImage = targetImage
+        # back link to image layer (weak ref)
+        self.layer = layer # property setter
+        self.targetImage = targetImage # property setter
         # list of subcontrols
         self.subControls = []
         self.setScene(QGraphicsScene())
