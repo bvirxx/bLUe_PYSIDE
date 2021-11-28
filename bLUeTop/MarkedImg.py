@@ -1063,13 +1063,13 @@ class QLayer(vImage):
         """
         self.tool = tool
         tool.modified = False
-        tool.layer = self
+        tool.layer = weakProxy(self)  # TODO added weakProxy 28/11/21 validate
         try:
             tool.layer.visibilityChanged.sig.disconnect()
         except RuntimeError:
             pass
         tool.layer.visibilityChanged.sig.connect(tool.setVisible)
-        tool.img = self.parentImage
+        tool.img = weakProxy(self.parentImage) # TODO added weakProxy 28/11/21 validate
         w, h = tool.img.width(), tool.img.height()
         for role, pos in zip(['topLeft', 'topRight', 'bottomRight', 'bottomLeft'],
                              [QPoint(0, 0), QPoint(w, 0), QPoint(w, h), QPoint(0, h)]):
@@ -1891,7 +1891,7 @@ class QLayerImage(QLayer):
             qp.end()
         else:
             buf = QImageBuffer(img1)[..., :3][..., ::-1]
-            img0 = (self.sourceImg.scaled(img1.size()))
+            img0 = self.sourceImg.scaled(img1.size())  # removed redundant parenthesis 28/11/21
             buf0 = QImageBuffer(img0)[..., :3][..., ::-1]
             buf0 = buf0 * self.opacity
             if self.compositionMode == -1:
