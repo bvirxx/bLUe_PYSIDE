@@ -45,6 +45,9 @@ class BWidgetImg(QLabel):
         if 'parent' in kwargs:
             self.grForm = kwargs['parent']
 
+    def __del__(self):
+        print('widgetImg deleted')
+
     def mousePressEvent(self, ev):
         super().mousePressEvent(ev)
         if ev.modifiers() != Qt.ControlModifier | Qt.AltModifier:
@@ -127,12 +130,12 @@ class patchForm (baseForm):
 
         # Load Image button clicked slot
         def f():
-            from bLUeTop.QtGui1 import window
+            window = self.mainForm
             if self.sourceImage is not None:
                 dlgWarn('A source image is already open', 'Reset the cloning layer before\nloading a new image')
             lastDir = str(window.settings.value('paths/dlgdir', '.'))
             filter = "Images ( *" + " *".join(IMAGE_FILE_EXTENSIONS) + ")"
-            dlg = QFileDialog(window, "select", lastDir, filter)
+            dlg = QFileDialog( window.__repr__.__self__, "select", lastDir, filter) # QFileDialog does not accept weakProxy arg
             if dlg.exec_():
                 filenames = dlg.selectedFiles()
                 newDir = dlg.directory().absolutePath()
@@ -143,7 +146,6 @@ class patchForm (baseForm):
                 self.sourceImage = im.copy(QRect(QPoint(0, 0), self.layer.size()))
                 self.widgetImg.setWindowTitle(f"Source : {basename(filename)}")
                 self.updateSource()
-
             self.widgetImg.show()
 
         pushButton1.clicked.connect(f)
@@ -194,6 +196,9 @@ class patchForm (baseForm):
                             """
                         )  # end of setWhatsthis
 
+    def __del__(self):
+        print('patchForm deleted')
+
     def setDefaults(self):
         self.enableOptions()
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
@@ -223,7 +228,6 @@ class patchForm (baseForm):
         """
         if self.sourceImage is None:
             return
-        from bLUeTop.QtGui1 import window
         # scale img while keeping its aspect ratio
         # into a QPixmap having the same size than self.layer
         sourcePixmap = QPixmap.fromImage(self.sourceImage).scaled(self.layer.size(), Qt.KeepAspectRatio)
@@ -231,15 +235,15 @@ class patchForm (baseForm):
         self.sourcePixmap = QPixmap(self.layer.size())
         self.sourcePixmap.fill(Qt.black)
         qp = QPainter(self.sourcePixmap)
-        qp.drawPixmap(QPointF(),
-                      sourcePixmap)  # (QRect(0, 0, sourcePixmap.width(), sourcePixmap.height()), sourcePixmap)
+        qp.drawPixmap(QPointF(), sourcePixmap)
         qp.end()
         self.sourcePixmapThumb = self.sourcePixmap.scaled(self.pwSize, self.pwSize, aspectMode=Qt.KeepAspectRatio)
         self.widgetImg.setPixmap(self.sourcePixmapThumb)
         self.widgetImg.setFixedSize(self.sourcePixmapThumb.size())
         # add subcontrol if needed
         if self.dockT is None:
-            dockT = self.addSubcontrol(self.parent())
+            window = self.mainForm
+            dockT = self.addSubcontrol(None)
             dockT.setWindowFlags(self.widgetImg.windowFlags())
             dockT.setWindowTitle(self.widgetImg.windowTitle())
             window.addDockWidget(Qt.LeftDockWidgetArea, dockT)

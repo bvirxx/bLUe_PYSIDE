@@ -1187,7 +1187,7 @@ def menuLayer(name, window=window, sname=None, script=False):
     elif name == 'actionNew_Cloning_Layer':
         lname = 'Cloning'
         layer = window.label.img.addAdjustmentLayer(layerType=QCloningLayer, name=gn(lname), role='CLONING')
-        grWindow = patchForm.getNewWindow(targetImage=window.label.img, axeSize=axeSize, layer=layer, parent=window)
+        grWindow = patchForm.getNewWindow(targetImage=window.label.img, axeSize=axeSize, layer=layer, parent=window, mainForm=window)
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyCloning(seamless=l.autoclone)
 
     # segmentation

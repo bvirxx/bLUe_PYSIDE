@@ -371,7 +371,7 @@ class mImage(vImage):
         self.layersStack.insert(index, layer)
         self.setActiveLayer(index)
         layer.meta = self.meta
-        layer.parentImage = self
+        layer.parentImage = weakProxy(self)  # TODO weakproxy added 29/11/21 validate
         self.setModified(True)
         return layer
 
@@ -1017,8 +1017,9 @@ class QLayer(vImage):
                 form.setAttribute(Qt.WA_DeleteOnClose)
                 form.close()
                 dock.setAttribute(Qt.WA_DeleteOnClose)
+                dock.setParent(None)
                 dock.close()
-                self.view = None
+                # self.view = None  # TODO removed 29/11/21 validate
             else:  # tabbed forms should not be closed
                 temp = dock.tabbed
                 dock.setFloating(True)
@@ -1029,12 +1030,15 @@ class QLayer(vImage):
         view = getattr(self, 'view', None)
         if view is None:
             return
-        # close all possible subwindows
+        # close all subwindows
         form = self.view.widget()
-        for dock in form.subControls: # [getattr(form, 'dock', None), getattr(form, 'dockC', None), getattr(form, 'dockT', None)]:
+        for dock in form.subControls:
             closeDock(dock, delete=delete)
         # close window
-        closeDock(getattr(self, 'view', None), delete=delete)
+        closeDock(view, delete=delete)
+        if delete:  # TODO modified 29/11/21 validate
+            form.subControls = []
+            self.view = None
 
     def isActiveLayer(self):
         if self.parentImage.getActiveLayer() is self:
@@ -1699,11 +1703,6 @@ class QCloningLayer(QLayer):
         self.getGraphicsForm().sourceImage = img
     ############################################
 
-    def equalityTest(self):
-        imgIn = self.inputImg(drawTranslated=False)
-        imgOut = self.getCurrentImage()
-        return (QImageBuffer(imgIn) == QImageBuffer(imgOut)).all()
-
     def inputImg(self, redo=True, drawTranslated=False):  # True):
         """
         Overrides QLayer.inputImg().
@@ -1746,12 +1745,11 @@ class QCloningLayer(QLayer):
         The method should be called every time the lower
         stack is modified.
         """
-        adjustForm = self.getGraphicsForm()
         if not self.sourceFromFile:
             img = self.inputImg(drawTranslated=False)
             if img.rPixmap is None:
                 img.rPixmap = QPixmap.fromImage(img)
-            adjustForm.sourcePixmap = img.rPixmap
+            self.getGraphicsForm().sourcePixmap = img.rPixmap
 
     def seamlessMerge(self, outImg, inImg, mask, cloningMethod, version='opencv', w=3):
         """
