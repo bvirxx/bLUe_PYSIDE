@@ -1016,9 +1016,11 @@ class QLayer(vImage):
                     form.layer = None
                 form.setAttribute(Qt.WA_DeleteOnClose)
                 form.close()
+                form.__dict__.clear()  # TODO awful - prepare for gc - probably useless test needed 30/11/21 validate
                 dock.setAttribute(Qt.WA_DeleteOnClose)
                 dock.setParent(None)
                 dock.close()
+                dock.__dict__.clear() # TODO awful - prepare for gc - probably useless test needed 30/11/21 validate
                 # self.view = None  # TODO removed 29/11/21 validate
             else:  # tabbed forms should not be closed
                 temp = dock.tabbed
@@ -1038,7 +1040,9 @@ class QLayer(vImage):
         closeDock(view, delete=delete)
         if delete:  # TODO modified 29/11/21 validate
             form.subControls = []
+            self.execute = None # TODO prepare for gc  probably useless test needed 30/11/21 validate
             self.view = None
+            self.__dict__.clear()
 
     def isActiveLayer(self):
         if self.parentImage.getActiveLayer() is self:

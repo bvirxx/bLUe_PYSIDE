@@ -544,14 +544,19 @@ def closeTabs(index=None, window=window):
     If it succeeds to close all opened documents, the method resets the GUI to default.
     """
     if not canClose(index=index) or window.tabBar.count() > 0:
+        ##########
+        #window.tableView.clear(delete=True)  # TODO added 29/11/21 validate
+        #window.histView.targetImage = None   # TODO added 29/11/21 validate
+        ############
         gc.collect()
         return
-    window.tableView.clear(delete=True)
+    #window.tableView.clear(delete=True)
     window.histView.targetImage = None
     defaultImImage = initDefaultImage()
     window.label.img = defaultImImage
     window.label_2.img = defaultImImage
     window.label_3.img = defaultImImage
+    window.tableView.clear(delete=True)  # 30/11/21
     gc.collect()
     window.label.update()
     window.label_2.update()
@@ -1281,7 +1286,7 @@ def menuLayer(name, window=window, sname=None, script=False):
 
     elif name == 'actionContrast_Correction':
         layer = window.label.img.addAdjustmentLayer(name=gn(CoBrSatForm.layerTitle), role='CONTRAST')
-        grWindow = CoBrSatForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
+        grWindow = CoBrSatForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window,  mainForm=window)
         # clipLimit change event handler
 
         def h(lay, clipLimit):
@@ -1528,7 +1533,11 @@ def canClose(index=None, window=window):
                 dlgWarn(str(e))
                 return False
         # discard changes or img not modified : remove tab
-        window.tabBar.removeTab(ind)
+        img = window.tabBar.tabData(ind)
+        window.tabBar.removeTab(ind)  # keep before closeView
+        stack = img.layersStack
+        for layer in stack:  # TODO added 30/11/21 little improvement for gc validate
+            layer.closeView(delete=True)
         return True
 
     if closeAllRequested:

@@ -282,13 +282,13 @@ class CoBrSatForm(baseForm):
             self.contrastForm = form
             self.contrastForm.optionName = 'manualCurve'
             # dock contrastForm
-            window = self.parent().parent()
-            dock = self.addSubcontrol(self.parent())  # stateAwareQDockWidget(self.parent())
+            #window = self.parent().parent()
+            dock = self.addSubcontrol(None)  #self.parent())
             dock.setWidget(form)
             dock.setWindowFlags(form.windowFlags())
             dock.setWindowTitle(form.windowTitle())
             dock.setStyleSheet("QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
-            window.addDockWidget(Qt.LeftDockWidgetArea, dock)
+            self.mainForm.addDockWidget(Qt.LeftDockWidgetArea, dock)
             self.dock = dock
 
             # curve changed slot

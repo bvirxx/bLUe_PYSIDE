@@ -128,6 +128,10 @@ class bImage(QImage):
     def __ne__(self, other):
         return self is not other
 
+    def __del__(self):
+        print('*********** %s' %type(self))
+
+
     def getHspbBuffer(self):
         """
         return the image buffer in color mode HSpB.

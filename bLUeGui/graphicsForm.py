@@ -74,6 +74,9 @@ class abstractForm:
     def targetImage(self, aTargetImage):
         self.__targetImage = weakProxy(aTargetImage)
 
+    def __del__(self):
+        print('*********** %s' %type(self))
+
     def colorPickedSlot(self, x, y, modifiers):
         """
         A colorPicked signal is emitted when a mouse click
