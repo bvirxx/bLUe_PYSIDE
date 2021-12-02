@@ -443,7 +443,6 @@ class mImage(vImage):
         # mask pixels are not yet painted as FG or BG
         # so we mark them as invalid
         layer.mask.fill(vImage.defaultColor_Invalid)
-        # layer.paintedMask = layer.mask.copy()
         # add noSegment flag. It blocks/allows the execution of grabcut algorithm
         # in applyGrabcut : if True, further stack updates
         # do not redo the segmentation. The flag is toggled by the Apply Button
@@ -544,23 +543,27 @@ class mImage(vImage):
         @return: thumbnail of the saved image
         @rtype: QImage
         """
-        def transparencyCheck(buf):
+        def transparencyCheck(buf, fileformat):
+            if fileFormat.upper() not in ['.JPG', '.TIF']:
+                return
             if np.any(buf[:, :, 3] < 255):
                 dlgWarn('Transparency will be lost. Use PNG format instead')
-        # don't save thumbnails
-        #if self.useThumb:
-            #return None
+
+        fileFormat = filename[-4:].upper()
+
         # get the final image from the presentation layer.
-        # This image is NOT color managed (prLayer.qPixmap
-        # only is color managed)
+        # This image is NOT color managed (only prLayer.qPixmap
+        # is color managed)
         img = self.prLayer.getCurrentImage()
+
         # imagewriter and QImage.save are unusable for tif files,
         # due to bugs in libtiff, hence we use opencv imwrite.
-        fileFormat = filename[-4:].upper()
         buf = QImageBuffer(img)
+
+        transparencyCheck(buf, fileFormat)
+
         params = []
         if fileFormat == '.JPG':
-            transparencyCheck(buf)
             buf = buf[:, :, :3]
             if quality >= 0 and quality <= 100:
                 params = [cv2.IMWRITE_JPEG_QUALITY, quality]  # quality range 0..100
@@ -568,16 +571,17 @@ class mImage(vImage):
             if compression >= 0 and compression <= 9:
                 params = [cv2.IMWRITE_PNG_COMPRESSION, compression]  # compression range 0..9
         elif fileFormat in ['.TIF'] + list(BLUE_FILE_EXTENSIONS):
-            transparencyCheck(buf)
             buf = buf[:, :, :3]
         else:
             raise IOError("Invalid File Format\nValid formats are jpg, png, tif ")
+
         if self.isCropped:
             # make slices
             w, h = self.width(), self.height()
             w1, w2 = int(self.cropLeft), w - int(self.cropRight)
             h1, h2 = int(self.cropTop), h - int(self.cropBottom)
             buf = buf[h1:h2, w1:w2, :]
+
         # build thumbnail from (eventually) cropped image
         # choose thumb size
         wf, hf = buf.shape[1], buf.shape[0]

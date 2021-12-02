@@ -851,7 +851,7 @@ class vImage(bImage):
         # resizing coeff fitting selection rectangle to the current image
         r = inputImg.width() / self.width()
         ############################
-        # build the segmentation mask
+        # init the segmentation mask
         ############################
         if rect is not None:
             # inside rect: PR_FGD, outside BGD
@@ -861,11 +861,12 @@ class vImage(bImage):
             # everywhere : PR_BGD
             segMask = np.zeros((inputImg.height(), inputImg.width()), dtype=np.uint8) + cv2.GC_PR_BGD
 
-        # add info from current self.mask
-        # initially (i.e. before any painting with BG/FG tools and before first call to applygrabcut)
-        # all mask pixels are marked as invalid. Painting a pixel marks it as valid, Ctrl+paint
-        # switches it back to invalid.
+        # add info from current self.innerSegMask to segMask
         # Only valid pixels are added to segMask, fixing them as FG or BG
+        # initially (i.e. before any painting with BG/FG tools and before first call to applygrabcut)
+        # all pixels are marked as invalid. Painting a pixel marks it as valid, Ctrl+paint
+        # switches it back to invalid.
+
         if inputImg.size() != self.size():
             scaledMask = self.mask.scaled(inputImg.width(), inputImg.height())
         else:

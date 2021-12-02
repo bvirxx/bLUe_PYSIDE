@@ -24,7 +24,7 @@ import numpy as np
 from PySide2 import QtCore
 from PySide2.QtGui import QColor, QImage, QPainter, QPixmap, QIcon, QMouseEvent, QImageReader
 from PySide2.QtWidgets import QListWidget, QListWidgetItem, \
-    QSlider, QLabel, QDockWidget, QStyle, QColorDialog, QPushButton, QSizePolicy, QComboBox
+    QSlider, QLabel, QDockWidget, QStyle, QColorDialog, QPushButton, QSizePolicy, QComboBox, QSpinBox
 from PySide2.QtCore import Qt, QObject, QRect
 
 from bLUeCore.rollingStats import movingVariance
@@ -270,6 +270,14 @@ class QbLUeComboBox(QComboBox):
         ind = self.findText(state['text'])
         if ind != -1:
             self.setCurrentIndex(ind)
+
+class QbLUeSpinBox(QSpinBox):
+
+    def __getstate__(self):
+        return {'value': self.value()}
+
+    def __setstate__(self, state):
+        self.setValue(state['value'])
 
 
 class QbLUeSlider(QSlider):

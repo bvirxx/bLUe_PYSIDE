@@ -854,7 +854,7 @@ Note that upper visible layers slow down mask edition.<br>
             self.maskLabel.setEnabled(layer.maskIsSelected)
             self.maskSlider.setEnabled(layer.maskIsSelected)
             self.maskValue.setEnabled(layer.maskIsSelected)
-            layer.isClipping = True
+            layer.isClipping = not layer.isClipping  # True  # TODO modified 2/12/21 validate
             layer.applyToStack()
             self.img.onImageChanged()
 

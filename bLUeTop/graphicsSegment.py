@@ -17,12 +17,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 from PySide2.QtCore import Qt
-from PySide2.QtWidgets import QHBoxLayout, QPushButton, QVBoxLayout, QSpinBox, QLabel
+from PySide2.QtWidgets import QHBoxLayout, QPushButton, QVBoxLayout, QLabel
 
 from bLUeTop.versatileImg import vImage
 from bLUeTop.QtGui1 import window
 from bLUeGui.graphicsForm import baseForm
-from bLUeTop.utils import optionsWidget
+from bLUeTop.utils import optionsWidget, QbLUeSpinBox
 
 
 class segmentForm(baseForm):
@@ -58,7 +58,7 @@ class segmentForm(baseForm):
         button1 = QPushButton('Reset')
         button1.clicked.connect(self.reset)
 
-        self.spBox = QSpinBox()
+        self.spBox = QbLUeSpinBox()
         self.spBox.setRange(1, 10)
 
         # spBox slot
@@ -70,7 +70,7 @@ class segmentForm(baseForm):
         spBoxLabel = QLabel()
         spBoxLabel.setText('Iterations')
 
-        self.spBox1 = QSpinBox()
+        self.spBox1 = QbLUeSpinBox()
         self.spBox1.setRange(0, 20)
         spBox1Label = QLabel()
         spBox1Label.setText('Contour Redo Radius')
@@ -124,11 +124,11 @@ class segmentForm(baseForm):
               Select the object to extract with the rectangle Marquee Tool. Next, press the <i>Segment</i> button.<br>
               The background of the segmented image is transparent : to <b>mask the underlying layers</b> check the
               option <i>Clipping Layer.</i><br>
-              To <b>fix the selection</b>, paint eventual misclassed pixels with the foreground (FG) or background (BG) tools.<br>
               To <b>redo the segmentation of a region</b> (e.g. a border area) hold down the Ctrl key while painting the area
-              and press again <i>segment.</i><br>
+              with the foreground (FG) or background (BG) tool and next press again <i>Segment.</i><br>
+              To <b>manually correct the selection</b>, paint eventual misclassed pixels with the foreground (FG) or background (BG) tool.<br>
               To <b>redo the segmentation of the whole contour</b> set <i>Contour Redo Radius</i> to a value >= 1 and
-              press <i>Segment.</i><br>
+              press <i>Segment</i>. Note that setting <i>Contour Redo Radius</i> to a value >= 1 may undo some manual corrections.<br>
               To <b>smooth the contour</b> right click the layer row in the <i>Layers</i> panel
               and choose <i>Smooth Mask</i> from the context menu.<br>
             """
@@ -166,7 +166,19 @@ class segmentForm(baseForm):
         self.dataChanged.emit()
         layer.updatePixmap()
 
+    def __getstate__(self):
+        d = {}
+        for a in self.__dir__():
+            obj = getattr(self, a)
+            if type(obj) in [optionsWidget, QbLUeSpinBox]:
+                d[a] = obj.__getstate__()
+        return d
 
+    def __setstate__(self, d):
+        for name in d['state']:
+            obj = getattr(self, name, None)
+            if type(obj) in [optionsWidget, QbLUeSpinBox]:
+                obj.__setstate__(d['state'][name])
 
 
 
