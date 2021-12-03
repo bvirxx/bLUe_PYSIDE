@@ -65,13 +65,13 @@ sRGB_lin2XYZInverse = [[3.2404542, -1.5371385, -0.4985314],
 # Cf. http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
 # and https://en.wikipedia.org/wiki/SRGB
 
-sRGB_lin2XYZ_D50 = [[0.4360747,  0.3850649,  0.1430804],
-                    [0.2225045,  0.7168786,  0.0606169],
-                    [0.0139322,  0.0971045,  0.7141733]]
+sRGB_lin2XYZ_D50 = [[0.4360747, 0.3850649, 0.1430804],
+                    [0.2225045, 0.7168786, 0.0606169],
+                    [0.0139322, 0.0971045, 0.7141733]]
 
 sRGB_lin2XYZ_D50Inverse = [[3.1338561, -1.6168667, -0.4906146],
-                           [-0.9787684,  1.9161415,  0.0334540],
-                           [0.0719453, -0.2289914,  1.4052427]]
+                           [-0.9787684, 1.9161415, 0.0334540],
+                           [0.0719453, -0.2289914, 1.4052427]]
 
 # XYZ/sRGB/Lab conversion :
 # D65 illuminant Xn, Yn, Zn and
@@ -80,7 +80,6 @@ sRGB_lin2XYZ_D50Inverse = [[3.1338561, -1.6168667, -0.4906146],
 
 Xn, Yn, Zn = 0.95047, 1.0, 1.08883
 Ka, Kb = 172.355, 67.038
-
 
 USE_BT_709 = False
 
@@ -188,6 +187,7 @@ def rgbLinear2rgb(rgbColors):
             else:
                 c = (1.0 + gt.a) * (c ** gt.beta) - gt.a
             return c
+
         r, g, b = rgbColors
         return cl2c(r) * 255, cl2c(g) * 255, cl2c(b) * 255
 
@@ -220,6 +220,7 @@ def rgb2rgbLinear(rgbColors):
             else:
                 c = ((c + gt.a) / (1 + gt.a)) ** gt.gamma
             return c
+
         r, g, b = rgbColors
         return c2cl(r), c2cl(g), c2cl(b)
 
@@ -294,7 +295,7 @@ def XYZ2RGB(XYZColors, RGB_lin2XYZInverse=sRGB_lin2XYZInverse):
         M = XYZColors[1]
         XYZColors = np.array(XYZColors)
     if M > 1:
-        XYZColors /= M       # TODO a better approach is to to clip c1 ?
+        XYZColors /= M  # TODO a better approach is to to clip c1 ?
         print('XYZ2sRGBVec warning : Y channel max %.5f' % M)
     c1 = XYZ2RGBLinear(XYZColors, RGB_lin2XYZInverse=RGB_lin2XYZInverse)
     c2 = rgbLinear2rgb(c1)
@@ -440,10 +441,10 @@ def temperature2xyWP(T):
     # get xc
     if T <= 4000:
         xc = -0.2661239 * (10 ** 9) / (T ** 3) - 0.2343580 * (10 ** 6) / (T ** 2) + 0.8776956 * (
-                    10 ** 3) / T + 0.179910  # 1667<T<4000
+                10 ** 3) / T + 0.179910  # 1667<T<4000
     else:
         xc = -3.0258469 * (10 ** 9) / (T ** 3) + 2.1070379 * (10 ** 6) / (T ** 2) + 0.2226347 * (
-                    10 ** 3) / T + 0.240390  # 4000<T<25000
+                10 ** 3) / T + 0.240390  # 4000<T<25000
     # get yc
     if T <= 2222:
         yc = -1.1063814 * (xc ** 3) - 1.34811020 * (xc ** 2) + 2.18555832 * xc - 0.20219683  # 1667<T<2222
@@ -452,6 +453,7 @@ def temperature2xyWP(T):
     else:
         yc = 3.0817580 * (xc ** 3) - 5.87338670 * (xc ** 2) + 3.75112997 * xc - 0.37001483  # 4000<T<25000
     return xc, yc
+
 
 ###################################################################################################
 # The next table records lines [(10**6/T), u, v, slope], with T = temperature, (u,v) = WP coordinates in CIEYUV,

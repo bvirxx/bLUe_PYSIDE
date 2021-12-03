@@ -29,6 +29,8 @@ BLUE_FILE_EXTENSIONS = (".blu", ".BLU", ".bLU")
 IMAGE_FILE_EXTENSIONS = (".jpg", ".JPG", ".png", ".PNG", ".tif", ".TIF", ".bmp", ".BMP")
 RAW_FILE_EXTENSIONS = (".nef", ".NEF", ".dng", ".DNG", ".cr2", ".CR2")
 IMAGE_FILE_NAME_FILTER = ['Image Files (*.jpg *.png *.tif *.JPG *.PNG *.TIF)']
+
+
 #################
 
 
@@ -36,6 +38,7 @@ class dimsInputDialog(QDialog):
     """
     Simple input Dialog for image width and height.
     """
+
     def __init__(self, w, h, keepAspectRatio=True, keepBox=False):
         """
 
@@ -45,7 +48,7 @@ class dimsInputDialog(QDialog):
         super().__init__()
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.setWindowTitle('Image Dimensions')
-        self.dims = {'w': w, 'h':h, 'kr': keepAspectRatio}
+        self.dims = {'w': w, 'h': h, 'kr': keepAspectRatio}
         self.r = 1.0
         if w > 0:
             self.r = h / w
@@ -167,6 +170,7 @@ class savingDialog(QDialog):
     We use a standard QFileDialog as a child widget and we
     forward its methods to the top level.
     """
+
     def __init__(self, parent, text, lastDir):
         """
 
@@ -228,6 +232,7 @@ class savingDialog(QDialog):
     def directory(self):
         return self.dlg.directory()
 
+
 class labelDlg(QDialog):
     """
     Displays a floating modal text window.
@@ -243,7 +248,7 @@ class labelDlg(QDialog):
         self.setModal(modal)
         self.label = QLabel()
         self.label.setAlignment(Qt.AlignTop)
-        #self.label.setStyleSheet("selection-background-color: blue; selection-color: white}")
+        # self.label.setStyleSheet("selection-background-color: blue; selection-color: white}")
         vl = QVBoxLayout()
         if search:
             ed = QLineEdit()
@@ -323,6 +328,7 @@ class labelDlg(QDialog):
                        for line in s.splitlines()])
         return s
 
+
 def saveDlg(img, mainWidget, ext='jpg', selected=True):
     """
     Image saving dialog.
@@ -382,7 +388,8 @@ def openDlg(mainWidget, ask=True, multiple=False):
     # don't ask again for saving
     mainWidget.label.img.isModified = False
     lastDir = str(mainWidget.settings.value('paths/dlgdir', '.'))
-    filter = "Images ( *" + " *".join(IMAGE_FILE_EXTENSIONS) + " *" + " *".join(RAW_FILE_EXTENSIONS) + " *".join(BLUE_FILE_EXTENSIONS) + ")"
+    filter = "Images ( *" + " *".join(IMAGE_FILE_EXTENSIONS) + " *" + " *".join(RAW_FILE_EXTENSIONS) + " *".join(
+        BLUE_FILE_EXTENSIONS) + ")"
     if multiple:
         # allow multiple selections
         filenames = QFileDialog.getOpenFileNames(mainWidget, "select", lastDir, filter)

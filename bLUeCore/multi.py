@@ -49,7 +49,7 @@ def interpMulti(LUT, LUTSTEP, ndImg, pool=None, use_tetra=False, convert=True):
     """
     w, h = ndImg.shape[1], ndImg.shape[0]
     SLF = 4
-    sl_w = [slice((w * i) // SLF, (w * (i+1)) // SLF) for i in range(SLF)]
+    sl_w = [slice((w * i) // SLF, (w * (i + 1)) // SLF) for i in range(SLF)]
     sl_h = [slice((h * i) // SLF, (h * (i + 1)) // SLF) for i in range(SLF)]
 
     slices = [(s1, s2) for s1 in sl_w for s2 in sl_h]
@@ -81,10 +81,10 @@ def chosenInterp(pool, size):
     if (pool is not None) and size > 3000000:
         def f(x, y, z, convert=True):
             return interpMulti(x, y, z, pool=pool, use_tetra=USE_TETRA, convert=convert)
+
         interp = f  # lambda x, y, z, convert=True: interpMulti(x, y, z, pool=pool, use_tetra=USE_TETRA, convert=convert)
     elif USE_TETRA:
         interp = interpTetra
     else:
         interp = interpTriLinear
     return interp
-

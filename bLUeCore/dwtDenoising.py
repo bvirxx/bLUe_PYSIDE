@@ -33,7 +33,7 @@ def noiseEstimation(DWT_coeffs):
     a, s = pywt.coeffs_to_array(DWT_coeffs)
     flattened_coeffs = a[s[-1]['dd'][0], s[-1]['dd'][1]].ravel()
     MAD = np.median(abs(flattened_coeffs))
-    return MAD*MAD / (0.6745*0.6745)
+    return MAD * MAD / (0.6745 * 0.6745)
 
 
 def dwtDenoiseChan(image, chan=0, thr=1.0, thrmode='hard', wavelet='haar', level=None):
@@ -95,13 +95,13 @@ def dwtDenoiseChan(image, chan=0, thr=1.0, thrmode='hard', wavelet='haar', level
             DWT_coeffs = pywt.array_to_coeffs(a, s)
         # soft threshold: filter h = max(0, (|a| - thr)) * sgn(a) / a
         elif thrmode == 'soft':
-            a[mask] = np.where(np.abs(a[mask]) <= thr, 0, (np.sign(a[mask])) * (np.abs(a[mask])-thr))
+            a[mask] = np.where(np.abs(a[mask]) <= thr, 0, (np.sign(a[mask])) * (np.abs(a[mask]) - thr))
             DWT_coeffs = pywt.array_to_coeffs(a, s)
     else:  # local Wiener Filter
         # we do not estimate the noise variance sigma2 (a priori value or
         # Mean Absolute Deviation method for instance).
         # Instead, we use a variable interactive threshold set by the user
-        thr = thr/100
+        thr = thr / 100
         ###################################################
         # Estimation of the variance of the coefficients of the
         # DWT transform.
@@ -118,7 +118,7 @@ def dwtDenoiseChan(image, chan=0, thr=1.0, thrmode='hard', wavelet='haar', level
                 # for each coeff Y, estimate E(Y**2) as the minimum of
                 # moving averages of coeff**2 over window sizes.
                 for win_size in win_sizes:
-                    nY2 = movingAverage(coeff*coeff, win_size, version='strides')
+                    nY2 = movingAverage(coeff * coeff, win_size, version='strides')
                     minmask = (nY2 < nY2_est)
                     nY2_est[minmask] = nY2[minmask]
                 # The Wiener Estimator for a noisy signal Y with

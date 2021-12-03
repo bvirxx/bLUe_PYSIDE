@@ -22,9 +22,9 @@ from bLUeGui.bLUeImage import QImageBuffer
 from bLUeNN.models_x import *
 import torchvision.transforms.functional as TF
 
-#import trilinear
+# import trilinear
 
-#trilinear_ = TrilinearInterpolation()
+# trilinear_ = TrilinearInterpolation()
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--input_color_space", type=str, default="sRGB", help="input color space: sRGB or XYZ")
@@ -36,7 +36,7 @@ opt.model_dir = opt.model_dir + '/' + opt.input_color_space
 # Tensor type
 Tensor = torch.FloatTensor
 
-#criterion_pixelwise = torch.nn.MSELoss()
+# criterion_pixelwise = torch.nn.MSELoss()
 LUT0 = Generator3DLUT(instance='identity')
 LUT1 = Generator3DLUT()
 LUT2 = Generator3DLUT()
@@ -82,8 +82,8 @@ def generateLUTfromQImage(img, coeffs):
     @rtype:
     """
 
-    buf = QImageBuffer(img)[:,:,:3][:,:,::-1].copy() # convert channel order to RGB. Tensor does not support negative strides, so copy() is needed
-    img1 = TF.to_tensor(buf).type(Tensor) # convert ndarray with dtype np.uint8 to tensor in range [0,1]
+    buf = QImageBuffer(img)[:, :, :3][:, :, ::-1].copy()  # convert to RGB. Tensor does not support negative strides
+    img1 = TF.to_tensor(buf).type(Tensor)  # convert ndarray with dtype np.uint8 to tensor in range [0,1]
     img1 = img1.unsqueeze(0)
 
     pred = generatePred(img1)
@@ -94,5 +94,4 @@ def generateLUTfromQImage(img, coeffs):
 
     LUT = pred1[0] * LUT0.LUT + pred1[1] * LUT1.LUT + pred1[2] * LUT2.LUT
 
-    return np.ascontiguousarray(LUT.detach().numpy().transpose(1,2,3,0)[:,:,:,::-1] * 255), pred1
-
+    return np.ascontiguousarray(LUT.detach().numpy().transpose(1, 2, 3, 0)[:, :, :, ::-1] * 255), pred1

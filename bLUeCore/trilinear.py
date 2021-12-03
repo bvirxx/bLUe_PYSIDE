@@ -70,17 +70,17 @@ def interpTriLinear(LUT, LUTSTEP, ndImg, convert=True):
                                       g0[..., np.newaxis],
                                       b0[..., np.newaxis],
                                       np.arange(s[-1])),
-                                      s)  # broadcasted to shape (w,h,3)
+                                     s)  # broadcasted to shape (w,h,3)
 
     # apply LUT to the vertices of the bounding cube.
     # np.take uses the the flattened LUT, but keeps the shape of flatIndex
-    ndImg00 = np.take(LUT, flatIndex)                            # = LUT[r0, g0, b0] but faster
-    ndImg01 = np.take(LUT, flatIndex + st[0])                    # = LUT[r1, g0, b0] where r1 = r0 + 1
-    ndImg02 = np.take(LUT, flatIndex + st[1])                    # = LUT[r0, g1, b0]
-    ndImg03 = np.take(LUT, flatIndex + (st[0] + st[1]))          # = LUT[r1, g1, b0]
-    ndImg10 = np.take(LUT, flatIndex + st[2])                    # = LUT[r0, g0, b1]
-    ndImg11 = np.take(LUT, flatIndex + (st[0] + st[2]))          # = LUT[r1, g0, b1]
-    ndImg12 = np.take(LUT, flatIndex + (st[1] + st[2]))          # = LUT[r0, g1, b1]
+    ndImg00 = np.take(LUT, flatIndex)  # = LUT[r0, g0, b0] but faster
+    ndImg01 = np.take(LUT, flatIndex + st[0])  # = LUT[r1, g0, b0] where r1 = r0 + 1
+    ndImg02 = np.take(LUT, flatIndex + st[1])  # = LUT[r0, g1, b0]
+    ndImg03 = np.take(LUT, flatIndex + (st[0] + st[1]))  # = LUT[r1, g1, b0]
+    ndImg10 = np.take(LUT, flatIndex + st[2])  # = LUT[r0, g0, b1]
+    ndImg11 = np.take(LUT, flatIndex + (st[0] + st[2]))  # = LUT[r1, g0, b1]
+    ndImg12 = np.take(LUT, flatIndex + (st[1] + st[2]))  # = LUT[r0, g1, b1]
     ndImg13 = np.take(LUT, flatIndex + (st[0] + st[1] + st[2]))  # = LUT[r1, g1, b1]
 
     # interpolation
@@ -102,6 +102,7 @@ def interpTriLinear(LUT, LUTSTEP, ndImg, convert=True):
         B *= a
         A += B
         return A
+
     I11Value = add(ndImg11, alpha, ndImg13, ndImg11)
     I12Value = add(ndImg10, alpha, ndImg12, ndImg10)
     I21Value = add(ndImg01, alpha, ndImg03, ndImg01)

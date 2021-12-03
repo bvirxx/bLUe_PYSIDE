@@ -23,6 +23,7 @@ class HaldArray(object):
     """
     hald image wrapper, recording the size of the corresponding 3D LUT.
     """
+
     def __init__(self, haldBuffer, size):
         """
         @param haldBuffer: 2D array
@@ -31,11 +32,11 @@ class HaldArray(object):
         @type size: int
         """
         self.size = size
-        self. haldBuffer = haldBuffer
+        self.haldBuffer = haldBuffer
         super().__init__()
 
 
-class LUT3D (object):
+class LUT3D(object):
     """
     Standard RGB 3D LUT, following the Adobe cube LUT specification :
     cf. http://wwwimages.adobe.com/content/dam/Adobe/en/products/speedgrade/cc/pdfs/cube-lut-specification-1.0.pdf
@@ -62,6 +63,7 @@ class LUT3D (object):
     ####################
     # default LUT size
     defaultSize = 33  # 17
+
     ####################
 
     @staticmethod
@@ -136,7 +138,7 @@ class LUT3D (object):
             else:
                 raise ValueError('Wrong file format')
             # BGR order for channels
-            buf[i:i+3] = float(c), float(b), float(a)
+            buf[i:i + 3] = float(c), float(b), float(a)
             i += 3
         # sanity check
         if i != bufsize:
@@ -221,9 +223,9 @@ class LUT3D (object):
                 raise ValueError("LUT3D : array shape should be (%d,%d,%d,%d)" % s0)
         if alpha:
             self.LUT3DArray = np.concatenate((
-                                     self.LUT3DArray,
-                                     np.zeros(self.LUT3DArray.shape[:3] + (1,), dtype=self.LUT3DArray.dtype)),
-                                     axis=-1)
+                self.LUT3DArray,
+                np.zeros(self.LUT3DArray.shape[:3] + (1,), dtype=self.LUT3DArray.dtype)),
+                axis=-1)
         super().__init__()
 
     def toHaldArray(self, w, h):
@@ -287,6 +289,7 @@ class DeltaLUT3D(object):
     (additive shift and modulo arithmetic)
     and remaining dims can be used for any type of input (multiplicative shifts).
     """
+
     def __init__(self, divs):
         """
         Init an identity displacement 3D LUT with

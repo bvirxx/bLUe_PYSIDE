@@ -28,7 +28,8 @@ class cmConverter(object):
     """
 
     def __init__(self):
-        self.cm2rgb, self.cm2rgbVec, rgb2cm, rgb2cmVec = (None,)*4
+        self.cm2rgb, self.cm2rgbVec, rgb2cm, rgb2cmVec = (None,) * 4
+
 
 ##########################################
 # init color converters for HSpB and HSB
@@ -132,7 +133,7 @@ class hueSatPattern(bImage):
         cx = self.width() / 2
         cy = self.height() / 2
         x, y = (cx - self.border) * s * np.cos((h - self.rotation) * np.pi / 180.0), \
-                                                (cy - self.border) * s * np.sin((h - self.rotation) * np.pi / 180.0)
+               (cy - self.border) * s * np.sin((h - self.rotation) * np.pi / 180.0)
         x, y = x + cx, -y + cy
         return x, y
 
@@ -149,8 +150,8 @@ class hueSatPattern(bImage):
         h, s = hsarray[:, :, 0], hsarray[:, :, 1]
         cx = self.width() / 2
         cy = self.height() / 2
-        x, y = (cx-self.border) * s * np.cos((h - self.rotation) * np.pi / 180.0), \
-                                                (cy-self.border) * s * np.sin((h - self.rotation) * np.pi / 180.0)
+        x, y = (cx - self.border) * s * np.cos((h - self.rotation) * np.pi / 180.0), \
+               (cy - self.border) * s * np.sin((h - self.rotation) * np.pi / 180.0)
         x, y = x + cx, - y + cy
         return np.dstack((x, y))
 
@@ -159,6 +160,7 @@ class brightnessPattern(bImage):
     """
     linear gradient of brightnesses for fixed hue and sat.
     """
+
     def __init__(self, w, h, converter, hue, sat):
         """
         Build a linear gradient of size (w, h) with variable brightnesses

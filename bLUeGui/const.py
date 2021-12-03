@@ -16,6 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
+
 class channelValues:
     RGB, Red, Green, Blue = [0, 1, 2], [0], [1], [2]
     HSB, Hue, Sat, Br = [0, 1, 2], [0], [1], [2]

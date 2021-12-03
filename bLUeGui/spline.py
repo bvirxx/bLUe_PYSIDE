@@ -19,6 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 from PySide2.QtCore import QPointF
 
+
 #####################
 # displacement spline
 #####################
@@ -41,6 +42,7 @@ def displacementSpline(X, Y, V, period=0, clippingInterval=None):
     @return: y-coordinates of spline points
     @rtype: ndarray, dtype=np.float
     """
+
     def bumpVec(V, t1, t2, b, period=period):
         # return the y-coordinates corresponding to the x-coordinates
         # given by V, for the (periodic if period > 0) bump spline (t1, t2, b)
@@ -50,7 +52,8 @@ def displacementSpline(X, Y, V, period=0, clippingInterval=None):
             K = (V - M) / period
             K = np.round(K)
             V = V - period * K
-        return np.where(V <= t1, 0, np.where(V >= t2, 0, np.where(V < M, b * (V - t1) / (M - t1),  b * (t2 - V) / (t2 - M))))
+        return np.where(V <= t1, 0,
+                        np.where(V >= t2, 0, np.where(V < M, b * (V - t1) / (M - t1), b * (t2 - V) / (t2 - M))))
 
     left, right, bump = X[::2], X[1::2], Y
     tmp = np.vstack(([bumpVec(V, left[i], right[i], bump[i], period=period) for i in range(left.shape[0])]))
@@ -88,23 +91,23 @@ def interpolationQuadSpline(a, b, d):
     if np.min(a[1:] - a[:-1]) <= 0:
         raise ValueError('histogram.InterpolationSpline : a must be strictly increasing')
     # x-coordinate range
-    x = np.arange(256, dtype=np.float)/255
+    x = np.arange(256, dtype=np.float) / 255
     x = np.clip(x, a[0], a[-1])
     # find  node intervals containing x : for each i, get smallest j s.t. a[j] > x[i]
     tmp = np.fromiter(((a[j] > x[i]) for j in range(len(a)) for i in range(len(x))), dtype=bool)
     tmp = tmp.reshape(len(a), len(x))
-    k = np.argmax(tmp, axis=0)                     # a[k[i]-1]<= x[i] < a[k[i]] if k[i] > 0, and x[i] out of a[0],..a[-1] otherwise
+    k = np.argmax(tmp, axis=0)  # a[k[i]-1]<= x[i] < a[k[i]] if k[i] > 0, and x[i] out of a[0],..a[-1] otherwise
     k = np.where(x >= a[-1], len(a) - 1, k)
-    r = (b[1:] - b[:-1]) / (a[1:] - a[:-1])        # r[k] = (b[k] - b[k-1]) / (a[k] - a[k-1])
+    r = (b[1:] - b[:-1]) / (a[1:] - a[:-1])  # r[k] = (b[k] - b[k-1]) / (a[k] - a[k-1])
     r = np.concatenate(([0], r))
-    t = (x-a[k-1])/(a[k]-a[k-1])                   # t[k] = (x - a[k-1]) / (a[k] - a[k-1]) for x in a[k-1]..a[k]
+    t = (x - a[k - 1]) / (a[k] - a[k - 1])  # t[k] = (x - a[k-1]) / (a[k] - a[k-1]) for x in a[k-1]..a[k]
     # sanity check
     assert np.all(t >= 0)
     assert np.all(t <= 1)
     # tabulate spline
     t1 = (1 - t) * t
     with np.errstate(divide='ignore', invalid='ignore'):
-        T = b[k-1] + (r[k] * t * t + d[k-1] * t1) * (b[k] - b[k-1]) / (r[k] + (d[k] + d[k-1] - 2 * r[k]) * t1)
+        T = b[k - 1] + (r[k] * t * t + d[k - 1] * t1) * (b[k] - b[k - 1]) / (r[k] + (d[k] + d[k - 1] - 2 * r[k]) * t1)
     # T should be constant in intervals where r[k] = 0 : we replace nan by the preceding (non NaN) value in T.
     # To enable arithmetic comparisons, we use  a value < b[0] to mark the components to be replaced.
     T = np.where(np.isnan(T), b[0] - 100, T)
@@ -140,7 +143,7 @@ def coeff(X, Y):
     np.seterr(**old_settings)
     if not np.isfinite(D1).all():
         raise ValueError()
-    deltaX2 = np.zeros((X.shape[0]-1,))
+    deltaX2 = np.zeros((X.shape[0] - 1,))
     deltaX2[1:] = 2.0 * (X[2:] - X[:-2])  # tangent
     W = np.zeros((X.shape[0] - 1,))
     W[1:] = 6 * (D1[1:] - D1[:-1])  # second derivative * deltaX1 *6
@@ -148,8 +151,8 @@ def coeff(X, Y):
     deltaX2[2:] = deltaX2[2:] - deltaX1[1:-1] * deltaX1[1:-1] / deltaX2[1:-1]
     N = X.shape[0]
     R = np.zeros(X.shape)
-    for i in range(N-2, 0, -1):
-        R[i] = (W[i] - deltaX1[i] * R[i+1]) / deltaX2[i]
+    for i in range(N - 2, 0, -1):
+        R[i] = (W[i] - deltaX1[i] * R[i + 1]) / deltaX2[i]
     return deltaX1, R
 
 
@@ -167,14 +170,16 @@ def cubicSpline(X, Y, V):
     @return: y-coordinates of the spline points
     @rtype: ndarray, dtype=np.float
     """
+
     def P(t):
-        return t**3 - t
+        return t ** 3 - t
+
     deltaX1, R = coeff(X, Y)  # raises ValueError if two X values are equal
     i = np.searchsorted(X, V, side='right') - 1
     isave = i
-    i = np.clip(i, 0, len(Y)-2)
+    i = np.clip(i, 0, len(Y) - 2)
     t = (V - X[i]) / deltaX1[i]
-    values = t * Y[i+1] + (1-t)*Y[i] + deltaX1[i] * deltaX1[i] * (P(t) * R[i+1] + P(1-t) * R[i])/6.0
+    values = t * Y[i + 1] + (1 - t) * Y[i] + deltaX1[i] * deltaX1[i] * (P(t) * R[i + 1] + P(1 - t) * R[i]) / 6.0
     values = np.where(isave > len(Y) - 2, Y[-1], values)
     values = np.where(isave < 0, Y[0], values)
     return values

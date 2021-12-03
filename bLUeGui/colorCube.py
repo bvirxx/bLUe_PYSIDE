@@ -67,11 +67,11 @@ def rgb2hsB(r, g, b, perceptual=False):
     if delta == 0:
         H = 0.0
     elif cMax == r:
-        H = 60.0 * float(g-b)/delta if g >= b else 360 + 60.0 * float(g-b)/delta
+        H = 60.0 * float(g - b) / delta if g >= b else 360 + 60.0 * float(g - b) / delta
     elif cMax == g:
-        H = 60.0 * (2.0 + float(b-r)/delta)
+        H = 60.0 * (2.0 + float(b - r) / delta)
     elif cMax == b:
-        H = 60.0 * (4.0 + float(r-g)/delta)
+        H = 60.0 * (4.0 + float(r - g) / delta)
     # saturation
     S = 0.0 if cMax == 0.0 else float(delta) / cMax
     # brightness
@@ -80,7 +80,8 @@ def rgb2hsB(r, g, b, perceptual=False):
     else:
         V = cMax
     V = V / 255.0
-    assert 0 <= H <= 360 and 0 <= S <= 1 and 0 <= V <= 1, "rgb2hsv conversion error r=%d, g=%d, b=%d, h=%f, s=%f, v=%f" % (r, g, b, H, S, V)
+    assert 0 <= H <= 360 and 0 <= S <= 1 and 0 <= V <= 1, "rgb2hsv conversion error r=%d, g=%d, b=%d, h=%f, s=%f, v=%f" % (
+    r, g, b, H, S, V)
     return H, S, V
 
 
@@ -165,7 +166,7 @@ def hsv2rgb(h, s, v):
     @param v: float value in range 0..1
     @return: r,g,b integers between 0 and 255
     """
-    h = h/60.0
+    h = h / 60.0
     i = np.floor(h)
     f = h - i
     p = v * (1.0 - s)
@@ -241,24 +242,24 @@ def hsp2rgb_ClippingInd(h, s, p, trunc=True):
             g = r * f
             b = 0.0
         elif h < 2.0:  # g>r>b=0
-            g = np.sqrt(p * p / (Perc_G + Perc_R * (1-f) * (1-f)))
-            r = g * (1-f)
+            g = np.sqrt(p * p / (Perc_G + Perc_R * (1 - f) * (1 - f)))
+            r = g * (1 - f)
             b = 0.0
         elif h < 3.0:  # g>b>r=0
             g = np.sqrt(p * p / (Perc_G + Perc_B * f * f))
             b = g * f
             r = 0.0
         elif h < 4.0:  # b>g>r=0
-            b = np.sqrt(p * p / (Perc_B + Perc_G * (1-f) * (1-f)))
-            g = b * (1-f)
+            b = np.sqrt(p * p / (Perc_B + Perc_G * (1 - f) * (1 - f)))
+            g = b * (1 - f)
             r = 0.0
         elif h < 5.0:  # b>r>g=0
             b = np.sqrt(p * p / (Perc_B + Perc_R * f * f))
             r = b * f
             g = 0.0
         else:  # r>b>g=0
-            r = np.sqrt(p * p / (Perc_R + Perc_B * (1-f) * (1-f)))
-            b = r * (1-f)
+            r = np.sqrt(p * p / (Perc_R + Perc_B * (1 - f) * (1 - f)))
+            b = r * (1 - f)
             g = 0.0
     else:  # s !=1
         Mm = 1.0 / (1.0 - s)  # Mm >= 1
@@ -268,33 +269,33 @@ def hsp2rgb_ClippingInd(h, s, p, trunc=True):
             r = b * Mm
             g = b + f * (r - b)
         elif h < 2.0:  # g>r>b
-            part = 1.0 + (1-f) * (Mm - 1.0)  # part = r/b
+            part = 1.0 + (1 - f) * (Mm - 1.0)  # part = r/b
             b = p / np.sqrt(Perc_G * Mm * Mm + Perc_R * part * part + Perc_B)
             g = b * Mm
-            r = b + (1-f) * (g - b)
+            r = b + (1 - f) * (g - b)
         elif h < 3.0:  # g>b>r
             part = 1.0 + f * (Mm - 1.0)  # part = b/r
             r = p / np.sqrt(Perc_G * Mm * Mm + Perc_B * part * part + Perc_R)
             g = r * Mm
             b = r + f * (g - r)
         elif h < 4.0:  # b>g>r
-            part = 1.0 + (1-f) * (Mm - 1.0)
+            part = 1.0 + (1 - f) * (Mm - 1.0)
             r = p / np.sqrt(Perc_B * Mm * Mm + Perc_G * part * part + Perc_R)
             b = r * Mm
-            g = r + (1-f) * (b - r)
+            g = r + (1 - f) * (b - r)
         elif h < 5.0:  # b>r>g
             part = 1.0 + f * (Mm - 1.0)
             g = p / np.sqrt(Perc_B * Mm * Mm + Perc_R * part * part + Perc_G)
             b = g * Mm
             r = g + f * (b - g)
         else:  # r>b>g
-            part = 1.0 + (1-f) * (Mm - 1.0)
+            part = 1.0 + (1 - f) * (Mm - 1.0)
             g = p / np.sqrt(Perc_R * Mm * Mm + Perc_B * part * part + Perc_G)
             r = g * Mm
-            b = g + (1-f) * (r - g)
+            b = g + (1 - f) * (r - g)
     pc = Perc_R * r * r + Perc_G * g * g + Perc_B * b * b
     # sanity check
-    assert abs(p*p - pc) <= 0.000001, 'colorCube.py:  hsp2rgb conversion error'
+    assert abs(p * p - pc) <= 0.000001, 'colorCube.py:  hsp2rgb conversion error'
     M = max(r, g, b)
     if trunc:
         if M > 1:
@@ -335,7 +336,8 @@ def hsp2rgbVec(hspImg):
 
     part1 = (-f) * oneMinusMm
     part1 += 1.0  # 1.0 - f * oneMinusMm
-    part1[bMask] = f[bMask]  # np.where(Mm == np.inf, f, part1)  s == 1 corresponds to Mm == np.inf. However this supposes s clipped to 1
+    part1[bMask] = f[
+        bMask]  # np.where(Mm == np.inf, f, part1)  s == 1 corresponds to Mm == np.inf. However this supposes s clipped to 1
     part2 = (-oneMinusf) * oneMinusMm
     part2 += 1.0  # 1.0 - oneMinusf * oneMinusMm
     part2[bMask] = oneMinusf[bMask]  # np.where(Mm == np.inf, oneMinusf, part2)
@@ -374,6 +376,7 @@ def hsp2rgbVec(hspImg):
         X *= B
         Y[~bMask] = X[~bMask]
         return Y
+
     ######################################################
 
     part1 *= part1
@@ -428,41 +431,42 @@ def hsp2rgbVecSmall(hspImg):
     Mm2 = Mm * Mm
 
     part1 = 1.0 + f * (Mm - 1.0)
-    part1 = np.where(Mm == np.inf, f, part1)  # s == 1 corresponds to Mm == np.inf. However this supposes s clipped to 1.
+    part1 = np.where(Mm == np.inf, f,
+                     part1)  # s == 1 corresponds to Mm == np.inf. However this supposes s clipped to 1.
     part2 = 1.0 + (1 - f) * (Mm - 1.0)
     part2 = np.where(Mm == np.inf, 1 - f, part2)
 
     part1 = part1 * part1
     part2 = part2 * part2
 
-    X1 = np.where(Mm == np.inf, 0, p / np.sqrt(Perc_R * Mm2 + Perc_G * part1 + Perc_B))   # b
-    Y1 = np.where(Mm == np.inf, p / np.sqrt(Perc_R + Perc_G * f * f), X1 * Mm)              # r
+    X1 = np.where(Mm == np.inf, 0, p / np.sqrt(Perc_R * Mm2 + Perc_G * part1 + Perc_B))  # b
+    Y1 = np.where(Mm == np.inf, p / np.sqrt(Perc_R + Perc_G * f * f), X1 * Mm)  # r
 
-    X2 = np.where(Mm == np.inf, 0, p / np.sqrt(Perc_G * Mm2 + Perc_R * part2 + Perc_B))   # b
-    Y2 = np.where(Mm == np.inf, p / np.sqrt(Perc_G + Perc_R * (1-f) * (1-f)), X2 * Mm)    # g
+    X2 = np.where(Mm == np.inf, 0, p / np.sqrt(Perc_G * Mm2 + Perc_R * part2 + Perc_B))  # b
+    Y2 = np.where(Mm == np.inf, p / np.sqrt(Perc_G + Perc_R * (1 - f) * (1 - f)), X2 * Mm)  # g
 
-    X3 = np.where(Mm == np.inf, 0, p / np.sqrt(Perc_G * Mm2 + Perc_B * part1 + Perc_R))   # r
-    Y3 = np.where(Mm == np.inf, p / np.sqrt(Perc_G + Perc_B * f * f), X3 * Mm)            # g
+    X3 = np.where(Mm == np.inf, 0, p / np.sqrt(Perc_G * Mm2 + Perc_B * part1 + Perc_R))  # r
+    Y3 = np.where(Mm == np.inf, p / np.sqrt(Perc_G + Perc_B * f * f), X3 * Mm)  # g
 
-    X4 = np.where(Mm == np.inf, 0, p / np.sqrt(Perc_B * Mm2 + Perc_G * part2 + Perc_R))   # r
-    Y4 = np.where(Mm == np.inf, p / np.sqrt(Perc_B + Perc_G * (1-f) * (1-f)), X4 * Mm)    # b
+    X4 = np.where(Mm == np.inf, 0, p / np.sqrt(Perc_B * Mm2 + Perc_G * part2 + Perc_R))  # r
+    Y4 = np.where(Mm == np.inf, p / np.sqrt(Perc_B + Perc_G * (1 - f) * (1 - f)), X4 * Mm)  # b
 
-    X5 = np.where(Mm == np.inf, 0, p / np.sqrt(Perc_B * Mm2 + Perc_R * part1 + Perc_G))   # g
-    Y5 = np.where(Mm == np.inf, p / np.sqrt(Perc_B + Perc_R * f * f), X5 * Mm)            # b
+    X5 = np.where(Mm == np.inf, 0, p / np.sqrt(Perc_B * Mm2 + Perc_R * part1 + Perc_G))  # g
+    Y5 = np.where(Mm == np.inf, p / np.sqrt(Perc_B + Perc_R * f * f), X5 * Mm)  # b
 
-    X6 = np.where(Mm == np.inf, 0, p / np.sqrt(Perc_R * Mm2 + Perc_B * part2 + Perc_G))   # g
-    Y6 = np.where(Mm == np.inf, p / np.sqrt(Perc_R + Perc_B * (1-f) * (1-f)), X6 * Mm)    # r
+    X6 = np.where(Mm == np.inf, 0, p / np.sqrt(Perc_R * Mm2 + Perc_B * part2 + Perc_G))  # g
+    Y6 = np.where(Mm == np.inf, p / np.sqrt(Perc_R + Perc_B * (1 - f) * (1 - f)), X6 * Mm)  # r
 
     np.seterr(**old_settings)
 
-    clistMax = np.vstack((Y1, Y2, Y3, Y4, Y5,  Y6))
+    clistMax = np.vstack((Y1, Y2, Y3, Y4, Y5, Y6))
     orderMax = np.array([[0], [1], [2], [3], [4], [5]])
 
     tmp = np.arange(np.prod(shape))[:, None]
 
     rgbMax = clistMax[orderMax[i], tmp][:, 0]
     rgbMax = rgbMax.clip(0, 1)
-    hsv = np.dstack((h*60, s, rgbMax)).reshape(shape + (3,)) * [0.5, 255, 255]
+    hsv = np.dstack((h * 60, s, rgbMax)).reshape(shape + (3,)) * [0.5, 255, 255]
 
     rgb1 = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
     return rgb1.reshape(shape + (3,))
@@ -512,4 +516,3 @@ def cmyk2rgb(c, m, y, k):
         return (0,) * 3
     else:
         return int(255 * (1 - c) * k), int(255 * (1 - m) * k), int(255 * (1 - y) * k)
-

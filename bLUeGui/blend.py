@@ -20,6 +20,7 @@ from PySide2.QtGui import QImage
 from bLUeGui.colorCube import rgb2hlsVec, hls2rgbVec
 from bLUeGui.bLUeImage import QImageBuffer
 
+
 def blendLuminosityBuf(destBuf, sourceBuf):
     """
     Important : Buffer channels should be in r,g,b order.

@@ -34,6 +34,7 @@ class baseHandle(QToolButton):
     defining the type of action executed when the button is moved.
 
     """
+
     def __init__(self, role='', tool=None, parent=None):
         super().__init__(parent=parent)
         self.role = role
@@ -52,6 +53,7 @@ class croppingHandle(baseHandle):
     When moved, it updates the cropping margins of an image
 
     """
+
     def __init__(self, role='', tool=None, parent=None):
         """
         parent should be the widget showing the edited imImage.
@@ -153,8 +155,10 @@ class croppingHandle(baseHandle):
 
     def mousePressEvent(self, event):
         img = self.parent().img
-        self.tool.crHeight = img.height() - int(img.cropTop) - int(img.cropBottom)  # self.tool.btnDict['top'].margin - self.tool.btnDict['bottom'].margin
-        self.tool.crWidth = img.width() - int(img.cropLeft) - int(img.cropRight)  # self.tool.btnDict['left'].margin - self.tool.btnDict['right'].margin
+        self.tool.crHeight = img.height() - int(img.cropTop) - int(
+            img.cropBottom)  # self.tool.btnDict['top'].margin - self.tool.btnDict['bottom'].margin
+        self.tool.crWidth = img.width() - int(img.cropLeft) - int(
+            img.cropRight)  # self.tool.btnDict['left'].margin - self.tool.btnDict['right'].margin
 
     def mouseMoveEvent(self, event):
         img = self.parent().img
@@ -168,8 +172,10 @@ class croppingHandle(baseHandle):
         else:
             self.setPosition(pos)
         self.tool.drawCropTool(self.parent().img)
-        self.tool.crHeight = img.height() - int(img.cropTop) - int(img.cropBottom)  # self.tool.btnDict['top'].margin - self.tool.btnDict['bottom'].margin
-        self.tool.crWidth = img.width() - int(img.cropLeft) - int(img.cropRight)  # self.tool.btnDict['left'].margin - self.tool.btnDict['right'].margin
+        self.tool.crHeight = img.height() - int(img.cropTop) - int(
+            img.cropBottom)  # self.tool.btnDict['top'].margin - self.tool.btnDict['bottom'].margin
+        self.tool.crWidth = img.width() - int(img.cropLeft) - int(
+            img.cropRight)  # self.tool.btnDict['left'].margin - self.tool.btnDict['right'].margin
         self.parent().updateStatus()
         self.parent().repaint()
 
@@ -200,7 +206,8 @@ class cropTool(QObject):
         @param img:
         @type img: vImage
         """
-        for role, margin in zip(['left', 'top', 'right', 'bottom'], [img.cropLeft, img.cropTop, img.cropRight, img.cropBottom]):
+        for role, margin in zip(['left', 'top', 'right', 'bottom'],
+                                [img.cropLeft, img.cropTop, img.cropRight, img.cropBottom]):
             self.btnDict[role].margin = margin
 
     def drawCropTool(self, img):
@@ -217,9 +224,9 @@ class cropTool(QObject):
         bottom = self.btnDict['bottom']
         right = self.btnDict['right']
         # cRect = QRect(round(left.margin), round(top.margin), img.width() - round(right.margin + left.margin),
-                      # img.height() - round(bottom.margin + top.margin))
+        # img.height() - round(bottom.margin + top.margin))
         cRect = QRectF(left.margin, top.margin, img.width() - right.margin - left.margin,
-                      img.height() - bottom.margin - top.margin)
+                       img.height() - bottom.margin - top.margin)
         p = cRect.topLeft() * r + QPoint(img.xOffset, img.yOffset)
         x, y = p.x(), p.y()
         w, h = cRect.width() * r, cRect.height() * r
@@ -235,7 +242,8 @@ class cropTool(QObject):
         bottomLeft.move(x - bottomLeft.width(), y + h)
         bottomRight = self.btnDict['bottomRight']
         bottomRight.move(x + w, y + h)
-        self.crWidth, self.crHeight = img.width() - int(img.cropLeft) - int(img.cropRight), img.height() - int(img.cropTop) - int(img.cropBottom)
+        self.crWidth, self.crHeight = img.width() - int(img.cropLeft) - int(img.cropRight), img.height() - int(
+            img.cropTop) - int(img.cropBottom)
 
 
 class rotatingHandle(baseHandle):

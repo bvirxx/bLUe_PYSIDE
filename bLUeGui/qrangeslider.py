@@ -77,7 +77,7 @@ def scale(val, src, dst):
     """
     Scale the given value from the scale of src to the scale of dst.
     """
-    return int(((val - src[0]) / float(src[1]-src[0])) * (dst[1]-dst[0]) + dst[0])
+    return int(((val - src[0]) / float(src[1] - src[0])) * (dst[1] - dst[0]) + dst[0])
 
 
 class Filter(QtCore.QObject):
@@ -99,6 +99,7 @@ class Filter(QtCore.QObject):
 
 class Ui_Form(object):
     """default range slider form"""
+
     def setupUi(self, Form):
         Form.setObjectName("QRangeSlider")
         Form.resize(300, 10)
@@ -129,9 +130,9 @@ class Ui_Form(object):
         # reset default cursor
         self._splitter.handle(1).setCursor(Qt.ArrowCursor)
         self._splitter.handle(2).setCursor(Qt.ArrowCursor)
-        #self._head.setAttribute( Qt.WA_TransparentForMouseEvents)
-        #self._tail.setAttribute(Qt.WA_TransparentForMouseEvents)
-        #self._handle.setAttribute(Qt.WA_TransparentForMouseEvents)
+        # self._head.setAttribute( Qt.WA_TransparentForMouseEvents)
+        # self._tail.setAttribute(Qt.WA_TransparentForMouseEvents)
+        # self._handle.setAttribute(Qt.WA_TransparentForMouseEvents)
 
     def retranslateUi(self, Form):
         _translate = QtCore.QCoreApplication.translate
@@ -170,10 +171,13 @@ class Element(QtWidgets.QGroupBox):
 
 ###############
 FONT_SIZE = 6
+
+
 ###############
 
 class Head(Element):
     """area before the handle"""
+
     def __init__(self, parent, main):
         super().__init__(parent, main)
 
@@ -195,6 +199,7 @@ class Tail(Element):
 
 class Handle(Element):
     """handle area"""
+
     def __init__(self, parent, main):
         super().__init__(parent, main)
 
@@ -395,11 +400,11 @@ class QRangeSlider(QtWidgets.QWidget, Ui_Form):
         """overrides key press event to move range left and right"""
         key = event.key()
         if key == QtCore.Qt.Key_Left:
-            s = self.start()-1
-            e = self.end()-1
+            s = self.start() - 1
+            e = self.end() - 1
         elif key == QtCore.Qt.Key_Right:
-            s = self.start()+1
-            e = self.end()+1
+            s = self.start() + 1
+            e = self.end() + 1
         else:
             event.ignore()
             return
@@ -442,6 +447,7 @@ class QRangeSlider(QtWidgets.QWidget, Ui_Form):
         def _unlockWidth(widget):
             widget.setMinimumWidth(0)
             widget.setMaximumWidth(16777215)
+
         v = self._posToValue(xpos)
         if index == self._SPLIT_START:
             _lockWidth(self._tail)

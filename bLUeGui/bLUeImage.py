@@ -129,8 +129,7 @@ class bImage(QImage):
         return self is not other
 
     def __del__(self):
-        print('*********** %s' %type(self))
-
+        print('*********** %s' % type(self))
 
     def getHspbBuffer(self):
         """
@@ -341,9 +340,9 @@ QImageFormats = {0: 'invalid',
                  7: 'RGB16',
                  8: 'ARGB8565 Premultiplied',
                  9: 'RGB666',
-                 10:'ARGB6666 Premultiplied',
-                 11:'RGB555',
-                 12:'ARGB8555 Premultiplied',
+                 10: 'ARGB6666 Premultiplied',
+                 11: 'RGB555',
+                 12: 'ARGB8555 Premultiplied',
                  13: 'RGB888',
                  14: 'RGB444',
                  15: 'ARGB4444 Premultiplied'}

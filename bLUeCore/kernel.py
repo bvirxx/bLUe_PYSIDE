@@ -36,7 +36,7 @@ def phi(x, mu, sigma):
     @return: CDF value at x
     @rtype: numpy.float64
     """
-    return (1.0 + erf((x-mu)/(sigma*np.sqrt(2)))) / 2.0
+    return (1.0 + erf((x - mu) / (sigma * np.sqrt(2)))) / 2.0
 
 
 def gaussianKernel(mu, w):
@@ -74,14 +74,14 @@ def kernelUnsharpMask(radius, amount):
     kernel = - kernelGaussianBlur(radius) * amount
     w = kernel.shape[0]
     # sum of coeff. must be 1.0
-    kernel[w//2, w//2] += 1.0 + amount  # python 3 integer quotient
+    kernel[w // 2, w // 2] += 1.0 + amount  # python 3 integer quotient
     return kernel
 
 
 def kernelSharpen():
     kernel = np.array([[0.0, -1.0, 0.0],
-                        [-1.0, 5.0, -1.0],
-                        [0.0, -1.0, 0.0]])
+                       [-1.0, 5.0, -1.0],
+                       [0.0, -1.0, 0.0]])
     return kernel
 
 

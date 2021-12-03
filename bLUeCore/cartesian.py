@@ -37,6 +37,6 @@ def cartesianProduct(arrayList, out=None):
     if arrayList[1:]:
         cartesianProduct(arrayList[1:], out=out[0:m, 1:])
         for j in range(1, arrayList[0].size):
-            out[j*m:(j+1)*m, 1:] = out[0:m, 1:]
+            out[j * m:(j + 1) * m, 1:] = out[0:m, 1:]
     dims = tuple([x.size for x in arrayList] + [len(arrayList)])
     return np.reshape(out, dims)

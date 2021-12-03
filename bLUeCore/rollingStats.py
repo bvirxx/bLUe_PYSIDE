@@ -22,6 +22,7 @@ from numpy.lib.stride_tricks import as_strided
 hasOpenCV = False
 try:
     import cv2
+
     hasOpenCV = True
 except ImportError:
     pass
@@ -68,14 +69,14 @@ def strides_2d(a, r, linear=True):
     ax[r[0]:ax.shape[0] - r[0], r[1]:ax.shape[1] - r[1]] = a
     # reflection mode for rows:  ...2,1,0,1,2...
     for i in range(r[0]):
-        imod = (i+1) % a.shape[0] - 1  # cycle through rows if r[0] >= a.shape[0]
-        ax[r[0]-i-1, r[1]:-r[1]] = a[imod+1, :]  # copy rows a[1,:]... to  ax[r[0]-1,:]...
-        ax[i-r[0], r[1]:-r[1]] = a[-imod-2, :]  # copy rows a[-2,:]... to  ax[-r[0],:]...
+        imod = (i + 1) % a.shape[0] - 1  # cycle through rows if r[0] >= a.shape[0]
+        ax[r[0] - i - 1, r[1]:-r[1]] = a[imod + 1, :]  # copy rows a[1,:]... to  ax[r[0]-1,:]...
+        ax[i - r[0], r[1]:-r[1]] = a[-imod - 2, :]  # copy rows a[-2,:]... to  ax[-r[0],:]...
     # ax[:r[0],r[1]:-r[1]] = a[::-1,:][-r[0]-1:-1,:]
     # ax[-r[0]:,r[1]:-r[1]] = a[::-1,:][1:r[0]+1,:]
     # reflection mode for cols: cf rows above
-    ax[:, :r[1]] = ax[:, ::-1][:, -2*r[1]-1:-r[1]-1]
-    ax[:, -r[1]:] = ax[:, ::-1][:, r[1]+1:2*r[1]+1]
+    ax[:, :r[1]] = ax[:, ::-1][:, -2 * r[1] - 1:-r[1] - 1]
+    ax[:, -r[1]:] = ax[:, ::-1][:, r[1] + 1:2 * r[1] + 1]
     # add two axes and strides for the windows
     shape = a.shape + (1 + 2 * r[0], 1 + 2 * r[1])  # concatenate t-uples
     strides = ax.strides + ax.strides  # concatenate t-uples

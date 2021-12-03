@@ -74,17 +74,17 @@ def interpTetra(LUT, LUTSTEP, ndImg, convert=True):
                                       g0[..., np.newaxis],
                                       b0[..., np.newaxis],
                                       np.arange(s[-1])),
-                                      s)  # broadcasted to shape (w,h,3)
+                                     s)  # broadcasted to shape (w,h,3)
 
     # apply LUT to the vertices of the bounding cube
     # np.take uses the the flattened LUT, but keeps the shape of flatIndex
-    ndImg00 = np.take(LUT, flatIndex)                            # = LUT[r0, g0, b0] but faster
-    ndImg01 = np.take(LUT, flatIndex + st[0])                    # = LUT[r1, g0, b0] where r1 = r0 + 1
-    ndImg02 = np.take(LUT, flatIndex + st[1])                    # = LUT[r0, g1, b0]
-    ndImg03 = np.take(LUT, flatIndex + (st[0] + st[1]))          # = LUT[r1, g1, b0]
-    ndImg10 = np.take(LUT, flatIndex + st[2])                    # = LUT[r0, g0, b1]
-    ndImg11 = np.take(LUT, flatIndex + (st[0] + st[2]))          # = LUT[r1, g0, b1]
-    ndImg12 = np.take(LUT, flatIndex + (st[1] + st[2]))          # = LUT[r0, g1, b1]
+    ndImg00 = np.take(LUT, flatIndex)  # = LUT[r0, g0, b0] but faster
+    ndImg01 = np.take(LUT, flatIndex + st[0])  # = LUT[r1, g0, b0] where r1 = r0 + 1
+    ndImg02 = np.take(LUT, flatIndex + st[1])  # = LUT[r0, g1, b0]
+    ndImg03 = np.take(LUT, flatIndex + (st[0] + st[1]))  # = LUT[r1, g1, b0]
+    ndImg10 = np.take(LUT, flatIndex + st[2])  # = LUT[r0, g0, b1]
+    ndImg11 = np.take(LUT, flatIndex + (st[0] + st[2]))  # = LUT[r1, g0, b1]
+    ndImg12 = np.take(LUT, flatIndex + (st[1] + st[2]))  # = LUT[r0, g1, b1]
     ndImg13 = np.take(LUT, flatIndex + (st[0] + st[1] + st[2]))  # = LUT[r1, g1, b1]
 
     fR = ndImgF[:, :, 0] - a[:, :, 0]
@@ -118,10 +118,10 @@ def interpTetra(LUT, LUTSTEP, ndImg, convert=True):
     X5 = oneMinusFR - fBR * ndImg01 - fGB * ndImg11 + fG  # fR >=fB >=fG
 
     Y1 = np.select(
-                [C2 * C3, C3 * C1, np.logical_not(np.logical_or(C1, C2)), C1 * C2, np.logical_not(np.logical_or(C1, C3))],
-                [X0, X1, X2, X3, X4],  # clockwise ordering: X3, X5, X1, X2, X0, X4
-                default=X5
-                )
+        [C2 * C3, C3 * C1, np.logical_not(np.logical_or(C1, C2)), C1 * C2, np.logical_not(np.logical_or(C1, C3))],
+        [X0, X1, X2, X3, X4],  # clockwise ordering: X3, X5, X1, X2, X0, X4
+        default=X5
+    )
 
     if convert:
         np.clip(Y1, 0, 255, out=Y1)

@@ -29,11 +29,12 @@ class bottomWidget(QWidget):
     ad hoc container to add non-zoomable
     buttons and options below a scene.
     """
+
     def __init__(self):
         super().__init__()
         self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
         self.setMaximumSize(400, 150)
-        self.setMinimumSize(200, 50)   # TODO 09/03/20 changed 80 to 50 validate
+        self.setMinimumSize(200, 50)  # TODO 09/03/20 changed 80 to 50 validate
         self.setObjectName('container')
         ss = """QWidget#container{background-color: black;}
                                QListWidget {font-size: 7pt;}
@@ -75,7 +76,7 @@ class abstractForm:
         self.__targetImage = weakProxy(aTargetImage)
 
     def __del__(self):
-        print('*********** %s' %type(self))
+        print('*********** %s' % type(self))
 
     def colorPickedSlot(self, x, y, modifiers):
         """
@@ -151,7 +152,7 @@ class baseForm(QWidget, abstractForm):
         # accept click focus (needed by whatsthis)
         self.setFocusPolicy(Qt.ClickFocus)
         # back link to image layer (weak ref)
-        self.layer = layer              # property setter
+        self.layer = layer  # property setter
         self.targetImage = targetImage  # property setter
         # list of subcontrols
         # The visibility of subcontrols is managed by QLayerView
@@ -190,8 +191,8 @@ class baseGraphicsForm(QGraphicsView, abstractForm):
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setFocusPolicy(Qt.ClickFocus)
         # back link to image layer (weak ref)
-        self.layer = layer # property setter
-        self.targetImage = targetImage # property setter
+        self.layer = layer  # property setter
+        self.targetImage = targetImage  # property setter
         # list of subcontrols
         self.subControls = []
         self.setScene(QGraphicsScene())
@@ -220,7 +221,7 @@ class baseGraphicsForm(QGraphicsView, abstractForm):
         """
         # delta unit is 1/8 of degree
         # Most mice have a resolution of 15 degrees
-        numSteps = 1 + e.delta() / 2400.0 # 1200.0
+        numSteps = 1 + e.delta() / 2400.0  # 1200.0
         self.scale(numSteps, numSteps)
 
     def addSubcontrol(self, parent=None):
@@ -253,6 +254,7 @@ class graphicsCurveForm(baseGraphicsForm):
     """
     Base class for interactive curve forms
     """
+
     @staticmethod
     def drawPlotGrid(axeSize, gradient=None):
         """
@@ -323,5 +325,3 @@ class graphicsCurveForm(baseGraphicsForm):
     @baseCurve.setter
     def baseCurve(self, points):
         self.__baseCurve = points
-
-
