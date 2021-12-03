@@ -26,7 +26,7 @@ class blendFilterIndex:
     GRADUALBT, GRADUALTB, GRADUALNONE = range(3)
 
 
-class blendFilterForm (baseForm):
+class blendFilterForm(baseForm):
     """
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
@@ -95,12 +95,12 @@ class blendFilterForm (baseForm):
         self.setLayout(l)
 
         self.setWhatsThis(
-                        """<b>Gradual neutral filter.</b><br> 
-                           It mimics the classical gradual gray filter often used by
-                           photographers to darken the sky.<br>
-                           To control the regions of maximum and minimum intensities use the Range slider.
-                        """
-                        )  # end setWhatsThis
+            """<b>Gradual neutral filter.</b><br> 
+               It mimics the classical gradual gray filter often used by
+               photographers to darken the sky.<br>
+               To control the regions of maximum and minimum intensities use the Range slider.
+            """
+        )  # end setWhatsThis
 
         self.setDefaults()
 
@@ -121,6 +121,7 @@ class blendFilterForm (baseForm):
                 break
         self.layer.applyToStack()
         self.layer.parentImage.onImageChanged()
+
     """
     def writeToStream(self, outStream):
         layer = self.layer

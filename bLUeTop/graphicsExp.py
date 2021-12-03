@@ -24,7 +24,7 @@ from bLUeGui.graphicsForm import baseForm
 from bLUeTop.utils import QbLUeSlider, QbLUeLabel
 
 
-class ExpForm (baseForm):
+class ExpForm(baseForm):
     defaultExpCorrection = 0.0
     defaultStep = 0.1
 
@@ -89,11 +89,11 @@ class ExpForm (baseForm):
         self.setLayout(l)
         self.adjustSize()
         self.setWhatsThis(
-                        """<b>Exposure Correction</b>
-                        Multiplicative correction in the linear sRGB color space.<br>
-                        Unit is the diaphragm stop.<br>
-                        """
-                         )  # end setWhatsThis
+            """<b>Exposure Correction</b>
+            Multiplicative correction in the linear sRGB color space.<br>
+            Unit is the diaphragm stop.<br>
+            """
+        )  # end setWhatsThis
 
         self.setDefaults()
 
@@ -131,5 +131,3 @@ class ExpForm (baseForm):
                 obj.__setstate__(d['state'][name])
         self.dataChanged.connect(self.updateLayer)
         self.dataChanged.emit()
-
-

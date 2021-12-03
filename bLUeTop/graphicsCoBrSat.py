@@ -76,7 +76,7 @@ class CoBrSatForm(baseForm):
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super().__init__(layer=layer, targetImage=targetImage, parent=parent)
-        self.setMinimumSize(axeSize, axeSize+100)
+        self.setMinimumSize(axeSize, axeSize + 100)
         # contrast spline viewer
         self.contrastForm = None
         # options
@@ -91,6 +91,7 @@ class CoBrSatForm(baseForm):
                 # force to recalculate the spline
                 self.layer.autoSpline = True
             self.dataChanged.emit()
+
         self.listWidget2 = optionsWidget(options=optionList2, optionNames=optionNames2, exclusive=False,
                                          changed=optionList2Change)
         self.listWidget2.checkOption(self.listWidget2.intNames[0])
@@ -105,7 +106,8 @@ class CoBrSatForm(baseForm):
         contrastLabel = QbLUeLabel()
         contrastLabel.setMaximumSize(150, 30)
         contrastLabel.setText("Contrast Level")
-        contrastLabel.doubleClicked.connect(lambda: self.sliderContrast.setValue(self.contrast2Slider(self.contrastDefault)))
+        contrastLabel.doubleClicked.connect(
+            lambda: self.sliderContrast.setValue(self.contrast2Slider(self.contrastDefault)))
 
         self.contrastValue = QLabel()
         font = self.contrastValue.font()
@@ -143,7 +145,8 @@ class CoBrSatForm(baseForm):
         saturationLabel = QbLUeLabel()
         saturationLabel.setMaximumSize(150, 30)
         saturationLabel.setText("Saturation")
-        saturationLabel.doubleClicked.connect(lambda: self.sliderSaturation.setValue(self.saturation2Slider(self.saturationDefault)))
+        saturationLabel.doubleClicked.connect(
+            lambda: self.sliderSaturation.setValue(self.saturation2Slider(self.saturationDefault)))
 
         self.saturationValue = QLabel()
         font = self.saturationValue.font()
@@ -156,7 +159,8 @@ class CoBrSatForm(baseForm):
 
         # saturation changed  event handler
         def saturationUpdate(value):
-            self.saturationValue.setText(str("{:+d}".format(int(self.slidersaturation2User(self.sliderSaturation.value())))))
+            self.saturationValue.setText(
+                str("{:+d}".format(int(self.slidersaturation2User(self.sliderSaturation.value())))))
             # move not yet terminated or value not modified
             if self.sliderSaturation.isSliderDown() or self.slider2Saturation(value) == self.satCorrection:
                 return
@@ -166,6 +170,7 @@ class CoBrSatForm(baseForm):
             self.dataChanged.emit()
             self.sliderSaturation.valueChanged.connect(saturationUpdate)
             self.sliderSaturation.sliderReleased.connect(lambda: saturationUpdate(self.sliderSaturation.value()))
+
         self.sliderSaturation.valueChanged.connect(saturationUpdate)
         self.sliderSaturation.sliderReleased.connect(lambda: saturationUpdate(self.sliderSaturation.value()))
 
@@ -178,7 +183,8 @@ class CoBrSatForm(baseForm):
         brightnessLabel = QbLUeLabel()
         brightnessLabel.setMaximumSize(150, 30)
         brightnessLabel.setText("Brightness")
-        brightnessLabel.doubleClicked.connect(lambda: self.sliderBrightness.setValue(self.brightness2Slider(self.brightnessDefault)))
+        brightnessLabel.doubleClicked.connect(
+            lambda: self.sliderBrightness.setValue(self.brightness2Slider(self.brightnessDefault)))
 
         self.brightnessValue = QLabel()
         font = self.brightnessValue.font()
@@ -191,7 +197,8 @@ class CoBrSatForm(baseForm):
 
         # brightness changed  event handler
         def brightnessUpdate(value):
-            self.brightnessValue.setText(str("{:+d}".format(int(self.sliderBrightness2User(self.sliderBrightness.value())))))
+            self.brightnessValue.setText(
+                str("{:+d}".format(int(self.sliderBrightness2User(self.sliderBrightness.value())))))
             # move not yet terminated or value not modified
             if self.sliderBrightness.isSliderDown() or self.slider2Brightness(value) == self.brightnessCorrection:
                 return
@@ -207,8 +214,8 @@ class CoBrSatForm(baseForm):
 
         # attributes initialized in setDefaults, declared here
         # for the sake of correctness
-        self.contrastCorrection = None    # range
-        self.satCorrection = None         # range -0.5..0.5
+        self.contrastCorrection = None  # range
+        self.satCorrection = None  # range -0.5..0.5
         self.brightnessCorrection = None  # range -0.5..0.5
 
         # layout
@@ -252,7 +259,7 @@ class CoBrSatForm(baseForm):
             <b>Brightness</b> and <b>Saturation</b> corrections are non linear to limit clipping.<br>
             Sliders are <b>reset</b> to their default value by double clicking the name of the slider.<br>
             """
-                        )  # end setWhatsThis
+        )  # end setWhatsThis
 
     def setContrastSpline(self, a, b, d, T, withcurve=True):
         """
@@ -278,16 +285,17 @@ class CoBrSatForm(baseForm):
             form = graphicsSplineForm.getNewWindow(targetImage=None, axeSize=axeSize, layer=self.layer, parent=None)
             form.setAttribute(Qt.WA_DeleteOnClose, on=False)
             form.setWindowTitle('Contrast Curve')
-            form.setFixedHeight(axeSize+140)
+            form.setFixedHeight(axeSize + 140)
             self.contrastForm = form
             self.contrastForm.optionName = 'manualCurve'
             # dock contrastForm
-            #window = self.parent().parent()
-            dock = self.addSubcontrol(None)  #self.parent())
+            # window = self.parent().parent()
+            dock = self.addSubcontrol(None)  # self.parent())
             dock.setWidget(form)
             dock.setWindowFlags(form.windowFlags())
             dock.setWindowTitle(form.windowTitle())
-            dock.setStyleSheet("QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
+            dock.setStyleSheet(
+                "QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
             self.mainForm.addDockWidget(Qt.LeftDockWidgetArea, dock)
             self.dock = dock
 
@@ -295,13 +303,14 @@ class CoBrSatForm(baseForm):
             def f():
                 self.layer.applyToStack()
                 self.layer.parentImage.onImageChanged()
+
             form.scene().quadricB.curveChanged.sig.connect(f)
         else:
             form = self.contrastForm
         # update the curve
-        form.scene().setSceneRect(-25, -axeSize-25, axeSize+50, axeSize+50)
+        form.scene().setSceneRect(-25, -axeSize - 25, axeSize + 50, axeSize + 50)
         if withcurve:
-            form.scene().quadricB.setCurve(a*axeSize, b*axeSize, d, T*axeSize)
+            form.scene().quadricB.setCurve(a * axeSize, b * axeSize, d, T * axeSize)
         self.dock.showNormal()
 
     def updateHists(self):

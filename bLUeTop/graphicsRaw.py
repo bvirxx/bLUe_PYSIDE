@@ -37,7 +37,8 @@ from bLUeGui.multiplier import *
 class graphicsToneForm(graphicsSplineForm):
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, curveType='quadric'):
-        newWindow = graphicsToneForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent, curveType=curveType)
+        newWindow = graphicsToneForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent,
+                                     curveType=curveType)
         newWindow.setWindowTitle(layer.name)
         # init marker
         triangle = QPolygonF()
@@ -64,15 +65,15 @@ class graphicsToneForm(graphicsSplineForm):
         """
         rImg = self.scene().targetImage.getActiveLayer()
         if rImg.parentImage.useThumb:
-            x, y = x//2, y//2
+            x, y = x // 2, y // 2
         color = rImg.linearImg.pixelColor(x, y)
         r, g, b = color.red(), color.green(), color.blue()
-        h, s, v = cv2.cvtColor((np.array([r, g, b])/255).astype(np.float32)[np.newaxis, np.newaxis, :],
+        h, s, v = cv2.cvtColor((np.array([r, g, b]) / 255).astype(np.float32)[np.newaxis, np.newaxis, :],
                                cv2.COLOR_RGB2HSV)[0, 0, :]
-        self.inputMarker.setPos(v*self.scene().axeSize, 0.0)
+        self.inputMarker.setPos(v * self.scene().axeSize, 0.0)
 
 
-class rawForm (baseForm):
+class rawForm(baseForm):
     """
     Postprocessing of raw files.
     """
@@ -113,7 +114,7 @@ class rawForm (baseForm):
 
     @staticmethod
     def slider2Exp(v):
-        return 2**((v - 50) / 15.0)
+        return 2 ** ((v - 50) / 15.0)
 
     @staticmethod
     def exp2Slider(e):
@@ -133,11 +134,11 @@ class rawForm (baseForm):
 
     @staticmethod
     def slider2Br(v):
-        return (np.power(3, v/50) - 1) / 2
+        return (np.power(3, v / 50) - 1) / 2
 
     @staticmethod
     def br2Slider(v):
-        return 50 * log(2*v + 1, 3)  # int(round(50.0 * e))
+        return 50 * log(2 * v + 1, 3)  # int(round(50.0 * e))
 
     @staticmethod
     def brSlider2User(v):
@@ -169,8 +170,10 @@ class rawForm (baseForm):
         self.XYZ2CameraInverseMatrix = np.linalg.inv(self.XYZ2CameraMatrix)
         # initial post processing multipliers (as shot)
         m1, m2, m3, m4 = rawpyObj.camera_whitebalance
-        self.asShotMultipliers = (m1/m2, 1.0, m3/m2, m4/m2)  # normalization is mandatory : for nef files white balance is around 256
-        self.asShotTemp, self.asShotTint = multipliers2TemperatureAndTint(*1 / np.array(self.asShotMultipliers[:3]), self.XYZ2CameraMatrix)
+        self.asShotMultipliers = (
+        m1 / m2, 1.0, m3 / m2, m4 / m2)  # normalization is mandatory : for nef files white balance is around 256
+        self.asShotTemp, self.asShotTint = multipliers2TemperatureAndTint(*1 / np.array(self.asShotMultipliers[:3]),
+                                                                          self.XYZ2CameraMatrix)
         self.rawMultipliers = self.asShotMultipliers  # rawpyObj.camera_whitebalance # = 1/(dng ASSHOTNEUTRAL tag value)
 
         ########################################
@@ -180,8 +183,8 @@ class rawForm (baseForm):
         #########################################
 
         # attributes initialized in setDefaults, declared here for the sake of correctness
-        self.tempCorrection, self.tintCorrection, self.expCorrection, self.highCorrection,\
-                                                   self.contCorrection, self.satCorrection, self.brCorrection = [None] * 7
+        self.tempCorrection, self.tintCorrection, self.expCorrection, self.highCorrection, \
+        self.contCorrection, self.satCorrection, self.brCorrection = [None] * 7
         # contrast spline view (initialized by setContrastSpline)
         self.contrastForm = None
         # tone spline view (initialized by setToneSpline)
@@ -192,10 +195,11 @@ class rawForm (baseForm):
         optionList0, optionNames0 = ['Auto Brightness', 'Preserve Highlights'], ['Auto Expose', 'Preserve Highlights']
         optionList1, optionNames1 = ['Auto WB', 'Camera WB', 'User WB'], ['Auto', 'Camera (As Shot)', 'User']
         optionList2, optionNames2 = ['cpLookTable', 'cpToneCurve', 'manualCurve'], ['Use Camera Profile Look Table',
-                                                                                    'Use Tone Curves', 'Show Contrast Curve']
+                                                                                    'Use Tone Curves',
+                                                                                    'Show Contrast Curve']
         self.listWidget1 = optionsWidget(options=optionList0, optionNames=optionNames0, exclusive=False,
                                          changed=lambda: self.dataChanged.emit(1))
-        self.listWidget2 = optionsWidget(options=optionList1, optionNames=optionNames1,  exclusive=True,
+        self.listWidget2 = optionsWidget(options=optionList1, optionNames=optionNames1, exclusive=True,
                                          changed=lambda: self.dataChanged.emit(1))
         self.listWidget3 = optionsWidget(options=optionList2, optionNames=optionNames2, exclusive=False,
                                          changed=lambda: self.dataChanged.emit(2))
@@ -223,7 +227,8 @@ class rawForm (baseForm):
         self.tempValue.setText(str("{:.0f}".format(self.slider2Temp(self.sliderTemp.value()))))
 
         self.sliderTemp.valueChanged.connect(self.tempUpdate)  # signal send new value as parameter
-        self.sliderTemp.sliderReleased.connect(lambda: self.tempUpdate(self.sliderTemp.value()))  # signal pass no parameter
+        self.sliderTemp.sliderReleased.connect(
+            lambda: self.tempUpdate(self.sliderTemp.value()))  # signal pass no parameter
 
         # tint slider
         self.sliderTint = QbLUeSlider(Qt.Horizontal)
@@ -245,7 +250,8 @@ class rawForm (baseForm):
         self.tintValue.setText(str("{:.0f}".format(self.sliderTint2User(self.sliderTint.value()))))
 
         self.sliderTint.valueChanged.connect(self.tintUpdate)
-        self.sliderTint.sliderReleased.connect(lambda: self.tintUpdate(self.sliderTint.value()))  # signal pass no parameter)
+        self.sliderTint.sliderReleased.connect(
+            lambda: self.tintUpdate(self.sliderTint.value()))  # signal pass no parameter)
 
         ######################
         # From libraw and dcraw sources:
@@ -265,17 +271,18 @@ class rawForm (baseForm):
         self.postloadprofilename = None  # set by __setstate__() and used in setCameraProfileCombo() to restore state asynchronously
         self.dngDict = self.setCameraProfilesCombo()
 
-
         # cameraProfilesCombo index changed event handler
         def cameraProfileUpdate(value):
             self.dngDict = self.cameraProfilesCombo.itemData(value)
             if self.options['cpToneCurve']:
                 toneCurve = dngProfileToneCurve(self.dngDict.get('ProfileToneCurve', []))
-                self.toneForm.baseCurve = [QPointF(x * axeSize, -y * axeSize) for x, y in zip(toneCurve.dataX, toneCurve.dataY)]
+                self.toneForm.baseCurve = [QPointF(x * axeSize, -y * axeSize) for x, y in
+                                           zip(toneCurve.dataX, toneCurve.dataY)]
                 self.toneForm.update()
             # recompute as shot temp and tint using new profile
             self.asShotTemp, self.asShotTint = multipliers2TemperatureAndTint(*1 / np.array(self.asShotMultipliers[:3]),
-                                                                              self.XYZ2CameraMatrix, dngDict=self.dngDict)  # TODO 6/12/19 added keyword dngDict validate
+                                                                              self.XYZ2CameraMatrix,
+                                                                              dngDict=self.dngDict)  # TODO 6/12/19 added keyword dngDict validate
             # display updated as shot temp
             item = self.listWidget2.item(1)
             item.setText(item.text().split(":")[0] + ': %d' % self.asShotTemp)
@@ -346,8 +353,9 @@ class rawForm (baseForm):
             self.dataChanged.emit(1)
             self.sliderExp.valueChanged.connect(expUpdate)  # send new value as parameter
             self.sliderExp.sliderReleased.connect(lambda: expUpdate(self.sliderExp.value()))  # signal pass no parameter
+
         self.sliderExp.valueChanged.connect(expUpdate)  # send new value as parameter
-        self.sliderExp.sliderReleased.connect(lambda: expUpdate(self.sliderExp.value()))      # signal pass no parameter
+        self.sliderExp.sliderReleased.connect(lambda: expUpdate(self.sliderExp.value()))  # signal pass no parameter
 
         # brightness slider
         brSlider = QbLUeSlider(Qt.Horizontal)
@@ -385,6 +393,7 @@ class rawForm (baseForm):
             self.dataChanged.emit(1)
             self.sliderBrightness.sliderReleased.connect(lambda: brUpdate(self.sliderBrightness.value()))
             self.sliderBrightness.valueChanged.connect(brUpdate)  # send new value as parameter
+
         self.sliderBrightness.valueChanged.connect(brUpdate)  # send new value as parameter
         self.sliderBrightness.sliderReleased.connect(lambda: brUpdate(self.sliderBrightness.value()))
 
@@ -424,7 +433,8 @@ class rawForm (baseForm):
             self.layer.autoSpline = True
             self.dataChanged.emit(3)  # no postprocessing and no camera profile stuff
             self.sliderCont.valueChanged.connect(contUpdate)  # send new value as parameter
-            self.sliderCont.sliderReleased.connect(lambda: contUpdate(self.sliderCont.value()))  # signal has no parameter
+            self.sliderCont.sliderReleased.connect(
+                lambda: contUpdate(self.sliderCont.value()))  # signal has no parameter
 
         self.sliderCont.valueChanged.connect(contUpdate)  # send new value as parameter
         self.sliderCont.sliderReleased.connect(lambda: contUpdate(self.sliderCont.value()))  # signal has no parameter
@@ -449,6 +459,7 @@ class rawForm (baseForm):
         self.satValue.setText(str("{:+d}".format(self.slider2Sat(self.sliderSat.value()))))
 
         """sat done event handler"""
+
         def satUpdate(value):
             self.satValue.setText(str("{:+d}".format(self.slider2Sat(self.sliderSat.value()))))
             # move not yet terminated or value not modified
@@ -463,6 +474,7 @@ class rawForm (baseForm):
             self.dataChanged.emit(3)  # no post processing and no camera profile stuff
             self.sliderSat.valueChanged.connect(satUpdate)  # send new value as parameter
             self.sliderSat.sliderReleased.connect(lambda: satUpdate(self.sliderSat.value()))  # signal has no parameter
+
         self.sliderSat.valueChanged.connect(satUpdate)  # send new value as parameter
         self.sliderSat.sliderReleased.connect(lambda: satUpdate(self.sliderSat.value()))  # signal has no parameter
 
@@ -529,23 +541,23 @@ class rawForm (baseForm):
         self.adjustSize()
         self.setDefaults()
         self.setWhatsThis(
-                    """<b>Development of raw files</b><br>
-                    <b>Default settings</b> are a good starting point.<br>
-                    A <b>Tone Curve</b> is applied to the raw image prior to postprocessing.<br> 
-                    The cuvre can be edited by checking the option
-                    <b>Show Tone Curve</b>; this option works best with manual exposure.<br>
-                    <b>Contrast</b> correction is based on an automatic algorithm 
-                    well suited to multi-mode histograms.<br>
-                    <b>Brightness, Contrast</b> and <b>Saturation</b> levels</b> are 
-                    adjustable with the correponding sliders.<br>
-                    The <b>Contrast Curve</b> can be edited manually by checking 
-                    the option <b>Show Contrast Curve</b>.<br>
-                    Uncheck <b>Auto Expose</b> to adjust the exposure manually.<br>
-                    The <b>OverExp. Rest.</b> slider controls the mode of restoration of overexposed areas. 
-                    Valid values are 0 to 3 (0=clip;1=unclip;2=blend;3=rebuild); (with Auto Exposed 
-                    checked the mode is clip).<br>
-                    """
-                        )  # end of setWhatsThis
+            """<b>Development of raw files</b><br>
+            <b>Default settings</b> are a good starting point.<br>
+            A <b>Tone Curve</b> is applied to the raw image prior to postprocessing.<br> 
+            The cuvre can be edited by checking the option
+            <b>Show Tone Curve</b>; this option works best with manual exposure.<br>
+            <b>Contrast</b> correction is based on an automatic algorithm 
+            well suited to multi-mode histograms.<br>
+            <b>Brightness, Contrast</b> and <b>Saturation</b> levels</b> are 
+            adjustable with the correponding sliders.<br>
+            The <b>Contrast Curve</b> can be edited manually by checking 
+            the option <b>Show Contrast Curve</b>.<br>
+            Uncheck <b>Auto Expose</b> to adjust the exposure manually.<br>
+            The <b>OverExp. Rest.</b> slider controls the mode of restoration of overexposed areas. 
+            Valid values are 0 to 3 (0=clip;1=unclip;2=blend;3=rebuild); (with Auto Exposed 
+            checked the mode is clip).<br>
+            """
+        )  # end of setWhatsThis
 
     def close(self):
         """
@@ -575,8 +587,9 @@ class rawForm (baseForm):
         """
         axeSize = 200
         if self.toneForm is None:
-            form = graphicsToneForm.getNewWindow(targetImage=self.targetImage, axeSize=axeSize, layer=self.layer, parent=self,
-                                                  curveType='cubic')
+            form = graphicsToneForm.getNewWindow(targetImage=self.targetImage, axeSize=axeSize, layer=self.layer,
+                                                 parent=self,
+                                                 curveType='cubic')
             form.setWindowFlags(Qt.WindowStaysOnTopHint)
             form.setAttribute(Qt.WA_DeleteOnClose, on=False)
             form.setFixedHeight(axeSize + 140)
@@ -584,7 +597,7 @@ class rawForm (baseForm):
             form.setButtonText('Reset Curve')
             # get base curve from profile
             toneCurve = dngProfileToneCurve(self.dngDict.get('ProfileToneCurve', []))
-            form.baseCurve = [QPointF(x*axeSize, -y*axeSize) for x, y in zip(toneCurve.dataX, toneCurve.dataY)]
+            form.baseCurve = [QPointF(x * axeSize, -y * axeSize) for x, y in zip(toneCurve.dataX, toneCurve.dataY)]
 
             def f():
                 layer = self.layer
@@ -595,25 +608,25 @@ class rawForm (baseForm):
             form.scene().quadricB.curveChanged.sig.connect(f)
             self.toneForm = form
             self.toneForm.optionName = 'cpToneCurve'
-            dockT = self.addSubcontrol(self.parent()) # )stateAwareQDockWidget(self.parent())
+            dockT = self.addSubcontrol(self.parent())  # )stateAwareQDockWidget(self.parent())
             dockT.setWindowFlags(form.windowFlags())
             dockT.setWindowTitle(form.windowTitle())
-            #dockT.setStyleSheet(  # TODO removed 25/11/21 validate
-                #"QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
+            # dockT.setStyleSheet(  # TODO removed 25/11/21 validate
+            # "QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
             window = self.parent().parent()
             window.addDockWidget(Qt.LeftDockWidgetArea, dockT)
             self.dockT = dockT
             dockT.setWidget(form)
             showFirst = True
             form.setWhatsThis(
-                            """<b>Camera Profile Tone Curve</b><br>
-                            The profile curve, if any, is applied as a starting point for user adjustments,
-                            after raw post-processing.
-                            Its input and output are in <b>linear</b> gamma.
-                            The curve is shown in red and cannot be changed.<br>
-                            A user curve, shown in black, is editable and is applied right after the
-                            former.<br>         
-                            """
+                """<b>Camera Profile Tone Curve</b><br>
+                The profile curve, if any, is applied as a starting point for user adjustments,
+                after raw post-processing.
+                Its input and output are in <b>linear</b> gamma.
+                The curve is shown in red and cannot be changed.<br>
+                A user curve, shown in black, is editable and is applied right after the
+                former.<br>         
+                """
             )  # end of setWhatsThis
         else:
             form = self.toneForm
@@ -644,7 +657,7 @@ class rawForm (baseForm):
         axeSize = 200
         if self.contrastForm is None:
             form = graphicsSplineForm.getNewWindow(targetImage=None, axeSize=axeSize, layer=self.layer, parent=None)
-            form.setFixedHeight(axeSize+140)
+            form.setFixedHeight(axeSize + 140)
             form.setWindowFlags(Qt.WindowStaysOnTopHint)
             form.setAttribute(Qt.WA_DeleteOnClose, on=False)
             form.setWindowTitle('Contrast Curve')
@@ -660,7 +673,8 @@ class rawForm (baseForm):
             dockC = self.addSubcontrol(self.parent())  # stateAwareQDockWidget(self.parent())
             dockC.setWindowFlags(form.windowFlags())
             dockC.setWindowTitle(form.windowTitle())
-            dockC.setStyleSheet("QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
+            dockC.setStyleSheet(
+                "QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
             window = self.parent().parent()
             window.addDockWidget(Qt.LeftDockWidgetArea, dockC)
             self.dockC = dockC
@@ -686,14 +700,16 @@ class rawForm (baseForm):
             pass
         self.tempCorrection = self.slider2Temp(self.sliderTemp.value())
         # get multipliers (temperatureAndTint2Multipliers returns the camera neutral)
-        multipliers = [1/m for m in temperatureAndTint2Multipliers(self.tempCorrection, 1.0, self.XYZ2CameraMatrix, dngDict=self.dngDict)]  # TODO 6/12/19 added keyword dngDict validate
+        multipliers = [1 / m for m in temperatureAndTint2Multipliers(self.tempCorrection, 1.0, self.XYZ2CameraMatrix,
+                                                                     dngDict=self.dngDict)]  # TODO 6/12/19 added keyword dngDict validate
         multipliers[1] *= self.tintCorrection
         self.rawMultipliers = multipliers
         m = multipliers[1]
         self.rawMultipliers = [self.rawMultipliers[i] / m for i in range(4)]
         self.dataChanged.emit(1)
         self.sliderTemp.valueChanged.connect(self.tempUpdate)  # send new value as parameter
-        self.sliderTemp.sliderReleased.connect(lambda: self.tempUpdate(self.sliderTemp.value()))  # signal has no parameter
+        self.sliderTemp.sliderReleased.connect(
+            lambda: self.tempUpdate(self.sliderTemp.value()))  # signal has no parameter
 
     # tint change event handler
     def tintUpdate(self, value):
@@ -708,15 +724,17 @@ class rawForm (baseForm):
             pass
         self.tintCorrection = self.slider2Tint(self.sliderTint.value())
         # get multipliers (temperatureAndTint2Multipliers returns the camera neutral)
-        multipliers = [1/m for m in temperatureAndTint2Multipliers(self.tempCorrection, 1.0,
-                                                                   self.XYZ2CameraMatrix, dngDict=self.dngDict)]  # TODO 6/12/19 added keyword dngDict validate
+        multipliers = [1 / m for m in temperatureAndTint2Multipliers(self.tempCorrection, 1.0,
+                                                                     self.XYZ2CameraMatrix,
+                                                                     dngDict=self.dngDict)]  # TODO 6/12/19 added keyword dngDict validate
         multipliers[1] *= self.tintCorrection
         self.rawMultipliers = multipliers
         m = multipliers[1]
         self.rawMultipliers = [self.rawMultipliers[i] / m for i in range(4)]
         self.dataChanged.emit(1)
         self.sliderTint.valueChanged.connect(self.tintUpdate)
-        self.sliderTint.sliderReleased.connect(lambda: self.tintUpdate(self.sliderTint.value()))  # signal has no parameter)
+        self.sliderTint.sliderReleased.connect(
+            lambda: self.tintUpdate(self.sliderTint.value()))  # signal has no parameter)
 
     """
     def setRawMultipliers(self, m0, m1, m2, sampling=True):
@@ -827,7 +845,6 @@ class rawForm (baseForm):
         self.sliderSat.setValue(self.sat2Slider(self.satCorrection))
         self.dataChanged.connect(self.updateLayer)
 
-
     def setCameraProfilesCombo(self):
         """
         Populates the camera profile Combo box.
@@ -858,7 +875,7 @@ class rawForm (baseForm):
 
         def load(event_obj):
             # load remaining profiles
-            for i, f in enumerate(files[nextInd: ]):
+            for i, f in enumerate(files[nextInd:]):
                 key = basename(f)[:-4] if i + nextInd > 0 else 'Embedded Profile'
                 d = getDngProfileDict(f)
                 # filter d
@@ -888,7 +905,6 @@ class rawForm (baseForm):
         # return the currently selected item data
         return self.cameraProfilesCombo.itemData(0)
 
-
     def __getstate__(self):
         d = {}
         for a in self.__dir__():
@@ -898,8 +914,7 @@ class rawForm (baseForm):
         d['postloadprofilename'] = self.cameraProfilesCombo.currentText()
         return d
 
-
-    def __setstate__(self,d):
+    def __setstate__(self, d):
         # prevent multiple updates
         try:
             self.dataChanged.disconnect()
@@ -910,7 +925,7 @@ class rawForm (baseForm):
                 self.showToneSpline()
             elif name == 'contrastForm':
                 # init contrastForm, spline not loaded yet
-                self.setContrastSpline(0,0,0,0, withcurve=False)
+                self.setContrastSpline(0, 0, 0, 0, withcurve=False)
                 self.layer.autoSpline = False
             obj = getattr(self, name, None)
             if type(obj) in [optionsWidget, QbLUeSlider, QbLUeComboBox, graphicsToneForm, graphicsSplineForm]:

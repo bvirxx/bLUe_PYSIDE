@@ -18,8 +18,8 @@
 # NOTICE
 # The Python Imaging Library (PIL) is
 
-    # Copyright © 1997-2011 by Secret Labs AB
-    # Copyright © 1995-2011 by Fredrik Lundh
+# Copyright © 1997-2011 by Secret Labs AB
+# Copyright © 1995-2011 by Fredrik Lundh
 
 # By obtaining, using, and/or copying this software and/or its associated documentation, you agree that you have read, understood, and will comply
 # with the following terms and conditions:
@@ -51,16 +51,19 @@ qt_version = None
 try:
     from PyQt5.QtGui import QImage, qRgba, QPixmap
     from PyQt5.QtCore import QBuffer, QIODevice
+
     qt_version = '5'
 except (ImportError, RuntimeError):
     try:
         from PyQt4.QtGui import QImage, qRgba, QPixmap
         from PyQt4.QtCore import QBuffer, QIODevice
+
         qt_version = '4'
     except (ImportError, RuntimeError):
         try:
             from PySide2.QtGui import QImage, qRgba, QPixmap
             from PySide2.QtCore import QBuffer, QIODevice
+
             qt_version = 'side'
         except ImportError:
             qt_is_installed = False
@@ -69,11 +72,14 @@ from PySide2.QtGui import QImage, qRgba, QPixmap
 from PySide2.QtCore import QBuffer, QIODevice
 qt_version = 'side'
 """
+
+
 def rgb(r, g, b, a=255):
     """(Internal) Turns an RGB color into a Qt compatible color integer."""
     # use qRgb to pack the colors, and then turn the resulting long
     # into a negative integer with the same bitpattern.
     return (qRgba(r, g, b, a) & 0xffffffff)
+
 
 def fromqimage(im):
     """
@@ -100,6 +106,7 @@ def fromqimage(im):
 
     return Image.open(b)
 
+
 def fromqpixmap(im):
     return fromqimage(im)
     # buffer = QBuffer()
@@ -112,6 +119,7 @@ def fromqpixmap(im):
     # buffer.close()
     # bytes_io.seek(0)
     # return Image.open(bytes_io)
+
 
 def align8to32(bytes, width, mode):
     """
@@ -137,9 +145,10 @@ def align8to32(bytes, width, mode):
 
     new_data = []
     for i in range(len(bytes) // bytes_per_line):
-        new_data.append(bytes[i*bytes_per_line:(i+1)*bytes_per_line] + b'\x00' * extra_padding)
+        new_data.append(bytes[i * bytes_per_line:(i + 1) * bytes_per_line] + b'\x00' * extra_padding)
 
     return b''.join(new_data)
+
 
 def _toqclass_helper(im):
     data = None
@@ -167,7 +176,7 @@ def _toqclass_helper(im):
         colortable = []
         palette = im.getpalette()
         for i in range(0, len(palette), 3):
-            colortable.append(rgb(*palette[i:i+3]))
+            colortable.append(rgb(*palette[i:i + 3]))
     elif im.mode == "RGB":
         data = im.tobytes("raw", "BGRX")
         format = QImage.Format_RGB32
@@ -187,8 +196,10 @@ def _toqclass_helper(im):
         'data': __data, 'im': im, 'format': format, 'colortable': colortable
     }
 
+
 def PilImgToRaw(im):  # rename for external use
     return _toqclass_helper(im)
+
 
 if qt_is_installed:
     class ImageQt(QImage):
@@ -209,6 +220,7 @@ if qt_is_installed:
                             im_data['im'].size[1], im_data['format'])
             if im_data['colortable']:
                 self.setColorTable(im_data['colortable'])
+
 
 def toqimage(im):
     return ImageQt(im)

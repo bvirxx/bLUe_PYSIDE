@@ -16,7 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-#!/usr/bin/python2
+# !/usr/bin/python2
 # -*- coding: utf-8 -*-
 # Copyright (c) 2011 Sebastian Wiesner <lunaryorn@gmail.com>
 # Modifications by Charl Botha <cpbotha@vxlabs.com>
@@ -62,6 +62,7 @@ class UiLoader(QUiLoader):
     create a new instance of the top-level widget, but creates the user
     interface in an existing instance of the top-level class.
     """
+
     def __init__(self, baseinstance, customWidgets=None):
         """
         Create a loader for the given baseinstance.
@@ -99,7 +100,8 @@ class UiLoader(QUiLoader):
                 try:
                     widget = self.customWidgets[class_name](parent=parent)
                 except (TypeError, KeyError) as e:
-                    raise Exception('No custom widget ' + class_name + ' found in customWidgets param of UiLoader __init__.')
+                    raise Exception(
+                        'No custom widget ' + class_name + ' found in customWidgets param of UiLoader __init__.')
             if self.baseinstance:
                 # set an attribute for the new child widget on the base
                 # instance.

@@ -9,20 +9,23 @@ import sys
 from os.path import basename
 from time import time
 
+
 class res(object):
     def __init__(self, line_no, etime):
         self.line_no, self.etime = line_no, etime
+
     def toStr(self):
         return '%d: %.5f' % (self.line_no, self.etime)
+
 
 class debug_context():
     """ Debug context to trace any function calls inside the context """
 
     def __init__(self, name):
-        self.line_no, self.prev_line_no  = -1, -1
+        self.line_no, self.prev_line_no = -1, -1
         self.name = name
         self.t = 0.0
-        self.done = False # used in trace_calls to prevent nested traces
+        self.done = False  # used in trace_calls to prevent nested traces
 
     def __enter__(self):
         print('Debug/Profile %s ' % self.name, end='')
@@ -86,12 +89,15 @@ class debug_context():
             self.out += [res(self.prev_line_no, et)]
             self.ttime += et
 
+
 def tdec(func):
     """
     Debug/Profile decorator
     """
+
     def decorated_func(*args, **kwargs):
         with debug_context(func.__name__):
             return_value = func(*args, **kwargs)
         return return_value
+
     return decorated_func

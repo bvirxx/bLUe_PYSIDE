@@ -28,6 +28,7 @@ class graphicsHspbForm(graphicsCurveForm):
     """
     Form for HSV/HSpB curves
     """
+
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, colorModel='HSV'):
         newWindow = graphicsHspbForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent,
@@ -109,13 +110,13 @@ class graphicsHspbForm(graphicsCurveForm):
         container.adjustSize()
         self.setViewportMargins(0, 0, 0, container.height() + 15)
 
-
         self.setWhatsThis("""<b>HSV curves</b><br>""" + self.whatsThis())
 
         def f():
             layer = graphicsScene.layer
             layer.applyToStack()
             layer.parentImage.onImageChanged()
+
         self.scene().cubicR.curveChanged.sig.connect(f)
         self.scene().cubicG.curveChanged.sig.connect(f)
         self.scene().cubicB.curveChanged.sig.connect(f)
@@ -139,16 +140,19 @@ class graphicsHspbForm(graphicsCurveForm):
         sc = self.scene()
         if curve is sc.cubicR:
             curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize,
-                                                            bgColor=sc.bgColor, range=(0, 255),  # opencv convention for 8 bits image
-                                                            chans=channelValues.Hue, mode=sc.colorModel)
+                                                          bgColor=sc.bgColor, range=(0, 255),
+                                                          # opencv convention for 8 bits image
+                                                          chans=channelValues.Hue, mode=sc.colorModel)
         elif curve is sc.cubicG:
             curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize,
-                                                            bgColor=sc.bgColor, range=(0, 255),  # opencv convention for 8 bits image
-                                                            chans=channelValues.Sat, mode=sc.colorModel)
+                                                          bgColor=sc.bgColor, range=(0, 255),
+                                                          # opencv convention for 8 bits image
+                                                          chans=channelValues.Sat, mode=sc.colorModel)
         elif curve is sc.cubicB:
             curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize,
-                                                            bgColor=sc.bgColor, range=(0, 255),  # opencv convention for 8 bits image
-                                                            chans=channelValues.Br, mode=sc.colorModel)
+                                                          bgColor=sc.bgColor, range=(0, 255),
+                                                          # opencv convention for 8 bits image
+                                                          chans=channelValues.Br, mode=sc.colorModel)
         # Force to redraw histogram
         if redraw:
             sc.invalidate(QRectF(0.0, -sc.axeSize, sc.axeSize, sc.axeSize),
@@ -211,5 +215,3 @@ class graphicsHspbForm(graphicsCurveForm):
         sc = self.scene()
         for name in ['cubicR', 'cubicG', 'cubicB']:
             getattr(sc, name).__setstate__(d['state'][name])
-
-

@@ -51,6 +51,7 @@ See https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
                   data
 """
 
+
 class aTaggedBlock():
     """
     Container for Adobe Photoshop tagged block. Tagged blocks are described in the
@@ -74,6 +75,7 @@ class aTaggedBlock():
         self.length = lg
         self.signature = signature
         self.tag = tag
+
 
 class aParser():
     """
@@ -155,18 +157,18 @@ class aParser():
         next = 4
         tBlocks = []
         try:
-            while next < len(buf):  #True:
+            while next < len(buf):  # True:
                 start = next
                 try:
                     # get block signature : should be 8BIM or 8B64
-                    signature = buf[next : next+4].decode("utf-8")
+                    signature = buf[next: next + 4].decode("utf-8")
                     next += 4
-                    tag = buf[next : next+4].decode("utf-8")
+                    tag = buf[next: next + 4].decode("utf-8")
                     next += 4
                 except UnicodeDecodeError:
                     pass
                 # get block length
-                lg = struct.unpack(">l", buf[next : next + 4])[0]
+                lg = struct.unpack(">l", buf[next: next + 4])[0]
                 next += lg + 4
                 tBlocks.append(aTaggedBlock(start, lg, signature, tag))
         except struct.error as e:
@@ -189,9 +191,9 @@ class aParser():
         next = tBlock.addr + aTaggedBlock.headerSize
         blocks = [next]
         try:
-            while True: # next < tBlock.addr + tBlock.length:
+            while True:  # next < tBlock.addr + tBlock.length:
                 # get length of VMAL data
-                lg = struct.unpack('>l', buf[next:next+4])[0]
+                lg = struct.unpack('>l', buf[next:next + 4])[0]
                 next += lg + 4
                 next = aParser.align4(next)
                 if next < tBlock.addr + tBlock.length + 12:  # +12 added 31/03/20 (header)
@@ -227,7 +229,7 @@ class aParser():
             if vma.compressionMode == 1:
                 out = aParser.decompressBitmap(vma.data, w, h)
             else:
-                out = np.frombuffer(vma.data[ : w * h], dtype = np.uint8)
+                out = np.frombuffer(vma.data[: w * h], dtype=np.uint8)
             out = out.reshape((vma.rectangle.height() - 1, vma.rectangle.width() - 1))
             vma.imgBuf = out
         return prst
@@ -246,9 +248,9 @@ class aParser():
         id, s = aParser.readUString(buf[12:])
         id1, s1 = aParser.readPString(buf[12 + s:])
         # next is one VMAL
-        prst= preset()
-        s2 = prst.readVMALHeader(buf[12+s+s1:])
-        offset = 12 + s + s1 +s2
+        prst = preset()
+        s2 = prst.readVMALHeader(buf[12 + s + s1:])
+        offset = 12 + s + s1 + s2
         # init preset VMAList
         for i in range(prst.channelCount):
             count = prst.readVMA(buf[offset:])
@@ -275,8 +277,6 @@ class aParser():
         offset = 2 * h
         # read lines
         for i in range(h):
-            #if len(buf[offset:]) <compWidths[i]: # == 0:
-                #break
             j = 0
             while j < compWidths[i]:
                 n = struct.unpack('>B', buf[offset:offset + 1])[0]
@@ -296,7 +296,7 @@ class aParser():
                 else:  # copy n+1 bytes
                     count = n + 1
                     out[out_next:out_next + count] = np.frombuffer(buf[offset:offset + count], dtype=np.uint8)
-                    #out[out_next:out_next + count] = struct.unpack('>%dB' % count, buf[offset:offset + count])
+                    # out[out_next:out_next + count] = struct.unpack('>%dB' % count, buf[offset:offset + count])
                     out_next += count
                     offset += count
                     j += count
@@ -332,6 +332,7 @@ class aVMA:
     Adobe virtual memory array
     See https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
     """
+
     def __init__(self, length=0, pixelDepth=0, rectangle=None, compressionMode=0, data=None):
         self.length = length
         self.pixelDepth = pixelDepth
@@ -379,23 +380,26 @@ class preset:
         pixelDepth = VMAHeader[2]
         if pixelDepth != 8:
             raise ValueError('bad pixel depth')
-        rectangle = QRect(QPoint(VMAHeader[4], VMAHeader[3]), QPoint(VMAHeader[6], VMAHeader[5]))  # 3=top, 4=left, 5=bottom, 6=right
+        rectangle = QRect(QPoint(VMAHeader[4], VMAHeader[3]),
+                          QPoint(VMAHeader[6], VMAHeader[5]))  # 3=top, 4=left, 5=bottom, 6=right
         pixelDepth1 = VMAHeader[7]
         compressionMode = VMAHeader[8]
-        vma = aVMA(length=lg, pixelDepth=pixelDepth, rectangle=rectangle, compressionMode=compressionMode, data=buf[headerSize: headerSize + lg])
+        vma = aVMA(length=lg, pixelDepth=pixelDepth, rectangle=rectangle, compressionMode=compressionMode,
+                   data=buf[headerSize: headerSize + lg])
         self.vmaList.append(vma)
         return lg + 8
 
+
 if __name__ == "__main__":
-   # path = "C:\\users\\berna\\desktop\\Retouching+Brushes.abr"
+    # path = "C:\\users\\berna\\desktop\\Retouching+Brushes.abr"
     path = "C:\\users\\berna\\desktop\\20 WaterFall Brushes.abr"
     version = aParser.getVersion(path)
-    print("version :" , version)
+    print("version :", version)
     sImages, pImages = aParser.readFile(path)
-    print ("%d images found" % len(sImages)+len(pImages))
+    print("%d images found" % len(sImages) + len(pImages))
     for i, im in enumerate(sImages + pImages):
         print('image size :', im.shape[1], im.shape[0])
-        cv2.namedWindow('toto%d' %i, cv2.WINDOW_NORMAL)
-        cv2.resizeWindow('toto%d' %i, im.shape[1], im.shape[0])
-        cv2.imshow('toto%d' %i, im)
+        cv2.namedWindow('toto%d' % i, cv2.WINDOW_NORMAL)
+        cv2.resizeWindow('toto%d' % i, im.shape[1], im.shape[0])
+        cv2.imshow('toto%d' % i, im)
         cv2.waitKey(1000)

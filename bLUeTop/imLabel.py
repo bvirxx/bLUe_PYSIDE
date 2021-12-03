@@ -15,12 +15,9 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-from math import sqrt
-from random import choice
 
 from PySide2.QtCore import QRect, QRectF, Qt, QPointF
-from PySide2.QtGui import QPainter, QImage, QColor, QBrush, QContextMenuEvent, QCursor, QPen, QFont, QPainterPath, \
-    QTransform
+from PySide2.QtGui import QPainter, QImage, QColor, QBrush, QContextMenuEvent, QCursor, QPen, QFont, QPainterPath
 from PySide2.QtWidgets import QLabel, QApplication
 
 from bLUeGui.dialog import dlgWarn
@@ -29,8 +26,8 @@ from bLUeTop.settings import MAX_ZOOM
 from bLUeTop.utils import checkeredImage
 from bLUeTop.versatileImg import vImage
 
-class imageLabel(QLabel):
 
+class imageLabel(QLabel):
     qp = QPainter()
     qp.font = QFont("Arial", 8)
     qp.markPath = QPainterPath()
@@ -44,7 +41,7 @@ class imageLabel(QLabel):
         Sync the current brush/eraser with self.State
         and update the current brush sample.
         """
-        bSpacing, bJitter, bOrientation  = 1.0, 0.0, 0
+        bSpacing, bJitter, bOrientation = 1.0, 0.0, 0
         current = self.State.get('brush', None)
         if current is not None:
             bSpacing = current['spacing']
@@ -72,7 +69,9 @@ class imageLabel(QLabel):
             self.State[''] = window.brushes[-1].getBrush(bSize, bOpacity, bColor, bHardness, bFlow)
         else:
             pattern = window.patternCombo.currentData()
-            self.State['brush'] = window.brushCombo.currentData().getBrush(bSize, bOpacity, bColor, bHardness, bFlow, spacing=bSpacing, jitter=bJitter, orientation=bOrientation, pattern=pattern)
+            self.State['brush'] = window.brushCombo.currentData().getBrush(bSize, bOpacity, bColor, bHardness, bFlow,
+                                                                           spacing=bSpacing, jitter=bJitter,
+                                                                           orientation=bOrientation, pattern=pattern)
         # record current brush into layer brushDict
         if self.img is not None:
             layer = self.img.getActiveLayer()
@@ -94,7 +93,7 @@ class imageLabel(QLabel):
         bSize = self.State['brush']['size']  # TODO modified 26/01/20 validate
         w = bSize * zooming
         if w >= minSize:
-            cursor = QCursor(self.State['brush']['cursor'].scaled(w, w), hotX=w/2, hotY=w/2)
+            cursor = QCursor(self.State['brush']['cursor'].scaled(w, w), hotX=w / 2, hotY=w / 2)
         else:
             d = int((minSize - w) / 2)
             cursor = QCursor(self.State['brush']['cursor'].scaled(minSize, minSize), hotX=d, hotY=d)
@@ -252,7 +251,7 @@ class imageLabel(QLabel):
                     layer.cloningState = 'start'
             elif layer.cloningState == 'start':
                 # set the virtual layer translation (relative to full size image)
-                layer.xAltOffset, layer.yAltOffset = (x - img.xOffset) / r - layer.sourceX,\
+                layer.xAltOffset, layer.yAltOffset = (x - img.xOffset) / r - layer.sourceX, \
                                                      (y - img.yOffset) / r - layer.sourceY
                 layer.cloningState = 'continue'
                 layer.updateCloningMask()
@@ -346,7 +345,8 @@ class imageLabel(QLabel):
                         else:
                             color = vImage.defaultColor_UnMasked if \
                                 window.btnValues['drawFG'] else vImage.defaultColor_Masked
-                            color.setAlpha(layer.colorMaskOpacity)  # TODO added 15/11/21 for semi transparent color brush when color mask mode is enabled - validate
+                            color.setAlpha(
+                                layer.colorMaskOpacity)  # TODO added 15/11/21 for semi transparent color brush when color mask mode is enabled - validate
                     else:
                         color = vImage.defaultColor_UnMasked_Invalid
                     qp.begin(layer.mask)

@@ -23,6 +23,7 @@ from json import load
 # is Torch installed ?
 #########################
 import importlib
+
 HAS_TORCH = importlib.util.find_spec("torch") is not None and importlib.util.find_spec("torchvision") is not None
 
 ########################

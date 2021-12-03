@@ -44,7 +44,7 @@ class HVLUT2DForm(graphicsCurveForm):
         # connect layer selectionChanged signal
         self.layer.selectionChanged.sig.connect(self.updateLayer)
         # Init curves
-        dSplineItem = activeBSpline(axeSize, period=axeSize, yZero=-3*axeSize//4)
+        dSplineItem = activeBSpline(axeSize, period=axeSize, yZero=-3 * axeSize // 4)
         graphicsScene.addItem(dSplineItem)
         dSplineItem.setVisible(True)
         dSplineItem.initFixedPoints()
@@ -178,7 +178,7 @@ class HVLUT2DForm(graphicsCurveForm):
         data[...] = 0, 1, 1
         # update brightness
         for i in range(hdivs):
-            pt = sp[int(i * hstep * axeSize/360)]
+            pt = sp[int(i * hstep * axeSize / 360)]
             data[i, sThr:, :, 2] = 1.0 - (pt.y() - d) / 100
 
         activeSpline = self.dSplineItemH
@@ -208,8 +208,6 @@ class HVLUT2DForm(graphicsCurveForm):
         color = self.scene().targetImage.getActivePixel(x, y, qcolor=True)
         h = color.hsvHue()
         if modifiers == QtCore.Qt.ControlModifier:
-            self.marker.setPos(h * 300/360, 0)  # -(self.axeSize * 3) // 4)
+            self.marker.setPos(h * 300 / 360, 0)  # -(self.axeSize * 3) // 4)
             self.markerLabel.setText("%d" % h)
             self.update()
-
-

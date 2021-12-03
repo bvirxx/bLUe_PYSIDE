@@ -23,8 +23,7 @@ from bLUeGui.graphicsForm import baseForm
 from bLUeTop.utils import optionsWidget, QbLUeSlider
 
 
-class noiseForm (baseForm):
-
+class noiseForm(baseForm):
     noiseCorrection = 0
 
     @staticmethod
@@ -60,7 +59,8 @@ class noiseForm (baseForm):
         self.sliderThr.setSingleStep(1)
 
         self.sliderThr.valueChanged.connect(self.thrUpdate)
-        self.sliderThr.sliderReleased.connect(lambda: self.thrUpdate(self.sliderThr.value()))  # signal has no parameter)
+        self.sliderThr.sliderReleased.connect(
+            lambda: self.thrUpdate(self.sliderThr.value()))  # signal has no parameter)
 
         self.thrLabel = QLabel()
         self.thrLabel.setMaximumSize(150, 30)
@@ -89,16 +89,16 @@ class noiseForm (baseForm):
 
         self.setDefaults()
         self.setWhatsThis(
-                        """<b>Noise Reduction</b><br>
-                           <b>Bilateral Filtering</b> is the fastest method.<br>
-                           <b>NLMeans</b> (Non Local Means) and <b>Wavelets</b> are slower,
-                           but they usually give better results.<br>
-                           To <b>limit the action of any method to a 
-                           rectangular region of the image</b>
-                           draw a selection rectangle on the layer with the marquee tool.<br>
-                           Ctrl-Click to <b>clear the selection</b><br>
-                        """
-                        )  # end of setWhatsThis
+            """<b>Noise Reduction</b><br>
+               <b>Bilateral Filtering</b> is the fastest method.<br>
+               <b>NLMeans</b> (Non Local Means) and <b>Wavelets</b> are slower,
+               but they usually give better results.<br>
+               To <b>limit the action of any method to a 
+               rectangular region of the image</b>
+               draw a selection rectangle on the layer with the marquee tool.<br>
+               Ctrl-Click to <b>clear the selection</b><br>
+            """
+        )  # end of setWhatsThis
 
     def setDefaults(self):
         self.listWidget1.unCheckAll()
@@ -160,4 +160,3 @@ class noiseForm (baseForm):
                 obj.__setstate__(d['state'][name])
         self.dataChanged.connect(self.updateLayer)
         self.dataChanged.emit()
-

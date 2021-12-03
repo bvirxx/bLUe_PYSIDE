@@ -67,7 +67,8 @@ class Form1(QMainWindow):
         from bLUeTop.layerView import QLayerView
         from bLUeTop.imLabel import imageLabel
         loadUi('bLUe.ui', baseinstance=self,
-               customWidgets={'QLayerView': QLayerView, 'QLabel': QLabel, 'histForm': histForm, 'imageLabel': imageLabel})
+               customWidgets={'QLayerView': QLayerView, 'QLabel': QLabel, 'histForm': histForm,
+                              'imageLabel': imageLabel})
         # hook called by event slots
         # should be redefined later
         self.onWidgetChange = lambda b: None
@@ -124,9 +125,6 @@ class Form1(QMainWindow):
         """
         checked = button.isChecked()
         self.btnValues[str(button.accessibleName())] = checked
-        # show/hide toolBar
-        # if getattr(button, 'toolBar', None) is not None:
-            # button.toolBar.setVisible(checked)  # TODO removed 27/01/20 useless validate
         self.onWidgetChange(button)
 
     def handleSliderMoved(self, value, slider):
@@ -187,12 +185,14 @@ def enumerateMenuActions(menu):
             actions.append(action)
     return actions
 
+
 #######################
 # app message handler
 #######################
 def message_handler(kind, context, msg):
     if kind != QtMsgType.QtWarningMsg:
         print(msg, file=sys.stderr)
+
 
 QtCore.qInstallMessageHandler(message_handler)
 

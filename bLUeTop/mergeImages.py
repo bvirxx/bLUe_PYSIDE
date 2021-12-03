@@ -36,5 +36,5 @@ def expFusion(imList):
     mergeMertens = cv2.createMergeMertens()
     fusion = mergeMertens.process(imList)
     np.clip(fusion, 0.0, 1.0, out=fusion)
-    fusion *= 255   # TODO modified 23/01/20 validate
+    fusion *= 255
     return fusion

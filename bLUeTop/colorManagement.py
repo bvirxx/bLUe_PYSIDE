@@ -20,8 +20,9 @@ import sys
 import numpy as np
 from PIL import Image
 from PIL.ImageCms import getOpenProfile, getProfileInfo, \
-    buildTransformFromOpenProfiles, buildProofTransformFromOpenProfiles, applyTransform, INTENT_PERCEPTUAL, INTENT_ABSOLUTE_COLORIMETRIC, INTENT_RELATIVE_COLORIMETRIC,\
-    FLAGS,ImageCmsProfile, PyCMSError, core
+    buildTransformFromOpenProfiles, buildProofTransformFromOpenProfiles, applyTransform, INTENT_PERCEPTUAL, \
+    INTENT_ABSOLUTE_COLORIMETRIC, INTENT_RELATIVE_COLORIMETRIC, \
+    FLAGS, ImageCmsProfile, PyCMSError, core
 from PySide2.QtGui import QImage
 
 from bLUeGui.bLUeImage import QImageBuffer
@@ -37,11 +38,13 @@ if COLOR_MANAGE_OPT:
         HAS_GI = False
         try:
             from gi.repository import GLib, Gio, Colord
+
             HAS_GI = True
         except ImportError:
             pass
         if not HAS_GI:
-            dlgWarn("Automatic detection of monitor profile needs gi installed.\n trying to use %s instead" % DEFAULT_MONITOR_PROFILE_PATH)
+            dlgWarn(
+                "Automatic detection of monitor profile needs gi installed.\n trying to use %s instead" % DEFAULT_MONITOR_PROFILE_PATH)
             try:
                 getOpenProfile(DEFAULT_MONITOR_PROFILE_PATH)
             except PyCMSError:
@@ -85,7 +88,7 @@ class icc:
     HAS_COLOR_MANAGE = False  # menu action "color manage" will be disabled
     COLOR_MANAGE = False  # no color management
 
-    monitorProfile, workingProfile, workToMonTransform = (None,)*3
+    monitorProfile, workingProfile, workToMonTransform = (None,) * 3
     workingProfileInfo, monitorProfileInfo = '', ''
 
     softProofingProfile = None
@@ -200,14 +203,17 @@ class icc:
                 softproofingwp = cls.softProofingProfile  # default : do not change the current soft proofing mode
             if type(softproofingwp) is ImageCmsProfile:
                 cls.softProofingProfile = softproofingwp
-                cls.workToMonTransform = buildProofTransformFromOpenProfiles(cls.workingProfile, cls.monitorProfile, softproofingwp,
-                                                                             "RGB", "RGB", renderingIntent=INTENT_PERCEPTUAL,
+                cls.workToMonTransform = buildProofTransformFromOpenProfiles(cls.workingProfile, cls.monitorProfile,
+                                                                             softproofingwp,
+                                                                             "RGB", "RGB",
+                                                                             renderingIntent=INTENT_PERCEPTUAL,
                                                                              proofRenderingIntent=INTENT_RELATIVE_COLORIMETRIC,
-                                                                             flags=FLAGS['SOFTPROOFING'] | FLAGS['BLACKPOINTCOMPENSATION']) #  | FLAGS['GAMUTCHECK'])
+                                                                             flags=FLAGS['SOFTPROOFING'] | FLAGS[
+                                                                                 'BLACKPOINTCOMPENSATION'])  # | FLAGS['GAMUTCHECK'])
                 cls.softProofingProfile = softproofingwp
             else:
                 cls.workToMonTransform = buildTransformFromOpenProfiles(cls.workingProfile, cls.monitorProfile,
-                                                                     "RGB", "RGB", renderingIntent=INTENT_PERCEPTUAL)
+                                                                        "RGB", "RGB", renderingIntent=INTENT_PERCEPTUAL)
                 cls.softProofingProfile = None
             """
                                     INTENT_PERCEPTUAL            = 0 (DEFAULT) (ImageCms.INTENT_PERCEPTUAL)
@@ -225,6 +231,7 @@ class icc:
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
+
 
 def cmsConvertQImage(image, cmsTransformation=None):
     """

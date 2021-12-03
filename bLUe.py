@@ -212,6 +212,8 @@ axeSize = 200
 ##############
 # multiprocessing pool
 pool = None
+
+
 ##############
 
 ################################
@@ -292,7 +294,7 @@ def addAdjustmentLayers(layers, images):
         if 'images' in d:  # for retro compatibility with previous bLU file formats
             n = d['images']
             if type(n) is tuple:
-                n =n.count(1)
+                n = n.count(1)
             if n > 0:
                 waitImages.append((layer, n))  # image offset not known yet
 
@@ -380,7 +382,7 @@ def loadImage(img, tfile=None, withBasic=True, window=window):
 
     fromBlue = tfile is not None and img.filename[-4:].upper() in BLUE_FILE_EXTENSIONS
     # import layer stack from .BLU file
-    if fromBlue:  #tfile is not None and img.filename[-4:].upper() in BLUE_FILE_EXTENSIONS:
+    if fromBlue:  # tfile is not None and img.filename[-4:].upper() in BLUE_FILE_EXTENSIONS:
         # get ordered dict of layers.
         # Tifffile relies on Python 3 formatting for bytes --> str decoding.
         # It implicitly calls __str__() to get "standard" string representation of bytes
@@ -393,7 +395,7 @@ def loadImage(img, tfile=None, withBasic=True, window=window):
         meta_dict = imagej_description_metadata(tfile.pages[0].is_imagej)
         try:
             if rlayer is not None:
-                d = pickle.loads(literal_eval(meta_dict['develop'])) # tifffile turns meta_dict keys to lower !
+                d = pickle.loads(literal_eval(meta_dict['develop']))  # tifffile turns meta_dict keys to lower !
                 rlayer.__setstate__(d)
             # build layer stack
             withBasic = False  # the imported layer stack only
@@ -438,7 +440,7 @@ def openFile(f, window=window):
         if sourceformat in BLUE_FILE_EXTENSIONS:
             tfile = tifffile.TiffFile(f)
             meta_dict = tfile.imagej_metadata  # no unpickling needed here, so we use imagej_metadata
-            version = meta_dict.get('version', 'unknown') # unused yet
+            version = meta_dict.get('version', 'unknown')  # unused yet
             sourceformat = meta_dict.get('sourceformat')  # read actual source format
             if sourceformat in RAW_FILE_EXTENSIONS:
                 # is .blu file from raw
@@ -474,6 +476,7 @@ def openFile(f, window=window):
             tfile.close()
         QApplication.restoreOverrideCursor()
         QApplication.processEvents()
+
 
 def saveFile(filename, img, quality=-1, compression=-1, writeMeta=True):
     """
@@ -545,12 +548,12 @@ def closeTabs(index=None, window=window):
     """
     if not canClose(index=index) or window.tabBar.count() > 0:
         ##########
-        #window.tableView.clear(delete=True)  # TODO added 29/11/21 validate
-        #window.histView.targetImage = None   # TODO added 29/11/21 validate
+        # window.tableView.clear(delete=True)  # TODO added 29/11/21 validate
+        # window.histView.targetImage = None   # TODO added 29/11/21 validate
         ############
         gc.collect()
         return
-    #window.tableView.clear(delete=True)
+    # window.tableView.clear(delete=True)
     window.histView.targetImage = None
     defaultImImage = initDefaultImage()
     window.label.img = defaultImImage
@@ -575,18 +578,20 @@ def showHistogram(window=window):
     if window.histView.options['R'] or window.histView.options['G'] or window.histView.options['B']:
         window.histView.mode = 'RGB'
         window.histView.chanColors = [QColor(255, 0, 0), QColor(0, 255, 0), QColor(10, 10, 255)]
-        window.histView.chans = [ ['R', 'G', 'B'].index(ch) for ch in ['R', 'G', 'B'] if window.histView.options[ch]]
+        window.histView.chans = [['R', 'G', 'B'].index(ch) for ch in ['R', 'G', 'B'] if window.histView.options[ch]]
     else:
         window.histView.mode = 'Luminosity'
         window.histView.chanColors = [Qt.gray]
         window.histView.chans = []
     histView = histImg.histogram(QSize(window.histView.width(), window.histView.height()),
                                  chans=window.histView.chans, bgColor=Qt.black,
-                                 chanColors=window.histView.chanColors, mode=window.histView.mode, addMode='Luminosity' if window.histView.options['L'] else '')
+                                 chanColors=window.histView.chanColors, mode=window.histView.mode,
+                                 addMode='Luminosity' if window.histView.options['L'] else '')
     window.histView.cache = QPixmap.fromImage(histView)
     window.histView.Label_Hist.setPixmap(window.histView.cache)
     window.histView.Label_Hist.drawingWidth = histView.drawingWidth
     window.histView.Label_Hist.drawingScale = histView.drawingScale
+
 
 def restoreBrush(layer):
     """
@@ -631,7 +636,7 @@ def setDocumentImage(img, window=window):
     d = img.savedBtnValues
     if d:  # a saved dict exists
         window.btnValues = d.copy()
-    else: # reset to default
+    else:  # reset to default
         for k in window.btnValues:
             window.btnValues[k] = False
         window.btnValues['pointer'] = True  # default checked autoexclusive button (needed)
@@ -821,7 +826,7 @@ def menuFile(name, window=window):
     # saving dialog
     elif name in ['actionSave', 'actionSave_As', 'actionSave_As_bLU_Doc']:
         saveAsBLU = (name == 'actionSave_As_bLU_Doc')
-        saveAs = (name=='actionSave_As') or saveAsBLU
+        saveAs = (name == 'actionSave_As') or saveAsBLU
         if window.label.img.useThumb and not saveAsBLU:
             dlgWarn("Uncheck Preview mode before saving")
         else:
@@ -831,7 +836,8 @@ def menuFile(name, window=window):
             try:
                 if saveAs:
                     ext = 'blu' if saveAsBLU else 'jpg'
-                    filename, quality, compression, writeMeta = saveDlg(img, window, ext=ext, selected=True) # not saveAs)
+                    filename, quality, compression, writeMeta = saveDlg(img, window, ext=ext,
+                                                                        selected=True)  # not saveAs)
                     filename = saveFile(filename, img, quality=quality, compression=compression, writeMeta=writeMeta)
                 else:
                     filename = saveFile(img.filename, img, writeMeta=True)
@@ -889,7 +895,7 @@ def menuView(name, window=window):
             # start from parent dir of the last used directory
             lastDir = path.join(str(window.settings.value('paths/dlgdir', '.')), path.pardir)
             dlg = QFileDialog(window, "Select a folder to start the diaporama", lastDir)
-            #dlg.setNameFilters(IMAGE_FILE_NAME_FILTER)
+            # dlg.setNameFilters(IMAGE_FILE_NAME_FILTER)
             dlg.setFileMode(QFileDialog.Directory)
             diaporamaList = []
             # directory dialog
@@ -948,11 +954,11 @@ def menuImage(name, window=window):
         s = s + "\n\ndim : %d x %d" % (img.width(), img.height())
         # profile info
         if img.meta.profile is not None:
-                s = s + "\n\nEmbedded profile found"  # length %d" % len(img.meta.profile)
+            s = s + "\n\nEmbedded profile found"  # length %d" % len(img.meta.profile)
         workingProfileInfo = icc.workingProfileInfo
         s = s + "\n\nWorking Profile : %s" % workingProfileInfo
         # rating
-        s = s + "\n\nRating %s" % ''.join(['*']*img.meta.rating)
+        s = s + "\n\nRating %s" % ''.join(['*'] * img.meta.rating)
         # formatted meta data
         s = s + "\n\n" + img.imageInfo
         # display
@@ -975,7 +981,8 @@ def menuImage(name, window=window):
                     filenames = dlg.selectedFiles()
                     newDir = dlg.directory().absolutePath()
                     window.settings.setValue('paths/profdlgdir', newDir)
-                    icc.configure(qscreen=window.currentScreenIndex, workingProfile=icc.workingProfile, softproofingwp=getOpenProfile(filenames[0]))
+                    icc.configure(qscreen=window.currentScreenIndex, workingProfile=icc.workingProfile,
+                                  softproofingwp=getOpenProfile(filenames[0]))
                 else:
                     raise PyCMSError
             except PyCMSError:
@@ -1002,7 +1009,8 @@ def menuImage(name, window=window):
         updateStatus()
     # force current display profile re-detection
     elif name == 'actionUpdate_display_profile':
-        icc.configure(qscreen=window.currentScreenIndex, workingProfile=icc.workingProfile, softproofingwp=icc.softProofingProfile)
+        icc.configure(qscreen=window.currentScreenIndex, workingProfile=icc.workingProfile,
+                      softproofingwp=icc.softProofingProfile)
         window.label.img.updatePixmap()
         window.label_2.img.updatePixmap()
         window.label.update()
@@ -1019,20 +1027,20 @@ def menuImage(name, window=window):
                 s = s + 'Color Management is disabled : check your config.json file\n\n'
             else:
                 s = s + 'Automatic detection failed and no default profile was found\n\n'
-            s = s + 'Define SYSTEM_PROFILE_DIR and DEFAULT_MONITOR_PROFILE_NAME in '\
-                     'the configuration file config.json '\
-                     'to match the path to your current display profile.\n'\
-                     'Usual Profile dirs are on Linux ~/.local/share/icc\n'\
-                     'and on Windows C:\Windows\System32\spool\drivers\color\n'
+            s = s + 'Define SYSTEM_PROFILE_DIR and DEFAULT_MONITOR_PROFILE_NAME in ' \
+                    'the configuration file config.json ' \
+                    'to match the path to your current display profile.\n' \
+                    'Usual Profile dirs are on Linux ~/.local/share/icc\n' \
+                    'and on Windows C:\Windows\System32\spool\drivers\color\n'
         else:
             s = s + icc.monitorProfileInfo + '-------------\n\n'
 
-        s = s + 'Note :\nThe working profile is the color profile assigned to the image.'\
-                 'The monitor profile should correspond to your monitor. '\
-                 'Both profiles are used in conjunction to display exact colors. '\
-                 'If one of them is missing, bLUe cannot color manage the image. '\
-                 'If the monitor profile listed above is not the right profile for your monitor, '\
-                 'please check the system settings for color management.'
+        s = s + 'Note :\nThe working profile is the color profile assigned to the image.' \
+                'The monitor profile should correspond to your monitor. ' \
+                'Both profiles are used in conjunction to display exact colors. ' \
+                'If one of them is missing, bLUe cannot color manage the image. ' \
+                'If the monitor profile listed above is not the right profile for your monitor, ' \
+                'please check the system settings for color management.'
         w.label.setWordWrap(True)
         w.label.setText(s)
         w.show()
@@ -1149,16 +1157,19 @@ def menuLayer(name, window=window, sname=None, script=False):
         if name == 'actionCurves_RGB':
             layer.execute = lambda l=layer, pool=None: l.tLayer.apply1DLUT(grWindow.scene().cubicItem.getStackedLUTXY())
         elif name == 'actionCurves_HSpB':  # displayed as HSV in the layer menu !!
-            layer.execute = lambda l=layer, pool=None: l.tLayer.applyHSV1DLUT(grWindow.scene().cubicItem.getStackedLUTXY(), pool=pool)
+            layer.execute = lambda l=layer, pool=None: l.tLayer.applyHSV1DLUT(
+                grWindow.scene().cubicItem.getStackedLUTXY(), pool=pool)
         elif name == 'actionCurves_Lab':
-            layer.execute = lambda l=layer, pool=None: l.tLayer.applyLab1DLUT(grWindow.scene().cubicItem.getStackedLUTXY())
+            layer.execute = lambda l=layer, pool=None: l.tLayer.applyLab1DLUT(
+                grWindow.scene().cubicItem.getStackedLUTXY())
 
     elif name == 'actionAuto_3D_LUT' and HAS_TORCH:
         layerName = 'Auto 3D LUT'
-        layer = window.label.img.addAdjustmentLayer(name=gn(layerName), role='AutoLUT')  # do not use a role containing '3DLUT'
+        layer = window.label.img.addAdjustmentLayer(name=gn(layerName),
+                                                    role='AutoLUT')  # do not use a role containing '3DLUT'
         grWindow = graphicsFormAuto3DLUT.getNewWindow(axeSize=300, targetImage=window.label.img,
-                                                  LUTSize=LUTSIZE, layer=layer, parent=window,
-                                                  mainForm=window)
+                                                      LUTSize=LUTSIZE, layer=layer, parent=window,
+                                                      mainForm=window)
         pool = getPool()
         layer.execute = lambda l=layer, pool=pool: l.tLayer.applyAuto3DLUT(pool=pool)
 
@@ -1182,7 +1193,7 @@ def menuLayer(name, window=window, sname=None, script=False):
             layerName = sname
         layer = window.label.img.addAdjustmentLayer(name=gn(layerName), role='2DLUT')
         grWindow = HVLUT2DForm.getNewWindow(axeSize=300, targetImage=window.label.img,
-                                                  layer=layer, parent=window)
+                                            layer=layer, parent=window)
         # init pool only once
         pool = getPool()
         sc = grWindow.scene()
@@ -1192,7 +1203,8 @@ def menuLayer(name, window=window, sname=None, script=False):
     elif name == 'actionNew_Cloning_Layer':
         lname = 'Cloning'
         layer = window.label.img.addAdjustmentLayer(layerType=QCloningLayer, name=gn(lname), role='CLONING')
-        grWindow = patchForm.getNewWindow(targetImage=window.label.img, axeSize=axeSize, layer=layer, parent=window, mainForm=window)
+        grWindow = patchForm.getNewWindow(targetImage=window.label.img, axeSize=axeSize, layer=layer, parent=window,
+                                          mainForm=window)
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyCloning(seamless=l.autoclone)
 
     # segmentation
@@ -1267,7 +1279,7 @@ def menuLayer(name, window=window, sname=None, script=False):
         processedImg = window.label.img
         w, h = processedImg.width(), processedImg.height()
         imgNew = QImage(w, h, QImage.Format_ARGB32)
-        #imgNew.fill(Qt.white)
+        # imgNew.fill(Qt.white)
         imgNew.fill(QColor(0, 0, 0, 0))
         lname = 'Drawing'
         layer = window.label.img.addAdjustmentLayer(name=gn(lname), sourceImg=imgNew, role='DRW')
@@ -1280,19 +1292,23 @@ def menuLayer(name, window=window, sname=None, script=False):
     elif name == 'actionColor_Temperature':
         lname = 'Color Filter'
         layer = window.label.img.addAdjustmentLayer(name=gn(lname))
-        grWindow = temperatureForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
+        grWindow = temperatureForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer,
+                                                parent=window)
         # wrapper for the right apply method
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyTemperature()
 
     elif name == 'actionContrast_Correction':
         layer = window.label.img.addAdjustmentLayer(name=gn(CoBrSatForm.layerTitle), role='CONTRAST')
-        grWindow = CoBrSatForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window,  mainForm=window)
+        grWindow = CoBrSatForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window,
+                                            mainForm=window)
+
         # clipLimit change event handler
 
         def h(lay, clipLimit):
             lay.clipLimit = clipLimit
             lay.applyToStack()
             window.label.img.onImageChanged()
+
         grWindow.onUpdateContrast = h
         # wrapper for the right apply method
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyContrast()
@@ -1302,14 +1318,14 @@ def menuLayer(name, window=window, sname=None, script=False):
         layer = window.label.img.addAdjustmentLayer(name=gn(lname))
         layer.clipLimit = ExpForm.defaultExpCorrection
         grWindow = ExpForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
-        layer.execute = lambda l=layer,  pool=None: l.tLayer.applyExposure(grWindow.options)
+        layer.execute = lambda l=layer, pool=None: l.tLayer.applyExposure(grWindow.options)
 
     elif name == 'actionHDR_Merge':
         lname = 'Merge'
         layer = window.label.img.addAdjustmentLayer(name=gn(lname), role='MERGING')
         layer.clipLimit = ExpForm.defaultExpCorrection
         grWindow = HDRMergeForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
-        layer.execute = lambda l=layer,  pool=None: l.tLayer.applyHDRMerge(grWindow.options)
+        layer.execute = lambda l=layer, pool=None: l.tLayer.applyHDRMerge(grWindow.options)
 
     elif name == 'actionGeom_Transformation':
         lname = 'Transformation'
@@ -1356,7 +1372,7 @@ def menuLayer(name, window=window, sname=None, script=False):
         lname = 'Channel Mixer'
         layer = window.label.img.addAdjustmentLayer(name=gn(lname))
         grWindow = mixerForm.getNewWindow(axeSize=260, targetImage=window.label.img,
-                                           layer=layer, parent=window)
+                                          layer=layer, parent=window)
         layer.execute = lambda l=layer: l.tLayer.applyMixer(grWindow.options)
 
     # load 3D LUT from .cube file
@@ -1379,7 +1395,8 @@ def menuLayer(name, window=window, sname=None, script=False):
             layer = window.label.img.addAdjustmentLayer(name=gn(lname))
             pool = getPool()
             layer.execute = lambda l=layer, pool=pool: l.tLayer.apply3DLUT(lut,
-                                                                           UDict(({'use selection': False, 'keep alpha': True},)),
+                                                                           UDict(({'use selection': False,
+                                                                                   'keep alpha': True},)),
                                                                            pool=pool)
             window.tableView.setLayers(window.label.img)
             layer.applyToStack()
@@ -1450,7 +1467,7 @@ def menuLayer(name, window=window, sname=None, script=False):
     else:
         return
     post(layer)
-    return layer # added 3/11/21 used by __setstate__ refactoring needed
+    return layer  # added 3/11/21 used by __setstate__ refactoring needed
 
 
 def menuHelp(name, window=window):
@@ -1509,7 +1526,7 @@ def canClose(index=None, window=window):
         if img.isModified:
             if ind != window.tabBar.currentIndex():
                 window.tabBar.setCurrentIndex(ind)
-                dlgWarn('Image was modified', info='Save it first' )
+                dlgWarn('Image was modified', info='Save it first')
                 return False
             try:
                 # save/discard dialog
@@ -1522,7 +1539,7 @@ def canClose(index=None, window=window):
                     filename, quality, compression, writeMeta = saveDlg(img, window, selected=False)
                     # actual saving
                     filename = saveFile(filename, img, quality=quality, compression=compression,
-                                            writeMeta=writeMeta)
+                                        writeMeta=writeMeta)
                     # confirm saving
                     dlgInfo("%s written" % filename)
                     window.tabBar.removeTab(ind)
@@ -1556,7 +1573,7 @@ def updateStatus(window=window):
     """
     img = window.label.img
     # filename and rating
-    s = '&nbsp;&nbsp;&nbsp;&nbsp;' + img.filename + '&nbsp;&nbsp;&nbsp;&nbsp;' + (' '.join(['*']*img.meta.rating))
+    s = '&nbsp;&nbsp;&nbsp;&nbsp;' + img.filename + '&nbsp;&nbsp;&nbsp;&nbsp;' + (' '.join(['*'] * img.meta.rating))
     # color management
     s += '&nbsp;&nbsp;&nbsp;&nbsp;CM : ' + ('On' if icc.COLOR_MANAGE else 'Off')
     if window.actionSoft_proofing.isChecked():
@@ -1587,7 +1604,7 @@ def initCursors(window=window):
     curImg = QImage(":/images/resources/Eyedropper-icon.png")
     pxmp = QPixmap.fromImage(curImg)
     w, h = pxmp.width(), pxmp.height()
-    window.cursor_EyeDropper = QCursor(pxmp, hotX=0, hotY=h-1)
+    window.cursor_EyeDropper = QCursor(pxmp, hotX=0, hotY=h - 1)
     # tool cursor, must be resizable
     curImg = QImage(":/images/resources/cursor_circle.png")
     # turn to white
@@ -1623,6 +1640,7 @@ def screenUpdate(newScreenIndex, window=window):
         window.label_2.img.updatePixmap()
         window.label.update()
         window.label_2.update()
+
     threading.Thread(target=bgTask).start()
     window.screenChanged.connect(screenUpdate)
 
@@ -1862,7 +1880,7 @@ def setupGUI(window=window):
 
     # init button tool bars
     toolBar = QToolBar()
-    window.verticalSlider1, window.verticalSlider2, window.verticalSlider3, window.verticalSlider4\
+    window.verticalSlider1, window.verticalSlider2, window.verticalSlider3, window.verticalSlider4 \
         = QbLUeSlider(Qt.Horizontal), QbLUeSlider(Qt.Horizontal), QbLUeSlider(Qt.Horizontal), QbLUeSlider(Qt.Horizontal)
     for slider in (window.verticalSlider1, window.verticalSlider2, window.verticalSlider3, window.verticalSlider4):
         slider.setStyleSheet(QbLUeSlider.bLueSliderDefaultBWStylesheet)
@@ -1883,7 +1901,7 @@ def setupGUI(window=window):
     window.verticalSlider4.setSliderPosition(100)
     window.verticalSlider4.setToolTip('Flow')
     # get brush and eraser families
-    window.brushCombo, window.patternCombo= QComboBox(), QComboBox()
+    window.brushCombo, window.patternCombo = QComboBox(), QComboBox()
     window.brushCombo.setToolTip('Brush Family')
     window.patternCombo.setToolTip('Patterns')
     window.brushCombo.setIconSize(QSize(50, 50))
@@ -2018,7 +2036,7 @@ def setupGUI(window=window):
     window.splitter.hide()
     window.viewState = 'After'
     actionCycle = QAction('cycle', window)
-    actionCycle.setShortcut(QKeySequence(Qt.CTRL+Qt.Key_Space))
+    actionCycle.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_Space))
 
     def f():
         window.viewState = 'Before/After'
@@ -2168,7 +2186,6 @@ if __name__ == '__main__':
     # display splash screen and set app style sheet
     setupGUI(window)
     setTabBar()
-
 
     ###############
     # launching app

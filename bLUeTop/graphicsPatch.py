@@ -33,6 +33,7 @@ class BWidgetImg(QLabel):
     Pointing window for cloning source image. It manages
     the pointing cursor.
     """
+
     def __init__(self, *args, **kwargs):
         """
 
@@ -54,7 +55,7 @@ class BWidgetImg(QLabel):
             return
         x, y = ev.x(), ev.y()
         grForm = self.grForm
-        x, y = x * grForm.layer.width() / grForm.sourcePixmapThumb.width(),\
+        x, y = x * grForm.layer.width() / grForm.sourcePixmapThumb.width(), \
                y * grForm.layer.height() / grForm.sourcePixmapThumb.height()  # changed sourcePixmap to layer  29/12/19
         # set source starting point
         grForm.layer.sourceX, grForm.layer.sourceY = x, y
@@ -66,11 +67,11 @@ class BWidgetImg(QLabel):
         grForm = self.grForm
         if grForm.layer.marker is not None:
             x, y = grForm.layer.marker.x() * grForm.sourcePixmapThumb.width() / grForm.sourcePixmap.width(), \
-                        grForm.layer.marker.y() * grForm.sourcePixmapThumb.height() / grForm.sourcePixmap.height()
+                   grForm.layer.marker.y() * grForm.sourcePixmapThumb.height() / grForm.sourcePixmap.height()
             qp.drawEllipse(x, y, 10, 10)
 
 
-class patchForm (baseForm):
+class patchForm(baseForm):
     """
     Seamless cloning form.
     """
@@ -135,7 +136,8 @@ class patchForm (baseForm):
                 dlgWarn('A source image is already open', 'Reset the cloning layer before\nloading a new image')
             lastDir = str(window.settings.value('paths/dlgdir', '.'))
             filter = "Images ( *" + " *".join(IMAGE_FILE_EXTENSIONS) + ")"
-            dlg = QFileDialog( window.__repr__.__self__, "select", lastDir, filter) # QFileDialog does not accept weakProxy arg
+            dlg = QFileDialog(window.__repr__.__self__, "select", lastDir,
+                              filter)  # QFileDialog does not accept weakProxy arg
             if dlg.exec_():
                 filenames = dlg.selectedFiles()
                 newDir = dlg.directory().absolutePath()
@@ -174,27 +176,26 @@ class patchForm (baseForm):
         layout.addWidget(self.listWidget3)
         hl = QHBoxLayout()
         hl.addWidget(pushButton1)
-        #hl.addWidget(self.listWidget3)
+        # hl.addWidget(self.listWidget3)
         hl.addWidget(pushButton2)
         layout.addLayout(hl)
-
 
         self.setDefaults()
 
         self.setWhatsThis(
-                            """
-                            <b>Cloning/healing brush</b><br>
-                            Seamless replacement of a region of the image by another region of the same image 
-                            or by another image (e.g. to erase an object):<br>
-                               &nbsp; 1) <b> Make sure that the cloning layer is the topmost visible layer</b><br>
-                               &nbsp; 2) With the <i>Pointer Tool</i> selected, <b>Ctrl+Alt+Click</b>
-                                          on the layer or the source window to mark the source starting point;<br> 
-                               &nbsp; 3) Select the <i>Unmask/FG Tool</i> and paint the destination region to copy and clone pixels. 
-                                         Use <i>the Mask/BG Tool</i> to adjust the mask if needed. <br>
-                            Use <b>Ctrl+Alt+Mouse Wheel</b> to zoom in or out the cloned region.<br>
-                            Eventually use <b>Mask Erode</b> from the layer context menu to smooth the contour of the mask.<br>
-                            """
-                        )  # end of setWhatsthis
+            """
+            <b>Cloning/healing brush</b><br>
+            Seamless replacement of a region of the image by another region of the same image 
+            or by another image (e.g. to erase an object):<br>
+               &nbsp; 1) <b> Make sure that the cloning layer is the topmost visible layer</b><br>
+               &nbsp; 2) With the <i>Pointer Tool</i> selected, <b>Ctrl+Alt+Click</b>
+                          on the layer or the source window to mark the source starting point;<br> 
+               &nbsp; 3) Select the <i>Unmask/FG Tool</i> and paint the destination region to copy and clone pixels. 
+                         Use <i>the Mask/BG Tool</i> to adjust the mask if needed. <br>
+            Use <b>Ctrl+Alt+Mouse Wheel</b> to zoom in or out the cloned region.<br>
+            Eventually use <b>Mask Erode</b> from the layer context menu to smooth the contour of the mask.<br>
+            """
+        )  # end of setWhatsthis
 
     def __del__(self):
         print('patchForm deleted')
@@ -298,4 +299,3 @@ class patchForm (baseForm):
                 obj.__setstate__(d1[name])
         self.dataChanged.connect(self.updateLayer)
         self.dataChanged.emit()
-

@@ -23,6 +23,7 @@ import numpy as np
 from bLUeGui.spline import cubicSpline
 from bLUeTop.settings import DNG_PROFILES_DIR2, DNG_PROFILES_DIR1
 
+
 #########################################################################################
 # Functions and classes related to dng/dcp profile tags.
 # Compliant with the Adobe DNG specification.
@@ -94,6 +95,7 @@ class dngProfileToneCurve:
     and y-coordinates of the tone curve. They share the same length.
     All coordinates are floats in the interval [0, 1].
     """
+
     def __init__(self, buf):
         """
         Init the coordinates from a (str) decoded buffer of
@@ -130,6 +132,7 @@ class dngProfileLookTable:
     divs and data.shape are different.
     Input values for axis=i must be mapped to the (closed) interval  [0, divs[i]]
     """
+
     def __init__(self, dngDict):
         """
         Init a profile look table from a dictionary of (tagname, str) pairs.
@@ -139,7 +142,7 @@ class dngProfileLookTable:
         @type dngDict: dict
         """
         self.isValid = False
-        divs, encoding, data = dngDict.get('ProfileLookTableDims', None), dngDict.get('ProfileLookTableEncoding', None),\
+        divs, encoding, data = dngDict.get('ProfileLookTableDims', None), dngDict.get('ProfileLookTableEncoding', None), \
                                dngDict.get('ProfileLookTableData', None)
         if divs is None or data is None:  # encoding not used yet : it seems to be missing in dng files
             return
@@ -199,34 +202,35 @@ class dngProfileIlluminants:
     """
     Wrapper for the two illuminant temperatures
     """
-    ExifTemperatureDict = {                                     # TODO 16/11/18 some conversions from EXIF to temperatures need review
-                        0  : 0,    # Unknown
-                        1  : 5600, # Daylight
-                        2  : 3600, # Fluorescent
-                        3  : 3200, # Tungsten(incandescent light)
-                        4  : 6000, # Flash
-                        9  : 5600, # Fine weather
-                        10 : 6500, # Cloudy weather
-                        11 : 8000, # Shade
-                        12 : 5700, # Daylight fluorescent(D 5700 - 7100K)
-                        13 : 4600, # Day white fluorescent(N 4600 - 5400K)
-                        14 : 3900, # Cool white fluorescent(W 3900 - 4500K)
-                        15 : 3200, # White fluorescent(WW3200 - 3700K)
-                        17 : 2856, # Standard light A
-                        18 : 4874, # Standard light B
-                        19 : 6774, # Standard light C
-                        20 : 5500, # D55
-                        21 : 6500, # D65
-                        22 : 7500, # D75
-                        23 : 5000, # D50
-                        24 : 3200, # ISO studio tungsten
-                       255 : 6500  # Other light source
-                     }
+    ExifTemperatureDict = {  # TODO 16/11/18 some conversions from EXIF to temperatures need review
+        0: 0,  # Unknown
+        1: 5600,  # Daylight
+        2: 3600,  # Fluorescent
+        3: 3200,  # Tungsten(incandescent light)
+        4: 6000,  # Flash
+        9: 5600,  # Fine weather
+        10: 6500,  # Cloudy weather
+        11: 8000,  # Shade
+        12: 5700,  # Daylight fluorescent(D 5700 - 7100K)
+        13: 4600,  # Day white fluorescent(N 4600 - 5400K)
+        14: 3900,  # Cool white fluorescent(W 3900 - 4500K)
+        15: 3200,  # White fluorescent(WW3200 - 3700K)
+        17: 2856,  # Standard light A
+        18: 4874,  # Standard light B
+        19: 6774,  # Standard light C
+        20: 5500,  # D55
+        21: 6500,  # D65
+        22: 7500,  # D75
+        23: 5000,  # D50
+        24: 3200,  # ISO studio tungsten
+        255: 6500  # Other light source
+    }
 
     def __init__(self, dngDict):
         try:
-            illuminant1, illuminant2 = int(dngDict['CalibrationIlluminant1']),  int(dngDict['CalibrationIlluminant2'])
-            self.temperature1, self.temperature2 = self.ExifTemperatureDict[illuminant1], self.ExifTemperatureDict[illuminant2]
+            illuminant1, illuminant2 = int(dngDict['CalibrationIlluminant1']), int(dngDict['CalibrationIlluminant2'])
+            self.temperature1, self.temperature2 = self.ExifTemperatureDict[illuminant1], self.ExifTemperatureDict[
+                illuminant2]
         except (ValueError, KeyError) as e:
             print('dngProfileIlluminants : ', str(e))
             raise e
@@ -236,6 +240,7 @@ class dngProfileColorMatrices:
     """
     Wrapper for the two color matrices
     """
+
     def __init__(self, dngDict):
         try:
             for tag in ['ColorMatrix1', 'ColorMatrix2']:
@@ -260,12 +265,13 @@ class dngProfileForwardMatrices:
     """
     Wrapper for the two color matrices
     """
+
     def __init__(self, dngDict):
         try:
             for tag in ['ForwardMatrix1', 'ForwardMatrix2']:
                 M = dngDict.get(tag, None)
                 M = np.array([float(x) for x in M.split(' ')]).reshape(3, 3)
-                setattr(self, '_' + tag, M) # a single _ , as setattr does no mangling
+                setattr(self, '_' + tag, M)  # a single _ , as setattr does no mangling
         except (ValueError, KeyError) as e:
             print('dngProfileForwardMatrices : ', str(e))
             raise e
@@ -285,6 +291,7 @@ class dngProfileDual:
     An invalid or missing profile dictionary sets the
     property dngProfileDual.isValid to False.
     """
+
     def __init__(self, dngDict):
         self.__isValid = False
         try:
@@ -347,7 +354,7 @@ def interpolate(T, M1, M2, T1, T2):
     @return: interpolated matrix
     @rtype: ndarray
     """
-    T, T1, T2 = 1/T, 1/T1, 1/T2
+    T, T1, T2 = 1 / T, 1 / T1, 1 / T2
     # now T2 < T1
     if T >= T1:
         return M1

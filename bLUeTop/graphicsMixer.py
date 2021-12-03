@@ -65,7 +65,6 @@ class activeMixerPoint(activePoint):
 
 
 class mixerForm(baseGraphicsForm):
-
     """
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
@@ -82,8 +81,10 @@ class mixerForm(baseGraphicsForm):
         self.setAttribute(Qt.WA_DeleteOnClose)
         # options
         optionList = ['Monochrome', 'Luminosity']
-        listWidget1 = optionsWidget(options=optionList, exclusive=False, changed=self.dataChanged, flow=optionsWidget.LeftToRight)
-        listWidget1.setMaximumHeight(listWidget1.sizeHintForRow(0) + 5)  # mandatory although sizePolicy is set to minimum !
+        listWidget1 = optionsWidget(options=optionList, exclusive=False, changed=self.dataChanged,
+                                    flow=optionsWidget.LeftToRight)
+        listWidget1.setMaximumHeight(
+            listWidget1.sizeHintForRow(0) + 5)  # mandatory although sizePolicy is set to minimum !
         self.listWidget1 = listWidget1  # mandatory for __getstate__()
         self.options = listWidget1.options
         # barycentric coordinate basis : the 3 base points form an equilateral triangle
@@ -93,7 +94,7 @@ class mixerForm(baseGraphicsForm):
         # Conversion matrix from cartesian coordinates (x, y, 1) to barycentric coordinates (alpha, beta, gamma)
         self.M = np.array([[self.R.x(), self.G.x(), self.B.x()],
                            [self.R.y(), self.G.y(), self.B.y()],
-                           [1,            1,           1      ]])
+                           [1, 1, 1]])
         self.invM = np.linalg.inv(self.M)
         self.setBackgroundImage()
         # active points
@@ -119,14 +120,14 @@ class mixerForm(baseGraphicsForm):
         self.adjustSize()
         self.setViewportMargins(0, 0, 0, container.height())
         self.setWhatsThis(
-                        """<b>Channel Mixer</b><br>
-                        The triangle vertices and the three control points correspond to the R, G, B channels.<br>
-                        To <b>mix the channels</b>, drag the 3 control points inside the triangle.
-                        The closer a control point is to a vertex, the greater the corresponding channel contribution. <br>
-                        To obtain <b>monochrome images</b> only, check the option <i>Monochrome.</i><br>
-                        To modify the <b>luminosity channel</b> only (volume mode), check the option <i>Luminosity.</i><br>
-                        """
-                        )  # end of setWhatsThis
+            """<b>Channel Mixer</b><br>
+            The triangle vertices and the three control points correspond to the R, G, B channels.<br>
+            To <b>mix the channels</b>, drag the 3 control points inside the triangle.
+            The closer a control point is to a vertex, the greater the corresponding channel contribution. <br>
+            To obtain <b>monochrome images</b> only, check the option <i>Monochrome.</i><br>
+            To modify the <b>luminosity channel</b> only (volume mode), check the option <i>Luminosity.</i><br>
+            """
+        )  # end of setWhatsThis
 
     def updateLayer(self):
         """
@@ -134,7 +135,7 @@ class mixerForm(baseGraphicsForm):
         """
         if self.options['Monochrome']:
             for p in [self.gPoint, self.bPoint]:
-                    p.setPos(self.rPoint.pos())
+                p.setPos(self.rPoint.pos())
             self.scene().update()
         baryCoordR = self.invM @ [self.rPoint.x(), self.rPoint.y(), 1]
         baryCoordG = self.invM @ [self.gPoint.x(), self.gPoint.y(), 1]
@@ -174,7 +175,7 @@ class mixerForm(baseGraphicsForm):
         qp.drawLine(self.B, self.R)
         # draw center
         b = (self.B + self.R + self.G) / 3.0
-        qp.drawLine(b-QPointF(10, 0), b + QPointF(10, 0))
+        qp.drawLine(b - QPointF(10, 0), b + QPointF(10, 0))
         qp.drawLine(b - QPointF(0, 10), b + QPointF(0, 10))
         qp.end()
         self.scene().addItem(QGraphicsPixmapItem(QPixmap.fromImage(img)))

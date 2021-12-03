@@ -93,6 +93,7 @@ class segmentForm(baseForm):
             self.layer.isClipping = self.options['Clipping Layer']
             self.layer.applyToStack()
             self.layer.parentImage.onImageChanged()
+
         self.listWidget1.onSelect = g
 
         # layout
@@ -132,7 +133,7 @@ class segmentForm(baseForm):
               To <b>smooth the contour</b> right click the layer row in the <i>Layers</i> panel
               and choose <i>Smooth Mask</i> from the context menu.<br>
             """
-                        )  # end setWhatsThis
+        )  # end setWhatsThis
 
     def setDefaults(self):
         try:
@@ -179,6 +180,3 @@ class segmentForm(baseForm):
             obj = getattr(self, name, None)
             if type(obj) in [optionsWidget, QbLUeSpinBox]:
                 obj.__setstate__(d['state'][name])
-
-
-

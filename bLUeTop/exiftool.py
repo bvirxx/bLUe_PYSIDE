@@ -65,13 +65,14 @@ class ExifTool(object):
                 # console set to False.
                 startupinfo = subprocess.STARTUPINFO()
                 startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW  # prevent subprocess from opening a window.
-                startupinfo.wShowWindow = subprocess.SW_HIDE            # This is needed when the app is frozen with PyInstaller
+                startupinfo.wShowWindow = subprocess.SW_HIDE  # This is needed when the app is frozen with PyInstaller
 
             self.process = subprocess.Popen(
-                                        [self.executable, "-stay_open", "True",  "-@", "-"], # -@ FILE : read command line args from FILE, -stay_open True: keep reading -@ argFILE even after EOF
-                                        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,  # subprocess.DEVNULL
-                                        startupinfo=startupinfo
-                                       )
+                [self.executable, "-stay_open", "True", "-@", "-"],
+                # -@ FILE : read command line args from FILE, -stay_open True: keep reading -@ argFILE even after EOF
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,  # subprocess.DEVNULL
+                startupinfo=startupinfo
+            )
 
         except (AttributeError, OSError):
             dlgWarn("cannot execute exiftool :\nset EXIFTOOL_PATH in config.json")
@@ -157,7 +158,8 @@ class ExifTool(object):
         # following exif doc, wild cards do not copy icc_profile : we must specify it explicitly
         # Tag ImageDescription is added by tifffile to .blu files to hold the layer stack.
         # Copying it to sidecar will restore old stack.
-        command = ["-tagsFromFile", f, "-all", "-icc_profile", "-overwrite_original", "--ImageDescription", f[:-4] + ".mie"]
+        command = ["-tagsFromFile", f, "-all", "-icc_profile", "-overwrite_original", "--ImageDescription",
+                   f[:-4] + ".mie"]
         self.execute(*command)
 
     def copySidecar(self, source, dest, removesidecar=False):
@@ -349,8 +351,9 @@ class ExifTool(object):
         @return:
         @rtype: str
         """
-        command = ["-a", "-G0:1", "--ImageDescription", f]  # remove Imagej tag from output, G0:1 add group names to output
-        out = self.execute(* command)
+        command = ["-a", "-G0:1", "--ImageDescription",
+                   f]  # remove Imagej tag from output, G0:1 add group names to output
+        out = self.execute(*command)
         return out
 
 
@@ -369,8 +372,8 @@ def decodeExifOrientation(value):
         pass
     elif value == 1:
         pass
-    elif value == 6:    # TODO complete
-        tr.rotate(90)   # clockwise
+    elif value == 6:  # TODO complete
+        tr.rotate(90)  # clockwise
     elif value == 8:
         tr.rotate(-90)  # counterclockwise
     else:

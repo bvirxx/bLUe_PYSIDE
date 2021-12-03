@@ -23,7 +23,7 @@ from bLUeGui.graphicsForm import baseForm
 from bLUeTop.utils import optionsWidget, UDict
 
 
-class transForm (baseForm):
+class transForm(baseForm):
     """
     Geometric transformation form
     """
@@ -38,10 +38,13 @@ class transForm (baseForm):
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super().__init__(layer=layer, targetImage=targetImage, parent=parent)
         # options
-        optionList1, optionNames1 = ['Free', 'Rotation', 'Translation', 'Align'], ['Free Transformation', 'Rotation', 'Translation', 'Align']
-        self.listWidget1 = optionsWidget(options=optionList1, optionNames=optionNames1, exclusive=True, changed=self.dataChanged)
+        optionList1, optionNames1 = ['Free', 'Rotation', 'Translation', 'Align'], ['Free Transformation', 'Rotation',
+                                                                                   'Translation', 'Align']
+        self.listWidget1 = optionsWidget(options=optionList1, optionNames=optionNames1, exclusive=True,
+                                         changed=self.dataChanged)
         optionList2, optionNames2 = ['Transparent'], ['Set Transparent Pixels To Black']
-        self.listWidget2 = optionsWidget(options=optionList2, optionNames=optionNames2, exclusive=False, changed=self.dataChanged)
+        self.listWidget2 = optionsWidget(options=optionList2, optionNames=optionNames2, exclusive=False,
+                                         changed=self.dataChanged)
         self.options = UDict((self.listWidget1.options, self.listWidget2.options))
         # set initial selection to Perspective
         self.listWidget1.checkOption(optionList1[0])
@@ -64,15 +67,15 @@ class transForm (baseForm):
         self.adjustSize()
         self.setDefaults()
         self.setWhatsThis(
-                        """
-                        <b>Geometric transformation :</b><br>
-                          Choose a transformation type and drag either corner of the image 
-                          using the small square red buttons.<br>
-                          Ctrl+Alt+Drag to change the <b>initial positions</b> of buttons.<br>
-                          Check <i>Align</i> to align the image with the underlying layers (for example to blend bracketed images). 
-                          Note that this option may modify or cancel the current transformation.
-                        """
-                        )  # end of setWhatsThis
+            """
+            <b>Geometric transformation :</b><br>
+              Choose a transformation type and drag either corner of the image 
+              using the small square red buttons.<br>
+              Ctrl+Alt+Drag to change the <b>initial positions</b> of buttons.<br>
+              Check <i>Align</i> to align the image with the underlying layers (for example to blend bracketed images). 
+              Note that this option may modify or cancel the current transformation.
+            """
+        )  # end of setWhatsThis
 
     def setDefaults(self):
         try:
@@ -125,4 +128,3 @@ class transForm (baseForm):
 
 class imageForm(transForm):
     pass
-

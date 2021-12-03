@@ -41,6 +41,7 @@ class HDRMergeForm(baseForm):
         self.mergeButton = QPushButton('Refresh')
         self.mergeButton.setMaximumWidth(80)
         self.warn = QLabel('Use the layer context menu to\nadd or remove lower layers to merge.')
+
         # self.warn.setStyleSheet("QLabel {color : yellow; }")
 
         # button slot
@@ -60,11 +61,11 @@ class HDRMergeForm(baseForm):
         self.setLayout(l)
         self.adjustSize()
         self.setWhatsThis(
-                        """<b>Exposure Fusion</b>
-                        Use the layer context menu to select lower layers to merge. Next, press
-                        the <i>Refresh</i> button.<br>
-                        """
-                         )  # end setWhatsThis
+            """<b>Exposure Fusion</b>
+            Use the layer context menu to select lower layers to merge. Next, press
+            the <i>Refresh</i> button.<br>
+            """
+        )  # end setWhatsThis
 
         self.setDefaults()
 
@@ -74,5 +75,3 @@ class HDRMergeForm(baseForm):
 
     def setDefaults(self):
         pass
-
-

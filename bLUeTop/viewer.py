@@ -84,6 +84,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
         elif action.text() in ['0', '1', '2', '3', '4', '5']:
             with exiftool.ExifTool() as e:
                 e.writeXMPTag(name, 'XMP:rating', int(action.text()))
+
     # connect shortkey action
     actionEsc.triggered.connect(
         lambda checked=False, name=actionEsc: contextMenuHandler(name))  # named arg checked is sent
@@ -108,6 +109,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
             action.triggered.connect(
                 lambda checked=False, name=action: contextMenuHandler(name))  # named arg checked is sent
         menu.exec_(position)
+
     # connect contextMenuRequested
     newWin.customContextMenuRequested.connect(contextMenu)
     newWin.setToolTip("Esc to exit full screen mode")
@@ -184,6 +186,7 @@ class dragQListWidget(QListWidget):
     It reimplements mousePressEvent and inits
     a convenient QMimeData object for drag and drop events.
     """
+
     def mousePressEvent(self, event):
         # call to super needed for selections
         super().mousePressEvent(event)
@@ -238,7 +241,8 @@ class viewer:
         actionSub = QAction('Show SubFolders', None)
         actionSub.setCheckable(True)
         actionSub.setChecked(False)
-        actionSub.triggered.connect(lambda checked=False, action=actionSub: self.hSubfolders(action))  # named arg checked is always sent
+        actionSub.triggered.connect(
+            lambda checked=False, action=actionSub: self.hSubfolders(action))  # named arg checked is always sent
         self.actionSub = actionSub
         # init context menu
         self.initCMenu()
@@ -258,7 +262,7 @@ class viewer:
         listWdg.setViewMode(QListWidget.IconMode)
         # set icon and listWdg sizes
         listWdg.setIconSize(QSize(self.iconSize, self.iconSize))
-        listWdg.setMaximumSize(160000, self.iconSize+20)
+        listWdg.setMaximumSize(160000, self.iconSize + 20)
         listWdg.setDragDropMode(QAbstractItemView.DragDrop)
         listWdg.customContextMenuRequested.connect(self.contextMenu)
         # dock the form
@@ -272,11 +276,11 @@ class viewer:
         newWin.setCentralWidget(listWdg)
         self.listWdg = listWdg
         self.newWin.setWhatsThis(
-"""<b>Library Viewer</b><br>
-To <b>open context menu</b> right click on an icon or a selection.<br>
-To <b>open an image</b> drag it onto the main window.<br>
-<b>Rating</b> is shown as 0 to 5 stars below each icon.<br>
-"""
+            """<b>Library Viewer</b><br>
+            To <b>open context menu</b> right click on an icon or a selection.<br>
+            To <b>open an image</b> drag it onto the main window.<br>
+            <b>Rating</b> is shown as 0 to 5 stars below each icon.<br>
+            """
         )  # end setWhatsThis
 
     def initCMenu(self):
@@ -372,14 +376,15 @@ To <b>open an image</b> drag it onto the main window.<br>
         self.folder = folder
         if withsub:
             # browse the directory and its subfolders
-            fileListGen = (path.join(dirpath, filename) for (dirpath, dirnames, filenames) in walk(folder) for filename in
+            fileListGen = (path.join(dirpath, filename) for (dirpath, dirnames, filenames) in walk(folder) for filename
+                           in
                            filenames if
                            filename.endswith(IMAGE_FILE_EXTENSIONS) or filename.endswith(RAW_FILE_EXTENSIONS))
         else:
             fileListGen = (path.join(folder, filename) for filename in listdir(folder) if
                            isfile(path.join(folder, filename)) and (
-                                       filename.endswith(IMAGE_FILE_EXTENSIONS) or filename.endswith(
-                                   RAW_FILE_EXTENSIONS)))
+                                   filename.endswith(IMAGE_FILE_EXTENSIONS) or filename.endswith(
+                               RAW_FILE_EXTENSIONS)))
         return fileListGen
 
     def playViewer(self, folder):

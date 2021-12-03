@@ -25,8 +25,3 @@ LUTSIZE = LUT3D.defaultSize
 LUT3DIdentity = LUT3D(None, size=LUTSIZE)
 LUTSTEP = LUT3DIdentity.step
 LUT3D_ORI = LUT3DIdentity.LUT3DArray
-"""
-__a, __b, __c, __d = LUT3D_ORI.shape
-LUT3D_SHADOW = np.zeros((__a, __b, __c, __d+1))
-LUT3D_SHADOW[:,:,:,:3] = LUT3D_ORI
-"""

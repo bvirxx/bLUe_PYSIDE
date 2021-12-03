@@ -72,6 +72,7 @@ class mImage(vImage):
     To correctly render a mImage, widgets should override their
     paint event handler.
     """
+
     @staticmethod
     def restoreMeta(srcFile, destFile, defaultorientation=True, thumbfile=None):
         """
@@ -128,25 +129,25 @@ class mImage(vImage):
         return icc.workToMonTransform
 
     def copyStack(self, source):
-       """
-       Replaces layer stack, graphic forms and
-       meta data by these from source.
-       @param source:
-       @type source: mImage
-       """
-       self.meta = source.meta
-       self.onImageChanged = source.onImageChanged
-       self.useThumb = source.useThumb
-       self.useHald = source.useHald
-       self.rect = source.rect
-       for l in source.layersStack[1:]:
-           lr = QLayer.fromImage(l.scaled(self.size()), role=l.role, parentImage=self)
-           lr.execute = l.execute
-           lr.name = l.name
-           lr.view = l.view
-           lr.view.widget().targetImage = self
-           lr.view.widget().layer = lr
-           self.layersStack.append(lr)
+        """
+        Replaces layer stack, graphic forms and
+        meta data by these from source.
+        @param source:
+        @type source: mImage
+        """
+        self.meta = source.meta
+        self.onImageChanged = source.onImageChanged
+        self.useThumb = source.useThumb
+        self.useHald = source.useHald
+        self.rect = source.rect
+        for l in source.layersStack[1:]:
+            lr = QLayer.fromImage(l.scaled(self.size()), role=l.role, parentImage=self)
+            lr.execute = l.execute
+            lr.name = l.name
+            lr.view = l.view
+            lr.view.widget().targetImage = self
+            lr.view.widget().layer = lr
+            self.layersStack.append(lr)
 
     def resized(self, w, h, keepAspectRatio=True, interpolation=cv2.INTER_CUBIC):
         """
@@ -249,9 +250,9 @@ class mImage(vImage):
             currentWin.activateWindow()
 
         # if layer.tool is not None:
-            # layer.tool.moveRotatingTool()  # TODO added 23/11/21 keep last
+        # layer.tool.moveRotatingTool()  # TODO added 23/11/21 keep last
 
-        #active = self.getActiveLayer()
+        # active = self.getActiveLayer()
         if layer.tool is not None and layer.visible:
             layer.tool.showTool()
         self.onActiveLayerChanged()
@@ -278,7 +279,7 @@ class mImage(vImage):
         x, y = self.full2CurrentXY(x, y)
         activeLayer = self.getActiveLayer()
         qClr = activeLayer.inputImg(redo=False).pixelColor(x, y) if fromInputImg \
-                                else activeLayer.getCurrentImage().pixelColor(x, y)
+            else activeLayer.getCurrentImage().pixelColor(x, y)
         # pixelColor returns an invalid color if (x,y) is out of range
         # we return black
         if not qClr.isValid():
@@ -356,7 +357,7 @@ class mImage(vImage):
         trialname = name.lower() if len(name) > 0 else 'noname'
         while trialname.lower() in usedNames:
             trialname = name + '_' + str(a)
-            a = a+1
+            a = a + 1
         if layer is None:
             layer = QLayer(QImg=self, parentImage=self)
             layer.fill(Qt.white)
@@ -466,7 +467,7 @@ class mImage(vImage):
         if layer0.isAdjustLayer():
             return
         layer1 = QLayer.fromImage(layer0, parentImage=self)
-        self.addLayer(layer1, name=layer0.name, index=index+1)
+        self.addLayer(layer1, name=layer0.name, index=index + 1)
 
     def mergeVisibleLayers(self):
         """
@@ -543,6 +544,7 @@ class mImage(vImage):
         @return: thumbnail of the saved image
         @rtype: QImage
         """
+
         def transparencyCheck(buf, fileformat):
             if fileFormat.upper() not in ['.JPG', '.TIF']:
                 return
@@ -602,13 +604,13 @@ class mImage(vImage):
             # records current state and save to bLU file
             names, mask_list, image_list = self.snap()
 
-            if  self.sourceformat in RAW_FILE_EXTENSIONS:
+            if self.sourceformat in RAW_FILE_EXTENSIONS:
                 # copy raw file and layer stack to .bLU
                 originFormat = self.filename[-4:]  # format of opened document
-                if originFormat in BLUE_FILE_EXTENSIONS: # format of source file
+                if originFormat in BLUE_FILE_EXTENSIONS:  # format of source file
                     with tifffile.TiffFile(self.filename) as tfile:
                         sourcedata = tfile.series[0].pages[0].asarray()
-                        buf_ori  = sourcedata[0]  # [:, 0]
+                        buf_ori = sourcedata[0]  # [:, 0]
                 elif originFormat in RAW_FILE_EXTENSIONS:
                     with open(self.filename, 'rb') as f:
                         bytes = f.read()
@@ -648,8 +650,8 @@ class mImage(vImage):
                 buf_ori = QImageBuffer(img_ori).copy()
                 # BGRA to RGBA conversion needed : to reload image
                 # the bLU file will be read as tiff file by QImageReader
-                tmpview = buf_ori[...,:3]
-                tmpview[...] = tmpview[...,::-1]
+                tmpview = buf_ori[..., :3]
+                tmpview[...] = tmpview[..., ::-1]
                 images[0, ...] = buf_ori
 
                 i = 1
@@ -685,6 +687,7 @@ class imImage(mImage):
     Zoomable and draggable multi-layer image :
     this is the base class for bLUe documents
     """
+
     @staticmethod
     def loadImageFromFile(f, rawiobuf=None, createsidecar=True, icc=icc, cmsConfigure=False, window=None):
         """
@@ -709,11 +712,11 @@ class imImage(mImage):
         try:
             with exiftool.ExifTool() as e:
                 profile, metadata = e.get_metadata(f,
-                                                   tags=( "colorspace",
-                                                          "profileDescription",
-                                                          "orientation",
-                                                          "model",
-                                                          "rating"),
+                                                   tags=("colorspace",
+                                                         "profileDescription",
+                                                         "orientation",
+                                                         "model",
+                                                         "rating"),
                                                    createsidecar=createsidecar)
                 imageInfo = e.get_formatted_metadata(f)
         except ValueError:
@@ -823,7 +826,6 @@ class imImage(mImage):
         img.setProfile(cmsProfile)
         return img
 
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.savedBtnValues = {}  # saving of app button states for multi-docs edition
@@ -902,6 +904,7 @@ class QLayer(vImage):
     """
     Base class for image layers
     """
+
     @classmethod
     def fromImage(cls, mImg, role='', parentImage=None):
         """
@@ -990,7 +993,7 @@ class QLayer(vImage):
         return self._mask
 
     @mask.setter
-    def mask(self, m): # the setter is NOT inherited from bImage
+    def mask(self, m):  # the setter is NOT inherited from bImage
         self._mask = m
 
     def getGraphicsForm(self):
@@ -1024,7 +1027,7 @@ class QLayer(vImage):
                 dock.setAttribute(Qt.WA_DeleteOnClose)
                 dock.setParent(None)
                 dock.close()
-                dock.__dict__.clear() # TODO awful - prepare for gc - probably useless test needed 30/11/21 validate
+                dock.__dict__.clear()  # TODO awful - prepare for gc - probably useless test needed 30/11/21 validate
                 # self.view = None  # TODO removed 29/11/21 validate
             else:  # tabbed forms should not be closed
                 temp = dock.tabbed
@@ -1044,7 +1047,7 @@ class QLayer(vImage):
         closeDock(view, delete=delete)
         if delete:  # TODO modified 29/11/21 validate
             form.subControls = []
-            self.execute = None # TODO prepare for gc  probably useless test needed 30/11/21 validate
+            self.execute = None  # TODO prepare for gc  probably useless test needed 30/11/21 validate
             self.view = None
             self.__dict__.clear()
 
@@ -1081,7 +1084,7 @@ class QLayer(vImage):
         except RuntimeError:
             pass
         tool.layer.visibilityChanged.sig.connect(tool.setVisible)
-        tool.img = weakProxy(self.parentImage) # TODO added weakProxy 28/11/21 validate
+        tool.img = weakProxy(self.parentImage)  # TODO added weakProxy 28/11/21 validate
         w, h = tool.img.width(), tool.img.height()
         for role, pos in zip(['topLeft', 'topRight', 'bottomRight', 'bottomLeft'],
                              [QPoint(0, 0), QPoint(w, 0), QPoint(w, h), QPoint(0, h)]):
@@ -1263,16 +1266,17 @@ class QLayer(vImage):
         else:
             img = self.maskedImageContainer
         # reset the container
-        img.fill(QColor(0,0,0,0))  # TODO added 10/04/20 : needed for (semi-)transparent background - validate
+        img.fill(QColor(0, 0, 0, 0))  # TODO added 10/04/20 : needed for (semi-)transparent background - validate
         # blend lower stack
         qp = QPainter(img)
         top = self.parentImage.getStackIndex(self)
         bottom = 0
-        for i, layer in enumerate(self.parentImage.layersStack[bottom:top+1]):
+        for i, layer in enumerate(self.parentImage.layersStack[bottom:top + 1]):
             if layer.visible:
                 if i == 0:
                     qp.setCompositionMode(QPainter.CompositionMode_Source)
-                    qp.setOpacity(layer.opacity)  # TODO added 10/04/20 : enables semi transparent background layer - validate
+                    qp.setOpacity(
+                        layer.opacity)  # TODO added 10/04/20 : enables semi transparent background layer - validate
                 else:
                     qp.setOpacity(layer.opacity)
                     if type(layer.compositionMode) is QPainter.CompositionMode:
@@ -1288,7 +1292,7 @@ class QLayer(vImage):
                     if layer.compositionMode == -1:
                         buf[...] = blendLuminosityBuf(buf, buf0) * layer.opacity + buf * (1.0 - layer.opacity)
                     elif layer.compositionMode == -2:
-                        buf[...] = blendColorBuf(buf, buf0)  * layer.opacity + buf * (1.0 - layer.opacity)
+                        buf[...] = blendColorBuf(buf, buf0) * layer.opacity + buf * (1.0 - layer.opacity)
                 # clipping
                 if layer.isClipping and layer.maskIsEnabled:
                     # draw mask as opacity mask
@@ -1303,6 +1307,7 @@ class QLayer(vImage):
         """
         Apply new layer parameters and propagate changes to upper layers.
         """
+
         # recursive function
         def applyToStack_(layer, pool=None):
             # apply transformation
@@ -1310,7 +1315,7 @@ class QLayer(vImage):
                 start = time()
                 layer.execute(l=layer)
                 layer.cacheInvalidate()
-                print("%s %.2f" % (layer.name, time()-start))
+                print("%s %.2f" % (layer.name, time() - start))
             stack = layer.parentImage.layersStack
             lg = len(stack)
             ind = layer.getStackIndex() + 1
@@ -1328,6 +1333,7 @@ class QLayer(vImage):
             if ind < lg:
                 layer1 = stack[ind]
                 applyToStack_(layer1, pool=pool)
+
         try:
             QApplication.setOverrideCursor(Qt.WaitCursor)
             QApplication.processEvents()
@@ -1338,6 +1344,7 @@ class QLayer(vImage):
             self.parentImage.setModified(True)
             QApplication.restoreOverrideCursor()
             QApplication.processEvents()
+
     """
     def applyToStackIter(self):
         #iterative version of applyToStack
@@ -1401,7 +1408,7 @@ class QLayer(vImage):
         # apply layer transformation. Missing pixels are set to QColor(0,0,0,0)
         if self.xOffset != 0 or self.yOffset != 0:
             x, y = self.full2CurrentXY(self.xOffset, self.yOffset)
-            rImg = rImg.copy(QRect(-x, -y, rImg.width()*self.Zoom_coeff, rImg.height()*self.Zoom_coeff))
+            rImg = rImg.copy(QRect(-x, -y, rImg.width() * self.Zoom_coeff, rImg.height() * self.Zoom_coeff))
         if self.maskIsEnabled:
             rImg = vImage.visualizeMask(rImg, self.mask, color=self.maskIsSelected)
         self.rPixmap = QPixmap.fromImage(rImg)
@@ -1438,7 +1445,7 @@ class QLayer(vImage):
         """
         stack = self.parentImage.layersStack
         lg = len(stack)
-        for i in range(lg-1, -1, -1):
+        for i in range(lg - 1, -1, -1):
             if stack[i].visible:
                 return i
         return -1
@@ -1452,7 +1459,7 @@ class QLayer(vImage):
         """
         ind = self.getStackIndex()
         stack = self.parentImage.layersStack
-        for i in range(ind-1, -1, -1):
+        for i in range(ind - 1, -1, -1):
             if stack[i].visible:
                 return i
         return -1
@@ -1470,7 +1477,7 @@ class QLayer(vImage):
         ind = self.getStackIndex()
         stack = self.parentImage.layersStack
         lg = len(stack) if stHeight is None else min(stHeight, len(stack))
-        for i in range(ind+1, lg, 1):
+        for i in range(ind + 1, lg, 1):
             if stack[i].visible:
                 return i
         return -1
@@ -1523,6 +1530,7 @@ class QLayer(vImage):
                 break
         self.group = []
     """
+
     def merge_with_layer_immediately_below(self):
         """
         Merges a layer with the next lower visible layer. Does nothing
@@ -1545,7 +1553,7 @@ class QLayer(vImage):
         if type(self.compositionMode) is QPainter.CompositionMode:
             qp = QPainter(target)
             qp.setCompositionMode(self.compositionMode)
-            #qp.setOpacity(self.opacity)
+            # qp.setOpacity(self.opacity)
             qp.drawImage(QRect(0, 0, self.width(), self.height()), self)
             qp.end()
         else:
@@ -1598,7 +1606,7 @@ class QLayer(vImage):
         d['mergingFlag'] = self.mergingFlag
         d['mask'] = 0 if self._mask is None else 1  # used by addAdjustmentLayers()
         aux = [0 if getattr(self, name, None) is None else 1 for name in self.innerImages]
-        d['images'] = (*aux, )  #len(self.innerImages) # used by addAdjustmentLayers()
+        d['images'] = (*aux,)  # len(self.innerImages) # used by addAdjustmentLayers()
         return d
 
     def __setstate__(self, state):
@@ -1685,6 +1693,7 @@ class QCloningLayer(QLayer):
     To make mask retouching easier, the binary cloning mask
     is taken from the destination image
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.role = 'CLONING'
@@ -1709,6 +1718,7 @@ class QCloningLayer(QLayer):
     @sourceImg.setter
     def sourceImg(self, img):
         self.getGraphicsForm().sourceImage = img
+
     ############################################
 
     def inputImg(self, redo=True, drawTranslated=False):  # True):
@@ -1785,10 +1795,10 @@ class QCloningLayer(QLayer):
             return
         # simplify contours and get bounding rect
         epsilon = 0.01 * cv2.arcLength(conts[0], True)
-        bRect = QRect(* cv2.boundingRect(conts[0]))
+        bRect = QRect(*cv2.boundingRect(conts[0]))
         for cont in conts[1:]:
             acont = cv2.approxPolyDP(cont, epsilon, True)
-            bRect |= QRect(* cv2.boundingRect(acont))  # union
+            bRect |= QRect(*cv2.boundingRect(acont))  # union
         if not bRect.isValid():
             dlgWarn("seamlessMerge : no cloning region found")
             return
@@ -1796,7 +1806,7 @@ class QCloningLayer(QLayer):
         bt, bb, bl, br = inRect.top(), inRect.bottom(), inRect.left(), inRect.right()
         # cv2.seamlesClone uses a white mask, so we turn cloning_mask into
         # a 3-channel buffer.
-        src_maskBuf = np.dstack((cloning_mask, cloning_mask, cloning_mask)).astype(np.uint8)[bt:bb+1, bl:br+1, :]
+        src_maskBuf = np.dstack((cloning_mask, cloning_mask, cloning_mask)).astype(np.uint8)[bt:bb + 1, bl:br + 1, :]
         sourceBuf = QImageBuffer(inImg)
         destBuf = QImageBuffer(outImg)
         # clone the unmasked region of source into dest.
@@ -1804,35 +1814,35 @@ class QCloningLayer(QLayer):
             sourceBuf = sourceBuf[bt:bb + 1, bl:br + 1, :]
             destBuf = destBuf[bt:bb + 1, bl:br + 1, :]
             output = cv2.seamlessClone(np.ascontiguousarray(sourceBuf[:, :, :3]),  # source
-                                       np.ascontiguousarray(destBuf[:, :, :3]),    # dest
+                                       np.ascontiguousarray(destBuf[:, :, :3]),  # dest
                                        src_maskBuf,
-                                       ((br-bl)//2, (bb-bt)//2),  # The cloning center is the center of bRect.
+                                       ((br - bl) // 2, (bb - bt) // 2),  # The cloning center is the center of bRect.
                                        cloningMethod
                                        )
             destBuf[:, :, :3] = output
         else:
             output = seamlessClone(sourceBuf[:, :, :3],
-                                    destBuf[:, :, :3],
-                                    cloning_mask,
-                                    conts,
-                                    bRect,
-                                    (0, 0),
-                                    (0, 0),
-                                    w=w,
+                                   destBuf[:, :, :3],
+                                   cloning_mask,
+                                   conts,
+                                   bRect,
+                                   (0, 0),
+                                   (0, 0),
+                                   w=w,
                                    passes=2)
             destBuf[:, :, :3] = output
 
     def __getstate__(self):
-        #tmp = self.innerImages
-        #if self.sourceImg is None:
-            #self.innerImages = []  # no image to save
+        # tmp = self.innerImages
+        # if self.sourceImg is None:
+        # self.innerImages = []  # no image to save
         d = super().__getstate__()
         d['sourceX'] = self.sourceX
         d['sourceY'] = self.sourceY
         d['xAltOffset'] = self.xAltOffset
         d['yAltOffset'] = self.yAltOffset
         d['cloningState'] = self.cloningState
-        #self.innerImages = tmp # restore
+        # self.innerImages = tmp # restore
         return d
 
     def __setstate__(self, d):
@@ -1846,6 +1856,7 @@ class QCloningLayer(QLayer):
         self.updateCloningMask()
         self.applyCloning()
 
+
 class QLayerImage(QLayer):
     """
     QLayer containing a source image.
@@ -1854,6 +1865,7 @@ class QLayerImage(QLayer):
     contribution to the stack is reduced to applyNone().
     The source image is resized to fit the size of the current document.
     """
+
     @staticmethod
     def fromImage(mImg, parentImage=None, sourceImg=None):
         layer = QLayerImage(QImg=mImg, parentImage=parentImage)
@@ -1877,7 +1889,7 @@ class QLayerImage(QLayer):
         self.sourceImg = None
         self.filename = ''  # path to sourceImg file
         # bLU files must eventually save/restore source image
-        self.innerImages = ('sourceImg', )
+        self.innerImages = ('sourceImg',)
 
     def inputImg(self, redo=True):
         """
@@ -1903,7 +1915,7 @@ class QLayerImage(QLayer):
             if self.compositionMode == -1:
                 buf[...] = blendLuminosityBuf(buf, buf0.astype(np.uint8))
             elif self.compositionMode == -2:
-                buf[...] = blendColorBuf(buf,  buf0.astype(np.uint8))
+                buf[...] = blendColorBuf(buf, buf0.astype(np.uint8))
         return img1
 
     def bTransformed(self, transformation, parentImage):

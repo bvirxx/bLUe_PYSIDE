@@ -60,7 +60,7 @@ class splitWindow:
             self.mainWin.label_2.img.xOffset = self.mainWin.label_3.img.xOffset
         else:
             # Only Before window
-            self.mainWin.label_2.img.xOffset, self.mainWin.label_2.img.yOffset = self.mainWin.label_3.img.xOffset,\
+            self.mainWin.label_2.img.xOffset, self.mainWin.label_2.img.yOffset = self.mainWin.label_3.img.xOffset, \
                                                                                  self.mainWin.label_3.img.yOffset
             self.mainWin.label_3.hide()
         self.mainWin.label_2.update()

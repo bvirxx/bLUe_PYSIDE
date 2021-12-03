@@ -50,8 +50,8 @@ class graphicsLabForm(graphicsCurveForm):
         cubic.channel = channelValues.L
         # get histogram as a Qimage
         cubic.histImg = graphicsScene.layer.inputImg().histogram(size=graphicsScene.axeSize,
-                                                                    bgColor=graphicsScene.bgColor, range=(0, 1),
-                                                                    chans=channelValues.L, mode='Lab')
+                                                                 bgColor=graphicsScene.bgColor, range=(0, 1),
+                                                                 chans=channelValues.L, mode='Lab')
         # L curve use the default axes
         cubic.axes = graphicsScene.defaultAxes
         cubic.initFixedPoints()
@@ -65,12 +65,12 @@ class graphicsLabForm(graphicsCurveForm):
         graphicsScene.cubicG = cubic
         cubic.channel = channelValues.a
         cubic.histImg = graphicsScene.layer.inputImg().histogram(size=graphicsScene.axeSize,
-                                                                    bgColor=graphicsScene.bgColor, range=(-100, 100),
-                                                                    chans=channelValues.a, mode='Lab')
+                                                                 bgColor=graphicsScene.bgColor, range=(-100, 100),
+                                                                 chans=channelValues.a, mode='Lab')
         #  add specific axes
         gradient = QRadialGradient()
         gradient.setCenter(QPoint(0, 1))
-        gradient.setRadius(axeSize*1.4)
+        gradient.setRadius(axeSize * 1.4)
         gradient.setColorAt(0.0, Qt.green)
         gradient.setColorAt(1.0, Qt.magenta)
         cubic.axes = self.drawPlotGrid(axeSize, gradient)
@@ -85,8 +85,8 @@ class graphicsLabForm(graphicsCurveForm):
         graphicsScene.cubicB = cubic
         cubic.channel = channelValues.b
         cubic.histImg = graphicsScene.layer.inputImg().histogram(size=graphicsScene.axeSize,
-                                                                    bgColor=graphicsScene.bgColor, range=(-100, 100),
-                                                                    chans=channelValues.b, mode='Lab')
+                                                                 bgColor=graphicsScene.bgColor, range=(-100, 100),
+                                                                 chans=channelValues.b, mode='Lab')
         # add specific axes
         gradient.setColorAt(0.0, Qt.blue)
         gradient.setColorAt(1.0, Qt.yellow)
@@ -128,6 +128,7 @@ class graphicsLabForm(graphicsCurveForm):
             # Force to redraw  histogram
             self.scene().invalidate(QRectF(0.0, -self.scene().axeSize, self.scene().axeSize, self.scene().axeSize),
                                     QGraphicsScene.BackgroundLayer)
+
         self.listWidget1.onSelect = onSelect1
         # set initial selection to L
         item = self.listWidget1.items[options[0]]
@@ -139,6 +140,7 @@ class graphicsLabForm(graphicsCurveForm):
             l = graphicsScene.layer
             l.applyToStack()
             l.parentImage.onImageChanged()
+
         self.scene().cubicR.curveChanged.sig.connect(f)
         self.scene().cubicG.curveChanged.sig.connect(f)
         self.scene().cubicB.curveChanged.sig.connect(f)
@@ -269,15 +271,15 @@ class graphicsLabForm(graphicsCurveForm):
             #############
             # a, b curves
             #############
-            corr = cubicL.size/8
+            corr = cubicL.size / 8
             for i, cubic in enumerate([cubica, cubicb]):
                 fp = cubic.fixedPoints
                 scale = cubic.size / (127 * 2.0)
                 wPoint = a * scale if i == 0 else b * scale
                 # remove all control points but the first and the last
                 for p in list(fp[1:-1]):
-                        fp.remove(p)
-                        sc.removeItem(p)
+                    fp.remove(p)
+                    sc.removeItem(p)
                 # according to the sign of wPoint, shift horizontally
                 # first or last control point by 2*wPoint
                 wPoint *= 2.0
@@ -314,20 +316,20 @@ class graphicsLabForm(graphicsCurveForm):
         sc = self.scene()
         if curve is sc.cubicR:
             curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize,
-                                                        bgColor=sc.bgColor, range=(0, 1),
-                                                        chans=channelValues.L, mode='Lab')
+                                                          bgColor=sc.bgColor, range=(0, 1),
+                                                          chans=channelValues.L, mode='Lab')
         elif curve is sc.cubicG:
             curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize,
-                                                        bgColor=sc.bgColor, range=(-100, 100),
-                                                        chans=channelValues.a, mode='Lab')
+                                                          bgColor=sc.bgColor, range=(-100, 100),
+                                                          chans=channelValues.a, mode='Lab')
         elif curve is sc.cubicB:
             curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize,
-                                                        bgColor=sc.bgColor, range=(-100, 100),
-                                                        chans=channelValues.b, mode='Lab')
+                                                          bgColor=sc.bgColor, range=(-100, 100),
+                                                          chans=channelValues.b, mode='Lab')
         # Force to redraw the histogram
         if redraw:
             sc.invalidate(QRectF(0.0, -sc.axeSize, sc.axeSize, sc.axeSize),
-                            sc.BackgroundLayer)
+                          sc.BackgroundLayer)
 
     def updateHists(self):
         """
@@ -340,7 +342,7 @@ class graphicsLabForm(graphicsCurveForm):
             self.updateHist(curve, redraw=False)
         # Force to redraw histogram
         sc.invalidate(QRectF(0.0, -sc.axeSize, sc.axeSize, sc.axeSize),
-                        sc.BackgroundLayer)
+                      sc.BackgroundLayer)
 
     def resetCurve(self):
         """
@@ -386,4 +388,3 @@ class graphicsLabForm(graphicsCurveForm):
         sc = self.scene()
         for name in ['cubicR', 'cubicG', 'cubicB']:
             getattr(sc, name).__setstate__(d['state'][name])
-

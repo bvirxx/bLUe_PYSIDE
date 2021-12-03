@@ -25,7 +25,7 @@ from bLUeTop.drawing import brushFamily
 from bLUeTop.utils import QbLUeSlider
 
 
-class drawForm (baseForm):
+class drawForm(baseForm):
     """
     Drawing form
     """
@@ -50,7 +50,7 @@ class drawForm (baseForm):
 
         spacingSlider = QbLUeSlider(Qt.Horizontal)
         spacingSlider.setObjectName('spacingSlider')
-        spacingSlider.setRange(1,60)
+        spacingSlider.setRange(1, 60)
         spacingSlider.setTickPosition(QSlider.TicksBelow)
         spacingSlider.setSliderPosition(10)
         spacingSlider.sliderReleased.connect(self.parent().label.brushUpdate)
@@ -78,8 +78,8 @@ class drawForm (baseForm):
 
         # sample
         self.sample = QLabel()
-        #self.sample.setMinimumSize(200, 100)
-        pxmp = QPixmap(250,100)
+        # self.sample.setMinimumSize(200, 100)
+        pxmp = QPixmap(250, 100)
         pxmp.fill(QColor(255, 255, 255, 255))
         self.sample.setPixmap(pxmp)
         qpp = QPainterPath()
@@ -116,11 +116,11 @@ class drawForm (baseForm):
 
         self.setDefaults()
         self.setWhatsThis(
-                        """
-                        <b>Drawing :</b><br>
-                          Choose a brush family, flow, hardness and opacity.
-                        """
-                        )  # end of setWhatsThis
+            """
+            <b>Drawing :</b><br>
+              Choose a brush family, flow, hardness and opacity.
+            """
+        )  # end of setWhatsThis
 
     def setDefaults(self):
         try:
@@ -141,13 +141,14 @@ class drawForm (baseForm):
 
     def updateSample(self):
         pxmp = self.sample.pixmap()
-        pxmp.fill(QColor(0,0,0,0))
+        pxmp.fill(QColor(0, 0, 0, 0))
         brushFamily.brushStrokePoly(pxmp, self.samplePoly, self.layer.brushDict)
         self.sample.repaint()
 
     def undo(self):
         try:
-            self.layer.sourceImg = self.layer.history.undo(saveitem=self.layer.sourceImg.copy()).copy()  # copy is mandatory
+            self.layer.sourceImg = self.layer.history.undo(
+                saveitem=self.layer.sourceImg.copy()).copy()  # copy is mandatory
             self.updateLayer()
         except ValueError:
             pass
@@ -169,7 +170,8 @@ class drawForm (baseForm):
             if type(obj) in [QbLUeSlider]:
                 d[a] = obj.__getstate__()
         brushDict = self.layer.brushDict
-        d['brush'] = {name : brushDict[name] for name in ['name', 'size', 'color', 'opacity', 'hardness', 'flow', 'spacing', 'jitter', 'orientation']}
+        d['brush'] = {name: brushDict[name] for name in
+                      ['name', 'size', 'color', 'opacity', 'hardness', 'flow', 'spacing', 'jitter', 'orientation']}
         return d
 
     def __setstate__(self, d):
@@ -199,9 +201,10 @@ class drawForm (baseForm):
         bSpacing = bdict['spacing']
         bJitter = bdict['jitter']
         bOrientation = bdict['orientation']
-        #pattern = bdict['pattern']
+        # pattern = bdict['pattern']
         if family is not None:
-            self.layer.brushDict = family.getBrush(bSize, bOpacity, bColor, bHardness, bFlow, spacing=bSpacing, jitter=bJitter, orientation=bOrientation) # pattern=pattern
+            self.layer.brushDict = family.getBrush(bSize, bOpacity, bColor, bHardness, bFlow, spacing=bSpacing,
+                                                   jitter=bJitter, orientation=bOrientation)  # pattern=pattern
             self.mainForm.label.State['brush'] = self.layer.brushDict
 
         if self.layer.brushDict is None:  # no brush set yet

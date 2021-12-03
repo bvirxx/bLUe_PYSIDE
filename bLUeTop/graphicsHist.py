@@ -22,6 +22,7 @@ from PySide2.QtWidgets import QSizePolicy, QVBoxLayout, QLabel, QHBoxLayout
 from bLUeGui.graphicsForm import baseForm
 from bLUeTop.utils import optionsWidget, UDict
 
+
 class trackLabel(QLabel):
 
     def __init__(self, *args, **kwargs):
@@ -33,10 +34,12 @@ class trackLabel(QLabel):
     def mouseMoveEvent(self, e):
         self.parent().trackView.setText("%.0f" % (e.x() * self.drawingWidth / (self.drawingScale * self.width())))
 
-class histForm (baseForm):
+
+class histForm(baseForm):
     """
     Form for histogram viewing
     """
+
     def __init__(self, targetImage=None, size=200, layer=None, parent=None):
         super().__init__(layer=layer, targetImage=targetImage, parent=parent)
         self.mode = 'Luminosity'
@@ -44,7 +47,7 @@ class histForm (baseForm):
         self.setWindowTitle('Histogram')
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setMinimumSize(size, 100)
-        self.Label_Hist = trackLabel() #QLabel()
+        self.Label_Hist = trackLabel()  # QLabel()
         self.Label_Hist.setScaledContents(True)
         self.Label_Hist.setFocusPolicy(Qt.ClickFocus)
         self.setStyleSheet("QListWidget{border: 0px; font-size: 12px}")
@@ -54,9 +57,11 @@ class histForm (baseForm):
         self.listWidget1 = optionsWidget(options=options1, optionNames=optionNames1, exclusive=False)
         self.listWidget1.setFixedSize((self.listWidget1.sizeHintForColumn(0) + 15) * len(options1), 20)
         options2, optionNames2 = ['R', 'G', 'B', 'L'], ['R', 'G', 'B', 'L']
-        self.listWidget2 = optionsWidget(options=options2, optionNames=optionNames2, exclusive=False, flow=optionsWidget.LeftToRight)
-        #self.listWidget2.setFixedSize((self.listWidget2.sizeHintForRow(0) + 15) * len(options2), 20)
-        self.listWidget2.setFixedSize((self.listWidget2.sizeHintForRow(0) + 20) * len(options2), 20)  # + 20 needed to prevent scroll bar on ubuntu
+        self.listWidget2 = optionsWidget(options=options2, optionNames=optionNames2, exclusive=False,
+                                         flow=optionsWidget.LeftToRight)
+        # self.listWidget2.setFixedSize((self.listWidget2.sizeHintForRow(0) + 15) * len(options2), 20)
+        self.listWidget2.setFixedSize((self.listWidget2.sizeHintForRow(0) + 20) * len(options2),
+                                      20)  # + 20 needed to prevent scroll bar on ubuntu
         # default: show color hists only
         for i in range(3):
             self.listWidget2.checkOption(self.listWidget2.intNames[i])
@@ -90,13 +95,9 @@ class histForm (baseForm):
         h.addWidget(self.listWidget2)
         h.addStretch(1)
         vl = QVBoxLayout()
-        #vl.setAlignment(Qt.AlignTop)  prevent the histogram from stretching vertically
+        # vl.setAlignment(Qt.AlignTop)  prevent the histogram from stretching vertically
         vl.addWidget(self.Label_Hist)
         vl.addLayout(h)
         vl.setContentsMargins(0, 0, 0, 2)  # left, top, right, bottom
         self.setLayout(vl)
         self.adjustSize()
-
-
-
-

@@ -121,7 +121,8 @@ def rawPostProcess(rawLayer, pool=None):
 
     use_auto_wb = options['Auto WB']
     use_camera_wb = options['Camera WB']
-    exp_preserve_highlights = 0.99 if options['Preserve Highlights'] else 0.2  # 0.6  # range 0.0..1.0 (1.0 = full preservation)
+    exp_preserve_highlights = 0.99 if options[
+        'Preserve Highlights'] else 0.2  # 0.6  # range 0.0..1.0 (1.0 = full preservation)
     if doALL:
         ##############################
         # get postprocessing parameters
@@ -196,7 +197,8 @@ def rawPostProcess(rawLayer, pool=None):
             median_filter_passes=1
         )
         # save image to post processing cache
-        rawLayer.postProcessCache = cv2.cvtColor(((bufpost16.astype(np.float32)) / max_ouput).astype(np.float32), cv2.COLOR_RGB2HSV)
+        rawLayer.postProcessCache = cv2.cvtColor(((bufpost16.astype(np.float32)) / max_ouput).astype(np.float32),
+                                                 cv2.COLOR_RGB2HSV)
         rawLayer.half = half_size
         rawLayer.bufpost16 = bufpost16
     else:
@@ -211,7 +213,7 @@ def rawPostProcess(rawLayer, pool=None):
     # If we have no valid dng profile, we reinit the multipliers and
     # apply a Bradford chromatic adaptation matrix.
     m1, m2, m3 = adjustForm.asShotMultipliers[:3] if use_camera_wb else adjustForm.rawMultipliers[:3]
-    D = np.diag((1/m1, 1/m2, 1/m3))
+    D = np.diag((1 / m1, 1 / m2, 1 / m3))
     tempCorrection = adjustForm.asShotTemp if use_camera_wb else adjustForm.tempCorrection
     MM = bradfordAdaptationMatrix(6500, tempCorrection)
     MM1 = bradfordAdaptationMatrix(6500, 5000)
@@ -222,13 +224,14 @@ def rawPostProcess(rawLayer, pool=None):
             FM = interpolatedForwardMatrix(adjustForm.tempCorrection, adjustForm.dngDict)
         except ValueError:
             pass
-    raw2sRGBMatrix = sRGB_lin2XYZInverse @ MM1 @ FM * myHighlightPreservation if FM is not None else\
-                     sRGB_lin2XYZInverse @ MM @ adjustForm.XYZ2CameraInverseMatrix @ D
+    raw2sRGBMatrix = sRGB_lin2XYZInverse @ MM1 @ FM * myHighlightPreservation if FM is not None else \
+        sRGB_lin2XYZInverse @ MM @ adjustForm.XYZ2CameraInverseMatrix @ D
     bufpost16 = np.tensordot(rawLayer.bufpost16, raw2sRGBMatrix, axes=(-1, -1))
     M = np.max(bufpost16) / 255.0
     bufpost16 /= M
     np.clip(bufpost16, 0, 255, out=bufpost16)
-    rawLayer.postProcessCache = cv2.cvtColor(((bufpost16.astype(np.float32)) / max_ouput).astype(np.float32), cv2.COLOR_RGB2HSV)
+    rawLayer.postProcessCache = cv2.cvtColor(((bufpost16.astype(np.float32)) / max_ouput).astype(np.float32),
+                                             cv2.COLOR_RGB2HSV)
 
     # update histogram
     s = rawLayer.postProcessCache.shape

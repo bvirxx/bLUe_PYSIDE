@@ -21,9 +21,9 @@ from bLUeTop.utils import QbLUeSlider
 
 from PySide2.QtCore import Qt
 
-
 from bLUeGui.graphicsForm import baseForm
 from bLUeTop.lutUtils import LUTSIZE
+
 
 class graphicsFormAuto3DLUT(baseForm):
 
@@ -53,7 +53,7 @@ class graphicsFormAuto3DLUT(baseForm):
             QApplication.setOverrideCursor(Qt.WaitCursor)
             QApplication.processEvents()
             newWindow = graphicsFormAuto3DLUT(targetImage=targetImage, axeSize=axeSize, LUTSize=LUTSize,
-                                          layer=layer, parent=parent, mainForm=mainForm)
+                                              layer=layer, parent=parent, mainForm=mainForm)
             newWindow.setWindowTitle(layer.name)
         finally:
             QApplication.restoreOverrideCursor()
@@ -81,7 +81,7 @@ class graphicsFormAuto3DLUT(baseForm):
         self.helpId = "AutoLUT3DForm"
         self.border = 20
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        #self.setMinimumSize(axeSize + 90, axeSize + 250)
+        # self.setMinimumSize(axeSize + 90, axeSize + 250)
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.size = axeSize
 

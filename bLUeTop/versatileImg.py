@@ -56,6 +56,7 @@ from bLUeTop.mergeImages import expFusion
 from bLUeCore.bLUeLUT3D import LUT3D
 
 from bLUeTop.settings import HAS_TORCH
+
 if HAS_TORCH:
     from bLUeNN.classify import generateLUTfromQImage
 
@@ -69,9 +70,10 @@ class metadataBag:
     """
     Container for vImage meta data
     """
+
     def __init__(self, name=''):
         self.name, self.colorSpace, self.rawMetadata, self.profile, self.orientation, self.rating = \
-                                                              name, ColorSpace.notSpecified, {}, '', None, 5
+            name, ColorSpace.notSpecified, {}, '', None, 5
 
 
 class vImage(bImage):
@@ -192,7 +194,7 @@ class vImage(bImage):
         a = vImage.colorMask2BinaryArray(mask, invert=invert)
         return QBitmap.fromData(QSize(mask.size()), np.packbits(a))
 
-    @ classmethod
+    @classmethod
     def isAllMasked(cls, mask):
         buf = QImageBuffer(mask)
         if np.any(buf[:, :, 2] == cls.defaultColor_UnMasked.red()):
@@ -364,11 +366,11 @@ class vImage(bImage):
             # init metadata container
             self.meta = metadataBag()
             self.meta.name, self.meta.colorSpace, self.meta.rawMetadata, self.meta.profile, self.meta.orientation, self.meta.rating = \
-                                                                            name, colorSpace, rawMetadata, profile, orientation, rating
+                name, colorSpace, rawMetadata, profile, orientation, rating
         else:
             self.meta = meta
         self.colorSpace = self.meta.colorSpace
-        self.cmsProfile = None # icc.defaultWorkingProfile  # possibly does not match colorSpace : call setProfile()
+        self.cmsProfile = None  # icc.defaultWorkingProfile  # possibly does not match colorSpace : call setProfile()
         self.RGB_lin2XYZ = sRGB_lin2XYZ
         self.RGB_lin2XYZInverse = sRGB_lin2XYZInverse
         if filename is None and cv2Img is None and QImg is None:
@@ -384,14 +386,13 @@ class vImage(bImage):
                 tmp = QImage(filename)
             tmp = tmp.convertToFormat(format)
             if tmp.isNull():
-                raise ValueError('Cannot load %s\nSupported image formats\n%s' % (filename, QImageReader.supportedImageFormats()))
+                raise ValueError(
+                    'Cannot load %s\nSupported image formats\n%s' % (filename, QImageReader.supportedImageFormats()))
             # call to super is mandatory. Shallow copy : no harm !
             super().__init__(tmp)
         elif QImg is not None:
             # build image from QImage, shallow copy
             super().__init__(QImg)
-            # if hasattr(QImg, "meta"):
-                # self.meta = copy(QImg.meta)  # TODO removed 30/01/20 validate
         elif cv2Img is not None:
             # build image from buffer
             super().__init__(ndarrayToQImage(cv2Img, format=format))
@@ -411,7 +412,8 @@ class vImage(bImage):
             self.colorSpace = 1
         else:
             self.colorSpace = 65535
-        self.RGB_lin2XYZ = np.column_stack((profile.profile.red_colorant[0], profile.profile.green_colorant[0], profile.profile.blue_colorant[0]))
+        self.RGB_lin2XYZ = np.column_stack(
+            (profile.profile.red_colorant[0], profile.profile.green_colorant[0], profile.profile.blue_colorant[0]))
         self.RGB_lin2XYZInverse = np.linalg.inv(self.RGB_lin2XYZ)
 
     def setImage(self, qimg):
@@ -466,7 +468,7 @@ class vImage(bImage):
         """
         if not self.cachesEnabled:
             return
-        s = int(LUT3DIdentity.size**(3.0/2.0)) + 1
+        s = int(LUT3DIdentity.size ** (3.0 / 2.0)) + 1
         buf0 = LUT3DIdentity.toHaldArray(s, s).haldBuffer
         buf1 = QImageBuffer(self.Hald)
         buf1[:, :, :] = buf0
@@ -669,7 +671,7 @@ class vImage(bImage):
         rszd = vImage(cv2Img=cv2Img, meta=copy(self.meta), format=self.format())
         # resize rect and mask
         if self.rect is not None:
-            homX, homY = w / self.width() , h / self.height()
+            homX, homY = w / self.width(), h / self.height()
             rszd.rect = QRect(self.rect.left() * homX, self.rect.top() * homY, self.rect.width() * homX,
                               self.rect.height() * homY)
         if self.mask is not None:  # TODO for QLayer and subclasses this initializes the mask
@@ -747,9 +749,6 @@ class vImage(bImage):
         # mask center coordinates relative to full size image
         r = self.monts['m00']
         if (not self.conts) or r == 0:
-            # no mask found : reset
-            # if moving:  # TODO 17/12/19 removed for testing
-                #dlgWarn('No cloning destination found.', info='Use the Unmask/FG brush to select a cloning region')
             self.xAltOffset, self.yAltOffset = 0.0, 0.0
             self.AltZoom_coeff = 1.0
             seamless = False
@@ -775,7 +774,8 @@ class vImage(bImage):
         # The translation is adjusted to keep the point (xC_current, yC_current) invariant while zooming.
         ###################################################################################################
         qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
-        bRect = QRectF(currentAltX + (1 - self.AltZoom_coeff) * xC_current, currentAltY + (1 - self.AltZoom_coeff) * yC_current,
+        bRect = QRectF(currentAltX + (1 - self.AltZoom_coeff) * xC_current,
+                       currentAltY + (1 - self.AltZoom_coeff) * yC_current,
                        imgOut.width() * self.AltZoom_coeff, imgOut.height() * self.AltZoom_coeff)
         qp.drawPixmap(bRect, sourcePixmap, sourcePixmap.rect())
         qp.end()
@@ -793,7 +793,7 @@ class vImage(bImage):
                 # clone imgOut into imgInc
                 ###########################
                 self.seamlessMerge(imgInc, imgOut, self.mask, self.cloningMethod,
-                                     version="blue" if options['blue'] else 'opencv', w=16)
+                                   version="blue" if options['blue'] else 'opencv', w=16)
                 #########################################
                 # copy imgInc into imgOut.
                 # To ensure interactive mask
@@ -856,7 +856,8 @@ class vImage(bImage):
         if rect is not None:
             # inside rect: PR_FGD, outside BGD
             segMask = np.zeros((inputImg.height(), inputImg.width()), dtype=np.uint8) + cv2.GC_BGD
-            segMask[int(rect.top() * r):int(rect.bottom() * r), int(rect.left() * r):int(rect.right() * r)] = cv2.GC_PR_FGD
+            segMask[int(rect.top() * r):int(rect.bottom() * r),
+            int(rect.left() * r):int(rect.right() * r)] = cv2.GC_PR_FGD
         else:
             # everywhere : PR_BGD
             segMask = np.zeros((inputImg.height(), inputImg.width()), dtype=np.uint8) + cv2.GC_PR_BGD
@@ -882,7 +883,8 @@ class vImage(bImage):
         if not ((np.any(segMask == cv2.GC_FGD) or np.any(segMask == cv2.GC_PR_FGD))
                 and
                 (np.any(segMask == cv2.GC_BGD) or np.any(segMask == cv2.GC_PR_BGD))):
-            dlgWarn('You must select some background or foreground pixels', info='Use selection rectangle or Mask/Unmask tools')
+            dlgWarn('You must select some background or foreground pixels',
+                    info='Use selection rectangle or Mask/Unmask tools')
             return
         #############
         # do segmentation
@@ -897,7 +899,7 @@ class vImage(bImage):
         else:
             bGrabcut = cv2.grabCut_mt
         bGrabcut(inputBuf[:, :, :3], segMask, None, bgdmodel, fgdmodel, nbIter, mode)
-        print('%s : %.2f' % (bGrabcut.__name__, (time()-t0)))
+        print('%s : %.2f' % (bGrabcut.__name__, (time() - t0)))
 
         # back to mask
         unmasked = vImage.defaultColor_UnMasked.red()
@@ -920,7 +922,8 @@ class vImage(bImage):
             maxIterations = form.contourMargin
             ebuf = vImage.maskErode(buf.copy(), iterations=maxIterations)
             dbuf = vImage.maskDilate(buf.copy(), iterations=maxIterations)
-            m = ((buf[:, :, 2] == 0) & (ebuf[:, :, 2] == unmasked)) | ((buf[:, :, 2] == unmasked) & (dbuf[:, :, 2] == 0))
+            m = ((buf[:, :, 2] == 0) & (ebuf[:, :, 2] == unmasked)) | (
+                    (buf[:, :, 2] == unmasked) & (dbuf[:, :, 2] == 0))
             # mark contour pixels as invalid and others as valid : the contour only can be modified
             buf[:, :, 1] = np.where(m, invalid, 0)
 
@@ -969,7 +972,6 @@ class vImage(bImage):
         self.updatePixmap()
 
     def applyHDRMerge(self, options):
-        # form = self.getGraphicsForm()
         # search for layers to merge, below the merging layer
         stack = self.parentImage.layersStack
         i = self.getStackIndex()
@@ -1064,17 +1066,13 @@ class vImage(bImage):
         @param options:
         @type options:
         """
-        # if self.maskIsEnabled:
-            # dlgWarn("A masked layer cannot be transformed.\nDisable the mask")
-            # self.updatePixmap()
-            # return
         inImg = self.inputImg()
         outImg = self.getCurrentImage()
         buf0 = QImageBuffer(outImg)
         w, h = inImg.width(), inImg.height()
         s = w / self.width()
         D = QTransform().scale(s, s)
-        DInv = QTransform().scale(1/s, 1/s)
+        DInv = QTransform().scale(1 / s, 1 / s)
         q1Full, q2Full = self.tool.getSourceQuad(), self.tool.getTargetQuad()
         # map Quads to the current image coordinate system
         q1, q2 = D.map(q1Full), D.map(q2Full)
@@ -1096,7 +1094,7 @@ class vImage(bImage):
         rectTrans = DInv.map(T.map(D.map(QImage.rect(self)))).boundingRect()
         # apply the transformation and re-translate the transformed image
         # so that the resulting transformation is T and NOT that given by QImage.trueMatrix()
-        img = (inImg.transformed(T)).copy(QRect(-rectTrans.x()*s, -rectTrans.y()*s, w, h))
+        img = (inImg.transformed(T)).copy(QRect(-rectTrans.x() * s, -rectTrans.y() * s, w, h))
         # copy sets pixels beyond image to 0. To show these pixels
         # as black we set their alpha value to 255:
         if options['Transparent']:
@@ -1160,9 +1158,12 @@ class vImage(bImage):
         if adjustForm.options['Wavelets']:
             noisecorr *= 100
             bufLab = cv2.cvtColor(buf01, cv2.COLOR_RGB2Lab)
-            L = dwtDenoiseChan(bufLab, chan=0, thr=noisecorr, thrmode='wiener')  # level=8 if self.parentImage.useThumb else 11)
-            A = dwtDenoiseChan(bufLab, chan=1, thr=noisecorr, thrmode='wiener')  # level=8 if self.parentImage.useThumb else 11)
-            B = dwtDenoiseChan(bufLab, chan=2, thr=noisecorr, thrmode='wiener')  # level=8 if self.parentImage.useThumb else 11)
+            L = dwtDenoiseChan(bufLab, chan=0, thr=noisecorr,
+                               thrmode='wiener')  # level=8 if self.parentImage.useThumb else 11)
+            A = dwtDenoiseChan(bufLab, chan=1, thr=noisecorr,
+                               thrmode='wiener')  # level=8 if self.parentImage.useThumb else 11)
+            B = dwtDenoiseChan(bufLab, chan=2, thr=noisecorr,
+                               thrmode='wiener')  # level=8 if self.parentImage.useThumb else 11)
             np.clip(L, 0, 255, out=L)
             np.clip(A, 0, 255, out=A)
             np.clip(B, 0, 255, out=B)
@@ -1171,18 +1172,25 @@ class vImage(bImage):
             ROI1[:, :, ::-1] = cv2.cvtColor(bufLab.astype(np.uint8), cv2.COLOR_Lab2RGB)
         elif adjustForm.options['Bilateral']:
             ROI1[:, :, ::-1] = cv2.bilateralFilter(buf01,
-                                         9 if self.parentImage.useThumb else 15,    # 21:5.5s, 15:3.5s, diameter of
-                                                                                    # (coordinate) pixel neighborhood,
-                                                                                    # 5 is the recommended value for fast processing
-                                         10 * adjustForm.noiseCorrection,           # std deviation sigma
-                                                                                    # in color space,  100 middle value
-                                         50 if self.parentImage.useThumb else 150,  # std deviation sigma
-                                                                                    # in coordinate space,  100 middle value
-                                         )
+                                                   9 if self.parentImage.useThumb else 15,
+                                                   # diameter of
+                                                   # (coordinate) pixel neighborhood,
+                                                   # 5 is the recommended value for
+                                                   # fast processing (21:5.5s, 15:3.5s)
+                                                   10 * adjustForm.noiseCorrection,
+                                                   # std deviation sigma
+                                                   # in color space,  100 middle value
+                                                   50 if self.parentImage.useThumb else 150,
+                                                   # std deviation sigma
+                                                   # in coordinate space,
+                                                   # 100 middle value
+                                                   )
         elif adjustForm.options['NLMeans']:
-            ROI1[:, :, ::-1] = cv2.fastNlMeansDenoisingColored(buf01, None, 1+noisecorr, 1+noisecorr, 7, 21)  # hluminance, hcolor,  last params window sizes 7, 21 are recommended values
+            # hluminance, hcolor,  last params window sizes 7, 21 are recommended values
+            ROI1[:, :, ::-1] = cv2.fastNlMeansDenoisingColored(buf01, None, 1 + noisecorr, 1 + noisecorr, 7,
+                                                               21)
 
-        # forward the alpha channel
+            # forward the alpha channel
         buf1[:, :, 3] = buf0[:, :, 3]
         self.updatePixmap()
 
@@ -1244,10 +1252,12 @@ class vImage(bImage):
                 # warping
                 else:
                     if self.parentImage.isHald and not options['manualCurve']:
-                        raise ValueError('A contrast curve was found.\nCheck the option Show Contrast Curve in Cont/Bright/Sat layer')
+                        raise ValueError(
+                            'A contrast curve was found.\nCheck the option Show Contrast Curve in Cont/Bright/Sat layer')
                     auto = self.autoSpline and not self.parentImage.isHald
-                    res, a, b, d, T = warpHistogram(LBuf[:, :, 0], warp=contrastCorrection, preserveHigh=options['High'],
-                                                spline=None if auto else self.getMmcSpline())
+                    res, a, b, d, T = warpHistogram(LBuf[:, :, 0], warp=contrastCorrection,
+                                                    preserveHigh=options['High'],
+                                                    spline=None if auto else self.getMmcSpline())
                     # show the spline viewer
                     if self.autoSpline and options['manualCurve']:
                         self.getGraphicsForm().setContrastSpline(a, b, d, T)
@@ -1268,7 +1278,8 @@ class vImage(bImage):
             # get HSV buffer (H, S, V are in range 0..255)
             HSVBuf = inputImage.getHSVBuffer().copy()
             if brightnessCorrection != 0:
-                alpha = 1.0 / (0.501 + adjustForm.brightnessCorrection) - 1.0  # approx. map -0.5...0.0...0.5 --> +inf...1.0...0.0
+                alpha = 1.0 / (
+                        0.501 + adjustForm.brightnessCorrection) - 1.0  # approx. map -0.5...0.0...0.5 --> +inf...1.0...0.0
                 # tabulate x**alpha
                 LUT = np.power(np.arange(256) / 255, alpha)
                 LUT *= 255.0  # TODO modified 23/01/20 validate
@@ -1285,19 +1296,21 @@ class vImage(bImage):
                 # warping
                 else:
                     if self.parentImage.isHald and not options['manualCurve']:
-                        raise ValueError('A contrast curve was found.\nCheck the option Show Contrast Curve in Cont/Bright/Sat layer')
+                        raise ValueError(
+                            'A contrast curve was found.\nCheck the option Show Contrast Curve in Cont/Bright/Sat layer')
                     buf32 = HSVBuf[:, :, 2].astype(np.float) / 255
                     auto = self.autoSpline and not self.parentImage.isHald  # flag for manual/auto spline
                     res, a, b, d, T = warpHistogram(buf32, warp=contrastCorrection, preserveHigh=options['High'],
                                                     spline=None if auto else self.getMmcSpline())
-                    res = (res*255.0).astype(np.uint8)
+                    res = (res * 255.0).astype(np.uint8)
                     # show the spline viewer
                     if self.autoSpline and options['manualCurve']:
                         self.getGraphicsForm().setContrastSpline(a, b, d, T)
                         self.autoSpline = False
                 HSVBuf[:, :, 2] = res
             if satCorrection != 0:
-                alpha = 1.0 / (0.501 + adjustForm.satCorrection) - 1.0  # approx. map -0.5...0.0...0.5 --> +inf...1.0...0.0
+                alpha = 1.0 / (
+                        0.501 + adjustForm.satCorrection) - 1.0  # approx. map -0.5...0.0...0.5 --> +inf...1.0...0.0
                 # tabulate x**alpha
                 LUT = np.power(np.arange(256) / 255, alpha)
                 LUT *= 255  # TODO modified 23/01/20 validate
@@ -1337,11 +1350,11 @@ class vImage(bImage):
         if options['Luminosity']:
             buf = np.empty_like(ndImg1)
             for c in range(3):  # 0.36s for 15Mpx
-                buf[:, :, c] = np.take(stackedLUT[2-c, :], ndImg0[:, :, c].reshape((-1,))).reshape(s)
+                buf[:, :, c] = np.take(stackedLUT[2 - c, :], ndImg0[:, :, c].reshape((-1,))).reshape(s)
             ndImg1[..., :: -1] = blendLuminosityBuf(ndImg0[..., ::-1], buf[..., ::-1])
         else:
             for c in range(3):  # 0.36s for 15Mpx
-                ndImg1[:, :, c] = np.take(stackedLUT[2-c, :], ndImg0[:, :, c].reshape((-1,))).reshape(s)
+                ndImg1[:, :, c] = np.take(stackedLUT[2 - c, :], ndImg0[:, :, c].reshape((-1,))).reshape(s)
 
         # rList = np.array([2,1,0])  # B, G, R
         # ndImg1[:, :, :] = stackedLUT[rList, ndImg0]  # last dims of index arrays are equal : broadcast works. slower 0.66s for 15Mpx
@@ -1370,6 +1383,7 @@ class vImage(bImage):
         # get the Lab input buffer
         Img0 = self.inputImg()
         ndLabImg0 = Img0.getLabBuffer()  # copy()
+
         # conversion functions
 
         def scaleLabBuf(buf):
@@ -1381,13 +1395,13 @@ class vImage(bImage):
             buf = buf - [0.0, 128.0, 128.0]  # no copy needed here, but seems faster than in place operation!
             buf[:, :, 0] /= 255.0
             return buf
+
         ndLImg0 = scaleLabBuf(ndLabImg0).astype(np.uint8)
         # apply LUTS to channels
         s = ndLImg0[:, :, 0].shape
         ndLabImg1 = np.zeros(ndLImg0.shape, dtype=np.uint8)
         for c in range(3):  # 0.43s for 15Mpx
             ndLabImg1[:, :, c] = np.take(stackedLUT[c, :], ndLImg0[:, :, c].reshape((-1,))).reshape(s)
-        # ndLabImg1 = stackedLUT[rList, ndLImg0] # last dims are equal : broadcast works
         ndLabImg1 = scaleBackLabBuf(ndLabImg1)
         # back sRGB conversion
         ndsRGBImg1 = Lab2sRGBVec(ndLabImg1)
@@ -1422,9 +1436,9 @@ class vImage(bImage):
             self.updatePixmap()
             return
         Img0 = self.inputImg()
-        ndHSPBImg0 = Img0.getHspbBuffer()   # time 2s with cache disabled for 15 Mpx
+        ndHSPBImg0 = Img0.getHspbBuffer()  # time 2s with cache disabled for 15 Mpx
         # apply LUTS to normalized channels (range 0..255)
-        ndLImg0 = (ndHSPBImg0 * [255.0/360.0, 255.0, 255.0]).astype(np.uint8)
+        ndLImg0 = (ndHSPBImg0 * [255.0 / 360.0, 255.0, 255.0]).astype(np.uint8)
         # rList = np.array([0,1,2]) # H,S,B
         ndHSBPImg1 = np.zeros(ndLImg0.shape, dtype=np.uint8)
         s = ndLImg0[:, :, 0].shape
@@ -1503,7 +1517,8 @@ class vImage(bImage):
             w, wF = self.getCurrentImage().width(), self.width()
             h, hF = self.getCurrentImage().height(), self.height()
             wRatio, hRatio = float(w) / wF, float(h) / hF
-            w1, w2, h1, h2 = int(self.rect.left() * wRatio), int(self.rect.right() * wRatio), int(self.rect.top() * hRatio), int(self.rect.bottom() * hRatio)
+            w1, w2, h1, h2 = int(self.rect.left() * wRatio), int(self.rect.right() * wRatio), int(
+                self.rect.top() * hRatio), int(self.rect.bottom() * hRatio)
             w1, h1 = max(w1, 0), max(h1, 0)
             w2, h2 = min(w2, inputImage.width()), min(h2, inputImage.height())
             if w1 >= w2 or h1 >= h2:
@@ -1535,9 +1550,6 @@ class vImage(bImage):
 
     def applyAuto3DLUT(self, options=None, pool=None):
         adjustForm = self.getGraphicsForm()
-        #if options is None:
-            # options = UDict()
-        # get buffers
         inputImage = self.inputImg()
         currentImage = self.getCurrentImage()
         inputBuffer = QImageBuffer(inputImage)[:, :, :3]
@@ -1559,7 +1571,6 @@ class vImage(bImage):
         imgBuffer[:, :, :3] = buf.clip(0, 255)
 
         self.updatePixmap()
-
 
     def apply3DLUT(self, lut3D, options=None, pool=None):
         """
@@ -1592,7 +1603,8 @@ class vImage(bImage):
             h, hF = self.getCurrentImage().height(), self.height()
             wRatio, hRatio = float(w) / wF, float(h) / hF
             if self.rect is not None:
-                w1, w2, h1, h2 = int(self.rect.left() * wRatio), int(self.rect.right() * wRatio), int(self.rect.top() * hRatio), int(self.rect.bottom() * hRatio)
+                w1, w2, h1, h2 = int(self.rect.left() * wRatio), int(self.rect.right() * wRatio), int(
+                    self.rect.top() * hRatio), int(self.rect.bottom() * hRatio)
             w1, h1 = max(w1, 0), max(h1, 0)
             w2, h2 = min(w2, inputImage.width()), min(h2, inputImage.height())
             if w1 >= w2 or h1 >= h2:
@@ -1717,7 +1729,7 @@ class vImage(bImage):
                 start = int(h * adjustForm.filterStart / 100.0)
                 end = int(h * adjustForm.filterEnd / 100.0)
             test = np.arange(end - start) * opacity / (
-                        2.0 * max(end - start - 1, 1)) + 0.5 * s  # range 0.5*s...0.5
+                    2.0 * max(end - start - 1, 1)) + 0.5 * s  # range 0.5*s...0.5
             test = np.concatenate((np.zeros(start) + 0.5 * s, test, np.zeros(h - end) + 0.5))
             if adjustForm.kernelCategory == blendFilterIndex.GRADUALBT:
                 # rotate filter 180°
@@ -1783,22 +1795,14 @@ class vImage(bImage):
         # Chromatic adaptation
         #####################
         elif options['Chromatic Adaptation']:
-            """
-            tint = 2**tint
-            m1, m2, m3 = (1.0, tint, 1.0,) if tint >=1 else (1.0/tint, 1.0, 1.0/tint,)
-            # get conversion matrix in XYZ color space
-            M = conversionMatrix(temperature, sRGBWP)  # source is input image : sRGB, ref WP D65
-            buf = QImageBuffer(inputImage)[:, :, :3]
-            # convert to XYZ
-            bufXYZ = sRGB2XYZVec(buf[:,:,::-1])             #np.tensordot(bufLinear, sRGB_lin2XYZ, axes=(-1, -1))
-            # apply conversion matrix
-            bufXYZ = np.tensordot(bufXYZ, M, axes=(-1, -1))
-            """
             # get RGB multipliers
-            m1, m2, m3, _ = temperatureAndTint2Multipliers(temperature, 2 ** tint, self.parentImage.RGB_lin2XYZInverse)  # TODO modified 24/02/20 validate
+            m1, m2, m3, _ = temperatureAndTint2Multipliers(temperature, 2 ** tint,
+                                                           self.parentImage.RGB_lin2XYZInverse)
             buf = QImageBuffer(inputImage)[:, :, :3]
-            bufXYZ = RGB2XYZ(buf[:, :, ::-1], RGB_lin2XYZ=self.parentImage.RGB_lin2XYZ)  # TODO modified 02/03/20 validate
-            bufsRGBLinear = np.tensordot(bufXYZ, self.parentImage.RGB_lin2XYZInverse, axes=(-1, -1))  # TODO modified 24/02/20 validate
+            bufXYZ = RGB2XYZ(buf[:, :, ::-1],
+                             RGB_lin2XYZ=self.parentImage.RGB_lin2XYZ)
+            bufsRGBLinear = np.tensordot(bufXYZ, self.parentImage.RGB_lin2XYZInverse,
+                                         axes=(-1, -1))
             # apply multipliers
             bufsRGBLinear *= [m1, m2, m3]
             # brightness correction
@@ -1806,7 +1810,7 @@ class vImage(bImage):
             bufsRGBLinear /= M
             bufOutRGB = rgbLinear2rgb(bufsRGBLinear)
             np.clip(bufOutRGB, 0, 255, out=bufOutRGB)
-            bufOutRGB = np.round(bufOutRGB).astype(np.uint8)  # TODO np.round added 18/04/20 validate
+            bufOutRGB = np.round(bufOutRGB).astype(np.uint8)
         else:
             raise ValueError('applyTemperature : wrong option')
         # set output image
@@ -1816,4 +1820,3 @@ class vImage(bImage):
         # forward the alpha channel
         bufOut0[:, :, 3] = buf1[:, :, 3]
         self.updatePixmap()
-

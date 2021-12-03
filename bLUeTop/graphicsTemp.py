@@ -25,8 +25,7 @@ from bLUeGui.graphicsForm import baseForm
 from bLUeTop.utils import optionsWidget, QbLUeSlider, QbLUeLabel, QbLUePushButton
 
 
-class temperatureForm (baseForm):
-
+class temperatureForm(baseForm):
     """
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
@@ -44,7 +43,9 @@ class temperatureForm (baseForm):
         self.defaultTint = 0
 
         # options
-        optionList, optionNames = ['Color Filter', 'Photo Filter', 'Chromatic Adaptation'], ['Color Filter', 'Photo Filter', 'Chromatic Adaptation']
+        optionList, optionNames = ['Color Filter', 'Photo Filter', 'Chromatic Adaptation'], ['Color Filter',
+                                                                                             'Photo Filter',
+                                                                                             'Chromatic Adaptation']
         self.listWidget1 = optionsWidget(options=optionList, optionNames=optionNames, exclusive=True,
                                          changed=self.dataChanged)
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
@@ -61,7 +62,8 @@ class temperatureForm (baseForm):
         # temp slider
         self.sliderTemp = QbLUeSlider(Qt.Horizontal)
         self.sliderTemp.setStyleSheet(QbLUeSlider.bLueSliderDefaultIColorStylesheet)
-        self.sliderTemp.setRange(17, 100)  # 250)  # valid range for spline approximation is 1667..25000, cf. colorConv.temperature2xyWP
+        self.sliderTemp.setRange(17,
+                                 100)  # 250)  # valid range for spline approximation is 1667..25000, cf. colorConv.temperature2xyWP
         self.sliderTemp.setSingleStep(1)
 
         self.tempLabel = QbLUeLabel()
@@ -81,7 +83,8 @@ class temperatureForm (baseForm):
         # tint slider
         self.sliderTint = QbLUeSlider(Qt.Horizontal)
         self.sliderTint.setStyleSheet(QbLUeSlider.bLueSliderDefaultMGColorStylesheet)
-        self.sliderTint.setRange(0, 100)  # 250) # valid range for spline approximation is 1667..25000, cf. colorConv.temperature2xyWP
+        self.sliderTint.setRange(0,
+                                 100)  # 250) # valid range for spline approximation is 1667..25000, cf. colorConv.temperature2xyWP
         self.sliderTint.setSingleStep(1)
 
         self.tintLabel = QbLUeLabel()
@@ -129,13 +132,13 @@ class temperatureForm (baseForm):
         self.adjustSize()
         self.setDefaults()
         self.setWhatsThis(
-                        """<b> Color Filter</b> and <b>Photo Filter</b> use the multiply blending mode
-                        to mimic a warming or cooling filter put in front of the camera lens. 
-                        The luminosity of the resulting image is corrected.<br>
-                        <b>Chromatic Adaptation</b> uses multipliers in the linear RGB
-                        color space to adjust <b>temperature</b> and <b>tint</b>.
-                        """
-                        )  # end of setWhatsThis
+            """<b> Color Filter</b> and <b>Photo Filter</b> use the multiply blending mode
+            to mimic a warming or cooling filter put in front of the camera lens. 
+            The luminosity of the resulting image is corrected.<br>
+            <b>Chromatic Adaptation</b> uses multipliers in the linear RGB
+            color space to adjust <b>temperature</b> and <b>tint</b>.
+            """
+        )  # end of setWhatsThis
 
     def enableSliders(self):
         for item in [self.colorLabel, self.colorChooserBtn]:
@@ -161,7 +164,7 @@ class temperatureForm (baseForm):
         self.filterColor = self.colorChooser.currentColor()
         # set colorLabel background
         self.colorLabel.setAutoFillBackground(True)
-        colorstr = ''.join('%02x'% i for i in self.filterColor.getRgb()[:3])
+        colorstr = ''.join('%02x' % i for i in self.filterColor.getRgb()[:3])
         self.colorLabel.setStyleSheet("background:#%s" % colorstr)
 
     def colorUpdate(self, color):
@@ -289,5 +292,3 @@ class temperatureForm (baseForm):
         self.setFilterColor(QColor(r, g, b, a=a))
         self.dataChanged.connect(self.updateLayer)
         self.dataChanged.emit()
-
-

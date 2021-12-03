@@ -20,9 +20,11 @@ from collections import OrderedDict
 
 from PySide2 import QtCore
 from PySide2.QtCore import QRectF, QSize, Qt, QModelIndex, QPoint
-from PySide2.QtGui import QImage, QPalette, QKeySequence, QFontMetrics, QTextOption, QPixmap, QIcon, QPainter, QStandardItem, QStandardItemModel
+from PySide2.QtGui import QImage, QPalette, QKeySequence, QFontMetrics, QTextOption, QPixmap, QIcon, QPainter, \
+    QStandardItem, QStandardItemModel
 from PySide2.QtWidgets import QAction, QMenu, QSlider, QStyle, QCheckBox, QApplication
-from PySide2.QtWidgets import QComboBox, QHBoxLayout, QLabel, QTableView, QAbstractItemView, QStyledItemDelegate, QHeaderView, QVBoxLayout
+from PySide2.QtWidgets import QComboBox, QHBoxLayout, QLabel, QTableView, QAbstractItemView, QStyledItemDelegate, \
+    QHeaderView, QVBoxLayout
 
 from bLUeTop.QtGui1 import window
 from bLUeGui.bLUeImage import QImageBuffer, bImage
@@ -46,6 +48,7 @@ class itemDelegate(QStyledItemDelegate):
     """
     Item painting
     """
+
     def __init__(self, parent=None):
         QStyledItemDelegate.__init__(self, parent)
 
@@ -101,6 +104,7 @@ class QLayerView(QTableView):
     """
     Display the stack of image layers.
     """
+
     def __init__(self, parent):
         super().__init__(parent)
         self.img = None
@@ -334,18 +338,19 @@ class QLayerView(QTableView):
             self.img.dupLayer(index=index)
             # update layer view
             self.setLayers(self.img)
+
         self.actionDup.triggered.connect(dup)
         self.setWhatsThis(
-"""<b>Layer Stack</b><br>
-To <b>toggle the layer visibility</b> click on the Eye icon.<br>
-To <b>add a mask</b> use the context menu to enable it and paint pixels with the Mask/Unmask tools in the left pane.<br>
-For <b>color mask<b/b>: <br>
-    &nbsp; green pixels are masked,<br>
-    &nbsp; red pixels are unmasked.<br>
-    &nbsp; Other colors correspond to partially masked pixels.<br>
-Note that upper visible layers slow down mask edition.<br>
-"""
-                        )  # end of setWhatsThis
+            """<b>Layer Stack</b><br>
+            To <b>toggle the layer visibility</b> click on the Eye icon.<br>
+            To <b>add a mask</b> use the context menu to enable it and paint pixels with the Mask/Unmask tools in the left pane.<br>
+            For <b>color mask<b/b>: <br>
+                &nbsp; green pixels are masked,<br>
+                &nbsp; red pixels are unmasked.<br>
+                &nbsp; Other colors correspond to partially masked pixels.<br>
+            Note that upper visible layers slow down mask edition.<br>
+            """
+        )  # end of setWhatsThis
 
     def closeAdjustForms(self, delete=False):
         """
@@ -410,6 +415,7 @@ Note that upper visible layers slow down mask edition.<br>
             row = index1.row()
             stackIndex = l - row - 1
             mImg.layersStack[stackIndex].name = index1.data()
+
         model.dataChanged.connect(f)
         for r, lay in enumerate(reversed(mImg.layersStack)):
             try:
@@ -484,7 +490,7 @@ Note that upper visible layers slow down mask edition.<br>
         ind = self.blendingModeCombo.findData(activeLayer.compositionMode)
         self.blendingModeCombo.setCurrentIndex(ind)
         self.previewOptionBox.setChecked(activeLayer.parentImage.useThumb)
-        #activeLayer.maskColor
+        # activeLayer.maskColor
         self.updateForm()
 
     def updateForm(self):
@@ -504,7 +510,7 @@ Note that upper visible layers slow down mask edition.<br>
         Update all rows.
         """
         count = self.model().rowCount()
-        minInd, maxInd = self.model().index(0, 0), self.model().index(count-1, 3)
+        minInd, maxInd = self.model().index(0, 0), self.model().index(count - 1, 3)
         self.model().dataChanged.emit(minInd, maxInd)
 
     def dropEvent(self, event):
@@ -579,7 +585,7 @@ Note that upper visible layers slow down mask edition.<br>
         index1 = self.model().index(sel[0], 1)
         index2 = self.model().index(sel[-1], 1)
         itemSelection = QtCore.QItemSelection(index1, index2)
-        self.selectionModel().select(itemSelection,  QtCore.QItemSelectionModel.Rows | QtCore.QItemSelectionModel.Select)
+        self.selectionModel().select(itemSelection, QtCore.QItemSelectionModel.Rows | QtCore.QItemSelectionModel.Select)
         # multiple selection : display no window
         if len(sel) > 1:
             self.currentWin.hide()
@@ -729,8 +735,6 @@ Note that upper visible layers slow down mask edition.<br>
         ####################
         # Build menu
         ###################
-        menu.addAction(menu.actionRepositionLayer)
-        menu.addSeparator()
         # layer
         menu.addAction(menu.actionImageCopy)
         menu.addAction(menu.actionImagePaste)
@@ -746,7 +750,8 @@ Note that upper visible layers slow down mask edition.<br>
         menu.addAction(menu.actionMaskRedo)
         menu.addAction(menu.actionMaskInvert)
         menu.subMenuLum = menu.addMenu('Luminosity Mask...')
-        for a in [menu.actionMaskBright1, menu.actionMaskBright2, menu.actionMaskBright3, menu.actionMaskDark1, menu.actionMaskDark2, menu.actionMaskDark3,
+        for a in [menu.actionMaskBright1, menu.actionMaskBright2, menu.actionMaskBright3, menu.actionMaskDark1,
+                  menu.actionMaskDark2, menu.actionMaskDark3,
                   menu.actionMaskMid1, menu.actionMaskMid2, menu.actionMaskMid3]:
             menu.subMenuLum.addAction(a)
         menu.addAction(menu.actionMaskReset_UM)
@@ -763,7 +768,7 @@ Note that upper visible layers slow down mask edition.<br>
         # it must be set in __init__
         menu.addAction(self.actionDup)
         menu.addAction(menu.actionMerge)
-        # menu.addAction(menu.actionReset)
+        menu.addAction(menu.actionRepositionLayer)
         return menu
 
     def contextMenuEvent(self, event):
@@ -794,14 +799,16 @@ Note that upper visible layers slow down mask edition.<br>
         self.actionDup.setEnabled(not layer.isAdjustLayer())
         self.cMenu.actionColorMaskEnable.setChecked(layer.maskIsSelected and layer.maskIsEnabled)
         self.cMenu.actionOpacityMaskEnable.setChecked((not layer.maskIsSelected) and layer.maskIsEnabled)
-        self.cMenu.actionClippingMaskEnable.setChecked(layer.isClipping and (layer.maskIsSelected or layer.maskIsEnabled))
-        self.cMenu.actionMaskDisable.setChecked(not(layer.isClipping or layer.maskIsSelected or layer.maskIsEnabled))
+        self.cMenu.actionClippingMaskEnable.setChecked(
+            layer.isClipping and (layer.maskIsSelected or layer.maskIsEnabled))
+        self.cMenu.actionMaskDisable.setChecked(not (layer.isClipping or layer.maskIsSelected or layer.maskIsEnabled))
         self.cMenu.actionMaskUndo.setEnabled(layer.historyListMask.canUndo())
         self.cMenu.actionMaskRedo.setEnabled(layer.historyListMask.canRedo())
         self.cMenu.subMenuEnable.setEnabled(len(rows) == 1)
         self.cMenu.actionMaskPaste.setEnabled(not QApplication.clipboard().image().isNull())
         self.cMenu.actionImagePaste.setEnabled(not QApplication.clipboard().image().isNull())
         self.cMenu.actionMergingFlag.setEnabled(layer.isImageLayer())
+
         # Event handlers
 
         def RepositionLayer():
@@ -831,7 +838,7 @@ Note that upper visible layers slow down mask edition.<br>
             testUpperVisibility()
             layer.maskIsEnabled = True
             layer.maskIsSelected = True
-            layer.setColorMaskOpacity(self.maskSlider.value() * 255 /100)
+            layer.setColorMaskOpacity(self.maskSlider.value() * 255 / 100)
             self.maskLabel.setEnabled(layer.maskIsSelected)
             self.maskSlider.setEnabled(layer.maskIsSelected)
             self.maskValue.setEnabled(layer.maskIsSelected)
@@ -1071,4 +1078,3 @@ Note that upper visible layers slow down mask edition.<br>
         # update table
         for row in rows:
             self.updateRow(row)
-

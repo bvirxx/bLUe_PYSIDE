@@ -25,8 +25,7 @@ from bLUeCore.kernel import filterIndex
 from bLUeTop.utils import optionsWidget, QbLUeSlider
 
 
-class filterForm (baseForm):
-
+class filterForm(baseForm):
     defaultRadius = 10
     defaultTone = 100.0
     defaultAmount = 50.0
@@ -145,18 +144,18 @@ class filterForm (baseForm):
 
         self.setDefaults()
         self.setWhatsThis(
-                    """
-                       <b>Unsharp Mask</b> and <b>Sharpen Mask</b> are used to sharpen an image.
-                       Unsharp Mask usually gives best results.<br>
-                       <b>Gaussian Blur</b> and <b>Surface Blur</b> are used to blur an image.<br>
-                       In contrast to Gaussian Blur, Surface Blur preserves edges and reduces noise,
-                       but it may be slow.<br>
-                       It is possible to <b>limit the effect of a filter to a rectangular region of the image</b> by
-                       drawing a selection rectangle on the layer with the marquee (rectangle) tool.<br>
-                       Ctrl Click <b>clears the selection</b><br>
-                       
-                    """
-                        )  # end setWhatsThis
+            """
+               <b>Unsharp Mask</b> and <b>Sharpen Mask</b> are used to sharpen an image.
+               Unsharp Mask usually gives best results.<br>
+               <b>Gaussian Blur</b> and <b>Surface Blur</b> are used to blur an image.<br>
+               In contrast to Gaussian Blur, Surface Blur preserves edges and reduces noise,
+               but it may be slow.<br>
+               It is possible to <b>limit the effect of a filter to a rectangular region of the image</b> by
+               drawing a selection rectangle on the layer with the marquee (rectangle) tool.<br>
+               Ctrl Click <b>clears the selection</b><br>
+               
+            """
+        )  # end setWhatsThis
 
     def setDefaults(self):
         self.enableSliders()
@@ -216,5 +215,3 @@ class filterForm (baseForm):
                 obj.__setstate__(d['state'][name])
         self.dataChanged.connect(self.updateLayer)
         self.dataChanged.emit()
-
-

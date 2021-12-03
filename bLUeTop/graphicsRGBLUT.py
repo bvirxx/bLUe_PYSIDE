@@ -46,7 +46,8 @@ class graphicsForm(graphicsCurveForm):
         graphicsScene.cubicRGB = cubic
         cubic.channel = channelValues.RGB
         cubic.histImg = self.scene().layer.inputImg().histogram(size=graphicsScene.axeSize,
-                                                                bgColor=graphicsScene.bgColor, chans=[], mode='Luminosity')
+                                                                bgColor=graphicsScene.bgColor, chans=[],
+                                                                mode='Luminosity')
         cubic.initFixedPoints()
         # Red curve
         cubic = activeCubicSpline(axeSize)
@@ -62,7 +63,8 @@ class graphicsForm(graphicsCurveForm):
         graphicsScene.cubicG = cubic
         cubic.channel = channelValues.Green
         cubic.histImg = self.scene().layer.inputImg().histogram(size=graphicsScene.axeSize,
-                                                                bgColor=graphicsScene.bgColor, chans=channelValues.Green)
+                                                                bgColor=graphicsScene.bgColor,
+                                                                chans=channelValues.Green)
         cubic.initFixedPoints()
         # Blue curve
         cubic = activeCubicSpline(axeSize)
@@ -90,7 +92,7 @@ class graphicsForm(graphicsCurveForm):
                                      self.listWidget1.sizeHintForRow(0)*len(options1) + 5)
         """
         options2 = ['Luminosity']
-        self.listWidget2 =  optionsWidget(options=options2, exclusive=False)
+        self.listWidget2 = optionsWidget(options=options2, exclusive=False)
         self.graphicsScene.options = UDict((self.listWidget1.options, self.listWidget2.options))
         # selection changed handler
         curves = [graphicsScene.cubicRGB, graphicsScene.cubicR, graphicsScene.cubicG, graphicsScene.cubicB]
@@ -107,6 +109,7 @@ class graphicsForm(graphicsCurveForm):
             # Force redraw histogram
             self.scene().invalidate(QRectF(0.0, -self.scene().axeSize, self.scene().axeSize, self.scene().axeSize),
                                     QGraphicsScene.BackgroundLayer)
+
         self.listWidget1.onSelect = onSelect1
 
         def onSelect2(item):
@@ -145,6 +148,7 @@ class graphicsForm(graphicsCurveForm):
             l = self.scene().layer
             l.applyToStack()
             l.parentImage.onImageChanged()
+
         self.scene().cubicRGB.curveChanged.sig.connect(f)
         self.scene().cubicR.curveChanged.sig.connect(f)
         self.scene().cubicG.curveChanged.sig.connect(f)
@@ -271,17 +275,19 @@ class graphicsForm(graphicsCurveForm):
         """
         sc = self.scene()
         if curve is sc.cubicRGB:
-            curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize, bgColor=sc.bgColor, chans=[], mode='Luminosity')
+            curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize, bgColor=sc.bgColor, chans=[],
+                                                          mode='Luminosity')
         elif curve is sc.cubicR:
             curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize, bgColor=sc.bgColor, chans=channelValues.Red)
         elif curve is sc.cubicG:
-            curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize, bgColor=sc.bgColor, chans=channelValues.Green)
+            curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize, bgColor=sc.bgColor,
+                                                          chans=channelValues.Green)
         elif curve is sc.cubicB:
             curve.histImg = sc.layer.inputImg().histogram(size=sc.axeSize, bgColor=sc.bgColor, chans=channelValues.Blue)
         # Force to redraw histogram
         if redraw:
             sc.invalidate(QRectF(0.0, -sc.axeSize, sc.axeSize, sc.axeSize),
-                            sc.BackgroundLayer)
+                          sc.BackgroundLayer)
 
     def updateHists(self):
         """
@@ -292,7 +298,7 @@ class graphicsForm(graphicsCurveForm):
             self.updateHist(curve, redraw=False)
         # Force to redraw histogram
         sc.invalidate(QRectF(0.0, -sc.axeSize, sc.axeSize, sc.axeSize),
-                        sc.BackgroundLayer)
+                      sc.BackgroundLayer)
 
     def resetCurve(self):
         """
@@ -339,5 +345,3 @@ class graphicsForm(graphicsCurveForm):
         sc = self.scene()
         for name in ['cubicRGB', 'cubicR', 'cubicG', 'cubicB']:
             getattr(sc, name).__setstate__(d['state'][name])
-
-

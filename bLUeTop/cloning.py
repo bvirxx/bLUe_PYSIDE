@@ -82,14 +82,14 @@ def createLineIterator(P1, P2, img):
                 itbuffer[:, 1] = np.arange(P1Y - 1, P1Y - dYa - 1, -1)
             else:
                 itbuffer[:, 1] = np.arange(P1Y + 1, P1Y + dYa + 1)
-            itbuffer[:, 0] = (slope*(itbuffer[:, 1] - P1Y)).astype(np.int) + P1X
+            itbuffer[:, 0] = (slope * (itbuffer[:, 1] - P1Y)).astype(np.int) + P1X
         else:
-            slope = dY.astype(np.float32)/dX.astype(np.float32)
+            slope = dY.astype(np.float32) / dX.astype(np.float32)
             if negX:
                 itbuffer[:, 0] = np.arange(P1X - 1, P1X - dXa - 1, -1)
             else:
                 itbuffer[:, 0] = np.arange(P1X + 1, P1X + dXa + 1)
-            itbuffer[:, 1] = (slope*(itbuffer[:, 0] - P1X)).astype(np.int) + P1Y
+            itbuffer[:, 1] = (slope * (itbuffer[:, 0] - P1X)).astype(np.int) + P1Y
 
     # Remove points outside of image
     colX = itbuffer[:, 0]
@@ -136,7 +136,8 @@ def contours(maskBuf, thres=0):
     @rtype: list of vectors; each vector is a list of 2-uples of point coordinates.
     """
     _, binary = cv2.threshold(maskBuf, thres, 255, cv2.THRESH_BINARY)
-    contours = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)[-2]  # old versions of findContours may return a 3-uple
+    contours = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)[
+        -2]  # old versions of findContours may return a 3-uple
     return contours
 
 
@@ -264,7 +265,8 @@ def seamlessClone(srcBuf, destBuf, mask, conts, bRect, srcTr, destTr, w=3, passe
     destBufT = destBuf[array2DSlices(destBuf, rectDest)]
     # obtaining contour of mask
     maskContour = np.zeros(mask.shape, dtype=mask.dtype)  # dest of contours
-    cv2.drawContours(maskContour, conts, -1, 255, w)  # -1: draw all contours; 0: draw contour 0  # TODO 19/12/19 changed 0 to -1 validate
+    cv2.drawContours(maskContour, conts, -1, 255,
+                     w)  # -1: draw all contours; 0: draw contour 0  # TODO 19/12/19 changed 0 to -1 validate
     # solving Laplace equation for delta = destBufT - srcBufT
     buf = membrane(destBufT.astype(np.float) - srcBufT.astype(np.float), mask[array2DSlices(mask, bRect)],
                    maskContour[array2DSlices(maskContour, bRect)], passes=passes)
@@ -273,4 +275,3 @@ def seamlessClone(srcBuf, destBuf, mask, conts, bRect, srcTr, destTr, w=3, passe
     result = destBuf.copy()
     result[array2DSlices(destBuf, rectDest)] = alphaBlend(tmp, destBufT, mask[array2DSlices(mask, bRect)])
     return result
-

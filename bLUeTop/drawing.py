@@ -29,14 +29,17 @@ from bLUeGui.bLUeImage import QImageBuffer, ndarrayToQImage
 from bLUeTop.presetReader import aParser
 from bLUeTop.settings import BRUSHES_PATH
 
+
 class pattern:
     """
     Brus pattern
     """
+
     def __init__(self, name, im=None, pxmp=None):
         self.name = name
         self.im = im
         self.pxmp = pxmp
+
 
 class brushFamily:
     """
@@ -93,7 +96,8 @@ class brushFamily:
             if jitter != 0.0:
                 cosTheta = cosTheta * cosBeta + sinTheta * sinBeta
                 sinTheta = sinTheta * cosBeta - cosTheta * sinBeta
-            transform = QTransform(cosTheta, sinTheta, -sinTheta, cosTheta, 0, 0)  # Caution: angles > 0 correspond to counterclockwise rotations of pxmp
+            transform = QTransform(cosTheta, sinTheta, -sinTheta, cosTheta, 0,
+                                   0)  # Caution: angles > 0 correspond to counterclockwise rotations of pxmp
             pxmp = pxmp.transformed(transform)
         count = 0
         maxCount = int(1.0 / step)
@@ -155,7 +159,7 @@ class brushFamily:
         # qp.drawImage(QPointF(), layer.strokeDest)
         qp.setOpacity(brush['opacity'])
         qp.setCompositionMode(qp.CompositionMode_SourceOver)
-        qp.drawPixmap(QPointF(), strokeTex )  # pxmp_temp)
+        qp.drawPixmap(QPointF(), strokeTex)  # pxmp_temp)
         qp.end()
 
     def __init__(self, name, baseSize, contourPath, presetFilename=None, image=None):
@@ -201,7 +205,7 @@ class brushFamily:
             return
         img = img.convertToFormat(QImage.Format_ARGB32)
         buf = QImageBuffer(img)
-        b = np.sum(buf[...,:3], axis=-1, dtype=np.float)
+        b = np.sum(buf[..., :3], axis=-1, dtype=np.float)
         b /= 3
         buf[..., 3] = b
         self.preset = QPixmap.fromImage(img)
@@ -261,7 +265,7 @@ class brushFamily:
             # get the bounding rect of the scaled and centered preset
             # and the 2 complementary rects
             if w > h:
-                rh = int(self.baseSize * h / w)   # height of bounding rect
+                rh = int(self.baseSize * h / w)  # height of bounding rect
                 m = int((self.baseSize - rh) / 2.0)  # top and bottom margins
                 r = QRect(0, m, self.baseSize, rh)
                 r1 = QRect(0, 0, self.baseSize, m)
@@ -282,9 +286,10 @@ class brushFamily:
             qp.drawPixmap(r2, pxmp1)
         qp.end()
         s = size / self.baseSize
-        self.pxmp = pxmp.transformed(QTransform().scale(s, s).rotate(orientation)) # pxmp.scaled(size, size)
+        self.pxmp = pxmp.transformed(QTransform().scale(s, s).rotate(orientation))  # pxmp.scaled(size, size)
         pattern = pattern
-        return {'family': self, 'name': self.name, 'pixmap': self.pxmp, 'size': size, 'color': color, 'opacity': opacity,
+        return {'family': self, 'name': self.name, 'pixmap': self.pxmp, 'size': size, 'color': color,
+                'opacity': opacity,
                 'hardness': hardness, 'flow': flow, 'spacing': spacing, 'jitter': jitter, 'orientation': orientation,
                 'pattern': pattern, 'cursor': self.baseCursor}
 
@@ -300,7 +305,7 @@ def initBrushes():
     ######################
     # standard round brush
     ######################
-    baseSize = 400 # 25
+    baseSize = 400  # 25
     qpp = QPainterPath()
     qpp.addEllipse(QRect(0, 0, baseSize, baseSize))
     roundBrushFamily = brushFamily('Round', baseSize, qpp, presetFilename=None)
@@ -314,6 +319,7 @@ def initBrushes():
     # eraser must be added last
     brushes.append(eraserFamily)
     return brushes
+
 
 def loadPresets(filename, first=1):
     """
@@ -345,14 +351,14 @@ def loadPresets(filename, first=1):
                 qpp = QPainterPath()
                 qpp.addEllipse(QRect(0, 0, baseSize, baseSize))
                 alpha = np.full_like(im, 255)
-                im = np.dstack((im, im, im, im) ) # alpha))
+                im = np.dstack((im, im, im, im))  # alpha))
                 qim = ndarrayToQImage(im, format=QImage.Format_ARGB32)
                 presetBrushFamily = brushFamily('Preset ' + str(rank), baseSize, qpp, image=qim)
                 brushes.append(presetBrushFamily)
                 rank += 1
             rank = first
             for im in pImages:
-                #alpha = np.full_like(im, 255)
+                # alpha = np.full_like(im, 255)
                 im = np.dstack((im, im, im, im))
                 qim = ndarrayToQImage(im, format=QImage.Format_ARGB32)
                 p = pattern('pattern ' + str(rank), im=qim, pxmp=QPixmap.fromImage(qim))
@@ -381,12 +387,10 @@ def bLUeFloodFill(layer, x, y, color):
     buf0 = QImageBuffer(img)
     # preparing opencv data
     buf = np.ascontiguousarray(buf0[..., :3][..., ::-1])
-    mask = np.zeros((h+2, w+2), dtype=np.uint8)
+    mask = np.zeros((h + 2, w + 2), dtype=np.uint8)
     # flood filling
-    if 0 <= x < w  and 0 <= y < h:
+    if 0 <= x < w and 0 <= y < h:
         cv2.floodFill(buf, mask, (x, y), (color.red(), color.green(), color.blue()))
     buf0[..., :3] = buf[..., ::-1]
     # set the alpha channel of the filled region
     buf0[mask[1:-1, 1:-1] == 1, 3] = color.alpha()
-
-

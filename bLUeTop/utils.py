@@ -74,7 +74,7 @@ def array2DSlices(a2D, rect):
     # convert rect to a QRect object
     if type(rect) not in [QRect]:
         try:
-            rect = QRect(* rect)
+            rect = QRect(*rect)
         except (TypeError, ValueError):
             rect = QRect()
     # intersect a2D with rect
@@ -122,6 +122,7 @@ class colorInfoView(QDockWidget):
     """
     Display formatted color info for a pixel
     """
+
     def __init__(self, parent=None):
         super().__init__(parent=parent)
         self.label = QLabel()
@@ -131,14 +132,14 @@ class colorInfoView(QDockWidget):
         self.setFocusPolicy(Qt.ClickFocus)
         self.label.setStyleSheet("font-family: 'courier'; font-size: 8pt")
         self.setWhatsThis(
-                                """<b>Info</b><br>
-                                Input/output pixel values for the active layer.<br>
-                                Values are displayed in the RGB, CMYK and HSV color spaces.
-                                For each space, inputs are shown in the left column
-                                and outputs in the right column.<br>
-                                The layer mask is ignored.<br>
-                                """
-                                )  # end of setWhatsThis
+            """<b>Info</b><br>
+            Input/output pixel values for the active layer.<br>
+            Values are displayed in the RGB, CMYK and HSV color spaces.
+            For each space, inputs are shown in the left column
+            and outputs in the right column.<br>
+            The layer mask is ignored.<br>
+            """
+        )  # end of setWhatsThis
 
     def setText(self, clrI, clrC):
         """
@@ -214,6 +215,7 @@ class UDict(object):
     Union of dictionaries. The dictionaries are neither copied nor changed.
     Examples :  UDict(()), UDict((d1,)), UDict((d1,d2))
     """
+
     def __init__(self, *args):
         """
         If args is a tuple of dict instances, build an (ordered) union
@@ -264,12 +266,13 @@ class QbLUeColorDialog(QColorDialog):
 class QbLUeComboBox(QComboBox):
 
     def __getstate__(self):
-        return {'text' : self.currentText()}
+        return {'text': self.currentText()}
 
     def __setstate__(self, state):
         ind = self.findText(state['text'])
         if ind != -1:
             self.setCurrentIndex(ind)
+
 
 class QbLUeSpinBox(QSpinBox):
 
@@ -342,8 +345,10 @@ class QbLUeSlider(QSlider):
         @param event:
         @type event:
         """
-        pressVal = QStyle.sliderValueFromPosition(self.minimum(), self.maximum(), event.x(), self.width(), upsideDown=False)
-        if abs(pressVal - self.value()) > (self.maximum() - self.minimum()) * 20 / self.width():  # handle width should be near 20
+        pressVal = QStyle.sliderValueFromPosition(self.minimum(), self.maximum(), event.x(), self.width(),
+                                                  upsideDown=False)
+        if abs(pressVal - self.value()) > (
+                self.maximum() - self.minimum()) * 20 / self.width():  # handle width should be near 20
             self.setValue(pressVal)
         else:
             super().mousePressEvent(event)
@@ -481,7 +486,8 @@ class optionsWidget(QListWidget):
     # ad hoc signal triggered when item clicked AND change in checkbox states (see method select)
     userCheckStateChanged = QtCore.Signal(QListWidgetItem)
 
-    def __init__(self, options=None, optionNames=None, exclusive=True, changed=None, parent=None, flow=QListWidget.TopToBottom):
+    def __init__(self, options=None, optionNames=None, exclusive=True, changed=None, parent=None,
+                 flow=QListWidget.TopToBottom):
         """
         @param options: list of options
         @type options: list of str
@@ -523,7 +529,7 @@ class optionsWidget(QListWidget):
         if flow == QListWidget.TopToBottom:
             self.setMinimumHeight(self.sizeHintForRow(0) * len(options))
             self.setMaximumHeight(self.sizeHintForRow(0) * len(options) + 10)
-        else: # QListWidget.LeftToRight
+        else:  # QListWidget.LeftToRight
             self.setMinimumWidth(self.sizeHintForColumn(0) * len(options))
             self.setMaximumWidth(self.sizeHintForColumn(0) * len(options) + 10)
         self.exclusive = exclusive
@@ -563,7 +569,7 @@ class optionsWidget(QListWidget):
         @type callOnSelect: bool
         """
         # don't react to mouse click on disabled items
-        if not(item.flags() & Qt.ItemIsEnabled):
+        if not (item.flags() & Qt.ItemIsEnabled):
             return
         # Update item states:
         # if exclusive, clicking on an item should turn it
@@ -651,13 +657,16 @@ class stateAwareQDockWidget(QDockWidget):
     This attribute should be restored if the change does not result from a user
     drag and drop action (see layerView.closeAdjustForms for an example)
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setFloating(True)  # default :  left docking area
         self.tabbed = False
         self._closed = False
+
         def f(b):
             self.tabbed = not b
+
         self.topLevelChanged.connect(f)
 
     def closeEvent(self, event):
@@ -674,6 +683,7 @@ class loader(threading.Thread):
     Thread class for batch loading of images in a
     QListWidget object
     """
+
     def __init__(self, gen, wdg):
         """
 
@@ -701,7 +711,10 @@ class loader(threading.Thread):
                     try:
                         # read metadata from sidecar (.mie) if it exists, otherwise from image file.
                         profile, metadata = e.get_metadata(filename,
-                                                           tags=("colorspace", "profileDescription", "orientation", "model", "rating", "FileCreateDate"),
+                                                           tags=(
+                                                               "colorspace", "profileDescription", "orientation",
+                                                               "model",
+                                                               "rating", "FileCreateDate"),
                                                            createsidecar=False)
                     except ValueError:
                         metadata = {}
@@ -713,20 +726,21 @@ class loader(threading.Thread):
                     date = tmp[0] if tmp else ''  # metadata.get("EXIF:ModifyDate", '')
                     tmp = [value for key, value in metadata.items() if 'rating' in key.lower()]
                     rating = tmp[0] if tmp else 0  # metadata.get("XMP:Rating", 5)
-                    rating = ''.join(['*']*int(rating))
+                    rating = ''.join(['*'] * int(rating))
                     transformation = exiftool.decodeExifOrientation(orientation)
                     # get thumbnail
                     img = e.get_thumbNail(filename, thumbname='thumbnailimage')
                     # no thumbnail found : try preview
                     if img.isNull():
-                        img = e.get_thumbNail(filename, thumbname='PreviewImage')  # the order is important : for jpeg PreviewImage is full sized !
+                        img = e.get_thumbNail(filename,
+                                              thumbname='PreviewImage')  # the order is important : for jpeg PreviewImage is full sized !
                     # all failed : open image
                     if img.isNull():
                         img = QImage(filename)
                     # remove possible black borders, except for .NEF
                     if filename[-3:] not in ['nef', 'NEF']:
                         bBorder = 7
-                        img = img.copy(QRect(0, bBorder, img.width(), img.height()-2*bBorder))
+                        img = img.copy(QRect(0, bBorder, img.width(), img.height() - 2 * bBorder))
                     pxm = QPixmap.fromImage(img)
                     if not transformation.isIdentity():
                         pxm = pxm.transformed(transformation)
