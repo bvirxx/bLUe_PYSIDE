@@ -36,7 +36,7 @@ class imageLabel(QLabel):
 
     checkerBrush = QBrush(checkeredImage())
 
-    def brushUpdate(self):
+    def brushUpdate(self, color=None):
         """
         Sync the current brush/eraser with self.State
         and update the current brush sample.
@@ -61,7 +61,9 @@ class imageLabel(QLabel):
         bOpacity = window.verticalSlider2.value() / 100
         bHardness = window.verticalSlider3.value() / 100
         bFlow = window.verticalSlider4.value() / 100
-        if getattr(window, 'colorChooser', None):
+        if color is not None:
+            bColor = color
+        elif getattr(window, 'colorChooser', None):
             bColor = window.colorChooser.currentColor()  # selectedColor() cannot be set TODO modified 18/11/21 validate
         else:
             bColor = Qt.black
@@ -193,8 +195,8 @@ class imageLabel(QLabel):
 
     def mousePressEvent(self, event):
         """
-        Mouse event handlers.
-        The handlers implement mouse actions on an imImage displayed in a QLabel.
+        Mouse event handler.
+        The handler implement mouse actions on an imImage displayed in a QLabel.
         It handles image positioning, zooming, and
         tool actions.
         NOTE. Due to wheeelEvent, xOffset and yOffset are float numbers
@@ -259,8 +261,8 @@ class imageLabel(QLabel):
 
     def mouseMoveEvent(self, event):
         """
-       Mouse event handlers.
-       The handlers implement mouse actions on an imImage displayed in a QLabel.
+       Mouse event handler.
+       The handler implement mouse actions on an imImage displayed in a QLabel.
        It handles image positioning, zooming, and
        tool actions.
        NOTE 1. Mouse hover generates mouse move events
@@ -440,8 +442,8 @@ class imageLabel(QLabel):
 
     def mouseReleaseEvent(self, event):
         """
-       Mouse event handlers.
-       The handlers implement mouse actions on an imImage displayed in a QLabel.
+       Mouse event handler.
+       The handler implement mouse actions on an imImage displayed in a QLabel.
        It handles image positioning, zooming, and
        tool actions.
        @param event: mouse event

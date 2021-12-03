@@ -118,7 +118,10 @@ class drawForm(baseForm):
         self.setWhatsThis(
             """
             <b>Drawing :</b><br>
-              Choose a brush family, flow, hardness and opacity.
+              Choose a brush family, flow, hardness and opacity.<br>
+              To <b>change the brush color</b> use <br>menu <i>View->Color Chooser</i> or <i>Ctrl+Click</i> 
+              a pixel on the image.<br>
+              To <b>load presets</b> use menu <i>File->Load Preset.</i>
             """
         )  # end of setWhatsThis
 
@@ -162,6 +165,21 @@ class drawForm(baseForm):
 
     def reset(self):
         self.layer.tool.resetTrans()
+
+    def colorPickedSlot(self, x, y, modifiers):
+        """
+        (x,y) coordinates are relative to the full size image.
+        Ctrl+click on a drawing layer picks new brush color.
+        @param x:
+        @type x:
+        @param y:
+        @type y:
+        @param modifiers:
+        @type modifiers:
+        """
+        r, g, b = self.layer.parentImage.getActivePixel(x, y)
+        if modifiers == Qt.ControlModifier:
+            self.mainForm.label.brushUpdate(color=QColor(r, g, b))
 
     def __getstate__(self):
         d = {}
