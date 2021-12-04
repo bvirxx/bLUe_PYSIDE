@@ -272,7 +272,7 @@ class QLayerView(QTableView):
                                                 ('Difference', QPainter.CompositionMode_Difference),
                                                 ('Exclusion', QPainter.CompositionMode_Exclusion),
                                                 # Type of previous modes is QPainter.CompositionMode (Shiboken enum-type).
-                                                # Next additional modes are not implemented by QPainter:
+                                                # Following additional modes are not implemented by QPainter:
                                                 ('Luminosity', -1),
                                                 ('color', -2)
                                                 ])

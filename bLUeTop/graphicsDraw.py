@@ -177,9 +177,11 @@ class drawForm(baseForm):
         @param modifiers:
         @type modifiers:
         """
-        r, g, b = self.layer.parentImage.getActivePixel(x, y)
         if modifiers == Qt.ControlModifier:
-            self.mainForm.label.brushUpdate(color=QColor(r, g, b))
+            r, g, b = self.layer.parentImage.getPrPixel(x, y)  # getActivePixel(x, y, fromInputImg=False, qcolor=True)
+            clr = QColor(r, g, b)
+            self.mainForm.label.brushUpdate(color=clr)
+            self.mainForm.colorChooser.setCurrentColor(clr)
 
     def __getstate__(self):
         d = {}

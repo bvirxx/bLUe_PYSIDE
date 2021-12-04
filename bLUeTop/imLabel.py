@@ -751,6 +751,13 @@ class imageLabel(QLabel):
                                                                                           State['brush'])
             qp.end()
         # update layer - should be layer.applyToStack() if any upper layer visible : too slow !
-        layer.execute()
+        # We only update layer and its consecutive upper drawing layers to allow multi-layer drawing/painting
+        # Other upper layers should be not visible
+        ind = layer.getStackIndex()
+        for alayer in img.layersStack[ind:]:
+            if alayer.isDrawLayer():
+                alayer.execute()
+            else:
+                break
         img.prLayer.update()
         self.window.label.repaint()
