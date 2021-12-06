@@ -36,10 +36,16 @@ class imageLabel(QLabel):
 
     checkerBrush = QBrush(checkeredImage())
 
-    def brushUpdate(self, color=None):
+    def brushUpdate(self, *args, color=None):
         """
         Sync the current brush/eraser with self.State
         and update the current brush sample.
+        *args prevents wrong assignment of signal parameters
+        to color when the method is used as a signal slot.
+        @param args: unused
+        @type args:
+        @param color:
+        @type color: QColor
         """
         bSpacing, bJitter, bOrientation = 1.0, 0.0, 0
         current = self.State.get('brush', None)
