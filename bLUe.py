@@ -606,9 +606,6 @@ def restoreBrush(layer):
     window.verticalSlider2.setValue(int(d['opacity'] * 100.0))
     window.verticalSlider3.setValue(int(d['hardness'] * 100.0))
     window.verticalSlider4.setValue(int(d['flow'] * 100.0))
-    ind = window.brushCombo.findText(d['name'])
-    if ind != -1:
-        window.brushCombo.setCurrentIndex(ind)
     window.colorChooser.setCurrentColor(d['color'])
     graphicsForm = layer.getGraphicsForm()
     # graphicsForm may be None if the layer is being created
@@ -616,6 +613,9 @@ def restoreBrush(layer):
         graphicsForm.spacingSlider.setValue(int(d['spacing']) * 10)
         graphicsForm.jitterSlider.setValue(int(d['jitter']) * 10)
         graphicsForm.orientationSlider.setValue(int(d['orientation']) + 180)
+    ind = window.brushCombo.findText(d['name'])
+    if ind != -1:
+        window.brushCombo.setCurrentIndex(ind)  # trigger brushUpdate() - keep last
     window.label.State['brush'] = d.copy()
 
 
@@ -1205,7 +1205,7 @@ def menuLayer(name, window=window, sname=None, script=False):
         layer = window.label.img.addAdjustmentLayer(layerType=QCloningLayer, name=gn(lname), role='CLONING')
         grWindow = patchForm.getNewWindow(targetImage=window.label.img, axeSize=axeSize, layer=layer, parent=window,
                                           mainForm=window)
-        layer.execute = lambda l=layer, pool=None: l.tLayer.applyCloning(seamless=l.autoclone)
+        layer.execute = lambda l=layer, pool=None: l.tLayer.applyCloning(seamless=True)
 
     # segmentation
     elif name == 'actionNew_segmentation_layer':
@@ -1605,6 +1605,11 @@ def initCursors(window=window):
     pxmp = QPixmap.fromImage(curImg)
     w, h = pxmp.width(), pxmp.height()
     window.cursor_EyeDropper = QCursor(pxmp, hotX=0, hotY=h - 1)
+    # paint bucket cursor
+    curImg = QImage(":/images/resources/icons8-windows-metro-26.png")
+    pxmp = QPixmap.fromImage(curImg)
+    w, h = pxmp.width(), pxmp.height()
+    window.cursor_Bucket = QCursor(pxmp, hotX=w - 1, hotY=0)
     # tool cursor, must be resizable
     curImg = QImage(":/images/resources/cursor_circle.png")
     # turn to white
@@ -1943,12 +1948,13 @@ def setupGUI(window=window):
 
     # whatsThis
     window.cropButton.setWhatsThis(
-        """To crop the image drag a gray curtain on either side using the 8 small square buttons around the image""")
+        """To <b>crop</b> the image drag a gray curtain on either side using the 8 small square buttons around the image""")
     window.rulerButton.setWhatsThis("""Draw horizontal and vertical rulers over the image""")
     window.fitButton.setWhatsThis("""Reset the image size to the window size""")
-    window.eyeDropper.setWhatsThis("""Color picker\n Click on the image to sample pixel colors""")
+    window.eyeDropper.setWhatsThis("""<b>Color Picker</b><br> Click on the image to sample pixel colors""")
+    window.toolButton.setWhatsThis("""<b>Pointer Tool</b><br>""")
     window.dragBtn.setWhatsThis(
-        """Drag\n left button : drag the whole image\n Ctrl+Left button : drag the active layer only""")
+        """<b>Drag Tool</b><br> Mouse Left Button : drag the whole image<br> Ctrl+Mouse Left Button : drag the active layer only""")
     window.rectangle.setWhatsThis(
         """<b>Marquee Tool/Selection Rectangle</b><br>
         Draw a selection rectangle on the active layer.<br>
@@ -1972,6 +1978,12 @@ def setupGUI(window=window):
         """)
     window.verticalSlider1.setWhatsThis("""Set the diameter of the painting brush""")
     window.verticalSlider2.setWhatsThis("""Set the opacity of the painting brush""")
+    window.verticalSlider3.setWhatsThis("""Set the hardness of the painting brush""")
+    window.verticalSlider4.setWhatsThis("""Set the flow of the painting brush""")
+    window.brushCombo.setWhatsThis(
+        """Loaded painting brushes.<br>To add presets use<br><i>Menu File->Load Preset</i>""")
+    window.patternCombo.setWhatsThis(
+        """Available patterns.<br> Patterns are loaded with brushes using <br><i>Menu File->Load Preset</i>""")
 
     # Before/After views flag
     window.splitView = False
