@@ -141,12 +141,37 @@ class mImage(vImage):
         self.useHald = source.useHald
         self.rect = source.rect
         for l in source.layersStack[1:]:
-            lr = QLayer.fromImage(l.scaled(self.size()), role=l.role, parentImage=self)
+            lr = type(l).fromImage(l.scaled(self.size()), role=l.role,
+                                   parentImage=self,
+                                   sourceImg=l.sourceImg.scaled(self.size())
+                                   if getattr(l, 'sourceImg', None) is not None else None)
             lr.execute = l.execute
             lr.name = l.name
             lr.view = l.view
             lr.view.widget().targetImage = self
             lr.view.widget().layer = lr
+
+            if l._mask is not None:
+                lr._mask = l._mask.scaled(self.size())
+
+            lr.maskIsSelected = l.maskIsSelected
+            lr.maskIsEnabled = l.maskIsEnabled
+
+            sfi = getattr(l, 'sourceFromFile', None)
+            if sfi is not None:
+                coeffX, coeffY = lr.width() / l.width(), lr.height() / l.height()
+                lr.sourceFromFile = l.sourceFromFile
+                lr.cloningMethod = l.cloningMethod
+                lr.sourceX, lr.sourceY = l.sourceX * coeffX, l.sourceY * coeffY
+                lr.xAltOffset, lr.yAltOffset = l.xAltOffset * coeffX, l.yAltOffset * coeffY
+                lr.cloningState = l.cloningState
+                lr.getGraphicsForm().updateSource()
+
+            tool = getattr(l, 'tool', None)
+            if tool:
+                lr.addTool(tool)
+                tool.showTool()
+
             self.layersStack.append(lr)
 
     def resized(self, w, h, keepAspectRatio=True, interpolation=cv2.INTER_CUBIC):
@@ -416,7 +441,7 @@ class mImage(vImage):
             # set layer from image :
             if self.size() != sourceImg.size():  # TODO added 22/11/21
                 sourceImg = sourceImg.scaled(self.size())
-            layer = QLayerImage.fromImage(self.layersStack[index], parentImage=self, sourceImg=sourceImg)
+            layer = QLayerImage.fromImage(self.layersStack[index], parentImage=self, role=role, sourceImg=sourceImg)
         layer.role = role
         self.addLayer(layer, name=name, index=index + 1)
         # init thumb
@@ -906,7 +931,7 @@ class QLayer(vImage):
     """
 
     @classmethod
-    def fromImage(cls, mImg, role='', parentImage=None):
+    def fromImage(cls, mImg, role='', parentImage=None, **kwargs):
         """
         Return a QLayer object initialized with mImg.
         Derived classes get an instance of themselves
@@ -1702,6 +1727,7 @@ class QCloningLayer(QLayer):
         # virtual layer moved flag
         self.vlChanged = False
         self.cloningState = ''
+        self.cloningMethod = None
         # bLU files must eventually save source Image
         self.innerImages = ('sourceImg',)
         # init self.cloning mask, self.monts, self.conts;
@@ -1867,29 +1893,26 @@ class QLayerImage(QLayer):
     """
 
     @staticmethod
-    def fromImage(mImg, parentImage=None, sourceImg=None):
-        layer = QLayerImage(QImg=mImg, parentImage=parentImage)
-        layer.parentImage = parentImage
-        layer.sourceImg = sourceImg
-        # drawing buffers
-        if sourceImg is not None:
-            # intermediate layer
-            layer.stroke = QImage(sourceImg.size(), sourceImg.format())
-            # atomic stroke painting is needed to handle brush opacity:
-            # We save layer.sourceImg in layer.strokeDest at each stroke beginning.
-            layer.strokeDest = None
-            # cache for current brush dict
-            layer.brushDict = None
+    def fromImage(mImg, parentImage=None, role='', sourceImg=None):
+        layer = QLayerImage(QImg=mImg, role=role, parentImage=parentImage, sourceImg=sourceImg)
         # undo/redo functionality
         layer.history = historyList()
         return layer
 
     def __init__(self, *args, **kwargs):
+        self.sourceImg = kwargs.pop('sourceImg', None)  # before super().__init__()
         super().__init__(*args, **kwargs)
-        self.sourceImg = None
         self.filename = ''  # path to sourceImg file
         # bLU files must eventually save/restore source image
         self.innerImages = ('sourceImg',)
+        if self.role == 'DRW':
+            # intermediate layer
+            self.stroke = QImage(self.sourceImg.size(), self.sourceImg.format())
+            # atomic stroke painting is needed to handle brush opacity:
+            # We save layer.sourceImg in layer.strokeDest at each stroke beginning.
+            self.strokeDest = None
+            # cache for current brush dict
+            self.brushDict = None
 
     def inputImg(self, redo=True):
         """

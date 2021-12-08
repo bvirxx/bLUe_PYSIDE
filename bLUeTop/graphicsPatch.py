@@ -19,8 +19,8 @@ from os.path import basename
 
 import cv2
 from PySide2.QtCore import Qt, QPoint, QPointF, QRect
-from PySide2.QtGui import QImage, QPixmap, QPainter, QTransform, QImageReader
-from PySide2.QtWidgets import QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog, QWidget
+from PySide2.QtGui import QImage, QPixmap, QPainter
+from PySide2.QtWidgets import QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog
 
 from bLUeGui.graphicsForm import baseForm
 from bLUeGui.dialog import IMAGE_FILE_EXTENSIONS, dlgWarn
@@ -96,8 +96,6 @@ class patchForm(baseForm):
                         'Mixed Clone': cv2.MIXED_CLONE,
                         'Monochrome Transfer': cv2.MONOCHROME_TRANSFER}
         cv2Flags = list(cv2Flag_dict.keys())
-
-        self.layer.autoclone = True
 
         self.listWidget1 = optionsWidget(options=cv2Flags, exclusive=True, changed=self.dataChanged)
         # init flags

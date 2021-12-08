@@ -73,7 +73,6 @@ class drawForm(baseForm):
         self.orientationSlider = orientationSlider
 
         # self.brushFamilyList = self.mainForm.brushes
-        self.mainForm = self.parent()
         self.colorChooser = self.parent().colorChooser
 
         # sample

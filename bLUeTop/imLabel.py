@@ -625,8 +625,12 @@ class imageLabel(QLabel):
                     QCursor(window.cursor_Circle_Pixmap.scaled(w * 2.0, w * 2.0), hotX=w, hotY=w))
             else:
                 QApplication.setOverrideCursor(Qt.CrossCursor)
-        elif layer.isDrawLayer() and (window.btnValues['brushButton'] or window.btnValues['eraserButton']):
-            self.syncBrush(self.img.resize_coeff(self))
+        elif (window.btnValues['brushButton'] or window.btnValues['eraserButton']):
+            if layer.isDrawLayer():
+                self.syncBrush(self.img.resize_coeff(self))
+        elif window.btnValues['bucket']:
+            if layer.isDrawLayer():
+                QApplication.setOverrideCursor(window.cursor_Bucket)
         elif window.btnValues['drag']:
             QApplication.setOverrideCursor(Qt.OpenHandCursor)
         elif window.btnValues['colorPicker']:
@@ -762,7 +766,7 @@ class imageLabel(QLabel):
         ind = layer.getStackIndex()
         for alayer in img.layersStack[ind:]:
             if alayer.isDrawLayer():
-                alayer.execute()
+                alayer.execute(l=alayer)  # alayer needed to allow method copy (resizing)
             else:
                 break
         img.prLayer.update()

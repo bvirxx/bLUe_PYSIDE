@@ -30,12 +30,13 @@ from bLUeGui.dialog import dlgWarn
 
 from bLUeTop.settings import COLOR_MANAGE_OPT, SRGB_PROFILE_PATH, ADOBE_RGB_PROFILE_PATH, DEFAULT_MONITOR_PROFILE_PATH
 
+# python-gi flag
+HAS_GI = False
+
 if COLOR_MANAGE_OPT:
     if sys.platform == 'win32':
         import win32gui
     else:
-        # python-gi flag
-        HAS_GI = False
         try:
             from gi.repository import GLib, Gio, Colord
 
@@ -112,7 +113,7 @@ class icc:
             profile_path = core.get_display_profile_win32(handle, 1)
         elif HAS_GI:
             try:
-                from PySide2.QtWidgets import QApplication, QMainWindow
+                # from PySide2.QtWidgets import QApplication, QMainWindow
                 GIO_CANCELLABLE = Gio.Cancellable.new()
                 client = Colord.Client.new()
                 client.connect_sync(GIO_CANCELLABLE)
