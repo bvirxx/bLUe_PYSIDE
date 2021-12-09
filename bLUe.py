@@ -320,9 +320,10 @@ def addAdjustmentLayers(layers, images):
 
 def addBasicAdjustmentLayers(img, window=window):
     if img.rawImage is None:
+        pass
         # menuLayer('actionColor_Temperature')
         # menuLayer('actionExposure_Correction')
-        menuLayer('actionContrast_Correction')
+        # menuLayer('actionContrast_Correction')
     # select active layer : top row
     window.tableView.select(0, 1)
 

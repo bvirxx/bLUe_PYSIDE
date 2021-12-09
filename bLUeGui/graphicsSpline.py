@@ -226,7 +226,7 @@ class activeMarker(QGraphicsPolygonItem):
 
     def mouseMoveEvent(self, e):
         # event position relative to parent
-        pos = e.pos() + self.pos()  # e.scenePos() - self.parentItem().scenePos()  # TODO modified 16/02/20 validate
+        pos = e.pos() + self.pos()  # e.scenePos() - self.parentItem().scenePos()
         x, y = pos.x(), pos.y()
         # limit move to moveRange
         xmin, ymin = self.moveRange.left(), self.moveRange.top()
@@ -302,7 +302,7 @@ class activeSplinePoint(activePoint):
         if item is None:
             return
         p = e.pos() + self.pos()
-        x, y = p.x(), p.y()  # e.scenePos().x(), e.scenePos().y()  # TODO modified 20/02/20 validate
+        x, y = p.x(), p.y()  # e.scenePos().x(), e.scenePos().y()
         if self.rect is not None:
             x = min(max(x, self.xmin), self.xmax)
             y = min(max(y, self.ymin), self.ymax)
@@ -319,11 +319,11 @@ class activeSplinePoint(activePoint):
 
     def mouseReleaseEvent(self, e):
         # get scene current spline
-        item = self.parentItem()  # self.scene().cubicItem  # TODO modified 16/02/20 validate
+        item = self.parentItem()  # self.scene().cubicItem
         if item is None:
             return
         p = e.pos() + self.pos()
-        x, y = p.x(), p.y()  # e.scenePos().x(), e.scenePos().y()  # TODO modified 15/02/20 validate
+        x, y = p.x(), p.y()  # e.scenePos().x(), e.scenePos().y()
         if self.rect is not None:
             x = min(max(x, self.xmin), self.xmax)
             y = min(max(y, self.ymin), self.ymax)
@@ -665,8 +665,7 @@ class activeCubicSpline(activeSpline):
         # interpolate
         try:
             # interpolationCubSpline raises an exception if two points have identical x-coordinates
-            self.spline = interpolationCubSpline(np.array(X), np.array(Y), clippingInterval=[-self.size,
-                                                                                             0])  # [-self.scene().axeSize, 0])  # TODO modified 16/02/20 validate
+            self.spline = interpolationCubSpline(np.array(X), np.array(Y), clippingInterval=[-self.size, 0])
             # set the curve constant outside ]X0..X1[
             for P in self.spline:
                 if P.x() < X0:

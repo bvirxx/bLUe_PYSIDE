@@ -193,12 +193,12 @@ class savingDialog(QDialog):
         self.sliderComp.setTickPosition(QSlider.TicksBelow)
         self.sliderComp.setRange(0, 9)
         self.sliderComp.setSingleStep(1)
-        self.sliderComp.setValue(3)  # 3 = default opencv imwrite value  TODO changed 5 to 3 20/02/20 validate
+        self.sliderComp.setValue(3)  # 3 = default opencv imwrite value
         self.sliderQual = QbLUeSlider(Qt.Horizontal)
         self.sliderQual.setTickPosition(QSlider.TicksBelow)
         self.sliderQual.setRange(0, 100)
         self.sliderQual.setSingleStep(10)
-        self.sliderQual.setValue(95)  # 95 = default opencv imwrite value  # TODO changed 90 to 95 20/02/20 validate
+        self.sliderQual.setValue(95)  # 95 = default opencv imwrite value
         self.dlg.setVisible(True)
         l = QVBoxLayout()
         h = QHBoxLayout()

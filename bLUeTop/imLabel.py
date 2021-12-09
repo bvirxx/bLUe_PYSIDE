@@ -98,7 +98,7 @@ class imageLabel(QLabel):
         """
         minSize = 16
         # bSize = self.brushUpdate()
-        bSize = self.State['brush']['size']  # TODO modified 26/01/20 validate
+        bSize = self.State['brush']['size']
         w = bSize * zooming
         if w >= minSize:
             cursor = QCursor(self.State['brush']['cursor'].scaled(w, w), hotX=w / 2, hotY=w / 2)
@@ -343,7 +343,7 @@ class imageLabel(QLabel):
             elif window.btnValues['drawFG'] or window.btnValues['drawBG']:
                 if layer.maskIsEnabled:
                     if layer.isCloningLayer:
-                        layer.vlChanged = True  # TODO added 16/12/19
+                        layer.vlChanged = True
                         # layer.setMaskEnabled(color=True)  # set mask to color mask
                     toolOpacity = window.verticalSlider2.value() / 100
                     if modifiers == Qt.NoModifier:
@@ -693,7 +693,7 @@ class imageLabel(QLabel):
             if pxmp is None:
                 qp.drawEllipse(QPointF(p_x, p_y), radius, radius)
             else:
-                qp.drawPixmap(QPointF(p_x - radius, p_y - radius), pxmp)  # TODO radius added 19/03/20 validate
+                qp.drawPixmap(QPointF(p_x - radius, p_y - radius), pxmp)
             p_x, p_y = p_x + a_x * step, p_y + a_y * step
         # return last painted position
         return p_x, p_y

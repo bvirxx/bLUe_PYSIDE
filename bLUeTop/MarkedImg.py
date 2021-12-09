@@ -944,7 +944,7 @@ class QLayer(vImage):
         @rtype: Qlayer
         """
         layer = cls(QImg=mImg, role=role, parentImage=parentImage)
-        layer.parentImage = parentImage
+        # layer.parentImage = parentImage  # TODO removed 8/12/21 : QLayer __init__() sets parentImage as weakref
         return layer
 
     def __init__(self, *args, **kwargs):
@@ -1291,7 +1291,7 @@ class QLayer(vImage):
         else:
             img = self.maskedImageContainer
         # reset the container
-        img.fill(QColor(0, 0, 0, 0))  # TODO added 10/04/20 : needed for (semi-)transparent background - validate
+        img.fill(QColor(0, 0, 0, 0))  # needed for (semi-)transparent background
         # blend lower stack
         qp = QPainter(img)
         top = self.parentImage.getStackIndex(self)
@@ -1300,8 +1300,7 @@ class QLayer(vImage):
             if layer.visible:
                 if i == 0:
                     qp.setCompositionMode(QPainter.CompositionMode_Source)
-                    qp.setOpacity(
-                        layer.opacity)  # TODO added 10/04/20 : enables semi transparent background layer - validate
+                    qp.setOpacity(layer.opacity)  # enables semi transparent background layer
                 else:
                     qp.setOpacity(layer.opacity)
                     if type(layer.compositionMode) is QPainter.CompositionMode:
@@ -1457,7 +1456,7 @@ class QLayer(vImage):
         self.maskIsSelected = color
         self.maskSettingsChanged.sig.emit()
 
-    def setMaskDisabled(self):  # TODO Added 11/12/19 validate
+    def setMaskDisabled(self):
         self.maskIsEnabled = False
         self.maskIsSelected = False
         self.maskSettingsChanged.sig.emit()

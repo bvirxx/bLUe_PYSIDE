@@ -774,7 +774,7 @@ class activeNode(QGraphicsPathItem):
         actionGroup.triggered.connect(lambda: nodeGroup.groupFromList(self.scene().selectedItems(),
                                                                       grid=self.grid,
                                                                       position=self.pos(),
-                                                                      # scenePos(),  # TODO modified 14/02/20 validate
+                                                                      # scenePos(),
                                                                       parent=self.parentItem()))
         actionGroup.setEnabled(len(self.scene().selectedItems()) > 1)
         actionSync = QAction('Resync', None)
@@ -903,7 +903,7 @@ class activeGrid(QGraphicsPathItem):
         # reset current transformation to identity
         self.setTransform(QTransform())
         if not unSmoothOnly:
-            # explode all node groups  # TODO moved from onReset  7/1/20 validate
+            # explode all node groups
             groupList = [item for item in self.childItems() if type(item) is nodeGroup]
             for item in groupList:
                 item.prepareGeometryChange()
@@ -911,7 +911,7 @@ class activeGrid(QGraphicsPathItem):
                     # disconnect all signals received by node group item
                     self.scene().disconnect(item)
                     item.brightnessItem.cubic.curveChanged.disconnect(item)
-                    self.scene().removeItem(item.brightnessItem)  # TODO added 3/3/20 validate
+                    self.scene().removeItem(item.brightnessItem)
                 except RuntimeError:
                     pass
                 self.scene().destroyItemGroup(item)
@@ -923,8 +923,8 @@ class activeGrid(QGraphicsPathItem):
                         continue
                 node.setPos(node.mapGrid2Parent(node.initialPosition))  # node may still belong to a group
                 node.setSelected(False)
-                node.setControl(False)  # TODO added 7/1/20 validate
-                node.setVisible(False)  # TODO added 7/1/20 validate
+                node.setControl(False)
+                node.setVisible(False)
         self.setDefaultControlNodes()
         self.showAllNodes = False
         # empty list of moves
@@ -1215,8 +1215,7 @@ class graphicsForm3DLUT(baseGraphicsForm):
         self.graphicsScene.lut = freshLUT3D
         # init 2D slider (color wheel)
         swatchImg = hueSatPattern(axeSize, axeSize, cModel, bright=self.defaultColorWheelBr, border=self.border)
-        slider2D = colorChooser(cModel, swatchImg, target=self.layer, size=axeSize,
-                                border=self.border)  # TODO changed self.targetImage to self.layer 01/03/20 validate
+        slider2D = colorChooser(cModel, swatchImg, target=self.layer, size=axeSize, border=self.border)
         #########################################################################
         # CAUTION : sliedr2D has a non null offset
         # slider2D (and QImg) topleft corner is at scene pos -slider2D.offset()
@@ -1477,8 +1476,7 @@ class graphicsForm3DLUT(baseGraphicsForm):
 
         # select and mark selected node
         mode = self.graphicsScene.options['add node']
-        nodesToSelect = NNN.neighbors() + [NNN] if self.graphicsScene.options['select neighbors'] else [
-            NNN]  # TODO + [NNN] added 7/1/20
+        nodesToSelect = NNN.neighbors() + [NNN] if self.graphicsScene.options['select neighbors'] else [NNN]
         for n in nodesToSelect:
             n.setVisible(mode)
             n.setSelected(mode)

@@ -106,7 +106,7 @@ class brushFamily:
             if pxmp is None:
                 qp.drawEllipse(QPointF(p_x, p_y), radius, radius)
             else:
-                qp.drawPixmap(QPointF(p_x - radius, p_y - radius), pxmp)  # TODO radius added 19/03/20 validate
+                qp.drawPixmap(QPointF(p_x - radius, p_y - radius), pxmp)
             p_x, p_y = p_x + a_x * step, p_y + a_y * step
         # return last brush position
         return p_x, p_y

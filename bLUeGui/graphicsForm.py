@@ -34,7 +34,7 @@ class bottomWidget(QWidget):
         super().__init__()
         self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
         self.setMaximumSize(400, 150)
-        self.setMinimumSize(200, 50)  # TODO 09/03/20 changed 80 to 50 validate
+        self.setMinimumSize(200, 50)
         self.setObjectName('container')
         ss = """QWidget#container{background-color: black;}
                                QListWidget {font-size: 7pt;}

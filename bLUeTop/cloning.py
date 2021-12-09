@@ -119,7 +119,7 @@ def alphaBlend(imgBuf1, imgBuf2, mask):
     mask = mask[..., np.newaxis]
     tmp = (imgBuf1 - imgBuf2) * mask
     tmp[...] += imgBuf2
-    return tmp  # (imgBuf1 - imgBuf2) * mask + imgBuf2  # TODO modified 21/01/20 reduce calls to memory allocation validate
+    return tmp  # (imgBuf1 - imgBuf2) * mask + imgBuf2
 
 
 def contours(maskBuf, thres=0):
@@ -265,8 +265,7 @@ def seamlessClone(srcBuf, destBuf, mask, conts, bRect, srcTr, destTr, w=3, passe
     destBufT = destBuf[array2DSlices(destBuf, rectDest)]
     # obtaining contour of mask
     maskContour = np.zeros(mask.shape, dtype=mask.dtype)  # dest of contours
-    cv2.drawContours(maskContour, conts, -1, 255,
-                     w)  # -1: draw all contours; 0: draw contour 0  # TODO 19/12/19 changed 0 to -1 validate
+    cv2.drawContours(maskContour, conts, -1, 255, w)  # -1: draw all contours; 0: draw contour 0
     # solving Laplace equation for delta = destBufT - srcBufT
     buf = membrane(destBufT.astype(np.float) - srcBufT.astype(np.float), mask[array2DSlices(mask, bRect)],
                    maskContour[array2DSlices(maskContour, bRect)], passes=passes)

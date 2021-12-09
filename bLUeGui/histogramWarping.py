@@ -377,7 +377,7 @@ def autoQuadSpline(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True):
         b[k] = (dist.F(V[k]) - dist.F(a[k])) * V[k - 1] + (dist.F(a[k]) - dist.F(V[k - 1])) * V[k]
         b[k] = b[k] / (dist.F(V[k]) - dist.F(V[k - 1])) * s + a[k] * (1 - s)  # F(V[k]) - F(V[k-1] >= valleyAperture
         b[k] = min(b[k], oneMinusTau)  # b should be non decreasing
-    b = np.maximum.accumulate(b)  # should do nothing ! TODO added 27/01/20 validate
+    b = np.maximum.accumulate(b)  # should do nothing
     # if np.min(b[1:] - b[:-1]) < 0:
     # raise ValueError('warpHistogram : array b must be non decreasing')
 

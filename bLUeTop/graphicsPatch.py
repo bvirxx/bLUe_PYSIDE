@@ -202,11 +202,11 @@ class patchForm(baseForm):
         self.enableOptions()
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
         self.layer.cloningMethod = self.listWidget1.checkedItems[0].data(Qt.UserRole)
-        self.layer.setMaskEnabled()  # TODO added 18/12/19 validate
-        self.layer.resetMask(maskAll=True)  # , alpha=128)  # TODO added 18/12/19 validate
+        self.layer.setMaskEnabled()
+        self.layer.resetMask(maskAll=True)  # , alpha=128)
         # self.widgetImg.setPixmap(QPixmap.fromImage(self.layer.inputImg().scaled(200, 200, aspectMode=Qt.KeepAspectRatio)))
         # init positioning window
-        img = self.layer.inputImg(drawTranslated=False)  # TODO added drawTranslated 16/12/19 validate
+        img = self.layer.inputImg(drawTranslated=False)
         if img.rPixmap is None:
             img.rPixmap = QPixmap.fromImage(img)
         self.sourcePixmap = img.rPixmap

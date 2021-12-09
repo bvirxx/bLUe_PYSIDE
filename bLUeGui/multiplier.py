@@ -57,8 +57,7 @@ def XYZ2CIExyY(X, Y, Z):
     return X / s, Y / s
 
 
-def temperatureAndTint2Multipliers(temp, tint, XYZ2CameraMatrix,
-                                   dngDict=None):  # TODO 6/12/19 changed {} to None validate
+def temperatureAndTint2Multipliers(temp, tint, XYZ2CameraMatrix, dngDict=None):
     """
     Convert temperature and tint to RGB multipliers and apply a
     tint shift : mG = WP_G * tint. The conversion algorithm is based on the

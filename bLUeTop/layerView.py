@@ -162,7 +162,7 @@ class QLayerView(QTableView):
             window.updateStatus()
             self.img.cacheInvalidate()
             try:
-                QApplication.setOverrideCursor(Qt.WaitCursor)  # TODO 18/04/18 waitcursor already called by applytostack
+                QApplication.setOverrideCursor(Qt.WaitCursor)  # TODO waitcursor already called by applytostack
                 QApplication.processEvents()
                 # update the whole stack
                 self.img.layersStack[0].applyToStack()
@@ -378,7 +378,7 @@ class QLayerView(QTableView):
         self.img = None
         self.currentWin = None
         # model = layerModel()
-        # model.setColumnCount(3)  # TODO removed 21/01/20 validate
+        # model.setColumnCount(3)
         self.setModel(None)
 
     def setLayers(self, mImg, delete=False):

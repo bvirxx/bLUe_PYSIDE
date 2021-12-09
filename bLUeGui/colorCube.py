@@ -108,7 +108,7 @@ def rgb2hsBVec(rgbImg, perceptual=False):
         pB /= 255.0 * 255
         # pB = np.sqrt(pB)
         # buf[:, :, 2] = pB
-        np.sqrt(pB, out=buf[:, :, 2])  # TODO modified 21/01/20 validate
+        np.sqrt(pB, out=buf[:, :, 2])
     return buf
 
 
@@ -148,7 +148,7 @@ def hls2rgbVec(hlsImg, cvRange=False):
     if not cvRange:
         buf = hlsImg * [1.0 / 2.0, 255.0, 255.0]
     else:
-        buf = hlsImg  # TODO added 21/01/20 validate
+        buf = hlsImg
     # convert to rgb
     buf = cv2.cvtColor(buf.astype(np.uint8), cv2.COLOR_HLS2RGB)
     return buf

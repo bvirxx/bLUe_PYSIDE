@@ -282,7 +282,7 @@ class rawForm(baseForm):
             # recompute as shot temp and tint using new profile
             self.asShotTemp, self.asShotTint = multipliers2TemperatureAndTint(*1 / np.array(self.asShotMultipliers[:3]),
                                                                               self.XYZ2CameraMatrix,
-                                                                              dngDict=self.dngDict)  # TODO 6/12/19 added keyword dngDict validate
+                                                                              dngDict=self.dngDict)
             # display updated as shot temp
             item = self.listWidget2.item(1)
             item.setText(item.text().split(":")[0] + ': %d' % self.asShotTemp)
@@ -701,7 +701,7 @@ class rawForm(baseForm):
         self.tempCorrection = self.slider2Temp(self.sliderTemp.value())
         # get multipliers (temperatureAndTint2Multipliers returns the camera neutral)
         multipliers = [1 / m for m in temperatureAndTint2Multipliers(self.tempCorrection, 1.0, self.XYZ2CameraMatrix,
-                                                                     dngDict=self.dngDict)]  # TODO 6/12/19 added keyword dngDict validate
+                                                                     dngDict=self.dngDict)]
         multipliers[1] *= self.tintCorrection
         self.rawMultipliers = multipliers
         m = multipliers[1]
@@ -726,7 +726,7 @@ class rawForm(baseForm):
         # get multipliers (temperatureAndTint2Multipliers returns the camera neutral)
         multipliers = [1 / m for m in temperatureAndTint2Multipliers(self.tempCorrection, 1.0,
                                                                      self.XYZ2CameraMatrix,
-                                                                     dngDict=self.dngDict)]  # TODO 6/12/19 added keyword dngDict validate
+                                                                     dngDict=self.dngDict)]
         multipliers[1] *= self.tintCorrection
         self.rawMultipliers = multipliers
         m = multipliers[1]
