@@ -432,16 +432,16 @@ class mImage(vImage):
             # adding on top of active layer
             index = self.activeLayerIndex
         if sourceImg is None:
-            # set layer from active layer
             if layerType is None:
-                layer = QLayer.fromImage(self.layersStack[index], parentImage=self)
-            else:
-                layer = layerType.fromImage(self.layersStack[index], parentImage=self)
+                layerType = QLayer
+            layer = layerType.fromImage(self.layersStack[index], parentImage=self)
         else:
             # set layer from image :
             if self.size() != sourceImg.size():  # TODO added 22/11/21
                 sourceImg = sourceImg.scaled(self.size())
-            layer = QLayerImage.fromImage(self.layersStack[index], parentImage=self, role=role, sourceImg=sourceImg)
+            if layerType is None:
+                layerType = QLayerImage
+            layer = layerType.fromImage(self.layersStack[index], parentImage=self, role=role, sourceImg=sourceImg)
         layer.role = role
         self.addLayer(layer, name=name, index=index + 1)
         # init thumb
@@ -1891,11 +1891,9 @@ class QLayerImage(QLayer):
     The source image is resized to fit the size of the current document.
     """
 
-    @staticmethod
-    def fromImage(mImg, parentImage=None, role='', sourceImg=None):
-        layer = QLayerImage(QImg=mImg, role=role, parentImage=parentImage, sourceImg=sourceImg)
-        # undo/redo functionality
-        layer.history = historyList()
+    @classmethod
+    def fromImage(cls, mImg, parentImage=None, role='', sourceImg=None):
+        layer = cls(QImg=mImg, role=role, parentImage=parentImage, sourceImg=sourceImg)
         return layer
 
     def __init__(self, *args, **kwargs):
@@ -1904,6 +1902,8 @@ class QLayerImage(QLayer):
         self.filename = ''  # path to sourceImg file
         # bLU files must eventually save/restore source image
         self.innerImages = ('sourceImg',)
+        # undo/redo functionality
+        self.history = historyList()
         if self.role == 'DRW':
             # intermediate layer
             self.stroke = QImage(self.sourceImg.size(), self.sourceImg.format())
@@ -1955,6 +1955,29 @@ class QLayerImage(QLayer):
             tLayer.tool.layer = tLayer
             tLayer.tool.img = tLayer.parentImage
         return tLayer
+
+
+class QDrawingLayer(QLayerImage):
+    """
+    The drawing (sourceImg) is blended onto a transparent layer.
+    This is the classical painting mode.
+    Other Q*Layer classes implement in/out (or transformational)
+    mode, suitable for image edition.
+    """
+
+    def inputImg(self, redo=True):
+        """
+
+        @return:
+        @rtype: QImage
+        """
+        img1 = super().inputImg()  # TODO maybe missing redo=redo 16/12/19
+        img1.fill(QColor(0, 0, 0, 0))
+        # merging sourceImg
+        qp = QPainter(img1)
+        qp.drawImage(QRect(0, 0, img1.width(), img1.height()), self.sourceImg)
+        qp.end()
+        return img1
 
 
 class QRawLayer(QLayer):

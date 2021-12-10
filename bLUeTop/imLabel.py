@@ -510,7 +510,7 @@ class imageLabel(QLabel):
                         # Flood fill tool
                         if layer.isDrawLayer() and window.btnValues['bucket']:
                             if getattr(window, 'colorChooser', None):
-                                bucketColor = window.colorChooser.selectedColor()
+                                bucketColor = window.colorChooser.currentColor()  # TODO modified 9/12/21 validate
                             else:
                                 bucketColor = Qt.black
                             bLUeFloodFill(layer, int(x_img), int(y_img), bucketColor)

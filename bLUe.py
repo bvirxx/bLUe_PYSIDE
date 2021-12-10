@@ -162,7 +162,7 @@ from bLUeGui.bLUeImage import QImageBuffer, QImageFormats, ndarrayToQImage
 from bLUeTop.presetReader import aParser
 from bLUeTop.rawProcessing import rawRead
 from bLUeTop.versatileImg import vImage, metadataBag
-from bLUeTop.MarkedImg import imImage, QRawLayer, QCloningLayer, QLayerImage
+from bLUeTop.MarkedImg import imImage, QRawLayer, QCloningLayer, QLayerImage, QDrawingLayer
 from bLUeTop.graphicsRGBLUT import graphicsForm
 from bLUeTop.graphicsLUT3D import graphicsForm3DLUT
 from bLUeTop.graphicsAutoLUT3D import graphicsFormAuto3DLUT
@@ -303,7 +303,7 @@ def addAdjustmentLayers(layers, images):
         t = type(layer)
         # all layers managing images should be subclasses of QLayer.
         # TODO : to handle multiple images n should be a tuple of binary values
-        if t in [QLayerImage, QCloningLayer]:
+        if t in [QLayerImage, QDrawingLayer, QCloningLayer]:
             images_loaded = True
             buf = images.asarray()[count]
             buf = buf.reshape(layer.height(), layer.width(), 4)
@@ -1283,7 +1283,8 @@ def menuLayer(name, window=window, sname=None, script=False):
         # imgNew.fill(Qt.white)
         imgNew.fill(QColor(0, 0, 0, 0))
         lname = 'Drawing'
-        layer = window.label.img.addAdjustmentLayer(name=gn(lname), sourceImg=imgNew, role='DRW')
+        layer = window.label.img.addAdjustmentLayer(name=gn(lname), layerType=QDrawingLayer, sourceImg=imgNew,
+                                                    role='DRW')
         grWindow = drawForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer,
                                          parent=window, mainForm=window)
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyNone()
