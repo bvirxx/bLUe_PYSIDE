@@ -409,10 +409,11 @@ class imageLabel(QLabel):
                         window.cropTool.drawCropTool(img)
                 # drag active layer only
                 elif modifiers == Qt.ControlModifier:
-                    layer.xOffset += (x - State['ix'])
-                    layer.yOffset += (y - State['iy'])
-                    layer.updatePixmap()
-                    img.prLayer.update()  # =applyNone()
+                    layer.drag(x - State['ix'], y - State['iy'])
+                    # layer.xOffset += (x - State['ix'])
+                    # layer.yOffset += (y - State['iy'])
+                    # layer.updatePixmap()
+                    # img.prLayer.update()  # =applyNone()
                 # drag cloning virtual layer
                 elif modifiers == Qt.ControlModifier | Qt.AltModifier:
                     if layer.isCloningLayer():
@@ -643,61 +644,6 @@ class imageLabel(QLabel):
             return
         QApplication.restoreOverrideCursor()
 
-    """
-    def __movePaint(self, x, y, r, radius, pxmp=None):
-        
-        Private drawing function.
-        Base function for painting tools. The radius and pixmap
-        of the tool are passed by the parameters radius and pxmp.
-        Starting coordinates of the move are recorded in State, ending coordinates
-        are passed by parameters x, y.
-        Brush tips are drawn on the intermediate layer self.stroke,
-        using self.qp.
-        Successive brush tips, spaced by 0.25 * radius, are paint on qp.
-        Note that self.qp must have been previously activated.
-        @param x: move event x-coord
-        @type x: float
-        @param y: move event y-coord
-        @type y: float
-        @param r: image resizing coeff
-        @type r: float
-        @param radius: tool radius
-        @type radius: float
-        @param pxmp: brush pixmap
-        @type pxmp: QPixmap
-        @return: last painted position
-        @rtype: 2-uple of float
-        
-        img = self.img
-        State = self.State
-        qp = self.qp
-        tmp_x = (x - img.xOffset) // r
-        tmp_y = (y - img.yOffset) // r
-        # vector of the move
-        a_x, a_y = tmp_x - State['x_imagePrecPos'], tmp_y - State['y_imagePrecPos']
-        # move length : use 1-norm for performance
-        d = sqrt(a_x * a_x + a_y * a_y)
-        spacing, jitter = State['brush']['spacing'], State['brush']['jitter']
-        step = 1 if d == 0 else radius * 0.3 * spacing / d  # 0.25
-        if jitter != 0.0:
-            step *= (1.0 + choice(brushFamily.jitterRange) * jitter / 100.0)
-        p_x, p_y = State['x_imagePrecPos'], State['y_imagePrecPos']
-        if d != 0.0:
-            cosTheta, sinTheta = a_x / d, a_y / d
-            transform = QTransform(cosTheta, sinTheta, -sinTheta, cosTheta, 0, 0)  # Caution: angles > 0 correspond to counterclockwise rotations of pxmp
-            pxmp = pxmp.transformed(transform)
-        count = 0
-        maxCount = int( 1.0 / step)
-        while count < maxCount:
-            count += 1
-            if pxmp is None:
-                qp.drawEllipse(QPointF(p_x, p_y), radius, radius)
-            else:
-                qp.drawPixmap(QPointF(p_x - radius, p_y - radius), pxmp)
-            p_x, p_y = p_x + a_x * step, p_y + a_y * step
-        # return last painted position
-        return p_x, p_y
-    """
 
     def __strokePaint(self, layer, x, y, r):
         """
@@ -761,13 +707,9 @@ class imageLabel(QLabel):
                                                                                           State['brush'])
             qp.end()
         # update layer - should be layer.applyToStack() if any upper layer visible : too slow !
-        # We only update layer and its consecutive upper drawing layers to allow multi-layer drawing/painting
-        # Other upper layers should be not visible
-        ind = layer.getStackIndex()
-        for alayer in img.layersStack[ind:]:
-            if alayer.isDrawLayer():
-                alayer.execute(l=alayer)  # alayer needed to allow method copy (resizing)
-            else:
-                break
+        # We only update layer. Higher drawing layers do not need any updating : they
+        # transparently transmit modifications (see QDrawingLayer.inputImg()).
+        # All higher non-drawing layers should be not visible.
+        layer.execute(l=layer)
         img.prLayer.update()
         self.window.label.repaint()

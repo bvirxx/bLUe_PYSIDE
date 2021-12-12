@@ -466,3 +466,10 @@ class QRangeSlider(QtWidgets.QWidget, Ui_Form):
         _unlockWidth(self._tail)
         _unlockWidth(self._head)
         _unlockWidth(self._handle)
+
+    def __getstate__(self):
+        start, end = self.getRange()
+        return {'start': start, 'end': end}
+
+    def __setstate__(self, state):
+        self.setRange(state['start'], state['end'])

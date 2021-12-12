@@ -120,7 +120,8 @@ class drawForm(baseForm):
               Choose a brush family, flow, hardness and opacity.<br>
               To <b>change the brush color</b> use <br>menu <i>View->Color Chooser</i> or <i>Ctrl+Click</i> 
               a pixel on the image.<br>
-              To <b>load presets</b> use menu <i>File->Load Preset.</i>
+              To <b>load presets</b> use menu <i>File->Load Preset.</i><br>
+              To <b>move</b> the layer select the <i>Drag Tool</i> and do <i>Ctrl+Drag</i>. 
             """
         )  # end of setWhatsThis
 

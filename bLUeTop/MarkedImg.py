@@ -1520,40 +1520,6 @@ class QLayer(vImage):
                 return i
         return -1
 
-    """
-    def linkMask2Lower(self):
-        ind = self.getStackIndex()
-        if ind == 0:
-            return
-        lower = self.parentImage.layersStack[ind-1]
-        # don't link two groups
-        if self.group and lower.group:
-            return
-        if not self.group and not lower.group:
-            self.group = [self, lower]
-            lower.group = self.group
-        elif not lower.group:
-            if not any(o is lower for o in self.group):
-                self.group.append(lower)
-            lower.group = self.group
-        elif not self.group:
-            if not any(item is self for item in lower.group):
-                lower.group.append(self)
-            self.group = lower.group
-        self.mask = lower.mask
-
-    def unlinkMask(self):
-        self.mask = self.mask.copy()
-        # remove self from group
-        for i, item in enumerate(self.group):
-            if item is self:
-                self.group.pop(i)
-                # don't keep  group with length 1
-                if len(self.group) == 1:
-                    self.group.pop(0)
-                break
-        self.group = []
-    """
 
     def merge_with_layer_immediately_below(self):
         """
@@ -1616,6 +1582,20 @@ class QLayer(vImage):
         self.colorMaskOpacity = value
         buf = QImageBuffer(self.mask)
         buf[:, :, 3] = np.uint8(value)
+
+    def drag(self, deltaX, deltaY):
+        """
+        Called by imageLabel.mouseMove() Ctrl+drag.
+        Subclasses may override the method to provide
+        a suitable response to this action.
+        Parameters deltaX, deltaY are the screen coordinates of the translation
+        vector.
+        @param deltaX:
+        @type deltaX: integer
+        @param deltaY:
+        @type deltaY: integer
+        """
+        pass
 
     def __getstate__(self):
         d = {}
@@ -1967,18 +1947,50 @@ class QDrawingLayer(QLayerImage):
 
     def inputImg(self, redo=True):
         """
-
+        Returns the drawing painted onto a transparent image.
+        @param redo: unused
+        @type redo: boolean
         @return:
         @rtype: QImage
         """
-        img1 = super().inputImg()  # TODO maybe missing redo=redo 16/12/19
+        img1 = super().inputImg(redo=False)
         img1.fill(QColor(0, 0, 0, 0))
         # merging sourceImg
         qp = QPainter(img1)
-        qp.drawImage(QRect(0, 0, img1.width(), img1.height()), self.sourceImg)
+        qp.drawImage(QRect(0, 0, img1.width(), img1.height()), self.sourceImg)  # scale sourceImg
         qp.end()
         return img1
 
+    def updatePixmap(self, maskOnly=False):
+        """
+        Transfers the layer translation to the drawing and
+        resets the translation to 0 before updating pixmap.
+        @param maskOnly:
+        @type maskOnly: boolean
+        """
+        x, y = self.xOffset, self.yOffset
+        if x != 0 or y != 0:
+            self.sourceImg = self.sourceImg.copy(QRect(-x, -y, self.sourceImg.width(), self.sourceImg.height()))
+            self.xOffset, self.yOffset = 0, 0
+            img1 = self.inputImg()
+            im = self.getCurrentImage()
+            buf = QImageBuffer(im)
+            buf[:, :, :, ] = QImageBuffer(img1)
+
+        super().updatePixmap(maskOnly=maskOnly)
+
+    def drag(self, deltaX, deltaY):
+        """
+        Translates teh drawing
+        @param deltaX:
+        @type deltaX: int
+        @param deltaY:
+        @type deltaY: int
+        """
+        self.xOffset += deltaX
+        self.yOffset += deltaY
+        self.updatePixmap()
+        self.parentImage.prLayer.update()  # =applyNone()
 
 class QRawLayer(QLayer):
     """
