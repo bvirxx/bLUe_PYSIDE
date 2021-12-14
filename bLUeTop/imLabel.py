@@ -407,9 +407,9 @@ class imageLabel(QLabel):
                     img.yOffset += y - State['iy']
                     if window.btnValues['Crop_Button']:
                         window.cropTool.drawCropTool(img)
-                # drag active layer only
+                # drag active layer only for drawing layer or crop tool for others
                 elif modifiers == Qt.ControlModifier:
-                    layer.drag(x - State['ix'], y - State['iy'])
+                    layer.drag(x, y, State['ix'], State['iy'], self)
                     # layer.xOffset += (x - State['ix'])
                     # layer.yOffset += (y - State['iy'])
                     # layer.updatePixmap()
@@ -589,8 +589,9 @@ class imageLabel(QLabel):
                 # layer.view.widget().tool.moveRotatingTool()
                 layer.tool.moveRotatingTool()
         elif modifiers == Qt.ControlModifier:
-            layer.Zoom_coeff *= (1.0 + numSteps)
-            layer.updatePixmap()
+            # cropTool aware zooming
+            layer.Zoom_coeff *= 1.0 + numSteps
+            layer.zoom(pos, numSteps, self)
         # cloning layer zoom
         elif layer.isCloningLayer() and modifiers == Qt.ControlModifier | Qt.AltModifier:
             layer.AltZoom_coeff *= (1.0 + numSteps)

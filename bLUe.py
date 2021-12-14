@@ -1099,18 +1099,29 @@ def getPool():
 
 def menuLayer(name, window=window, sname=None, script=False):
     """
-    Menu Layer handler
+    Menu Layer handler and scripting.
+    Creates a layer and its associated graphic form.
+    Returns the newly created layer or None.
     @param name: action name
     @type name: str
-    @param window:
-    @type window: QWidget
+    @param sname: layer name from script
+    @type sname: str
+    @param script:
+    @type script: boolean
+    @return: layer
+    @rtype: QLayer
     """
 
-    # get layer instance name
+    # adhoc kw dict for getNewWindow calls
+    def envdict():
+        return {'targetImage': window.label.img,
+                'layer': layer,
+                'parent': window,
+                'mainForm': window}
+
+    # get layer instance name with priority to script if any
     def gn(name):
-        if sname is not None:
-            return sname
-        return name
+        return name if sname is None else sname
 
     # postlude
     def post(layer):
@@ -1140,20 +1151,19 @@ def menuLayer(name, window=window, sname=None, script=False):
         dlgWarn('Cannot add layer : no document found', 'Open an existing image or create a new one')
         return
 
-    # curves
+    #
     if name in ['actionCurves_RGB', 'actionCurves_HSpB', 'actionCurves_Lab']:
         if name == 'actionCurves_RGB':
             layerName = 'Curves RGB'
             form = graphicsForm
-        elif name == 'actionCurves_HSpB':  # displayed as HSV in the layer menu !!
+        elif name == 'actionCurves_HSpB':
             layerName = 'Curves HSV'
             form = graphicsHspbForm
         elif name == 'actionCurves_Lab':
             layerName = 'Curves Lab'
             form = graphicsLabForm
-        # add new layer on top of active layer
         layer = window.label.img.addAdjustmentLayer(name=gn(layerName))
-        grWindow = form.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
+        grWindow = form.getNewWindow(axeSize=axeSize, **envdict())
         # wrapper for the right applyXXX method
         if name == 'actionCurves_RGB':
             layer.execute = lambda l=layer, pool=None: l.tLayer.apply1DLUT(grWindow.scene().cubicItem.getStackedLUTXY())
@@ -1168,9 +1178,7 @@ def menuLayer(name, window=window, sname=None, script=False):
         layerName = 'Auto 3D LUT'
         layer = window.label.img.addAdjustmentLayer(name=gn(layerName),
                                                     role='AutoLUT')  # do not use a role containing '3DLUT'
-        grWindow = graphicsFormAuto3DLUT.getNewWindow(axeSize=300, targetImage=window.label.img,
-                                                      LUTSize=LUTSIZE, layer=layer, parent=window,
-                                                      mainForm=window)
+        grWindow = graphicsFormAuto3DLUT.getNewWindow(axeSize=300, LUTSize=LUTSIZE, **envdict())
         pool = getPool()
         layer.execute = lambda l=layer, pool=pool: l.tLayer.applyAuto3DLUT(pool=pool)
 
@@ -1180,8 +1188,7 @@ def menuLayer(name, window=window, sname=None, script=False):
         ccm = cmHSP if name == 'action3D_LUT' else cmHSB
         layerName = '2.5D LUT HSpB' if name == 'action3D_LUT' else '2.5D LUT HSV'
         layer = window.label.img.addAdjustmentLayer(name=gn(layerName), role='3DLUT')
-        grWindow = graphicsForm3DLUT.getNewWindow(ccm, axeSize=300, targetImage=window.label.img,
-                                                  LUTSize=LUTSIZE, layer=layer, parent=window, mainForm=window)
+        grWindow = graphicsForm3DLUT.getNewWindow(ccm, axeSize=300, LUTSize=LUTSIZE, **envdict())
         # init pool only once
         pool = getPool()
         sc = grWindow.scene()
@@ -1193,8 +1200,7 @@ def menuLayer(name, window=window, sname=None, script=False):
         if sname is not None:
             layerName = sname
         layer = window.label.img.addAdjustmentLayer(name=gn(layerName), role='2DLUT')
-        grWindow = HVLUT2DForm.getNewWindow(axeSize=300, targetImage=window.label.img,
-                                            layer=layer, parent=window)
+        grWindow = HVLUT2DForm.getNewWindow(axeSize=300, **envdict())
         # init pool only once
         pool = getPool()
         sc = grWindow.scene()
@@ -1204,15 +1210,14 @@ def menuLayer(name, window=window, sname=None, script=False):
     elif name == 'actionNew_Cloning_Layer':
         lname = 'Cloning'
         layer = window.label.img.addAdjustmentLayer(layerType=QCloningLayer, name=gn(lname), role='CLONING')
-        grWindow = patchForm.getNewWindow(targetImage=window.label.img, axeSize=axeSize, layer=layer, parent=window,
-                                          mainForm=window)
+        grWindow = patchForm.getNewWindow(**envdict())
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyCloning(seamless=True)
 
     # segmentation
     elif name == 'actionNew_segmentation_layer':
         lname = 'Segmentation'
         layer = window.label.img.addSegmentationLayer(name=gn(lname))
-        grWindow = segmentForm.getNewWindow(targetImage=window.label.img, layer=layer)
+        grWindow = segmentForm.getNewWindow(**envdict())
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyGrabcut(nbIter=grWindow.nbIter)
 
     # load images from file
@@ -1246,7 +1251,7 @@ def menuLayer(name, window=window, sname=None, script=False):
                 return
             lname = path.basename(filename)
             layer = window.label.img.addAdjustmentLayer(name=gn(lname), sourceImg=imgNew, role='Image+GEOM')
-            grWindow = imageForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
+            grWindow = imageForm.getNewWindow(axeSize=axeSize, **envdict())
             # add transformation tool to parent widget
             tool = rotatingTool(parent=window.label)  # , layer=l, form=grWindow)
             layer.addTool(tool)
@@ -1268,7 +1273,7 @@ def menuLayer(name, window=window, sname=None, script=False):
         imgNew.fill(Qt.black)
         lname = 'Image'
         layer = window.label.img.addAdjustmentLayer(name=gn(lname), sourceImg=imgNew, role='GEOMETRY')
-        grWindow = imageForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
+        grWindow = imageForm.getNewWindow(axeSize=axeSize, **envdict())
         # add transformation tool to parent widget
         tool = rotatingTool(parent=window.label)  # , layer=l, form=grWindow)
         layer.addTool(tool)
@@ -1285,8 +1290,7 @@ def menuLayer(name, window=window, sname=None, script=False):
         lname = 'Drawing'
         layer = window.label.img.addAdjustmentLayer(name=gn(lname), layerType=QDrawingLayer, sourceImg=imgNew,
                                                     role='DRW')
-        grWindow = drawForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer,
-                                         parent=window, mainForm=window)
+        grWindow = drawForm.getNewWindow(axeSize=axeSize, **envdict())
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyNone()
         layer.actioname = name
 
@@ -1294,15 +1298,13 @@ def menuLayer(name, window=window, sname=None, script=False):
     elif name == 'actionColor_Temperature':
         lname = 'Color Filter'
         layer = window.label.img.addAdjustmentLayer(name=gn(lname))
-        grWindow = temperatureForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer,
-                                                parent=window)
+        grWindow = temperatureForm.getNewWindow(axeSize=axeSize, **envdict())
         # wrapper for the right apply method
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyTemperature()
 
     elif name == 'actionContrast_Correction':
         layer = window.label.img.addAdjustmentLayer(name=gn(CoBrSatForm.layerTitle), role='CONTRAST')
-        grWindow = CoBrSatForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window,
-                                            mainForm=window)
+        grWindow = CoBrSatForm.getNewWindow(axeSize=axeSize, **envdict())
 
         # clipLimit change event handler
 
@@ -1319,20 +1321,20 @@ def menuLayer(name, window=window, sname=None, script=False):
         lname = 'Exposure'
         layer = window.label.img.addAdjustmentLayer(name=gn(lname))
         layer.clipLimit = ExpForm.defaultExpCorrection
-        grWindow = ExpForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
+        grWindow = ExpForm.getNewWindow(axeSize=axeSize, **envdict())
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyExposure(grWindow.options)
 
     elif name == 'actionHDR_Merge':
         lname = 'Merge'
         layer = window.label.img.addAdjustmentLayer(name=gn(lname), role='MERGING')
         layer.clipLimit = ExpForm.defaultExpCorrection
-        grWindow = HDRMergeForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
+        grWindow = HDRMergeForm.getNewWindow(axeSize=axeSize, **envdict())
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyHDRMerge(grWindow.options)
 
     elif name == 'actionGeom_Transformation':
         lname = 'Transformation'
         layer = window.label.img.addAdjustmentLayer(name=gn(lname), role='GEOMETRY')
-        grWindow = transForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer, parent=window)
+        grWindow = transForm.getNewWindow(axeSize=axeSize, **envdict())
         # add transformation tool to parent widget
         tool = rotatingTool(parent=window.label)
         layer.addTool(tool)
@@ -1342,22 +1344,21 @@ def menuLayer(name, window=window, sname=None, script=False):
     elif name == 'actionFilter':
         lname = 'Filter'
         layer = window.label.img.addAdjustmentLayer(name=gn(lname))
-        grWindow = filterForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img, layer=layer)
+        grWindow = filterForm.getNewWindow(axeSize=axeSize, **envdict())
         # wrapper for the right apply method
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyFilter2D()
 
     elif name == 'actionGradual_Filter':
         lname = 'Gradual Filter'
         layer = window.label.img.addAdjustmentLayer(name=gn(lname))
-        grWindow = blendFilterForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img,
-                                                layer=layer, parent=window)
+        grWindow = blendFilterForm.getNewWindow(axeSize=axeSize, **envdict())
         # wrapper for the right apply method
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyBlendFilter()
 
     elif name == 'actionNoise_Reduction':
         lname = 'Noise Reduction'
         layer = window.label.img.addAdjustmentLayer(name=gn(lname))
-        grWindow = noiseForm.getNewWindow(axeSize=axeSize, layer=layer, parent=window)
+        grWindow = noiseForm.getNewWindow(axeSize=axeSize, **envdict())
         # wrapper for the right apply method
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyNoiseReduction()
 
@@ -1365,16 +1366,14 @@ def menuLayer(name, window=window, sname=None, script=False):
     elif name == 'actionInvert':
         lname = 'Invert'
         layer = window.label.img.addAdjustmentLayer(name=gn(lname))
-        grWindow = invertForm.getNewWindow(axeSize=axeSize, targetImage=window.label.img,
-                                           layer=layer, parent=window)
+        grWindow = invertForm.getNewWindow(axeSize=axeSize, **envdict())
         layer.execute = lambda l=layer: l.tLayer.applyInvert()
         layer.applyToStack()
 
     elif name == 'actionChannel_Mixer':
         lname = 'Channel Mixer'
         layer = window.label.img.addAdjustmentLayer(name=gn(lname))
-        grWindow = mixerForm.getNewWindow(axeSize=260, targetImage=window.label.img,
-                                          layer=layer, parent=window)
+        grWindow = mixerForm.getNewWindow(axeSize=260, **envdict())
         layer.execute = lambda l=layer: l.tLayer.applyMixer(grWindow.options)
 
     # load 3D LUT from .cube file
@@ -1950,7 +1949,13 @@ def setupGUI(window=window):
 
     # whatsThis
     window.cropButton.setWhatsThis(
-        """To <b>crop</b> the image drag a gray curtain on either side using the 8 small square buttons around the image""")
+        """To <b>crop</b> the image drag a gray curtain on either side using the 8 small square buttons
+        around the image.<br>
+        To <b>drag</b> the cropping area over the image select the <i>Drag Tool</i> and do <i>Ctrl+Drag
+        with the mouse.</i><br>
+        To <b>zoom</b> inside the cropping area select the <i>Drag Tool</i> and do <i>Ctrl+Wheel.</i> 
+        The image point under the mouse cursor is kept fixed.
+        """)
     window.rulerButton.setWhatsThis("""Draw horizontal and vertical rulers over the image""")
     window.fitButton.setWhatsThis("""Reset the image size to the window size""")
     window.eyeDropper.setWhatsThis("""<b>Color Picker</b><br> Click on the image to sample pixel colors""")

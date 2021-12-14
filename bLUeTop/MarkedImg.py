@@ -41,6 +41,7 @@ from bLUeCore.demosaicing import demosaic
 from bLUeGui.blend import blendLuminosityBuf, blendColorBuf
 from bLUeTop import exiftool
 from bLUeGui.memory import weakProxy
+from bLUeGui.tool import cropTool
 from bLUeTop.cloning import contours, moments, seamlessClone
 
 from bLUeTop.colorManagement import icc, cmsConvertQImage
@@ -146,6 +147,7 @@ class mImage(vImage):
                                    sourceImg=l.sourceImg.scaled(self.size())
                                    if getattr(l, 'sourceImg', None) is not None else None)
             lr.execute = l.execute
+            lr.actionName = l.actionName
             lr.name = l.name
             lr.view = l.view
             lr.view.widget().targetImage = self
@@ -159,6 +161,7 @@ class mImage(vImage):
 
             sfi = getattr(l, 'sourceFromFile', None)
             if sfi is not None:
+                # cloning layer only
                 coeffX, coeffY = lr.width() / l.width(), lr.height() / l.height()
                 lr.sourceFromFile = l.sourceFromFile
                 lr.cloningMethod = l.cloningMethod
@@ -1583,19 +1586,48 @@ class QLayer(vImage):
         buf = QImageBuffer(self.mask)
         buf[:, :, 3] = np.uint8(value)
 
-    def drag(self, deltaX, deltaY):
+    def drag(self, x1, y1, x0, y0, widget):
         """
         Called by imageLabel.mouseMove() Ctrl+drag.
         Subclasses may override the method to provide
         a suitable response to this action.
-        Parameters deltaX, deltaY are the screen coordinates of the translation
-        vector.
-        @param deltaX:
-        @type deltaX: integer
-        @param deltaY:
-        @type deltaY: integer
+        Coordinates (x1, y1) and (x0, y0) are respectively the ending and the beginning of the move event.
+        They are relative to the calling imageLabel.
+        @param x1:
+        @type x1: int
+        @param y1:
+        @type y1: int
+        @param x0:
+        @type x0: int
+        @param y0:
+        @type y0: int
+        @param widget: caller
+        @type widget: imageLabel
         """
-        pass
+        window = widget.window
+        if not window.label.img.isCropped:
+            return
+        crpt = window.cropTool
+        crpt.moveCrop(x1 - x0, y1 - y0, self.parentImage, widget)
+
+    def zoom(self, pos, numSteps, widget):
+        """
+        Called by imageLabel.wheelEvent() Ctrl+Wheel.
+        Subclasses may override the method to provide
+        a suitable response to this action.
+        Default is a Crop Tool aware zooming.
+        @param pos: mouse pos. (relative to widget)
+        @type pos: QPoint
+        @param numSteps: relative angle of rotation
+        @type numSteps: float
+        @param widget:
+        @type widget: imageLabel
+        """
+        window = widget.window
+        if not window.label.img.isCropped:
+            return
+        crpt = window.cropTool
+        crpt.zoomCrop(pos, numSteps, self.parentImage)
 
     def __getstate__(self):
         d = {}
@@ -1979,16 +2011,18 @@ class QDrawingLayer(QLayerImage):
 
         super().updatePixmap(maskOnly=maskOnly)
 
-    def drag(self, deltaX, deltaY):
+    def drag(self, x1, y1, x0, y0, widget):
         """
-        Translates teh drawing
+        Translates the drawing
         @param deltaX:
         @type deltaX: int
         @param deltaY:
         @type deltaY: int
+        @param widget:
+        @type widget: imageLabel
         """
-        self.xOffset += deltaX
-        self.yOffset += deltaY
+        self.xOffset += x1 - x0
+        self.yOffset += y1 - y0
         self.updatePixmap()
         self.parentImage.prLayer.update()  # =applyNone()
 

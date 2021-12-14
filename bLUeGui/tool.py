@@ -19,7 +19,7 @@ import numpy as np
 
 from PySide2.QtGui import QImage, QTransform, QPolygonF
 from PySide2.QtWidgets import QWidget, QToolButton
-from PySide2.QtCore import Qt, QPoint, QObject, QPointF, QRectF
+from PySide2.QtCore import Qt, QPoint, QObject, QPointF, QRectF, QRect
 
 from bLUeGui.dialog import dlgWarn
 
@@ -223,13 +223,14 @@ class cropTool(QObject):
         top = self.btnDict['top']
         bottom = self.btnDict['bottom']
         right = self.btnDict['right']
-        # cRect = QRect(round(left.margin), round(top.margin), img.width() - round(right.margin + left.margin),
-        # img.height() - round(bottom.margin + top.margin))
+        # get cropping rectangle (image coord.)
         cRect = QRectF(left.margin, top.margin, img.width() - right.margin - left.margin,
                        img.height() - bottom.margin - top.margin)
+        # get widget coord. of cRect
         p = cRect.topLeft() * r + QPoint(img.xOffset, img.yOffset)
         x, y = p.x(), p.y()
         w, h = cRect.width() * r, cRect.height() * r
+        # move buttons to their right position
         left.move(x - left.width(), y + h // 2)
         right.move(x + w, y + h // 2)
         top.move(x + w // 2, y - top.height())
@@ -244,6 +245,68 @@ class cropTool(QObject):
         bottomRight.move(x + w, y + h)
         self.crWidth, self.crHeight = img.width() - int(img.cropLeft) - int(img.cropRight), img.height() - int(
             img.cropTop) - int(img.cropBottom)
+
+    def moveCrop(self, deltaX, deltaY, img, widget):
+        """
+        Translates the crop tool.
+        Coordinates are relative to widget.
+        @param deltaX: move x-coord.
+        @type deltaX: int
+        @param deltaY: move y-coord.
+        @type deltaY: int
+        @param img:
+        @type img:
+        @param widget:
+        @type widget: ImageLabel
+        """
+
+        r = widget.img.resize_coeff(widget)
+        w, h = img.width() * r, img.height() * r
+        speed = 2  # deltaX = 1 or deltaY = 1 may lead to an incorrect move, due to int/float conversions
+        # in setPosition() and drawCropTool()
+        deltaX, deltaY = speed * deltaX, speed * deltaY  # parent widget coord.
+
+        btnList = [self.btnDict[name] for name in ['left', 'right', 'top', 'bottom']]
+
+        for btn in btnList[:2]:
+            newX = btn.x() + deltaX
+            if newX < img.xOffset or newX > img.xOffset + w:
+                return
+
+        for btn in btnList[2:]:
+            newY = btn.y() + deltaY
+            if newY < img.yOffset or newY > img.yOffset + h:
+                return
+
+        for btn in btnList:
+            btn.setPosition(btn.pos() + QPoint(2 * deltaX, deltaY))
+
+        self.drawCropTool(img)
+
+    def zoomCrop(self, pos, numSteps, img):
+        """
+        Crop tool aware zooming.
+        Img is zoomed, keeping cropTool and the point of img under cursor both fixed on the screen.
+
+        @param pos: mouse cursor position (relative to widget)
+        @type pos: QPoint
+        @param numSteps: relative wheel rotation
+        @type numSteps: float
+        @param img:
+        @type img: vImage
+        """
+
+        btnList = [self.btnDict[name] for name in ['left', 'right', 'top', 'bottom']]
+
+        img.xOffset = -pos.x() * numSteps + (1.0 + numSteps) * img.xOffset
+        img.yOffset = -pos.y() * numSteps + (1.0 + numSteps) * img.yOffset
+
+        img.Zoom_coeff *= 1.0 + numSteps
+
+        for btn in btnList:
+            btn.setPosition(btn.pos())
+
+        self.drawCropTool(img)
 
 
 class rotatingHandle(baseHandle):
