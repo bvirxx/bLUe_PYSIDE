@@ -22,7 +22,7 @@ import cv2
 
 import numpy as np
 
-from PySide2.QtCore import QSize, QObject
+from PySide6.QtCore import QSize, QObject
 from PySide2.QtWidgets import QAction, QFileDialog, QToolTip, QHBoxLayout, \
     QApplication, QGridLayout, QComboBox, QLineEdit, QLabel, \
     QGraphicsItem, QGraphicsItemGroup, QGraphicsPathItem, \
