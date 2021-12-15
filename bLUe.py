@@ -16,7 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 Qt5 is licensed under the LGPL version 3,
-Pyside2 is licensed under the LGPL version 2.1
+PySide2 is licensed under the LGPL version 2.1
 exiftool Copyright © 2013-2016, Phil Harvey.exiftool is licensed under thePerl Artistic License
 The Python Imaging Library (PIL) is
 
@@ -146,9 +146,9 @@ from bLUeTop.graphicsSegment import segmentForm
 from PySide2.QtCore import QUrl, QFileInfo
 from PySide2.QtGui import QPixmap, QCursor, QKeySequence, QDesktopServices, QFont, \
     QTransform, QColor, QImage, QIcon
-from PySide2.QtWidgets import QApplication, QAction, \
+from PySide2.QtWidgets import QApplication, \
     QDockWidget, QSizePolicy, QSplashScreen, QWidget, \
-    QTabWidget, QToolBar, QComboBox, QTabBar
+    QTabWidget, QToolBar, QComboBox, QTabBar, QAction
 from bLUeTop.QtGui1 import app, window, splitWin
 from bLUeTop import exiftool
 from bLUeTop.graphicsBlendFilter import blendFilterForm
@@ -459,7 +459,7 @@ def openFile(f, window=window):
             # update list of recent files
             recentFiles = window.settings.value('paths/recent', [])
             # settings.values returns a str or a list of str,
-            # depending on the count of items. May be a Pyside2 bug
+            # depending on the count of items. May be a PySide2 bug
             # in QVariant conversion.
             if type(recentFiles) is str:
                 recentFiles = [recentFiles]
@@ -724,7 +724,7 @@ def updateMenuOpenRecent(window=window):
     window.menuOpen_recent.clear()
     recentFiles = window.settings.value('paths/recent', [])
     # settings.values returns a str or a list of str,
-    # depending on the count of items. May be a Pyside2 bug
+    # depending on the count of items. May be a PySide2 bug
     # in QVariant conversion.
     if type(recentFiles) is str:
         recentFiles = [recentFiles]

@@ -605,28 +605,29 @@ class mImage(vImage):
         else:
             raise IOError("Invalid File Format\nValid formats are jpg, png, tif ")
 
-        if self.isCropped:
-            # make slices
-            w, h = self.width(), self.height()
-            w1, w2 = int(self.cropLeft), w - int(self.cropRight)
-            h1, h2 = int(self.cropTop), h - int(self.cropBottom)
-            buf = buf[h1:h2, w1:w2, :]
-
-        # build thumbnail from (eventually) cropped image
-        # choose thumb size
-        wf, hf = buf.shape[1], buf.shape[0]
-        if wf > hf:
-            wt, ht = 160, 120
-        else:
-            wt, ht = 120, 160
-        thumb = ndarrayToQImage(np.ascontiguousarray(buf[:, :, :3][:, :, ::-1]),
-                                format=QImage.Format_RGB888).scaled(wt, ht, Qt.KeepAspectRatio)
-
         written = False
+        thumb = None
 
         if fileFormat in IMAGE_FILE_EXTENSIONS:  # dest format
-            # save edited image
+            # save edited image -  mode preview is off
+
+            if self.isCropped:
+                # make slices
+                w, h = self.width(), self.height()
+                w1, w2 = int(self.cropLeft), w - int(self.cropRight)
+                h1, h2 = int(self.cropTop), h - int(self.cropBottom)
+                buf = buf[h1:h2, w1:w2, :]
+
             written = cv2.imwrite(filename, buf, params)  # BGR order
+            # build thumbnail from (eventually) cropped image
+            # choose thumb size
+            wf, hf = buf.shape[1], buf.shape[0]
+            if wf > hf:
+                wt, ht = 160, 120
+            else:
+                wt, ht = 120, 160
+            thumb = ndarrayToQImage(np.ascontiguousarray(buf[:, :, :3][:, :, ::-1]),
+                                    format=QImage.Format_RGB888).scaled(wt, ht, Qt.KeepAspectRatio)
 
         elif fileFormat in BLUE_FILE_EXTENSIONS:
             # records current state and save to bLU file

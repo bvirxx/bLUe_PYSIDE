@@ -24,10 +24,10 @@ import numpy as np
 
 from PySide2.QtCore import QSize, QObject
 from PySide2.QtWidgets import QAction, QFileDialog, QToolTip, QHBoxLayout, \
-    QApplication, QGridLayout, QComboBox, QLineEdit, QLabel
-from PySide2.QtGui import QPainter, QPolygonF, QPainterPath, QPen, QBrush, QColor, QPixmap, QTransform
-from PySide2.QtWidgets import QGraphicsItem, QGraphicsItemGroup, QGraphicsPathItem, \
+    QApplication, QGridLayout, QComboBox, QLineEdit, QLabel, \
+    QGraphicsItem, QGraphicsItemGroup, QGraphicsPathItem, \
     QGraphicsPixmapItem, QSizePolicy
+from PySide2.QtGui import QPainter, QPolygonF, QPainterPath, QPen, QBrush, QColor, QPixmap, QTransform
 from PySide2.QtCore import Qt, QPointF, QRect, QRectF
 from PySide2.QtGui import QImage
 from PySide2.QtWidgets import QMenu, QRubberBand

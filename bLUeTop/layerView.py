@@ -22,9 +22,8 @@ from PySide2 import QtCore
 from PySide2.QtCore import QRectF, QSize, Qt, QModelIndex, QPoint
 from PySide2.QtGui import QImage, QPalette, QKeySequence, QFontMetrics, QTextOption, QPixmap, QIcon, QPainter, \
     QStandardItem, QStandardItemModel
-from PySide2.QtWidgets import QAction, QMenu, QSlider, QStyle, QCheckBox, QApplication
 from PySide2.QtWidgets import QComboBox, QHBoxLayout, QLabel, QTableView, QAbstractItemView, QStyledItemDelegate, \
-    QHeaderView, QVBoxLayout
+    QHeaderView, QVBoxLayout, QMenu, QSlider, QStyle, QCheckBox, QApplication, QAction
 
 from bLUeTop.QtGui1 import window
 from bLUeGui.bLUeImage import QImageBuffer, bImage
