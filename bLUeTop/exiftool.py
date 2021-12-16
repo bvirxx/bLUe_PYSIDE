@@ -29,8 +29,8 @@ import os
 import json
 from sys import platform
 
-from PySide2.QtCore import QByteArray
-from PySide2.QtGui import QTransform, QImage
+from PySide6.QtCore import QByteArray
+from PySide6.QtGui import QTransform, QImage
 from os.path import isfile
 from bLUeTop.settings import EXIFTOOL_PATH
 from bLUeGui.dialog import dlgWarn
@@ -238,7 +238,7 @@ class ExifTool(object):
         @rtype: QImage
         """
         thumbnail = self.readBinaryData(f, tagname=thumbname)
-        return QImage.fromData(QByteArray.fromRawData(thumbnail), 'JPG')  # Pyside2 fromRawData takes 1 arg only
+        return QImage.fromData(QByteArray.fromRawData(thumbnail), 'JPG')  # PySide6 fromRawData takes 1 arg only
 
     def writeThumbnail(self, filename, thumbfile):
         """

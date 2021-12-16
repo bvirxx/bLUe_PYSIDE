@@ -19,8 +19,8 @@ import cv2
 from sys import byteorder
 
 import numpy as np
-from PySide2.QtCore import QSize, Qt, QPointF
-from PySide2.QtGui import QImage, QPixmap, QColor, QPainter, QPainterPath, QBrush, QPolygonF
+from PySide6.QtCore import QSize, Qt, QPointF
+from PySide6.QtGui import QImage, QPixmap, QColor, QPainter, QPainterPath, QBrush, QPolygonF
 
 from bLUeGui.colorCIE import sRGB2LabVec
 from bLUeGui.colorCube import rgb2hspVec

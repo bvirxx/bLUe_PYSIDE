@@ -16,11 +16,11 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import numpy as np
-from PySide2 import QtCore
-from PySide2.QtCore import QRect, QPoint
-from PySide2.QtWidgets import QGraphicsScene, QPushButton, QGridLayout
-from PySide2.QtGui import QPixmap, QRadialGradient
-from PySide2.QtCore import Qt, QRectF
+from PySide6 import QtCore
+from PySide6.QtCore import QRect, QPoint
+from PySide6.QtWidgets import QGraphicsScene, QPushButton, QGridLayout
+from PySide6.QtGui import QPixmap, QRadialGradient
+from PySide6.QtCore import Qt, QRectF
 
 from bLUeGui.colorCIE import sRGB2LabVec
 from bLUeGui.const import channelValues

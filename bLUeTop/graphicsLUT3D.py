@@ -23,14 +23,14 @@ import cv2
 import numpy as np
 
 from PySide6.QtCore import QSize, QObject
-from PySide2.QtWidgets import QAction, QFileDialog, QToolTip, QHBoxLayout, \
+from PySide6.QtWidgets import QFileDialog, QToolTip, QHBoxLayout, \
     QApplication, QGridLayout, QComboBox, QLineEdit, QLabel, \
     QGraphicsItem, QGraphicsItemGroup, QGraphicsPathItem, \
     QGraphicsPixmapItem, QSizePolicy
-from PySide2.QtGui import QPainter, QPolygonF, QPainterPath, QPen, QBrush, QColor, QPixmap, QTransform
-from PySide2.QtCore import Qt, QPointF, QRect, QRectF
-from PySide2.QtGui import QImage
-from PySide2.QtWidgets import QMenu, QRubberBand
+from PySide6.QtGui import QPainter, QPolygonF, QPainterPath, QPen, QBrush, QColor, QPixmap, QTransform, QAction
+from PySide6.QtCore import Qt, QPointF, QRect, QRectF
+from PySide6.QtGui import QImage
+from PySide6.QtWidgets import QMenu, QRubberBand
 
 from bLUeCore.bLUeLUT3D import LUT3D
 from bLUeCore.trilinear import interpTriLinear

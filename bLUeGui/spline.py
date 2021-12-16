@@ -17,7 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 import numpy as np
-from PySide2.QtCore import QPointF
+from PySide6.QtCore import QPointF
 
 
 #####################

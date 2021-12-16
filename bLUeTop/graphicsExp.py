@@ -16,9 +16,9 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-from PySide2.QtCore import Qt
-from PySide2.QtGui import QFontMetrics
-from PySide2.QtWidgets import QVBoxLayout, QHBoxLayout
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QFontMetrics
+from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout
 
 from bLUeGui.graphicsForm import baseForm
 from bLUeTop.utils import QbLUeSlider, QbLUeLabel
@@ -54,7 +54,7 @@ class ExpForm(baseForm):
         self.expValue = QbLUeLabel()
         font = self.expValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("1000 ")
+        w = metrics.horizontalAdvance("1000 ")
         h = metrics.height()
         self.expValue.setMinimumSize(w, h)
         self.expValue.setMaximumSize(w, h)

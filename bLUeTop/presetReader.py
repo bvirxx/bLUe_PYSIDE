@@ -19,7 +19,7 @@ import struct
 
 import cv2
 import numpy as np
-from PySide2.QtCore import QRect, QPoint
+from PySide6.QtCore import QRect, QPoint
 
 """
 .abr version 6.2 : example of Tagged Block structure.

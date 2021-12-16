@@ -15,11 +15,11 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-from PySide2 import QtCore
-from PySide2.QtCore import QPoint
-from PySide2.QtWidgets import QGraphicsView, QGraphicsScene, QSizePolicy, QGraphicsPathItem, QWidget, QVBoxLayout
-from PySide2.QtGui import QColor, QPen, QPainterPath, QBrush
-from PySide2.QtCore import Qt
+from PySide6 import QtCore
+from PySide6.QtCore import QPoint
+from PySide6.QtWidgets import QGraphicsView, QGraphicsScene, QSizePolicy, QGraphicsPathItem, QWidget, QVBoxLayout
+from PySide6.QtGui import QColor, QPen, QPainterPath, QBrush
+from PySide6.QtCore import Qt
 from bLUeGui.memory import weakProxy
 from bLUeTop.utils import stateAwareQDockWidget
 
@@ -221,7 +221,7 @@ class baseGraphicsForm(QGraphicsView, abstractForm):
         """
         # delta unit is 1/8 of degree
         # Most mice have a resolution of 15 degrees
-        numSteps = 1 + e.delta() / 2400.0  # 1200.0
+        numSteps = 1 + e.angleDelta().y() / 2400.0  # 1200.0
         self.scale(numSteps, numSteps)
 
     def addSubcontrol(self, parent=None):

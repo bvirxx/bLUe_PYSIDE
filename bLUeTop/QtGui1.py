@@ -17,12 +17,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import os
 
-from PySide2 import QtWidgets, QtCore
-from PySide2.QtCore import QSettings, Qt, QtMsgType
+from PySide6 import QtWidgets, QtCore
+from PySide6.QtCore import QSettings, Qt, QtMsgType
 import sys
 
-from PySide2.QtGui import QScreen
-from PySide2.QtWidgets import QApplication, QLabel, QMainWindow, QSizePolicy
+from PySide6.QtGui import QScreen
+from PySide6.QtWidgets import QApplication, QLabel, QMainWindow, QSizePolicy
 
 from bLUeTop.pyside_dynamicLoader import loadUi
 from bLUeTop.splitView import splitWindow

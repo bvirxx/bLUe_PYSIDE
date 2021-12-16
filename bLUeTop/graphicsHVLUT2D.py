@@ -15,10 +15,10 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-from PySide2 import QtCore
-from PySide2.QtCore import Qt, QRect
-from PySide2.QtGui import QFontMetrics, QColor
-from PySide2.QtWidgets import QLabel, QGridLayout
+from PySide6 import QtCore
+from PySide6.QtCore import Qt, QRect
+from PySide6.QtGui import QFontMetrics, QColor
+from PySide6.QtWidgets import QLabel, QGridLayout
 
 from bLUeCore.bLUeLUT3D import DeltaLUT3D
 from bLUeGui.graphicsSpline import graphicsCurveForm, activeBSpline
@@ -83,7 +83,7 @@ class HVLUT2DForm(graphicsCurveForm):
         self.markerLabel = QLabel()
         font = self.markerLabel.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("0000")
+        w = metrics.horizontalAdvance("0000")
         h = metrics.height()
         self.markerLabel.setMinimumSize(w, h)
         self.markerLabel.setMaximumSize(w, h)
@@ -112,7 +112,7 @@ class HVLUT2DForm(graphicsCurveForm):
         self.satValue = QLabel()
         font = self.markerLabel.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("0000")
+        w = metrics.horizontalAdvance("0000")
         h = metrics.height()
         self.satValue.setMinimumSize(w, h)
         self.satValue.setMaximumSize(w, h)

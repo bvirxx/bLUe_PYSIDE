@@ -15,9 +15,9 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-from PySide2.QtCore import QRect
-from PySide2.QtWidgets import QGraphicsScene, QPushButton, QGridLayout
-from PySide2.QtCore import Qt, QRectF
+from PySide6.QtCore import QRect
+from PySide6.QtWidgets import QGraphicsScene, QPushButton, QGridLayout
+from PySide6.QtCore import Qt, QRectF
 
 from bLUeGui.const import channelValues
 from bLUeGui.graphicsSpline import activeCubicSpline, graphicsCurveForm

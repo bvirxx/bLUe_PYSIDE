@@ -86,10 +86,12 @@ seamless cloning, segmentation, exposure fusion, curves, 2.5D LUTs, 3D LUTs.
 
 ## REQUIREMENTS
 
-* Python <= 3.9
-* Qt for Python (PySide2)
+### For the Qt5 (Pyside2) version switch to branch master.
+
+* Python >= 3.9
+* Qt6 for Python (PySide6)
 * OpenCV-Python
-* NumPy >= 1.15.0
+* NumPy >= 1.19.0
 * PIL
 * RawPy
 * PyWavelets

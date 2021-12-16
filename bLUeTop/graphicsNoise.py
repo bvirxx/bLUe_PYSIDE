@@ -15,9 +15,9 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-from PySide2.QtCore import Qt
-from PySide2.QtGui import QFontMetrics
-from PySide2.QtWidgets import QVBoxLayout, QSlider, QLabel, QHBoxLayout
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QFontMetrics
+from PySide6.QtWidgets import QVBoxLayout, QSlider, QLabel, QHBoxLayout
 
 from bLUeGui.graphicsForm import baseForm
 from bLUeTop.utils import optionsWidget, QbLUeSlider
@@ -69,7 +69,7 @@ class noiseForm(baseForm):
         self.thrValue = QLabel()
         font = self.thrValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("0000")
+        w = metrics.horizontalAdvance("0000")
         h = metrics.height()
         self.thrValue.setMinimumSize(w, h)
         self.thrValue.setMaximumSize(w, h)

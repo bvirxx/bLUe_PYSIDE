@@ -18,12 +18,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import pickle
 
 import numpy as np
-from PySide2.QtGui import QPainterPathStroker, QBrush, QPixmap
-from PySide2.QtCore import QRect, QPointF, QPoint
-from PySide2.QtWidgets import QGraphicsPathItem, QGraphicsPixmapItem, QGraphicsPolygonItem, \
+from PySide6.QtGui import QPainterPathStroker, QBrush, QPixmap
+from PySide6.QtCore import QRect, QPointF, QPoint
+from PySide6.QtWidgets import QGraphicsPathItem, QGraphicsPixmapItem, QGraphicsPolygonItem, \
     QGraphicsSceneMouseEvent, QHBoxLayout
-from PySide2.QtGui import QColor, QPen, QPainterPath, QPolygonF
-from PySide2.QtCore import Qt, QRectF
+from PySide6.QtGui import QColor, QPen, QPainterPath, QPolygonF
+from PySide6.QtCore import Qt, QRectF
 
 from bLUeGui.graphicsForm import graphicsCurveForm
 from bLUeTop.utils import optionsWidget, QbLUePushButton

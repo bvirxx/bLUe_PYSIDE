@@ -22,10 +22,10 @@ from collections import OrderedDict
 from math import log
 from os.path import basename
 
-from PySide2 import QtCore
-from PySide2.QtCore import Qt, QPointF
-from PySide2.QtGui import QFontMetrics, QBrush, QPolygonF
-from PySide2.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBox, QGraphicsPolygonItem
+from PySide6 import QtCore
+from PySide6.QtCore import Qt, QPointF
+from PySide6.QtGui import QFontMetrics, QBrush, QPolygonF
+from PySide6.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBox, QGraphicsPolygonItem
 
 from bLUeGui.graphicsSpline import graphicsSplineForm
 from bLUeGui.graphicsForm import baseForm
@@ -220,7 +220,7 @@ class rawForm(baseForm):
         self.tempValue = QLabel()
         font = self.tempValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("10000")
+        w = metrics.horizontalAdvance("10000")
         h = metrics.height()
         self.tempValue.setMinimumSize(w, h)
         self.tempValue.setMaximumSize(w, h)
@@ -243,7 +243,7 @@ class rawForm(baseForm):
         self.tintValue = QLabel()
         font = self.tempValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("100")
+        w = metrics.horizontalAdvance("100")
         h = metrics.height()
         self.tintValue.setMinimumSize(w, h)
         self.tintValue.setMaximumSize(w, h)
@@ -331,7 +331,7 @@ class rawForm(baseForm):
         self.expValue = QLabel()
         font = self.expValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("+1.0")
+        w = metrics.horizontalAdvance("+1.0")
         h = metrics.height()
         self.expValue.setMinimumSize(w, h)
         self.expValue.setMaximumSize(w, h)
@@ -372,7 +372,7 @@ class rawForm(baseForm):
         self.brValue = QLabel()
         font = self.expValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("+99")
+        w = metrics.horizontalAdvance("+99")
         h = metrics.height()
         self.brValue.setMinimumSize(w, h)
         self.brValue.setMaximumSize(w, h)
@@ -410,7 +410,7 @@ class rawForm(baseForm):
         self.contValue = QLabel()
         font = self.contValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("100")
+        w = metrics.horizontalAdvance("100")
         h = metrics.height()
         self.contValue.setMinimumSize(w, h)
         self.contValue.setMaximumSize(w, h)
@@ -452,7 +452,7 @@ class rawForm(baseForm):
         self.satValue = QLabel()
         font = self.satValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("+10")
+        w = metrics.horizontalAdvance("+10")
         h = metrics.height()
         self.satValue.setMinimumSize(w, h)
         self.satValue.setMaximumSize(w, h)

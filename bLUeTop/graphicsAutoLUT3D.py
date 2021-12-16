@@ -16,10 +16,10 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-from PySide2.QtWidgets import QApplication, QVBoxLayout, QHBoxLayout, QSizePolicy, QLabel
+from PySide6.QtWidgets import QApplication, QVBoxLayout, QHBoxLayout, QSizePolicy, QLabel
 from bLUeTop.utils import QbLUeSlider
 
-from PySide2.QtCore import Qt
+from PySide6.QtCore import Qt
 
 from bLUeGui.graphicsForm import baseForm
 from bLUeTop.lutUtils import LUTSIZE

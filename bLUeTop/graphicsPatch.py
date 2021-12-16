@@ -18,9 +18,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 from os.path import basename
 
 import cv2
-from PySide2.QtCore import Qt, QPoint, QPointF, QRect
-from PySide2.QtGui import QImage, QPixmap, QPainter
-from PySide2.QtWidgets import QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog
+from PySide6.QtCore import Qt, QPoint, QPointF, QRect
+from PySide6.QtGui import QImage, QPixmap, QPainter
+from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog
 
 from bLUeGui.graphicsForm import baseForm
 from bLUeGui.dialog import IMAGE_FILE_EXTENSIONS, dlgWarn

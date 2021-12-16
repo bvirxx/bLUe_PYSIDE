@@ -16,9 +16,9 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-from PySide2.QtCore import Qt
-from PySide2.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout
-from PySide2.QtGui import QFontMetrics
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout
+from PySide6.QtGui import QFontMetrics
 
 from bLUeGui.graphicsForm import baseForm
 from bLUeCore.kernel import filterIndex
@@ -63,7 +63,7 @@ class filterForm(baseForm):
         self.radiusValue = QLabel()
         font = self.radiusValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("1000 ")
+        w = metrics.horizontalAdvance("1000 ")
         h = metrics.height()
         self.radiusValue.setMinimumSize(w, h)
         self.radiusValue.setMaximumSize(w, h)
@@ -77,7 +77,7 @@ class filterForm(baseForm):
         self.amountValue = QLabel()
         font = self.radiusValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("1000 ")
+        w = metrics.horizontalAdvance("1000 ")
         h = metrics.height()
         self.amountValue.setMinimumSize(w, h)
         self.amountValue.setMaximumSize(w, h)
@@ -91,7 +91,7 @@ class filterForm(baseForm):
         self.sliderTone.setSingleStep(1)
         font = self.radiusValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("1000 ")
+        w = metrics.horizontalAdvance("1000 ")
         h = metrics.height()
         self.toneValue.setMinimumSize(w, h)
         self.toneValue.setMaximumSize(w, h)

@@ -18,5 +18,5 @@ Classes and functions for image processing:
 
 * Python 3
 * NumPy
-* PySide2
+* PySide6
 * OpenCV-Python

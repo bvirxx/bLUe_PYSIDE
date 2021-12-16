@@ -28,14 +28,14 @@ from collections import OrderedDict
 import tifffile
 
 from PIL.ImageCms import ImageCmsProfile
-from PySide2.QtCore import Qt, QSize, QPoint, QPointF, QFileInfo
+from PySide6.QtCore import Qt, QSize, QPoint, QPointF, QFileInfo
 
 import cv2
 from copy import copy
 
-from PySide2.QtGui import QTransform, QColor, QCursor, QPixmap, QImage, QPainter
-from PySide2.QtWidgets import QApplication
-from PySide2.QtCore import QRect
+from PySide6.QtGui import QTransform, QColor, QCursor, QPixmap, QImage, QPainter
+from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import QRect
 
 from bLUeCore.demosaicing import demosaic
 from bLUeGui.blend import blendLuminosityBuf, blendColorBuf

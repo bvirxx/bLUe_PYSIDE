@@ -21,11 +21,11 @@ from os.path import basename
 from itertools import product
 import numpy as np
 
-from PySide2 import QtCore
-from PySide2.QtGui import QColor, QImage, QPainter, QPixmap, QIcon, QMouseEvent, QImageReader
-from PySide2.QtWidgets import QListWidget, QListWidgetItem, \
+from PySide6 import QtCore
+from PySide6.QtGui import QColor, QImage, QPainter, QPixmap, QIcon, QMouseEvent, QImageReader
+from PySide6.QtWidgets import QListWidget, QListWidgetItem, \
     QSlider, QLabel, QDockWidget, QStyle, QColorDialog, QPushButton, QSizePolicy, QComboBox, QSpinBox
-from PySide2.QtCore import Qt, QObject, QRect
+from PySide6.QtCore import Qt, QObject, QRect
 
 from bLUeCore.rollingStats import movingVariance
 from bLUeGui.bLUeImage import QImageBuffer

@@ -21,10 +21,10 @@ from os.path import basename, isfile
 from re import search
 from time import sleep
 
-from PySide2.QtCore import Qt, QUrl, QMimeData, QByteArray, QPoint, QSize
-from PySide2.QtGui import QKeySequence, QImage, QDrag
-from PySide2.QtWidgets import QMainWindow, QSizePolicy, QMenu, QListWidget, QAbstractItemView, \
-    QApplication, QAction
+from PySide6.QtCore import Qt, QUrl, QMimeData, QByteArray, QPoint, QSize
+from PySide6.QtGui import QKeySequence, QImage, QDrag, QAction
+from PySide6.QtWidgets import QMainWindow, QSizePolicy, QMenu, QListWidget, QAbstractItemView, \
+    QApplication
 
 from bLUeTop import exiftool
 from bLUeTop.MarkedImg import imImage

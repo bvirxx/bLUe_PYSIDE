@@ -15,9 +15,9 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-from PySide2.QtCore import Qt, QPointF
-from PySide2.QtGui import QPixmap, QColor, QPainterPath, QTransform
-from PySide2.QtWidgets import QPushButton, QVBoxLayout, QHBoxLayout, QSlider, QLabel
+from PySide6.QtCore import Qt, QPointF
+from PySide6.QtGui import QPixmap, QColor, QPainterPath, QTransform
+from PySide6.QtWidgets import QPushButton, QVBoxLayout, QHBoxLayout, QSlider, QLabel
 
 from bLUeGui.graphicsForm import baseForm
 from bLUeGui.dialog import dlgWarn
@@ -146,7 +146,7 @@ class drawForm(baseForm):
         pxmp = self.sample.pixmap()
         pxmp.fill(QColor(0, 0, 0, 0))
         brushFamily.brushStrokePoly(pxmp, self.samplePoly, self.layer.brushDict)
-        self.sample.repaint()
+        self.sample.setPixmap(pxmp)
 
     def undo(self):
         try:

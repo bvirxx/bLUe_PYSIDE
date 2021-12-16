@@ -35,8 +35,8 @@
 # ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ################################
 
-# The PIL.ImageQt module looks for PySide installed and does not find PySide2.
-# This modified version of ImageQt.py is a workaround for PySide2.
+# The PIL.ImageQt module looks for PySide installed and does not find PySide6.
+# This modified version of ImageQt.py is a workaround for PySide6.
 # Do not use the functions fromqimage, fromqpixmap, toqimage, toqpixmap
 # from PIL.Image as they do local imports of ImageQt. Use the corresponding functions
 # from this module instead.
@@ -61,15 +61,15 @@ except (ImportError, RuntimeError):
         qt_version = '4'
     except (ImportError, RuntimeError):
         try:
-            from PySide2.QtGui import QImage, qRgba, QPixmap
-            from PySide2.QtCore import QBuffer, QIODevice
+            from PySide6.QtGui import QImage, qRgba, QPixmap
+            from PySide6.QtCore import QBuffer, QIODevice
 
             qt_version = 'side'
         except ImportError:
             qt_is_installed = False
 """
-from PySide2.QtGui import QImage, qRgba, QPixmap
-from PySide2.QtCore import QBuffer, QIODevice
+from PySide6.QtGui import QImage, qRgba, QPixmap
+from PySide6.QtCore import QBuffer, QIODevice
 qt_version = 'side'
 """
 

@@ -16,9 +16,9 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-from PySide2.QtCore import Qt
-from PySide2.QtGui import QFontMetrics
-from PySide2.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout, QGroupBox
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QFontMetrics
+from PySide6.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout, QGroupBox
 
 from bLUeGui.graphicsSpline import graphicsSplineForm
 from bLUeGui.graphicsForm import baseForm
@@ -112,7 +112,7 @@ class CoBrSatForm(baseForm):
         self.contrastValue = QLabel()
         font = self.contrastValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("100")
+        w = metrics.horizontalAdvance("100")
         h = metrics.height()
         self.contrastValue.setMinimumSize(w, h)
         self.contrastValue.setMaximumSize(w, h)
@@ -151,7 +151,7 @@ class CoBrSatForm(baseForm):
         self.saturationValue = QLabel()
         font = self.saturationValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("100")
+        w = metrics.horizontalAdvance("100")
         h = metrics.height()
         self.saturationValue.setMinimumSize(w, h)
         self.saturationValue.setMaximumSize(w, h)
@@ -189,7 +189,7 @@ class CoBrSatForm(baseForm):
         self.brightnessValue = QLabel()
         font = self.brightnessValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("100")
+        w = metrics.horizontalAdvance("100")
         h = metrics.height()
         self.brightnessValue.setMinimumSize(w, h)
         self.brightnessValue.setMaximumSize(w, h)

@@ -37,9 +37,9 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 
 """
 
-from PySide2 import QtCore, QtWidgets
-from PySide2.QtCore import Qt, QEvent
-from PySide2.QtGui import QColor, QPainter, QFont
+from PySide6 import QtCore, QtWidgets
+from PySide6.QtCore import Qt, QEvent
+from PySide6.QtGui import QColor, QPainter, QFont
 
 DEFAULT_CSS = """
 QRangeSlider * {

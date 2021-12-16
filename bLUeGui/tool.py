@@ -17,9 +17,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import numpy as np
 
-from PySide2.QtGui import QImage, QTransform, QPolygonF
-from PySide2.QtWidgets import QWidget, QToolButton
-from PySide2.QtCore import Qt, QPoint, QObject, QPointF, QRectF, QRect
+from PySide6.QtGui import QImage, QTransform, QPolygonF
+from PySide6.QtWidgets import QWidget, QToolButton
+from PySide6.QtCore import Qt, QPoint, QObject, QPointF, QRectF, QRect
 
 from bLUeGui.dialog import dlgWarn
 
@@ -161,6 +161,8 @@ class croppingHandle(baseHandle):
             img.cropRight)  # self.tool.btnDict['left'].margin - self.tool.btnDict['right'].margin
 
     def mouseMoveEvent(self, event):
+        if event.buttons() == Qt.NoButton:
+            return
         img = self.parent().img
         pos = self.mapToParent(event.pos())
         oldPos = self.pos()

@@ -22,8 +22,8 @@ from random import choice
 import numpy as np
 import cv2
 
-from PySide2.QtCore import QRect, QPointF
-from PySide2.QtGui import QPixmap, QColor, QPainter, QRadialGradient, QBrush, QPainterPath, QImage, QTransform
+from PySide6.QtCore import QRect, QPointF
+from PySide6.QtGui import QPixmap, QColor, QPainter, QRadialGradient, QBrush, QPainterPath, QImage, QTransform
 
 from bLUeGui.bLUeImage import QImageBuffer, ndarrayToQImage
 from bLUeTop.presetReader import aParser

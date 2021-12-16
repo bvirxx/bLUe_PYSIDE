@@ -21,7 +21,7 @@ import itertools
 
 import numpy as np
 import rawpy
-from PySide2.QtGui import QImage
+from PySide6.QtGui import QImage
 from rawpy._rawpy import LibRawFatalError
 
 from bLUeCore.multi import chosenInterp

@@ -20,15 +20,15 @@ from os.path import isfile
 from time import time
 import numpy as np
 
-from PySide2.QtCore import Qt, QRectF, QSize
+from PySide6.QtCore import Qt, QRectF, QSize
 
 import cv2
 from copy import copy
 
-from PySide2.QtGui import QImageReader, QTransform, QBitmap
-from PySide2.QtWidgets import QApplication, QSplitter
-from PySide2.QtGui import QImage, QColor, QPainter
-from PySide2.QtCore import QRect, QPoint
+from PySide6.QtGui import QImageReader, QTransform, QBitmap
+from PySide6.QtWidgets import QApplication, QSplitter
+from PySide6.QtGui import QImage, QColor, QPainter
+from PySide6.QtCore import QRect, QPoint
 
 from bLUeGui.bLUeImage import bImage, ndarrayToQImage
 from bLUeCore.multi import chosenInterp

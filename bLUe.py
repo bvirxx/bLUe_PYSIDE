@@ -16,7 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 Qt5 is licensed under the LGPL version 3,
-PySide2 is licensed under the LGPL version 2.1
+PySide6 is licensed under the LGPL version 2.1
 exiftool Copyright © 2013-2016, Phil Harvey.exiftool is licensed under thePerl Artistic License
 The Python Imaging Library (PIL) is
 
@@ -143,12 +143,12 @@ from bLUeTop.drawing import initBrushes, loadPresets
 from bLUeTop.graphicsDraw import drawForm
 from bLUeTop.graphicsHDRMerge import HDRMergeForm
 from bLUeTop.graphicsSegment import segmentForm
-from PySide2.QtCore import QUrl, QFileInfo
-from PySide2.QtGui import QPixmap, QCursor, QKeySequence, QDesktopServices, QFont, \
-    QTransform, QColor, QImage, QIcon
-from PySide2.QtWidgets import QApplication, \
+from PySide6.QtCore import QUrl, QFileInfo
+from PySide6.QtGui import QPixmap, QCursor, QKeySequence, QDesktopServices, QFont, \
+    QTransform, QColor, QImage, QIcon, QAction
+from PySide6.QtWidgets import QApplication, \
     QDockWidget, QSizePolicy, QSplashScreen, QWidget, \
-    QTabWidget, QToolBar, QComboBox, QTabBar, QAction
+    QTabWidget, QToolBar, QComboBox, QTabBar
 from bLUeTop.QtGui1 import app, window, splitWin
 from bLUeTop import exiftool
 from bLUeTop.graphicsBlendFilter import blendFilterForm
@@ -355,7 +355,7 @@ def addRawAdjustmentLayer(window=window):
     return rlayer
 
 
-def loadImage(img, tfile=None, withBasic=True, window=window):
+def loadImage(img, tfile=None, version='unknown', withBasic=True, window=window):
     """
     load a vImage into bLUe and build layer stack.
     if tfile is an opened TiffFile instance, import layer stack from file
@@ -363,6 +363,8 @@ def loadImage(img, tfile=None, withBasic=True, window=window):
     @type img: vImage
     @param tfile
     @type tfile: TiffFile instance
+    @param version: tfile bLUe version number
+    @type version: str
     @param withBasic:
     @type withBasic: boolean
     @param window:
@@ -403,12 +405,16 @@ def loadImage(img, tfile=None, withBasic=True, window=window):
             layers = []
             for key in meta_dict:
                 try:
-                    d = pickle.loads(literal_eval(meta_dict[key]))
+                    v = meta_dict[key]
+                    if type(v) is str and version[:2] != 'V6':
+                        v = v.replace('shiboken2.shiboken2', 'shiboken6.Shiboken')
+                        v = v.replace('PySide2', 'PySide6')
+                    d = pickle.loads(literal_eval(v))
                     if type(d) is dict:
                         layers.append((key, d))
                 except (SyntaxError, ValueError):
                     pass
-        except (SyntaxError, ValueError) as e:
+        except (SyntaxError, ValueError, pickle.UnpicklingError) as e:
             dlgWarn('Invalid format %s' % img.filename, str(e))
             raise
         addAdjustmentLayers(layers, tfile.series[0])
@@ -435,6 +441,7 @@ def openFile(f, window=window):
     iobuf = None
     sourceformat = path.basename(f)[-4:].upper()
     tfile = None
+    version = 'unknown'
     try:
         QApplication.setOverrideCursor(Qt.WaitCursor)
         QApplication.processEvents()
@@ -454,12 +461,12 @@ def openFile(f, window=window):
         img.sourceformat = sourceformat
         # init layers
         if img is not None:
-            loadImage(img, tfile=tfile)
+            loadImage(img, tfile=tfile, version=version)
             updateStatus()
             # update list of recent files
             recentFiles = window.settings.value('paths/recent', [])
             # settings.values returns a str or a list of str,
-            # depending on the count of items. May be a PySide2 bug
+            # depending on the count of items. May be a PySide6 bug
             # in QVariant conversion.
             if type(recentFiles) is str:
                 recentFiles = [recentFiles]
@@ -724,7 +731,7 @@ def updateMenuOpenRecent(window=window):
     window.menuOpen_recent.clear()
     recentFiles = window.settings.value('paths/recent', [])
     # settings.values returns a str or a list of str,
-    # depending on the count of items. May be a PySide2 bug
+    # depending on the count of items. May be a PySide6 bug
     # in QVariant conversion.
     if type(recentFiles) is str:
         recentFiles = [recentFiles]

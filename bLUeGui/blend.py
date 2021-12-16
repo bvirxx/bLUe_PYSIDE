@@ -15,7 +15,7 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-from PySide2.QtGui import QImage
+from PySide6.QtGui import QImage
 
 from bLUeGui.colorCube import rgb2hlsVec, hls2rgbVec
 from bLUeGui.bLUeImage import QImageBuffer

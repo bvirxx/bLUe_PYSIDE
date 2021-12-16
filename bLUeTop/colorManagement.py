@@ -23,7 +23,7 @@ from PIL.ImageCms import getOpenProfile, getProfileInfo, \
     buildTransformFromOpenProfiles, buildProofTransformFromOpenProfiles, applyTransform, INTENT_PERCEPTUAL, \
     INTENT_ABSOLUTE_COLORIMETRIC, INTENT_RELATIVE_COLORIMETRIC, \
     FLAGS, ImageCmsProfile, PyCMSError, core
-from PySide2.QtGui import QImage
+from PySide6.QtGui import QImage
 
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.dialog import dlgWarn
@@ -113,7 +113,7 @@ class icc:
             profile_path = core.get_display_profile_win32(handle, 1)
         elif HAS_GI:
             try:
-                # from PySide2.QtWidgets import QApplication, QMainWindow
+                # from PySide6.QtWidgets import QApplication, QMainWindow
                 GIO_CANCELLABLE = Gio.Cancellable.new()
                 client = Colord.Client.new()
                 client.connect_sync(GIO_CANCELLABLE)

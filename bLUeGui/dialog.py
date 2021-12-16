@@ -17,9 +17,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import textwrap
 from os.path import basename
-from PySide2.QtCore import Qt, QDir, QSize
+from PySide6.QtCore import Qt, QDir, QSize
 
-from PySide2.QtWidgets import QMessageBox, QPushButton, QFileDialog, QDialog, QSlider, QVBoxLayout, QHBoxLayout, QLabel, \
+from PySide6.QtWidgets import QMessageBox, QPushButton, QFileDialog, QDialog, QSlider, QVBoxLayout, QHBoxLayout, QLabel, \
     QCheckBox, QFormLayout, QLineEdit, QDialogButtonBox, QScrollArea
 from bLUeTop.utils import QbLUeSlider
 

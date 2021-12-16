@@ -16,9 +16,9 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-from PySide2.QtCore import QRect, QRectF, Qt, QPointF
-from PySide2.QtGui import QPainter, QImage, QColor, QBrush, QContextMenuEvent, QCursor, QPen, QFont, QPainterPath
-from PySide2.QtWidgets import QLabel, QApplication
+from PySide6.QtCore import QRect, QRectF, Qt, QPointF
+from PySide6.QtGui import QPainter, QImage, QColor, QBrush, QContextMenuEvent, QCursor, QPen, QFont, QPainterPath
+from PySide6.QtWidgets import QLabel, QApplication
 
 from bLUeGui.dialog import dlgWarn
 from bLUeTop.drawing import bLUeFloodFill, brushFamily
@@ -565,11 +565,11 @@ class imageLabel(QLabel):
         """
         img = self.img
         window = self.window
-        pos = event.pos()
+        pos = event.position()
         modifiers = event.modifiers()
         # delta unit is 1/8 of degree
         # Most mice have a resolution of 15 degrees
-        numSteps = event.delta() / 1200.0
+        numSteps = event.angleDelta().y() / 1200.0
         layer = img.getActiveLayer()
         if modifiers == Qt.NoModifier:
             img.Zoom_coeff *= (1.0 + numSteps)

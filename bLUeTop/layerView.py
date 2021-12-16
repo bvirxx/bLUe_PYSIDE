@@ -18,12 +18,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import gc
 from collections import OrderedDict
 
-from PySide2 import QtCore
-from PySide2.QtCore import QRectF, QSize, Qt, QModelIndex, QPoint
-from PySide2.QtGui import QImage, QPalette, QKeySequence, QFontMetrics, QTextOption, QPixmap, QIcon, QPainter, \
-    QStandardItem, QStandardItemModel
-from PySide2.QtWidgets import QComboBox, QHBoxLayout, QLabel, QTableView, QAbstractItemView, QStyledItemDelegate, \
-    QHeaderView, QVBoxLayout, QMenu, QSlider, QStyle, QCheckBox, QApplication, QAction
+from PySide6 import QtCore
+from PySide6.QtCore import QRectF, QSize, Qt, QModelIndex, QPoint
+from PySide6.QtGui import QImage, QPalette, QKeySequence, QFontMetrics, QTextOption, QPixmap, QIcon, QPainter, \
+    QStandardItem, QStandardItemModel, QAction
+from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QTableView, QAbstractItemView, QStyledItemDelegate, \
+    QHeaderView, QVBoxLayout, QMenu, QSlider, QStyle, QCheckBox, QApplication
 
 from bLUeTop.QtGui1 import window
 from bLUeGui.bLUeImage import QImageBuffer, bImage
@@ -188,7 +188,7 @@ class QLayerView(QTableView):
         self.opacityValue = QLabel()
         font = self.opacityValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("100 ")
+        w = metrics.horizontalAdvance("100 ")
         h = metrics.height()
         self.opacityValue.setMinimumSize(w, h)
         self.opacityValue.setMaximumSize(w, h)
@@ -226,7 +226,7 @@ class QLayerView(QTableView):
         self.maskValue = QLabel()
         font = self.maskValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("100 ")
+        w = metrics.horizontalAdvance("100 ")
         h = metrics.height()
         self.maskValue.setMinimumSize(w, h)
         self.maskValue.setMaximumSize(w, h)

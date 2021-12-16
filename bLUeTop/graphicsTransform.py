@@ -16,8 +16,8 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-from PySide2.QtCore import Qt, QPointF
-from PySide2.QtWidgets import QVBoxLayout, QPushButton, QHBoxLayout
+from PySide6.QtCore import Qt, QPointF
+from PySide6.QtWidgets import QVBoxLayout, QPushButton, QHBoxLayout
 
 from bLUeGui.graphicsForm import baseForm
 from bLUeTop.utils import optionsWidget, UDict

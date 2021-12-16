@@ -16,9 +16,9 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-from PySide2.QtCore import Qt
-from PySide2.QtGui import QFontMetrics, QColor
-from PySide2.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QFontMetrics, QColor
+from PySide6.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout
 
 from bLUeGui.colorCIE import sRGBWP
 from bLUeGui.graphicsForm import baseForm
@@ -74,7 +74,7 @@ class temperatureForm(baseForm):
         self.tempValue = QLabel()
         font = self.tempValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("00000")
+        w = metrics.horizontalAdvance("00000")
         h = metrics.height()
         self.tempValue.setMinimumSize(w, h)
         self.tempValue.setMaximumSize(w, h)
@@ -95,7 +95,7 @@ class temperatureForm(baseForm):
         self.tintValue = QLabel()
         font = self.tintValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("0000")
+        w = metrics.horizontalAdvance("0000")
         h = metrics.height()
         self.tintValue.setMinimumSize(w, h)
         self.tintValue.setMaximumSize(w, h)
