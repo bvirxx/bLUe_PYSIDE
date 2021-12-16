@@ -86,6 +86,7 @@ seamless cloning, segmentation, exposure fusion, curves, 2.5D LUTs, 3D LUTs.
 
 ## REQUIREMENTS
 
+### For the Qt6 (PySide6) version switch to branch pyside6
 * Python <= 3.9
 * Qt for Python (PySide2)
 * OpenCV-Python
