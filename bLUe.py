@@ -402,13 +402,19 @@ def loadImage(img, tfile=None, withBasic=True, window=window):
             withBasic = False  # the imported layer stack only
             layers = []
             for key in meta_dict:
+                # unpickled values raise exceptions. The corresponding keys
+                # can be 'version' (here renamed 'imageJ' by tifffile), 'sourceformat' and some keys set
+                # by tifffile: 'hyperstack' and 'images' (don't confuse with the key
+                # 'images' in QLayer's dict).
                 try:
                     d = pickle.loads(literal_eval(meta_dict[key]))
-                    if type(d) is dict:
+                    if key == 'crop':
+                        img.setCropMargins(d, window.cropTool)  # d is tuple
+                    elif type(d) is dict:
                         layers.append((key, d))
-                except (SyntaxError, ValueError):
+                except (SyntaxError, ValueError, pickle.UnpicklingError):
                     pass
-        except (SyntaxError, ValueError) as e:
+        except (SyntaxError, ValueError, pickle.UnpicklingError) as e:
             dlgWarn('Invalid format %s' % img.filename, str(e))
             raise
         addAdjustmentLayers(layers, tfile.series[0])

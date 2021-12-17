@@ -401,6 +401,21 @@ class vImage(bImage):
             raise ValueError('vImage : should be a 8 bits/channel color image')
         self.filename = filename if filename is not None else ''
 
+    def cropMargins(self):
+        return (self.cropLeft, self.cropRight, self.cropTop, self.cropBottom)
+
+    def setCropMargins(self, margins, croptool):
+        """
+        set image cropping margins to margins and set the positions of crop tool buttons
+        accordingly.
+        @param margins:
+        @type margins: 4-uple of float
+        @param croptool:
+        @type croptool: cropTool
+        """
+        self.cropLeft, self.cropRight, self.cropTop, self.cropBottom = margins
+        croptool.fit(self)
+
     def setProfile(self, profile):
         """
         Sets profile related attributes
