@@ -524,13 +524,24 @@ class mImage(vImage):
         @rtype: 3uple (ordered dict, list of Qimage, list of QImage)
         """
         layernames = [(layer.name, pickle.dumps({'actionname': layer.actionName, 'state': layer.__getstate__()}))
-                      for layer in self.layersStack] + [('sourceformat', self.sourceformat)] + \
-                     [('version', BLUE_VERSION)]
+                      for layer in self.layersStack] + \
+                     [('sourceformat', self.sourceformat)] + \
+                     [('version', BLUE_VERSION)] + \
+                     [('cropmargins', pickle.dumps(self.cropMargins()))]
 
-        names = OrderedDict(layernames)
+        names = OrderedDict(layernames)  # values are not pickled str or pickled dict or tuple
 
         if len(names) != len(layernames):
-            dlgWarn('Possibly duplicate layer name(s)', 'Please edit the names in layer stack')
+            # search for duplicate names
+            tmplist = [x[0] for x in layernames]
+            duplicates = []
+            for item in tmplist:
+                if tmplist.count(item) > 1:
+                    duplicates.append(item)
+            if duplicates:
+                dlgWarn('Duplicate name(s) %s' % duplicates, 'Please edit the names in layer stack')
+            else:
+                dlgWarn('Cannot build dictionary', 'Unknown error')
             raise IOError('Cannot save document')
 
         ####################################################################################################
