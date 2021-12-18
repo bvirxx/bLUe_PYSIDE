@@ -150,7 +150,7 @@ def dlgWarn(text, info='', parent=None):
 
 def workInProgress(parent=None):
     """
-    Inits a modal QProgressBar
+    Inits a modal QProgressDialog
     @param parent:
     @type parent:
     @return:
