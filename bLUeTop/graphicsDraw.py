@@ -146,7 +146,7 @@ class drawForm(baseForm):
         pxmp = self.sample.pixmap()
         pxmp.fill(QColor(0, 0, 0, 0))
         brushFamily.brushStrokePoly(pxmp, self.samplePoly, self.layer.brushDict)
-        self.sample.repaint()
+        self.sample.setPixmap(pxmp)
 
     def undo(self):
         try:

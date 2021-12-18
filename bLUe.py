@@ -355,7 +355,7 @@ def addRawAdjustmentLayer(window=window):
     return rlayer
 
 
-def loadImage(img, tfile=None, withBasic=True, window=window):
+def loadImage(img, tfile=None, version='unknown', withBasic=True, window=window):
     """
     load a vImage into bLUe and build layer stack.
     if tfile is an opened TiffFile instance, import layer stack from file
@@ -363,6 +363,8 @@ def loadImage(img, tfile=None, withBasic=True, window=window):
     @type img: vImage
     @param tfile
     @type tfile: TiffFile instance
+    @param version: version of bLU file writer
+    @type version: str
     @param withBasic:
     @type withBasic: boolean
     @param window:
@@ -398,24 +400,38 @@ def loadImage(img, tfile=None, withBasic=True, window=window):
             if rlayer is not None:
                 d = pickle.loads(literal_eval(meta_dict['develop']))  # tifffile turns meta_dict keys to lower !
                 rlayer.__setstate__(d)
-            # build layer stack
+            # import layer stack
+            # Every Qlayer state dict is pickled. Thus, to import layer stack, unpickled entries may be skipped safely.
+            # This enables the cancelation of spurious entries added by tifffile/ImageJ protocol.
             withBasic = False  # the imported layer stack only
             layers = []
             for key in meta_dict:
-                # unpickled values raise exceptions. The corresponding keys
+                # unpickled values raise exceptions that are all skipped. The corresponding keys
                 # can be 'version' (here renamed 'imageJ' by tifffile), 'sourceformat' and some keys set
                 # by tifffile: 'hyperstack' and 'images' (don't confuse with the key
                 # 'images' in QLayer's dict).
                 try:
-                    d = pickle.loads(literal_eval(meta_dict[key]))
+                    v = meta_dict[key]
+                    if type(v) is str:
+                        # possibly pickled string. Trial conversion to the
+                        # right bLUe version and unpickling.
+                        if BLUE_VERSION[:2] == 'V2' and version[:2] == 'V6':
+                            v = v.replace('\\x12shiboken6.Shiboken', '\\x13shiboken2.shiboken2')
+                            v = v.replace('PySide6', 'PySide2')
+                        elif BLUE_VERSION[:2] == 'V6' and version[:2] != 'V6':
+                            v = v.replace('shiboken2.shiboken2', 'shiboken6.Shiboken')
+                            v = v.replace('PySide2', 'PySide6')
+                    d = pickle.loads(literal_eval(v))
                     if key == 'crop':
-                        img.setCropMargins(d, window.cropTool)  # d is tuple
+                        img.setCropMargins(d, window.cropTool)  # type(d) is tuple
                     elif type(d) is dict:
                         layers.append((key, d))
                 except (SyntaxError, ValueError, pickle.UnpicklingError):
                     pass
-        except (SyntaxError, ValueError, pickle.UnpicklingError) as e:
-            dlgWarn('Invalid format %s' % img.filename, str(e))
+        except (SyntaxError, ValueError, ModuleNotFoundError, pickle.UnpicklingError) as e:
+            # exceptions raised while unpickling meta_dict['develop'] cannot be
+            # skipped.
+            dlgWarn('loadImage: Invalid format %s' % img.filename, str(e))
             raise
         addAdjustmentLayers(layers, tfile.series[0])
 
@@ -441,6 +457,7 @@ def openFile(f, window=window):
     iobuf = None
     sourceformat = path.basename(f)[-4:].upper()
     tfile = None
+    version = 'unknown'
     try:
         QApplication.setOverrideCursor(Qt.WaitCursor)
         QApplication.processEvents()
@@ -460,7 +477,7 @@ def openFile(f, window=window):
         img.sourceformat = sourceformat
         # init layers
         if img is not None:
-            loadImage(img, tfile=tfile)
+            loadImage(img, tfile=tfile, version=version)
             updateStatus()
             # update list of recent files
             recentFiles = window.settings.value('paths/recent', [])
