@@ -527,9 +527,7 @@ class mImage(vImage):
                       for layer in self.layersStack] + \
                      [('sourceformat', self.sourceformat)] + \
                      [('version', BLUE_VERSION)] + \
-                     [('cropmargins', pickle.dumps(self.cropMargins()))]  # assuming that no layer was renamed
-        # 'version', 'cropmargins', 'sourceformat'
-        # by the user. Tested later.
+                     [('cropmargins', pickle.dumps(self.cropMargins()))]
 
         names = OrderedDict(layernames)  # values are not pickled str or pickled dict or tuple
 

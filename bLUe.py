@@ -264,7 +264,7 @@ def widgetChange(button, window=window):
     window.label.repaint()
 
 
-def addAdjustmentLayers(layers, images):
+def addAdjustmentLayers(layers, images, progress=None):
     """
     Adds a list of layers to the current document and restore their states.
     Entries not corresponding to menu layers actions are skipped.
@@ -276,11 +276,16 @@ def addAdjustmentLayers(layers, images):
     if layers is None:
         return
     count = 1
+    if progress:
+        p_init = progress.value()
+        p_max = progress.maximum()
     waitImages = []
-    for item in layers:
+    for ind, item in enumerate(layers):
         d = item[1]['state']
         # add layer to stack
         layer = menuLayer(item[1]['actionname'], sname=item[0], script=True)
+        if progress:
+            progress.setValue(p_init + int(ind * (p_max - p_init) / len(layers)))
         if d['mask'] == 1:
             if layer is not None:
                 buf = images.asarray()[count]
@@ -355,7 +360,7 @@ def addRawAdjustmentLayer(window=window):
     return rlayer
 
 
-def loadImage(img, tfile=None, version='unknown', withBasic=True, window=window):
+def loadImage(img, tfile=None, version='unknown', withBasic=True, progress=None, window=window):
     """
     load a vImage into bLUe and build layer stack.
     if tfile is an opened TiffFile instance, import layer stack from file
@@ -422,18 +427,18 @@ def loadImage(img, tfile=None, version='unknown', withBasic=True, window=window)
                             v = v.replace('shiboken2.shiboken2', 'shiboken6.Shiboken')
                             v = v.replace('PySide2', 'PySide6')
                     d = pickle.loads(literal_eval(v))
-                    if key == 'crop':
+                    if key == 'cropmargins':
                         img.setCropMargins(d, window.cropTool)  # type(d) is tuple
                     elif type(d) is dict:
                         layers.append((key, d))
                 except (SyntaxError, ValueError, pickle.UnpicklingError):
-                    pass
+                    continue
         except (SyntaxError, ValueError, ModuleNotFoundError, pickle.UnpicklingError) as e:
             # exceptions raised while unpickling meta_dict['develop'] cannot be
             # skipped.
             dlgWarn('loadImage: Invalid format %s' % img.filename, str(e))
             raise
-        addAdjustmentLayers(layers, tfile.series[0])
+        addAdjustmentLayers(layers, tfile.series[0], progress=progress)
 
     # add default adjustment layers
     if withBasic:
@@ -459,6 +464,8 @@ def openFile(f, window=window):
     tfile = None
     version = 'unknown'
     try:
+        progress = workInProgress()  # block user actions
+        progress.show()
         QApplication.setOverrideCursor(Qt.WaitCursor)
         QApplication.processEvents()
         if sourceformat in BLUE_FILE_EXTENSIONS:
@@ -473,11 +480,13 @@ def openFile(f, window=window):
                 iobuf = io.BytesIO(rawbuf.tobytes())
         # load imImage instance from file, bLU file included
         # if rawiobuf is None the image file is read using QImageReader
+        progress.setValue(20)
         img = imImage.loadImageFromFile(f, rawiobuf=iobuf, cmsConfigure=True, window=window)
+        progress.setValue(40)
         img.sourceformat = sourceformat
         # init layers
         if img is not None:
-            loadImage(img, tfile=tfile, version=version)
+            loadImage(img, tfile=tfile, version=version, progress=progress)
             updateStatus()
             # update list of recent files
             recentFiles = window.settings.value('paths/recent', [])
@@ -499,6 +508,7 @@ def openFile(f, window=window):
         if tfile is not None:
             tfile.close()
         QApplication.restoreOverrideCursor()
+        progress.close()
         QApplication.processEvents()
 
 
@@ -1816,7 +1826,7 @@ def setupGUI(window=window):
 
     # app style sheet
     if THEME == "light":
-        app.setStyleSheet("""QMainWindow, QGraphicsView, QListWidget, QMenu, QTableView {background-color: rgb(200, 200, 200)}\
+        app.setstyleSheet("""QMainWindow, QGraphicsView, QListWidget, QMenu, QTableView {background-color: rgb(200, 200, 200)}\
                                QWidget, QTableView, QTableView * {font-size: 9pt} QPushButton {font-size: 6pt}"""
                           )
     else:
