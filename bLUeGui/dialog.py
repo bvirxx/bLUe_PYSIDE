@@ -148,22 +148,26 @@ def dlgWarn(text, info='', parent=None):
     msg.exec_()
 
 
-def workInProgress(parent=None):
+def workInProgress(title, parent=None):
     """
     Inits a modal QProgressDialog
+    @param title:
+    @type title: str
     @param parent:
     @type parent:
     @return:
     @rtype: QProgressDialog
     """
     progress = QProgressDialog(parent=parent)
-    progress.setFixedSize(200, 60)
+    progress.setFixedSize(300, 80)
     progress.setStyleSheet("""background-color: rgb(20,20,100);
                               color: rgb(220,220,220);""")
     progress.setWindowModality(Qt.ApplicationModal)
     progress.setAttribute(Qt.WA_DeleteOnClose)
     progress.setWindowFlags(Qt.Dialog | Qt.WindowStaysOnTopHint | Qt.CustomizeWindowHint)
+    # del cancel button
     progress.setCancelButtonText('')
+    progress.setLabelText(title)
     return progress
 
 

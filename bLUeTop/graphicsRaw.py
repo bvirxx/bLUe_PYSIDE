@@ -875,22 +875,26 @@ class rawForm(baseForm):
 
         def load(event_obj):
             # load remaining profiles
-            for i, f in enumerate(files[nextInd:]):
-                key = basename(f)[:-4] if i + nextInd > 0 else 'Embedded Profile'
-                d = getDngProfileDict(f)
-                # filter d
-                d = {k: d[k] for k in d if d[k] != ''}
-                if d:
-                    self.cameraProfilesCombo.addItem(key, d)
-            self.cameraProfilesCombo.addItem('None', {})
-            # restore selected profile
-            if self.postloadprofilename is not None:
-                # __setstate__() was called : let it try to restore selected profile
-                # and next try too !
-                event_obj.wait()
-                ind = self.cameraProfilesCombo.findText(self.postloadprofilename)
-                if ind != -1:
-                    self.cameraProfilesCombo.setCurrentIndex(ind)
+            try:
+                self.cameraProfilesCombo.setCursor(Qt.WaitCursor)
+                for i, f in enumerate(files[nextInd:]):
+                    key = basename(f)[:-4] if i + nextInd > 0 else 'Embedded Profile'
+                    d = getDngProfileDict(f)
+                    # filter d
+                    d = {k: d[k] for k in d if d[k] != ''}
+                    if d:
+                        self.cameraProfilesCombo.addItem(key, d)
+                self.cameraProfilesCombo.addItem('None', {})
+                # restore selected profile
+                if self.postloadprofilename is not None:
+                    # __setstate__() was called : let it try to restore selected profile
+                    # and next try too !
+                    event_obj.wait()
+                    ind = self.cameraProfilesCombo.findText(self.postloadprofilename)
+                    if ind != -1:
+                        self.cameraProfilesCombo.setCurrentIndex(ind)
+            finally:
+                self.cameraProfilesCombo.unsetCursor()
 
         if self.event_obj is None:
             self.event_obj = threading.Event()
@@ -903,7 +907,8 @@ class rawForm(baseForm):
         self.cameraProfilesCombo.setMaximumWidth(150)
         self.cameraProfilesCombo.setStyleSheet("QbLUeComboBox QAbstractItemView { min-width: 250px;}")
         # return the currently selected item data
-        return self.cameraProfilesCombo.itemData(0)
+        current = self.cameraProfilesCombo.itemData(0)
+        return current if current is not None else {}
 
     def __getstate__(self):
         d = {}

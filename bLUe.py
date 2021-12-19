@@ -427,8 +427,9 @@ def loadImage(img, tfile=None, version='unknown', withBasic=True, progress=None,
                             v = v.replace('shiboken2.shiboken2', 'shiboken6.Shiboken')
                             v = v.replace('PySide2', 'PySide6')
                     d = pickle.loads(literal_eval(v))
-                    if key == 'cropmargins':
+                    if key == 'cropmargins' and d != (0.0, 0.0, 0.0, 0.0):
                         img.setCropMargins(d, window.cropTool)  # type(d) is tuple
+                        window.cropButton.setChecked(Qt.Checked)
                     elif type(d) is dict:
                         layers.append((key, d))
                 except (SyntaxError, ValueError, pickle.UnpicklingError):
@@ -464,9 +465,10 @@ def openFile(f, window=window):
     tfile = None
     version = 'unknown'
     try:
-        progress = workInProgress()  # block user actions
+        window.setEnabled(False)
+        progress = workInProgress('Loading ...')  # block user actions
         progress.show()
-        QApplication.setOverrideCursor(Qt.WaitCursor)
+        # QApplication.setOverrideCursor(Qt.WaitCursor) # works poorly !
         QApplication.processEvents()
         if sourceformat in BLUE_FILE_EXTENSIONS:
             tfile = tifffile.TiffFile(f)
@@ -478,17 +480,21 @@ def openFile(f, window=window):
                 buf_ori_len = meta_dict['buf_ori_len']
                 rawbuf = tfile.series[0].pages[0].asarray()[0, :buf_ori_len]
                 iobuf = io.BytesIO(rawbuf.tobytes())
-        # load imImage instance from file, bLU file included
-        # if rawiobuf is None the image file is read using QImageReader
-        progress.setValue(20)
+        progress.setValue(30)
+        ##############################################################
+        # load imImage instance from file. If rawiobuf is None the
+        # file is read using QImageReader, bLU file included (tif file).
+        ##############################################################
         img = imImage.loadImageFromFile(f, rawiobuf=iobuf, cmsConfigure=True, window=window)
-        progress.setValue(40)
+        progress.setValue(50)
         img.sourceformat = sourceformat
-        # init layers
+        ###########################
+        # init or load layer stack
+        ##########################
         if img is not None:
             loadImage(img, tfile=tfile, version=version, progress=progress)
             updateStatus()
-            # update list of recent files
+            # update the list of recent files
             recentFiles = window.settings.value('paths/recent', [])
             # settings.values returns a str or a list of str,
             # depending on the count of items. May be a PySide2 bug
@@ -507,9 +513,11 @@ def openFile(f, window=window):
     finally:
         if tfile is not None:
             tfile.close()
-        QApplication.restoreOverrideCursor()
+        # QApplication.restoreOverrideCursor()
+        # QApplication.processEvents()
+        window.setEnabled(True)
         progress.close()
-        QApplication.processEvents()
+
 
 
 def saveFile(filename, img, quality=-1, compression=-1, writeMeta=True):
@@ -562,13 +570,16 @@ def saveFile(filename, img, quality=-1, compression=-1, writeMeta=True):
         QApplication.processEvents()
         thumb = img.save(filename, quality=quality, compression=compression)
         # write metadata
-        if writeMeta and thumb is not None:
-            tempFilename = mktemp('.jpg')
-            # save thumb jpg to temp file
-            thumb.save(tempFilename)
-            # copy temp file to image file, img.filename not updated yet
-            img.restoreMeta(img.filename, filename, thumbfile=tempFilename)
-            remove(tempFilename)
+        if writeMeta:
+            if thumb is None:
+                img.restoreMeta(img.filename, filename)
+            else:
+                tempFilename = mktemp('.jpg')
+                # save thumb jpg to temp file
+                thumb.save(tempFilename)
+                # copy temp file to image file, img.filename not updated yet
+                img.restoreMeta(img.filename, filename, thumbfile=tempFilename)
+                remove(tempFilename)
     finally:
         QApplication.restoreOverrideCursor()
         QApplication.processEvents()
@@ -1560,7 +1571,7 @@ def canClose(index=None, window=window):
         if img.isModified:
             if ind != window.tabBar.currentIndex():
                 window.tabBar.setCurrentIndex(ind)
-                dlgWarn('Image was modified', info='Save it first')
+                # dlgWarn('Image was modified', info='Save it first')  # TODO removed 19/12/21 validate
                 return False
             try:
                 # save/discard dialog
