@@ -264,7 +264,7 @@ def widgetChange(button, window=window):
     window.label.repaint()
 
 
-def addAdjustmentLayers(layers, images):
+def addAdjustmentLayers(layers, images, progress=None):
     """
     Adds a list of layers to the current document and restore their states.
     Entries not corresponding to menu layers actions are skipped.
@@ -276,11 +276,16 @@ def addAdjustmentLayers(layers, images):
     if layers is None:
         return
     count = 1
+    if progress:
+        p_init = progress.value()
+        p_max = progress.maximum()
     waitImages = []
-    for item in layers:
+    for ind, item in enumerate(layers):
         d = item[1]['state']
         # add layer to stack
         layer = menuLayer(item[1]['actionname'], sname=item[0], script=True)
+        if progress:
+            progress.setValue(p_init + int(ind * (p_max - p_init) / len(layers)))
         if d['mask'] == 1:
             if layer is not None:
                 buf = images.asarray()[count]
@@ -355,7 +360,7 @@ def addRawAdjustmentLayer(window=window):
     return rlayer
 
 
-def loadImage(img, tfile=None, version='unknown', withBasic=True, window=window):
+def loadImage(img, tfile=None, version='unknown', withBasic=True, progress=None, window=window):
     """
     load a vImage into bLUe and build layer stack.
     if tfile is an opened TiffFile instance, import layer stack from file
@@ -370,6 +375,16 @@ def loadImage(img, tfile=None, version='unknown', withBasic=True, window=window)
     @param window:
     @type window: QWidget
     """
+
+    def compat(v):
+        if BLUE_VERSION[:2] == 'V2' and version[:2] == 'V6':
+            v = v.replace('\\x12shiboken6.Shiboken', '\\x13shiboken2.shiboken2')
+            v = v.replace('PySide6', 'PySide2')
+        elif BLUE_VERSION[:2] == 'V6' and version[:2] != 'V6':
+            v = v.replace('shiboken2.shiboken2', 'shiboken6.Shiboken')
+            v = v.replace('PySide2', 'PySide6')
+        return v
+
     tabBar = window.tabBar
     ind = tabBar.addTab(basename(img.filename))
     tabBar.setCurrentIndex(ind)
@@ -398,7 +413,7 @@ def loadImage(img, tfile=None, version='unknown', withBasic=True, window=window)
         meta_dict = imagej_description_metadata(tfile.pages[0].is_imagej)
         try:
             if rlayer is not None:
-                d = pickle.loads(literal_eval(meta_dict['develop']))  # tifffile turns meta_dict keys to lower !
+                d = pickle.loads(literal_eval(compat(meta_dict['develop'])))  # tifffile turns meta_dict keys to lower !
                 rlayer.__setstate__(d)
             # import layer stack
             # Every Qlayer state dict is pickled. Thus, to import layer stack, unpickled entries may be skipped safely.
@@ -413,27 +428,23 @@ def loadImage(img, tfile=None, version='unknown', withBasic=True, window=window)
                 try:
                     v = meta_dict[key]
                     if type(v) is str:
-                        # possibly pickled string. Trial conversion to the
-                        # right bLUe version and unpickling.
-                        if BLUE_VERSION[:2] == 'V2' and version[:2] == 'V6':
-                            v = v.replace('\\x12shiboken6.Shiboken', '\\x13shiboken2.shiboken2')
-                            v = v.replace('PySide6', 'PySide2')
-                        elif BLUE_VERSION[:2] == 'V6' and version[:2] != 'V6':
-                            v = v.replace('shiboken2.shiboken2', 'shiboken6.Shiboken')
-                            v = v.replace('PySide2', 'PySide6')
+                        # possibly pickled string. Try conversion to the
+                        # right bLUe version and unpickle.
+                        v = compat(v)
                     d = pickle.loads(literal_eval(v))
-                    if key == 'cropmargins':
+                    if key == 'cropmargins' and d != (0.0, 0.0, 0.0, 0.0):
                         img.setCropMargins(d, window.cropTool)  # type(d) is tuple
+                        window.cropButton.setChecked(Qt.Checked)
                     elif type(d) is dict:
                         layers.append((key, d))
                 except (SyntaxError, ValueError, pickle.UnpicklingError):
-                    pass
+                    continue
         except (SyntaxError, ValueError, ModuleNotFoundError, pickle.UnpicklingError) as e:
             # exceptions raised while unpickling meta_dict['develop'] cannot be
             # skipped.
             dlgWarn('loadImage: Invalid format %s' % img.filename, str(e))
             raise
-        addAdjustmentLayers(layers, tfile.series[0])
+        addAdjustmentLayers(layers, tfile.series[0], progress=progress)
 
     # add default adjustment layers
     if withBasic:
@@ -459,7 +470,10 @@ def openFile(f, window=window):
     tfile = None
     version = 'unknown'
     try:
-        QApplication.setOverrideCursor(Qt.WaitCursor)
+        window.setEnabled(False)
+        progress = workInProgress('Loading ...')  # block user actions
+        progress.show()
+        # QApplication.setOverrideCursor(Qt.WaitCursor) # works poorly !
         QApplication.processEvents()
         if sourceformat in BLUE_FILE_EXTENSIONS:
             tfile = tifffile.TiffFile(f)
@@ -471,15 +485,21 @@ def openFile(f, window=window):
                 buf_ori_len = meta_dict['buf_ori_len']
                 rawbuf = tfile.series[0].pages[0].asarray()[0, :buf_ori_len]
                 iobuf = io.BytesIO(rawbuf.tobytes())
-        # load imImage instance from file, bLU file included
-        # if rawiobuf is None the image file is read using QImageReader
+        progress.setValue(30)
+        ##############################################################
+        # load imImage instance from file. If rawiobuf is None the
+        # file is read using QImageReader, bLU file included (tif file).
+        ##############################################################
         img = imImage.loadImageFromFile(f, rawiobuf=iobuf, cmsConfigure=True, window=window)
+        progress.setValue(50)
         img.sourceformat = sourceformat
-        # init layers
+        ###########################
+        # init or load layer stack
+        ##########################
         if img is not None:
-            loadImage(img, tfile=tfile, version=version)
+            loadImage(img, tfile=tfile, version=version, progress=progress)
             updateStatus()
-            # update list of recent files
+            # update the list of recent files
             recentFiles = window.settings.value('paths/recent', [])
             # settings.values returns a str or a list of str,
             # depending on the count of items. May be a PySide6 bug
@@ -498,8 +518,10 @@ def openFile(f, window=window):
     finally:
         if tfile is not None:
             tfile.close()
-        QApplication.restoreOverrideCursor()
-        QApplication.processEvents()
+        # QApplication.restoreOverrideCursor()
+        # QApplication.processEvents()
+        window.setEnabled(True)
+        progress.close()
 
 
 def saveFile(filename, img, quality=-1, compression=-1, writeMeta=True):
@@ -552,13 +574,16 @@ def saveFile(filename, img, quality=-1, compression=-1, writeMeta=True):
         QApplication.processEvents()
         thumb = img.save(filename, quality=quality, compression=compression)
         # write metadata
-        if writeMeta and thumb is not None:
-            tempFilename = mktemp('.jpg')
-            # save thumb jpg to temp file
-            thumb.save(tempFilename)
-            # copy temp file to image file, img.filename not updated yet
-            img.restoreMeta(img.filename, filename, thumbfile=tempFilename)
-            remove(tempFilename)
+        if writeMeta:
+            if thumb is None:
+                img.restoreMeta(img.filename, filename)
+            else:
+                tempFilename = mktemp('.jpg')
+                # save thumb jpg to temp file
+                thumb.save(tempFilename)
+                # copy temp file to image file, img.filename not updated yet
+                img.restoreMeta(img.filename, filename, thumbfile=tempFilename)
+                remove(tempFilename)
     finally:
         QApplication.restoreOverrideCursor()
         QApplication.processEvents()
@@ -1550,7 +1575,7 @@ def canClose(index=None, window=window):
         if img.isModified:
             if ind != window.tabBar.currentIndex():
                 window.tabBar.setCurrentIndex(ind)
-                dlgWarn('Image was modified', info='Save it first')
+                # dlgWarn('Image was modified', info='Save it first')  # TODO removed 19/12/21 validate
                 return False
             try:
                 # save/discard dialog

@@ -20,7 +20,7 @@ from os.path import basename
 from PySide6.QtCore import Qt, QDir, QSize
 
 from PySide6.QtWidgets import QMessageBox, QPushButton, QFileDialog, QDialog, QSlider, QVBoxLayout, QHBoxLayout, QLabel, \
-    QCheckBox, QFormLayout, QLineEdit, QDialogButtonBox, QScrollArea
+    QCheckBox, QFormLayout, QLineEdit, QDialogButtonBox, QScrollArea, QProgressDialog
 from bLUeTop.utils import QbLUeSlider
 
 ##################
@@ -145,6 +145,29 @@ def dlgWarn(text, info='', parent=None):
     msg.setText(text)
     msg.setInformativeText(info)
     msg.exec_()
+
+
+def workInProgress(title, parent=None):
+    """
+    Inits a modal QProgressDialog
+    @param title:
+    @type title: str
+    @param parent:
+    @type parent:
+    @return:
+    @rtype: QProgressDialog
+    """
+    progress = QProgressDialog(parent=parent)
+    progress.setFixedSize(300, 80)
+    progress.setStyleSheet("""background-color: rgb(20,20,100);
+                              color: rgb(220,220,220);""")
+    progress.setWindowModality(Qt.ApplicationModal)
+    progress.setAttribute(Qt.WA_DeleteOnClose)
+    progress.setWindowFlags(Qt.Dialog | Qt.WindowStaysOnTopHint | Qt.CustomizeWindowHint)
+    # del cancel button
+    progress.setCancelButtonText('')
+    progress.setLabelText(title)
+    return progress
 
 
 def saveChangeDialog(img):
