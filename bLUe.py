@@ -375,6 +375,16 @@ def loadImage(img, tfile=None, version='unknown', withBasic=True, progress=None,
     @param window:
     @type window: QWidget
     """
+
+    def compat(v):
+        if BLUE_VERSION[:2] == 'V2' and version[:2] == 'V6':
+            v = v.replace('\\x12shiboken6.Shiboken', '\\x13shiboken2.shiboken2')
+            v = v.replace('PySide6', 'PySide2')
+        elif BLUE_VERSION[:2] == 'V6' and version[:2] != 'V6':
+            v = v.replace('shiboken2.shiboken2', 'shiboken6.Shiboken')
+            v = v.replace('PySide2', 'PySide6')
+        return v
+
     tabBar = window.tabBar
     ind = tabBar.addTab(basename(img.filename))
     tabBar.setCurrentIndex(ind)
@@ -403,7 +413,7 @@ def loadImage(img, tfile=None, version='unknown', withBasic=True, progress=None,
         meta_dict = imagej_description_metadata(tfile.pages[0].is_imagej)
         try:
             if rlayer is not None:
-                d = pickle.loads(literal_eval(meta_dict['develop']))  # tifffile turns meta_dict keys to lower !
+                d = pickle.loads(literal_eval(compat(meta_dict['develop'])))  # tifffile turns meta_dict keys to lower !
                 rlayer.__setstate__(d)
             # import layer stack
             # Every Qlayer state dict is pickled. Thus, to import layer stack, unpickled entries may be skipped safely.
@@ -418,14 +428,9 @@ def loadImage(img, tfile=None, version='unknown', withBasic=True, progress=None,
                 try:
                     v = meta_dict[key]
                     if type(v) is str:
-                        # possibly pickled string. Trial conversion to the
-                        # right bLUe version and unpickling.
-                        if BLUE_VERSION[:2] == 'V2' and version[:2] == 'V6':
-                            v = v.replace('\\x12shiboken6.Shiboken', '\\x13shiboken2.shiboken2')
-                            v = v.replace('PySide6', 'PySide2')
-                        elif BLUE_VERSION[:2] == 'V6' and version[:2] != 'V6':
-                            v = v.replace('shiboken2.shiboken2', 'shiboken6.Shiboken')
-                            v = v.replace('PySide2', 'PySide6')
+                        # possibly pickled string. Try conversion to the
+                        # right bLUe version and unpickle.
+                        v = compat(v)
                     d = pickle.loads(literal_eval(v))
                     if key == 'cropmargins' and d != (0.0, 0.0, 0.0, 0.0):
                         img.setCropMargins(d, window.cropTool)  # type(d) is tuple
