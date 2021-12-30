@@ -1,8 +1,9 @@
-PyWavelets>=0.5.2
-numpy>=1.16.2+mkl
+PySide2>=5.12.2
+shiboken2>=5.15.2
+numpy>=1.19
 pywin32>=223
 rawpy>=0.13.0
-Pillow>=6.0.0
-PySide2>=5.12.4
-pywt>=1.0.6
-opencv-python
+Pillow>=8.0.0
+PyWavelets>=1.1.1
+opencv-python>=4.0
+tifffile>=2021.10.12
