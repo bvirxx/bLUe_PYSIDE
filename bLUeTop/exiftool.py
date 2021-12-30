@@ -105,7 +105,7 @@ class ExifTool(object):
         Main ExifTool method. It executes
         the exiftool commands defined by *args and returns
         exif output. If ascii is True, output is decoded as str,
-        and is a bytes object otherwise.
+        and otherwise it is a bytes object.
         @param args:
         @type args: tuple of str
         @param ascii: flag for the type of returned data
@@ -140,7 +140,7 @@ class ExifTool(object):
         # cut off sentinel and CRLF
         output = output[:-len(self.sentinel) - eol]
         if ascii:
-            output = str(output, encoding='ascii')
+            output = str(output, encoding='utf-8')  # default exiftool encoding is utf-8
         else:
             output = bytes(output)
         return output
