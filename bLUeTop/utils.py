@@ -16,13 +16,11 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import ctypes
-import threading
-from os.path import basename
 from itertools import product
 import numpy as np
 
 from PySide2 import QtCore
-from PySide2.QtGui import QColor, QImage, QPainter, QPixmap, QIcon, QMouseEvent, QImageReader
+from PySide2.QtGui import QColor, QImage, QPainter, QMouseEvent, QImageReader
 from PySide2.QtWidgets import QListWidget, QListWidgetItem, \
     QSlider, QLabel, QDockWidget, QStyle, QColorDialog, QPushButton, QSizePolicy, QComboBox, QSpinBox
 from PySide2.QtCore import Qt, QObject, QRect
@@ -30,6 +28,53 @@ from PySide2.QtCore import Qt, QObject, QRect
 from bLUeCore.rollingStats import movingVariance
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.baseSignal import baseSignal_No
+
+from version import BLUE_VERSION
+
+
+def compat(v, version):
+    if BLUE_VERSION[:2] == 'V2' and version[:2] == 'V6':
+        v = v.replace('\\x12shiboken6.Shiboken', '\\x13shiboken2.shiboken2')
+        v = v.replace('PySide6', 'PySide2')
+    elif BLUE_VERSION[:2] == 'V6' and version[:2] != 'V6':
+        v = v.replace('shiboken2.shiboken2', 'shiboken6.Shiboken')
+        v = v.replace('PySide2', 'PySide6')
+    return v
+
+
+def imagej_description_metadata(description):
+    """
+    Modified version of tifffile.imagej_description_metadata()
+    Return metatata from ImageJ image description as dict.
+    Raise ValueError if not a valid ImageJ description.
+    @param description:
+    @type description: str
+    @return:
+    @rtype: dict
+    """
+
+    def _bool(val):
+        return {'true': True, 'false': False}[val.lower()]
+
+    result = {}
+    for line in description.splitlines():
+        try:
+            key, val = line.split('=', 1)  # stop at first match, so char '=' is allowed in tag text
+        except ValueError:
+            continue
+        key = key.strip()
+        val = val.strip()
+        for dtype in (int, float, _bool):
+            try:
+                val = dtype(val)
+                break
+            except (ValueError, KeyError):
+                pass
+        result[key] = val
+
+    if 'ImageJ' not in result:
+        raise ValueError('not an ImageJ image description')
+    return result
 
 
 def shift2D(arr, tr, fill=0):
@@ -676,85 +721,6 @@ class stateAwareQDockWidget(QDockWidget):
     @property
     def isClosed(self):
         return self._closed
-
-
-class loader(threading.Thread):
-    """
-    Thread class for batch loading of images in a
-    QListWidget object
-    """
-
-    def __init__(self, gen, wdg):
-        """
-
-        @param gen: generator of image file names
-        @type gen: generator
-        @param wdg:
-        @type wdg: QListWidget
-        """
-        super(loader, self).__init__()
-        self.fileListGen = gen
-        self.wdg = wdg
-
-    def run(self):
-        # next() raises a StopIteration exception when the generator ends.
-        # If this exception is unhandled by run(), it causes thread termination.
-        # If wdg internal C++ object was destroyed by main thread (form closing)
-        # a RuntimeError exception is raised and causes thread termination too.
-        # Thus, no further synchronization is needed.
-        from bLUeTop import exiftool
-        with exiftool.ExifTool() as e:
-            while True:
-                try:
-                    filename = next(self.fileListGen)
-                    # get orientation
-                    try:
-                        # read metadata from sidecar (.mie) if it exists, otherwise from image file.
-                        profile, metadata = e.get_metadata(filename,
-                                                           tags=(
-                                                               "colorspace", "profileDescription", "orientation",
-                                                               "model",
-                                                               "rating", "FileCreateDate"),
-                                                           createsidecar=False)
-                    except ValueError:
-                        metadata = {}
-                    # get image info
-                    tmp = [value for key, value in metadata.items() if 'orientation' in key.lower()]
-                    orientation = tmp[0] if tmp else 1  # metadata.get("EXIF:Orientation", 1)
-                    # EXIF:DateTimeOriginal seems to be missing in many files
-                    tmp = [value for key, value in metadata.items() if 'date' in key.lower()]
-                    date = tmp[0] if tmp else ''  # metadata.get("EXIF:ModifyDate", '')
-                    tmp = [value for key, value in metadata.items() if 'rating' in key.lower()]
-                    rating = tmp[0] if tmp else 0  # metadata.get("XMP:Rating", 5)
-                    rating = ''.join(['*'] * int(rating))
-                    transformation = exiftool.decodeExifOrientation(orientation)
-                    # get thumbnail
-                    img = e.get_thumbNail(filename, thumbname='thumbnailimage')
-                    # no thumbnail found : try preview
-                    if img.isNull():
-                        img = e.get_thumbNail(filename,
-                                              thumbname='PreviewImage')  # the order is important : for jpeg PreviewImage is full sized !
-                    # all failed : open image
-                    if img.isNull():
-                        img = QImage(filename)
-                    # remove possible black borders, except for .NEF
-                    if filename[-3:] not in ['nef', 'NEF']:
-                        bBorder = 7
-                        img = img.copy(QRect(0, bBorder, img.width(), img.height() - 2 * bBorder))
-                    pxm = QPixmap.fromImage(img)
-                    if not transformation.isIdentity():
-                        pxm = pxm.transformed(transformation)
-                    # set item caption and tooltip
-                    item = QListWidgetItem(QIcon(pxm), basename(filename))  # + '\n' + rating)
-                    item.setToolTip(basename(filename) + ' ' + date + ' ' + rating)
-                    # set item mimeData to get filename=item.data(Qt.UserRole)[0] transformation=item.data(Qt.UserRole)[1]
-                    item.setData(Qt.UserRole, (filename, transformation))
-                    self.wdg.addItem(item)
-                # for clean exiting we catch all exceptions and force break
-                except OSError:
-                    continue
-                except:
-                    break
 
 
 def clip(image, mask, inverted=False):

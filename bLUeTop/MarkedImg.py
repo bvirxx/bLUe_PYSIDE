@@ -28,7 +28,7 @@ from collections import OrderedDict
 import tifffile
 
 from PIL.ImageCms import ImageCmsProfile
-from PySide2.QtCore import Qt, QSize, QPoint, QPointF, QFileInfo
+from PySide2.QtCore import Qt, QSize, QPoint, QPointF, QFileInfo, QByteArray, QBuffer, QIODevice
 
 import cv2
 from copy import copy
@@ -515,7 +515,7 @@ class mImage(vImage):
         qp.end()
         return img
 
-    def snap(self):
+    def snap(self, thumb_jpg):
         """
         Builds a snapshot of the document (imagej description dictionary, mask list, image list) for
         saving to bLU file. All changes to the document made between the call to
@@ -527,7 +527,8 @@ class mImage(vImage):
                       for layer in self.layersStack] + \
                      [('sourceformat', self.sourceformat)] + \
                      [('version', BLUE_VERSION)] + \
-                     [('cropmargins', pickle.dumps(self.cropMargins()))]
+                     [('cropmargins', pickle.dumps(self.cropMargins()))] + \
+                     [('ThumbnailImage', pickle.dumps(thumb_jpg))]
 
         names = OrderedDict(layernames)  # values are not pickled str or pickled dict or tuple
 
@@ -600,6 +601,30 @@ class mImage(vImage):
         # imagewriter and QImage.save are unusable for tif files,
         # due to bugs in libtiff, hence we use opencv imwrite.
         buf = QImageBuffer(img)
+        if self.isCropped:
+            # make slices
+            w, h = self.width(), self.height()
+            wp, hp = img.width(), img.height()
+            wr, hr = wp / w, hp / h
+            w1, w2 = int(self.cropLeft * wr), int((w - self.cropRight) * wr)
+            h1, h2 = int(self.cropTop * hr), int((h - self.cropBottom) * hr)
+            buf = buf[h1:h2, w1:w2, :]
+
+        # build thumbnail from (eventually) cropped image
+        # choose thumb size
+        wf, hf = buf.shape[1], buf.shape[0]
+        if wf > hf:
+            wt, ht = 160, 120
+        else:
+            wt, ht = 120, 160
+        thumb = ndarrayToQImage(np.ascontiguousarray(buf[:, :, :3][:, :, ::-1]),
+                                format=QImage.Format_RGB888).scaled(wt, ht, Qt.KeepAspectRatio)
+
+        # build jpg from thumb
+        ba = QByteArray()
+        buffer = QBuffer(ba)
+        buffer.open(QIODevice.WriteOnly)
+        thumb.save(buffer, 'JPG')
 
         transparencyCheck(buf, fileFormat)
 
@@ -617,32 +642,14 @@ class mImage(vImage):
             raise IOError("Invalid File Format\nValid formats are jpg, png, tif ")
 
         written = False
-        thumb = None
 
         if fileFormat in IMAGE_FILE_EXTENSIONS:  # dest format
             # save edited image -  mode preview is off
-
-            if self.isCropped:
-                # make slices
-                w, h = self.width(), self.height()
-                w1, w2 = int(self.cropLeft), w - int(self.cropRight)
-                h1, h2 = int(self.cropTop), h - int(self.cropBottom)
-                buf = buf[h1:h2, w1:w2, :]
-
             written = cv2.imwrite(filename, buf, params)  # BGR order
-            # build thumbnail from (eventually) cropped image
-            # choose thumb size
-            wf, hf = buf.shape[1], buf.shape[0]
-            if wf > hf:
-                wt, ht = 160, 120
-            else:
-                wt, ht = 120, 160
-            thumb = ndarrayToQImage(np.ascontiguousarray(buf[:, :, :3][:, :, ::-1]),
-                                    format=QImage.Format_RGB888).scaled(wt, ht, Qt.KeepAspectRatio)
 
         elif fileFormat in BLUE_FILE_EXTENSIONS:
             # records current state and save to bLU file
-            names, mask_list, image_list = self.snap()
+            names, mask_list, image_list = self.snap(ba)
 
             if self.sourceformat in RAW_FILE_EXTENSIONS:
                 # copy raw file and layer stack to .bLU
@@ -731,7 +738,7 @@ class imImage(mImage):
     @staticmethod
     def loadImageFromFile(f, rawiobuf=None, createsidecar=True, icc=icc, cmsConfigure=False, window=None):
         """
-        load an imImage (image and metadata) from file. Returns the loaded imImage :
+        load an imImage (image and base metadata) from file. Returns the loaded imImage :
         For a raw file, it is the image postprocessed with default parameters.
         @param f: path to file
         @type f: str
@@ -746,8 +753,8 @@ class imImage(mImage):
         @return: image
         @rtype: imImage
         """
-        # read metadata from sidecar (.mie) if it exists, otherwise from image file.
-        # metadata is a non empty list of dicts. metadata[0] contains 'SourceFile': path at least .
+        # extract metadata from sidecar (.mie) if it exists, otherwise from image file.
+        # metadata is a dict.
         # The sidecar is created if it does not exist and createsidecar is True.
         try:
             with exiftool.ExifTool() as e:
@@ -764,32 +771,24 @@ class imImage(mImage):
             metadata = {'SourceFile': f}
             profile = b''
             imageInfo = 'No data found'
-        # try to find a color space : 1=sRGB 65535=uncalibrated
+
+        # try to find a valid color space : 1=sRGB 65535=uncalibrated
         tmp = [value for key, value in metadata.items() if 'colorspace' in key.lower()]
         colorSpace = tmp[0] if tmp else -1
-        # try again to find a valid imbedded profile.
+
+        # try to find a valid imbedded profile.
         # If everything fails, assign sRGB.
         cmsProfile = icc.defaultWorkingProfile
-        if colorSpace == -1 or colorSpace == 65535:
-            tmp = [value for key, value in metadata.items() if 'profiledescription' in key.lower()]
-            desc_colorSpace = tmp[0] if tmp else ''
-            if isinstance(desc_colorSpace, str):
-                if not ('sRGB' in desc_colorSpace) or hasattr(window, 'modeDiaporama'):
-                    # setOverrideCursor does not work correctly for a MessageBox :
-                    # may be a Qt Bug, cf. https://bugreports.qt.io/browse/QTBUG-42117
-                    QApplication.changeOverrideCursor(QCursor(Qt.ArrowCursor))
-                    QApplication.processEvents()
-                    if len(desc_colorSpace) > 0:  # a probably valid profile was found
-                        try:
-                            # convert profile to ImageCmsProfile object
-                            cmsProfile = ImageCmsProfile(BytesIO(profile))
-                        except TypeError:  # raised by ImageCmsProfile()
-                            pass
-                    if not isinstance(cmsProfile, ImageCmsProfile):
-                        dlgInfo("Color profile is missing\nAssigning sRGB")
-                        # assign sRGB profile
-                        colorSpace = 1
-                        cmsProfile = icc.defaultWorkingProfile
+        try:
+            # convert profile to ImageCmsProfile object
+            cmsProfile = ImageCmsProfile(BytesIO(profile))
+        except (TypeError, OSError) as e:  # both raised by ImageCmsProfile()
+            pass
+        if not isinstance(cmsProfile, ImageCmsProfile):
+            dlgInfo("Color profile is missing\nAssigning sRGB")
+            # assign sRGB profile
+            colorSpace = 1
+            cmsProfile = icc.defaultWorkingProfile
         if cmsConfigure:
             # update the color management object with the image profile.
             icc.configure(colorSpace=colorSpace, workingProfile=cmsProfile)
@@ -861,8 +860,8 @@ class imImage(mImage):
         img.imageInfo = imageInfo
         window.settings.setValue('paths/dlgdir', QFileInfo(f).absoluteDir().path())
         img.initThumb()
+
         # update profile related attributes
-        img.colorSpace = colorSpace
         img.setProfile(cmsProfile)
         return img
 
@@ -1640,6 +1639,7 @@ class QLayer(vImage):
             return
         crpt = window.cropTool
         crpt.zoomCrop(pos, numSteps, self.parentImage)
+        window.updateStatus()
 
     def __getstate__(self):
         d = {}

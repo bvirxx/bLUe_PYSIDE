@@ -16,22 +16,26 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import gc
+import pickle
+import threading
+import tifffile
+from ast import literal_eval
 from os import walk, path, listdir
 from os.path import basename, isfile
 from re import search
 from time import sleep
 
-from PySide2.QtCore import Qt, QUrl, QMimeData, QByteArray, QPoint, QSize
-from PySide2.QtGui import QKeySequence, QImage, QDrag
+from PySide2.QtCore import Qt, QUrl, QMimeData, QByteArray, QPoint, QSize, QBuffer, QIODevice, QRect
+from PySide2.QtGui import QKeySequence, QImage, QDrag, QPixmap, QIcon, QColor
 from PySide2.QtWidgets import QMainWindow, QSizePolicy, QMenu, QListWidget, QAbstractItemView, \
-    QApplication, QAction
+    QApplication, QAction, QListWidgetItem
 
 from bLUeTop import exiftool
 from bLUeTop.MarkedImg import imImage
 from bLUeTop.QtGui1 import app, window
 from bLUeTop.imLabel import imageLabel
-from bLUeTop.utils import loader, stateAwareQDockWidget
-from bLUeGui.dialog import IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS
+from bLUeTop.utils import stateAwareQDockWidget, imagej_description_metadata, compat
+from bLUeGui.dialog import IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, BLUE_FILE_EXTENSIONS
 
 # global variable recording diaporama state
 isSuspended = False
@@ -205,13 +209,110 @@ class dragQListWidget(QListWidget):
             dropAction = drag.exec_()
 
 
+class loader(threading.Thread):
+    """
+    Thread class for batch loading of images in a
+    QListWidget object
+    """
+
+    def __init__(self, gen, wdg):
+        """
+
+        @param gen: generator of image file names
+        @type gen: generator
+        @param wdg:
+        @type wdg: QListWidget
+        """
+        super(loader, self).__init__()
+        self.fileListGen = gen
+        self.wdg = wdg
+
+    def run(self):
+        # next() raises a StopIteration exception when the generator ends.
+        # If this exception is unhandled by run(), it causes thread termination.
+        # If wdg internal C++ object was destroyed by main thread (form closing)
+        # a RuntimeError exception is raised and causes thread termination too.
+        # Thus, no further synchronization is needed.
+        with exiftool.ExifTool() as e:
+            while True:
+                try:
+                    filename = next(self.fileListGen)
+                    # get orientation
+                    try:
+                        # read metadata from sidecar (.mie) if it exists, otherwise from image file.
+                        profile, metadata = e.get_metadata(filename,
+                                                           tags=(
+                                                               "colorspace", "profileDescription", "orientation",
+                                                               "model",
+                                                               "rating", "FileCreateDate"),
+                                                           createsidecar=False)
+                    except ValueError:
+                        metadata = {}
+
+                    # get image info
+                    tmp = [value for key, value in metadata.items() if 'orientation' in key.lower()]
+                    orientation = tmp[0] if tmp else 1  # metadata.get("EXIF:Orientation", 1)
+                    # EXIF:DateTimeOriginal seems to be missing in many files
+                    tmp = [value for key, value in metadata.items() if 'date' in key.lower()]
+                    date = tmp[0] if tmp else ''  # metadata.get("EXIF:ModifyDate", '')
+                    tmp = [value for key, value in metadata.items() if 'rating' in key.lower()]
+                    rating = tmp[0] if tmp else 0  # metadata.get("XMP:Rating", 5)
+                    rating = ''.join(['*'] * int(rating))
+                    transformation = exiftool.decodeExifOrientation(orientation)
+
+                    # get thumbnail
+                    img = e.get_thumbNail(filename, thumbname='thumbnailimage')
+
+                    # no thumbnail found : try preview
+                    if img.isNull():
+                        img = e.get_thumbNail(filename,
+                                              thumbname='PreviewImage')  # the order is important : for jpeg PreviewImage is full sized !
+                    # may be a bLU file
+                    if img.isNull() and filename[-4:] in BLUE_FILE_EXTENSIONS:
+                        tfile = tifffile.TiffFile(filename)
+                        meta_dict = imagej_description_metadata(tfile.pages[0].is_imagej)
+                        version = meta_dict.get('version', 'unknown')
+                        v = meta_dict.get('thumbnailimage', None)
+                        if v is not None:
+                            v = compat(v, version)
+                            ba = pickle.loads(literal_eval(v))
+                            buffer = QBuffer(ba)
+                            buffer.open(QIODevice.ReadOnly)
+                            img = QImage()
+                            img.load(buffer, 'JPG')
+
+                    if img.isNull():
+                        img = QImage(QSize(160, 120), QImage.Format_RGB888)
+                        img.fill(QColor(128, 128, 140))
+
+                    # remove possible black borders, except for .NEF
+                    if filename[-3:] not in ['nef', 'NEF']:
+                        bBorder = 7
+                        img = img.copy(QRect(0, bBorder, img.width(), img.height() - 2 * bBorder))
+                    pxm = QPixmap.fromImage(img)
+                    if not transformation.isIdentity():
+                        pxm = pxm.transformed(transformation)
+
+                    # set item caption and tooltip
+                    item = QListWidgetItem(QIcon(pxm), basename(filename))
+                    item.setToolTip(basename(filename) + ' ' + date + ' ' + rating)
+                    # set item mimeData to get filename=item.data(Qt.UserRole)[0] transformation=item.data(Qt.UserRole)[1]
+                    item.setData(Qt.UserRole, (filename, transformation))
+                    self.wdg.addItem(item)
+                # for clean exiting we catch all exceptions and force break
+                except (OSError, ValueError, tifffile.TiffFileError):
+                    continue
+                except Exception as ex:
+                    break
+
+
 class viewer:
     """
     Folder browser
     """
     # current viewer instance
     instance = None
-    iconSize = 100
+    iconSize = 80
 
     @classmethod
     def getViewerInstance(cls, mainWin=None):
@@ -262,7 +363,7 @@ class viewer:
         listWdg.setViewMode(QListWidget.IconMode)
         # set icon and listWdg sizes
         listWdg.setIconSize(QSize(self.iconSize, self.iconSize))
-        listWdg.setMaximumSize(160000, self.iconSize + 20)
+        listWdg.setMaximumSize(160000, self.iconSize + 40)
         listWdg.setDragDropMode(QAbstractItemView.DragDrop)
         listWdg.customContextMenuRequested.connect(self.contextMenu)
         # dock the form
@@ -377,14 +478,16 @@ class viewer:
         if withsub:
             # browse the directory and its subfolders
             fileListGen = (path.join(dirpath, filename) for (dirpath, dirnames, filenames) in walk(folder) for filename
-                           in
-                           filenames if
-                           filename.endswith(IMAGE_FILE_EXTENSIONS) or filename.endswith(RAW_FILE_EXTENSIONS))
+                           in filenames if
+                           filename.endswith(IMAGE_FILE_EXTENSIONS) or
+                           filename.endswith(RAW_FILE_EXTENSIONS) or
+                           filename.endswith(BLUE_FILE_EXTENSIONS))
         else:
             fileListGen = (path.join(folder, filename) for filename in listdir(folder) if
                            isfile(path.join(folder, filename)) and (
-                                   filename.endswith(IMAGE_FILE_EXTENSIONS) or filename.endswith(
-                               RAW_FILE_EXTENSIONS)))
+                                   filename.endswith(IMAGE_FILE_EXTENSIONS) or
+                                   filename.endswith(RAW_FILE_EXTENSIONS)) or
+                           filename.endswith(BLUE_FILE_EXTENSIONS))
         return fileListGen
 
     def playViewer(self, folder):
