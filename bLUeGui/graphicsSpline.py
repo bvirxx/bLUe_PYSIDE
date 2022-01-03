@@ -900,6 +900,7 @@ class activeQuadricSpline(activeSpline):
         for p, t in zip(points, tangents):
             p.tangent = t
         self.fixedTangents = tangents
+        self.setTangentsVisible(self.hasVisibleTangents)  # TODO added 3/1/22 validate
         self.updatePath()
         self.updateLUTXY()
         # enable resetting to this curve (see method setCurve())
