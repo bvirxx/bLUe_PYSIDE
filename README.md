@@ -30,23 +30,22 @@ The program is written in Python.
 A 3D LUT is a table representing a 3D cube of color nodes. Image pixels are associated with nodes, according to their
 color. Changes are applied to each node individually, giving full control over colors.
 
-3D LUTs are edited in a *perceptual editor* by selecting, grouping and moving color nodes over
-a hue-saturation color wheel. Nodes are bound to an elastic grid and a grid smoothing algorithm is provided to even
-changes in color.
+3D LUTs are edited in a *perceptual editor* by selecting, grouping and moving color nodes over a hue-saturation color
+wheel. Nodes are bound to an elastic grid and a grid smoothing algorithm is provided to even changes in color.
 
- ##### GROUPING NODES
+##### GROUPING NODES
 
 A group of nodes represents a *meaning* region of an image, for example : tree leaves, skin, hairs, water, blue sky,
 ...), and all nodes in a group should be edited in a similar way.
 
 The editor's workflow is based on the grouping of nodes.
 
-  *  Nodes are selected and grouped from the image;
-  
-  * To edit the colors of all pixels in a group while keeping their brightnesses, simply move the group on 
-  the color wheel;
+* Nodes are selected and grouped from the image;
 
-  * To control the brightnesses of pixels in a group, edit the brightness curve of the group.
+* To edit the colors of all pixels in a group while keeping their brightnesses, simply move the group on the color
+  wheel;
+
+* To control the brightnesses of pixels in a group, edit the brightness curve of the group.
 
 ##### CHANGING THE GAMUT
 

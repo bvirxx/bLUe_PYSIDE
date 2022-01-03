@@ -173,7 +173,7 @@ from bLUeTop.graphicsCoBrSat import CoBrSatForm
 from bLUeTop.graphicsExp import ExpForm
 from bLUeTop.graphicsPatch import patchForm
 from bLUeTop.settings import USE_POOL, POOL_SIZE, THEME, TABBING, BRUSHES_PATH, COLOR_MANAGE_OPT, HAS_TORCH
-from bLUeTop.utils import UDict, stateAwareQDockWidget, QImageFromFile
+from bLUeTop.utils import UDict, stateAwareQDockWidget, QImageFromFile, imagej_description_metadata, compat
 from bLUeGui.tool import cropTool, rotatingTool
 from bLUeTop.graphicsTemp import temperatureForm
 from bLUeTop.graphicsFilter import filterForm
@@ -264,7 +264,7 @@ def widgetChange(button, window=window):
     window.label.repaint()
 
 
-def addAdjustmentLayers(layers, images, progress=None):
+def addAdjustmentLayers(layers, images):
     """
     Adds a list of layers to the current document and restore their states.
     Entries not corresponding to menu layers actions are skipped.
@@ -276,16 +276,12 @@ def addAdjustmentLayers(layers, images, progress=None):
     if layers is None:
         return
     count = 1
-    if progress:
-        p_init = progress.value()
-        p_max = progress.maximum()
+
     waitImages = []
     for ind, item in enumerate(layers):
         d = item[1]['state']
         # add layer to stack
         layer = menuLayer(item[1]['actionname'], sname=item[0], script=True)
-        if progress:
-            progress.setValue(p_init + int(ind * (p_max - p_init) / len(layers)))
         if d['mask'] == 1:
             if layer is not None:
                 buf = images.asarray()[count]
@@ -360,7 +356,7 @@ def addRawAdjustmentLayer(window=window):
     return rlayer
 
 
-def loadImage(img, tfile=None, version='unknown', withBasic=True, progress=None, window=window):
+def loadImage(img, tfile=None, version='unknown', withBasic=True, window=window):
     """
     load a vImage into bLUe and build layer stack.
     if tfile is an opened TiffFile instance, import layer stack from file
@@ -375,15 +371,6 @@ def loadImage(img, tfile=None, version='unknown', withBasic=True, progress=None,
     @param window:
     @type window: QWidget
     """
-
-    def compat(v):
-        if BLUE_VERSION[:2] == 'V2' and version[:2] == 'V6':
-            v = v.replace('\\x12shiboken6.Shiboken', '\\x13shiboken2.shiboken2')
-            v = v.replace('PySide6', 'PySide2')
-        elif BLUE_VERSION[:2] == 'V6' and version[:2] != 'V6':
-            v = v.replace('shiboken2.shiboken2', 'shiboken6.Shiboken')
-            v = v.replace('PySide2', 'PySide6')
-        return v
 
     tabBar = window.tabBar
     ind = tabBar.addTab(basename(img.filename))
@@ -413,7 +400,7 @@ def loadImage(img, tfile=None, version='unknown', withBasic=True, progress=None,
         meta_dict = imagej_description_metadata(tfile.pages[0].is_imagej)
         try:
             if rlayer is not None:
-                d = pickle.loads(literal_eval(compat(meta_dict['develop'])))  # tifffile turns meta_dict keys to lower !
+                d = pickle.loads(literal_eval(compat(meta_dict['develop'], version)))  # keys are turned to lower !
                 rlayer.__setstate__(d)
             # import layer stack
             # Every Qlayer state dict is pickled. Thus, to import layer stack, unpickled entries may be skipped safely.
@@ -430,7 +417,7 @@ def loadImage(img, tfile=None, version='unknown', withBasic=True, progress=None,
                     if type(v) is str:
                         # possibly pickled string. Try conversion to the
                         # right bLUe version and unpickle.
-                        v = compat(v)
+                        v = compat(v, version)
                     d = pickle.loads(literal_eval(v))
                     if key == 'cropmargins' and d != (0.0, 0.0, 0.0, 0.0):
                         img.setCropMargins(d, window.cropTool)  # type(d) is tuple
@@ -444,7 +431,8 @@ def loadImage(img, tfile=None, version='unknown', withBasic=True, progress=None,
             # skipped.
             dlgWarn('loadImage: Invalid format %s' % img.filename, str(e))
             raise
-        addAdjustmentLayers(layers, tfile.series[0], progress=progress)
+
+        addAdjustmentLayers(layers, tfile.series[0])
 
     # add default adjustment layers
     if withBasic:
@@ -470,35 +458,39 @@ def openFile(f, window=window):
     tfile = None
     version = 'unknown'
     try:
-        window.setEnabled(False)
-        progress = workInProgress('Loading ...')  # block user actions
-        progress.show()
-        # QApplication.setOverrideCursor(Qt.WaitCursor) # works poorly !
+        window.status_loadingFile = True
+        window.tabBar.setEnabled(False)
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        updateStatus()
         QApplication.processEvents()
+
         if sourceformat in BLUE_FILE_EXTENSIONS:
             tfile = tifffile.TiffFile(f)
             meta_dict = tfile.imagej_metadata  # no unpickling needed here, so we use imagej_metadata
-            version = meta_dict.get('version', 'unknown')  # unused yet
+            version = meta_dict.get('version', 'unknown')
+            # get recorded source format
             sourceformat = meta_dict.get('sourceformat')  # read actual source format
             if sourceformat in RAW_FILE_EXTENSIONS:
                 # is .blu file from raw
                 buf_ori_len = meta_dict['buf_ori_len']
                 rawbuf = tfile.series[0].pages[0].asarray()[0, :buf_ori_len]
                 iobuf = io.BytesIO(rawbuf.tobytes())
-        progress.setValue(30)
+
         ##############################################################
         # load imImage instance from file. If rawiobuf is None the
         # file is read using QImageReader, bLU file included (tif file).
         ##############################################################
         img = imImage.loadImageFromFile(f, rawiobuf=iobuf, cmsConfigure=True, window=window)
-        progress.setValue(50)
+        QApplication.processEvents()
         img.sourceformat = sourceformat
         ###########################
         # init or load layer stack
         ##########################
         if img is not None:
-            loadImage(img, tfile=tfile, version=version, progress=progress)
+            window.status_loadingLayers = True
+            loadImage(img, tfile=tfile, version=version)
             updateStatus()
+            QApplication.processEvents()
             # update the list of recent files
             recentFiles = window.settings.value('paths/recent', [])
             # settings.values returns a str or a list of str,
@@ -511,17 +503,16 @@ def openFile(f, window=window):
             if len(recentFiles) > 10:
                 recentFiles.pop()
             window.settings.setValue('paths/recent', recentFiles)
-    except (ValueError, IOError, rawpy.LibRawFatalError) as e:
-        QApplication.restoreOverrideCursor()
-        QApplication.processEvents()
-        dlgWarn(str(e))
+    except (ValueError, KeyError, IOError, rawpy.LibRawFatalError) as e:
+        dlgWarn(repr(e))
     finally:
         if tfile is not None:
             tfile.close()
-        # QApplication.restoreOverrideCursor()
-        # QApplication.processEvents()
-        window.setEnabled(True)
-        progress.close()
+        window.tabBar.setEnabled(True)
+        window.status_loadingFile = False
+        window.status_loadingLayers = False
+        QApplication.restoreOverrideCursor()
+        QApplication.processEvents()
 
 
 def saveFile(filename, img, quality=-1, compression=-1, writeMeta=True):
@@ -1641,7 +1632,13 @@ def updateStatus(window=window):
     # cropping
     if window.label.img.isCropped:
         w, h = window.cropTool.crWidth, window.cropTool.crHeight
-        s += '&nbsp;&nbsp;&nbsp;&nbsp;Cropped : %dx%d h/w=%.2f ' % (w, h, h / w)
+        s += '&nbsp;&nbsp;&nbsp;&nbsp;Cropped : %dx%d (h/w=%.2f) ' % (w, h, h / w)
+        s += '&nbsp;&nbsp;Use Ctrl+Drag to move and Ctrl+Wheel to zoom'
+    # loading document
+    if window.status_loadingFile:
+        s += '&nbsp;&nbsp;&nbsp;&nbsp;Loading Image...'
+    if window.status_loadingLayers:
+        s += 'Layers...'
     window.Label_status.setText(s)
 
 
@@ -2105,6 +2102,10 @@ def setupGUI(window=window):
     actionCycle = QAction('cycle', window)
     actionCycle.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_Space))
 
+    # status flags
+    window.status_loadingFile = False
+    window.status_loadingLayers = False
+
     def f():
         window.viewState = 'Before/After'
         splitWin.nextSplitView()
@@ -2202,41 +2203,6 @@ def setTabBar(window=window):
     window.groupbox_btn.setStyleSheet("QWidget#layoutWidget {background-color: transparent}")
     hlay.addLayout(vlay)
     window.tabBar = tabBar
-
-
-def imagej_description_metadata(description):
-    """
-    Modified version of tifffile.imagej_description_metadata()
-    Return metatata from ImageJ image description as dict.
-    Raise ValueError if not a valid ImageJ description.
-    @param description:
-    @type description: str
-    @return:
-    @rtype: dict
-    """
-
-    def _bool(val):
-        return {'true': True, 'false': False}[val.lower()]
-
-    result = {}
-    for line in description.splitlines():
-        try:
-            key, val = line.split('=', 1)  # stop at first match, so char '=' is allowed in tag text
-        except ValueError:
-            continue
-        key = key.strip()
-        val = val.strip()
-        for dtype in (int, float, _bool):
-            try:
-                val = dtype(val)
-                break
-            except (ValueError, KeyError):
-                pass
-        result[key] = val
-
-    if 'ImageJ' not in result:
-        raise ValueError('not an ImageJ image description')
-    return result
 
 
 if __name__ == '__main__':
