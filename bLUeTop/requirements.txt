@@ -1,7 +1,9 @@
-rawpy>=0.13.0
+PySide2>=5.12.2
+shiboken2>=5.15.2
+numpy>=1.19
 pywin32>=223
 numpy>=1.16.2+mkl
 Pillow>=6.0.0
-PySide6>=5.12.4
+PySide2>=5.12.4
 opencv-python
 

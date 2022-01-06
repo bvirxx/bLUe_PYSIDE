@@ -299,10 +299,10 @@ class loader(threading.Thread):
                     # set item mimeData to get filename=item.data(Qt.UserRole)[0] transformation=item.data(Qt.UserRole)[1]
                     item.setData(Qt.UserRole, (filename, transformation))
                     self.wdg.addItem(item)
-                # for clean exiting we catch all exceptions and force break
-                except (OSError, ValueError, tifffile.TiffFileError):
+                except (OSError, IOError, ValueError, tifffile.TiffFileError, KeyError, SyntaxError,
+                        ModuleNotFoundError, pickle.UnpicklingError) as ex:
                     continue
-                except Exception as ex:
+                except Exception as ex:  # StopIteration and anything else for clean exit
                     break
 
 

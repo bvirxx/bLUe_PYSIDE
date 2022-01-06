@@ -21,6 +21,7 @@ from PySide6.QtGui import QImage, QColor, QPixmap, QPainter, QBrush, QPen, QFont
 from PySide6.QtWidgets import QGraphicsPixmapItem, QLabel, QVBoxLayout
 
 from bLUeGui.bLUeImage import QImageBuffer
+from bLUeGui.dialog import dlgWarn
 from bLUeGui.graphicsForm import baseGraphicsForm
 from bLUeGui.graphicsSpline import activePoint
 from bLUeTop.utils import optionsWidget
@@ -85,6 +86,9 @@ class mixerForm(baseGraphicsForm):
                                     flow=optionsWidget.LeftToRight)
         listWidget1.setMaximumHeight(
             listWidget1.sizeHintForRow(0) + 5)  # mandatory although sizePolicy is set to minimum !
+        listWidget1.onSelect = lambda x: dlgWarn('Channel Mixer',
+                                                 'Option Luminosity will be removed in the future.' \
+                                                 'Use Luminosity blending mode instead')
         self.listWidget1 = listWidget1  # mandatory for __getstate__()
         self.options = listWidget1.options
         # barycentric coordinate basis : the 3 base points form an equilateral triangle

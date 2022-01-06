@@ -312,11 +312,8 @@ def addAdjustmentLayers(layers, images):
             if t is QCloningLayer:
                 layer.getGraphicsForm().updateSource()
             layer.applyToStack()  # TODO added 22/11/21 because images are loaded after all calls to __setstate__() - validate
-            parentImage = layer.parentImage  # same for all layers
+            # parentImage = layer.parentImage  # same for all layers
         count += n
-    if images_loaded:
-        parentImage.setActiveLayer(len(parentImage.layersStack) - 1)
-        parentImage.onImageChanged()
 
 
 def addBasicAdjustmentLayers(img, window=window):
@@ -429,20 +426,21 @@ def loadImage(img, tfile=None, version='unknown', withBasic=True, window=window)
         except (SyntaxError, ValueError, ModuleNotFoundError, pickle.UnpicklingError) as e:
             # exceptions raised while unpickling meta_dict['develop'] cannot be
             # skipped.
-            dlgWarn('loadImage: Invalid format %s' % img.filename, str(e))
+            # dlgWarn('loadImage: Invalid format %s' % img.filename, str(e))
             raise
-
+        # load layers
         addAdjustmentLayers(layers, tfile.series[0])
-
-    # add default adjustment layers
-    if withBasic:
-        addBasicAdjustmentLayers(img)
-
-    # updates
-    # for bLU file loading updates are already done by __setstate__() methods of graphic forms
-    if not fromBlue:  # TODO added 22/11/21 validate
+        img.setActiveLayer(len(img.layersStack) - 1)
+        # img.onImageChanged()
+    else:
+        # add default adjustment layers
+        if withBasic:
+            addBasicAdjustmentLayers(img)
+        # updates
+        # for bLU file updates are already done by __setstate__() methods of graphic forms
         img.layersStack[0].applyToStack()
-        img.onImageChanged()
+
+    img.onImageChanged()
 
 
 def openFile(f, window=window):
@@ -503,7 +501,8 @@ def openFile(f, window=window):
             if len(recentFiles) > 10:
                 recentFiles.pop()
             window.settings.setValue('paths/recent', recentFiles)
-    except (ValueError, KeyError, IOError, rawpy.LibRawFatalError) as e:
+    except (ValueError, KeyError, IOError, rawpy.LibRawFatalError, SyntaxError,
+            ModuleNotFoundError, pickle.UnpicklingError) as e:
         dlgWarn(repr(e))
     finally:
         if tfile is not None:
@@ -1190,7 +1189,6 @@ def menuLayer(name, window=window, sname=None, script=False):
         dlgWarn('Cannot add layer : no document found', 'Open an existing image or create a new one')
         return
 
-    #
     if name in ['actionCurves_RGB', 'actionCurves_HSpB', 'actionCurves_Lab']:
         if name == 'actionCurves_RGB':
             layerName = 'Curves RGB'
@@ -1850,6 +1848,7 @@ def setupGUI(window=window):
                                QListWidget::item {background-color: rgb(40, 40, 40); color: white}
                                QListWidget::item:disabled{color: gray}
                                QCheckBox::indicator:unchecked, QListWidget::indicator:unchecked{background-color: white}
+                               QListWidget::indicator:disabled{background-color: gray}
                                optionsWidget {outline: none; border: none} 
                                QMenu, QTableView {selection-background-color: blue;
                                                    selection-color: white;}

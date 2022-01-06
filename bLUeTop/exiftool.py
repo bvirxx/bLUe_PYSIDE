@@ -238,7 +238,6 @@ class ExifTool(object):
         @rtype: QImage
         """
         thumbnail = self.readBinaryData(f, tagname=thumbname)
-        # return QImage.fromData(QByteArray.fromRawData(str(thumbnail), len(str(thumbnail))), 'JPG')
         return QImage.fromData(QByteArray(thumbnail), 'JPG')
 
     def writeThumbnail(self, filename, thumbfile):
