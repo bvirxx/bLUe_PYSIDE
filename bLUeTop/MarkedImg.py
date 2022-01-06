@@ -365,7 +365,7 @@ class mImage(vImage):
                 break
         return i
 
-    def addLayer(self, layer, name='noname', index=None):
+    def addLayer(self, layer, name='noname', index=None, activate=True):
         """
         Adds a layer to stack (If the parameter layer is None a fresh layer is added).
         The layer name may be modified to get a unique (case insensitive) name.
@@ -376,6 +376,8 @@ class mImage(vImage):
         @type name: str
         @param index: index of insertion in layersStack (top of active layer if index=None)
         @type index: int
+        @param activate:
+        @type activate: boolean
         @return: the layer added
         @rtype: QLayer
         """
@@ -398,7 +400,8 @@ class mImage(vImage):
                 # empty stack
                 index = 0
         self.layersStack.insert(index, layer)
-        self.setActiveLayer(index)
+        if activate:
+            self.setActiveLayer(index)
         layer.meta = self.meta
         layer.parentImage = weakProxy(self)  # TODO weakproxy added 29/11/21 validate
         self.setModified(True)
