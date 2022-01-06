@@ -130,20 +130,11 @@ class graphicsLabForm(graphicsCurveForm):
                                     QGraphicsScene.BackgroundLayer)
 
         self.listWidget1.onSelect = onSelect1
-        # set initial selection to L
-        item = self.listWidget1.items[options[0]]
-        item.setCheckState(Qt.Checked)
-        self.listWidget1.select(item)
+
         self.setWhatsThis("""<b>Lab curves</b><br>""" + self.whatsThis())
 
-        def f():
-            l = graphicsScene.layer
-            l.applyToStack()
-            l.parentImage.onImageChanged()
-
-        self.scene().cubicR.curveChanged.sig.connect(f)
-        self.scene().cubicG.curveChanged.sig.connect(f)
-        self.scene().cubicB.curveChanged.sig.connect(f)
+        for item in [self.scene().cubicR, self.scene().cubicG, self.scene().cubicB]:
+            item.curveChanged.sig.connect(self.dataChanged)
 
         # layout
         gl = QGridLayout()
@@ -153,6 +144,23 @@ class graphicsLabForm(graphicsCurveForm):
             gl.addWidget(button, i, 1)
         container.adjustSize()
         self.setViewportMargins(0, 0, 0, container.height() + 15)
+
+        self.setDefaults()
+
+    def updateLayer(self):
+        self.layer.applyToStack()
+        self.layer.parentImage.onImageChanged()
+
+    def setDefaults(self):
+        try:
+            self.dataChanged.disconnect()
+        except RuntimeError:
+            pass
+        # set initial selection to L
+        item = self.listWidget1.items['L']
+        item.setCheckState(Qt.Checked)
+        self.listWidget1.select(item)
+        self.dataChanged.connect(self.updateLayer)
 
     def colorPickedSlot(self, x, y, modifiers):
         """
@@ -214,8 +222,7 @@ class graphicsLabForm(graphicsCurveForm):
         fp.sort(key=lambda z: z.scenePos().x())
         cubicL.updatePath()
         cubicL.updateLUTXY()
-        l.applyToStack()
-        l.parentImage.onImageChanged()
+        self.dataChanged.emit()
 
     def setWhitePoint(self, r, g, b, luminance=True, balance=True):
         """
@@ -289,8 +296,7 @@ class graphicsLabForm(graphicsCurveForm):
                 p.setPos(min(cubic.size, cubic.size + wPoint) - corr, -cubic.size)
                 cubic.updatePath()
                 cubic.updateLUTXY()
-        l.applyToStack()
-        l.parentImage.onImageChanged()
+        self.dataChanged.emit()
 
     def drawBackground(self, qp, qrF):
         """
@@ -352,9 +358,7 @@ class graphicsLabForm(graphicsCurveForm):
         graphicsScene = self.scene()
         graphicsScene.cubicItem.reset()
         self.updateHist(graphicsScene.cubicItem)
-        l = graphicsScene.layer
-        l.applyToStack()
-        l.parentImage.onImageChanged()
+        self.dataChanged.emit()
 
     def resetAllCurves(self):
         """
@@ -365,9 +369,7 @@ class graphicsLabForm(graphicsCurveForm):
         for cubicItem in [graphicsScene.cubicR, graphicsScene.cubicG, graphicsScene.cubicB]:
             cubicItem.reset()
         self.updateHists()
-        l = graphicsScene.layer
-        l.applyToStack()
-        l.parentImage.onImageChanged()
+        self.dataChanged.emit()
 
     def __getstate__(self):
         d = {}
@@ -381,6 +383,11 @@ class graphicsLabForm(graphicsCurveForm):
         return d
 
     def __setstate__(self, d):
+        # prevent multiple updates
+        try:
+            self.dataChanged.disconnect()
+        except RuntimeError:
+            pass
         for name in d['state']:
             obj = getattr(self, name, None)
             if type(obj) in [optionsWidget]:
@@ -388,3 +395,5 @@ class graphicsLabForm(graphicsCurveForm):
         sc = self.scene()
         for name in ['cubicR', 'cubicG', 'cubicB']:
             getattr(sc, name).__setstate__(d['state'][name])
+        self.dataChanged.connect(self.updateLayer)
+        self.dataChanged.emit()

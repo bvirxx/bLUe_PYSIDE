@@ -21,6 +21,7 @@ from PySide2.QtCore import Qt, QRectF
 from PySide2.QtWidgets import QGraphicsScene, QGridLayout
 
 from bLUeGui.const import channelValues
+from bLUeGui.dialog import dlgWarn
 from bLUeGui.graphicsSpline import activeCubicSpline, graphicsCurveForm, activeSplinePoint
 from bLUeTop.utils import optionsWidget, QbLUePushButton, UDict
 
@@ -103,9 +104,7 @@ class graphicsForm(graphicsCurveForm):
             self.scene().cubicItem = curveDict[item.text()]
             pushButton2.setEnabled(item.text() != 'RGB')
             self.scene().cubicItem.setVisible(True)
-            l = self.scene().layer
-            l.applyToStack()
-            l.parentImage.onImageChanged()
+            self.dataChanged.emit()
             # Force redraw histogram
             self.scene().invalidate(QRectF(0.0, -self.scene().axeSize, self.scene().axeSize, self.scene().axeSize),
                                     QGraphicsScene.BackgroundLayer)
@@ -113,6 +112,8 @@ class graphicsForm(graphicsCurveForm):
         self.listWidget1.onSelect = onSelect1
 
         def onSelect2(item):
+            dlgWarn('Curves RGB',
+                    'Option Luminosity will be removed in the future. Use Luminosity blending mode instead')
             itemRGB = self.listWidget1.items[options1[0]]
             if item.isChecked():
                 if itemRGB.isChecked():
@@ -121,16 +122,9 @@ class graphicsForm(graphicsCurveForm):
                 itemRGB.setFlags(itemRGB.flags() & ~Qt.ItemIsEnabled)
             else:
                 itemRGB.setFlags(itemRGB.flags() | Qt.ItemIsEnabled)
-            l = self.scene().layer
-            l.applyToStack()
-            l.parentImage.onImageChanged()
+            self.dataChanged.emit()
 
         self.listWidget2.onSelect = onSelect2
-
-        # set initial selection to RGB
-        item = self.listWidget1.items[options1[0]]
-        item.setCheckState(Qt.Checked)
-        self.listWidget1.select(item)
 
         # layout
         gl = QGridLayout()
@@ -144,15 +138,25 @@ class graphicsForm(graphicsCurveForm):
 
         self.setWhatsThis("""<b>RGB curves</b><br>""" + self.whatsThis())
 
-        def f():
-            l = self.scene().layer
-            l.applyToStack()
-            l.parentImage.onImageChanged()
+        for item in [self.scene().cubicRGB, self.scene().cubicR, self.scene().cubicG, self.scene().cubicB]:
+            item.curveChanged.sig.connect(self.dataChanged)
 
-        self.scene().cubicRGB.curveChanged.sig.connect(f)
-        self.scene().cubicR.curveChanged.sig.connect(f)
-        self.scene().cubicG.curveChanged.sig.connect(f)
-        self.scene().cubicB.curveChanged.sig.connect(f)
+        self.setDefaults()
+
+    def updateLayer(self):
+        self.layer.applyToStack()
+        self.layer.parentImage.onImageChanged()
+
+    def setDefaults(self):
+        try:
+            self.dataChanged.disconnect()
+        except RuntimeError:
+            pass
+        # set initial selection to RGB
+        item = self.listWidget1.items['RGB']
+        item.setCheckState(Qt.Checked)
+        self.listWidget1.select(item)
+        self.dataChanged.connect(self.updateLayer)
 
     def colorPickedSlot(self, x, y, modifiers):
         """
@@ -207,9 +211,7 @@ class graphicsForm(graphicsCurveForm):
             cubic.fixedPoints.sort(key=lambda z: z.scenePos().x())
             cubic.updatePath()
             cubic.updateLUTXY()
-        l = self.scene().layer
-        l.applyToStack()
-        l.parentImage.onImageChanged()
+        self.dataChanged.emit()
 
     def setWhitePoint(self, r, g, b):
         """
@@ -247,9 +249,7 @@ class graphicsForm(graphicsCurveForm):
             cubic.fixedPoints.sort(key=lambda z: z.scenePos().x())
             cubic.updatePath()
             cubic.updateLUTXY()
-        l = self.scene().layer
-        l.applyToStack()
-        l.parentImage.onImageChanged()
+        self.dataChanged.emit()
 
     def drawBackground(self, qp, qrF):
         """
@@ -308,10 +308,7 @@ class graphicsForm(graphicsCurveForm):
         graphicsScene = self.scene()
         graphicsScene.cubicItem.reset()
         self.updateHist(graphicsScene.cubicItem)
-        # self.scene().onUpdateLUT()
-        l = graphicsScene.layer
-        l.applyToStack()
-        l.parentImage.onImageChanged()
+        self.dataChanged.emit()
 
     def resetAllCurves(self):
         """
@@ -322,9 +319,7 @@ class graphicsForm(graphicsCurveForm):
         for cubicItem in [graphicsScene.cubicR, graphicsScene.cubicG, graphicsScene.cubicB]:
             cubicItem.reset()
         self.updateHists()
-        l = graphicsScene.layer
-        l.applyToStack()
-        l.parentImage.onImageChanged()
+        self.dataChanged.emit()
 
     def __getstate__(self):
         d = {}
@@ -338,6 +333,11 @@ class graphicsForm(graphicsCurveForm):
         return d
 
     def __setstate__(self, d):
+        # prevent multiple updates
+        try:
+            self.dataChanged.disconnect()
+        except RuntimeError:
+            pass
         for name in d['state']:
             obj = getattr(self, name, None)
             if type(obj) in [optionsWidget]:
@@ -345,3 +345,5 @@ class graphicsForm(graphicsCurveForm):
         sc = self.scene()
         for name in ['cubicRGB', 'cubicR', 'cubicG', 'cubicB']:
             getattr(sc, name).__setstate__(d['state'][name])
+        self.dataChanged.connect(self.updateLayer)
+        self.dataChanged.emit()

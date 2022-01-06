@@ -47,7 +47,6 @@ class graphicsHspbForm(graphicsCurveForm):
         graphicsScene.addItem(cubic)
         graphicsScene.cubicR = cubic
         cubic.channel = channelValues.Hue
-
         cubic.initFixedPoints()
 
         # sat curve init.
@@ -55,7 +54,6 @@ class graphicsHspbForm(graphicsCurveForm):
         graphicsScene.addItem(cubic)
         graphicsScene.cubicG = cubic
         cubic.channel = channelValues.Sat
-
         cubic.initFixedPoints()
 
         # brightness curve init.
@@ -63,7 +61,6 @@ class graphicsHspbForm(graphicsCurveForm):
         graphicsScene.addItem(cubic)
         graphicsScene.cubicB = cubic
         cubic.channel = channelValues.Br
-
         cubic.initFixedPoints()
 
         # init histograms
@@ -97,10 +94,6 @@ class graphicsHspbForm(graphicsCurveForm):
                                            self.scene().axeSize), QGraphicsScene.BackgroundLayer)
 
         self.listWidget1.onSelect = onSelect1
-        # set initial selection to Saturation
-        item = self.listWidget1.items[options[1]]
-        item.setCheckState(Qt.Checked)
-        self.listWidget1.select(item)
 
         # layout
         gl = QGridLayout()
@@ -113,14 +106,25 @@ class graphicsHspbForm(graphicsCurveForm):
 
         self.setWhatsThis("""<b>HSV curves</b><br>""" + self.whatsThis())
 
-        def f():
-            layer = graphicsScene.layer
-            layer.applyToStack()
-            layer.parentImage.onImageChanged()
+        for item in [self.scene().cubicR, self.scene().cubicG, self.scene().cubicB]:
+            item.curveChanged.sig.connect(self.dataChanged)
 
-        self.scene().cubicR.curveChanged.sig.connect(f)
-        self.scene().cubicG.curveChanged.sig.connect(f)
-        self.scene().cubicB.curveChanged.sig.connect(f)
+        self.setDefaults()
+
+    def updateLayer(self):
+        self.layer.applyToStack()
+        self.layer.parentImage.onImageChanged()
+
+    def setDefaults(self):
+        try:
+            self.dataChanged.disconnect()
+        except RuntimeError:
+            pass
+        # set initial selection to Saturation
+        item = self.listWidget1.items['S']
+        item.setCheckState(Qt.Checked)
+        self.listWidget1.select(item)
+        self.dataChanged.connect(self.updateLayer)
 
     def drawBackground(self, qp, qrF):
         graphicsScene = self.scene()
@@ -180,9 +184,7 @@ class graphicsHspbForm(graphicsCurveForm):
         graphicsScene = self.scene()
         graphicsScene.cubicItem.reset()
         self.updateHist(graphicsScene.cubicItem)
-        layer = graphicsScene.layer
-        layer.applyToStack()
-        layer.parentImage.onImageChanged()
+        self.dataChanged.emit()
 
     def resetAllCurves(self):
         """
@@ -193,9 +195,7 @@ class graphicsHspbForm(graphicsCurveForm):
         for cubicItem in [graphicsScene.cubicR, graphicsScene.cubicG, graphicsScene.cubicB]:
             cubicItem.reset()
         self.updateHists()
-        layer = graphicsScene.layer
-        layer.applyToStack()
-        layer.parentImage.onImageChanged()
+        self.dataChanged.emit()
 
     def __getstate__(self):
         d = {}
@@ -209,6 +209,11 @@ class graphicsHspbForm(graphicsCurveForm):
         return d
 
     def __setstate__(self, d):
+        # prevent multiple updates
+        try:
+            self.dataChanged.disconnect()
+        except RuntimeError:
+            pass
         for name in d['state']:
             obj = getattr(self, name, None)
             if type(obj) in [optionsWidget]:
@@ -216,3 +221,5 @@ class graphicsHspbForm(graphicsCurveForm):
         sc = self.scene()
         for name in ['cubicR', 'cubicG', 'cubicB']:
             getattr(sc, name).__setstate__(d['state'][name])
+        self.dataChanged.connect(self.updateLayer)
+        self.dataChanged.emit()
