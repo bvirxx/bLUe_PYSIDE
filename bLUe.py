@@ -835,10 +835,8 @@ def menuFile(name, window=window):
             w, h = cbImg.width(), cbImg.height()
             cb.clear()
         dlg = dimsInputDialog(w, h)
-        dlg.open()
 
         def f():
-            nonlocal cbImg
             if cbImg.isNull():
                 # new image
                 imgNew = QImage(dlg.dims['w'], dlg.dims['h'], QImage.Format_ARGB32)
@@ -855,6 +853,8 @@ def menuFile(name, window=window):
             loadImage(img, withBasic=False)  # don't add any adjustment layer
 
         dlg.onAccept = f
+        dlg.exec_()
+
     # load image from file
     elif name in ['actionOpen']:
         # get file name from dialog
@@ -862,6 +862,7 @@ def menuFile(name, window=window):
         # open file
         if filename is not None:
             openFile(filename)
+
     # saving dialog
     elif name in ['actionSave', 'actionSave_As', 'actionSave_As_bLU_Doc']:
         saveAsBLU = (name == 'actionSave_As_bLU_Doc')
@@ -886,6 +887,7 @@ def menuFile(name, window=window):
                 window.label.img.setModified(False)
             except (ValueError, IOError) as e:
                 dlgWarn(str(e))
+
     # closing dialog : close opened document
     elif name == 'actionClose':
         closeTabs()
@@ -1268,7 +1270,7 @@ def menuLayer(name, window=window, sname=None, script=False):
         for filename in filenames:
             # load image from file, alpha channel is mandatory for applyTransform()
             ext = filename[-4:]
-            if ext in list(IMAGE_FILE_EXTENSIONS):
+            if ext in list(IMAGE_FILE_EXTENSIONS) + list(SVG_FILE_EXTENSIONS):
                 imgNew = QImageFromFile(filename)
             elif ext in list(RAW_FILE_EXTENSIONS):
                 rawpyInst = rawRead(filename)
