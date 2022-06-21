@@ -1,4 +1,4 @@
 PyWavelets==0.5.2
-numpy==1.16.2+mkl
+numpy==1.22.0rc1
 pywt==1.0.6
 opencv-python
