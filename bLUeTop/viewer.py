@@ -33,7 +33,7 @@ from PySide2.QtWidgets import QMainWindow, QSizePolicy, QMenu, QListWidget, QAbs
 from bLUeTop import exiftool
 from bLUeTop.MarkedImg import imImage
 from bLUeTop.QtGui1 import app, window
-from bLUeTop.imLabel import imageLabel
+from bLUeTop.imLabel import slideshowLabel, imageLabel
 from bLUeTop.utils import stateAwareQDockWidget, imagej_description_metadata, compat
 from bLUeGui.dialog import IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, BLUE_FILE_EXTENSIONS
 
@@ -57,9 +57,11 @@ def playDiaporama(diaporamaGenerator, parent=None):
     newWin.setAttribute(Qt.WA_DeleteOnClose)
     newWin.setContextMenuPolicy(Qt.CustomContextMenu)
     newWin.setWindowTitle(parent.tr('Slide show'))
-    label = imageLabel(mainForm=parent)
+    label = slideshowLabel(mainForm=parent)
     label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
     label.img = None
+    label.prevImg = None
+    label.prevOpacity = 0.0
     newWin.setCentralWidget(label)
     newWin.showFullScreen()
     # Pause key shortcut
@@ -114,6 +116,12 @@ def playDiaporama(diaporamaGenerator, parent=None):
                 lambda checked=False, name=action: contextMenuHandler(name))  # named arg checked is sent
         menu.exec_(position)
 
+    def testPaused():
+        app.processEvents()
+        if isSuspended:
+            newWin.setWindowTitle(newWin.windowTitle() + ' Paused')
+        return isSuspended
+
     # connect contextMenuRequested
     newWin.customContextMenuRequested.connect(contextMenu)
     newWin.setToolTip("Esc to exit full screen mode")
@@ -128,8 +136,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
     # play diaporama
     window.modeDiaporama = True
     while True:
-        if isSuspended:
-            newWin.setWindowTitle(newWin.windowTitle() + ' Paused')
+        if testPaused():
             break
         try:
             if not newWin.isVisible():
@@ -147,26 +154,32 @@ def playDiaporama(diaporamaGenerator, parent=None):
                     rating = 5
             # don't display image with low rating
             if rating < 2:
-                app.processEvents()
+                # app.processEvents()
+                continue
             imImg = imImage.loadImageFromFile(name, createsidecar=False, cmsConfigure=True, window=window)
-            # zoom might be modified by the mouse wheel : remember
+            # zoom might be modified by the mouse wheel : remember it
             if label.img is not None:
                 imImg.Zoom_coeff = label.img.Zoom_coeff
             coeff = imImg.resize_coeff(label)
             imImg.yOffset -= (imImg.height() * coeff - label.height()) / 2.0
             imImg.xOffset -= (imImg.width() * coeff - label.width()) / 2.0
-            app.processEvents()
-            if isSuspended:
-                newWin.setWindowTitle(newWin.windowTitle() + ' Paused')
+            if testPaused():
                 break
             newWin.setWindowTitle(parent.tr('Slide show') + ' ' + name + ' ' + ' '.join(['*'] * imImg.meta.rating))
-            gc.collect()
             label.img = imImg
-            label.repaint()
-            app.processEvents()
             gc.collect()
+            if label.prevImg is not None:
+                for i in range(81):
+                    label.prevOpacity = 1.0 - i * 0.0125  # last prevOpacity must be 0
+                    label.repaint()
+            label.repaint()  # mandatory to display first image
+            if testPaused():
+                break
             sleep(2)
-            app.processEvents()
+            if testPaused():
+                break
+            label.prevImg = label.img
+            gc.collect()
         except StopIteration:
             newWin.close()
             window.diaporamaGenerator = None
@@ -180,7 +193,6 @@ def playDiaporama(diaporamaGenerator, parent=None):
             window.diaporamaGenerator = None
             window.modeDiaporama = False
             raise
-        app.processEvents()
     window.modeDiaporama = False
 
 
