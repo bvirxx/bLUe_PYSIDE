@@ -5,7 +5,7 @@ block_cipher = None
 imageformats = [('.\\venv\\Lib\site-packages\\PySide2\plugins\\imageformats', 'plugins\\imageformats')]
 platforms = [('.\\venv\\\\Lib\site-packages\\PySide2\\plugins\\platforms', 'plugins\\platforms')]
 
-data_0 = [(HOMEPATH + '\\Pyside2\\*.*', 'Pyside2')]  # PyInstaller bug workaround
+data_0 = [(HOMEPATH + '\\Pyside2\\*.dll', 'Pyside2')]  #  workaround for PyInstaller hooks problem (Pyside2)
 data_1 = [('bLUeNN\\pretrained_models\\sRGB\\*', 'bLUeNN\\pretrained_models\\sRGB')]
 data_2 = [('blue.ui', '.'), ('README.md', '.'), ('LICENSE.TXT', '.'), ('logo.png', '.'), ('logo.ico', '.'), ('config_win.json', '.'), ('brushes\README.TXT', 'brushes')]
 
