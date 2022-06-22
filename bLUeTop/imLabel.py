@@ -15,6 +15,7 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+from os.path import dirname, basename
 
 from PySide6.QtCore import QRect, QRectF, Qt, QPointF
 from PySide6.QtGui import QPainter, QImage, QColor, QBrush, QContextMenuEvent, QCursor, QPen, QFont, QPainterPath
@@ -714,3 +715,55 @@ class imageLabel(QLabel):
         layer.execute(l=layer)
         img.prLayer.update()
         self.window.label.repaint()
+
+
+class slideshowLabel(imageLabel):
+
+    def paintEvent(self, e):
+        """
+        Overrides imageLabel paintEvent().
+        This class should be used to display
+        smooth transitions between images.
+        @param e: paint event
+        @type e:
+        """
+        mimg = self.img
+        if mimg is None:
+            return
+        r = mimg.resize_coeff(self)
+        qp = self.qp
+        window = self.window
+        qp.begin(self)
+        # smooth painting
+        qp.setRenderHint(QPainter.SmoothPixmapTransform)  # TODO may be useless
+        # fill background
+        qp.fillRect(QRect(0, 0, self.width(), self.height()), vImage.defaultBgColor)
+        # draw presentation layer.
+        # As offsets can be float numbers, we use a QRectF instead of a QRect.
+        # r is relative to the full resolution image, so we use mimg width and height
+        w, h = mimg.width() * r, mimg.height() * r
+        rectF = QRectF(mimg.xOffset, mimg.yOffset, w, h)
+        # draw a checker background to view (semi-)transparent images
+        qp.fillRect(rectF, imageLabel.checkerBrush)
+
+        px = mimg.prLayer.qPixmap
+        if px is not None:
+            qp.drawPixmap(rectF, px, px.rect())
+        else:
+            currentImage = mimg.prLayer.getCurrentImage()
+            qp.drawImage(rectF, currentImage,
+                         QImage.rect(currentImage))  # CAUTION : vImage.rect() is overwritten by the attribute rect
+        qp.drawText(rectF.right(), rectF.bottom(), basename(dirname(mimg.filename)))  # likely the name of album
+
+        mimg = self.prevImg
+        if mimg is None:
+            qp.end()
+            return
+        r = mimg.resize_coeff(self)
+        w, h = mimg.width() * r, mimg.height() * r
+        rectF = QRectF(mimg.xOffset, mimg.yOffset, w, h)
+        px = mimg.prLayer.qPixmap
+        if px is not None:
+            qp.setOpacity(self.prevOpacity)
+            qp.drawPixmap(rectF, px, px.rect())
+        qp.end()
