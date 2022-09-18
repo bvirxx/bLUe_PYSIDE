@@ -1204,7 +1204,7 @@ class graphicsForm3DLUT(baseGraphicsForm):
         self.cModel = cModel
         self.border = 20
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        self.setMinimumSize(axeSize + 90, axeSize + 250)
+        self.setMinimumSize(axeSize + 90, axeSize + 90)  # + 250)
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.setBackgroundBrush(QBrush(Qt.black, Qt.SolidPattern))
         self.currentHue, self.currentSat, self.currentPb = 0, 0, self.defaultColorWheelBr
@@ -1325,8 +1325,8 @@ class graphicsForm3DLUT(baseGraphicsForm):
         self.graphicsScene.options = UDict((self.listWidget2.options, self.listWidget3.options))
 
         for wdg in [self.listWidget2, self.listWidget3]:
-            wdg.setMinimumWidth(wdg.sizeHintForColumn(0))
-            wdg.setMinimumHeight(wdg.sizeHintForRow(0) * len(wdg.items))
+            wdg.setMinimumWidth(wdg.sizeHintForColumn(0) + 20)  # prevent h. scrollbar
+            wdg.setMinimumHeight(wdg.sizeHintForRow(0) * len(wdg.items) + 20)  # prevent v. scrollbar
 
         # grid size combo
         gridCombo = QComboBox()

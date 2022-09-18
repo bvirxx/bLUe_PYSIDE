@@ -336,30 +336,30 @@ Screen</string>
             <property name="accessibleName">
              <string>pointer</string>
             </property>
-               <property name="text">
-                   <string>...</string>
-               </property>
-               <property name="icon">
-                   <iconset resource="bLUeTop/resources.qrc">
-                       <normaloff>:/images/resources/Mouse_pointer_small.png</normaloff>
-                       :/images/resources/Mouse_pointer_small.png
-                   </iconset>
-               </property>
-               <property name="checkable">
-                   <bool>true</bool>
-               </property>
-               <property name="checked">
-                   <bool>true</bool>
-               </property>
-               <property name="autoExclusive">
-                   <bool>true</bool>
-               </property>
-               <property name="autoRaise">
-                   <bool>true</bool>
-               </property>
-               <attribute name="buttonGroup">
-                   <string notr="true">buttonGroup</string>
-               </attribute>
+            <property name="text">
+             <string>...</string>
+            </property>
+            <property name="icon">
+             <iconset resource="bLUeTop/resources.qrc">
+              <normaloff>:/images/resources/Mouse_pointer_small.png</normaloff>
+              :/images/resources/Mouse_pointer_small.png
+             </iconset>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+            <property name="autoExclusive">
+             <bool>true</bool>
+            </property>
+            <property name="autoRaise">
+             <bool>true</bool>
+            </property>
+            <attribute name="buttonGroup">
+             <string notr="true">buttonGroup</string>
+            </attribute>
            </widget>
           </item>
           <item>
@@ -932,7 +932,7 @@ Screen</string>
      <item>
       <widget class="QWidget" name="propertyWidget" native="true">
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
@@ -953,13 +953,13 @@ Screen</string>
         <property name="geometry">
          <rect>
           <x>0</x>
-          <y>-80</y>
+          <y>-10</y>
           <width>250</width>
-          <height>338</height>
+          <height>91</height>
          </rect>
         </property>
         <property name="sizePolicy">
-         <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+         <sizepolicy hsizetype="Expanding" vsizetype="Minimum">
           <horstretch>0</horstretch>
           <verstretch>0</verstretch>
          </sizepolicy>
