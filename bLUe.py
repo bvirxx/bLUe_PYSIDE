@@ -1714,7 +1714,13 @@ def setRightPane(window=window):
     vl.addWidget(window.tableView)
     # add sliders, blend modes ...
     vl.addLayout(window.tableView.propertyLayout)
+
+    # put all stuff into propertyWidget and
+    # fix its size : scrollbars are more acceptable for the
+    # display of layer stack than in graphic forms.
     window.propertyWidget.setLayout(vl)
+    window.propertyWidget.setFixedSize(250, 200)
+
     # reinit the dockWidgetContents (created by blue.ui) layout to
     # nest it in a QHboxLayout containing a left stretch
     tmpV = QVBoxLayout()
