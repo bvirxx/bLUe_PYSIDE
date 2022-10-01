@@ -22,9 +22,11 @@ from bLUeGui.bLUeImage import QImageBuffer
 from bLUeNN.models_x import *
 import torchvision.transforms.functional as TF
 
-# import trilinear
+"""
+import trilinear
 
-# trilinear_ = TrilinearInterpolation()
+trilinear_ = TrilinearInterpolation()
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--input_color_space", type=str, default="sRGB", help="input color space: sRGB or XYZ")
@@ -32,6 +34,9 @@ parser.add_argument("--model_dir", type=str, default="bLUeNN/pretrained_models",
 
 opt = parser.parse_args()
 opt.model_dir = opt.model_dir + '/' + opt.input_color_space
+"""
+
+model_dir = "bLUeNN/pretrained_models/sRGB"
 
 # Tensor type
 Tensor = torch.FloatTensor
@@ -44,7 +49,7 @@ LUT2 = Generator3DLUT()
 classifier = Classifier()
 
 # Load pretrained models
-LUTs = torch.load("%s/LUTs.pth" % opt.model_dir, map_location=torch.device('cpu'))
+LUTs = torch.load("%s/LUTs.pth" % model_dir, map_location=torch.device('cpu'))
 LUT0.load_state_dict(LUTs["0"])
 LUT1.load_state_dict(LUTs["1"])
 LUT2.load_state_dict(LUTs["2"])
@@ -53,7 +58,7 @@ LUT0.eval()
 LUT1.eval()
 LUT2.eval()
 
-classifier.load_state_dict(torch.load("%s/classifier.pth" % opt.model_dir, map_location=torch.device('cpu')))
+classifier.load_state_dict(torch.load("%s/classifier.pth" % model_dir, map_location=torch.device('cpu')))
 classifier.eval()
 
 
