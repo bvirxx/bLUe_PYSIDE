@@ -140,8 +140,20 @@ from PySide6.QtGui import QPixmap, QCursor, QKeySequence, QDesktopServices, QFon
     QTransform, QColor, QImage, QIcon, QAction
 from PySide6.QtWidgets import QApplication, \
     QDockWidget, QSizePolicy, QSplashScreen, QWidget, \
-    QTabWidget, QToolBar, QComboBox, QTabBar, QAction
+    QTabWidget, QToolBar, QComboBox, QTabBar
+
+import bLUeTop.QtGui1
+
+from bLUeGui.dialog import *
+from bLUeGui.colorPatterns import cmHSP, cmHSB
+from bLUeGui.graphicsForm import baseGraphicsForm
+from bLUeGui.tool import cropTool, rotatingTool
+from bLUeCore.bLUeLUT3D import HaldArray
 from bLUeTop import exiftool
+from bLUeTop.drawing import initBrushes, loadPresets
+from bLUeTop.graphicsDraw import drawForm
+from bLUeTop.graphicsHDRMerge import HDRMergeForm
+from bLUeTop.graphicsSegment import segmentForm
 from bLUeTop.graphicsBlendFilter import blendFilterForm
 from bLUeTop.graphicsHVLUT2D import HVLUT2DForm
 from bLUeTop.graphicsInvert import invertForm
@@ -158,23 +170,20 @@ from bLUeTop.graphicsRGBLUT import graphicsForm
 from bLUeTop.graphicsLUT3D import graphicsForm3DLUT
 from bLUeTop.graphicsAutoLUT3D import graphicsFormAuto3DLUT
 from bLUeTop.lutUtils import LUTSIZE, LUT3D, LUT3DIdentity
-from bLUeGui.colorPatterns import cmHSP, cmHSB
 from bLUeTop.colorManagement import icc
 from bLUeTop.graphicsCoBrSat import CoBrSatForm
 from bLUeTop.graphicsExp import ExpForm
 from bLUeTop.graphicsPatch import patchForm
 from bLUeTop.settings import USE_POOL, POOL_SIZE, THEME, TABBING, BRUSHES_PATH, COLOR_MANAGE_OPT, HAS_TORCH
 from bLUeTop.utils import UDict, stateAwareQDockWidget, QImageFromFile, imagej_description_metadata, compat
-from bLUeGui.tool import cropTool, rotatingTool
 from bLUeTop.graphicsTemp import temperatureForm
 from bLUeTop.graphicsFilter import filterForm
 from bLUeTop.graphicsHspbLUT import graphicsHspbForm
 from bLUeTop.graphicsLabLUT import graphicsLabForm
-
-from bLUeGui.dialog import *
 from bLUeTop.viewer import playDiaporama, viewer
 
 from version import BLUE_VERSION
+
 
 ##################
 #  Software Attributions
@@ -2179,7 +2188,7 @@ def switchDoc(index, window=bLUeTop.Gui.window):
     setDocumentImage(img)
 
 
-def closeTab(index, window=window):
+def closeTab(index):
     """
     tabCloseRequested Slot.
     Tries to save and close a single document.
@@ -2236,4 +2245,4 @@ if __name__ == '__main__':
 
     ###############
     # launching app
-    sys.exit(bLUeTop.Gui.app.exec_())
+    sys.exit(bLUeTop.Gui.app.exec())
