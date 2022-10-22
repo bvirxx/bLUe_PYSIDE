@@ -57,16 +57,17 @@ class hueSatPattern(bImage):
         Builds a (hue, sat) color wheel image of size (w, h)
         For fast display, the correspondence with RGB values is tabulated
         for each value of the brightness.
-        @param w: image width
-        @type w: int
-        @param h: image height
-        @type h: int
-        @param converter: color space converter
-        @type converter: cmConverter
-        @param bright: image brightness
-        @type bright: int
-        @param border: image border
-        @type border: int
+
+        :param w: image width
+        :type  w: int
+        :param h: image height
+        :type  h: int
+        :param converter: color space converter
+        :type  converter: cmConverter
+        :param bright: image brightness
+        :type  bright: int
+        :param border: image border
+        :type  border: int
         """
         w += 2 * border
         h += 2 * border
@@ -113,8 +114,9 @@ class hueSatPattern(bImage):
 
     def setPb(self, pb):
         """
-        Set brightness and update image
-        @param pb: perceived brightness (range 0,..,1)
+        Set brightness and update image.
+
+        :param pb: perceived brightness (range 0,..,1)
         """
         self.pb = pb
         self.hsArray[:, :, 2] = pb
@@ -126,9 +128,10 @@ class hueSatPattern(bImage):
         """
         convert (hue, sat) values to cartesian coordinates
         on the color wheel (origin top-left corner).
-        @param h: hue in range 0..360
-        @param s: saturation in range 0..1
-        @return: cartesian coordinates
+
+        :param h: hue in range 0..360
+        :param s: saturation in range 0..1
+        :return:cartesian coordinates
         """
         cx = self.width() / 2
         cy = self.height() / 2
@@ -141,11 +144,12 @@ class hueSatPattern(bImage):
         """
         convert (hue, sat) values to cartesian coordinates
         on the color wheel (origin top-left corner).
-        Vectorized version of GetPoint
-        @param hsarray
-        @type: hsarray: ndarray, shape=(w,h,2)
-        @return: cartesian coordinates
-        @rtype: ndarray, shape=(w,h,2)
+        Vectorized version of GetPoint.
+
+        :param hsarray:
+        :type hsarray: ndarray, shape=(w,h,2)
+        :return: cartesian coordinates
+        :rtype: ndarray, shape=(w,h,2)
         """
         h, s = hsarray[:, :, 0], hsarray[:, :, 1]
         cx = self.width() / 2
@@ -166,18 +170,18 @@ class brightnessPattern(bImage):
         Build a linear gradient of size (w, h) with variable brightnesses
         and fixed hue and sat. The parameter converter defines the color space
         which is used (HSV, HSpB,...).
-        @param w: image width
-        @type w: int
-        @param h: image height
-        @type h: int
-        @param converter: color space converter
-        @type converter: cmConverter
-        @param hue: hue value
-        @type hue: int or float
-        @param sat: saturation value
-        @type sat: int or float
-        @return: the image of gradient
-        @rtype: bImage
+        :param w: image width
+        :type  w: int
+        :param h: image height
+        :type  h: int
+        :param converter: color space converter
+        :type  converter: cmConverter
+        :param hue: hue value
+        :type  hue: int or float
+        :param sat: saturation value
+        :type  sat: int or float
+        :return: the image of gradient
+        :rtype: bImage
         """
         super().__init__(w, h, QImage.Format_ARGB32)
         self.cModel = converter

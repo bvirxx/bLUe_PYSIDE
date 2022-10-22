@@ -25,10 +25,11 @@ def expFusion(imList):
     Computes the exposure fusion of a list of images with identical sizes.
     Cf. Exposure Fusion: A Simple and Practical Alternative to High Dynamic Range Photography.
     Tom Mertens, Jan Kautz and Frank Van Reeth In Computer Graphics Forum, 28 (1) 161 - 171, 2009
-    @param imList:
-    @type imList: list of ndarray
-    @return:
-    @rtype: ndarray
+
+    :param imList:
+    :type imList: list of ndarray
+    :return:
+    :rtype: ndarray
     """
     alignMTB = cv2.createAlignMTB()
     alignMTB.process(imList, imList)

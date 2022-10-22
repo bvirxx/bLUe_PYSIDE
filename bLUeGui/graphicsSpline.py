@@ -257,11 +257,12 @@ class activeRsMarker(activeMarker):
     def sceneEventFilter(self, target, e):
         """
         Filtering of mouse events for range slider markers :
-        maintains marker order
-        @param target:
-        @type target:
-        @param e:
-        @type e:
+        maintains marker order.
+
+        :param target:
+        :type  target:
+        :param e:
+        :type  e:
         """
         if isinstance(e, QGraphicsSceneMouseEvent):
             if self.role == 'min':
@@ -283,14 +284,15 @@ class activeSplinePoint(activePoint):
         Persistent activePoints cannot be removed
         by mouse click (default is non persistent). If rect is not None,
         the moves of the point are restricted to rect.
-        @param x: initial x-coordinate
-        @type x: float
-        @param y: initial y-coordinate
-        @type y: float
-        @param persistent: persistent flag
-        @type persistent: boolean
-        @param parentItem:
-        @type parentItem: object
+
+        :param x: initial x-coordinate
+        :type  x: float
+        :param y: initial y-coordinate
+        :type  y: float
+        :param persistent: persistent flag
+        :type  persistent: boolean
+        :param parentItem:
+        :type  parentItem: object
         """
         super().__init__(x, y, persistent=persistent, rect=rect, parentItem=parentItem)
         self.tangent = None  # link to tangent : used only by qudratic spline
@@ -424,15 +426,16 @@ class activeSpline(QGraphicsPathItem):
     def __init__(self, size, fixedPoints=None, baseCurve=None, parentItem=None):
         """
         Init an interactive spline with an empty set of control points and
-        an empty curve
-        @param size: initial path size
-        @type size: int
-        @param fixedPoints:
-        @type fixedPoints:
-        @param baseCurve: starting (initial) curve
-        @type baseCurve: 2-uple of QPoint
-        @param parentItem:
-        @type parentItem: object
+        an empty curve.
+
+        :param size: initial path size
+        :type  size: int
+        :param fixedPoints:
+        :type  fixedPoints:
+        :param baseCurve: starting (initial) curve
+        :type  baseCurve: 2-uple of QPoint
+        :param parentItem:
+        :type  parentItem: object
         """
         self.curveChanged = baseSignal_No()
         super().__init__(parent=parentItem)
@@ -469,8 +472,8 @@ class activeSpline(QGraphicsPathItem):
     def spline(self, data):
         """
 
-        @param data: curve data (scene coordinates)
-        @type data: list of QPointF instances
+        :param data: curve data (scene coordinates)
+        :type  data: list of QPointF instances
         """
         self.__spline = data
 
@@ -572,12 +575,12 @@ class activeBSpline(activeSpline):
 
     def __init__(self, size, period=0, yZero=0):
         """
-        @param size: Spline size (scene coords)
-        @type size: int
-        @param period: Spline period (scene coords.) or 0
-        @type period: int
-        @param yZero: curve origin is (0, yZero)
-        @type yZero: int
+        :param size: Spline size (scene coords)
+        :type  size: int
+        :param period: Spline period (scene coords.) or 0
+        :type  period: int
+        :param yZero: curve origin is (0, yZero)
+        :type  yZero: int
         """
         super().__init__(size, fixedPoints=None, parentItem=None, baseCurve=(QPoint(0, yZero), QPoint(size, yZero)))
         self.period = period
@@ -685,17 +688,19 @@ class activeCubicSpline(activeSpline):
 
     def getLUTXY(self):
         """
-        Returns the LUT
-        @return: LUT
-        @rtype: ndarray
+        Returns the LUT.
+
+        :return: LUT
+        :rtype: ndarray
         """
         return self.LUTXY
 
     def getStackedLUTXY(self):
         """
-        Returns the stacked LUT (A row for each channel)
-        @return: LUT
-        @rtype: ndarray, shape (3,n)
+        Returns the stacked LUT (A row for each channel).
+
+        :return: LUT
+        :rtype: ndarray, shape (3,n)
         """
         if self.channel == channelValues.RGB:
             return np.vstack((self.LUTXY, self.LUTXY, self.LUTXY))
@@ -727,10 +732,10 @@ class activeQuadricSpline(activeSpline):
 
     def setTangentsVisible(self, flag):
         """
-        Toggles tangents visibility
+        Toggles tangents visibility.
 
-        @param flag:
-        @type flag: boolean
+        :param flag:
+        :type  flag: boolean
         """
         self.hasVisibleTangents = flag
         for t in self.fixedTangents:
@@ -739,9 +744,10 @@ class activeQuadricSpline(activeSpline):
     def updatePath(self, calculate=True):
         """
         Calculates (if calculate=true) and displays the spline.
-        Called by activePoint and activeTangent mouse event
-        @param calculate:
-        @type calculate: bool
+        Called by activePoint and activeTangent mouse event.
+
+        :param calculate:
+        :type  calculate: bool
         """
         # calculate the array of slopes
         d = [item.controlPoint - item.contactPoint for item in self.fixedTangents]
@@ -797,14 +803,15 @@ class activeQuadricSpline(activeSpline):
         other purposes.
         a, b, d must have identical sizes.
         a, b, T values are in range 0.. self.size
-        @param a: x-ccoordinates of control points
-        @type a: ndarray
-        @param b: y-coordinates of control points
-        @type b: ndarray
-        @param d: tangent slopes
-        @type d: ndarray
-        @param T: spline array
-        @type T: ndarray, size 256
+
+        :param a: x-ccoordinates of control points
+        :type  a: ndarray
+        :param b: y-coordinates of control points
+        :type  b: ndarray
+        :param d: tangent slopes
+        :type  d: ndarray
+        :param T: spline array
+        :type  T: ndarray, size 256
         """
         self.a, self.b, self.d, self.T = a, b, d, T
         rect = QRectF(0.0, -self.size, self.size, self.size)
@@ -833,8 +840,9 @@ class activeQuadricSpline(activeSpline):
 
     def mouseReleaseEvent(self, e):
         """
-        Adds a control point to the curve
-        @param e:
+        Adds a control point to the curve.
+
+        :param e:
         """
         # click event
         if self.clicked:
@@ -851,9 +859,10 @@ class activeQuadricSpline(activeSpline):
 
     def getStackedLUTXY(self):
         """
-        Returns the 3-channel LUT (A 1-line LUT for each channel)
-        @return: LUT
-        @rtype: ndarray, shape (3,n)
+        Returns the 3-channel LUT (A 1-line LUT for each channel).
+
+        :return: LUT
+        :rtype: ndarray, shape (3,n)
         """
         if self.channel == channelValues.RGB:
             return np.vstack((self.LUTXY, self.LUTXY, self.LUTXY))
@@ -877,11 +886,12 @@ class activeQuadricSpline(activeSpline):
     def setFixed(self, points, tangents):
         """
         Initialises the spline and the LUT.
-        See also setCurve()
-        @param points:
-        @type points: list of activeSplinePoint
-        @param tangents:
-        @type tangents: list of activeTangent
+        See also setCurve().
+
+        :param points:
+        :type  points: list of activeSplinePoint
+        :param tangents:
+        :type  tangents: list of activeTangent
         """
         for p in self.fixedPoints:
             sc = p.scene()
@@ -1078,10 +1088,10 @@ class graphicsSplineForm(graphicsCurveForm):
 
     def updateHist(self, curve):
         """
-        Updates the channel histogram displayed under the curve
+        Updates the channel histogram displayed under the curve.
 
-        @param curve:
-        @type curve:
+        :param curve:
+        :type  curve:
 
         """
         sc = self.scene()

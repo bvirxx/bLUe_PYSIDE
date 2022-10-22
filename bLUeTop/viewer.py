@@ -32,7 +32,8 @@ from PySide2.QtWidgets import QMainWindow, QSizePolicy, QMenu, QListWidget, QAbs
 
 from bLUeTop import exiftool
 from bLUeTop.MarkedImg import imImage
-from bLUeTop.QtGui1 import app, window
+# from bLUeTop.QtGui1 import app, window
+import bLUeTop.Gui
 from bLUeTop.imLabel import slideshowLabel, imageLabel
 from bLUeTop.utils import stateAwareQDockWidget, imagej_description_metadata, compat
 from bLUeGui.dialog import IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, BLUE_FILE_EXTENSIONS
@@ -44,10 +45,11 @@ isSuspended = False
 def playDiaporama(diaporamaGenerator, parent=None):
     """
     Open a new window and play a slide show.
-    @param diaporamaGenerator: generator for file names
-    @type  diaporamaGenerator: iterator object
-    @param parent:
-    @type parent:
+
+    :param diaporamaGenerator: generator for file names
+    :type  diaporamaGenerator: iterator object
+    :param parent:
+    :type parent:
     """
     global isSuspended
     isSuspended = False
@@ -84,7 +86,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
         elif action.text() == 'Resume':
             newWin.close()
             isSuspended = False
-            playDiaporama(diaporamaGenerator, parent=window)
+            playDiaporama(diaporamaGenerator, parent=bLUeTop.Gui.window)
         # rating : the tag is written into the .mie file; the file is
         # created if needed.
         elif action.text() in ['0', '1', '2', '3', '4', '5']:
@@ -117,7 +119,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
         menu.exec_(position)
 
     def testPaused():
-        app.processEvents()
+        bLUeTop.Gui.app.processEvents()
         if isSuspended:
             newWin.setWindowTitle(newWin.windowTitle() + ' Paused')
         return isSuspended
@@ -134,7 +136,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
         """
     )  # end of setWhatsThis
     # play diaporama
-    window.modeDiaporama = True
+    bLUeTop.Gui.window.modeDiaporama = True
     while True:
         if testPaused():
             break
@@ -156,7 +158,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
             if rating < 2:
                 # app.processEvents()
                 continue
-            imImg = imImage.loadImageFromFile(name, createsidecar=False, cmsConfigure=True, window=window)
+            imImg = imImage.loadImageFromFile(name, createsidecar=False, cmsConfigure=True, window=bLUeTop.Gui.window)
             # zoom might be modified by the mouse wheel : remember it
             if label.img is not None:
                 imImg.Zoom_coeff = label.img.Zoom_coeff
@@ -182,18 +184,18 @@ def playDiaporama(diaporamaGenerator, parent=None):
             gc.collect()
         except StopIteration:
             newWin.close()
-            window.diaporamaGenerator = None
+            bLUeTop.Gui.window.diaporamaGenerator = None
             break
         except ValueError:
             continue
         except RuntimeError:
-            window.diaporamaGenerator = None
+            bLUeTop.Gui.window.diaporamaGenerator = None
             break
         except:
-            window.diaporamaGenerator = None
-            window.modeDiaporama = False
+            bLUeTop.Gui.window.diaporamaGenerator = None
+            bLUeTop.Gui.window.modeDiaporama = False
             raise
-    window.modeDiaporama = False
+    bLUeTop.Gui.window.modeDiaporama = False
 
 
 class dragQListWidget(QListWidget):
@@ -230,10 +232,10 @@ class loader(threading.Thread):
     def __init__(self, gen, wdg):
         """
 
-        @param gen: generator of image file names
-        @type gen: generator
-        @param wdg:
-        @type wdg: QListWidget
+       :param gen: generator of image file names
+       :type gen: generator
+       :param wdg:
+       :type wdg: QListWidget
         """
         super(loader, self).__init__()
         self.fileListGen = gen
@@ -331,10 +333,11 @@ class viewer:
         """
         Returns a unique viewer instance : a new instance
         is created only if there exists no instance yet.
-        @param mainWin: should be the app main window
-        @type mainWin: QMainWindow
-        @return: viewer instance
-        @rtype: viewer
+
+        :param mainWin: should be the app main window
+        :type mainWin: QMainWindow
+        :return: viewer instance
+        :rtype: viewer
         """
         if cls.instance is None:
             cls.instance = viewer(mainWin=mainWin)
@@ -345,8 +348,8 @@ class viewer:
     def __init__(self, mainWin=None):
         """
 
-        @param mainWin: should be the app main window
-        @type mainWin:  QMainWindow
+       :param mainWin: should be the app main window
+       :type mainWin:  QMainWindow
         """
         self.mainWin = mainWin
         # init form
@@ -379,13 +382,13 @@ class viewer:
         listWdg.setDragDropMode(QAbstractItemView.DragDrop)
         listWdg.customContextMenuRequested.connect(self.contextMenu)
         # dock the form
-        dock = stateAwareQDockWidget(window)
+        dock = stateAwareQDockWidget(bLUeTop.Gui.window)
         dock.setWidget(newWin)
         dock.setWindowFlags(newWin.windowFlags())
         dock.setWindowTitle(newWin.windowTitle())
         dock.setAttribute(Qt.WA_DeleteOnClose)
         self.dock = dock
-        window.addDockWidget(Qt.BottomDockWidgetArea, dock)
+        bLUeTop.Gui.window.addDockWidget(Qt.BottomDockWidgetArea, dock)
         newWin.setCentralWidget(listWdg)
         self.listWdg = listWdg
         self.newWin.setWhatsThis(
@@ -420,7 +423,7 @@ class viewer:
         display full size image in a new window
         Unused yet
         """
-        parent = window
+        parent = bLUeTop.Gui.window
         newWin = QMainWindow(parent)
         newWin.setAttribute(Qt.WA_DeleteOnClose)
         newWin.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -506,8 +509,9 @@ class viewer:
         """
         Opens a window and displays all images in a folder.
         The images are loaded asynchronously by a separate thread.
-        @param folder: path to folder
-        @type folder: str
+
+        :param folder: path to folder
+        :type folder: str
         """
         if self.dock.isClosed:
             # reinit form

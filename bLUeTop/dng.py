@@ -35,10 +35,11 @@ def getDngProfileDict(filename):
     """
     Read profile related tags from a dng or dcp file or folder.
     Return a dictionary of (str) decoded {tagname : tagvalue} pairs.
-    @param filename: path
-    @type filename: str
-    @return: dictionary
-    @rtype: dict
+
+    :param filename: path
+    :type filename: str
+    :return: dictionary
+    :rtype: dict
     """
     with exiftool.ExifTool() as e:
         profileDict = e.readBinaryDataAsDict(filename,
@@ -63,10 +64,11 @@ def getDngProfileDict(filename):
 def getDngProfileList(cameraName):
     """
     Return the list of paths to profiles for a camera model.
-    @param cameraName: camera model
-    @type cameraName: str
-    @return: list of paths to profiles
-    @rtype: list of str
+
+    :param cameraName: camera model
+    :type cameraName: str
+    :return: list of paths to profiles
+    :rtype: list of str
     """
     plist = []
     if cameraName == '':
@@ -101,8 +103,9 @@ class dngProfileToneCurve:
         Init the coordinates from a (str) decoded buffer of
         interleaved x and y coordinates. If the tone curve cannot
         be initialized from the buffer, it is set to identity.
-        @param buf: decoded buffer
-        @type buf: str
+
+        :param buf: decoded buffer
+        :type buf: str
         """
         try:
             buf = buf.split(' ')
@@ -115,10 +118,11 @@ class dngProfileToneCurve:
     def toLUTXY(self, maxrange=255):
         """
         interpolate the tone curve by a cubic spline (cf adobe dng specification p. 56).
-        @param maxrange: max of data range (identical for input and output)
-        @type maxrange: int
-        @return: interpolated cubic spline : [0, maxrange] ---> [0, maxrange]
-        @rtype: ndarray
+
+        :param maxrange: max of data range (identical for input and output)
+        :type maxrange: int
+        :return: interpolated cubic spline : [0, maxrange] ---> [0, maxrange]
+        :rtype: ndarray
         """
         return cubicSpline(self.dataX * maxrange, self.dataY * maxrange, np.arange(maxrange + 1))
 
@@ -138,8 +142,9 @@ class dngProfileLookTable:
         Init a profile look table from a dictionary of (tagname, str) pairs.
         Tags are 'ProfileLookTableDims', 'ProfileLookTableEncoding', 'ProfileLookTableData'.
         Values are decoded following the Adobe dng spec.
-        @param dngDict:
-        @type dngDict: dict
+
+        :param dngDict:
+        :type dngDict: dict
         """
         self.isValid = False
         divs, encoding, data = dngDict.get('ProfileLookTableDims', None), dngDict.get('ProfileLookTableEncoding', None), \
@@ -181,8 +186,8 @@ class dngProfileLookTable:
         """
         Count of division points for each axis.
 
-        @return:
-        @rtype: 3-uple of int
+        :return:
+        :rtype: 3-uple of int
         """
         return self.__divs
 
@@ -192,8 +197,9 @@ class dngProfileLookTable:
         (hue, sat, value) 3D look up table.
         Output values are shifts (additive shift for hue, multiplicative
         shifts for saturation and value).
-        @return: 3D look up table
-        @rtype: ndarray shape=(divs[0] + 2, divs[1] + 1, divs[2] + 1, 3), dtype=float
+
+        :return: 3D look up table
+        :rtype: ndarray shape=(divs[0] + 2, divs[1] + 1, divs[2] + 1, 3), dtype=float
         """
         return self.__data
 
@@ -341,18 +347,19 @@ def interpolate(T, M1, M2, T1, T2):
     illuminants (M1, T1) and (M2, T2).
     Following the Adobe dng spec.(p. 79), we apply
     linear interpolation to the inverse of the temperatures.
-    @param T: temperature of interpolation
-    @type T: float
-    @param M1: ColorMatrix1
-    @type M1: ndarray
-    @param M2: ColorMatrix2
-    @type M2: ndArray
-    @param T1: 1st illuminant temperature
-    @type T1: float
-    @param T2: 2nd illuminant temperature
-    @type T2: float
-    @return: interpolated matrix
-    @rtype: ndarray
+
+    :param T: temperature of interpolation
+    :type T: float
+    :param M1: ColorMatrix1
+    :type M1: ndarray
+    :param M2: ColorMatrix2
+    :type M2: ndArray
+    :param T1: 1st illuminant temperature
+    :type T1: float
+    :param T2: 2nd illuminant temperature
+    :type T2: float
+    :return: interpolated matrix
+    :rtype: ndarray
     """
     T, T1, T2 = 1 / T, 1 / T1, 1 / T2
     # now T2 < T1
@@ -369,12 +376,13 @@ def interpolatedColorMatrix(T, dngDict):
     two illuminants from dngDict.
     Raise a ValueError exception if dngDict is not a valid
     dual illuminant profile.
-    @param T: temperature
-    @type T: float
-    @param dngDict: dng profile tag values dict
-    @type dngDict: dict
-    @return: interpolated matrix
-    @rtype: ndarray, shape=(3,3)
+
+    :param T: temperature
+    :type T: float
+    :param dngDict: dng profile tag values dict
+    :type dngDict: dict
+    :return: interpolated matrix
+    :rtype: ndarray, shape=(3,3)
     """
     calibration = dngProfileDual(dngDict)
     if calibration.isValid:
@@ -391,12 +399,13 @@ def interpolatedForwardMatrix(T, dngDict):
     two illuminants from dngDict.
     Raise a ValueError exception if dngDict is not a valid
     dual illuminant profile.
-    @param T: temperature
-    @type T: float
-    @param dngDict: dng profile tag values dict
-    @type dngDict: dict
-    @return: interpolated matrix
-    @rtype: ndarray, shape=(3,3)
+
+    :param T: temperature
+    :type T: float
+    :param dngDict: dng profile tag values dict
+    :type dngDict: dict
+    :return: interpolated matrix
+    :rtype: ndarray, shape=(3,3)
     """
     calibration = dngProfileDual(dngDict)
     if calibration.isValid:

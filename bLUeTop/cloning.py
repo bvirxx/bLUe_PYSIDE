@@ -35,15 +35,15 @@ def createLineIterator(P1, P2, img):
     """
     Produces an array that consists of the coordinates and colors of
     pixels in the line joining the points P1 and P2.
-    taken from https://stackoverflow.com/questions/32328179/opencv-3-0-python-lineiterator
-    @param P1:
-    @type P1: 2-uple
-    @param P2:
-    @type P2: 2-uple
-    @param img:
-    @type img: ndarray shape (h, w, 3)
-    @return: a numpy array that consists of the coordinates and intensities of each pixel in the radii
-    @rtype: ndarray shape: [numPixels, 3], row = [x,y,intensity]
+    Taken from https://stackoverflow.com/questions/32328179/opencv-3-0-python-lineiterator
+    :param P1:
+    :type P1: 2-uple
+    :param P2:
+    :type P2: 2-uple
+    :param img:
+    :type img: ndarray shape (h, w, 3)
+    :return: a numpy array that consists of the coordinates and intensities of each pixel in the radii
+    :rtype: ndarray shape: [numPixels, 3], row = [x,y,intensity]
     """
     imageH, imageW = img.shape[:2]
     P1X, P1Y = P1
@@ -105,14 +105,15 @@ def alphaBlend(imgBuf1, imgBuf2, mask):
     """
     Returns the blending of imgBuf2 and imgBuf1 defined by mask.
     The pixels in the unmasked (resp. masked) region are set to those of imgBuf1 (resp. imgBuf2).
-    @param imgBuf1: image buffer
-    @type imgBuf1: ndArray
-    @param imgBuf2: image buffer
-    @type imgBuf2: ndArray
-    @param mask: values in 0..255
-    @type mask: ndarray, shape(h, w)
-    @return:
-    @rtype: ndarray
+
+    :param imgBuf1: image buffer
+    :type imgBuf1: ndArray
+    :param imgBuf2: image buffer
+    :type imgBuf2: ndArray
+    :param mask: values in 0..255
+    :type mask: ndarray, shape(h, w)
+    :return:
+    :rtype: ndarray
     """
     # convert mask to 0/1
     mask = mask / 255.0
@@ -127,13 +128,14 @@ def contours(maskBuf, thres=0):
     Retrieve the contours of a 1-channel image.
     The image is first converted to a 0/255 binary image,
     using the threshold thres (default 0).
-    Contours are returned as a 0/255 image
-    @param maskBuf: 1-channel image.
-    @type maskBuf: ndarray shape=(h, w)
-    @param thres: binary threshold
-    @type thres: int
-    @return: list of contours
-    @rtype: list of vectors; each vector is a list of 2-uples of point coordinates.
+    Contours are returned as a 0/255 image.
+
+    :param maskBuf: 1-channel image.
+    :type maskBuf: ndarray shape=(h, w)
+    :param thres: binary threshold
+    :type thres: int
+    :return: list of contours
+    :rtype: list of vectors; each vector is a list of 2-uples of point coordinates.
     """
     _, binary = cv2.threshold(maskBuf, thres, 255, cv2.THRESH_BINARY)
     contours = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)[
@@ -143,11 +145,12 @@ def contours(maskBuf, thres=0):
 
 def moments(maskBuf):
     """
-    Returns the moment dict for maskBuf
-    @param maskBuf:
-    @type maskBuf: ndarray
-    @return:
-    @rtype: dict
+    Returns the moment dict for maskBuf.
+
+    :param maskBuf:
+    :type maskBuf: ndarray
+    :return:
+    :rtype: dict
     """
     return cv2.moments(maskBuf)
 
@@ -163,16 +166,17 @@ def membrane(inMBuf, maskBuf, maskContour, passes=1):
     of the unmasked region only. The exterior is
     returned unmodified.
     The input arrays imgBuf, maskBuf and maskContour are not modified.
-    @param inMBuf: boundary values
-    @type inMBuf: ndarray, shape (h, w, d)
-    @param maskBuf: mask image
-    @type maskBuf: ndarray, shape (h, w)
-    @param maskContour:
-    @type maskContour:
-    @param passes: number of grid refinements
-    @type passes: int
-    @return: membrane buffer
-    @rtype: ndarray, shape (h, w, d), dtype=np.float
+
+    :param inMBuf: boundary values
+    :type inMBuf: ndarray, shape (h, w, d)
+    :param maskBuf: mask image
+    :type maskBuf: ndarray, shape (h, w)
+    :param maskContour:
+    :type maskContour:
+    :param passes: number of grid refinements
+    :type passes: int
+    :return: membrane buffer
+    :rtype: ndarray, shape (h, w, d), dtype=np.float
     """
     steps = [33, 17, 9, 5]
     passes = min(max(1, passes), len(steps))
@@ -232,26 +236,27 @@ def seamlessClone(srcBuf, destBuf, mask, conts, bRect, srcTr, destTr, w=3, passe
     """
     The area in srcBuf delimited by the mask translated by srcTr is cloned
     into the area in destBuf delimited by the mask translated by destTr.
-    @param srcBuf: source image
-    @type srcBuf: ndarray, shape (h, w, d)
-    @param destBuf: destination image
-    @type destBuf: ndarray, shape (h, w, d)
-    @param mask: binary mask (0/255)
-    @type mask: ndarray shape (h, w)
-    @param conts: contours
-    @type conts: list of ndarrays
-    @param bRect:  bounding rect of cloning area
-    @type bRect: QRect
-    @param srcTr: mask translation in source
-    @type srcTr: 2-uple
-    @param destTr: mask translation in destination
-    @type destTr: 2-uple
-    @param w: contour thickness
-    @type w: int
-    @param passes: number of grid refinements
-    @type passes: int
-    @return: cloned image
-    @rtype: ndarray
+
+    :param srcBuf: source image
+    :type srcBuf: ndarray, shape (h, w, d)
+    :param destBuf: destination image
+    :type destBuf: ndarray, shape (h, w, d)
+    :param mask: binary mask (0/255)
+    :type mask: ndarray shape (h, w)
+    :param conts: contours
+    :type conts: list of ndarrays
+    :param bRect:  bounding rect of cloning area
+    :type bRect: QRect
+    :param srcTr: mask translation in source
+    :type srcTr: 2-uple
+    :param destTr: mask translation in destination
+    :type destTr: 2-uple
+    :param w: contour thickness
+    :type w: int
+    :param passes: number of grid refinements
+    :type passes: int
+    :return: cloned image
+    :rtype: ndarray
     """
     srcTr = np.array(srcTr)
     destTr = np.array(destTr)

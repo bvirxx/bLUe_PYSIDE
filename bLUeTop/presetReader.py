@@ -117,11 +117,12 @@ class aParser():
     @staticmethod
     def readPString(buf):
         """
-        gets  Pascal string from buf
-        @param buf:
-        @type buf:
-        @return:
-        @rtype:
+        Gets  Pascal string from buf.
+
+        :param buf:
+        :type buf:
+        :return:
+        :rtype:
         """
         lg = struct.unpack(">B", buf[:1])[0]
         id = struct.unpack(">%ds" % lg, buf[1:1 + lg])
@@ -131,11 +132,12 @@ class aParser():
     @staticmethod
     def readUString(buf):
         """
-        Grts unicode string from buf
-        @param buf:
-        @type buf:
-        @return: string, number of bytes read
-        @rtype: 2-uple
+        Gets unicode string from buf.
+
+        :param buf:
+        :type buf:
+        :return: string, number of bytes read
+        :rtype: 2-uple
         """
         lg = struct.unpack(">l", buf[:4])[0]
         try:
@@ -147,11 +149,12 @@ class aParser():
     @staticmethod
     def findTaggedBlocks(buf):
         """
-        Returns the list of addresses of the tagged blocks contained in buf
-        @param buf: .abr data
-        @type buf: bytes
-        @return: list of tagged blocks
-        @rtype: list of int
+        Returns the list of addresses of the tagged blocks contained in buf.
+
+        :param buf: .abr data
+        :type buf: bytes
+        :return: list of tagged blocks
+        :rtype: list of int
         """
         # skip file version major (2) and minor (2)
         next = 4
@@ -181,12 +184,13 @@ class aParser():
         Returns the addresses of  the sub-blocks
         contained in tBlock
         Each sub-block begins with the length (4 bytes) of its data.
-        @param buf: .abr data buffer
-        @type buf: bytes
-        @param tBlock: tagged block
-        @type tBlock: aTaggedBlock
-        @return: list of VMAL addresses
-        @rtype: list of int
+
+        :param buf: .abr data buffer
+        :type buf: bytes
+        :param tBlock: tagged block
+        :type tBlock: aTaggedBlock
+        :return: list of VMAL addresses
+        :rtype: list of int
         """
         next = tBlock.addr + aTaggedBlock.headerSize
         blocks = [next]
@@ -208,11 +212,12 @@ class aParser():
     @staticmethod
     def readSubSamp(buf):
         """
-        Parses a "samp" sub-block and returns the correspondiing VMAL
-        @param buf: data of "samp" sub-block (4-bytes header excluded)
-        @type buf: bytes
-        @return: VMAL
-        @rtype: preset
+        Parses a "samp" sub-block and returns the corresponding VMAL.
+
+        :param buf: data of "samp" sub-block (4-bytes header excluded)
+        :type buf: bytes
+        :return: VMAL
+        :rtype: preset
         """
         prst = preset()
         prst.id, s = aParser.readPString(buf)
@@ -238,11 +243,12 @@ class aParser():
     def readSubPatt(buf):
         """
         Reads a sub-block of a "patt" tagged block and returns the
-        corresponding VMAL
-        @param buf:
-        @type buf:
-        @return: VMAL
-        @rtype: preset
+        corresponding VMAL.
+
+        :param buf:
+        :type buf:
+        :return: VMAL
+        :rtype: preset
         """
         # skip header
         id, s = aParser.readUString(buf[12:])
@@ -361,11 +367,12 @@ class preset:
         """
         Parses a VMA data buffer into a newly created
         vma object and add the object to self.vmaList.
-        Returns the (total) size of VMA data
-        @param buf: VMA data
-        @type buf: bytes
-        @return: VMA total size
-        @rtype: int
+        Returns the (total) size of VMA data.
+
+        :param buf: VMA data
+        :type buf: bytes
+        :return: VMA total size
+        :rtype: int
         """
         # get header
         format = ">lll4lhB"

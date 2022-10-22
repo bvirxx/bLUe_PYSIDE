@@ -41,16 +41,17 @@ def interpTetra(LUT, LUTSTEP, ndImg, convert=True):
 
     It turns out that tetrahedral interpolation is 2 times slower
     than trilinear.
-    @param LUT: 3D LUT array
-    @type LUT: ndarray, dtype float or int, shape(s1, s2, s3, 3)
-    @param LUTSTEP: interpolation step
-    @type LUTSTEP: number or 3-uple of numbers
-    @param ndImg: input array
-    @type ndImg: ndarray dtype float or int, shape (w, h, 3)
-    @param convert: convert the output to dtype=np.uint8
-    @type convert: boolean
-    @return: interpolatd array
-    @rtype: ndarray, same shape as the input image
+
+    :param LUT: 3D LUT array
+    :type LUT: ndarray, dtype float or int, shape(s1, s2, s3, 3)
+    :param LUTSTEP: interpolation step
+    :type LUTSTEP: number or 3-uple of numbers
+    :param ndImg: input array
+    :type ndImg: ndarray dtype float or int, shape (w, h, 3)
+    :param convert: convert the output to dtype=np.uint8
+    :type convert: boolean
+    :return: interpolatd array
+    :rtype: ndarray, same shape as the input image
     """
     # Probably due to a numpy bug, ravel_multi_index sometimes returns wrong indices
     # for non contiguous arrays.

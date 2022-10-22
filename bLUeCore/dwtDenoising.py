@@ -24,11 +24,11 @@ def noiseEstimation(DWT_coeffs):
     """
     Returns an estimation of the noise variance, using the Mean
     Absolute Deviation (MAD) method of Donoho.
-    of
-    @param DWT_coeffs: DWT coefficients, as returned by wavedecn
-    @type DWT_coeffs:
-    @return: noise variance estimation
-    @rtype: float
+
+    :param DWT_coeffs: DWT coefficients, as returned by wavedecn
+    :type DWT_coeffs:
+    :return: noise variance estimation
+    :rtype: float
     """
     a, s = pywt.coeffs_to_array(DWT_coeffs)
     flattened_coeffs = a[s[-1]['dd'][0], s[-1]['dd'][1]].ravel()
@@ -57,20 +57,21 @@ def dwtDenoiseChan(image, chan=0, thr=1.0, thrmode='hard', wavelet='haar', level
     Mar. 1999, vol. 6, pp. 3253–3256
     See also U{https://github.com/stefanv} for a similar approach, differing in
     the final computation of the filter coefficients.
-    @param image: image array
-    @type image: ndarray, shape(w,h,d), dtype= float
-    @param chan: channel to denoise
-    @type chan: int
-    @param thr: filtering threshold parameter A larger value should result in a smoother output.
-    @type thr: float
-    @param thrmode: one among 'hard', 'soft', 'wiener'
-    @type thrmode: str
-    @param wavelet: wavelet family
-    @type wavelet: str
-    @param level: max level of decomposition, automatic if level is None (default)
-    @type level: int or None
-    @return: the denoised channel
-    @rtype: ndarray, same shape as the image channel, dtype= np.float
+
+    :param image: image array
+    :type image: ndarray, shape(w,h,d), dtype= float
+    :param chan: channel to denoise
+    :type chan: int
+    :param thr: filtering threshold parameter A larger value should result in a smoother output.
+    :type thr: float
+    :param thrmode: one among 'hard', 'soft', 'wiener'
+    :type thrmode: str
+    :param wavelet: wavelet family
+    :type wavelet: str
+    :param level: max level of decomposition, automatic if level is None (default)
+    :type level: int or None
+    :return: the denoised channel
+    :rtype: ndarray, same shape as the image channel, dtype= np.float
 
     """
     imArray = image[:, :, chan]

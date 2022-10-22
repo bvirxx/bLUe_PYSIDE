@@ -36,12 +36,13 @@ def CIExyY2XYZ(x, y):
     Based on CIE xyY color space, return the XYZ expansion
     of (x,y),  assuming Y=1.
     cf https://en.wikipedia.org/wiki/CIE_1931_color_space
-    @param x: x coordinate
-    @type x: float
-    @param y: y coordinate
-    @type y: float
-    @return: XYZ coordinates
-    @rtype: 3-uple of float
+
+    :param x: x coordinate
+    :type  x: float
+    :param y: y coordinate
+    :type  y: float
+    :return: XYZ coordinates
+    :rtype: 3-uple of float
     """
     return x / y, 1, (1 - x - y) / y
 
@@ -70,17 +71,18 @@ def temperatureAndTint2Multipliers(temp, tint, XYZ2CameraMatrix, dngDict=None):
     conversion matrix CM.
     Multipliers are m1 = mR, m2 = mG/tint, m3 = mB. For convenience
     the function returns the 4 values 1/m1, 1/m2, 1/m3, 1/m2, scaled to m2 = 1.
-    The tint factor should be between 0.2 and 2.5
-    @param temp: temperature
-    @type temp: float
-    @param tint: Tint factor
-    @type tint: float
-    @param XYZ2CameraMatrix: conversion matrix from XYZ to camera RGB
-    @type XYZ2CameraMatrix: 3x3 array
-    @param dngDict: dictionary of dng profile tag values
-    @type dngDict: dict
-    @return: camera neutral
-    @rtype: 4-uple of float
+    The tint factor should be between 0.2 and 2.5.
+
+    :param temp: temperature
+    :type  temp: float
+    :param tint: Tint factor
+    :type  tint: float
+    :param XYZ2CameraMatrix: conversion matrix from XYZ to camera RGB
+    :type  XYZ2CameraMatrix: 3x3 array
+    :param dngDict: dictionary of dng profile tag values
+    :type  dngDict: dict
+    :return: camera neutral
+    :rtype: 4-uple of float
     """
     colorMatrix = XYZ2CameraMatrix
     if dngDict:
@@ -126,18 +128,19 @@ def multipliers2TemperatureAndTint(mR, mG, mB, XYZ2CameraMatrix,
     Tint is simply defined as the scaling factor mu verifying tint * mG/mR = WPG/WPR
     Note that to be inverse functions, RGBMultipliers2Temperature and temperatureAndTint2RGBMultipliers
     must use the same conversion matrix.
-    @param mR:
-    @type mR:
-    @param mG:
-    @type mG:
-    @param mB:
-    @type mB:
-    @param XYZ2CameraMatrix:
-    @type XYZ2CameraMatrix:
-    @param dngDict: dictionary of dng profile tag values
-    @type dngDict: dict
-    @return: temperature and tint correction
-    @rtype: 2-uple of float
+
+    :param mR:
+    :type  mR:
+    :param mG:
+    :type  mG:
+    :param mB:
+    :type  mB:
+    :param XYZ2CameraMatrix:
+    :type  XYZ2CameraMatrix:
+    :param dngDict: dictionary of dng profile tag values
+    :type  dngDict: dict
+    :return: temperature and tint correction
+    :rtype: 2-uple of float
     """
     dualIlluminant = False
     if dngDict:

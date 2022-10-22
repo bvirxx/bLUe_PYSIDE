@@ -64,18 +64,19 @@ class brushFamily:
         using an active QPainter instance qp,
         It returns the last painted position, or the initial position if
         not any painting occurs, due to spacing constraints.
-        @param x0: image x-coord
-        @type x0: float
-        @param y0: image y-coord
-        @type y0: float
-        @param x: image x-coord
-        @type x: float
-        @param y: image y-coord
-        @type y: float
-        @param brush: painting brush or eraser
-        @type brush: dict
-        @return: last painted position
-        @rtype: 2-uple of float
+
+        :param x0: image x-coord
+        :type x0: float
+        :param y0: image y-coord
+        :type y0: float
+        :param x: image x-coord
+        :type x: float
+        :param y: image y-coord
+        :type y: float
+        :param brush: painting brush or eraser
+        :type brush: dict
+        :return: last painted position
+        :rtype: 2-uple of float
         """
         tmp_x = x
         tmp_y = y
@@ -114,13 +115,14 @@ class brushFamily:
     @staticmethod
     def brushStrokePoly(pixmap, poly, brush):
         """
-        Draws the brush stroke defined by a QPolygon
-        @param pixmap:
-        @type pixmap:
-        @param poly:
-        @type poly:
-        @param brush:
-        @type brush:
+        Draws the brush stroke defined by a QPolygon.
+
+        :param pixmap:
+        :type pixmap:
+        :param poly:
+        :type poly:
+        :param brush:
+        :type brush:
         """
         # draw the stroke
         if brush['name'] == 'eraser':
@@ -165,14 +167,14 @@ class brushFamily:
     def __init__(self, name, baseSize, contourPath, presetFilename=None, image=None):
         """
 
-        @param name:
-        @type name: str
-        @param baseSize:
-        @type baseSize: int
-        @param contourPath: base shape of the brush family
-        @type contourPath: QPainterPath
-        @param presetFilename: preset file
-        @type presetFilename: str
+       :param name:
+       :type name: str
+       :param baseSize:
+       :type baseSize: int
+       :param contourPath: base shape of the brush family
+       :type contourPath: QPainterPath
+       :param presetFilename: preset file
+       :type presetFilename: str
         """
         self.name = name
         self.baseSize = baseSize
@@ -220,19 +222,20 @@ class brushFamily:
 
     def getBrush(self, size, opacity, color, hardness, flow, spacing=1.0, jitter=0.0, orientation=0, pattern=None):
         """
-        initializes and returns a brush as a dictionary
-        @param size: brush size
-        @type size: int
-        @param opacity: brush opacity, range 0..1
-        @type opacity: float
-        @param color:
-        @type color: QColor
-        @param hardness: brush hardness, range 0..1
-        @type hardness: float
-        @param flow: brush flow, range 0..1
-        @type flow: float
-        @return:
-        @rtype: dict
+        initializes and returns a brush as a dictionary.
+
+        :param size: brush size
+        :type size: int
+        :param opacity: brush opacity, range 0..1
+        :type opacity: float
+        :param color:
+        :type color: QColor
+        :param hardness: brush hardness, range 0..1
+        :type hardness: float
+        :param flow: brush flow, range 0..1
+        :type flow: float
+        :return:
+        :rtype: dict
         """
         s = float(self.baseSize) / 2
         # set brush color
@@ -298,8 +301,9 @@ def initBrushes():
     """
     returns a list of brush families.
     Eraser is the last item of the list.
-    @return:
-    @rtype: list of brushFamily instances
+
+    :return:
+    :rtype: list of brushFamily instances
     """
     brushes = []
     ######################
@@ -323,11 +327,12 @@ def initBrushes():
 
 def loadPresets(filename, first=1):
     """
-    Loads brush preset from file
-    @param filename:
-    @type filename: str
-    @return:
-    @rtype:  list of brushFamily instances
+    Loads brush preset from file.
+
+    :param filename:
+    :type filename: str
+    :return:
+    :rtype:  list of brushFamily instances
     """
     brushes = []
     patterns = []
@@ -372,15 +377,16 @@ def loadPresets(filename, first=1):
 def bLUeFloodFill(layer, x, y, color):
     """
     Flood fills a region of a drawing layer
-    x, y are the seed coordinates
-    @param layer:
-    @type layer: QLayerImage
-    @param x:
-    @type x: float
-    @param y:
-    @type y: float
-    @param color: filling color
-    @type color: QColor
+    x, y are the seed coordinates.
+
+    :param layer:
+    :type layer: QLayerImage
+    :param x:
+    :type x: float
+    :param y:
+    :type y: float
+    :param color: filling color
+    :type color: QColor
     """
     img = layer.sourceImg
     w, h = img.width(), img.height()

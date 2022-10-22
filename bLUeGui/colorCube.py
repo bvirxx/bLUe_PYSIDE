@@ -47,16 +47,17 @@ def rgb2hsB(r, g, b, perceptual=False):
     to hue, saturation, brightness h, s, v.
     The r, g, b components are integers in range 0..255. If perceptual is False
     (default) v = max(r,g,b)/255.0, else v = sqrt(Perc_R*r*r + Perc_G*g*g + Perc_B*b*b)
-    @param r: range 0..255
-    @type r: int
-    @param g: range 0..255
-    @type g: int
-    @param b: range 0..255
-    @type b: int
-    @param perceptual:
-    @type perceptual: boolean
-    @return: h, s, v values : 0<=h<360, 0<=s<=1, 0<=v<=1
-    @rtype: float
+
+    :param r: range 0..255
+    :type  r: int
+    :param g: range 0..255
+    :type  g: int
+    :param b: range 0..255
+    :type  b: int
+    :param perceptual:
+    :type  perceptual: boolean
+    :return: h, s, v values : 0<=h<360, 0<=s<=1, 0<=v<=1
+    :rtype: float
     """
     cMax = max(r, g, b)
     cMin = min(r, g, b)
@@ -91,12 +92,13 @@ def rgb2hsBVec(rgbImg, perceptual=False):
     RGB-->HSV color space transformation
     The r, g, b components are integers in range 0..255. If perceptual is False
     (default) V = max(r,g,b)/255.0, else V = sqrt(Perc_R*r*r + Perc_G*g*g + Perc_B*b*b) / 255
-    @param rgbImg: RGB image range 0..255
-    @type rgbImg: (n,m,3) array, , dtype=uint8 or dtype=int or dtype=float
-    @param perceptual:
-    @type perceptual: boolean
-    @return: identical shape array of hue,sat,brightness values (0<=h<=360, 0<=s<=1, 0<=v<=1)
-    @rtype: (n,m,3) array, dtype=float
+
+    :param rgbImg: RGB image range 0..255
+    :type  rgbImg: (n,m,3) array, , dtype=uint8 or dtype=int or dtype=float
+    :param perceptual:
+    :type  perceptual: boolean
+    :return: identical shape array of hue,sat,brightness values (0<=h<=360, 0<=s<=1, 0<=v<=1)
+    :rtype: (n,m,3) array, dtype=float
     """
     buf = cv2.cvtColor(rgbImg.astype(np.uint8), cv2.COLOR_RGB2HSV)
     buf = buf.astype(np.float)
@@ -119,10 +121,11 @@ def rgb2hlsVec(rgbImg):
     luminosity L= (M+m)/2 and saturation S = (M-m)/(M+m) if l < 0.5 and
     S =  (M-m) / (2-(M+m)) otherwise, (0<=h<=360, 0<=l<=1, 0<=s<=1).
     We do not follow the opencv convention for HLS value ranges.
-    @param rgbImg: rgbImg: array of r,g, b values
-    @type rgbImg: rgbImg: (n,m,3) array, , dtype=uint8 or dtype=int or dtype=float
-    @return: identical shape array of hue,luma, chroma values (0<=h<=360, 0<=l<=1, 0<=s<=1)
-    @rtype: (n,m,3) array, dtype=float
+
+    :param rgbImg: rgbImg: array of r,g, b values
+    :type  rgbImg: rgbImg: (n,m,3) array, , dtype=uint8 or dtype=int or dtype=float
+    :return: identical shape array of hue,luma, chroma values (0<=h<=360, 0<=l<=1, 0<=s<=1)
+    :rtype: (n,m,3) array, dtype=float
     """
     buf = cv2.cvtColor(rgbImg.astype(np.uint8), cv2.COLOR_RGB2HLS)
     buf = buf.astype(np.float)
@@ -137,12 +140,13 @@ def hls2rgbVec(hlsImg, cvRange=False):
     S =  (M-m) / (2-(M+m)) otherwise.
     If cvRange is True the input array must follow the
     opencv conventions : ranges 0..180, 0..255, 0..255, otherwise ranges are 0..360, 0..1, 0..1
-    @param hlsImg: hlsImg: hls image array
-    @type hlsImg: dtype = float
-    @param cvRange:
-    @type cvRange:
-    @return: identical shape array of r, g, b values in range 0..255
-    @rtype: dtype = uint8
+
+    :param hlsImg: hlsImg: hls image array
+    :type  hlsImg: dtype = float
+    :param cvRange:
+    :type  cvRange:
+    :return: identical shape array of r, g, b values in range 0..255
+    :rtype: dtype = uint8
     """
     # scale to 0..180, 0..255, 0..255 (opencv convention)
     if not cvRange:
@@ -161,10 +165,10 @@ def hsv2rgb(h, s, v):
     Note : here, brightness is v= max(r,g,b)/255.0. For perceptual brightness use
     hsp2rgb()
 
-    @param h: float value in range 0..360
-    @param s: float value in range 0..1
-    @param v: float value in range 0..1
-    @return: r,g,b integers between 0 and 255
+    :param h: float value in range 0..360
+    :param s: float value in range 0..1
+    :param v: float value in range 0..1
+    :return: r,g,b integers between 0 and 255
     """
     h = h / 60.0
     i = np.floor(h)
@@ -196,12 +200,13 @@ def hsv2rgbVec(hsvImg, cvRange=False):
     Transforms the hue, saturation and brightness h, s, v components of a color
     into red, green, blue values. If cvRange is True the input array must follow the
     opencv conventions : ranges 0..180, 0..255, 0..255, otherwise ranges are 0..360, 0..1, 0..1
-    @param hsvImg: hsv image array
-    @type hsvImg: ndarray dtype=np.float
-    @param cvRange:
-    @type cvRange:
-    @return: rgb image array range 0..255
-    @rtype: ndarray dtype=np.uint8
+
+    :param hsvImg: hsv image array
+    :type  hsvImg: ndarray dtype=np.float
+    :param cvRange:
+    :type  cvRange:
+    :return: rgb image array range 0..255
+    :rtype: ndarray dtype=np.uint8
     """
     flatten = (hsvImg.ndim > 3)
     if flatten:
@@ -224,12 +229,13 @@ def hsp2rgb_ClippingInd(h, s, p, trunc=True):
     """
     Transforms the hue, saturation and perceptual brightness components of a color
     into red, green, blue values.
-    @param h: float value in range 0..360
-    @param s: float value in range 0..1
-    @param p: float value in range 0..1
-    @param trunc:
-    @type trunc: boolean
-    @return: r,g,b integers between 0 and 255
+
+    :param h: float value in range 0..360
+    :param s: float value in range 0..1
+    :param p: float value in range 0..1
+    :param trunc:
+    :type  trunc: boolean
+    :return: r,g,b integers between 0 and 255
     """
 
     h = h / 60.0
@@ -308,10 +314,11 @@ def hsp2rgbVec(hspImg):
     Vectorized version of hsp2rgb.
     We first convert to HSV and next we use cv2.cvtColor()
     to convert from HSV to RGB
-    @param hspImg: (n,m,3) array of H, S, pB values, range H:0..360, S:0..1, pB:0..1
-    @type hspImg: ndarray dtype=np.float
-    @return: identical shape array of RGB values
-    @rtype: ndarray dtype=np.float
+
+    :param hspImg: (n,m,3) array of H, S, pB values, range H:0..360, S:0..1, pB:0..1
+    :type  hspImg: ndarray dtype=np.float
+    :return: identical shape array of RGB values
+    :rtype: ndarray dtype=np.float
     """
     h, s, p = hspImg[..., 0], hspImg[..., 1], hspImg[..., 2]
 
@@ -410,8 +417,9 @@ def hsp2rgbVecSmall(hspImg):
     Vectorized version of hsp2rgb. Optimized for small images - currently unused -
     Very bad performances for big images : time = 11,11 s  and memory > 6 Go
     for a 15 Mpx image
-    @param hspImg: (n,m,3) array of hsp values
-    @return: identical shape array of rgb values
+
+    :param hspImg: (n,m,3) array of hsp values
+    :return: identical shape array of rgb values
     """
     h, s, p = hspImg[..., 0], hspImg[..., 1], hspImg[..., 2]
 
@@ -476,14 +484,15 @@ def rgb2cmyk(r, g, b):
     """
     Convert r, g, b values in range 0..255 to
     CMYK colors as percents (range 0..100)
-    @param r:
-    @type r: int
-    @param g:
-    @type g: int
-    @param b:
-    @type b: int
-    @return: CMYK colors
-    @rtype: 4 uple of ints
+
+    :param r:
+    :type  r: int
+    :param g:
+    :type  g: int
+    :param b:
+    :type  b: int
+    :return: CMYK colors
+    :rtype: 4 uple of ints
     """
     r, g, b = r / 255, g / 255, b / 255
     K = 1 - max(r, g, b)
@@ -499,16 +508,17 @@ def rgb2cmyk(r, g, b):
 def cmyk2rgb(c, m, y, k):
     """
     Convert CMYK values in range 0..100 to RGB colors in range 0..255
-    @param c:
-    @type c: int
-    @param m:
-    @type m: int
-    @param y:
-    @type y: int
-    @param k:
-    @type k: int
-    @return:
-    @rtype: 3-uple of int
+
+    :param c:
+    :type  c: int
+    :param m:
+    :type  m: int
+    :param y:
+    :type  y: int
+    :param k:
+    :type  k: int
+    :return:
+    :rtype: 3-uple of int
     """
     c, m, y, k = c / 100.0, m / 100.0, y / 100.0, k / 100.0
     k = 1 - k

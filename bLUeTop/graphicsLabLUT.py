@@ -166,12 +166,13 @@ class graphicsLabForm(graphicsCurveForm):
         """
         sets black/white points
         (x,y) coordinates are relative to the full size image.
-        @param x:
-        @type x:
-        @param y:
-        @type y:
-        @param modifiers:
-        @type modifiers:
+
+        :param x:
+        :type x:
+        :param y:
+        :type y:
+        :param modifiers:
+        :type modifiers:
         """
         r, g, b = self.scene().targetImage.getActivePixel(x, y)
         if modifiers == QtCore.Qt.ControlModifier | QtCore.Qt.ShiftModifier:
@@ -183,13 +184,14 @@ class graphicsLabForm(graphicsCurveForm):
 
     def setBlackPoint(self, r, g, b):
         """
-        Sets the L curve
-        @param r:
-        @type r:
-        @param g:
-        @type g:
-        @param b:
-        @type b:
+        Sets the L curve.
+
+        :param r:
+        :type r:
+        :param g:
+        :type g:
+        :param b:
+        :type b:
         """
         l = self.scene().layer
         if not l.isActiveLayer():
@@ -226,17 +228,17 @@ class graphicsLabForm(graphicsCurveForm):
 
     def setWhitePoint(self, r, g, b, luminance=True, balance=True):
         """
-        for a, b curves, the method sets first and
-        @param r:
-        @type r:
-        @param g:
-        @type g:
-        @param b:
-        @type b:
-        @param luminance:
-        @type luminance:
-        @param balance:
-        @type balance
+
+        :param r:
+        :type r:
+        :param g:
+        :type g:
+        :param b:
+        :type b:
+        :param luminance:
+        :type luminance:
+        :param balance:
+        :type balance
         """
         l = self.scene().layer
         if not l.isActiveLayer():
@@ -300,11 +302,12 @@ class graphicsLabForm(graphicsCurveForm):
 
     def drawBackground(self, qp, qrF):
         """
-        Overrides QGraphicsView.drawBackground
-        @param qp:
-        @type qp: QPainter
-        @param qrF:
-        @type qrF: QRectF
+        Overrides QGraphicsView.drawBackground.
+
+        :param qp:
+        :type qp: QPainter
+        :param qrF:
+        :type qrF: QRectF
         """
         graphicsScene = self.scene()
         s = graphicsScene.axeSize
@@ -313,11 +316,12 @@ class graphicsLabForm(graphicsCurveForm):
 
     def updateHist(self, curve, redraw=True):
         """
-        Update the channel histogram displayed under the curve
-        @param curve:
-        @type curve:
-        @param redraw:
-        @type redraw
+        Update the channel histogram displayed under the curve.
+
+        :param curve:
+        :type curve:
+        :param redraw:
+        :type redraw
         """
         sc = self.scene()
         if curve is sc.cubicR:
@@ -339,9 +343,10 @@ class graphicsLabForm(graphicsCurveForm):
 
     def updateHists(self):
         """
-        Updates all histograms on the form
-        @return:
-        @rtype:
+        Updates all histograms on the form.
+
+        :return:
+        :rtype:
         """
         sc = self.scene()
         for curve in [sc.cubicR, sc.cubicG, sc.cubicB]:

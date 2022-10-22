@@ -32,22 +32,23 @@ class graphicsFormAuto3DLUT(baseForm):
         """
         build a graphicsForm3DLUT object. The parameter axeSize represents the size of
         the color wheel, border not included (the size of the window is adjusted).
-        @param cModel: color Model converter
-        @type cModel: cmConverter
-        @param targetImage
-        @type targetImage:
-        @param axeSize: size of the color wheel (default 500)
-        @type axeSize:
-        @param LUTSize: size of the LUT
-        @type LUTSize:
-        @param layer: layer of targetImage linked to graphics form
-        @type layer:
-        @param parent: parent widget
-        @type parent:
-        @param mainForm:
-        @type mainForm:
-        @return: graphicsForm3DLUT object
-        @rtype:
+
+        :param cModel: color Model converter
+        :type cModel: cmConverter
+        :param targetImage
+        :type targetImage:
+        :param axeSize: size of the color wheel (default 500)
+        :type axeSize:
+        :param LUTSize: size of the LUT
+        :type LUTSize:
+        :param layer: layer of targetImage linked to graphics form
+        :type layer:
+        :param parent: parent widget
+        :type parent:
+        :param mainForm:
+        :type mainForm:
+        :return: graphicsForm3DLUT object
+        :rtype:
         """
         try:
             QApplication.setOverrideCursor(Qt.WaitCursor)
@@ -62,18 +63,18 @@ class graphicsFormAuto3DLUT(baseForm):
 
     def __init__(self, targetImage=None, axeSize=500, LUTSize=LUTSIZE, layer=None, parent=None, mainForm=None):
         """
-        @param cModel: color space used by colorPicker, slider2D and colorPicker
-        @type cModel: cmConverter object
-        @param axeSize: size of the color wheel
-        @type axeSize: int
-        @param targetImage:
-        @type targetImage: imImage
-        @param LUTSize:
-        @type LUTSize: int
-        @param layer: layer of targetImage linked to graphics form
-        @type layer : QLayer
-        @param parent:
-        @type parent:
+       :param cModel: color space used by colorPicker, slider2D and colorPicker
+       :type cModel: cmConverter object
+       :param axeSize: size of the color wheel
+       :type axeSize: int
+       :param targetImage:
+       :type targetImage: imImage
+       :param LUTSize:
+       :type LUTSize: int
+       :param layer: layer of targetImage linked to graphics form
+       :type layer : QLayer
+       :param parent:
+       :type parent:
         """
         super().__init__(targetImage=targetImage, layer=layer, parent=parent)
         self.mainForm = mainForm  # used by saveLUT()

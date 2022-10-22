@@ -170,12 +170,13 @@ class drawForm(baseForm):
         """
         (x,y) coordinates are relative to the full size image.
         Ctrl+click on a drawing layer picks new brush color.
-        @param x:
-        @type x:
-        @param y:
-        @type y:
-        @param modifiers:
-        @type modifiers:
+
+        :param x:
+        :type x:
+        :param y:
+        :type y:
+        :param modifiers:
+        :type modifiers:
         """
         if modifiers == Qt.ControlModifier:
             r, g, b = self.layer.parentImage.getPrPixel(x, y)  # getActivePixel(x, y, fromInputImg=False, qcolor=True)

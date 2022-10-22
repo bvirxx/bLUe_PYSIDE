@@ -24,7 +24,7 @@ class SavitzkyGolayFilter:
     """
     Savitzky-Golay Filter.
     This is a pure numpy implementation of the Savitzky_Golay filter. It is taken
-    from U{http://stackoverflow.com/questions/22988882/how-to-smooth-a-curve-in-python}
+    from http://stackoverflow.com/questions/22988882/how-to-smooth-a-curve-in-python
     Many thanks to elviuz.
     """
     window_size = 11  # must be odd
@@ -47,9 +47,9 @@ class SavitzkyGolayFilter:
     @classmethod
     def filter(cls, y):
         """
-        @param y: data
-        @type y: 1D ndarray, dtype = float
-        @return: the filtered data array
+        :param y: data
+        :type y: 1D ndarray, dtype = float
+        :return: the filtered data array
         """
         kernel = cls.getKernel()
         half_window = (cls.window_size - 1) // 2

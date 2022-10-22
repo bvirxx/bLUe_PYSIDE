@@ -44,8 +44,8 @@ class dimsInputDialog(QDialog):
     def __init__(self, w, h, keepAspectRatio=True, keepBox=False):
         """
 
-        @param dims: {'w': width, 'h': height, 'kr': bool}
-        @type dims: dict
+        :param dims: {'w': width, 'h': height, 'kr': bool}
+        :type  dims: dict
         """
         super().__init__()
         self.setAttribute(Qt.WA_DeleteOnClose)
@@ -116,12 +116,13 @@ class dimsInputDialog(QDialog):
 def dlgInfo(text, info='', parent=None):
     """
     Shows a simple information dialog.
-    @param parent:
-    @type parent: QWidget
-    @param text:
-    @type text: str
-    @param info:
-    @type info: str
+
+    :param parent:
+    :type  parent: QWidget
+    :param text:
+    :type  text: str
+    :param info:
+    :type  info: str
     """
     msg = QMessageBox(parent=parent)
     msg.setWindowTitle('Information')
@@ -134,12 +135,13 @@ def dlgInfo(text, info='', parent=None):
 def dlgWarn(text, info='', parent=None):
     """
     Shows a simple warning dialog.
-    @param parent:
-    @type parent: QWidget
-    @param text:
-    @type text: str
-    @param info:
-    @type info: str
+
+    :param parent:
+    :type  parent: QWidget
+    :param text:
+    :type  text: str
+    :param info:
+    :type  info: str
     """
     msg = QMessageBox(parent=parent)
     msg.setWindowTitle('Warning')
@@ -152,12 +154,13 @@ def dlgWarn(text, info='', parent=None):
 def workInProgress(title, parent=None):
     """
     Inits a modal QProgressDialog
-    @param title:
-    @type title: str
-    @param parent:
-    @type parent:
-    @return:
-    @rtype: QProgressDialog
+
+    :param title:
+    :type  title: str
+    :param parent:
+    :type  parent:
+    :return:
+    :rtype: QProgressDialog
     """
     progress = QProgressDialog(parent=parent)
     progress.setFixedSize(300, 80)
@@ -175,10 +178,11 @@ def workInProgress(title, parent=None):
 def saveChangeDialog(img):
     """
     Save/discard dialog. Returns the chosen button.
-    @param img: image to save
-    @type img: vImage
-    @return:
-    @rtype: QMessageBox.StandardButton
+
+    :param img: image to save
+    :type  img: vImage
+    :return:
+    :rtype: QMessageBox.StandardButton
     """
     reply = QMessageBox()
     reply.setText("%s was modified" % img.meta.name if len(img.meta.name) > 0 else 'unnamed image')
@@ -199,12 +203,12 @@ class savingDialog(QDialog):
     def __init__(self, parent, text, lastDir):
         """
 
-        @param parent:
-        @type parent: QObject
-        @param text:
-        @type text: str
-        @param lastDir:
-        @type lastDir:str
+        :param parent:
+        :type  parent: QObject
+        :param text:
+        :type  text: str
+        :param lastDir:
+        :type  lastDir:str
         """
         # QDialog __init__
         super().__init__()
@@ -336,10 +340,11 @@ class labelDlg(QDialog):
         """
         Returns wrapped text, according to the current font and size of label.
         NOT updated when these parameters are modified.
-        @param s: text to wrap
-        @type s: str
-        @return:
-        @rtype: list of str
+
+        :param s: text to wrap
+        :type  s: str
+        :return:
+        :rtype: list of str
         """
         metrics = self.label.fontMetrics()
         tabSize = 4
@@ -359,14 +364,15 @@ def saveDlg(img, mainWidget, ext='jpg', selected=True):
     Image saving dialog.
     If selected is False, initially the filename box is left empty and no file is selected.
     A ValueError exception is raised if the dialog is aborted.
-    @param img:
-    @type img: vImage
-    @param mainWidget:
-    @type mainWidget: QWidget
-    @param selected:
-    @type selected: boolean
-    @return: filename, quality, compression, metaOption
-    @rtype: str, int, int, boolean
+
+    :param img:
+    :type  img: vImage
+    :param mainWidget:
+    :type  mainWidget: QWidget
+    :param selected:
+    :type  selected: boolean
+    :return:filename, quality, compression, metaOption
+    :rtype: str, int, int, boolean
     """
     # get last accessed dir
     lastDir = str(mainWidget.settings.value("paths/dlgsavedir", QDir.currentPath()))
@@ -391,14 +397,15 @@ def openDlg(mainWidget, ask=True, multiple=False):
     """
     if multiple is true returns a list of file names,
      otherwise returns a file name or None.
-    @param mainWidget:
-    @type mainWidget:
-    @param ask:
-    @type ask:
-    @param multiple:
-    @type multiple: boolean
-    @return:
-    @rtype: string or list of strings
+
+    :param mainWidget:
+    :type  mainWidget:
+    :param ask:
+    :type  ask:
+    :param multiple:
+    :type  multiple: boolean
+    :return:
+    :rtype: string or list of strings
     """
     if ask and mainWidget.label.img.isModified:
         ret = saveChangeDialog(mainWidget.label.img)

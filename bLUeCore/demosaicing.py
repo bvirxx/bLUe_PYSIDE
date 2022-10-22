@@ -28,14 +28,14 @@ def demosaic(raw_image_visible, raw_colors_visible, black_level_per_channel):
 
     Black levels are subtracted from raw_image_visible before the conversion.
 
-    @param raw_image_visible: image from sensor
-    @type raw_image_visible: nd_array, dtype uint16, shape(img_h, img_w)
-    @param raw_colors_visible:
-    @type raw_colors_visible: nd_array, dtype u1, shape(img_h, img_w)
-    @param black_level_per_channel:
-    @type black_level_per_channel: list or array, dtype= int
-    @return: demosaic array
-    @rtype: ndarray, dtype uint16, shape (img_width, img_height, 3)
+    :param raw_image_visible: image from sensor
+    :type raw_image_visible: nd_array, dtype uint16, shape(img_h, img_w)
+    :param raw_colors_visible:
+    :type raw_colors_visible: nd_array, dtype u1, shape(img_h, img_w)
+    :param black_level_per_channel:
+    :type black_level_per_channel: list or array, dtype= int
+    :return: demosaic array
+    :rtype: ndarray, dtype uint16, shape (img_width, img_height, 3)
     """
     black_level_per_channel = np.array(black_level_per_channel, dtype=np.uint16)
     # Bayer bitmap (16 bits), subtract black level for each channel

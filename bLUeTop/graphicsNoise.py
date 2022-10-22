@@ -120,11 +120,12 @@ class noiseForm(baseForm):
 
     def thrUpdate(self, value):
         """
-        Slidet thr slot
-        @param value:
-        @type value:
-        @return:
-        @rtype:
+        Slidet thr slot.
+
+        :param value:
+        :type value:
+        :return:
+        :rtype:
         """
         self.thrValue.setText(str("{:.0f}".format(self.slider2Thr(self.sliderThr.value()))))
         # move not yet terminated or value unchanged

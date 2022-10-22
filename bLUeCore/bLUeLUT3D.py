@@ -26,10 +26,10 @@ class HaldArray(object):
 
     def __init__(self, haldBuffer, size):
         """
-        @param haldBuffer: 2D array
-        @type haldBuffer: ndarray, shape (w,h,3)
-        @param size: size of the 3D LUT
-        @type size: int
+        :param haldBuffer: 2D array
+        :type haldBuffer: ndarray, shape (w,h,3)
+        :param size: size of the 3D LUT
+        :type size: int
         """
         self.size = size
         self.haldBuffer = haldBuffer
@@ -72,10 +72,10 @@ class LUT3D(object):
         Convert a HaldArray instance to a LUT3D object.
         The role (R or G or B) of the LUT axes follows the ordering of the color channels.
 
-        @param haldBuff: hald image
-        @type haldBuff: HaldArray
-        @return: 3D LUT
-        @rtype: LUT3D object
+        :param haldBuff: hald image
+        :type haldBuff: HaldArray
+        :return: 3D LUT
+        :rtype: LUT3D object
         """
         buf = haldBuff.haldBuffer[:, :, :3].ravel()
         size = haldBuff.size
@@ -95,10 +95,12 @@ class LUT3D(object):
         multiplied by 255 and converted to int.
         The channels of the LUT and the axes of the cube are both in BGR order.
         Raises a ValueError exception if the method fails.
-        @param inStream:
-        @type inStream: TextIoWrapper
-        @return: 3D LUT
-        @rtype: LUT3D object
+
+        :param inStream:
+        :type inStream: TextIoWrapper
+        :return: 3D LUT
+        :rtype: LUT3D object
+        :raise ValueError
         """
         ##########
         # read header
@@ -159,11 +161,12 @@ class LUT3D(object):
         Values read should be between 0 and 1. They are
         multiplied by 255 and converted to int.
         The channels of the LUT and the axes of the cube are both in order BGR.
-        Raise a IOError exception.
-        @param filename: path to file
-        @type filename: str
-        @return: LUT3D
-        @rtype: LUT3D class instance
+
+        :param filename: path to file
+        :type filename: str
+        :return: LUT3D
+        :rtype: LUT3D
+        :raise IOError
         """
         with open(filename) as textStream:
             lut = cls.readFromTextStream(textStream)
@@ -189,16 +192,17 @@ class LUT3D(object):
 
         If alpha is True a fourth channel alpha, initialized to 0, is added to LUT3DArray.
         Interpolated as usual, it is used to build selection masks from sets of 3D LUT vertices.
-        @param LUT3DArray: cubic array of LUT3D values
-        @type LUT3DArray: ndarray, dtype float or int, shape (size, size, size, 3)
-        @param size: size of the axes of the LUT3D
-        @type size: int
-        @param maxrange: max value that can be interpolated from the LUT
-        @type maxrange: int
-        @param dtype: type of array data
-        @type dtype: numeric type
-        @param alpha:
-        @type alpha: boolean
+
+        :param LUT3DArray: cubic array of LUT3D values
+        :type LUT3DArray: ndarray, dtype float or int, shape (size, size, size, 3)
+        :param size: size of the axes of the LUT3D
+        :type size: int
+        :param maxrange: max value that can be interpolated from the LUT
+        :type maxrange: int
+        :param dtype: type of array data
+        :type dtype: numeric type
+        :param alpha:
+        :type alpha: bool
         """
         # sanity check
         if ((size - 1) & (size - 2)) != 0:
@@ -235,12 +239,13 @@ class LUT3D(object):
         to a 2D array. The product w * h must be greater than (self.size)**3
         Hald channels, LUT channels and LUT axes must follow the same ordering (BGR or RGB).
         To simplify, we only handle halds and LUTs of type BGR.
-        @param w: image width
-        @type w: int
-        @param h: image height
-        @type h: int
-        @return: hald image
-        @rtype: HaldArray
+
+        :param w: image width
+        :type w: int
+        :param h: image height
+        :type h: int
+        :return: hald image
+        :rtype: HaldArray
         """
         s = self.size
         if (s ** 3) > w * h:
@@ -256,8 +261,9 @@ class LUT3D(object):
         Writes a 3D LUT to a text stream in format .cube.
         Values are divided by 255.
         The 3D LUT must be in BGR or BGRA order.
-        @param outStream:
-        @type outStream: TextIoWrapper
+
+        :param outStream:
+        :type outStream: TextIoWrapper
         """
         LUT = self.LUT3DArray
         outStream.write('bLUe 3D LUT\n')
@@ -275,9 +281,10 @@ class LUT3D(object):
         Writes 3D LUT to QTextStream in format .cube.
         Values are divided by 255.
         The 3D LUT must be in BGR order.
-        @param filename:
-        @type filename: str
-        Raise IOError
+
+        :param filename:
+        :type filename: str
+        :raise IOError
         """
         with open(filename, 'w') as textStream:
             self.writeToTextStream(textStream)
@@ -294,8 +301,9 @@ class DeltaLUT3D(object):
         """
         Init an identity displacement 3D LUT with
         shape (divs[0] + 2, divs[1] + 1, divs[2] + 1, 3)
-        @param divs: division count for each axis
-        @type divs: 3-uple of int
+
+        :param divs: division count for each axis
+        :type divs: 3-uple of int
 
         """
         self.__divs = divs
@@ -306,8 +314,8 @@ class DeltaLUT3D(object):
         """
         Count of dividing intervals for each axis.
 
-        @return:
-        @rtype: 3-uple of int
+        :return:
+        :rtype: 3-uple of int
         """
         return self.__divs
 
@@ -317,7 +325,8 @@ class DeltaLUT3D(object):
         (hue, sat, value) 3D look up table.
         Output values are shifts (additive shift for hue, multiplicative
         shifts for saturation and value).
-        @return: 3D look up table
-        @rtype: ndarray shape=(divs[0] + 2, divs[1] + 1, divs[2] + 1, 3), dtype=float
+
+        :return: 3D look up table
+        :rtype: ndarray shape=(divs[0] + 2, divs[1] + 1, divs[2] + 1, 3), dtype=float
         """
         return self.__data

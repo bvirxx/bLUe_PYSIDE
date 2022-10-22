@@ -46,13 +46,14 @@ class activeMixerPoint(activePoint):
 
     def paint(self, qpainter, options, widget):
         """
-        Overrides QGraphicsPathItem paint
-        @param qpainter:
-        @type qpainter: QPainter
-        @param options:
-        @type options:  QStyleOptionGraphicsItem
-        @param widget:
-        @type widget: QWidget
+        Overrides QGraphicsPathItem paint.
+
+        :param qpainter:
+        :type qpainter: QPainter
+        :param options:
+        :type options:  QStyleOptionGraphicsItem
+        :param widget:
+        :type widget: QWidget
         """
         # draw point
         super().paint(qpainter, options, widget)

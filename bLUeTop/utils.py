@@ -47,10 +47,11 @@ def imagej_description_metadata(description):
     Modified version of tifffile.imagej_description_metadata()
     Return metatata from ImageJ image description as dict.
     Raise ValueError if not a valid ImageJ description.
-    @param description:
-    @type description: str
-    @return:
-    @rtype: dict
+
+    :param description:
+    :type description: str
+    :return:
+    :rtype: dict
     """
 
     def _bool(val):
@@ -84,14 +85,15 @@ def shift2D(arr, tr, fill=0):
     (default 0). To be compliant with opencv images
     the first axis of arr is shifted by the second component of tr.
     The original array is not modified.
-    @param arr: array
-    @type arr: ndarray, ndims >= 2
-    @param tr: 2-uple of translations for the 2 first axes
-    @type tr: array-like
-    @param fill: filling value
-    @type fill: float
-    @return: the shifted array
-    @rtype: ndarray same shape and dtype as arr
+
+    :param arr: array
+    :type arr: ndarray, ndims >= 2
+    :param tr: 2-uple of translations for the 2 first axes
+    :type tr: array-like
+    :param fill: filling value
+    :type fill: float
+    :return: the shifted array
+    :rtype: ndarray same shape and dtype as arr
     """
     s = arr.shape
     result = np.full(s, fill, dtype=arr.dtype)
@@ -109,12 +111,13 @@ def array2DSlices(a2D, rect):
     Return the 2-uple of slice objects convenient to
     index the intersection of the 2 dimensional array a2D
     with rect.
-    @param a2D:
-    @type a2D: ndarray, ndims >=2
-    @param rect: (x, y, w, h)
-    @type rect: 4-uple of int or QRect object
-    @return:
-    @rtype: 2-uple of slice objects
+
+    :param a2D:
+    :type a2D: ndarray, ndims >=2
+    :param rect: (x, y, w, h)
+    :type rect: 4-uple of int or QRect object
+    :return:
+    :rtype: 2-uple of slice objects
     """
     # convert rect to a QRect object
     if type(rect) not in [QRect]:
@@ -132,33 +135,36 @@ def array2DSlices(a2D, rect):
 
 def qColorToRGB(color):
     """
-    Convert a QColor to its R,G,B components (range 0..255)
-    @param color:
-    @type color: QColor
-    @return:
-    @rtype: 3-uple of int
+    Convert a QColor to its R,G,B components (range 0..255).
+
+    :param color:
+    :type color: QColor
+    :return:
+    :rtype: 3-uple of int
     """
     return color.red(), color.green(), color.blue()
 
 
 def qColorToCMYK(color):
     """
-    Converts a QColor to its C, M, Y, K components (range 0..255)
-    @param color:
-    @type color: QColor
-    @return:
-    @rtype: 4-uple of int
+    Converts a QColor to its C, M, Y, K components (range 0..255).
+
+    :param color:
+    :type color: QColor
+    :return:
+    :rtype: 4-uple of int
     """
     return color.cyan(), color.magenta(), color.yellow(), color.black()
 
 
 def qColorToHSV(color):
     """
-    Converts a QColor to its H,S,V components
-    @param color:
-    @type color: QColor
-    @return:
-    @rtype: 3-uple of int
+    Converts a QColor to its H,S,V components.
+
+    :param color:
+    :type color: QColor
+    :return:
+    :rtype: 3-uple of int
     """
     return color.hue(), color.saturation(), color.value()
 
@@ -188,11 +194,12 @@ class colorInfoView(QDockWidget):
 
     def setText(self, clrI, clrC):
         """
-        Set widget text to formatted color info
-        @param clrI: input color
-        @type clrI: QColor
-        @param clrC: output color
-        @type clrC: QColor
+        Set widget text to formatted color info.
+
+        :param clrI: input color
+        :type clrI: QColor
+        :param clrC: output color
+        :type clrC: QColor
         """
         r0 = 'R ' + "".join([str(w).ljust(4) if type(w) is int else w
                              for w in (clrI.red(), clrC.red(), '|C ', clrI.cyan() * 100 // 255,
@@ -243,10 +250,10 @@ def multiply(matr_a, matr_b):
 
 def inversion(m):
     """
-    @param m:
-    @type m:
-    @return:
-    @rtype:
+   :param m:
+   :type m:
+   :return:
+   :rtype:
     """
     m1, m2, m3, m4, m5, m6, m7, m8, m9 = m.ravel()
     inv = np.array([[m5 * m9 - m6 * m8, m3 * m8 - m2 * m9, m2 * m6 - m3 * m5],
@@ -268,8 +275,9 @@ class UDict(object):
         value corresponding to the key, and None if the key is not present
         in any of the dictionaries. No exception is raised if the key does not
         exist.
-        @param args: tuple of dict
-        @type args:
+
+        :param args: tuple of dict
+        :type args:
         """
         if args:
             self.__dictionaries = args[0]  # tuple of dict
@@ -286,8 +294,8 @@ class UDict(object):
     def dictionaries(self):
         """
 
-        @return:
-        @rtype: tuple of dictionaries
+       :return:
+       :rtype: tuple of dictionaries
         """
         return self.__dictionaries
 
@@ -387,8 +395,9 @@ class QbLUeSlider(QSlider):
         """
         Update the slider value with a single jump when clicking on the groove.
         # min is at left or top. Change upsideDown to True to reverse this behavior.
-        @param event:
-        @type event:
+
+        :param event:
+        :type event:
         """
         pressVal = QStyle.sliderValueFromPosition(self.minimum(), self.maximum(), event.x(), self.width(),
                                                   upsideDown=False)
@@ -431,8 +440,9 @@ class historyList(list):
         """
         self.current is the list index of the last restored state, -1 if
         no state was restored since the last call to addItem.
-        @param size: max history size
-        @type size: int
+
+        :param size: max history size
+        :type size: int
         """
         super().__init__()
         self.size = size
@@ -441,8 +451,9 @@ class historyList(list):
     def addItem(self, item):
         """
         Pushes an item on the stack.
-        @param item:
-        @type item: any type
+
+        :param item:
+        :type item: any type
         """
         if self.current == - 1:
             super().insert(0, item)
@@ -456,10 +467,11 @@ class historyList(list):
         The Parameter saveitem is used to save the current state before undo
         (i.e. before restoration), if it is not already a restored state.
         The method raises ValueError if there is no more item to restore.
-        @param saveitem:
-        @type saveitem: object
-        @return:
-        @rtype: object
+
+        :param saveitem:
+        :type saveitem: object
+        :return:
+        :rtype: object
         """
         if self.current >= len(self) - 1:
             # no more items to restore
@@ -476,8 +488,9 @@ class historyList(list):
         """
         Returns the next item in stack, if any.
         Otherwise, raises ValueError.
-        @return:
-        @rtype: object
+
+        :return:
+        :rtype: object
         """
         if self.current <= 0:
             raise ValueError
@@ -508,11 +521,12 @@ class bLUeEventFilter(QObject):
 
     def eventFilter(self, target, e):
         """
-        Filter mouse events for disabled items
-        @param target:
-        @type target:
-        @param e:
-        @type e:
+        Filter mouse events for disabled items.
+
+        :param target:
+        :type target:
+        :param e:
+        :type e:
         """
         if isinstance(e, QMouseEvent):
             return not (target.flags() & Qt.itemIsEnabled)
@@ -534,18 +548,18 @@ class optionsWidget(QListWidget):
     def __init__(self, options=None, optionNames=None, exclusive=True, changed=None, parent=None,
                  flow=QListWidget.TopToBottom):
         """
-        @param options: list of options
-        @type options: list of str
-        @param optionNames: list of displayed names corresponding to options
-        @type optionNames: list of str
-        @param exclusive:
-        @type exclusive: bool
-        @param changed: signal or slot for itemclicked signal
-        @type changed: signal or function (0 or 1 parameter of type QListWidgetItem)
-        @param parent:
-        @type parent: QObject
-        @param flow:  which direction the items layout should flow
-        @type flow: QListView.Flow
+       :param options: list of options
+       :type options: list of str
+       :param optionNames: list of displayed names corresponding to options
+       :type optionNames: list of str
+       :param exclusive:
+       :type exclusive: bool
+       :param changed: signal or slot for itemclicked signal
+       :type changed: signal or function (0 or 1 parameter of type QListWidgetItem)
+       :param parent:
+       :type parent: QObject
+       :param flow:  which direction the items layout should flow
+       :type flow: QListView.Flow
         """
         super().__init__(parent)
 
@@ -585,17 +599,18 @@ class optionsWidget(QListWidget):
 
     def __getstate__(self):
         """
-        returns a pickable dict capturing instance state
-        @return:
-        @rtype: dict
+        returns a pickable dict capturing instance state.
+
+        :return:
+        :rtype: dict
         """
         return dict([(it, self.items[it].checkState()) for it in self.items])
 
     def __setstate__(self, state):
         """
 
-        @param state:
-        @type state: dict
+       :param state:
+       :type state: dict
         """
         for itemName in state:
             self.items[itemName].setCheckState(state[itemName])
@@ -608,10 +623,11 @@ class optionsWidget(QListWidget):
         the dict of options. Next, if callOnSelect is True, onSelect is called.
         Finally, if an item was modified by a mouse click, then
         self.changed is called/emitted.
-        @param item:
-        @type item: QListWidgetItem
-        @param callOnSelect:
-        @type callOnSelect: bool
+
+        :param item:
+        :type item: QListWidgetItem
+        :param callOnSelect:
+        :type callOnSelect: bool
         """
         # don't react to mouse click on disabled items
         if not (item.flags() & Qt.ItemIsEnabled):
@@ -646,12 +662,13 @@ class optionsWidget(QListWidget):
         Next, if callOnSelect is True, onSelect is called.
         A ValueError exception is raised  if an attempt is done to
         uncheck an item in a list of mutually exclusive options.
-        @param name: internal name of option
-        @type name: str
-        @param checked: check/uncheck flag
-        @type checked: bool
-        @param callOnSelect:
-        @type callOnSelect: bool
+
+        :param name: internal name of option
+        :type name: str
+        :param checked: check/uncheck flag
+        :type checked: bool
+        :param callOnSelect:
+        :type callOnSelect: bool
         """
         item = self.items[name]
         if not checked and self.exclusive:
@@ -678,11 +695,12 @@ class optionsWidget(QListWidget):
 
 def checkeredImage(format=QImage.Format_ARGB32):
     """
-    Returns a 20x20 checker
-    @param format:
-    @type format:
-    @return: checker
-    @rtype: QImage
+    Returns a 20x20 checker.
+
+    :param format:
+    :type format:
+    :return: checker
+    :rtype: QImage
     """
     base = QImage(20, 20, format)
     qp = QPainter(base)
@@ -725,15 +743,16 @@ class stateAwareQDockWidget(QDockWidget):
 
 def clip(image, mask, inverted=False):
     """
-    clip an image by applying a mask to its alpha channel
-    @param image:
-    @type image:
-    @param mask:
-    @type mask:
-    @param inverted:
-    @type inverted:
-    @return:
-    @rtype:
+    clip an image by applying a mask to its alpha channel.
+
+    :param image:
+    :type image:
+    :param mask:
+    :type mask:
+    :param inverted:
+    :type inverted:
+    :return:
+    :rtype:
     """
     bufImg = QImageBuffer(image)
     bufMask = QImageBuffer(mask)
@@ -746,10 +765,10 @@ def clip(image, mask, inverted=False):
 def QImageFromFile(filename):
     """
 
-    @param filename:
-    @type filename: str
-    @return:
-    @rtype: QImage
+   :param filename:
+   :type filename: str
+   :return:
+   :rtype: QImage
     """
     reader = QImageReader(filename)
     reader.setAutoTransform(True)  # handle orientation tag

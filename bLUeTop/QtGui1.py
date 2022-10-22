@@ -24,6 +24,8 @@ import sys
 from PySide2.QtGui import QScreen
 from PySide2.QtWidgets import QApplication, QLabel, QMainWindow, QSizePolicy
 
+import bLUeTop.Gui
+
 from bLUeTop.pyside_dynamicLoader import loadUi
 from bLUeTop.splitView import splitWindow
 from bLUeTop.utils import hideConsole, showConsole, QbLUeColorDialog, colorInfoView
@@ -108,8 +110,9 @@ class Form1(QMainWindow):
     def handlePushButtonClicked(self, button):
         """
         button clicked/toggled slot.
-        @param button:
-        @type button:
+
+        :param button:
+        :type button:
         """
         self.onWidgetChange(button)
 
@@ -120,8 +123,9 @@ class Form1(QMainWindow):
         when the button state changes. Thus, the method should be called
         by all auto exclusive buttons in a group to correctly update
         the btnValues dictionary.
-        @param button:
-        @type button: QButton
+
+        :param button:
+        :type button: QButton
         """
         checked = button.isChecked()
         self.btnValues[str(button.accessibleName())] = checked
@@ -129,10 +133,12 @@ class Form1(QMainWindow):
 
     def handleSliderMoved(self, value, slider):
         """
-        Slider valueChanged slot
-        @param value:
-        @param slider:
-        @type slider : QSlider
+        Slider valueChanged slot.
+
+        :param value:
+        :type value:
+        :param slider:
+        :type slider : QSlider
         """
         self.slidersValues[slider.accessibleName()] = value
         self.onWidgetChange(slider)
@@ -142,8 +148,9 @@ class Form1(QMainWindow):
         Overriding moveEvent to emit
         a screenChanged signal
         when a screen change is detected.
-        @param event:
-        @type event:
+
+        :param event:
+        :type event:
         """
         super(Form1, self).moveEvent(event)
         # detecting screen changes :
@@ -172,8 +179,9 @@ def enumerateMenuActions(menu):
     """
     Recursively builds the list of actions contained in a menu
     and in its submenus.
-    @param menu: Qmenu object
-    @return: list of actions
+
+    :param menu: Qmenu object
+    :return: list of actions
     """
     actions = []
     for action in menu.actions():
@@ -213,14 +221,15 @@ if getattr(sys, 'frozen', False) and len(sys.argv) <= 1:
 ##################
 # constructing app
 ##################
+
 QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)  # needed when a plugin initializes a web engine
-app = QApplication(sys.argv)
+bLUeTop.Gui.app = QApplication(sys.argv)
 
 #################
 # init main form
 # the UI is not loaded yet
-window = Form1()
+bLUeTop.Gui.window = Form1()
 #################
 
 # Before/After view
-splitWin = splitWindow(window)
+bLUeTop.Gui.splitWin = splitWindow(bLUeTop.Gui.window)

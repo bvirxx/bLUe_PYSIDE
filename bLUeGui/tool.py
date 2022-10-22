@@ -59,19 +59,20 @@ class croppingHandle(baseHandle):
         parent should be the widget showing the edited imImage.
         role is 'left', 'right', 'top', 'bottom',
         'topRight', 'topLeft', 'bottomRight', 'bottomLeft'
-        @param role:
-        @type role: str
-        @param parent:
-        @type parent: QWidget
+        :param role:
+        :type  role: str
+        :param parent:
+        :type  parent: QWidget
         """
         super().__init__(role=role, tool=tool, parent=parent)
         self.setStyleSheet("QToolButton:hover {background-color:#00FF00} QToolButton {background-color:#555555}")
 
     def setPosition(self, p):
         """
-        Updates button margins in response to a mouse move event
-        @param p: mouse cursor position (relative to parent widget)
-        @type p: QPoint
+        Updates button margins in response to a mouse move event.
+
+        :param p: mouse cursor position (relative to parent widget)
+        :type  p: QPoint
 
         """
         widg = self.parent()
@@ -203,8 +204,8 @@ class cropTool(QObject):
     def fit(self, img):
         """
 
-        @param img:
-        @type img: vImage
+        :param img:
+        :type  img: vImage
         """
         for role, margin in zip(['left', 'top', 'right', 'bottom'],
                                 [img.cropLeft, img.cropTop, img.cropRight, img.cropBottom]):
@@ -214,8 +215,9 @@ class cropTool(QObject):
         """
         Draws the 8 crop buttons around the displayed image,
         with their current margins.
-        @param img:
-        @type img: QImage
+
+        :param img:
+        :type  img: QImage
         """
         r = self.parent().img.resize_coeff(self.parent())
         self.formFactor = img.height() / img.width()
@@ -250,14 +252,15 @@ class cropTool(QObject):
         """
         Translates the crop tool.
         Coordinates are relative to widget.
-        @param deltaX: move x-coord.
-        @type deltaX: int
-        @param deltaY: move y-coord.
-        @type deltaY: int
-        @param img:
-        @type img:
-        @param widget:
-        @type widget: ImageLabel
+
+        :param deltaX: move x-coord.
+        :type  deltaX: int
+        :param deltaY: move y-coord.
+        :type  deltaY: int
+        :param img:
+        :type  img:
+        :param widget:
+        :type  widget: ImageLabel
         """
 
         r = widget.img.resize_coeff(widget)
@@ -288,12 +291,12 @@ class cropTool(QObject):
         Crop tool aware zooming.
         Img is zoomed, keeping cropTool and the point of img under cursor both fixed on the screen.
 
-        @param pos: mouse cursor position (relative to widget)
-        @type pos: QPoint
-        @param numSteps: relative wheel rotation
-        @type numSteps: float
-        @param img:
-        @type img: vImage
+        :param pos: mouse cursor position (relative to widget)
+        :type  pos: QPoint
+        :param numSteps: relative wheel rotation
+        :type  numSteps: float
+        :param img:
+        :type  img: vImage
         """
 
         btnList = [self.btnDict[name] for name in ['left', 'right', 'top', 'bottom']]
@@ -317,14 +320,14 @@ class rotatingHandle(baseHandle):
     def __init__(self, role=None, tool=None, pos=QPoint(0, 0), parent=None):
         """
 
-        @param role:
-        @type role: str
-        @param tool:
-        @type tool: rotatingTool
-        @param pos:
-        @type pos: QPoint
-        @param parent: parent widget
-        @type parent: QWidget
+        :param role:
+        :type  role: str
+        :param tool:
+        :type  tool: rotatingTool
+        :param pos:
+        :type  pos: QPoint
+        :param parent: parent widget
+        :type  parent: QWidget
         """
         super().__init__(role=role, tool=tool, parent=parent)
         # set coordinates (relative to the full resolution image)
@@ -337,8 +340,9 @@ class rotatingHandle(baseHandle):
         """
         Mouse press event handler: sets the tool resizing
         coefficient for the current move.
-        @param event:
-        @type event:
+
+        :param event:
+        :type  event:
         """
         widget = self.tool.parent()
         # get the current resizing coeff.
@@ -346,9 +350,10 @@ class rotatingHandle(baseHandle):
 
     def mouseMoveEvent(self, event):
         """
-        Mouse move event handler
-        @param event:
-        @type event:
+        Mouse move event handler.
+
+        :param event:
+        :type  event:
         """
         modifiers = event.modifiers()  # QApplication.keyboardModifiers()
         # mouse coordinates, relative to parent widget
@@ -411,13 +416,14 @@ class rotatingTool(QObject):
 
     def __init__(self, parent=None, layer=None, form=None):
         """
-        Inits a rotatingTool instance and adds it to the parent widget
-        @param parent: parent widget
-        @type parent: QWidget
-        @param layer: image layer
-        @type layer: QLayer
-        @param form: GUI form
-        @type form: transform
+        Inits a rotatingTool instance and adds it to the parent widget.
+
+        :param parent: parent widget
+        :type  parent: QWidget
+        :param layer: image layer
+        :type  layer: QLayer
+        :param form: GUI form
+        :type  form: transform
         """
         self.modified = False
         self.layer = layer
@@ -476,9 +482,10 @@ class rotatingTool(QObject):
     def getTargetQuad(self):
         """
         Returns the current quad, as defined by the 4 buttons.
-        Coordinates are relative to the full size image
-        @return:
-        @rtype: QPolygonF
+        Coordinates are relative to the full size image.
+
+        :return:
+        :rtype: QPolygonF
         """
         poly = QPolygonF()
         for role in ['topLeft', 'topRight', 'bottomRight', 'bottomLeft']:
@@ -487,9 +494,10 @@ class rotatingTool(QObject):
 
     def getSourceQuad(self):
         """
-        Returns the starting quad for the transformation in progress
-        @return:
-        @rtype: QPolygonF
+        Returns the starting quad for the transformation in progress.
+
+        :return:
+        :rtype: QPolygonF
         """
         poly = QPolygonF()
         for role in ['topLeft', 'topRight', 'bottomRight', 'bottomLeft']:
@@ -498,9 +506,10 @@ class rotatingTool(QObject):
 
     def getFrozenQuad(self):
         """
-        Returns the starting quad for the current type of transformation
-        @return:
-        @rtype: QPolygonF
+        Returns the starting quad for the current type of transformation.
+
+        :return:
+        :rtype: QPolygonF
         """
         poly = QPolygonF()
         for role in ['topLeft', 'topRight', 'bottomRight', 'bottomLeft']:

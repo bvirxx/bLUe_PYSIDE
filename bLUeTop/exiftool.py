@@ -86,10 +86,11 @@ class ExifTool(object):
         Terminate process. The function is always executed,
         even if an exception occurred within the block.
         Return True to catch the exception.
-        @param exc_type: type of exception (if any)
-        @param exc_value: 
-        @param traceback: 
-        @return: True to catch exceptions
+
+        :param exc_type: type of exception (if any)
+        :param exc_value:
+        :param traceback:
+        :return: True to catch exceptions
         """
         if exc_type is ValueError:
             print('Exiftool.__exit__: ', exc_value)
@@ -106,12 +107,13 @@ class ExifTool(object):
         the exiftool commands defined by *args and returns
         exif output. If ascii is True, output is decoded as str,
         and otherwise it is a bytes object.
-        @param args:
-        @type args: tuple of str
-        @param ascii: flag for the type of returned data
-        @type ascii: boolean
-        @return: command output
-        @rtype: str or bytes according to the ascii flag.
+
+        :param args:
+        :type args: tuple of str
+        :param ascii: flag for the type of returned data
+        :type ascii: boolean
+        :return: command output
+        :rtype: str or bytes according to the ascii flag.
         """
         args = args + ("-execute\n",)
         # convert command to bytes and write it to process stdin
@@ -152,8 +154,9 @@ class ExifTool(object):
         """
         Copy all metadata and icc profile from image file
         to sidecar (.mie) file. An existing sidecar is overwritten.
-        @param f: path to image file
-        @type f: str
+
+        :param f: path to image file
+        :type f: str
         """
         # following exif doc, wild cards do not copy icc_profile : we must specify it explicitly
         # Tag ImageDescription is added by tifffile to .blu files to hold the layer stack.
@@ -167,14 +170,15 @@ class ExifTool(object):
         Copy all metadata and icc profile from sidecar to image file.
         if removesidecar is True (default False), the sidecar file is removed after copying.
         Should be called only while editing the file.
-        @param source: path to sidecar file
-        @type source: str
-        @param dest: path to image file
-        @type dest: str
-        @param removesidecar: if True remove sidecar file after restoration. Default is False
-        @type removesidecar: bool
-        @return True if sidecar file exists, False otherwise
-        @rtype bool
+
+        :param source: path to sidecar file
+        :type source: str
+        :param dest: path to image file
+        :type dest: str
+        :param removesidecar: if True remove sidecar file after restoration. Default is False
+        :type removesidecar: bool
+        :return: True if sidecar file exists, False otherwise
+        :rtype: bool
         """
         sidecar = source[:-4] + '.mie'
         if isfile(sidecar):
@@ -192,12 +196,13 @@ class ExifTool(object):
         """
         Read binary metadata value of tagname from an image file or
         a raw iamge file or a sidecar file.
-        @param f: path to file
-        @type f: str
-        @param tagname:
-        @type tagname: str
-        @return: data
-        @rtype: bytes
+
+        :param f: path to file
+        :type f: str
+        :param tagname:
+        :type tagname: str
+        :return: data
+        :rtype: bytes
         """
         command = ['-b', '-m', '-' + tagname, f]
         buf = self.execute(*command, ascii=False)  # -m : disables output of warnings
@@ -209,12 +214,13 @@ class ExifTool(object):
         a raw imamge file, a sidecar file or a dng/dcp profile.
         tag values can be binary data or strings.
         The method returns a dictionary of (str) decoded buffers.
-        @param f: file name
-        @type f: str
-        @param taglist: tag names
-        @type taglist: list of str
-        @return: data
-        @rtype: dict of str
+
+        :param f: file name
+        :type f: str
+        :param taglist: tag names
+        :type taglist: list of str
+        :return: data
+        :rtype: dict of str
         """
         d = {}
         if taglist is None:
@@ -230,12 +236,13 @@ class ExifTool(object):
         """
         Extract the (jpg) thumbnail from an image or sidecar file
         and returns it as a QImage.
-        @param f: path to image or sidecar file
-        @type f: str
-        @param thumbname: tag name
-        @type thumbname: str
-        @return: thumbnail
-        @rtype: QImage
+
+        :param f: path to image or sidecar file
+        :type f: str
+        :param thumbname: tag name
+        :type thumbname: str
+        :return: thumbnail
+        :rtype: QImage
         """
         thumbnail = self.readBinaryData(f, tagname=thumbname)
         return QImage.fromData(QByteArray(thumbnail), 'JPG')
@@ -246,10 +253,11 @@ class ExifTool(object):
         or sidecar file. Thumbnail data should be a valid jpeg image
         with dimensions 160x120 or 120x160.
         For an image file, should be called only while editing the file.
-        @param filename: path to image or sidecar file
-        @type filename: str
-        @param thumbfile: path to thumbnail jpg file
-        @type thumbfile: str
+
+        :param filename: path to image or sidecar file
+        :type filename: str
+        :param thumbfile: path to thumbnail jpg file
+        :type thumbfile: str
         """
         command = [filename, '-overwrite_original'] + ['-%s<=%s' % ('thumbnailimage', thumbfile)]
         self.execute(*command)
@@ -258,10 +266,11 @@ class ExifTool(object):
         """
         Writes orientation tag to file (image or sidecar).
         For an image file, should be called only while editing the file.
-        @param filename: path to file
-        @type filename: str
-        @param value: orientation code (range 1..8)
-        @type value: str or int
+
+        :param filename: path to file
+        :type filename: str
+        :param value: orientation code (range 1..8)
+        :type value: str or int
         """
         command = ['-%s=%s' % ('Orientation', value)] + ['-n'] + [filename, '-overwrite_original']
         self.execute(*command)
@@ -270,14 +279,15 @@ class ExifTool(object):
         """
         Read a tag from a sidecar (.mie) file. Despite its name, the method can read
         a tag of any type. A ValueError exception is raised if the file does not exist.
-        @param filename: image or sidecar path
-        @type filename: str
-        @param tagName:
-        @type tagName: str
-        @param ext:
-        @type ext: str
-        @return: tag info
-        @rtype: str
+
+        :param filename: image or sidecar path
+        :type filename: str
+        :param tagName:
+        :type tagName: str
+        :param ext:
+        :type ext: str
+        :return: tag info
+        :rtype: str
         """
         filename = filename[:-4] + ext
         if not isfile(filename):
@@ -294,12 +304,13 @@ class ExifTool(object):
         """
         Write a tag to a sidecar (.mie) file. If the sidecar
         does not exist it is created from the image file.
-        @param filename: image file name
-        @type filename: str
-        @param tagName: tag name
-        @type tagName: str
-        @param value: tag value
-        @type value: str or number
+
+        :param filename: image file name
+        :type filename: str
+        :param tagName: tag name
+        :type tagName: str
+        :param value: tag value
+        :type value: str or number
         """
         fmie = filename[:-4] + '.mie'
         # if sidecar does not exist create it
@@ -314,14 +325,15 @@ class ExifTool(object):
         Read metadata from file : data are read
         from the image file and the sidecar file is created if
         createsidecar is True (default).
-        @param f: file name
-        @type f: str
-        @param tags:
-        @type tags:
-        @param createsidecar: flag
-        @type createsidecar: bool
-        @return: profile, metadata
-        @rtype: 2-uple profile: bytes, metadata: dict
+
+        :param f: file name
+        :type f: str
+        :param tags:
+        :type tags:
+        :param createsidecar: flag
+        :type createsidecar: bool
+        :return: profile, metadata
+        :rtype: 2-uple profile: bytes, metadata: dict
         """
         # Using PIL _getexif is simpler.
         # However, exiftool is much more powerful
@@ -346,10 +358,11 @@ class ExifTool(object):
         """
         read all metadata from file f and return
         a formatted string.
-        @param f: path to file
-        @type f: str
-        @return:
-        @rtype: str
+
+        :param f: path to file
+        :type f: str
+        :return:
+        :rtype: str
         """
         command = ["-a", "-G0:1", "--ImageDescription",
                    f]  # remove Imagej tag from output, G0:1 add group names to output
@@ -361,10 +374,11 @@ def decodeExifOrientation(value):
     """
     Returns a QTransform object representing the
     image transformation corresponding to the orientation tag value.
-    @param value: orientation tag
-    @type value: int
-    @return: Qtransform object
-    @rtype: QTransform
+
+    :param value: orientation tag
+    :type value: int
+    :return: Qtransform object
+    :rtype: QTransform
     """
     # identity transformation
     tr = QTransform()
@@ -384,10 +398,11 @@ def decodeExifOrientation(value):
 def readExpTime(filename):
     """
     Convenience method. It returns the exposure time.
-    @param filename: path to image file
-    @type filename: str
-    @return: exposure time
-    @rtype: float
+
+    :param filename: path to image file
+    :type filename: str
+    :return: exposure time
+    :rtype: float
     """
     p = re.compile('[0-9]+/?[0-9]+')
     with ExifTool() as e:

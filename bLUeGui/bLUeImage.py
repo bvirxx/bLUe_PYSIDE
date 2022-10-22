@@ -135,8 +135,9 @@ class bImage(QImage):
         """
         return the image buffer in color mode HSpB.
         Override to enable buffering
-        @return: HSPB buffer
-        @rtype: ndarray
+
+        :return: HSPB buffer
+        :rtype: ndarray
         """
         self.hspbBuffer = rgb2hspVec(QImageBuffer(self)[:, :, :3][:, :, ::-1])
         return self.hspbBuffer
@@ -183,16 +184,18 @@ class bImage(QImage):
         for subtypes, we keep identical signatures for all
         overriding methods, so we define here an unused parameter
         maskOnly.
-        @param maskOnly:
-        @type maskOnly: boolean
+
+        :param maskOnly:
+        :type  maskOnly: boolean
         """
         self.rPixmap = QPixmap.fromImage(self)
 
     def waveFront(self):
         """
         Experimental waveFront. Unused yet
-        @return:
-        @rtype:
+
+        :return:
+        :rtype:
         """
         wfi = QImage(QSize(self.width(), 256), QImage.Format_ARGB32)
         wfi.fill(Qt.black)
@@ -209,24 +212,25 @@ class bImage(QImage):
         """
         Plots the image histogram with the specified color mode and channels.
         Channel curves are scaled individually to fit the height of the plot.
-        @param size: size of the histogram plot
-        @type size: int or QSize
-        @param bgColor: background color
-        @type bgColor: QColor
-        @param range: plotted data range
-        @type range: 2-uple of int or float
-        @param chans: channels to plot B=0, G=1, R=2
-        @type chans: list of indices
-        @param chanColors: color or 3-uple of colors
-        @type chanColors: QColor or 3-uple of QColor
-        @param mode: color mode ((one among 'RGB', 'HSpB', 'Lab', 'Luminosity')
-        @type mode: str
-        @param addMode:
-        @type addMode:
-        @param clipping_threshold: alert threshold for clipped areas
-        @type clipping_threshold: float
-        @return: histogram plot
-        @rtype: QImage
+
+        :param size: size of the histogram plot
+        :type  size: int or QSize
+        :param bgColor: background color
+        :type  bgColor: QColor
+        :param range: plotted data range
+        :type  range: 2-uple of int or float
+        :param chans: channels to plot B=0, G=1, R=2
+        :type  chans: list of indices
+        :param chanColors: color or 3-uple of colors
+        :type  chanColors: QColor or 3-uple of QColor
+        :param mode: color mode ((one among 'RGB', 'HSpB', 'Lab', 'Luminosity')
+        :type  mode: str
+        :param addMode:
+        :type  addMode:
+        :param clipping_threshold: alert threshold for clipped areas
+        :type  clipping_threshold: float
+        :return:histogram plot
+        :rtype: QImage
         """
         binCount = 85  # 255 = 85 * 3
         if type(size) is int:
@@ -353,12 +357,13 @@ def ndarrayToQImage(ndimg, format=QImage.Format_ARGB32):
     Converts a 3D numpy ndarray to a QImage. No sanity check is
     done regarding the compatibility of the ndarray shape with
     the QImage format.
-    @param ndimg: The ndarray to convert, ndimg.data order must be BGRA (little-endian arch.) or ARGB (big-endian)
-    @type ndimg: ndarray, dtype np.uint8
-    @param format: The QImage format (default ARGB32)
-    @type format:
-    @return: The converted image
-    @rtype: QImage
+
+    :param ndimg: The ndarray to convert, ndimg.data order must be BGRA (little-endian arch.) or ARGB (big-endian)
+    :type  ndimg: ndarray, dtype np.uint8
+    :param format: The QImage format (default ARGB32)
+    :type  format:
+    :return: The converted image
+    :rtype: QImage
     """
     if ndimg.ndim != 3 or ndimg.dtype != 'uint8':
         raise ValueError(
@@ -382,10 +387,11 @@ def QImageBuffer(qimg):
     Channels are always returned in BGRA order, regardless of architecture.
     Format 1 bit per pixel is not supported.
     Performance : 20 ms for a 15 Mpx image.
-    @param qimg:
-    @type qimg: QImage
-    @return: The buffer array
-    @rtype: numpy ndarray, shape = (h,w, bytes_per_pixel), dtype=uint8
+
+    :param qimg:
+    :type  qimg: QImage
+    :return: The buffer array
+    :rtype: numpy ndarray, shape = (h,w, bytes_per_pixel), dtype=uint8
     """
     # pixel depth
     bpp = qimg.depth()

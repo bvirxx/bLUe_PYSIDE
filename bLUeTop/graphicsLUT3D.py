@@ -88,15 +88,16 @@ class nodeGroup(QGraphicsItemGroup, QObject):  # QObject needed by disconnect()
     def groupFromList(cls, items, grid=None, position=QPointF(), parent=None):
         """
         Inits a new group and adds all activeNode objects from list to the group.
-        @param items: list of nodes
-        @type items: list
-        @param grid: 
-        @type grid: activeGrid
-        @param position: group position
-        @type position: QPointF
-        @param parent: 
-        @return: group
-        @rtype: nodeGroup
+
+        :param items: list of nodes
+        :type items: list
+        :param grid:
+        :type grid: activeGrid
+        :param position: group position
+        :type position: QPointF
+        :param parent:
+        :return: group
+        :rtype: nodeGroup
         """
         if not items:
             return
@@ -385,18 +386,19 @@ class activeNode(QGraphicsPathItem):
         initial position on the color wheel.
         The attribute LUTIndices holds the list of LUT vertices
         matching h and s.
-        @param position: node position (relative to parent item)
-        @type position: QPointF
-        @param cModel: color model converter
-        @type cModel: cmConverter
-        @param gridRow:
-        @type gridRow:
-        @param gridCol:
-        @type gridCol:
-        @param parent: parent item
-        @type parent:
-        @param grid: owner grid
-        @type grid:
+
+        :param position: node position (relative to parent item)
+        :type position: QPointF
+        :param cModel: color model converter
+        :type cModel: cmConverter
+        :param gridRow:
+        :type gridRow:
+        :param gridCol:
+        :type gridCol:
+        :param parent: parent item
+        :type parent:
+        :param grid: owner grid
+        :type grid:
         """
         super().__init__()
         # add node to the scene
@@ -466,10 +468,11 @@ class activeNode(QGraphicsPathItem):
     def mapGrid2Parent(self, point):
         """
         Maps grid coordinates to node parent coordinates.
-        @param point:
-        @type point: QPointF
-        @return:
-        @rtype: QPointF
+
+        :param point:
+        :type point: QPointF
+        :return:
+        :rtype: QPointF
         """
         p = self.parentItem()
         if p is self.grid:
@@ -479,9 +482,10 @@ class activeNode(QGraphicsPathItem):
 
     def hasMoved(self):
         """
-        Test for initial position, no matter if node belongs to a group
-        @return:
-        @rtype: boolean
+        Test for initial position, no matter if node belongs to a group.
+
+        :return:
+        :rtype: boolean
         """
         return self.pos() != self.mapGrid2Parent(self.initialPosition)
 
@@ -493,8 +497,9 @@ class activeNode(QGraphicsPathItem):
         Note that isVisible() always returns the actual visibility which
         may differ from the recorded one. This is useful to toggle all nodes visibility
         on/off at once. Use isVisibleState() to get the recorded state.
-        @param b:
-        @type b: boolean
+
+        :param b:
+        :type b: boolean
         """
         super().setVisible(b)
         self.visible = b  # remember
@@ -583,8 +588,9 @@ class activeNode(QGraphicsPathItem):
         In contrast with self.pos(), it works for
         individual nodes and grouped nodes.
         The current grid transformation is applied.
-        @return: position
-        @rtype: QpointF
+
+        :return: position
+        :rtype: QpointF
         """
         trans = self.grid.transform()
         if type(self.parentItem()) is not nodeGroup:
@@ -605,17 +611,19 @@ class activeNode(QGraphicsPathItem):
         In contrast with self.pos(), it works for
         individual nodes and grouped nodes.
         The grid transformation is NOT applied.
-        @return: position relative to grid axes.
-        @rtype: QPointF
+
+        :return: position relative to grid axes.
+        :rtype: QPointF
         """
         t = type(self.parentItem())
         return self.pos() + self.parentItem().pos() if t is nodeGroup else self.pos()
 
     def top(self):
         """
-        Return the north neighbor
-        @return:
-        @rtype:
+        Return the north neighbor.
+
+        :return:
+        :rtype:
         """
         if self.gridRow > 0:
             return self.grid.gridNodes[self.gridRow - 1][self.gridCol]
@@ -623,9 +631,10 @@ class activeNode(QGraphicsPathItem):
 
     def left(self):
         """
-        Return the east neighbor
-        @return:
-        @rtype:
+        Return the east neighbor.
+
+        :return:
+        :rtype:
         """
         if self.gridCol > 0:
             return self.grid.gridNodes[self.gridRow][self.gridCol - 1]
@@ -633,9 +642,10 @@ class activeNode(QGraphicsPathItem):
 
     def neighbors(self):
         """
-        Returns the list of grid neighbors (self excluded)
-        @return: neighbors
-        @rtype: list of activeNode objects
+        Returns the list of grid neighbors (self excluded).
+
+        :return: neighbors
+        :rtype: list of activeNode objects
         """
         nghb = []
         if self.gridRow > 0:
@@ -660,9 +670,10 @@ class activeNode(QGraphicsPathItem):
         """
         Returns the laplacian (mean) of the positions
         of the neighbor nodes.
-        Coordinates are relative to the grid
-        @return:
-        @rtype: QPointF
+        Coordinates are relative to the grid.
+
+        :return:
+        :rtype: QPointF
         """
         laplacian = QPointF(0.0, 0.0)
         count = 0
@@ -804,12 +815,12 @@ class activeGrid(QGraphicsPathItem):
     def __init__(self, size, cModel, parent=None):
         """
 
-        @param size: grid size
-        @type size: int
-        @param cModel: color model converter
-        @type cModel: cmConverter
-        @param parent:
-        @type parent:
+       :param size: grid size
+       :type size: int
+       :param cModel: color model converter
+       :type cModel: cmConverter
+       :param parent:
+       :type parent:
         """
         super().__init__()
         self.setParentItem(parent)
@@ -861,8 +872,9 @@ class activeGrid(QGraphicsPathItem):
         Update history of node moves over the grid:
         parameter node is added or moved to the end of history list.
         An unmoved node is removed from history.
-        @param n:
-        @type n:  activeNode
+
+        :param n:
+        :type n:  activeNode
         """
         try:
             self.historyListMove.remove(node)
@@ -884,13 +896,14 @@ class activeGrid(QGraphicsPathItem):
 
     def getNodeAt(self, row, col):
         """
-        Disambiguation of row/col
-        @param row: grid row
-        @type row: int
-        @param col: grid col
-        @type col: int
-        @return: grid node
-        @rtype: activeNode
+        Disambiguation of row/col.
+
+        :param row: grid row
+        :type row: int
+        :param col: grid col
+        :type col: int
+        :return: grid node
+        :rtype: activeNode
         """
         return self.gridNodes[col][row]
 
@@ -1008,16 +1021,16 @@ class colorChooser(QGraphicsPixmapItem):
 
     def __init__(self, cModel, QImg, target=None, size=0, border=0):
         """
-        @param cModel: color model
-        @type cModel: cmConverter
-        @param QImg: color wheel
-        @type QImg: bImage
-        @param target: image to sample
-        @type target: QImage
-        @param size: color wheel diameter
-        @type size: integer
-        @param border: border size
-        @type border: int
+       :param cModel: color model
+       :type cModel: cmConverter
+       :param QImg: color wheel
+       :type QImg: bImage
+       :param target: image to sample
+       :type target: QImage
+       :param size: color wheel diameter
+       :type size: integer
+       :param border: border size
+       :type border: int
         """
         self.QImg = QImg  # not a back link !!!
         self.border = border
@@ -1083,8 +1096,9 @@ class colorChooser(QGraphicsPixmapItem):
         """
         Paints the histogram on a copy of pxmap
         and displays the copy.
-        @param pxmap:
-        @type pxmap: QPixmap
+
+        :param pxmap:
+        :type pxmap: QPixmap
         """
         if self.targetHist is not None and self.showTargetHist:
             pxmap1 = QPixmap(pxmap)
@@ -1154,22 +1168,23 @@ class graphicsForm3DLUT(baseGraphicsForm):
         """
         build a graphicsForm3DLUT object. The parameter size represents the size of
         the color wheel, border not included (the size of the window is adjusted).
-        @param cModel: color Model converter
-        @type cModel: cmConverter
-        @param targetImage
-        @type targetImage:
-        @param axeSize: size of the color wheel (default 500)
-        @type axeSize:
-        @param LUTSize: size of the LUT
-        @type LUTSize:
-        @param layer: layer of targetImage linked to graphics form
-        @type layer:
-        @param parent: parent widget
-        @type parent:
-        @param mainForm:
-        @type mainForm:
-        @return: graphicsForm3DLUT object
-        @rtype:
+
+        :param cModel: color Model converter
+        :type cModel: cmConverter
+        :param targetImage
+        :type targetImage:
+        :param axeSize: size of the color wheel (default 500)
+        :type axeSize:
+        :param LUTSize: size of the LUT
+        :type LUTSize:
+        :param layer: layer of targetImage linked to graphics form
+        :type layer:
+        :param parent: parent widget
+        :type parent:
+        :param mainForm:
+        :type mainForm:
+        :return: graphicsForm3DLUT object
+        :rtype:
         """
         try:
             QApplication.setOverrideCursor(Qt.WaitCursor)
@@ -1184,18 +1199,18 @@ class graphicsForm3DLUT(baseGraphicsForm):
 
     def __init__(self, cModel, targetImage=None, axeSize=500, LUTSize=LUTSIZE, layer=None, parent=None, mainForm=None):
         """
-        @param cModel: color space used by colorPicker, slider2D and colorPicker
-        @type cModel: cmConverter object
-        @param axeSize: size of the color wheel
-        @type axeSize: int
-        @param targetImage:
-        @type targetImage: imImage
-        @param LUTSize:
-        @type LUTSize: int
-        @param layer: layer of targetImage linked to graphics form
-        @type layer : QLayer
-        @param parent:
-        @type parent:
+       :param cModel: color space used by colorPicker, slider2D and colorPicker
+       :type cModel: cmConverter object
+       :param axeSize: size of the color wheel
+       :type axeSize: int
+       :param targetImage:
+       :type targetImage: imImage
+       :param LUTSize:
+       :type LUTSize: int
+       :param layer: layer of targetImage linked to graphics form
+       :type layer : QLayer
+       :param parent:
+       :type parent:
         """
         super().__init__(targetImage=targetImage, layer=layer, parent=parent)
         self.mainForm = mainForm  # used by saveLUT()
@@ -1454,11 +1469,12 @@ class graphicsForm3DLUT(baseGraphicsForm):
         According to current options, selected nodes can be shown or
         hidden or reset. The function returns True if nodes are
         moved and False otherwise.
-        @param r: color
-        @param g: color
-        @param b: color
-        @return:
-        @rtype: boolean
+
+        :param r: color
+        :param g: color
+        :param b: color
+        :return:
+        :rtype: boolean
         """
         movedNodes = False
         h, s, p = self.cModel.rgb2cm(r, g, b)

@@ -122,9 +122,6 @@ from os import path, walk, remove
 from os.path import isfile
 from tempfile import mktemp
 
-from bLUeGui.graphicsForm import baseGraphicsForm
-from bLUeTop import resources_rc  # mandatory
-
 import numpy as np
 import multiprocessing
 import sys
@@ -138,19 +135,25 @@ from types import MethodType
 import pickle
 import rawpy
 
-from bLUeCore.bLUeLUT3D import HaldArray
-from bLUeTop.drawing import initBrushes, loadPresets
-from bLUeTop.graphicsDraw import drawForm
-from bLUeTop.graphicsHDRMerge import HDRMergeForm
-from bLUeTop.graphicsSegment import segmentForm
 from PySide2.QtCore import QUrl, QFileInfo
 from PySide2.QtGui import QPixmap, QCursor, QKeySequence, QDesktopServices, QFont, \
     QTransform, QColor, QImage, QIcon
 from PySide2.QtWidgets import QApplication, \
     QDockWidget, QSizePolicy, QSplashScreen, QWidget, \
     QTabWidget, QToolBar, QComboBox, QTabBar, QAction
-from bLUeTop.QtGui1 import app, window, splitWin
+
+import bLUeTop.QtGui1
+
+from bLUeGui.dialog import *
+from bLUeGui.colorPatterns import cmHSP, cmHSB
+from bLUeGui.graphicsForm import baseGraphicsForm
+from bLUeGui.tool import cropTool, rotatingTool
+from bLUeCore.bLUeLUT3D import HaldArray
 from bLUeTop import exiftool
+from bLUeTop.drawing import initBrushes, loadPresets
+from bLUeTop.graphicsDraw import drawForm
+from bLUeTop.graphicsHDRMerge import HDRMergeForm
+from bLUeTop.graphicsSegment import segmentForm
 from bLUeTop.graphicsBlendFilter import blendFilterForm
 from bLUeTop.graphicsHVLUT2D import HVLUT2DForm
 from bLUeTop.graphicsInvert import invertForm
@@ -167,20 +170,16 @@ from bLUeTop.graphicsRGBLUT import graphicsForm
 from bLUeTop.graphicsLUT3D import graphicsForm3DLUT
 from bLUeTop.graphicsAutoLUT3D import graphicsFormAuto3DLUT
 from bLUeTop.lutUtils import LUTSIZE, LUT3D, LUT3DIdentity
-from bLUeGui.colorPatterns import cmHSP, cmHSB
 from bLUeTop.colorManagement import icc
 from bLUeTop.graphicsCoBrSat import CoBrSatForm
 from bLUeTop.graphicsExp import ExpForm
 from bLUeTop.graphicsPatch import patchForm
 from bLUeTop.settings import USE_POOL, POOL_SIZE, THEME, TABBING, BRUSHES_PATH, COLOR_MANAGE_OPT, HAS_TORCH
 from bLUeTop.utils import UDict, stateAwareQDockWidget, QImageFromFile, imagej_description_metadata, compat
-from bLUeGui.tool import cropTool, rotatingTool
 from bLUeTop.graphicsTemp import temperatureForm
 from bLUeTop.graphicsFilter import filterForm
 from bLUeTop.graphicsHspbLUT import graphicsHspbForm
 from bLUeTop.graphicsLabLUT import graphicsLabForm
-
-from bLUeGui.dialog import *
 from bLUeTop.viewer import playDiaporama, viewer
 
 from version import BLUE_VERSION
@@ -224,14 +223,14 @@ pool = None
 ################################
 
 
-def widgetChange(button, window=window):
+def widgetChange(button, window=bLUeTop.Gui.window):
     """
     called by all main form button and slider slots (cf. QtGui1.py onWidgetChange)
 
-    @param button:
-    @type button: QWidget
-    @param window:
-    @type window: QWidget
+    :param button:
+    :type  button: QWidget
+    :param window:
+    :type  window: QWidget
     """
     # wdgName = button.objectName()
     if button is window.fitButton:  # wdgName == "fitButton" :
@@ -268,10 +267,11 @@ def addAdjustmentLayers(layers, images):
     """
     Adds a list of layers to the current document and restore their states.
     Entries not corresponding to menu layers actions are skipped.
-    @param layers:
-    @type layers: list of (key, dict)
-    @param images
-    @type images ndarray
+
+    :param layers:
+    :type  layers: list of (key, dict)
+    :param images
+    :type  images ndarray
     """
     if layers is None:
         return
@@ -316,7 +316,7 @@ def addAdjustmentLayers(layers, images):
         count += n
 
 
-def addBasicAdjustmentLayers(img, window=window):
+def addBasicAdjustmentLayers(img, window=bLUeTop.Gui.window):
     if img.rawImage is None:
         pass
         # menuLayer('actionColor_Temperature')
@@ -326,7 +326,7 @@ def addBasicAdjustmentLayers(img, window=window):
     window.tableView.select(0, 1)
 
 
-def addRawAdjustmentLayer(window=window):
+def addRawAdjustmentLayer(window=bLUeTop.Gui.window):
     """
     Add a development layer to the layer stack
     """
@@ -353,20 +353,21 @@ def addRawAdjustmentLayer(window=window):
     return rlayer
 
 
-def loadImage(img, tfile=None, version='unknown', withBasic=True, window=window):
+def loadImage(img, tfile=None, version='unknown', withBasic=True, window=bLUeTop.Gui.window):
     """
     load a vImage into bLUe and build layer stack.
     if tfile is an opened TiffFile instance, import layer stack from file
-    @param img:
-    @type img: vImage
-    @param tfile
-    @type tfile: TiffFile instance
-    @param version: version of bLU file writer
-    @type version: str
-    @param withBasic:
-    @type withBasic: boolean
-    @param window:
-    @type window: QWidget
+
+    :param img:
+    :type  img: vImage
+    :param tfile:
+    :type  tfile: TiffFile instance
+    :param version: version of bLU file writer
+    :type  version: str
+    :param withBasic:
+    :type  withBasic: boolean
+    :param window:
+    :type  window: QWidget
     """
 
     tabBar = window.tabBar
@@ -443,13 +444,14 @@ def loadImage(img, tfile=None, version='unknown', withBasic=True, window=window)
     img.onImageChanged()
 
 
-def openFile(f, window=window):
+def openFile(f, window=bLUeTop.Gui.window):
     """
     Top level function for file opening, used by File Menu actions
-    @param f: file name
-    @type f: str
-    @param window:
-    @type window: QWidget
+
+    :param f: file name
+    :type  f: str
+    :param window:
+    :type  window: QWidget
     """
     iobuf = None
     sourceformat = path.basename(f)[-4:].upper()
@@ -517,16 +519,17 @@ def openFile(f, window=window):
 def saveFile(filename, img, quality=-1, compression=-1, writeMeta=True):
     """
     Save image and meta data to file
-    @param filename:
-    @type filename:
-    @param img:
-    @type img:
-    @param quality:
-    @type quality:
-    @param compression:
-    @type compression:
-    @param writeMeta:
-    @type writeMeta:
+
+    :param filename:
+    :type  filename:
+    :param img:
+    :type  img:
+    :param quality:
+    :type  quality:
+    :param compression:
+    :type  compression:
+    :param writeMeta:
+    :type  writeMeta:
     """
     if isfile(filename):
         reply = QMessageBox()
@@ -580,7 +583,7 @@ def saveFile(filename, img, quality=-1, compression=-1, writeMeta=True):
     return filename
 
 
-def closeTabs(index=None, window=window):
+def closeTabs(index=None, window=bLUeTop.Gui.window):
     """
     Tries to save and close the opened document in tab index, or all opened documents if index is None .
     If it succeeds to close all opened documents, the method resets the GUI to default.
@@ -605,7 +608,7 @@ def closeTabs(index=None, window=window):
     window.label_3.update()
 
 
-def showHistogram(window=window):
+def showHistogram(window=bLUeTop.Gui.window):
     """
     Update and display the histogram of the
     currently opened document
@@ -632,11 +635,12 @@ def showHistogram(window=window):
     window.histView.Label_Hist.drawingScale = histView.drawingScale
 
 
-def restoreBrush(layer):
+def restoreBrush(layer, window=bLUeTop.Gui.window):
     """
     Sync brush tools with brushDict
-    @param d:
-    @type d: dict
+
+    :param layer:
+    :type  layer:
     """
     d = layer.brushDict
     if d is None:
@@ -658,13 +662,14 @@ def restoreBrush(layer):
     window.label.State['brush'] = d.copy()
 
 
-def setDocumentImage(img, window=window):
+def setDocumentImage(img, window=bLUeTop.Gui.window):
     """
     Inits GUI and displays the current document
-    @param img: image
-    @type img: imImage
-    @param window:
-    @type window: QWidget
+
+    :param img: image
+    :type  img: imImage
+    :param window:
+    :type  window: QWidget
     """
     if img is None:
         return
@@ -753,7 +758,7 @@ def setDocumentImage(img, window=window):
     gc.collect()  # tested : (very) efficient here
 
 
-def updateMenuOpenRecent(window=window):
+def updateMenuOpenRecent(window=bLUeTop.Gui.window):
     """
     Update the list of recent files displayed
     in the QMenu menuOpen_recent, and init
@@ -770,7 +775,7 @@ def updateMenuOpenRecent(window=window):
         window.menuOpen_recent.addAction(filename, lambda x=filename: openFile(x))
 
 
-def updateMenuLoadPreset():
+def updateMenuLoadPreset(window=bLUeTop.Gui.window):
     """
     Menu aboutToShow handler
     """
@@ -805,7 +810,7 @@ def updateMenuLoadPreset():
                 window.menuLoad_Preset.addAction(entry.name, lambda x=filename: f(x))
 
 
-def updateEnabledActions(window=window):
+def updateEnabledActions(window=bLUeTop.Gui.window):
     """
     Menu aboutToShow handler
     """
@@ -817,13 +822,14 @@ def updateEnabledActions(window=window):
     window.actionAuto_3D_LUT.setEnabled(HAS_TORCH)
 
 
-def menuFile(name, window=window):
+def menuFile(name, window=bLUeTop.Gui.window):
     """
     Menu handler
-    @param name: action name
-    @type name: str
-    @param window:
-    @type window: QWidget
+
+    :param name: action name
+    :type  name: str
+    :param window:
+    :type  window: QWidget
     """
     # new document
     if name == 'actionNew_2':
@@ -894,20 +900,21 @@ def menuFile(name, window=window):
     updateStatus()
 
 
-def menuView(name, window=window):
+def menuView(name, window=bLUeTop.Gui.window):
     """
     Menu handler
-    @param name: action name
-    @type name: str
-    @param window:
-    @type window: QWidget
+
+    :param name: action name
+    :type  name: str
+    :param window:
+    :type  window: QWidget
     """
     ##################
     # before/after mode
     ##################
     if name == 'actionShow_hide_right_window_3':
         if window.splitter.isHidden():
-            splitWin.setSplitView()
+            bLUeTop.Gui.splitWin.setSplitView()
             window.viewState = 'Before/After'
         else:
             window.splitter.hide()
@@ -978,13 +985,14 @@ def menuView(name, window=window):
     updateStatus()
 
 
-def menuImage(name, window=window):
+def menuImage(name, window=bLUeTop.Gui.window):
     """
     Menu handler
-    @param name: action name
-    @type name: str
-    @param window:
-    @type window: QWidget
+
+    :param name: action name
+    :type  name: str
+    :param window:
+    :type  window: QWidget
     """
     img = window.label.img
     # display image info
@@ -1137,19 +1145,20 @@ def getPool():
     return pool
 
 
-def menuLayer(name, window=window, sname=None, script=False):
+def menuLayer(name, window=bLUeTop.Gui.window, sname=None, script=False):
     """
     Menu Layer handler and scripting.
     Creates a layer and its associated graphic form.
     Returns the newly created layer or None.
-    @param name: action name
-    @type name: str
-    @param sname: layer name from script
-    @type sname: str
-    @param script:
-    @type script: boolean
-    @return: layer
-    @rtype: QLayer
+
+    :param name: action name
+    :type  name: str
+    :param sname: layer name from script
+    :type  sname: str
+    :param script:
+    :type  script: boolean
+    :return: layer
+    :rtype: QLayer
     """
 
     # adhoc kw dict for getNewWindow calls
@@ -1510,20 +1519,21 @@ def menuLayer(name, window=window, sname=None, script=False):
     return layer  # added 3/11/21 used by __setstate__ refactoring needed
 
 
-def menuHelp(name, window=window):
+def menuHelp(name, window=bLUeTop.Gui.window):
     """
     Menu handler
     Init help browser
     A single instance is created.
     Unused parameters are for the sake of symmetry
     with other menu function calls.
-    @param name: action name
-    @type name: str
-    @param window:
-    @type window: QWidget
+
+    :param name: action name
+    :type  name: str
+    :param window:
+    :type  window: QWidget
     """
     if name == "actionBlue_help":
-        w = app.focusWidget()
+        w = bLUeTop.Gui.app.focusWidget()
         link = QFileInfo('help.html').absoluteFilePath()
         # init url
         url = QUrl(link)
@@ -1544,18 +1554,19 @@ def menuHelp(name, window=window):
         w.show()
 
 
-def canClose(index=None, window=window):
+def canClose(index=None, window=bLUeTop.Gui.window):
     """
     If index is None, tries to save and close all opened documents, otherwise only
     the document in index tab is considered.
     Returns True if all requested tabs could be closed, False otherwise.
     Called by the application closeEvent slot, by closeTabs() and by closeTab().
-    @param index: a valid tab index or None
-    @type index: int or None
-    @param window:
-    @type window:
-    @return:
-    @rtype: boolean
+
+    :param index: a valid tab index or None
+    :type  index: int or None
+    :param window:
+    :type  window:
+    :return:
+    :rtype: boolean
     """
     if window.tabBar.count() == 0:
         return True
@@ -1607,7 +1618,7 @@ def canClose(index=None, window=window):
     return window.tabBar.count() == 0
 
 
-def updateStatus(window=window):
+def updateStatus(window=bLUeTop.Gui.window):
     """
     Display current status
     """
@@ -1642,7 +1653,7 @@ def updateStatus(window=window):
     window.Label_status.setText(s)
 
 
-def initCursors(window=window):
+def initCursors(window=bLUeTop.Gui.window):
     """
     Init app cursors
     """
@@ -1669,14 +1680,15 @@ def initDefaultImage():
     return imImage(QImg=img, meta=metadataBag(name='noName'))
 
 
-def screenUpdate(newScreenIndex, window=window):
+def screenUpdate(newScreenIndex, window=bLUeTop.Gui.window):
     """
     screenChanged event handler.
     The image is updated in background
-    @param newScreenIndex:
-    @type newScreenIndex: QScreen
-    @param window:
-    @type window: QWidget
+
+    :param newScreenIndex:
+    :type  newScreenIndex: QScreen
+    :param window:
+    :type  window: QWidget
     """
     window.screenChanged.disconnect()
     # update the color management object using the profile associated with the current monitor
@@ -1700,7 +1712,7 @@ class HistQDockWidget(QDockWidget):
     pass
 
 
-def setRightPane(window=window):
+def setRightPane(window=bLUeTop.Gui.window):
     """
     Convenient modifications of the right pane
     loaded from blue.ui
@@ -1764,7 +1776,7 @@ def setRightPane(window=window):
     window.tabifyDockWidget(histViewDock, window.infoView)
 
 
-def setColorManagement(window=window):
+def setColorManagement(window=bLUeTop.Gui.window):
     """
     color management configuration
     must be done after showing window
@@ -1786,12 +1798,13 @@ def dragEnterEvent(widget, img, event):
     """
     Accept drop if mimeData contains text (e.g. file name)
     (convenient for main window only)
-    @param widget:
-    @type widget:
-    @param img:
-    @type img:
-    @param event:
-    @type event:
+
+    :param widget:
+    :type  widget:
+    :param img:
+    :type  img:
+    :param event:
+    :type  event:
     """
     if event.mimeData().hasFormat("text/plain"):
         event.acceptProposedAction()
@@ -1800,23 +1813,25 @@ def dragEnterEvent(widget, img, event):
 def dropEvent(widget, img, event):
     """
     get file name from event.mimeData and open it.
-    @param widget:
-    @type widget:
-    @param img:
-    @type img:
-    @param event:
-    @type event:
+
+    :param widget:
+    :type  widget:
+    :param img:
+    :type  img:
+    :param event:
+    :type  event:
 
     """
     mimeData = event.mimeData()
     openFile(mimeData.text())
 
 
-def setupGUI(window=window):
+def setupGUI(window=bLUeTop.Gui.window):
     """
     Display splash screen, set app style sheet
-    @param window:
-    @type window:
+
+    :param window:
+    :type  window:
     """
     # splash screen
     splash = QSplashScreen(QPixmap('logo.png'), Qt.WindowStaysOnTopHint)
@@ -1825,11 +1840,11 @@ def setupGUI(window=window):
     splash.setFont(font)
     splash.show()
     splash.showMessage("Loading .", color=Qt.white, alignment=Qt.AlignCenter)
-    app.processEvents()
+    bLUeTop.Gui.app.processEvents()
     sleep(1)
     splash.showMessage(BLUE_VERSION + "\n" + attributions + "\n" + "http://bernard.virot.free.fr", color=Qt.white,
                        alignment=Qt.AlignCenter)
-    app.processEvents()
+    bLUeTop.Gui.app.processEvents()
     sleep(1)
     splash.finish(window)
 
@@ -1844,11 +1859,11 @@ def setupGUI(window=window):
 
     # app style sheet
     if THEME == "light":
-        app.setStyleSheet("""QMainWindow, QGraphicsView, QListWidget, QMenu, QTableView {background-color: rgb(200, 200, 200)}\
+        bLUeTop.Gui.app.setStyleSheet("""QMainWindow, QGraphicsView, QListWidget, QMenu, QTableView {background-color: rgb(200, 200, 200)}\
                                QWidget, QTableView, QTableView * {font-size: 9pt} QPushButton {font-size: 6pt}"""
-                          )
+                                      )
     else:
-        app.setStyleSheet("""QMainWindow, QMainWindow *, QGraphicsView, QListWidget, QMenu,
+        bLUeTop.Gui.app.setStyleSheet("""QMainWindow, QMainWindow *, QGraphicsView, QListWidget, QMenu,
                                             QTableView, QLabel, QGroupBox {background-color: rgb(40,40,40); 
                                                                            color: rgb(220,220,220)}
                                QGroupBox {margin-top: 7px; border: 1px solid gray; border-radius: 4px;}               
@@ -1921,8 +1936,8 @@ def setupGUI(window=window):
                                QToolTip {border: 0px;
                                         background-color: lightyellow;
                                         color: black}"""
-                          # border must be set, otherwise background-color has no effect : Qt bug?
-                          )
+                                      # border must be set, otherwise background-color has no effect : Qt bug?
+                                      )
 
     # status bar
     window.Label_status = QLabel()
@@ -2072,11 +2087,11 @@ def setupGUI(window=window):
 
     # init imageLabel objects
     window.label.window = window
-    window.label.splitWin = splitWin
+    window.label.splitWin = bLUeTop.Gui.splitWin
     window.label_2.window = window
-    window.label_2.splitWin = splitWin
+    window.label_2.splitWin = bLUeTop.Gui.splitWin
     window.label_3.window = window
-    window.label_3.splitWin = splitWin
+    window.label_3.splitWin = bLUeTop.Gui.splitWin
     window.label.enterAndLeave = True
     window.label_2.enterAndLeave = False
     window.label_3.enterAndleave = False
@@ -2101,7 +2116,7 @@ def setupGUI(window=window):
 
     # init Before/after view and cycling action
     window.splitter.setOrientation(Qt.Horizontal)
-    window.splitter.currentState = next(splitWin.splitViews)
+    window.splitter.currentState = next(bLUeTop.Gui.splitWin.splitViews)
     window.splitter.setSizes([2 ** 20, 2 ** 20])
     window.splitter.setHandleWidth(1)
     window.splitter.hide()
@@ -2115,7 +2130,7 @@ def setupGUI(window=window):
 
     def f():
         window.viewState = 'Before/After'
-        splitWin.nextSplitView()
+        bLUeTop.Gui.splitWin.nextSplitView()
         updateStatus()
 
     actionCycle.triggered.connect(f)
@@ -2157,11 +2172,12 @@ def setupGUI(window=window):
     )  # end of setWhatsThis
 
 
-def switchDoc(index):
+def switchDoc(index, window=bLUeTop.Gui.window):
     """
     tabBarClicked slot : make visble the document in tab index
-    @param index: tab index
-    @type index: int
+
+    :param index: tab index
+    :type  index: int
     """
     # clean up
     layer = window.label.img.getActiveLayer()
@@ -2171,19 +2187,18 @@ def switchDoc(index):
     setDocumentImage(img)
 
 
-def closeTab(index, window=window):
+def closeTab(index):
     """
     tabCloseRequested Slot.
     Tries to save and close a single document.
-    @param index: valid tab index
-    @type index: int
-    @param window:
-    @type window:
+
+    :param index: valid tab index
+    :type  index: int
     """
     closeTabs(index=index)
 
 
-def setTabBar(window=window):
+def setTabBar(window=bLUeTop.Gui.window):
     tabBar = QTabBar()
     tabBar.currentChanged.connect(switchDoc)
     tabBar.tabCloseRequested.connect(closeTab)
@@ -2220,13 +2235,14 @@ if __name__ == '__main__':
     # Otherwise, it does nothing.
     #################
     multiprocessing.freeze_support()
+    # appInit()
     # load UI
-    window.init()
-    window.setWindowIcon(QIcon('logo.png'))
+    bLUeTop.Gui.window.init()
+    bLUeTop.Gui.window.setWindowIcon(QIcon('logo.png'))
     # display splash screen and set app style sheet
-    setupGUI(window)
+    setupGUI()
     setTabBar()
 
     ###############
     # launching app
-    sys.exit(app.exec_())
+    sys.exit(bLUeTop.Gui.app.exec_())

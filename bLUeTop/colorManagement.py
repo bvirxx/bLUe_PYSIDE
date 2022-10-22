@@ -24,7 +24,7 @@ from PIL.ImageCms import getOpenProfile, getProfileInfo, \
     INTENT_ABSOLUTE_COLORIMETRIC, INTENT_RELATIVE_COLORIMETRIC, \
     FLAGS, ImageCmsProfile, PyCMSError, core
 from PySide2.QtGui import QImage
-
+import bLUeTop.Gui
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.dialog import dlgWarn
 
@@ -54,9 +54,10 @@ if COLOR_MANAGE_OPT:
 
 def get_default_working_profile():
     """
-    try to find a default image profile
-    @return: profile
-    @rtype: ImageCmsProfile
+    try to find a default image profile.
+
+    :return: profile
+    :rtype: ImageCmsProfile
     """
     try:
         profile = getOpenProfile(SRGB_PROFILE_PATH)
@@ -69,9 +70,10 @@ def get_default_working_profile():
 
 def get_default_monitor_profile():
     """
-    try to find a default image profile
-    @return: profile or None
-    @rtype: ImageCmsProfile or None
+    try to find a default image profile.
+
+    :return: profile or None
+    :rtype: ImageCmsProfile or None
     """
     profile = None
     try:
@@ -101,12 +103,13 @@ class icc:
     def B_get_display_profile(handle=None, device_id=None):
         """
         bLUe version of ImageCms get_display_profile.
-        @param handle: screen handle (Windows)
-        @type handle: int
-        @param device_id: name of display
-        @type device_id: str
-        @return: monitor profile or None
-        @rtype: ImageCmsProfile or None
+
+        :param handle: screen handle (Windows)
+        :type handle: int
+        :param device_id: name of display
+        :type device_id: str
+        :return: monitor profile or None
+        :rtype: ImageCmsProfile or None
         """
         profile_path = DEFAULT_MONITOR_PROFILE_PATH
         if sys.platform == "win32":
@@ -123,8 +126,8 @@ class icc:
                 default_profile.connect_sync(GIO_CANCELLABLE)
                 profile_path = default_profile.get_filename()
             except (NameError, ImportError, GLib.GError) as e:
-                from bLUeTop.QtGui1 import window
-                dlgWarn('Cannot detect monitor profile', info=str(e), parent=window)
+                # from bLUeTop.QtGui1 import window
+                dlgWarn('Cannot detect monitor profile', info=str(e), parent=bLUeTop.Gui.window)
         try:
             Cms_profile = getOpenProfile(profile_path)
         except PyCMSError:
@@ -138,10 +141,11 @@ class icc:
         associated to the monitor specified by QScreen
         (the system main display if qscreen is None).
         The method returns None if no profile can be found.
-        @param qscreen: QScreen instance
-        @type qscreen: QScreen
-        @return: monitor profile or None
-        @rtype: CmsProfile or None
+
+        :param qscreen: QScreen instance
+        :type qscreen: QScreen
+        :return: monitor profile or None
+        :rtype: CmsProfile or None
         """
         monitorProfile = None
         # detecting profile
@@ -163,15 +167,16 @@ class icc:
         specified by QScreen, and build an image transformation
         from the working profile (default sRGB) to the monitor profile.
         if softproofingwp is provided, toggle soft proofing mode off (if it is None) and
-        on (if it is a valid ImageCmsProfile)
-        @param qscreen: QScreen instance
-        @type qscreen: QScreep
-        @param colorSpace:
-        @type colorSpace
-        @param workingProfile:
-        @type workingProfile: ImageCmsProfile
-        @param softproofingwp: profile for the device to simulate
-        @type softproofingwp:
+        on (if it is a valid ImageCmsProfile).
+
+        :param qscreen: QScreen instance
+        :type qscreen: QScreep
+        :param colorSpace:
+        :type colorSpace
+        :param workingProfile:
+        :type workingProfile: ImageCmsProfile
+        :param softproofingwp: profile for the device to simulate
+        :type softproofingwp:
         """
         cls.HAS_COLOR_MANAGE = False
 
@@ -239,12 +244,13 @@ def cmsConvertQImage(image, cmsTransformation=None):
     Apply a Cms transformation to a copy of a QImage and
     return the transformed image.
     If cmsTransformation is None, the input image is returned (no copy).
-    @param image: image to transform
-    @type image: QImage
-    @param cmsTransformation : Cms transformation
-    @type cmsTransformation: ImageCmsTransform
-    @return: The converted QImage
-    @rtype: QImage
+
+    :param image: image to transform
+    :type image: QImage
+    :param cmsTransformation : Cms transformation
+    :type cmsTransformation: ImageCmsTransform
+    :return: The converted QImage
+    :rtype: QImage
     """
     if cmsTransformation is None:
         return image
