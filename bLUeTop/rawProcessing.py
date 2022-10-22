@@ -37,10 +37,11 @@ def rawRead(file):
     """
     Loads a raw image file or a buffer into a RawPy instance.
     The image file is closed after reading.
-    @param file:
-    @type file: str or file-like object
-    @return:
-    @rtype: RawPy instance
+
+    :param file:
+    :type file: str or file-like object
+    :return:
+    :rtype: RawPy instance
     """
     rawpyInst = rawpy.RawPy()
     try:
@@ -72,10 +73,11 @@ def rawPostProcess(rawLayer, pool=None):
     profile look table.
     An Exception AttributeError is raised if rawImage
     is not an attribute of rawLayer.parentImage.
-    @param rawLayer: development layer
-    @type rawLayer: Qlayer
-    @param pool: multi processing pool
-    @type pool: multiprocessing.pool
+
+    :param rawLayer: development layer
+    :type rawLayer: Qlayer
+    :param pool: multi processing pool
+    :type pool: multiprocessing.pool
     """
     # postprocess output bits per channel
     output_bpc = 8

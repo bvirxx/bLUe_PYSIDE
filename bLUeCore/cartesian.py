@@ -14,11 +14,13 @@ def cartesianProduct(arrayList, out=None):
     N one dimensional array-like objects as a numpy array
     with shape (a1.shape,...,aN.shape, N). All arrays must have identical
     dtypes, otherwise a ValueError exception is raised.
-    @param arrayList : list or tuple of 1-D array-like objects, with identical dtype
-    @type arrayList: list
-    @param out : used only for recursive calls
-    @return: the cartesian product of the arrays
-    @rtype: ndarray
+
+    :param arrayList : list or tuple of 1-D array-like objects, with identical dtype
+    :type arrayList: list
+    :param out : used only for recursive calls
+    :return: the cartesian product of the arrays
+    :rtype: ndarray
+    :raise ValueError
     """
     arrayList = [np.asarray(x) for x in arrayList]
     n = np.prod([x.size for x in arrayList])

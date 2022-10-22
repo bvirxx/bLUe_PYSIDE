@@ -269,16 +269,17 @@ class CoBrSatForm(baseForm):
         to values returned by warpHistogram(). If withCurve is False
         these parameters are not used and the spline is not set.
         (cf. also rawForm.setContrastSpline)
-        @param a: x_coordinates
-        @type a:
-        @param b: y-coordinates
-        @type b:
-        @param d: tangent slopes
-        @type d:
-        @param T: spline
-        @type T: ndarray dtype=float
-        @param withcurve:
-        @type withcurve: boolean
+
+        :param a: x_coordinates
+        :type a:
+        :param b: y-coordinates
+        :type b:
+        :param d: tangent slopes
+        :type d:
+        :param T: spline
+        :type T: ndarray dtype=float
+        :param withcurve:
+        :type withcurve: boolean
         """
         axeSize = 200
         if self.contrastForm is None:

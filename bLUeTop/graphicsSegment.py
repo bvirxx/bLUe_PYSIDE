@@ -20,7 +20,8 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QHBoxLayout, QPushButton, QVBoxLayout, QLabel
 
 from bLUeTop.versatileImg import vImage
-from bLUeTop.QtGui1 import window
+# from bLUeTop.QtGui1 import window
+import bLUeTop.Gui
 from bLUeGui.graphicsForm import baseForm
 from bLUeTop.utils import optionsWidget, QbLUeSpinBox
 
@@ -49,7 +50,7 @@ class segmentForm(baseForm):
         def f():
             self.layer.noSegment = False
             self.layer.applyToStack()
-            window.label.img.onImageChanged()
+            bLUeTop.Gui.window.label.img.onImageChanged()
             # manual segmentation only
             self.layer.noSegment = True
 

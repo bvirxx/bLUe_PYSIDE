@@ -22,6 +22,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 from itertools import cycle
 from PySide6.QtCore import Qt
 
+import bLUeTop.Gui
 
 class splitWindow:
     """
@@ -35,8 +36,8 @@ class splitWindow:
     def setSplitView(self):
         """
         Switches to Before/After mode
-        @return:
-        @rtype:
+       :return:
+       :rtype:
         """
         self.mainWin.label.hide()
         self.mainWin.splitter.show()
@@ -44,12 +45,12 @@ class splitWindow:
         self.mainWin.label_3.show()
         # wait for size updates
         watchDog = 0
-        from bLUeTop.QtGui1 import app
+        # from bLUeTop.QtGui1 import app
         while not (self.mainWin.label_2.width() > 0 and self.mainWin.label_3.width() > 0):
             if watchDog >= 3:
                 break
             watchDog += 1
-            app.processEvents()
+            bLUeTop.Gui.app.processEvents()
         # sync before (label_2) with after (label_3)
         self.mainWin.label_2.img.Zoom_coeff = self.mainWin.label_3.img.Zoom_coeff
         if self.mainWin.splitter.currentState == 'H':
@@ -83,13 +84,14 @@ class splitWindow:
     def syncSplitView(self, widg1, widg2, linked):
         """
         Sync Before/After views.
-        Called by mouse event handler
-        @param widg1:
-        @type widg1:
-        @param widg2:
-        @type widg2:
-        @param linked:
-        @type linked:
+        Called by mouse event handler.
+
+        :param widg1:
+        :type widg1:
+        :param widg2:
+        :type widg2:
+        :param linked:
+        :type linked:
         """
         if not linked:
             return

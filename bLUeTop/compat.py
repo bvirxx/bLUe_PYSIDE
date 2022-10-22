@@ -208,7 +208,7 @@ if qt_is_installed:
             """
             A PIL image wrapper for Qt.
 
-            @param im: A PIL Image object, or a file name (given either as Python
+           :param im: A PIL Image object, or a file name (given either as Python
                 string or a PyQt string object).
             """
             im_data = _toqclass_helper(im)

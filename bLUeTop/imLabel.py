@@ -43,10 +43,11 @@ class imageLabel(QLabel):
         and update the current brush sample.
         *args prevents wrong assignment of signal parameters
         to color when the method is used as a signal slot.
-        @param args: unused
-        @type args:
-        @param color:
-        @type color: QColor
+
+        :param args: unused
+        :type args:
+        :param color:
+        :type color: QColor
         """
         bSpacing, bJitter, bOrientation = 1.0, 0.0, 0
         current = self.State.get('brush', None)
@@ -94,8 +95,9 @@ class imageLabel(QLabel):
         """
         Sync current brush with tool bar and zoom coeff.
         Overrides or changes the application cursor.
-        @param zooming:
-        @type zooming: float
+
+        :param zooming:
+        :type zooming: float
         """
         minSize = 16
         # bSize = self.brushUpdate()
@@ -127,8 +129,9 @@ class imageLabel(QLabel):
         Overrides QLabel paintEvent().
         Displays the presentation layer of a vImage object,
         with its current offset and zooming coefficient.
-        @param e: paint event
-        @type e:
+
+        :param e: paint event
+        :type e:
         """
         mimg = self.img
         if mimg is None:
@@ -206,9 +209,10 @@ class imageLabel(QLabel):
         The handler implement mouse actions on an imImage displayed in a QLabel.
         It handles image positioning, zooming, and
         tool actions.
-        NOTE. Due to wheeelEvent, xOffset and yOffset are float numbers
-        @param event: mouse event
-        @type event: QMouseEvent
+        NOTE. Due to wheeelEvent, xOffset and yOffset are float numbers.
+
+        :param event: mouse event
+        :type event: QMouseEvent
         """
         State = self.State
         window = self.window
@@ -273,9 +277,10 @@ class imageLabel(QLabel):
        It handles image positioning, zooming, and
        tool actions.
        NOTE 1. Mouse hover generates mouse move events
-       NOTE 2. Due to wheeelEvent, xOffset and yOffset are float numbers
-       @param event: mouse event
-       @type event: QMouseEvent
+       NOTE 2. Due to wheeelEvent, xOffset and yOffset are float numbers.
+
+       :param event: mouse event
+       :type event: QMouseEvent
        """
         window = self.window
         State = self.State
@@ -454,8 +459,9 @@ class imageLabel(QLabel):
        The handler implement mouse actions on an imImage displayed in a QLabel.
        It handles image positioning, zooming, and
        tool actions.
-       @param event: mouse event
-       @type event: QMouseEvent
+
+       :param event: mouse event
+       :type event: QMouseEvent
        """
         window = self.window
         eventType = event.type()
@@ -561,8 +567,9 @@ class imageLabel(QLabel):
         """
         Mouse wheel event handler : zooming
         for imImage objects.
-        @param event: mouse wheel event
-        @type event: QWheelEvent
+
+        :param event: mouse wheel event
+        :type event: QWheelEvent
         """
         img = self.img
         window = self.window
@@ -609,9 +616,10 @@ class imageLabel(QLabel):
 
     def enterEvent(self, event):
         """
-        Mouse enter event handler
-        @param event:
-        @type event
+        Mouse enter event handler.
+
+        :param event:
+        :type event
         """
         if not self.enterAndLeave:
             return
@@ -649,15 +657,16 @@ class imageLabel(QLabel):
 
     def __strokePaint(self, layer, x, y, r):
         """
-        Private drawing function. Should be called only by the mouse event handler
-        @param layer:
-        @type layer:
-        @param x:
-        @type x:
-        @param y:
-        @type y:
-        @param r:
-        @type r:
+        Private drawing function. Should be called only by the mouse event handler.
+
+        :param layer:
+        :type layer:
+        :param x:
+        :type x:
+        :param y:
+        :type y:
+        :param r:
+        :type r:
         """
         img = self.img
         State = self.State
@@ -724,8 +733,9 @@ class slideshowLabel(imageLabel):
         Overrides imageLabel paintEvent().
         This class should be used to display
         smooth transitions between images.
-        @param e: paint event
-        @type e:
+
+        :param e: paint event
+        :type e:
         """
         mimg = self.img
         if mimg is None:

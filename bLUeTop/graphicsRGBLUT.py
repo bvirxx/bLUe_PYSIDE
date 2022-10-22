@@ -162,12 +162,13 @@ class graphicsForm(graphicsCurveForm):
         """
         sets black/white points
         (x,y) coordinates are relative to the full size image.
-        @param x:
-        @type x:
-        @param y:
-        @type y:
-        @param modifiers:
-        @type modifiers:
+
+        :param x:
+        :type x:
+        :param y:
+        :type y:
+        :param modifiers:
+        :type modifiers:
         """
         r, g, b = self.scene().targetImage.getActivePixel(x, y)
         if modifiers == QtCore.Qt.ControlModifier | QtCore.Qt.ShiftModifier:
@@ -178,12 +179,12 @@ class graphicsForm(graphicsCurveForm):
     def setBlackPoint(self, r, g, b):
         """
 
-        @param r:
-        @type r:
-        @param g:
-        @type g:
-        @param b:
-        @type b:
+       :param r:
+       :type r:
+       :param g:
+       :type g:
+       :param b:
+       :type b:
         """
         sc = self.scene()
         bPoint = min(r, g, b)
@@ -216,12 +217,12 @@ class graphicsForm(graphicsCurveForm):
     def setWhitePoint(self, r, g, b):
         """
 
-        @param r:
-        @type r:
-        @param g:
-        @type g:
-        @param b:
-        @type b:
+       :param r:
+       :type r:
+       :param g:
+       :type g:
+       :param b:
+       :type b:
         """
         sc = self.scene()
         cubicRGB, cubicR, cubicG, cubicB = sc.cubicRGB, sc.cubicR, sc.cubicG, sc.cubicB
@@ -253,11 +254,12 @@ class graphicsForm(graphicsCurveForm):
 
     def drawBackground(self, qp, qrF):
         """
-        Overrides QGraphicsView.drawBackground
-        @param qp:
-        @type qp: QPainter
-        @param qrF:
-        @type qrF: QRectF
+        Overrides QGraphicsView.drawBackground.
+
+        :param qp:
+        :type qp: QPainter
+        :param qrF:
+        :type qrF: QRectF
         """
         super().drawBackground(qp, qrF)
         graphicsScene = self.scene()
@@ -267,11 +269,12 @@ class graphicsForm(graphicsCurveForm):
 
     def updateHist(self, curve, redraw=True):
         """
-        Update the channel histogram displayed under the curve
-        @param curve:
-        @type curve:
-        @param redraw:
-        @type redraw
+        Update the channel histogram displayed under the curve.
+
+        :param curve:
+        :type curve:
+        :param redraw:
+        :type redraw
         """
         sc = self.scene()
         if curve is sc.cubicRGB:

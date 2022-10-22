@@ -70,12 +70,13 @@ class invertForm(baseForm):
         Set the invert mask to the color picked on the
         active layer.
         (x,y) coordinates are relative to the full size image.
-        @param x:
-        @type x: int
-        @param y:
-        @type y: int
-        @param modifiers:
-        @type modifiers: Qt.KeyboardModifiers
+
+        :param x:
+        :type x: int
+        :param y:
+        :type y: int
+        :param modifiers:
+        :type modifiers: Qt.KeyboardModifiers
         """
         if modifiers == Qt.ControlModifier:
             r, g, b = self.layer.parentImage.getActivePixel(x, y)
@@ -85,12 +86,13 @@ class invertForm(baseForm):
         """
         Set the invert mask to color (r, g, b)
         and update.
-        @param r:
-        @type r: int
-        @param g:
-        @type g: int
-        @param b:
-        @type b: int
+
+        :param r:
+        :type r: int
+        :param g:
+        :type g: int
+        :param b:
+        :type b: int
         """
         self.Rmask, self.Gmask, self.Bmask = r, g, b
         self.dataChanged.emit()

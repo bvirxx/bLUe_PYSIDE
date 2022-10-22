@@ -27,14 +27,15 @@ def phi(x, mu, sigma):
     """
     Cumulative distribution function (CDF) of the
     normal distribution N(mu, sigma).
-    @param x: parameter of the CDF
-    @type x: float
-    @param mu : Gaussian mean value
-    @type mu: float
-    @param sigma: Gaussian standard deviation
-    @type sigma: float
-    @return: CDF value at x
-    @rtype: numpy.float64
+
+    :param x: parameter of the CDF
+    :type x: float
+    :param mu : Gaussian mean value
+    :type mu: float
+    :param sigma: Gaussian standard deviation
+    :type sigma: float
+    :return: CDF value at x
+    :rtype: numpy.float64
     """
     return (1.0 + erf((x - mu) / (sigma * np.sqrt(2)))) / 2.0
 
@@ -43,12 +44,13 @@ def gaussianKernel(mu, w):
     """
     2D gaussian kernel of size w and mean mu.
     The standard deviation sigma and w are bound by the relation w = 2.0 * int(4.0 * sigma + 0.5)
-    @param mu: gaussian mean
-    @type mu: float
-    @param w: kernel size, should be odd
-    @type w: int
-    @return: gaussian kernel, size w
-    @rtype: 2D array, shape (w,w), dtype numpy.float64
+
+    :param mu: gaussian mean
+    :type mu: float
+    :param w: kernel size, should be odd
+    :type w: int
+    :return: gaussian kernel, size w
+    :rtype: 2D array, shape (w,w), dtype numpy.float64
     """
     sigma = (w - 1.0) / 8.0
     interval = 4.0 * sigma

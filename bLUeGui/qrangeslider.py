@@ -336,8 +336,9 @@ class QRangeSlider(QtWidgets.QWidget, Ui_Form):
     def isSliderDown(self):
         """
         test if a mouse button is pressed over a handle
-        @return:
-        @rtype: boolean
+
+        :return:
+        :rtype: boolean
         """
         return self.pressed
 
@@ -429,13 +430,14 @@ class QRangeSlider(QtWidgets.QWidget, Ui_Form):
 
     def _handleMoveSplitter(self, xpos, index):
         """
-        splitterMoved handler. Triggers start/endValueChanged signals
-        @param xpos:
-        @type xpos:
-        @param index:
-        @type index:
-        @return:
-        @rtype:
+        splitterMoved handler. Triggers start/endValueChanged signals.
+
+        :param xpos:
+        :type  xpos:
+        :param index:
+        :type  index:
+        :return:
+        :rtype:
         """
         hw = self._splitter.handleWidth()
 

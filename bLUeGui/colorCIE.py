@@ -117,8 +117,9 @@ class gammaTables:
         """
         Returns a unique instance : a new instance
         is created only if there exists no instance yet.
-        @return: gammaTables instance
-        @rtype: gammaTables
+
+        :return: gammaTables instance
+        :rtype: gammaTables
         """
         if getattr(cls, 'instance', None) is None:
             cls.instance = gammaTables()
@@ -143,8 +144,9 @@ class gammaTables:
         """
         Gamma-Linearizing table.
         Values (outputs) are in range 0..1
-        @return:
-        @rtype: ndarray shape (255,)
+
+        :return:
+        :rtype: ndarray shape (255,)
         """
         return self.__table3
 
@@ -153,8 +155,9 @@ class gammaTables:
         """
         Gamma-adaptation table.
         Values (outputs) are in range 0..255
-        @return:
-        @rtype: ndarray shape (255,)
+
+        :return:
+        :rtype: ndarray shape (255,)
         """
         return self.__table5
 
@@ -165,10 +168,11 @@ def rgbLinear2rgb(rgbColors):
     See U{https://en.wikipedia.org/wiki/SRGB}
     Linear RGB values should be in range 0..1.
     Output values are in range 0..255.
-    @param rgbColors: RGB color or array of RGB colors
-    @type rgbColors: tuple or list of 3 scalars, or ndarray with last dim = 3
-    @return: gamma adapted RGB  colors
-    @rtype: identical to type of input
+
+    :param rgbColors: RGB color or array of RGB colors
+    :type  rgbColors: tuple or list of 3 scalars, or ndarray with last dim = 3
+    :return:gamma adapted RGB  colors
+    :rtype: identical to type of input
     """
     try:
         vectorize = (rgbColors.ndim > 1)
@@ -198,10 +202,11 @@ def rgb2rgbLinear(rgbColors):
     See https://en.wikipedia.org/wiki/SRGB
     Input Input values should be integers in range 0..255.
     Output values are in range 0..1.
-    @param rgbColors: color or array of RGB colors
-    @type rgbColors: tuple or list of 3 scalars, or ndarray with last dim = 3
-    @return: linear RGB colors
-    @rtype: identical to type of input
+
+    :param rgbColors: color or array of RGB colors
+    :type  rgbColors: tuple or list of 3 scalars, or ndarray with last dim = 3
+    :return:linear RGB colors
+    :rtype: identical to type of input
     """
     try:
         vectorize = (rgbColors.ndim > 1)
@@ -233,19 +238,20 @@ def RGB2XYZ(rgbColors, RGB_lin2XYZ=sRGB_lin2XYZ):
     Output values are in range 0..1.
     opencv cvtColor does NOT perform gamma conversion
     for RGB<-->XYZ cf.
-    U{http://docs.opencv.org/trunk/de/d25/imgproc_color_conversions.html#color_convert_rgb_xyz}.
+    http://docs.opencv.org/trunk/de/d25/imgproc_color_conversions.html#color_convert_rgb_xyz.
     Moreover, RGB-->XYZ and XYZ-->RGB matrices are not inverse transformations!
     This yields incorrect results.
     As a workaround, we first convert to rgbLinear,
     and next, we use the conversion matrix from RGB_linear to XYZ, which
     defaults to the matrix from D65 sRGB to XYZ provided in
-    U{http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html}.
-    @param rgbColors: color or array of RGB colors
-    @type rgbColors: tuple or list of 3 scalars, or ndarray with last_dim = 3
-    @param RGB_lin2XYZ: conversion matrix
-    @type RGB_lin2XYZ: ndarray, shape=(3,3)
-    @return: colors converted to the XYZ color space
-    @rtype: ndarray, dtype numpy float64
+    http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html.
+
+    :param rgbColors: color or array of RGB colors
+    :type  rgbColors: tuple or list of 3 scalars, or ndarray with last_dim = 3
+    :param RGB_lin2XYZ: conversion matrix
+    :type  RGB_lin2XYZ: ndarray, shape=(3,3)
+    :return: colors converted to the XYZ color space
+    :rtype: ndarray, dtype numpy float64
     """
     bufLinear = rgb2rgbLinear(rgbColors)
     bufXYZ = np.tensordot(bufLinear, RGB_lin2XYZ, axes=(-1, -1))
@@ -255,12 +261,13 @@ def RGB2XYZ(rgbColors, RGB_lin2XYZ=sRGB_lin2XYZ):
 def XYZ2RGBLinear(imgBuf, RGB_lin2XYZInverse=sRGB_lin2XYZInverse):
     """
     vectorized conversion from XYZ to LINEAR sRGB (D65)
-    @param imgBuf: image buffer,  XYZ color space
-    @type imgBuf: list or 3-uple of scalars or ndarray shape (w, h, 3)
-    @param RGB_lin2XYZInverse: conversion matrix
-    @type RGB_lin2XYZInverse: ndarray, shape=(3,3)
-    @return: image buffer mode sRGB LINEAR, range 0..1
-    @rtype: ndarray, shape (w, h, 3), dtype numpy.float64
+
+    :param imgBuf: image buffer,  XYZ color space
+    :type  imgBuf: list or 3-uple of scalars or ndarray shape (w, h, 3)
+    :param RGB_lin2XYZInverse: conversion matrix
+    :type  RGB_lin2XYZInverse: ndarray, shape=(3,3)
+    :return: image buffer mode sRGB LINEAR, range 0..1
+    :rtype: ndarray, shape (w, h, 3), dtype numpy.float64
     """
     return np.tensordot(imgBuf, RGB_lin2XYZInverse, axes=(-1, -1))
 
@@ -272,18 +279,19 @@ def XYZ2RGB(XYZColors, RGB_lin2XYZInverse=sRGB_lin2XYZInverse):
     Output values are in range 0..255
     opencv cvtColor does NOT perform gamma correction
     for RGB<-->XYZ conversion, cf.
-    U{http://docs.opencv.org/trunk/de/d25/imgproc_color_conversions.html#color_convert_rgb_xyz}.
+    http://docs.opencv.org/trunk/de/d25/imgproc_color_conversions.html#color_convert_rgb_xyz.
     Moreover, RGB-->XYZ and XYZ-->RGB matrices are not inverse transformations!
     This yields incorrect results. As a workaround, we first convert to RGB_linear,
     and next we use the XYZ --> RGB_linear conversion matrix, which defaults to the
     conversion matrix from XYZ to D65 sRGB_linear provided by
-    U{http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html}
-    @param XYZColors: color, mode XYZ, range 0..1
-    @type XYZColors: tuple or list of 3 scalars, or ndarray with last dim = 3
-    @param RGB_lin2XYZInverse: conversion matrix
-    @type RGB_lin2XYZInverse: ndarray, shape=(3, 3)
-    @return: RGB colors
-    @rtype:  identical to type of input
+    http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
+
+    :param XYZColors: color, mode XYZ, range 0..1
+    :type  XYZColors: tuple or list of 3 scalars, or ndarray with last dim = 3
+    :param RGB_lin2XYZInverse: conversion matrix
+    :type  RGB_lin2XYZInverse: ndarray, shape=(3, 3)
+    :return: RGB colors
+    :rtype:  identical to type of input
     """
     try:
         vectorize = (XYZColors.ndim > 1)
@@ -308,15 +316,16 @@ def sRGB2LabVec(bufsRGB, RGB_lin2XYZ=sRGB_lin2XYZ, useOpencv=True):
     is performed. If useOpencv is True (default, faster),
     we use opencv cvtColor (Note that it seems to perform
     linearizations, in contrast to sRGB <---> XYZ conversions)
-    See U{https://en.wikipedia.org/wiki/Lab_color_space}
+    See https://en.wikipedia.org/wiki/Lab_color_space
     The range for Lab coordinates is L:0..1, a:-86.185..98.254, b:-107.863..94.482
-    See U{http://stackoverflow.com/questions/19099063/what-are-the-ranges-of-coordinates-in-the-cielab-color-space}
-    @param bufsRGB: image buffer, mode sRGB, range 0..255
-    @type bufsRGB: ndarray, dtype=np.uint8
-    @param useOpencv:
-    @type useOpencv: boolean
-    @return: bufLab Image buffer, mode Lab
-    @rtype: ndarray, dtype numpy float64
+    See http://stackoverflow.com/questions/19099063/what-are-the-ranges-of-coordinates-in-the-cielab-color-space
+
+    :param bufsRGB: image buffer, mode sRGB, range 0..255
+    :type  bufsRGB: ndarray, dtype=np.uint8
+    :param useOpencv:
+    :type  useOpencv: boolean
+    :return: bufLab Image buffer, mode Lab
+    :rtype: ndarray, dtype numpy float64
     """
     if useOpencv:
         bufLab = cv2.cvtColor(bufsRGB, cv2.COLOR_RGB2Lab)
@@ -344,13 +353,14 @@ def Lab2sRGBVec(bufLab, RGB_lin2XYZInverse=sRGB_lin2XYZInverse, useOpencv=True):
     is performed. If useOpencv is True (default, faster),
     we use opencv cvtColor, the drawback being the impossibility
     to specify the conversion matrix from XYZ to RGB. For direct conversion
-    see U{https://en.wikipedia.org/wiki/Lab_color_space}
-    @param bufLab: image buffer, mode Lab, range 0..1
-    @type bufLab: ndarray, dtype numpy float
-    @param useOpencv:
-    @type useOpencv: boolean
-    @return: Image buffer mode sRGB, range 0..255,
-    @rtype: ndarray, dtype=np.uint8
+    see https://en.wikipedia.org/wiki/Lab_color_space
+
+    :param bufLab: image buffer, mode Lab, range 0..1
+    :type  bufLab: ndarray, dtype numpy float
+    :param useOpencv:
+    :type  useOpencv: boolean
+    :return: Image buffer mode sRGB, range 0..255,
+    :rtype: ndarray, dtype=np.uint8
     """
     if useOpencv:
         # for 8 bits per channel images opencv uses L,a,b range 0..255
@@ -374,10 +384,11 @@ def bbTemperature2RGB(temperature):
     """
     Converts black body Kelvin temperature to rgb values.
     Cf. http://www.tannerhelland.com/4435/convert-temperature-rgb-algorithm-code
-    @param temperature: Kelvin temperature
-    @type temperature: float
-    @return: r, g, b values in  range 0..255
-    @rtype: 3-uple of int
+
+    :param temperature: Kelvin temperature
+    :type  temperature: float
+    :return:r, g, b values in  range 0..255
+    :rtype: 3-uple of int
     """
     temperature = temperature / 100.0
     if temperature <= 66:
@@ -414,12 +425,13 @@ def xyWP2temperature(x, y):
     """
     Calculate the temperature from White point coordinates in the color space xy
     We use spline approximation (see https://en.wikipedia.org/wiki/Color_temperature#Approximation)
-    @param x:
-    @type x: float
-    @param y:
-    @type y: float
-    @return: Temperature in Kelvin
-    @rtype: float
+
+    :param x:
+    :type  x: float
+    :param y:
+    :type  y: float
+    :return: Temperature in Kelvin
+    :rtype: float
     """
     xe, ye = 0.3320, 0.1858
     n = (x - xe) / (y - ye)
@@ -433,10 +445,11 @@ def temperature2xyWP(T):
     of WP(T) in the xy color space (use cubic spline approximation,
     accurate for 1667<T<25000).
     Cf. http://en.wikipedia.org/wiki/Planckian_locus#Approximation
-    @param T: temperature in Kelvin, range 1667..25000
-    @type T: float
-    @return: xc, yc
-    @rtype: 2-uple of float
+
+    :param T: temperature in Kelvin, range 1667..25000
+    :type  T: float
+    :return: xc, yc
+    :rtype: 2-uple of float
     """
     # get xc
     if T <= 4000:
@@ -504,12 +517,13 @@ uvtTable = [
 def xy2uv(x, y):
     """
     convert from xy to Yuv color space
-    @param x:
-    @type x: float
-    @param y:
-    @type y: float
-    @return: u, v coordinates
-    @rtype: 2-uple of float
+
+    :param x:
+    :type  x: float
+    :param y:
+    :type  y: float
+    :return: u, v coordinates
+    :rtype: 2-uple of float
     """
     d = 1.5 - x + 6.0 * y
     u, v = 2.0 * x / d, 3.0 * y / d
@@ -528,12 +542,13 @@ def xy2TemperatureAndTint(x, y):
     The conversion is based on the Robertson's method
     of interpolation in the uv space.
     Tint is a shift in the uv space.
-    @param x:
-    @type x: float
-    @param y:
-    @type y: float
-    @return: Temperature and Tint
-    @rtype: 2-uple of float
+
+    :param x:
+    :type  x: float
+    :param y:
+    :type  y: float
+    :return: Temperature and Tint
+    :rtype: 2-uple of float
     """
     # convert to uv
     u, v = xy2uv(x, y)
@@ -578,12 +593,12 @@ def temperatureAndTint2xy(temp, tint):
     Tint is a shift : for tint=0.0, the function gives the xy coordinates of the white point WP(T) :
     Cf. also temperature2xyWP(T).
 
-    @param temp:
-    @type temp: float
-    @param tint:
-    @type tint: float
-    @return: x, y coordinates
-    @rtype: 2-uple of float
+    :param temp:
+    :type  temp: float
+    :param tint:
+    :type  tint: float
+    :return: x, y coordinates
+    :rtype: 2-uple of float
     """
     r = (10 ** 6) / temp
     result = (0.0, 0.0)
@@ -615,12 +630,13 @@ def wp2Rho(x, y):
     """
     Returns the cone responses (multipliers) for the (x, y) white point
     see https://web.stanford.edu/~sujason/ColorBalancing/adaptation.html for details.
-    @param x: white point x-coord
-    @type x: float
-    @param y: white point y-coord
-    @type y: float
-    @return: cones responses
-    @rtype: 3-uple of float
+
+    :param x: white point x-coord
+    :type  x: float
+    :param y: white point y-coord
+    :type  y: float
+    :return: cones responses
+    :rtype: 3-uple of float
     """
     # expand x, y to XYZ coordinates
     X, Y, Z = x / y, 1.0, (1.0 - x - y) / y
@@ -632,10 +648,11 @@ def temperature2Rho(T):
     """
     Returns the cone responses (multipliers) for temperature T (Kelvin).
     see https://web.stanford.edu/~sujason/ColorBalancing/adaptation.html for details.
-    @param T: temperature (Kelvin)
-    @type T: float
-    @return: cone responses
-    @rtype: 3-uple of floats
+
+    :param T: temperature (Kelvin)
+    :type  T: float
+    :return: cone responses
+    :rtype: 3-uple of floats
     """
     # get CIE chromaticity coordinates of white point
     x, y = temperature2xyWP(T)
@@ -646,12 +663,13 @@ def rho2BAM(rhod, rhos):
     """
     Build the Bradford adaptation matrix from source multipliers rhos
     to destination multipliers rhod
-    @param rhod:
-    @type rhod: 3-uple of float
-    @param rhos:
-    @type rhos: 3-uple of float
-    @return: adaptation matrix
-    @rtype: ndarray, shape=(3,3), dtype=float
+
+    :param rhod:
+    :type  rhod: 3-uple of float
+    :param rhos:
+    :type  rhos: 3-uple of float
+    :return:adaptation matrix
+    :rtype: ndarray, shape=(3,3), dtype=float
     """
     rhos1, rhos2, rhos3 = rhos
     rhod1, rhod2, rhod3 = rhod
@@ -666,12 +684,13 @@ def bradfordAdaptationMatrix_wp(wpd, wps):
     Returns the conversion matrix in the XYZ color space, from
     wps to wpd. We apply the method described in
     https://web.stanford.edu/~sujason/ColorBalancing/adaptation.html.
-    @param wpd: destination white point xy coordinates
-    @type wpd: 2-uple of float
-    @param wps: source white point xy coordinates
-    @type wps: 2-uple of float
-    @return: adaptation matrix
-    @rtype: ndarray, shape=(3,3), dtype=float
+
+    :param wpd: destination white point xy coordinates
+    :type  wpd: 2-uple of float
+    :param wps: source white point xy coordinates
+    :type  wps: 2-uple of float
+    :return: adaptation matrix
+    :rtype: ndarray, shape=(3,3), dtype=float
     """
     rhos1, rhos2, rhos3 = wp2Rho(*wps)
     rhod1, rhod2, rhod3 = wp2Rho(*wpd)
@@ -683,12 +702,13 @@ def bradfordAdaptationMatrix(Tdest, Tsource):
     Returns the conversion matrix in the XYZ color space, from
     Tsource to Tdest. We apply the method described in
     https://web.stanford.edu/~sujason/ColorBalancing/adaptation.html.
-    @param Tdest: destination temperature (Kelvin)
-    @type Tdest: float
-    @param Tsource: Source temperature (Kelvin)
-    @type Tsource: float
-    @return: adaptation matrix
-    @rtype: ndarray, shape=(3,3), dtype=float
+
+    :param Tdest: destination temperature (Kelvin)
+    :type  Tdest: float
+    :param Tsource: Source temperature (Kelvin)
+    :type  Tsource: float
+    :return: adaptation matrix
+    :rtype: ndarray, shape=(3,3), dtype=float
     """
     rhos1, rhos2, rhos3 = temperature2Rho(Tsource)
     rhod1, rhod2, rhod3 = temperature2Rho(Tdest)
@@ -698,10 +718,11 @@ def bradfordAdaptationMatrix(Tdest, Tsource):
 def xyY2XYZ(xyYColors):
     """
     Converts a xyY color or an array of xyY colors into the XYZ color space.
-    @param xyYColors: color or array of colors in the xyY color space
-    @type xyYColors: tuple or list of 3 scalars, or ndarray with last_dim = 3
-    @return: color or array of colors in the XYZ color space
-    @rtype: identical to the input type
+
+    :param xyYColors: color or array of colors in the xyY color space
+    :type  xyYColors: tuple or list of 3 scalars, or ndarray with last_dim = 3
+    :return: color or array of colors in the XYZ color space
+    :rtype: identical to the input type
     """
     try:
         vectorize = (xyYColors.ndim > 1)

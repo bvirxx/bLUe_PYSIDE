@@ -56,12 +56,13 @@ class graphicsToneForm(graphicsSplineForm):
         Move the marker to the position corresponding to
         the color picked on the input image of the active layer.
         (x,y) coordinates are relative to the full size image.
-        @param x:
-        @type x:
-        @param y:
-        @type y:
-        @param modifiers:
-        @type modifiers:
+
+        :param x:
+        :type x:
+        :param y:
+        :type y:
+        :param modifiers:
+        :type modifiers:
         """
         rImg = self.scene().targetImage.getActiveLayer()
         if rImg.parentImage.useThumb:
@@ -562,9 +563,10 @@ class rawForm(baseForm):
     def close(self):
         """
         Overrides QWidget.close to
-        close toneForm and contrastForm
-        @return:
-        @rtype: boolean
+        close toneForm and contrastForm.
+
+        :return:
+        :rtype: boolean
         """
         delete = self.testAttribute(Qt.WA_DeleteOnClose)
         for attr in ['toneForm', 'contrastForm']:
@@ -582,8 +584,9 @@ class rawForm(baseForm):
         On first call, init and show the Tone Curve form.
         Otherwise, show the form.
         Return True if called for the first time, False otherwise.
-        @return:
-        @rtype: boolean
+
+        :return:
+        :rtype: boolean
         """
         axeSize = 200
         if self.toneForm is None:
@@ -643,16 +646,17 @@ class rawForm(baseForm):
         to values returned by warpHistogram(). If withCurve is False
         these parameters are not used and the spline is not set.
         (Cf. also CoBrSatForm setContrastSpline).
-        @param a: x_coordinates
-        @type a:
-        @param b: y-coordinates
-        @type b:
-        @param d: tangent slopes
-        @type d:
-        @param T: spline
-        @type T: ndarray dtype=float
-        @param withcurve:
-        @type withcurve: boolean
+
+        :param a: x_coordinates
+        :type a:
+        :param b: y-coordinates
+        :type b:
+        :param d: tangent slopes
+        :type d:
+        :param T: spline
+        :type T: ndarray dtype=float
+        :param withcurve:
+        :type withcurve: boolean
         """
         axeSize = 200
         if self.contrastForm is None:
@@ -763,8 +767,8 @@ class rawForm(baseForm):
     def updateLayer(self, level):
         """
         data changed event handler.
-        @param level: 3: redo contrast and saturation, 2: previous + camera profile stuff, 1: all
-        @type level: int
+       :param level: 3: redo contrast and saturation, 2: previous + camera profile stuff, 1: all
+       :type level: int
         """
         if level == 1:
             # force all
@@ -851,8 +855,9 @@ class rawForm(baseForm):
         for each item, text is the filename and data is the corresponding dict.
         The function returns as soon as a first item is loaded. Remainning profiles are
         loaded asynchronously.
-        @return: the currently selected item data
-        @rtype: dict
+
+        :return: the currently selected item data
+        :rtype: dict
         """
         self.cameraProfilesCombo = QbLUeComboBox()
         files = [self.targetImage.filename]

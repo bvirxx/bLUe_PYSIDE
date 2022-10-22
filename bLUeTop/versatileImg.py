@@ -32,7 +32,8 @@ from PySide6.QtCore import QRect, QPoint
 
 from bLUeGui.bLUeImage import bImage, ndarrayToQImage
 from bLUeCore.multi import chosenInterp
-from bLUeTop.QtGui1 import app
+# from bLUeTop.QtGui1 import app
+import bLUeTop.Gui
 from bLUeTop.align import alignImages
 from bLUeTop.cloning import alphaBlend
 
@@ -131,10 +132,11 @@ class vImage(bImage):
         from the red channel (alpha = red). No thresholding
         is done.
         B, G, R channels are kept unchanged.
-        @param mask: mask
-        @type mask: QImage
-        @return: opacity mask
-        @rtype: QImage
+
+        :param mask: mask
+        :type mask: QImage
+        :return: opacity mask
+        :rtype: QImage
         """
         mask = mask.copy()
         buf = QImageBuffer(mask)
@@ -147,10 +149,11 @@ class vImage(bImage):
         """
         Returns a colored representation of mask,
         B, R, A channels are not modified. mask is kept unchanged.
-        @param mask: mask
-        @type mask: QImage
-        @return: opacity mask
-        @rtype: QImage
+
+        :param mask: mask
+        :type mask: QImage
+        :return: opacity mask
+        :rtype: QImage
         """
         mask = mask.copy()
         buf = QImageBuffer(mask)
@@ -164,12 +167,13 @@ class vImage(bImage):
         Returns a binary array with values 0/255.
         0 corresponds to masked pixels and 255 to unmasked ones.
         mask opacity is defined by the red channel.
-        @param mask:
-        @type mask: QImage
-        @param invert:
-        @type invert:
-        @return:
-        @rtype: ndarray dtype= uint8, shape (h, w)
+
+        :param mask:
+        :type mask: QImage
+        :param invert:
+        :type invert:
+        :return:
+        :rtype: ndarray dtype= uint8, shape (h, w)
         """
         buf = QImageBuffer(mask)
         if invert:
@@ -184,12 +188,13 @@ class vImage(bImage):
         If invert is False (default) masked (resp. unmasked) pixels
         correspond to 0 (resp 1).
         mask opacity is defined by the red channel.
-        @param mask: color mask
-        @type mask: QImage
-        @param invert:
-        @type invert: boolean
-        @return:
-        @rtype: QBitmap
+
+        :param mask: color mask
+        :type mask: QImage
+        :param invert:
+        :type invert: boolean
+        :return:
+        :rtype: QBitmap
         """
         a = vImage.colorMask2BinaryArray(mask, invert=invert)
         return QBitmap.fromData(QSize(mask.size()), np.packbits(a))
@@ -217,16 +222,17 @@ class vImage(bImage):
         using its own colors. If color is False the alpha channel of the mask is set from
         its red channel and, next, the mask is drawn over the image using the mode destinationIn :
         destination opacity is set to that of source.
-        @param img:
-        @type img: QImage
-        @param mask:
-        @type mask: QImage
-        @param color:
-        @type color: bool
-        @param inplace:
-        @type inplace: boolean
-        @return:
-        @rtype: QImage
+
+        :param img:
+        :type img: QImage
+        :param mask:
+        :type mask: QImage
+        :param color:
+        :type color: bool
+        :param inplace:
+        :type inplace: boolean
+        :return:
+        :rtype: QImage
         """
         # make a copy of img
         if not inplace:
@@ -252,14 +258,15 @@ class vImage(bImage):
         Increases the masked region by applying
         a (ks, ks) min filter. Returns the dilated mask.
         The source mask is not modified.
-        @param mask:
-        @type mask: image ndarray
-        @param ks: kernel size, should be odd
-        @type ks: int
-        @param iterations: filter iteration count
-        @type iterations: int
-        @return: the dilated mask
-        @rtype: ndarray
+
+        :param mask:
+        :type mask: image ndarray
+        :param ks: kernel size, should be odd
+        :type ks: int
+        :param iterations: filter iteration count
+        :type iterations: int
+        :return: the dilated mask
+        :rtype: ndarray
         """
         if iterations <= 0:
             return mask
@@ -274,14 +281,15 @@ class vImage(bImage):
         Reduces the masked region by applying
         a (ks, ks) max filter. Returns the eroded mask.
         The source mask is not modified.
-        @param mask:
-        @type mask: image ndarray
-        @param ks: kernel size, should be odd
-        @type ks: int
-        @param iterations: filter iteration count
-        @type iterations: int
-        @return: the eroded mask
-        @rtype: ndarray
+
+        :param mask:
+        :type mask: image ndarray
+        :param ks: kernel size, should be odd
+        :type ks: int
+        :param iterations: filter iteration count
+        :type iterations: int
+        :return: the eroded mask
+        :rtype: ndarray
         """
         if iterations <= 0:
             return mask
@@ -295,11 +303,12 @@ class vImage(bImage):
         """
         Smooths the mask by applying a mean kernel.
         The source mask is not modified.
-        @type mask: image ndarray
-        @param ks: kernel size, should be odd
-        @type ks: int
-        @return: the smoothed mask
-        @rtype: ndarray
+
+        :type mask: image ndarray
+        :param ks: kernel size, should be odd
+        :type ks: int
+        :return: the smoothed mask
+        :rtype: ndarray
         """
         kernelMean = np.ones((ks, ks), np.float) / (ks * ks)
         return cv2.filter2D(mask, -1, kernelMean)  # -1 : keep depth unchanged
@@ -309,26 +318,27 @@ class vImage(bImage):
         """
         With no parameter, builds a null image.
         image is assumed to be in the color space sRGB : colorSpace value is used only as meta data.
-        @param filename: path to file
-        @type filename: str
-        @param cv2Img: data buffer
-        @type cv2Img: ndarray
-        @param QImg: image
-        @type QImg: QImage
-        @param format: QImage format (default QImage.Format_ARGB32)
-        @type format: QImage.Format
-        @param name: image name
-        @type name: str
-        @param colorSpace: color space (default : not specified)
-        @type colorSpace: MarkedImg.colorSpace
-        @param orientation: Qtransform object (default None)
-        @type orientation: Qtransform
-        @param meta: metadata instance (default None)
-        @type meta: MarkedImg.metadataBag
-        @param rawMetadata: dictionary
-        @type rawMetadata: dictionary
-        @param profile: embedded profile (default '')
-        @type profile: str
+
+        :param filename: path to file
+        :type filename: str
+        :param cv2Img: data buffer
+        :type cv2Img: ndarray
+        :param QImg: image
+        :type QImg: QImage
+        :param format: QImage format (default QImage.Format_ARGB32)
+        :type format: QImage.Format
+        :param name: image name
+        :type name: str
+        :param colorSpace: color space (default : not specified)
+        :type colorSpace: MarkedImg.colorSpace
+        :param orientation: Qtransform object (default None)
+        :type orientation: Qtransform
+        :param meta: metadata instance (default None)
+        :type meta: MarkedImg.metadataBag
+        :param rawMetadata: dictionary
+        :type rawMetadata: dictionary
+        :param profile: embedded profile (default '')
+        :type profile: str
         """
         # formatted EXIF data (str)
         self.imageInfo = 'no EXIF data'  # default
@@ -408,19 +418,21 @@ class vImage(bImage):
         """
         set image cropping margins to margins and set the positions of crop tool buttons
         accordingly.
-        @param margins:
-        @type margins: 4-uple of float
-        @param croptool:
-        @type croptool: cropTool
+
+        :param margins:
+        :type margins: 4-uple of float
+        :param croptool:
+        :type croptool: cropTool
         """
         self.cropLeft, self.cropRight, self.cropTop, self.cropBottom = margins
         croptool.fit(self)
 
     def setProfile(self, profile):
         """
-        Sets profile related attributes
-        @param cmsProfile:
-        @type cmsProfile: CmsProfile instance
+        Sets profile related attributes.
+
+        :param cmsProfile:
+        :type cmsProfile: CmsProfile instance
         """
         self.cmsProfile = profile
         if 'srgb' in profile.profile.profile_description.lower():
@@ -435,8 +447,9 @@ class vImage(bImage):
         """
         copies qimg to image. Does not update metadata.
         image and qimg must have identical dimensions and type.
-        @param qimg: image
-        @type qimg: QImage
+
+        :param qimg: image
+        :type qimg: QImage
         """
         # image layer
         if getattr(self, 'sourceImg', None) is not None:
@@ -469,8 +482,9 @@ class vImage(bImage):
     def getThumb(self):
         """
         init image thumbnail if needed and return it.
-        @return: thumbnail
-        @rtype: QImage
+
+        :return: thumbnail
+        :rtype: QImage
         """
         if self.thumb is None:
             self.initThumb()
@@ -498,10 +512,11 @@ class vImage(bImage):
         fill the widget without cropping.
         For split views we use the size of the QSplitter parent
         container instead of the size of the widget.
-        @param widget:
-        @tyep widget: Qwidget
-        @return: the (multiplicative) resizing coefficient
-        @rtype: float
+
+       :param widget:
+       :type widget: Qwidget
+       :return: the (multiplicative) resizing coefficient
+       :rtype: float
         """
         wp = widget.parent()
         if type(wp) == QSplitter:
@@ -521,8 +536,9 @@ class vImage(bImage):
         The thumbnail and hald are computed if they are not initialized.
         Otherwise, they are not updated, unless self.thumb is None
         or purgeThumb is True.
-        @return: image
-        @rtype: QImage
+
+        :return: image
+        :rtype: QImage
         """
         if self.useHald:
             return self.getHald()
@@ -535,12 +551,13 @@ class vImage(bImage):
         """
         Maps x,y coordinates of pixel in the full size image to
         coordinates in current image.
-        @param x:
-        @type x: int or float
-        @param y:
-        @type y: int or float
-        @return:
-        @rtype: 2uple of int
+
+        :param x:
+        :type x: int or float
+        :param y:
+        :type y: int or float
+        :return:
+        :rtype: 2uple of int
         """
         if self.useThumb:
             currentImg = self.getThumb()
@@ -552,12 +569,13 @@ class vImage(bImage):
         """
         Maps x,y coordinates of pixel in the current image to
         coordinates in full size image.
-        @param x:
-        @type x: int or float
-        @param y:
-        @type y: int or float
-        @return:
-        @rtype: 2uple of int
+
+        :param x:
+        :type x: int or float
+        :param y:
+        :type y: int or float
+        :return:
+        :rtype: 2uple of int
         """
         if self.useThumb:
             currentImg = self.getThumb()
@@ -569,8 +587,9 @@ class vImage(bImage):
         """
         return the image buffer in color mode HSpB.
         The buffer is recalculated when needed.
-        @return: HSPB buffer
-        @rtype: ndarray
+
+        :return: HSPB buffer
+        :rtype: ndarray
         """
         # inputImage = self.inputImgFull().getCurrentImage()
         if self.hspbBuffer is None or not self.cachesEnabled:
@@ -582,8 +601,9 @@ class vImage(bImage):
         """
         return the image buffer in color mode Lab.
         The buffer is recalculated when needed.
-        @return: Lab buffer, L range is 0..1, a, b ranges are -128..+128
-        @rtype: numpy ndarray, dtype np.float
+
+        :return: Lab buffer, L range is 0..1, a, b ranges are -128..+128
+        :rtype: numpy ndarray, dtype np.float
         """
         if self.LabBuffer is None or not self.cachesEnabled:
             currentImage = self.getCurrentImage()
@@ -594,9 +614,10 @@ class vImage(bImage):
         """
         return the image buffer in color mode HSV.
         The buffer is calculated if needed and cached.
-        H,S,V ranges are 0..255 (opencv convention for 8 bits images)
-        @return: HSV buffer
-        @rtype: numpy ndarray, dtype np.float
+        H,S,V ranges are 0..255 (opencv convention for 8 bits images).
+
+        :return: HSV buffer
+        :rtype: numpy ndarray, dtype np.float
         """
         if self.HSVBuffer is None or not self.cachesEnabled:
             currentImage = self.getCurrentImage()
@@ -605,9 +626,10 @@ class vImage(bImage):
 
     def setModified(self, b):
         """
-        Sets the flag
-        @param b: flag
-        @type b: boolean
+        Sets the flag.
+
+        :param b: flag
+        :type b: boolean
         """
         self.isModified = b
 
@@ -615,8 +637,9 @@ class vImage(bImage):
         """
         For the sake of performance and memory usage,
         rPixmap is instantiated only in the subclass QLayer.
-        @param maskOnly: not used
-        @type maskOnly: boolean
+
+        :param maskOnly: not used
+        :type maskOnly: boolean
         """
         pass
 
@@ -628,10 +651,10 @@ class vImage(bImage):
         on layer masking; it is used only to display semi transparent color
         masks (e.g. for grabcut or cloning)
 
-        @param maskAll:
-        @type maskAll: boolean
-        @param alpha
-        @type alpha: int in range 0..255
+        :param maskAll:
+        :type maskAll: boolean
+        :param alpha
+        :type alpha: int in range 0..255
         """
         color = vImage.defaultColor_Masked if maskAll else vImage.defaultColor_UnMasked
         color.setAlpha(alpha)
@@ -666,16 +689,17 @@ class vImage(bImage):
         can choose among several interpolation methods (default cv2.INTER_CUBIC).
         The original image is not modified. A link to the ndarray buffer must be kept along
         with the resized image.
-        @param w: new width
-        @type w: int
-        @param h: new height
-        @type h: int
-        @param keepAspectRatio:
-        @type keepAspectRatio: boolean
-        @param interpolation: interpolation method (default cv2.INTER_CUBIC)
-        @type interpolation:
-        @return: the resized vImage and the corresponding buffer
-        @rtype: vImage, ndArray
+
+        :param w: new width
+        :type w: int
+        :param h: new height
+        :type h: int
+        :param keepAspectRatio:
+        :type keepAspectRatio: boolean
+        :param interpolation: interpolation method (default cv2.INTER_CUBIC)
+        :type interpolation:
+        :return: the resized vImage and the corresponding buffer
+        :rtype: vImage, ndArray
         """
         if keepAspectRatio:
             pixels = w * h
@@ -698,10 +722,11 @@ class vImage(bImage):
         """
         Applies transformation and returns a copy
         of the transformed image.
-        @param transformation:
-        @type transformation: QTransform
-        @return:
-        @rtype: vImage
+
+        :param transformation:
+        :type transformation: QTransform
+        :return:
+        :rtype: vImage
         """
         img = vImage(QImg=self.transformed(transformation))
         img.meta = self.meta
@@ -730,12 +755,13 @@ class vImage(bImage):
         If seamless is True (default) actual cloning is done, otherwise
         the source is simply copied into the layer.
         If moving is True (default False) the input image is not updated.
-        @param seamless:
-        @type seamless: boolean
-        @param showTranslated:  unused, set to True in all calls
-        @type showTranslated:
-        @param moving: flag indicating if the method is triggered by a mouse event
-        @type moving: boolean
+
+        :param seamless:
+        :type seamless: boolean
+        :param showTranslated:  unused, set to True in all calls
+        :type showTranslated:
+        :param moving: flag indicating if the method is triggered by a mouse event
+        :type moving: boolean
         """
         adjustForm = self.getGraphicsForm()
         options = adjustForm.options
@@ -801,7 +827,7 @@ class vImage(bImage):
         if seamless:
             try:
                 QApplication.setOverrideCursor(Qt.WaitCursor)
-                app.processEvents()
+                bLUeTop.Gui.app.processEvents()
                 # temporary dest image
                 imgInc = QImage(imgIn)
                 ###########################
@@ -840,10 +866,11 @@ class vImage(bImage):
         Segmentation.
         The segmentation mask is built from the selection rectangle, if any, and from
         the user selection.
-        @param nbIter:
-        @type nbIter: int
-        @param mode:
-        @type mode:
+
+        :param nbIter:
+        :type nbIter: int
+        :param mode:
+        :type mode:
         """
         invalid = vImage.defaultColor_Invalid.green()
         form = self.getGraphicsForm()
@@ -1025,8 +1052,8 @@ class vImage(bImage):
         Multiply the linearized RGB channels by
         c = 2**exposureCorrection.
 
-        @param options:
-        @type options:
+        :param options:
+        :type options:
         """
         form = self.getGraphicsForm()
         exposureCorrection = form.expCorrection
@@ -1077,9 +1104,10 @@ class vImage(bImage):
 
     def applyTransForm(self, options):
         """
-        Apply the geometric transformation defined by source and target quads
-        @param options:
-        @type options:
+        Apply the geometric transformation defined by source and target quads.
+
+        :param options:
+        :type options:
         """
         inImg = self.inputImg()
         outImg = self.getCurrentImage()
@@ -1226,8 +1254,9 @@ class vImage(bImage):
         the S and V channels. Otherwise, the Lab color space is used :
         a curve f(x) = x**alpha is applied to the L channel and curves f(x) = x*slope
         are applied to the a and b channels.
-        @param version:
-        @type version: str
+
+        :param version:
+        :type version: str
         """
         adjustForm = self.getGraphicsForm()
         options = adjustForm.options
@@ -1340,9 +1369,10 @@ class vImage(bImage):
 
     def apply1DLUT(self, stackedLUT):
         """
-        Apply 1D LUTS to R, G, B channels (one for each channel)
-        @param stackedLUT: array of color values (in range 0..255) : a row for each R, G, B channel
-        @type stackedLUT : ndarray, shape=(3, 256), dtype=int
+        Apply 1D LUTS to R, G, B channels (one for each channel).
+
+        :param stackedLUT: array of color values (in range 0..255) : a row for each R, G, B channel
+        :type stackedLUT : ndarray, shape=(3, 256), dtype=int
         """
         # neutral point: by pass
         if not np.any(stackedLUT - np.arange(256)):  # last dims are equal : broadcast works
@@ -1379,10 +1409,11 @@ class vImage(bImage):
 
     def applyLab1DLUT(self, stackedLUT, options=None):
         """
-        Applies 1D LUTS (one row for each L,a,b channel)
-        @param stackedLUT: array of color values (in range 0..255). Shape must be (3, 255) : a row for each channel
-        @type stackedLUT: ndarray shape=(3,256) dtype=int or float
-        @param options: not used yet
+        Applies 1D LUTS (one row for each L,a,b channel).
+
+        :param stackedLUT: array of color values (in range 0..255). Shape must be (3, 255) : a row for each channel
+        :type stackedLUT: ndarray shape=(3,256) dtype=int or float
+        :param options: not used yet
         """
         if options is None:
             options = UDict()
@@ -1434,12 +1465,13 @@ class vImage(bImage):
     def applyHSPB1DLUT(self, stackedLUT, options=None, pool=None):
         """
         Applies 1D LUTS to hue, sat and brightness channels.
-        @param stackedLUT: array of color values (in range 0..255), a row for each channel
-        @type stackedLUT : ndarray shape=(3,256) dtype=int or float
-        @param options: not used yet
-        @type options : dictionary
-        @param pool: multiprocessing pool : unused
-        @type pool: muliprocessing.Pool
+
+        :param stackedLUT: array of color values (in range 0..255), a row for each channel
+        :type stackedLUT : ndarray shape=(3,256) dtype=int or float
+        :param options: not used yet
+        :type options : dictionary
+        :param pool: multiprocessing pool : unused
+        :type pool: muliprocessing.Pool
         """
         if options is None:
             options = UDict()
@@ -1477,12 +1509,13 @@ class vImage(bImage):
     def applyHSV1DLUT(self, stackedLUT, options=None, pool=None):
         """
         Applies 1D LUTS to hue, sat and brightness channels.
-        @param stackedLUT: array of color values (in range 0..255), a row for each channel
-        @type stackedLUT : ndarray shape=(3,256) dtype=int or float
-        @param options: not used yet
-        @type options : Udict
-        @param pool: multiprocessing pool : unused
-        @type pool: muliprocessing.Pool
+
+        :param stackedLUT: array of color values (in range 0..255), a row for each channel
+        :type stackedLUT : ndarray shape=(3,256) dtype=int or float
+        :param options: not used yet
+        :type options : Udict
+        :param pool: multiprocessing pool : unused
+        :type pool: muliprocessing.Pool
         """
         # neutral point
         if options is None:
@@ -1594,12 +1627,13 @@ class vImage(bImage):
         parallel interpolation on image slices is used.
         If options['keep alpha'] is False, alpha channel is interpolated too.
         LUT axes, LUT channels and image channels must be in BGR order.
-        @param lut3D: LUT3D
-        @type lut3D: LUT3D
-        @param options:
-        @type options: UDict
-        @param pool:
-        @type pool:
+
+        :param lut3D: LUT3D
+        :type lut3D: LUT3D
+        :param options:
+        :type options: UDict
+        :param pool:
+        :type pool:
         """
         LUT = lut3D.LUT3DArray
         LUTSTEP = lut3D.step

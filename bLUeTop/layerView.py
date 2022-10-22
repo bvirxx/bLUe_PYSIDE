@@ -25,7 +25,8 @@ from PySide6.QtGui import QImage, QPalette, QKeySequence, QFontMetrics, QTextOpt
 from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QTableView, QAbstractItemView, QStyledItemDelegate, \
     QHeaderView, QVBoxLayout, QMenu, QSlider, QStyle, QCheckBox, QApplication
 
-from bLUeTop.QtGui1 import window
+# from bLUeTop.QtGui1 import window
+import bLUeTop.Gui
 from bLUeGui.bLUeImage import QImageBuffer, bImage
 from bLUeGui.dialog import dlgWarn
 from bLUeGui.memory import weakProxy
@@ -53,13 +54,14 @@ class itemDelegate(QStyledItemDelegate):
 
     def paint(self, painter, option, index):
         """
-        paint event handler
-        @param painter:
-        @type painter:
-        @param option:
-        @type option:
-        @param index:
-        @type index:
+        paint event handler.
+
+        :param painter:
+        :type painter:
+        :param option:
+        :type option:
+        :param index:
+        :type index:
         """
         rect = QRectF(option.rect)
         layer = self.parent().img.layersStack[-1 - index.row()]
@@ -158,7 +160,7 @@ class QLayerView(QTableView):
             if useThumb == self.img.useThumb:
                 return
             self.img.useThumb = useThumb
-            window.updateStatus()
+            bLUeTop.Gui.window.updateStatus()
             self.img.cacheInvalidate()
             try:
                 QApplication.setOverrideCursor(Qt.WaitCursor)  # TODO waitcursor already called by applytostack
@@ -356,8 +358,9 @@ class QLayerView(QTableView):
         Close all windows associated with image layers.
         If delete is True (default False), the windows and
         their dock containers are deleted.
-        @param delete:
-        @type delete: boolean
+
+        :param delete:
+        :type delete: boolean
         """
         if self.img is None:
             return
@@ -383,10 +386,11 @@ class QLayerView(QTableView):
     def setLayers(self, mImg, delete=False):
         """
         Displays the layer stack of a mImage instance.
-        @param mImg: image
-        @type mImg: mImage
-        @param delete:
-        @type delete:
+
+        :param mImg: image
+        :type mImg: mImage
+        :param delete:
+        :type delete:
         """
         # close open adjustment windows
         # self.closeAdjustForms()
@@ -466,9 +470,9 @@ class QLayerView(QTableView):
                 dock.show()  # needed to get working tabbing
                 if dock not in dockedForms and dock.tabbed:
                     if dockedForms:
-                        window.tabifyDockWidget(dockedForms[-1], dock)
+                        bLUeTop.Gui.window.tabifyDockWidget(dockedForms[-1], dock)
                     else:
-                        window.addDockWidget(Qt.RightDockWidgetArea, dock)
+                        bLUeTop.Gui.window.addDockWidget(Qt.RightDockWidgetArea, dock)
             dock.setFloating(False)
         # select active layer
         self.selectRow(len(mImg.layersStack) - 1 - mImg.activeLayerIndex)
@@ -514,9 +518,10 @@ class QLayerView(QTableView):
 
     def dropEvent(self, event):
         """
-        drop event handler : moving layer
-        @param event:
-        @type event: Qevent
+        drop event handler : moving layer.
+
+        :param event:
+        :type event: Qevent
         """
         if event.source() is not self:
             return
@@ -597,13 +602,14 @@ class QLayerView(QTableView):
 
     def select(self, row, col):
         """
-        select item in view
-        @param row:
-        @type row:
-        @param col:
-        @type col:
-        @return:
-        @rtype:
+        select item in view.
+
+        :param row:
+        :type row:
+        :param col:
+        :type col:
+        :return:
+        :rtype:
         """
         model = self.model()
         self.viewClicked(model.index(row, col))
@@ -611,8 +617,8 @@ class QLayerView(QTableView):
     def viewClicked(self, clickedIndex):
         """
         Mouse clicked event handler.
-        @param clickedIndex: 
-        @type clickedIndex: QModelIndex
+       :param clickedIndex: 
+       :type clickedIndex: QModelIndex
         """
         row = clickedIndex.row()
         rows = set([mi.row() for mi in self.selectedIndexes()])
@@ -685,13 +691,13 @@ class QLayerView(QTableView):
         if layer.tool is not None:
             layer.tool.moveRotatingTool()  # TODO added 23/11/21 keep last - validate
 
-        window.label.repaint()
+        bLUeTop.Gui.window.label.repaint()
 
     def initContextMenu(self):
         """
         Context menu initialization
-        @return:
-        @rtype: QMenu
+       :return:
+       :rtype: QMenu
         """
         menu = QMenu()
         # menu.actionReset = QAction('Reset To Default', None)
@@ -773,8 +779,8 @@ class QLayerView(QTableView):
     def contextMenuEvent(self, event):
         """
         context menu handler
-        @param event
-        @type event: QContextMenuEvent
+       :param event
+       :type event: QContextMenuEvent
         """
         selection = self.selectedIndexes()
         if not selection:

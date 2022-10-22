@@ -29,18 +29,19 @@ def displacementSpline(X, Y, V, period=0, clippingInterval=None):
      Calculate the y-coordinates corresponding to the x-coordinates V for
     the dsiplacement spline defined by the control points zip(X,Y).
     A ValueError exception is raised if the X values are not distinct.
-    @param X: x-coordinates of control points, sorted in increasing order
-    @type X: ndarray, dtype=np.float
-    @param Y: y-coordinates of control points
-    @type Y: ndarray, dtype=np.float
-    @param V: x-coordinates of spline points
-    @type V: ndarray, dtype=np.float
-    @param period:
-    @type period: int
-    @param clippingInterval:
-    @type clippingInterval:
-    @return: y-coordinates of spline points
-    @rtype: ndarray, dtype=np.float
+
+    :param X: x-coordinates of control points, sorted in increasing order
+    :type  X: ndarray, dtype=np.float
+    :param Y: y-coordinates of control points
+    :type  Y: ndarray, dtype=np.float
+    :param V: x-coordinates of spline points
+    :type  V: ndarray, dtype=np.float
+    :param period:
+    :type  period: int
+    :param clippingInterval:
+    :type  clippingInterval:
+    :return: y-coordinates of spline points
+    :rtype: ndarray, dtype=np.float
     """
 
     def bumpVec(V, t1, t2, b, period=period):
@@ -78,14 +79,15 @@ def interpolationQuadSpline(a, b, d):
     cf https://pdfs.semanticscholar.org/1fee/3b0eab9828dd772cc4e735d132bd153b007f.pdf
     The 3 arrays must have the same length.
     Note. for k < a[0], T[k]=b[0] and, for k > a[-1], T[k]=b[-1]
-    @param a: x-coordinates of nodes
-    @type a: ndarray, dtype np.float
-    @param b: y-coordinates of nodes
-    @type b: ndarray, dtype=np.float
-    @param d: slopes at nodes
-    @type d: ndarray, dtype=np.float
-    @return: Spline table
-    @rtype: ndarray, dtype=np.float
+
+    :param a: x-coordinates of nodes
+    :type  a: ndarray, dtype np.float
+    :param b: y-coordinates of nodes
+    :type  b: ndarray, dtype=np.float
+    :param d: slopes at nodes
+    :type  d: ndarray, dtype=np.float
+    :return: Spline table
+    :rtype: ndarray, dtype=np.float
     """
     assert len(a) == len(b) == len(d)
     if np.min(a[1:] - a[:-1]) <= 0:
@@ -129,12 +131,13 @@ def coeff(X, Y):
     Polynomial Pi is Pi(t) = t * Y[i+1] + (1-t)*Y[i] + deltaX1[i] * deltaX1[i] * (P(t) * R[i+1] + P(1-t) * R[i])/6.0,
     where t = (x - X[i]) / deltaX1[i] and P(t) = t**3 - t.
     If 2 points have identical x-coordinates, a ValueError exception is raised.
-    @param X: X ccordinates of points
-    @type X: ndarray, dtype=float
-    @param Y: Y coordinates of points
-    @type Y: ndarray, dtype=np.float
-    @return: deltaX1 and R arrays of size N-1 and N respectively
-    @rtype: ndarray, dtype=np.float
+
+    :param X: X ccordinates of points
+    :type  X: ndarray, dtype=float
+    :param Y: Y coordinates of points
+    :type  Y: ndarray, dtype=np.float
+    :return: deltaX1 and R arrays of size N-1 and N respectively
+    :rtype: ndarray, dtype=np.float
     """
     old_settings = np.seterr(all='ignore')
     deltaX1 = X[1:] - X[:-1]
@@ -161,14 +164,15 @@ def cubicSpline(X, Y, V):
     Calculates the y-coordinates corresponding to the x-coordinates V for
     the cubic spline interpolating the control points zip(X,Y).
     A ValueError exception is raised if the X values are not distinct.
-    @param X: x-coordinates of control points, sorted in increasing order
-    @type X: ndarray, dtype=np.float
-    @param Y: y-coordinates of control points
-    @type Y: ndarray, dtype=np.float
-    @param V: x-coordinates of spline points
-    @type V: ndarray, dtype=np.float
-    @return: y-coordinates of the spline points
-    @rtype: ndarray, dtype=np.float
+
+    :param X: x-coordinates of control points, sorted in increasing order
+    :type  X: ndarray, dtype=np.float
+    :param Y: y-coordinates of control points
+    :type  Y: ndarray, dtype=np.float
+    :param V: x-coordinates of spline points
+    :type  V: ndarray, dtype=np.float
+    :return: y-coordinates of the spline points
+    :rtype: ndarray, dtype=np.float
     """
 
     def P(t):
@@ -191,14 +195,15 @@ def interpolationCubSpline(X, Y, clippingInterval=None):
     The spline has exactly 256 sampling points.
     X and Y must have equal sizes.
     A ValueError exception is raised if the X values are not distinct.
-    @param X: x-coordinates of points
-    @type X: list of float
-    @param Y: y-coordinates of points
-    @type Y: list of float
-    @param clippingInterval: min and max values for the spline y-values
-    @type clippingInterval: 2-uple of float
-    @return: the interpolated cubic spline
-    @rtype: list of QPointF (length 256)
+
+    :param X: x-coordinates of points
+    :type  X: list of float
+    :param Y: y-coordinates of points
+    :type  Y: list of float
+    :param clippingInterval: min and max values for the spline y-values
+    :type  clippingInterval: 2-uple of float
+    :return: the interpolated cubic spline
+    :rtype: list of QPointF (length 256)
     """
     m, M = np.min(X), np.max(X)
     step = (M - m) / 255.0

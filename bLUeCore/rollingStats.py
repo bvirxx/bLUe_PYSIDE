@@ -33,12 +33,12 @@ def rolling_window(a, winsize):
     Add a last axis to an array, filled with the values of a
     1-dimensional sliding window
 
-    @param a: array
-    @type a: ndarray, dtype= any numeric type
-    @param winsize: size of the moving window
-    @type winsize: int
-    @return: array with last axis added
-    @rtype: ndarray
+    :param a: array
+    :type a: ndarray, dtype= any numeric type
+    :param winsize: size of the moving window
+    :type winsize: int
+    :return: array with last axis added
+    :rtype: ndarray
     """
     shape = a.shape[:-1] + (a.shape[-1] - winsize + 1, winsize)
     strides = a.strides + (a.strides[-1],)
@@ -56,14 +56,14 @@ def strides_2d(a, r, linear=True):
 
     U{https://gist.github.com/thengineer/10024511}
 
-    @param a: 2D array
-    @type a: ndarray, ndims=2
-    @param r: window sizes
-    @type r: 2-uple of int
-    @param linear:
-    @type linear: boolean
-    @return: array of moving windows
-    @rtype: ndarray, shape=a.shape, dtype=a.dtype
+    :param a: 2D array
+    :type a: ndarray, ndims=2
+    :param r: window sizes
+    :type r: 2-uple of int
+    :param linear:
+    :type linear: boolean
+    :return: array of moving windows
+    :rtype: ndarray, shape=a.shape, dtype=a.dtype
     """
     ax = np.zeros(shape=(a.shape[0] + 2 * r[0], a.shape[1] + 2 * r[1]), dtype=a.dtype)
     ax[r[0]:ax.shape[0] - r[0], r[1]:ax.shape[1] - r[1]] = a
@@ -97,14 +97,15 @@ def movingAverage(a, winsize, version='kernel'):
     fast but suffers from a lack of precision. If version = 'strides',
     we perform a direct and more precise computation,
     using 64 bits floating numbers.
-    @param a: array
-    @type a: ndarray ndims = 1 or 2
-    @param winsize: size of moving window
-    @type winsize: int
-    @param version: 'kernel' or 'strides'
-    @type version: str
-    @return: array of moving averages
-    @rtype: ndarray, dtype = np.float32 if a.ndims==2 and version=='kernel', otherwise
+
+    :param a: array
+    :type a: ndarray ndims = 1 or 2
+    :param winsize: size of moving window
+    :type winsize: int
+    :param version: 'kernel' or 'strides'
+    :type version: str
+    :return: array of moving averages
+    :rtype: ndarray, dtype = np.float32 if a.ndims==2 and version=='kernel', otherwise
             a.dtype (int types are cast to np.float64)
     """
     n = a.ndim
@@ -131,14 +132,15 @@ def movingVariance(a, winsize, version='kernel'):
     For 2D arrays, the window is square (winsize*winsize), the
     borders are handled by reflection and the returned array
     keeps the shape of a.
-    @param a: array
-    @type a: ndarray ndims = 1 or 2
-    @param winsize: size of moving window
-    @type winsize: int
-    @param version:
-    @type version: str
-    @return: array of moving variances
-    @rtype: ndarray, dtype = np.float32 or np.float64
+
+    :param a: array
+    :type a: ndarray ndims = 1 or 2
+    :param winsize: size of moving window
+    :type winsize: int
+    :param version:
+    :type version: str
+    :return: array of moving variances
+    :rtype: ndarray, dtype = np.float32 or np.float64
     """
     if a.ndim > 2:
         raise ValueError('array ndims must be 1 or 2')

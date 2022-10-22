@@ -134,12 +134,12 @@ class graphicsHspbForm(graphicsCurveForm):
 
     def updateHist(self, curve, redraw=True):
         """
-        Updates the channel histogram displayed under the curve
+        Updates the channel histogram displayed under the curve.
 
-        @param curve:
-        @type curve:
-        @param redraw:
-        @ptype redraw:
+        :param curve:
+        :type curve:
+        :param redraw:
+        :type redraw:
 
         """
         sc = self.scene()
@@ -166,8 +166,8 @@ class graphicsHspbForm(graphicsCurveForm):
     def updateHists(self):
         """
         Updates all histograms
-        @return:
-        @rtype:
+        :return:
+        :rtype:
         """
         sc = self.scene()
         for curve in [sc.cubicR, sc.cubicG, sc.cubicB]:

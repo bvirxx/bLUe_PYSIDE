@@ -15,23 +15,9 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-import weakref
 
+"""
+App-related global constants. They are initialized in QtGui1.py and they should never be modified.
+"""
 
-def weakProxy(ref):
-    """
-    Return a proxy weak reference to a python object.
-    It can be used as the original object, without increasing
-    its reference count.
-
-    :param ref: reference to a python object
-    :type  ref: object
-    :return: weak reference to object
-    :rtype: weakref
-    """
-    if ref is None:
-        return ref
-    if type(ref) in weakref.ProxyTypes:
-        return ref
-    else:
-        return weakref.proxy(ref)
+app, window, splitWin = (None,) * 3

@@ -80,12 +80,13 @@ class dstb(object):
         the distribution represents the probabilities of all successive integers in the range 0..ceil(maxVal).
         It is not smoothed: all integers in the same bin get equal probabilities.
         All bins should be between 0 and maxVal.
-        @param hist: histogram
-        @type hist: list
-        @param maxVal:
-        @type maxVal: int
-        @param bins: histogram bins
-        @type bins: list
+
+        :param hist: histogram
+        :type  hist: list
+        :param maxVal:
+        :type  maxVal: int
+        :param bins: histogram bins
+        :type  bins: list
         """
         if bins is None:
             bins = []
@@ -126,10 +127,11 @@ class dstb(object):
         integers k = 0..maxVal, CDF(k/s) = CDFTable(k); If interpolate
         is False (default) the CDF is constant on the intervals [k/s, (k+1)/s[,
         otherwise its value is interpolated between CDF(k/s) and CDF((k+1)/s.
-        @param x:
-        @type x: float
-        @return: CDF(x)
-        @rtype: float
+
+        :param x:
+        :type  x: float
+        :return: CDF(x)
+        :rtype: float
         """
         if not np.isscalar(x):
             raise ValueError('dstb.F : argument is not a scalar')
@@ -146,10 +148,11 @@ class dstb(object):
     def FVec(self, x):
         """
         Vectorized version of the CDF function.
-        @param x: array of arguments
-        @type x: ndarray, dtype float
-        @return: array of CDF(x) values
-        @rtype: ndarray, dtype=np.float,  same shape as x
+
+        :param x: array of arguments
+        :type  x: ndarray, dtype float
+        :return: array of CDF(x) values
+        :rtype: ndarray, dtype=np.float,  same shape as x
         """
         s = self.maxVal
         xs = x * s
@@ -170,10 +173,11 @@ class dstb(object):
         if interpolateCDFis True
         Note. As F is neither continuous nor strictly increasing, FInv is not the
         mathematical inverse function of F.
-        @param x:
-        @type x: float or array of float
-        @return:
-        @rtype: array of float
+
+        :param x:
+        :type  x: float or array of float
+        :return:
+        :rtype: array of float
         """
         if np.isscalar(x):
             raise ValueError('dstb.FInvVec : argument is a scalar')
@@ -207,11 +211,12 @@ class dstb(object):
         """
         Convenience inverse CDF function with scalar argument and value.
         Inverse CDF. For convenience the argument x and the
-        returned value are normalized to 0..1
-        @param x:
-        @type x: float
-        @return:
-        @rtype: float
+        returned value are normalized to 0..1.
+
+        :param x:
+        :type  x: float
+        :return:
+        :rtype: float
         """
         if not np.isscalar(x):
             raise ValueError('dstb.FInv : argument is not a scalar')
@@ -223,16 +228,17 @@ def gaussianDistribution(x, hist, bins, h):
     Computes the kernel density estimation at point x, by a mixture of gaussian variables
     for the distribution (hist, bins). The parameter x is in range 0..256
     and h is the bandwidth.
-    @param x: x-value for estimation
-    @type x: float, range 0..256
-    @param hist: histogram
-    @type hist: ndarray
-    @param bins: bins of histogram
-    @type bins: ndarray
-    @param h: bandwidth
-    @type h: float
-    @return: density estimation value at x
-    @rtype: float
+
+    :param x: x-value for estimation
+    :type  x: float, range 0..256
+    :param hist: histogram
+    :type  hist: ndarray
+    :param bins: bins of histogram
+    :type  bins: ndarray
+    :param h: bandwidth
+    :type  h: float
+    :return: density estimation value at x
+    :rtype: float
     """
     dist = dstb(hist, bins)
     values = np.arange(256, dtype=np.float) / 256
@@ -247,12 +253,13 @@ def distWins(dist, delta):
     """
     Returns the sorted list of the windows of (probability) width >= 2*delta
     for a disribution dist. Parameter delta should be in range 0..0.5.
-    @param dist: distribution
-    @type dist: distribution object
-    @param delta: half probability width of window
-    @type delta: float
-    @return: the list of 3-uples (j, k, i) corresponding to the windows (k+j, k, k+i), Note j is < 0
-    @rtype: list
+
+    :param dist: distribution
+    :type  dist: distribution object
+    :param delta: half probability width of window
+    :type  delta: float
+    :return: the list of 3-uples (j, k, i) corresponding to the windows (k+j, k, k+i), Note j is < 0
+    :rtype: list
     """
     mv = dist.maxVal
     CDF = dist.CDFTable
@@ -285,12 +292,12 @@ def valleys(imgBuf, delta):
     Note. In contrast to Grundland and Dodgson U{https://link.springer.com/chapter/10.1007/1-4020-4179-9_42},
     a valley may contain other (higher) local minima.
 
-    @param imgBuf: image buffer, one single channel, range 0..255
-    @type imgBuf: ndarray, dtype uint8 or int or float
-    @param delta:
-    @type delta: float
-    @return: V, dist
-    @rtype: ndarray, distribution
+    :param imgBuf: image buffer, one single channel, range 0..255
+    :type  imgBuf: ndarray, dtype uint8 or int or float
+    :param delta:
+    :type  delta: float
+    :return: V, dist
+    :rtype: ndarray, distribution
     """
     # build image histogram and init distribution
     hist, bins = np.histogram(imgBuf, bins=256, range=(0, 255), density=True)
@@ -319,16 +326,17 @@ def autoQuadSpline(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True):
     of histogram valleys: it should be > 0 and < 0.5. The parameter warp controls
     the correction level : it should be between 0 (no correction and 1 (full correction).
     If preserveHigh is True (default) a final correction is applied to preserve highlights.
-    @param imgBuf:
-    @type imgBuf: ndarray
-    @param valleyAperture:
-    @type valleyAperture: float
-    @param warp: control the amplitude of the control point moves
-    @type warp: float, range 0..1
-    @param preserveHigh: final highlight correction
-    @type preserveHigh: boolean
-    @return: x-coordinates, y-coordinates, tangent slopes, spline array (tabulation)
-    @rtype: ndarray dtype=float, ranges 0..1
+
+    :param imgBuf:
+    :type  imgBuf: ndarray
+    :param valleyAperture:
+    :type  valleyAperture: float
+    :param warp: control the amplitude of the control point moves
+    :type  warp: float, range 0..1
+    :param preserveHigh: final highlight correction
+    :type  preserveHigh: boolean
+    :return: x-coordinates, y-coordinates, tangent slopes, spline array (tabulation)
+    :rtype: ndarray dtype=float, ranges 0..1
     """
     ###################
     # outlier threshold
@@ -437,18 +445,19 @@ def warpHistogram(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True, spli
     of histogram valleys: it should be > 0 and < 0.5. The parameter warp controls
     the correction level : it should be between 0 (no correction and 1 (full correction).
     If preserveHigh is True (default) a final correction is applied to preserve highlights.
-    @param imgBuf: single channel image (luminance), range 0..1
-    @type imgBuf: ndarray, shape(h,w), dtype=uint8 or int or float
-    @param valleyAperture:
-    @type valleyAperture: float
-    @param warp:
-    @type warp: float
-    @param preserveHigh:
-    @type preserveHigh: boolean
-    @param spline: spline, range 0..256 --> 0..1
-    @type spline: activeSpline
-    @return: the transformed image channel, range 0..1 and the quadratic spline
-    @rtype: image ndarray same shape as imgBuf, dtype=np.float, a, b, T are in range 0..1
+
+    :param imgBuf: single channel image (luminance), range 0..1
+    :type  imgBuf: ndarray, shape(h,w), dtype=uint8 or int or float
+    :param valleyAperture:
+    :type  valleyAperture: float
+    :param warp:
+    :type  warp: float
+    :param preserveHigh:
+    :type  preserveHigh: boolean
+    :param spline: spline, range 0..256 --> 0..1
+    :type  spline: activeSpline
+    :return: the transformed image channel, range 0..1 and the quadratic spline
+    :rtype: image ndarray same shape as imgBuf, dtype=np.float, a, b, T are in range 0..1
     """
     if spline is None:
         a, b, d, T = autoQuadSpline(imgBuf, valleyAperture=valleyAperture, warp=warp, preserveHigh=preserveHigh)

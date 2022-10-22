@@ -84,12 +84,13 @@ class abstractForm:
         occurs on the image under edition (cf. bLUe.mouseEvent()).
         (x,y) coordinates are supposed to be relative to the full size image.
         Should be overridden in subclasses.
-        @param x:
-        @type x: int
-        @param y:
-        @type y: int
-        @param modifiers:
-        @type modifiers: Qt.KeyboardModifiers
+
+        :param x:
+        :type  x: int
+        :param y:
+        :type  y: int
+        :param modifiers:
+        :type  modifiers: Qt.KeyboardModifiers
 
         """
         pass
@@ -216,8 +217,9 @@ class baseGraphicsForm(QGraphicsView, abstractForm):
         """
         Overrides QGraphicsView wheelEvent.
         Zoom the scene.
-        @param e:
-        @type e:
+
+        :param e:
+        :type  e:
         """
         # delta unit is 1/8 of degree
         # Most mice have a resolution of 15 degrees
@@ -236,10 +238,11 @@ class baseGraphicsForm(QGraphicsView, abstractForm):
         non-zoomable. It is supposed
         to contain option lists, buttons,...needed by
         the form.
-        @param glayout:
-        @type glayout: Qlayout
-        @return:
-        @rtype QWidget
+
+        :param glayout:
+        :type  glayout: QLayout
+        :return:
+        :rtype: QWidget
         """
         container = bottomWidget()
         container.setLayout(glayout)
@@ -260,12 +263,13 @@ class graphicsCurveForm(baseGraphicsForm):
         """
         Return a QGraphicsPathItem initialized with
         a square grid.
-        @param axeSize:
-        @type axeSize: int
-        @param gradient:
-        @type gradient: QGradient
-        @return:
-        @rtype: QGraphicsPathItem
+
+        :param axeSize:
+        :type  axeSize: int
+        :param gradient:
+        :type  gradient: QGradient
+        :return:
+        :rtype: QGraphicsPathItem
         """
         lineWidth = 1
         item = QGraphicsPathItem()

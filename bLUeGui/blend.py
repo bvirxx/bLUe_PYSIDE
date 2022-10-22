@@ -32,12 +32,13 @@ def blendLuminosityBuf(destBuf, sourceBuf):
     see https://docs.opencv.org/3.3.0/de/d25/imgproc_color_conversions.html
     Note blendColor and blendLuminosity are commuted versions of each other:
     blendLuminosity(img1, img2) = blendColor(img2, img1)
-    @param destBuf: destination r,g,b image buffer
-    @type destBuf: ndarray
-    @param sourceBuf: source r,g,b image buffer
-    @type sourceBuf: ndarray
-    @return: the blended buffer
-    @rtype: ndarray
+
+    :param destBuf: destination r,g,b image buffer
+    :type  destBuf: ndarray
+    :param sourceBuf: source r,g,b image buffer
+    :type  sourceBuf: ndarray
+    :return:the blended buffer
+    :rtype: ndarray
     """
     hlsSourceBuf = rgb2hlsVec(sourceBuf)
     hlsDestBuf = rgb2hlsVec(destBuf)
@@ -57,12 +58,13 @@ def blendLuminosity(dest, source):
     see https://docs.opencv.org/3.3.0/de/d25/imgproc_color_conversions.html
     Note blendColor and blendLuminosity are commuted versions of each other:
     blendLuminosity(img1, img2) = blendColor(img2, img1)
-    @param dest: destination QImage
-    @type dest QImage
-    @param source: source QImage
-    @type source QImage
-    @return: The blended image
-    @rtype: QImage same size and format as source
+
+    :param dest: destination QImage
+    :type  dest QImage
+    :param source: source QImage
+    :type  source QImage
+    :return:The blended image
+    :rtype: QImage same size and format as source
 
     """
     sourceBuf = QImageBuffer(source)[:, :, :3]
@@ -85,12 +87,13 @@ def blendColorBuf(destBuf, sourceBuf):
     see https://docs.opencv.org/3.3.0/de/d25/imgproc_color_conversions.html
     Note blendColor and blendLuminosity are commuted versions of each other:
     blendLuminosity(img1, img2) = blendColor(img2, img1)
-    @param destBuf: destination r,g,b image buffer
-    @type destBuf: ndarray
-    @param sourceBuf: source r,g,b image buffer
-    @type sourceBuf: ndarray
-    @return: the blended buffer
-    @rtype: ndarray
+
+    :param destBuf: destination r,g,b image buffer
+    :type  destBuf: ndarray
+    :param sourceBuf: source r,g,b image buffer
+    :type  sourceBuf: ndarray
+    :return:the blended buffer
+    :rtype: ndarray
     """
     return blendLuminosityBuf(sourceBuf, destBuf)
 
@@ -104,11 +107,12 @@ def blendColor(dest, source):
     see https://docs.opencv.org/3.3.0/de/d25/imgproc_color_conversions.html
     Note blendColor and blendLuminosity are commuted versions of each other:
     blendLuminosity(img1, img2) = blendColor(img2, img1)
-    @param dest: destination QImage
-    @type dest: QImage
-    @param source: source QImage
-    @type source: QImage
-    @return: The blended image
-    @rtype: QImage QImage same size and format as source
+
+    :param dest: destination QImage
+    :type  dest: QImage
+    :param source: source QImage
+    :type  source: QImage
+    :return:The blended image
+    :rtype: QImage QImage same size and format as source
     """
     return blendLuminosity(source, dest)

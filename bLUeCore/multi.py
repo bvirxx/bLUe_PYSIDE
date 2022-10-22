@@ -32,20 +32,21 @@ def interpMulti(LUT, LUTSTEP, ndImg, pool=None, use_tetra=False, convert=True):
     must follow the ordering of the color channels.
     The output image is interpolated from the LUT.
     It has the same type as the input image.
-    @param LUT: 3D LUT array
-    @type LUT: ndarray, dtype float or int, shape(s1, s2, s3, 3)
-    @param LUTSTEP: interpolation step
-    @type LUTSTEP: number or 3-uple of numbers
-    @param ndImg: input array
-    @type ndImg: ndarray dtype float or int, shape (w, h, 3)
-    @param pool: multiprocessing pool
-    @type pool: mulpiprocessing.Pool
-    @param use_tetra: use tetrahedral interpolation
-    @type use_tetra : boolean
-    @param convert: convert the output to dtype=np.uint8
-    @type convert: boolean
-    @return: interpolated array
-    @rtype: ndarray, same shape as the input image
+
+    :param LUT: 3D LUT array
+    :type LUT: ndarray, dtype float or int, shape(s1, s2, s3, 3)
+    :param LUTSTEP: interpolation step
+    :type LUTSTEP: number or 3-uple of numbers
+    :param ndImg: input array
+    :type ndImg: ndarray dtype float or int, shape (w, h, 3)
+    :param pool: multiprocessing pool
+    :type pool: mulpiprocessing.Pool
+    :param use_tetra: use tetrahedral interpolation
+    :type use_tetra : boolean
+    :param convert: convert the output to dtype=np.uint8
+    :type convert: boolean
+    :return: interpolated array
+    :rtype: ndarray, same shape as the input image
     """
     w, h = ndImg.shape[1], ndImg.shape[0]
     SLF = 4
@@ -71,12 +72,13 @@ def interpMulti(LUT, LUTSTEP, ndImg, pool=None, use_tetra=False, convert=True):
 def chosenInterp(pool, size):
     """
     Return the right interpolation method, depending on settings, pool and image size
-    @param pool:
-    @type pool: multiprocessing pool
-    @param size: image size
-    @type size: int
-    @return:
-    @rtype: interpolation function
+
+    :param pool:
+    :type pool: multiprocessing pool
+    :param size: image size
+    :type size: int
+    :return:
+    :rtype: interpolation function
     """
     if (pool is not None) and size > 3000000:
         def f(x, y, z, convert=True):

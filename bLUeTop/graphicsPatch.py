@@ -37,10 +37,10 @@ class BWidgetImg(QLabel):
     def __init__(self, *args, **kwargs):
         """
 
-        @param args:
-        @type args:
-        @param kwargs: parent should be the graphic form
-        @type kwargs:
+       :param args:
+       :type args:
+       :param kwargs: parent should be the graphic form
+       :type kwargs:
         """
         super().__init__(*args, **kwargs)
         if 'parent' in kwargs:

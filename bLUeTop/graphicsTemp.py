@@ -169,17 +169,19 @@ class temperatureForm(baseForm):
 
     def colorUpdate(self, color):
         """
-        color Changed slot
-        @param color:
-        @type color: QColor
+        color Changed slot.
+
+        :param color:
+        :type color: QColor
         """
         self.dataChanged.emit()
 
     def tempUpdate(self, value):
         """
-        temp change slot
-        @param value:
-        @type value: int
+        temp change slot.
+
+        :param value:
+        :type value: int
         """
         self.tempValue.setText(str("{:d}".format(self.sliderTemp2User(value))))
         # move not yet terminated or values not modified
@@ -197,9 +199,10 @@ class temperatureForm(baseForm):
 
     def tintUpdate(self, value):
         """
-        tint change slot
-        @param value:
-        @type value: int
+        tint change slot.
+
+        :param value:
+        :type value: int
         """
         self.tintValue.setText(str("{:d}".format(self.sliderTint2User(value))))
         # move not yet terminated or values not modified
@@ -225,9 +228,10 @@ class temperatureForm(baseForm):
 
     def setFilterColor(self, color):
         """
-        currentColorChanged slot
-        @param color:
-        @type color: QColor
+        currentColorChanged slot.
+
+        :param color:
+        :type color: QColor
         """
         self.filterColor = color
         self.colorLabel.setAutoFillBackground(True)

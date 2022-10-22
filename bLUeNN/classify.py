@@ -15,7 +15,6 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-import argparse
 
 from bLUeGui.bLUeImage import QImageBuffer
 
@@ -64,11 +63,12 @@ classifier.eval()
 
 def generatePred(img):
     """
-    Uses the pretrained model to classify img
-    @param img: tensor image. Channels order is RGB and values are in range [0,1]
-    @type img:
-    @return: LUT tensor. Axes and channels are in RGB order and values should be in range [0,1]
-    @rtype:
+    Uses the pretrained model to classify img.
+
+   :param img: tensor image. Channels order is RGB and values are in range [0,1]
+   :type img:
+   :return: LUT tensor. Axes and channels are in RGB order and values should be in range [0,1]
+   :rtype:
     """
 
     pred = classifier(img).squeeze()
@@ -78,13 +78,14 @@ def generatePred(img):
 
 def generateLUTfromQImage(img, coeffs):
     """
-    Computes 3D LUT from QImage
-    @param img:
-    @type img: QImage
-    @param coeffs:
-    @type coeffs: 3-uple
-    @return: 3D LUT and pred
-    @rtype:
+    Computes 3D LUT from QImage.
+
+   :param img:
+   :type img: QImage
+   :param coeffs:
+   :type coeffs: 3-uple
+   :return: 3D LUT and pred
+   :rtype:
     """
 
     buf = QImageBuffer(img)[:, :, :3][:, :, ::-1].copy()  # convert to RGB. Tensor does not support negative strides

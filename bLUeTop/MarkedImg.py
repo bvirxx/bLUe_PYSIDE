@@ -80,14 +80,15 @@ class mImage(vImage):
         If defaultorientation is True the orientation of the destination file is
         set to "no change" (1). In this way, saved images are displayed as they were edited.
         The thumbnail is updated if thumbfile is provided. Other metadata are kept unchanged.
-        @param srcFile: source image or sidecar (the extension is replaced by .mie).
-        @type srcFile: str
-        @param destFile: image file
-        @type destFile: str
-        @param defaultorientation
-        @type defaultorientation: bool
-        @param thumbfile: thumbnail file
-        @type thumbfile: str
+
+        :param srcFile: source image or sidecar (the extension is replaced by .mie).
+        :type srcFile: str
+        :param destFile: image file
+        :type destFile: str
+        :param defaultorientation
+        :type defaultorientation: bool
+        :param thumbfile: thumbnail file
+        :type thumbfile: str
         """
         with exiftool.ExifTool() as e:
             e.copySidecar(srcFile, destFile)
@@ -122,9 +123,10 @@ class mImage(vImage):
     @property
     def colorTransformation(self):
         """
-        Returns the current cms transformation from working profile to monitor profile
-        @return:
-        @rtype: CmsTransform object
+        Returns the current cms transformation from working profile to monitor profile.
+
+        :return:
+        :rtype: CmsTransform object
         """
         return icc.workToMonTransform
 
@@ -132,8 +134,9 @@ class mImage(vImage):
         """
         Replaces layer stack, graphic forms and
         meta data by these from source.
-        @param source:
-        @type source: mImage
+
+        :param source:
+        :type source: mImage
         """
         self.meta = source.meta
         self.onImageChanged = source.onImageChanged
@@ -179,10 +182,11 @@ class mImage(vImage):
     def resized(self, w, h, keepAspectRatio=True, interpolation=cv2.INTER_CUBIC):
         """
         Resizes the image and the layer stack, while keeping the aspect ratio.
-        @param pixels:
-        @param interpolation:
-        @return: resized imImage object
-        @rtype: same type as self
+
+        :param pixels:
+        :param interpolation:
+        :return: resized imImage object
+        :rtype: same type as self
         """
         rszd0, buf = super().resized(w, h, keepAspectRatio=keepAspectRatio, interpolation=interpolation)
         # get resized image (with a background layer)
@@ -194,11 +198,12 @@ class mImage(vImage):
     def bTransformed(self, transformation):
         """
         Applies transformation to all layers in stack and returns
-        the new mImage
-        @param transformation:
-        @type transformation: Qtransform
-        @return:
-        @rtype: mimage
+        the new mImage.
+
+        :param transformation:
+        :type transformation: Qtransform
+        :return:
+        :rtype: mimage
         """
         img = mImage(QImg=self.transformed(transformation))
         img.meta = self.meta
@@ -216,8 +221,9 @@ class mImage(vImage):
     def getActiveLayer(self):
         """
         Returns the currently active layer.
-        @return: The active layer
-        @rtype: QLayer
+
+        :return: The active layer
+        :rtype: QLayer
         """
         if self.activeLayerIndex is not None:
             return self.layersStack[self.activeLayerIndex]
@@ -227,11 +233,12 @@ class mImage(vImage):
     def setActiveLayer(self, stackIndex):
         """
         Assigns stackIndex value to  activeLayerIndex and
-        updates the layer view and tools
-        @param stackIndex: index in stack for the layer to select
-        @type stackIndex: int
-        @return: active layer
-        @rtype: QLayer
+        updates the layer view and tools.
+
+        :param stackIndex: index in stack for the layer to select
+        :type stackIndex: int
+        :return: active layer
+        :rtype: QLayer
         """
         lgStack = len(self.layersStack)
         if stackIndex < 0 or stackIndex >= lgStack:
@@ -292,16 +299,17 @@ class mImage(vImage):
         the input image, otherwise from the current image.
         Coordinates are relative to the full sized image.
         If (x,y) is outside the image, (0, 0, 0) is returned.
-        @param x: x-coordinates of pixel, relative to the full-sized image
-        @type x: int
-        @param y: y-coordinates of pixel, relative to the full-sized image
-        @type y: int
-        @param fromInputImg:
-        @type fromInputImg:
-        @param qcolor:
-        @type qcolor:
-        @return: color of pixel if qcolor else its R, G, B components
-        @rtype: QColor if qcolor else 3-uple of int
+
+        :param x: x-coordinates of pixel, relative to the full-sized image
+        :type x: int
+        :param y: y-coordinates of pixel, relative to the full-sized image
+        :type y: int
+        :param fromInputImg:
+        :type fromInputImg:
+        :param qcolor:
+        :type qcolor:
+        :return: color of pixel if qcolor else its R, G, B components
+        :rtype: QColor if qcolor else 3-uple of int
         """
         x, y = self.full2CurrentXY(x, y)
         activeLayer = self.getActiveLayer()
@@ -320,12 +328,13 @@ class mImage(vImage):
         colors of the displayed pixel.
         Coordinates are relative to the full sized image.
         If (x,y) is outside the image, (0, 0, 0) is returned.
-        @param x: x-coordinate of pixel, relative to the full-sized image
-        @type x: int
-        @param y: y-coordinate of pixel, relative to the full-sized image
-        @type y: int
-        @return: pixel RGB colors
-        @rtype: 3-uple of int
+
+        :param x: x-coordinate of pixel, relative to the full-sized image
+        :type x: int
+        :param y: y-coordinate of pixel, relative to the full-sized image
+        :type y: int
+        :return: pixel RGB colors
+        :rtype: 3-uple of int
         """
         x, y = self.full2CurrentXY(x, y)
         qClr = self.prLayer.getCurrentImage().pixelColor(x, y)
@@ -369,16 +378,17 @@ class mImage(vImage):
         Adds a layer to stack (If the parameter layer is None a fresh layer is added).
         The layer name may be modified to get a unique (case insensitive) name.
         The layer is returned.
-        @param layer: layer to add (if None, add a fresh layer)
-        @type layer: QLayer
-        @param name: layer proposed name
-        @type name: str
-        @param index: index of insertion in layersStack (top of active layer if index=None)
-        @type index: int
-        @param activate:
-        @type activate: boolean
-        @return: the layer added
-        @rtype: QLayer
+
+        :param layer: layer to add (if None, add a fresh layer)
+        :type layer: QLayer
+        :param name: layer proposed name
+        :type name: str
+        :param index: index of insertion in layersStack (top of active layer if index=None)
+        :type index: int
+        :param activate:
+        :type activate: boolean
+        :return: the layer added
+        :rtype: QLayer
         """
         # build a unique name
         usedNames = [l.name.lower() for l in self.layersStack]
@@ -420,18 +430,18 @@ class mImage(vImage):
         If the parameter sourceImg is given, the layer is a
         QLayerImage object built from sourceImg, and layerType has no effect.
 
-        @param layerType: layer class
-        @type layerType: QLayer subclass
-        @param name:
-        @type name: str
-        @param role:
-        @type role: str
-        @param index:
-        @type index: int
-        @param sourceImg: source image
-        @type sourceImg: QImage
-        @return: the new layer
-        @rtype: subclass of QLayer
+       :param layerType: layer class
+       :type layerType: QLayer subclass
+       :param name:
+       :type name: str
+       :param role:
+       :type role: str
+       :param index:
+       :type index: int
+       :param sourceImg: source image
+       :type sourceImg: QImage
+       :return: the new layer
+       :rtype: subclass of QLayer
         """
         if index is None:
             # adding on top of active layer
@@ -487,9 +497,11 @@ class mImage(vImage):
         inserts in layersStack at position index+1 a copy of the layer 
         at position index. If index is None (default value), the layer is inserted
         on top of the stack. Adjustment layers are not duplicated.
-        @param index: 
-        @type index: int
-        @return: 
+
+        :param index:
+        :type index: int
+        :return:
+        :rtype:
         """
         if index is None:
             index = len(self.layersStack) - 1
@@ -503,8 +515,9 @@ class mImage(vImage):
         """
         Merges the visible masked images and returns the
         resulting QImage, eventually scaled to fit the image size.
-        @return: image
-        @rtype: QImage
+
+        :return: image
+        :rtype: QImage
         """
         # init a new image
         img = QImage(self.width(), self.height(), self.format())
@@ -522,8 +535,9 @@ class mImage(vImage):
         Builds a snapshot of the document (imagej description dictionary, mask list, image list) for
         saving to bLU file. All changes to the document made between the call to
         snap() and the actual file writing will be ignored.
-        @return:
-        @rtype: 3uple (ordered dict, list of Qimage, list of QImage)
+
+        :return:
+        :rtype: 3uple (ordered dict, list of Qimage, list of QImage)
         """
         layernames = [(layer.name, pickle.dumps({'actionname': layer.actionName, 'state': layer.__getstate__()}))
                       for layer in self.layersStack] + \
@@ -577,14 +591,15 @@ class mImage(vImage):
         If filename extension is 'bLU' the current state (stack, masks, images) of the document
         is saved to filename.
         Raises IOError if the saving fails.
-        @param filename:
-        @type filename: str
-        @param quality: integer value in range 0..100, or -1
-        @type quality: int
-        @param compression: integer value in range 0..100, or -1
-        @type compression: int
-        @return: thumbnail of the saved image
-        @rtype: QImage
+
+        :param filename:
+        :type filename: str
+        :param quality: integer value in range 0..100, or -1
+        :type quality: int
+        :param compression: integer value in range 0..100, or -1
+        :type compression: int
+        :return: thumbnail of the saved image
+        :rtype: QImage
         """
 
         def transparencyCheck(buf, fileformat):
@@ -742,18 +757,19 @@ class imImage(mImage):
         """
         load an imImage (image and base metadata) from file. Returns the loaded imImage :
         For a raw file, it is the image postprocessed with default parameters.
-        @param f: path to file
-        @type f: str
-        @param rawiobuf: raw data
-        @type rawiobuf:
-        @param createsidecar:
-        @type createsidecar: boolean
-        @param icc:
-        @type icc: class icc
-        @param cmsConfigure:
-        @type cmsConfigure: boolean
-        @return: image
-        @rtype: imImage
+
+        :param f: path to file
+        :type f: str
+        :param rawiobuf: raw data
+        :type rawiobuf:
+        :param createsidecar:
+        :type createsidecar: boolean
+        :param icc:
+        :type icc: class icc
+        :param cmsConfigure:
+        :type cmsConfigure: boolean
+        :return: image
+        :rtype: imImage
         """
         # extract metadata from sidecar (.mie) if it exists, otherwise from image file.
         # metadata is a dict.
@@ -883,10 +899,11 @@ class imImage(mImage):
         """
         Applies transformation to all layers in stack
         and returns the new imImage.
-        @param transformation:
-        @type transformation: QTransform
-        @return:
-        @rtype: imImage
+
+        :param transformation:
+        :type transformation: QTransform
+        :return:
+        :rtype: imImage
         """
         img = imImage(QImg=self.transformed(transformation))
         img.meta = self.meta
@@ -922,14 +939,15 @@ class imImage(mImage):
 
     def setView(self, zoom=1.0, xOffset=0.0, yOffset=0.0):
         """
-        Sets viewing conditions: zoom, offset
-        @param zoom: zoom coefficient
-        @type zoom: float
-        @param xOffset: x-offset
-        @type xOffset: int
-        @param yOffset: y-offset
-        @type yOffset: int
-        @return: 
+        Sets viewing conditions: zoom, offset.
+
+        :param zoom: zoom coefficient
+        :type zoom: float
+        :param xOffset: x-offset
+        :type xOffset: int
+        :param yOffset: y-offset
+        :type yOffset: int
+        :return:
         """
         self.Zoom_coeff, self.xOffset, self.yOffset = zoom, xOffset, yOffset
 
@@ -952,12 +970,13 @@ class QLayer(vImage):
         Return a QLayer object initialized with mImg.
         Derived classes get an instance of themselves
         without overriding.
-        @param mImg:
-        @type mImg: QImage
-        @param parentImage:
-        @type parentImage: mImage
-        @return:
-        @rtype: Qlayer
+
+        :param mImg:
+        :type mImg: QImage
+        :param parentImage:
+        :type parentImage: mImage
+        :return:
+        :rtype: Qlayer
         """
         layer = cls(QImg=mImg, role=role, parentImage=parentImage)
         # layer.parentImage = parentImage  # TODO removed 8/12/21 : QLayer __init__() sets parentImage as weakref
@@ -1039,9 +1058,10 @@ class QLayer(vImage):
 
     def getGraphicsForm(self):
         """
-        Return the graphics form associated with the layer
-        @return:
-        @rtype: QWidget
+        Return the graphics form associated with the layer.
+
+        :return:
+        :rtype: QWidget
         """
         if self.view is not None:
             return self.view.widget()
@@ -1049,9 +1069,10 @@ class QLayer(vImage):
 
     def closeView(self, delete=False):
         """
-        Closes all windows associated with layer
-        @param delete:
-        @type delete: boolean
+        Closes all windows associated with layer.
+
+        :param delete:
+        :type delete: boolean
         """
 
         def closeDock(dock, delete=False):
@@ -1101,8 +1122,9 @@ class QLayer(vImage):
         """
         Returns the spline used for multimode contrast
         correction if it is initialized, and None otherwise.
-        @return:
-        @rtype: activeSpline
+
+        :return:
+        :rtype: activeSpline
         """
         # get layer graphic form
         grf = self.getGraphicsForm()
@@ -1113,9 +1135,10 @@ class QLayer(vImage):
 
     def addTool(self, tool):
         """
-        Adds tool to layer
-        @param tool:
-        @type tool: rotatingTool
+        Adds tool to layer.
+
+        :param tool:
+        :type tool: rotatingTool
         """
         self.tool = tool
         tool.modified = False
@@ -1136,9 +1159,10 @@ class QLayer(vImage):
 
     def setVisible(self, value):
         """
-        Sets self.visible to value and emit visibilityChanged.sig
-        @param value:
-        @type value: bool
+        Sets self.visible to value and emit visibilityChanged.sig.
+
+        :param value:
+        :type value: bool
         """
         self.visible = value
         self.visibilityChanged.sig.emit(value)
@@ -1146,12 +1170,13 @@ class QLayer(vImage):
     def bTransformed(self, transformation, parentImage):
         """
         Apply transformation to a copy of layer. Returns the transformed copy.
-        @param transformation:
-        @type transformation: QTransform
-        @param parentImage:
-        @type parentImage: vImage
-        @return: transformed layer
-        @rtype: QLayer
+
+        :param transformation:
+        :type transformation: QTransform
+        :param parentImage:
+        :type parentImage: vImage
+        :return: transformed layer
+        :rtype: QLayer
         """
         # init a new layer from transformed image :
         # all static attributes (caches...) are reset to default, but thumb
@@ -1213,9 +1238,10 @@ class QLayer(vImage):
         are computed if they are not initialized.
         Otherwise, they are not updated unless self.thumb is
         None or purgeThumb is True.
-        Overrides vImage method
-        @return: current image
-        @rtype: QLayer
+        Overrides vImage method.
+
+        :return: current image
+        :rtype: QLayer
         """
         if self.parentImage.useHald:
             return self.getHald()
@@ -1232,10 +1258,11 @@ class QLayer(vImage):
         layer.applyToStack() always calls inputImg() with redo=True.
         So, to keep the containers up to date we only have to follow
         each layer modification by a call to layer.applyToStack().
-        @param redo:
-        @type redo: boolean
-        @return:
-        @rtype: bImage
+
+        :param redo:
+        :type redo: boolean
+        :return:
+        :rtype: bImage
         """
         lower = self.parentImage.layersStack[self.getLowerVisibleStackIndex()]
         container = lower.maskedThumbContainer if self.parentImage.useThumb else lower.maskedImageContainer
@@ -1253,12 +1280,13 @@ class QLayer(vImage):
         """
         Maps x,y coordinates of pixel in the full size image to
         coordinates in current image.
-        @param x:
-        @type x: int or float
-        @param y:
-        @type y: int or float
-        @return:
-        @rtype: 2uple of int
+
+        :param x:
+        :type x: int or float
+        :param y:
+        :type y: int or float
+        :return:
+        :rtype: 2uple of int
         """
         if self.parentImage.useThumb:
             currentImg = self.getThumb()
@@ -1270,12 +1298,13 @@ class QLayer(vImage):
         """
         Maps x,y coordinates of pixel in the current image to
         coordinates in full size image.
-        @param x:
-        @type x: int or float
-        @param y:
-        @type y: int or float
-        @return:
-        @rtype: 2uple of int
+
+        :param x:
+        :type x: int or float
+        :param y:
+        :type y: int or float
+        :return:
+        :rtype: 2uple of int
         """
         if self.parentImage.useThumb:
             currentImg = self.getThumb()
@@ -1291,8 +1320,9 @@ class QLayer(vImage):
         For convenience, mainly to be able to use its color space buffers,
         the built image is of type bImage. It is drawn on a container image,
         instantiated only once.
-        @return: masked image
-        @rtype: bImage
+
+        :return: masked image
+        :rtype: bImage
         """
         # init containers if needed. They are instantiated only
         # once and updated by drawing.
@@ -1441,8 +1471,9 @@ class QLayer(vImage):
             - if maskIsSelected is False, the mask is drawn as an
               opacity mask, setting the image opacity to that of the mask
               (mode DestinationIn).
-        @param maskOnly: not used : for consistency with overriding method signature
-        @type maskOnly: boolean
+
+        :param maskOnly: not used : for consistency with overriding method signature
+        :type maskOnly: boolean
         """
         rImg = self.getCurrentImage()
         # apply layer transformation. Missing pixels are set to QColor(0,0,0,0)
@@ -1458,8 +1489,9 @@ class QLayer(vImage):
         """
         Returns layer index in the stack, len(stack) - 1 if
         the layer is not in the stack.
-        @return:
-        @rtype: int
+
+        :return:
+        :rtype: int
         """
         i = -1
         for i, l in enumerate(self.parentImage.layersStack):
@@ -1479,9 +1511,10 @@ class QLayer(vImage):
 
     def getTopVisibleStackIndex(self):
         """
-        Returns the index of the top visible layer
-        @return:
-        @rtype:
+        Returns the index of the top visible layer.
+
+        :return:
+        :rtype:
         """
         stack = self.parentImage.layersStack
         lg = len(stack)
@@ -1493,9 +1526,10 @@ class QLayer(vImage):
     def getLowerVisibleStackIndex(self):
         """
         Returns the index of the next lower visible layer,
-        -1 if it does not exists
-        @return:
-        @rtype: int
+        -1 if it does not exists.
+
+        :return:
+        :rtype: int
         """
         ind = self.getStackIndex()
         stack = self.parentImage.layersStack
@@ -1509,10 +1543,11 @@ class QLayer(vImage):
         Returns the index of the next upper visible layer,
         -1 if it does not exists. If stHeight is given the search is limited
         to a sub-stack of height stHeight.
-        @param stHeight:
-        @type stHeight: int
-        @return:
-        @rtype: int
+
+        :param stHeight:
+        :type stHeight: int
+        :return:
+        :rtype: int
         """
         ind = self.getStackIndex()
         stack = self.parentImage.layersStack
@@ -1525,10 +1560,10 @@ class QLayer(vImage):
     def getLowerClippingStackIndex(self):
         """
          Returns the index of the next lower clipping layer,
-        -1 if it does not exists
+        -1 if it does not exists.
 
-        @return:
-        @rtype: int
+        :return:
+        :rtype: int
         """
         ind = self.getStackIndex()
         for i in range(ind + 1, len(self.parentImage.layersStack), 1):
@@ -1584,16 +1619,18 @@ class QLayer(vImage):
     def setOpacity(self, value):
         """
         set layer opacity to value/100.0
-        @param value:
-        @type value: int in range 0..100
+
+        :param value:
+        :type value: int in range 0..100
         """
         self.opacity = value / 100.0
 
     def setColorMaskOpacity(self, value):
         """
-        Set mask alpha channel to value
-        @param value:
-        @type value: int in range 0..255
+        Set mask alpha channel to value.
+
+        :param value:
+        :type value: int in range 0..255
         """
         self.colorMaskOpacity = value
         buf = QImageBuffer(self.mask)
@@ -1606,16 +1643,17 @@ class QLayer(vImage):
         a suitable response to this action.
         Coordinates (x1, y1) and (x0, y0) are respectively the ending and the beginning of the move event.
         They are relative to the calling imageLabel.
-        @param x1:
-        @type x1: int
-        @param y1:
-        @type y1: int
-        @param x0:
-        @type x0: int
-        @param y0:
-        @type y0: int
-        @param widget: caller
-        @type widget: imageLabel
+
+        :param x1:
+        :type x1: int
+        :param y1:
+        :type y1: int
+        :param x0:
+        :type x0: int
+        :param y0:
+        :type y0: int
+        :param widget: caller
+        :type widget: imageLabel
         """
         window = widget.window
         if not window.label.img.isCropped:
@@ -1629,12 +1667,13 @@ class QLayer(vImage):
         Subclasses may override the method to provide
         a suitable response to this action.
         Default is a Crop Tool aware zooming.
-        @param pos: mouse pos. (relative to widget)
-        @type pos: QPoint
-        @param numSteps: relative angle of rotation
-        @type numSteps: float
-        @param widget:
-        @type widget: imageLabel
+
+        :param pos: mouse pos. (relative to widget)
+        :type pos: QPoint
+        :param numSteps: relative angle of rotation
+        :type numSteps: float
+        :param widget:
+        :type widget: imageLabel
         """
         window = widget.window
         if not window.label.img.isCropped:
@@ -1709,8 +1748,9 @@ class QPresentationLayer(QLayer):
             - if maskIsSelected is False, the mask is drawn as an
               opacity mask, setting image opacity to that of mask
               (mode DestinationIn). Mask color is no used.
-        @param maskOnly: default False
-        @type maskOnly: boolean
+
+        :param maskOnly: default False
+        :type maskOnly: boolean
         """
         currentImage = self.getCurrentImage()
         # color manage
@@ -1777,10 +1817,11 @@ class QCloningLayer(QLayer):
         Overrides QLayer.inputImg().
         If drawTranslated is True (default False), draws the translated source image over
         the image.
-        @param redo:
-        @type redo:
-        @param drawTranslated:
-        @type drawTranslated:
+
+        :param redo:
+        :type redo:
+        :param drawTranslated:
+        :type drawTranslated:
         """
         img1 = super().inputImg(redo=redo)
         if not drawTranslated:
@@ -1824,18 +1865,19 @@ class QCloningLayer(QLayer):
         """
         Seamless cloning.  The cloning mask and contours are
         recomputed and scaled to image size.
-        @param outImg: destination image
-        @type outImg: vImage
-        @param inImg: source image
-        @type inImg: vImage
-        @param mask: color mask
-        @type mask: QImage
-        @param cloningMethod:
-        @type cloningMethod: opencv cloning method
-        @param version:
-        @type version: str
-        @param w:
-        @type w:
+
+        :param outImg: destination image
+        :type outImg: vImage
+        :param inImg: source image
+        :type inImg: vImage
+        :param mask: color mask
+        :type mask: QImage
+        :param cloningMethod:
+        :type cloningMethod: opencv cloning method
+        :param version:
+        :type version: str
+        :param w:
+        :type w:
         """
         # build the working cloning mask.
         # scale mask to dest current size,  and convert to a binary mask
@@ -1944,8 +1986,9 @@ class QLayerImage(QLayer):
         Overrides QLayer.inputImg().
         The source image is blended with the input image built from the stack,
         using the opacity and the blending mode of the layer.
-        @return:
-        @rtype: QImage
+
+        :return:
+        :rtype: QImage
         """
         img1 = super().inputImg()  # TODO maybe missing redo=redo 16/12/19
         # merging with sourceImg
@@ -1969,12 +2012,13 @@ class QLayerImage(QLayer):
     def bTransformed(self, transformation, parentImage):
         """
         Applies transformation to a copy of layer and returns the copy.
-        @param transformation:
-        @type transformation: QTransform
-        @param parentImage:
-        @type parentImage: vImage
-        @return: transformed layer
-        @rtype: QLayerImage
+
+        :param transformation:
+        :type transformation: QTransform
+        :param parentImage:
+        :type parentImage: vImage
+        :return: transformed layer
+        :rtype: QLayerImage
         """
         tLayer = super().bTransformed(transformation, parentImage)
         if tLayer.tool is not None:
@@ -1994,10 +2038,11 @@ class QDrawingLayer(QLayerImage):
     def inputImg(self, redo=True):
         """
         Returns the drawing painted onto a transparent image.
-        @param redo: unused
-        @type redo: boolean
-        @return:
-        @rtype: QImage
+
+        :param redo: unused
+        :type redo: boolean
+        :return:
+        :rtype: QImage
         """
         img1 = super().inputImg(redo=False)
         img1.fill(QColor(0, 0, 0, 0))
@@ -2011,8 +2056,9 @@ class QDrawingLayer(QLayerImage):
         """
         Transfers the layer translation to the drawing and
         resets the translation to 0 before updating pixmap.
-        @param maskOnly:
-        @type maskOnly: boolean
+
+        :param maskOnly:
+        :type maskOnly: boolean
         """
         x, y = self.xOffset, self.yOffset
         if x != 0 or y != 0:
@@ -2027,13 +2073,14 @@ class QDrawingLayer(QLayerImage):
 
     def drag(self, x1, y1, x0, y0, widget):
         """
-        Translates the drawing
-        @param deltaX:
-        @type deltaX: int
-        @param deltaY:
-        @type deltaY: int
-        @param widget:
-        @type widget: imageLabel
+        Translates the drawing.
+
+        :param deltaX:
+        :type deltaX: int
+        :param deltaY:
+        :type deltaY: int
+        :param widget:
+        :type widget: imageLabel
         """
         self.xOffset += x1 - x0
         self.yOffset += y1 - y0
@@ -2049,12 +2096,13 @@ class QRawLayer(QLayer):
     def fromImage(cls, mImg, parentImage=None):
         """
         Returns a QLayer object initialized with mImg.
-        @param mImg:
-        @type mImg: QImage
-        @param parentImage:
-        @type parentImage: mImage
-        @return:
-        @rtype: QRawLayer
+
+        :param mImg:
+        :type mImg: QImage
+        :param parentImage:
+        :type parentImage: mImage
+        :return:
+        :rtype: QRawLayer
         """
         layer = QRawLayer(QImg=mImg, parentImage=parentImage)
         layer.parentImage = parentImage
