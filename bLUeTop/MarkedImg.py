@@ -41,7 +41,6 @@ from bLUeCore.demosaicing import demosaic
 from bLUeGui.blend import blendLuminosityBuf, blendColorBuf
 from bLUeTop import exiftool
 from bLUeGui.memory import weakProxy
-from bLUeGui.tool import cropTool
 from bLUeTop.cloning import contours, moments, seamlessClone
 
 from bLUeTop.colorManagement import icc, cmsConvertQImage
@@ -1696,7 +1695,8 @@ class QLayer(vImage):
         d['mergingFlag'] = self.mergingFlag
         d['mask'] = 0 if self._mask is None else 1  # used by addAdjustmentLayers()
         aux = [0 if getattr(self, name, None) is None else 1 for name in self.innerImages]
-        d['images'] = (*aux,)  # len(self.innerImages) # used by addAdjustmentLayers()
+        d['images'] = (*aux,)
+        d['sRects'] = [(rect.left(), rect.right(), rect.top(), rect.bottom()) for rect in self.sRects]
         return d
 
     def __setstate__(self, state):
@@ -1706,6 +1706,7 @@ class QLayer(vImage):
         self.visible = d['visible']
         self.maskIsEnabled = d['maskIsEnabled']
         self.maskIsSelected = d['maskIsSelected']
+        self.sRects = [QRect(w1, h1, w2 - w1, h2 - h1) for w1, w2, h1, h2 in d.get('sRects', [])]
         if 'mergingFlag' in d:
             self.mergingFlag = d['mergingFlag']
         if self.maskIsSelected:
@@ -1713,12 +1714,6 @@ class QLayer(vImage):
         grForm = self.getGraphicsForm()
         if grForm is not None:
             grForm.__setstate__(state)
-
-    def readFromStream(self, dataStream):
-        grForm = self.getGraphicsForm()
-        if grForm is not None:
-            grForm.readFromStream(dataStream)
-        return dataStream
 
 
 class QPresentationLayer(QLayer):

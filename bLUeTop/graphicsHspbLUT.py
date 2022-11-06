@@ -28,14 +28,6 @@ class graphicsHspbForm(graphicsCurveForm):
     """
     Form for HSV/HSpB curves
     """
-    """
-    @classmethod
-    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None, colorModel='HSV'):
-        newWindow = graphicsHspbForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent,
-                                     colorModel=colorModel)
-        newWindow.setWindowTitle(layer.name)
-        return newWindow
-    """
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None, colorModel='HSV'):
         super().__init__(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)

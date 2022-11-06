@@ -28,14 +28,6 @@ class ExpForm(baseForm):
     defaultExpCorrection = 0.0
     defaultStep = 0.1
 
-    """
-    @classmethod
-    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
-        wdgt = ExpForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
-        wdgt.setWindowTitle(layer.name)
-        return wdgt
-    """
-
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super().__init__(layer=layer, targetImage=targetImage, parent=parent)
         # options

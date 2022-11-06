@@ -1397,13 +1397,6 @@ class graphicsForm3DLUT(baseGraphicsForm):
 
         self.info.returnPressed.connect(infoDone)
 
-        # marquee tool slot
-        def selectionSlot():
-            self.layer.applyToStack()
-            self.layer.parentImage.onImageChanged()
-
-        self.layer.selectionChanged.sig.connect(selectionSlot)
-
         # layout
         gl = QGridLayout()
         container = self.addCommandLayout(gl)  # add before populating
@@ -1429,11 +1422,13 @@ class graphicsForm3DLUT(baseGraphicsForm):
         # whatsthis
         self.setWhatsThis(
             """ <b>2.5D LUT Perceptual Editor</b><br>
-            Nodes are displayed as small circles on the color wheel (push the button <i>Show/Hide All </i> if they are not shown. 
-            Each node corresponds to a set of colors sharing the same hue and saturation.<br> The size of the grid can be changed. Note that
-            changing the grid size resets the whole grid.<br>
+            Nodes are displayed as small circles on the color wheel (push the button <i>Show/Hide All </i> if they are 
+            not shown. Each node corresponds to a set of colors sharing the same hue and saturation.<br> The size of 
+            the grid can be changed. Note that changing the grid size resets the whole grid.<br>
             Edition can be applied to a subset of the grid nodes or to all nodes simultaneously (gamut warping).<br> 
-            <b>Image Driven Node Selection</b> Select nodes to edit by mouse clicks on the image or by Ctrl+clicks on nodes. 
+            <b>Image Driven Node Selection</b> Select nodes to edit by mouse clicks on the image or by Ctrl+clicks 
+            on nodes.
+            <b> When the Marquee Tool is active node Node Selection is disabled.</b>
             <b>To modify the colors</b> of a node <i>Ctrl+drag</i> it on
             the wheel. Several nodes can be moved simultaneously by grouping them : <br>
             <b>Grouping nodes</b> :<br>
@@ -1462,6 +1457,25 @@ class graphicsForm3DLUT(baseGraphicsForm):
             HSpB layer is slower than HSV, but usually gives better results.<br>    
             """
         )  # end of setWhatsThis
+
+    def colorPickedSlot(self, x, y, modifiers):
+        """
+        Overriding method.
+
+        :param x:
+        :type x:
+        :param y:
+        :type y:
+        :param modifiers:
+        :type modifiers:
+        :return:
+        :rtype:
+        """
+        clr = self.layer.parentImage.getActivePixel(x, y, qcolor=True)
+        red, green, blue = clr.red(), clr.green(), clr.blue()
+        movedNodes = self.selectGridNode(red, green, blue)
+        if movedNodes:
+            self.layer.applyToStack()
 
     def selectGridNode(self, r, g, b):
         """
@@ -1622,6 +1636,14 @@ class graphicsForm3DLUT(baseGraphicsForm):
         layer.applyToStack()
         layer.parentImage.onImageChanged()
 
+    def updateLayer(self):
+        """
+        Data changed slot
+        """
+        layer = self.layer
+        layer.applyToStack()
+        layer.parentImage.onImageChanged()
+
     def __getstate__(self):
         return {'history': [(p.gridRow,
                              p.gridCol,
@@ -1633,6 +1655,11 @@ class graphicsForm3DLUT(baseGraphicsForm):
                             for p in self.grid.historyListMove]}
 
     def __setstate__(self, state):
+        # prevent multiple updates
+        try:
+            self.dataChanged.disconnect()
+        except RuntimeError:
+            pass
         groupList = []
         for item in state['state']['history']:
             p = self.grid.getNodeAt(item[1], item[0])
@@ -1652,8 +1679,9 @@ class graphicsForm3DLUT(baseGraphicsForm):
             p.setSelected(True)
             p.setVisible(True)
             p.syncLUT()
-
         self.grid.drawGrid()
+        self.dataChanged.connect(self.updateLayer)
+        self.dataChanged.emit()
 
 
 if __name__ == '__main__':

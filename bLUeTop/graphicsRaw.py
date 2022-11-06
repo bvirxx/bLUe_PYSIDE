@@ -543,20 +543,17 @@ class rawForm(baseForm):
         self.setDefaults()
         self.setWhatsThis(
             """<b>Development of raw files</b><br>
-            <b>Default settings</b> are a good starting point.<br>
+            The <i>develop layer</i> is added automatically to the layer stack when a raw file is loaded.<br>
+            <b>To start editing from the image developed with standard parameters</b> turn off (invisible) 
+            the <i>develop layer</i> and eventually add some adjustment layers to correct the image.<br>
+            <b>To modify the development settings</b> make the <i>develop layer</i> visible.<br>
             A <b>Tone Curve</b> is applied to the raw image prior to postprocessing.<br> 
-            The cuvre can be edited by checking the option
+            The curve can be edited by checking the option
             <b>Show Tone Curve</b>; this option works best with manual exposure.<br>
             <b>Contrast</b> correction is based on an automatic algorithm 
             well suited to multi-mode histograms.<br>
-            <b>Brightness, Contrast</b> and <b>Saturation</b> levels</b> are 
-            adjustable with the correponding sliders.<br>
             The <b>Contrast Curve</b> can be edited manually by checking 
             the option <b>Show Contrast Curve</b>.<br>
-            Uncheck <b>Auto Expose</b> to adjust the exposure manually.<br>
-            The <b>OverExp. Rest.</b> slider controls the mode of restoration of overexposed areas. 
-            Valid values are 0 to 3 (0=clip;1=unclip;2=blend;3=rebuild); (with Auto Exposed 
-            checked the mode is clip).<br>
             """
         )  # end of setWhatsThis
 

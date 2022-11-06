@@ -20,7 +20,7 @@ from PySide2.QtGui import QFontMetrics
 from PySide2.QtWidgets import QVBoxLayout, QSlider, QLabel, QHBoxLayout
 
 from bLUeGui.graphicsForm import baseForm
-from bLUeTop.utils import optionsWidget, QbLUeSlider
+from bLUeTop.utils import optionsWidget, QbLUeSlider, UDict
 
 
 class noiseForm(baseForm):
@@ -34,22 +34,20 @@ class noiseForm(baseForm):
     def thr2Slider(t):
         return t
 
-    """
-    @classmethod
-    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
-        wdgt = noiseForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
-        wdgt.setWindowTitle(layer.name)
-        return wdgt
-    """
-
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super().__init__(layer=layer, targetImage=targetImage, parent=parent)
-        self.layer.selectionChanged.sig.connect(self.updateLayer)
+
         # options
-        optionList = ['Wavelets', 'Bilateral', 'NLMeans']
-        self.listWidget1 = optionsWidget(options=optionList, exclusive=True, changed=self.dataChanged)
+        optionList1 = ['Wavelets', 'Bilateral', 'NLMeans']
+        self.listWidget1 = optionsWidget(options=optionList1, exclusive=True, changed=self.dataChanged)
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
-        self.options = self.listWidget1.options
+
+        optionList2 = ['Luminosity', 'RGB']
+        self.listWidget2 = optionsWidget(options=optionList2, exclusive=True, changed=self.dataChanged)
+        self.listWidget2.checkOption(self.listWidget2.intNames[0])
+        self.options = UDict((self.listWidget1.options, self.listWidget2.options))
+
+        self.listWidget1.onSelect = lambda x: self.listWidget2.setEnabled(self.listWidget1.options['Wavelets'])
 
         # threshold slider
         self.sliderThr = QbLUeSlider(Qt.Horizontal)
@@ -78,6 +76,7 @@ class noiseForm(baseForm):
         # layout
         l = QVBoxLayout()
         l.addWidget(self.listWidget1)
+        l.addWidget(self.listWidget2)
         hl1 = QHBoxLayout()
         hl1.addWidget(self.thrLabel)
         hl1.addWidget(self.thrValue)
@@ -93,10 +92,10 @@ class noiseForm(baseForm):
                <b>Bilateral Filtering</b> is the fastest method.<br>
                <b>NLMeans</b> (Non Local Means) and <b>Wavelets</b> are slower,
                but they usually give better results.<br>
-               To <b>limit the action of any method to a 
-               rectangular region of the image</b>
-               draw a selection rectangle on the layer with the marquee tool.<br>
-               Ctrl-Click to <b>clear the selection</b><br>
+               To <b>limit the action of any method to one or more
+               rectangular regions of the image</b>
+               draw selection rectangles on the layer with the marquee tool.<br>
+               Ctrl-Click inside a rectangle to <b>remove it</b> from the selection.<br>
             """
         )  # end of setWhatsThis
 

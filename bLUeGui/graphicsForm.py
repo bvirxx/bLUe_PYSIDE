@@ -15,6 +15,7 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+
 from PySide2 import QtCore
 from PySide2.QtCore import QPoint
 from PySide2.QtWidgets import QGraphicsView, QGraphicsScene, QSizePolicy, QGraphicsPathItem, QWidget, QVBoxLayout
@@ -81,7 +82,7 @@ class abstractForm:
     def colorPickedSlot(self, x, y, modifiers):
         """
         A colorPicked signal is emitted when a mouse click
-        occurs on the image under edition (cf. bLUe.mouseEvent()).
+        occurs on the image under edition (cf. imLabel.mouseReleaseEvent()).
         (x,y) coordinates are supposed to be relative to the full size image.
         Should be overridden in subclasses.
 
@@ -94,6 +95,14 @@ class abstractForm:
 
         """
         pass
+
+    def selectionChangedSlot(self):
+        """
+        A selectionChanged signal is emitted when selection rectangles (Marquee Tool) are modified.
+
+        """
+        self.layer.applyToStack()
+        self.layer.parentImage.onImageChanged()
 
     def setDefaults(self):
         """
@@ -117,8 +126,7 @@ class abstractForm:
 
     def updateLayer(self):
         """
-        data changed slot.
-        Must be overridden in subclasses.
+        Data changed slot.
         """
         pass
 
@@ -160,9 +168,10 @@ class baseForm(QWidget, abstractForm):
         # together with the visibility of graphic forms
         self.subControls = []
         self.dataChanged.connect(self.updateLayer)
-        # layer color picked signal
+        # signals connection
         if layer is not None:
             layer.colorPicked.sig.connect(self.colorPickedSlot)
+            layer.selectionChanged.sig.connect(self.selectionChangedSlot)
         self.setStyleSheet("QListWidget, QLabel, QGroupBox {font-size : 7pt;}")
 
     def addSubcontrol(self, parent=None):
@@ -206,6 +215,7 @@ class baseGraphicsForm(QGraphicsView, abstractForm):
         # layer color picked signal
         if layer is not None:
             layer.colorPicked.sig.connect(self.colorPickedSlot)
+            layer.selectionChanged.sig.connect(self.selectionChangedSlot)
 
     def __getstate__(self):
         return {}
@@ -318,8 +328,8 @@ class graphicsCurveForm(baseGraphicsForm):
             &nbsp;&nbsp;<b>Black Point</b> : Ctrl+Shift<br>
             &nbsp;&nbsp;<b>White Point</b> : Ctrl<br>
             &nbsp;&nbsp;<b>Grey Neutral Point (Lab only)</b></br> : Shift<br>
-            <b>Caution</b> : Selecting a black, white or neutral point in an image is enabled only when
-            the Color Chooser is closed.
+            <b>Caution</b> : Selecting a black, white or neutral point in an image is disabled when
+            the Color Chooser is open or the Marquee Tool is active.
             """)  # end setWhatsThis
 
     @property

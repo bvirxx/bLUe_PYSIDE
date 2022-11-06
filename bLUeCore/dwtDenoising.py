@@ -17,28 +17,69 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import numpy as np
 import pywt
-from .rollingStats import movingAverage
+from .rollingStats import movingAverage, movingVariance
 
 
-def noiseEstimation(DWT_coeffs):
+def noiseSTD_Est(DWT_coeffs, version='DON'):
     """
-    Returns an estimation of the noise variance, using the Mean
-    Absolute Deviation (MAD) method of Donoho.
+    Estimates the standard deviation of the noise.
+    The MAD estimation highlights a possibly lower noise reduction.
 
-    :param DWT_coeffs: DWT coefficients, as returned by wavedecn
+    See D. L. Donoho and I. M. Johnstone. "Ideal spatial adaptation
+    by wavelet shrinkage." Biometrika 81.3 (1994): 425-455.
+
+    :param DWT_coeffs: DWT coeffs as yielded by pywt.wavedecn()
     :type DWT_coeffs:
-    :return: noise variance estimation
+    :return: noise STD
     :rtype: float
+
     """
-    a, s = pywt.coeffs_to_array(DWT_coeffs)
-    flattened_coeffs = a[s[-1]['dd'][0], s[-1]['dd'][1]].ravel()
-    MAD = np.median(abs(flattened_coeffs))
-    return MAD * MAD / (0.6745 * 0.6745)
+    if version == 'DON':
+        # use median
+        detail_coeffs = DWT_coeffs[1:][-1]['dd']
+        # removing 0's seems to introduce some discontinuities in noise STD estimation
+        # detail_coeffs = detail_coeffs[np.nonzero(detail_coeffs)]
+        if detail_coeffs.size > 0:
+            const = 0.6745  # could be calculated as  scipy.stats.norm.ppf(0.75)
+            sigma = np.median(np.abs(detail_coeffs)) / const
+        else:
+            sigma = 0.0
+
+    else:
+        # use Mean Absolute Deviation (MAD)
+        coeff_array = pywt.coeffs_to_array(DWT_coeffs)[0]
+        m = np.mean(coeff_array)
+        MAD = np.mean(np.absolute(coeff_array - m))
+        sigma = ((np.pi / 2) ** 0.5) * MAD
+
+    return sigma
+
+
+def chooseDWTLevel(imArray, wavelet):
+    """
+    Returns a convenient level for the DWT decomposition
+    of imArray
+
+    :param imArray:
+    :type imArray: ndarray
+    :param wavelet: wavelet family
+    :type wavelet: str
+    :return: max level
+    :rtype: int
+    """
+
+    w, h = imArray.shape[1], imArray.shape[0]
+    wavelet = pywt.Wavelet(wavelet)
+    dlen = wavelet.dec_len
+    wavelet_levels = np.min([pywt.dwt_max_level(s, dlen) for s in [w, h]])
+
+    level = max(wavelet_levels - 3, 1)
+    return level
 
 
 def dwtDenoiseChan(image, chan=0, thr=1.0, thrmode='hard', wavelet='haar', level=None):
     """
-    Denoise a channel of image, using a Discrete Wavelet Transform. The three following
+    Denoises a channel of an image, using a Discrete Wavelet Transform. The three following
     filtering methods can be used:
        1 - hard threshold,
        2 - soft threshod
@@ -55,8 +96,8 @@ def dwtDenoiseChan(image, chan=0, thr=1.0, thrmode='hard', wavelet='haar', level
     modeling of wavelet image coefficients and its application to denoising - , in
     Proc. IEEE Int. Conf. Acoustics, Speech, and Signal Processing, Phoenix, AZ,
     Mar. 1999, vol. 6, pp. 3253–3256
-    See also U{https://github.com/stefanv} for a similar approach, differing in
-    the final computation of the filter coefficients.
+    See also Stefan van der Walt https://github.com/stefanv for a similar approach, differing in
+    the final computation of the DWT coefficients using the Wiener Estimator.
 
     :param image: image array
     :type image: ndarray, shape(w,h,d), dtype= float
@@ -71,71 +112,78 @@ def dwtDenoiseChan(image, chan=0, thr=1.0, thrmode='hard', wavelet='haar', level
     :param level: max level of decomposition, automatic if level is None (default)
     :type level: int or None
     :return: the denoised channel
-    :rtype: ndarray, same shape as the image channel, dtype= np.float
+    :rtype: ndarray, same shape as the image channel, dtype= float
 
     """
+
     imArray = image[:, :, chan]
-    w, h = imArray.shape[1], imArray.shape[0]
+
     #################
-    # apply DWT
     # DWT_coeffs is the list of DWT coefficients :
-    # DWT_coeffs[0] : array and for i>=1, DWT_coeffs[i] : dict of arrays(wavedecn),
-    # or t-uple of arrays (wavedec2)
-    # For each array a, a.ndims = imArray.ndims
+    # DWT_coeffs[0] : array
+    # for i>=1, DWT_coeffs[i] : dict of arrays (wavedecn), or t-uple of arrays (wavedec2)
     ###############
     DWT_coeffs = pywt.wavedecn(imArray, wavelet, level=level)
+    sigma = noiseSTD_Est(DWT_coeffs)
+
     if thrmode == 'hard' or thrmode == 'soft':
-        # stack all arrays from coeffs in a single ndims-dimensional array
+        # stack all coeffs in a single array
         a, s = pywt.coeffs_to_array(DWT_coeffs)  # a:array, s:strides
         # keep details coefficients only
         mask = np.ones(a.shape, dtype=np.bool)
         mask[s[0][0], s[0][1]] = False
+
         # hard threshold: cut coeffs under thr
         if thrmode == 'hard':
             a[mask] = np.where(np.abs(a[mask]) < thr, 0, a[mask])
             DWT_coeffs = pywt.array_to_coeffs(a, s)
+
         # soft threshold: filter h = max(0, (|a| - thr)) * sgn(a) / a
         elif thrmode == 'soft':
             a[mask] = np.where(np.abs(a[mask]) <= thr, 0, (np.sign(a[mask])) * (np.abs(a[mask]) - thr))
             DWT_coeffs = pywt.array_to_coeffs(a, s)
+
     else:  # local Wiener Filter
-        # we do not estimate the noise variance sigma2 (a priori value or
-        # Mean Absolute Deviation method for instance).
-        # Instead, we use a variable interactive threshold set by the user
-        thr = thr / 100
         ###################################################
-        # Estimation of the variance of the coefficients of the
-        # DWT transform.
-        # we use an adaptative window-based estimation procedure
-        # to capture the effect of edges
+        # local variance of coeffs is used to build an adapted filter.
+        # we use a window-based estimation procedure
+        # to capture the effect of edges.
         ####################################################
         win_sizes = (3, 5, 7, 9)
-        # skip approximation level and scan other levels
+        thr = sigma * thr / 5
+        thr = thr ** 2  # set middle value to sigma**2
         for all_coeff in DWT_coeffs[1:]:
             nY2_est = np.empty(all_coeff['ad'].shape, dtype=float)
             nY2_est.fill(np.inf)
-            # walk through H,V,D coefficients (2D arrays) at level i,
+            # walk through coeffs (2D arrays) at level i,
             for coeff in all_coeff.values():
-                # for each coeff Y, estimate E(Y**2) as the minimum of
-                # moving averages of coeff**2 over window sizes.
+                # calculate the minimum of moving variances
+                # of coeff over window sizes.
                 for win_size in win_sizes:
-                    nY2 = movingAverage(coeff * coeff, win_size, version='strides')
+                    nY2 = movingVariance(coeff, win_size, version='strides')
+                    # nY2 = movingAverage(coeff * coeff, win_size, version='strides')
                     minmask = (nY2 < nY2_est)
                     nY2_est[minmask] = nY2[minmask]
                 # The Wiener Estimator for a noisy signal Y with
                 # noise variance sigma is ~ max(0,E(Y**2) - sigma**2)/ (max(0, E(Y**2)-sigma**2) + sigma**2)
-                # here sigma**2 is the interactive threshold
+                # We replace sigma**2 by the interactive threshold.
                 coeff *= np.where(nY2_est > thr, 1.0 - thr / nY2_est, 0)
+                ###################################################
+                # Wiener Estimator according to the code of Stefan van der Walt.
+                # coeff *= (nY2_est / (nY2_est + thr))
+                ###################################################
+
+        sigma1 = noiseSTD_Est(DWT_coeffs)
+        print(sigma, sigma1)
+
     # apply inverse DWT
+    w, h = imArray.shape[1], imArray.shape[0]
     imArray = pywt.waverecn(DWT_coeffs, wavelet)
-    # waverecn sometimes returns a padded array
+    np.clip(imArray, 0, 255, out=imArray)
+    # waverecn may return a padded array
     return imArray[:h, :w]
 
 
-def dwtDenoise(image, thr=1.0, thrmode='hard', wavelet='haar', level=None):
-    for chan in image.shape[2]:
-        image[:, :, chan] = dwtDenoiseChan(image, chan=chan, thr=thr, thrmode=thrmode, wavelet=wavelet, level=level)
-
-
-if __name__ == '__main__':
-    dwtDenoiseChan(np.arange(10000).reshape(100, 100), wavelet='haar', level=3)
+def dwtDenoise(source, dest, thr=1.0, thrmode='hard', wavelet='haar', level=None):
+    for chan in range(source.shape[2]):
+        dest[:, :, chan] = dwtDenoiseChan(source, chan=chan, thr=thr, thrmode=thrmode, wavelet=wavelet, level=level)
