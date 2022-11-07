@@ -1282,6 +1282,7 @@ def menuLayer(name, window=bLUeTop.Gui.window, sname=None, script=False):
             if ext in list(IMAGE_FILE_EXTENSIONS) + list(SVG_FILE_EXTENSIONS):
                 imgNew = QImageFromFile(filename)
             elif ext in list(RAW_FILE_EXTENSIONS):
+                # get a RawPy instance from raw file
                 rawpyInst = rawRead(filename)
                 # postprocess raw image, applying default settings (cf. vImage.applyRawPostProcessing)
                 rawBuf = rawpyInst.postprocess(use_camera_wb=True)

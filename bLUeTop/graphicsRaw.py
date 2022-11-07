@@ -77,16 +77,16 @@ class graphicsToneForm(graphicsSplineForm):
 class rawForm(baseForm):
     """
     Postprocessing of raw files.
-    """
-    dataChanged = QtCore.Signal(int)
 
+    # Libraw correspondences:
+    # rgb_xyz_matrix is libraw cam_xyz
+    # camera_whitebalance is libraw cam_mul
+    # daylight_whitebalance is libraw pre_mul
+    # dng correspondences:
+    # ASSHOTNEUTRAL tag value is (X,Y,Z) =  1 / rawpyObj.camera_whitebalance
     """
-    @classmethod
-    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
-        wdgt = rawForm(axeSize=axeSize, targetImage=targetImage, layer=layer, parent=parent)
-        wdgt.setWindowTitle(layer.name)
-        return wdgt
-    """
+
+    dataChanged = QtCore.Signal(int)
 
     @staticmethod
     def slider2Temp(v):
@@ -154,28 +154,28 @@ class rawForm(baseForm):
         return e + 50
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
+
         super().__init__(layer=layer, targetImage=targetImage, parent=parent)
+
         self.event_obj = None
-        #######################################
-        # Libraw correspondences:
-        # rgb_xyz_matrix is libraw cam_xyz
-        # camera_whitebalance is libraw cam_mul
-        # daylight_whitebalance is libraw pre_mul
-        # dng correspondences:
-        # ASSHOTNEUTRAL tag value is (X,Y,Z) =  1 / rawpyObj.camera_whitebalance
-        ##########################################
+
         rawpyObj = layer.parentImage.rawImage
 
         # constants and as shot values
         self.XYZ2CameraMatrix = rawpyObj.rgb_xyz_matrix[:3, :]
         self.XYZ2CameraInverseMatrix = np.linalg.inv(self.XYZ2CameraMatrix)
+
         # initial post processing multipliers (as shot)
         m1, m2, m3, m4 = rawpyObj.camera_whitebalance
-        self.asShotMultipliers = (
-        m1 / m2, 1.0, m3 / m2, m4 / m2)  # normalization is mandatory : for nef files white balance is around 256
+        self.asShotMultipliers = (m1 / m2,
+                                  1.0,
+                                  m3 / m2,
+                                  m4 / m2
+                                  )
         self.asShotTemp, self.asShotTint = multipliers2TemperatureAndTint(*1 / np.array(self.asShotMultipliers[:3]),
-                                                                          self.XYZ2CameraMatrix)
-        self.rawMultipliers = self.asShotMultipliers  # rawpyObj.camera_whitebalance # = 1/(dng ASSHOTNEUTRAL tag value)
+                                                                          self.XYZ2CameraMatrix
+                                                                          )
+        self.rawMultipliers = self.asShotMultipliers
 
         ########################################
         # XYZ-->Camera conversion matrix:
@@ -186,12 +186,14 @@ class rawForm(baseForm):
         # attributes initialized in setDefaults, declared here for the sake of correctness
         self.tempCorrection, self.tintCorrection, self.expCorrection, self.highCorrection, \
         self.contCorrection, self.satCorrection, self.brCorrection = [None] * 7
+
         # contrast spline view (initialized by setContrastSpline)
         self.contrastForm = None
         # tone spline view (initialized by setToneSpline)
         self.toneForm = None
         # dock containers for contrast and tome forms
         self.dockC, self.dockT = None, None
+
         # options
         optionList0, optionNames0 = ['Auto Brightness', 'Preserve Highlights'], ['Auto Expose', 'Preserve Highlights']
         optionList1, optionNames1 = ['Auto WB', 'Camera WB', 'User WB'], ['Auto', 'Camera (As Shot)', 'User']
@@ -205,6 +207,7 @@ class rawForm(baseForm):
         self.listWidget3 = optionsWidget(options=optionList2, optionNames=optionNames2, exclusive=False,
                                          changed=lambda: self.dataChanged.emit(2))
         self.options = UDict((self.listWidget1.options, self.listWidget2.options, self.listWidget3.options))
+
         # display the 'as shot' temperature
         item = self.listWidget2.item(1)
         item.setText(item.text() + ' : %d' % self.asShotTemp)
@@ -736,30 +739,6 @@ class rawForm(baseForm):
         self.sliderTint.valueChanged.connect(self.tintUpdate)
         self.sliderTint.sliderReleased.connect(
             lambda: self.tintUpdate(self.sliderTint.value()))  # signal has no parameter)
-
-    """
-    def setRawMultipliers(self, m0, m1, m2, sampling=True):
-        mi = min(m0, m1, m2)
-        m0, m1, m2 = m0/mi, m1/mi, m2/mi
-        self.rawMultipliers = [m0, m1, m2, m1]
-        invMultipliers = [1 / self.rawMultipliers[i] for i in range(3)]
-        try:
-            self.sliderTemp.valueChanged.disconnect()
-            self.sliderTint.valueChanged.disconnect()
-        except RuntimeError:
-            pass
-        # get temp and tint
-        temp, tint = multipliers2TemperatureAndTint(*invMultipliers, self.XYZ2CameraMatrix)
-        self.tintCorrection = tint
-        self.sliderTemp.setValue(self.temp2Slider(temp))
-        self.sliderTint.setValue(self.tint2Slider(tint))
-        self.tempValue.setText(str("{:.0f}".format(self.slider2Temp(self.sliderTemp.value()))))
-        self.tintValue.setText(str("{:.0f}".format(self.sliderTint2User(self.sliderTint.value()))))
-        self.sliderTemp.valueChanged.connect(self.tempUpdate)
-        self.sliderTint.valueChanged.connect(self.tintUpdate)
-        self.sampleMultipliers = sampling
-        self.dataChanged.emit(1)
-    """
 
     def updateLayer(self, level):
         """
