@@ -21,7 +21,6 @@ from PySide6.QtCore import Qt, QRectF
 from PySide6.QtWidgets import QGraphicsScene, QGridLayout
 
 from bLUeGui.const import channelValues
-from bLUeGui.dialog import dlgWarn
 from bLUeGui.graphicsSpline import activeCubicSpline, graphicsCurveForm, activeSplinePoint
 from bLUeTop.utils import optionsWidget, QbLUePushButton, UDict
 
@@ -29,13 +28,6 @@ from bLUeTop.utils import optionsWidget, QbLUePushButton, UDict
 class graphicsForm(graphicsCurveForm):
     """
     Form for interactive RGB curves
-    """
-    """
-    @classmethod
-    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
-        newWindow = graphicsForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
-        newWindow.setWindowTitle(layer.name)
-        return newWindow
     """
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
@@ -73,7 +65,8 @@ class graphicsForm(graphicsCurveForm):
         graphicsScene.cubicB = cubic
         cubic.channel = channelValues.Blue
         cubic.histImg = self.scene().layer.inputImg().histogram(size=graphicsScene.axeSize,
-                                                                bgColor=graphicsScene.bgColor, chans=channelValues.Blue)
+                                                                bgColor=graphicsScene.bgColor,
+                                                                chans=channelValues.Blue)
         cubic.initFixedPoints()
         # set current curve to brightness
         graphicsScene.cubicItem = graphicsScene.cubicRGB
@@ -88,13 +81,8 @@ class graphicsForm(graphicsCurveForm):
         # options
         options1 = ['RGB', 'Red', 'Green', 'Blue']
         self.listWidget1 = optionsWidget(options=options1)
-        """
-        self.listWidget1.setGeometry(0, 0, self.listWidget1.sizeHintForColumn(0) + 5,
-                                     self.listWidget1.sizeHintForRow(0)*len(options1) + 5)
-        """
-        options2 = ['Luminosity']
-        self.listWidget2 = optionsWidget(options=options2, exclusive=False)
-        self.graphicsScene.options = UDict((self.listWidget1.options, self.listWidget2.options))
+
+        self.graphicsScene.options = UDict((self.listWidget1.options))  # , self.listWidget2.options))
         # selection changed handler
         curves = [graphicsScene.cubicRGB, graphicsScene.cubicR, graphicsScene.cubicG, graphicsScene.cubicB]
         curveDict = dict(zip(options1, curves))
@@ -111,26 +99,10 @@ class graphicsForm(graphicsCurveForm):
 
         self.listWidget1.onSelect = onSelect1
 
-        def onSelect2(item):
-            dlgWarn('Curves RGB',
-                    'Option Luminosity will be removed in the future. Use Luminosity blending mode instead')
-            itemRGB = self.listWidget1.items[options1[0]]
-            if item.isChecked():
-                if itemRGB.isChecked():
-                    self.listWidget1.unCheckAll()
-                    self.listWidget1.checkOption(self.listWidget1.intNames[1])
-                itemRGB.setFlags(itemRGB.flags() & ~Qt.ItemIsEnabled)
-            else:
-                itemRGB.setFlags(itemRGB.flags() | Qt.ItemIsEnabled)
-            self.dataChanged.emit()
-
-        self.listWidget2.onSelect = onSelect2
-
         # layout
         gl = QGridLayout()
         container = self.addCommandLayout(gl)
         gl.addWidget(self.listWidget1, 0, 0, 2, 1)
-        gl.addWidget(self.listWidget2, 0, 1)
         for i, button in enumerate([pushButton1, pushButton2]):
             gl.addWidget(button, i, 2)
         self.adjustSize()

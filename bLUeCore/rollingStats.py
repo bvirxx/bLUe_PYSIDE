@@ -87,7 +87,7 @@ def strides_2d(a, r, linear=True):
 
 def movingAverage(a, winsize, version='kernel'):
     """
-    Compute the moving averages of a 1D or 2D array.
+    Calculates the moving averages of a 1D or 2D array.
     For 1D arrays, the borders are not handled : the dimension of
     the returned array is a.shape[0] - winsize//2.
     For 2D arrays, the window is square (winsize*winsize), the
@@ -126,7 +126,7 @@ def movingAverage(a, winsize, version='kernel'):
 
 def movingVariance(a, winsize, version='kernel'):
     """
-    Compute the moving variance of a 1D or 2D array.
+    Calculates the moving variance of a 1D or 2D array.
     For 1D arrays, the borders are not handled : the dimension of
     the returned array is a.shape[0] - winsize//2.
     For 2D arrays, the window is square (winsize*winsize), the

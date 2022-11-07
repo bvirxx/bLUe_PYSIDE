@@ -17,7 +17,6 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 import cv2
-import itertools
 
 import numpy as np
 import rawpy
@@ -37,6 +36,8 @@ def rawRead(file):
     """
     Loads a raw image file or a buffer into a RawPy instance.
     The image file is closed after reading.
+    Note. rawpy.imread keeps file open. Calling raw.close() deletes the RawPy instance.
+    As a workaround we use low-level file buffer and unpack().
 
     :param file:
     :type file: str or file-like object
@@ -65,23 +66,24 @@ def rawPostProcess(rawLayer, pool=None):
     raw layer development.
     Processing order is the following:
          1 - postprocessing
-         2 - profile look table
+         2 - profile look up table
          3 - profile and user tone curve
          2 - contrast correction
          3 - saturation correction
     A pool of workers is used to apply the
-    profile look table.
-    An Exception AttributeError is raised if rawImage
+    profile look up table.
+
+    :raises AttributeError if rawImage
     is not an attribute of rawLayer.parentImage.
 
     :param rawLayer: development layer
     :type rawLayer: Qlayer
-    :param pool: multi processing pool
+    :param pool: multiprocessing pool
     :type pool: multiprocessing.pool
     """
     # postprocess output bits per channel
     output_bpc = 8
-    max_ouput = 255 if output_bpc == 8 else 65535
+    max_output = 255 if output_bpc == 8 else 65535
     if rawLayer.parentImage.isHald:
         raise ValueError('Cannot build a 3D LUT from raw stack')
 
@@ -90,6 +92,10 @@ def rawPostProcess(rawLayer, pool=None):
     options = adjustForm.options
 
     # get RawPy instance
+    # Relevant RawPy instance attributes are black_level_per_channel, camera_whitebalance, color_desc, color_matrix,
+    # daylight_whitebalance, num_colors, raw_colors_visible, raw_image, raw_image_visible, raw_pattern,
+    # raw_type, rgb_xyz_matrix, sizes, tone_curve.
+    # raw_image and raw_image_visible are sensor data
     rawImage = getattr(rawLayer.parentImage, 'rawImage', None)
     if rawImage is None:
         raise ValueError("rawPostProcessing : not a raw image")
@@ -97,7 +103,8 @@ def rawPostProcess(rawLayer, pool=None):
 
     ##################
     # Control flags
-    # postProcessCache is invalidated (reset to None) by graphicsRaw.updateLayer (graphicsRaw.dataChanged event handler).
+    # postProcessCache is invalidated (reset to None) by
+    # graphicsRaw.updateLayer (graphicsRaw.dataChanged event handler).
     # bufCache_HSV_CV32 is invalidated (reset to None) by camera profile related events.
     doALL = rawLayer.postProcessCache is None
     if not doALL:
@@ -109,7 +116,7 @@ def rawPostProcess(rawLayer, pool=None):
     half_size = rawLayer.parentImage.useThumb
     #################
 
-    ######################################################################################################################
+    #############################################################################################################
     # process raw image (16 bits mode)                        camera ------diag(multipliers)----> camera
     # post processing pipeline (from libraw):                   ^
     # - black substraction                                      | CM=rawpyObj.rgb_xyz_matrix
@@ -119,7 +126,7 @@ def rawPostProcess(rawLayer, pool=None):
     # - data scaling to use full range
     # - conversion to output color space
     # - gamma curve and brightness correction : gamma(imax) = 1, imax = 8*white/brightness
-    ######################################################################################################################
+    ###########################################################################################################
 
     use_auto_wb = options['Auto WB']
     use_camera_wb = options['Camera WB']
@@ -127,11 +134,8 @@ def rawPostProcess(rawLayer, pool=None):
         'Preserve Highlights'] else 0.2  # 0.6  # range 0.0..1.0 (1.0 = full preservation)
     if doALL:
         ##############################
-        # get postprocessing parameters
+        # set postprocessing parameters
         ##############################
-        # no_auto_scale = False  don't use : green shift
-        gamma = (2.222, 4.5)  # default REC BT 709 (exponent, slope)
-        # gamma = (2.4, 12.92)  # sRGB (exponent, slope) cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
         exp_shift = adjustForm.expCorrection if not options['Auto Brightness'] else 0
         no_auto_bright = (not options['Auto Brightness'])
 
@@ -145,40 +149,7 @@ def rawPostProcess(rawLayer, pool=None):
         fbdd_noise_reduction = rawpy.FBDDNoiseReductionMode.Off if dv == 0 \
             else rawpy.FBDDNoiseReductionMode.Light if dv == 1 \
             else rawpy.FBDDNoiseReductionMode.Full
-        """
-        #############################################
-        # build sample images for a set of multipliers
-        if adjustForm.sampleMultipliers:
-            bufpost16 = np.empty((rawLayer.height(), rawLayer.width(), 3), dtype=np.uint16)
-            m = adjustForm.rawMultipliers
-            co = np.array([0.85, 1.0, 1.2])
-            mults = itertools.product(m[0] * co, [m[1]], m[2] * co)
-            adjustForm.samples = []
-            for i, mult in enumerate(mults):
-                adjustForm.samples.append(mult)
-                mult = (mult[0], mult[1], mult[2], mult[1])
-                print(mult, '   ', m)
-                bufpost_temp = rawImage.postprocess(
-                    half_size=half_size,
-                    output_color=rawpy.ColorSpace.sRGB,
-                    output_bps=output_bpc,
-                    exp_shift=exp_shift,
-                    no_auto_bright=no_auto_bright,
-                    use_auto_wb=use_auto_wb,
-                    use_camera_wb=False,  # options['Camera WB'],
-                    user_wb=mult,
-                    gamma=gamma,
-                    exp_preserve_highlights=exp_preserve_highlights,
-                    bright=bright,
-                    highlight_mode=highlightmode,
-                    fbdd_noise_reduction=rawpy.FBDDNoiseReductionMode.Off
-                )
-                row = i // 3
-                col = i % 3
-                w, h = int(bufpost_temp.shape[1] / 3), int(bufpost_temp.shape[0] / 3)
-                bufpost_temp = cv2.resize(bufpost_temp, (w, h))
-                bufpost16[row * h:(row + 1) * h, col * w:(col + 1) * w, :] = bufpost_temp
-        """
+
         ##########
         # develop
         ##########
@@ -199,7 +170,7 @@ def rawPostProcess(rawLayer, pool=None):
             median_filter_passes=1
         )
         # save image to post processing cache
-        rawLayer.postProcessCache = cv2.cvtColor(((bufpost16.astype(np.float32)) / max_ouput).astype(np.float32),
+        rawLayer.postProcessCache = cv2.cvtColor(((bufpost16.astype(np.float32)) / max_output).astype(np.float32),
                                                  cv2.COLOR_RGB2HSV)
         rawLayer.half = half_size
         rawLayer.bufpost16 = bufpost16
@@ -214,7 +185,9 @@ def rawPostProcess(rawLayer, pool=None):
     # ForwardMatrix for T and next from XYZ_D50 to RGB.
     # If we have no valid dng profile, we reinit the multipliers and
     # apply a Bradford chromatic adaptation matrix.
-    m1, m2, m3 = adjustForm.asShotMultipliers[:3] if use_camera_wb else adjustForm.rawMultipliers[:3]
+
+    # m1, m2, m3 = adjustForm.asShotMultipliers[:3] if use_camera_wb else adjustForm.rawMultipliers[:3]
+    m1, m2, m3 = rawImage.camera_whitebalance[:3] if use_camera_wb else adjustForm.rawMultipliers[:3]
     D = np.diag((1 / m1, 1 / m2, 1 / m3))
     tempCorrection = adjustForm.asShotTemp if use_camera_wb else adjustForm.tempCorrection
     MM = bradfordAdaptationMatrix(6500, tempCorrection)
@@ -228,11 +201,10 @@ def rawPostProcess(rawLayer, pool=None):
             pass
     raw2sRGBMatrix = sRGB_lin2XYZInverse @ MM1 @ FM * myHighlightPreservation if FM is not None else \
         sRGB_lin2XYZInverse @ MM @ adjustForm.XYZ2CameraInverseMatrix @ D
+
     bufpost16 = np.tensordot(rawLayer.bufpost16, raw2sRGBMatrix, axes=(-1, -1))
-    M = np.max(bufpost16) / 255.0
-    bufpost16 /= M
     np.clip(bufpost16, 0, 255, out=bufpost16)
-    rawLayer.postProcessCache = cv2.cvtColor(((bufpost16.astype(np.float32)) / max_ouput).astype(np.float32),
+    rawLayer.postProcessCache = cv2.cvtColor(bufpost16.astype(np.float32) / max_output,
                                              cv2.COLOR_RGB2HSV)
 
     # update histogram
@@ -323,6 +295,7 @@ def rawPostProcess(rawLayer, pool=None):
 
     ###################
     # apply gamma curve
+    # Gamma constants are defined in colorCIE.py
     ###################
     bufpostF32_255 = rgbLinear2rgb(bufpostF32_1)
 

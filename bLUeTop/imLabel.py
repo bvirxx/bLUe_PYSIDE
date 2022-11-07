@@ -160,12 +160,14 @@ class imageLabel(QLabel):
                          QImage.rect(currentImage))  # CAUTION : vImage.rect() is overwritten by the attribute rect
         # draw selection rectangle and cloning marker of the active layer, if any
         layer = mimg.getActiveLayer()
-        rect, mark = layer.rect, layer.marker
+        # rect, mark = layer.rect, layer.marker
+        mark = layer.marker
         if layer.visible:
-            if rect is not None:
-                qp.setPen(Qt.green)
-                qp.drawRect(rect.left() * r + mimg.xOffset, rect.top() * r + mimg.yOffset, rect.width() * r,
-                            rect.height() * r)
+            for rect in layer.sRects:
+                if rect is not None:
+                    qp.setPen(Qt.green)
+                    qp.drawRect(rect.left() * r + mimg.xOffset, rect.top() * r + mimg.yOffset, rect.width() * r,
+                                rect.height() * r)
             if not (mark is None or layer.sourceFromFile):
                 qp.setPen(Qt.white)
                 qp.drawEllipse(mark.x() * r + mimg.xOffset, mark.y() * r + mimg.yOffset, 10, 10)
@@ -341,7 +343,13 @@ class imageLabel(QLabel):
                 y_img = (min(State['iy_begin'], y) - img.yOffset) // r
                 w = abs(State['ix_begin'] - x) // r
                 h = abs(State['iy_begin'] - y) // r
-                layer.rect = QRect(x_img, y_img, w, h)
+                # layer.rect = QRect(x_img, y_img, w, h)
+                if min(w, h) > 10:
+                    if layer.rect:
+                        layer.rect.setRect(x_img, y_img, w, h)
+                    else:
+                        layer.rect = QRect(x_img, y_img, w, h)
+                        layer.sRects.append(layer.rect)
             # drawing
             elif layer.isDrawLayer() and (window.btnValues['brushButton'] or window.btnValues['eraserButton']):
                 self.__strokePaint(layer, x, y, r)
@@ -486,10 +494,14 @@ class imageLabel(QLabel):
                     and (window.btnValues['drawFG'] or window.btnValues['drawBG']):
                 layer.applyToStack()
             if img.isMouseSelectable:
+                if window.btnValues['rectangle']:
+                    layer.rect = None  # go to next rectangle
+                    layer.sRects = [rect for rect in layer.sRects if rect.isValid()]
                 # click event
                 if self.clicked:
                     x_img, y_img = (x - img.xOffset) / r, (y - img.yOffset) / r
-                    # read input and current colors from active layer (coordinates are relative to the full-sized image)
+                    # read input and current colors from active layer
+                    # coordinates are relative to the full-sized image
                     clr = img.getActivePixel(x_img, y_img, qcolor=True)
                     clrC = img.getActivePixel(x_img, y_img, fromInputImg=False, qcolor=True)
                     red, green, blue = clr.red(), clr.green(), clr.blue()
@@ -497,24 +509,24 @@ class imageLabel(QLabel):
                     redP, greenP, blueP = img.getPrPixel(x_img, y_img)
                     # color chooser : when visible the colorPicked signal is not emitted
                     if getattr(window, 'colorChooser', None) and window.colorChooser.isVisible():
-                        if modifiers == Qt.ControlModifier | Qt.ShiftModifier:  # (modifiers & Qt.ControlModifier) and (modifiers & Qt.ShiftModifier):
+                        if modifiers == Qt.ControlModifier | Qt.ShiftModifier:
                             window.colorChooser.setCurrentColor(clr)
-                        elif modifiers == Qt.ControlModifier:  # modifiers & Qt.ControlModifier:
+                        elif modifiers == Qt.ControlModifier:
                             window.colorChooser.setCurrentColor(clrC)
                         else:
                             window.colorChooser.setCurrentColor(QColor(redP, greenP, blueP))
                     else:
-                        # emit colorPicked signal
-                        layer.colorPicked.sig.emit(x_img, y_img, modifiers)
-                        # select grid node for 3DLUT form
-                        if layer.is3DLUTLayer():
-                            movedNodes = layer.getGraphicsForm().selectGridNode(red, green, blue)
-                            if movedNodes:
-                                layer.applyToStack()
-                        # rectangle selection
-                        if window.btnValues['rectangle'] and (modifiers == Qt.ControlModifier):
-                            layer.rect = None
-                            layer.selectionChanged.sig.emit()
+                        if window.btnValues['rectangle']:
+                            # remove rectangle from selection
+                            if modifiers == Qt.ControlModifier:
+                                for rect in layer.sRects:
+                                    if rect.contains(x_img, y_img):
+                                        layer.sRects.remove(rect)
+                                        layer.selectionChanged.sig.emit()
+                                        break
+                        else:
+                            # emit colorPicked signal
+                            layer.colorPicked.sig.emit(x_img, y_img, modifiers)
                         # Flood fill tool
                         if layer.isDrawLayer() and window.btnValues['bucket']:
                             if getattr(window, 'colorChooser', None):

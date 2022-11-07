@@ -1113,30 +1113,3 @@ class graphicsSplineForm(graphicsCurveForm):
     def __setstate__(self, state):
         self.scene().quadricB.__setstate__(state)
 
-    def writeToStream(self, outStream):
-        graphicsScene = self.scene()
-        layer = graphicsScene.layer
-        outStream.writeQString(layer.actionName)
-        outStream.writeQString(layer.name)
-        if layer.actionName in ['actionBrightness_Contrast', 'actionCurves_HSpB', 'actionCurves_Lab']:
-            outStream.writeQString(self.listWidget1.selectedItems()[0].text())
-            graphicsScene.quadricR.writeToStream(outStream)
-            graphicsScene.quadricG.writeToStream(outStream)
-            graphicsScene.quadricB.writeToStream(outStream)
-        return outStream
-
-    def readFromStream(self, inStream):
-        actionName = inStream.readQString()
-        name = inStream.readQString()
-        sel = inStream.readQString()
-        cubics = []
-        # for i in range(3):
-        # cubic = cubicItem.readFromStream(inStream)
-        # cubics.append(cubic)
-        # kwargs = dict(zip(['cubicR', 'cubicG', 'cubicB'], cubics))
-        # self.setEntries(sel=sel, **kwargs)
-        graphicsScene = self.scene()
-        graphicsScene.quadricR.readFromStream(inStream)
-        graphicsScene.quadricG.readFromStream(inStream)
-        graphicsScene.quadricB.readFromStream(inStream)
-        return inStream

@@ -32,7 +32,6 @@ from PySide6.QtCore import QRect, QPoint
 
 from bLUeGui.bLUeImage import bImage, ndarrayToQImage
 from bLUeCore.multi import chosenInterp
-# from bLUeTop.QtGui1 import app
 import bLUeTop.Gui
 from bLUeTop.align import alignImages
 from bLUeTop.cloning import alphaBlend
@@ -43,7 +42,7 @@ from bLUeTop.graphicsFilter import filterIndex
 from bLUeGui.histogramWarping import warpHistogram
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.colorCube import rgb2hspVec, hsp2rgbVec, hsv2rgbVec
-from bLUeGui.blend import blendLuminosity, blendLuminosityBuf
+from bLUeGui.blend import blendLuminosity
 from bLUeGui.colorCIE import sRGB2LabVec, Lab2sRGBVec, rgb2rgbLinear, \
     rgbLinear2rgb, RGB2XYZ, sRGB_lin2XYZInverse, bbTemperature2RGB, sRGB_lin2XYZ
 from bLUeGui.multiplier import temperatureAndTint2Multipliers
@@ -52,7 +51,7 @@ from bLUeCore.kernel import getKernel
 from bLUeTop.lutUtils import LUT3DIdentity
 from bLUeTop.rawProcessing import rawPostProcess
 from bLUeTop.utils import UDict
-from bLUeCore.dwtDenoising import dwtDenoiseChan
+from bLUeCore.dwtDenoising import dwtDenoiseChan, chooseDWTLevel, dwtDenoise
 from bLUeTop.mergeImages import expFusion
 from bLUeCore.bLUeLUT3D import LUT3D
 
@@ -346,7 +345,8 @@ class vImage(bImage):
         if rawMetadata is None:
             rawMetadata = {}
         self.isModified = False
-        self.rect, self.marker = None, None  # selection rectangle, marker
+        self.__rect, self.marker = None, None  # selection rectangle, marker
+        self.sRects = []  # selection rectangles
         self.isCropped = False
         self.cropTop, self.cropBottom, self.cropLeft, self.cropRight = (0,) * 4
         self.isRuled = False
@@ -410,6 +410,14 @@ class vImage(bImage):
         if self.depth() != 32:
             raise ValueError('vImage : should be a 8 bits/channel color image')
         self.filename = filename if filename is not None else ''
+
+    @property
+    def rect(self):
+        return self.__rect
+
+    @rect.setter
+    def rect(self, rect):
+        self.__rect = rect
 
     def cropMargins(self):
         return (self.cropLeft, self.cropRight, self.cropTop, self.cropBottom)
@@ -546,6 +554,36 @@ class vImage(bImage):
             return self.getThumb()
         else:
             return self
+
+    def getCurrentSelCoords(self, emptyAllowed=False):
+        """
+        Returns the list of (left, right, top, bottom) coordinates of the selection rectangles.
+        Coordinates are relative to the current image.
+        If emptyAllowed is False and the selection is empty, the current image coordinates are returned.
+
+        :param emptyAllowed:
+        :type emptyAllowed:
+        :return:
+        :rtype: list of 4-uples of int
+        """
+        currentImage = self.getCurrentImage()
+        w, h = currentImage.width(), currentImage.height()
+        wF, hF = self.width(), self.height()
+        wRatio, hRatio = float(w) / wF, float(h) / hF
+
+        selList = []
+        for rect in self.sRects:
+            w1, w2, h1, h2 = int(rect.left() * wRatio), int(rect.right() * wRatio), int(
+                rect.top() * hRatio), int(rect.bottom() * hRatio)
+            w1, h1 = max(w1, 0), max(h1, 0)
+            w2, h2 = min(w2, w), min(h2, h)
+            if w1 <= w2 and h1 <= h2:
+                selList.append((w1, w2, h1, h2))
+
+        if not selList:
+            selList.append((0, w, 0, h))
+
+        return selList
 
     def full2CurrentXY(self, x, y):
         """
@@ -1076,9 +1114,11 @@ class vImage(bImage):
         np.clip(buf, 0.0, 255.0, out=buf)
         currentImage = self.getCurrentImage()
         ndImg1a = QImageBuffer(currentImage)
-        ndImg1a[:, :, :3][:, :, ::-1] = buf
-        # forward the alpha channel
-        ndImg1a[:, :, 3] = bufIn[:, :, 3]
+
+        ndImg1a[...] = bufIn
+        for (w1, w2, h1, h2) in self.getCurrentSelCoords():
+            ndImg1a[h1:h2 + 1, w1:w2 + 1, :3][:, :, ::-1] = buf[h1:h2 + 1, w1:w2 + 1]
+
         self.updatePixmap()
 
     def applyMixer(self, options):
@@ -1094,12 +1134,12 @@ class vImage(bImage):
         np.clip(buf, 0, 1.0, out=buf)
         # convert back to RGB
         buf = rgbLinear2rgb(buf)
-        if form.options['Luminosity']:
-            bufOut[:, :, :3][:, :, ::-1] = blendLuminosityBuf(bufIn[:, :, :3][:, :, ::-1], buf)
-        else:
-            bufOut[:, :, :3][:, :, ::-1] = np.round(buf)  # truncation would be harmful here
-        # forward the alpha channel
-        bufOut[:, :, 3] = bufIn[:, :, 3]
+
+        bufOut[...] = bufIn
+        for (w1, w2, h1, h2) in self.getCurrentSelCoords():
+            bufOut[h1:h2 + 1, w1:w2 + 1, :3][:, :, ::-1] = np.round(
+                buf[h1:h2 + 1, w1:w2 + 1])  # truncation would be harmful here
+
         self.updatePixmap()
 
     def applyTransForm(self, options):
@@ -1161,80 +1201,100 @@ class vImage(bImage):
             buf1[...] = imalgn
             self.updatePixmap()
 
+    def noisy(self, image):
+        """
+        Adds gaussian noise to image.
+
+        :param image:
+        :type image: ndArray
+        :return:
+        :rtype:
+        """
+
+        row, col, ch = image.shape
+        mean = 0
+        var = 0.5
+        sigma = var ** 0.5
+        gauss = np.random.normal(mean, sigma, (row, col, ch))
+        gauss = gauss.reshape(row, col, ch)
+        noisy = image + gauss
+        np.clip(noisy, 0, 255, out=noisy)
+        return noisy
+
     def applyNoiseReduction(self):
         """
         Wavelets, bilateral filtering, NLMeans
         """
         adjustForm = self.getGraphicsForm()
-        noisecorr = adjustForm.noiseCorrection
+        noisecorr = adjustForm.noiseCorrection  # range 0..10
         currentImage = self.getCurrentImage()
         inputImage = self.inputImg()
         buf0 = QImageBuffer(inputImage)
         buf1 = QImageBuffer(currentImage)
         ########################
-        # hald pass through and neutral point
+
+        # hald pass through or no correction
         if self.parentImage.isHald or noisecorr == 0:
             buf1[...] = buf0
             self.updatePixmap()
             return
         ########################
         w, h = self.width(), self.height()
-        r = inputImage.width() / w
-        if self.rect is not None:
+        w0, h0 = inputImage.width(), inputImage.height()
+
+        # reset output image
+        buf1[...] = buf0
+        for w1, w2, h1, h2 in self.getCurrentSelCoords():
             # slicing
-            rect = self.rect
-            imgRect = QRect(0, 0, w, h)
+            rect = QRect(w1, h1, w2 - w1, h2 - h1)
+            imgRect = QRect(0, 0, w0, h0)
             rect = rect.intersected(imgRect)
             if rect.width() < 10 or rect.height() < 10:
                 dlgWarn('Selection is too narrow')
                 return
-            slices = np.s_[int(rect.top() * r): int(rect.bottom() * r), int(rect.left() * r): int(rect.right() * r), :3]
+            slices = np.s_[rect.top(): rect.bottom(), rect.left(): rect.right(), :3]
             ROI0 = buf0[slices]
-            # reset output image
-            buf1[:, :, :] = buf0
-            ROI1 = buf1[slices]
-        else:
-            ROI0 = buf0[:, :, :3]
-            ROI1 = buf1[:, :, :3]
-        buf01 = ROI0[:, :, ::-1]
-        noisecorr *= currentImage.width() / self.width()
-        if adjustForm.options['Wavelets']:
-            noisecorr *= 100
-            bufLab = cv2.cvtColor(buf01, cv2.COLOR_RGB2Lab)
-            L = dwtDenoiseChan(bufLab, chan=0, thr=noisecorr,
-                               thrmode='wiener')  # level=8 if self.parentImage.useThumb else 11)
-            A = dwtDenoiseChan(bufLab, chan=1, thr=noisecorr,
-                               thrmode='wiener')  # level=8 if self.parentImage.useThumb else 11)
-            B = dwtDenoiseChan(bufLab, chan=2, thr=noisecorr,
-                               thrmode='wiener')  # level=8 if self.parentImage.useThumb else 11)
-            np.clip(L, 0, 255, out=L)
-            np.clip(A, 0, 255, out=A)
-            np.clip(B, 0, 255, out=B)
-            bufLab = np.dstack((L, A, B))
-            # back to RGB
-            ROI1[:, :, ::-1] = cv2.cvtColor(bufLab.astype(np.uint8), cv2.COLOR_Lab2RGB)
-        elif adjustForm.options['Bilateral']:
-            ROI1[:, :, ::-1] = cv2.bilateralFilter(buf01,
-                                                   9 if self.parentImage.useThumb else 15,
-                                                   # diameter of
-                                                   # (coordinate) pixel neighborhood,
-                                                   # 5 is the recommended value for
-                                                   # fast processing (21:5.5s, 15:3.5s)
-                                                   10 * adjustForm.noiseCorrection,
-                                                   # std deviation sigma
-                                                   # in color space,  100 middle value
-                                                   50 if self.parentImage.useThumb else 150,
-                                                   # std deviation sigma
-                                                   # in coordinate space,
-                                                   # 100 middle value
-                                                   )
-        elif adjustForm.options['NLMeans']:
-            # hluminance, hcolor,  last params window sizes 7, 21 are recommended values
-            ROI1[:, :, ::-1] = cv2.fastNlMeansDenoisingColored(buf01, None, 1 + noisecorr, 1 + noisecorr, 7,
-                                                               21)
 
-            # forward the alpha channel
-        buf1[:, :, 3] = buf0[:, :, 3]
+            ROI1 = buf1[slices]
+            buf01 = ROI0[:, :, ::-1]
+
+            if adjustForm.options['Wavelets']:
+                wavelet = 'haar'
+                level = chooseDWTLevel(buf01, wavelet)
+
+                if adjustForm.options['Luminosity']:
+                    bufLab = cv2.cvtColor(buf01, cv2.COLOR_RGB2Lab)
+                    bufLab[..., 0] = dwtDenoiseChan(bufLab, chan=0, thr=noisecorr, thrmode='wiener', level=level,
+                                                    wavelet=wavelet)
+
+                    bufLab[..., 0] = np.clip(bufLab[..., 0], 0, 255)
+
+                    # back to RGB
+                    ROI1[:, :, ::-1] = cv2.cvtColor(bufLab.astype(np.uint8), cv2.COLOR_Lab2RGB)
+
+                elif adjustForm.options['RGB']:
+                    dwtDenoise(ROI0, ROI1, thr=noisecorr, thrmode='wiener', wavelet=wavelet, level=level)
+
+            elif adjustForm.options['Bilateral']:
+                ROI1[:, :, ::-1] = cv2.bilateralFilter(buf01,
+                                                       9 if self.parentImage.useThumb else 15,
+                                                       # diameter of
+                                                       # (coordinate) pixel neighborhood,
+                                                       # 5 is the recommended value for
+                                                       # fast processing (21:5.5s, 15:3.5s)
+                                                       10 * adjustForm.noiseCorrection,
+                                                       # std deviation sigma
+                                                       # in color space,  100 middle value
+                                                       50 if self.parentImage.useThumb else 150,
+                                                       # std deviation sigma
+                                                       # in coordinate space,
+                                                       # 100 middle value
+                                                       )
+
+            elif adjustForm.options['NLMeans']:
+                # hluminance, hcolor,  last params window sizes 7, 21 are recommended values
+                ROI1[:, :, ::-1] = cv2.fastNlMeansDenoisingColored(buf01, None, 1 + noisecorr, 1 + noisecorr, 7,
+                                                                   21)
         self.updatePixmap()
 
     def applyRawPostProcessing(self, pool=None):
@@ -1267,114 +1327,124 @@ class vImage(bImage):
         tmpBuf = QImageBuffer(inputImage)
         currentImage = self.getCurrentImage()
         ndImg1a = QImageBuffer(currentImage)
-        # neutral point : by pass
+
+        # no correction : forward lower layer
         if contrastCorrection == 0 and satCorrection == 0 and brightnessCorrection == 0:
             ndImg1a[:, :, :] = tmpBuf
             self.updatePixmap()
             return
+
         ##########################
         # Lab mode (slower than HSV)
         ##########################
         if version == 'Lab':
             # get l channel (range 0..1)
             LBuf = inputImage.getLabBuffer().copy()
-            if brightnessCorrection != 0:
-                alpha = (-adjustForm.brightnessCorrection + 1.0)
-                # tabulate x**alpha
-                LUT = np.power(np.arange(256) / 255.0, alpha)
-                # convert L to L**alpha
-                LBuf[:, :, 0] = LUT[(LBuf[:, :, 0] * 255.0).astype(np.uint8)]
-            # contrast
-            if contrastCorrection > 0:
-                # CLAHE
-                if options['CLAHE']:
-                    if self.parentImage.isHald:
-                        raise ValueError('cannot build 3D LUT from CLAHE ')
-                    clahe = cv2.createCLAHE(clipLimit=contrastCorrection, tileGridSize=(8, 8))
-                    clahe.setClipLimit(contrastCorrection)
-                    res = clahe.apply((LBuf[:, :, 0] * 255.0).astype(np.uint8)) / 255.0
-                # warping
-                else:
-                    if self.parentImage.isHald and not options['manualCurve']:
-                        raise ValueError(
-                            'A contrast curve was found.\nCheck the option Show Contrast Curve in Cont/Bright/Sat layer')
-                    auto = self.autoSpline and not self.parentImage.isHald
-                    res, a, b, d, T = warpHistogram(LBuf[:, :, 0], warp=contrastCorrection,
-                                                    preserveHigh=options['High'],
-                                                    spline=None if auto else self.getMmcSpline())
-                    # show the spline viewer
-                    if self.autoSpline and options['manualCurve']:
-                        self.getGraphicsForm().setContrastSpline(a, b, d, T)
-                        self.autoSpline = False
-                LBuf[:, :, 0] = res
-            # saturation
-            if satCorrection != 0:
-                slope = max(0.1, adjustForm.satCorrection / 25 + 1)
-                # multiply a and b channels
-                LBuf[:, :, 1:3] *= slope
-                LBuf[:, :, 1:3] = np.clip(LBuf[:, :, 1:3], -127, 127)
+            ndImg1a[:, :, :] = tmpBuf
+            for w1, w2, h1, h2 in self.getCurrentSelCoords():
+                LBuf = LBuf[h1:h2 + 1, w1:w2 + 1]
+                if brightnessCorrection != 0:
+                    alpha = (-adjustForm.brightnessCorrection + 1.0)
+                    # tabulate x**alpha
+                    LUT = np.power(np.arange(256) / 255.0, alpha)
+                    # convert L to L**alpha
+                    LBuf[:, :, 0] = LUT[(LBuf[:, :, 0] * 255.0).astype(np.uint8)]
+                # contrast
+                if contrastCorrection > 0:
+                    # CLAHE
+                    if options['CLAHE']:
+                        if self.parentImage.isHald:
+                            raise ValueError('cannot build 3D LUT from CLAHE ')
+                        clahe = cv2.createCLAHE(clipLimit=contrastCorrection, tileGridSize=(8, 8))
+                        clahe.setClipLimit(contrastCorrection)
+                        res = clahe.apply((LBuf[:, :, 0] * 255.0).astype(np.uint8)) / 255.0
+                    # warping
+                    else:
+                        if self.parentImage.isHald and not options['manualCurve']:
+                            raise ValueError(
+                                'A contrast curve was found.\nCheck the option Show Contrast Curve in Cont/Bright/Sat layer')
+                        auto = self.autoSpline and not self.parentImage.isHald
+                        res, a, b, d, T = warpHistogram(LBuf[:, :, 0], warp=contrastCorrection,
+                                                        preserveHigh=options['High'],
+                                                        spline=None if auto else self.getMmcSpline())
+                        # show the spline viewer
+                        if self.autoSpline and options['manualCurve']:
+                            self.getGraphicsForm().setContrastSpline(a, b, d, T)
+                            self.autoSpline = False
+                    LBuf[:, :, 0] = res
+                # saturation
+                if satCorrection != 0:
+                    slope = max(0.1, adjustForm.satCorrection / 25 + 1)
+                    # multiply a and b channels
+                    LBuf[:, :, 1:3] *= slope
+                    LBuf[:, :, 1:3] = np.clip(LBuf[:, :, 1:3], -127, 127)
             # back to RGB
             sRGBBuf = Lab2sRGBVec(LBuf)  # use cv2.cvtColor
+
         ###########
         # HSV mode
         ###########
         else:
             # get HSV buffer (H, S, V are in range 0..255)
-            HSVBuf = inputImage.getHSVBuffer().copy()
-            if brightnessCorrection != 0:
-                alpha = 1.0 / (
-                        0.501 + adjustForm.brightnessCorrection) - 1.0  # approx. map -0.5...0.0...0.5 --> +inf...1.0...0.0
-                # tabulate x**alpha
-                LUT = np.power(np.arange(256) / 255, alpha)
-                LUT *= 255.0
-                # convert V to V**alpha
-                HSVBuf[:, :, 2] = LUT[HSVBuf[:, :, 2]]  # faster than take
-            if contrastCorrection > 0:
-                # CLAHE
-                if options['CLAHE']:
-                    if self.parentImage.isHald:
-                        raise ValueError('cannot build 3D LUT from CLAHE ')
-                    clahe = cv2.createCLAHE(clipLimit=contrastCorrection, tileGridSize=(8, 8))
-                    clahe.setClipLimit(contrastCorrection)
-                    res = clahe.apply((HSVBuf[:, :, 2]))
-                # warping
-                else:
-                    if self.parentImage.isHald and not options['manualCurve']:
-                        raise ValueError(
-                            'A contrast curve was found.\nCheck the option Show Contrast Curve in Cont/Bright/Sat layer')
-                    buf32 = HSVBuf[:, :, 2].astype(np.float) / 255
-                    auto = self.autoSpline and not self.parentImage.isHald  # flag for manual/auto spline
-                    res, a, b, d, T = warpHistogram(buf32, warp=contrastCorrection, preserveHigh=options['High'],
-                                                    spline=None if auto else self.getMmcSpline())
-                    res = (res * 255.0).astype(np.uint8)
-                    # show the spline viewer
-                    if self.autoSpline and options['manualCurve']:
-                        self.getGraphicsForm().setContrastSpline(a, b, d, T)
-                        self.autoSpline = False
-                HSVBuf[:, :, 2] = res
-            if satCorrection != 0:
-                alpha = 1.0 / (
-                        0.501 + adjustForm.satCorrection) - 1.0  # approx. map -0.5...0.0...0.5 --> +inf...1.0...0.0
-                # tabulate x**alpha
-                LUT = np.power(np.arange(256) / 255, alpha)
-                LUT *= 255
-                # convert saturation s to s**alpha
-                HSVBuf[:, :, 1] = LUT[HSVBuf[:, :, 1]]  # faster than take
+            HSVBuf0 = inputImage.getHSVBuffer().copy()
+            ndImg1a[:, :, :] = tmpBuf
+            for w1, w2, h1, h2 in self.getCurrentSelCoords():
+                HSVBuf = HSVBuf0[h1:h2 + 1, w1:w2 + 1]
+                if brightnessCorrection != 0:
+                    alpha = 1.0 / (
+                            0.501 + adjustForm.brightnessCorrection) - 1.0  # approx. map -0.5...0.0...0.5 --> +inf...1.0...0.0
+                    # tabulate x**alpha
+                    LUT = np.power(np.arange(256) / 255, alpha)
+                    LUT *= 255.0
+                    # convert V to V**alpha
+                    HSVBuf[:, :, 2] = LUT[HSVBuf[:, :, 2]]  # faster than take
+                if contrastCorrection > 0:
+                    # CLAHE
+                    if options['CLAHE']:
+                        if self.parentImage.isHald:
+                            raise ValueError('cannot build 3D LUT from CLAHE ')
+                        clahe = cv2.createCLAHE(clipLimit=contrastCorrection, tileGridSize=(8, 8))
+                        clahe.setClipLimit(contrastCorrection)
+                        res = clahe.apply((HSVBuf[:, :, 2]))
+                    # warping
+                    else:
+                        if self.parentImage.isHald and not options['manualCurve']:
+                            raise ValueError(
+                                'A contrast curve was found.\nCheck the option Show Contrast Curve in Cont/Bright/Sat layer')
+                        buf32 = HSVBuf[:, :, 2].astype(np.float) / 255
+                        auto = self.autoSpline and not self.parentImage.isHald  # flag for manual/auto spline
+                        res, a, b, d, T = warpHistogram(buf32, warp=contrastCorrection, preserveHigh=options['High'],
+                                                        spline=None if auto else self.getMmcSpline())
+                        res = (res * 255.0).astype(np.uint8)
+                        # show the spline viewer
+                        if self.autoSpline and options['manualCurve']:
+                            self.getGraphicsForm().setContrastSpline(a, b, d, T)
+                            self.autoSpline = False
+                    HSVBuf[:, :, 2] = res
+                if satCorrection != 0:
+                    alpha = 1.0 / (
+                            0.501 + adjustForm.satCorrection) - 1.0  # approx. map -0.5...0.0...0.5 --> +inf...1.0...0.0
+                    # tabulate x**alpha
+                    LUT = np.power(np.arange(256) / 255, alpha)
+                    LUT *= 255
+                    # convert saturation s to s**alpha
+                    HSVBuf[:, :, 1] = LUT[HSVBuf[:, :, 1]]  # faster than take
+
             # back to RGB
-            sRGBBuf = cv2.cvtColor(HSVBuf, cv2.COLOR_HSV2RGB)
-        ndImg1a[:, :, :3][:, :, ::-1] = sRGBBuf
-        # forward the alpha channel
-        ndImg1a[:, :, 3] = tmpBuf[:, :, 3]
+            # sRGBBuf = cv2.cvtColor(HSVBuf0, cv2.COLOR_HSV2RGB)
+
+            ndImg1a[:, :, :3][:, :, ::-1] = cv2.cvtColor(HSVBuf0, cv2.COLOR_HSV2RGB)  # sRGBBuf
+
         self.updatePixmap()
 
     def apply1DLUT(self, stackedLUT):
         """
-        Apply 1D LUTS to R, G, B channels (one for each channel).
+        Apply 1D LUTS to R, G, B channels (one curve for each channel).
 
         :param stackedLUT: array of color values (in range 0..255) : a row for each R, G, B channel
         :type stackedLUT : ndarray, shape=(3, 256), dtype=int
         """
-        # neutral point: by pass
+        # identity LUT: forward lower layer and return
         if not np.any(stackedLUT - np.arange(256)):  # last dims are equal : broadcast works
             buf1 = QImageBuffer(self.inputImg())
             buf2 = QImageBuffer(self.getCurrentImage())
@@ -1390,21 +1460,18 @@ class vImage(bImage):
         ndImg1a = QImageBuffer(currentImage)
         ndImg0 = ndImg0a[:, :, :3]
         ndImg1 = ndImg1a[:, :, :3]
-        # apply LUTS to channels
-        s = ndImg0[:, :, 0].shape
-        if options['Luminosity']:
-            buf = np.empty_like(ndImg1)
-            for c in range(3):  # 0.36s for 15Mpx
-                buf[:, :, c] = np.take(stackedLUT[2 - c, :], ndImg0[:, :, c].reshape((-1,))).reshape(s)
-            ndImg1[..., :: -1] = blendLuminosityBuf(ndImg0[..., ::-1], buf[..., ::-1])
-        else:
-            for c in range(3):  # 0.36s for 15Mpx
-                ndImg1[:, :, c] = np.take(stackedLUT[2 - c, :], ndImg0[:, :, c].reshape((-1,))).reshape(s)
 
-        # rList = np.array([2,1,0])  # B, G, R
-        # ndImg1[:, :, :] = stackedLUT[rList, ndImg0]  # last dims of index arrays are equal : broadcast works. slower 0.66s for 15Mpx
-        # forward alpha channel
-        ndImg1a[:, :, 3] = ndImg0a[:, :, 3]
+        # apply LUTS to channels
+        ndImg1a[...] = ndImg0a
+
+        for w1, w2, h1, h2 in self.getCurrentSelCoords():
+            for c in range(3):  # 0.36s for 15Mpx
+                s = ndImg0[h1:h2 + 1, w1:w2 + 1, 0].shape
+                ndImg1[h1:h2 + 1, w1:w2 + 1, c] = np.take(
+                    stackedLUT[2 - c, :],
+                    ndImg0[h1:h2 + 1, w1:w2 + 1, c].reshape((-1,))
+                ).reshape(s)
+
         self.updatePixmap()
 
     def applyLab1DLUT(self, stackedLUT, options=None):
@@ -1417,13 +1484,15 @@ class vImage(bImage):
         """
         if options is None:
             options = UDict()
-        # neutral point
+
+        # identity LUT : forward lower layer and return
         if not np.any(stackedLUT - np.arange(256)):  # last dims are equal : broadcast is working
             buf1 = QImageBuffer(self.inputImg())
             buf2 = QImageBuffer(self.getCurrentImage())
             buf2[:, :, :] = buf1
             self.updatePixmap()
             return
+
         # convert LUT to float to speed up  buffer conversions
         stackedLUT = stackedLUT.astype(np.float)
         # get the Lab input buffer
@@ -1453,18 +1522,22 @@ class vImage(bImage):
         ndsRGBImg1 = Lab2sRGBVec(ndLabImg1)
         # in place clipping
         np.clip(ndsRGBImg1, 0, 255, out=ndsRGBImg1)  # mandatory
+
         currentImage = self.getCurrentImage()
         ndImg1 = QImageBuffer(currentImage)
-        ndImg1[:, :, :3][:, :, ::-1] = ndsRGBImg1
-        # forward the alpha channel
+
         ndImg0 = QImageBuffer(Img0)
-        ndImg1[:, :, 3] = ndImg0[:, :, 3]
-        # update
+        ndImg1[...] = ndImg0
+        for w1, w2, h1, h2 in self.getCurrentSelCoords():
+            ndImg1[h1:h2 + 1, w1:w2 + 1, :3][:, :, ::-1] = ndsRGBImg1[h1:h2 + 1, w1:w2 + 1, :3]
+
         self.updatePixmap()
 
     def applyHSPB1DLUT(self, stackedLUT, options=None, pool=None):
         """
-        Applies 1D LUTS to hue, sat and brightness channels.
+        Currently unused.
+
+        Applies 1D LUTS to hue, sat and perceptual brightness channels.
 
         :param stackedLUT: array of color values (in range 0..255), a row for each channel
         :type stackedLUT : ndarray shape=(3,256) dtype=int or float
@@ -1475,7 +1548,8 @@ class vImage(bImage):
         """
         if options is None:
             options = UDict()
-        # neutral point
+
+        # identity LUT : forward lower layer and return
         if not np.any(stackedLUT - np.arange(256)):  # last dims are equal : broadcast is working
             buf1 = QImageBuffer(self.inputImg())
             buf2 = QImageBuffer(self.getCurrentImage())
@@ -1496,6 +1570,7 @@ class vImage(bImage):
         ndRGBImg1 = hsp2rgbVec(ndHSBPImg1)  # time 4s for 15 Mpx
         # in place clipping
         np.clip(ndRGBImg1, 0, 255, out=ndRGBImg1)  # mandatory
+
         # set current image to modified image
         currentImage = self.getCurrentImage()
         ndImg1a = QImageBuffer(currentImage)
@@ -1503,7 +1578,7 @@ class vImage(bImage):
         # forward the alpha channel
         ndImg0 = QImageBuffer(Img0)
         ndImg1a[:, :, 3] = ndImg0[:, :, 3]
-        # update
+
         self.updatePixmap()
 
     def applyHSV1DLUT(self, stackedLUT, options=None, pool=None):
@@ -1517,15 +1592,17 @@ class vImage(bImage):
         :param pool: multiprocessing pool : unused
         :type pool: muliprocessing.Pool
         """
-        # neutral point
         if options is None:
             options = UDict()
+
+        # identity LUT : forward lower layer and return
         if not np.any(stackedLUT - np.arange(256)):  # last dims are equal : broadcast is working
             buf1 = QImageBuffer(self.inputImg())
             buf2 = QImageBuffer(self.getCurrentImage())
             buf2[:, :, :] = buf1
             self.updatePixmap()
             return
+
         # convert LUT to float to speed up  buffer conversions
         stackedLUT = stackedLUT.astype(np.float)
         # get HSV buffer, range H: 0..180, S:0..255 V:0..255
@@ -1541,14 +1618,15 @@ class vImage(bImage):
         RGBImg1 = hsv2rgbVec(HSVImg1, cvRange=True)
         # in place clipping
         np.clip(RGBImg1, 0, 255, out=RGBImg1)  # mandatory
-        # set current image to modified image
+
         currentImage = self.getCurrentImage()
-        ndImg1a = QImageBuffer(currentImage)
-        ndImg1a[:, :, :3][:, :, ::-1] = RGBImg1
-        # forward the alpha channel
+        ndImg1 = QImageBuffer(currentImage)
+
         ndImg0 = QImageBuffer(Img0)
-        ndImg1a[:, :, 3] = ndImg0[:, :, 3]
-        # update
+        ndImg1[...] = ndImg0
+        for w1, w2, h1, h2 in self.getCurrentSelCoords():
+            ndImg1[h1:h2 + 1, w1:w2 + 1, :3][:, :, ::-1] = RGBImg1[h1:h2 + 1, w1:w2 + 1, :3]
+
         self.updatePixmap()
 
     def applyHVLUT2D(self, LUT, options=None, pool=None):
@@ -1560,43 +1638,83 @@ class vImage(bImage):
         bufOut = QImageBuffer(currentImage)
         if options is None:
             options = UDict()
-        # get selection
-        if self.rect is not None:
+
+        # get HSV buffer, range H: 0..180, S:0..255 V:0..255  (opencv convention for 8 bits images)
+        HSVImg0 = inputImage.getHSVBuffer().astype(np.float)  # copy done
+        HSVImg0[:, :, 0] *= 2  # 0..360
+
+        # reset layer image
+        bufOut[:, :, :] = QImageBuffer(inputImage)
+
+        for w1, w2, h1, h2 in self.getCurrentSelCoords():
+
+            rect = QRect(w1, h1, w2 - w1, h2 - h1)
+
             w, wF = self.getCurrentImage().width(), self.width()
             h, hF = self.getCurrentImage().height(), self.height()
-            wRatio, hRatio = float(w) / wF, float(h) / hF
-            w1, w2, h1, h2 = int(self.rect.left() * wRatio), int(self.rect.right() * wRatio), int(
-                self.rect.top() * hRatio), int(self.rect.bottom() * hRatio)
-            w1, h1 = max(w1, 0), max(h1, 0)
-            w2, h2 = min(w2, inputImage.width()), min(h2, inputImage.height())
-            if w1 >= w2 or h1 >= h2:
-                dlgWarn("Empty selection\nSelect a region with the marquee tool")
+            # wRatio, hRatio = float(w) / wF, float(h) / hF
+            w0, h0 = inputImage.width(), inputImage.height()
+            imgRect = QRect(0, 0, w0, h0)
+            rect = rect.intersected(imgRect)
+            if rect.width() < 10 or rect.height() < 10:
+                dlgWarn('Selection is too narrow')
                 return
-            # reset layer image
-            bufOut[:, :, :] = QImageBuffer(inputImage)
-        else:
-            w1, w2, h1, h2 = 0, self.inputImg().width(), 0, self.inputImg().height()
-        # get HSV buffer, range H: 0..180, S:0..255 V:0..255  (opencv convention for 8 bits images)
-        HSVImg0 = inputImage.getHSVBuffer()
-        HSVImg0 = HSVImg0.astype(np.float)
-        HSVImg0[:, :, 0] *= 2
-        bufHSV_CV32 = HSVImg0[h1:h2 + 1, w1:w2 + 1, :]
 
-        divs = LUT.divs
-        steps = tuple([360 / divs[0], 255.0 / divs[1], 255.0 / divs[2]])
-        interp = chosenInterp(pool, (w2 - w1) * (h2 - h1))
-        coeffs = interp(LUT.data, steps, bufHSV_CV32, convert=False)
-        bufHSV_CV32[:, :, 0] = np.mod(bufHSV_CV32[:, :, 0] + coeffs[:, :, 0], 360)
-        bufHSV_CV32[:, :, 1:] = bufHSV_CV32[:, :, 1:] * coeffs[:, :, 1:]
-        np.clip(bufHSV_CV32, (0, 0, 0), (360, 255, 255), out=bufHSV_CV32)
-        bufHSV_CV32[:, :, 0] /= 2
+            bufHSV_CV32 = HSVImg0[h1:h2 + 1, w1:w2 + 1, :]
 
-        bufpostF32_1 = cv2.cvtColor(bufHSV_CV32.astype(np.uint8), cv2.COLOR_HSV2RGB)
-        bufOut = QImageBuffer(currentImage)
-        bufOut[h1:h2 + 1, w1:w2 + 1, :3] = bufpostF32_1[:, :, ::-1]
+            divs = LUT.divs
+            steps = tuple([360 / divs[0], 255.0 / divs[1], 255.0 / divs[2]])
+            interp = chosenInterp(pool, (w2 - w1) * (h2 - h1))
+            coeffs = interp(LUT.data, steps, bufHSV_CV32, convert=False)
+            bufHSV_CV32[:, :, 0] = np.mod(bufHSV_CV32[:, :, 0] + 2.0 * coeffs[:, :, 0], 360)  # scale Hue curve
+            bufHSV_CV32[:, :, 1:] = bufHSV_CV32[:, :, 1:] * coeffs[:, :, 1:]
+            np.clip(bufHSV_CV32, (0, 0, 0), (360, 255, 255), out=bufHSV_CV32)
+            bufHSV_CV32[:, :, 0] /= 2  # 0..180
+
+            bufpostF32_1 = cv2.cvtColor(bufHSV_CV32.astype(np.uint8), cv2.COLOR_HSV2RGB)
+
+            """
+            modelFile = "opencv_models\\res10_300x300_ssd_iter_140000.caffemodel"
+            configFile = "opencv_models\deploy.prototxt"
+            net = cv2.dnn.readNetFromCaffe(configFile, modelFile)
+            net.setPreferableBackend(cv2.dnn.DNN_BACKEND_DEFAULT)
+            net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
+            blob = cv2.dnn.blobFromImage(bufpostF32_1) #, 1.0, (300, 300), [104, 117, 123], False)
+            net.setInput(blob)
+            detections = net.forward()
+            bboxes = []
+            conf_threshold = 0.7
+            frameHeight = bufpostF32_1.shape[0]
+            frameWidth = bufpostF32_1.shape[1]
+            for i in range(detections.shape[2]):
+                confidence = detections[0, 0, i, 2]
+                if confidence > conf_threshold:
+                    x1 = int(detections[0, 0, i, 3] * frameWidth)
+                    y1 = int(detections[0, 0, i, 4] * frameHeight)
+                    x2 = int(detections[0, 0, i, 5] * frameWidth)
+                    y2 = int(detections[0, 0, i, 6] * frameHeight)
+                    bboxes.append([x1, y1, x2, y2])
+                    cv2.rectangle(bufpostF32_1, (x1, y1), (x2, y2), (0, 255, 0), 3) #int(round(frameHeight / 150))) #, 8, )
+            """
+
+            bufOut = QImageBuffer(currentImage)
+            bufOut[h1:h2 + 1, w1:w2 + 1, :3] = bufpostF32_1[:, :, ::-1]
+
         self.updatePixmap()
 
     def applyAuto3DLUT(self, options=None, pool=None):
+        """
+        The pretrained classifier of (C) Hui Zeng, Jianrui Cai, Lida Li, Zisheng Cao, and Lei Zhang
+        is used to compute a 3D LUT for automatic image enhancement.
+        CF. https://github.com/HuiZeng/Image-Adaptive-3DLUT.
+
+        :param options:
+        :type options:
+        :param pool:
+        :type pool:
+        :return:
+        :rtype:
+        """
         adjustForm = self.getGraphicsForm()
         inputImage = self.inputImg()
         currentImage = self.getCurrentImage()
@@ -1616,7 +1734,11 @@ class vImage(bImage):
 
         interp = chosenInterp(pool, inputImage.width() * inputImage.height())
         buf = interp(lut3D.LUT3DArray, lut3D.step, ndImg0.astype(np.float32), convert=False)
-        imgBuffer[:, :, :3] = buf.clip(0, 255)
+        np.clip(buf, 0, 255, out=buf)
+
+        imgBuffer[..., :3] = inputBuffer
+        for (w1, w2, h1, h2) in self.getCurrentSelCoords():
+            imgBuffer[h1:h2 + 1, w1:w2 + 1, :3] = buf[h1:h2 + 1, w1:w2 + 1, ...]
 
         self.updatePixmap()
 
@@ -1639,50 +1761,39 @@ class vImage(bImage):
         LUTSTEP = lut3D.step
         if options is None:
             options = UDict()
+
         # get buffers
         inputImage = self.inputImg()
         currentImage = self.getCurrentImage()
+        inputBuffer0 = QImageBuffer(inputImage)
+        imgBuffer = QImageBuffer(currentImage)
+        interpAlpha = not options['keep alpha']
+
         # get selection
         w1, w2, h1, h2 = (0.0,) * 4
-        useSelection = False
-        if self.rect is not None:
-            useSelection = self.rect.isValid()
+        useSelection = len(self.sRects) > 0
+
         if useSelection:
-            w, wF = self.getCurrentImage().width(), self.width()
-            h, hF = self.getCurrentImage().height(), self.height()
-            wRatio, hRatio = float(w) / wF, float(h) / hF
-            if self.rect is not None:
-                w1, w2, h1, h2 = int(self.rect.left() * wRatio), int(self.rect.right() * wRatio), int(
-                    self.rect.top() * hRatio), int(self.rect.bottom() * hRatio)
-            w1, h1 = max(w1, 0), max(h1, 0)
-            w2, h2 = min(w2, inputImage.width()), min(h2, inputImage.height())
-            if w1 >= w2 or h1 >= h2:
-                dlgWarn("Empty selection\nSelect a region with the marquee tool")
-                return
-        else:
-            w1, w2, h1, h2 = 0, self.inputImg().width(), 0, self.inputImg().height()
-        inputBuffer0 = QImageBuffer(inputImage)
-        inputBuffer = inputBuffer0[h1:h2 + 1, w1:w2 + 1, :]
-        imgBuffer = QImageBuffer(currentImage)[:, :, :]
-        interpAlpha = not options['keep alpha']
-        if interpAlpha:
-            # interpolate alpha channel from LUT
-            ndImg0 = inputBuffer
-            ndImg1 = imgBuffer
-        else:
-            ndImg0 = inputBuffer[:, :, :3]
-            ndImg1 = imgBuffer[:, :, :3]
-            LUT = np.ascontiguousarray(LUT[..., :3])
-        # choose the right interpolation method
-        interp = chosenInterp(pool, (w2 - w1) * (h2 - h1))
-        # apply LUT
-        if useSelection:
-            # need to reset the outside of the current selection
-            ndImg1[:, :, :] = inputBuffer0
-        ndImg1[h1:h2 + 1, w1:w2 + 1, :] = interp(LUT, LUTSTEP, ndImg0)
-        if not interpAlpha:
-            # forward the alpha channel
-            imgBuffer[h1:h2 + 1, w1:w2 + 1, 3] = inputBuffer[:, :, 3]
+            # forward lower layer
+            imgBuffer[...] = inputBuffer0
+
+        for w1, w2, h1, h2 in self.getCurrentSelCoords():
+            inputBuffer = inputBuffer0[h1:h2 + 1, w1:w2 + 1, :]
+            if interpAlpha:
+                # interpolate alpha channel from LUT
+                ndImg0 = inputBuffer
+                ndImg1 = imgBuffer
+            else:
+                ndImg0 = inputBuffer[:, :, :3]
+                ndImg1 = imgBuffer[:, :, :3]
+                LUT = np.ascontiguousarray(LUT[..., :3])
+            interp = chosenInterp(pool, (w2 - w1) * (h2 - h1))
+            ndImg1[h1:h2 + 1, w1:w2 + 1, :] = interp(LUT, LUTSTEP, ndImg0)
+
+            if not interpAlpha:
+                # forward the alpha channel
+                imgBuffer[h1:h2 + 1, w1:w2 + 1, 3] = inputBuffer[:, :, 3]
+
         self.updatePixmap()
 
     def applyFilter2D(self, options=None):
@@ -1701,39 +1812,34 @@ class vImage(bImage):
             self.updatePixmap()
             return
         ########################
-        w, h = self.width(), self.height()
-        r = inputImage.width() / w
-        if self.rect is not None:
+
+        buf1[...] = buf0
+        for w1, w2, h1, h2 in self.getCurrentSelCoords():
             # slicing
-            rect = self.rect
-            imgRect = QRect(0, 0, w, h)
+            rect = QRect(w1, h1, w2 - w1, h2 - h1)
+            imgRect = QRect(0, 0, currentImage.width(), currentImage.height())
             rect = rect.intersected(imgRect)
             if rect.width() < 10 or rect.height() < 10:
                 dlgWarn('Selection is too narrow')
                 return
-            slices = np.s_[int(rect.top() * r): int(rect.bottom() * r), int(rect.left() * r): int(rect.right() * r), :3]
+            slices = np.s_[rect.top():rect.bottom(), rect.left():rect.right(), :3]
             ROI0 = buf0[slices]
-            # reset output image
-            buf1[:, :, :] = buf0
             ROI1 = buf1[slices]
-        else:
-            ROI0 = buf0[:, :, :3]
-            ROI1 = buf1[:, :, :3]
-        # kernel based filtering
-        if adjustForm.kernelCategory in [filterIndex.IDENTITY, filterIndex.UNSHARP,
-                                         filterIndex.SHARPEN, filterIndex.BLUR1, filterIndex.BLUR2]:
-            # correct radius for preview if needed
+
+            # kernel based filtering
+            r = inputImage.width() / self.width()
             radius = int(adjustForm.radius * r)
-            kernel = getKernel(adjustForm.kernelCategory, radius, adjustForm.amount)
-            ROI1[:, :, :] = cv2.filter2D(ROI0, -1, kernel)
-        else:
-            # bilateral filtering
-            radius = int(adjustForm.radius * r)
-            sigmaColor = 2 * adjustForm.tone
-            sigmaSpace = sigmaColor
-            ROI1[:, :, ::-1] = cv2.bilateralFilter(ROI0[:, :, ::-1], radius, sigmaColor, sigmaSpace)
-        # forward the alpha channel
-        buf1[:, :, 3] = buf0[:, :, 3]
+            if adjustForm.kernelCategory in [filterIndex.IDENTITY, filterIndex.UNSHARP,
+                                             filterIndex.SHARPEN, filterIndex.BLUR1, filterIndex.BLUR2]:
+                # correct radius for preview if needed
+                kernel = getKernel(adjustForm.kernelCategory, radius, adjustForm.amount)
+                ROI1[:, :, :] = cv2.filter2D(ROI0, -1, kernel)
+            else:
+                # bilateral filtering
+                sigmaColor = 2 * adjustForm.tone
+                sigmaSpace = sigmaColor
+                ROI1[:, :, ::-1] = cv2.bilateralFilter(ROI0[:, :, ::-1], radius, sigmaColor, sigmaSpace)
+
         self.updatePixmap()
 
     def applyBlendFilter(self):
@@ -1812,7 +1918,7 @@ class vImage(bImage):
         buf1 = QImageBuffer(inputImage)
         currentImage = self.getCurrentImage()
         if not options['Color Filter']:
-            # neutral point : forward input image and return
+            # very small correction: forward lower layer and return
             if abs(temperature - 6500) < 200 and tint == 0:
                 buf0 = QImageBuffer(currentImage)
                 buf0[:, :, :] = buf1
@@ -1862,10 +1968,12 @@ class vImage(bImage):
             bufOutRGB = np.round(bufOutRGB).astype(np.uint8)
         else:
             raise ValueError('applyTemperature : wrong option')
+
         # set output image
         bufOut0 = QImageBuffer(currentImage)
         bufOut = bufOut0[:, :, :3]
-        bufOut[:, :, ::-1] = bufOutRGB
-        # forward the alpha channel
-        bufOut0[:, :, 3] = buf1[:, :, 3]
+        bufOut0[...] = buf1
+        for w1, w2, h1, h2 in self.getCurrentSelCoords():
+            bufOut[h1:h2 + 1, w1:w2 + 1, ::-1] = bufOutRGB[h1:h2 + 1, w1:w2 + 1, ...]
+
         self.updatePixmap()

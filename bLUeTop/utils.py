@@ -45,7 +45,7 @@ def compat(v, version):
 def imagej_description_metadata(description):
     """
     Modified version of tifffile.imagej_description_metadata()
-    Return metatata from ImageJ image description as dict.
+    Return metadata from ImageJ image description as dict.
     Raise ValueError if not a valid ImageJ description.
 
     :param description:
@@ -171,7 +171,7 @@ def qColorToHSV(color):
 
 class colorInfoView(QDockWidget):
     """
-    Display formatted color info for a pixel
+    Displays formatted color info for a pixel
     """
 
     def __init__(self, parent=None):
@@ -194,7 +194,7 @@ class colorInfoView(QDockWidget):
 
     def setText(self, clrI, clrC):
         """
-        Set widget text to formatted color info.
+        Sets widget text to formatted color info.
 
         :param clrI: input color
         :type clrI: QColor
@@ -238,7 +238,7 @@ def showConsole():
 
 
 def multiply(matr_a, matr_b):
-    """Return product of an MxP matrix A with an PxN matrix B."""
+    """Returns product of an MxP matrix A with an PxN matrix B."""
     cols, rows = len(matr_b[0]), len(matr_b)
     resRows = range(len(matr_a))
     rMatrix = [[0] * cols for _ in resRows]
@@ -613,9 +613,12 @@ class optionsWidget(QListWidget):
        :type state: dict
         """
         for itemName in state:
-            self.items[itemName].setCheckState(state[itemName])
+            item = self.items.get(itemName, None)
+            if not item:
+                continue
+            item.setCheckState(state[itemName])
             if state[itemName] == Qt.Checked:
-                self.select(self.items[itemName])
+                self.select(item)
 
     def select(self, item, callOnSelect=True):
         """

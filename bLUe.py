@@ -1283,6 +1283,7 @@ def menuLayer(name, window=bLUeTop.Gui.window, sname=None, script=False):
             if ext in list(IMAGE_FILE_EXTENSIONS) + list(SVG_FILE_EXTENSIONS):
                 imgNew = QImageFromFile(filename)
             elif ext in list(RAW_FILE_EXTENSIONS):
+                # get a RawPy instance from raw file
                 rawpyInst = rawRead(filename)
                 # postprocess raw image, applying default settings (cf. vImage.applyRawPostProcessing)
                 rawBuf = rawpyInst.postprocess(use_camera_wb=True)
@@ -2032,8 +2033,10 @@ def setupGUI(window=bLUeTop.Gui.window):
         """<b>Drag Tool</b><br> Mouse Left Button : drag the whole image<br> Ctrl+Mouse Left Button : drag the active layer only""")
     window.rectangle.setWhatsThis(
         """<b>Marquee Tool/Selection Rectangle</b><br>
-        Draw a selection rectangle on the active layer.<br>
-        For a segmentation layer only, all pixels outside the rectangle are set to background.
+        Draws selection rectangles on the active layer.<br>
+        For a segmentation layer only, all pixels outside the rectangle are set to background.<br>
+        Ctrl+click inside a rectangle to remove it.<br>
+        To refine the selection add a mask to the layer.
         """
     )
     window.drawFG.setWhatsThis(

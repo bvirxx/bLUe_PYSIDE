@@ -86,11 +86,14 @@ USE_BT_709 = False
 
 class gammaTables:
     """
-    # Constants, methods and precomputed tables for
-    # RGB gamma adaptation.
-    # The sRGB and REC BT 709 versions are available.
-    # Cf. https://en.wikipedia.org/wiki/SRGB
-    # Use the USE_BT_709 flag to switch between versions.
+    Constants, methods and precomputed tables for
+    RGB gamma adaptation.
+    The sRGB and REC BT 709 versions are available:
+        gamma = (2.222, 4.5)  # default REC BT 709 (exponent, slope)
+        gamma = (2.4, 12.92)  # sRGB (exponent, slope)
+    cf. https://en.wikipedia.org/wiki/SRGB#The_sRGB_transfer_function_("gamma")
+
+    Use the USE_BT_709 flag to switch between versions.
     """
     #
     tableSize = 10000

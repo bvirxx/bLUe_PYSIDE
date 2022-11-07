@@ -828,38 +828,28 @@ class imImage(mImage):
             img = imImage(filename=f, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata,
                           profile=profile, name=name, rating=rating)
         elif ext in list(RAW_FILE_EXTENSIONS) + list(BLUE_FILE_EXTENSIONS):
-            # standard raw file or .blu from raw
             # load raw image file in a RawPy instance
-            # rawpy.imread keeps f open. Calling raw.close() deletes the raw object.
-            # As a workaround we use low-level file buffer and unpack().
-            # Relevant RawPy attributes are black_level_per_channel, camera_white_balance, color_desc, color_matrix,
-            # daylight_whitebalance, num_colors, raw_colors_visible, raw_image, raw_image_visible, raw_pattern,
-            # raw_type, rgb_xyz_matrix, sizes, tone_curve.
-            # raw_image and raw_image_visible are sensor data
             if rawiobuf is None:
                 # standard raw file
                 rawpyInst = rawRead(f)
             else:
                 # .blu from raw
                 rawpyInst = rawRead(rawiobuf)
-            # postprocess raw image, applying default settings (cf. vImage.applyRawPostProcessing)
+
+            # postprocess raw image, applying default settings
             rawBuf = rawpyInst.postprocess(use_camera_wb=True)
-            # build Qimage : switch to BGR and add alpha channel
+
+            # build imImage : switch to BGR and add alpha channel
             rawBuf = np.dstack((rawBuf[:, :, ::-1], np.zeros(rawBuf.shape[:2], dtype=np.uint8) + 255))
             img = imImage(cv2Img=rawBuf, colorSpace=colorSpace, orientation=transformation,
                           rawMetadata=metadata, profile=profile, name=name, rating=rating)
+
             # keeping a reference to rawBuf along with img is
             # needed to protect the buffer from garbage collector
             img.rawBuf = rawBuf
             img.filename = f
-            # keep references to rawPy instance. rawpyInst.raw_image is the (linearized) sensor image
             img.rawImage = rawpyInst
-            #########################################################
-            # Reconstructing the demosaic Bayer bitmap :
-            # we need it to calculate the multipliers corresponding
-            # to a user white point, and we cannot access the
-            # native rawpy demosaic buffer from the RawPy instance !!!!
-            #########################################################
+            """
             # get 16 bits Bayer bitmap
             img.demosaic = demosaic(rawpyInst.raw_image_visible, rawpyInst.raw_colors_visible,
                                     rawpyInst.black_level_per_channel)
@@ -869,8 +859,10 @@ class imImage(mImage):
             elif orientation == 8:  # 270°
                 img.demosaic = np.swapaxes(img.demosaic, 0, 1)
                 img.demosaic = img.demosaic[:, ::-1, :]
+            """
         else:
             raise ValueError("Cannot read file %s" % f)
+
         if img.isNull():
             raise ValueError("Cannot read file %s" % f)
         if img.format() in [QImage.Format_Invalid, QImage.Format_Mono, QImage.Format_MonoLSB, QImage.Format_Indexed8]:
@@ -1695,7 +1687,8 @@ class QLayer(vImage):
         d['mergingFlag'] = self.mergingFlag
         d['mask'] = 0 if self._mask is None else 1  # used by addAdjustmentLayers()
         aux = [0 if getattr(self, name, None) is None else 1 for name in self.innerImages]
-        d['images'] = (*aux,)  # len(self.innerImages) # used by addAdjustmentLayers()
+        d['images'] = (*aux,)
+        d['sRects'] = [(rect.left(), rect.right(), rect.top(), rect.bottom()) for rect in self.sRects]
         return d
 
     def __setstate__(self, state):
@@ -1705,6 +1698,7 @@ class QLayer(vImage):
         self.visible = d['visible']
         self.maskIsEnabled = d['maskIsEnabled']
         self.maskIsSelected = d['maskIsSelected']
+        self.sRects = [QRect(w1, h1, w2 - w1, h2 - h1) for w1, w2, h1, h2 in d.get('sRects', [])]
         if 'mergingFlag' in d:
             self.mergingFlag = d['mergingFlag']
         if self.maskIsSelected:
@@ -1712,12 +1706,6 @@ class QLayer(vImage):
         grForm = self.getGraphicsForm()
         if grForm is not None:
             grForm.__setstate__(state)
-
-    def readFromStream(self, dataStream):
-        grForm = self.getGraphicsForm()
-        if grForm is not None:
-            grForm.readFromStream(dataStream)
-        return dataStream
 
 
 class QPresentationLayer(QLayer):

@@ -21,7 +21,6 @@ from PySide6.QtGui import QImage, QColor, QPixmap, QPainter, QBrush, QPen, QFont
 from PySide6.QtWidgets import QGraphicsPixmapItem, QLabel, QVBoxLayout
 
 from bLUeGui.bLUeImage import QImageBuffer
-from bLUeGui.dialog import dlgWarn
 from bLUeGui.graphicsForm import baseGraphicsForm
 from bLUeGui.graphicsSpline import activePoint
 from bLUeTop.utils import optionsWidget
@@ -67,13 +66,6 @@ class activeMixerPoint(activePoint):
 
 
 class mixerForm(baseGraphicsForm):
-    """
-    @classmethod
-    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
-        wdgt = mixerForm(axeSize=axeSize, layer=layer, parent=parent)
-        wdgt.setWindowTitle(layer.name)
-        return wdgt
-    """
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super().__init__(parent=parent, targetImage=targetImage, layer=layer)
@@ -82,14 +74,12 @@ class mixerForm(baseGraphicsForm):
         self.cwSize = axeSize * 0.95
         self.setAttribute(Qt.WA_DeleteOnClose)
         # options
-        optionList = ['Monochrome', 'Luminosity']
+        optionList = ['Monochrome']  # , 'Luminosity']
         listWidget1 = optionsWidget(options=optionList, exclusive=False, changed=self.dataChanged,
                                     flow=optionsWidget.LeftToRight)
         listWidget1.setMaximumHeight(
             listWidget1.sizeHintForRow(0) + 5)  # mandatory although sizePolicy is set to minimum !
-        listWidget1.onSelect = lambda x: dlgWarn('Channel Mixer',
-                                                 'Option Luminosity will be removed in the future.' \
-                                                 'Use Luminosity blending mode instead')
+
         self.listWidget1 = listWidget1  # mandatory for __getstate__()
         self.options = listWidget1.options
         # barycentric coordinate basis : the 3 base points form an equilateral triangle
@@ -109,6 +99,7 @@ class mixerForm(baseGraphicsForm):
         self.gPoint.source = self.G
         self.bPoint = activeMixerPoint(self.B.x(), self.B.y(), color=Qt.blue, fillColor=Qt.white, grForm=self)
         self.bPoint.source = self.B
+
         graphicsScene = self.scene()
         for point in [self.rPoint, self.gPoint, self.bPoint]:
             graphicsScene.addItem(point)

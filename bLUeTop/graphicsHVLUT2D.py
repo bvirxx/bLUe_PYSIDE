@@ -30,19 +30,11 @@ class HVLUT2DForm(graphicsCurveForm):
     """
     Form for interactive HV 2D LUT
     """
-    """
-    @classmethod
-    def getNewWindow(cls, targetImage=None, axeSize=500, layer=None, parent=None):
-        newWindow = HVLUT2DForm(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
-        newWindow.setWindowTitle(layer.name)
-        return newWindow
-    """
 
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super().__init__(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
         graphicsScene = self.scene()
-        # connect layer selectionChanged signal
-        self.layer.selectionChanged.sig.connect(self.updateLayer)
+
         # Init curves
         dSplineItem = activeBSpline(axeSize, period=axeSize, yZero=-3 * axeSize // 4)
         graphicsScene.addItem(dSplineItem)
@@ -132,10 +124,11 @@ class HVLUT2DForm(graphicsCurveForm):
 
         self.setWhatsThis(
             """<b>3D LUT Shift HSV</b><br>
-            All pixel colors are changed by the specific hue and brightness shifts corresponding to their hue.<br>
-            x-axis represents hue values from 0 to 360. 
-            The upper curve shows brightness multiplicative shifts (initially 1) and
-            the lower curve hue additive shifts (initially 0). <br>
+            Hue values are used to select image pixels. x-axis shows hue values from 0 to 360.<br>
+            The lower curve shows hue additive shift (initially 0). Only pixels whose hue shift is non zero
+            are selected. <br> 
+            The upper curve shows brightness multiplicative shifts (initially 1).<br>
+            Colors of selected pixels are shifted by the hue and brightness shift values corresponding to their hue.<br>
             Each curve is controlled by bump triangles.<br>
             To <b>add a bump triangle</b> to the curve click anywhere on the curve.
             To <b>remove the triangle</b> click on any vertex.<br>
