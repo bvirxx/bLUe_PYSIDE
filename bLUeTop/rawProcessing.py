@@ -185,10 +185,14 @@ def rawPostProcess(rawLayer, pool=None):
     # ForwardMatrix for T and next from XYZ_D50 to RGB.
     # If we have no valid dng profile, we reinit the multipliers and
     # apply a Bradford chromatic adaptation matrix.
+    if use_camera_wb:
+        m1, m2, m3 = adjustForm.asShotMultipliers[:3]
+        m1, m2, m3 = m1 / m2, 1.0, m3 / m2
+    else:
+        m1, m2, m3 = adjustForm.rawMultipliers[:3]
 
-    # m1, m2, m3 = adjustForm.asShotMultipliers[:3] if use_camera_wb else adjustForm.rawMultipliers[:3]
-    m1, m2, m3 = rawImage.camera_whitebalance[:3] if use_camera_wb else adjustForm.rawMultipliers[:3]
     D = np.diag((1 / m1, 1 / m2, 1 / m3))
+
     tempCorrection = adjustForm.asShotTemp if use_camera_wb else adjustForm.tempCorrection
     MM = bradfordAdaptationMatrix(6500, tempCorrection)
     MM1 = bradfordAdaptationMatrix(6500, 5000)
