@@ -54,6 +54,9 @@ def imagej_description_metadata(description):
     :rtype: dict
     """
 
+    if not hasattr(description, "splitlines"):
+        raise ValueError('invalid ImageJ description')
+
     def _bool(val):
         return {'true': True, 'false': False}[val.lower()]
 

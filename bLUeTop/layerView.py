@@ -153,10 +153,10 @@ class QLayerView(QTableView):
         self.previewOptionBox.setMaximumSize(100, 30)
 
         # View/Preview changed slot
-        def m(state):  # state : Qt.Checked Qt.UnChecked
+        def m(state):  # state : int
             if self.img is None:
                 return
-            useThumb = (state == Qt.Checked)
+            useThumb = (Qt.CheckState(state) == Qt.Checked)
             if useThumb == self.img.useThumb:
                 return
             self.img.useThumb = useThumb
@@ -173,7 +173,7 @@ class QLayerView(QTableView):
                 QApplication.processEvents()
 
         self.previewOptionBox.stateChanged.connect(m)
-        self.previewOptionBox.setChecked(True)  # m is not triggered
+        self.previewOptionBox.setChecked(True)
 
         # title
         titleLabel = QLabel('Layer')

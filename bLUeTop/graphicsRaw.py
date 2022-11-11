@@ -623,12 +623,13 @@ class rawForm(baseForm):
             showFirst = True
             form.setWhatsThis(
                 """<b>Camera Profile Tone Curve</b><br>
-                The profile curve, if any, is applied as a starting point for user adjustments,
-                after raw post-processing.
-                Its input and output are in <b>linear</b> gamma.
-                The curve is shown in red and cannot be changed.<br>
-                A user curve, shown in black, is editable and is applied right after the
-                former.<br>         
+                The red profile curve, if any, is applied as a starting point for user adjustments,
+                after raw post-processing. Its input and output are in <b>linear gamma color space.</b><br>
+                The profile curve cannot be modified. Select <i>Camera Profile None</i>
+                to remove it.<br>
+                The black <b>user curve</b> is editable. It is applied after the
+                former.<br>
+                To <b>show a pixel tone value</b> move the bottom slider by a </b> Ctrl+Click in the image.       
                 """
             )  # end of setWhatsThis
         else:
