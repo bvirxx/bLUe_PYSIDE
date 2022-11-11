@@ -155,7 +155,7 @@ def rawPostProcess(rawLayer, pool=None):
         ##########
         bufpost16 = rawImage.postprocess(
             half_size=half_size,
-            output_color=rawpy.ColorSpace.raw,  # XYZ
+            output_color=rawpy.ColorSpace.raw,  # camera color space
             output_bps=output_bpc,
             exp_shift=exp_shift,
             no_auto_bright=no_auto_bright,
@@ -185,44 +185,51 @@ def rawPostProcess(rawLayer, pool=None):
     # ForwardMatrix for T and next from XYZ_D50 to RGB.
     # If we have no valid dng profile, we reinit the multipliers and
     # apply a Bradford chromatic adaptation matrix.
+
+    # calculate the multipliers reinitialization matrix
     if use_camera_wb:
         m1, m2, m3 = adjustForm.asShotMultipliers[:3]
         m1, m2, m3 = m1 / m2, 1.0, m3 / m2
     else:
         m1, m2, m3 = adjustForm.rawMultipliers[:3]
-
     D = np.diag((1 / m1, 1 / m2, 1 / m3))
 
+    # calculate the raw to sRGB transformation matrix
     tempCorrection = adjustForm.asShotTemp if use_camera_wb else adjustForm.tempCorrection
     MM = bradfordAdaptationMatrix(6500, tempCorrection)
     MM1 = bradfordAdaptationMatrix(6500, 5000)
     FM = None
-    myHighlightPreservation = 0.8 if exp_preserve_highlights > 0.9 else 1.0
     if adjustForm.dngDict:
         try:
             FM = interpolatedForwardMatrix(adjustForm.tempCorrection, adjustForm.dngDict)
         except ValueError:
             pass
-    raw2sRGBMatrix = sRGB_lin2XYZInverse @ MM1 @ FM * myHighlightPreservation if FM is not None else \
-        sRGB_lin2XYZInverse @ MM @ adjustForm.XYZ2CameraInverseMatrix @ D
+    if FM is None:
+        raw2sRGBMatrix = sRGB_lin2XYZInverse @ MM @ adjustForm.XYZ2CameraInverseMatrix @ D
+    else:
+        myHighlightPreservation = 0.8 if exp_preserve_highlights > 0.9 else 1.0
+        raw2sRGBMatrix = sRGB_lin2XYZInverse @ MM1 @ FM * myHighlightPreservation
 
+    # apply the raw to sRGB matrix to image buffer
     bufpost16 = np.tensordot(rawLayer.bufpost16, raw2sRGBMatrix, axes=(-1, -1))
     np.clip(bufpost16, 0, 255, out=bufpost16)
     rawLayer.postProcessCache = cv2.cvtColor(bufpost16.astype(np.float32) / max_output,
-                                             cv2.COLOR_RGB2HSV)
+                                             cv2.COLOR_RGB2HSV
+                                             )
 
-    # update histogram
+    # update the background histogram of tone curve
     s = rawLayer.postProcessCache.shape
     tmp = bImage(s[1], s[0], QImage.Format_RGB32)
     buf = QImageBuffer(tmp)
     buf[:, :, :] = (rawLayer.postProcessCache[:, :, 2, np.newaxis] * 255).astype(np.uint8)
-    rawLayer.linearImg = tmp
-
+    rawLayer.linearImg = tmp  # attribute used by graphicsToneForm.colorPickedSlot()
     if getattr(adjustForm, "toneForm", None) is not None:
-        rawLayer.histImg = tmp.histogram(size=adjustForm.toneForm.scene().axeSize,
-                                         bgColor=adjustForm.toneForm.scene().bgColor,
-                                         range=(0, 255), chans=channelValues.Br)  # mode='Luminosity')
-        adjustForm.toneForm.scene().quadricB.histImg = rawLayer.histImg
+        histImg = tmp.histogram(size=adjustForm.toneForm.scene().axeSize,
+                                bgColor=adjustForm.toneForm.scene().bgColor,
+                                range=(0, 255),
+                                chans=channelValues.Br
+                                )
+        adjustForm.toneForm.scene().quadricB.histImg = histImg
         adjustForm.toneForm.scene().update()
 
     # beginning of the camera profile phase : update buffers from the last post processed image
@@ -230,7 +237,7 @@ def rawPostProcess(rawLayer, pool=None):
     rawLayer.bufCache_HSV_CV32 = bufHSV_CV32.copy()
 
     ##########################
-    # Profile look table
+    # apply profile look table
     # it must be applied to the linear buffer and
     # before tone curve (cf. Adobe dng spec. p. 65)
     ##########################
@@ -238,7 +245,10 @@ def rawPostProcess(rawLayer, pool=None):
         hsvLUT = dngProfileLookTable(adjustForm.dngDict)
         if hsvLUT.isValid:
             divs = hsvLUT.divs
-            steps = tuple([360 / divs[0], 1.0 / (divs[1] - 1), 1.0 / (divs[2] - 1)])
+            steps = tuple([360 / divs[0],
+                           1.0 / (divs[1] - 1),
+                           1.0 / (divs[2] - 1)]
+                          )
             interp = chosenInterp(pool, currentImage.width() * currentImage.height())
             coeffs = interp(hsvLUT.data, steps, bufHSV_CV32, convert=False)
             bufHSV_CV32[:, :, 0] = np.mod(bufHSV_CV32[:, :, 0] + coeffs[:, :, 0], 360)
@@ -247,7 +257,7 @@ def rawPostProcess(rawLayer, pool=None):
             rawLayer.bufCache_HSV_CV32 = bufHSV_CV32.copy()
 
     #############
-    # tone curve
+    # apply tone curve
     ############
     buf = adjustForm.dngDict.get('ProfileToneCurve', [])
     # apply profile tone curve, if any
@@ -264,24 +274,28 @@ def rawPostProcess(rawLayer, pool=None):
             # bufHSV_CV32[:, :, 2] = userLUTXY[(bufHSV_CV32[:, :, 2] * 255).astype(np.uint16)]
             bufHSV_CV32[:, :, 2] = np.take(userLUTXY, (bufHSV_CV32[:, :, 2] * 255).astype(np.uint16))
             bufHSV_CV32[:, :, 2] /= 255
+
     rawLayer.bufCache_HSV_CV32 = bufHSV_CV32.copy()  # CAUTION : must be outside of if toneForm.
 
-    # beginning of the contrast-saturation phase : update buffer from the last camera profile applcation
+    # beginning of the contrast-saturation phase : update buffer from the last camera profile application
     bufHSV_CV32 = rawLayer.bufCache_HSV_CV32.copy()
+
     ###########
     # contrast (V channel) and saturation correction.
     # We apply an automatic histogram equalization
     # algorithm, well suited for multimodal histograms.
     ###########
-
     if adjustForm.contCorrection > 0:
         # warp should be in range 0..1.
         # warp = 0 means that no additional warping is done, but
         # the histogram is always stretched.
         warp = max(0, (adjustForm.contCorrection - 1)) / 10
-        bufHSV_CV32[:, :, 2], a, b, d, T = warpHistogram(bufHSV_CV32[:, :, 2], valleyAperture=0.05, warp=warp,
+        bufHSV_CV32[:, :, 2], a, b, d, T = warpHistogram(bufHSV_CV32[:, :, 2],
+                                                         valleyAperture=0.05,
+                                                         warp=warp,
                                                          preserveHigh=options['Preserve Highlights'],
-                                                         spline=None if rawLayer.autoSpline else rawLayer.getMmcSpline())
+                                                         spline=None if rawLayer.autoSpline else rawLayer.getMmcSpline()
+                                                         )
         # show the spline
         if rawLayer.autoSpline and options['manualCurve']:
             rawLayer.getGraphicsForm().setContrastSpline(a, b, d, T)
@@ -294,23 +308,17 @@ def rawPostProcess(rawLayer, pool=None):
         # convert saturation s to s**alpha
         # bufHSV_CV32[:, :, 1] = LUT[(bufHSV_CV32[:, :, 1] * 255).astype(int)]
         bufHSV_CV32[:, :, 1] = np.take(LUT, (bufHSV_CV32[:, :, 1] * 255).astype(int))
-    # back to RGB
-    bufpostF32_1 = cv2.cvtColor(bufHSV_CV32, cv2.COLOR_HSV2RGB)  # * 65535 # .astype(np.uint16)
 
-    ###################
+    # back to RGB
+    bufpostF32_1 = cv2.cvtColor(bufHSV_CV32, cv2.COLOR_HSV2RGB)
+
     # apply gamma curve
     # Gamma constants are defined in colorCIE.py
-    ###################
     bufpostF32_255 = rgbLinear2rgb(bufpostF32_1)
 
-    #############################
     # Conversion to 8 bits/channel
-    #############################
     bufpostUI8 = bufpostF32_255.astype(np.uint8)
 
-    ###################################################
-    # bufpostUI8 = (bufpost16/256).astype(np.uint8)
-    #################################################
     if rawLayer.parentImage.useThumb:
         bufpostUI8 = cv2.resize(bufpostUI8, (currentImage.width(), currentImage.height()))
 

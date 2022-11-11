@@ -131,7 +131,7 @@ class brushFamily:
         pxmp_temp = pixmap.copy()
         qp = QPainter()
         qp.begin(pxmp_temp)
-        qp.setCompositionMode(qp.CompositionMode_SourceOver)
+        qp.setCompositionMode(qp.CompositionMode.CompositionMode_SourceOver)
         # draw lines
         x_last, y_last = poly.first().x(), poly.first().y()
         for i in range(poly.length() - 1):
@@ -150,17 +150,17 @@ class brushFamily:
             if p.pxmp is not None:
                 strokeTex = pxmp_temp.copy()
                 qp1 = QPainter(strokeTex)
-                qp1.setCompositionMode(qp.CompositionMode_DestinationIn)
+                qp1.setCompositionMode(qp.CompositionMode.CompositionMode_DestinationIn)
                 qp1.setBrush(QBrush(p.pxmp))
                 qp1.fillRect(QRect(0, 0, strokeTex.width(), strokeTex.height()), QBrush(p.pxmp))
                 qp1.end()
         # restore source image and paint
         # the whole stroke with current brush opacity
         qp.begin(pixmap)
-        # qp.setCompositionMode(qp.CompositionMode_Source)
+        # qp.setCompositionMode(qp.CompositionMode.CompositionMode_Source)
         # qp.drawImage(QPointF(), layer.strokeDest)
         qp.setOpacity(brush['opacity'])
-        qp.setCompositionMode(qp.CompositionMode_SourceOver)
+        qp.setCompositionMode(qp.CompositionMode.CompositionMode_SourceOver)
         qp.drawPixmap(QPointF(), strokeTex)  # pxmp_temp)
         qp.end()
 
@@ -257,7 +257,7 @@ class brushFamily:
         qp = QPainter(pxmp)
         # fill brush contour with gradient (pxmp color is (0,0,0,0)
         # outside of contourPath)
-        qp.setCompositionMode(qp.CompositionMode_Source)
+        qp.setCompositionMode(qp.CompositionMode.CompositionMode_Source)
         qp.fillPath(self.contourPath, QBrush(gradient))
         if self.preset is not None:
             ################################################

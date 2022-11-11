@@ -152,7 +152,7 @@ class icc:
         if qscreen is not None:
             try:
                 if sys.platform == 'win32':
-                    dc = win32gui.CreateDC(str(qscreen.name()), None, None)
+                    dc = win32gui.CreateDC('DISPLAY', str(qscreen.name()), None)
                     monitorProfile = cls.B_get_display_profile(handle=dc)
                 else:
                     monitorProfile = cls.B_get_display_profile(device_id=qscreen.name())

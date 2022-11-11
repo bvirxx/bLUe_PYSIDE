@@ -386,7 +386,7 @@ def loadImage(img, tfile=None, version='unknown', withBasic=True, window=bLUeTop
 
     fromBlue = tfile is not None and img.filename[-4:].upper() in BLUE_FILE_EXTENSIONS
     # import layer stack from .BLU file
-    if fromBlue:  # tfile is not None and img.filename[-4:].upper() in BLUE_FILE_EXTENSIONS:
+    if fromBlue:
         # get ordered dict of layers.
         # Tifffile relies on Python 3 formatting for bytes --> str decoding.
         # It implicitly calls __str__() to get "standard" string representation of bytes
@@ -396,14 +396,20 @@ def loadImage(img, tfile=None, version='unknown', withBasic=True, window=bLUeTop
         # our modified version of imagej_description_metadata() to get the dict.
         # Next, str representation of tag values are decoded to bytes by applying literal_eval
         # as inverse of __str__(), and finally tag values are unpickled.
-        meta_dict = imagej_description_metadata(tfile.pages[0].is_imagej)
+
+        # The Tifffile/ImageJ format has no clear specification. Data can be retrieved from the imagej_description
+        # or description attributes, depending on the tifffile version. The attribute imagej_description
+        # does not exist in older versions so we use the second.
+
+        meta_dict = imagej_description_metadata(tfile.pages[0].description)
+
         try:
             if rlayer is not None:
                 d = pickle.loads(literal_eval(compat(meta_dict['develop'], version)))  # keys are turned to lower !
                 rlayer.__setstate__(d)
             # import layer stack
             # Every Qlayer state dict is pickled. Thus, to import layer stack, unpickled entries may be skipped safely.
-            # This enables the cancelation of spurious entries added by tifffile/ImageJ protocol.
+            # This enables the cancellation of spurious entries added by tifffile/ImageJ protocol.
             withBasic = False  # the imported layer stack only
             layers = []
             for key in meta_dict:

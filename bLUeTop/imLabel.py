@@ -367,15 +367,14 @@ class imageLabel(QLabel):
                         else:
                             color = vImage.defaultColor_UnMasked if \
                                 window.btnValues['drawFG'] else vImage.defaultColor_Masked
-                            color.setAlpha(
-                                layer.colorMaskOpacity)  # TODO added 15/11/21 for semi transparent color brush when color mask mode is enabled - validate
+                            color.setAlpha(layer.colorMaskOpacity)
                     else:
                         color = vImage.defaultColor_UnMasked_Invalid
                     qp.begin(layer.mask)
                     # get pen width (relative to image)
                     w_pen = window.verticalSlider1.value() // r
                     # mode source : result is source (=pen) pixel color and opacity
-                    qp.setCompositionMode(qp.CompositionMode_Source)
+                    qp.setCompositionMode(qp.CompositionMode.CompositionMode_Source)
                     tmp_x = (x - img.xOffset) // r
                     tmp_y = (y - img.yOffset) // r
                     qp.setPen(QPen(color, w_pen))
@@ -690,7 +689,7 @@ class imageLabel(QLabel):
         if self.window.btnValues['brushButton']:
             # drawing onto stroke intermediate layer
             qp.begin(layer.stroke)
-            qp.setCompositionMode(qp.CompositionMode_SourceOver)
+            qp.setCompositionMode(qp.CompositionMode.CompositionMode_SourceOver)
             # draw move
             State['x_imagePrecPos'], State['y_imagePrecPos'] = brushFamily.brushStrokeSeg(qp,
                                                                                           State['x_imagePrecPos'],
@@ -705,7 +704,7 @@ class imageLabel(QLabel):
                 if p.pxmp is not None:
                     strokeTex = layer.stroke.copy()
                     qp1 = QPainter(strokeTex)
-                    qp1.setCompositionMode(qp.CompositionMode_DestinationIn)
+                    qp1.setCompositionMode(qp.CompositionMode.CompositionMode_DestinationIn)
                     qp1.setBrush(QBrush(p.pxmp))
                     qp1.fillRect(QRect(0, 0, strokeTex.width(), strokeTex.height()), QBrush(p.pxmp))
                     qp1.end()
@@ -714,15 +713,15 @@ class imageLabel(QLabel):
             # Restoring source image enables iterative calls showing
             # stroke progress
             qp.begin(layer.sourceImg)
-            qp.setCompositionMode(qp.CompositionMode_Source)
+            qp.setCompositionMode(qp.CompositionMode.CompositionMode_Source)
             qp.drawImage(QPointF(), layer.strokeDest)
             qp.setOpacity(State['brush']['opacity'])
-            qp.setCompositionMode(qp.CompositionMode_SourceOver)
+            qp.setCompositionMode(qp.CompositionMode.CompositionMode_SourceOver)
             qp.drawImage(QPointF(), strokeTex)  # layer.stroke)
             qp.end()
         elif self.window.btnValues['eraserButton']:
             qp.begin(layer.sourceImg)
-            qp.setCompositionMode(qp.CompositionMode_DestinationIn)
+            qp.setCompositionMode(qp.CompositionMode.CompositionMode_DestinationIn)
             State['x_imagePrecPos'], State['y_imagePrecPos'] = brushFamily.brushStrokeSeg(qp,
                                                                                           State['x_imagePrecPos'],
                                                                                           State['y_imagePrecPos'],

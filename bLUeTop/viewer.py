@@ -280,11 +280,12 @@ class loader(threading.Thread):
                     # no thumbnail found : try preview
                     if img.isNull():
                         img = e.get_thumbNail(filename,
-                                              thumbname='PreviewImage')  # the order is important : for jpeg PreviewImage is full sized !
+                                              thumbname='PreviewImage'
+                                              )  # the order is important : for jpeg PreviewImage is full sized !
                     # may be a bLU file
                     if img.isNull() and filename[-4:] in BLUE_FILE_EXTENSIONS:
                         tfile = tifffile.TiffFile(filename)
-                        meta_dict = imagej_description_metadata(tfile.pages[0].is_imagej)
+                        meta_dict = imagej_description_metadata(tfile.pages[0].description)
                         version = meta_dict.get('version', 'unknown')
                         v = meta_dict.get('thumbnailimage', None)
                         if v is not None:
