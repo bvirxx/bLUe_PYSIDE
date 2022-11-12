@@ -335,6 +335,7 @@ class rotatingHandle(baseHandle):
         self.posRelImg = pos  # current pos (cf. rotatingTool.getTargetQuad)
         self.posRelImg_frozen = pos  # starting pos for the current type of transformation
         self.setStyleSheet("QToolButton:hover {background-color:#00FF00} QToolButton {background-color:#AA0000}")
+        self.setMouseTracking(False)  # added 12/11/22 for Pyside6 compatibility
 
     def mousePressEvent(self, event):
         """
