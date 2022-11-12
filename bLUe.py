@@ -1279,7 +1279,7 @@ def menuLayer(name, window=bLUeTop.Gui.window, sname=None, script=False):
         if script:
             filenames = ['nofiles']
         else:
-            filenames = openDlg(window, ask=False, multiple=True)
+            filenames = openDlg(window, ask=False, multiple=True, key='paths/dlgimdir')
         if not filenames:
             return
         for filename in filenames:
