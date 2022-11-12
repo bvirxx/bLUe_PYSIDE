@@ -325,7 +325,7 @@ class QLayerView(QTableView):
         self.propertyLayout = l
         # shortcut actions
         self.actionDup = QAction('Duplicate layer', None)
-        self.actionDup.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_J))
+        self.actionDup.setShortcut(QKeySequence(Qt.CTRL | Qt.Key_J))
         self.addAction(self.actionDup)
 
         def dup():

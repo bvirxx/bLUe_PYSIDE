@@ -1972,29 +1972,18 @@ class QLayerImage(QLayer):
     def inputImg(self, redo=True):
         """
         Overrides QLayer.inputImg().
-        The source image is blended with the input image built from the stack,
-        using the opacity and the blending mode of the layer.
+        The source image is drawn over the input image
+        built from the stack, using the QPainter default
+        composition mode and opacity.
 
         :return:
         :rtype: QImage
         """
-        img1 = super().inputImg()  # TODO maybe missing redo=redo 16/12/19
+        img1 = super().inputImg()
         # merging with sourceImg
-        if type(self.compositionMode) is QPainter.CompositionMode:
-            qp = QPainter(img1)
-            qp.setOpacity(self.opacity)
-            qp.setCompositionMode(self.compositionMode)
-            qp.drawImage(QRect(0, 0, img1.width(), img1.height()), self.sourceImg)
-            qp.end()
-        else:
-            buf = QImageBuffer(img1)[..., :3][..., ::-1]
-            img0 = self.sourceImg.scaled(img1.size())  # removed redundant parenthesis 28/11/21
-            buf0 = QImageBuffer(img0)[..., :3][..., ::-1]
-            buf0 = buf0 * self.opacity
-            if self.compositionMode == -1:
-                buf[...] = blendLuminosityBuf(buf, buf0.astype(np.uint8))
-            elif self.compositionMode == -2:
-                buf[...] = blendColorBuf(buf, buf0.astype(np.uint8))
+        qp = QPainter(img1)
+        qp.drawImage(QRect(0, 0, img1.width(), img1.height()), self.sourceImg)
+        qp.end()
         return img1
 
     def bTransformed(self, transformation, parentImage):

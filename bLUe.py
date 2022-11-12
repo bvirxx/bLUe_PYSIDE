@@ -1280,7 +1280,7 @@ def menuLayer(name, window=bLUeTop.Gui.window, sname=None, script=False):
         if script:
             filenames = ['nofiles']
         else:
-            filenames = openDlg(window, ask=False, multiple=True)
+            filenames = openDlg(window, ask=False, multiple=True, key='paths/dlgimdir')
         if not filenames:
             return
         for filename in filenames:
@@ -2132,7 +2132,7 @@ def setupGUI(window=bLUeTop.Gui.window):
     window.splitter.hide()
     window.viewState = 'After'
     actionCycle = QAction('cycle', window)
-    actionCycle.setShortcut(QKeySequence(Qt.CTRL + Qt.Key_Space))
+    actionCycle.setShortcut(QKeySequence(Qt.CTRL | Qt.Key_Space))
 
     # status flags
     window.status_loadingFile = False

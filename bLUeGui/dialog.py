@@ -15,12 +15,14 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-import textwrap
-from os.path import basename
-from PySide6.QtCore import Qt, QDir, QSize
 
+import textwrap
+from os.path import basename, dirname
+
+from PySide6.QtCore import Qt, QDir, QSize
 from PySide6.QtWidgets import QMessageBox, QPushButton, QFileDialog, QDialog, QSlider, QVBoxLayout, QHBoxLayout, QLabel, \
     QCheckBox, QFormLayout, QLineEdit, QDialogButtonBox, QScrollArea, QProgressDialog
+
 from bLUeTop.utils import QbLUeSlider
 
 ##################
@@ -392,7 +394,7 @@ def saveDlg(img, mainWidget, ext='jpg', selected=True):
     return filename, dlg.sliderQual.value(), dlg.sliderComp.value(), not dlg.metaOption.isChecked()
 
 
-def openDlg(mainWidget, ask=True, multiple=False):
+def openDlg(mainWidget, ask=True, multiple=False, key='dlgdir'):
     """
     if multiple is true returns a list of file names,
      otherwise returns a file name or None.
@@ -403,7 +405,9 @@ def openDlg(mainWidget, ask=True, multiple=False):
     :type  ask:
     :param multiple:
     :type  multiple: boolean
-    :return:
+    :param key: QSettings key
+    :type key: str
+    :return: file name or list of file names
     :rtype: string or list of strings
     """
     if ask and mainWidget.label.img.isModified:
@@ -418,7 +422,7 @@ def openDlg(mainWidget, ask=True, multiple=False):
             return
     # don't ask again for saving
     mainWidget.label.img.isModified = False
-    lastDir = str(mainWidget.settings.value('paths/dlgdir', '.'))
+    lastDir = str(mainWidget.settings.value(key, '.'))
     filter = "Images ( *" + " *".join(IMAGE_FILE_EXTENSIONS) + \
              " *" + " *".join(RAW_FILE_EXTENSIONS) + \
              " *" + " *".join(BLUE_FILE_EXTENSIONS) + \
@@ -426,12 +430,16 @@ def openDlg(mainWidget, ask=True, multiple=False):
     if multiple:
         # allow multiple selections
         filenames = QFileDialog.getOpenFileNames(mainWidget, "select", lastDir, filter)
-        return filenames[0]
+        names = filenames[0]
+        if names:
+            newDir = dirname(names[0])
+            mainWidget.settings.setValue(key, newDir)
+        return names
     # select a single file
     dlg = QFileDialog(mainWidget, "select", lastDir, filter)
     if dlg.exec_():
         filenames = dlg.selectedFiles()
         newDir = dlg.directory().absolutePath()
-        mainWidget.settings.setValue('paths/dlgdir', newDir)
+        mainWidget.settings.setValue(key, newDir)
         return filenames[0]
     return None
