@@ -37,8 +37,7 @@ from PySide2.QtGui import QTransform, QColor, QCursor, QPixmap, QImage, QPainter
 from PySide2.QtWidgets import QApplication
 from PySide2.QtCore import QRect
 
-from bLUeCore.demosaicing import demosaic
-from bLUeGui.blend import blendLuminosityBuf, blendColorBuf
+import bLUeGui.blend
 from bLUeTop import exiftool
 from bLUeGui.memory import weakProxy
 from bLUeTop.cloning import contours, moments, seamlessClone
@@ -452,16 +451,18 @@ class mImage(vImage):
             layer = layerType.fromImage(self.layersStack[index], parentImage=self)
         else:
             # set layer from image :
-            if self.size() != sourceImg.size():  # TODO added 22/11/21
+            if self.size() != sourceImg.size():
                 sourceImg = sourceImg.scaled(self.size())
             if layerType is None:
                 layerType = QLayerImage
             layer = layerType.fromImage(self.layersStack[index], parentImage=self, role=role, sourceImg=sourceImg)
         layer.role = role
         self.addLayer(layer, name=name, index=index + 1)
-        # init thumb
+        # init thumb or QImage itself for correct display before first call to applyToStack()
         if layer.parentImage.useThumb:
             layer.thumb = layer.inputImg().copy()
+        else:
+            QImageBuffer(layer)[...] = QImageBuffer(layer.inputImg())
         """
         group = self.layersStack[index].group
         if group:
@@ -1345,16 +1346,19 @@ class QLayer(vImage):
                         qp.setCompositionMode(layer.compositionMode)
                 if layer.rPixmap is None:
                     layer.rPixmap = QPixmap.fromImage(layer.getCurrentImage())
-                # blend layer
+                # blend layer into img
                 if type(layer.compositionMode) is QPainter.CompositionMode:
                     qp.drawPixmap(QRect(0, 0, img.width(), img.height()), layer.rPixmap)
                 else:
                     buf = QImageBuffer(img)[..., :3][..., ::-1]
                     buf0 = QImageBuffer(layer.getCurrentImage())[..., :3][..., ::-1]
-                    if layer.compositionMode == -1:
-                        buf[...] = blendLuminosityBuf(buf, buf0) * layer.opacity + buf * (1.0 - layer.opacity)
-                    elif layer.compositionMode == -2:
-                        buf[...] = blendColorBuf(buf, buf0) * layer.opacity + buf * (1.0 - layer.opacity)
+                    funcname = 'blend' + bLUeGui.blend.compositionModeDict_names[layer.compositionMode] + 'Buf'
+                    func = getattr(bLUeGui.blend, funcname, None)
+                    if func:
+                        buf[...] = func(buf, buf0) * layer.opacity + buf * (1.0 - layer.opacity)
+                    else:
+                        # silently ignore unimplemented modes
+                        pass
                 # clipping
                 if layer.isClipping and layer.maskIsEnabled:
                     # draw mask as opacity mask
@@ -1582,6 +1586,7 @@ class QLayer(vImage):
             return
         # update stack
         self.parentImage.layersStack[0].applyToStack()
+
         # merge
         if type(self.compositionMode) is QPainter.CompositionMode:
             qp = QPainter(target)
@@ -1591,10 +1596,10 @@ class QLayer(vImage):
             qp.end()
         else:
             buf = QImageBuffer(target)[..., :3][..., ::-1]
-            if self.compositionMode == -1:
-                buf[...] = blendLuminosityBuf(buf, QImageBuffer(self.getCUrrentImage()[..., :3][..., ::-1]))
-            elif self.compositionMode == -2:
-                buf[...] = blendColorBuf(buf, QImageBuffer(self.getCUrrentImage()[..., :3][..., ::-1]))
+            funcname = 'blend' + bLUeGui.blend.compositionModeDict_names[self.compositionMode] + 'Buf'
+            func = getattr(bLUeGui.blend, funcname, None)
+            buf[...] = func(buf, QImageBuffer(self.getCurrentImage()[..., :3][..., ::-1]))
+
         target.updatePixmap()
         self.parentImage.layerView.clear(delete=False)
         currentIndex = self.getStackIndex()
@@ -1960,14 +1965,6 @@ class QLayerImage(QLayer):
         self.innerImages = ('sourceImg',)
         # undo/redo functionality
         self.history = historyList()
-        if self.role == 'DRW':
-            # intermediate layer
-            self.stroke = QImage(self.sourceImg.size(), self.sourceImg.format())
-            # atomic stroke painting is needed to handle brush opacity:
-            # We save layer.sourceImg in layer.strokeDest at each stroke beginning.
-            self.strokeDest = None
-            # cache for current brush dict
-            self.brushDict = None
 
     def inputImg(self, redo=True):
         """
@@ -1980,6 +1977,7 @@ class QLayerImage(QLayer):
         :rtype: QImage
         """
         img1 = super().inputImg()
+        # img1.fill(QColor(0, 0, 0, 0))
         # merging with sourceImg
         qp = QPainter(img1)
         qp.drawImage(QRect(0, 0, img1.width(), img1.height()), self.sourceImg)
@@ -2011,6 +2009,16 @@ class QDrawingLayer(QLayerImage):
     Other Q*Layer classes implement in/out (or transformational)
     mode, suitable for image edition.
     """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # intermediate layer
+        self.stroke = QImage(self.sourceImg.size(), self.sourceImg.format())
+        # atomic stroke painting is needed to handle brush opacity:
+        # We save layer.sourceImg in layer.strokeDest at each stroke beginning.
+        self.strokeDest = None
+        # cache for current brush dict
+        self.brushDict = None
 
     def inputImg(self, redo=True):
         """
