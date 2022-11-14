@@ -16,7 +16,6 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import gc
-from collections import OrderedDict
 
 from PySide6 import QtCore
 from PySide6.QtCore import QRectF, QSize, Qt, QModelIndex, QPoint
@@ -25,8 +24,8 @@ from PySide6.QtGui import QImage, QPalette, QKeySequence, QFontMetrics, QTextOpt
 from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QTableView, QAbstractItemView, QStyledItemDelegate, \
     QHeaderView, QVBoxLayout, QMenu, QSlider, QStyle, QCheckBox, QApplication
 
-# from bLUeTop.QtGui1 import window
 import bLUeTop.Gui
+import bLUeGui.blend
 from bLUeGui.bLUeImage import QImageBuffer, bImage
 from bLUeGui.dialog import dlgWarn
 from bLUeGui.memory import weakProxy
@@ -259,34 +258,15 @@ class QLayerView(QTableView):
         compLabel = QLabel()
         compLabel.setText("Blend")
 
-        self.compositionModeDict = OrderedDict([('Normal', QPainter.CompositionMode_SourceOver),
-                                                ('Plus', QPainter.CompositionMode_Plus),
-                                                ('Multiply', QPainter.CompositionMode_Multiply),
-                                                ('Screen', QPainter.CompositionMode_Screen),
-                                                ('Overlay', QPainter.CompositionMode_Overlay),
-                                                ('Darken', QPainter.CompositionMode_Darken),
-                                                ('Lighten', QPainter.CompositionMode_Lighten),
-                                                ('Color Dodge', QPainter.CompositionMode_ColorDodge),
-                                                ('Color Burn', QPainter.CompositionMode_ColorBurn),
-                                                ('Hard Light', QPainter.CompositionMode_HardLight),
-                                                ('Soft Light', QPainter.CompositionMode_SoftLight),
-                                                ('Difference', QPainter.CompositionMode_Difference),
-                                                ('Exclusion', QPainter.CompositionMode_Exclusion),
-                                                # Type of previous modes is QPainter.CompositionMode (Shiboken enum-type).
-                                                # Following additional modes are not implemented by QPainter:
-                                                ('Luminosity', -1),
-                                                ('color', -2)
-                                                ])
-
         self.blendingModeCombo = QComboBox()
-        for key in self.compositionModeDict:
-            self.blendingModeCombo.addItem(key, self.compositionModeDict[key])
+        for key, v in bLUeGui.blend.compositionModeDict.items():
+            self.blendingModeCombo.addItem(key, v)
 
         # combo box item changed slot
         def g(ind):
             layer = self.img.getActiveLayer()
             s = self.blendingModeCombo.currentText()
-            newMode = self.compositionModeDict[str(s)]
+            newMode = bLUeGui.blend.compositionModeDict[str(s)]
             if newMode == layer.compositionMode:
                 return
             layer.compositionMode = newMode
