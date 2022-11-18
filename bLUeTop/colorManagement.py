@@ -70,7 +70,7 @@ def get_default_working_profile():
 
 def get_default_monitor_profile():
     """
-    try to find a default image profile.
+    try to find a default monitor profile.
 
     :return: profile or None
     :rtype: ImageCmsProfile or None
@@ -116,7 +116,6 @@ class icc:
             profile_path = core.get_display_profile_win32(handle, 1)
         elif HAS_GI:
             try:
-                # from PySide2.QtWidgets import QApplication, QMainWindow
                 GIO_CANCELLABLE = Gio.Cancellable.new()
                 client = Colord.Client.new()
                 client.connect_sync(GIO_CANCELLABLE)
@@ -126,7 +125,6 @@ class icc:
                 default_profile.connect_sync(GIO_CANCELLABLE)
                 profile_path = default_profile.get_filename()
             except (NameError, ImportError, GLib.GError) as e:
-                # from bLUeTop.QtGui1 import window
                 dlgWarn('Cannot detect monitor profile', info=str(e), parent=bLUeTop.Gui.window)
         try:
             Cms_profile = getOpenProfile(profile_path)
@@ -194,7 +192,7 @@ class icc:
                 # get profile info, a PyCmsError exception is raised if monitorProfile is invalid
                 cls.monitorProfileInfo = getProfileInfo(cls.monitorProfile)
             # get working profile as CmsProfile object
-            if colorSpace == 1:  # elif changed to if 29/10/21
+            if colorSpace == 1:
                 cls.workingProfile = cls.defaultWorkingProfile  # getOpenProfile(SRGB_PROFILE_PATH)
             elif colorSpace == 2:
                 cls.workingProfile = getOpenProfile(ADOBE_RGB_PROFILE_PATH)

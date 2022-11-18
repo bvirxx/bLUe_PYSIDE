@@ -167,14 +167,14 @@ class brushFamily:
     def __init__(self, name, baseSize, contourPath, presetFilename=None, image=None):
         """
 
-       :param name:
-       :type name: str
-       :param baseSize:
-       :type baseSize: int
-       :param contourPath: base shape of the brush family
-       :type contourPath: QPainterPath
-       :param presetFilename: preset file
-       :type presetFilename: str
+        :param name:
+        :type name: str
+        :param baseSize:
+        :type baseSize: int
+        :param contourPath: base shape of the brush family
+        :type contourPath: QPainterPath
+        :param presetFilename: preset file
+        :type presetFilename: Union[str, None]
         """
         self.name = name
         self.baseSize = baseSize

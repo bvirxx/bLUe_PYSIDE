@@ -271,7 +271,7 @@ def addAdjustmentLayers(layers, images):
     :param layers:
     :type  layers: list of (key, dict)
     :param images
-    :type  images ndarray
+    :type  images TiffPageSeries
     """
     if layers is None:
         return
