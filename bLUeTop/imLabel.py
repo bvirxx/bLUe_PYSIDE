@@ -93,21 +93,18 @@ class imageLabel(QLabel):
 
     def syncBrush(self, zooming):
         """
-        Sync current brush with tool bar and zoom coeff.
+        Sync current brush with toolbar and zoom coeff.
         Overrides or changes the application cursor.
 
         :param zooming:
         :type zooming: float
         """
-        minSize = 16
+        minSize = 10  # 16
         # bSize = self.brushUpdate()
         bSize = self.State['brush']['size']
         w = bSize * zooming
-        if w >= minSize:
-            cursor = QCursor(self.State['brush']['cursor'].scaled(w, w), hotX=w / 2, hotY=w / 2)
-        else:
-            d = int((minSize - w) / 2)
-            cursor = QCursor(self.State['brush']['cursor'].scaled(minSize, minSize), hotX=d, hotY=d)
+        w = max(w, minSize)
+        cursor = QCursor(self.State['brush']['cursor'].scaled(w, w), hotX=w / 2, hotY=w / 2)
         if QApplication.overrideCursor():
             QApplication.changeOverrideCursor(cursor)
         else:

@@ -537,6 +537,8 @@ class mImage(vImage):
         saving to bLU file. All changes to the document made between the call to
         snap() and the actual file writing will be ignored.
 
+        :param thumb_jpg: image thumbnail (jpg)
+        :type thumb_jpg: QByteArray
         :return:
         :rtype: 3uple (ordered dict, list of Qimage, list of QImage)
         """
@@ -733,13 +735,16 @@ class mImage(vImage):
                                          metadata=names)
 
                 written = True  # with compression result is None
-
+            """
             else:
                 # invalid sourceformat
                 written = False
+            """
+        """
         else:
             # invalid extension
             written = False
+        """
 
         if not written:
             raise IOError("Cannot write file %s " % filename)
