@@ -23,7 +23,7 @@ from PIL.ImageCms import getOpenProfile, getProfileInfo, \
     buildTransformFromOpenProfiles, buildProofTransformFromOpenProfiles, applyTransform, INTENT_PERCEPTUAL, \
     INTENT_ABSOLUTE_COLORIMETRIC, INTENT_RELATIVE_COLORIMETRIC, \
     FLAGS, ImageCmsProfile, PyCMSError, core
-from PySide2.QtGui import QImage
+from PySide2.QtGui import QImage, QColorSpace
 import bLUeTop.Gui
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.dialog import dlgWarn
@@ -52,6 +52,25 @@ if COLOR_MANAGE_OPT:
                 dlgWarn("Invalid profile %s" % DEFAULT_MONITOR_PROFILE_PATH, info="Color management is disabled")
 
 
+def getProfile_QCS(path):
+    """
+    gets QColorSpace instance from file
+
+    :param path:
+    :type path: str
+    :rtype: Union[QColorSpace, None]
+    """
+    profile = None
+    try:
+        with open(path, 'rb') as pf:
+            profile = QColorSpace.fromIccProfile(pf.read())
+        if not profile.isValid():
+            raise ValueError
+    except (IOError, ValueError):
+        raise
+    return profile
+
+
 def get_default_working_profile():
     """
     try to find a default image profile.
@@ -64,6 +83,23 @@ def get_default_working_profile():
     except PyCMSError:
         dlgWarn('No valid sRGB color profile found.\nSet SYSTEM_PROFILE_DIR and SRGB_PROFILE_NAME in your config.json',
                 info='Invalid profile %s' % SRGB_PROFILE_PATH)
+        sys.exit()
+    return profile
+
+
+def get_default_working_profile_QCS():
+    """
+    try to find a default image profile.
+
+    :return: profile
+    :rtype: QColorSpace instance
+    """
+    path = SRGB_PROFILE_PATH
+    try:
+        profile = getProfile_QCS(path)
+    except (IOError, ValueError):
+        dlgWarn('No valid sRGB color profile found.\nSet SYSTEM_PROFILE_DIR and SRGB_PROFILE_NAME in your config.json',
+                info='Invalid profile %s' % path)
         sys.exit()
     return profile
 
@@ -83,6 +119,21 @@ def get_default_monitor_profile():
     return profile
 
 
+def get_default_monitor_profile_QCS():
+    """
+    try to find a default monitor profile.
+
+    :return: profile or None
+    :rtype: ImageCmsProfile or None
+    """
+    profile = None
+    try:
+        profile = getProfile_QCS(DEFAULT_MONITOR_PROFILE_PATH)
+    except (IOError, ValueError):
+        pass
+    return profile
+
+
 class icc:
     """
     Container for color management related options and methods.
@@ -98,9 +149,10 @@ class icc:
 
     # a (default) working image profile is always needed, at least for RGB<-->XYZ conversions
     defaultWorkingProfile = get_default_working_profile()
+    defaultWorkingProfile_QCS = get_default_working_profile_QCS()
 
     @staticmethod
-    def B_get_display_profile(handle=None, device_id=None):
+    def B_get_display_profilePath(handle=None, device_id=None):
         """
         bLUe version of ImageCms get_display_profile.
 
@@ -108,8 +160,8 @@ class icc:
         :type handle: int
         :param device_id: name of display
         :type device_id: str
-        :return: monitor profile or None
-        :rtype: ImageCmsProfile or None
+        :return: monitor profile path
+        :rtype: str
         """
         profile_path = DEFAULT_MONITOR_PROFILE_PATH
         if sys.platform == "win32":
@@ -126,11 +178,50 @@ class icc:
                 profile_path = default_profile.get_filename()
             except (NameError, ImportError, GLib.GError) as e:
                 dlgWarn('Cannot detect monitor profile', info=str(e), parent=bLUeTop.Gui.window)
+        return profile_path
+
+    @staticmethod
+    def B_get_display_profile(handle=None, device_id=None):
+        """
+        Returns the display ImageCmsProfile instance
+
+        :param handle: screen handle (Windows)
+        :type handle: int
+        :param device_id: name of display
+        :type device_id: str
+        :return: monitor profile or None
+        :rtype: ImageCmsProfile or None
+        """
+        profile_path = icc.B_get_display_profilePath(handle=handle, device_id=device_id)
         try:
             Cms_profile = getOpenProfile(profile_path)
         except PyCMSError:
             Cms_profile = get_default_monitor_profile()
         return Cms_profile
+
+    @staticmethod
+    def B_get_display_profile_QCS(handle=None, device_id=None):
+        """
+        Returns the display QColorSpace instance
+
+        :param handle: screen handle (Windows)
+        :type handle: int
+        :param device_id: name of display
+        :type device_id: str
+        :return: monitor profile or None
+        :rtype: Union[QColorSpace, None]
+        """
+        profile_path = icc.B_get_display_profilePath(handle=handle, device_id=device_id)
+        try:
+            with open(profile_path, 'rb') as ppf:
+                profile = QColorSpace.fromIccProfile(ppf.read())
+        except IOError:
+            with open(DEFAULT_MONITOR_PROFILE_PATH, 'rb') as ppf:
+                profile = QColorSpace.fromIccProfile(ppf.read())
+        if profile.isValid():
+            return profile
+        else:
+            return None
 
     @classmethod
     def getMonitorProfile(cls, qscreen=None):
@@ -154,6 +245,32 @@ class icc:
                     monitorProfile = cls.B_get_display_profile(handle=dc)
                 else:
                     monitorProfile = cls.B_get_display_profile(device_id=qscreen.name())
+            except (RuntimeError, OSError, TypeError):
+                pass
+        return monitorProfile
+
+    @classmethod
+    def getMonitorProfile_QCS(cls, qscreen=None):
+        """
+        Try to retrieve the default color profile
+        associated to the monitor specified by QScreen
+        (the system main display if qscreen is None).
+        The method returns None if no profile can be found.
+
+        :param qscreen: QScreen instance
+        :type qscreen: QScreen
+        :return: monitor profile or None
+        :rtype: Union[QColorSpace, None]
+        """
+        monitorProfile = None
+        # detecting profile
+        if qscreen is not None:
+            try:
+                if sys.platform == 'win32':
+                    dc = win32gui.CreateDC('DISPLAY', str(qscreen.name()), None)
+                    monitorProfile = cls.B_get_display_profile_QCS(handle=dc)
+                else:
+                    monitorProfile = cls.B_get_display_profile_QCS(device_id=qscreen.name())
             except (RuntimeError, OSError, TypeError):
                 pass
         return monitorProfile
@@ -236,6 +353,83 @@ class icc:
             print("Unexpected error:", sys.exc_info()[0])
             raise
 
+    @classmethod
+    def configure_QCS(cls, qscreen=None, colorSpace=-1, workingProfile=None, softproofingwp=-1):
+        """
+        Try to configure color management for the monitor
+        specified by QScreen, and build an image transformation
+        from the working profile (default sRGB) to the monitor profile.
+        if softproofingwp is provided, toggle soft proofing mode off (if it is None) and
+        on (if it is a valid ImageCmsProfile).
+
+        :param qscreen: QScreen instance
+        :type qscreen: QScreep
+        :param colorSpace:
+        :type colorSpace
+        :param workingProfile:
+        :type workingProfile: ImageCmsProfile
+        :param softproofingwp: profile for the device to simulate
+        :type softproofingwp:
+        """
+        cls.HAS_COLOR_MANAGE = False
+
+        cls.workingProfile = cls.defaultWorkingProfile_QCS
+        # cls.workingProfileInfo = getProfileInfo(cls.workingProfile)
+        if not COLOR_MANAGE_OPT:
+            return
+        # looking for specific profiles
+        try:
+            # get monitor profile as CmsProfile object.
+            if qscreen is not None:
+                cls.monitorProfile = cls.getMonitorProfile_QCS(qscreen=qscreen)
+                if cls.monitorProfile is None:  # not handled by PIL
+                    raise ValueError
+                # get profile info, a PyCmsError exception is raised if monitorProfile is invalid
+                # cls.monitorProfileInfo = getProfileInfo(cls.monitorProfile)
+            # get working profile as CmsProfile object
+            if colorSpace == 1:
+                cls.workingProfile = cls.defaultWorkingProfile_QCS  # getOpenProfile(SRGB_PROFILE_PATH)
+            elif colorSpace == 2:
+                cls.workingProfile = getProfile_QCS(ADOBE_RGB_PROFILE_PATH)
+            elif type(workingProfile) is QColorSpace:
+                cls.workingProfile = workingProfile
+            else:
+                cls.workingProfile = getProfile_QCS(SRGB_PROFILE_PATH)  # default
+
+            # cls.workingProfileInfo = getProfileInfo(cls.workingProfile)
+            # init CmsTransform object : working profile ---> monitor profile
+            if softproofingwp == -1:
+                softproofingwp = cls.softProofingProfile  # default : do not change the current soft proofing mode
+            if type(softproofingwp) is QColorSpace:
+                cls.softProofingProfile = softproofingwp
+                cls.workToMonTransform = buildProofTransformFromOpenProfiles(cls.workingProfile, cls.monitorProfile,
+                                                                             softproofingwp,
+                                                                             "RGB", "RGB",
+                                                                             renderingIntent=INTENT_PERCEPTUAL,
+                                                                             proofRenderingIntent=INTENT_RELATIVE_COLORIMETRIC,
+                                                                             flags=FLAGS['SOFTPROOFING'] | FLAGS[
+                                                                                 'BLACKPOINTCOMPENSATION'])  # | FLAGS['GAMUTCHECK'])
+                cls.softProofingProfile = softproofingwp
+            else:
+                cls.workToMonTransform = cls.workingProfile.transformationToColorSpace(cls.monitorProfile)
+                cls.softProofingProfile = None
+            """
+                                    INTENT_PERCEPTUAL            = 0 (DEFAULT) (ImageCms.INTENT_PERCEPTUAL)
+                                    INTENT_RELATIVE_COLORIMETRIC = 1 (ImageCms.INTENT_RELATIVE_COLORIMETRIC)
+                                    INTENT_SATURATION            = 2 (ImageCms.INTENT_SATURATION)
+                                    INTENT_ABSOLUTE_COLORIMETRIC = 3 (ImageCms.INTENT_ABSOLUTE_COLORIMETRIC)
+            """
+            cls.HAS_COLOR_MANAGE = (cls.monitorProfile is not None) and \
+                                   (cls.workingProfile is not None) and (cls.workToMonTransform is not None)
+            cls.COLOR_MANAGE = cls.HAS_COLOR_MANAGE and cls.COLOR_MANAGE
+        except (OSError, IOError) as e:
+            print("I/O error({0}): {1}".format(e.errno, e.strerror))
+        except (ValueError, TypeError, PyCMSError):
+            pass
+        except:
+            print("Unexpected error:", sys.exc_info()[0])
+            raise
+
 
 def cmsConvertQImage(image, cmsTransformation=None):
     """
@@ -262,3 +456,6 @@ def cmsConvertQImage(image, cmsTransformation=None):
     # back to the image buffer
     buf[...] = np.frombuffer(PIL_img.tobytes(), dtype=np.uint8).reshape(buf.shape)
     return image
+
+
+icc.configure = icc.configure_QCS
