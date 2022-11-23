@@ -42,7 +42,7 @@ from bLUeTop import exiftool
 from bLUeGui.memory import weakProxy
 from bLUeTop.cloning import contours, moments, seamlessClone
 
-from bLUeTop.colorManagement import icc, cmsConvertQImage
+from bLUeTop.colorManagement import icc
 from bLUeGui.bLUeImage import QImageBuffer, ndarrayToQImage, bImage
 from bLUeGui.dialog import dlgWarn, dlgInfo, IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, BLUE_FILE_EXTENSIONS
 from time import time
@@ -804,7 +804,7 @@ class imImage(mImage):
         # If everything fails, assign sRGB.
         cmsProfile = icc.defaultWorkingProfile
         try:
-            # convert profile to ImageCmsProfile object
+            # convert embedded profile to ImageCmsProfile object
             cmsProfile = ImageCmsProfile(BytesIO(profile))
         except (TypeError, OSError) as e:  # both raised by ImageCmsProfile()
             pass
@@ -879,6 +879,7 @@ class imImage(mImage):
 
         # update profile related attributes
         img.setProfile(cmsProfile)
+
         return img
 
     def __init__(self, *args, **kwargs):
@@ -1737,34 +1738,21 @@ class QPresentationLayer(QLayer):
 
     def updatePixmap(self, maskOnly=False):
         """
-        Synchronize qPixmap and rPixmap with the image layer and mask.
-        If maskOnly is True, cmImage is not updated.
-        if maskIsEnabled is False, the mask is not shown.
-        If maskIsEnabled is True, then
-            - if maskIsSelected is True, the mask is drawn over
-              the layer as a color mask.
-            - if maskIsSelected is False, the mask is drawn as an
-              opacity mask, setting image opacity to that of mask
-              (mode DestinationIn). Mask color is no used.
-
-        :param maskOnly: default False
-        :type maskOnly: boolean
+        Synchronizes qPixmap and rPixmap with the image layer.
+        THe Parameter maskOnly is provided for compatibility only and it is unused.
         """
         currentImage = self.getCurrentImage()
+
         # color manage
         if icc.COLOR_MANAGE and self.parentImage is not None and getattr(self, 'role', None) == 'presentation':
-            img = cmsConvertQImage(currentImage, cmsTransformation=self.parentImage.colorTransformation)
+            # img = cmsConvertQImage(currentImage, cmsTransformation=self.parentImage.colorTransformation)
+            img = icc.convertQImage(currentImage.copy(), transformation=self.parentImage.colorTransformation)
         else:
             img = currentImage
-        qImg = img
-        rImg = currentImage
-        """
-        Presentation Layer has not any mask !
-        if self.maskIsEnabled:
-            rImg = vImage.visualizeMask(rImg, self.mask, color=self.maskIsSelected, clipping=self.isClipping)
-        """
-        self.qPixmap = QPixmap.fromImage(qImg)
-        self.rPixmap = QPixmap.fromImage(rImg)
+
+        self.qPixmap = QPixmap.fromImage(img)
+        self.rPixmap = QPixmap.fromImage(currentImage)
+
         self.setModified(True)
 
     def applyNone(self):

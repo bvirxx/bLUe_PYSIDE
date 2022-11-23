@@ -135,6 +135,8 @@ from types import MethodType
 import pickle
 import rawpy
 
+from PIL.ImageCms import PyCMSError
+
 from PySide6.QtCore import QUrl, QFileInfo
 from PySide6.QtGui import QPixmap, QCursor, QKeySequence, QDesktopServices, QFont, \
     QTransform, QColor, QImage, QIcon, QAction
@@ -170,7 +172,7 @@ from bLUeTop.graphicsRGBLUT import graphicsForm
 from bLUeTop.graphicsLUT3D import graphicsForm3DLUT
 from bLUeTop.graphicsAutoLUT3D import graphicsFormAuto3DLUT
 from bLUeTop.lutUtils import LUTSIZE, LUT3D, LUT3DIdentity
-from bLUeTop.colorManagement import icc
+from bLUeTop.colorManagement import icc, getProfile
 from bLUeTop.graphicsCoBrSat import CoBrSatForm
 from bLUeTop.graphicsExp import ExpForm
 from bLUeTop.graphicsPatch import patchForm
@@ -1002,6 +1004,7 @@ def menuImage(name, window=bLUeTop.Gui.window):
     :type  window: QWidget
     """
     img = window.label.img
+
     # display image info
     if name == 'actionImage_info':
         # Format
@@ -1025,31 +1028,39 @@ def menuImage(name, window=bLUeTop.Gui.window):
         w.label.setFont(font)
         w.label.setText(w.wrapped(s))
         w.show()
+
     elif name == 'actionSoft_proofing':
-        proofingOn = window.actionSoft_proofing.isChecked()
-        from PIL.ImageCms import getOpenProfile, PyCMSError
-        if proofingOn:
+        if window.actionSoft_proofing.isChecked():
             lastDir = str(window.settings.value('paths/profdlgdir', '.'))
             filter = "Profiles ( *" + " *".join(['.icc', '.icm']) + ")"
             dlg = QFileDialog(window, "Select", lastDir, filter)
             try:
-                if dlg.exec_():
+                if dlg.exec():
                     filenames = dlg.selectedFiles()
                     newDir = dlg.directory().absolutePath()
                     window.settings.setValue('paths/profdlgdir', newDir)
-                    icc.configure(qscreen=window.currentScreenIndex, workingProfile=icc.workingProfile,
-                                  softproofingwp=getOpenProfile(filenames[0]))
+                    icc.configure(qscreen=window.currentScreenIndex,
+                                  workingProfile=icc.workingProfile,
+                                  softproofingwp=getProfile(filenames[0]),
+                                  useqcs=False
+                                  )
                 else:
                     raise PyCMSError
             except PyCMSError:
                 window.actionSoft_proofing.setChecked(False)
-        else:
-            icc.configure(qscreen=window.currentScreenIndex, workingProfile=icc.workingProfile, softproofingwp=None)
+                dlgWarn('Invalid proofing profile', filenames[0], parent=window)
+
+        if not window.actionSoft_proofing.isChecked():
+            icc.configure(qscreen=window.currentScreenIndex,
+                          workingProfile=icc.workingProfile,
+                          softproofingwp=None)
+
         window.label.img.updatePixmap()
         window.label_2.img.updatePixmap()
         window.label.update()
         window.label_2.update()
         updateStatus()
+
     elif name == 'actionColor_manage':
         icc.COLOR_MANAGE = window.actionColor_manage.isChecked()
         try:
@@ -1063,6 +1074,7 @@ def menuImage(name, window=bLUeTop.Gui.window):
         window.label.repaint()
         window.label_2.repaint()
         updateStatus()
+
     # force current display profile re-detection
     elif name == 'actionUpdate_display_profile':
         icc.configure(qscreen=window.currentScreenIndex, workingProfile=icc.workingProfile,
@@ -1071,6 +1083,7 @@ def menuImage(name, window=bLUeTop.Gui.window):
         window.label_2.img.updatePixmap()
         window.label.update()
         window.label_2.update()
+
     # show info for display and working profiles
     elif name == 'actionWorking_profile':
         w = labelDlg(parent=window, title='profile info')
@@ -1100,6 +1113,7 @@ def menuImage(name, window=bLUeTop.Gui.window):
         w.label.setWordWrap(True)
         w.label.setText(s)
         w.show()
+
     # rotations
     elif name in ['action90_CW', 'action90_CCW', 'action180']:
         try:
@@ -1117,6 +1131,7 @@ def menuImage(name, window=bLUeTop.Gui.window):
         finally:
             QApplication.restoreOverrideCursor()
             QApplication.processEvents()
+
     # resize
     elif name == 'actionImage_Resizing':
         w, h = img.width(), img.height()
@@ -1130,6 +1145,7 @@ def menuImage(name, window=bLUeTop.Gui.window):
             img.layersStack[0].applyToStack()
 
         dlg.onAccept = f
+
     # rating
     elif name in ['action0', 'action1', 'action2', 'action3', 'action4', 'action5']:
         img.meta.rating = int(name[-1:])
@@ -1343,6 +1359,11 @@ def menuLayer(name, window=bLUeTop.Gui.window, sname=None, script=False):
         imgNew = QImage(w, h, QImage.Format_ARGB32)
         # imgNew.fill(Qt.white)
         imgNew.fill(QColor(0, 0, 0, 0))
+        from PySide6.QtGui import QPainter
+        from PySide6.QtCore import QRect
+        qp = QPainter(imgNew)
+        qp.drawImage(QRect(0, 0, w, h), QImage('E:/Photos/Famille/Famille_16/raw//DSC_0281.JPG'))
+        qp.end()
         lname = 'Drawing'
         layer = window.label.img.addAdjustmentLayer(name=gn(lname), layerType=QDrawingLayer, sourceImg=imgNew,
                                                     role='DRW')
