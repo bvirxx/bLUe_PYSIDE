@@ -194,8 +194,8 @@ class ExifTool(object):
 
     def readBinaryData(self, f, tagname='xx'):
         """
-        Read binary metadata value of tagname from an image file or
-        a raw iamge file or a sidecar file.
+        Reads binary metadata value of tagname from an image file or
+        a raw image file or a sidecar file.
 
         :param f: path to file
         :type f: str
@@ -207,6 +207,18 @@ class ExifTool(object):
         command = ['-b', '-m', '-' + tagname, f]
         buf = self.execute(*command, ascii=False)  # -m : disables output of warnings
         return bytes(buf)
+
+    def writeProfile(self, filename, pathToProfile):
+        """
+        Copies profile file to image or sidecar file
+
+        :param filename: destination image or sidecar file
+        :type filename: str
+        :param pathToProfile:
+        :type pathToProfile: str
+        """
+        command = [filename, '-overwrite_original'] + ['-%s<=%s' % ('icc-profile', pathToProfile)]
+        self.execute(*command)
 
     def readBinaryDataAsDict(self, f, taglist=None):
         """
