@@ -760,7 +760,7 @@ def illuminantWP(redColorant, greenColorant, blueColorant):
     :type greenColorant: [float, float, float]
     :param blueColorant: blue colorant tag
     :type blueColorant: [float, float, float]
-    :return: White point cvoordinates
+    :return: White point coordinates
     :rtype: ndarray of float, shape (3,)
     """
     wp = np.array([redColorant, greenColorant, blueColorant]).sum(axis=1)

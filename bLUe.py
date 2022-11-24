@@ -151,7 +151,7 @@ from bLUeGui.colorPatterns import cmHSP, cmHSB
 from bLUeGui.graphicsForm import baseGraphicsForm
 from bLUeGui.tool import cropTool, rotatingTool
 from bLUeCore.bLUeLUT3D import HaldArray
-from bLUeTop import exiftool
+from bLUeTop import exiftool, Gui
 from bLUeTop.drawing import initBrushes, loadPresets
 from bLUeTop.graphicsDraw import drawForm
 from bLUeTop.graphicsHDRMerge import HDRMergeForm
