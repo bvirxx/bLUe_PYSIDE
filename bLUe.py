@@ -149,7 +149,7 @@ from bLUeGui.colorPatterns import cmHSP, cmHSB
 from bLUeGui.graphicsForm import baseGraphicsForm
 from bLUeGui.tool import cropTool, rotatingTool
 from bLUeCore.bLUeLUT3D import HaldArray
-from bLUeTop import exiftool
+from bLUeTop import exiftool, Gui
 from bLUeTop.drawing import initBrushes, loadPresets
 from bLUeTop.graphicsDraw import drawForm
 from bLUeTop.graphicsHDRMerge import HDRMergeForm
@@ -317,6 +317,14 @@ def addAdjustmentLayers(layers, images):
 
 
 def addBasicAdjustmentLayers(img, window=bLUeTop.Gui.window):
+    """
+    Adds any default adjustment layers to layer stack.
+
+    :param img:
+    :type img: mImage
+    :param window:
+    :type window:
+    """
     if img.rawImage is None:
         pass
         # menuLayer('actionColor_Temperature')
@@ -1001,6 +1009,7 @@ def menuImage(name, window=bLUeTop.Gui.window):
     :type  window: QWidget
     """
     img = window.label.img
+
     # display image info
     if name == 'actionImage_info':
         # Format
@@ -1024,6 +1033,7 @@ def menuImage(name, window=bLUeTop.Gui.window):
         w.label.setFont(font)
         w.label.setText(w.wrapped(s))
         w.show()
+
     elif name == 'actionSoft_proofing':
         proofingOn = window.actionSoft_proofing.isChecked()
         from PIL.ImageCms import getOpenProfile, PyCMSError
@@ -1049,6 +1059,7 @@ def menuImage(name, window=bLUeTop.Gui.window):
         window.label.update()
         window.label_2.update()
         updateStatus()
+
     elif name == 'actionColor_manage':
         icc.COLOR_MANAGE = window.actionColor_manage.isChecked()
         try:
@@ -1062,6 +1073,7 @@ def menuImage(name, window=bLUeTop.Gui.window):
         window.label.repaint()
         window.label_2.repaint()
         updateStatus()
+
     # force current display profile re-detection
     elif name == 'actionUpdate_display_profile':
         icc.configure(qscreen=window.currentScreenIndex, workingProfile=icc.workingProfile,
@@ -1070,6 +1082,7 @@ def menuImage(name, window=bLUeTop.Gui.window):
         window.label_2.img.updatePixmap()
         window.label.update()
         window.label_2.update()
+
     # show info for display and working profiles
     elif name == 'actionWorking_profile':
         w = labelDlg(parent=window, title='profile info')
@@ -1099,6 +1112,7 @@ def menuImage(name, window=bLUeTop.Gui.window):
         w.label.setWordWrap(True)
         w.label.setText(s)
         w.show()
+
     # rotations
     elif name in ['action90_CW', 'action90_CCW', 'action180']:
         try:
@@ -1116,6 +1130,7 @@ def menuImage(name, window=bLUeTop.Gui.window):
         finally:
             QApplication.restoreOverrideCursor()
             QApplication.processEvents()
+
     # resize
     elif name == 'actionImage_Resizing':
         w, h = img.width(), img.height()
@@ -1129,6 +1144,7 @@ def menuImage(name, window=bLUeTop.Gui.window):
             img.layersStack[0].applyToStack()
 
         dlg.onAccept = f
+
     # rating
     elif name in ['action0', 'action1', 'action2', 'action3', 'action4', 'action5']:
         img.meta.rating = int(name[-1:])

@@ -18,13 +18,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import sys
 
 import numpy as np
-from PIL import Image
-from PIL.ImageCms import getOpenProfile, getProfileInfo, \
-    buildTransformFromOpenProfiles, buildProofTransformFromOpenProfiles, applyTransform, INTENT_PERCEPTUAL, \
-    INTENT_ABSOLUTE_COLORIMETRIC, INTENT_RELATIVE_COLORIMETRIC, \
-    FLAGS, ImageCmsProfile, PyCMSError, core
+
+from PIL import Image, ImageCms
+
 from PySide2.QtGui import QImage
-import bLUeTop.Gui
+
+from bLUeTop import Gui
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.dialog import dlgWarn
 
@@ -39,7 +38,6 @@ if COLOR_MANAGE_OPT:
     else:
         try:
             from gi.repository import GLib, Gio, Colord
-
             HAS_GI = True
         except ImportError:
             pass
@@ -47,39 +45,44 @@ if COLOR_MANAGE_OPT:
             dlgWarn(
                 "Automatic detection of monitor profile needs gi installed.\n trying to use %s instead" % DEFAULT_MONITOR_PROFILE_PATH)
             try:
-                getOpenProfile(DEFAULT_MONITOR_PROFILE_PATH)
-            except PyCMSError:
+                ImageCms.getOpenProfile(DEFAULT_MONITOR_PROFILE_PATH)
+            except ImageCms.PyCMSError:
                 dlgWarn("Invalid profile %s" % DEFAULT_MONITOR_PROFILE_PATH, info="Color management is disabled")
+
+
+def getProfile(path):
+    """
+    Loads color profile from file.
+    The parameter mode determines the type
+    of the returned object.
+    :raises Union[IOError, ValueError, ImageCms.PyCMSError]
+
+    :param path:
+    :type path: str
+    :rtype: Union[QColorSpace, CmsProfile, None]
+    """
+    profile = ImageCms.getOpenProfile(path)
+    return profile
 
 
 def get_default_working_profile():
     """
-    try to find a default image profile.
+    tries to find a default image profile.
+    The parameter mode determines the type
+    of the returned object.
 
     :return: profile
-    :rtype: ImageCmsProfile
+    :rtype: Union[QColorSpace, CmsProfile, None]
     """
+
+    path = SRGB_PROFILE_PATH
     try:
-        profile = getOpenProfile(SRGB_PROFILE_PATH)
-    except PyCMSError:
-        dlgWarn('No valid sRGB color profile found.\nSet SYSTEM_PROFILE_DIR and SRGB_PROFILE_NAME in your config.json',
-                info='Invalid profile %s' % SRGB_PROFILE_PATH)
+        profile = getProfile(path)
+    except (ImageCms.PyCMSError, ValueError, IOError):
+        dlgWarn(
+            'No valid sRGB color profile found.\nSet SYSTEM_PROFILE_DIR and SRGB_PROFILE_NAME in your config.json',
+            info='Invalid profile %s' % path)
         sys.exit()
-    return profile
-
-
-def get_default_monitor_profile():
-    """
-    try to find a default monitor profile.
-
-    :return: profile or None
-    :rtype: ImageCmsProfile or None
-    """
-    profile = None
-    try:
-        profile = getOpenProfile(DEFAULT_MONITOR_PROFILE_PATH)
-    except PyCMSError:
-        pass
     return profile
 
 
@@ -96,11 +99,29 @@ class icc:
 
     softProofingProfile = None
 
-    # a (default) working image profile is always needed, at least for RGB<-->XYZ conversions
-    defaultWorkingProfile = get_default_working_profile()
+    # a (default) working profile is always needed
+    defaultWorkingProfile = get_default_working_profile()  # CmsProfile
+
+    # defaultWorkingProfile_QCS = get_default_working_profile(mode='QCS')  # QColorSpace
 
     @staticmethod
-    def B_get_display_profile(handle=None, device_id=None):
+    def get_default_monitor_profile(cls):
+        """
+        try to find a default monitor profile.
+
+        :return: monitor profile or None
+        :rtype: Union[CmsProfile, QColorSpace, None]
+        """
+
+        profile = None
+        try:
+            profile = getProfile(DEFAULT_MONITOR_PROFILE_PATH)
+        except (IOError, ValueError, ImageCms.PyCMSError):
+            pass
+        return profile
+
+    @staticmethod
+    def B_get_display_profilePath(handle=None, device_id=None):
         """
         bLUe version of ImageCms get_display_profile.
 
@@ -108,12 +129,13 @@ class icc:
         :type handle: int
         :param device_id: name of display
         :type device_id: str
-        :return: monitor profile or None
-        :rtype: ImageCmsProfile or None
+        :return: monitor profile path
+        :rtype: str
         """
+
         profile_path = DEFAULT_MONITOR_PROFILE_PATH
         if sys.platform == "win32":
-            profile_path = core.get_display_profile_win32(handle, 1)
+            profile_path = ImageCms.core.get_display_profile_win32(handle, 1)
         elif HAS_GI:
             try:
                 GIO_CANCELLABLE = Gio.Cancellable.new()
@@ -125,28 +147,47 @@ class icc:
                 default_profile.connect_sync(GIO_CANCELLABLE)
                 profile_path = default_profile.get_filename()
             except (NameError, ImportError, GLib.GError) as e:
-                dlgWarn('Cannot detect monitor profile', info=str(e), parent=bLUeTop.Gui.window)
+                dlgWarn('Cannot detect monitor profile', info=str(e), parent=Gui.window)
+        return profile_path
+
+    @staticmethod
+    def B_get_display_profile(handle=None, device_id=None):
+        """
+        Returns the display CmsProfile instance
+
+        :param handle: screen handle (Windows)
+        :type handle: int
+        :param device_id: name of display
+        :type device_id: str
+        :return: monitor profile or None
+        :rtype: Union[CmsProfile, None]
+        """
+
+        profile_path = icc.B_get_display_profilePath(handle=handle, device_id=device_id)
         try:
-            Cms_profile = getOpenProfile(profile_path)
-        except PyCMSError:
-            Cms_profile = get_default_monitor_profile()
-        return Cms_profile
+            profile = getProfile(profile_path)
+        except ImageCms.PyCMSError:
+            profile = icc.get_default_monitor_profile()
+        return profile
 
     @classmethod
     def getMonitorProfile(cls, qscreen=None):
         """
-        Try to retrieve the default color profile
-        associated to the monitor specified by QScreen
+        Tries to retrieve the current color profile
+        associated with the monitor specified by QScreen
         (the system main display if qscreen is None).
-        The method returns None if no profile can be found.
+        THe parameter mode determines the type of the returned
+        value (CmsProfile or QColorSpace).
+        The method returns None if no valid profile can be found.
 
         :param qscreen: QScreen instance
         :type qscreen: QScreen
         :return: monitor profile or None
-        :rtype: CmsProfile or None
+        :rtype: Union[CmsProfile, QColorSpace, None]
         """
+
         monitorProfile = None
-        # detecting profile
+        # detect profile
         if qscreen is not None:
             try:
                 if sys.platform == 'win32':
@@ -154,7 +195,7 @@ class icc:
                     monitorProfile = cls.B_get_display_profile(handle=dc)
                 else:
                     monitorProfile = cls.B_get_display_profile(device_id=qscreen.name())
-            except (RuntimeError, OSError, TypeError):
+            except (RuntimeError, OSError, TypeError, ImageCms.PyCMSError):
                 pass
         return monitorProfile
 
@@ -176,10 +217,13 @@ class icc:
         :param softproofingwp: profile for the device to simulate
         :type softproofingwp:
         """
+
         cls.HAS_COLOR_MANAGE = False
 
         cls.workingProfile = cls.defaultWorkingProfile
-        cls.workingProfileInfo = getProfileInfo(cls.workingProfile)
+        cls.workingProfileInfo = ImageCms.getProfileInfo(cls.workingProfile)
+        # cls.workingProfile_QCS = cls.defaultWorkingProfile_QCS
+
         if not COLOR_MANAGE_OPT:
             return
         # looking for specific profiles
@@ -190,34 +234,44 @@ class icc:
                 if cls.monitorProfile is None:  # not handled by PIL
                     raise ValueError
                 # get profile info, a PyCmsError exception is raised if monitorProfile is invalid
-                cls.monitorProfileInfo = getProfileInfo(cls.monitorProfile)
+                cls.monitorProfileInfo = ImageCms.getProfileInfo(cls.monitorProfile)
+
             # get working profile as CmsProfile object
             if colorSpace == 1:
-                cls.workingProfile = cls.defaultWorkingProfile  # getOpenProfile(SRGB_PROFILE_PATH)
+                cls.workingProfile = cls.defaultWorkingProfile
             elif colorSpace == 2:
-                cls.workingProfile = getOpenProfile(ADOBE_RGB_PROFILE_PATH)
-            elif type(workingProfile) is ImageCmsProfile:
+                cls.workingProfile = getProfile(ADOBE_RGB_PROFILE_PATH)
+            elif isinstance(workingProfile, ImageCms.ImageCmsProfile):
                 cls.workingProfile = workingProfile
             else:
-                cls.workingProfile = getOpenProfile(SRGB_PROFILE_PATH)  # default
+                cls.workingProfile = getProfile(SRGB_PROFILE_PATH)  # default
 
-            cls.workingProfileInfo = getProfileInfo(cls.workingProfile)
+            cls.workingProfileInfo = ImageCms.getProfileInfo(cls.workingProfile)
+
             # init CmsTransform object : working profile ---> monitor profile
             if softproofingwp == -1:
                 softproofingwp = cls.softProofingProfile  # default : do not change the current soft proofing mode
-            if type(softproofingwp) is ImageCmsProfile:
+            if type(softproofingwp) is ImageCms.ImageCmsProfile:
                 cls.softProofingProfile = softproofingwp
-                cls.workToMonTransform = buildProofTransformFromOpenProfiles(cls.workingProfile, cls.monitorProfile,
-                                                                             softproofingwp,
-                                                                             "RGB", "RGB",
-                                                                             renderingIntent=INTENT_PERCEPTUAL,
-                                                                             proofRenderingIntent=INTENT_RELATIVE_COLORIMETRIC,
-                                                                             flags=FLAGS['SOFTPROOFING'] | FLAGS[
-                                                                                 'BLACKPOINTCOMPENSATION'])  # | FLAGS['GAMUTCHECK'])
+                cls.workToMonTransform = ImageCms.buildProofTransformFromOpenProfiles(
+                    cls.workingProfile,
+                    cls.monitorProfile,
+                    softproofingwp,
+                    "RGB",
+                    "RGB",
+                    renderingIntent=ImageCms.INTENT_PERCEPTUAL,
+                    proofRenderingIntent=ImageCms.INTENT_RELATIVE_COLORIMETRIC,
+                    flags=ImageCms.FLAGS['SOFTPROOFING'] |
+                          ImageCms.FLAGS['BLACKPOINTCOMPENSATION']
+                )  # | FLAGS['GAMUTCHECK'])
                 cls.softProofingProfile = softproofingwp
             else:
-                cls.workToMonTransform = buildTransformFromOpenProfiles(cls.workingProfile, cls.monitorProfile,
-                                                                        "RGB", "RGB", renderingIntent=INTENT_PERCEPTUAL)
+                cls.workToMonTransform = ImageCms.buildTransformFromOpenProfiles(cls.workingProfile,
+                                                                                 cls.monitorProfile,
+                                                                                 "RGB",
+                                                                                 "RGB",
+                                                                                 renderingIntent=ImageCms.INTENT_PERCEPTUAL
+                                                                                 )
                 cls.softProofingProfile = None
             """
                                     INTENT_PERCEPTUAL            = 0 (DEFAULT) (ImageCms.INTENT_PERCEPTUAL)
@@ -230,35 +284,42 @@ class icc:
             cls.COLOR_MANAGE = cls.HAS_COLOR_MANAGE and cls.COLOR_MANAGE
         except (OSError, IOError) as e:
             print("I/O error({0}): {1}".format(e.errno, e.strerror))
-        except (ValueError, TypeError, PyCMSError):
+        except (ValueError, TypeError, ImageCms.PyCMSError):
             pass
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
 
+    @staticmethod
+    def cmsConvertQImage(image, cmsTransformation=None):
+        """
+        Apply a Cms transformation to a copy of a QImage and
+        return the transformed image.
+        If cmsTransformation is None, the input image is returned (no copy).
 
-def cmsConvertQImage(image, cmsTransformation=None):
-    """
-    Apply a Cms transformation to a copy of a QImage and
-    return the transformed image.
-    If cmsTransformation is None, the input image is returned (no copy).
+        :param image: image to transform
+        :type image: QImage
+        :param cmsTransformation : Cms transformation
+        :type cmsTransformation: ImageCmsTransform
+        :return: The converted QImage
+        :rtype: QImage
+        """
 
-    :param image: image to transform
-    :type image: QImage
-    :param cmsTransformation : Cms transformation
-    :type cmsTransformation: ImageCmsTransform
-    :return: The converted QImage
-    :rtype: QImage
-    """
-    if cmsTransformation is None:
+        if cmsTransformation is None:
+            return image
+        image = image.copy()
+        buf = QImageBuffer(image)[:, :, :3][:, :, ::-1]
+        # convert to the PIL context and apply cmsTransformation
+        bufC = np.ascontiguousarray(buf)
+        PIL_img = Image.frombuffer('RGB', (image.width(), image.height()), bufC, 'raw',
+                                   'RGB', 0, 1)  # these 3 weird parameters are recommended by a runtime warning !!!
+        ImageCms.applyTransform(PIL_img, cmsTransformation, 1)  # 1=in place
+        # back to the image buffer
+        buf[...] = np.frombuffer(PIL_img.tobytes(), dtype=np.uint8).reshape(buf.shape)
         return image
-    image = image.copy()
-    buf = QImageBuffer(image)[:, :, :3][:, :, ::-1]
-    # convert to the PIL context and apply cmsTransformation
-    bufC = np.ascontiguousarray(buf)
-    PIL_img = Image.frombuffer('RGB', (image.width(), image.height()), bufC, 'raw',
-                               'RGB', 0, 1)  # these 3 weird parameters are recommended by a runtime warning !!!
-    applyTransform(PIL_img, cmsTransformation, 1)  # 1=in place
-    # back to the image buffer
-    buf[...] = np.frombuffer(PIL_img.tobytes(), dtype=np.uint8).reshape(buf.shape)
-    return image
+
+    @classmethod
+    def convertQImage(cls, image, transformation=None):
+        if type(transformation) is ImageCms.ImageCmsTransform:
+            image = cls.cmsConvertQImage(image, cmsTransformation=transformation)
+        return image

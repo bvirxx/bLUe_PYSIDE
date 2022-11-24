@@ -30,28 +30,21 @@ import numpy as np
 
 sRGBWP = 6500
 
-#####################
-# Conversion Matrices
-#####################
+# When possible bLUe uses the embedded color profile to build the RGB_lin2XYZ
+# conversion matrix. The standard constants below act as default values.
+
+##############################
+# Standard conversion matrices
+##############################
+
 # According to Python and Numpy conventions, the following definitions of matrix
 # constants M as lists and/or arrays correspond to
-# M[row_index, col_index] = M[row_index][col_index] values.
+# M[row, col] = M[row][col] values.
 
-# The Bradford matrix converts from
-# CIE XYZ to the cone response domain.
-# Cf. http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html
-
-Bradford = [[0.8951000, 0.2664000, -0.1614000],
-            [-0.7502000, 1.7135000, 0.0367000],
-            [0.0389000, -0.0685000, 1.0296000]]
-
-BradfordInverse = [[0.9869929, -0.1470543, 0.1599627],
-                   [0.4323053, 0.5183603, 0.0492912],
-                   [-0.0085287, 0.0400428, 0.9684867]]
-
-# conversion matrices from LINEAR sRGB (D65) to XYZ and back.
+# conversion matrices from LINEAR sRGB to XYZ (D65 WP) and back.
 # Cf. http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
 # and https://en.wikipedia.org/wiki/SRGB
+# bLUe uses these matrices as default RGB_lin2XYZ and back conversion matrices
 
 sRGB_lin2XYZ = [[0.4124564, 0.3575761, 0.1804375],
                 [0.2126729, 0.7151522, 0.0721750],
@@ -61,9 +54,11 @@ sRGB_lin2XYZInverse = [[3.2404542, -1.5371385, -0.4985314],
                        [-0.9692660, 1.8760108, 0.0415560],
                        [0.0556434, -0.2040259, 1.0572252]]
 
-# conversion matrices from LINEAR sRGB (D50) to XYZ  and back.
-# Cf. http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
-# and https://en.wikipedia.org/wiki/SRGB
+# Conversion matrices from LINEAR sRGB to XYZ (D50 WP) and back.
+#
+# The 3 columns of the first matrix below can also be retrieved as the
+# [red,green,blue]colorant values of the CmsProfile instance built
+# from the standard sRGB profile (IEC 61966-2-1 : reference display white point D65) .
 
 sRGB_lin2XYZ_D50 = [[0.4360747, 0.3850649, 0.1430804],
                     [0.2225045, 0.7168786, 0.0606169],
@@ -72,6 +67,17 @@ sRGB_lin2XYZ_D50 = [[0.4360747, 0.3850649, 0.1430804],
 sRGB_lin2XYZ_D50Inverse = [[3.1338561, -1.6168667, -0.4906146],
                            [-0.9787684, 1.9161415, 0.0334540],
                            [0.0719453, -0.2289914, 1.4052427]]
+
+# Conversion matrices from CIE XYZ to cone response domain and back.
+# Cf. http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html
+
+Bradford = [[0.8951000, 0.2664000, -0.1614000],
+            [-0.7502000, 1.7135000, 0.0367000],
+            [0.0389000, -0.0685000, 1.0296000]]
+
+BradfordInverse = [[0.9869929, -0.1470543, 0.1599627],
+                   [0.4323053, 0.5183603, 0.0492912],
+                   [-0.0085287, 0.0400428, 0.9684867]]
 
 # XYZ/sRGB/Lab conversion :
 # D65 illuminant Xn, Yn, Zn and
@@ -168,7 +174,7 @@ class gammaTables:
 def rgbLinear2rgb(rgbColors):
     """
     conversion from linear RGB to sRGB.
-    See U{https://en.wikipedia.org/wiki/SRGB}
+    See https://en.wikipedia.org/wiki/SRGB
     Linear RGB values should be in range 0..1.
     Output values are in range 0..255.
 
@@ -203,7 +209,7 @@ def rgb2rgbLinear(rgbColors):
     """
     Conversion from RGB to linear RGB.
     See https://en.wikipedia.org/wiki/SRGB
-    Input Input values should be integers in range 0..255.
+    Inpuvalues should be integers in range 0..255.
     Output values are in range 0..1.
 
     :param rgbColors: color or array of RGB colors
@@ -740,14 +746,21 @@ def xyY2XYZ(xyYColors):
     return np.dstack(r) if vectorize else r
 
 
-"""
-if __name__ == '__main__':
-    T = 4000.0
-    r, g, b = bbTemperature2RGB(T)
-    x, y = temperature2xyWP(T)
-    L = 0.7
-    r1, g1, b1 = np.dot(sRGB_lin2XYZInverse, np.array([L * x / y, L, L * (1.0 - x - y) / y]).T)
-    r2, g2, b2 = rgbLinear2rgb(r1, g1, b1)
-    # print r,g,b
-    # print r2, g2, b2
-"""
+def illuminantWP(redColorant, greenColorant, blueColorant):
+    """
+    Calculates the XYZ coordinates of the white point corresponding
+    to the 3 colorants (columns of a RGB_lin2XYZ matrix or colorant
+    tags in a profile) passed as parameters.
+    The function can also be called as illuminantWP(*RGB_lin2XYZ)
+
+    :param redColorant: red colorant tag
+    :type redColorant: [float, float, float]
+    :param greenColorant: green colorant tag
+    :type greenColorant: [float, float, float]
+    :param blueColorant: blue colorant tag
+    :type blueColorant: [float, float, float]
+    :return: White point cvoordinates
+    :rtype: ndarray of float, shape (3,)
+    """
+    wp = np.array([redColorant, greenColorant, blueColorant]).sum(axis=1)
+    return wp
