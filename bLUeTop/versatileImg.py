@@ -35,6 +35,7 @@ from bLUeCore.multi import chosenInterp
 import bLUeTop.Gui
 from bLUeTop.align import alignImages
 from bLUeTop.cloning import alphaBlend
+from bLUeTop.colorManagement import icc
 
 from bLUeTop.graphicsBlendFilter import blendFilterIndex
 
@@ -313,7 +314,7 @@ class vImage(bImage):
         return cv2.filter2D(mask, -1, kernelMean)  # -1 : keep depth unchanged
 
     def __init__(self, filename=None, cv2Img=None, QImg=None, format=QImage.Format_ARGB32,
-                 name='', colorSpace=-1, orientation=None, rating=5, meta=None, rawMetadata=None, profile=''):
+                 name='', colorSpace=-1, orientation=None, rating=5, meta=None, rawMetadata=None, profile=b''):
         """
         With no parameter, builds a null image.
         image is assumed to be in the color space sRGB : colorSpace value is used only as meta data.
@@ -336,8 +337,8 @@ class vImage(bImage):
         :type meta: MarkedImg.metadataBag
         :param rawMetadata: dictionary
         :type rawMetadata: dictionary
-        :param profile: embedded profile (default '')
-        :type profile: str
+        :param profile: embedded profile (default b'')
+        :type profile: bytes
         """
         # formatted EXIF data (str)
         self.imageInfo = 'no EXIF data'  # default
@@ -345,6 +346,7 @@ class vImage(bImage):
         if rawMetadata is None:
             rawMetadata = {}
         self.isModified = False
+        self.profileChanged = False
         self.__rect, self.marker = None, None  # selection rectangle, marker
         self.sRects = []  # selection rectangles
         self.isCropped = False
@@ -379,10 +381,11 @@ class vImage(bImage):
                 name, colorSpace, rawMetadata, profile, orientation, rating
         else:
             self.meta = meta
-        self.colorSpace = self.meta.colorSpace
-        self.cmsProfile = None  # icc.defaultWorkingProfile  # possibly does not match colorSpace : call setProfile()
-        self.RGB_lin2XYZ = sRGB_lin2XYZ
-        self.RGB_lin2XYZInverse = sRGB_lin2XYZInverse
+        self.setProfile(icc.defaultWorkingProfile)  # default profile
+        # self.colorSpace = self.meta.colorSpace
+        # self.cmsProfile = icc.defaultWorkingProfile  # possibly does not match colorSpace : call setProfile()
+        # self.RGB_lin2XYZ = sRGB_lin2XYZ
+        # self.RGB_lin2XYZInverse = sRGB_lin2XYZInverse
         if filename is None and cv2Img is None and QImg is None:
             # create a null image
             super().__init__()
@@ -447,9 +450,13 @@ class vImage(bImage):
             self.colorSpace = 1
         else:
             self.colorSpace = 65535
-        self.RGB_lin2XYZ = np.column_stack(
-            (profile.profile.red_colorant[0], profile.profile.green_colorant[0], profile.profile.blue_colorant[0]))
-        self.RGB_lin2XYZInverse = np.linalg.inv(self.RGB_lin2XYZ)
+        cr, cg, cb = profile.profile.red_colorant, profile.profile.green_colorant, profile.profile.blue_colorant
+        if isinstance(cr, tuple) and isinstance(cg, tuple) and isinstance(cb, tuple):
+            self.RGB_lin2XYZ = np.column_stack((cr[0], cg[0], cb[0]))
+            self.RGB_lin2XYZInverse = np.linalg.inv(self.RGB_lin2XYZ)
+        else:
+            self.RGB_lin2XYZ = sRGB_lin2XYZ
+            self.RGB_lin2XYZInverse = sRGB_lin2XYZInverse
 
     def setImage(self, qimg):
         """

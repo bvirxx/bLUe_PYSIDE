@@ -217,7 +217,7 @@ class ExifTool(object):
         :param pathToProfile:
         :type pathToProfile: str
         """
-        command = [filename, '-overwrite_original'] + ['-%s<=%s' % ('icc-profile', pathToProfile)]
+        command = [filename, '-overwrite_original'] + ['-%s<=%s' % ('icc_profile', pathToProfile)]
         self.execute(*command)
 
     def readBinaryDataAsDict(self, f, taglist=None):
@@ -238,7 +238,7 @@ class ExifTool(object):
         if taglist is None:
             return d
         for tagname in taglist:
-            command = ['-b', '-m', '-' + tagname, f]  # -m : disables output of warnings
+            command = ['-b', '-m', '-' + tagname, f]  # -m : disables output of warnings (see -q also)
             buf = self.execute(*command, ascii=False)
             # decode to str
             d[tagname] = buf.decode()
@@ -357,6 +357,16 @@ class ExifTool(object):
         extract_meta_flags = ["-icc_profile", "-b"]
         command = extract_meta_flags + [f]
         profile = self.execute(*command, ascii=False)
+        # Returned bytes may begin with exiftool warnings.
+        # We cannot use exiftool's option -q because it breaks
+        # the communication protocol by also suppressing the output of sentinel.
+        # As a workaround to locate the actual profile data we search for the
+        # ICC signature 'acsp' at offset 36 in profile.
+        # See ICC Profile Format Specification https://www.color.org/specification/ICC.1-2022-05.pdf
+        first = profile.find(b'acsp')
+        if first >= 36:
+            profile = profile[first - 36:]
+
         # extract tags
         command = flags + [f]
         data = json.loads(self.execute(*command))

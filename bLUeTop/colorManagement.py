@@ -18,11 +18,16 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import sys
 
 import numpy as np
+
+from PIL import Image, ImageCms
+
+from PySide6.QtGui import QImage
+
+from bLUeTop import Gui
 from PIL import Image, ImageCms
 
 from PySide6.QtGui import QImage, QColorSpace, QColorTransform
 
-from bLUeTop import Gui
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.dialog import dlgWarn
 
@@ -37,7 +42,6 @@ if COLOR_MANAGE_OPT:
     else:
         try:
             from gi.repository import GLib, Gio, Colord
-
             HAS_GI = True
         except ImportError:
             pass
@@ -45,8 +49,8 @@ if COLOR_MANAGE_OPT:
             dlgWarn(
                 "Automatic detection of monitor profile needs gi installed.\n trying to use %s instead" % DEFAULT_MONITOR_PROFILE_PATH)
             try:
-                ImageCms.getOpenProfile(DEFAULT_MONITOR_PROFILE_PATH)
-            except ImageCms.PyCMSError:
+                getOpenProfile(DEFAULT_MONITOR_PROFILE_PATH)
+            except PyCMSError:
                 dlgWarn("Invalid profile %s" % DEFAULT_MONITOR_PROFILE_PATH, info="Color management is disabled")
 
 
@@ -143,6 +147,7 @@ class icc:
         :return: monitor profile path
         :rtype: str
         """
+
         profile_path = DEFAULT_MONITOR_PROFILE_PATH
         if sys.platform == "win32":
             profile_path = ImageCms.core.get_display_profile_win32(handle, 1)
@@ -161,7 +166,7 @@ class icc:
         return profile_path
 
     @staticmethod
-    def B_get_display_profile(handle=None, device_id=None, mode='Cms'):
+    def B_get_display_profile(handle=None, device_id=None):
         """
         Returns the display CmsProfile instance
 
@@ -172,12 +177,13 @@ class icc:
         :return: monitor profile or None
         :rtype: Union[CmsProfile, None]
         """
+
         profile_path = icc.B_get_display_profilePath(handle=handle, device_id=device_id)
         try:
-            profile = getProfile(profile_path, mode=mode)
-        except ImageCms.PyCMSError:
-            profile = icc.get_default_monitor_profile(mode=mode)
-        return profile
+            Cms_profile = getOpenProfile(profile_path)
+        except PyCMSError:
+            Cms_profile = get_default_monitor_profile()
+        return Cms_profile
 
     @classmethod
     def getMonitorProfile(cls, qscreen=None, mode='Cms'):
@@ -196,6 +202,7 @@ class icc:
         :return: monitor profile or None
         :rtype: Union[CmsProfile, QColorSpace, None]
         """
+
         monitorProfile = None
         # detect profile
         if qscreen is not None:
@@ -251,6 +258,9 @@ class icc:
                 # get profile info, a PyCmsError exception is raised if monitorProfile is invalid
                 cls.monitorProfileInfo = ImageCms.getProfileInfo(cls.monitorProfile)
 
+            # get working profile as CmsProfile object : priority to known Color Spaces
+                cls.monitorProfileInfo = ImageCms.getProfileInfo(cls.monitorProfile)
+
             # get working profile as CmsProfile object
             if colorSpace == 1:
                 cls.workingProfile = cls.defaultWorkingProfile
@@ -264,116 +274,27 @@ class icc:
             if useqcs:
                 cls.workingProfile_QCS = QColorSpace.fromIccProfile(cls.workingProfile.tobytes())
 
-            cls.workingProfileInfo = ImageCms.getProfileInfo(cls.workingProfile)
-
+            cls.workingProfileInfo = getProfileInfo(cls.workingProfile)
             # init CmsTransform object : working profile ---> monitor profile
             if softproofingwp == -1:
                 softproofingwp = cls.softProofingProfile  # default : do not change the current soft proofing mode
-            if type(softproofingwp) is ImageCms.ImageCmsProfile:
+            if type(softproofingwp) is ImageCmsProfile:
                 cls.softProofingProfile = softproofingwp
-                cls.workToMonTransform = ImageCms.buildProofTransformFromOpenProfiles(
-                    cls.workingProfile,
-                    cls.monitorProfile,
-                    softproofingwp,
-                    "RGB",
-                    "RGB",
-                    renderingIntent=ImageCms.INTENT_PERCEPTUAL,
-                    proofRenderingIntent=ImageCms.INTENT_RELATIVE_COLORIMETRIC,
-                    flags=ImageCms.FLAGS['SOFTPROOFING'] |
-                          ImageCms.FLAGS['BLACKPOINTCOMPENSATION']
-                )  # | FLAGS['GAMUTCHECK'])
+                cls.workToMonTransform = buildProofTransformFromOpenProfiles(cls.workingProfile, cls.monitorProfile,
+                                                                             softproofingwp,
+                                                                             "RGB", "RGB",
+                                                                             renderingIntent=INTENT_PERCEPTUAL,
+                                                                             proofRenderingIntent=INTENT_RELATIVE_COLORIMETRIC,
+                                                                             flags=FLAGS['SOFTPROOFING'] | FLAGS[
+                                                                                 'BLACKPOINTCOMPENSATION'])  # | FLAGS['GAMUTCHECK'])
                 cls.softProofingProfile = softproofingwp
             else:
-                if useqcs:
-                    cls.workToMonTransform = cls.workingProfile_QCS.transformationToColorSpace(cls.monitorProfile_QCS)
-                else:
-                    cls.workToMonTransform = ImageCms.buildTransformFromOpenProfiles(cls.workingProfile,
-                                                                                     cls.monitorProfile,
-                                                                                     "RGB",
-                                                                                     "RGB",
-                                                                                     renderingIntent=ImageCms.INTENT_PERCEPTUAL
-                                                                                     )
-                cls.softProofingProfile = None
-            """
-                                    INTENT_PERCEPTUAL            = 0 (DEFAULT) (ImageCms.INTENT_PERCEPTUAL)
-                                    INTENT_RELATIVE_COLORIMETRIC = 1 (ImageCms.INTENT_RELATIVE_COLORIMETRIC)
-                                    INTENT_SATURATION            = 2 (ImageCms.INTENT_SATURATION)
-                                    INTENT_ABSOLUTE_COLORIMETRIC = 3 (ImageCms.INTENT_ABSOLUTE_COLORIMETRIC)
-            """
-            cls.HAS_COLOR_MANAGE = (cls.monitorProfile is not None) and \
-                                   (cls.workingProfile is not None) and (cls.workToMonTransform is not None)
-            cls.COLOR_MANAGE = cls.HAS_COLOR_MANAGE and cls.COLOR_MANAGE
-        except (OSError, IOError) as e:
-            print("I/O error({0}): {1}".format(e.errno, e.strerror))
-        except (ValueError, TypeError, ImageCms.PyCMSError):
-            pass
-        except:
-            print("Unexpected error:", sys.exc_info()[0])
-            raise
-
-    @classmethod
-    def configure_QCS(cls, qscreen=None, colorSpace=-1, workingProfile=None, softproofingwp=-1):
-        """
-        Try to configure color management for the monitor
-        specified by QScreen, and build an image transformation
-        from the working profile (default sRGB) to the monitor profile.
-        if softproofingwp is provided, toggle soft proofing mode off (if it is None) and
-        on (if it is a valid ImageCmsProfile).
-
-        :param qscreen: QScreen instance
-        :type qscreen: QScreep
-        :param colorSpace:
-        :type colorSpace
-        :param workingProfile:
-        :type workingProfile: ImageCmsProfile
-        :param softproofingwp: profile for the device to simulate
-        :type softproofingwp:
-        """
-        cls.HAS_COLOR_MANAGE = False
-
-        cls.workingProfile = cls.defaultWorkingProfile_QCS
-        cls.workingProfileInfo = cls.workingProfile.description()
-        if not COLOR_MANAGE_OPT:
-            return
-        # looking for specific profiles
-        try:
-            # get monitor profile as CmsProfile object.
-            if qscreen is not None:
-                cls.monitorProfile = cls.getMonitorProfile_QCS(qscreen=qscreen)
-                if cls.monitorProfile is None:  # not handled by PIL
-                    raise ValueError
-                # get profile info
-                cls.monitorProfileInfo = cls.monitorProfile.description()
-            # get working profile as CmsProfile object
-            if colorSpace == 1:
-                cls.workingProfile = cls.defaultWorkingProfile_QCS  # getOpenProfile(SRGB_PROFILE_PATH)
-            elif colorSpace == 2:
-                cls.workingProfile = cls.getProfile(ADOBE_RGB_PROFILE_PATH)
-            elif type(workingProfile) is QColorSpace:
-                cls.workingProfile = workingProfile
-            else:
-                cls.workingProfile = cls.getProfile(SRGB_PROFILE_PATH)  # default
-
-            cls.workingProfileInfo = cls.workingProfile.description()
-
-            # init QColorTransform object : working profile ---> monitor profile
-            if softproofingwp == -1:
-                softproofingwp = cls.softProofingProfile  # default : do not change the current soft proofing mode
-            if type(softproofingwp) is QColorSpace:
-                cls.softProofingProfile = softproofingwp
-                cls.workToMonTransform = ImageCms.buildProofTransformFromOpenProfiles(cls.workingProfile,
-                                                                                      cls.monitorProfile,
-                                                                                      softproofingwp,
-                                                                                      "RGB", "RGB",
-                                                                                      renderingIntent=ImageCms.INTENT_PERCEPTUAL,
-                                                                                      proofRenderingIntent=ImageCms.INTENT_RELATIVE_COLORIMETRIC,
-                                                                                      flags=ImageCms.FLAGS[
-                                                                                                'SOFTPROOFING'] |
-                                                                                            ImageCms.FLAGS[
-                                                                                                'BLACKPOINTCOMPENSATION'])  # | FLAGS['GAMUTCHECK'])
-                cls.softProofingProfile = softproofingwp
-            else:
-                cls.workToMonTransform = cls.workingProfile.transformationToColorSpace(cls.monitorProfile)
+                cls.workToMonTransform = ImageCms.buildTransformFromOpenProfiles(cls.workingProfile,
+                                                                                 cls.monitorProfile,
+                                                                                 "RGB",
+                                                                                 "RGB",
+                                                                                 renderingIntent=ImageCms.Intent.PERCEPTUAL
+                                                                                 )
                 cls.softProofingProfile = None
             """
                                     INTENT_PERCEPTUAL            = 0 (DEFAULT) (ImageCms.INTENT_PERCEPTUAL)
@@ -393,7 +314,7 @@ class icc:
             raise
 
     @staticmethod
-    def cmsConvertQImage(image, cmsTransformation=None):
+    def cmsConvertQImage(image, cmsTransformation=None, inPlace=False):
         """
         Apply a Cms transformation to a copy of a QImage and
         return the transformed image.
@@ -406,9 +327,11 @@ class icc:
         :return: The converted QImage
         :rtype: QImage
         """
+
         if cmsTransformation is None:
             return image
-        image = image.copy()
+        if not inPlace:
+            image = image.copy()
         buf = QImageBuffer(image)[:, :, :3][:, :, ::-1]
         # convert to the PIL context and apply cmsTransformation
         bufC = np.ascontiguousarray(buf)
@@ -419,30 +342,20 @@ class icc:
         buf[...] = np.frombuffer(PIL_img.tobytes(), dtype=np.uint8).reshape(buf.shape)
         return image
 
-    @staticmethod
-    def qcsConvertQImage(image, transformation_QCS=None):
+    @classmethod
+    def convertQImage(cls, image, transformation=None, inPlace=False):
         """
-        Applies a color transformation to a QImage and
-        returns the transformed image.
-        If cmsTransformation is None, the input image is returned.
+        Apply a color transformation to a copy of a QImage and
+        return the transformed image.
+        If transformation is None, the input image is returned (no copy).
 
         :param image: image to transform
         :type image: QImage
-        :param cmsTransformation : Cms transformation
-        :type cmsTransformation: ImageCmsTransform
+        :param transformation: color transformation
+        :type transformation:
         :return: The converted QImage
         :rtype: QImage
         """
-        if transformation_QCS.isIdentity():
-            return image
-        # image = image.copy()
-        image.applyColorTransform(transformation_QCS)
-        return image
-
-    @classmethod
-    def convertQImage(cls, image, transformation=None):
         if type(transformation) is ImageCms.ImageCmsTransform:
-            image = cls.cmsConvertQImage(image, cmsTransformation=transformation)
-        elif type(transformation) is QColorTransform:
-            image = cls.qcsConvertQImage(image, transformation_QCS=transformation)
+            image = cls.cmsConvertQImage(image, cmsTransformation=transformation, inPlace=inPlace)
         return image

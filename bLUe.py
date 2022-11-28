@@ -33,14 +33,16 @@ Copyright (C) 2003-2006 Ben van Klinken and the CLucene Team
 
 Changes are Copyright (C) 2010 Nokia Corporation and/or its subsidiary(-ies).
 
-This library is free software; you can redistribute it and/or modify it under the terms of the GNU Lesser General Public License
-as published by the Free Software Foundation; either version 2.1 of the License, or (at your option) any later version.
+This library is free software; you can redistribute it and/or modify it under the terms of the GNU Lesser General
+Public License as published by the Free Software Foundation; either version 2.1 of the License, or (at your option)
+any later version.
 
-This library is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
+This library is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
+warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License
+for more details.
 
-You should have received a copy of the GNU Lesser General Public License along with this library; if not, write to the Free Software Foundation,
-Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+You should have received a copy of the GNU Lesser General Public License along with this library; if not, write to the
+Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 
 opencv copyright
 //  IMPORTANT: READ BEFORE DOWNLOADING, COPYING, INSTALLING OR USING.
@@ -121,6 +123,7 @@ import os
 from os import path, walk, remove
 from os.path import isfile
 from tempfile import mktemp
+from pathlib import Path
 
 import numpy as np
 import multiprocessing
@@ -134,6 +137,7 @@ from ast import literal_eval
 from types import MethodType
 import pickle
 import rawpy
+from PIL import ImageCms
 
 from PIL.ImageCms import PyCMSError
 
@@ -172,7 +176,7 @@ from bLUeTop.graphicsRGBLUT import graphicsForm
 from bLUeTop.graphicsLUT3D import graphicsForm3DLUT
 from bLUeTop.graphicsAutoLUT3D import graphicsFormAuto3DLUT
 from bLUeTop.lutUtils import LUTSIZE, LUT3D, LUT3DIdentity
-from bLUeTop.colorManagement import icc, getProfile
+from bLUeTop.colorManagement import icc
 from bLUeTop.graphicsCoBrSat import CoBrSatForm
 from bLUeTop.graphicsExp import ExpForm
 from bLUeTop.graphicsPatch import patchForm
@@ -185,7 +189,6 @@ from bLUeTop.graphicsLabLUT import graphicsLabForm
 from bLUeTop.viewer import playDiaporama, viewer
 
 from version import BLUE_VERSION
-
 
 ##################
 #  Software Attributions
@@ -302,24 +305,30 @@ def addAdjustmentLayers(layers, images):
             if n > 0:
                 waitImages.append((layer, n))  # image offset not known yet
 
-    images_loaded = False
     for layer, n in waitImages:
         t = type(layer)
         # all layers managing images should be subclasses of QLayer.
-        # TODO : to handle multiple images n should be a tuple of binary values
+        # to handle multiple images n should be a tuple of binary values
         if t in [QLayerImage, QDrawingLayer, QCloningLayer]:
-            images_loaded = True
             buf = images.asarray()[count]
             buf = buf.reshape(layer.height(), layer.width(), 4)
             layer.sourceImg = ndarrayToQImage(buf, QImage.Format_ARGB32)
             if t is QCloningLayer:
                 layer.getGraphicsForm().updateSource()
-            layer.applyToStack()  # TODO added 22/11/21 because images are loaded after all calls to __setstate__() - validate
+            layer.applyToStack()  # needed because images are loaded after all calls to __setstate__()
             # parentImage = layer.parentImage  # same for all layers
         count += n
 
 
 def addBasicAdjustmentLayers(img, window=bLUeTop.Gui.window):
+    """
+    Adds any default adjustment layers to layer stack.
+
+    :param img:
+    :type img: mImage
+    :param window:
+    :type window:
+    """
     if img.rawImage is None:
         pass
         # menuLayer('actionColor_Temperature')
@@ -548,6 +557,8 @@ def saveFile(filename, img, quality=-1, compression=-1, writeMeta=True):
         reply.setStandardButtons(QMessageBox.Cancel)
         accButton = QPushButton("Save as New Copy")
         rejButton = QPushButton("OverWrite")
+        if img.profileChanged:
+            rejButton.setEnabled(False)
         reply.addButton(accButton, QMessageBox.AcceptRole)
         reply.addButton(rejButton, QMessageBox.RejectRole)
         reply.setDefaultButton(accButton)
@@ -594,14 +605,17 @@ def saveFile(filename, img, quality=-1, compression=-1, writeMeta=True):
 
 def closeTabs(index=None, window=bLUeTop.Gui.window):
     """
-    Tries to save and close the opened document in tab index, or all opened documents if index is None .
-    If it succeeds to close all opened documents, the method resets the GUI to default.
+    Tries to save and close the document open in tab index,
+    or all open documents if index is None . If the method  succeeds in
+    closing all open documents, it resets the GUI to default.
+
+    :param index:
+    :type index: int
+    :param window:
+    :type window:
     """
+
     if not canClose(index=index) or window.tabBar.count() > 0:
-        ##########
-        # window.tableView.clear(delete=True)  # TODO added 29/11/21 validate
-        # window.histView.targetImage = None   # TODO added 29/11/21 validate
-        ############
         gc.collect()
         return
     # window.tableView.clear(delete=True)
@@ -758,10 +772,7 @@ def setDocumentImage(img, window=bLUeTop.Gui.window):
     if tool is not None:
         tool.showTool()
     # color management settings may have changed : update presentation layers
-    window.label.img.updatePixmap()
-    window.label_2.img.updatePixmap()
-    window.label.update()
-    window.label_2.update()
+    updateCurrentViews()
     window.label_3.update()
     updateStatus()
     gc.collect()  # tested : (very) efficient here
@@ -891,8 +902,11 @@ def menuFile(name, window=bLUeTop.Gui.window):
             try:
                 if saveAs:
                     ext = 'blu' if saveAsBLU else 'jpg'
-                    filename, quality, compression, writeMeta = saveDlg(img, window, ext=ext,
-                                                                        selected=True)  # not saveAs)
+                    filename, quality, compression, writeMeta = saveDlg(img,
+                                                                        window,
+                                                                        ext=ext,
+                                                                        selected=True
+                                                                        )
                     filename = saveFile(filename, img, quality=quality, compression=compression, writeMeta=writeMeta)
                 else:
                     filename = saveFile(img.filename, img, writeMeta=True)
@@ -1012,7 +1026,7 @@ def menuImage(name, window=bLUeTop.Gui.window):
         # dimensions
         s = s + "\n\ndim : %d x %d" % (img.width(), img.height())
         # profile info
-        if img.meta.profile is not None:
+        if img.meta.profile is not None and len(img.meta.profile) > 0:
             s = s + "\n\nEmbedded profile found"  # length %d" % len(img.meta.profile)
         workingProfileInfo = icc.workingProfileInfo
         s = s + "\n\nWorking Profile : %s" % workingProfileInfo
@@ -1030,35 +1044,29 @@ def menuImage(name, window=bLUeTop.Gui.window):
         w.show()
 
     elif name == 'actionSoft_proofing':
-        if window.actionSoft_proofing.isChecked():
+        proofingOn = window.actionSoft_proofing.isChecked()
+        if proofingOn:
             lastDir = str(window.settings.value('paths/profdlgdir', '.'))
             filter = "Profiles ( *" + " *".join(['.icc', '.icm']) + ")"
             dlg = QFileDialog(window, "Select", lastDir, filter)
             try:
-                if dlg.exec():
+                filenames = []
+                if dlg.exec_():
                     filenames = dlg.selectedFiles()
                     newDir = dlg.directory().absolutePath()
                     window.settings.setValue('paths/profdlgdir', newDir)
                     icc.configure(qscreen=window.currentScreenIndex,
                                   workingProfile=icc.workingProfile,
-                                  softproofingwp=getProfile(filenames[0]),
-                                  useqcs=False
+                                  softproofingwp=ImageCms.getOpenProfile(filenames[0])
                                   )
                 else:
-                    raise PyCMSError
-            except PyCMSError:
+                    raise ImageCms.PyCMSError
+            except ImageCms.PyCMSError:
+                dlgWarn('Invalid Profile', filenames[0] if filenames else 'No file selected')
                 window.actionSoft_proofing.setChecked(False)
-                dlgWarn('Invalid proofing profile', filenames[0], parent=window)
-
-        if not window.actionSoft_proofing.isChecked():
-            icc.configure(qscreen=window.currentScreenIndex,
-                          workingProfile=icc.workingProfile,
-                          softproofingwp=None)
-
-        window.label.img.updatePixmap()
-        window.label_2.img.updatePixmap()
-        window.label.update()
-        window.label_2.update()
+        else:
+            icc.configure(qscreen=window.currentScreenIndex, workingProfile=icc.workingProfile, softproofingwp=None)
+        updateCurrentViews()
         updateStatus()
 
     elif name == 'actionColor_manage':
@@ -1077,12 +1085,11 @@ def menuImage(name, window=bLUeTop.Gui.window):
 
     # force current display profile re-detection
     elif name == 'actionUpdate_display_profile':
-        icc.configure(qscreen=window.currentScreenIndex, workingProfile=icc.workingProfile,
-                      softproofingwp=icc.softProofingProfile)
-        window.label.img.updatePixmap()
-        window.label_2.img.updatePixmap()
-        window.label.update()
-        window.label_2.update()
+        icc.configure(qscreen=window.currentScreenIndex,
+                      workingProfile=icc.workingProfile,
+                      softproofingwp=icc.softProofingProfile
+                      )
+        updateCurrentViews()
 
     # show info for display and working profiles
     elif name == 'actionWorking_profile':
@@ -1153,6 +1160,62 @@ def menuImage(name, window=bLUeTop.Gui.window):
         with exiftool.ExifTool() as e:
             e.writeXMPTag(img.meta.filename, 'XMP:rating', img.meta.rating)
 
+    elif name in ['actionImage_Profile', 'actionConvert_To_Profile']:
+        lastDir = str(window.settings.value('paths/profdlgdir', '.'))
+        filter = "Profiles ( *" + " *".join(['.icc', '.icm']) + ")"
+        dlg = QFileDialog(window, "Select", lastDir, filter)
+        try:
+            filenames = []
+            if dlg.exec_():
+                filenames = dlg.selectedFiles()
+                newDir = dlg.directory().absolutePath()
+                window.settings.setValue('paths/profdlgdir', newDir)
+                profile = ImageCms.getOpenProfile(filenames[0])
+                oldprofile = img.cmsProfile
+                img.setProfile(profile)
+
+                icc.configure(qscreen=window.currentScreenIndex, workingProfile=profile)
+
+                # update sidecar
+                with exiftool.ExifTool() as e:
+                    tmp = Path(img.filename).with_suffix('.mie')
+                    e.writeProfile(str(tmp), filenames[0])
+
+                img.profileChanged = True  # prevent overwriting image file
+
+                if name == 'actionConvert_To_Profile':
+                    transform = ImageCms.buildTransformFromOpenProfiles(oldprofile,
+                                                                        profile,
+                                                                        "RGB",
+                                                                        "RGB",
+                                                                        renderingIntent=ImageCms.Intent.PERCEPTUAL
+                                                                        )
+                    icc.convertQImage(img, transform, inPlace=True)
+                    # update background layer
+                    QImageBuffer(img.layersStack[0])[...] = QImageBuffer(img)
+                    img.layersStack[0].thumb = None
+                    img.layersStack[0].applyToStack()
+
+                updateCurrentViews()
+            else:
+                raise ValueError
+
+        except (ImageCms.PyCMSError, ValueError):
+            dlgWarn('Invalid Profile', filenames[0] if filenames else 'No file selected')
+
+
+def updateCurrentViews(window=bLUeTop.Gui.window):
+    """
+    Sync the presentation layers of current document views (before/after)
+    with the state of color management.
+    :param window:
+    :type window:
+    """
+    window.label.img.updatePixmap()
+    window.label.update()
+    window.label_2.img.updatePixmap()
+    window.label_2.update()
+
 
 def getPool():
     global pool
@@ -1174,6 +1237,8 @@ def menuLayer(name, window=bLUeTop.Gui.window, sname=None, script=False):
     Creates a layer and its associated graphic form.
     Returns the newly created layer or None.
 
+    :param window:
+    :type window:
     :param name: action name
     :type  name: str
     :param sname: layer name from script
@@ -1181,10 +1246,10 @@ def menuLayer(name, window=bLUeTop.Gui.window, sname=None, script=False):
     :param script:
     :type  script: boolean
     :return: layer
-    :rtype: QLayer
+    :rtype: Union[QLayer, None]
     """
 
-    # adhoc kw dict for getNewWindow calls
+    # adhoc dict for getNewWindow() calls
     def envdict():
         return {'targetImage': window.label.img,
                 'layer': layer,
@@ -1265,7 +1330,8 @@ def menuLayer(name, window=bLUeTop.Gui.window, sname=None, script=False):
         sc = grWindow.scene()
         layer.execute = lambda l=layer, pool=pool: l.tLayer.apply3DLUT(sc.lut,
                                                                        options=sc.options,
-                                                                       pool=pool)
+                                                                       pool=pool
+                                                                       )
     elif name == 'action2D_LUT_HV':
         layerName = '3D LUT HV Shift'
         if sname is not None:
@@ -1332,10 +1398,7 @@ def menuLayer(name, window=bLUeTop.Gui.window, sname=None, script=False):
             layer.actioname = name
             layer.filename = filename
             post(layer)
-        if script:  # only one layer added
-            return layer  # added 22/11/21 used by __setstate__ refactoring needed
-        else:
-            return
+        return layer if script else None  # exactly one layer added if script
 
     # empty new image
     elif name == 'actionNew_Layer':
@@ -1359,11 +1422,6 @@ def menuLayer(name, window=bLUeTop.Gui.window, sname=None, script=False):
         imgNew = QImage(w, h, QImage.Format_ARGB32)
         # imgNew.fill(Qt.white)
         imgNew.fill(QColor(0, 0, 0, 0))
-        from PySide6.QtGui import QPainter
-        from PySide6.QtCore import QRect
-        qp = QPainter(imgNew)
-        qp.drawImage(QRect(0, 0, w, h), QImage('E:/Photos/Famille/Famille_16/raw//DSC_0281.JPG'))
-        qp.end()
         lname = 'Drawing'
         layer = window.label.img.addAdjustmentLayer(name=gn(lname), layerType=QDrawingLayer, sourceImg=imgNew,
                                                     role='DRW')
@@ -1475,7 +1533,8 @@ def menuLayer(name, window=bLUeTop.Gui.window, sname=None, script=False):
             layer.execute = lambda l=layer, pool=pool: l.tLayer.apply3DLUT(lut,
                                                                            UDict(({'use selection': False,
                                                                                    'keep alpha': True},)),
-                                                                           pool=pool)
+                                                                           pool=pool
+                                                                           )
             window.tableView.setLayers(window.label.img)
             layer.applyToStack()
             # The resulting image is modified,
@@ -1541,11 +1600,14 @@ def menuLayer(name, window=bLUeTop.Gui.window, sname=None, script=False):
             img.prLayer.update()
             window.label.repaint()
             return
+
     # unknown or null action
     else:
         return
+
     post(layer)
-    return layer  # added 3/11/21 used by __setstate__ refactoring needed
+
+    return layer if script else None
 
 
 def menuHelp(name, window=bLUeTop.Gui.window):
@@ -1575,6 +1637,7 @@ def menuHelp(name, window=bLUeTop.Gui.window):
                 pass
                 # url.setFragment(w.helpId)
         QDesktopServices.openUrl(url)
+
     elif name == "actionAbout_bLUe":
         w = labelDlg(parent=window, title='About bLUe', wSize=QSize(520, 520))  # 500 + layout margins
         w.label.setStyleSheet("background-image: url(logo.png); color: white;")
@@ -1633,7 +1696,7 @@ def canClose(index=None, window=bLUeTop.Gui.window):
         img = window.tabBar.tabData(ind)
         window.tabBar.removeTab(ind)  # keep before closeView
         stack = img.layersStack
-        for layer in stack:  # TODO added 30/11/21 little improvement for gc validate
+        for layer in stack:  # little improvement for gc
             layer.closeView(delete=True)
         return True
 
@@ -1728,10 +1791,7 @@ def screenUpdate(newScreenIndex, window=bLUeTop.Gui.window):
 
     # launch a bg task for updating of presentation layers
     def bgTask():
-        window.label.img.updatePixmap()
-        window.label_2.img.updatePixmap()
-        window.label.update()
-        window.label_2.update()
+        updateCurrentViews()
 
     threading.Thread(target=bgTask).start()
     window.screenChanged.connect(screenUpdate)
@@ -2057,7 +2117,10 @@ def setupGUI(window=bLUeTop.Gui.window):
     window.eyeDropper.setWhatsThis("""<b>Color Picker</b><br> Click on the image to sample pixel colors""")
     window.toolButton.setWhatsThis("""<b>Pointer Tool</b><br>""")
     window.dragBtn.setWhatsThis(
-        """<b>Drag Tool</b><br> Mouse Left Button : drag the whole image<br> Ctrl+Mouse Left Button : drag the active layer only""")
+        """<b>Drag Tool</b><br> Mouse Left Button : drag the whole image<br> Ctrl+Mouse Left 
+        Button : drag the active layer only
+        """
+    )
     window.rectangle.setWhatsThis(
         """<b>Marquee Tool/Selection Rectangle</b><br>
         Draws selection rectangles on the active layer.<br>
@@ -2073,14 +2136,16 @@ def setupGUI(window=bLUeTop.Gui.window):
           the mask must be enabled as opacity or color mask in the layer panel.<br>
           With <b>Color Mask</b> enabled, masked pixels are grayed and unmasked pixels are reddish.<br>
           Use the <b>Brush Size slider</b> below to choose the size of the tool. 
-        """)
+        """
+    )
     window.drawBG.setWhatsThis(
         """<b>Background/Mask tool</b><br>
           Paint on the active layer to mask a region or to select background pixels (segmentation layer only);
           (the mask must be enabled as opacity or color mask in the layer panel).<br>
           With <b>Color Mask</b> enabled, masked pixels are grayed and unmasked pixels are reddish.<br>
           Use the 'Brush Size' slider below to choose the size of the tool. 
-        """)
+        """
+    )
     window.verticalSlider1.setWhatsThis("""Set the diameter of the painting brush""")
     window.verticalSlider2.setWhatsThis("""Set the opacity of the painting brush""")
     window.verticalSlider3.setWhatsThis("""Set the hardness of the painting brush""")

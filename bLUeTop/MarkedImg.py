@@ -84,7 +84,7 @@ class mImage(vImage):
         :type srcFile: str
         :param destFile: image file
         :type destFile: str
-        :param defaultorientation
+        :param defaultorientation:
         :type defaultorientation: bool
         :param thumbfile: thumbnail file
         :type thumbfile: str
@@ -182,7 +182,6 @@ class mImage(vImage):
         """
         Resizes the image and the layer stack, while keeping the aspect ratio.
 
-        :param pixels:
         :param interpolation:
         :return: resized imImage object
         :rtype: same type as self
@@ -800,7 +799,7 @@ class imImage(mImage):
         tmp = [value for key, value in metadata.items() if 'colorspace' in key.lower()]
         colorSpace = tmp[0] if tmp else -1
 
-        # try to find a valid imbedded profile.
+        # try to find a valid embedded profile.
         # If everything fails, assign sRGB.
         cmsProfile = icc.defaultWorkingProfile
         try:
