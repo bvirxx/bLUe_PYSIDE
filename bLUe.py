@@ -1024,7 +1024,7 @@ def menuImage(name, window=bLUeTop.Gui.window):
         # dimensions
         s = s + "\n\ndim : %d x %d" % (img.width(), img.height())
         # profile info
-        if img.meta.profile is not None:
+        if img.meta.profile is not None and len(img.meta.profile) > 0:
             s = s + "\n\nEmbedded profile found"  # length %d" % len(img.meta.profile)
         workingProfileInfo = icc.workingProfileInfo
         s = s + "\n\nWorking Profile : %s" % workingProfileInfo

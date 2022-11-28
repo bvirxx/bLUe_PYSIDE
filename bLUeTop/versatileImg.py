@@ -314,7 +314,7 @@ class vImage(bImage):
         return cv2.filter2D(mask, -1, kernelMean)  # -1 : keep depth unchanged
 
     def __init__(self, filename=None, cv2Img=None, QImg=None, format=QImage.Format_ARGB32,
-                 name='', colorSpace=-1, orientation=None, rating=5, meta=None, rawMetadata=None, profile=''):
+                 name='', colorSpace=-1, orientation=None, rating=5, meta=None, rawMetadata=None, profile=b''):
         """
         With no parameter, builds a null image.
         image is assumed to be in the color space sRGB : colorSpace value is used only as meta data.
@@ -337,8 +337,8 @@ class vImage(bImage):
         :type meta: MarkedImg.metadataBag
         :param rawMetadata: dictionary
         :type rawMetadata: dictionary
-        :param profile: embedded profile (default '')
-        :type profile: str
+        :param profile: embedded profile (default b'')
+        :type profile: bytes
         """
         # formatted EXIF data (str)
         self.imageInfo = 'no EXIF data'  # default
