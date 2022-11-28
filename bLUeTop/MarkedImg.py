@@ -122,10 +122,10 @@ class mImage(vImage):
     @property
     def colorTransformation(self):
         """
-        Returns the current cms transformation from working profile to monitor profile.
+        Returns the current color transformation from working profile to monitor profile.
 
         :return:
-        :rtype: CmsTransform object
+        :rtype: Union[CmsTransform, QColorTransform]
         """
         return icc.workToMonTransform
 
