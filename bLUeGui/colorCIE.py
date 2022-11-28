@@ -80,12 +80,13 @@ BradfordInverse = [[0.9869929, -0.1470543, 0.1599627],
                    [-0.0085287, 0.0400428, 0.9684867]]
 
 # XYZ/sRGB/Lab conversion :
-# D65 illuminant Xn, Yn, Zn and
+# Illuminants Xn, Yn, Zn and
 # conversion constants Ka, Kb
 # See https://en.wikipedia.org/wiki/Lab_color_space
 
-Xn, Yn, Zn = 0.95047, 1.0, 1.08883
-Ka, Kb = 172.355, 67.038
+Xn, Yn, Zn = 0.950489, 1.0, 1.088840  # D65
+# Xn, Yn, Zn = 0.964212, 1.0, 0.825188  # D50
+Ka, Kb = 172.355, 67.038  # D65
 
 USE_BT_709 = False
 
