@@ -236,15 +236,15 @@ class icc:
                 # get profile info, a PyCmsError exception is raised if monitorProfile is invalid
                 cls.monitorProfileInfo = ImageCms.getProfileInfo(cls.monitorProfile)
 
-            # get working profile as CmsProfile object
+            # get working profile as CmsProfile object : priority to known Color Spaces
             if colorSpace == 1:
-                cls.workingProfile = cls.defaultWorkingProfile
+                cls.workingProfile = getProfile(SRGB_PROFILE_PATH)
             elif colorSpace == 2:
                 cls.workingProfile = getProfile(ADOBE_RGB_PROFILE_PATH)
             elif isinstance(workingProfile, ImageCms.ImageCmsProfile):
                 cls.workingProfile = workingProfile
             else:
-                cls.workingProfile = getProfile(SRGB_PROFILE_PATH)  # default
+                cls.workingProfile = cls.defaultWorkingProfile
 
             cls.workingProfileInfo = ImageCms.getProfileInfo(cls.workingProfile)
 
@@ -259,8 +259,8 @@ class icc:
                     softproofingwp,
                     "RGB",
                     "RGB",
-                    renderingIntent=ImageCms.INTENT_PERCEPTUAL,
-                    proofRenderingIntent=ImageCms.INTENT_RELATIVE_COLORIMETRIC,
+                    renderingIntent=ImageCms.Intent.PERCEPTUAL,
+                    proofRenderingIntent=ImageCms.Intent.RELATIVE_COLORIMETRIC,
                     flags=ImageCms.FLAGS['SOFTPROOFING'] |
                           ImageCms.FLAGS['BLACKPOINTCOMPENSATION']
                 )  # | FLAGS['GAMUTCHECK'])
@@ -270,15 +270,10 @@ class icc:
                                                                                  cls.monitorProfile,
                                                                                  "RGB",
                                                                                  "RGB",
-                                                                                 renderingIntent=ImageCms.INTENT_PERCEPTUAL
+                                                                                 renderingIntent=ImageCms.Intent.PERCEPTUAL
                                                                                  )
                 cls.softProofingProfile = None
-            """
-                                    INTENT_PERCEPTUAL            = 0 (DEFAULT) (ImageCms.INTENT_PERCEPTUAL)
-                                    INTENT_RELATIVE_COLORIMETRIC = 1 (ImageCms.INTENT_RELATIVE_COLORIMETRIC)
-                                    INTENT_SATURATION            = 2 (ImageCms.INTENT_SATURATION)
-                                    INTENT_ABSOLUTE_COLORIMETRIC = 3 (ImageCms.INTENT_ABSOLUTE_COLORIMETRIC)
-            """
+
             cls.HAS_COLOR_MANAGE = (cls.monitorProfile is not None) and \
                                    (cls.workingProfile is not None) and (cls.workToMonTransform is not None)
             cls.COLOR_MANAGE = cls.HAS_COLOR_MANAGE and cls.COLOR_MANAGE
@@ -291,7 +286,7 @@ class icc:
             raise
 
     @staticmethod
-    def cmsConvertQImage(image, cmsTransformation=None):
+    def cmsConvertQImage(image, cmsTransformation=None, inPlace=False):
         """
         Apply a Cms transformation to a copy of a QImage and
         return the transformed image.
@@ -307,7 +302,8 @@ class icc:
 
         if cmsTransformation is None:
             return image
-        image = image.copy()
+        if not inPlace:
+            image = image.copy()
         buf = QImageBuffer(image)[:, :, :3][:, :, ::-1]
         # convert to the PIL context and apply cmsTransformation
         bufC = np.ascontiguousarray(buf)
@@ -319,7 +315,19 @@ class icc:
         return image
 
     @classmethod
-    def convertQImage(cls, image, transformation=None):
+    def convertQImage(cls, image, transformation=None, inPlace=False):
+        """
+        Apply a color transformation to a copy of a QImage and
+        return the transformed image.
+        If transformation is None, the input image is returned (no copy).
+
+        :param image: image to transform
+        :type image: QImage
+        :param transformation: color transformation
+        :type transformation:
+        :return: The converted QImage
+        :rtype: QImage
+        """
         if type(transformation) is ImageCms.ImageCmsTransform:
-            image = cls.cmsConvertQImage(image, cmsTransformation=transformation)
+            image = cls.cmsConvertQImage(image, cmsTransformation=transformation, inPlace=inPlace)
         return image
