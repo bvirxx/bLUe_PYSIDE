@@ -90,19 +90,27 @@ class icc:
     """
     Container for color management related options and methods.
     Should never be instantiated.
+    The current state of color management system is defined by the
+    following class variables (see configure() below)
+        workingProfile, workingProfileInfo
+        monitorProfile, monitorProfileInfo
+        softProofingProfile
+        colorSpace
+        workToMonTransform
+
     """
     HAS_COLOR_MANAGE = False  # menu action "color manage" will be disabled
     COLOR_MANAGE = False  # no color management
 
-    monitorProfile, workingProfile, workToMonTransform = (None,) * 3
+    monitorProfile, workingProfile, softProofingProfile, workToMonTransform = (None,) * 4
     workingProfileInfo, monitorProfileInfo = '', ''
-
-    softProofingProfile = None
 
     # a (default) working profile is always needed
     defaultWorkingProfile = get_default_working_profile()  # CmsProfile
 
-    # defaultWorkingProfile_QCS = get_default_working_profile(mode='QCS')  # QColorSpace
+    # init current working profile
+    workingProfile = defaultWorkingProfile
+    workingProfileInfo = ImageCms.getProfileInfo(workingProfile)
 
     @staticmethod
     def get_default_monitor_profile(cls):
@@ -187,6 +195,7 @@ class icc:
         """
 
         monitorProfile = None
+
         # detect profile
         if qscreen is not None:
             try:
@@ -203,13 +212,14 @@ class icc:
     def configure(cls, qscreen=None, colorSpace=-1, workingProfile=None, softproofingwp=-1):
         """
         Try to configure color management for the monitor
-        specified by QScreen, and build an image transformation
+        specified by QScreen, and build a color transformation
         from the working profile (default sRGB) to the monitor profile.
-        if softproofingwp is provided, toggle soft proofing mode off (if it is None) and
+        Parameter softproofingwp toggles soft proofing mode off (if it is None) and
         on (if it is a valid ImageCmsProfile).
+        Default parameter values do not modify the current state.
 
         :param qscreen: QScreen instance
-        :type qscreen: QScreep
+        :type qscreen: QScreen
         :param colorSpace:
         :type colorSpace
         :param workingProfile:
@@ -220,62 +230,57 @@ class icc:
 
         cls.HAS_COLOR_MANAGE = False
 
-        cls.workingProfile = cls.defaultWorkingProfile
-        cls.workingProfileInfo = ImageCms.getProfileInfo(cls.workingProfile)
-        # cls.workingProfile_QCS = cls.defaultWorkingProfile_QCS
-
         if not COLOR_MANAGE_OPT:
             return
-        # looking for specific profiles
-        try:
-            # get monitor profile as CmsProfile object.
-            if qscreen is not None:
-                cls.monitorProfile = cls.getMonitorProfile(qscreen=qscreen)
-                if cls.monitorProfile is None:  # not handled by PIL
-                    raise ValueError
-                # get profile info, a PyCmsError exception is raised if monitorProfile is invalid
-                cls.monitorProfileInfo = ImageCms.getProfileInfo(cls.monitorProfile)
 
-            # get working profile as CmsProfile object : priority to known Color Spaces
+        try:
+            # get monitor profile
+            if qscreen is not None:
+                # get monitor profile as CmsProfile object.
+                cls.monitorProfile = cls.getMonitorProfile(qscreen=qscreen)
+                # a PyCmsError exception is raised if monitorProfile is invalid
+                cls.monitorProfileInfo = ImageCms.getProfileInfo(cls.monitorProfile)
+            else:
+                pass  # default keep current state
+
+            # get working profile as CmsProfile object (priority to color space tag)
             if colorSpace == 1:
-                cls.workingProfile = getProfile(SRGB_PROFILE_PATH)
+                cls.workingProfile = cls.defaultWorkingProfile
             elif colorSpace == 2:
                 cls.workingProfile = getProfile(ADOBE_RGB_PROFILE_PATH)
             elif isinstance(workingProfile, ImageCms.ImageCmsProfile):
                 cls.workingProfile = workingProfile
             else:
-                cls.workingProfile = cls.defaultWorkingProfile
+                pass  # default keep current state
 
             cls.workingProfileInfo = ImageCms.getProfileInfo(cls.workingProfile)
 
             # init CmsTransform object : working profile ---> monitor profile
-            if softproofingwp == -1:
-                softproofingwp = cls.softProofingProfile  # default : do not change the current soft proofing mode
             if type(softproofingwp) is ImageCms.ImageCmsProfile:
                 cls.softProofingProfile = softproofingwp
                 cls.workToMonTransform = ImageCms.buildProofTransformFromOpenProfiles(
                     cls.workingProfile,
                     cls.monitorProfile,
-                    softproofingwp,
+                    cls.softProofingProfile,
                     "RGB",
                     "RGB",
                     renderingIntent=ImageCms.Intent.PERCEPTUAL,
                     proofRenderingIntent=ImageCms.Intent.RELATIVE_COLORIMETRIC,
                     flags=ImageCms.FLAGS['SOFTPROOFING'] |
                           ImageCms.FLAGS['BLACKPOINTCOMPENSATION']
-                )  # | FLAGS['GAMUTCHECK'])
-                cls.softProofingProfile = softproofingwp
+                )
             else:
-                cls.workToMonTransform = ImageCms.buildTransformFromOpenProfiles(cls.workingProfile,
-                                                                                 cls.monitorProfile,
-                                                                                 "RGB",
-                                                                                 "RGB",
-                                                                                 renderingIntent=ImageCms.Intent.PERCEPTUAL
-                                                                                 )
-                cls.softProofingProfile = None
+                cls.workToMonTransform = ImageCms.buildTransformFromOpenProfiles(
+                    cls.workingProfile,
+                    cls.monitorProfile,
+                    "RGB",
+                    "RGB",
+                    renderingIntent=ImageCms.Intent.PERCEPTUAL
+                )
 
             cls.HAS_COLOR_MANAGE = (cls.monitorProfile is not None) and \
-                                   (cls.workingProfile is not None) and (cls.workToMonTransform is not None)
+                                   (cls.workingProfile is not None) and \
+                                   (cls.workToMonTransform is not None)
             cls.COLOR_MANAGE = cls.HAS_COLOR_MANAGE and cls.COLOR_MANAGE
         except (OSError, IOError) as e:
             print("I/O error({0}): {1}".format(e.errno, e.strerror))
@@ -307,8 +312,14 @@ class icc:
         buf = QImageBuffer(image)[:, :, :3][:, :, ::-1]
         # convert to the PIL context and apply cmsTransformation
         bufC = np.ascontiguousarray(buf)
-        PIL_img = Image.frombuffer('RGB', (image.width(), image.height()), bufC, 'raw',
-                                   'RGB', 0, 1)  # these 3 weird parameters are recommended by a runtime warning !!!
+        PIL_img = Image.frombuffer('RGB',
+                                   (image.width(), image.height()),
+                                   bufC,
+                                   'raw',
+                                   'RGB',
+                                   0,
+                                   1
+                                   )  # these weird parameters are recommended by a runtime warning !!!
         ImageCms.applyTransform(PIL_img, cmsTransformation, 1)  # 1=in place
         # back to the image buffer
         buf[...] = np.frombuffer(PIL_img.tobytes(), dtype=np.uint8).reshape(buf.shape)
