@@ -7,7 +7,8 @@ platforms = [('.\\venv\\\\Lib\site-packages\\PySide2\\plugins\\platforms', 'plug
 
 data_0 = [(HOMEPATH + '\\Pyside2\\*.dll', 'Pyside2')]  #  workaround for PyInstaller hooks problem (Pyside2)
 data_1 = [('bLUeNN\\pretrained_models\\sRGB\\*', 'bLUeNN\\pretrained_models\\sRGB')]
-data_2 = [('blue.ui', '.'), ('README.md', '.'), ('LICENSE.TXT', '.'), ('logo.png', '.'), ('logo.ico', '.'), ('config_win.json', '.'), ('brushes\README.TXT', 'brushes')]
+data_2 = [('blue.ui', '.'), ('README.md', '.'), ('LICENSE.TXT', '.'), ('logo.png', '.'), ('logo.ico', '.'),
+          ('config_win.json', '.'), ('brushes\README.TXT', 'brushes'), ('bLUe.qss', '.')]
 
 a = Analysis(['bLUe.py'],
              pathex=[('C:\\Windows\\System32\\downlevel')],
