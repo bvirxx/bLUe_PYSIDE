@@ -2,10 +2,9 @@
 
 block_cipher = None
 
-imageformats = [('.\\venv\\Lib\site-packages\\PySide2\plugins\\imageformats', 'plugins\\imageformats')]
-platforms = [('.\\venv\\\\Lib\site-packages\\PySide2\\plugins\\platforms', 'plugins\\platforms')]
+imageformats = [('.\\venv6_108\\Lib\site-packages\\PySide6\plugins\\imageformats', 'plugins\\imageformats')]
+platforms = [('.\\venv6_108\\Lib\site-packages\\PySide6\\plugins\\platforms', 'plugins\\platforms')]
 
-data_0 = [(HOMEPATH + '\\Pyside2\\*.dll', 'Pyside2')]  #  workaround for PyInstaller hooks problem (Pyside2)
 data_1 = [('bLUeNN\\pretrained_models\\sRGB\\*', 'bLUeNN\\pretrained_models\\sRGB')]
 data_2 = [('blue.ui', '.'), ('README.md', '.'), ('LICENSE.TXT', '.'), ('logo.png', '.'), ('logo.ico', '.'),
           ('config_win.json', '.'), ('brushes\README.TXT', 'brushes'), ('bLUe.qss', '.')]
@@ -13,11 +12,11 @@ data_2 = [('blue.ui', '.'), ('README.md', '.'), ('LICENSE.TXT', '.'), ('logo.png
 a = Analysis(['bLUe.py'],
              pathex=[('C:\\Windows\\System32\\downlevel')],
              binaries=[('C:\\standalone\\exiftool(-k).exe', 'bin')] + imageformats + platforms,
-             datas=data_0 + data_1 + data_2,
-             hiddenimports=['PySide2.QtXml', 'pywt._extensions._cwt'],
+             datas=data_1 + data_2,
+             hiddenimports=['PySide6.QtXml', 'pywt._extensions._cwt'],
              hookspath=[],
              runtime_hooks=[],
-             excludes=['PyQt5.QtCore', 'PyQt5.QtGui', 'PyQt5.Qt', 'PIL.ImageQt', 'PySide2.QtQuick', 'PySide2.QtWebEngineWidgets'],  # the last 2 modules are added because of qmake failure finding qml install
+             excludes=['PyQt6.QtCore', 'PyQt6.QtGui', 'PyQt6.Qt', 'PIL.ImageQt', 'PySide6.QtQuick', 'PySide6.QtWebEngineWidgets'],  # the last 2 modules are added because of qmake failure finding qml install
              win_no_prefer_redirects=False,
              win_private_assemblies=False,
              cipher=block_cipher)
