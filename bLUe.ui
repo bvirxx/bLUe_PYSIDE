@@ -72,7 +72,7 @@
           <rect>
            <x>10</x>
            <y>10</y>
-           <width>47</width>
+           <width>67</width>
            <height>801</height>
           </rect>
          </property>
@@ -201,25 +201,47 @@
             <property name="accessibleName">
              <string>Fit_Screen</string>
             </property>
-            <property name="text">
-             <string>Fit To
-Screen</string>
-            </property>
-            <property name="checkable">
-             <bool>false</bool>
-            </property>
-            <property name="autoExclusive">
-             <bool>false</bool>
-            </property>
-            <property name="autoRaise">
-             <bool>true</bool>
-            </property>
+               <property name="text">
+                   <string>Fit To
+                       Screen
+                   </string>
+               </property>
+               <property name="checkable">
+                   <bool>false</bool>
+               </property>
+               <property name="autoExclusive">
+                   <bool>false</bool>
+               </property>
+               <property name="autoRaise">
+                   <bool>true</bool>
+               </property>
            </widget>
           </item>
-          <item>
-           <widget class="QToolButton" name="eyeDropper">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+             <item>
+                 <widget class="QToolButton" name="asButton">
+                     <property name="focusPolicy">
+                         <enum>Qt::ClickFocus</enum>
+                     </property>
+                     <property name="toolTip">
+                         <string>Display actual size image</string>
+                     </property>
+                     <property name="text">
+                         <string>Actual
+                             Size
+                         </string>
+                     </property>
+                     <property name="checkable">
+                         <bool>true</bool>
+                     </property>
+                     <property name="autoRaise">
+                         <bool>true</bool>
+                     </property>
+                 </widget>
+             </item>
+             <item>
+                 <widget class="QToolButton" name="eyeDropper">
+                     <property name="sizePolicy">
+                         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
@@ -340,10 +362,10 @@ Screen</string>
              <string>...</string>
             </property>
             <property name="icon">
-             <iconset resource="bLUeTop/resources.qrc">
-                 <normaloff>:/images/resources/Mouse_pointer_small.png</normaloff>
-                 :/images/resources/Mouse_pointer_small.png
-             </iconset>
+                <iconset resource="bLUeTop/resources.qrc">
+                    <normaloff>:/images/resources/Mouse_pointer_small.png</normaloff>
+                    :/images/resources/Mouse_pointer_small.png
+                </iconset>
             </property>
             <property name="checkable">
              <bool>true</bool>
@@ -808,15 +830,15 @@ Screen</string>
      <addaction name="actionUpdate_display_profile"/>
     </widget>
     <widget class="QMenu" name="menuRating">
-     <property name="title">
-      <string>Rating</string>
-     </property>
-     <addaction name="action0"/>
-     <addaction name="action1"/>
-     <addaction name="action2"/>
-     <addaction name="action3"/>
-     <addaction name="action4"/>
-     <addaction name="action5"/>
+        <property name="title">
+            <string>Rating</string>
+        </property>
+        <addaction name="action0"/>
+        <addaction name="action1"/>
+        <addaction name="action2"/>
+        <addaction name="action3"/>
+        <addaction name="action4"/>
+        <addaction name="action5"/>
     </widget>
        <widget class="QMenu" name="menuImage_Rotation">
            <property name="title">
@@ -1342,14 +1364,14 @@ Screen</string>
     <string>Auto 3D LUT</string>
    </property>
   </action>
-  <action name="actionSoft_proofing">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-      <property name="text">
-          <string>Soft proofing</string>
-      </property>
-  </action>
+     <action name="actionSoft_proofing">
+         <property name="checkable">
+             <bool>true</bool>
+         </property>
+         <property name="text">
+             <string>Soft proofing</string>
+         </property>
+     </action>
      <action name="actionSave_As_bLU_Doc">
          <property name="enabled">
              <bool>false</bool>

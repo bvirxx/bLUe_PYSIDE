@@ -529,10 +529,13 @@ class vImage(bImage):
         container instead of the size of the widget.
 
        :param widget:
-       :type widget: Qwidget
+       :type widget: imageLabel
        :return: the (multiplicative) resizing coefficient
        :rtype: float
         """
+        if widget.window.asButton.isChecked():
+            # actual size
+            return 1.0
         wp = widget.parent()
         if type(wp) == QSplitter:
             widget = wp
