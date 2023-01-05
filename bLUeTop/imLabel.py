@@ -582,7 +582,7 @@ class imageLabel(QLabel):
         if window.asButton.isChecked():
             return
         img = self.img
-        pos = event.pos()
+        pos = event.position()
         modifiers = event.modifiers()
         # delta unit is 1/8 of degree
         # Most mice have a resolution of 15 degrees
