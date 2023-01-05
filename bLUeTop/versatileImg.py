@@ -529,10 +529,13 @@ class vImage(bImage):
         container instead of the size of the widget.
 
        :param widget:
-       :type widget: Qwidget
+       :type widget: imageLabel
        :return: the (multiplicative) resizing coefficient
        :rtype: float
         """
+        if widget.window.asButton.isChecked():
+            # actual size
+            return 1.0
         wp = widget.parent()
         if type(wp) == QSplitter:
             widget = wp
@@ -1329,6 +1332,7 @@ class vImage(bImage):
         options = adjustForm.options
         contrastCorrection = adjustForm.contrastCorrection
         satCorrection = adjustForm.satCorrection
+        vibCorrection = adjustForm.vibCorrection
         brightnessCorrection = adjustForm.brightnessCorrection
         inputImage = self.inputImg()
         tmpBuf = QImageBuffer(inputImage)
@@ -1336,7 +1340,7 @@ class vImage(bImage):
         ndImg1a = QImageBuffer(currentImage)
 
         # no correction : forward lower layer
-        if contrastCorrection == 0 and satCorrection == 0 and brightnessCorrection == 0:
+        if contrastCorrection == 0 and satCorrection == 0 and brightnessCorrection == 0 and vibCorrection == 0:
             ndImg1a[:, :, :] = tmpBuf
             self.updatePixmap()
             return
@@ -1397,6 +1401,7 @@ class vImage(bImage):
             ndImg1a[:, :, :] = tmpBuf
             for w1, w2, h1, h2 in self.getCurrentSelCoords():
                 HSVBuf = HSVBuf0[h1:h2 + 1, w1:w2 + 1]
+
                 if brightnessCorrection != 0:
                     alpha = 1.0 / (
                             0.501 + adjustForm.brightnessCorrection) - 1.0  # approx. map -0.5...0.0...0.5 --> +inf...1.0...0.0
@@ -1405,6 +1410,7 @@ class vImage(bImage):
                     LUT *= 255.0
                     # convert V to V**alpha
                     HSVBuf[:, :, 2] = LUT[HSVBuf[:, :, 2]]  # faster than take
+
                 if contrastCorrection > 0:
                     # CLAHE
                     if options['CLAHE']:
@@ -1428,17 +1434,25 @@ class vImage(bImage):
                             self.getGraphicsForm().setContrastSpline(a, b, d, T)
                             self.autoSpline = False
                     HSVBuf[:, :, 2] = res
+
                 if satCorrection != 0:
-                    alpha = 1.0 / (
-                            0.501 + adjustForm.satCorrection) - 1.0  # approx. map -0.5...0.0...0.5 --> +inf...1.0...0.0
+                    # approx. map -0.5...0.0...0.5 --> +inf...1.0...0.0
+                    alpha = 1.0 / (0.501 + satCorrection) - 1.0
                     # tabulate x**alpha
                     LUT = np.power(np.arange(256) / 255, alpha)
                     LUT *= 255
                     # convert saturation s to s**alpha
                     HSVBuf[:, :, 1] = LUT[HSVBuf[:, :, 1]]  # faster than take
 
-            # back to RGB
-            # sRGBBuf = cv2.cvtColor(HSVBuf0, cv2.COLOR_HSV2RGB)
+                if vibCorrection != 0:
+                    # threshold
+                    thr = 0.5
+                    # approx. map -0.5...0.0...0.5 --> +inf...1.0...0.0
+                    alpha = 1.0 / (0.501 + vibCorrection) - 1.0
+                    LUT = np.arange(256) / 255
+                    LUT = np.where(LUT < thr, np.power(LUT / thr, alpha) * thr, LUT)
+                    LUT *= 255
+                    HSVBuf[:, :, 1] = LUT[HSVBuf[:, :, 1]]  # faster than take
 
             ndImg1a[:, :, :3][:, :, ::-1] = cv2.cvtColor(HSVBuf0, cv2.COLOR_HSV2RGB)  # sRGBBuf
 

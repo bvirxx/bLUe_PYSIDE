@@ -37,6 +37,17 @@ class imageLabel(QLabel):
 
     checkerBrush = QBrush(checkeredImage())
 
+    def __init__(self, mainForm=None, splitWin=None, enterAndLeave=False, parent=None):
+        super().__init__(parent=parent)
+        self.window = mainForm
+        self.splitWin = splitWin
+        self.enterAndLeave = enterAndLeave
+        # global state variables used in mouseEvent.
+        self.pressed = False
+        self.clicked = True
+        self.State = {'ix': 0, 'iy': 0, 'ix_begin': 0, 'iy_begin': 0, 'cloning': ''}
+        self.img = None
+
     def brushUpdate(self, *args, color=None):
         """
         Sync the current brush/eraser with self.State
@@ -110,17 +121,6 @@ class imageLabel(QLabel):
         else:
             QApplication.setOverrideCursor(cursor)
 
-    def __init__(self, mainForm=None, splitWin=None, enterAndLeave=False, parent=None):
-        super().__init__(parent=parent)
-        self.window = mainForm
-        self.splitWin = splitWin
-        self.enterAndLeave = enterAndLeave
-        # global state variables used in mouseEvent.
-        self.pressed = False
-        self.clicked = True
-        self.State = {'ix': 0, 'iy': 0, 'ix_begin': 0, 'iy_begin': 0, 'cloning': ''}
-        self.img = None
-
     def paintEvent(self, e):
         """
         Overrides QLabel paintEvent().
@@ -133,12 +133,11 @@ class imageLabel(QLabel):
         mimg = self.img
         if mimg is None:
             return
-        r = mimg.resize_coeff(self)
         qp = self.qp
         window = self.window
         qp.begin(self)
-        # smooth painting
-        qp.setRenderHint(QPainter.SmoothPixmapTransform)  # TODO may be useless
+        r = mimg.resize_coeff(self)
+        # qp.setRenderHint(QPainter.SmoothPixmapTransform) #  decreases  quality
         # fill background
         qp.fillRect(QRect(0, 0, self.width(), self.height()), vImage.defaultBgColor)
         # draw presentation layer.
@@ -416,7 +415,7 @@ class imageLabel(QLabel):
                     img.xOffset += x - State['ix']
                     img.yOffset += y - State['iy']
                     if window.btnValues['Crop_Button']:
-                        window.cropTool.drawCropTool(img)
+                        window.cropTool.setCropTool(img)
                 # drag active layer only for drawing layer or crop tool for others
                 elif modifiers == Qt.ControlModifier:
                     layer.drag(x, y, State['ix'], State['iy'], self)
@@ -579,9 +578,11 @@ class imageLabel(QLabel):
         :param event: mouse wheel event
         :type event: QWheelEvent
         """
-        img = self.img
         window = self.window
-        pos = event.position()
+        if window.asButton.isChecked():
+            return
+        img = self.img
+        pos = event.pos()
         modifiers = event.modifiers()
         # delta unit is 1/8 of degree
         # Most mice have a resolution of 15 degrees
@@ -600,7 +601,7 @@ class imageLabel(QLabel):
             if layer.isDrawLayer() and (window.btnValues['brushButton'] or window.btnValues['eraserButton']):
                 self.syncBrush(img.resize_coeff(self))
             if window.btnValues['Crop_Button']:
-                window.cropTool.drawCropTool(img)
+                window.cropTool.setCropTool(img)
             if layer.isGeomLayer():
                 # layer.view.widget().tool.moveRotatingTool()
                 layer.tool.moveRotatingTool()
@@ -753,7 +754,7 @@ class slideshowLabel(imageLabel):
         window = self.window
         qp.begin(self)
         # smooth painting
-        qp.setRenderHint(QPainter.SmoothPixmapTransform)  # TODO may be useless
+        # qp.setRenderHint(QPainter.SmoothPixmapTransform)
         # fill background
         qp.fillRect(QRect(0, 0, self.width(), self.height()), vImage.defaultBgColor)
         # draw presentation layer.

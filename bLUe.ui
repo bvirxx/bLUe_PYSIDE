@@ -72,7 +72,7 @@
           <rect>
            <x>10</x>
            <y>10</y>
-           <width>47</width>
+           <width>121</width>
            <height>801</height>
           </rect>
          </property>
@@ -203,13 +203,47 @@
             </property>
             <property name="text">
              <string>Fit To
-Screen</string>
+              Screen
+             </string>
             </property>
             <property name="checkable">
              <bool>false</bool>
             </property>
             <property name="autoExclusive">
              <bool>false</bool>
+            </property>
+            <property name="autoRaise">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QToolButton" name="asButton">
+            <property name="minimumSize">
+             <size>
+              <width>40</width>
+              <height>40</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>40</width>
+              <height>40</height>
+             </size>
+            </property>
+            <property name="focusPolicy">
+             <enum>Qt::ClickFocus</enum>
+            </property>
+            <property name="toolTip">
+             <string>Display actual size image</string>
+            </property>
+            <property name="text">
+             <string>Actual
+              Size
+             </string>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
             </property>
             <property name="autoRaise">
              <bool>true</bool>
@@ -341,8 +375,8 @@ Screen</string>
             </property>
             <property name="icon">
              <iconset resource="bLUeTop/resources.qrc">
-                 <normaloff>:/images/resources/Mouse_pointer_small.png</normaloff>
-                 :/images/resources/Mouse_pointer_small.png
+              <normaloff>:/images/resources/Mouse_pointer_small.png</normaloff>
+              :/images/resources/Mouse_pointer_small.png
              </iconset>
             </property>
             <property name="checkable">
@@ -818,21 +852,21 @@ Screen</string>
      <addaction name="action4"/>
      <addaction name="action5"/>
     </widget>
-       <widget class="QMenu" name="menuImage_Rotation">
-           <property name="title">
-               <string>Rotation...</string>
-           </property>
-           <addaction name="action90_CW"/>
-           <addaction name="action90_CCW"/>
-           <addaction name="action180"/>
-       </widget>
-       <addaction name="menuColor_settings"/>
-       <addaction name="actionImage_info"/>
-       <addaction name="actionImage_Profile"/>
-       <addaction name="actionConvert_To_Profile"/>
-       <addaction name="menuImage_Rotation"/>
-       <addaction name="actionImage_Resizing"/>
-       <addaction name="menuRating"/>
+    <widget class="QMenu" name="menuImage_Rotation">
+     <property name="title">
+      <string>Rotation...</string>
+     </property>
+     <addaction name="action90_CW"/>
+     <addaction name="action90_CCW"/>
+     <addaction name="action180"/>
+    </widget>
+    <addaction name="menuColor_settings"/>
+    <addaction name="actionImage_info"/>
+    <addaction name="actionImage_Profile"/>
+    <addaction name="actionConvert_To_Profile"/>
+    <addaction name="menuImage_Rotation"/>
+    <addaction name="actionImage_Resizing"/>
+    <addaction name="menuRating"/>
    </widget>
    <widget class="QMenu" name="menuLayer">
     <property name="title">
@@ -1036,7 +1070,7 @@ Screen</string>
   </action>
   <action name="actionImage_info">
    <property name="text">
-       <string>Info</string>
+    <string>Info</string>
    </property>
   </action>
   <action name="actionCurves_RGB">
@@ -1313,7 +1347,7 @@ Screen</string>
   </action>
   <action name="actionImage_Resizing">
    <property name="text">
-       <string>Resizing...</string>
+    <string>Resizing...</string>
    </property>
   </action>
   <action name="actionSave_As">
@@ -1346,28 +1380,28 @@ Screen</string>
    <property name="checkable">
     <bool>true</bool>
    </property>
-      <property name="text">
-          <string>Soft proofing</string>
-      </property>
+   <property name="text">
+    <string>Soft proofing</string>
+   </property>
   </action>
-     <action name="actionSave_As_bLU_Doc">
-         <property name="enabled">
-             <bool>false</bool>
-         </property>
-         <property name="text">
-             <string>Save As bLU Doc...</string>
-         </property>
-     </action>
-     <action name="actionImage_Profile">
-         <property name="text">
-             <string>Assign Profile...</string>
-         </property>
-     </action>
-     <action name="actionConvert_To_Profile">
-         <property name="text">
-             <string>Convert To Profile...</string>
-         </property>
-     </action>
+  <action name="actionSave_As_bLU_Doc">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Save As bLU Doc...</string>
+   </property>
+  </action>
+  <action name="actionImage_Profile">
+   <property name="text">
+    <string>Assign Profile...</string>
+   </property>
+  </action>
+  <action name="actionConvert_To_Profile">
+   <property name="text">
+    <string>Convert To Profile...</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>

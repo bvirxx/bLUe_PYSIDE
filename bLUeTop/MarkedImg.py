@@ -1660,8 +1660,7 @@ class QLayer(vImage):
         window = widget.window
         if not window.label.img.isCropped:
             return
-        crpt = window.cropTool
-        crpt.moveCrop(x1 - x0, y1 - y0, self.parentImage, widget)
+        window.cropTool.moveCrop(x1 - x0, y1 - y0, self.parentImage)
 
     def zoom(self, pos, numSteps, widget):
         """

@@ -19,7 +19,7 @@ import numpy as np
 
 from PySide6.QtGui import QImage, QTransform, QPolygonF
 from PySide6.QtWidgets import QWidget, QToolButton
-from PySide6.QtCore import Qt, QPoint, QObject, QPointF, QRectF, QRect
+from PySide6.QtCore import Qt, QPoint, QObject, QPointF, QRectF
 
 from bLUeGui.dialog import dlgWarn
 
@@ -81,25 +81,25 @@ class croppingHandle(baseHandle):
         lMargin, rMargin, tMargin, bMargin = img.cropLeft, img.cropRight, img.cropTop, img.cropBottom
         # middle buttons
         if self.role == 'left':
-            margin = (p.x() - img.xOffset + self.width()) / r
+            margin = int((p.x() - img.xOffset + self.width()) / r)
             if margin < 0 or margin >= img.width() - self.tool.btnDict['right'].margin:
                 return
             self.margin = margin
             lMargin = margin
         elif self.role == 'right':
-            margin = img.width() - (p.x() - img.xOffset) / r
+            margin = img.width() - int((p.x() - img.xOffset) / r)
             if margin < 0 or margin >= img.width() - self.tool.btnDict['left'].margin:
                 return
             self.margin = margin
             rMargin = margin
         elif self.role == 'top':
-            margin = (p.y() - img.yOffset + self.height()) / r
+            margin = int((p.y() - img.yOffset + self.height()) / r)
             if margin < 0 or margin >= img.height() - self.tool.btnDict['bottom'].margin:
                 return
             self.margin = margin
             tMargin = margin
         elif self.role == 'bottom':
-            margin = img.height() - (p.y() - img.yOffset) / r
+            margin = img.height() - int((p.y() - img.yOffset) / r)
             if margin < 0 or margin >= img.height() - self.tool.btnDict['top'].margin:
                 return
             self.margin = margin
@@ -156,14 +156,10 @@ class croppingHandle(baseHandle):
 
     def mousePressEvent(self, event):
         img = self.parent().img
-        self.tool.crHeight = img.height() - int(img.cropTop) - int(
-            img.cropBottom)  # self.tool.btnDict['top'].margin - self.tool.btnDict['bottom'].margin
-        self.tool.crWidth = img.width() - int(img.cropLeft) - int(
-            img.cropRight)  # self.tool.btnDict['left'].margin - self.tool.btnDict['right'].margin
+        self.tool.crHeight = img.height() - int(img.cropTop + img.cropBottom)
+        self.tool.crWidth = img.width() - int(img.cropLeft + img.cropRight)
 
     def mouseMoveEvent(self, event):
-        if event.buttons() == Qt.NoButton:
-            return
         img = self.parent().img
         pos = self.mapToParent(event.pos())
         oldPos = self.pos()
@@ -174,11 +170,9 @@ class croppingHandle(baseHandle):
         # vertex buttons
         else:
             self.setPosition(pos)
-        self.tool.drawCropTool(self.parent().img)
-        self.tool.crHeight = img.height() - int(img.cropTop) - int(
-            img.cropBottom)  # self.tool.btnDict['top'].margin - self.tool.btnDict['bottom'].margin
-        self.tool.crWidth = img.width() - int(img.cropLeft) - int(
-            img.cropRight)  # self.tool.btnDict['left'].margin - self.tool.btnDict['right'].margin
+        self.tool.setCropTool(self.parent().img)
+        self.tool.crHeight = img.height() - int(img.cropTop + img.cropBottom)
+        self.tool.crWidth = img.width() - int(img.cropLeft + img.cropRight)
         self.parent().updateStatus()
         self.parent().repaint()
 
@@ -213,10 +207,10 @@ class cropTool(QObject):
                                 [img.cropLeft, img.cropTop, img.cropRight, img.cropBottom]):
             self.btnDict[role].margin = margin
 
-    def drawCropTool(self, img):
+    def setCropTool(self, img):
         """
-        Draws the 8 crop buttons around the displayed image,
-        with their current margins.
+        Positions the 8 crop buttons around the image,
+        using their current margin values.
 
         :param img:
         :type  img: QImage
@@ -247,10 +241,10 @@ class cropTool(QObject):
         bottomLeft.move(x - bottomLeft.width(), y + h)
         bottomRight = self.btnDict['bottomRight']
         bottomRight.move(x + w, y + h)
-        self.crWidth, self.crHeight = img.width() - int(img.cropLeft) - int(img.cropRight), img.height() - int(
-            img.cropTop) - int(img.cropBottom)
+        self.crWidth, self.crHeight = img.width() - int(img.cropLeft + img.cropRight), \
+                                      img.height() - int(img.cropTop + img.cropBottom)
 
-    def moveCrop(self, deltaX, deltaY, img, widget):
+    def moveCrop(self, deltaX, deltaY, img):
         """
         Translates the crop tool.
         Coordinates are relative to widget.
@@ -261,32 +255,22 @@ class cropTool(QObject):
         :type  deltaY: int
         :param img:
         :type  img:
-        :param widget:
-        :type  widget: ImageLabel
         """
 
-        r = widget.img.resize_coeff(widget)
-        w, h = img.width() * r, img.height() * r
-        speed = 2  # deltaX = 1 or deltaY = 1 may lead to an incorrect move, due to int/float conversions
-        # in setPosition() and drawCropTool()
+        speed = 4  # deltaX = 1 or deltaY = 1 may lead to an incorrect move, due to int/float conversions
+        # in setPosition() and setCropTool()
         deltaX, deltaY = speed * deltaX, speed * deltaY  # parent widget coord.
 
-        btnList = [self.btnDict[name] for name in ['left', 'right', 'top', 'bottom']]
+        lm, rm, tm, bm = self.btnDict['left'].margin + deltaX, self.btnDict['right'].margin - deltaX, \
+                         self.btnDict['top'].margin + deltaY, self.btnDict['bottom'].margin - deltaY
 
-        for btn in btnList[:2]:
-            newX = btn.x() + deltaX
-            if newX < img.xOffset or newX > img.xOffset + w:
-                return
+        if lm >= 0 and rm >= 0 and tm >= 0 and bm >= 0:
+            self.btnDict['left'].margin += deltaX
+            self.btnDict['right'].margin -= deltaX
+            self.btnDict['top'].margin += deltaY
+            self.btnDict['bottom'].margin -= deltaY
 
-        for btn in btnList[2:]:
-            newY = btn.y() + deltaY
-            if newY < img.yOffset or newY > img.yOffset + h:
-                return
-
-        for btn in btnList:
-            btn.setPosition(btn.pos() + QPoint(2 * deltaX, deltaY))
-
-        self.drawCropTool(img)
+            self.setCropTool(img)
 
     def zoomCrop(self, pos, numSteps, img):
         """
@@ -311,7 +295,7 @@ class cropTool(QObject):
         for btn in btnList:
             btn.setPosition(btn.pos())
 
-        self.drawCropTool(img)
+        self.setCropTool(img)
 
 
 class rotatingHandle(baseHandle):

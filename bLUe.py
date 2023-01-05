@@ -242,16 +242,19 @@ def widgetChange(button, window=bLUeTop.Gui.window):
     if button is window.fitButton:  # wdgName == "fitButton" :
         window.label.img.fit_window()
         # update crop button positions
-        window.cropTool.drawCropTool(window.label.img)
+        window.cropTool.setCropTool(window.label.img)
     elif button is window.cropButton:
         if button.isChecked():
-            window.cropTool.drawCropTool(window.label.img)
+            window.cropTool.setCropTool(window.label.img)
             for b in window.cropTool.btnDict.values():
                 b.show()
         else:
             for b in window.cropTool.btnDict.values():
                 b.hide()
         window.label.img.isCropped = button.isChecked()
+    elif button is window.asButton:
+        # update crop tool
+        window.cropTool.setCropTool(window.label.img)
     elif button is window.rulerButton:  # wdgName == "rulerButton":
         window.label.img.isRuled = button.isChecked()
     elif button is window.eyeDropper:  # wdgName == 'eyeDropper':
@@ -714,7 +717,7 @@ def setDocumentImage(img, window=bLUeTop.Gui.window):
         window.tabBar.setTabText(ind, basename(img.filename))
         window.tabBar.setTabData(ind, img)
     window.cropTool.fit(img)
-    window.cropTool.drawCropTool(img)
+    window.cropTool.setCropTool(img)
     # set button states
     for btn in window.btns.values():
         s = btn.autoExclusive()
@@ -945,7 +948,7 @@ def menuView(name, window=bLUeTop.Gui.window):
             window.splitView = False
             window.viewState = 'After'
             if window.btnValues['Crop_Button']:
-                window.cropTool.drawCropTool(window.label.img)
+                window.cropTool.setCropTool(window.label.img)
     ###########
     # slide show
     ###########
@@ -2032,7 +2035,7 @@ def setupGUI(window=bLUeTop.Gui.window):
     # whatsThis
     window.cropButton.setWhatsThis(
         """To <b>crop</b> the image drag a gray curtain on either side using the 8 small square buttons
-        around the image.<br>
+        around the image. Use corner buttons to keep the image aspect ratio unchanged.<br>
         To <b>drag</b> the cropping area over the image select the <i>Drag Tool</i> and do <i>Ctrl+Drag
         with the mouse.</i><br>
         To <b>zoom</b> inside the cropping area select the <i>Drag Tool</i> and do <i>Ctrl+Wheel.</i> 
