@@ -33,6 +33,7 @@ class CoBrSatForm(baseForm):
     contrastDefault = 0.0
     brightnessDefault = 0.0
     saturationDefault = 0.0
+    vibranceDefault = 0.0
 
     """
     @classmethod
@@ -63,6 +64,18 @@ class CoBrSatForm(baseForm):
         return v - 50
 
     @classmethod
+    def slider2Vibrance(cls, v):
+        return v / 100 - 0.5
+
+    @classmethod
+    def vibrance2Slider(cls, v):
+        return v * 100 + 50
+
+    @classmethod
+    def slidervibrance2User(cls, v):
+        return v - 50
+
+    @classmethod
     def slider2Brightness(cls, v):
         return v / 100 - 0.5
 
@@ -81,8 +94,11 @@ class CoBrSatForm(baseForm):
         self.contrastForm = None
         # options
         optionList1, optionNames1 = ['Multi-Mode', 'CLAHE'], ['Multi-Mode', 'CLAHE']
-        self.listWidget1 = optionsWidget(options=optionList1, optionNames=optionNames1, exclusive=True,
-                                         changed=self.dataChanged)
+        self.listWidget1 = optionsWidget(options=optionList1,
+                                         optionNames=optionNames1,
+                                         exclusive=True,
+                                         changed=self.dataChanged
+                                         )
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
         optionList2, optionNames2 = ['High', 'manualCurve'], ['Preserve Highlights', 'Show Contrast Curve']
 
@@ -92,8 +108,11 @@ class CoBrSatForm(baseForm):
                 self.layer.autoSpline = True
             self.dataChanged.emit()
 
-        self.listWidget2 = optionsWidget(options=optionList2, optionNames=optionNames2, exclusive=False,
-                                         changed=optionList2Change)
+        self.listWidget2 = optionsWidget(options=optionList2,
+                                         optionNames=optionNames2,
+                                         exclusive=False,
+                                         changed=optionList2Change
+                                         )
         self.listWidget2.checkOption(self.listWidget2.intNames[0])
         self.options = UDict((self.listWidget1.options, self.listWidget2.options))
 
@@ -174,6 +193,44 @@ class CoBrSatForm(baseForm):
         self.sliderSaturation.valueChanged.connect(saturationUpdate)
         self.sliderSaturation.sliderReleased.connect(lambda: saturationUpdate(self.sliderSaturation.value()))
 
+        # vibrance slider
+        self.sliderVibrance = QbLUeSlider(Qt.Horizontal)
+        self.sliderVibrance.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
+        self.sliderVibrance.setRange(0, 100)
+        self.sliderVibrance.setSingleStep(1)
+
+        vibranceLabel = QbLUeLabel()
+        vibranceLabel.setMaximumSize(150, 30)
+        vibranceLabel.setText("Vibrance")
+        vibranceLabel.doubleClicked.connect(
+            lambda: self.sliderSaturation.setValue(self.saturation2Slider(self.saturationDefault)))
+
+        self.vibranceValue = QLabel()
+        font = self.vibranceValue.font()
+        metrics = QFontMetrics(font)
+        w = metrics.width("100")
+        h = metrics.height()
+        self.vibranceValue.setMinimumSize(w, h)
+        self.vibranceValue.setMaximumSize(w, h)
+        self.vibranceValue.setText(str("{:+d}".format(self.sliderContrast.value())))
+
+        # vibrance changed  event handler
+        def vibranceUpdate(value):
+            self.vibranceValue.setText(
+                str("{:+d}".format(int(self.slidervibrance2User(self.sliderVibrance.value())))))
+            # move not yet terminated or value not modified
+            if self.sliderVibrance.isSliderDown() or self.slider2Vibrance(value) == self.vibCorrection:
+                return
+            self.sliderVibrance.valueChanged.disconnect()
+            self.sliderVibrance.sliderReleased.disconnect()
+            self.vibCorrection = self.slider2Vibrance(self.sliderVibrance.value())
+            self.dataChanged.emit()
+            self.sliderVibrance.valueChanged.connect(vibranceUpdate)
+            self.sliderVibrance.sliderReleased.connect(lambda: vibranceUpdate(self.sliderVibrance.value()))
+
+        self.sliderVibrance.valueChanged.connect(vibranceUpdate)
+        self.sliderVibrance.sliderReleased.connect(lambda: vibranceUpdate(self.sliderVibrance.value()))
+
         # brightness slider
         self.sliderBrightness = QbLUeSlider(Qt.Horizontal)
         self.sliderBrightness.setStyleSheet(QbLUeSlider.bLueSliderDefaultBWStylesheet)
@@ -216,6 +273,7 @@ class CoBrSatForm(baseForm):
         # for the sake of correctness
         self.contrastCorrection = None  # range
         self.satCorrection = None  # range -0.5..0.5
+        self.vibCorrection = None  # range -0.5..0.5
         self.brightnessCorrection = None  # range -0.5..0.5
 
         # layout
@@ -243,7 +301,12 @@ class CoBrSatForm(baseForm):
         hl2 = QHBoxLayout()
         hl2.addWidget(self.saturationValue)
         hl2.addWidget(self.sliderSaturation)
+        hl4 = QHBoxLayout()
+        hl4.addWidget(self.vibranceValue)
+        hl4.addWidget(self.sliderVibrance)
         l.addLayout(hl2)
+        l.addWidget(vibranceLabel)
+        l.addLayout(hl4)
         l.addStretch(1)
         self.setLayout(l)
         self.adjustSize()
@@ -325,6 +388,7 @@ class CoBrSatForm(baseForm):
     def enableSliders(self):
         self.sliderContrast.setEnabled(True)
         self.sliderSaturation.setEnabled(True)
+        self.sliderVibrance.setEnabled(True)
         self.sliderBrightness.setEnabled(True)
 
     def setDefaults(self):
@@ -341,6 +405,8 @@ class CoBrSatForm(baseForm):
         self.sliderContrast.setValue(round(self.contrast2Slider(self.contrastCorrection)))
         self.satCorrection = self.saturationDefault
         self.sliderSaturation.setValue(round(self.saturation2Slider(self.satCorrection)))
+        self.vibCorrection = self.vibranceDefault
+        self.sliderVibrance.setValue(round(self.vibrance2Slider(self.vibCorrection)))
         self.brightnessCorrection = self.brightnessDefault
         self.sliderBrightness.setValue(round(self.brightness2Slider(self.brightnessCorrection)))
         self.dataChanged.connect(self.updateLayer)

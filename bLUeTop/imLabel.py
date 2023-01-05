@@ -137,7 +137,7 @@ class imageLabel(QLabel):
         window = self.window
         qp.begin(self)
         r = mimg.resize_coeff(self)
-        qp.setRenderHint(QPainter.SmoothPixmapTransform)
+        # qp.setRenderHint(QPainter.SmoothPixmapTransform) #  decreases  quality
         # fill background
         qp.fillRect(QRect(0, 0, self.width(), self.height()), vImage.defaultBgColor)
         # draw presentation layer.
@@ -754,7 +754,7 @@ class slideshowLabel(imageLabel):
         window = self.window
         qp.begin(self)
         # smooth painting
-        qp.setRenderHint(QPainter.SmoothPixmapTransform)  # TODO may be useless
+        # qp.setRenderHint(QPainter.SmoothPixmapTransform)
         # fill background
         qp.fillRect(QRect(0, 0, self.width(), self.height()), vImage.defaultBgColor)
         # draw presentation layer.
