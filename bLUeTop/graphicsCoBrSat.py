@@ -208,7 +208,7 @@ class CoBrSatForm(baseForm):
         self.vibranceValue = QLabel()
         font = self.vibranceValue.font()
         metrics = QFontMetrics(font)
-        w = metrics.width("100")
+        w = metrics.horizontalAdvance("100")
         h = metrics.height()
         self.vibranceValue.setMinimumSize(w, h)
         self.vibranceValue.setMaximumSize(w, h)

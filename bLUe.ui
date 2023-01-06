@@ -202,9 +202,8 @@
              <string>Fit_Screen</string>
             </property>
             <property name="text">
-             <string>Fit To
-              Screen
-             </string>
+             <string>Fit to
+Screen</string>
             </property>
             <property name="checkable">
              <bool>false</bool>
@@ -239,8 +238,7 @@
             </property>
             <property name="text">
              <string>Actual
-              Size
-             </string>
+Size</string>
             </property>
             <property name="checkable">
              <bool>true</bool>
@@ -375,9 +373,7 @@
             </property>
             <property name="icon">
              <iconset resource="bLUeTop/resources.qrc">
-              <normaloff>:/images/resources/Mouse_pointer_small.png</normaloff>
-              :/images/resources/Mouse_pointer_small.png
-             </iconset>
+              <normaloff>:/images/resources/Mouse_pointer_small.png</normaloff>:/images/resources/Mouse_pointer_small.png</iconset>
             </property>
             <property name="checkable">
              <bool>true</bool>

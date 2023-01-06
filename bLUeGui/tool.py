@@ -160,6 +160,8 @@ class croppingHandle(baseHandle):
         self.tool.crWidth = img.width() - int(img.cropLeft + img.cropRight)
 
     def mouseMoveEvent(self, event):
+        if event.buttons() == Qt.NoButton:
+            return
         img = self.parent().img
         pos = self.mapToParent(event.pos())
         oldPos = self.pos()
