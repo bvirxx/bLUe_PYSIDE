@@ -20,7 +20,7 @@ import numpy as np
 from PySide6.QtGui import QPainterPathStroker, QBrush, QPixmap
 from PySide6.QtCore import QRect, QPointF, QPoint
 from PySide6.QtWidgets import QGraphicsPathItem, QGraphicsPixmapItem, QGraphicsPolygonItem, \
-    QGraphicsSceneMouseEvent, QHBoxLayout
+    QGraphicsSceneMouseEvent, QHBoxLayout, QGraphicsScene
 from PySide6.QtGui import QColor, QPen, QPainterPath, QPolygonF
 from PySide6.QtCore import Qt, QRectF
 
@@ -1105,7 +1105,8 @@ class graphicsSplineForm(graphicsCurveForm):
         self.updateHist(sc.cubicItem)
         # Force to redraw histogram
         sc.invalidate(QRectF(0.0, -sc.axeSize, sc.axeSize, sc.axeSize),
-                      sc.BackgroundLayer)
+                      QGraphicsScene.BackgroundLayer
+                      )
 
     def __getstate__(self):
         return self.scene().quadricB.__getstate__()

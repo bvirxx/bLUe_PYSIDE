@@ -262,7 +262,8 @@ class graphicsForm(graphicsCurveForm):
         # Force to redraw histogram
         if redraw:
             sc.invalidate(QRectF(0.0, -sc.axeSize, sc.axeSize, sc.axeSize),
-                          sc.BackgroundLayer)
+                          QGraphicsScene.BackgroundLayer
+                          )
 
     def updateHists(self):
         """
@@ -273,7 +274,8 @@ class graphicsForm(graphicsCurveForm):
             self.updateHist(curve, redraw=False)
         # Force to redraw histogram
         sc.invalidate(QRectF(0.0, -sc.axeSize, sc.axeSize, sc.axeSize),
-                      sc.BackgroundLayer)
+                      QGraphicsScene.BackgroundLayer
+                      )
 
     def resetCurve(self):
         """
