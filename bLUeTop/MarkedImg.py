@@ -697,13 +697,15 @@ class mImage(vImage):
                 names['mask_len'] = w * h * 4
                 names['buf_ori_len'] = len(buf_ori)
 
-                result = tifffile.imsave(filename,
-                                         data=images,
-                                         compress=6,
-                                         imagej=True,
-                                         returnoffset=True,
-                                         metadata=names
-                                         )
+                result = tifffile.imwrite(filename,
+                                          data=images,
+                                          # compression=6,
+                                          compression='zlib',
+                                          # compressionargs = {'level': 6},
+                                          imagej=True,
+                                          returnoffset=True,
+                                          metadata=names
+                                          )
                 written = True  # with compression > 0 result is None
 
             elif self.sourceformat in IMAGE_FILE_EXTENSIONS or self.sourceformat == '':  # format == '' for new document
@@ -726,12 +728,14 @@ class mImage(vImage):
                         images[i, ...] = QImageBuffer(m)
                         i += 1
 
-                result = tifffile.imsave(filename,
-                                         data=images,
-                                         compress=6,
-                                         imagej=True,
-                                         returnoffset=True,
-                                         metadata=names)
+                result = tifffile.imwrite(filename,
+                                          data=images,
+                                          compression='zlib',
+                                          # compressionargs = {'level': 6},
+                                          imagej=True,
+                                          returnoffset=True,
+                                          metadata=names
+                                          )
 
                 written = True  # with compression result is None
             """
