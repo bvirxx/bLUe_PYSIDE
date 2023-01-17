@@ -1,6 +1,6 @@
 This File is part of bLUe software.
 
-Copyright (C) 2017-2022 Bernard Virot
+Copyright (C) 2017-2023 Bernard Virot
 
 ## DESCRIPTION
 
@@ -84,8 +84,6 @@ See the [bLUe site](http://bernard.virot.free.fr/) for screenshots, tutorials an
 
 ## REQUIREMENTS
 
-### For the Qt5 (Pyside2) version switch to branch master.
-
 * Python >= 3.9
 * Qt6 for Python (PySide6)
 * opencv-python
@@ -99,6 +97,8 @@ See the [bLUe site](http://bernard.virot.free.fr/) for screenshots, tutorials an
 ExifTool should be installed.
 
 On Windows, pywin32 is needed for multi-screen management.
+
+### The Qt5 (PySide2) version (branch master) is deprecated.
 
 ## LICENSE
 

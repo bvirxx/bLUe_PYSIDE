@@ -264,7 +264,10 @@ class QLayerView(QTableView):
 
         # combo box item changed slot
         def g(ind):
-            layer = self.img.getActiveLayer()
+            try:
+                layer = self.img.getActiveLayer()
+            except AttributeError:
+                return
             s = self.blendingModeCombo.currentText()
             newMode = bLUeGui.blend.compositionModeDict[str(s)]
             if newMode == layer.compositionMode:
