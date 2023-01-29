@@ -19,15 +19,18 @@ import sys
 
 import numpy as np
 
+import ctypes
+
 from PIL import Image, ImageCms
 
 from PySide6.QtGui import QImage, QColorSpace, QColorTransform
 
-from bLUeTop import Gui
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.dialog import dlgWarn
 
+from bLUeTop import Gui
 from bLUeTop.settings import COLOR_MANAGE_OPT, SRGB_PROFILE_PATH, ADOBE_RGB_PROFILE_PATH, DEFAULT_MONITOR_PROFILE_PATH
+from bLUeTop.utils import bLUeDialogCombo
 
 # python-gi flag
 HAS_GI = False
@@ -68,13 +71,11 @@ def getProfile(path, mode='Cms'):
     if mode == 'Cms':
         profile = ImageCms.getOpenProfile(path)
     elif mode == 'QCS':
-        try:
-            with open(path, 'rb') as pf:
-                profile = QColorSpace.fromIccProfile(pf.read())
-            if not profile.isValid():
-                raise ValueError
-        except:
-            raise
+        with open(path, 'rb') as pf:
+            profile = QColorSpace.fromIccProfile(pf.read())
+        if not profile.isValid():
+            raise ValueError
+
     return profile
 
 
@@ -93,9 +94,34 @@ def get_default_working_profile(mode='Cms'):
         profile = getProfile(path, mode=mode)
     except (ImageCms.PyCMSError, ValueError, IOError):
         dlgWarn(
-            'No valid sRGB color profile found.\nSet SYSTEM_PROFILE_DIR and SRGB_PROFILE_NAME in your config.json',
+            'No valid sRGB color profile found.\nSet SYSTEM_PROFILE_DIR and SRGB_PROFILE_NAME in your config*.json',
             info='Invalid profile %s' % path)
         sys.exit()
+    return profile
+
+def get_default_monitor_profile(mode='Cms'):
+    """
+    tries to find a default monitor profile.
+    The parameter mode determines the type
+    of the returned object.
+
+    :return: profile
+    :rtype: Union[QColorSpace, CmsProfile, None]
+    """
+
+    profile = None
+    try:
+        profile = getProfile(DEFAULT_MONITOR_PROFILE_PATH, mode=mode)
+    except (IOError, ValueError, ImageCms.PyCMSError) as e:
+        pass
+        """
+        dlgWarn(
+         'No valid monitor profile found.\nSet SYSTEM_PROFILE_DIR and DEFAULT_MONITOR_PROFILE_NAME in your config*.json',
+         info='Invalid profile %s' % path,
+         parent=Gui.window
+                )
+        """
+
     return profile
 
 
@@ -116,49 +142,77 @@ class icc:
     COLOR_MANAGE = False  # no color management
 
     monitorProfile, workingProfile, softProofingProfile, workToMonTransform = (None,) * 4
-    workingProfileInfo, monitorProfileInfo = '', ''
+    monitor_Profile_Path = DEFAULT_MONITOR_PROFILE_PATH
+    workingProfileInfo, monitorProfileInfo = ('',) * 2
 
     # a (default) working profile is always needed
-    defaultWorkingProfile = get_default_working_profile(mode='Cms')  # CmsProfile
+    defaultWorkingProfile = get_default_working_profile(mode='Cms')
+
+    defaultMonitorProfile = get_default_monitor_profile(mode='Cms')
 
     # init current working profile
     workingProfile = defaultWorkingProfile
     workingProfileInfo = ImageCms.getProfileInfo(workingProfile)
 
-    @staticmethod
-    def get_default_monitor_profile(cls, mode='Cms'):
+    @classmethod
+    def B_get_display_profilePath(cls, handle=None, device_id=None, enumicmprofiles=False):
         """
-        try to find a default monitor profile.
-
-        :param mode: 'QCS or 'Cms'
-        :type mode: str
-        :return: monitor profile or None
-        :rtype: Union[CmsProfile, QColorSpace, None]
-        """
-
-        profile = None
-        try:
-            profile = getProfile(DEFAULT_MONITOR_PROFILE_PATH, mode=mode)
-        except (IOError, ValueError, ImageCms.PyCMSError):
-            pass
-        return profile
-
-    @staticmethod
-    def B_get_display_profilePath(handle=None, device_id=None):
-        """
-        bLUe version of ImageCms get_display_profile.
+        Tries to detect current display profile path.
 
         :param handle: screen handle (Windows)
         :type handle: int
         :param device_id: name of display
         :type device_id: str
+        :param enumicmprofiles: force usage of EnumICMProfiles
+        :type enumicmprofiles: bool
         :return: monitor profile path
         :rtype: str
         """
 
-        profile_path = DEFAULT_MONITOR_PROFILE_PATH
+        profile_path = cls.monitor_Profile_Path  # DEFAULT_MONITOR_PROFILE_PATH
+
         if sys.platform == "win32":
-            profile_path = ImageCms.core.get_display_profile_win32(handle, 1)
+            """
+            We use GetICMProfileW. Unfortunately, during a session, GetICMProfileW does
+            not see external (e.g. using ColorNavigator with a EIZO monitor) changes in
+            display profile. As a workaround we call EnumICMProfilesW to get the list of 
+            available profiles and open a dialog to manually set the profile. 
+            """
+
+            profile_path_list = []
+
+            # EnumICMProfilesW callback
+            @ctypes.CFUNCTYPE(ctypes.c_int, ctypes.c_wchar_p, ctypes.c_int)
+            def callback(a, b):
+                nonlocal profile_path_list
+                profile_path_list.append(a)
+                return 1  # return 1 for more
+
+            try:
+                libhandle = ctypes.WinDLL('gdi32')
+                buf = ctypes.create_unicode_buffer("", 0)  # ctypes.create_string_buffer(b"", 0)
+                size = ctypes.wintypes.DWORD()
+                res = libhandle.GetICMProfileW(handle, ctypes.byref(size), buf)
+                buf = ctypes.create_unicode_buffer("", size.value)  # ctypes.create_string_buffer(b"", size.value)
+                res = libhandle.GetICMProfileW(handle, ctypes.byref(size), buf)
+                profile_path = buf.value  # profile_path = buf.value.decode("utf-8")
+
+                if enumicmprofiles:
+                    # enum available display profiles
+                    libhandle.EnumICMProfilesW(handle, callback)
+                    #
+                    dlg = bLUeDialogCombo(Gui.window)
+                    dlg.setWindowTitle("Available display profiles")
+                    dlg.cb.addItems(profile_path_list)
+                    dlg.adjustSize()
+                    # center dialog on screen and exec
+                    dlg.move(Gui.window.screen().availableGeometry().center() - dlg.rect().center())
+                    if dlg.exec():
+                        profile_path = dlg.cb.currentText()
+
+            except (RuntimeError, ValueError) as e:
+                dlgWarn('Cannot detect monitor profile', info=str(e), parent=Gui.window)
+
         elif HAS_GI:
             try:
                 GIO_CANCELLABLE = Gio.Cancellable.new()
@@ -169,12 +223,14 @@ class icc:
                 default_profile = device.get_default_profile()
                 default_profile.connect_sync(GIO_CANCELLABLE)
                 profile_path = default_profile.get_filename()
+
             except (NameError, ImportError, GLib.GError) as e:
                 dlgWarn('Cannot detect monitor profile', info=str(e), parent=Gui.window)
+
         return profile_path
 
     @staticmethod
-    def B_get_display_profile(handle=None, device_id=None, mode='Cms'):
+    def B_get_display_profile(handle=None, device_id=None, enumicmprofiles=False):
         """
         Returns the display CmsProfile instance
 
@@ -182,19 +238,25 @@ class icc:
         :type handle: int
         :param device_id: name of display
         :type device_id: str
+        :param enumicmprofiles: force usage of EnumICMProfiles
+        :type enumicmprofiles: bool
         :return: monitor profile or None
         :rtype: Union[CmsProfile, None]
         """
 
-        profile_path = icc.B_get_display_profilePath(handle=handle, device_id=device_id)
+        profile_path = icc.B_get_display_profilePath(handle=handle,
+                                                     device_id=device_id,
+                                                     enumicmprofiles=enumicmprofiles
+                                                     )
         try:
             profile = getProfile(profile_path)
-        except ImageCms.PyCMSError:
-            profile = icc.get_default_monitor_profile()
+        except (IOError, ValueError, ImageCms.PyCMSError):
+            profile = icc.defaultMonitorProfile
+
         return profile
 
     @classmethod
-    def getMonitorProfile(cls, qscreen=None, mode='Cms'):
+    def getMonitorProfile(cls, qscreen=None, enumicmprofiles=False):
         """
         Tries to retrieve the current color profile
         associated with the monitor specified by QScreen
@@ -205,10 +267,10 @@ class icc:
 
         :param qscreen: QScreen instance
         :type qscreen: QScreen
-        :param mode: 'QCS' or 'Cms'
-        :type mode: str
+        :param enumicmprofiles: force usage of EnumICMProfiles
+        :type enumicmprofiles: bool
         :return: monitor profile or None
-        :rtype: Union[CmsProfile, QColorSpace, None]
+        :rtype: Union[CmsProfile, None]
         """
 
         monitorProfile = None
@@ -218,9 +280,10 @@ class icc:
             try:
                 if sys.platform == 'win32':
                     dc = win32gui.CreateDC('DISPLAY', str(qscreen.name()), None)
-                    monitorProfile = cls.B_get_display_profile(handle=dc, mode=mode)
+                    monitorProfile = cls.B_get_display_profile(handle=dc, enumicmprofiles=enumicmprofiles)
+                    win32gui.DeleteDC(dc)
                 else:
-                    monitorProfile = cls.B_get_display_profile(device_id=qscreen.name(), mode=mode)
+                    monitorProfile = cls.B_get_display_profile(device_id=qscreen.name())
             except (RuntimeError, OSError, TypeError, ImageCms.PyCMSError):
                 pass
             if isinstance(monitorProfile, QColorSpace):
@@ -232,7 +295,7 @@ class icc:
         return monitorProfile
 
     @classmethod
-    def configure(cls, qscreen=None, colorSpace=-1, workingProfile=None, softproofingwp=None):
+    def configure(cls, qscreen=None, colorSpace=-1, workingProfile=None, softproofingwp=None, enumicmprofiles=False):
         """
         Try to configure color management for the monitor
         specified by QScreen, and build a color transformation
@@ -249,6 +312,8 @@ class icc:
         :type workingProfile: ImageCmsProfile
         :param softproofingwp: profile for the device to simulate
         :type softproofingwp:
+        :param enumicmprofiles: force usage of EnumICMProfiles
+        :type enumicmprofiles: bool
         """
 
         cls.HAS_COLOR_MANAGE = False
@@ -260,8 +325,7 @@ class icc:
             # get monitor profile
             if qscreen is not None:
                 # get monitor profile as CmsProfile object.
-                cls.monitorProfile = cls.getMonitorProfile(qscreen=qscreen)
-                # a PyCmsError exception is raised if monitorProfile is invalid
+                cls.monitorProfile = cls.getMonitorProfile(qscreen=qscreen, enumicmprofiles=enumicmprofiles)
                 cls.monitorProfileInfo = ImageCms.getProfileInfo(cls.monitorProfile)
             else:
                 pass  # default keep current state

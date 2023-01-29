@@ -155,7 +155,7 @@ class Form1(QMainWindow):
         super(Form1, self).moveEvent(event)
         # detecting screen changes :
         # getting current QScreen instance
-        sn = self.windowHandle().screen()
+        sn = self.screen()  # self.windowHandle().screen()
         if sn is not self.currentScreenIndex:
             # screen changed detected
             self.currentScreenIndex = sn

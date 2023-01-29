@@ -20,9 +20,10 @@ from itertools import product
 import numpy as np
 
 from PySide6 import QtCore
-from PySide6.QtGui import QColor, QImage, QPainter, QPixmap, QIcon, QMouseEvent, QImageReader
+from PySide6.QtGui import QColor, QImage, QPainter, QMouseEvent, QImageReader
 from PySide6.QtWidgets import QListWidget, QListWidgetItem, \
-    QSlider, QLabel, QDockWidget, QStyle, QColorDialog, QPushButton, QSizePolicy, QComboBox, QSpinBox
+    QSlider, QLabel, QDockWidget, QStyle, QColorDialog, QPushButton, QSizePolicy, QComboBox, QSpinBox, \
+    QDialog, QDialogButtonBox, QVBoxLayout
 from PySide6.QtCore import Qt, QObject, QRect
 
 from bLUeCore.rollingStats import movingVariance
@@ -698,6 +699,37 @@ class optionsWidget(QListWidget):
     def checkedItems(self):
         return [self.item(i) for i in range(self.count()) if self.item(i).checkState() == Qt.Checked]
 
+
+class bLUeDialogCombo(QDialog):
+    """
+    Dialog form with a  combo box and 2 buttons Ok and Cancel
+    """
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.cb = QComboBox()
+        self.cb.setSizeAdjustPolicy(QComboBox.AdjustToContents)
+        self.cb.currentIndexChanged.connect(self.selectionchange)
+
+        buttonBox = QDialogButtonBox()
+        OkBtn = buttonBox.addButton(QDialogButtonBox.Ok)
+        CancelBtn = buttonBox.addButton(QDialogButtonBox.Cancel)
+
+        def f(button):
+            if button is OkBtn:
+                self.accept()
+            else:
+                self.reject()
+
+        buttonBox.clicked.connect(f)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.cb)
+        layout.addWidget(buttonBox)
+        self.setLayout(layout)
+        self.onChange = lambda: None
+
+    def selectionchange(self, i):
+        self.onChange()
 
 def checkeredImage(format=QImage.Format_ARGB32):
     """

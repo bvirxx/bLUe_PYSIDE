@@ -1088,9 +1088,10 @@ def menuImage(name, window=bLUeTop.Gui.window):
 
     # force current display profile re-detection
     elif name == 'actionUpdate_display_profile':
-        icc.configure(qscreen=window.currentScreenIndex,
+        icc.configure(qscreen=window.screen(),  #currentScreenIndex,
                       workingProfile=icc.workingProfile,
-                      softproofingwp=icc.softProofingProfile
+                      softproofingwp=icc.softProofingProfile,
+                      enumicmprofiles=True
                       )
         updateCurrentViews()
 
