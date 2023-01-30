@@ -16,6 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import ctypes
+import sys
 from itertools import product
 import numpy as np
 
@@ -811,6 +812,61 @@ def QImageFromFile(filename):
     reader = QImageReader(filename)
     reader.setAutoTransform(True)  # handle orientation tag
     return reader.read()
+
+
+def getDisplayProfileWin(handle):
+    """
+    OS specific function for Windows retrieving the
+    current display profile.
+    Raises OSError for other OS.
+
+    :param handle: display device context
+    :type handle: int
+    :return: path to display profile
+    :rtype: str
+    """
+
+    if sys.platform == 'win32':
+        libhandle = ctypes.WinDLL('gdi32')
+        buf = ctypes.create_unicode_buffer("", 0)
+        size = ctypes.wintypes.DWORD()
+        res = libhandle.GetICMProfileW(handle, ctypes.byref(size), buf)
+        buf = ctypes.create_unicode_buffer("", size.value)
+        res = libhandle.GetICMProfileW(handle, ctypes.byref(size), buf)
+        return buf.value
+    else:
+        raise OSError
+
+
+def enumDisplayProfilesWin(handle):
+    """
+    OS specific function for Windows retrieving the
+    list of available display profiles.
+    Raises OSError for other OS.
+
+    :param handle: display device context
+    :type handle: int
+    :return: list of paths to display devices
+    :rtype: list of str
+    """
+
+    if sys.platform == 'win32':
+        libhandle = ctypes.WinDLL('gdi32')
+        profile_path_list = []
+
+        # EnumICMProfilesW callback
+        @ctypes.CFUNCTYPE(ctypes.c_int, ctypes.c_wchar_p, ctypes.c_int)
+        def callback(a, b):
+            nonlocal profile_path_list
+            profile_path_list.append(a)
+            return 1  # return 1 for more
+
+        # enum available display profiles
+        libhandle.EnumICMProfilesW(handle, callback)
+
+        return profile_path_list
+    else:
+        raise OSError
 
 
 if __name__ == '__main__':

@@ -19,8 +19,6 @@ import sys
 
 import numpy as np
 
-import ctypes
-
 from PIL import Image, ImageCms
 
 from PySide6.QtGui import QImage, QColorSpace, QColorTransform
@@ -30,7 +28,7 @@ from bLUeGui.dialog import dlgWarn
 
 from bLUeTop import Gui
 from bLUeTop.settings import COLOR_MANAGE_OPT, SRGB_PROFILE_PATH, ADOBE_RGB_PROFILE_PATH, DEFAULT_MONITOR_PROFILE_PATH
-from bLUeTop.utils import bLUeDialogCombo
+from bLUeTop.utils import bLUeDialogCombo, getDisplayProfileWin, enumDisplayProfilesWin
 
 # python-gi flag
 HAS_GI = False
@@ -178,39 +176,23 @@ class icc:
             display profile. As a workaround we call EnumICMProfilesW to get the list of 
             available profiles and open a dialog to manually set the profile. 
             """
-
-            profile_path_list = []
-
-            # EnumICMProfilesW callback
-            @ctypes.CFUNCTYPE(ctypes.c_int, ctypes.c_wchar_p, ctypes.c_int)
-            def callback(a, b):
-                nonlocal profile_path_list
-                profile_path_list.append(a)
-                return 1  # return 1 for more
-
             try:
-                libhandle = ctypes.WinDLL('gdi32')
-                buf = ctypes.create_unicode_buffer("", 0)  # ctypes.create_string_buffer(b"", 0)
-                size = ctypes.wintypes.DWORD()
-                res = libhandle.GetICMProfileW(handle, ctypes.byref(size), buf)
-                buf = ctypes.create_unicode_buffer("", size.value)  # ctypes.create_string_buffer(b"", size.value)
-                res = libhandle.GetICMProfileW(handle, ctypes.byref(size), buf)
-                profile_path = buf.value  # profile_path = buf.value.decode("utf-8")
+                profile_path = getDisplayProfileWin(handle)
 
                 if enumicmprofiles:
-                    # enum available display profiles
-                    libhandle.EnumICMProfilesW(handle, callback)
-                    #
-                    dlg = bLUeDialogCombo(Gui.window)
-                    dlg.setWindowTitle("Available display profiles")
+                    profile_path_list = enumDisplayProfilesWin(handle)
+                    dlg = bLUeDialogCombo()
+                    dlg.setStyleSheet("""QComboBox {font-size: 10pt;}""")
                     dlg.cb.addItems(profile_path_list)
+                    dlg.setWindowTitle('Available Display Profiles')
                     dlg.adjustSize()
+
                     # center dialog on screen and exec
                     dlg.move(Gui.window.screen().availableGeometry().center() - dlg.rect().center())
                     if dlg.exec():
                         profile_path = dlg.cb.currentText()
 
-            except (RuntimeError, ValueError) as e:
+            except (OSError, RuntimeError, ValueError) as e:
                 dlgWarn('Cannot detect monitor profile', info=str(e), parent=Gui.window)
 
         elif HAS_GI:
