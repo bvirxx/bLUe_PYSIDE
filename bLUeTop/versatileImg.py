@@ -310,7 +310,7 @@ class vImage(bImage):
         :return: the smoothed mask
         :rtype: ndarray
         """
-        kernelMean = np.ones((ks, ks), np.float) / (ks * ks)
+        kernelMean = np.ones((ks, ks), float) / (ks * ks)
         return cv2.filter2D(mask, -1, kernelMean)  # -1 : keep depth unchanged
 
     def __init__(self, filename=None, cv2Img=None, QImg=None, format=QImage.Format_ARGB32,
@@ -651,7 +651,7 @@ class vImage(bImage):
         The buffer is recalculated when needed.
 
         :return: Lab buffer, L range is 0..1, a, b ranges are -128..+128
-        :rtype: numpy ndarray, dtype np.float
+        :rtype: numpy ndarray, dtype float
         """
         if self.LabBuffer is None or not self.cachesEnabled:
             currentImage = self.getCurrentImage()
@@ -665,7 +665,7 @@ class vImage(bImage):
         H,S,V ranges are 0..255 (opencv convention for 8 bits images).
 
         :return: HSV buffer
-        :rtype: numpy ndarray, dtype np.float
+        :rtype: numpy ndarray, dtype float
         """
         if self.HSVBuffer is None or not self.cachesEnabled:
             currentImage = self.getCurrentImage()
@@ -1424,7 +1424,7 @@ class vImage(bImage):
                         if self.parentImage.isHald and not options['manualCurve']:
                             raise ValueError(
                                 'A contrast curve was found.\nCheck the option Show Contrast Curve in Cont/Bright/Sat layer')
-                        buf32 = HSVBuf[:, :, 2].astype(np.float) / 255
+                        buf32 = HSVBuf[:, :, 2].astype(float) / 255
                         auto = self.autoSpline and not self.parentImage.isHald  # flag for manual/auto spline
                         res, a, b, d, T = warpHistogram(buf32, warp=contrastCorrection, preserveHigh=options['High'],
                                                         spline=None if auto else self.getMmcSpline())
@@ -1515,7 +1515,7 @@ class vImage(bImage):
             return
 
         # convert LUT to float to speed up  buffer conversions
-        stackedLUT = stackedLUT.astype(np.float)
+        stackedLUT = stackedLUT.astype(float)
         # get the Lab input buffer
         Img0 = self.inputImg()
         ndLabImg0 = Img0.getLabBuffer()  # copy()
@@ -1625,7 +1625,7 @@ class vImage(bImage):
             return
 
         # convert LUT to float to speed up  buffer conversions
-        stackedLUT = stackedLUT.astype(np.float)
+        stackedLUT = stackedLUT.astype(float)
         # get HSV buffer, range H: 0..180, S:0..255 V:0..255
         Img0 = self.inputImg()
         HSVImg0 = Img0.getHSVBuffer()
@@ -1661,7 +1661,7 @@ class vImage(bImage):
             options = UDict()
 
         # get HSV buffer, range H: 0..180, S:0..255 V:0..255  (opencv convention for 8 bits images)
-        HSVImg0 = inputImage.getHSVBuffer().astype(np.float)  # copy done
+        HSVImg0 = inputImage.getHSVBuffer().astype(float)  # copy done
         HSVImg0[:, :, 0] *= 2  # 0..360
 
         # reset layer image

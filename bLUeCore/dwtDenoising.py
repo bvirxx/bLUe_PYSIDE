@@ -130,7 +130,7 @@ def dwtDenoiseChan(image, chan=0, thr=1.0, thrmode='hard', wavelet='haar', level
         # stack all coeffs in a single array
         a, s = pywt.coeffs_to_array(DWT_coeffs)  # a:array, s:strides
         # keep details coefficients only
-        mask = np.ones(a.shape, dtype=np.bool)
+        mask = np.ones(a.shape, dtype=bool)
         mask[s[0][0], s[0][1]] = False
 
         # hard threshold: cut coeffs under thr

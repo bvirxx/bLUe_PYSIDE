@@ -152,11 +152,11 @@ class dstb(object):
         :param x: array of arguments
         :type  x: ndarray, dtype float
         :return: array of CDF(x) values
-        :rtype: ndarray, dtype=np.float,  same shape as x
+        :rtype: ndarray, dtype=float,  same shape as x
         """
         s = self.maxVal
         xs = x * s
-        k1 = xs.astype(np.int)
+        k1 = xs.astype(int)
         v1 = self.CDFTable[k1]
         if self.interpolateCDF:
             k2 = np.minimum(k1 + 1, s)
@@ -241,7 +241,7 @@ def gaussianDistribution(x, hist, bins, h):
     :rtype: float
     """
     dist = dstb(hist, bins)
-    values = np.arange(256, dtype=np.float) / 256
+    values = np.arange(256, dtype=float) / 256
     valuesx = x / 256 - values
     valuesx = - valuesx * valuesx / (2 * h * h)
     expx = np.exp(valuesx) / (h * np.sqrt(2 * np.pi)) * dist
@@ -311,7 +311,7 @@ def valleys(imgBuf, delta):
         if np.all([(DTable[l] > DTable[k]) for l in range(k + j, k)]) and \
                 np.all([(DTable[l] > DTable[k]) for l in range(k + 1, k + i + 1)]):
             V.append(k)
-    V = np.fromiter(V, dtype=np.float, count=len(V))
+    V = np.fromiter(V, dtype=float, count=len(V))
     return V, dist
 
 
@@ -358,7 +358,7 @@ def autoQuadSpline(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True):
     V0 = np.concatenate(([dist.FInv(0)], V0, [dist.FInv(1)]))
     modeCenters = (V0[1:] + V0[:-1]) / 2
     # init the array of data points
-    a = np.zeros(len(V0) + 3, dtype=np.float)  # len(a) = K+2
+    a = np.zeros(len(V0) + 3, dtype=float)  # len(a) = K+2
     # put modeCenters into a[2:K-1], and count
     # valleys from V[1] to get a[k] = (V[k-1] + V[k])/2, k>=2
     a[2:-2] = modeCenters
@@ -398,21 +398,21 @@ def autoQuadSpline(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True):
     aPlus = dist.FInvVec(tmpMid)  # aPLus[k] = FInv( (F(a[k] + F(a[k+1])) / 2 )
     aPlus = np.concatenate((aPlus, [1.0]))
     aMinus = np.concatenate(([0.0], aPlus[:-1]))  # aMinus[k] = FInv( (F(a[k] + F(a[k-1])) / 2 ), k>=1
-    # eps = np.finfo(np.float64).eps
+    # eps = np.finfo(float64).eps
 
     with np.errstate(divide='ignore', invalid='ignore'):
         alpha = (dist.FVec(a[1:-1]) - dist.FVec(a[:-2])) / (dist.FVec(a[2:]) - dist.FVec(a[:-2]))
         alpha = np.concatenate(([0], alpha))  # alpha[k] = (F(a[k]) - F(a[k-1])/(F(a[k+1]) - F(a[k-1]), K-1>=k>=1
         beta = (dist.FVec(a[2:]) - dist.FVec(a[1:-1])) / (dist.FVec(a[2:]) - dist.FVec(a[:-2]))
         beta = np.concatenate(([0], beta))  # beta[k] = (F(a[k+1] - F(a[k])/(F(a[k+1]) - F([a[k-1])), K-1>=k>=1
-        r1 = np.zeros(len(a), dtype=np.float)
-        r2 = np.zeros(len(a), dtype=np.float)
+        r1 = np.zeros(len(a), dtype=float)
+        r2 = np.zeros(len(a), dtype=float)
         r1[1:-1] = (b[1:-1] - bMinus[1:-1]) / (
                     a[1:-1] - aMinus[1:-1])  # r1[k] = (b[k] - bMinus[k])/((a[k] - aMinus[k]), k>=1
         r2[1:-1] = (bPlus[1:-1] - b[1:-1]) / (
                     aPlus[1:-1] - a[1:-1])  # r2[k] = (bPlus[k] - b[k])/((aPlus[k] - a[k]), k>=1
         # array of slopes
-        d = np.zeros(len(a), dtype=np.float)  # len(a) = len(b) = len(d) = K+2
+        d = np.zeros(len(a), dtype=float)  # len(a) = len(b) = len(d) = K+2
         d[1:-1] = np.power(r1[1:-1], alpha[1:]) * np.power(r2[1:-1], beta[1:])
         d[0] = bPlus[0] / aPlus[0]
         d[-1] = (1 - bMinus[-1]) / (1 - aMinus[-1])  # d[K+1] = (1 - bMinus[K+1]) / ((1-aMinus[K+1])
@@ -457,7 +457,7 @@ def warpHistogram(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True, spli
     :param spline: spline, range 0..256 --> 0..1
     :type  spline: activeSpline
     :return: the transformed image channel, range 0..1 and the quadratic spline
-    :rtype: image ndarray same shape as imgBuf, dtype=np.float, a, b, T are in range 0..1
+    :rtype: image ndarray same shape as imgBuf, dtype=float, a, b, T are in range 0..1
     """
     if spline is None:
         a, b, d, T = autoQuadSpline(imgBuf, valleyAperture=valleyAperture, warp=warp, preserveHigh=preserveHigh)
@@ -465,7 +465,7 @@ def warpHistogram(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True, spli
         a, b, d, T = [p.x() for p in spline.fixedPoints], \
                      [p.y() for p in spline.fixedPoints], spline.fixedTangents, spline.LUTXY / 256
     im = imgBuf * 255
-    im1 = im.astype(np.int)
+    im1 = im.astype(int)
     im2 = im1 + 1
     B1 = T[im1]
     # extrapolate T to handle eventual value 256 in im2

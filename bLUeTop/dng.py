@@ -168,7 +168,7 @@ class dngProfileLookTable:
             # use closed intervals instead of right-opened intervals
             # as input ranges).
             # Adding a division point for hue = 360 (cf. dng spec p. 82) : total increment for divs[0] is +2.
-            buf = np.zeros((divs[0] + 2, divs[1] + 1, divs[2] + 1, 3), dtype=np.float) + (0, 1, 1)
+            buf = np.zeros((divs[0] + 2, divs[1] + 1, divs[2] + 1, 3), dtype=float) + (0, 1, 1)
             # move axes to h, s, v ordering
             data = np.moveaxis(data, (0, 1, 2), (2, 0, 1))
             # put values into table, starting from index 0.

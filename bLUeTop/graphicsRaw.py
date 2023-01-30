@@ -69,7 +69,7 @@ class graphicsToneForm(graphicsSplineForm):
             x, y = x // 2, y // 2
         color = rImg.linearImg.pixelColor(x, y)
         r, g, b = color.red(), color.green(), color.blue()
-        h, s, v = cv2.cvtColor((np.array([r, g, b]) / 255).astype(np.float32)[np.newaxis, np.newaxis, :],
+        h, s, v = cv2.cvtColor((np.array([r, g, b]) / 255).astype(float32)[np.newaxis, np.newaxis, :],
                                cv2.COLOR_RGB2HSV)[0, 0, :]
         self.inputMarker.setPos(v * self.scene().axeSize, 0.0)
 

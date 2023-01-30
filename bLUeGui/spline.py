@@ -31,11 +31,11 @@ def displacementSpline(X, Y, V, period=0, clippingInterval=None):
     A ValueError exception is raised if the X values are not distinct.
 
     :param X: x-coordinates of control points, sorted in increasing order
-    :type  X: ndarray, dtype=np.float
+    :type  X: ndarray, dtype=float
     :param Y: y-coordinates of control points
-    :type  Y: ndarray, dtype=np.float
+    :type  Y: ndarray, dtype=float
     :param V: x-coordinates of spline points
-    :type  V: ndarray, dtype=np.float
+    :type  V: ndarray, dtype=float
     :param period:
     :type  period: int
     :param clippingInterval:
@@ -81,19 +81,19 @@ def interpolationQuadSpline(a, b, d):
     Note. for k < a[0], T[k]=b[0] and, for k > a[-1], T[k]=b[-1]
 
     :param a: x-coordinates of nodes
-    :type  a: ndarray, dtype np.float
+    :type  a: ndarray, dtype float
     :param b: y-coordinates of nodes
-    :type  b: ndarray, dtype=np.float
+    :type  b: ndarray, dtype=float
     :param d: slopes at nodes
-    :type  d: ndarray, dtype=np.float
+    :type  d: ndarray, dtype=float
     :return: Spline table
-    :rtype: ndarray, dtype=np.float
+    :rtype: ndarray, dtype=float
     """
     assert len(a) == len(b) == len(d)
     if np.min(a[1:] - a[:-1]) <= 0:
         raise ValueError('histogram.InterpolationSpline : a must be strictly increasing')
     # x-coordinate range
-    x = np.arange(256, dtype=np.float) / 255
+    x = np.arange(256, dtype=float) / 255
     x = np.clip(x, a[0], a[-1])
     # find  node intervals containing x : for each i, get smallest j s.t. a[j] > x[i]
     tmp = np.fromiter(((a[j] > x[i]) for j in range(len(a)) for i in range(len(x))), dtype=bool)
@@ -135,9 +135,9 @@ def coeff(X, Y):
     :param X: X ccordinates of points
     :type  X: ndarray, dtype=float
     :param Y: Y coordinates of points
-    :type  Y: ndarray, dtype=np.float
+    :type  Y: ndarray, dtype=float
     :return: deltaX1 and R arrays of size N-1 and N respectively
-    :rtype: ndarray, dtype=np.float
+    :rtype: ndarray, dtype=float
     """
     old_settings = np.seterr(all='ignore')
     deltaX1 = X[1:] - X[:-1]
@@ -166,13 +166,13 @@ def cubicSpline(X, Y, V):
     A ValueError exception is raised if the X values are not distinct.
 
     :param X: x-coordinates of control points, sorted in increasing order
-    :type  X: ndarray, dtype=np.float
+    :type  X: ndarray, dtype=float
     :param Y: y-coordinates of control points
-    :type  Y: ndarray, dtype=np.float
+    :type  Y: ndarray, dtype=float
     :param V: x-coordinates of spline points
-    :type  V: ndarray, dtype=np.float
+    :type  V: ndarray, dtype=float
     :return: y-coordinates of the spline points
-    :rtype: ndarray, dtype=np.float
+    :rtype: ndarray, dtype=float
     """
 
     def P(t):

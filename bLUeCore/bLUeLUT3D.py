@@ -307,7 +307,7 @@ class DeltaLUT3D(object):
 
         """
         self.__divs = divs
-        self.__data = np.zeros((divs[0] + 2, divs[1] + 1, divs[2] + 1, 3), dtype=np.float) + (0, 1, 1)
+        self.__data = np.zeros((divs[0] + 2, divs[1] + 1, divs[2] + 1, 3), dtype=float) + (0, 1, 1)
 
     @property
     def divs(self):

@@ -147,7 +147,7 @@ class mixerForm(baseGraphicsForm):
             self.dataChanged.disconnect()
         except RuntimeError:
             pass
-        self.mixerMatrix = np.identity(3, dtype=np.float)
+        self.mixerMatrix = np.identity(3, dtype=float)
         with np.printoptions(precision=2, suppress=True):
             self.values.setText(self.getChannelValues())
         self.dataChanged.connect(self.updateLayer)

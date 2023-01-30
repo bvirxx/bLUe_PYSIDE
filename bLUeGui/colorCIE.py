@@ -339,7 +339,7 @@ def sRGB2LabVec(bufsRGB, RGB_lin2XYZ=sRGB_lin2XYZ, useOpencv=True):
     """
     if useOpencv:
         bufLab = cv2.cvtColor(bufsRGB, cv2.COLOR_RGB2Lab)
-        bufLab = bufLab.astype(np.float)
+        bufLab = bufLab.astype(float)
         # for 8 bits per channel images opencv uses L,a,b range 0..255
         bufLab[:, :, 0] /= 255.0
         bufLab[:, :, 1:] -= 128

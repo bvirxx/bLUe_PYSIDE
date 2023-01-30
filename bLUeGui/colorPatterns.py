@@ -101,7 +101,7 @@ class hueSatPattern(bImage):
         # init a stack of image buffers, one for each brightness in integer range 0..100
         hsBuf = np.dstack((hue, sat))[np.newaxis, :]  # shape (1, h, w, 2)
         hsBuf = np.tile(hsBuf, (101, 1, 1, 1))  # (101, h, w, 2)
-        pArray = np.arange(101, dtype=np.float) / 100.0
+        pArray = np.arange(101, dtype=float) / 100.0
         pBuf = np.tile(pArray[:, np.newaxis, np.newaxis], (1, h, w))  # 101, h, w
         hspBuf = np.stack((hsBuf[:, :, :, 0], hsBuf[:, :, :, 1], pBuf), axis=-1)  # 101, h, w, 3
         # convert the buffers to rgb
@@ -190,7 +190,7 @@ class brightnessPattern(bImage):
         imgBuf[:, :, 3] = 255
         imgBuf = imgBuf[:, :, :3][:, :, ::-1]
         # build the array of (hue, sat, b), b in [0,1], shape=(w,3)
-        a = np.zeros((w, 2), dtype=np.float) + [hue, sat]
+        a = np.zeros((w, 2), dtype=float) + [hue, sat]
         hsArray = np.concatenate((a, (np.arange(w) / (w - 1))[..., np.newaxis]), axis=1)
         # convert to rgb and broadcast to imgBuf
         imgBuf[:, :, :] = converter.cm2rgbVec(hsArray[np.newaxis, ...])

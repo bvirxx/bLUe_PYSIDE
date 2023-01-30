@@ -82,14 +82,14 @@ def createLineIterator(P1, P2, img):
                 itbuffer[:, 1] = np.arange(P1Y - 1, P1Y - dYa - 1, -1)
             else:
                 itbuffer[:, 1] = np.arange(P1Y + 1, P1Y + dYa + 1)
-            itbuffer[:, 0] = (slope * (itbuffer[:, 1] - P1Y)).astype(np.int) + P1X
+            itbuffer[:, 0] = (slope * (itbuffer[:, 1] - P1Y)).astype(int) + P1X
         else:
             slope = dY.astype(np.float32) / dX.astype(np.float32)
             if negX:
                 itbuffer[:, 0] = np.arange(P1X - 1, P1X - dXa - 1, -1)
             else:
                 itbuffer[:, 0] = np.arange(P1X + 1, P1X + dXa + 1)
-            itbuffer[:, 1] = (slope * (itbuffer[:, 0] - P1X)).astype(np.int) + P1Y
+            itbuffer[:, 1] = (slope * (itbuffer[:, 0] - P1X)).astype(int) + P1Y
 
     # Remove points outside of image
     colX = itbuffer[:, 0]
@@ -176,7 +176,7 @@ def membrane(inMBuf, maskBuf, maskContour, passes=1):
     :param passes: number of grid refinements
     :type passes: int
     :return: membrane buffer
-    :rtype: ndarray, shape (h, w, d), dtype=np.float
+    :rtype: ndarray, shape (h, w, d), dtype=float
     """
     steps = [33, 17, 9, 5]
     passes = min(max(1, passes), len(steps))
@@ -196,7 +196,7 @@ def membrane(inMBuf, maskBuf, maskContour, passes=1):
     # solve Laplace equation using a grid with unit cells of size step.
     # init the laplacian kernel
     r = 3
-    lpKernel = np.zeros((r, r), dtype=np.float)
+    lpKernel = np.zeros((r, r), dtype=float)
     lpKernel[0, r // 2], lpKernel[r // 2, 0], lpKernel[r - 1, r // 2], lpKernel[r // 2, r - 1] = (0.25,) * 4
     lpKernel[r // 2, r // 2] = 0.0
     for step in steps[:passes]:  # [33, 17]:
@@ -272,7 +272,7 @@ def seamlessClone(srcBuf, destBuf, mask, conts, bRect, srcTr, destTr, w=3, passe
     maskContour = np.zeros(mask.shape, dtype=mask.dtype)  # dest of contours
     cv2.drawContours(maskContour, conts, -1, 255, w)  # -1: draw all contours; 0: draw contour 0
     # solving Laplace equation for delta = destBufT - srcBufT
-    buf = membrane(destBufT.astype(np.float) - srcBufT.astype(np.float), mask[array2DSlices(mask, bRect)],
+    buf = membrane(destBufT.astype(float) - srcBufT.astype(float), mask[array2DSlices(mask, bRect)],
                    maskContour[array2DSlices(maskContour, bRect)], passes=passes)
     tmp = buf + srcBufT
     np.clip(tmp, 0, 255, tmp)

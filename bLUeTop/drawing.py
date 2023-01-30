@@ -207,7 +207,7 @@ class brushFamily:
             return
         img = img.convertToFormat(QImage.Format_ARGB32)
         buf = QImageBuffer(img)
-        b = np.sum(buf[..., :3], axis=-1, dtype=np.float)
+        b = np.sum(buf[..., :3], axis=-1, dtype=float)
         b /= 3
         buf[..., 3] = b
         self.preset = QPixmap.fromImage(img)

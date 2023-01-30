@@ -101,7 +101,7 @@ def rgb2hsBVec(rgbImg, perceptual=False):
     :rtype: (n,m,3) array, dtype=float
     """
     buf = cv2.cvtColor(rgbImg.astype(np.uint8), cv2.COLOR_RGB2HSV)
-    buf = buf.astype(np.float)
+    buf = buf.astype(float)
     buf *= [2, 1.0 / 255.0, 1.0 / 255.0]  # scale to 0..360, 0..1, 0..1
     if perceptual:
         rgbImg2 = rgbImg.astype(float)
@@ -128,7 +128,7 @@ def rgb2hlsVec(rgbImg):
     :rtype: (n,m,3) array, dtype=float
     """
     buf = cv2.cvtColor(rgbImg.astype(np.uint8), cv2.COLOR_RGB2HLS)
-    buf = buf.astype(np.float)
+    buf = buf.astype(float)
     buf *= [2, 1.0 / 255.0, 1.0 / 255.0]  # scale to 0..360, 0..1, 0..1
     return buf
 
@@ -316,9 +316,9 @@ def hsp2rgbVec(hspImg):
     to convert from HSV to RGB
 
     :param hspImg: (n,m,3) array of H, S, pB values, range H:0..360, S:0..1, pB:0..1
-    :type  hspImg: ndarray dtype=np.float
+    :type  hspImg: ndarray dtype=float
     :return: identical shape array of RGB values
-    :rtype: ndarray dtype=np.float
+    :rtype: ndarray dtype=float
     """
     h, s, p = hspImg[..., 0], hspImg[..., 1], hspImg[..., 2]
 

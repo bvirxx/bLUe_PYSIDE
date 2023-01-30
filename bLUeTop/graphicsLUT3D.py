@@ -134,7 +134,7 @@ class nodeGroup(QGraphicsItemGroup, QObject):  # QObject needed by disconnect()
         self.brightnessItem.brightnessThr0.installSceneEventFilter(self.brightnessItem.brightnessThr1)
         self.brightnessItem.brightnessThr1.installSceneEventFilter(self.brightnessItem.brightnessThr0)
         # group brightness curve
-        self.normalizedLUTXY = np.arange(256, dtype=np.float) / 255.0
+        self.normalizedLUTXY = np.arange(256, dtype=float) / 255.0
 
         def f8():
             try:  # safety first : sometimes, disconnecting seems problematic
@@ -434,7 +434,7 @@ class activeNode(QGraphicsPathItem):
         # For each brightness V, self.LUTIndices[V] is the the nearest neighbor vertex
         # of (R, G, B) in the 3D LUT.
         # (BrgbBuf axis 0 is V, axis 3 is color)
-        tmp = scene.slider2D.QImg.BrgbBuf[:, p.y(), p.x()].astype(np.float)  # shape 101, 3
+        tmp = scene.slider2D.QImg.BrgbBuf[:, p.y(), p.x()].astype(float)  # shape 101, 3
         tmp /= float(LUTSTEP)
         np.round(tmp, out=tmp)
         self.LUTIndices = tmp.astype(int)
