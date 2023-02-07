@@ -859,7 +859,7 @@ def menuFile(name, window=bLUeTop.Gui.window):
         # get image from clipboard, if any
         cb = QApplication.clipboard()
         cbImg = cb.image()
-        w, h = (200,) * 2
+        w, h = (2000,) * 2
         if not cbImg.isNull():
             w, h = cbImg.width(), cbImg.height()
             cb.clear()
@@ -1986,7 +1986,7 @@ def setupGUI(window=bLUeTop.Gui.window):
     window.verticalSlider2.setToolTip('Opacity')
     window.verticalSlider3.setAccessibleName('verticalSlider3')
     window.verticalSlider3.setRange(0, 100)
-    window.verticalSlider3.setSliderPosition(100)
+    window.verticalSlider3.setSliderPosition(75)
     window.verticalSlider3.setToolTip('Hardness')
     window.verticalSlider4.setAccessibleName('verticalSlider4')
     window.verticalSlider4.setRange(0, 100)
@@ -1995,7 +1995,7 @@ def setupGUI(window=bLUeTop.Gui.window):
     # get brush and eraser families
     window.brushCombo, window.patternCombo = QComboBox(), QComboBox()
     window.brushCombo.setToolTip('Brush Family')
-    window.patternCombo.setToolTip('Patterns')
+    window.patternCombo.setToolTip('Pattern')
     window.brushCombo.setIconSize(QSize(50, 50))
     window.patternCombo.setIconSize(QSize(50, 50))
     window.brushCombo.setMinimumWidth(150)
@@ -2016,6 +2016,14 @@ def setupGUI(window=bLUeTop.Gui.window):
     window.colorChooser.colorSelected.connect(window.label.brushUpdate)
     # init tool bar
     toolBar.addWidget(QLabel(' Brush  '))
+
+    def tbSpacer():
+        empty = QWidget()
+        empty.setFixedHeight(30)
+        empty.setFixedWidth(50)
+        empty.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        return empty
+
     for slider in [window.verticalSlider1, window.verticalSlider2, window.verticalSlider3, window.verticalSlider4]:
         toolBar.addWidget(QLabel(slider.toolTip() + '  '))
         slider.setTickPosition(QSlider.TicksBelow)
@@ -2025,8 +2033,11 @@ def setupGUI(window=bLUeTop.Gui.window):
         empty.setFixedHeight(30)
         empty.setFixedWidth(50)
         empty.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        toolBar.addWidget(empty)
+        toolBar.addWidget(tbSpacer())
+    toolBar.addWidget(QLabel(window.brushCombo.toolTip() + '  '))
     toolBar.addWidget(window.brushCombo)
+    toolBar.addWidget(tbSpacer())
+    toolBar.addWidget(QLabel(window.patternCombo.toolTip() + '  '))
     toolBar.addWidget(window.patternCombo)
     # link tooLBar to the group of tool buttons
     for button in window.drawFG.group().buttons():

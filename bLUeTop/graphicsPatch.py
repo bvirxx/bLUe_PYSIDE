@@ -19,7 +19,7 @@ from os.path import basename
 
 import cv2
 from PySide6.QtCore import Qt, QPoint, QPointF, QRect
-from PySide6.QtGui import QImage, QPixmap, QPainter
+from PySide6.QtGui import QPixmap, QPainter
 from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog
 
 from bLUeGui.graphicsForm import baseForm
@@ -185,7 +185,8 @@ class patchForm(baseForm):
             <b>Cloning/healing brush</b><br>
             Seamless replacement of a region of the image by another region of the same image 
             or by another image (e.g. to erase an object):<br>
-               &nbsp; 1) <b> Make sure that the cloning layer is the topmost visible layer</b><br>
+               &nbsp; 1) <b> Make sure that the cloning layer is the topmost visible layer and
+                         that Normal Blend mode is selected.</b><br>
                &nbsp; 2) With the <i>Pointer Tool</i> selected, <b>Ctrl+Alt+Click</b>
                           on the layer or the source window to mark the source starting point;<br> 
                &nbsp; 3) Select the <i>Unmask/FG Tool</i> and paint the destination region to copy and clone pixels. 

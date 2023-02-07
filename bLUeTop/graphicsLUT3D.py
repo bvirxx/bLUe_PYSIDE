@@ -1423,14 +1423,14 @@ class graphicsForm3DLUT(baseGraphicsForm):
         self.setWhatsThis(
             """ <b>2.5D LUT Perceptual Editor</b><br>
             Nodes are displayed as small circles on the color wheel (push the button <i>Show/Hide All </i> if they are 
-            not shown. Each node corresponds to a set of colors sharing the same hue and saturation.<br> The size of 
+            not shown). Each node corresponds to a set of colors sharing the same hue and saturation.<br> The size of 
             the grid can be changed. Note that changing the grid size resets the whole grid.<br>
             Edition can be applied to a subset of the grid nodes or to all nodes simultaneously (gamut warping).<br> 
             <b>Image Driven Node Selection</b> Select nodes to edit by mouse clicks on the image or by Ctrl+clicks 
             on nodes.
-            <b> When the Marquee Tool is active node Node Selection is disabled.</b>
+            <b> When the Marquee Tool is active node selection is disabled.</b>
             <b>To modify the colors</b> of a node <i>Ctrl+drag</i> it on
-            the wheel. Several nodes can be moved simultaneously by grouping them : <br>
+            the wheel. Several nodes can be moved simultaneously by grouping them.<br>
             <b>Grouping nodes</b> :<br>
                     &nbsp; 1 - Select the nodes to be grouped (selected nodes are white); a rubberband is available.<br>
                     &nbsp; 2 - next, right click any one of the selected nodes and 
@@ -1441,7 +1441,8 @@ class graphicsForm3DLUT(baseGraphicsForm):
             <b>Gamut Warping</b> The whole grid of nodes can be twisted by using Ctrl+Alt+Drag on any of 
             the four corner vertices of the grid (Press <i>Show/Hide All </i> if they are not visible).<br>
             The two modes of edition can be freely mixed.<br>
-            <b>Brightness Control</b> is found in the context menu of node groups.<br> 
+            <b>To show the brightness control curve</b> for a group of nodes right-click on the group and choose 
+            <i>Brightness Settings</i>  in the context menu which opens.<br> 
             <b>Warning</b> : Selecting/unselecting nodes with the mouse is enabled only when
             the Color Chooser is closed.<br>
             Press the <b> Smooth Grid</b> button to smooth color transitions between neighbor nodes.

@@ -21,7 +21,7 @@
      "DIR2" : "C:\\ProgramData\\Adobe\\CameraRaw\\CameraProfiles\\Camera"
   },
   "BRUSHES" : {
-     "//" : "Path to brush strokes",
+     "//" : "Path to brush files (relative to bLUe dir)",
      "DIR" : "brushes"
   },
   "ENV" : {

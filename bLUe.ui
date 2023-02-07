@@ -800,7 +800,7 @@ Size</string>
     </widget>
     <widget class="QMenu" name="menuLoad_Preset">
      <property name="title">
-      <string>Load Preset...</string>
+      <string>Load Preset Brushes...</string>
      </property>
      <addaction name="actionsub"/>
     </widget>

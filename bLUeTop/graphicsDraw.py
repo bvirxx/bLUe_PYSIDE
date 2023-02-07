@@ -117,12 +117,15 @@ class drawForm(baseForm):
         self.setWhatsThis(
             """
             <b>Drawing :</b><br>
-              Choose a brush family, flow, hardness and opacity.<br>
-              To <b>change the brush color</b> use <br>menu <i>View->Color Chooser</i> or <i>Ctrl+Click</i> 
-              a pixel on the image.<br>
-              To <b>load presets</b> use menu <i>File->Load Preset.</i><br>
+              Select the <b>Brush</b> tool button.</b>. Choose a brush family (default <i>Round</i>), 
+              size, flow, hardness and opacity.<br>
+              To <b>change the brush color</b> use one of the following :
+               <br> - Ctrl-C key
+               <br> - menu <i>View->Color Chooser</i> 
+               <br> - <i>Ctrl+Click</i> on an image pixel.<br>
+              To <b>load preset brushes</b> use menu <i>File->Load Preset.</i><br>
               To <b>move</b> the layer select the <i>Drag Tool</i> and do <i>Ctrl+Drag</i>.<br><br>
-              For smoother operations use the <i>Preview</i> mode (the drawing will still be done using the 
+              For faster operations use the <i>Preview</i> mode (the drawing will still be done using the 
               full resolution image).
             """
         )  # end of setWhatsThis
