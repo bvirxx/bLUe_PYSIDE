@@ -206,7 +206,7 @@ class icc:
                 default_profile.connect_sync(GIO_CANCELLABLE)
                 profile_path = default_profile.get_filename()
 
-            except (NameError, ImportError, GLib.GError) as e:
+            except (NameError, ImportError, GLib.GError, AttributeError) as e:
                 dlgWarn('Cannot detect monitor profile', info=str(e), parent=Gui.window)
 
         return profile_path
