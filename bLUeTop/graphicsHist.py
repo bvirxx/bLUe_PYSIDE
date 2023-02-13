@@ -54,14 +54,24 @@ class histForm(baseForm):
 
         # options
         options1, optionNames1 = ['Original Image'], ['Source']
-        self.listWidget1 = optionsWidget(options=options1, optionNames=optionNames1, exclusive=False)
-        self.listWidget1.setFixedSize((self.listWidget1.sizeHintForColumn(0) + 15) * len(options1), 20)
+        self.listWidget1 = optionsWidget(options=options1,
+                                         optionNames=optionNames1,
+                                         exclusive=False
+                                         )
+        self.listWidget1.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.listWidget1.setFixedSize((self.listWidget1.sizeHintForColumn(0) + 15) * len(options1),
+                                      20
+                                      )
         options2, optionNames2 = ['R', 'G', 'B', 'L'], ['R', 'G', 'B', 'L']
-        self.listWidget2 = optionsWidget(options=options2, optionNames=optionNames2, exclusive=False,
-                                         flow=optionsWidget.LeftToRight)
-        # self.listWidget2.setFixedSize((self.listWidget2.sizeHintForRow(0) + 15) * len(options2), 20)
-        self.listWidget2.setFixedSize((self.listWidget2.sizeHintForRow(0) + 20) * len(options2),
-                                      20)  # + 20 needed to prevent scroll bar on ubuntu
+        self.listWidget2 = optionsWidget(options=options2,
+                                         optionNames=optionNames2,
+                                         exclusive=False,
+                                         flow=optionsWidget.LeftToRight
+                                         )
+        self.listWidget2.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.listWidget2.setFixedSize((self.listWidget2.sizeHintForRow(0) + 20) * len(options2),  # 20 needed for ubuntu
+                                      20
+                                      )
         # default: show color hists only
         for i in range(3):
             self.listWidget2.checkOption(self.listWidget2.intNames[i])
