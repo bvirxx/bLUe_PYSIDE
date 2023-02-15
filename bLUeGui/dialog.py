@@ -23,6 +23,7 @@ from PySide6.QtCore import Qt, QDir, QSize
 from PySide6.QtWidgets import QMessageBox, QPushButton, QFileDialog, QDialog, QSlider, QVBoxLayout, QHBoxLayout, QLabel, \
     QCheckBox, QFormLayout, QLineEdit, QDialogButtonBox, QScrollArea, QProgressDialog
 
+from bLUeTop import Gui
 from bLUeTop.utils import QbLUeSlider
 
 ##################
@@ -42,13 +43,21 @@ class dimsInputDialog(QDialog):
     Simple input Dialog for image width and height.
     """
 
-    def __init__(self, w, h, keepAspectRatio=True, keepBox=False):
+    def __init__(self, w, h, keepAspectRatio=True, keepBox=False, parent=Gui.window):
         """
 
-        :param dims: {'w': width, 'h': height, 'kr': bool}
-        :type  dims: dict
+        :param w:
+        :type w:
+        :param h:
+        :type h:
+        :param keepAspectRatio:
+        :type keepAspectRatio:
+        :param keepBox:
+        :type keepBox:
+        :param parent:
+        :type parent:
         """
-        super().__init__()
+        super().__init__(parent=parent)
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.setWindowTitle('Image Dimensions')
         self.dims = {'w': w, 'h': h, 'kr': keepAspectRatio}
@@ -114,7 +123,7 @@ class dimsInputDialog(QDialog):
         self.onAccept()
 
 
-def dlgInfo(text, info='', parent=None):
+def dlgInfo(text, info='', parent=Gui.window):
     """
     Shows a simple information dialog.
 
@@ -133,7 +142,7 @@ def dlgInfo(text, info='', parent=None):
     msg.exec_()
 
 
-def dlgWarn(text, info='', parent=None):
+def dlgWarn(text, info='', parent=Gui.window):
     """
     Shows a simple warning dialog.
 
@@ -176,16 +185,18 @@ def workInProgress(title, parent=None):
     return progress
 
 
-def saveChangeDialog(img):
+def saveChangeDialog(img, parent=Gui.window):
     """
     Save/discard dialog. Returns the chosen button.
 
     :param img: image to save
     :type  img: vImage
+    :param parent:
+    :type parent:
     :return:
     :rtype: QMessageBox.StandardButton
     """
-    reply = QMessageBox()
+    reply = QMessageBox(parent=parent)
     reply.setText("%s was modified" % img.meta.name if len(img.meta.name) > 0 else 'unnamed image')
     reply.setInformativeText("Save your changes ?")
     reply.setStandardButtons(QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
@@ -212,7 +223,7 @@ class savingDialog(QDialog):
         :type  lastDir:str
         """
         # QDialog __init__
-        super().__init__()
+        super().__init__(parent=parent)
         self.setWindowTitle(text)
         # File Dialog
         self.dlg = QFileDialog(caption=text, directory=lastDir)
@@ -360,7 +371,7 @@ class labelDlg(QDialog):
         return s
 
 
-def saveDlg(img, mainWidget, ext='jpg', selected=True):
+def saveDlg(img, mainForm, ext='jpg', selected=True, parent=None):
     """
     Image saving dialog.
     If selected is False, initially the filename box is left empty and no file is selected.
@@ -368,24 +379,24 @@ def saveDlg(img, mainWidget, ext='jpg', selected=True):
 
     :param img:
     :type  img: vImage
-    :param mainWidget:
-    :type  mainWidget: QWidget
+    :param mainForm:
+    :type  mainForm: QWidget
     :param selected:
     :type  selected: boolean
     :return:filename, quality, compression, metaOption
     :rtype: str, int, int, boolean
     """
     # get last accessed dir
-    lastDir = str(mainWidget.settings.value("paths/dlgsavedir", QDir.currentPath()))
+    lastDir = str(mainForm.settings.value("paths/dlgsavedir", QDir.currentPath()))
     # file dialogs
-    dlg = savingDialog(mainWidget, "Save", lastDir)
+    dlg = savingDialog(parent, "Save", lastDir)
     if selected:
         # default saving format jpg
         dlg.selectFile(basename(img.filename)[:-3] + ext)
     filename = ''
     if dlg.exec_():
         newDir = dlg.directory().absolutePath()
-        mainWidget.settings.setValue('paths/dlgsavedir', newDir)
+        mainForm.settings.setValue('paths/dlgsavedir', newDir)
         filenames = dlg.selectedFiles()
         if filenames:
             filename = filenames[0]
@@ -394,13 +405,13 @@ def saveDlg(img, mainWidget, ext='jpg', selected=True):
     return filename, dlg.sliderQual.value(), dlg.sliderComp.value(), not dlg.metaOption.isChecked()
 
 
-def openDlg(mainWidget, ask=True, multiple=False, key='dlgdir'):
+def openDlg(mainForm, ask=True, multiple=False, key='dlgdir', parent=None):
     """
     if multiple is true returns a list of file names,
      otherwise returns a file name or None.
 
-    :param mainWidget:
-    :type  mainWidget:
+    :param mainForm:
+    :type  mainForm:
     :param ask:
     :type  ask:
     :param multiple:
@@ -410,36 +421,36 @@ def openDlg(mainWidget, ask=True, multiple=False, key='dlgdir'):
     :return: file name or list of file names
     :rtype: string or list of strings
     """
-    if ask and mainWidget.label.img.isModified:
-        ret = saveChangeDialog(mainWidget.label.img)
+    if ask and mainForm.label.img.isModified:
+        ret = saveChangeDialog(mainForm.label.img)
         if ret == QMessageBox.Yes:
             try:
-                saveDlg(mainWidget.label.img, mainWidget)
+                saveDlg(mainForm.label.img, mainForm, parent=parent)
             except (ValueError, IOError) as e:
                 dlgWarn(str(e))
                 return
         elif ret == QMessageBox.Cancel:
             return
     # don't ask again for saving
-    mainWidget.label.img.isModified = False
-    lastDir = str(mainWidget.settings.value(key, '.'))
+    mainForm.label.img.isModified = False
+    lastDir = str(mainForm.settings.value(key, '.'))
     filter = "Images ( *" + " *".join(IMAGE_FILE_EXTENSIONS) + \
              " *" + " *".join(RAW_FILE_EXTENSIONS) + \
              " *" + " *".join(BLUE_FILE_EXTENSIONS) + \
              " *" + " *".join(SVG_FILE_EXTENSIONS) + ")"
     if multiple:
         # allow multiple selections
-        filenames = QFileDialog.getOpenFileNames(mainWidget, "select", lastDir, filter)
+        filenames = QFileDialog.getOpenFileNames(mainForm, "select", lastDir, filter)
         names = filenames[0]
         if names:
             newDir = dirname(names[0])
-            mainWidget.settings.setValue(key, newDir)
+            mainForm.settings.setValue(key, newDir)
         return names
     # select a single file
-    dlg = QFileDialog(mainWidget, "select", lastDir, filter)
+    dlg = QFileDialog(mainForm, "select", lastDir, filter)
     if dlg.exec_():
         filenames = dlg.selectedFiles()
         newDir = dlg.directory().absolutePath()
-        mainWidget.settings.setValue(key, newDir)
+        mainForm.settings.setValue(key, newDir)
         return filenames[0]
     return None

@@ -526,7 +526,7 @@ def openFile(f, window=bLUeTop.Gui.window):
             window.settings.setValue('paths/recent', recentFiles)
     except (ValueError, KeyError, IOError, rawpy.LibRawFatalError, SyntaxError,
             ModuleNotFoundError, pickle.UnpicklingError) as e:
-        dlgWarn(repr(e))
+        dlgWarn(str(e))
     finally:
         if tfile is not None:
             tfile.close()
@@ -887,7 +887,7 @@ def menuFile(name, window=bLUeTop.Gui.window):
     # load image from file
     elif name in ['actionOpen']:
         # get file name from dialog
-        filename = openDlg(window, ask=False)
+        filename = openDlg(window, ask=False, parent=Gui.window)
         # open file
         if filename is not None:
             openFile(filename)
@@ -908,7 +908,8 @@ def menuFile(name, window=bLUeTop.Gui.window):
                     filename, quality, compression, writeMeta = saveDlg(img,
                                                                         window,
                                                                         ext=ext,
-                                                                        selected=True
+                                                                        selected=True,
+                                                                        parent=Gui.window
                                                                         )
                     filename = saveFile(filename, img, quality=quality, compression=compression, writeMeta=writeMeta)
                 else:
@@ -1366,7 +1367,7 @@ def menuLayer(name, window=bLUeTop.Gui.window, sname=None, script=False):
         if script:
             filenames = ['nofiles']
         else:
-            filenames = openDlg(window, ask=False, multiple=True, key='paths/dlgimdir')
+            filenames = openDlg(window, ask=False, multiple=True, key='paths/dlgimdir', parent=Gui.window)
         if not filenames:
             return
         for filename in filenames:
@@ -1683,7 +1684,7 @@ def canClose(index=None, window=bLUeTop.Gui.window):
                         dlgWarn("Uncheck Preview Mode before saving")
                         return False
                     # save dialog
-                    filename, quality, compression, writeMeta = saveDlg(img, window, selected=False)
+                    filename, quality, compression, writeMeta = saveDlg(img, window, selected=False, parent=Gui.window)
                     # actual saving
                     filename = saveFile(filename, img, quality=quality, compression=compression,
                                         writeMeta=writeMeta)

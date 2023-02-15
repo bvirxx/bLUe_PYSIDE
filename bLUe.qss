@@ -48,8 +48,8 @@ QToolButton:hover {background-color: #555588;
 QToolButton:checked {background-color: blue}
 QGroupBox#groupbox_btn {border: 1px solid gray;}
 QGroupBox#groupBox {border: 1px solid gray;}
-QMessageBox, QMessageBox QLabel, QDialog QLabel {background-color: white;
-                                                 color: black}
+QMessageBox, QMessageBox *, QDialog, QDialog * {background-color: gray;
+                                                color: white}
 QColorDialog QLabel {background-color: gray;
                      color: white}
 QStatusBar::item {border: none}
