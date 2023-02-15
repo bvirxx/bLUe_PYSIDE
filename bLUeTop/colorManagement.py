@@ -38,17 +38,22 @@ if COLOR_MANAGE_OPT:
         import win32gui
     else:
         try:
+            import gi
+            gi.require_version('Colord', '1.0')
             from gi.repository import GLib, Gio, Colord
             HAS_GI = True
         except ImportError:
             pass
         if not HAS_GI:
-            dlgWarn(
-                "Automatic detection of monitor profile needs gi installed.\n trying to use %s instead" % DEFAULT_MONITOR_PROFILE_PATH)
+            dlgWarn('Automatic detection of monitor profile needs gi and colord',
+                    info='trying to use %s instead' % DEFAULT_MONITOR_PROFILE_PATH
+                    )
             try:
                 ImageCms.getOpenProfile(DEFAULT_MONITOR_PROFILE_PATH)
             except ImageCms.PyCMSError:
-                dlgWarn("Invalid profile %s" % DEFAULT_MONITOR_PROFILE_PATH, info="Color management is disabled")
+                dlgWarn('Invalid profile %s' % DEFAULT_MONITOR_PROFILE_PATH,
+                        info='Color management is disabled'
+                        )
 
 
 def getProfile(path, mode='Cms'):
@@ -91,9 +96,9 @@ def get_default_working_profile(mode='Cms'):
     try:
         profile = getProfile(path, mode=mode)
     except (ImageCms.PyCMSError, ValueError, IOError):
-        dlgWarn(
-            'No valid sRGB color profile found.\nSet SYSTEM_PROFILE_DIR and SRGB_PROFILE_NAME in your config*.json',
-            info='Invalid profile %s' % path)
+        dlgWarn('No valid sRGB color profile found.\nSet SYSTEM_PROFILE_DIR and SRGB_PROFILE_NAME in config*.json',
+                info='Invalid profile %s' % path,
+                )
         sys.exit()
     return profile
 
@@ -114,7 +119,7 @@ def get_default_monitor_profile(mode='Cms'):
         pass
         """
         dlgWarn(
-         'No valid monitor profile found.\nSet SYSTEM_PROFILE_DIR and DEFAULT_MONITOR_PROFILE_NAME in your config*.json',
+         'No valid monitor profile found.\nSet SYSTEM_PROFILE_DIR and DEFAULT_MONITOR_PROFILE_NAME in config*.json',
          info='Invalid profile %s' % path,
          parent=Gui.window
                 )
@@ -168,6 +173,7 @@ class icc:
         """
 
         profile_path = cls.monitor_Profile_Path  # DEFAULT_MONITOR_PROFILE_PATH
+        profile_path_list = []
 
         if sys.platform == "win32":
             """
@@ -181,19 +187,11 @@ class icc:
 
                 if enumicmprofiles:
                     profile_path_list = enumDisplayProfilesWin(handle)
-                    dlg = bLUeDialogCombo()
-                    dlg.setStyleSheet("""QComboBox {font-size: 10pt;}""")
-                    dlg.cb.addItems(profile_path_list)
-                    dlg.setWindowTitle('Available Display Profiles')
-                    dlg.adjustSize()
-
-                    # center dialog on screen and exec
-                    dlg.move(Gui.window.screen().availableGeometry().center() - dlg.rect().center())
-                    if dlg.exec():
-                        profile_path = dlg.cb.currentText()
 
             except (OSError, RuntimeError, ValueError) as e:
-                dlgWarn('Cannot detect monitor profile', info=str(e), parent=Gui.window)
+                dlgWarn('Cannot detect monitor profile',
+                        info=str(e)
+                        )
 
         elif HAS_GI:
             try:
@@ -207,7 +205,31 @@ class icc:
                 profile_path = default_profile.get_filename()
 
             except (NameError, ImportError, GLib.GError, AttributeError) as e:
-                dlgWarn('Cannot detect monitor profile', info=str(e), parent=Gui.window)
+                dlgWarn('Cannot detect default monitor profile',
+                        info=str(e)
+                        )
+
+            if enumicmprofiles:
+                profile_list = []
+                try:
+                    profile_list = client.get_profiles_sync(GIO_CANCELLABLE)
+                except (NameError, GLib.GError, AttributeError):
+                    pass
+                for p in profile_list:
+                    try:
+                        p.connect_sync(GIO_CANCELLABLE)
+                        profile_path_list.append(p.get_filename())
+                    except (NameError, GLib.GError, AttributeError):
+                        continue
+
+        if profile_path_list:
+            dlg = bLUeDialogCombo(parent=Gui.window)
+            dlg.setStyleSheet("""QComboBox {font-size: 10pt;}""")
+            dlg.cb.addItems(profile_path_list)
+            dlg.setWindowTitle('Available Display Profiles')
+            dlg.adjustSize()
+            if dlg.exec():
+                profile_path = dlg.cb.currentText()
 
         return profile_path
 
