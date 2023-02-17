@@ -61,7 +61,7 @@ def _applyBlendBufFunc(dest, source, func):
     tmp = QImageBuffer(img)
     tmp[:, :, :3][:, :, ::-1] = blendBuf
     tmp[:, :, 3] = 255
-    return tmp
+    return img
 
 
 def blendLuminosityBuf(destBuf, sourceBuf):
