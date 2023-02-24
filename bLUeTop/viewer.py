@@ -23,16 +23,14 @@ from ast import literal_eval
 from os import walk, path, listdir
 from os.path import basename, isfile
 from re import search
-from time import sleep
 
-from PySide6.QtCore import Qt, QUrl, QMimeData, QByteArray, QPoint, QSize, QBuffer, QIODevice, QRect
+from PySide6.QtCore import Qt, QUrl, QMimeData, QByteArray, QPoint, QSize, QBuffer, QIODevice, QRect, QEventLoop, QTimer
 from PySide6.QtGui import QKeySequence, QImage, QDrag, QAction, QColor, QPixmap, QIcon
 from PySide6.QtWidgets import QMainWindow, QSizePolicy, QMenu, QListWidget, QAbstractItemView, \
     QApplication, QListWidgetItem
 
 from bLUeTop import exiftool
 from bLUeTop.MarkedImg import imImage
-# from bLUeTop.QtGui1 import app, window
 import bLUeTop.Gui
 from bLUeTop.imLabel import slideshowLabel, imageLabel
 from bLUeTop.utils import stateAwareQDockWidget, imagej_description_metadata, compat
@@ -87,6 +85,9 @@ def playDiaporama(diaporamaGenerator, parent=None):
             newWin.close()
             isSuspended = False
             playDiaporama(diaporamaGenerator, parent=bLUeTop.Gui.window)
+        elif action.text() == 'Close':
+            newWin.close()
+            isSuspended = False
         # rating : the tag is written into the .mie file; the file is
         # created if needed.
         elif action.text() in ['0', '1', '2', '3', '4', '5']:
@@ -103,10 +104,11 @@ def playDiaporama(diaporamaGenerator, parent=None):
         actionEsc.setEnabled(not isSuspended)
         action2 = QAction('Full Screen', None)
         action2.setCheckable(True)
-        action2.setChecked(newWin.windowState() & Qt.WindowFullScreen)
+        action2.setChecked(newWin.isFullScreen())  # windowState() & Qt.WindowFullScreen)
         action3 = QAction('Resume', None)
         action3.setEnabled(isSuspended)
-        for action in [actionEsc, action2, action3]:
+        action4 = QAction('Close', None)
+        for action in [actionEsc, action2, action3, action4]:
             menu.addAction(action)
             action.triggered.connect(
                 lambda checked=False, name=action: contextMenuHandler(name))  # named arg checked is sent
@@ -119,7 +121,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
         menu.exec_(position)
 
     def testPaused():
-        bLUeTop.Gui.app.processEvents()
+        #bLUeTop.Gui.app.processEvents()
         if isSuspended:
             newWin.setWindowTitle(newWin.windowTitle() + ' Paused')
         return isSuspended
@@ -140,6 +142,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
     while True:
         if testPaused():
             break
+            
         try:
             if not newWin.isVisible():
                 break
@@ -165,23 +168,35 @@ def playDiaporama(diaporamaGenerator, parent=None):
             coeff = imImg.resize_coeff(label)
             imImg.yOffset -= (imImg.height() * coeff - label.height()) / 2.0
             imImg.xOffset -= (imImg.width() * coeff - label.width()) / 2.0
+
             if testPaused():
                 break
+
             newWin.setWindowTitle(parent.tr('Slide show') + ' ' + name + ' ' + ' '.join(['*'] * imImg.meta.rating))
             label.img = imImg
             gc.collect()
+
             if label.prevImg is not None:
-                for i in range(81):
-                    label.prevOpacity = 1.0 - i * 0.0125  # last prevOpacity must be 0
+                for i in range(41): # range(81):
+                    label.prevOpacity = 1.0 -  i * 0.0250 # i * 0.0125  # last prevOpacity must be 0
                     label.repaint()
+
             label.repaint()  # mandatory to display first image
+
             if testPaused():
                 break
-            sleep(2)
+
+            # wait 2 sec.
+            loop = QEventLoop()
+            QTimer.singleShot(2000, loop.quit)
+            loop.exec()
+
             if testPaused():
                 break
+
             label.prevImg = label.img
             gc.collect()
+
         except StopIteration:
             newWin.close()
             bLUeTop.Gui.window.diaporamaGenerator = None
@@ -195,6 +210,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
             bLUeTop.Gui.window.diaporamaGenerator = None
             bLUeTop.Gui.window.modeDiaporama = False
             raise
+
     bLUeTop.Gui.window.modeDiaporama = False
 
 
@@ -436,7 +452,7 @@ class viewer:
         item = sel[0]
         filename = item.data(Qt.UserRole)[0]
         newWin.setWindowTitle(filename)
-        imImg = imImage.loadImageFromFile(filename, createsidecar=False, window=window)
+        imImg = imImage.loadImageFromFile(filename, createsidecar=False, window=bLUeTop.Gui.window)
         label.img = imImg
         newWin.showMaximized()
 

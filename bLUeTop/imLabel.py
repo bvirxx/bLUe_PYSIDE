@@ -18,7 +18,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 from os.path import dirname, basename
 
 from PySide6.QtCore import QRect, QRectF, Qt, QPointF
-from PySide6.QtGui import QPainter, QImage, QColor, QBrush, QContextMenuEvent, QCursor, QPen, QFont, QPainterPath
+from PySide6.QtGui import QPainter, QImage, QColor, QBrush, QContextMenuEvent, QCursor, QPen, QFont, QPainterPath, \
+    QPixmap
 from PySide6.QtWidgets import QLabel, QApplication
 
 from bLUeGui.dialog import dlgWarn
@@ -29,6 +30,9 @@ from bLUeTop.versatileImg import vImage
 
 
 class imageLabel(QLabel):
+    """
+    Base class for interactive image displaying
+    """
     qp = QPainter()
     qp.font = QFont("Arial", 8)
     qp.markPath = QPainterPath()
@@ -220,6 +224,8 @@ class imageLabel(QLabel):
             return
         # get image and active layer
         img = self.img
+        if img is None:
+            return
         layer = img.getActiveLayer()
         r = img.resize_coeff(self)
         ############################################################
@@ -289,6 +295,8 @@ class imageLabel(QLabel):
             return
         # get image and active layer
         img = self.img
+        if img is None:
+            return
         layer = img.getActiveLayer()
         r = img.resize_coeff(self)
         ############################################################
@@ -473,6 +481,8 @@ class imageLabel(QLabel):
             return
         # get image and active layer
         img = self.img
+        if img is None:
+            return
         layer = img.getActiveLayer()
         r = img.resize_coeff(self)
         ############################################################
@@ -736,12 +746,14 @@ class imageLabel(QLabel):
 
 
 class slideshowLabel(imageLabel):
+    """
+    This class should be used to display cross-faded
+    transitions between images.
+    """
 
     def paintEvent(self, e):
         """
         Overrides imageLabel paintEvent().
-        This class should be used to display
-        smooth transitions between images.
 
         :param e: paint event
         :type e:
@@ -749,10 +761,15 @@ class slideshowLabel(imageLabel):
         mimg = self.img
         if mimg is None:
             return
+
         r = mimg.resize_coeff(self)
         qp = self.qp
-        window = self.window
-        qp.begin(self)
+        # painting directly on the slideshowLabel slows down operations, especially when using a X server.
+        # So, paint operations are done on a intermediate pixmap and exposed by calling the base paintEvent.
+        pixmap = QPixmap(self.size())
+        pixmap.fill(Qt.transparent)
+
+        qp.begin(pixmap)
         # smooth painting
         # qp.setRenderHint(QPainter.SmoothPixmapTransform)
         # fill background
@@ -777,6 +794,8 @@ class slideshowLabel(imageLabel):
         mimg = self.prevImg
         if mimg is None:
             qp.end()
+            self.setPixmap(pixmap)
+            QLabel.paintEvent(self, e)
             return
         r = mimg.resize_coeff(self)
         w, h = mimg.width() * r, mimg.height() * r
@@ -786,3 +805,6 @@ class slideshowLabel(imageLabel):
             qp.setOpacity(self.prevOpacity)
             qp.drawPixmap(rectF, px, px.rect())
         qp.end()
+        self.setPixmap(pixmap)
+        QLabel.paintEvent(self, e)
+
