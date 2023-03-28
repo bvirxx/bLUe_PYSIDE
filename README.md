@@ -98,6 +98,14 @@ ExifTool should be installed.
 
 On Windows, pywin32 is needed for multi-screen management.
 
+On Ubuntu, gi and colord are needed to manage monitor profiles.
+
+On MacOS, pyobjc is needed to use the ColorSync framework.
+
+## Installation
+Edit config_win.json (Windows) or config.json (other OS) to specify
+system paths and options. 
+
 ### The Qt5 (PySide2) version (branch master) is deprecated.
 
 ## LICENSE

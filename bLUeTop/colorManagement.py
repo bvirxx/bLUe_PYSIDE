@@ -30,30 +30,44 @@ from bLUeTop import Gui
 from bLUeTop.settings import COLOR_MANAGE_OPT, SRGB_PROFILE_PATH, ADOBE_RGB_PROFILE_PATH, DEFAULT_MONITOR_PROFILE_PATH
 from bLUeTop.utils import bLUeDialogCombo, getDisplayProfileWin, enumDisplayProfilesWin
 
-# python-gi flag
+HAS_WIN32 = False
 HAS_GI = False
+HAS_COLORSYNC = False
 
 if COLOR_MANAGE_OPT:
-    if sys.platform == 'win32':
-        import win32gui
-    else:
-        try:
+    try:
+        if sys.platform == 'win32':
+            modulestr = 'pywin32'
+            import win32gui
+            HAS_WIN32 = True
+
+        elif sys.platform == 'linux':
+            modulestr = 'gi and colord'
             import gi
             gi.require_version('Colord', '1.0')
             from gi.repository import GLib, Gio, Colord
             HAS_GI = True
-        except ImportError:
-            pass
-        if not HAS_GI:
-            dlgWarn('Automatic detection of monitor profile needs gi and colord',
-                    info='trying to use %s instead' % DEFAULT_MONITOR_PROFILE_PATH
+
+        elif sys.platform == 'darwin':
+            modulestr = 'ColorSync'
+            import Foundation , Quartz, ColorSync
+            HAS_COLORSYNC = True
+
+    except ImportError as e:
+        dlgWarn(str(e))
+
+    if not (HAS_WIN32 or HAS_GI or HAS_COLORSYNC):
+        dlgWarn('Automatic detection of monitor profile needs %s installed' % modulestr,
+                info='trying to use %s instead' % DEFAULT_MONITOR_PROFILE_PATH,
+                parent=Gui.window
+                )
+        try:
+            ImageCms.getOpenProfile(DEFAULT_MONITOR_PROFILE_PATH)
+        except ImageCms.PyCMSError:
+            dlgWarn('Invalid default monitor profile path %s' % DEFAULT_MONITOR_PROFILE_PATH,
+                    info='Edit your configxxx.json file',
+                    parent=Gui.window
                     )
-            try:
-                ImageCms.getOpenProfile(DEFAULT_MONITOR_PROFILE_PATH)
-            except ImageCms.PyCMSError:
-                dlgWarn('Invalid profile %s' % DEFAULT_MONITOR_PROFILE_PATH,
-                        info='Color management is disabled'
-                        )
 
 
 def getProfile(path, mode='Cms'):
@@ -175,7 +189,7 @@ class icc:
         profile_path = cls.monitor_Profile_Path  # DEFAULT_MONITOR_PROFILE_PATH
         profile_path_list = []
 
-        if sys.platform == "win32":
+        if HAS_WIN32:
             """
             We use GetICMProfileW. Unfortunately, during a session, GetICMProfileW does
             not see external (e.g. using ColorNavigator with a EIZO monitor) changes in
@@ -194,6 +208,7 @@ class icc:
                         )
 
         elif HAS_GI:
+            # platform is 'linux'
             try:
                 GIO_CANCELLABLE = Gio.Cancellable.new()
                 client = Colord.Client.new()
@@ -222,9 +237,29 @@ class icc:
                     except (NameError, GLib.GError, AttributeError):
                         continue
 
+        elif HAS_COLORSYNC:
+            # platform is Mac OS
+            main_d_id = Quartz.CGMainDisplayID()
+            device_info = ColorSync.ColorSyncDeviceCopyDeviceInfo(ColorSync.kColorSyncDisplayDeviceClass,
+                                                                  ColorSync.CGDisplayCreateUUIDFromDisplayID(main_d_id)
+                                                                  )
+            url = device_info['FactoryProfiles']['1']['DeviceProfileURL']
+            profile_path = Foundation.CFURLCopyFileSystemPath(url, Foundation.kCFURLPOSIXPathStyle)
+
+            if enumicmprofiles:
+                for k1 in ['FactoryProfiles', 'CustomProfiles']:
+                    if k1 not in device_info:
+                        continue
+                    for k2 in device_info[k1]:
+                        if not k2.isdigit():
+                            continue
+                        url = device_info[k1][k2]['DeviceProfileURL']
+                        path = Foundation.CFURLCopyFileSystemPath(url, Foundation.kCFURLPOSIXPathStyle)
+                        profile_path_list.append(path)
+
         if profile_path_list:
             dlg = bLUeDialogCombo(parent=Gui.window)
-            dlg.setStyleSheet("""QComboBox {font-size: 10pt;}""")
+            dlg.setStyleSheet("""QComboBox {font-size: 12pt;}""")
             dlg.cb.addItems(profile_path_list)
             dlg.setWindowTitle('Available Display Profiles')
             dlg.adjustSize()
@@ -284,10 +319,14 @@ class icc:
             try:
                 if sys.platform == 'win32':
                     dc = win32gui.CreateDC('DISPLAY', str(qscreen.name()), None)
-                    monitorProfile = cls.B_get_display_profile(handle=dc, enumicmprofiles=enumicmprofiles)
+                    monitorProfile = cls.B_get_display_profile(handle=dc,
+                                                               enumicmprofiles=enumicmprofiles
+                                                               )
                     win32gui.DeleteDC(dc)
                 else:
-                    monitorProfile = cls.B_get_display_profile(device_id=qscreen.name())
+                    monitorProfile = cls.B_get_display_profile(device_id=qscreen.name(),
+                                                               enumicmprofiles=enumicmprofiles
+                                                               )
             except (RuntimeError, OSError, TypeError, ImageCms.PyCMSError):
                 pass
             if isinstance(monitorProfile, QColorSpace):

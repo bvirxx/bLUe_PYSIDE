@@ -146,7 +146,7 @@ from PySide6.QtGui import QPixmap, QCursor, QKeySequence, QDesktopServices, QFon
     QTransform, QColor, QImage, QIcon, QAction
 from PySide6.QtWidgets import QApplication, \
     QDockWidget, QSizePolicy, QSplashScreen, QWidget, \
-    QTabWidget, QToolBar, QComboBox, QTabBar
+    QTabWidget, QToolBar, QComboBox, QTabBar, QLayout, QFrame
 
 import bLUeTop.QtGui1
 
@@ -1824,8 +1824,11 @@ def setRightPane(window=bLUeTop.Gui.window):
     # put all stuff into propertyWidget and
     # fix its size : scrollbars are more acceptable for the
     # display of layer stack than in graphic forms.
+    vl.setSizeConstraint(QLayout.SetFixedSize)
     window.propertyWidget.setLayout(vl)
-    window.propertyWidget.setFixedSize(250, 200)
+
+    # Force tableView frame style to a value working on Mac OS also
+    window.tableView.setFrameStyle(QFrame.Box | QFrame.Plain)
 
     # reinit the dockWidgetContents (created by blue.ui) layout to
     # nest it in a QHboxLayout containing a left stretch
