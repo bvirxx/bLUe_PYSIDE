@@ -1069,8 +1069,8 @@ class colorChooser(QGraphicsPixmapItem):
             # build 2D histogram for xyarray
             H, xedges, yedges = np.histogram2d(xyarray[:, :, 0].ravel(), xyarray[:, :, 1].ravel(),
                                                bins=[np.arange(0, maxVal + STEP, STEP),
-                                                     np.arange(0, maxVal + STEP, STEP)],
-                                               normed=True)
+                                                     np.arange(0, maxVal + STEP, STEP)]
+                                              )
             w, h = self.QImg.width(), self.QImg.height()
             b = QImage(w, h, QImage.Format_ARGB32)
             b.fill(0)
