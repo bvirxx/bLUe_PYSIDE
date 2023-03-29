@@ -112,6 +112,7 @@ def get_default_working_profile(mode='Cms'):
     except (ImageCms.PyCMSError, ValueError, IOError):
         dlgWarn('No valid sRGB color profile found.\nSet SYSTEM_PROFILE_DIR and SRGB_PROFILE_NAME in config*.json',
                 info='Invalid profile %s' % path,
+                parent=None  # main window not shown yet: center on screen
                 )
         sys.exit()
     return profile
