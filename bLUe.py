@@ -1815,17 +1815,14 @@ def setRightPane(window=bLUeTop.Gui.window):
     # clean dock area
     window.setTabPosition(Qt.RightDockWidgetArea, QTabWidget.East)
     window.removeDockWidget(window.dockWidget)
-    # redo the layout of window.dockWidget
+    # redo the layout of window.dockWidget (from blue.ui)
     widget = window.dockWidget.widget()
     vl = QVBoxLayout()
     vl.addWidget(window.tableView)
     # add sliders, blend modes ...
     vl.addLayout(window.tableView.propertyLayout)
 
-    # put all stuff into propertyWidget and
-    # fix its size : scrollbars are more acceptable for the
-    # display of layer stack than in graphic forms.
-    vl.setSizeConstraint(QLayout.SetFixedSize)
+    # put all stuff into propertyWidget
     window.propertyWidget.setLayout(vl)
 
     # Force tableView frame style to a value working on Mac OS also
@@ -1867,7 +1864,6 @@ def setRightPane(window=bLUeTop.Gui.window):
     QWidget().setLayout(window.dockWidgetContents.layout())
     # set the new layout
     widget.setLayout(tmpH)
-    widget.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
     window.addDockWidget(Qt.RightDockWidgetArea, window.dockWidget)
     window.dockWidget.show()
     # tabify colorInfoView with histView
