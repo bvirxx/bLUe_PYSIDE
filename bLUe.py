@@ -124,6 +124,7 @@ from os import path, walk, remove
 from os.path import isfile
 from tempfile import mktemp
 from pathlib import Path
+from string import Template
 
 import numpy as np
 import multiprocessing
@@ -358,8 +359,8 @@ def addRawAdjustmentLayer(window=bLUeTop.Gui.window):
     dock.setWidget(grWindow)
     dock.setWindowFlags(grWindow.windowFlags())
     dock.setWindowTitle(grWindow.windowTitle())
-    dock.move(900, 40)
-    dock.setStyleSheet("QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
+    #dock.move(900, 40)
+    #dock.setStyleSheet("QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
     rlayer.view = dock
     # add to docking area
     window.addDockWidget(Qt.RightDockWidgetArea, dock)
@@ -1960,7 +1961,12 @@ def setupGUI(window=bLUeTop.Gui.window):
                                QWidget, QTableView, QTableView * {font-size: 9pt} QPushButton {font-size: 6pt}"""
                                       )
     else:
-        bLUeTop.Gui.app.setStyleSheet(Path('bLUe.qss').read_text())
+        # To simplify font size tuning, blue.qss is a template and
+        # fontX names are placeholders.
+        c = 2  # global font size increment
+        s = Template(Path('bLUe.qss').read_text())
+        s = s.substitute(font10='%dpx' % (10+c),  font9='%dpx' % (9+c), font8='%dpx' % (8+c), font7='%dpx' % (7+c))
+        bLUeTop.Gui.app.setStyleSheet(s)
 
     # status bar
     window.Label_status = QLabel()
@@ -2246,7 +2252,6 @@ def setTabBar(window=bLUeTop.Gui.window):
     tabBar.setMaximumHeight(25)
     # tabBar.setAutoHide(True)
     tabBar.setDrawBase(False)  # remove base line
-    tabBar.setStyleSheet("QTabBar::tab {height: 15px; width: 100px; border-top-right-radius: 4px}")
     tabBar.setTabsClosable(True)
     vlay = QVBoxLayout()
     hlay2 = QHBoxLayout()

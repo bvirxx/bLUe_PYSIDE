@@ -260,10 +260,8 @@ class icc:
 
         if profile_path_list:
             dlg = bLUeDialogCombo(parent=Gui.window)
-            dlg.setStyleSheet("""QComboBox {font-size: 12pt;}""")
             dlg.cb.addItems(profile_path_list)
             dlg.setWindowTitle('Available Display Profiles')
-            dlg.adjustSize()
             if dlg.exec():
                 profile_path = dlg.cb.currentText()
 

@@ -358,8 +358,6 @@ class CoBrSatForm(baseForm):
             dock.setWidget(form)
             dock.setWindowFlags(form.windowFlags())
             dock.setWindowTitle(form.windowTitle())
-            dock.setStyleSheet(
-                "QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
             self.mainForm.addDockWidget(Qt.LeftDockWidgetArea, dock)
             self.dock = dock
 

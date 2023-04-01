@@ -289,7 +289,6 @@ class labelDlg(QDialog):
         self.setModal(modal)
         self.label = QLabel()
         self.label.setAlignment(Qt.AlignTop)
-        # self.label.setStyleSheet("selection-background-color: blue; selection-color: white}")
         vl = QVBoxLayout()
         if search:
             ed = QLineEdit()

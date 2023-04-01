@@ -171,8 +171,6 @@ class Element(QtWidgets.QGroupBox):
 
 ###############
 FONT_SIZE = 6
-
-
 ###############
 
 class Head(Element):

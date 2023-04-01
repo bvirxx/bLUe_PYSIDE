@@ -186,7 +186,6 @@ class colorInfoView(QDockWidget):
         self.setWidget(self.label)
         self.setWindowTitle(self.label.windowTitle())
         self.setFocusPolicy(Qt.ClickFocus)
-        self.label.setStyleSheet("font-family: 'courier'; font-size: 8pt")
         self.setWhatsThis(
             """<b>Info</b><br>
             Input/output pixel values for the active layer.<br>
@@ -346,7 +345,7 @@ class QbLUeSlider(QSlider):
     Enhanced QSlider.
     Override mousepressevent to prevent jumps
     when clicking the handle and to update value
-    with a single jump when clicking on the groove.
+    with a single jump when clicking the groove.
     """
     bLueSliderDefaultColorStylesheet = """QSlider::groove:horizontal:enabled { 
                                                                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 blue, stop:1 red);

@@ -678,8 +678,6 @@ class rawForm(baseForm):
             dockC = self.addSubcontrol(self.parent())  # stateAwareQDockWidget(self.parent())
             dockC.setWindowFlags(form.windowFlags())
             dockC.setWindowTitle(form.windowTitle())
-            dockC.setStyleSheet(
-                "QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
             window = self.parent().parent()
             window.addDockWidget(Qt.LeftDockWidgetArea, dockC)
             self.dockC = dockC

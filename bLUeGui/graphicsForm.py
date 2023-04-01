@@ -36,11 +36,6 @@ class bottomWidget(QWidget):
         self.setMaximumSize(400, 150)
         self.setMinimumSize(200, 50)
         self.setObjectName('container')
-        ss = """QWidget#container{background-color: black;}
-                               QListWidget {font-size: 7pt;}
-                               QListWidget::item{color: white;}
-                               QListWidget::item:disabled {color: gray;}"""
-        self.setStyleSheet(ss)
 
 
 class abstractForm:
@@ -171,7 +166,7 @@ class baseForm(QWidget, abstractForm):
         if layer is not None:
             layer.colorPicked.sig.connect(self.colorPickedSlot)
             layer.selectionChanged.sig.connect(self.selectionChangedSlot)
-        self.setStyleSheet("QListWidget, QLabel, QGroupBox {font-size : 7pt;}")
+        # self.setStyleSheet("QListWidget, QLabel, QGroupBox {font-size : 7pt;}")
 
     def addSubcontrol(self, parent=None):
         dock = stateAwareQDockWidget(parent)

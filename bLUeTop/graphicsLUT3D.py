@@ -1360,7 +1360,7 @@ class graphicsForm3DLUT(baseGraphicsForm):
 
         # color format combo
         infoCombo = QComboBox()
-        oDict = OrderedDict([('Marker RGB', 0), ('Marker CMYK', 1), ('Marker HSV', 2)])
+        oDict = OrderedDict([('RGB', 0), ('CMYK', 1), ('HSV', 2)])
         for key in oDict:
             infoCombo.addItem(key, oDict[key])
 
@@ -1405,15 +1405,15 @@ class graphicsForm3DLUT(baseGraphicsForm):
         gl.addWidget(pushButton4, 1, 0)
         gl.addWidget(pushButton5, 1, 1)
         for i, widget in enumerate([self.listWidget2, self.listWidget3]):
-            gl.addWidget(widget, 2 if i == 0 else 1, i + 1, 1 if i == 0 else 2, 1)
+            gl.addWidget(widget, 2 if i == 0 else 1, i if i == 0 else 2, widget.count(), 2)
         hl = QHBoxLayout()
         hl.addWidget(QLabel('Grid Size'))
         hl.addWidget(gridCombo)
         hl.addWidget(infoCombo)
         hl.addWidget(self.info)
-        gl.addLayout(hl, 3, 0, -1, -1)
+        gl.addLayout(hl, 5, 0, 1, 4)
         container.adjustSize()
-        self.setViewportMargins(0, 0, 0, container.height() + 35)
+        self.setViewportMargins(0, 0, 0, container.height() + 25)
 
         # set defaults
         self.colorInfoFormat = 0  # RGB

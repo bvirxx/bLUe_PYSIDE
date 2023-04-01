@@ -50,7 +50,6 @@ class histForm(baseForm):
         self.Label_Hist = trackLabel()  # QLabel()
         self.Label_Hist.setScaledContents(True)
         self.Label_Hist.setFocusPolicy(Qt.ClickFocus)
-        self.setStyleSheet("QListWidget{border: 0px; font-size: 12px}")
 
         # options
         options1, optionNames1 = ['Original Image'], ['Source']
