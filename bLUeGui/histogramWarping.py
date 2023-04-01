@@ -220,7 +220,7 @@ class dstb(object):
         """
         if not np.isscalar(x):
             raise ValueError('dstb.FInv : argument is not a scalar')
-        return np.asscalar(self.FInvVec(np.array([x])))
+        return self.FInvVec(np.array([x])).item()
 
 
 def gaussianDistribution(x, hist, bins, h):
