@@ -292,17 +292,25 @@ def addAdjustmentLayers(layers, images):
         d = item[1]['state']
         # add layer to stack
         layer = menuLayer(item[1]['actionname'], sname=item[0], script=True)
+
         if d['mask'] == 1:
             if layer is not None:
-                buf = images.asarray()[count]
-                buf = buf.reshape(layer.height(), layer.width(), 4)
-                layer.mask = ndarrayToQImage(buf, QImage.Format_ARGB32)
+                try:
+                    buf = images.asarray()[count]
+                    buf = buf.reshape(layer.height(), layer.width(), 4)
+                    layer.mask = ndarrayToQImage(buf, QImage.Format_ARGB32)
+                except Exception as e:
+                    dlgWarn('Layer %s : cannot load mask' % layer.name,
+                            info=str(e)
+                            )
                 layer.__setstate__(item[1])  # keep after mask init
+
             count += 1
         else:
             if layer is not None:
-                layer.__setstate__(item[1])  # keep after mask init
-        if 'images' in d:  # for retro compatibility with previous bLU file formats
+                layer.__setstate__(item[1])
+
+        if 'images' in d:  # for back compatibility with previous bLU file formats
             n = d['images']
             if type(n) is tuple:
                 n = n.count(1)
@@ -311,16 +319,20 @@ def addAdjustmentLayers(layers, images):
 
     for layer, n in waitImages:
         t = type(layer)
-        # all layers managing images should be subclasses of QLayer.
-        # to handle multiple images n should be a tuple of binary values
+        # All layers managing images should be subclasses of QLayer.
+        # To handle multiple images n should be a tuple of binary values
         if t in [QLayerImage, QDrawingLayer, QCloningLayer]:
-            buf = images.asarray()[count]
-            buf = buf.reshape(layer.height(), layer.width(), 4)
-            layer.sourceImg = ndarrayToQImage(buf, QImage.Format_ARGB32)
-            if t is QCloningLayer:
-                layer.getGraphicsForm().updateSource()
-            layer.applyToStack()  # needed because images are loaded after all calls to __setstate__()
-            # parentImage = layer.parentImage  # same for all layers
+            try:
+                buf = images.asarray()[count]
+                buf = buf.reshape(layer.height(), layer.width(), 4)
+                layer.sourceImg = ndarrayToQImage(buf, QImage.Format_ARGB32)
+                if t is QCloningLayer:
+                    layer.getGraphicsForm().updateSource()
+                layer.applyToStack()  # needed because images are loaded after all calls to __setstate__()
+            except Exception as e:
+                dlgWarn('Layer %s : cannot load image data' % layer.name,
+                        info=str(e)
+                        )
         count += n
 
 
