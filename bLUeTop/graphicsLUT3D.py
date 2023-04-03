@@ -1344,19 +1344,20 @@ class graphicsForm3DLUT(baseGraphicsForm):
             wdg.setMinimumHeight(wdg.sizeHintForRow(0) * len(wdg.items) + 20)  # prevent v. scrollbar
 
         # grid size combo
-        gridCombo = QComboBox()
+        self.gridCombo = QComboBox()
         oDict = OrderedDict([('33', 33), ('17', 17), ('9', 9)])
         for key in oDict:
-            gridCombo.addItem(key, oDict[key])
+            self.gridCombo.addItem(key, oDict[key])
 
         def gridSizeChanged(value):
             global spread
-            s = gridCombo.itemData(value)
-            spread = 1 if s > 20 else 2 if s > 12 else 4
-            self.onChangeGrid(s)
-            self.onReset()
+            s = self.gridCombo.itemData(value)
+            if s is not None:
+                spread = 1 if s > 20 else 2 if s > 12 else 4
+                self.onChangeGrid(s)
+                self.onReset()
 
-        gridCombo.currentIndexChanged.connect(gridSizeChanged)
+        self.gridCombo.currentIndexChanged.connect(gridSizeChanged)
 
         # color format combo
         infoCombo = QComboBox()
@@ -1408,7 +1409,7 @@ class graphicsForm3DLUT(baseGraphicsForm):
             gl.addWidget(widget, 2 if i == 0 else 1, i if i == 0 else 2, widget.count(), 2)
         hl = QHBoxLayout()
         hl.addWidget(QLabel('Grid Size'))
-        hl.addWidget(gridCombo)
+        hl.addWidget(self.gridCombo)
         hl.addWidget(infoCombo)
         hl.addWidget(self.info)
         gl.addLayout(hl, 5, 0, 1, 4)
@@ -1646,23 +1647,37 @@ class graphicsForm3DLUT(baseGraphicsForm):
         layer.parentImage.onImageChanged()
 
     def __getstate__(self):
-        return {'history': [(p.gridRow,
-                             p.gridCol,
-                             p.gridPos_U().x(),
-                             p.gridPos_U().y(),
-                             p.parentItem().uid if type(p.parentItem()) is nodeGroup else -1,
-                             # p.parentItem().x(), p.parentItem().y()
-                             )
-                            for p in self.grid.historyListMove]}
+        d = {}
+        for a in self.__dir__():
+            obj = getattr(self, a)
+            if type(obj) in [optionsWidget]:
+                d[a] = obj.__getstate__()
+        d['gridsize'] = self.grid.size
+        d['history'] = [(p.gridRow,
+                         p.gridCol,
+                         p.gridPos_U().x(),
+                         p.gridPos_U().y(),
+                         p.parentItem().uid if type(p.parentItem()) is nodeGroup else -1
+                        ) for p in self.grid.historyListMove
+                       ]
+        return d
 
-    def __setstate__(self, state):
+    def __setstate__(self, d):
         # prevent multiple updates
         try:
             self.dataChanged.disconnect()
         except RuntimeError:
             pass
+        for name in d['state']:
+            obj = getattr(self, name, None)
+            if type(obj) in [optionsWidget]:
+                obj.__setstate__(d['state'][name])
+        if 'gridsize' in d['state']:  # for back compatibility
+            s = d['state']['gridsize']
+            ind = self.gridCombo.findData(s)
+            self.gridCombo.setCurrentIndex(ind)
         groupList = []
-        for item in state['state']['history']:
+        for item in d['state']['history']:
             p = self.grid.getNodeAt(item[1], item[0])
             p.setPos(item[2], item[3])
             if item[4] != -1:
