@@ -578,7 +578,7 @@ def saveFile(filename, img, quality=-1, compression=-1, writeMeta=True):
         reply.addButton(accButton, QMessageBox.AcceptRole)
         reply.addButton(rejButton, QMessageBox.RejectRole)
         reply.setDefaultButton(accButton)
-        reply.exec_()
+        reply.exec()
         retButton = reply.clickedButton()
         # build a unique name
         if retButton is accButton:
@@ -895,7 +895,7 @@ def menuFile(name, window=bLUeTop.Gui.window):
             loadImage(img, withBasic=False)  # don't add any adjustment layer
 
         dlg.onAccept = f
-        dlg.exec_()
+        dlg.exec()
 
     # load image from file
     elif name in ['actionOpen']:
@@ -974,7 +974,7 @@ def menuView(name, window=bLUeTop.Gui.window):
             reply.setText("A diaporama was suspended. Resume ?")
             reply.setStandardButtons(QMessageBox.No | QMessageBox.Yes)
             reply.setDefaultButton(QMessageBox.Yes)
-            ret = reply.exec_()
+            ret = reply.exec()
             if ret == QMessageBox.No:
                 window.diaporamaGenerator = None
         else:
@@ -987,7 +987,7 @@ def menuView(name, window=bLUeTop.Gui.window):
             dlg.setFileMode(QFileDialog.Directory)
             diaporamaList = []
             # directory dialog
-            if dlg.exec_():
+            if dlg.exec():
                 newDir = dlg.selectedFiles()[0]  # dlg.directory().absolutePath()
                 window.settings.setValue('paths/dlgdir', newDir)
                 for dirpath, dirnames, filenames in walk(newDir):
@@ -1007,7 +1007,7 @@ def menuView(name, window=bLUeTop.Gui.window):
         dlg.setFileMode(QFileDialog.Directory)
         dlg.setOptions(QFileDialog.DontUseNativeDialog)  # Native Dialog is too slow
         # open dialog
-        if dlg.exec_():
+        if dlg.exec():
             newDir = dlg.selectedFiles()[0]  # dlg.directory().absolutePath()
             window.settings.setValue('paths/dlgdir', newDir)
             viewerInstance = viewer.getViewerInstance(mainWin=window)
@@ -1068,7 +1068,7 @@ def menuImage(name, window=bLUeTop.Gui.window):
             dlg = QFileDialog(window, "Select", lastDir, filter)
             try:
                 filenames = []
-                if dlg.exec_():
+                if dlg.exec():
                     filenames = dlg.selectedFiles()
                     newDir = dlg.directory().absolutePath()
                     window.settings.setValue('paths/profdlgdir', newDir)
@@ -1184,7 +1184,7 @@ def menuImage(name, window=bLUeTop.Gui.window):
         dlg = QFileDialog(window, "Select", lastDir, filter)
         try:
             filenames = []
-            if dlg.exec_():
+            if dlg.exec():
                 filenames = dlg.selectedFiles()
                 newDir = dlg.directory().absolutePath()
                 window.settings.setValue('paths/profdlgdir', newDir)
@@ -1535,7 +1535,7 @@ def menuLayer(name, window=bLUeTop.Gui.window, sname=None, script=False):
         dlg = QFileDialog(window, "select", lastDir)
         dlg.setNameFilter('*.cube')
         dlg.setDefaultSuffix('cube')
-        if dlg.exec_():
+        if dlg.exec():
             newDir = dlg.directory().absolutePath()
             window.settings.setValue('paths/dlg3DLUTdir', newDir)
             filenames = dlg.selectedFiles()
@@ -1586,7 +1586,7 @@ def menuLayer(name, window=bLUeTop.Gui.window, sname=None, script=False):
             dlg = QFileDialog(window, "select", lastDir)
             dlg.setNameFilter('*.cube')
             dlg.setDefaultSuffix('cube')
-            if dlg.exec_():
+            if dlg.exec():
                 newDir = dlg.directory().absolutePath()
                 window.settings.setValue('paths/dlg3DLUTdir', newDir)
                 filenames = dlg.selectedFiles()
@@ -1601,7 +1601,7 @@ def menuLayer(name, window=bLUeTop.Gui.window, sname=None, script=False):
                     reply.setStandardButtons(QMessageBox.Cancel)
                     accButton = QPushButton("OverWrite")
                     reply.addButton(accButton, QMessageBox.AcceptRole)
-                    reply.exec_()
+                    reply.exec()
                     retButton = reply.clickedButton()
                     if retButton is not accButton:
                         raise ValueError("Saving Operation Failure")

@@ -1062,7 +1062,7 @@ class QLayerView(QTableView):
         self.cMenu.actionMaskMid2.triggered.connect(maskMid2)
         self.cMenu.actionMaskMid3.triggered.connect(maskMid3)
         self.cMenu.actionMergingFlag.toggled.connect(mergingFlag)
-        self.cMenu.exec_(event.globalPos() - QPoint(400, 0))
+        self.cMenu.exec(event.globalPos() - QPoint(400, 0))
         # update table
         for row in rows:
             self.updateRow(row)

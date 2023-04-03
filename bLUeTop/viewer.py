@@ -118,7 +118,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
             subMenuRating.addAction(action)
             action.triggered.connect(
                 lambda checked=False, name=action: contextMenuHandler(name))  # named arg checked is sent
-        menu.exec_(position)
+        menu.exec(position)
 
     def testPaused():
         #bLUeTop.Gui.app.processEvents()
@@ -236,7 +236,7 @@ class dragQListWidget(QListWidget):
             drag.setPixmap(item.icon().pixmap(QSize(160, 120)))
             # roughly center the cursor relative to pixmap
             drag.setHotSpot(QPoint(60, 60))
-            dropAction = drag.exec_()
+            dropAction = drag.exec()
 
 
 class loader(threading.Thread):
@@ -433,7 +433,7 @@ class viewer:
 
     def contextMenu(self, pos):
         globalPos = self.listWdg.mapToGlobal(pos)
-        self.cMenu.exec_(globalPos)
+        self.cMenu.exec(globalPos)
 
     def viewImage(self):
         """

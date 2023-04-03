@@ -139,7 +139,7 @@ def dlgInfo(text, info='', parent=Gui.window):
     msg.setIcon(QMessageBox.Information)
     msg.setText(text)
     msg.setInformativeText(info)
-    msg.exec_()
+    msg.exec()
 
 
 def dlgWarn(text, info='', parent=Gui.window):
@@ -158,7 +158,7 @@ def dlgWarn(text, info='', parent=Gui.window):
     msg.setIcon(QMessageBox.Warning)
     msg.setText(text)
     msg.setInformativeText(info)
-    msg.exec_()
+    msg.exec()
 
 
 def workInProgress(title, parent=None):
@@ -201,7 +201,7 @@ def saveChangeDialog(img, parent=Gui.window):
     reply.setInformativeText("Save your changes ?")
     reply.setStandardButtons(QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
     reply.setDefaultButton(QMessageBox.Save)
-    ret = reply.exec_()
+    ret = reply.exec()
     return ret
 
 
@@ -258,9 +258,9 @@ class savingDialog(QDialog):
 
         self.dlg.finished.connect(f)
 
-    def exec_(self):
+    def exec(self):
         # QDialog exec_
-        super().exec_()
+        super().exec()
         # forward file dialog result
         return self.dlg.result()
 
@@ -393,7 +393,7 @@ def saveDlg(img, mainForm, ext='jpg', selected=True, parent=None):
         # default saving format jpg
         dlg.selectFile(basename(img.filename)[:-3] + ext)
     filename = ''
-    if dlg.exec_():
+    if dlg.exec():
         newDir = dlg.directory().absolutePath()
         mainForm.settings.setValue('paths/dlgsavedir', newDir)
         filenames = dlg.selectedFiles()
@@ -447,7 +447,7 @@ def openDlg(mainForm, ask=True, multiple=False, key='dlgdir', parent=None):
         return names
     # select a single file
     dlg = QFileDialog(mainForm, "select", lastDir, filter)
-    if dlg.exec_():
+    if dlg.exec():
         filenames = dlg.selectedFiles()
         newDir = dlg.directory().absolutePath()
         mainForm.settings.setValue(key, newDir)

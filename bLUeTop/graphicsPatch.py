@@ -136,7 +136,7 @@ class patchForm(baseForm):
             filter = "Images ( *" + " *".join(IMAGE_FILE_EXTENSIONS) + ")"
             dlg = QFileDialog(window.__repr__.__self__, "select", lastDir,
                               filter)  # QFileDialog does not accept weakProxy arg
-            if dlg.exec_():
+            if dlg.exec():
                 filenames = dlg.selectedFiles()
                 newDir = dlg.directory().absolutePath()
                 window.settings.setValue('paths/dlgdir', newDir)

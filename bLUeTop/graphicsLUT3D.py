@@ -338,7 +338,7 @@ class nodeGroup(QGraphicsItemGroup, QObject):  # QObject needed by disconnect()
 
         actionRotateCCW.triggered.connect(f5)
 
-        menu.exec_(event.screenPos())
+        menu.exec(event.screenPos())
 
 
 class activeNode(QGraphicsPathItem):
@@ -802,7 +802,7 @@ class activeNode(QGraphicsPathItem):
         actionReset = QAction('Reset', None)
         menu.addAction(actionReset)
         actionReset.triggered.connect(lambda: activeNode.resetNodes(self.scene().selectedItems()))
-        menu.exec_(event.screenPos())
+        menu.exec(event.screenPos())
 
 
 class activeGrid(QGraphicsPathItem):
@@ -1612,7 +1612,7 @@ class graphicsForm3DLUT(baseGraphicsForm):
         dlg.setNameFilter('*.cube')
         dlg.setDefaultSuffix('cube')
         try:
-            if dlg.exec_():
+            if dlg.exec():
                 filenames = dlg.selectedFiles()
                 newDir = dlg.directory().absolutePath()
                 mainForm.settings.setValue('paths/dlg3DLUTdir', newDir)
