@@ -68,7 +68,7 @@ class histForm(baseForm):
                                          flow=optionsWidget.LeftToRight
                                          )
         self.listWidget2.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.listWidget2.setFixedSize((self.listWidget2.sizeHintForRow(0) + 20) * len(options2),  # 20 needed for ubuntu
+        self.listWidget2.setFixedSize((self.listWidget2.sizeHintForColumn(0) + 15) * len(options2),
                                       20
                                       )
         # default: show color hists only
