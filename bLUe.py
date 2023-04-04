@@ -1969,11 +1969,18 @@ def setupGUI(window=bLUeTop.Gui.window):
                                QWidget, QTableView, QTableView * {font-size: 9pt} QPushButton {font-size: 6pt}"""
                                       )
     else:
-        # To simplify font size tuning, blue.qss is a template and
-        # fontX names are placeholders.
+        # To simplify style sheet tuning, blue.qss is a template containing
+        # placeholders for font sizes and comment marks.
         c = 2  # global font size increment
+        if sys.platform == 'darwin':
+            mc_out_b, mc_out_e = '/*', '*/'
+        else:
+            mc_out_b, mc_out_e = '', ''
         s = Template(Path('bLUe.qss').read_text())
-        s = s.substitute(font10='%dpx' % (10+c),  font9='%dpx' % (9+c), font8='%dpx' % (8+c), font7='%dpx' % (7+c))
+        s = s.substitute(font10='%dpx' % (10+c),  font9='%dpx' % (9+c), font8='%dpx' % (8+c), font7='%dpx' % (7+c),
+                         mc_out_b=mc_out_b, mc_out_e=mc_out_e
+                         )
+
         bLUeTop.Gui.app.setStyleSheet(s)
 
     # status bar

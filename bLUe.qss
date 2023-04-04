@@ -7,7 +7,7 @@ QGroupBox {margin-top: 7px; border: 1px solid gray; border-radius: 4px;}
 QGroupBox::title {subcontrol-origin: margin; left: 2px; padding: 0px 2px 0px 2px;}
 QListWidget::item {background-color: rgb(40, 40, 40); color: white;}
 QListWidget::item:disabled{color: blue;}
-QListWidget::indicator:unchecked {background-color: gray}
+$mc_out_b QListWidget::indicator:unchecked {background-color: gray} $mc_out_e
 optionsWidget {outline: none; border: none}
 QMenu, QTableView {selection-background-color: blue;
                    selection-color: white;}
