@@ -588,7 +588,7 @@ class optionsWidget(QListWidget):
             self.addItem(listItem)
             self.items[intName] = listItem
             self.options[intName] = (listItem.checkState() == Qt.Checked)
-        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         if flow == QListWidget.TopToBottom:
             self.setMinimumHeight(self.sizeHintForRow(0) * len(options))
             self.setMaximumHeight(self.sizeHintForRow(0) * len(options) + 10)

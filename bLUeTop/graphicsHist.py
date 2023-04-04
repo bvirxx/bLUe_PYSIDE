@@ -55,23 +55,22 @@ class histForm(baseForm):
         options1, optionNames1 = ['Original Image'], ['Source']
         self.listWidget1 = optionsWidget(options=options1,
                                          optionNames=optionNames1,
-                                         exclusive=False
+                                         exclusive=False,
+                                         flow=optionsWidget.LeftToRight
                                          )
-        self.listWidget1.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.listWidget1.setFixedSize((self.listWidget1.sizeHintForColumn(0) + 15) * len(options1),
-                                      20
-                                      )
+
         options2, optionNames2 = ['R', 'G', 'B', 'L'], ['R', 'G', 'B', 'L']
         self.listWidget2 = optionsWidget(options=options2,
                                          optionNames=optionNames2,
                                          exclusive=False,
                                          flow=optionsWidget.LeftToRight
                                          )
-        self.listWidget2.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.listWidget2.setFixedSize((self.listWidget2.sizeHintForColumn(0) + 15) * len(options2),
-                                      20
-                                      )
-        # default: show color hists only
+
+        for widget in [self.listWidget1, self.listWidget2]:
+            widget.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            widget.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            widget.setMaximumHeight(widget.sizeHintForRow(0))
+
         for i in range(3):
             self.listWidget2.checkOption(self.listWidget2.intNames[i])
         self.options = UDict((self.listWidget1.options, self.listWidget2.options))
@@ -109,4 +108,4 @@ class histForm(baseForm):
         vl.addLayout(h)
         vl.setContentsMargins(0, 0, 0, 2)  # left, top, right, bottom
         self.setLayout(vl)
-        self.adjustSize()
+        #self.adjustSize()
