@@ -5,10 +5,9 @@ QMainWindow, QMainWindow *, QGraphicsView, QListWidget, QMenu,
 QTableView, QLabel, QGroupBox {background-color: rgb(40,40,40); color: rgb(220,220,220)}
 QGroupBox {margin-top: 7px; border: 1px solid gray; border-radius: 4px;}
 QGroupBox::title {subcontrol-origin: margin; left: 2px; padding: 0px 2px 0px 2px;}
-QListWidget::item {background-color: rgb(40, 40, 40); color: white}
-QListWidget::item:disabled{color: gray}
-QCheckBox::indicator:unchecked, QListWidget::indicator:unchecked{background-color: white}
-QListWidget::indicator:disabled{background-color: gray}
+QListWidget::item {background-color: rgb(40, 40, 40); color: white;}
+QListWidget::item:disabled{color: blue;}
+QListWidget::indicator:unchecked {background-color: gray}
 optionsWidget {outline: none; border: none}
 QMenu, QTableView {selection-background-color: blue;
                    selection-color: white;}
@@ -74,9 +73,9 @@ QToolTip {border: 0px;
           background-color: lightyellow; /*border must be set, otherwise background-color has no effect : Qt bug? */
           color: black}
 bottomWidget QWidget#container{background-color: black;}
-             QListWidget {font-size: $font7;}
-             QListWidget::item{color: white;}
-             QListWidget::item:disabled {color: gray;}
+bottomWidget QListWidget {font-size: $font7;}
+bottomWidget QListWidget::item{color: white;}
+bottomWidget QListWidget::item:disabled {color: gray;}
 bLUeDialogCombo QComboBox {font-size: $font10;}
 histForm QListWidget{border: 0px; font-size: $font8;}
 colorInfoView QLabel {font-family: 'courier'; font-size: $font8;}
