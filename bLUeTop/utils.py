@@ -305,19 +305,27 @@ class UDict(object):
 
 
 class QbLUeColorDialog(QColorDialog):
+    """
+    Overrides QDialog.accept() to prevent the Accept (OK) button
+    from hiding the dialog. This is handy to allow multiple
+    successive selections (of brush colors for example).
+    Adds a closeSignal to sync with eyeDropper button.
+    """
 
     def __init__(self, parent=None):
         super().__init__(parent=parent)
         self.closeSignal = baseSignal_No()
+        self.setAttribute(Qt.WA_DeleteOnClose, on=False);
 
-    def closeEvent(self, e):
+    def accept(self):
+        # Triggered by Accept (OK) button.
+        self.setResult(QDialog.Accepted)
+        self.colorSelected.emit(self.currentColor())
+
+    def reject(self):
+        # Triggered by Cancel and X buttons.
         self.closeSignal.sig.emit()
-        # remove possible links to an adjust form
-        try:
-            self.currentColorChanged.disconnect()
-            self.colorSelected.disconnect()
-        except RuntimeError:
-            pass
+        super().reject()
 
 
 class QbLUeComboBox(QComboBox):

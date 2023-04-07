@@ -509,7 +509,7 @@ class imageLabel(QLabel):
                     # coordinates are relative to the full-sized image
                     clr = img.getActivePixel(x_img, y_img, qcolor=True)
                     clrC = img.getActivePixel(x_img, y_img, fromInputImg=False, qcolor=True)
-                    red, green, blue = clr.red(), clr.green(), clr.blue()
+                    # red, green, blue = clr.red(), clr.green(), clr.blue()
                     # read color from presentation layer
                     redP, greenP, blueP = img.getPrPixel(x_img, y_img)
                     # color chooser : when visible the colorPicked signal is not emitted
@@ -535,7 +535,7 @@ class imageLabel(QLabel):
                         # Flood fill tool
                         if layer.isDrawLayer() and window.btnValues['bucket']:
                             if getattr(window, 'colorChooser', None):
-                                bucketColor = window.colorChooser.currentColor()  # TODO modified 9/12/21 validate
+                                bucketColor = window.colorChooser.currentColor()
                             else:
                                 bucketColor = Qt.black
                             bLUeFloodFill(layer, int(x_img), int(y_img), bucketColor)

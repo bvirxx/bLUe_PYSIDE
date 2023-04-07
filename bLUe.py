@@ -140,11 +140,9 @@ import pickle
 import rawpy
 from PIL import ImageCms
 
-from PIL.ImageCms import PyCMSError
-
 from PySide6.QtCore import QUrl, QFileInfo
 from PySide6.QtGui import QPixmap, QCursor, QKeySequence, QDesktopServices, QFont, \
-    QTransform, QColor, QImage, QIcon, QAction
+    QTransform, QColor, QImage, QIcon, QAction, QPalette
 from PySide6.QtWidgets import QApplication, \
     QDockWidget, QSizePolicy, QSplashScreen, QWidget, \
     QTabWidget, QToolBar, QComboBox, QTabBar, QLayout, QFrame
@@ -256,19 +254,11 @@ def widgetChange(button, window=bLUeTop.Gui.window):
     elif button is window.asButton:
         # update crop tool
         window.cropTool.setCropTool(window.label.img)
-    elif button is window.rulerButton:  # wdgName == "rulerButton":
+    elif button is window.rulerButton:
         window.label.img.isRuled = button.isChecked()
-    elif button is window.eyeDropper:  # wdgName == 'eyeDropper':
-        if button.isChecked():  # window.btnValues['colorPicker']:
-            dlg = window.colorChooser
-            dlg.show()
-            try:
-                dlg.closeSignal.sig.disconnect()
-            except RuntimeError:
-                pass
-            dlg.closeSignal.sig.connect(lambda: button.setChecked(False))
-        else:
-            window.colorChooser.close()
+    elif button is window.eyeDropper:
+        window.colorChooser.setVisible(button.isChecked())
+
     updateStatus()
     window.label.repaint()
 
@@ -1963,6 +1953,13 @@ def setupGUI(window=bLUeTop.Gui.window):
     # The right docking area extends to window bottom
     window.setCorner(Qt.BottomRightCorner, Qt.RightDockWidgetArea)
 
+    if sys.platform == 'darwin':
+        # seems necessary to prevent semi-transparent
+        # WhatsThis window on Mac OS.  May be a bug ?
+        p = Gui.app.palette()
+        p.setColor(QPalette.ToolTipBase, Qt.white)
+        Gui.app.setPalette(p)
+
     # app style sheet
     if THEME == "light":
         bLUeTop.Gui.app.setStyleSheet("""QMainWindow, QGraphicsView, QListWidget, QMenu, QTableView {background-color: rgb(200, 200, 200)}\
@@ -2039,6 +2036,7 @@ def setupGUI(window=bLUeTop.Gui.window):
     window.brushCombo.currentIndexChanged.connect(window.label.brushUpdate)
     window.patternCombo.currentIndexChanged.connect(window.label.brushUpdate)
     window.colorChooser.colorSelected.connect(window.label.brushUpdate)
+    window.colorChooser.closeSignal.sig.connect(lambda: window.eyeDropper.setChecked(False))
     # init tool bar
     toolBar.addWidget(QLabel(' Brush  '))
 

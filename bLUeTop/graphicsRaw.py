@@ -884,8 +884,8 @@ class rawForm(baseForm):
         threading.Thread(target=load, args=(self.event_obj,)).start()
 
         self.cameraProfilesCombo.setSizeAdjustPolicy(QbLUeComboBox.SizeAdjustPolicy.AdjustToContents)
-        self.cameraProfilesCombo.setMaximumWidth(150)
-        self.cameraProfilesCombo.setStyleSheet("QbLUeComboBox QAbstractItemView { min-width: 250px;}")
+        self.cameraProfilesCombo.setMaximumWidth(180)
+        #self.cameraProfilesCombo.setStyleSheet("QbLUeComboBox QAbstractItemView { min-width: 250px;}")
         # return the currently selected item data
         current = self.cameraProfilesCombo.itemData(0)
         return current if current is not None else {}

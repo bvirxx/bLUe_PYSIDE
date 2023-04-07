@@ -18,7 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFontMetrics, QColor
-from PySide6.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout
+from PySide6.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout, QColorDialog
 
 from bLUeGui.colorCIE import sRGBWP
 from bLUeGui.graphicsForm import baseForm
@@ -50,8 +50,12 @@ class temperatureForm(baseForm):
                                          changed=self.dataChanged)
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
         self.options = self.listWidget1.options
-        # link to app color dialog
-        self.colorChooser = self.parent().colorChooser
+
+        self.colorChooser = QColorDialog(parent=self)
+        self.colorChooser.setWindowTitle('Select Filter Color')
+        self.colorChooser.currentColorChanged.connect(self.setFilterColor)
+        self.colorChooser.colorSelected.connect(self.colorUpdate)
+
         # color viewer
         self.colorLabel = QLabel()
         self.colorLabel.setMaximumSize(50, 50)
@@ -63,7 +67,8 @@ class temperatureForm(baseForm):
         self.sliderTemp = QbLUeSlider(Qt.Horizontal)
         self.sliderTemp.setStyleSheet(QbLUeSlider.bLueSliderDefaultIColorStylesheet)
         self.sliderTemp.setRange(17,
-                                 100)  # 250)  # valid range for spline approximation is 1667..25000, cf. colorConv.temperature2xyWP
+                                 100
+                                 )  # valid range for spline approximation is 1667..25000, cf. colorConv.temperature2xyWP
         self.sliderTemp.setSingleStep(1)
 
         self.tempLabel = QbLUeLabel()
@@ -240,13 +245,11 @@ class temperatureForm(baseForm):
 
     def showColorChooser(self):
         self.colorChooser.show()
-        try:
-            self.colorChooser.currentColorChanged.disconnect()  # TODO conflict with other usages of app colorchooser
-        except RuntimeError:
-            pass
+        #try:
+        #    self.colorChooser.currentColorChanged.disconnect()  # TODO conflict with other usages of app colorchooser
+        #except RuntimeError:
+        #   pass
         self.colorChooser.setCurrentColor(self.filterColor)
-        self.colorChooser.currentColorChanged.connect(self.setFilterColor)
-        self.colorChooser.colorSelected.connect(self.colorUpdate)  # TODO conflict with other usages of app colorchooser
 
     @staticmethod
     def slider2Temp(v):
