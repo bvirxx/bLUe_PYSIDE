@@ -2035,7 +2035,7 @@ def setupGUI(window=bLUeTop.Gui.window):
     window.verticalSlider4.sliderReleased.connect(window.label.brushUpdate)
     window.brushCombo.currentIndexChanged.connect(window.label.brushUpdate)
     window.patternCombo.currentIndexChanged.connect(window.label.brushUpdate)
-    window.colorChooser.colorSelected.connect(window.label.brushUpdate)
+    window.colorChooser.currentColorChanged.connect(window.label.brushUpdate)
     window.colorChooser.closeSignal.sig.connect(lambda: window.eyeDropper.setChecked(False))
     # init tool bar
     toolBar.addWidget(QLabel(' Brush  '))
