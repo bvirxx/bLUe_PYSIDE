@@ -126,7 +126,9 @@ class drawForm(baseForm):
               To <b>load preset brushes</b> use menu <i>File->Load Preset.</i><br>
               To <b>move</b> the layer select the <i>Drag Tool</i> and do <i>Ctrl+Drag</i>.<br><br>
               For faster operations use the <i>Preview</i> mode (the drawing will still be done using the 
-              full resolution image).
+              full resolution image).<br><br>
+              <b>Warning :</b> All upper layers (drawing layers excepted) must be made non visible.
+              Otherwise drawing operations will not be rendered until next layer stack update.<br> 
             """
         )  # end of setWhatsThis
 
