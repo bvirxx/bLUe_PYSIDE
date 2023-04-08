@@ -1957,7 +1957,7 @@ def setupGUI(window=bLUeTop.Gui.window):
         # seems necessary to prevent semi-transparent
         # WhatsThis window on Mac OS.  May be a bug ?
         p = Gui.app.palette()
-        p.setColor(QPalette.ToolTipBase, Qt.white)
+        p.setColor(QPalette.ToolTipBase, '#f5f2de')  # Qt.white)
         Gui.app.setPalette(p)
 
     # app style sheet
