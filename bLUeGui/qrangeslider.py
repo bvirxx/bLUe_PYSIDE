@@ -209,7 +209,7 @@ class Handle(Element):
 
     def mouseMoveEvent(self, event):
         event.accept()
-        mx = event.globalX()
+        mx = int(event.globalPosition().x())
         _mx = getattr(self, '__mx', None)
         if not _mx:
             setattr(self, '__mx', mx)

@@ -53,12 +53,11 @@ class BWidgetImg(QLabel):
         super().mousePressEvent(ev)
         if ev.modifiers() != Qt.ControlModifier | Qt.AltModifier:
             return
-        x, y = ev.x(), ev.y()
         grForm = self.grForm
-        x, y = x * grForm.layer.width() / grForm.sourcePixmapThumb.width(), \
-               y * grForm.layer.height() / grForm.sourcePixmapThumb.height()  # changed sourcePixmap to layer  29/12/19
+        pos = ev.position()
         # set source starting point
-        grForm.layer.sourceX, grForm.layer.sourceY = x, y
+        grForm.layer.sourceX = pos.x() * grForm.layer.width() / grForm.sourcePixmapThumb.width()
+        grForm.layer.sourceY = pos.y() * grForm.layer.height() / grForm.sourcePixmapThumb.height()
         grForm.layer.cloningState = 'start'
 
     def paintEvent(self, e):

@@ -163,7 +163,7 @@ class croppingHandle(baseHandle):
         if event.buttons() == Qt.NoButton:
             return
         img = self.parent().img
-        pos = self.mapToParent(event.pos())
+        pos = self.mapToParent(event.position().toPoint())
         oldPos = self.pos()
         if self.role in ['left', 'right']:
             self.setPosition(self.pos() + QPoint((pos - oldPos).x(), 0))
@@ -349,11 +349,11 @@ class rotatingHandle(baseHandle):
 
         modifiers = event.modifiers()  # QApplication.keyboardModifiers()
         # mouse coordinates, relative to parent widget
-        pos = self.mapToParent(event.pos())
+        pos = self.mapToParent(event.position())
         img = self.tool.layer.parentImage
         r = self.tool.resizingCoeff
         self.tool.targetQuad_old = self.tool.getTargetQuad()
-        self.posRelImg = (pos - QPoint(img.xOffset, img.yOffset)) / r
+        self.posRelImg = (pos - QPointF(img.xOffset, img.yOffset)) / r
         if modifiers == Qt.ControlModifier | Qt.AltModifier:
             if self.tool.isModified():
                 dlgWarn("A transformation is in progress", "Reset first")

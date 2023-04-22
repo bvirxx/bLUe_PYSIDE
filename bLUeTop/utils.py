@@ -408,7 +408,10 @@ class QbLUeSlider(QSlider):
         :param event:
         :type event:
         """
-        pressVal = QStyle.sliderValueFromPosition(self.minimum(), self.maximum(), event.x(), self.width(),
+        pressVal = QStyle.sliderValueFromPosition(self.minimum(),
+                                                  self.maximum(),
+                                                  int(event.position().x()),
+                                                  self.width(),
                                                   upsideDown=False)
         if abs(pressVal - self.value()) > (
                 self.maximum() - self.minimum()) * 20 / self.width():  # handle width should be near 20
