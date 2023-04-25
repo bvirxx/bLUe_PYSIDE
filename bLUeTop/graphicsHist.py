@@ -32,7 +32,7 @@ class trackLabel(QLabel):
         self.drawingScale = 1.0
 
     def mouseMoveEvent(self, e):
-        self.parent().trackView.setText("%.0f" % (e.x() * self.drawingWidth / (self.drawingScale * self.width())))
+        self.parent().trackView.setText("%.0f" % (e.position().x() * self.drawingWidth / (self.drawingScale * self.width())))
 
 
 class histForm(baseForm):
