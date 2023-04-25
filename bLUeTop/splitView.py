@@ -81,7 +81,7 @@ class splitWindow:
             self.mainWin.label_3.hide()
         self.setSplitView()
 
-    def syncSplitView(self, widg1, widg2, linked):
+    def syncSplitView(self, widg1, widg2):
         """
         Sync Before/After views.
         Called by mouse event handler.
@@ -90,11 +90,7 @@ class splitWindow:
         :type widg1:
         :param widg2:
         :type widg2:
-        :param linked:
-        :type linked:
         """
-        if not linked:
-            return
         widg1.img.Zoom_coeff = widg2.img.Zoom_coeff
         if self.mainWin.splitter.currentState == 'H':
             if widg1.objectName() == 'label_2':  # dest is right
