@@ -33,7 +33,7 @@ from PySide6.QtCore import Qt, QSize, QPoint, QPointF, QFileInfo, QByteArray, QB
 import cv2
 from copy import copy
 
-from PySide6.QtGui import QTransform, QColor, QCursor, QPixmap, QImage, QPainter
+from PySide6.QtGui import QTransform, QColor, QPixmap, QImage, QPainter
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QRect
 
@@ -1487,7 +1487,11 @@ class QLayer(vImage):
             rImg = rImg.copy(QRect(-x, -y, rImg.width() * self.Zoom_coeff, rImg.height() * self.Zoom_coeff))
         if self.maskIsEnabled:
             rImg = vImage.visualizeMask(rImg, self.mask, color=self.maskIsSelected)
-        self.rPixmap = QPixmap.fromImage(rImg)
+        if self.rPixmap is None:
+            self.rPixmap = QPixmap.fromImage(rImg)
+        else:
+            if not self.rPixmap.convertFromImage(rImg):
+                raise ValueError('updatePixmap: conversion error')
         self.setModified(True)
 
     def getStackIndex(self):
@@ -1744,16 +1748,18 @@ class QPresentationLayer(QLayer):
         THe Parameter maskOnly is provided for compatibility only and it is unused.
         """
         currentImage = self.getCurrentImage()
-
-        # color manage
-        if icc.COLOR_MANAGE and self.parentImage is not None and getattr(self, 'role', None) == 'presentation':
-            # img = cmsConvertQImage(currentImage, cmsTransformation=self.parentImage.colorTransformation)
-            img = icc.convertQImage(currentImage.copy(), transformation=self.parentImage.colorTransformation)
+        if self.rPixmap is None:
+            self.rPixmap = QPixmap.fromImage(currentImage)
         else:
-            img = currentImage
+            if not self.rPixmap.convertFromImage(currentImage):
+                raise ValueError('updatePixmap: conversion error')
 
-        self.qPixmap = QPixmap.fromImage(img)
-        self.rPixmap = QPixmap.fromImage(currentImage)
+        # color management
+        if icc.COLOR_MANAGE and self.parentImage is not None:
+            img = icc.convertQImage(currentImage, transformation=self.parentImage.colorTransformation)
+            self.qPixmap = QPixmap.fromImage(img)
+        else:
+            self.qPixmap = self.rPixmap
 
         self.setModified(True)
 
@@ -2014,6 +2020,7 @@ class QDrawingLayer(QLayerImage):
         self.strokeDest = None
         # cache for current brush dict
         self.brushDict = None
+        self.last_refresh = 0  # refresh rate control
 
     def inputImg(self, redo=True):
         """

@@ -84,13 +84,14 @@ class brushFamily:
         a_x, a_y = tmp_x - x0, tmp_y - y0
         # move length : use 1-norm for performance
         d = sqrt(a_x * a_x + a_y * a_y)
-        spacing, jitter, radius, pxmp = brush['spacing'], brush['jitter'], brush['size'] / 2, brush['pixmap']
+        s = brush['size'] * brush['tabletW']
+        spacing, jitter, radius, pxmp = brush['spacing'], brush['jitter'], s / 2, brush['pixmap'].scaled(s, s)
         step = 1 if d == 0 else radius * 0.3 * spacing / d  # 0.25
         sinBeta, cosBeta = 0.0, 1.0
         if jitter != 0.0:
             step *= (1.0 + choice(brushFamily.jitterRange) * jitter / 100.0)
             sinBeta = choice(brushFamily.jitterRange) * jitter / 100
-            cosbeta = sqrt(1 - sinBeta * sinBeta)
+            cosBeta = sqrt(1 - sinBeta * sinBeta)
         p_x, p_y = x0, y0
         if d != 0.0:
             cosTheta, sinTheta = a_x / d, a_y / d
@@ -100,16 +101,17 @@ class brushFamily:
             transform = QTransform(cosTheta, sinTheta, -sinTheta, cosTheta, 0,
                                    0)  # Caution: angles > 0 correspond to counterclockwise rotations of pxmp
             pxmp = pxmp.transformed(transform)
+
         count = 0
         maxCount = int(1.0 / step)
-        while count < maxCount:
-            count += 1
+        pxmp_w, pxmp_h = pxmp.width() / 2, pxmp.height() / 2
+        for count in range(maxCount + 1):
             if pxmp is None:
                 qp.drawEllipse(QPointF(p_x, p_y), radius, radius)
             else:
-                qp.drawPixmap(QPointF(p_x - radius, p_y - radius), pxmp)
-            p_x, p_y = p_x + a_x * step, p_y + a_y * step
-        # return last brush position
+                qp.drawPixmap(QPointF(p_x - pxmp_w, p_y - pxmp_h), pxmp)
+            if count < maxCount:
+                p_x, p_y = p_x + a_x * step, p_y + a_y * step
         return p_x, p_y
 
     @staticmethod
@@ -294,7 +296,7 @@ class brushFamily:
         return {'family': self, 'name': self.name, 'pixmap': self.pxmp, 'size': size, 'color': color,
                 'opacity': opacity,
                 'hardness': hardness, 'flow': flow, 'spacing': spacing, 'jitter': jitter, 'orientation': orientation,
-                'pattern': pattern, 'cursor': self.baseCursor}
+                'pattern': pattern, 'cursor': self.baseCursor, 'tabletW': 1.0, 'tabletS': 1.0, 'tabletA': 1.0}
 
 
 def initBrushes():

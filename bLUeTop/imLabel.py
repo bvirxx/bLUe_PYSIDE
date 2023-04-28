@@ -16,10 +16,11 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 from os.path import dirname, basename
+from time import time_ns
 
-from PySide6.QtCore import QRect, QRectF, Qt, QPointF
+from PySide6.QtCore import QRect, QRectF, Qt, QPointF, QEvent, QPoint
 from PySide6.QtGui import QPainter, QImage, QColor, QBrush, QContextMenuEvent, QCursor, QPen, QFont, QPainterPath, \
-    QPixmap
+    QPixmap, QMouseEvent, QPointingDevice
 from PySide6.QtWidgets import QLabel, QApplication
 
 from bLUeGui.dialog import dlgWarn
@@ -27,6 +28,7 @@ from bLUeTop.drawing import bLUeFloodFill, brushFamily
 from bLUeTop.settings import MAX_ZOOM
 from bLUeTop.utils import checkeredImage
 from bLUeTop.versatileImg import vImage
+from bLUeTop.tablet import bTablet
 
 
 class imageLabel(QLabel):
@@ -158,6 +160,7 @@ class imageLabel(QLabel):
             currentImage = mimg.prLayer.getCurrentImage()
             qp.drawImage(rectF, currentImage,
                          QImage.rect(currentImage))  # CAUTION : vImage.rect() is overwritten by the attribute rect
+
         # draw selection rectangle and cloning marker of the active layer, if any
         layer = mimg.getActiveLayer()
         # rect, mark = layer.rect, layer.marker
@@ -216,9 +219,12 @@ class imageLabel(QLabel):
         :param event: mouse event
         :type event: QMouseEvent
         """
+        eventType = event.type()
+        if eventType == QEvent.MouseButtonPress and event.device().pointerType() != QPointingDevice.PointerType.Generic:
+            return
         State = self.State
         window = self.window
-        eventType = event.type()
+
         # no context menu
         if eventType == QContextMenuEvent:
             return
@@ -277,28 +283,39 @@ class imageLabel(QLabel):
     def mouseMoveEvent(self, event):
         """
        Mouse event handler.
-       The handler implement mouse actions on an imImage displayed in a QLabel.
+       The handler implement mouse and tablet actions on an imImage.
        It handles image positioning, zooming, and
        tool actions.
+       We discard events sent by non generic (mouse) devices and that
+       are not typed as tablet events
+
        NOTE 1. Mouse hover generates mouse move events
        NOTE 2. Due to wheeelEvent, xOffset and yOffset are float numbers.
 
        :param event: mouse event
        :type event: QMouseEvent
        """
+        eventType = event.type()
+        if eventType == QEvent.MouseMove and event.device().pointerType() != QPointingDevice.PointerType.Generic:
+            return
+
+        repaintAfter = True  # flag controlling repainting when done
+
         window = self.window
         State = self.State
         qp = self.qp
-        eventType = event.type()
+
         # no context menu
         if eventType == QContextMenuEvent:
             return
+
         # get image and active layer
         img = self.img
         if img is None:
             return
         layer = img.getActiveLayer()
         r = img.resize_coeff(self)
+
         ############################################################
         # get mouse x, y coordinates (relative to widget).
         # The mouse coordinates relative to the (full size) image are
@@ -306,6 +323,7 @@ class imageLabel(QLabel):
         #############################################################
         x, y = event.x(), event.y()
         modifiers = event.modifiers()
+
         # hover event
         if not self.pressed:
             x_img, y_img = (x - img.xOffset) / r, (y - img.yOffset) / r
@@ -328,6 +346,7 @@ class imageLabel(QLabel):
                 if layer.sourceFromFile:
                     layer.getGraphicsForm().widgetImg.repaint()
             return
+
         self.clicked = False
         if img.isMouseSelectable:
             # don't draw on a non visible layer
@@ -357,6 +376,7 @@ class imageLabel(QLabel):
             # drawing
             elif layer.isDrawLayer() and (window.btnValues['brushButton'] or window.btnValues['eraserButton']):
                 self.__strokePaint(layer, x, y, r)
+                repaintAfter = False  # repainting is controlled by __strokePaint()
             # mask
             elif window.btnValues['drawFG'] or window.btnValues['drawBG']:
                 if layer.maskIsEnabled:
@@ -453,15 +473,17 @@ class imageLabel(QLabel):
         State['ix'], State['iy'] = x, y
         if layer.isGeomLayer():
             layer.tool.moveRotatingTool()
+
         # updates
-        self.repaint()
+        if repaintAfter:
+            self.repaint()
+
         # sync split views
-        linked = True
         if self.objectName() == 'label_2':
-            self.splitWin.syncSplitView(window.label_3, window.label_2, linked)
+            self.splitWin.syncSplitView(window.label_3, window.label_2)
             window.label_3.repaint()
         elif self.objectName() == 'label_3':
-            self.splitWin.syncSplitView(window.label_2, window.label_3, linked)
+            self.splitWin.syncSplitView(window.label_2, window.label_3)
             window.label_2.repaint()
 
     def mouseReleaseEvent(self, event):
@@ -474,8 +496,11 @@ class imageLabel(QLabel):
        :param event: mouse event
        :type event: QMouseEvent
        """
-        window = self.window
         eventType = event.type()
+        if eventType == QEvent.MouseButtonRelease and event.device().pointerType() != QPointingDevice.PointerType.Generic:
+            return
+        window = self.window
+
         # no context menu
         if eventType == QContextMenuEvent:
             return
@@ -540,26 +565,7 @@ class imageLabel(QLabel):
                                 bucketColor = Qt.black
                             bLUeFloodFill(layer, int(x_img), int(y_img), bucketColor)
                             layer.applyToStack()
-                        """
-                        # for raw layer, set multipliers to get selected pixel as White Point : NOT USED YET
-                        if layer.isRawLayer() and window.btnValues['colorPicker']:
-                            # get demosaic buffer and sample raw pixels
-                            bufRaw = layer.parentImage.demosaic
-                            nb = QRect(x_img-2, y_img-2, 4, 4)
-                            r = QImage.rect(layer.parentImage).intersected(nb)
-                            if not r.isEmpty():
-                                color = np.sum(bufRaw[r.top():r.bottom()+1, r.left():r.right()+1], axis=(0, 1))/(r.width()*r.height())
-                            else:
-                                color = bufRaw[y_img, x_img, :]
-                            color = [color[i] - layer.parentImage.rawImage.black_level_per_channel[i] for i in range(3)]
-                            form = layer.getGraphicsForm()
-                            if form.sampleMultipliers:
-                                row, col = 3*y_img//layer.height(), 3*x_img//layer.width()
-                                if form.samples:
-                                    form.setRawMultipliers(*form.samples[3*row + col], sampling=False)
-                            else:
-                                form.setRawMultipliers(1/color[0], 1/color[1], 1/color[2], sampling=True)
-                        """
+
                 else:  # not clicked
                     if window.btnValues['rectangle']:
                         layer.selectionChanged.sig.emit()
@@ -569,15 +575,21 @@ class imageLabel(QLabel):
                             # the virtual layer was moved : clone
                             layer.applyCloning(seamless=True, showTranslated=True, moving=True)
                             layer.vlChanged = False
+
         # updates
+        if layer.isDrawLayer:
+            # final update for stroke
+            layer.execute(l=layer)
+            img.prLayer.update()
+
         self.repaint()
+
         # sync split views
-        linked = True
         if self.objectName() == 'label_2':
-            self.splitWin.syncSplitView(window.label_3, window.label_2, linked)
+            self.splitWin.syncSplitView(window.label_3, window.label_2)
             window.label_3.repaint()
         elif self.objectName() == 'label_3':
-            self.splitWin.syncSplitView(window.label_2, window.label_3, linked)
+            self.splitWin.syncSplitView(window.label_2, window.label_3)
             window.label_2.repaint()
 
     def wheelEvent(self, event):
@@ -594,9 +606,11 @@ class imageLabel(QLabel):
         img = self.img
         pos = event.position()
         modifiers = event.modifiers()
-        # delta unit is 1/8 of degree
-        # Most mice have a resolution of 15 degrees
-        numSteps = event.angleDelta().y() / 1200.0
+        delta = event.angleDelta()
+        # delta unit is 1/8 of degree.
+        # On Windows, Alt modifier may toggle horizontal/vertical  wheels,
+        # so we sum up the 2 delta coordinates.
+        numSteps = (delta.x() + delta.y()) / 1200.0
         layer = img.getActiveLayer()
         if modifiers == Qt.NoModifier:
             img.Zoom_coeff *= (1.0 + numSteps)
@@ -622,20 +636,76 @@ class imageLabel(QLabel):
         # cloning layer zoom
         elif layer.isCloningLayer() and modifiers == Qt.ControlModifier | Qt.AltModifier:
             layer.AltZoom_coeff *= (1.0 + numSteps)
-            layer.applyCloning(seamless=False, showTranslated=True, moving=True)  # autocloning (seamless=true) too slow
+            layer.applyCloning(seamless=True, showTranslated=True, moving=True)
+
         self.repaint()
+
         # sync split views
-        linked = True
         if self.objectName() == 'label_2':
-            self.splitWin.syncSplitView(window.label_3, window.label_2, linked)
+            self.splitWin.syncSplitView(window.label_3, window.label_2)
             window.label_3.repaint()
         elif self.objectName() == 'label_3':
-            self.splitWin.syncSplitView(window.label_2, window.label_3, linked)
+            self.splitWin.syncSplitView(window.label_2, window.label_3)
             window.label_2.repaint()
+
+    def tabletEvent(self, event):
+        """
+
+        :param event:
+        :type event:
+        """
+
+        event.accept()
+
+        d = self.State['brush']
+        eventType = event.type()
+
+        # handle tablet press and release events as mouse events
+        if eventType == QEvent.TabletPress:
+            # tool buttons are mutually exclusive
+            if event.pointerType() == QPointingDevice.PointerType.Eraser:
+                self.window.btns['eraserButton'].setChecked(True)
+            else:
+                self.window.btns['brushButton'].setChecked(True)
+            self.mousePressEvent(event)
+            return
+
+        if eventType == QEvent.TabletRelease:
+            self.mouseReleaseEvent(event)
+            return
+
+        if eventType == QEvent.TabletMove:
+            v = bTablet.getWidthValuator()
+            if v == bTablet.valuator.PressureValuator:
+                d['tabletW'] = event.pressure() + 0.2  # pressure range is [0, 1]
+            elif v == bTablet.valuator.TiltValuator:
+                vValue = int(((event.yTilt() + 60.0) / 120.0) * 255)
+                hValue = int(((event.xTilt() + 60.0) / 120.0) * 255)
+                d['tabletW'] = 0.1 + max(abs(vValue - 127), abs(hValue - 127)) / 12
+            else:
+                d['tabletW'] = 1.0
+
+            v = bTablet.getAlphaValuator()
+            if v == bTablet.valuator.VTiltValuator:
+                d['tabletA'] = 1.0 - (event.yTilt() + 60.0) / 120.0
+            elif v == bTablet.valuator.HTiltValuator:
+                d['tabletA'] = 1.0 - (event.xTilt() + 60.0) / 120.0
+            elif v == bTablet.valuator.TiltValuator:
+                d['tabletA'] = 1.0 - max((event.xTilt() + 60.0) / 120.0, (event.yTilt() + 60.0) / 120.0)
+            elif v == bTablet.valuator.PressureValuator:
+                d['tabletA'] = event.pressure() + 0.5
+
+            # draw move
+            self.mouseMoveEvent(event)
+
+            # restore brush
+            d['tabletW'] = 1.0
+            d['tabletA'] = 1.0
+
 
     def enterEvent(self, event):
         """
-        Mouse enter event handler.
+        Mouse and tablet enter event handler.
 
         :param event:
         :type event
@@ -651,28 +721,30 @@ class imageLabel(QLabel):
         layer = window.label.img.getActiveLayer()
         if window.btnValues['drawFG'] or window.btnValues['drawBG']:
             if w > 10:
-                QApplication.setOverrideCursor(
-                    QCursor(window.cursor_Circle_Pixmap.scaled(w * 2.0, w * 2.0), hotX=w, hotY=w))
+                QApplication.setOverrideCursor(QCursor(window.cursors['Circle_Pixmap'].scaled(w * 2.0, w * 2.0),
+                                                       hotX=w,
+                                                       hotY=w
+                                                       )
+                                               )
             else:
                 QApplication.setOverrideCursor(Qt.CrossCursor)
-        elif (window.btnValues['brushButton'] or window.btnValues['eraserButton']):
+        elif window.btnValues['brushButton'] or window.btnValues['eraserButton']:
             if layer.isDrawLayer():
                 self.syncBrush(self.img.resize_coeff(self))
         elif window.btnValues['bucket']:
             if layer.isDrawLayer():
-                QApplication.setOverrideCursor(window.cursor_Bucket)
+                QApplication.setOverrideCursor(window.cursors['Bucket'])
         elif window.btnValues['drag']:
             QApplication.setOverrideCursor(Qt.OpenHandCursor)
         elif window.btnValues['colorPicker']:
             if layer.isAdjustLayer():
                 if layer.view.isVisible():
-                    QApplication.setOverrideCursor(window.cursor_EyeDropper)
+                    QApplication.setOverrideCursor(window.cursors['EyeDropper'])
 
     def leaveEvent(self, event):
         if not self.enterAndLeave:
             return
         QApplication.restoreOverrideCursor()
-
 
     def __strokePaint(self, layer, x, y, r):
         """
@@ -698,34 +770,54 @@ class imageLabel(QLabel):
             # drawing onto stroke intermediate layer
             qp.begin(layer.stroke)
             qp.setCompositionMode(qp.CompositionMode.CompositionMode_SourceOver)
-            # draw move
+            # draw move over temp layer.stroke
+            tmp_x, tmp_y = State['x_imagePrecPos'], State['y_imagePrecPos']
             State['x_imagePrecPos'], State['y_imagePrecPos'] = brushFamily.brushStrokeSeg(qp,
                                                                                           State['x_imagePrecPos'],
                                                                                           State['y_imagePrecPos'],
                                                                                           x_img, y_img,
                                                                                           State['brush'])
             qp.end()
+
+            # bounding rect of painted area
+            s = 1 + State['brush']['tabletW'] * max(State['brush']['size'],
+                                                    State['brush']['pixmap'].width(),
+                                                    State['brush']['pixmap'].height()
+                                                   )
+            modRect = QRectF(QPointF(min(tmp_x, State['x_imagePrecPos']), min(tmp_y, State['y_imagePrecPos'])),
+                             QPointF(max(tmp_x, State['x_imagePrecPos']), max(tmp_y, State['y_imagePrecPos']))
+                            )
+            rectF = QRectF(0, 0, img.width() -1, img.height() - 1)
+            modRect.setBottomRight(modRect.bottomRight() + QPointF(s, s))
+            modRect.setTopLeft(modRect.topLeft() - QPointF(s, s))
+            modRect = modRect.intersected(rectF).toRect()
+
             # draw texture aligned with image
-            strokeTex = layer.stroke
+            strokeTex = layer.stroke.copy(modRect)
             p = State['brush']['pattern']
             if p is not None:
                 if p.pxmp is not None:
-                    strokeTex = layer.stroke.copy()
+                    h, v = modRect.left() % p.pxmp.width(),  modRect.top() % p.pxmp.height()
+                    modRect.setTopLeft(modRect.topLeft() - QPoint(h, v))
+                    strokeTex = layer.stroke.copy(modRect)
                     qp1 = QPainter(strokeTex)
                     qp1.setCompositionMode(qp.CompositionMode.CompositionMode_DestinationIn)
                     qp1.setBrush(QBrush(p.pxmp))
                     qp1.fillRect(QRect(0, 0, strokeTex.width(), strokeTex.height()), QBrush(p.pxmp))
                     qp1.end()
+                    # restore modRect and cut strokeTex accordingly
+                    modRect.setTopLeft(modRect.topLeft() + QPoint(h, v))
+                    strokeTex = strokeTex.copy(QRect(h, v, modRect.width(), modRect.height()))
             # restore source image and paint
             # the whole stroke with current brush opacity.
             # Restoring source image enables iterative calls showing
             # stroke progress
             qp.begin(layer.sourceImg)
             qp.setCompositionMode(qp.CompositionMode.CompositionMode_Source)
-            qp.drawImage(QPointF(), layer.strokeDest)
-            qp.setOpacity(State['brush']['opacity'])
+            qp.drawImage(modRect, layer.strokeDest, modRect)
+            qp.setOpacity(State['brush']['opacity'] * State['brush']['tabletA'])
             qp.setCompositionMode(qp.CompositionMode.CompositionMode_SourceOver)
-            qp.drawImage(QPointF(), strokeTex)  # layer.stroke)
+            qp.drawImage(modRect, strokeTex)
             qp.end()
         elif self.window.btnValues['eraserButton']:
             qp.begin(layer.sourceImg)
@@ -736,13 +828,18 @@ class imageLabel(QLabel):
                                                                                           x_img, y_img,
                                                                                           State['brush'])
             qp.end()
+
         # update layer - should be layer.applyToStack() if any upper layer visible : too slow !
         # We only update layer. Higher drawing layers do not need any updating : they
         # transparently transmit modifications (see QDrawingLayer.inputImg()).
         # All higher non-drawing layers should be not visible.
-        layer.execute(l=layer)
-        img.prLayer.update()
-        self.window.label.repaint()
+        # To handle high frequency events while  we maintain the refresh rate under 5 per second.
+        t =  time_ns() - layer.last_refresh
+        if t >= 2 * (10**8):
+            layer.execute(l=layer)
+            img.prLayer.update()
+            self.repaint()
+            layer.last_refresh = time_ns()
 
 
 class slideshowLabel(imageLabel):
@@ -807,4 +904,3 @@ class slideshowLabel(imageLabel):
         qp.end()
         self.setPixmap(pixmap)
         QLabel.paintEvent(self, e)
-

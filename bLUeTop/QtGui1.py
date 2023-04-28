@@ -16,10 +16,10 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import os
+import sys
 
 from PySide6 import QtWidgets, QtCore
 from PySide6.QtCore import QSettings, Qt, QtMsgType
-import sys
 
 from PySide6.QtGui import QScreen
 from PySide6.QtWidgets import QApplication, QLabel, QMainWindow, QSizePolicy
@@ -221,9 +221,9 @@ if getattr(sys, 'frozen', False) and len(sys.argv) <= 1:
 ##################
 # constructing app
 ##################
-
 QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)  # needed when a plugin initializes a web engine
 bLUeTop.Gui.app = QApplication(sys.argv)
+bLUeTop.Gui.app.setAttribute(Qt.AA_CompressHighFrequencyEvents)
 
 #################
 # init main form

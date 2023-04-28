@@ -1753,25 +1753,28 @@ def updateStatus(window=bLUeTop.Gui.window):
     window.Label_status.setText(s)
 
 
-def initCursors(window=bLUeTop.Gui.window):
+def initCursors():
     """
-    Init app cursors
+    init app cursors
+
+    :return: dictionary of cursors
+    :rtype: dict of Union[QCursor, QPixmap]
     """
+    cursors = {}
     # EyeDropper cursor
-    curImg = QImage(":/images/resources/Eyedropper-icon.png")
-    pxmp = QPixmap.fromImage(curImg)
+    pxmp = QPixmap(":/images/resources/Eyedropper-icon.png")
     w, h = pxmp.width(), pxmp.height()
-    window.cursor_EyeDropper = QCursor(pxmp, hotX=0, hotY=h - 1)
+    cursors['EyeDropper'] = QCursor(pxmp, hotX=0, hotY=h - 1)
     # paint bucket cursor
-    curImg = QImage(":/images/resources/icons8-windows-metro-26.png")
-    pxmp = QPixmap.fromImage(curImg)
+    pxmp = QPixmap(":/images/resources/icons8-windows-metro-26.png")
     w, h = pxmp.width(), pxmp.height()
-    window.cursor_Bucket = QCursor(pxmp, hotX=w - 1, hotY=0)
+    cursors['Bucket'] = QCursor(pxmp, hotX=w - 1, hotY=0)
     # tool cursor, must be resizable
     curImg = QImage(":/images/resources/cursor_circle.png")
     # turn to white
     curImg.invertPixels()
-    window.cursor_Circle_Pixmap = QPixmap.fromImage(curImg)
+    cursors['Circle_Pixmap'] = QPixmap.fromImage(curImg)
+    return cursors
 
 
 def initDefaultImage():
@@ -2125,8 +2128,9 @@ def setupGUI(window=bLUeTop.Gui.window):
     # close event handler
     window.onCloseEvent = canClose
 
-    # watch mouse hover events
+    # watch hover events
     window.label.setMouseTracking(True)
+    window.label.setAttribute(Qt.WA_TabletTracking, False)
 
     # connect menu event handlers
     window.menu_File.aboutToShow.connect(updateEnabledActions)
@@ -2172,7 +2176,7 @@ def setupGUI(window=bLUeTop.Gui.window):
 
     window.showMaximized()
 
-    initCursors()
+    window.cursors = initCursors()
 
     # init Before/after view and cycling action
     window.splitter.setOrientation(Qt.Horizontal)
