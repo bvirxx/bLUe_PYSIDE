@@ -22,9 +22,9 @@ class bTablet:
     valuator = Enum('valuator', ['PressureValuator', 'TangentialPressureValuator', \
                                  'TiltValuator', 'VTiltValuator', 'HTiltValuator', 'NoValuator'])
 
-    __widthValuator, __satValuator, __alphaValuator = (valuator.PressureValuator, ) * 3
-    __alphaValuator = valuator.PressureValuator
-
+    __widthValuator, __satValuator, __alphaValuator = (valuator.PressureValuator, ) * 3  # (valuator.NoValuator, ) * 3
+    #__alphaValuator = valuator.NoValuator
+    #__widthValuator = valuator.NoValuator
 
     @classmethod
     def getWidthValuator(cls):
@@ -49,6 +49,3 @@ class bTablet:
     @classmethod
     def setAlphaValuator(cls, v):
         cls.__alphaValuator = v
-
-    def pressureToWidth( p):
-        return p  + 0.2

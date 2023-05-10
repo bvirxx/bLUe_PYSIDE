@@ -981,7 +981,6 @@ class QLayer(vImage):
         :rtype: Qlayer
         """
         layer = cls(QImg=mImg, role=role, parentImage=parentImage)
-        # layer.parentImage = parentImage  # TODO removed 8/12/21 : QLayer __init__() sets parentImage as weakref
         return layer
 
     def __init__(self, *args, **kwargs):
@@ -2016,8 +2015,8 @@ class QDrawingLayer(QLayerImage):
         # intermediate layer
         self.stroke = QImage(self.sourceImg.size(), self.sourceImg.format())
         # atomic stroke painting is needed to handle brush opacity:
-        # We save layer.sourceImg in layer.strokeDest at each stroke beginning.
-        self.strokeDest = None
+        # We save layer.sourceImg as atomicStrokeImg at each stroke beginning.
+        self.atomicStrokeImg = None
         # cache for current brush dict
         self.brushDict = None
         self.last_refresh = 0  # refresh rate control
