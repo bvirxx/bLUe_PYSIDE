@@ -22,7 +22,7 @@ from random import choice
 import numpy as np
 import cv2
 
-from PySide6.QtCore import QRect, QPointF
+from PySide6.QtCore import QRect, QPointF, Qt
 from PySide6.QtGui import QPixmap, QColor, QPainter, QRadialGradient, QBrush, QPainterPath, QImage, QTransform
 
 from bLUeGui.bLUeImage import QImageBuffer, ndarrayToQImage
@@ -32,7 +32,7 @@ from bLUeTop.settings import BRUSHES_PATH
 
 class pattern:
     """
-    Brus pattern
+    Brush pattern
     """
 
     def __init__(self, name, im=None, pxmp=None):
@@ -50,7 +50,7 @@ class brushFamily:
     describing the alpha channel of the brush. It is built from the luminosity
     channel of a png or jpg image.
     A cursor pixmap corresponding to the shape is associated with the brush family.
-    Individual brushes from the family are dictionaries. They are instantiated by
+    Individual brushes are dictionaries. They are instantiated by
     the method getBrush().
     """
     # range of brush stroke jittering
@@ -65,6 +65,8 @@ class brushFamily:
         It returns the last painted position, or the initial position if
         not any painting occurs, due to spacing constraints.
 
+        :param qp: active QPainter
+        :type qp: QPainter
         :param x0: image x-coord
         :type x0: float
         :param y0: image y-coord
@@ -82,29 +84,34 @@ class brushFamily:
         tmp_y = y
         # vector of the move
         a_x, a_y = tmp_x - x0, tmp_y - y0
-        # move length : use 1-norm for performance
+        # move length
         d = sqrt(a_x * a_x + a_y * a_y)
+        if d <= 1:
+            return x0, y0
         s = brush['size'] * brush['tabletW']
-        spacing, jitter, radius, pxmp = brush['spacing'], brush['jitter'], s / 2, brush['pixmap'].scaled(s, s)
-        step = 1 if d == 0 else radius * 0.3 * spacing / d  # 0.25
-        sinBeta, cosBeta = 0.0, 1.0
+        spacing, jitter, radius, pxmp = brush['spacing'], brush['jitter'], s / 2, brush['pixmap'].scaled(s, s)  # , mode=Qt.SmoothTransformation)
+        # step = 1.0 if d == 0 else radius * 0.3 * spacing / d  # 0.25
+        step = radius * 0.3 * spacing / d
+
+        # brush orientation
+        # TODO add brush['orientation']
+        cosTheta, sinTheta = a_x / d, a_y / d
         if jitter != 0.0:
             step *= (1.0 + choice(brushFamily.jitterRange) * jitter / 100.0)
             sinBeta = choice(brushFamily.jitterRange) * jitter / 100
             cosBeta = sqrt(1 - sinBeta * sinBeta)
-        p_x, p_y = x0, y0
-        if d != 0.0:
-            cosTheta, sinTheta = a_x / d, a_y / d
-            if jitter != 0.0:
-                cosTheta = cosTheta * cosBeta + sinTheta * sinBeta
-                sinTheta = sinTheta * cosBeta - cosTheta * sinBeta
-            transform = QTransform(cosTheta, sinTheta, -sinTheta, cosTheta, 0,
-                                   0)  # Caution: angles > 0 correspond to counterclockwise rotations of pxmp
-            pxmp = pxmp.transformed(transform)
+            cosTheta = cosTheta * cosBeta + sinTheta * sinBeta
+            sinTheta = sinTheta * cosBeta - cosTheta * sinBeta
+        transform = QTransform(cosTheta, sinTheta, -sinTheta, cosTheta,
+                               0, 0
+                               )  # Caution: angles > 0 correspond to counterclockwise rotations of pxmp
+        # SmoothTransformation is essential here to prevent aliasing
+        pxmp = pxmp.transformed(transform, mode=Qt.SmoothTransformation)
 
         count = 0
         maxCount = int(1.0 / step)
         pxmp_w, pxmp_h = pxmp.width() / 2, pxmp.height() / 2
+        p_x, p_y = x0, y0
         for count in range(maxCount + 1):
             if pxmp is None:
                 qp.drawEllipse(QPointF(p_x, p_y), radius, radius)
@@ -112,6 +119,7 @@ class brushFamily:
                 qp.drawPixmap(QPointF(p_x - pxmp_w, p_y - pxmp_h), pxmp)
             if count < maxCount:
                 p_x, p_y = p_x + a_x * step, p_y + a_y * step
+
         return p_x, p_y
 
     @staticmethod
@@ -160,7 +168,7 @@ class brushFamily:
         # the whole stroke with current brush opacity
         qp.begin(pixmap)
         # qp.setCompositionMode(qp.CompositionMode.CompositionMode_Source)
-        # qp.drawImage(QPointF(), layer.strokeDest)
+        # qp.drawImage(QPointF(), layer.atomicStrokeImg)
         qp.setOpacity(brush['opacity'])
         qp.setCompositionMode(qp.CompositionMode.CompositionMode_SourceOver)
         qp.drawPixmap(QPointF(), strokeTex)  # pxmp_temp)
