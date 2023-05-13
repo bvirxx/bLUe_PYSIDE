@@ -37,5 +37,11 @@
   "PARAMS" : {
     "MAX_ZOOM" : 8,
     "TABBING"   : true
+  },
+  "TABLET" : {
+    "//" : "Enum valuator is found in tablet.py. Don't use pressure to control brush opacity",
+    "T_BRUSH_SIZE" : "PressureValuator",
+    "T_BRUSH_OPACITY" : "VTiltValuator",
+    "T_BRUSH_SATURATION" : "HTiltValuator"
   }
 }

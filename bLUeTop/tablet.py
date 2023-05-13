@@ -16,15 +16,21 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 from enum import Enum
+import bLUeTop.settings
 
 class bTablet:
 
-    valuator = Enum('valuator', ['PressureValuator', 'TangentialPressureValuator', \
+    valuator = Enum('valuator', ['PressureValuator', 'TangentialPressureValuator',
                                  'TiltValuator', 'VTiltValuator', 'HTiltValuator', 'NoValuator'])
 
-    __widthValuator, __satValuator, __alphaValuator = (valuator.PressureValuator, ) * 3  # (valuator.NoValuator, ) * 3
-    #__alphaValuator = valuator.NoValuator
-    #__widthValuator = valuator.NoValuator
+########################################################################################
+# Edit your config**.json file to choose how brush parameters (size, opacity, saturation)
+# are controlled by the stylus. The corresponding functions are found in imageLabel.tabletEvent()
+# and can also be freely modified.
+    __widthValuator = valuator[bLUeTop.settings.T_BRUSH_SIZE]  # valuator.PressureValuator
+    __alphaValuator = valuator[bLUeTop.settings.T_BRUSH_OPACITY]  # valuator.VTiltValuator
+    __satValuator = valuator[bLUeTop.settings.T_BRUSH_SATURATION]  # valuator.HTiltValuator
+########################################################################################
 
     @classmethod
     def getWidthValuator(cls):

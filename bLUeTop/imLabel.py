@@ -677,27 +677,55 @@ class imageLabel(QLabel):
             return
 
         if eventType == QEvent.TabletMove:
+            # Pressure range is [0, 1]
+            # xTilt and yTilt are from pen to the perpendicular to tablet in range [-60, 60] degrees.
+            # Positive values are towards the tablet's physical right/bottom.
+
+            # d['tabletW'] is used as a  multiplicative coefficient for brush size.
+            # It should be > 0 and can be > 1
             v = bTablet.getWidthValuator()
             if v == bTablet.valuator.PressureValuator:
-                d['tabletW'] = event.pressure() + 0.2  # pressure range is [0, 1]
+                d['tabletW'] = 0.2 + event.pressure()
+            elif bTablet.valuator.HTiltValuator:
+                hValue = ((event.xTilt() + 60.0) / 120.0)
+                d['tabletW'] = 0.2 + hValue
+            elif bTablet.valuator.VTiltValuator:
+                vValue = ((event.yTilt() + 60.0) / 120.0)
+                d['tabletW'] = 0.2 + vValue
             elif v == bTablet.valuator.TiltValuator:
-                vValue = int(((event.yTilt() + 60.0) / 120.0) * 255)
-                hValue = int(((event.xTilt() + 60.0) / 120.0) * 255)
-                d['tabletW'] = 0.1 + max(abs(vValue - 127), abs(hValue - 127)) / 12
+                vValue = ((event.yTilt() + 60.0) / 120.0)
+                hValue = ((event.xTilt() + 60.0) / 120.0)
+                d['tabletW'] = 0.2 + max(hValue, vValue)
             else:
                 d['tabletW'] = 1.0
 
             v = bTablet.getAlphaValuator()
+            # d['tabletA'] is used as a multiplicative coefficient for brush opacity.
+            # It should be > 0 and can be > 1 : resulting brush opacity is clipped to 1.0.
             if v == bTablet.valuator.VTiltValuator:
-                d['tabletA'] = 1.0 - (event.yTilt() + 60.0) / 120.0
+                d['tabletA'] = 1.0 - event.yTilt() / 60.0
             elif v == bTablet.valuator.HTiltValuator:
-                d['tabletA'] = 1.0 - (event.xTilt() + 60.0) / 120.0
+                d['tabletA'] = 1.0 - event.xTilt() / 60.0
             elif v == bTablet.valuator.TiltValuator:
-                d['tabletA'] = 1.0 - max((event.xTilt() + 60.0) / 120.0, (event.yTilt() + 60.0) / 120.0)
+                d['tabletA'] = 1.0 - max(event.xTilt() / 60.0, event.yTilt() / 60.0)
             elif v == bTablet.valuator.PressureValuator:
-                d['tabletA'] = event.pressure() + 0.5
+                d['tabletA'] = event.pressure()
             else:
                 d['tabletA'] = 1.0
+
+            v = bTablet.getSatValuator()
+            # d['tabletS'] is used as a multiplicative coefficent for the saturation of brush pixel colors.
+            # It should be > 0 and can be > 1 : resulting saturations are clipped to 1.0.
+            if v == bTablet.valuator.VTiltValuator:
+                d['tabletS'] = 1.0 - event.yTilt() / 60.0
+            elif v == bTablet.valuator.HTiltValuator:
+                d['tabletS'] = 1.0 - event.xTilt() / 60.0
+            elif v == bTablet.valuator.TiltValuator:
+                d['tabletS'] = 1.0 - max(event.xTilt() / 60.0, event.yTilt() / 60.0)
+            elif v == bTablet.valuator.PressureValuator:
+                d['tabletS'] = event.pressure() + 0.5
+            else:
+                d['tabletS'] = 1.0
 
             # draw move
             self.mouseMoveEvent(event)
@@ -705,6 +733,7 @@ class imageLabel(QLabel):
             # restore brush
             d['tabletW'] = 1.0
             d['tabletA'] = 1.0
+            d['tabletS'] = 1.0
 
 
     def enterEvent(self, event):
@@ -769,6 +798,7 @@ class imageLabel(QLabel):
         # get image coordinates
         x_img = (x - img.xOffset) // r
         y_img = (y - img.yOffset) // r
+
         # draw the stroke
         if self.window.btnValues['brushButton']:
             # drawing onto stroke intermediate layer
@@ -819,7 +849,7 @@ class imageLabel(QLabel):
             qp.begin(layer.sourceImg)
             qp.setCompositionMode(qp.CompositionMode.CompositionMode_Source)
             qp.drawImage(modRect, layer.atomicStrokeImg, modRect)
-            qp.setOpacity(State['brush']['opacity'] * State['brush']['tabletA'])
+            qp.setOpacity(min(State['brush']['opacity'] * State['brush']['tabletA'], 1.0))
             qp.setCompositionMode(qp.CompositionMode.CompositionMode_SourceOver)
             qp.drawImage(modRect, strokeTex)
             qp.end()

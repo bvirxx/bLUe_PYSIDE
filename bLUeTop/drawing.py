@@ -86,15 +86,28 @@ class brushFamily:
         a_x, a_y = tmp_x - x0, tmp_y - y0
         # move length
         d = sqrt(a_x * a_x + a_y * a_y)
-        if d <= 1:
+
+        s = max(brush['size'] * brush['tabletW'], 2)
+        if d <= s:
             return x0, y0
-        s = brush['size'] * brush['tabletW']
-        spacing, jitter, radius, pxmp = brush['spacing'], brush['jitter'], s / 2, brush['pixmap'].scaled(s, s)  # , mode=Qt.SmoothTransformation)
-        # step = 1.0 if d == 0 else radius * 0.3 * spacing / d  # 0.25
+
+        sat = min(brush['tabletS'], 1.0)
+        pxmp = brush['pixmap'].scaled(s, s, mode=Qt.SmoothTransformation)
+
+        if sat < 1.0: #  or alpha < 1.0:
+            img = brush['image'].scaled(s, s, mode=Qt.SmoothTransformation)
+            buf0 = QImageBuffer(img)
+            buf = cv2.cvtColor(buf0[..., :3], cv2.COLOR_BGR2HSV).astype(np.float32)
+            buf[..., 1] *= sat
+            buf = buf.astype(np.uint8)
+            buf0[..., :3] = cv2.cvtColor(buf, cv2.COLOR_HSV2BGR)
+            pxmp = QPixmap.fromImage(img)
+
+        spacing, jitter, radius = brush['spacing'], brush['jitter'], s / 2.0
         step = radius * 0.3 * spacing / d
 
         # brush orientation
-        # TODO add brush['orientation']
+        # base orientation is already handled by getBrush()
         cosTheta, sinTheta = a_x / d, a_y / d
         if jitter != 0.0:
             step *= (1.0 + choice(brushFamily.jitterRange) * jitter / 100.0)
@@ -298,11 +311,12 @@ class brushFamily:
             qp.drawPixmap(r1, pxmp1)
             qp.drawPixmap(r2, pxmp1)
         qp.end()
-        s = size / self.baseSize
-        self.pxmp = pxmp.transformed(QTransform().scale(s, s).rotate(orientation))  # pxmp.scaled(size, size)
+        # s = size / self.baseSize
+        #self.pxmp = pxmp.transformed(QTransform().scale(s, s).rotate(orientation))
+        self.pxmp = pxmp.transformed(QTransform().rotate(orientation))
         pattern = pattern
         return {'family': self, 'name': self.name, 'pixmap': self.pxmp, 'size': size, 'color': color,
-                'opacity': opacity,
+                'opacity': opacity, 'image': self.pxmp.toImage().convertedTo(QImage.Format_ARGB32),
                 'hardness': hardness, 'flow': flow, 'spacing': spacing, 'jitter': jitter, 'orientation': orientation,
                 'pattern': pattern, 'cursor': self.baseCursor, 'tabletW': 1.0, 'tabletS': 1.0, 'tabletA': 1.0}
 
