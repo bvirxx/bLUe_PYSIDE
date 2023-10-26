@@ -16,4 +16,4 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-BLUE_VERSION = "V6-5.6.2"
+BLUE_VERSION = "V6-5.6.3"
