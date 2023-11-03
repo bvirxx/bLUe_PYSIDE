@@ -935,22 +935,22 @@ class vImage(bImage):
             outBuf[:, :, :] = inBuf
             self.updatePixmap()
             return
-        ##################################################################
-        # selection rectangle
-        rect = self.rect
-        # resizing coeff fitting selection rectangle to the current image
+
+        # resizing coeff
         r = inputImg.width() / self.width()
+
         ############################
         # init the segmentation mask
         ############################
-        if rect is not None:
-            # inside rect: PR_FGD, outside BGD
-            segMask = np.zeros((inputImg.height(), inputImg.width()), dtype=np.uint8) + cv2.GC_BGD
-            segMask[int(rect.top() * r):int(rect.bottom() * r),
-            int(rect.left() * r):int(rect.right() * r)] = cv2.GC_PR_FGD
-        else:
-            # everywhere : PR_BGD
+        if not self.sRects:
+            # no selection rectangle : PR_BGD everywhere
             segMask = np.zeros((inputImg.height(), inputImg.width()), dtype=np.uint8) + cv2.GC_PR_BGD
+        else:
+            # PR_FGD inside selection, BGD otherwise
+            segMask = np.zeros((inputImg.height(), inputImg.width()), dtype=np.uint8) + cv2.GC_BGD
+            for rect in self.sRects:
+                segMask[int(rect.top() * r):int(rect.bottom() * r),
+                        int(rect.left() * r):int(rect.right() * r)] = cv2.GC_PR_FGD
 
         # add info from current self.innerSegMask to segMask
         # Only valid pixels are added to segMask, fixing them as FG or BG

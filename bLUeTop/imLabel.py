@@ -579,7 +579,7 @@ class imageLabel(QLabel):
                             layer.vlChanged = False
 
         # updates
-        if layer.isDrawLayer:
+        if layer.isDrawLayer():
             # final update for stroke
             layer.execute(l=layer)
             img.prLayer.update()
