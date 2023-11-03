@@ -1,5 +1,7 @@
 # -*- mode: python -*-
 
+import sys ; sys.setrecursionlimit(sys.getrecursionlimit() * 5)
+
 block_cipher = None
 
 imageformats = [('.\\venv6_108\\Lib\site-packages\\PySide6\plugins\\imageformats', 'plugins\\imageformats')]

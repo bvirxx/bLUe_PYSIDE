@@ -71,10 +71,9 @@ class UiLoader(QUiLoader):
         subclass thereof.
         customWidgets is a dictionary mapping from class name to class object
         for widgets that you've promoted in the Qt Designer interface. Usually,
-        this should be done by calling registerCustomWidget on the QUiLoader, but
-        with PySide 1.1.2 on Ubuntu 12.04 x86_64 this causes a segfault.
+        this should be done by calling registerCustomWidget on the QUiLoader.
         """
-        QUiLoader.__init__(self, baseinstance)
+        super().__init__()
         self.baseinstance = baseinstance
         self.customWidgets = customWidgets
 
