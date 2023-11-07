@@ -4,8 +4,8 @@ import sys ; sys.setrecursionlimit(sys.getrecursionlimit() * 5)
 
 block_cipher = None
 
-imageformats = [('.\\venv6_108\\Lib\site-packages\\PySide6\plugins\\imageformats', 'plugins\\imageformats')]
-platforms = [('.\\venv6_108\\Lib\site-packages\\PySide6\\plugins\\platforms', 'plugins\\platforms')]
+imageformats = [('.\\venv6_108_3\\Lib\site-packages\\PySide6\plugins\\imageformats', 'plugins\\imageformats')]
+platforms = [('.\\venv6_108_3\\Lib\site-packages\\PySide6\\plugins\\platforms', 'plugins\\platforms')]
 
 data_1 = [('bLUeNN\\pretrained_models\\sRGB\\*', 'bLUeNN\\pretrained_models\\sRGB')]
 data_2 = [('blue.ui', '.'), ('README.md', '.'), ('LICENSE.TXT', '.'), ('logo.png', '.'), ('logo.ico', '.'),
