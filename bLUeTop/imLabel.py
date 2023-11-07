@@ -398,7 +398,7 @@ class imageLabel(QLabel):
                         color = vImage.defaultColor_UnMasked_Invalid
                     qp.begin(layer.mask)
                     # get pen width (relative to image)
-                    w_pen = window.verticalSlider1.value() // r
+                    w_pen = window.verticalSlider1.value() / r
                     # mode source : result is source (=pen) pixel color and opacity
                     qp.setCompositionMode(qp.CompositionMode.CompositionMode_Source)
                     tmp_x = (x - img.xOffset) // r
@@ -412,13 +412,17 @@ class imageLabel(QLabel):
                     x, y = State['x_imagePrecPos'], State['y_imagePrecPos']
                     radius = w_pen / 2
                     if d == 0:
-                        qp.drawEllipse(QPointF(x, y), radius,
-                                       radius)  # center, radius : QPointF mandatory, else bounding rect topleft and size
+                        qp.drawEllipse(QPointF(x, y),
+                                       radius,
+                                       radius
+                                       )  # center, radius : QPointF mandatory, else bounding rect topleft and size
                     else:
                         step = w_pen * 0.25 / d
                         for i in range(int(1 / step) + 1):
-                            qp.drawEllipse(QPointF(x, y), radius,
-                                           radius)  # center, radius : QPointF mandatory, else bounding rect topleft and size
+                            qp.drawEllipse(QPointF(x, y),
+                                           radius,
+                                           radius
+                                           )  # center, radius : QPointF mandatory, else bounding rect topleft and size
                             x, y = x + a_x * step, y + a_y * step
                     qp.end()
                     if layer.isCloningLayer():
