@@ -326,8 +326,9 @@ class QLayerView(QTableView):
         self.actionDup.triggered.connect(dup)
         self.setWhatsThis(
             """<b>Layer Stack</b><br>
-            To <b>toggle the layer visibility</b> click on the Eye icon.<br>
-            To <b>add a mask</b> use the context menu to enable it and paint pixels with the Mask/Unmask tools in the left pane.<br>
+            To <b>toggle layer visibility</b> click the Eye icon.<br>
+            To <b>add a mask</b> right click the layer row and choose <i>Mask Style</i> from the context menu. Next, 
+            paint pixels using the <i>Mask/Unmask</i>  tools. <br>
             For <b>color mask<b/b>: <br>
                 &nbsp; green pixels are masked,<br>
                 &nbsp; red pixels are unmasked.<br>
@@ -729,7 +730,7 @@ class QLayerView(QTableView):
         menu.addAction(menu.actionMergingFlag)
         menu.addSeparator()
         # mask
-        menu.subMenuEnable = menu.addMenu('Mask...')
+        menu.subMenuEnable = menu.addMenu('Mask Style')
         menu.subMenuEnable.addAction(menu.actionColorMaskEnable)
         menu.subMenuEnable.addAction(menu.actionOpacityMaskEnable)
         menu.subMenuEnable.addAction(menu.actionClippingMaskEnable)

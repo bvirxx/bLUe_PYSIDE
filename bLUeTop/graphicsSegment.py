@@ -123,16 +123,22 @@ class segmentForm(baseForm):
         self.setDefaults()
         self.setWhatsThis(
             """ <b>Segmentation (Object extraction)</b><br>  
-              Select the object to extract with the rectangle Marquee Tool. Next, press the <i>Segment</i> button.<br>
+              Select the object to extract with the rectangle Marquee Tool (multiple selections are not allowed). 
+              Next, press the <i>Segment</i> button.<br>
               The background of the segmented image is transparent : to <b>mask the underlying layers</b> check the
               option <i>Clipping Layer.</i><br>
-              To <b>redo the segmentation of a region</b> (e.g. a border area) hold down the Ctrl key while painting the area
-              with the foreground (FG) or background (BG) tool and next press again <i>Segment.</i><br>
-              To <b>manually correct the selection</b>, paint eventual misclassed pixels with the foreground (FG) or background (BG) tool.<br>
+              To <b>redo the segmentation of a region</b> (e.g. a border area) hold down the Ctrl key while painting 
+              the area with the foreground (FG) or background (BG) tool and next press again <i>Segment.</i><br>
+              To <b>manually correct the selection</b>, paint eventual misclassified pixels with the foreground (FG) 
+              or background (BG) tool.<br>
               To <b>redo the segmentation of the whole contour</b> set <i>Contour Redo Radius</i> to a value >= 1 and
-              press <i>Segment</i>. Note that setting <i>Contour Redo Radius</i> to a value >= 1 may undo some manual corrections.<br>
-              To <b>smooth the contour</b> right click the layer row in the <i>Layers</i> panel
-              and choose <i>Smooth Mask</i> from the context menu.<br>
+              press <i>Segment</i>. Note that setting <i>Contour Redo Radius</i> to a value >= 1 may undo some manual 
+              corrections.<br>
+              To <b>smooth the contour</b> right click the layer name  in the layer stack
+              and choose <i>Smooth Mask</i> from the context menu which opens.<br>
+              To <b>apply the selection to another layer</b> right click the source layer name in layer stack and choose 
+              <i>Copy Mask To Clipboard</i> from the context menu which opens; next, right click the destination layer
+              name and choose <i>Paste Mask</i> from the context menu. 
             """
         )  # end setWhatsThis
 
