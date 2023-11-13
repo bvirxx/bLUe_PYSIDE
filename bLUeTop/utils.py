@@ -206,18 +206,18 @@ class colorInfoView(QDockWidget):
         :type clrC: QColor
         """
         r0 = 'R ' + "".join([str(w).ljust(4) if type(w) is int else w
-                             for w in (clrI.red(), clrC.red(), '|C ', clrI.cyan() * 100 // 255,
-                                       clrC.cyan() * 100 // 255, '|H ', clrI.hue(), clrC.hue())])
+                             for w in (clrI.red(), clrC.red(), '|C ', clrI.cyan(),
+                                       clrC.cyan(), '|H ', clrI.hue(), clrC.hue())])
         r1 = 'G ' + "".join([str(w).ljust(4) if type(w) is int else w
                              for w in (clrI.green(), clrC.green(), '|M ',
-                                       clrI.magenta() * 100 // 255, clrC.magenta() * 100 // 255, '|S ',
-                                       clrI.saturation() * 100 // 255, clrC.saturation() * 100 // 255)])
+                                       clrI.magenta(), clrC.magenta(), '|S ',
+                                       clrI.saturation() , clrC.saturation())])
         r2 = 'B ' + "".join([str(w).ljust(4) if type(w) is int else w
                              for w in (clrI.blue(), clrC.blue(), '|Y ',
-                                       clrI.yellow() * 100 // 255, clrC.yellow() * 100 // 255, '|V ',
-                                       clrI.value() * 100 // 255, clrC.value() * 100 // 255)])
+                                       clrI.yellow(), clrC.yellow(), '|V ',
+                                       clrI.value(), clrC.value())])
         r3 = "".join((' ',) * 10) + '|K ' + "".join([str(w).ljust(4) for w in
-                                                     (clrI.black() * 100 // 255, clrC.black() * 100 // 255)])
+                                                     (clrI.black() , clrC.black())])
         self.label.setText('\n'.join((r0, r1, r2, r3)))
 
 
@@ -313,6 +313,14 @@ class QbLUeColorDialog(QColorDialog):
         super().__init__(parent=parent)
         self.closeSignal = baseSignal_No()
         self.setAttribute(Qt.WA_DeleteOnClose, on=False)
+        self.setWhatsThis(
+            """<b>Color Picker</b><br>
+            &nbsp;<b>Click : </b> Pick color from <i>color managed</i> image.
+            To pick profile independent (image) color make active the top layer and do <i>Ctrl+Click</i>.<br>
+            &nbsp;<b>Ctrl+Click : </b> Pick color from active layer.<br>
+            &nbsp;<b>Ctrl+Shift+Click : </b> Pick color from active layer input.<br><br>
+            <b>Current Layer mask is ignored</b>.<br>
+            """)
 
     def accept(self):
         # triggered by OK button

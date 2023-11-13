@@ -2081,7 +2081,6 @@ def setupGUI(window=bLUeTop.Gui.window):
         """)
     window.rulerButton.setWhatsThis("""Draw horizontal and vertical rulers over the image""")
     window.fitButton.setWhatsThis("""Reset the image size to the window size""")
-    window.eyeDropper.setWhatsThis("""<b>Color Picker</b><br> Click on the image to sample pixel colors""")
     window.toolButton.setWhatsThis("""<b>Pointer Tool</b><br>""")
     window.dragBtn.setWhatsThis(
         """<b>Drag Tool</b><br> Mouse Left Button : drag the whole image<br> Ctrl+Mouse Left 
