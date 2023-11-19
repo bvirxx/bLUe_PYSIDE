@@ -26,7 +26,7 @@ from PySide6.QtWidgets import QLabel, QApplication
 from bLUeGui.dialog import dlgWarn
 from bLUeTop.drawing import bLUeFloodFill, brushFamily
 from bLUeTop.settings import MAX_ZOOM
-from bLUeTop.utils import checkeredImage
+from bLUeTop.utils import checkeredImage, virtualCursor
 from bLUeTop.versatileImg import vImage
 from bLUeTop.tablet import bTablet
 
@@ -54,6 +54,9 @@ class imageLabel(QLabel):
         self.clicked = True
         self.State = {'ix': 0, 'iy': 0, 'ix_begin': 0, 'iy_begin': 0, 'cloning': ''}
         self.img = None
+        # virtual cursor for brush outline. if set, it is drawn by paintEvent at current brush position,
+        # using current brush size. It gives more accurate outlines than QCursor shapes.
+        self.virtualCursor = virtualCursor()
 
     def brushUpdate(self, *args, color=None):
         """
@@ -90,11 +93,11 @@ class imageLabel(QLabel):
         if color is not None:
             bColor = color
         elif getattr(window, 'colorChooser', None):
-            bColor = window.colorChooser.currentColor()  # selectedColor() cannot be set TODO modified 18/11/21 validate
+            bColor = window.colorChooser.currentColor()  # selectedColor() cannot be set
         else:
             bColor = Qt.black
         if window.btnValues['eraserButton']:
-            self.State[''] = window.brushes[-1].getBrush(bSize, bOpacity, bColor, bHardness, bFlow)
+            self.State['brush'] = window.brushes[-1].getBrush(bSize, bOpacity, bColor, bHardness, bFlow)
         else:
             pattern = window.patternCombo.currentData()
             self.State['brush'] = window.brushCombo.currentData().getBrush(bSize, bOpacity, bColor, bHardness, bFlow,
@@ -108,25 +111,6 @@ class imageLabel(QLabel):
                 grForm = layer.getGraphicsForm()
                 if grForm is not None:
                     grForm.updateSample()
-
-    def syncBrush(self, zooming):
-        """
-        Sync current brush with toolbar and zoom coeff.
-        Overrides or changes the application cursor.
-
-        :param zooming:
-        :type zooming: float
-        """
-        minSize = 10  # 16
-        # bSize = self.brushUpdate()
-        bSize = self.State['brush']['size']
-        w = bSize * zooming
-        w = max(w, minSize)
-        cursor = QCursor(self.State['brush']['cursor'].scaled(w, w), hotX=w / 2, hotY=w / 2)
-        if QApplication.overrideCursor():
-            QApplication.changeOverrideCursor(cursor)
-        else:
-            QApplication.setOverrideCursor(cursor)
 
     def paintEvent(self, e):
         """
@@ -207,6 +191,11 @@ class imageLabel(QLabel):
             qp.setPen(Qt.white)
             qp.setFont(qp.font)
             qp.drawText(qp.markRect, Qt.AlignCenter | Qt.AlignVCenter, "Before" if name == "label_2" else "After")
+
+        if self.virtualCursor.visible:
+            s = self.virtualCursor.size
+            qp.drawPixmap(QRect(self.virtualCursor.posX - s/2, self.virtualCursor.posY - s/2, s, s), self.virtualCursor.pixmap)
+
         qp.end()
 
     def mousePressEvent(self, event):
@@ -258,8 +247,6 @@ class imageLabel(QLabel):
                 # starting a new stroke : save initial image for atomic stroke painting  and init intermediate layer
                 layer.atomicStrokeImg = layer.sourceImg.copy()
                 layer.stroke.fill(QColor(0, 0, 0, 0))
-                if window.btnValues['brushButton']:
-                    self.syncBrush(r)
         # add current mask to history
         if window.btnValues['drawFG'] or window.btnValues['drawBG']:
             if layer.maskIsEnabled:
@@ -347,6 +334,10 @@ class imageLabel(QLabel):
                 window.label.repaint()
                 if layer.sourceFromFile:
                     layer.getGraphicsForm().widgetImg.repaint()
+            # update virtual cursor
+            if window.btnValues['drawFG'] or window.btnValues['drawBG'] or window.btnValues['brushButton'] or window.btnValues['eraserButton']:
+                self.virtualCursor.posX, self.virtualCursor.posY = event.x(), event.y()
+                window.label.update()  # repaint()
             return
 
         self.clicked = False
@@ -377,6 +368,8 @@ class imageLabel(QLabel):
                         layer.sRects.append(layer.rect)
             # drawing
             elif layer.isDrawLayer() and (window.btnValues['brushButton'] or window.btnValues['eraserButton']):
+                self.virtualCursor.posX, self.virtualCursor.posY = event.x(), event.y()
+                # self.virtualCursor.size = window.verticalSlider1.value() * self.img.resize_coeff(self)
                 self.__strokePaint(layer, x, y, r)
                 repaintAfter = False  # repainting is controlled by __strokePaint()
             # mask
@@ -403,14 +396,15 @@ class imageLabel(QLabel):
                     qp.setCompositionMode(qp.CompositionMode.CompositionMode_Source)
                     tmp_x = (x - img.xOffset) // r
                     tmp_y = (y - img.yOffset) // r
-                    qp.setPen(QPen(color, w_pen))
+                    qp.setPen(Qt.NoPen)
+                    qp.setBrush(QBrush(color))
                     qp.setOpacity(toolOpacity)
                     # paint the brush tips spaced by 0.25 * w_pen
                     # use 1-norm for performance
                     a_x, a_y = tmp_x - State['x_imagePrecPos'], tmp_y - State['y_imagePrecPos']
                     d = abs(a_x) + abs(a_y)
                     x, y = State['x_imagePrecPos'], State['y_imagePrecPos']
-                    radius = w_pen / 2
+                    radius = w_pen # / 2
                     if d == 0:
                         qp.drawEllipse(QPointF(x, y),
                                        radius,
@@ -425,6 +419,7 @@ class imageLabel(QLabel):
                                            )  # center, radius : QPointF mandatory, else bounding rect topleft and size
                             x, y = x + a_x * step, y + a_y * step
                     qp.end()
+                    self.virtualCursor.posX, self.virtualCursor.posY = event.x(), event.y()
                     if layer.isCloningLayer():
                         if not layer.sourceFromFile:
                             layer.marker = QPointF(tmp_x - layer.xAltOffset, tmp_y - layer.yAltOffset)
@@ -628,8 +623,6 @@ class imageLabel(QLabel):
             # under the cursor : (pos - offset) / resize_coeff is invariant
             img.xOffset = -pos.x() * numSteps + (1.0 + numSteps) * img.xOffset
             img.yOffset = -pos.y() * numSteps + (1.0 + numSteps) * img.yOffset
-            if layer.isDrawLayer() and (window.btnValues['brushButton'] or window.btnValues['eraserButton']):
-                self.syncBrush(img.resize_coeff(self))
             if window.btnValues['Crop_Button']:
                 window.cropTool.setCropTool(img)
             if layer.isGeomLayer():
@@ -757,17 +750,17 @@ class imageLabel(QLabel):
         w = window.verticalSlider1.value()
         layer = window.label.img.getActiveLayer()
         if window.btnValues['drawFG'] or window.btnValues['drawBG']:
-            if w > 10:
-                QApplication.setOverrideCursor(QCursor(window.cursors['Circle_Pixmap'].scaled(w * 2.0, w * 2.0),
-                                                       hotX=w,
-                                                       hotY=w
-                                                       )
-                                               )
-            else:
-                QApplication.setOverrideCursor(Qt.CrossCursor)
+            self.virtualCursor.pixmap = window.cursors['Circle_Pixmap']
+            # for better precision, zoom does not change virtual cursor size
+            self.virtualCursor.size = window.verticalSlider1.value() * 2
+            self.virtualCursor.posX, self.virtualCursor.posY = event.x(), event.y()
+            self.virtualCursor.visible = True
         elif window.btnValues['brushButton'] or window.btnValues['eraserButton']:
             if layer.isDrawLayer():
-                self.syncBrush(self.img.resize_coeff(self))
+                self.virtualCursor.pixmap = self.State['brush']['cursor']
+                self.virtualCursor.size = window.verticalSlider1.value() * self.img.resize_coeff(self)
+                self.virtualCursor.posX, self.virtualCursor.posY = event.x(), event.y()
+                self.virtualCursor.visible = True
         elif window.btnValues['bucket']:
             if layer.isDrawLayer():
                 QApplication.setOverrideCursor(window.cursors['Bucket'])
@@ -781,7 +774,10 @@ class imageLabel(QLabel):
     def leaveEvent(self, event):
         if not self.enterAndLeave:
             return
-        QApplication.restoreOverrideCursor()
+        QApplication.restoreOverrideCursor()  # no action if no stacked cursor
+        if self.virtualCursor.visible:
+            self.virtualCursor.visible = False
+            self.window.label.update()
 
     def __strokePaint(self, layer, x, y, r):
         """

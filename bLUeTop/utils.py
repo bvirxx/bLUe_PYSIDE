@@ -21,7 +21,7 @@ from itertools import product
 import numpy as np
 
 from PySide6 import QtCore
-from PySide6.QtGui import QColor, QImage, QPainter, QMouseEvent, QImageReader
+from PySide6.QtGui import QColor, QImage, QPainter, QMouseEvent, QImageReader, QPixmap
 from PySide6.QtWidgets import QListWidget, QListWidgetItem, \
     QSlider, QLabel, QDockWidget, QStyle, QColorDialog, QPushButton, QSizePolicy, QComboBox, QSpinBox, \
     QDialog, QDialogButtonBox, QVBoxLayout
@@ -239,6 +239,22 @@ def showConsole():
     if whnd != 0:
         ctypes.windll.user32.ShowWindow(whnd, 1)
         ctypes.windll.kernel32.CloseHandle(whnd)
+
+
+class virtualCursor(object):
+    """
+    Brush outline class
+    """
+
+    def __init__(self, pixmap=None, size = 64, posX=0, posY=0, visible=False):
+        if pixmap:
+            self.pixmap = pixmap
+        else:
+            self.pixmap = QPixmap(size, size)
+            self.pixmap.fill(Qt.white)
+        self.size = size
+        self.posX, self.posY = posX, posY
+        self.visible = visible
 
 
 def multiply(matr_a, matr_b):

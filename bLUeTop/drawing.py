@@ -44,12 +44,11 @@ class pattern:
 class brushFamily:
     """
     A brush family is a set of brushes sharing a common shape.
-    The shape is defined by a QPainterPath instance and scaled
-    by individual brushes.
+    The shape is defined by a QPainterPath instance.
     A preset can be defined for each brush family. A preset is a mask
     describing the alpha channel of the brush. It is built from the luminosity
     channel of a png or jpg image.
-    A cursor pixmap corresponding to the shape is associated with the brush family.
+    A (base) cursor pixmap corresponding to the shape is associated with the brush family.
     Individual brushes are dictionaries. They are instantiated by
     the method getBrush().
     """
@@ -235,6 +234,22 @@ class brushFamily:
         buf[..., 3] = b
         self.preset = QPixmap.fromImage(img)
 
+    def setBaseCursor(self, color):
+        """
+        Builds the base contour pixmap for brush, using color.
+        :param color:
+        :type color: Qcolor
+        """
+        self.baseCursor = QPixmap(self.baseSize, self.baseSize)
+        self.baseCursor.fill(QColor(0, 0, 0, 0))
+        qp = QPainter(self.baseCursor)
+        pen = qp.pen()
+        pen.setWidth(self.baseSize / 20)
+        pen.setColor(color)
+        qp.setPen(pen)  # needed!!
+        qp.drawPath(self.contourPath)
+        qp.end()
+
     @property
     def pxmp(self):
         return self.__pxmp
@@ -276,6 +291,7 @@ class brushFamily:
                 gradient.setColorAt(1, QColor(0, 0, 0, 255))
             else:
                 gradient.setColorAt(1, QColor(0, 0, 0, 0))
+
         pxmp = self.basePixmap.copy()
         qp = QPainter(pxmp)
         # fill brush contour with gradient (pxmp color is (0,0,0,0)
@@ -312,9 +328,13 @@ class brushFamily:
             qp.drawPixmap(r2, pxmp1)
         qp.end()
         # s = size / self.baseSize
-        #self.pxmp = pxmp.transformed(QTransform().scale(s, s).rotate(orientation))
+        # self.pxmp = pxmp.transformed(QTransform().scale(s, s).rotate(orientation))
+        # Tablet may control brush size. So, pxmp is NOT scaled here.
+        # Scaling is done in brushStrokeSeg.
         self.pxmp = pxmp.transformed(QTransform().rotate(orientation))
+        self.baseCursor.transformed(QTransform().rotate(orientation))
         pattern = pattern
+        self.setBaseCursor(color)
         return {'family': self, 'name': self.name, 'pixmap': self.pxmp, 'size': size, 'color': color,
                 'opacity': opacity, 'image': self.pxmp.toImage().convertedTo(QImage.Format_ARGB32),
                 'hardness': hardness, 'flow': flow, 'spacing': spacing, 'jitter': jitter, 'orientation': orientation,
