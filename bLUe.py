@@ -145,7 +145,7 @@ from PySide6.QtGui import QPixmap, QCursor, QKeySequence, QDesktopServices, QFon
     QTransform, QColor, QImage, QIcon, QAction, QPalette
 from PySide6.QtWidgets import QApplication, \
     QDockWidget, QSizePolicy, QSplashScreen, QWidget, \
-    QTabWidget, QToolBar, QComboBox, QTabBar, QLayout, QFrame
+    QTabWidget, QToolBar, QComboBox, QTabBar, QFrame
 
 import bLUeTop.QtGui1
 
@@ -1035,8 +1035,7 @@ def menuImage(name, window=bLUeTop.Gui.window):
         # profile info
         if img.meta.profile is not None and len(img.meta.profile) > 0:
             s = s + "\n\nEmbedded profile found"  # length %d" % len(img.meta.profile)
-        workingProfileInfo = icc.workingProfileInfo
-        s = s + "\n\nWorking Profile : %s" % workingProfileInfo
+        s = s + "\n\nWorking Profile : %s" % icc.workingProfileInfo
         # rating
         s = s + "\n\nRating %s" % ''.join(['*'] * img.meta.rating)
         # formatted meta data
@@ -1205,6 +1204,7 @@ def menuImage(name, window=bLUeTop.Gui.window):
                     img.layersStack[0].applyToStack()
 
                 updateCurrentViews()
+                updateStatus()
             else:
                 raise ValueError
 
@@ -1725,6 +1725,10 @@ def updateStatus(window=bLUeTop.Gui.window):
     img = window.label.img
     # filename and rating
     s = '&nbsp;&nbsp;&nbsp;&nbsp;' + img.filename + '&nbsp;&nbsp;&nbsp;&nbsp;' + (' '.join(['*'] * img.meta.rating))
+    # dims
+    s += '&nbsp;&nbsp;&nbsp;&nbsp;' + '%dx%d' % (img.width(), img.height())
+    # working profile
+    s += '&nbsp;&nbsp;&nbsp;&nbsp;' + icc.workingProfile.profile.profile_description
     # color management
     s += '&nbsp;&nbsp;&nbsp;&nbsp;CM : ' + ('On' if icc.COLOR_MANAGE else 'Off')
     if window.actionSoft_proofing.isChecked():
@@ -1741,7 +1745,7 @@ def updateStatus(window=bLUeTop.Gui.window):
     else:
         s += '&nbsp;&nbsp;&nbsp;&nbsp;Space : toggle Before/After view'
     # cropping
-    if window.label.img.isCropped:
+    if img.isCropped:
         w, h = window.cropTool.crWidth, window.cropTool.crHeight
         s += '&nbsp;&nbsp;&nbsp;&nbsp;Cropped : %dx%d (h/w=%.2f) ' % (w, h, h / w)
         s += '&nbsp;&nbsp;Use Ctrl+Drag to move and Ctrl+Wheel to zoom'

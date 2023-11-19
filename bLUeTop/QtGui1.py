@@ -22,7 +22,7 @@ from PySide6 import QtWidgets, QtCore
 from PySide6.QtCore import QSettings, Qt, QtMsgType
 
 from PySide6.QtGui import QScreen
-from PySide6.QtWidgets import QApplication, QLabel, QMainWindow, QSizePolicy
+from PySide6.QtWidgets import QApplication, QFrame, QLabel, QMainWindow, QSizePolicy
 
 import bLUeTop.Gui
 
@@ -70,7 +70,7 @@ class Form1(QMainWindow):
         from bLUeTop.imLabel import imageLabel
         loadUi('bLUe.ui', baseinstance=self,
                customWidgets={'QLayerView': QLayerView, 'QLabel': QLabel, 'histForm': histForm,
-                              'imageLabel': imageLabel})
+                              'imageLabel': imageLabel, 'Line': QFrame})
         # hook called by event slots
         # should be redefined later
         self.onWidgetChange = lambda b: None
