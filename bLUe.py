@@ -263,11 +263,13 @@ def widgetChange(button, window=bLUeTop.Gui.window):
     window.label.repaint()
 
 
-def addAdjustmentLayers(layers, images):
+def addAdjustmentLayers(img, layers, images):
     """
     Adds a list of layers to the current document and restore their states.
     Entries not corresponding to menu layers actions are skipped.
 
+    :param img: document
+    :type img: imimage
     :param layers:
     :type  layers: list of (key, dict)
     :param images
@@ -278,10 +280,14 @@ def addAdjustmentLayers(layers, images):
     count = 1
 
     waitImages = []
+    # build layer stack
     for ind, item in enumerate(layers):
         d = item[1]['state']
-        # add layer to stack
-        layer = menuLayer(item[1]['actionname'], sname=item[0], script=True)
+        if ind == 0:
+            # background layer is already in stack
+            layer = img.layersStack[0]
+        else:
+            layer = menuLayer(item[1]['actionname'], sname=item[0], script=True)
 
         if d['mask'] == 1:
             if layer is not None:
@@ -454,7 +460,7 @@ def loadImage(img, tfile=None, version='unknown', withBasic=True, window=bLUeTop
             # dlgWarn('loadImage: Invalid format %s' % img.filename, str(e))
             raise
         # load layers
-        addAdjustmentLayers(layers, tfile.series[0])
+        addAdjustmentLayers(img, layers, tfile.series[0])
         img.setActiveLayer(len(img.layersStack) - 1)
         # img.onImageChanged()
     else:
