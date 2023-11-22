@@ -229,6 +229,7 @@ def rgb2rgbLinear(rgbColors):
         gt = gammaTables
 
         def c2cl(c):
+            c = c / 255  # added 20/11/23
             if c <= gt.gammaLinearTreshold2:
                 # consider linear
                 c = c / gt.d
