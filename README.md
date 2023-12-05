@@ -67,7 +67,8 @@ See the [bLUe site](http://bernard.virot.free.fr/) for screenshots, tutorials an
 * Soft proofing
 * Simultaneous edition of multiple images in formats jpg, png, tif, nef, cr2, arw, dng,...
 * Color profile management
-* Adjustment layers : exposure, brightness, saturation, contrast, channel mixer, color temperature, inversion, filters,
+* Adjustment layers : exposure, brightness, saturation, contrast, channel mixer, color temperature,
+  inversion, filters, color grading. 
 * noise reduction, seamless cloning, segmentation, exposure fusion, curves, 2.5D LUTs, 3D LUTs.
 * Drawing and painting layers; tablet support
 * Extensible set of brushes and patterns; .abr files support
