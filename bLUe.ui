@@ -904,6 +904,7 @@ Size</string>
       <string>New Adjustment Layer</string>
      </property>
      <addaction name="actionContrast_Correction"/>
+     <addaction name="actionColor_Grading"/>
      <addaction name="actionAuto_3D_LUT"/>
      <addaction name="action3D_LUT_HSB"/>
      <addaction name="action3D_LUT"/>
@@ -1427,6 +1428,11 @@ Size</string>
   <action name="actionConvert_To_Profile">
    <property name="text">
     <string>Convert To Profile...</string>
+   </property>
+  </action>
+  <action name="actionColor_Grading">
+   <property name="text">
+    <string>Color Grading</string>
    </property>
   </action>
  </widget>

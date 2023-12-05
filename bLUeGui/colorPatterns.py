@@ -16,10 +16,16 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import numpy as np
+from PySide6 import QtCore
+from PySide6.QtCore import QPoint, QLine, Qt, QPointF
+from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget, QHBoxLayout
+
+from bLUeTop.utils import QbLUeSlider
 from .colorCube import hsv2rgbVec, hsp2rgb, rgb2hsp, rgb2hspVec, hsv2rgb, rgb2hsB, rgb2hsBVec, hsp2rgbVec
-from PySide6.QtGui import QImage
+from PySide6.QtGui import QImage, QPixmap, QPainter, QPainterPath, QColor
 
 from bLUeGui.bLUeImage import bImage, QImageBuffer
+from .graphicsForm import baseForm
 
 
 class cmConverter(object):
@@ -52,7 +58,7 @@ class hueSatPattern(bImage):
     # default brightness
     defaultBr = 0.45
 
-    def __init__(self, w, h, converter, bright=defaultBr, border=0.0):
+    def __init__(self, w, h, converter, bright=defaultBr, border=0):
         """
         Builds a (hue, sat) color wheel image of size (w, h)
         For fast display, the correspondence with RGB values is tabulated
@@ -130,8 +136,11 @@ class hueSatPattern(bImage):
         on the color wheel (origin top-left corner).
 
         :param h: hue in range 0..360
+        :type h: float
         :param s: saturation in range 0..1
+        :type s: float
         :return:cartesian coordinates
+        :rtype: 2-uple of float
         """
         cx = self.width() / 2
         cy = self.height() / 2
@@ -149,7 +158,7 @@ class hueSatPattern(bImage):
         :param hsarray:
         :type hsarray: ndarray, shape=(w,h,2)
         :return: cartesian coordinates
-        :rtype: ndarray, shape=(w,h,2)
+        :rtype: ndarray, shape=(w,h,2), dtype=float
         """
         h, s = hsarray[:, :, 0], hsarray[:, :, 1]
         cx = self.width() / 2
@@ -195,3 +204,137 @@ class brightnessPattern(bImage):
         # convert to rgb and broadcast to imgBuf
         imgBuf[:, :, :] = converter.cm2rgbVec(hsArray[np.newaxis, ...])
         self.updatePixmap()
+
+
+class colorWheelSampler(QLabel):
+    """
+    (Hue, Sat) color wheel picker
+    """
+
+    colorChanged = QtCore.Signal()
+    samplerReleased = QtCore.Signal()
+
+    def __init__(self, w, h):
+        """
+        :param w: image width
+        :type w: int
+        :param h: image height
+        :type h: int
+        """
+        super().__init__()
+        self.refImage = hueSatPattern(w, h, cmHSP, bright=1.0, border=5)
+        self.bareWheel = QPixmap.fromImage(self.refImage)
+
+        self.currentColor = QColor(255, 255, 255)
+
+        cx, cy = int(w/2), int(h / 2)
+        self.p = QPointF(cx, cy)
+
+        self.l1 = QLine(cx - 5, cy, cx + 5, cy)
+        self.l2 = QLine(cx, cy - 5, cx, cy + 5)
+
+        self.qp = QPainter()
+
+        self.path = QPainterPath()
+        self.path.addEllipse(0.0, 0.0, w, h)
+
+        self.setPixmap(self.bareWheel)
+
+    def paintEvent(self, e):
+        self.qp.begin(self)
+        self.qp.setClipPath(self.path)
+        self.qp.drawPixmap(0, 0, self.bareWheel)
+        self.qp.drawLine(self.l1)
+        self.qp.drawLine(self.l2)
+        self.qp.setPen(Qt.black)
+        self.qp.drawEllipse(self.p, 5, 5)
+        self.qp.end()
+
+    def setCurrentColor(self, h, v):
+        """
+        Set current color from hue ans saturation values.
+        Brightness is set to the brightness of refImage.
+        :param h: hue
+        :type h: float, range 0..360
+        :param v: saturation
+        :type v: float, range 0..1
+        """
+        x, y = self.refImage.GetPoint(h, v)
+        self.p.setX(x)
+        self.p.setY(y)
+        self.currentColor = self.refImage.pixelColor(self.p.toPoint())
+
+    def mousePressEvent(self, e):
+        p = e.position()
+        self.p.setX(p.x())
+        self.p.setY(p.y())
+        self.update()
+        
+    def mouseMoveEvent(self, e):
+        p = e.position()
+        self.p.setX(p.x())
+        self.p.setY(p.y())
+        self.update()
+
+    def mouseReleaseEvent(self, e):
+        self.samplerReleased.emit()
+
+    def update(self):
+        self.currentColor = self.refImage.pixelColor(self.p.toPoint())
+        self.colorChanged.emit()
+        self.repaint()
+
+class colorWheelChooser(QWidget):
+    """
+    (Hue, Sat) color wheel picker, displaying a a slider and a sample of the current color.
+    """
+    @staticmethod
+    def getBr(v):
+        return v / 200 + 0.75
+
+    @staticmethod
+    def getValue(br):
+        return (br - 0.75) * 200
+
+    def __init__(self, w, h, name=''):
+        super().__init__()
+        self.w, self.h = w, h
+        self.sw, self.sh = int(w / 10), int(h / 10)
+        self.sampler = colorWheelSampler(w, h)
+        self.sample = QLabel()
+        self.brSlider = QbLUeSlider(Qt.Horizontal)
+        self.brSlider.setMinimum(0)
+        self.brSlider.setMaximum(100)
+        self.brSlider.setSliderPosition(50)
+        pxmp = QPixmap(int(w / 10), int(h / 10))
+        pxmp.fill(self.sampler.currentColor)
+        self.sample.setPixmap(pxmp)
+
+        vl = QVBoxLayout()
+        vl.addWidget(self.sampler)
+        vl.addWidget(self.brSlider)
+        hl = QHBoxLayout()
+        lb = QLabel()
+        lb.setText(name)
+        hl.addWidget(lb)
+        hl.addWidget(self.sample)
+        vl.addLayout(hl)
+        self.setLayout(vl)
+
+        self.sampler.colorChanged.connect(self.update)
+
+    def update(self):
+        pxmp = QPixmap(self.sw, self.sh)
+        pxmp.fill(self.sampler.currentColor)
+        self.sample.setPixmap(pxmp)
+
+    def __getstate__(self):
+        h, s, _ = rgb2hsB(*self.sampler.currentColor.getRgb())
+        return {'brcoeff': self.getBr(self.brSlider.value()), 'H': h, 'S': s}
+
+    def __setstate__(self, state):
+        self.brSlider.setValue(self.getValue(state['brcoeff']))
+        self.sampler.setCurrentColor(state['H'], state['S'])
+        self.sampler.update()
+
+

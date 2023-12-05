@@ -33,6 +33,7 @@ from PySide6.QtCore import QRect, QPoint
 from bLUeGui.bLUeImage import bImage, ndarrayToQImage
 from bLUeCore.multi import chosenInterp
 import bLUeTop.Gui
+from bLUeGui.gradient import setLUTfromGradient, hsvGradientArray
 from bLUeTop.align import alignImages
 from bLUeTop.cloning import alphaBlend
 from bLUeTop.colorManagement import icc
@@ -1762,6 +1763,30 @@ class vImage(bImage):
             imgBuffer[h1:h2 + 1, w1:w2 + 1, :3] = buf[h1:h2 + 1, w1:w2 + 1, ...]
 
         self.updatePixmap()
+
+    def applyGrading(self, lut3D, options=None, pool=None):
+
+        adjustForm = self.getGraphicsForm()
+        inputImage = self.inputImg()
+        currentImage = self.getCurrentImage()
+        inputBuffer = QImageBuffer(inputImage)[:, :, :3]
+        imgBuffer = QImageBuffer(currentImage)[:, :, :3]
+        ndImg0 = inputBuffer[:, :, :3]
+
+        # get HSV gradient
+        hsvgrad = hsvGradientArray(adjustForm.grad)
+        setLUTfromGradient(lut3D, hsvgrad, adjustForm.LUT3D_ori2hsv, adjustForm.brCoeffs)
+
+        interp = chosenInterp(pool, inputImage.width() * inputImage.height())
+        buf = interp(lut3D.LUT3DArray, lut3D.step, ndImg0.astype(np.float32), convert=False)
+        np.clip(buf, 0, 255, out=buf)
+
+        imgBuffer[..., :3] = inputBuffer
+        for (w1, w2, h1, h2) in self.getCurrentSelCoords():
+            imgBuffer[h1:h2 + 1, w1:w2 + 1, :3] = buf[h1:h2 + 1, w1:w2 + 1, :3]   # image buffers and luts are BGR
+
+        self.updatePixmap()
+
 
     def apply3DLUT(self, lut3D, options=None, pool=None):
         """

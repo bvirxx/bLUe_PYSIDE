@@ -157,6 +157,7 @@ from bLUeCore.bLUeLUT3D import HaldArray
 from bLUeTop import exiftool, Gui
 from bLUeTop.drawing import initBrushes, loadPresets
 from bLUeTop.graphicsDraw import drawForm
+from bLUeTop.graphicsGrading import graphicsFormGrading
 from bLUeTop.graphicsHDRMerge import HDRMergeForm
 from bLUeTop.graphicsSegment import segmentForm
 from bLUeTop.graphicsBlendFilter import blendFilterForm
@@ -1331,6 +1332,14 @@ def menuLayer(name, window=bLUeTop.Gui.window, sname=None, script=False):
         grWindow = graphicsFormAuto3DLUT.getNewWindow(axeSize=300, LUTSize=LUTSIZE, **envdict())
         pool = getPool()
         layer.execute = lambda l=layer, pool=pool: l.tLayer.applyAuto3DLUT(pool=pool)
+
+    elif name == 'actionColor_Grading':
+        layerName = 'Color Grading'
+        layer = window.label.img.addAdjustmentLayer(name=gn(layerName),
+                                                    role='Grade')  # do not use a role containing '3DLUT'
+        grWindow = graphicsFormGrading.getNewWindow(axeSize=300, LUTSize=LUTSIZE, **envdict())
+        pool = getPool()
+        layer.execute = lambda l=layer, pool=pool: l.tLayer.applyGrading(grWindow.LUT3Dgrad, pool=pool)
 
     # 3D LUT
     elif name in ['action3D_LUT', 'action3D_LUT_HSB']:

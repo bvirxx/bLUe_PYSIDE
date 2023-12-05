@@ -529,7 +529,7 @@ class activeNode(QGraphicsPathItem):
         """
         img = self.scene().slider2D.QImg
         w, h = img.width(), img.height()
-        # get (transformation aware) position relative to grid parentItem (=colorChooser)
+        # get (transformation aware) position relative to grid parentItem (=nodeEditor)
         p = (self.gridPos() - self.grid.parentItem().offset()).toPoint()
         x, y = p.x(), p.y()
 
@@ -1011,7 +1011,7 @@ class activeGrid(QGraphicsPathItem):
                 self.gridNodes[r][c].syncLUT()
 
 
-class colorChooser(QGraphicsPixmapItem):
+class nodeEditor(QGraphicsPixmapItem):
     """
     Color wheel wrapper : it is a 2D-slider-like
     object providing color selection from the wheel and
@@ -1230,9 +1230,9 @@ class graphicsForm3DLUT(baseGraphicsForm):
         self.graphicsScene.lut = freshLUT3D
         # init 2D slider (color wheel)
         swatchImg = hueSatPattern(axeSize, axeSize, cModel, bright=self.defaultColorWheelBr, border=self.border)
-        slider2D = colorChooser(cModel, swatchImg, target=self.layer, size=axeSize, border=self.border)
+        slider2D = nodeEditor(cModel, swatchImg, target=self.layer, size=axeSize, border=self.border)
         #########################################################################
-        # CAUTION : sliedr2D has a non null offset
+        # CAUTION : slider2D has a non-null offset
         # slider2D (and QImg) topleft corner is at scene pos -slider2D.offset()
         #########################################################################
         self.graphicsScene.addItem(slider2D)
