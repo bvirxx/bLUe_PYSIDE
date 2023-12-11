@@ -40,8 +40,6 @@ class graphicsFormGrading(baseForm):
         build a graphicsFormGrading object. The parameter axeSize represents the size of
         the color wheel, border not included (the size of the window is adjusted).
 
-        :param cModel: color Model converter
-        :type cModel: cmConverter
         :param targetImage
         :type targetImage:
         :param axeSize: size of the color wheel (default 500)
@@ -70,8 +68,7 @@ class graphicsFormGrading(baseForm):
 
     def __init__(self, targetImage=None, axeSize=500, LUTSize=LUTSIZE, layer=None, parent=None, mainForm=None):
         """
-       :param cModel: color space used by colorPicker, slider2D and colorPicker
-       :type cModel: cmConverter object
+
        :param axeSize: size of the color wheel
        :type axeSize: int
        :param targetImage:
@@ -217,6 +214,7 @@ class graphicsFormGrading(baseForm):
         self.setWhatsThis(
             """<b>Color Grading</b><br>
             Use shadows, midtones and highlights color wheels to pick the 3 corresponding colors.
+            For constant saturation, hold down the <i>Ctrl key</i> .
             Use sliders to choose the shadows and highlights thresholds.<br>
             Your choices are reflected by the gradient image shown at the bottom<br>. Overlap between colors
             is controlled by the <i>overlap</i> slider.<br> 

@@ -17,7 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import numpy as np
 from PySide6 import QtCore
-from PySide6.QtCore import QPoint, QLine, Qt, QPointF
+from PySide6.QtCore import Qt, QPointF, QLineF
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget, QHBoxLayout
 
 from bLUeTop.utils import QbLUeSlider
@@ -25,7 +25,6 @@ from .colorCube import hsv2rgbVec, hsp2rgb, rgb2hsp, rgb2hspVec, hsv2rgb, rgb2hs
 from PySide6.QtGui import QImage, QPixmap, QPainter, QPainterPath, QColor
 
 from bLUeGui.bLUeImage import bImage, QImageBuffer
-from .graphicsForm import baseForm
 
 
 class cmConverter(object):
@@ -51,9 +50,8 @@ cmHSB.cm2rgb, cmHSB.cm2rgbVec, cmHSB.rgb2cm, cmHSB.rgb2cmVec = hsv2rgb, hsv2rgbV
 class hueSatPattern(bImage):
     """
     (hue, sat) color wheel image.
-    For fast display, the correspondence with RGB values is tabulated for each brightness.
     """
-    # hue rotation
+    # wheel rotation
     rotation = 315
     # default brightness
     defaultBr = 0.45
@@ -62,7 +60,7 @@ class hueSatPattern(bImage):
         """
         Builds a (hue, sat) color wheel image of size (w, h)
         For fast display, the correspondence with RGB values is tabulated
-        for each value of the brightness.
+        for each brightness.
 
         :param w: image width
         :type  w: int
@@ -71,7 +69,7 @@ class hueSatPattern(bImage):
         :param converter: color space converter
         :type  converter: cmConverter
         :param bright: image brightness
-        :type  bright: int
+        :type  bright: float
         :param border: image border
         :type  border: int
         """
@@ -92,10 +90,10 @@ class hueSatPattern(bImage):
         # init array of grid (cartesian) coordinates
         coord = np.dstack(np.meshgrid(np.arange(w), - np.arange(h)))
 
-        # center  : i1 = i - cx, j1 = -j + cy
-        cx = w / 2
-        cy = h / 2
-        coord = coord + [-cx, cy]  # np.array([-cx, cy])
+        # wheel center  : i1 = i - cx, j1 = -j + cy
+        self.center = QPointF(w, h) / 2
+        cx, cy = self.center.toTuple()
+        coord = coord + [-cx, cy]
 
         # init hue and sat arrays as polar coordinates.
         # arctan2 values are in range -pi, pi
@@ -104,6 +102,7 @@ class hueSatPattern(bImage):
         hue = hue - np.floor(hue / 360.0) * 360.0
         sat = np.linalg.norm(coord, axis=2, ord=2) / (cx - border)
         np.minimum(sat, 1.0, out=sat)
+
         # init a stack of image buffers, one for each brightness in integer range 0..100
         hsBuf = np.dstack((hue, sat))[np.newaxis, :]  # shape (1, h, w, 2)
         hsBuf = np.tile(hsBuf, (101, 1, 1, 1))  # (101, h, w, 2)
@@ -142,12 +141,10 @@ class hueSatPattern(bImage):
         :return:cartesian coordinates
         :rtype: 2-uple of float
         """
-        cx = self.width() / 2
-        cy = self.height() / 2
+        cx, cy = self.center.toTuple()
         x, y = (cx - self.border) * s * np.cos((h - self.rotation) * np.pi / 180.0), \
                (cy - self.border) * s * np.sin((h - self.rotation) * np.pi / 180.0)
-        x, y = x + cx, -y + cy
-        return x, y
+        return x + cx, -y + cy
 
     def GetPointVec(self, hsarray):
         """
@@ -161,12 +158,10 @@ class hueSatPattern(bImage):
         :rtype: ndarray, shape=(w,h,2), dtype=float
         """
         h, s = hsarray[:, :, 0], hsarray[:, :, 1]
-        cx = self.width() / 2
-        cy = self.height() / 2
+        cx, cy = self.center.toTuple()
         x, y = (cx - self.border) * s * np.cos((h - self.rotation) * np.pi / 180.0), \
                (cy - self.border) * s * np.sin((h - self.rotation) * np.pi / 180.0)
-        x, y = x + cx, - y + cy
-        return np.dstack((x, y))
+        return np.dstack((x + cx, -y + cy))
 
 
 class brightnessPattern(bImage):
@@ -227,27 +222,36 @@ class colorWheelSampler(QLabel):
 
         self.currentColor = QColor(255, 255, 255)
 
-        cx, cy = int(w/2), int(h / 2)
-        self.p = QPointF(cx, cy)
+        self.center = QPointF(w, h) / 2
+        cx, cy = self.center.toTuple()
+        self.p = QPointF(cx, cy)  #  copy
 
-        self.l1 = QLine(cx - 5, cy, cx + 5, cy)
-        self.l2 = QLine(cx, cy - 5, cx, cy + 5)
+        self.l1 = QLineF(cx - 5, cy, cx + 5, cy)
+        self.l2 = QLineF(cx, cy - 5, cx, cy + 5)
+
+        self.radius, self.theta = 0.0, 0.0  # used by mousePressEvent and mouseMoveEvent
+        self.w, self.h = w, h  # used by paintEvent
 
         self.qp = QPainter()
 
-        self.path = QPainterPath()
-        self.path.addEllipse(0.0, 0.0, w, h)
+        self.clPath = QPainterPath()
+        self.clPath.addEllipse(0.0, 0.0, w, h)
 
         self.setPixmap(self.bareWheel)
 
     def paintEvent(self, e):
         self.qp.begin(self)
-        self.qp.setClipPath(self.path)
+        self.qp.setClipPath(self.clPath)
         self.qp.drawPixmap(0, 0, self.bareWheel)
+        self.qp.setPen(Qt.black)
+        # central crosshair
         self.qp.drawLine(self.l1)
         self.qp.drawLine(self.l2)
-        self.qp.setPen(Qt.black)
-        self.qp.drawEllipse(self.p, 5, 5)
+        # current radius
+        u = self.p - self.center
+        u *= max(self.w, self.h) / max(u.manhattanLength(), 0.001)
+        self.qp.drawLine(QLineF(self.center, self.p + u))
+        self.qp.drawEllipse(self.p, 6.0, 6.0)
         self.qp.end()
 
     def setCurrentColor(self, h, v):
@@ -266,14 +270,26 @@ class colorWheelSampler(QLabel):
 
     def mousePressEvent(self, e):
         p = e.position()
-        self.p.setX(p.x())
-        self.p.setY(p.y())
+        x, y = p.toTuple()
+        self.radius = np.sqrt((x - self.center.x()) ** 2 + (y - self.center.y()) ** 2)
+        self.theta = np.arctan2(-y + self.center.y(), x - self.center.x())
+        self.p.setX(x)
+        self.p.setY(y)
         self.update()
         
     def mouseMoveEvent(self, e):
         p = e.position()
-        self.p.setX(p.x())
-        self.p.setY(p.y())
+        x, y = p.toTuple()
+        modifiers = e.modifiers()
+        if modifiers == Qt.ControlModifier:
+            # constant radius = self.radius
+            self.theta = np.arctan2(y - self.center.y(), x - self.center.x())
+            x, y = self.radius * np.cos(self.theta) + self.center.x(), self.radius * np.sin(self.theta) + self.center.y()
+        else:
+            self.theta = np.arctan2(y - self.center.y(), x - self.center.x())
+            self.radius = np.sqrt((x - self.center.x()) ** 2 + (y - self.center.y()) ** 2)
+        self.p.setX(x)
+        self.p.setY(y)
         self.update()
 
     def mouseReleaseEvent(self, e):
@@ -283,6 +299,7 @@ class colorWheelSampler(QLabel):
         self.currentColor = self.refImage.pixelColor(self.p.toPoint())
         self.colorChanged.emit()
         self.repaint()
+
 
 class colorWheelChooser(QWidget):
     """
