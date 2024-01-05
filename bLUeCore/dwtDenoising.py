@@ -17,7 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import numpy as np
 import pywt
-from .rollingStats import movingAverage, movingVariance
+from .rollingStats import movingVariance
 
 
 def noiseSTD_Est(DWT_coeffs, version='DON'):

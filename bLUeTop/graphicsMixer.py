@@ -76,7 +76,7 @@ class mixerForm(baseGraphicsForm):
         # options
         optionList = ['Monochrome']  # , 'Luminosity']
         listWidget1 = optionsWidget(options=optionList, exclusive=False, changed=self.dataChanged,
-                                    flow=optionsWidget.LeftToRight)
+                                    flow=optionsWidget.Flow.LeftToRight)
         listWidget1.setMaximumHeight(
             listWidget1.sizeHintForRow(0) + 5)  # mandatory although sizePolicy is set to minimum !
 

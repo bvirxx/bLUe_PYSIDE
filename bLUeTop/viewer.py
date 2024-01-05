@@ -59,9 +59,6 @@ def playDiaporama(diaporamaGenerator, parent=None):
     newWin.setWindowTitle(parent.tr('Slide show'))
     label = slideshowLabel(mainForm=parent)
     label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-    label.img = None
-    label.prevImg = None
-    label.prevOpacity = 0.0
     newWin.setCentralWidget(label)
     newWin.showFullScreen()
     # Pause key shortcut
@@ -389,14 +386,14 @@ class viewer:
         # image list
         listWdg = dragQListWidget()
         listWdg.setWrapping(False)
-        listWdg.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        listWdg.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         listWdg.setContextMenuPolicy(Qt.CustomContextMenu)
         listWdg.label = None
-        listWdg.setViewMode(QListWidget.IconMode)
+        listWdg.setViewMode(QListWidget.ViewMode.IconMode)
         # set icon and listWdg sizes
         listWdg.setIconSize(QSize(self.iconSize, self.iconSize))
         listWdg.setMaximumSize(160000, self.iconSize + 40)
-        listWdg.setDragDropMode(QAbstractItemView.DragDrop)
+        listWdg.setDragDropMode(QAbstractItemView.DragDropMode.DragDrop)
         listWdg.customContextMenuRequested.connect(self.contextMenu)
         # dock the form
         dock = stateAwareQDockWidget(bLUeTop.Gui.window)

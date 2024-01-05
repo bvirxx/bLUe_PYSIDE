@@ -52,7 +52,7 @@ class noiseForm(baseForm):
         # threshold slider
         self.sliderThr = QbLUeSlider(Qt.Horizontal)
         self.sliderThr.setStyleSheet(QbLUeSlider.bLueSliderDefaultBWStylesheet)
-        self.sliderThr.setTickPosition(QSlider.TicksBelow)
+        self.sliderThr.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.sliderThr.setRange(0, 10)
         self.sliderThr.setSingleStep(1)
 

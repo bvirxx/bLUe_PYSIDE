@@ -19,7 +19,7 @@ from os.path import dirname, basename
 from time import time_ns
 
 from PySide6.QtCore import QRect, QRectF, Qt, QPointF, QEvent, QPoint
-from PySide6.QtGui import QPainter, QImage, QColor, QBrush, QContextMenuEvent, QCursor, QPen, QFont, QPainterPath, \
+from PySide6.QtGui import QPainter, QImage, QColor, QBrush, QContextMenuEvent, QFont, QPainterPath, \
     QPixmap, QMouseEvent, QPointingDevice
 from PySide6.QtWidgets import QLabel, QApplication
 
@@ -881,6 +881,12 @@ class slideshowLabel(imageLabel):
     This class should be used to display cross-faded
     transitions between images.
     """
+
+    def __init__(self,  mainForm=None, splitWin=None, enterAndLeave=False, parent=None):
+        super().__init__(mainForm=mainForm, splitWin=splitWin, enterAndLeave=enterAndLeave, parent=parent)
+        self.img = None
+        self.prevImg = None
+        self.prevOpacity = 0.0
 
     def paintEvent(self, e):
         """

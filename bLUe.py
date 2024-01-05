@@ -234,9 +234,9 @@ def widgetChange(button, window=bLUeTop.Gui.window):
     called by all main form button and slider slots (cf. QtGui1.py onWidgetChange)
 
     :param button:
-    :type  button: QWidget
+    :type  button: QButton
     :param window:
-    :type  window: QWidget
+    :type  window: Form1
     """
     # wdgName = button.objectName()
     if button is window.fitButton:  # wdgName == "fitButton" :
@@ -288,7 +288,7 @@ def addAdjustmentLayers(img, layers, images):
             # background layer is already in stack
             layer = img.layersStack[0]
         else:
-            layer = menuLayer(item[1]['actionname'], sname=item[0], script=True)
+            layer = layerScripting(item[1]['actionname'], sname=item[0], script=True)
 
         if d['mask'] == 1:
             if layer is not None:
@@ -384,7 +384,7 @@ def loadImage(img, tfile=None, version='unknown', withBasic=True, window=bLUeTop
     if tfile is an opened TiffFile instance, import layer stack from file
 
     :param img:
-    :type  img: vImage
+    :type  img: imImage
     :param tfile:
     :type  tfile: TiffFile instance
     :param version: version of bLU file writer
@@ -392,7 +392,7 @@ def loadImage(img, tfile=None, version='unknown', withBasic=True, window=bLUeTop
     :param withBasic:
     :type  withBasic: boolean
     :param window:
-    :type  window: QWidget
+    :type  window: Form1
     """
 
     tabBar = window.tabBar
@@ -482,7 +482,7 @@ def openFile(f, window=bLUeTop.Gui.window):
     :param f: file name
     :type  f: str
     :param window:
-    :type  window: QWidget
+    :type  window: Form1
     """
     iobuf = None
     sourceformat = path.basename(f)[-4:].upper()
@@ -565,15 +565,15 @@ def saveFile(filename, img, quality=-1, compression=-1, writeMeta=True):
     if isfile(filename):
         reply = QMessageBox()
         reply.setWindowTitle('Warning')
-        reply.setIcon(QMessageBox.Warning)
+        reply.setIcon(QMessageBox.Icon.Warning)
         reply.setText("File %s already exists\n" % filename)
-        reply.setStandardButtons(QMessageBox.Cancel)
+        reply.setStandardButtons(QMessageBox.StandardButton.Cancel)
         accButton = QPushButton("Save as New Copy")
         rejButton = QPushButton("OverWrite")
         if img.profileChanged:
             rejButton.setEnabled(False)
-        reply.addButton(accButton, QMessageBox.AcceptRole)
-        reply.addButton(rejButton, QMessageBox.RejectRole)
+        reply.addButton(accButton, QMessageBox.ButtonRole.AcceptRole)
+        reply.addButton(rejButton, QMessageBox.ButtonRole.RejectRole)
         reply.setDefaultButton(accButton)
         reply.exec()
         retButton = reply.clickedButton()
@@ -705,7 +705,7 @@ def setDocumentImage(img, window=bLUeTop.Gui.window):
     :param img: image
     :type  img: imImage
     :param window:
-    :type  window: QWidget
+    :type  window: Form1
     """
     if img is None:
         return
@@ -862,7 +862,7 @@ def menuFile(name, window=bLUeTop.Gui.window):
     :param name: action name
     :type  name: str
     :param window:
-    :type  window: QWidget
+    :type  window: Form1
     """
     # new document
     if name == 'actionNew_2':
@@ -944,7 +944,7 @@ def menuView(name, window=bLUeTop.Gui.window):
     :param name: action name
     :type  name: str
     :param window:
-    :type  window: QWidget
+    :type  window: Form1
     """
     ##################
     # before/after mode
@@ -967,12 +967,12 @@ def menuView(name, window=bLUeTop.Gui.window):
         if getattr(window, 'diaporamaGenerator', None) is not None:
             reply = QMessageBox()
             reply.setWindowTitle('Question')
-            reply.setIcon(QMessageBox.Information)
+            reply.setIcon(QMessageBox.Icon.Information)
             reply.setText("A diaporama was suspended. Resume ?")
-            reply.setStandardButtons(QMessageBox.No | QMessageBox.Yes)
-            reply.setDefaultButton(QMessageBox.Yes)
+            reply.setStandardButtons(QMessageBox.StandardButton.No | QMessageBox.StandardButton.Yes)
+            reply.setDefaultButton(QMessageBox.StandardButton.Yes)
             ret = reply.exec()
-            if ret == QMessageBox.No:
+            if ret == QMessageBox.StandardButton.No:
                 window.diaporamaGenerator = None
         else:
             window.diaporamaGenerator = None
@@ -981,7 +981,7 @@ def menuView(name, window=bLUeTop.Gui.window):
             lastDir = path.join(str(window.settings.value('paths/dlgdir', '.')), path.pardir)
             dlg = QFileDialog(window, "Select a folder to start the diaporama", lastDir)
             # dlg.setNameFilters(IMAGE_FILE_NAME_FILTER)
-            dlg.setFileMode(QFileDialog.Directory)
+            dlg.setFileMode(QFileDialog.FileMode.Directory)
             diaporamaList = []
             # directory dialog
             if dlg.exec():
@@ -1001,8 +1001,8 @@ def menuView(name, window=bLUeTop.Gui.window):
         lastDir = path.join(str(window.settings.value('paths/dlgdir', '.')), path.pardir)
         dlg = QFileDialog(window, "select", lastDir)
         dlg.setNameFilters(IMAGE_FILE_NAME_FILTER)
-        dlg.setFileMode(QFileDialog.Directory)
-        dlg.setOptions(QFileDialog.DontUseNativeDialog)  # Native Dialog is too slow
+        dlg.setFileMode(QFileDialog.FileMode.Directory)
+        dlg.setOptions(QFileDialog.Option.DontUseNativeDialog)  # Native Dialog is too slow
         # open dialog
         if dlg.exec():
             newDir = dlg.selectedFiles()[0]  # dlg.directory().absolutePath()
@@ -1029,7 +1029,7 @@ def menuImage(name, window=bLUeTop.Gui.window):
     :param name: action name
     :type  name: str
     :param window:
-    :type  window: QWidget
+    :type  window: Form1
     """
     img = window.label.img
 
@@ -1198,12 +1198,17 @@ def menuImage(name, window=bLUeTop.Gui.window):
                 img.profileChanged = True  # prevent overwriting image file
 
                 if name == 'actionConvert_To_Profile':
-                    transform = ImageCms.buildTransformFromOpenProfiles(oldprofile,
-                                                                        profile,
-                                                                        "RGB",
-                                                                        "RGB",
-                                                                        renderingIntent=ImageCms.Intent.PERCEPTUAL
-                                                                        )
+                    try:
+                        transform = ImageCms.buildTransformFromOpenProfiles(oldprofile,
+                                                                            profile,
+                                                                            "RGB",
+                                                                            "RGB",
+                                                                            renderingIntent=ImageCms.Intent.PERCEPTUAL
+                                                                            )
+                    except ImageCms.PyCMSError:
+                        dlgWarn("PyCMSError : can't build transform")
+                        raise
+
                     icc.convertQImage(img, transform, inPlace=True)
                     # update background layer
                     QImageBuffer(img.layersStack[0])[...] = QImageBuffer(img)
@@ -1248,7 +1253,14 @@ def getPool():
 
 def menuLayer(name, window=bLUeTop.Gui.window, sname=None, script=False):
     """
-    Menu Layer handler and scripting.
+    Menu layer handler
+    """
+    layerScripting(name, window=window, sname=sname, script=script)
+
+
+def layerScripting(name, window=bLUeTop.Gui.window, sname=None, script=False):
+    """
+    Layer scripting.
     Creates a layer and its associated graphic form.
     Returns the newly created layer or None.
 
@@ -1601,11 +1613,11 @@ def menuLayer(name, window=bLUeTop.Gui.window, sname=None, script=False):
                 if isfile(filename):
                     reply = QMessageBox()
                     reply.setWindowTitle('Warning')
-                    reply.setIcon(QMessageBox.Warning)
+                    reply.setIcon(QMessageBox.Icon.Warning)
                     reply.setText("File %s already exists\n" % filename)
-                    reply.setStandardButtons(QMessageBox.Cancel)
+                    reply.setStandardButtons(QMessageBox.StandardButton.Cancel)
                     accButton = QPushButton("OverWrite")
-                    reply.addButton(accButton, QMessageBox.AcceptRole)
+                    reply.addButton(accButton, QMessageBox.ButtonRole.AcceptRole)
                     reply.exec()
                     retButton = reply.clickedButton()
                     if retButton is not accButton:
@@ -1644,7 +1656,7 @@ def menuHelp(name, window=bLUeTop.Gui.window):
     :param name: action name
     :type  name: str
     :param window:
-    :type  window: QWidget
+    :type  window: Form1
     """
     if name == "actionBlue_help":
         w = bLUeTop.Gui.app.focusWidget()
@@ -1679,7 +1691,7 @@ def canClose(index=None, window=bLUeTop.Gui.window):
     :param index: a valid tab index or None
     :type  index: int or None
     :param window:
-    :type  window:
+    :type  window: Form1
     :return:
     :rtype: boolean
     """
@@ -1692,12 +1704,11 @@ def canClose(index=None, window=bLUeTop.Gui.window):
         if img.isModified:
             if ind != window.tabBar.currentIndex():
                 window.tabBar.setCurrentIndex(ind)
-                # dlgWarn('Image was modified', info='Save it first')  # TODO removed 19/12/21 validate
                 return False
             try:
                 # save/discard dialog
                 ret = saveChangeDialog(img)
-                if ret == QMessageBox.Save:
+                if ret == QMessageBox.StandardButton.Save:
                     if img.useThumb:
                         dlgWarn("Uncheck Preview Mode before saving")
                         return False
@@ -1710,7 +1721,7 @@ def canClose(index=None, window=bLUeTop.Gui.window):
                     dlgInfo("%s written" % filename)
                     window.tabBar.removeTab(ind)
                     return True
-                elif ret == QMessageBox.Cancel:
+                elif ret == QMessageBox.StandardButton.Cancel:
                     return False
             except (ValueError, IOError) as e:
                 dlgWarn(str(e))
@@ -1810,7 +1821,7 @@ def screenUpdate(newScreenIndex, window=bLUeTop.Gui.window):
     :param newScreenIndex:
     :type  newScreenIndex: QScreen
     :param window:
-    :type  window: QWidget
+    :type  window: Form1
     """
     window.screenChanged.disconnect()
     # update the color management object using the profile associated with the current monitor
@@ -1837,7 +1848,7 @@ def setRightPane(window=bLUeTop.Gui.window):
     loaded from blue.ui
     """
     # clean dock area
-    window.setTabPosition(Qt.RightDockWidgetArea, QTabWidget.East)
+    window.setTabPosition(Qt.RightDockWidgetArea, QTabWidget.TabPosition.East)
     window.removeDockWidget(window.dockWidget)
     # redo the layout of window.dockWidget (from blue.ui)
     widget = window.dockWidget.widget()
@@ -1850,7 +1861,7 @@ def setRightPane(window=bLUeTop.Gui.window):
     window.propertyWidget.setLayout(vl)
 
     # Force tableView frame style to a value working on Mac OS also
-    window.tableView.setFrameStyle(QFrame.Box | QFrame.Plain)
+    window.tableView.setFrameStyle(QFrame.Shape.Box | QFrame.Shadow.Plain)
 
     # reinit the dockWidgetContents (created by blue.ui) layout to
     # nest it in a QHboxLayout containing a left stretch
@@ -1949,7 +1960,7 @@ def setupGUI(window=bLUeTop.Gui.window):
     Display splash screen, set app style sheet
 
     :param window:
-    :type  window:
+    :type  window: Form1
     """
     # splash screen
     splash = QSplashScreen(QPixmap('logo.png'), Qt.WindowStaysOnTopHint)
@@ -2071,7 +2082,7 @@ def setupGUI(window=bLUeTop.Gui.window):
 
     for slider in [window.verticalSlider1, window.verticalSlider2, window.verticalSlider3, window.verticalSlider4]:
         toolBar.addWidget(QLabel(slider.toolTip() + '  '))
-        slider.setTickPosition(QSlider.TicksBelow)
+        slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         slider.setMaximumSize(100, 15)
         toolBar.addWidget(slider)
         empty = QWidget()

@@ -84,8 +84,8 @@ class index(object):
 class nodeGroup(QGraphicsItemGroup, QObject):  # QObject needed by disconnect()
     UID = 0
 
-    @classmethod
-    def groupFromList(cls, items, grid=None, position=QPointF(), parent=None):
+    @staticmethod
+    def groupFromList(items, grid=None, position=QPointF(), parent=None):
         """
         Inits a new group and adds all activeNode objects from list to the group.
 
@@ -137,12 +137,14 @@ class nodeGroup(QGraphicsItemGroup, QObject):  # QObject needed by disconnect()
         self.normalizedLUTXY = np.arange(256, dtype=float) / 255.0
 
         def f8():
-            try:  # safety first : sometimes, disconnecting seems problematic
+            # scene selectionChanged slot
+            try:  # a destroyed group is not immediately disconnected
                 self.brightnessItem.setVisible(self.isSelected())
             except RuntimeError:
-                print('nodeGroup : calling method of a destroyed group')
+                # print('nodeGroup : calling method of a destroyed group')
+                pass
 
-        self.scene().selectionChanged.connect(f8)  # don't forget to disconnect before destroying group !
+        self.scene().selectionChanged.connect(f8)  # disconnect before destroying group !
 
         def f5(e, x, y):
             self.brightnessItem.brightnessThr0.val = self.brightnessItem.brightnessThr0.pos().x() / self.brightnessItem.brightnessSliderWidth
@@ -560,9 +562,10 @@ class activeNode(QGraphicsPathItem):
             thr0, thr1 = prt.brightnessItem.brightnessThr0.val, prt.brightnessItem.brightnessThr1.val
         else:
             thr0, thr1 = 0.0, 1.0
+        smooth = 0.1  # constant controlling progressiveness of brightness correction
         for x in self.LUTIndices:
             p = x.p
-            final_p = brLUT[int(p * 255.0)] if isGrouped else p
+            final_p = smooth * brLUT[int(p * 255.0)] + (1.0 - smooth) * p if isGrouped else p
             i, j, k = x.ind
             slc1 = slice(max(k - spread, 0), k + spread + 1)
             slc2 = slice(max(j - spread, 0), j + spread + 1)
@@ -782,11 +785,16 @@ class activeNode(QGraphicsPathItem):
         actionControl.toggled.connect(lambda b: self.setControl(b))
         actionGroup = QAction('Group', None)
         menu.addAction(actionGroup)
-        actionGroup.triggered.connect(lambda: nodeGroup.groupFromList(self.scene().selectedItems(),
-                                                                      grid=self.grid,
-                                                                      position=self.pos(),
-                                                                      # scenePos(),
-                                                                      parent=self.parentItem()))
+
+        def f0():
+            gr = nodeGroup.groupFromList(self.scene().selectedItems(),
+                                         grid=self.grid,
+                                         position=self.pos(),
+                                         parent=self.parentItem()
+                                        )
+
+
+        actionGroup.triggered.connect(f0)
         actionGroup.setEnabled(len(self.scene().selectedItems()) > 1)
         actionSync = QAction('Resync', None)
         menu.addAction(actionSync)
@@ -873,8 +881,8 @@ class activeGrid(QGraphicsPathItem):
         parameter node is added or moved to the end of history list.
         An unmoved node is removed from history.
 
-        :param n:
-        :type n:  activeNode
+        :param node:
+        :type node:  activeNode
         """
         try:
             self.historyListMove.remove(node)
@@ -1024,7 +1032,7 @@ class nodeEditor(QGraphicsPixmapItem):
        :param cModel: color model
        :type cModel: cmConverter
        :param QImg: color wheel
-       :type QImg: bImage
+       :type QImg: hueSatPattern
        :param target: image to sample
        :type target: QImage
        :param size: color wheel diameter

@@ -28,33 +28,51 @@ from collections import OrderedDict
 import tifffile
 
 from PIL.ImageCms import ImageCmsProfile
-from PySide6.QtCore import Qt, QSize, QPoint, QPointF, QFileInfo, QByteArray, QBuffer, QIODevice
+from PySide6.QtCore import Qt, QSize, QPoint, QPointF, QFileInfo, QByteArray, QBuffer, QIODevice, QRectF
 
 import cv2
 from copy import copy
 
 from PySide6.QtGui import QTransform, QColor, QPixmap, QImage, QPainter
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QSplitter
 from PySide6.QtCore import QRect
 
 import bLUeGui.blend
+import bLUeTop
+from bLUeCore.bLUeLUT3D import LUT3D
+from bLUeCore.dwtDenoising import dwtDenoiseChan, dwtDenoise, chooseDWTLevel
+from bLUeCore.kernel import filterIndex, getKernel
+from bLUeCore.multi import chosenInterp
+from bLUeGui.colorCIE import Lab2sRGBVec, bbTemperature2RGB, RGB2XYZ, rgbLinear2rgb, rgb2rgbLinear
+from bLUeGui.colorCube import hsp2rgbVec, hsv2rgbVec
+from bLUeGui.gradient import hsvGradientArray, setLUTfromGradient
+from bLUeGui.histogramWarping import warpHistogram
+from bLUeGui.multiplier import temperatureAndTint2Multipliers
+
 from bLUeTop import exiftool
 from bLUeGui.memory import weakProxy
-from bLUeTop.cloning import contours, moments, seamlessClone
+from bLUeTop.align import alignImages
+from bLUeTop.cloning import contours, moments, seamlessClone, alphaBlend
 
 from bLUeTop.colorManagement import icc
 from bLUeGui.bLUeImage import QImageBuffer, ndarrayToQImage, bImage
 from bLUeGui.dialog import dlgWarn, dlgInfo, IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, BLUE_FILE_EXTENSIONS
 from time import time
 
+from bLUeTop.graphicsBlendFilter import blendFilterIndex
 from bLUeTop.lutUtils import LUT3DIdentity
 from bLUeGui.baseSignal import baseSignal_bool, baseSignal_Int2, baseSignal_No
-from bLUeTop.rawProcessing import rawRead
-from bLUeTop.utils import qColorToRGB, historyList
+from bLUeTop.mergeImages import expFusion
+from bLUeTop.rawProcessing import rawRead, rawPostProcess
+from bLUeTop.settings import HAS_TORCH
+from bLUeTop.utils import qColorToRGB, historyList, UDict
 
 from bLUeTop.versatileImg import vImage
 
 from version import BLUE_VERSION
+
+if HAS_TORCH:
+    from bLUeNN.classify import generateLUTfromQImage
 
 
 class ColorSpace:
@@ -118,6 +136,7 @@ class mImage(vImage):
         self.prLayer = prLayer
         # link to rawpy instance
         self.rawImage = None
+        self.sourceformat = ''  # needed to save as bLU file
 
     @property
     def colorTransformation(self):
@@ -354,7 +373,7 @@ class mImage(vImage):
             return
         self.useThumb = value
         # recalculate the whole stack
-        self.layerStack[0].apply()
+        self.layersStack[0].apply()
 
     def updatePixmap(self):
         """
@@ -895,7 +914,35 @@ class imImage(mImage):
         self.xOffset, self.yOffset = 0, 0
         self.isMouseSelectable = True
         self.isModified = False
-        self.sourceformat = ''  # needed to save as bLU file
+
+    def resize_coeff(self, widget):
+        """
+        Normalization of self.Zoom_coeff.
+        Return the current resizing coefficient used by
+        the widget paint event handler to display the image.
+        The coefficient is chosen to initially (i.e. when self.Zoom_coeff = 1)
+        fill the widget without cropping.
+        For split views we use the size of the QSplitter parent
+        container instead of the size of the widget.
+
+       :param widget:
+       :type widget: imageLabel
+       :return: the (multiplicative) resizing coefficient
+       :rtype: float
+        """
+        if widget.window.asButton.isChecked():
+            # actual size
+            return 1.0
+        wp = widget.parent()
+        if type(wp) == QSplitter:
+            widget = wp
+        w, h = self.width(), self.height()
+        r_w, r_h = float(widget.width()) / w, float(widget.height()) / h
+        if h > w:
+            r = min(r_w, r_h)  # prevent cropping in diaporama for portrait mode
+        else:
+            r = max(r_w, r_h)
+        return r * self.Zoom_coeff
 
     def bTransformed(self, transformation):
         """
@@ -1011,10 +1058,11 @@ class QLayer(vImage):
         if self.role in ['CONTRAST', 'RAW']:
             self.autoSpline = True
         self.tool = None
-        # back link to parent image
         parentImage = kwargs.pop('parentImage', None)
+        super().__init__(*args, **kwargs)  # don't move
+        # init back link to parent image : don't move
         self.parentImage = weakProxy(parentImage)
-        super().__init__(*args, **kwargs)  # don't move backwards
+
         # layer opacity, range 0.0...1.0
         self.opacity = 1.0
         self.compositionMode = QPainter.CompositionMode_SourceOver
@@ -1175,7 +1223,7 @@ class QLayer(vImage):
         :param transformation:
         :type transformation: QTransform
         :param parentImage:
-        :type parentImage: vImage
+        :type parentImage: mImage
         :return: transformed layer
         :rtype: QLayer
         """
@@ -1216,21 +1264,6 @@ class QLayer(vImage):
         buf1[:, :, :3] = buf0
         buf1[:, :, 3] = 255
         self.hald.parentImage = self.parentImage
-
-    def getHald(self):
-        if not self.cachesEnabled:
-            s = int(LUT3DIdentity.size ** (3.0 / 2.0)) + 1
-            buf0 = LUT3DIdentity.toHaldArray(s, s).haldBuffer
-            # self.hald = QLayer(QImg=QImage(QSize(190,190), QImage.Format_ARGB32))
-            hald = QImage(QSize(s, s), QImage.Format_ARGB32)
-            buf1 = QImageBuffer(hald)
-            buf1[:, :, :3] = buf0
-            buf1[:, :, 3] = 255
-            hald.parentImage = self.parentImage
-            return hald
-        if self.hald is None:
-            self.initHald()
-        return self.hald
 
     def getCurrentImage(self):
         """
@@ -1723,6 +1756,1105 @@ class QLayer(vImage):
         if grForm is not None:
             grForm.__setstate__(state)
 
+    def getCurrentSelCoords(self, emptyAllowed=False):
+        """
+        Returns the list of (left, right, top, bottom) coordinates of the selection rectangles.
+        Coordinates are relative to the current image.
+        If emptyAllowed is False and the selection is empty, the current image coordinates are returned.
+
+        :param emptyAllowed:
+        :type emptyAllowed:
+        :return:
+        :rtype: list of 4-uples of int
+        """
+        currentImage = self.getCurrentImage()
+        w, h = currentImage.width(), currentImage.height()
+        wF, hF = self.width(), self.height()
+        wRatio, hRatio = float(w) / wF, float(h) / hF
+
+        selList = []
+        for rect in self.sRects:
+            w1, w2, h1, h2 = int(rect.left() * wRatio), int(rect.right() * wRatio), int(
+                rect.top() * hRatio), int(rect.bottom() * hRatio)
+            w1, h1 = max(w1, 0), max(h1, 0)
+            w2, h2 = min(w2, w), min(h2, h)
+            if w1 <= w2 and h1 <= h2:
+                selList.append((w1, w2, h1, h2))
+
+        if not selList:
+            selList.append((0, w, 0, h))
+
+        return selList
+
+    def applyNone(self):
+        """
+        Pass through
+        """
+        imgIn = self.inputImg()
+        bufIn = QImageBuffer(imgIn)
+        bufOut = QImageBuffer(self.getCurrentImage())
+        bufOut[:, :, :] = bufIn
+        self.updatePixmap()
+
+
+    def applyGrabcut(self, nbIter=2, mode=cv2.GC_INIT_WITH_MASK):
+        """
+        Segmentation.
+        The segmentation mask is built from the selection rectangle, if any, and from
+        the user selection.
+
+        :param nbIter:
+        :type nbIter: int
+        :param mode:
+        :type mode:
+        """
+        invalid = vImage.defaultColor_Invalid.green()
+        form = self.getGraphicsForm()
+        # formOptions = form.listWidget1
+        inputImg = self.inputImg()
+        ##################################################################
+        # pass through
+        # grabcut is done only when clicking the Apply button of segmentForm.
+        # No grabcut for hald image
+        if self.noSegment or self.parentImage.isHald:
+            inBuf = QImageBuffer(inputImg)
+            outputImg = self.getCurrentImage()
+            outBuf = QImageBuffer(outputImg)
+            outBuf[:, :, :] = inBuf
+            self.updatePixmap()
+            return
+
+        # resizing coeff
+        r = inputImg.width() / self.width()
+
+        ############################
+        # init the segmentation mask
+        ############################
+        if not self.sRects:
+            # no selection rectangle : PR_BGD everywhere
+            segMask = np.zeros((inputImg.height(), inputImg.width()), dtype=np.uint8) + cv2.GC_PR_BGD
+        else:
+            # PR_FGD inside selection, BGD otherwise
+            segMask = np.zeros((inputImg.height(), inputImg.width()), dtype=np.uint8) + cv2.GC_BGD
+            for rect in self.sRects:
+                segMask[int(rect.top() * r):int(rect.bottom() * r),
+                int(rect.left() * r):int(rect.right() * r)] = cv2.GC_PR_FGD
+
+        # add info from current self.innerSegMask to segMask
+        # Only valid pixels are added to segMask, fixing them as FG or BG
+        # initially (i.e. before any painting with BG/FG tools and before first call to applygrabcut)
+        # all pixels are marked as invalid. Painting a pixel marks it as valid, Ctrl+paint
+        # switches it back to invalid.
+
+        if inputImg.size() != self.size():
+            scaledMask = self.mask.scaled(inputImg.width(), inputImg.height())
+        else:
+            scaledMask = self.mask
+        scaledMaskBuf = QImageBuffer(scaledMask)
+
+        # copy valid pixels from scaledMaskBuf to the segmentation mask
+        m = (scaledMaskBuf[:, :, 2] > 100) * (scaledMaskBuf[:, :, 1] != invalid)  # R>100 is unmasked, R=0 is masked
+        segMask[m] = cv2.GC_FGD
+        m = (scaledMaskBuf[:, :, 2] == 0) * (scaledMaskBuf[:, :, 1] != invalid)
+        segMask[m] = cv2.GC_BGD
+        # sanity check : at least one (FGD or PR_FGD)  pixel and one (BGD or PR_BGD) pixel
+        if not ((np.any(segMask == cv2.GC_FGD) or np.any(segMask == cv2.GC_PR_FGD))
+                and
+                (np.any(segMask == cv2.GC_BGD) or np.any(segMask == cv2.GC_PR_BGD))):
+            dlgWarn('You must select some background or foreground pixels',
+                    info='Use selection rectangle or Mask/Unmask tools')
+            return
+        #############
+        # do segmentation
+        #############
+        bgdmodel = np.zeros((1, 13 * 5), np.float64)  # Temporary array for the background GMM model
+        fgdmodel = np.zeros((1, 13 * 5), np.float64)  # Temporary array for the foreground GMM model
+        t0 = time()
+        inputBuf = QImageBuffer(inputImg)
+        # get the fastest available grabcut function
+        if getattr(cv2, 'grabCut_mt', None) is None:
+            bGrabcut = cv2.grabCut
+        else:
+            bGrabcut = cv2.grabCut_mt
+        bGrabcut(inputBuf[:, :, :3], segMask, None, bgdmodel, fgdmodel, nbIter, mode)
+        print('%s : %.2f' % (bGrabcut.__name__, (time() - t0)))
+
+        # back to mask
+        unmasked = vImage.defaultColor_UnMasked.red()
+        masked = vImage.defaultColor_Masked.red()
+        buf = QImageBuffer(scaledMask)
+        buf[:, :, 2] = np.where((segMask == cv2.GC_FGD) + (segMask == cv2.GC_PR_FGD), unmasked, masked)
+        buf[:, :, 3] = 128  # 50% opacity
+
+        # mark all mask pixels as valid, thus
+        # further calls to applyGrabcut will not be
+        # able to modify them. To enable further modifications
+        # paint mask pixels white holding the Ctrl key.
+        buf[:, :, 1] = 0
+
+        invalidate_contour = form.contourMargin > 0
+        # invalidate a stripe around the foreground/background boundary.
+        # its width is 5 * form.contourMargin
+        if invalidate_contour:
+            # build the contour as a boolean mask
+            maxIterations = form.contourMargin
+            ebuf = vImage.maskErode(buf.copy(), iterations=maxIterations)
+            dbuf = vImage.maskDilate(buf.copy(), iterations=maxIterations)
+            m = ((buf[:, :, 2] == 0) & (ebuf[:, :, 2] == unmasked)) | (
+                    (buf[:, :, 2] == unmasked) & (dbuf[:, :, 2] == 0))
+            # mark contour pixels as invalid and others as valid : the contour only can be modified
+            buf[:, :, 1] = np.where(m, invalid, 0)
+
+        """
+        # dilate the mask to remove background dithering
+        # iteration count should be <= maxIterations
+        dbuf = vImage.maskDilate(buf.copy(), iterations=min(form.contourMargin, maxIterations))
+        innerCbMask = ((buf[:, :, 2] == unmasked) & (dbuf[:, :, 2] == 0))
+        buf[:, :, 2] = np.where(innerCbMask, 0, buf[:,:,2]) # [innerCbMask] = 0
+        """
+
+        if self.size() != scaledMask.size():
+            self.mask = scaledMask.scaled(self.size())
+        else:
+            self.mask = scaledMask
+
+        # forward the alpha channel
+        # should we forward it?
+        self.updatePixmap()
+
+    def applyInvert(self):
+        """
+        Invert an  image. Depending of the graphics form options,
+        the orange mask is estimated automaically or set from
+        the graphic form parameters.
+        """
+        adjustForm = self.getGraphicsForm()
+        options = adjustForm.options if adjustForm is not None else {'Auto': True}
+        bufIn = QImageBuffer(self.inputImg())[:, :, :3]
+        if options['Auto']:
+            # get orange mask from negative brightest (unexposed) pixels
+            temp = np.sum(bufIn, axis=2)
+            ind = np.argmax(temp)
+            ind = np.unravel_index(ind, (bufIn.shape[0], bufIn.shape[1]))
+            Mask0, Mask1, Mask2 = bufIn[ind]
+        else:
+            Mask0, Mask1, Mask2 = adjustForm.Bmask, adjustForm.Gmask, adjustForm.Rmask
+        currentImage = self.getCurrentImage()
+        bufOut = QImageBuffer(currentImage)
+        # eliminate mask
+        tmp = bufIn[:, :, :3] / [Mask0, Mask1, Mask2]
+        tmp *= 255
+        np.clip(tmp, 0, 255, out=tmp)
+        # invert
+        bufOut[:, :, :3] = 255.0 - tmp
+        self.updatePixmap()
+
+    def applyHDRMerge(self, options):
+        # search for layers to merge, below the merging layer
+        stack = self.parentImage.layersStack
+        i = self.getStackIndex()
+        mergingLayers = []
+        for layer in stack[:i]:
+            if layer.visible and layer.mergingFlag:
+                mergingLayers.append(layer)
+        # pass through
+        if not mergingLayers:
+            inputImg = self.inputImg()
+            inBuf = QImageBuffer(inputImg)
+            outputImg = self.getCurrentImage()
+            outBuf = QImageBuffer(outputImg)
+            outBuf[:, :, :] = inBuf
+            self.updatePixmap()
+            return
+        bufList = []
+        pred = None
+        for layer in mergingLayers:
+            img = layer.getCurrentImage()
+            buf = QImageBuffer(img)
+            if pred is not None:
+                buf[...] = alignImages(buf, pred)
+            bufList.append(buf[:, :, :3])
+
+        # buf = np.stack(bufList, axis=-1)
+        # buf = np.median(buf, axis=-1)
+        buf = expFusion(bufList)
+        imgOut = self.getCurrentImage()
+        bufOut = QImageBuffer(imgOut)
+        bufOut[..., :3] = buf
+        self.updatePixmap()
+
+    def applyExposure(self, options):
+        """
+        Multiply the linearized RGB channels by
+        c = 2**exposureCorrection.
+
+        :param options:
+        :type options:
+        """
+        form = self.getGraphicsForm()
+        exposureCorrection = form.expCorrection
+        # neutral point
+        if abs(exposureCorrection) < 0.05:
+            buf0 = QImageBuffer(self.getCurrentImage())
+            buf1 = QImageBuffer(self.inputImg())
+            buf0[:, :, :] = buf1
+            self.updatePixmap()
+            return
+        bufIn = QImageBuffer(self.inputImg())
+        buf = bufIn[:, :, :3][:, :, ::-1]
+        # convert to linear
+        buf = rgb2rgbLinear(buf)
+        # apply correction
+        buf *= (2 ** exposureCorrection)
+        np.clip(buf, 0.0, 1.0, out=buf)
+        # convert back to RGB
+        buf = rgbLinear2rgb(buf)
+        np.clip(buf, 0.0, 255.0, out=buf)
+        currentImage = self.getCurrentImage()
+        ndImg1a = QImageBuffer(currentImage)
+
+        ndImg1a[...] = bufIn
+        for (w1, w2, h1, h2) in self.getCurrentSelCoords():
+            ndImg1a[h1:h2 + 1, w1:w2 + 1, :3][:, :, ::-1] = buf[h1:h2 + 1, w1:w2 + 1]
+
+        self.updatePixmap()
+
+    def applyMixer(self, options):
+        form = self.getGraphicsForm()
+        bufIn = QImageBuffer(self.inputImg())
+        buf = bufIn[:, :, :3][:, :, ::-1]
+        # convert to linear
+        buf = rgb2rgbLinear(buf)
+        # mix channels
+        currentImage = self.getCurrentImage()
+        bufOut = QImageBuffer(currentImage)
+        buf = np.tensordot(buf, form.mixerMatrix, axes=(-1, -1))
+        np.clip(buf, 0, 1.0, out=buf)
+        # convert back to RGB
+        buf = rgbLinear2rgb(buf)
+
+        bufOut[...] = bufIn
+        for (w1, w2, h1, h2) in self.getCurrentSelCoords():
+            bufOut[h1:h2 + 1, w1:w2 + 1, :3][:, :, ::-1] = np.round(
+                buf[h1:h2 + 1, w1:w2 + 1])  # truncation would be harmful here
+
+        self.updatePixmap()
+
+    def applyTransForm(self, options):
+        """
+        Apply the geometric transformation defined by source and target quads.
+
+        :param options:
+        :type options:
+        """
+        inImg = self.inputImg()
+        outImg = self.getCurrentImage()
+        buf0 = QImageBuffer(outImg)
+        w, h = inImg.width(), inImg.height()
+        s = w / self.width()
+        D = QTransform().scale(s, s)
+        DInv = QTransform().scale(1 / s, 1 / s)
+        q1Full, q2Full = self.tool.getSourceQuad(), self.tool.getTargetQuad()
+        # map Quads to the current image coordinate system
+        q1, q2 = D.map(q1Full), D.map(q2Full)
+        # build transformation
+        T = QTransform()
+        res = QTransform.quadToQuad(q1, q2, T)
+        if not res:
+            print('applyTransform : no possible transformation')
+            self.tool.restore()
+            return
+        # neutral point
+        if T.isIdentity():
+            buf1 = QImageBuffer(inImg)
+            buf0[:, :, :] = buf1
+            self.updatePixmap()
+            return
+        # get the bounding rect of the transformed image (in the full size image coordinate system)
+        # (Avoid the conversion of QTransforms to QMatrix4x4 and matrix product)
+        rectTrans = DInv.map(T.map(D.map(QImage.rect(self)))).boundingRect()
+        # apply the transformation and re-translate the transformed image
+        # so that the resulting transformation is T and NOT that given by QImage.trueMatrix()
+        img = (inImg.transformed(T)).copy(QRect(-rectTrans.x() * s, -rectTrans.y() * s, w, h))
+        # copy sets pixels beyond image to 0. To show these pixels
+        # as black we set their alpha value to 255:
+        if options['Transparent']:
+            buf = QImageBuffer(img)
+            buf[:, :, 3] = np.where(buf[:, :, 3] == 0, 255, buf[:, :, 3])
+        if img.isNull():
+            print('applyTransform : transformation fails')
+            self.tool.restore()
+            return
+        buf0[:, :, :] = QImageBuffer(img)
+        self.updatePixmap()
+
+    def applyNoiseReduction(self):
+        """
+        Wavelets, bilateral filtering, NLMeans
+        """
+        adjustForm = self.getGraphicsForm()
+        noisecorr = adjustForm.noiseCorrection  # range 0..10
+        currentImage = self.getCurrentImage()
+        inputImage = self.inputImg()
+        buf0 = QImageBuffer(inputImage)
+        buf1 = QImageBuffer(currentImage)
+        ########################
+
+        # hald pass through or no correction
+        if self.parentImage.isHald or noisecorr == 0:
+            buf1[...] = buf0
+            self.updatePixmap()
+            return
+        ########################
+        w, h = self.width(), self.height()
+        w0, h0 = inputImage.width(), inputImage.height()
+
+        # reset output image
+        buf1[...] = buf0
+        for w1, w2, h1, h2 in self.getCurrentSelCoords():
+            # slicing
+            rect = QRect(w1, h1, w2 - w1, h2 - h1)
+            imgRect = QRect(0, 0, w0, h0)
+            rect = rect.intersected(imgRect)
+            if rect.width() < 10 or rect.height() < 10:
+                dlgWarn('Selection is too narrow')
+                return
+            slices = np.s_[rect.top(): rect.bottom(), rect.left(): rect.right(), :3]
+            ROI0 = buf0[slices]
+
+            ROI1 = buf1[slices]
+            buf01 = ROI0[:, :, ::-1]
+
+            if adjustForm.options['Wavelets']:
+                wavelet = 'haar'
+                level = chooseDWTLevel(buf01, wavelet)
+
+                if adjustForm.options['Luminosity']:
+                    bufLab = cv2.cvtColor(buf01, cv2.COLOR_RGB2Lab)
+                    bufLab[..., 0] = dwtDenoiseChan(bufLab, chan=0, thr=noisecorr, thrmode='wiener', level=level,
+                                                    wavelet=wavelet)
+
+                    bufLab[..., 0] = np.clip(bufLab[..., 0], 0, 255)
+
+                    # back to RGB
+                    ROI1[:, :, ::-1] = cv2.cvtColor(bufLab.astype(np.uint8), cv2.COLOR_Lab2RGB)
+
+                elif adjustForm.options['RGB']:
+                    dwtDenoise(ROI0, ROI1, thr=noisecorr, thrmode='wiener', wavelet=wavelet, level=level)
+
+            elif adjustForm.options['Bilateral']:
+                ROI1[:, :, ::-1] = cv2.bilateralFilter(buf01,
+                                                       9 if self.parentImage.useThumb else 15,
+                                                       # diameter of
+                                                       # (coordinate) pixel neighborhood,
+                                                       # 5 is the recommended value for
+                                                       # fast processing (21:5.5s, 15:3.5s)
+                                                       10 * adjustForm.noiseCorrection,
+                                                       # std deviation sigma
+                                                       # in color space,  100 middle value
+                                                       50 if self.parentImage.useThumb else 150,
+                                                       # std deviation sigma
+                                                       # in coordinate space,
+                                                       # 100 middle value
+                                                       )
+
+            elif adjustForm.options['NLMeans']:
+                # hluminance, hcolor,  last params window sizes 7, 21 are recommended values
+                ROI1[:, :, ::-1] = cv2.fastNlMeansDenoisingColored(buf01, None, 1 + noisecorr, 1 + noisecorr, 7,
+                                                                   21)
+        self.updatePixmap()
+
+    def applyRawPostProcessing(self, pool=None):
+        """
+        Develop raw image.
+        """
+        if self.parentImage.isHald:
+            raise ValueError('Cannot build a 3D LUT from raw stack')
+
+        rawPostProcess(self, pool=pool)
+
+    def applyContrast(self, version='HSV'):
+        """
+        Apply contrast, saturation and brightness corrections.
+        If version is 'HSV' (default), the
+        image is first converted to HSV and next a curve f(x)=x**alpha is applied to
+        the S and V channels. Otherwise, the Lab color space is used :
+        a curve f(x) = x**alpha is applied to the L channel and curves f(x) = x*slope
+        are applied to the a and b channels.
+
+        :param version:
+        :type version: str
+        """
+        adjustForm = self.getGraphicsForm()
+        options = adjustForm.options
+        contrastCorrection = adjustForm.contrastCorrection
+        satCorrection = adjustForm.satCorrection
+        vibCorrection = adjustForm.vibCorrection
+        brightnessCorrection = adjustForm.brightnessCorrection
+        inputImage = self.inputImg()
+        tmpBuf = QImageBuffer(inputImage)
+        currentImage = self.getCurrentImage()
+        ndImg1a = QImageBuffer(currentImage)
+
+        # no correction : forward lower layer
+        if contrastCorrection == 0 and satCorrection == 0 and brightnessCorrection == 0 and vibCorrection == 0:
+            ndImg1a[:, :, :] = tmpBuf
+            self.updatePixmap()
+            return
+
+        ##########################
+        # Lab mode (slower than HSV)
+        ##########################
+        if version == 'Lab':
+            # get l channel (range 0..1)
+            LBuf = inputImage.getLabBuffer().copy()
+            ndImg1a[:, :, :] = tmpBuf
+            for w1, w2, h1, h2 in self.getCurrentSelCoords():
+                LBuf = LBuf[h1:h2 + 1, w1:w2 + 1]
+                if brightnessCorrection != 0:
+                    alpha = (-adjustForm.brightnessCorrection + 1.0)
+                    # tabulate x**alpha
+                    LUT = np.power(np.arange(256) / 255.0, alpha)
+                    # convert L to L**alpha
+                    LBuf[:, :, 0] = LUT[(LBuf[:, :, 0] * 255.0).astype(np.uint8)]
+                # contrast
+                if contrastCorrection > 0:
+                    # CLAHE
+                    if options['CLAHE']:
+                        if self.parentImage.isHald:
+                            raise ValueError('cannot build 3D LUT from CLAHE ')
+                        clahe = cv2.createCLAHE(clipLimit=contrastCorrection, tileGridSize=(8, 8))
+                        clahe.setClipLimit(contrastCorrection)
+                        res = clahe.apply((LBuf[:, :, 0] * 255.0).astype(np.uint8)) / 255.0
+                    # warping
+                    else:
+                        if self.parentImage.isHald and not options['manualCurve']:
+                            raise ValueError(
+                                'A contrast curve was found.\nCheck the option Show Contrast Curve in Cont/Bright/Sat layer')
+                        auto = self.autoSpline and not self.parentImage.isHald
+                        res, a, b, d, T = warpHistogram(LBuf[:, :, 0], warp=contrastCorrection,
+                                                        preserveHigh=options['High'],
+                                                        spline=None if auto else self.getMmcSpline())
+                        # show the spline viewer
+                        if self.autoSpline and options['manualCurve']:
+                            self.getGraphicsForm().setContrastSpline(a, b, d, T)
+                            self.autoSpline = False
+                    LBuf[:, :, 0] = res
+                # saturation
+                if satCorrection != 0:
+                    slope = max(0.1, adjustForm.satCorrection / 25 + 1)
+                    # multiply a and b channels
+                    LBuf[:, :, 1:3] *= slope
+                    LBuf[:, :, 1:3] = np.clip(LBuf[:, :, 1:3], -127, 127)
+            # back to RGB
+            sRGBBuf = Lab2sRGBVec(LBuf)  # use cv2.cvtColor
+
+        ###########
+        # HSV mode
+        ###########
+        else:
+            # get HSV buffer (H, S, V are in range 0..255)
+            HSVBuf0 = inputImage.getHSVBuffer().copy()
+            ndImg1a[:, :, :] = tmpBuf
+            for w1, w2, h1, h2 in self.getCurrentSelCoords():
+                HSVBuf = HSVBuf0[h1:h2 + 1, w1:w2 + 1]
+
+                if brightnessCorrection != 0:
+                    alpha = 1.0 / (
+                            0.501 + adjustForm.brightnessCorrection) - 1.0  # approx. map -0.5...0.0...0.5 --> +inf...1.0...0.0
+                    # tabulate x**alpha
+                    LUT = np.power(np.arange(256) / 255, alpha)
+                    LUT *= 255.0
+                    # convert V to V**alpha
+                    HSVBuf[:, :, 2] = LUT[HSVBuf[:, :, 2]]  # faster than take
+
+                if contrastCorrection > 0:
+                    # CLAHE
+                    if options['CLAHE']:
+                        if self.parentImage.isHald:
+                            raise ValueError('cannot build 3D LUT from CLAHE ')
+                        clahe = cv2.createCLAHE(clipLimit=contrastCorrection, tileGridSize=(8, 8))
+                        clahe.setClipLimit(contrastCorrection)
+                        res = clahe.apply((HSVBuf[:, :, 2]))
+                    # warping
+                    else:
+                        if self.parentImage.isHald and not options['manualCurve']:
+                            raise ValueError(
+                                'A contrast curve was found.\nCheck the option Show Contrast Curve in Cont/Bright/Sat layer')
+                        buf32 = HSVBuf[:, :, 2].astype(float) / 255
+                        auto = self.autoSpline and not self.parentImage.isHald  # flag for manual/auto spline
+                        res, a, b, d, T = warpHistogram(buf32, warp=contrastCorrection, preserveHigh=options['High'],
+                                                        spline=None if auto else self.getMmcSpline())
+                        res = (res * 255.0).astype(np.uint8)
+                        # show the spline viewer
+                        if self.autoSpline and options['manualCurve']:
+                            self.getGraphicsForm().setContrastSpline(a, b, d, T)
+                            self.autoSpline = False
+                    HSVBuf[:, :, 2] = res
+
+                if satCorrection != 0:
+                    # approx. map -0.5...0.0...0.5 --> +inf...1.0...0.0
+                    alpha = 1.0 / (0.501 + satCorrection) - 1.0
+                    # tabulate x**alpha
+                    LUT = np.power(np.arange(256) / 255, alpha)
+                    LUT *= 255
+                    # convert saturation s to s**alpha
+                    HSVBuf[:, :, 1] = LUT[HSVBuf[:, :, 1]]  # faster than take
+
+                if vibCorrection != 0:
+                    # threshold
+                    thr = 0.5
+                    # approx. map -0.5...0.0...0.5 --> +inf...1.0...0.0
+                    alpha = 1.0 / (0.501 + vibCorrection) - 1.0
+                    LUT = np.arange(256) / 255
+                    LUT = np.where(LUT < thr, np.power(LUT / thr, alpha) * thr, LUT)
+                    LUT *= 255
+                    HSVBuf[:, :, 1] = LUT[HSVBuf[:, :, 1]]  # faster than take
+
+            ndImg1a[:, :, :3][:, :, ::-1] = cv2.cvtColor(HSVBuf0, cv2.COLOR_HSV2RGB)  # sRGBBuf
+
+        self.updatePixmap()
+
+    def apply1DLUT(self, stackedLUT):
+        """
+        Apply 1D LUTS to R, G, B channels (one curve for each channel).
+
+        :param stackedLUT: array of color values (in range 0..255) : a row for each R, G, B channel
+        :type stackedLUT : ndarray, shape=(3, 256), dtype=int
+        """
+        # identity LUT: forward lower layer and return
+        if not np.any(stackedLUT - np.arange(256)):  # last dims are equal : broadcast works
+            buf1 = QImageBuffer(self.inputImg())
+            buf2 = QImageBuffer(self.getCurrentImage())
+            buf2[:, :, :] = buf1
+            self.updatePixmap()
+            return
+        adjustForm = self.getGraphicsForm()
+        options = adjustForm.graphicsScene.options
+        inputImage = self.inputImg()
+        currentImage = self.getCurrentImage()
+        # get image buffers
+        ndImg0a = QImageBuffer(inputImage)
+        ndImg1a = QImageBuffer(currentImage)
+        ndImg0 = ndImg0a[:, :, :3]
+        ndImg1 = ndImg1a[:, :, :3]
+
+        # apply LUTS to channels
+        ndImg1a[...] = ndImg0a
+
+        for w1, w2, h1, h2 in self.getCurrentSelCoords():
+            for c in range(3):  # 0.36s for 15Mpx
+                s = ndImg0[h1:h2 + 1, w1:w2 + 1, 0].shape
+                ndImg1[h1:h2 + 1, w1:w2 + 1, c] = np.take(
+                    stackedLUT[2 - c, :],
+                    ndImg0[h1:h2 + 1, w1:w2 + 1, c].reshape((-1,))
+                ).reshape(s)
+
+        self.updatePixmap()
+
+    def applyLab1DLUT(self, stackedLUT, options=None):
+        """
+        Applies 1D LUTS (one row for each L,a,b channel).
+
+        :param stackedLUT: array of color values (in range 0..255). Shape must be (3, 255) : a row for each channel
+        :type stackedLUT: ndarray shape=(3,256) dtype=int or float
+        :param options: not used yet
+        """
+        if options is None:
+            options = UDict()
+
+        # identity LUT : forward lower layer and return
+        if not np.any(stackedLUT - np.arange(256)):  # last dims are equal : broadcast is working
+            buf1 = QImageBuffer(self.inputImg())
+            buf2 = QImageBuffer(self.getCurrentImage())
+            buf2[:, :, :] = buf1
+            self.updatePixmap()
+            return
+
+        # convert LUT to float to speed up  buffer conversions
+        stackedLUT = stackedLUT.astype(float)
+        # get the Lab input buffer
+        Img0 = self.inputImg()
+        ndLabImg0 = Img0.getLabBuffer()  # copy()
+
+        # conversion functions
+
+        def scaleLabBuf(buf):
+            buf = buf + [0.0, 128.0, 128.0]  # copy is mandatory here to avoid the corruption of the cached Lab buffer
+            buf[:, :, 0] *= 255.0
+            return buf
+
+        def scaleBackLabBuf(buf):
+            buf = buf - [0.0, 128.0, 128.0]  # no copy needed here, but seems faster than in place operation!
+            buf[:, :, 0] /= 255.0
+            return buf
+
+        ndLImg0 = scaleLabBuf(ndLabImg0).astype(np.uint8)
+        # apply LUTS to channels
+        s = ndLImg0[:, :, 0].shape
+        ndLabImg1 = np.zeros(ndLImg0.shape, dtype=np.uint8)
+        for c in range(3):  # 0.43s for 15Mpx
+            ndLabImg1[:, :, c] = np.take(stackedLUT[c, :], ndLImg0[:, :, c].reshape((-1,))).reshape(s)
+        ndLabImg1 = scaleBackLabBuf(ndLabImg1)
+        # back sRGB conversion
+        ndsRGBImg1 = Lab2sRGBVec(ndLabImg1)
+        # in place clipping
+        np.clip(ndsRGBImg1, 0, 255, out=ndsRGBImg1)  # mandatory
+
+        currentImage = self.getCurrentImage()
+        ndImg1 = QImageBuffer(currentImage)
+
+        ndImg0 = QImageBuffer(Img0)
+        ndImg1[...] = ndImg0
+        for w1, w2, h1, h2 in self.getCurrentSelCoords():
+            ndImg1[h1:h2 + 1, w1:w2 + 1, :3][:, :, ::-1] = ndsRGBImg1[h1:h2 + 1, w1:w2 + 1, :3]
+
+        self.updatePixmap()
+
+    def applyHSPB1DLUT(self, stackedLUT, options=None, pool=None):
+        """
+        Currently unused.
+
+        Applies 1D LUTS to hue, sat and perceptual brightness channels.
+
+        :param stackedLUT: array of color values (in range 0..255), a row for each channel
+        :type stackedLUT : ndarray shape=(3,256) dtype=int or float
+        :param options: not used yet
+        :type options : dictionary
+        :param pool: multiprocessing pool : unused
+        :type pool: muliprocessing.Pool
+        """
+        if options is None:
+            options = UDict()
+
+        # identity LUT : forward lower layer and return
+        if not np.any(stackedLUT - np.arange(256)):  # last dims are equal : broadcast is working
+            buf1 = QImageBuffer(self.inputImg())
+            buf2 = QImageBuffer(self.getCurrentImage())
+            buf2[:, :, :] = buf1
+            self.updatePixmap()
+            return
+        Img0 = self.inputImg()
+        ndHSPBImg0 = Img0.getHspbBuffer()  # time 2s with cache disabled for 15 Mpx
+        # apply LUTS to normalized channels (range 0..255)
+        ndLImg0 = (ndHSPBImg0 * [255.0 / 360.0, 255.0, 255.0]).astype(np.uint8)
+        # rList = np.array([0,1,2]) # H,S,B
+        ndHSBPImg1 = np.zeros(ndLImg0.shape, dtype=np.uint8)
+        s = ndLImg0[:, :, 0].shape
+        for c in range(3):  # 0.36s for 15Mpx
+            ndHSBPImg1[:, :, c] = np.take(stackedLUT[c, :], ndLImg0[:, :, c].reshape((-1,))).reshape(s)
+        # ndHSBPImg1 = stackedLUT[rList, ndLImg0] * [360.0/255.0, 1/255.0, 1/255.0]
+        # back to sRGB
+        ndRGBImg1 = hsp2rgbVec(ndHSBPImg1)  # time 4s for 15 Mpx
+        # in place clipping
+        np.clip(ndRGBImg1, 0, 255, out=ndRGBImg1)  # mandatory
+
+        # set current image to modified image
+        currentImage = self.getCurrentImage()
+        ndImg1a = QImageBuffer(currentImage)
+        ndImg1a[:, :, :3][:, :, ::-1] = ndRGBImg1
+        # forward the alpha channel
+        ndImg0 = QImageBuffer(Img0)
+        ndImg1a[:, :, 3] = ndImg0[:, :, 3]
+
+        self.updatePixmap()
+
+    def applyHSV1DLUT(self, stackedLUT, options=None, pool=None):
+        """
+        Applies 1D LUTS to hue, sat and brightness channels.
+
+        :param stackedLUT: array of color values (in range 0..255), a row for each channel
+        :type stackedLUT : ndarray shape=(3,256) dtype=int or float
+        :param options: not used yet
+        :type options : Udict
+        :param pool: multiprocessing pool : unused
+        :type pool: muliprocessing.Pool
+        """
+        if options is None:
+            options = UDict()
+
+        # identity LUT : forward lower layer and return
+        if not np.any(stackedLUT - np.arange(256)):  # last dims are equal : broadcast is working
+            buf1 = QImageBuffer(self.inputImg())
+            buf2 = QImageBuffer(self.getCurrentImage())
+            buf2[:, :, :] = buf1
+            self.updatePixmap()
+            return
+
+        # convert LUT to float to speed up  buffer conversions
+        stackedLUT = stackedLUT.astype(float)
+        # get HSV buffer, range H: 0..180, S:0..255 V:0..255
+        Img0 = self.inputImg()
+        HSVImg0 = Img0.getHSVBuffer()
+        HSVImg0 = HSVImg0.astype(np.uint8)
+        # apply LUTS
+        HSVImg1 = np.zeros(HSVImg0.shape, dtype=np.uint8)
+        s = HSVImg0[:, :, 0].shape
+        for c in range(3):  # 0.43s for 15Mpx
+            HSVImg1[:, :, c] = np.take(stackedLUT[c, :], HSVImg0[:, :, c].reshape((-1,))).reshape(s)
+        # back to sRGB
+        RGBImg1 = hsv2rgbVec(HSVImg1, cvRange=True)
+        # in place clipping
+        np.clip(RGBImg1, 0, 255, out=RGBImg1)  # mandatory
+
+        currentImage = self.getCurrentImage()
+        ndImg1 = QImageBuffer(currentImage)
+
+        ndImg0 = QImageBuffer(Img0)
+        ndImg1[...] = ndImg0
+        for w1, w2, h1, h2 in self.getCurrentSelCoords():
+            ndImg1[h1:h2 + 1, w1:w2 + 1, :3][:, :, ::-1] = RGBImg1[h1:h2 + 1, w1:w2 + 1, :3]
+
+        self.updatePixmap()
+
+    def applyHVLUT2D(self, LUT, options=None, pool=None):
+        if options is None:
+            options = UDict()
+        # get buffers
+        inputImage = self.inputImg()
+        currentImage = self.getCurrentImage()
+        bufOut = QImageBuffer(currentImage)
+        if options is None:
+            options = UDict()
+
+        # get HSV buffer, range H: 0..180, S:0..255 V:0..255  (opencv convention for 8 bits images)
+        HSVImg0 = inputImage.getHSVBuffer().astype(float)  # copy done
+        HSVImg0[:, :, 0] *= 2  # 0..360
+
+        # reset layer image
+        bufOut[:, :, :] = QImageBuffer(inputImage)
+
+        for w1, w2, h1, h2 in self.getCurrentSelCoords():
+
+            rect = QRect(w1, h1, w2 - w1, h2 - h1)
+
+            w, wF = self.getCurrentImage().width(), self.width()
+            h, hF = self.getCurrentImage().height(), self.height()
+            # wRatio, hRatio = float(w) / wF, float(h) / hF
+            w0, h0 = inputImage.width(), inputImage.height()
+            imgRect = QRect(0, 0, w0, h0)
+            rect = rect.intersected(imgRect)
+            if rect.width() < 10 or rect.height() < 10:
+                dlgWarn('Selection is too narrow')
+                return
+
+            bufHSV_CV32 = HSVImg0[h1:h2 + 1, w1:w2 + 1, :]
+
+            divs = LUT.divs
+            steps = tuple([360 / divs[0], 255.0 / divs[1], 255.0 / divs[2]])
+            interp = chosenInterp(pool, (w2 - w1) * (h2 - h1))
+            coeffs = interp(LUT.data, steps, bufHSV_CV32, convert=False)
+            bufHSV_CV32[:, :, 0] = np.mod(bufHSV_CV32[:, :, 0] + 2.0 * coeffs[:, :, 0], 360)  # scale Hue curve
+            bufHSV_CV32[:, :, 1:] = bufHSV_CV32[:, :, 1:] * coeffs[:, :, 1:]
+            np.clip(bufHSV_CV32, (0, 0, 0), (360, 255, 255), out=bufHSV_CV32)
+            bufHSV_CV32[:, :, 0] /= 2  # 0..180
+
+            bufpostF32_1 = cv2.cvtColor(bufHSV_CV32.astype(np.uint8), cv2.COLOR_HSV2RGB)
+
+            bufOut = QImageBuffer(currentImage)
+            bufOut[h1:h2 + 1, w1:w2 + 1, :3] = bufpostF32_1[:, :, ::-1]
+
+        self.updatePixmap()
+
+    def applyAuto3DLUT(self, options=None, pool=None):
+        """
+        The pretrained classifier of (C) Hui Zeng, Jianrui Cai, Lida Li, Zisheng Cao, and Lei Zhang
+        is used to compute a 3D LUT for automatic image enhancement.
+        CF. https://github.com/HuiZeng/Image-Adaptive-3DLUT.
+
+        :param options:
+        :type options:
+        :param pool:
+        :type pool:
+        :return:
+        :rtype:
+        """
+        adjustForm = self.getGraphicsForm()
+        inputImage = self.inputImg()
+        currentImage = self.getCurrentImage()
+        inputBuffer = QImageBuffer(inputImage)[:, :, :3]
+        imgBuffer = QImageBuffer(currentImage)[:, :, :3]
+        ndImg0 = inputBuffer[:, :, :3]
+        # get manual corrections
+        coeffs = [adjustForm.slider1.value(), adjustForm.slider2.value(), adjustForm.slider3.value()]
+        # get auto lut
+        lutarray, pred = generateLUTfromQImage(inputImage, coeffs)
+
+        adjustForm.predLabel1.setText('%f' % pred[0])
+        adjustForm.predLabel2.setText('%f' % pred[1])
+        adjustForm.predLabel3.setText('%f' % pred[2])
+
+        lut3D = LUT3D(lutarray, dtype=np.float32)
+
+        interp = chosenInterp(pool, inputImage.width() * inputImage.height())
+        buf = interp(lut3D.LUT3DArray, lut3D.step, ndImg0.astype(np.float32), convert=False)
+        np.clip(buf, 0, 255, out=buf)
+
+        imgBuffer[..., :3] = inputBuffer
+        for (w1, w2, h1, h2) in self.getCurrentSelCoords():
+            imgBuffer[h1:h2 + 1, w1:w2 + 1, :3] = buf[h1:h2 + 1, w1:w2 + 1, ...]
+
+        self.updatePixmap()
+
+    def applyGrading(self, lut3D, options=None, pool=None):
+
+        adjustForm = self.getGraphicsForm()
+        inputImage = self.inputImg()
+        currentImage = self.getCurrentImage()
+        inputBuffer = QImageBuffer(inputImage)[:, :, :3]
+        imgBuffer = QImageBuffer(currentImage)[:, :, :3]
+        ndImg0 = inputBuffer[:, :, :3]
+
+        # get HSV gradient
+        hsvgrad = hsvGradientArray(adjustForm.grad)
+        setLUTfromGradient(lut3D, hsvgrad, adjustForm.LUT3D_ori2hsv, adjustForm.brCoeffs)
+
+        interp = chosenInterp(pool, inputImage.width() * inputImage.height())
+        buf = interp(lut3D.LUT3DArray, lut3D.step, ndImg0.astype(np.float32), convert=False)
+        np.clip(buf, 0, 255, out=buf)
+
+        imgBuffer[..., :3] = inputBuffer
+        for (w1, w2, h1, h2) in self.getCurrentSelCoords():
+            imgBuffer[h1:h2 + 1, w1:w2 + 1, :3] = buf[h1:h2 + 1, w1:w2 + 1, :3]  # image buffers and luts are BGR
+
+        self.updatePixmap()
+
+    def apply3DLUT(self, lut3D, options=None, pool=None):
+        """
+        Apply a 3D LUT to the current view of the image (self or self.thumb).
+        If pool is not None and the size of the current view is > 3000000,
+        parallel interpolation on image slices is used.
+        If options['keep alpha'] is False, alpha channel is interpolated too.
+        LUT axes, LUT channels and image channels must be in BGR order.
+
+        :param lut3D: LUT3D
+        :type lut3D: LUT3D
+        :param options:
+        :type options: UDict
+        :param pool:
+        :type pool:
+        """
+        LUT = lut3D.LUT3DArray
+        LUTSTEP = lut3D.step
+        if options is None:
+            options = UDict()
+
+        # get buffers
+        inputImage = self.inputImg()
+        currentImage = self.getCurrentImage()
+        inputBuffer0 = QImageBuffer(inputImage)
+        imgBuffer = QImageBuffer(currentImage)
+        interpAlpha = not options['keep alpha']
+
+        # get selection
+        w1, w2, h1, h2 = (0.0,) * 4
+        useSelection = len(self.sRects) > 0
+
+        if useSelection:
+            # forward lower layer
+            imgBuffer[...] = inputBuffer0
+
+        for w1, w2, h1, h2 in self.getCurrentSelCoords():
+            inputBuffer = inputBuffer0[h1:h2 + 1, w1:w2 + 1, :]
+            if interpAlpha:
+                # interpolate alpha channel from LUT
+                ndImg0 = inputBuffer
+                ndImg1 = imgBuffer
+            else:
+                ndImg0 = inputBuffer[:, :, :3]
+                ndImg1 = imgBuffer[:, :, :3]
+                LUT = np.ascontiguousarray(LUT[..., :3])
+            interp = chosenInterp(pool, (w2 - w1) * (h2 - h1))
+            ndImg1[h1:h2 + 1, w1:w2 + 1, :] = interp(LUT, LUTSTEP, ndImg0)
+
+            if not interpAlpha:
+                # forward the alpha channel
+                imgBuffer[h1:h2 + 1, w1:w2 + 1, 3] = inputBuffer[:, :, 3]
+
+        self.updatePixmap()
+
+    def applyFilter2D(self, options=None):
+        """
+        Apply 2D kernel.
+        """
+        adjustForm = self.getGraphicsForm()
+        inputImage = self.inputImg()
+        currentImage = self.getCurrentImage()
+        buf0 = QImageBuffer(inputImage)
+        buf1 = QImageBuffer(currentImage)
+        ########################
+        # hald pass through
+        if self.parentImage.isHald:
+            buf1[...] = buf0
+            self.updatePixmap()
+            return
+        ########################
+
+        buf1[...] = buf0
+        for w1, w2, h1, h2 in self.getCurrentSelCoords():
+            # slicing
+            rect = QRect(w1, h1, w2 - w1, h2 - h1)
+            imgRect = QRect(0, 0, currentImage.width(), currentImage.height())
+            rect = rect.intersected(imgRect)
+            if rect.width() < 10 or rect.height() < 10:
+                dlgWarn('Selection is too narrow')
+                return
+            slices = np.s_[rect.top():rect.bottom(), rect.left():rect.right(), :3]
+            ROI0 = buf0[slices]
+            ROI1 = buf1[slices]
+
+            # kernel based filtering
+            r = inputImage.width() / self.width()
+            radius = int(adjustForm.radius * r)
+            if adjustForm.kernelCategory in [filterIndex.IDENTITY, filterIndex.UNSHARP,
+                                             filterIndex.SHARPEN, filterIndex.BLUR1, filterIndex.BLUR2]:
+                # correct radius for preview if needed
+                kernel = getKernel(adjustForm.kernelCategory, radius, adjustForm.amount)
+                ROI1[:, :, :] = cv2.filter2D(ROI0, -1, kernel)
+            else:
+                # bilateral filtering
+                sigmaColor = 2 * adjustForm.tone
+                sigmaSpace = sigmaColor
+                ROI1[:, :, ::-1] = cv2.bilateralFilter(ROI0[:, :, ::-1], radius, sigmaColor, sigmaSpace)
+
+        self.updatePixmap()
+
+    def applyBlendFilter(self):
+        """
+        Apply a gradual neutral density filter
+        """
+        adjustForm = self.getGraphicsForm()
+        inputImage = self.inputImg()
+        currentImage = self.getCurrentImage()
+        buf0 = QImageBuffer(inputImage)
+        buf1 = QImageBuffer(currentImage)
+        ########################
+        # hald pass through
+        if self.parentImage.isHald:
+            buf1[...] = buf0
+            self.updatePixmap()
+            return
+        ########################
+
+        # We blend a neutral filter with density range 0.5*s...0.5 with the image b,
+        # using blending mode overlay : f(a,b) = 2*a*b if b < 0.5 else f(a,b) = 1 - 2*(1-a)(1-b)
+
+        buf32Lab = cv2.cvtColor(((buf0.astype(np.float32)) / 256).astype(np.float32), cv2.COLOR_BGR2Lab)
+        # get height of current image
+        h = buf0.shape[0]
+        """
+        rect = getattr(self, 'rect', None)
+        if rect is not None:
+            rect = rect.intersected(QRect(0, 0, buf0.shape[1], buf0.shape[0]))
+            adjustForm.filterStart = int((rect.top() / h) * 100.0)
+            adjustForm.filterEnd = int((rect.bottom() / h) * 100.0)
+            adjustForm.sliderFilterRange.setStart(adjustForm.filterStart)
+            adjustForm.sliderFilterRange.setEnd(adjustForm.filterEnd)
+        """
+        if adjustForm.filterEnd > 4:
+            # build the filter as a 1D array of size h
+            s = 0  # strongest 0
+            opacity = 1 - s
+            if adjustForm.kernelCategory == blendFilterIndex.GRADUALNONE:
+                start, end = 0, h - 1
+            else:
+                start = int(h * adjustForm.filterStart / 100.0)
+                end = int(h * adjustForm.filterEnd / 100.0)
+            test = np.arange(end - start) * opacity / (
+                    2.0 * max(end - start - 1, 1)) + 0.5 * s  # range 0.5*s...0.5
+            test = np.concatenate((np.zeros(start) + 0.5 * s, test, np.zeros(h - end) + 0.5))
+            if adjustForm.kernelCategory == blendFilterIndex.GRADUALBT:
+                # rotate filter 180°
+                test = test[::-1]
+            # blend the filter with the image
+            Lchan = buf32Lab[:, :, 0]
+            test1 = test[:, np.newaxis] + np.zeros(Lchan.shape)
+            buf32Lab[:, :, 0] = np.where(Lchan < 50, Lchan * (test1 * 2.0),
+                                         100.0 - 2.0 * (1.0 - test1) * (100.0 - Lchan))
+            # luminosity correction
+            # buf32Lab[:,:,0] = buf32Lab[:,:,0]*(1.0+0.1)
+            bufRGB32 = cv2.cvtColor(buf32Lab, cv2.COLOR_Lab2RGB)
+            buf1[:, :, :3][:, :, ::-1] = (bufRGB32 * 255.0).astype(np.uint8)
+        # forward the alpha channel
+        buf1[:, :, 3] = buf0[:, :, 3]
+        self.updatePixmap()
+
+    def applyTemperature(self):
+        """
+        Warming/cooling filter.
+        The method implements two algorithms.
+        - Photo/Color filter : Blending using mode multiply, plus correction of luminosity
+            by blending the output image with the inputImage, using mode luminosity.
+        - Chromatic adaptation : multipliers in linear sRGB.
+        """
+        adjustForm = self.getGraphicsForm()
+        options = adjustForm.options
+        temperature = adjustForm.tempCorrection
+        tint = adjustForm.tintCorrection  # range -1..1
+        inputImage = self.inputImg()
+        buf1 = QImageBuffer(inputImage)
+        currentImage = self.getCurrentImage()
+        if not options['Color Filter']:
+            # very small correction: forward lower layer and return
+            if abs(temperature - 6500) < 200 and tint == 0:
+                buf0 = QImageBuffer(currentImage)
+                buf0[:, :, :] = buf1
+                self.updatePixmap()
+                return
+        ################
+        # photo filter
+        ################
+        if options['Photo Filter'] or options['Color Filter']:
+            if options['Photo Filter']:
+                # get black body color
+                r, g, b = bbTemperature2RGB(temperature)
+            else:
+                # get current color from color chooser dialog
+                r, g, b = adjustForm.filterColor.getRgb()[:3]
+            filter = QImage(inputImage.size(), inputImage.format())
+            filter.fill(QColor(r, g, b, 255))
+            # draw image on filter using mode multiply
+            qp = QPainter(filter)
+            qp.setCompositionMode(QPainter.CompositionMode_Multiply)
+            qp.drawImage(0, 0, inputImage)
+            qp.end()
+            # correct the luminosity of the resulting image,
+            # by blending it with the inputImage, using mode luminosity.
+            # Note that using perceptual brightness gives better results, unfortunately slower
+            resImg = bLUeGui.blend.blendLuminosity(filter, inputImage)
+            bufOutRGB = QImageBuffer(resImg)[:, :, :3][:, :, ::-1]
+        #####################
+        # Chromatic adaptation
+        #####################
+        elif options['Chromatic Adaptation']:
+            # get RGB multipliers
+            m1, m2, m3, _ = temperatureAndTint2Multipliers(temperature, 2 ** tint,
+                                                           self.parentImage.RGB_lin2XYZInverse)
+            buf = QImageBuffer(inputImage)[:, :, :3]
+            bufXYZ = RGB2XYZ(buf[:, :, ::-1],
+                             RGB_lin2XYZ=self.parentImage.RGB_lin2XYZ)
+            bufsRGBLinear = np.tensordot(bufXYZ, self.parentImage.RGB_lin2XYZInverse,
+                                         axes=(-1, -1))
+            # apply multipliers
+            bufsRGBLinear *= [m1, m2, m3]
+            # brightness correction
+            M = np.max(bufsRGBLinear)
+            bufsRGBLinear /= M
+            bufOutRGB = rgbLinear2rgb(bufsRGBLinear)
+            np.clip(bufOutRGB, 0, 255, out=bufOutRGB)
+            bufOutRGB = np.round(bufOutRGB).astype(np.uint8)
+        else:
+            raise ValueError('applyTemperature : wrong option')
+
+        # set output image
+        bufOut0 = QImageBuffer(currentImage)
+        bufOut = bufOut0[:, :, :3]
+        bufOut0[...] = buf1
+        for w1, w2, h1, h2 in self.getCurrentSelCoords():
+            bufOut[h1:h2 + 1, w1:w2 + 1, ::-1] = bufOutRGB[h1:h2 + 1, w1:w2 + 1, ...]
+
+        self.updatePixmap()
+
 
 class QPresentationLayer(QLayer):
     """
@@ -1942,6 +3074,122 @@ class QCloningLayer(QLayer):
         self.updateCloningMask()
         self.applyCloning()
 
+    def applyCloning(self, seamless=True, showTranslated=False, moving=False):  # TODO remove parameter showTranslated
+        """
+        Seamless cloning. In addition to the layer input image, (output) image
+        and mask, the method uses a source pixmap. The pixmap can
+        be interactively translated and zoomed and (next) cloned into the layer
+        input image to produce the layer (output) image. The cloning
+        source and output regions correspond to the unmasked areas.
+        If seamless is True (default) actual cloning is done, otherwise
+        the source is simply copied into the layer.
+        If moving is True (default False) the input image is not updated.
+
+        :param seamless:
+        :type seamless: boolean
+        :param showTranslated:  unused, set to True in all calls
+        :type showTranslated:
+        :param moving: flag indicating if the method is triggered by a mouse event
+        :type moving: boolean
+        """
+        adjustForm = self.getGraphicsForm()
+        options = adjustForm.options
+        # No change is made to lower layers
+        # while moving the virtual layer: then we set redo to False
+        imgIn = self.inputImg(redo=not moving, drawTranslated=False)
+        if not moving:
+            self.updateSourcePixmap()
+        self.updateCloningMask()
+        sourcePixmap = adjustForm.sourcePixmap
+        # sourcePixmapThumb = adjustForm.sourcePixmapThumb
+        imgOut = self.getCurrentImage()
+        ########################
+        # hald pass through
+        if self.parentImage.isHald:
+            buf0 = QImageBuffer(imgIn)
+            buf1 = QImageBuffer(imgOut)
+            buf1[...] = buf0
+            self.updatePixmap()
+            return
+        ########################
+
+        ##############################################
+        # update the marker in the positioning window
+        ##############################################
+        # mask center coordinates relative to full size image
+        r = self.monts['m00']
+        if (not self.conts) or r == 0:
+            self.xAltOffset, self.yAltOffset = 0.0, 0.0
+            self.AltZoom_coeff = 1.0
+            seamless = False
+        # coordinates of the center of cloning_mask (relative to full size image)
+        if r > 0:
+            xC, yC = self.monts['m10'] / r, self.monts['m01'] / r
+        else:
+            xC, yC = 0.0, 0.0
+
+        # erase previous transformed image : reset imgOut to ImgIn
+        qp = QPainter(imgOut)
+        qp.setCompositionMode(QPainter.CompositionMode_Source)
+        qp.drawImage(QRect(QPoint(0, 0), imgOut.size()), imgIn, imgIn.rect())  # TODO modified 26/11/21 validate
+
+        # get translation relative to current Image
+        currentAltX, currentAltY = self.full2CurrentXY(self.xAltOffset, self.yAltOffset)
+        # get mask center coordinates relative to the translated current image
+        xC_current, yC_current = self.full2CurrentXY(xC, yC)
+        xC_current, yC_current = xC_current - currentAltX, yC_current - currentAltY
+
+        ###################################################################################################
+        # Draw the translated and zoomed source pixmap into imgOut (nothing is drawn outside of dest image).
+        # The translation is adjusted to keep the point (xC_current, yC_current) invariant while zooming.
+        ###################################################################################################
+        qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
+        bRect = QRectF(currentAltX + (1 - self.AltZoom_coeff) * xC_current,
+                       currentAltY + (1 - self.AltZoom_coeff) * yC_current,
+                       imgOut.width() * self.AltZoom_coeff, imgOut.height() * self.AltZoom_coeff)
+        qp.drawPixmap(bRect, sourcePixmap, sourcePixmap.rect())
+        qp.end()
+
+        #####################
+        # do seamless cloning
+        #####################
+        if seamless:
+            try:
+                QApplication.setOverrideCursor(Qt.WaitCursor)
+                bLUeTop.Gui.app.processEvents()
+                # temporary dest image
+                imgInc = QImage(imgIn)
+                ###########################
+                # clone imgOut into imgInc
+                ###########################
+                self.seamlessMerge(imgInc, imgOut, self.mask, self.cloningMethod,
+                                   version="blue" if options['blue'] else 'opencv', w=16)
+                #########################################
+                # copy imgInc into imgOut.
+                # To ensure interactive mask
+                # adjustments (painting brush effect)
+                # we copy the cloned region only.
+                # In this way, when adjusting the mask,
+                # the unmasked region of imgOut stays always
+                # a copy of the corresponding region of source.
+                #########################################
+                bufOut = QImageBuffer(imgOut)
+                if self.parentImage.useThumb:
+                    mask = self.mask.scaled(imgOut.size())
+                else:
+                    mask = self.mask
+                bufOut[...] = alphaBlend(QImageBuffer(imgInc), bufOut, vImage.colorMask2BinaryArray(mask))
+            finally:
+                self.parentImage.setModified(True)
+                QApplication.restoreOverrideCursor()
+                QApplication.processEvents()
+        # should we forward the alpha channel ?
+        self.updatePixmap()
+        # the presentation layer must be updated here because
+        # applyCloning is called directly (mouse and Clone button events).
+        self.parentImage.prLayer.update()  # = applyNone()
+        self.parentImage.onImageChanged(hist=False)
+
 
 class QLayerImage(QLayer):
     """
@@ -1991,7 +3239,7 @@ class QLayerImage(QLayer):
         :param transformation:
         :type transformation: QTransform
         :param parentImage:
-        :type parentImage: vImage
+        :type parentImage: mImage
         :return: transformed layer
         :rtype: QLayerImage
         """
@@ -2000,6 +3248,17 @@ class QLayerImage(QLayer):
             tLayer.tool.layer = tLayer
             tLayer.tool.img = tLayer.parentImage
         return tLayer
+
+    def applyImage(self, options):
+        self.applyTransForm(options)
+        if options['Align']:
+            inImg = self.inputImg()
+            buf0 = QImageBuffer(inImg)
+            outImg = self.getCurrentImage()
+            buf1 = QImageBuffer(outImg)
+            imalgn, h = alignImages(buf1, buf0)
+            buf1[...] = imalgn
+            self.updatePixmap()
 
 
 class QDrawingLayer(QLayerImage):
@@ -2061,10 +3320,14 @@ class QDrawingLayer(QLayerImage):
         """
         Translates the drawing.
 
-        :param deltaX:
-        :type deltaX: int
-        :param deltaY:
-        :type deltaY: int
+        :param x1:
+        :type x1: int
+        :param y1:
+        :type y1: int
+        :param x0:
+        :type x0: int
+        :param y0:
+        :type y0: int
         :param widget:
         :type widget: imageLabel
         """

@@ -33,8 +33,6 @@ class graphicsFormAuto3DLUT(baseForm):
         build a graphicsForm3DLUT object. The parameter axeSize represents the size of
         the color wheel, border not included (the size of the window is adjusted).
 
-        :param cModel: color Model converter
-        :type cModel: cmConverter
         :param targetImage
         :type targetImage:
         :param axeSize: size of the color wheel (default 500)
@@ -63,8 +61,6 @@ class graphicsFormAuto3DLUT(baseForm):
 
     def __init__(self, targetImage=None, axeSize=500, LUTSize=LUTSIZE, layer=None, parent=None, mainForm=None):
         """
-       :param cModel: color space used by colorPicker, slider2D and colorPicker
-       :type cModel: cmConverter object
        :param axeSize: size of the color wheel
        :type axeSize: int
        :param targetImage:

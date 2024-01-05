@@ -45,6 +45,7 @@ class Form1(QMainWindow):
         # No detection possible before it is effectively shown !
         self.currentScreenIndex = 0
         self.__colorChooser, self.__infoView = (None,) * 2
+        self.onCloseEvent = lambda: True
 
     @property
     def colorChooser(self):

@@ -20,7 +20,6 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QHBoxLayout, QPushButton, QVBoxLayout, QLabel
 
 from bLUeTop.versatileImg import vImage
-# from bLUeTop.QtGui1 import window
 import bLUeTop.Gui
 from bLUeGui.graphicsForm import baseForm
 from bLUeTop.utils import optionsWidget, QbLUeSpinBox

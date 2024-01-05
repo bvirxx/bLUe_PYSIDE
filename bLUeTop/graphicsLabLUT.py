@@ -52,7 +52,7 @@ class graphicsLabForm(graphicsCurveForm):
         cubic.histImg = graphicsScene.layer.inputImg().histogram(size=graphicsScene.axeSize,
                                                                  bgColor=graphicsScene.bgColor, range=(0, 1),
                                                                  chans=channelValues.L, mode='Lab')
-        # L curve use the default axes
+        # L curve uses the default axes
         cubic.axes = graphicsScene.defaultAxes
         cubic.initFixedPoints()
         cubic.axes.setVisible(False)

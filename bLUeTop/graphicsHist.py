@@ -56,14 +56,14 @@ class histForm(baseForm):
         self.listWidget1 = optionsWidget(options=options1,
                                          optionNames=optionNames1,
                                          exclusive=False,
-                                         flow=optionsWidget.LeftToRight
+                                         flow=optionsWidget.Flow.LeftToRight
                                          )
 
         options2, optionNames2 = ['R', 'G', 'B', 'L'], ['R', 'G', 'B', 'L']
         self.listWidget2 = optionsWidget(options=options2,
                                          optionNames=optionNames2,
                                          exclusive=False,
-                                         flow=optionsWidget.LeftToRight
+                                         flow=optionsWidget.Flow.LeftToRight
                                          )
 
         for widget in [self.listWidget1, self.listWidget2]:

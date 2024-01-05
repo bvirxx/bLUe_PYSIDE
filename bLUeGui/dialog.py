@@ -78,7 +78,7 @@ class dimsInputDialog(QDialog):
             label1 = "Keep Aspect Ratio"
             self.checkBox = QCheckBox()
             fLayout.addRow(label1, self.checkBox)
-        buttonBox = QDialogButtonBox(QDialogButtonBox.Ok, Qt.Horizontal)
+        buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok, Qt.Horizontal)
         fLayout.addRow(buttonBox)
         self.setLayout(fLayout)
         self.onAccept = lambda: None
@@ -136,7 +136,7 @@ def dlgInfo(text, info='', parent=Gui.window):
     """
     msg = QMessageBox(parent=parent)
     msg.setWindowTitle('Information')
-    msg.setIcon(QMessageBox.Information)
+    msg.setIcon(QMessageBox.Icon.Information)
     msg.setText(text)
     msg.setInformativeText(info)
     msg.exec()
@@ -155,7 +155,7 @@ def dlgWarn(text, info='', parent=Gui.window):
     """
     msg = QMessageBox(parent=parent)
     msg.setWindowTitle('Warning')
-    msg.setIcon(QMessageBox.Warning)
+    msg.setIcon(QMessageBox.Icon.Warning)
     msg.setText(text)
     msg.setInformativeText(info)
     msg.exec()
@@ -199,8 +199,11 @@ def saveChangeDialog(img, parent=Gui.window):
     reply = QMessageBox(parent=parent)
     reply.setText("%s was modified" % img.meta.name if len(img.meta.name) > 0 else 'unnamed image')
     reply.setInformativeText("Save your changes ?")
-    reply.setStandardButtons(QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
-    reply.setDefaultButton(QMessageBox.Save)
+    reply.setStandardButtons(QMessageBox.StandardButton.Save |
+                             QMessageBox.StandardButton.Discard |
+                             QMessageBox.StandardButton.Cancel
+                             )
+    reply.setDefaultButton(QMessageBox.StandardButton.Save)
     ret = reply.exec()
     return ret
 
@@ -227,16 +230,16 @@ class savingDialog(QDialog):
         self.setWindowTitle(text)
         # File Dialog
         self.dlg = QFileDialog(caption=text, directory=lastDir)
-        self.dlg.setOption(QFileDialog.DontUseNativeDialog)
+        self.dlg.setOption(QFileDialog.Option.DontUseNativeDialog)
         self.metaOption = QCheckBox('Remove Meta')
         # sliders
         self.sliderComp = QbLUeSlider(Qt.Horizontal)
-        self.sliderComp.setTickPosition(QSlider.TicksBelow)
+        self.sliderComp.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.sliderComp.setRange(0, 9)
         self.sliderComp.setSingleStep(1)
         self.sliderComp.setValue(3)  # 3 = default opencv imwrite value
         self.sliderQual = QbLUeSlider(Qt.Horizontal)
-        self.sliderQual.setTickPosition(QSlider.TicksBelow)
+        self.sliderQual.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.sliderQual.setRange(0, 100)
         self.sliderQual.setSingleStep(10)
         self.sliderQual.setValue(95)  # 95 = default opencv imwrite value
@@ -298,7 +301,7 @@ class labelDlg(QDialog):
             hl = QHBoxLayout()
             hl.addWidget(ed)
             button = QPushButton('Next')
-            button.setAutoDefault(False);
+            button.setAutoDefault(False)
             button.setMaximumWidth(60)
             hl.addWidget(button)
             vl.addLayout(hl)
@@ -422,13 +425,13 @@ def openDlg(mainForm, ask=True, multiple=False, key='dlgdir', parent=None):
     """
     if ask and mainForm.label.img.isModified:
         ret = saveChangeDialog(mainForm.label.img)
-        if ret == QMessageBox.Yes:
+        if ret == QMessageBox.StandardButton.Yes:
             try:
                 saveDlg(mainForm.label.img, mainForm, parent=parent)
             except (ValueError, IOError) as e:
                 dlgWarn(str(e))
                 return
-        elif ret == QMessageBox.Cancel:
+        elif ret == QMessageBox.StandardButton.Cancel:
             return
     # don't ask again for saving
     mainForm.label.img.isModified = False

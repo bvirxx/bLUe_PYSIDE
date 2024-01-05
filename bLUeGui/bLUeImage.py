@@ -69,6 +69,7 @@ class bImage(QImage):
         self.maskIsSelected = False
         self.colorMaskOpacity = bImage.defaultColorMaskOpacity
         self.mergingFlag = False
+        self.parentImage = None
 
     @property
     def mask(self):
@@ -281,7 +282,7 @@ class bImage(QImage):
                         # set the color of the indicator according to percent value
                         nonlocal gPercent
                         gPercent = min(gPercent, np.clip((0.05 - percent) / 0.03, 0, 1))
-                        painter.fillRect(left, 0, 10, 10, QColor(255, 255 * gPercent, 0))
+                        painter.fillRect(left, 0, 10, 10, QColor(255, round(255 * gPercent), 0))
             # complete last bin
             poly.append(QPointF((bin_edges[-1] - range[0]) * scaleH, max(imgH - h, upMargin)))
             # draw the filled polygon

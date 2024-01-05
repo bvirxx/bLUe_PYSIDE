@@ -154,7 +154,7 @@ class aParser():
         :param buf: .abr data
         :type buf: bytes
         :return: list of tagged blocks
-        :rtype: list of int
+        :rtype: list of aTaggedBlock
         """
         # skip file version major (2) and minor (2)
         next = 4

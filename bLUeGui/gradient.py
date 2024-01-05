@@ -26,12 +26,14 @@ from bLUeGui.colorCIE import rgb2rgbLinear, rgbLinear2rgb
 the code in this file comes in part from 
 https://stackoverflow.com/questions/22607043/color-gradient-algorithm
 """
+
+
 def all_channels2(func):
     def wrapper(channel1, channel2, *args, **kwargs):
         try:
             return func(channel1, channel2, *args, **kwargs)
         except TypeError:
-            return tuple(func(c1, c2, *args, **kwargs) for c1,c2 in zip(channel1, channel2))
+            return tuple(func(c1, c2, *args, **kwargs) for c1, c2 in zip(channel1, channel2))
     return wrapper
 
 
@@ -68,6 +70,7 @@ def getGradient(color1, color2, steps):
         color = rgbLinear2rgb(color)
         yield color
 
+
 def gradient2Img(grad, height=50):
     """
     Builds an image and fills it with gradient.
@@ -84,6 +87,7 @@ def gradient2Img(grad, height=50):
     imgBuffer[..., :3][::-1] = grad
     imgBuffer[..., 3] = 255
     return img
+
 
 def gradientArray(colorList, stepList):
     """
@@ -116,6 +120,7 @@ def gradientArray(colorList, stepList):
         return grad
     except ValueError:
         dlgWarn('hsvGradientArray : invalid gradient')
+
 
 def hsvGradientArray(grad):
     """

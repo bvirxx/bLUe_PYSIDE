@@ -542,27 +542,6 @@ class activeSpline(QGraphicsPathItem):
         fixedPoints = [activeSplinePoint(item[0] * s, item[1] * s) for item in state['fixedpoints']]
         self.setFixedPoints(fixedPoints)
 
-    def writeToStream(self, outStream):
-        outStream.writeInt32(self.size)
-        outStream.writeInt32(len(self.fixedPoints))
-        for point in self.fixedPoints:
-            outStream << point.pos()
-        return outStream
-
-    def readFromStream(self, inStream):
-        size = inStream.readInt32()
-        count = inStream.readInt32()
-        for point in self.childItems():
-            self.scene().removeItem(point)
-        self.fixedPoints = []
-        for i in range(count):
-            point = QPointF()
-            inStream >> point
-            self.fixedPoints.append(activeSplinePoint(point.x(), point.y(), parentItem=self))
-        self.updatePath()
-        self.updateLUTXY()
-        return self
-
 
 class activeBSpline(activeSpline):
     """
@@ -956,15 +935,10 @@ class graphicsSplineItem(QGraphicsPixmapItem):
         cubic.setParentItem(self)
         cubic.setPos(0, size)
         self.defaultAxes = graphicsCurveForm.drawPlotGrid(size)
+        self.defaultAxes.setParentItem(cubic)
         cubic.axes = self.defaultAxes
         cubic.initFixedPoints()
         self.cubic = cubic
-        # graphicsScene.cubicR = cubic
-        # cubic.channel = channelValues.L
-        # get histogram as a Qimage
-        # cubic.histImg = graphicsScene.layer.inputImg().histogram(size=graphicsScene.axeSize,
-        # bgColor=graphicsScene.bgColor, range=(0, 1),
-        # chans=channelValues.L, mode='Lab')
 
 
 class graphicsThrSplineItem(graphicsSplineItem):

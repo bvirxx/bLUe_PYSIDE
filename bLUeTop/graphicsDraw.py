@@ -51,7 +51,7 @@ class drawForm(baseForm):
         spacingSlider = QbLUeSlider(Qt.Horizontal)
         spacingSlider.setObjectName('spacingSlider')
         spacingSlider.setRange(1, 60)
-        spacingSlider.setTickPosition(QSlider.TicksBelow)
+        spacingSlider.setTickPosition(QSlider.TickPosition.TicksBelow)
         spacingSlider.setSliderPosition(10)
         spacingSlider.sliderReleased.connect(self.parent().label.brushUpdate)
         self.spacingSlider = spacingSlider
@@ -59,7 +59,7 @@ class drawForm(baseForm):
         jitterSlider = QbLUeSlider(Qt.Horizontal)
         jitterSlider.setObjectName('jitterSlider')
         jitterSlider.setRange(0, 100)
-        jitterSlider.setTickPosition(QSlider.TicksBelow)
+        jitterSlider.setTickPosition(QSlider.TickPosition.TicksBelow)
         jitterSlider.setSliderPosition(0)
         jitterSlider.sliderReleased.connect(self.parent().label.brushUpdate)
         self.jitterSlider = jitterSlider
@@ -67,7 +67,7 @@ class drawForm(baseForm):
         orientationSlider = QbLUeSlider(Qt.Horizontal)
         orientationSlider.setObjectName('orientationSlider')
         orientationSlider.setRange(0, 360)
-        orientationSlider.setTickPosition(QSlider.TicksBelow)
+        orientationSlider.setTickPosition(QSlider.TickPosition.TicksBelow)
         orientationSlider.setSliderPosition(180)
         orientationSlider.sliderReleased.connect(self.parent().label.brushUpdate)
         self.orientationSlider = orientationSlider

@@ -223,32 +223,6 @@ class dstb(object):
         return self.FInvVec(np.array([x])).item()
 
 
-def gaussianDistribution(x, hist, bins, h):
-    """
-    Computes the kernel density estimation at point x, by a mixture of gaussian variables
-    for the distribution (hist, bins). The parameter x is in range 0..256
-    and h is the bandwidth.
-
-    :param x: x-value for estimation
-    :type  x: float, range 0..256
-    :param hist: histogram
-    :type  hist: ndarray
-    :param bins: bins of histogram
-    :type  bins: ndarray
-    :param h: bandwidth
-    :type  h: float
-    :return: density estimation value at x
-    :rtype: float
-    """
-    dist = dstb(hist, bins)
-    values = np.arange(256, dtype=float) / 256
-    valuesx = x / 256 - values
-    valuesx = - valuesx * valuesx / (2 * h * h)
-    expx = np.exp(valuesx) / (h * np.sqrt(2 * np.pi)) * dist
-    dx = np.sum(expx)
-    return dx
-
-
 def distWins(dist, delta):
     """
     Returns the sorted list of the windows of (probability) width >= 2*delta
@@ -384,7 +358,7 @@ def autoQuadSpline(imgBuf, valleyAperture=0.05, warp=1.0, preserveHigh=True):
     for k in range(2, len(b) - 2):  # 2..K-1
         b[k] = (dist.F(V[k]) - dist.F(a[k])) * V[k - 1] + (dist.F(a[k]) - dist.F(V[k - 1])) * V[k]
         b[k] = b[k] / (dist.F(V[k]) - dist.F(V[k - 1])) * s + a[k] * (1 - s)  # F(V[k]) - F(V[k-1] >= valleyAperture
-        b[k] = min(b[k], oneMinusTau)  # b should be non decreasing
+        b[k] = min(b[k], oneMinusTau)  # b should be non-decreasing
     b = np.maximum.accumulate(b)  # should do nothing
     # if np.min(b[1:] - b[:-1]) < 0:
     # raise ValueError('warpHistogram : array b must be non decreasing')

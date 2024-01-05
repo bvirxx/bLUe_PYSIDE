@@ -83,7 +83,7 @@ class graphicsHspbForm(graphicsCurveForm):
             self.scene().cubicItem.setVisible(True)
             # draw  histogram
             self.scene().invalidate(QRectF(0.0, -self.scene().axeSize, self.scene().axeSize,
-                                           self.scene().axeSize), QGraphicsScene.BackgroundLayer)
+                                           self.scene().axeSize), QGraphicsScene.SceneLayer.BackgroundLayer)
 
         self.listWidget1.onSelect = onSelect1
 
@@ -153,7 +153,7 @@ class graphicsHspbForm(graphicsCurveForm):
         # Force to redraw histogram
         if redraw:
             sc.invalidate(QRectF(0.0, -sc.axeSize, sc.axeSize, sc.axeSize),
-                          QGraphicsScene.BackgroundLayer
+                          QGraphicsScene.SceneLayer.BackgroundLayer
                           )
 
     def updateHists(self):
@@ -167,7 +167,7 @@ class graphicsHspbForm(graphicsCurveForm):
             self.updateHist(curve, redraw=False)
         # Force to redraw histogram
         sc.invalidate(QRectF(0.0, -sc.axeSize, sc.axeSize, sc.axeSize),
-                      QGraphicsScene.BackgroundLayer
+                      QGraphicsScene.SceneLayer.BackgroundLayer
                       )
 
     def resetCurve(self):

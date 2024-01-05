@@ -415,7 +415,7 @@ class QbLUeSlider(QSlider):
 
     def __init__(self, *args, **kwargs):
         super(QbLUeSlider, self).__init__(*args, **kwargs)
-        self.setTickPosition(QSlider.NoTicks)
+        self.setTickPosition(QSlider.TickPosition.NoTicks)
         self.setMaximumSize(16777215, 10)
 
     def __getstate__(self):
@@ -582,7 +582,7 @@ class optionsWidget(QListWidget):
     userCheckStateChanged = QtCore.Signal(QListWidgetItem)
 
     def __init__(self, options=None, optionNames=None, exclusive=True, changed=None, parent=None,
-                 flow=QListWidget.TopToBottom):
+                 flow=QListWidget.Flow.TopToBottom):
         """
        :param options: list of options
        :type options: list of str
@@ -621,7 +621,7 @@ class optionsWidget(QListWidget):
             self.items[intName] = listItem
             self.options[intName] = (listItem.checkState() == Qt.Checked)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        if flow == QListWidget.TopToBottom:
+        if flow == QListWidget.Flow.TopToBottom:
             self.setMinimumHeight(self.sizeHintForRow(0) * len(options))
             self.setMaximumHeight(self.sizeHintForRow(0) * len(options) + 10)
         else:  # QListWidget.LeftToRight
@@ -739,12 +739,12 @@ class bLUeDialogCombo(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.cb = QComboBox()
-        self.cb.setSizeAdjustPolicy(QComboBox.AdjustToContents)
+        self.cb.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
         self.cb.currentIndexChanged.connect(self.selectionchange)
 
         buttonBox = QDialogButtonBox()
-        OkBtn = buttonBox.addButton(QDialogButtonBox.Ok)
-        CancelBtn = buttonBox.addButton(QDialogButtonBox.Cancel)
+        OkBtn = buttonBox.addButton(QDialogButtonBox.StandardButton.Ok)
+        CancelBtn = buttonBox.addButton(QDialogButtonBox.StandardButton.Cancel)
 
         def f(button):
             if button is OkBtn:

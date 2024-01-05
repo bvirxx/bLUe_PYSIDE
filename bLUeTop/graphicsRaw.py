@@ -535,8 +535,8 @@ class rawForm(baseForm):
 
         # separator
         sep = QFrame()
-        sep.setFrameShape(QFrame.HLine)
-        sep.setFrameShadow(QFrame.Sunken)
+        sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setFrameShadow(QFrame.Shadow.Sunken)
         l.addWidget(sep)
         l.addLayout(hl4)
         l.addLayout(hl7)

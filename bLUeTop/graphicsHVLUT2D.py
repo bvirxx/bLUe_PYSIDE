@@ -17,7 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 from PySide6 import QtCore
 from PySide6.QtCore import Qt, QRect
-from PySide6.QtGui import QFontMetrics, QColor
+from PySide6.QtGui import QFontMetrics
 from PySide6.QtWidgets import QLabel, QGridLayout
 
 from bLUeCore.bLUeLUT3D import DeltaLUT3D

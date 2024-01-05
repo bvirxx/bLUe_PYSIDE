@@ -464,7 +464,7 @@ class icc:
                                    0,
                                    1
                                    )  # these weird parameters are recommended by a runtime warning !!!
-        ImageCms.applyTransform(PIL_img, cmsTransformation, 1)  # 1=in place
+        ImageCms.applyTransform(PIL_img, cmsTransformation, inPlace=True)
         # back to the image buffer
         buf[...] = np.frombuffer(PIL_img.tobytes(), dtype=np.uint8).reshape(buf.shape)
         return image
@@ -474,12 +474,12 @@ class icc:
         """
         Applies a color transformation to a QImage and
         returns the transformed image.
-        If cmsTransformation is None, the input image is returned.
+        If transformation_QCS is None, the input image is returned.
 
         :param image: image to transform
         :type image: QImage
-        :param cmsTransformation : Cms transformation
-        :type cmsTransformation: ImageCmsTransform
+        :param transformation_QCS : Cms transformation
+        :type transformation_QCS: ImageCmsTransform
         :return: The converted QImage
         :rtype: QImage
         """
