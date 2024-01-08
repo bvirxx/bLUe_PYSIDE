@@ -139,7 +139,7 @@ class abstractForm:
 # from baseForm, baseGraphicsForm or graphicsCurveForm below.
 #################################################
 
-class baseForm(QWidget, abstractForm):
+class baseForm(QWidget, abstractForm): #(QWidget, abstractForm):
     """
     Base class for all graphic forms.
 
@@ -150,7 +150,8 @@ class baseForm(QWidget, abstractForm):
     dataChanged = QtCore.Signal()
 
     def __init__(self, layer=None, targetImage=None, parent=None):
-        super().__init__(parent=parent)
+        super().__init__()  #  parameter parent=parent triggers exception
+        self.setParent(parent)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         # accept click focus (needed by whatsthis)
         self.setFocusPolicy(Qt.ClickFocus)
@@ -190,7 +191,8 @@ class baseGraphicsForm(QGraphicsView, abstractForm):
     dataChanged = QtCore.Signal()
 
     def __init__(self, layer=None, targetImage=None, parent=None):
-        super().__init__(parent=parent)  # QGraphicsView __init__ is mandatory : don't rely on MRO !
+        super().__init__()  # must be QGraphicsView __init__ ;  parameter parent=parent triggers exception
+        self.setParent(parent)
         self.setAlignment(Qt.AlignTop)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setFocusPolicy(Qt.ClickFocus)

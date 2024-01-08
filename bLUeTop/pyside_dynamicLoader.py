@@ -82,13 +82,12 @@ class UiLoader(QUiLoader):
         overridden function.
         It is called for each widget defined in the ui file.
         """
-
         if parent is None and self.baseinstance:
             # supposed to create the top-level widget, return the base instance
             # instead
             return self.baseinstance
         else:
-            if class_name in self.availableWidgets() and class_name != 'QLabel':
+            if class_name in self.availableWidgets(): #and class_name != 'QLabel':
                 # create a new widget for child widgets
                 widget = QUiLoader.createWidget(self, class_name, parent, name)
             else:

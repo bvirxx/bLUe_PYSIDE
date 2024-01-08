@@ -455,6 +455,9 @@ def loadImage(img, tfile=None, version='unknown', withBasic=True, window=bLUeTop
                         layers.append((key, d))
                 except (SyntaxError, ValueError, pickle.UnpicklingError):
                     continue
+                except AttributeError as e_in:
+                    dlgWarn('Possibly deprecated bLU file: ', info=str(e_in))
+                    continue
         except (SyntaxError, ValueError, ModuleNotFoundError, pickle.UnpicklingError) as e:
             # exceptions raised while unpickling meta_dict['develop'] cannot be
             # skipped.

@@ -63,15 +63,22 @@ class Form1(QMainWindow):
 
     def init(self):
         """
-        Load the form from the .ui file
+        Loads the form from ui file
 
         """
         from bLUeTop.graphicsHist import histForm
         from bLUeTop.layerView import QLayerView
         from bLUeTop.imLabel import imageLabel
-        loadUi('bLUe.ui', baseinstance=self,
-               customWidgets={'QLayerView': QLayerView, 'QLabel': QLabel, 'histForm': histForm,
-                              'imageLabel': imageLabel, 'Line': QFrame})
+
+        loadUi('bLUe.ui',
+               baseinstance=self,
+               customWidgets={'histForm': histForm,
+                              'imageLabel': imageLabel,
+                              'QLayerView': QLayerView,
+                              'Line': QFrame
+                              }
+               )
+
         # hook called by event slots
         # should be redefined later
         self.onWidgetChange = lambda b: None
