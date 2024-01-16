@@ -92,24 +92,29 @@ class activeTriangle(QGraphicsPathItem):
     interactive bump triangle
     """
 
-    def __init__(self, x, y, bump, persistent=False, rect=None, parentItem=None):
+    def __init__(self, x, y, bump, width=50, persistent=False, rect=None, parentItem=None):
         super().__init__(parent=parentItem)
         self.setAcceptHoverEvents(True)
         self.persistent = persistent
         self.rect = rect
         self.setPos(QPointF(x, y))
         self.clicked = False
-        # coordinates are relative to activeTriangle
-        self.B, self.C, self.A = QPointF(0, 0), QPointF(50, 0), QPointF(25, -bump)
-        self.setPen(QPen(QColor(255, 255, 255), 2))
+        # coordinates are relative to activeTriangle position
+        self.B, self.C, self.A = QPointF(0, 0), QPointF(width, 0), QPointF(width / 2, - bump)
+        self.pen_hover_on = QPen(QBrush(Qt.GlobalColor.green), 1, Qt.DotLine)
+        self.pen_hover_out = QPen(QBrush(Qt.GlobalColor.gray), 1, Qt.DotLine)
+        self.setPen(self.pen_hover_out)
         self.update()
 
     def update(self):
         qpp = QPainterPath()
         trans = QPointF(-4, -4)
-        # coordinates are relative to activeTriangle
+        # coordinates are relative to activeTriangle position
         for p in [self.A, self.B, self.C]:
-            qpp.addEllipse(p + trans, 4, 4)
+            qpp.addEllipse(p, 4, 4)
+        qpp.moveTo(self.B)
+        qpp.lineTo(self.A)
+        qpp.lineTo(self.C)
         self.setPath(qpp)
         super().update()
 
@@ -135,6 +140,8 @@ class activeTriangle(QGraphicsPathItem):
                 x1, x2 = xt, self.C.x()
             elif self.moving is self.C:
                 x1, x2 = xt, self.B.x()
+            if abs(x1 - x2) >= self.parentItem().period:
+                return
             self.A.setX((self.B.x() + self.C.x()) / 2)
             self.B.setX(min(x1, x2))
             self.C.setX(max(x1, x2))
@@ -145,23 +152,29 @@ class activeTriangle(QGraphicsPathItem):
         # get scene current spline
         sc = self.scene()
         # get parent spline
-        activeSpline = self.parentItem()  # sc.cubicItem
-        # click event : remove point
-        if self.clicked:
+        asp = self.parentItem()
+        # Ctrl+click event : remove point
+        if self.clicked and e.modifiers() == Qt.ControlModifier:
             if self.persistent:
                 return
-            activeSpline.fixedPoints.remove(self)
+            asp.fixedPoints.remove(self)
             sc.removeItem(self)
-            return
-        activeSpline.updateLUTXY()
-        activeSpline.curveChanged.sig.emit()
+            asp.updatePath()
+            #sc.setSceneRect(sc.itemsBoundingRect())  # needed to force sceneRect shrinking
+            print('bound0', sc.itemsBoundingRect())
+            print('sc0', sc.sceneRect())
+            #sc.setSceneRect(QRectF(0,0,0,0))
+            print('sc1', sc.sceneRect())
+        sc.setSceneRect(sc.itemsBoundingRect())  # needed to force sceneRect shrinking
+        asp.updateLUTXY()
+        asp.curveChanged.sig.emit()
 
     def hoverEnterEvent(self, *args, **kwargs):
-        self.setPen(QPen(QColor(0, 255, 0), 2))
+        self.setPen(self.pen_hover_on)
         self.update()
 
     def hoverLeaveEvent(self, *args, **kwargs):
-        self.setPen(QPen(QColor(255, 255, 255), 2))
+        self.setPen(self.pen_hover_out)
         self.update()
 
 
@@ -194,7 +207,8 @@ class activeMarker(QGraphicsPolygonItem):
         item.setPen(QPen(color))
         item.setBrush(QBrush(color))
         # set move range to parent bounding rect
-        item.moveRange = item.parentItem().boundingRect()
+        if item.parentItem():
+            item.moveRange = item.parentItem().boundingRect()
         return item
 
     @classmethod
@@ -550,7 +564,7 @@ class activeBSpline(activeSpline):
     # To display periodic splines, the interval [0, period] is
     # represented by [0, axeSize] and the curve is enlarged
     # by periodViewing on both sides.
-    periodViewing = 50
+    periodViewing = 0 # 50
 
     def __init__(self, size, period=0, yZero=0):
         """
@@ -576,6 +590,7 @@ class activeBSpline(activeSpline):
         if self.clicked:
             # add point
             p = e.pos()
+            p.setY(self.yZero)
             a = activeTriangle(p.x(), p.y(), 50, parentItem=self)
             self.fixedPoints.append(a)
             self.fixedPoints.sort(key=lambda z: z.scenePos().x())
@@ -588,7 +603,7 @@ class activeBSpline(activeSpline):
         """
         axeSize = self.size
         rect = QRectF(0.0, -axeSize, axeSize, axeSize)
-        self.fixedPoints = [activeTriangle(50, self.yZero, 25, persistent=True, rect=rect, parentItem=self)]
+        self.fixedPoints = []  # [activeTriangle(50, self.yZero, 25, persistent=True, rect=rect, parentItem=self)]
 
     def updatePath(self):
         axeSize = self.size
@@ -613,6 +628,28 @@ class activeBSpline(activeSpline):
             self.setPath(mboundingPath)
         except ValueError:
             pass
+
+    def __getstate__(self):
+        s = self.size
+        return {'activetriangles': [(p.x() / s, p.y() / s,
+                                     p.A.x() / s, p.A.y() / s,
+                                     p.B.x() / s, p.B.y() / s,
+                                     p.C.x() / s, p.C.y() / s)
+                                    for p in self.fixedPoints
+                                   ]
+               }
+
+    def __setstate__(self, state):
+        s = self.size
+        fixedPoints = [activeTriangle((item[0] + item[4]) * s,  # position.x + B.x
+                                      self.yZero,               # position.y
+                                      - item[3] * s,            # bump
+                                      width=(item[6] - item[4]) * s,
+                                      parentItem=self
+                                      )
+                       for item in state['activetriangles']
+                      ]
+        self.setFixedPoints(fixedPoints)
 
 
 class activeCubicSpline(activeSpline):

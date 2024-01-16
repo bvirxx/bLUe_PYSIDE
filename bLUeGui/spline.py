@@ -27,8 +27,8 @@ from PySide6.QtCore import QPointF
 def displacementSpline(X, Y, V, period=0, clippingInterval=None):
     """
      Calculate the y-coordinates corresponding to the x-coordinates V for
-    the dsiplacement spline defined by the control points zip(X,Y).
-    A ValueError exception is raised if the X values are not distinct.
+    the displacement spline defined by the control points zip(X,Y).
+    A ValueError exception is raised if X is empty or the X values are not distinct.
 
     :param X: x-coordinates of control points, sorted in increasing order
     :type  X: ndarray, dtype=float
@@ -55,6 +55,9 @@ def displacementSpline(X, Y, V, period=0, clippingInterval=None):
             V = V - period * K
         return np.where(V <= t1, 0,
                         np.where(V >= t2, 0, np.where(V < M, b * (V - t1) / (M - t1), b * (t2 - V) / (t2 - M))))
+
+    if X.shape[0] < 2:  # no bump
+        return np.zeros(V.shape, dtype=float)
 
     left, right, bump = X[::2], X[1::2], Y
     tmp = np.vstack(([bumpVec(V, left[i], right[i], bump[i], period=period) for i in range(left.shape[0])]))

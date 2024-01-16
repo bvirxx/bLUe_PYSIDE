@@ -18,7 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 from PySide6 import QtCore
 from PySide6.QtCore import Qt, QPointF, QLineF
-from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget, QHBoxLayout
+from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget, QHBoxLayout, QGraphicsPixmapItem
 
 from bLUeTop.utils import QbLUeSlider
 from .colorCube import hsv2rgbVec, hsp2rgb, rgb2hsp, rgb2hspVec, hsv2rgb, rgb2hsB, rgb2hsBVec, hsp2rgbVec
@@ -180,10 +180,10 @@ class brightnessPattern(bImage):
         :type  h: int
         :param converter: color space converter
         :type  converter: cmConverter
-        :param hue: hue value
+        :param hue: hue value, range [0..360[
         :type  hue: int or float
-        :param sat: saturation value
-        :type  sat: int or float
+        :param sat: saturation value, range [0..1]
+        :type  sat: float
         :return: the image of gradient
         :rtype: bImage
         """
@@ -192,13 +192,171 @@ class brightnessPattern(bImage):
         imgBuf = QImageBuffer(self)
         # set alpha
         imgBuf[:, :, 3] = 255
-        imgBuf = imgBuf[:, :, :3][:, :, ::-1]
-        # build the array of (hue, sat, b), b in [0,1], shape=(w,3)
-        a = np.zeros((w, 2), dtype=float) + [hue, sat]
-        hsArray = np.concatenate((a, (np.arange(w) / (w - 1))[..., np.newaxis]), axis=1)
+        imgBuf1 = imgBuf[:, :, :3][:, :, ::-1]
+        # build the array of (hue, sat, b), b in [0,1]
+        a = np.zeros((w, 3), dtype=float)
+        a[..., :2] += [hue, sat]
+        a[..., 2] = np.arange(w) / (w - 1)
         # convert to rgb and broadcast to imgBuf
-        imgBuf[:, :, :] = converter.cm2rgbVec(hsArray[np.newaxis, ...])
+        imgBuf1[...] = converter.cm2rgbVec(a[np.newaxis, :, ...])
         self.updatePixmap()
+
+
+class huePattern(QImage):
+    """
+    linear gradient of hues for fixed sat and brightness.
+    """
+
+    def __init__(self, w, h, converter, sat, br):
+        """
+        Build a linear gradient of size (w, h) with variable hue
+        and fixed sat and brightness. The parameter converter defines the color space
+        which is used (HSV, HSpB,...).
+        :param w: image width
+        :type  w: int
+        :param h: image height
+        :type  h: int
+        :param converter: color space converter
+        :type  converter: cmConverter
+        :param sat: saturation value, range 0..1
+        :type  sat: float
+        :param br: brightness value, range 0..1
+        :type  br: float
+        """
+        super().__init__(w, h, QImage.Format_ARGB32)
+        self.cModel = converter
+        imgBuf = QImageBuffer(self)
+        # set alpha
+        imgBuf[:, :, 3] = 255
+        # build the array of (hue, sat, b), hue in range[0,360[
+        a = np.zeros((w, 3), dtype=float)
+        a[..., 1:] += [sat, br]
+        a[..., 0] = np.arange(w) * 360 / w
+        imgBuf1 = imgBuf[:, :, :3][:, :, ::-1]
+        imgBuf1[...] = converter.cm2rgbVec(a)
+
+
+class hueShiftPattern(QImage):
+    """
+    linear gradient of hues for fixed sat and brightness.
+    """
+
+    def __init__(self, w, h, converter, sat, br):
+        """
+        Build a linear gradient of size (w, h) with variable hue
+        and fixed sat and brightness. The parameter converter defines the color space
+        which is used (HSV, HSpB,...).
+        :param w: image width
+        :type  w: int
+        :param h: image height
+        :type  h: int
+        :param converter: color space converter
+        :type  converter: cmConverter
+        :param sat: saturation value, range 0..1
+        :type  sat: float
+        :param br: brightness value, range 0..1
+        :type  br: float
+        """
+        super().__init__(w, h, QImage.Format_ARGB32)
+        self.cModel = converter
+        imgBuf = QImageBuffer(self)
+        # set alpha
+        imgBuf[:, :, 3] = 255
+        # build the array of (hue, sat, b), hue in range[0,360[
+        a = np.zeros((h, w, 3), dtype=float)
+        a[..., 1:] += [sat, br]
+        a[..., 0] = (np.arange(w) * 360 / w)
+        delta = (h // 2 - np.arange(h)) / 5
+        a[..., 0] += delta[..., np.newaxis]
+        a[..., 0] %= 360
+        imgBuf1 = imgBuf[:, :, :3][:, :, ::-1]
+        imgBuf1[...] = converter.cm2rgbVec(a)
+
+
+class hueBrShiftPattern(QImage):
+    """
+    linear gradient of hues for fixed sat and shfted brightnesses.
+    """
+
+    def __init__(self, w, h, converter, sat, br):
+        """
+        Build a linear gradient of size (w, h) with variable hue,
+        fixed sat and shifted brightnesses. The parameter converter defines the color space
+        which is used (HSV, HSpB,...).
+        :param w: image width
+        :type  w: int
+        :param h: image height
+        :type  h: int
+        :param converter: color space converter
+        :type  converter: cmConverter
+        :param sat: saturation value, range 0..1
+        :type  sat: float
+        :param br: brightness value, range 0..1
+        :type  br: float
+        """
+        super().__init__(w, h, QImage.Format_ARGB32)
+        self.cModel = converter
+        imgBuf = QImageBuffer(self)
+        # set alpha
+        imgBuf[:, :, 3] = 255
+        # build the array of (hue, sat, b), hue in range[0,360[
+        a = np.zeros((h, w, 3), dtype=float)
+        a[..., 1:] += [sat, 0.5]
+        a[..., 0] = (np.arange(w) * 360 / w)
+        delta = 1.0 - (np.arange(h) - h // 2) / h
+        a[..., 2] *= delta[..., np.newaxis]
+        imgBuf1 = imgBuf[:, :, :3][:, :, ::-1]
+        imgBuf1[...] = converter.cm2rgbVec(a)
+
+
+class graphicsHueShiftPattern(hueShiftPattern, QGraphicsPixmapItem):
+    """
+    QGraphicsItem huePattern
+    """
+
+    def __init__(self, w, h, converter, sat, br):
+        """
+        Build a linear gradient of size (w, h) with variable brightnesses
+        and fixed hue and sat. The parameter converter defines the color space
+        which is used (HSV, HSpB,...).
+        :param w: image width
+        :type  w: int
+        :param h: image height
+        :type  h: int
+        :param converter: color space converter
+        :type  converter: cmConverter
+        :param sat: saturation value, range 0..1
+        :type  sat: float
+        :param br: brightness value, range 0..1
+        :type  br: float
+        """
+        super().__init__(w, h, converter, sat, br)
+        QGraphicsPixmapItem.__init__(self, QPixmap.fromImage(self))
+
+
+class graphicsHueBrShiftPattern(hueBrShiftPattern, QGraphicsPixmapItem):
+    """
+    QGraphicsItem huePattern
+    """
+
+    def __init__(self, w, h, converter, sat, br):
+        """
+        Build a linear gradient of size (w, h) with variable brightnesses
+        and fixed hue and sat. The parameter converter defines the color space
+        which is used (HSV, HSpB,...).
+        :param w: image width
+        :type  w: int
+        :param h: image height
+        :type  h: int
+        :param converter: color space converter
+        :type  converter: cmConverter
+        :param sat: saturation value, range 0..1
+        :type  sat: float
+        :param br: brightness value, range 0..1
+        :type  br: float
+        """
+        super().__init__(w, h, converter, sat, br)
+        QGraphicsPixmapItem.__init__(self, QPixmap.fromImage(self))
 
 
 class colorWheelSampler(QLabel):

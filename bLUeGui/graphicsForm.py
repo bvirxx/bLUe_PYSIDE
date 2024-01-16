@@ -33,8 +33,8 @@ class bottomWidget(QWidget):
     def __init__(self):
         super().__init__()
         self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
-        self.setMaximumSize(400, 150)
-        self.setMinimumSize(200, 50)
+        #self.setMaximumSize(800, 150)
+        #self.setMinimumSize(100, 30)
         self.setObjectName('container')
 
 
@@ -239,11 +239,11 @@ class baseGraphicsForm(QGraphicsView, abstractForm):
 
     def addCommandLayout(self, glayout):
         """
-        Add a layout below the scene.
-        That layout (e.g. a grid layout) is opaque and
-        non-zoomable. It is supposed
-        to contain option lists, buttons,...needed by
-        the form.
+        adds a layout container to the form.
+        That layout (e.g. a grid layout) is non-zoomable and non-scrollable. It is supposed
+        to contain option lists, buttons,...needed by the form.
+        container will be put in viewport bottom margin:
+        use setViewportMargins(..., ..., ..., container.height() + ...)
 
         :param glayout:
         :type  glayout: QLayout
@@ -252,7 +252,11 @@ class baseGraphicsForm(QGraphicsView, abstractForm):
         """
         container = bottomWidget()
         container.setLayout(glayout)
+        # self.scene().addWidget(container) adds a zoomable container,
+        # so we use a layout added to QGraphicsView object
         vl1 = QVBoxLayout()
+        vl1.setContentsMargins(20, 0, 20, 20)  # left, top, right, bottom ; bottom margin is needed
+                                               # for scrollbar not hiding container content.
         vl1.setAlignment(Qt.AlignBottom)
         vl1.addWidget(container)
         self.setLayout(vl1)
