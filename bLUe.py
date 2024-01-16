@@ -400,7 +400,7 @@ def loadImage(img, tfile=None, version='unknown', withBasic=True, window=bLUeTop
     tabBar.setCurrentIndex(ind)
     tabBar.setTabData(ind, img)
     setDocumentImage(img)
-
+    
     window.tableView.previewOptionBox.setChecked(True)
 
     # add development layer for raw image, and develop
@@ -2299,13 +2299,14 @@ def setTabBar(window=bLUeTop.Gui.window):
     tabBar.currentChanged.connect(switchDoc)
     tabBar.tabCloseRequested.connect(closeTab)
     tabBar.setMaximumHeight(25)
+    tabBar.setExpanding(False)
     # tabBar.setAutoHide(True)
     tabBar.setDrawBase(False)  # remove base line
     tabBar.setTabsClosable(True)
     vlay = QVBoxLayout()
     hlay2 = QHBoxLayout()
     hlay2.addWidget(tabBar)
-    hlay2.addStretch(1)
+    # hlay2.addStretch(1)  # replaced by tabBar.setExpanding(False)
     vlay.addLayout(hlay2)
     hlay1 = QHBoxLayout()
     hlay1.addWidget(window.label)
