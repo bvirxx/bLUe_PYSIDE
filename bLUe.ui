@@ -1345,7 +1345,7 @@ Size</string>
   </action>
   <action name="action2D_LUT_HV">
    <property name="text">
-    <string>3D LUT HSV Shift</string>
+    <string>3D LUT HV Shift</string>
    </property>
   </action>
   <action name="actionNew">
