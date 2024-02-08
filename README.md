@@ -4,8 +4,7 @@ Copyright (C) 2017-2023 Bernard Virot
 
 ## DESCRIPTION
 
-bLUe is a layer-based image editor. It aims to integrate a new *perceptual 3D LUT editor* with more traditional tools in
-order to provide a powerful GUI for photo editing. The program is fully modular : tools are implemented as independent
+bLUe is a layer-based image editor. It aims to integrate a new *perceptual 3D LUT editor* with more traditional tools to provide a powerful GUI for photo editing. The program is fully modular : tools are implemented as independent
 adjustment layers using a common GUI. New features can be added easily:
 any imaging library exposing Python bindings can take advantage of the GUI.
 
@@ -14,7 +13,7 @@ profiles : they are essential for rendering colors similar to that produced by c
 
 bLUe provides drawing layers and paint brushes with adjustable parameters: size, flow, hardness, opacity.
 
-bLUe is aware of multi-screen environments and color profiles : it uses image and monitor profiles in conjunction to
+bLUe is aware of multiscreen environments and color profiles : it uses image and monitor profiles in conjunction to
 display accurate colors.
 
 bLUe uses a pretrained neural network to provide automatic 3D LUTs for fast enhancement of images. The pretrained model
@@ -63,7 +62,7 @@ See the [bLUe site](http://bernard.virot.free.fr/) for screenshots, tutorials an
 
 ## FUNCTIONALITY
 
-* Neural network based automatic 3D LUT for image enhancement
+* Neural-network-based automatic 3D LUT for image enhancement
 * Soft proofing
 * Simultaneous edition of multiple images in formats jpg, png, tif, nef, cr2, arw, dng,...
 * Color profile management
@@ -81,7 +80,7 @@ See the [bLUe site](http://bernard.virot.free.fr/) for screenshots, tutorials an
 * Automatic import of camera specific profiles for development of raw images
 * Library viewer
 * Slide show
-* Context sensitive help
+* Context-sensitive help
 
 ## REQUIREMENTS
 
@@ -97,7 +96,7 @@ See the [bLUe site](http://bernard.virot.free.fr/) for screenshots, tutorials an
 
 ExifTool should be installed.
 
-On Windows, pywin32 is needed for multi-screen management.
+On Windows, pywin32 is needed for multiscreen management.
 
 On Ubuntu, gi and colord are needed to manage monitor profiles.
 
