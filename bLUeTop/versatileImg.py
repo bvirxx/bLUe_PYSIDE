@@ -324,8 +324,10 @@ class vImage(bImage):
             rawMetadata = {}
         self.isModified = False
         self.profileChanged = False
-        self.__rect, self.marker = None, None  # selection rectangle, marker
+        self.marker = None
         self.sRects = []  # selection rectangles
+        self.currSRect = None  # current selection rectangle
+        self.currSRect = None # current selection rectangle
         self.isCropped = False
         self.cropTop, self.cropBottom, self.cropLeft, self.cropRight = (0,) * 4
         self.isRuled = False
@@ -390,14 +392,6 @@ class vImage(bImage):
         if self.depth() != 32:
             raise ValueError('vImage : should be a 8 bits/channel color image')
         self.filename = filename if filename is not None else ''
-
-    @property
-    def rect(self):
-        return self.__rect
-
-    @rect.setter
-    def rect(self, rect):
-        self.__rect = rect
 
     def cropMargins(self):
         return (self.cropLeft, self.cropRight, self.cropTop, self.cropBottom)
@@ -484,7 +478,7 @@ class vImage(bImage):
 
     def initHald(self):
         """
-        UNUSED
+
         Builds a hald image (as a QImage) from identity 3D LUT.
         A hald can be viewed as a 3D LUT flattened and reshaped as a 2D array.
         """
@@ -690,11 +684,15 @@ class vImage(bImage):
         Buf = QImageBuffer(self)
         cv2Img = cv2.resize(Buf, (w, h), interpolation=interpolation)
         rszd = vImage(cv2Img=cv2Img, meta=copy(self.meta), format=self.format())
-        # resize rect and mask
-        if self.rect is not None:
+        # resize selection rectangles and mask
+        if self.sRects:
             homX, homY = w / self.width(), h / self.height()
-            rszd.rect = QRect(self.rect.left() * homX, self.rect.top() * homY, self.rect.width() * homX,
-                              self.rect.height() * homY)
+            rszd.sRects = [QRect(sRect.left() * homX,
+                                 sRect.top() * homY,
+                                 sRect.width() * homX,
+                                 sRect.height() * homY
+                                 ) for sRect in self.sRects
+                           ]
         if self.mask is not None:
             rszd.mask = self.mask.scaled(w, h)
         rszd.setModified(True)

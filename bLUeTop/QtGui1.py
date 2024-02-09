@@ -19,10 +19,10 @@ import os
 import sys
 
 from PySide6 import QtWidgets, QtCore
-from PySide6.QtCore import QSettings, Qt, QtMsgType
+from PySide6.QtCore import QSettings, Qt, QtMsgType, QEvent
 
-from PySide6.QtGui import QScreen
-from PySide6.QtWidgets import QApplication, QFrame, QLabel, QMainWindow, QSizePolicy
+from PySide6.QtGui import QScreen, QTabletEvent
+from PySide6.QtWidgets import QApplication, QFrame, QMainWindow, QSizePolicy
 
 import bLUeTop.Gui
 
@@ -229,9 +229,25 @@ if getattr(sys, 'frozen', False) and len(sys.argv) <= 1:
 ##################
 # constructing app
 ##################
+
+class QbLUeApplication(QApplication):
+    """
+    TabletEnterProximity and TabletLeaveProximity events are sent to application and not to widgets.
+    The class QbLUeApplication is created only to explicitly handle these events, if needed, by overriding
+    the function QApplication.event.
+    """
+    def event(self, event):
+        if event.type() == QEvent.TabletEnterProximity or event.type() == QEvent.TabletLeaveProximity:
+            bLUeTop.Gui.window.label.updateCursor(QTabletEvent(event))
+            return True
+        return super().event(event)
+
+
 QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)  # needed when a plugin initializes a web engine
-bLUeTop.Gui.app = QApplication(sys.argv)
+bLUeTop.Gui.app = QbLUeApplication(sys.argv)
 bLUeTop.Gui.app.setAttribute(Qt.AA_CompressHighFrequencyEvents)
+bLUeTop.Gui.app.setAttribute(Qt.AA_CompressTabletEvents)
+# bLUeTop.Gui.app.setAttribute(Qt.AA_SynthesizeMouseForUnhandledTabletEvents, False)  # default True
 
 #################
 # init main form
@@ -241,3 +257,4 @@ bLUeTop.Gui.window = Form1()
 
 # Before/After view
 bLUeTop.Gui.splitWin = splitWindow(bLUeTop.Gui.window)
+

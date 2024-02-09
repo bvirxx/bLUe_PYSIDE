@@ -917,8 +917,8 @@ class rawForm(baseForm):
                 obj.__setstate__(d['state'][name])
         self.layer.autoSpline = False
         # camera profiles are loaded asynchronously, so we record
-        # the name of the profile to be selected and we postpone the selection until all profiles are loaded.
-        self.postloadprofilename = d['state']['postloadprofilename']
+        # the name of the profile to be selected, and we postpone the selection until all profiles are loaded.
+        self.postloadprofilename = d['state'].get('postloadprofilename', None)  # for backwards compatibility
         # restore selected profile
         if self.postloadprofilename is not None:
             ind = self.cameraProfilesCombo.findText(self.postloadprofilename)

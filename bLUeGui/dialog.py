@@ -142,23 +142,29 @@ def dlgInfo(text, info='', parent=Gui.window):
     msg.exec()
 
 
-def dlgWarn(text, info='', parent=Gui.window):
+def dlgWarn(text, info='', modal=True, parent=Gui.window):
     """
-    Shows a simple warning dialog.
+    Shows a simple warning dialog. If modal is True (default) the dialog is modal,
+    otherwise it is window modal.
 
-    :param parent:
-    :type  parent: QWidget
     :param text:
     :type  text: str
     :param info:
     :type  info: str
+    :param modal:
+    :type modal: boolean
+    :param parent:
+    :type  parent: QWidget
     """
     msg = QMessageBox(parent=parent)
     msg.setWindowTitle('Warning')
     msg.setIcon(QMessageBox.Icon.Warning)
     msg.setText(text)
     msg.setInformativeText(info)
-    msg.exec()
+    if modal:
+        msg.exec()
+    else:
+        msg.open()
 
 
 def workInProgress(title, parent=None):

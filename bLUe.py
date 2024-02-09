@@ -281,17 +281,19 @@ def addAdjustmentLayers(img, layers, images):
     count = 1
 
     waitImages = []
-    # build layer stack
+
+    # rebuild the recorded layer stack
     for ind, item in enumerate(layers):
         d = item[1]['state']
-        if ind == 0:
-            # background layer is already in stack
-            layer = img.layersStack[0]
+        if item[0] == 'background':
+            if ind > 0:
+                img.layersStack.append(img.layersStack.pop(0))  # put background layer at its recorded place
+            layer = img.layersStack[-1]  # get it
         else:
-            layer = layerScripting(item[1]['actionname'], sname=item[0], script=True)
+            layer = layerScripting(item[1]['actionname'], sname=item[0], script=True)  # layer is added to stack
 
         if d['mask'] == 1:
-            if layer is not None:
+            if layer:
                 try:
                     buf = images.asarray()[count]
                     buf = buf.reshape(layer.height(), layer.width(), 4)
@@ -304,7 +306,7 @@ def addAdjustmentLayers(img, layers, images):
 
             count += 1
         else:
-            if layer is not None:
+            if layer:
                 layer.__setstate__(item[1])
 
         if 'images' in d:  # for back compatibility with previous bLU file formats
@@ -539,7 +541,7 @@ def openFile(f, window=bLUeTop.Gui.window):
             window.settings.setValue('paths/recent', recentFiles)
     except (ValueError, KeyError, IOError, rawpy.LibRawFatalError, SyntaxError,
             ModuleNotFoundError, pickle.UnpicklingError) as e:
-        dlgWarn(str(e))
+        dlgWarn('An Error occurred while opening file', str(e))
     finally:
         if tfile is not None:
             tfile.close()
@@ -778,8 +780,10 @@ def setDocumentImage(img, window=bLUeTop.Gui.window):
         window.viewState = 'After'
         window.splitter.hide()
         window.label.show()
-    # after image : ref to the opened document
+    # after image is the current document
     window.label_3.img = img
+    # after State dict is the current imageLabel State dict
+    window.label_3.State = window.label.State
     # no mouse drawing or painting
     window.label_2.img.isMouseSelectable = False
     # init layer view
@@ -913,7 +917,7 @@ def menuFile(name, window=bLUeTop.Gui.window):
             dlgWarn("Uncheck Preview mode before saving")
         else:
             if saveAsBLU and not window.label.img.useThumb:
-                dlgWarn("for better performances switch to Preview mode before saving a bLU document")
+                dlgWarn("For better performances switch to Preview mode before saving a bLU document")
             img = window.label.img
             try:
                 if saveAs:
@@ -932,7 +936,7 @@ def menuFile(name, window=bLUeTop.Gui.window):
                 dlgInfo("%s written" % filename)
                 window.label.img.setModified(False)
             except (ValueError, IOError) as e:
-                dlgWarn(str(e))
+                dlgWarn('An error occurred while saving file', str(e))
 
     # closing dialog : close opened document
     elif name == 'actionClose':
@@ -1016,7 +1020,9 @@ def menuView(name, window=bLUeTop.Gui.window):
     # Color Chooser
     ###############
     elif name == 'actionColor_Chooser':
-        window.colorChooser.show()
+        #window.colorChooser.show()
+        window.colorChooser.setVisible(not window.colorChooser.isVisible())
+        window.btns['colorPicker'].setChecked(window.colorChooser.isVisible())
     ############
     # Histogram
     ############
@@ -1464,7 +1470,7 @@ def layerScripting(name, window=bLUeTop.Gui.window, sname=None, script=False):
         layer = window.label.img.addAdjustmentLayer(name=gn(lname), layerType=QDrawingLayer, sourceImg=imgNew,
                                                     role='DRW')
         grWindow = drawForm.getNewWindow(axeSize=axeSize, **envdict())
-        layer.execute = lambda l=layer, pool=None: l.tLayer.applyNone()
+        layer.execute = lambda l=layer, pool=None, bRect=None: l.tLayer.applyNone(bRect=bRect)
         layer.actioname = name
 
     # Color filter
@@ -1686,7 +1692,7 @@ def menuHelp(name, window=bLUeTop.Gui.window):
 
 def canClose(index=None, window=bLUeTop.Gui.window):
     """
-    If index is None, tries to save and close all opened documents, otherwise only
+    If index is None, tries to save and close all opened documents; otherwise only
     the document in index tab is considered.
     Returns True if all requested tabs could be closed, False otherwise.
     Called by the application closeEvent slot, by closeTabs() and by closeTab().
@@ -1727,9 +1733,9 @@ def canClose(index=None, window=bLUeTop.Gui.window):
                 elif ret == QMessageBox.StandardButton.Cancel:
                     return False
             except (ValueError, IOError) as e:
-                dlgWarn(str(e))
+                dlgWarn('An error occurred while closing tab', str(e))
                 return False
-        # discard changes or img not modified : remove tab
+        # discard changes or img not modified: remove tab
         img = window.tabBar.tabData(ind)
         window.tabBar.removeTab(ind)  # keep before closeView
         stack = img.layersStack
@@ -1802,7 +1808,11 @@ def initCursors():
     pxmp = QPixmap(":/images/resources/icons8-windows-metro-26.png")
     w, h = pxmp.width(), pxmp.height()
     cursors['Bucket'] = QCursor(pxmp, hotX=w - 1, hotY=0)
-    # tool cursor, must be resizable
+    # eraser cursor
+    pxmp = QPixmap(":/images/resources/icons8-gomme-30.png")
+    w, h = pxmp.width(), pxmp.height()
+    cursors['Eraser'] = QCursor(pxmp, hotX=(w - 1) // 2, hotY=0)
+    # tool cursor must be resizable
     curImg = QImage(":/images/resources/cursor_circle.png")
     # turn to white
     curImg.invertPixels()
@@ -1928,7 +1938,7 @@ def setColorManagement(window=bLUeTop.Gui.window):
 
 def dragEnterEvent(widget, img, event):
     """
-    Accept drop if mimeData contains text (e.g. file name)
+    Accept a drop if mimeData contains text (e.g. file name)
     (convenient for main window only)
 
     :param widget:
@@ -1991,7 +2001,7 @@ def setupGUI(window=bLUeTop.Gui.window):
 
     if sys.platform == 'darwin':
         # seems necessary to prevent semi-transparent
-        # WhatsThis window on Mac OS.  May be a bug ?
+        # WhatsThis window on Mac OS.  Maybe a bug ?
         p = Gui.app.palette()
         p.setColor(QPalette.ToolTipBase, '#f5f2de')  # Qt.white)
         Gui.app.setPalette(p)
@@ -2162,8 +2172,8 @@ def setupGUI(window=bLUeTop.Gui.window):
 
     # watch hover events
     window.label.setMouseTracking(True)
-    window.label.setAttribute(Qt.WA_TabletTracking, False)
-
+    window.label.setTabletTracking(True)
+    #window.setAttribute(Qt.WA_TabletTracking, True)
     # connect menu event handlers
     window.menu_File.aboutToShow.connect(updateEnabledActions)
     window.menuLayer.aboutToShow.connect(updateEnabledActions)
@@ -2301,7 +2311,7 @@ def setTabBar(window=bLUeTop.Gui.window):
     tabBar.setMaximumHeight(25)
     tabBar.setExpanding(False)
     # tabBar.setAutoHide(True)
-    tabBar.setDrawBase(False)  # remove base line
+    tabBar.setDrawBase(False)  # remove baseline
     tabBar.setTabsClosable(True)
     vlay = QVBoxLayout()
     hlay2 = QHBoxLayout()

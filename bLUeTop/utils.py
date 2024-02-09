@@ -256,6 +256,9 @@ class virtualCursor(object):
         self.posX, self.posY = posX, posY
         self.visible = visible
 
+    def setPosition(self, p):
+        self.posX, self.posY = p.x(), p.y()
+
 
 def multiply(matr_a, matr_b):
     """Returns product of an MxP matrix A with an PxN matrix B."""
@@ -329,11 +332,12 @@ class QbLUeColorDialog(QColorDialog):
         super().__init__(parent=parent)
         self.closeSignal = baseSignal_No()
         self.setAttribute(Qt.WA_DeleteOnClose, on=False)
+        self.setAttribute(Qt.WA_ShowWithoutActivating)  # does not get focus on show
         self.setWhatsThis(
             """<b>Color Picker</b><br>
-            &nbsp;<b>Click : </b> Pick color from <i>color managed</i> image.
-            To pick profile independent (image) color make active the top layer and do <i>Ctrl+Click</i>.<br>
-            &nbsp;<b>Ctrl+Click : </b> Pick color from active layer.<br>
+            &nbsp;<b>Ctrl+Click : </b> Pick color from <i>color managed</i> image.
+            To pick profile independent (image) color make active the top layer and do <i>Ctrl+Alt+Click</i>.<br>
+            &nbsp;<b>Ctrl+Alt+Click : </b> Pick color from active layer.<br>
             &nbsp;<b>Ctrl+Shift+Click : </b> Pick color from active layer input.<br><br>
             <b>Current Layer mask is ignored</b>.<br>
             """)
@@ -446,7 +450,7 @@ class QbLUeSlider(QSlider):
 
 class QbLUeLabel(QLabel):
     """
-    Emits a signal when double clicked
+    Emits a signal when double-clicked
     """
     doubleClicked = QtCore.Signal()
 

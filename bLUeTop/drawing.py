@@ -22,7 +22,7 @@ from random import choice
 import numpy as np
 import cv2
 
-from PySide6.QtCore import QRect, QPointF, Qt
+from PySide6.QtCore import QRect, QPointF, Qt, QRectF
 from PySide6.QtGui import QPixmap, QColor, QPainter, QRadialGradient, QBrush, QPainterPath, QImage, QTransform
 
 from bLUeGui.bLUeImage import QImageBuffer, ndarrayToQImage
@@ -61,8 +61,8 @@ class brushFamily:
         Base method for brush painting.
         The method paints the straight line ((x0,y0), (x, y)) with the brush defined by brush,
         using an active QPainter instance qp,
-        It returns the last painted position, or the initial position if
-        not any painting occurs, due to spacing constraints.
+        It returns the last painted position (the initial position if
+        not any painting occurs, due to spacing constraints) and the painted rectangle.
 
         :param qp: active QPainter
         :type qp: QPainter
@@ -76,8 +76,8 @@ class brushFamily:
         :type y: float
         :param brush: painting brush or eraser
         :type brush: dict
-        :return: last painted position
-        :rtype: 2-uple of float
+        :return: last painted position and painted rectangle (image relative coord.)
+        :rtype: 3-uple : float, float, QRectF
         """
         tmp_x = x
         tmp_y = y
@@ -85,10 +85,10 @@ class brushFamily:
         a_x, a_y = tmp_x - x0, tmp_y - y0
         # move length
         d = sqrt(a_x * a_x + a_y * a_y)
-
         s = max(brush['size'] * brush['tabletW'], 2)
-        if d <= s:
-            return x0, y0
+
+        if d < 1:  # d <= s:
+            return x0, y0, QRectF()  # nothing drawn, empty rect
 
         sat = min(brush['tabletS'], 1.0)
         pxmp = brush['pixmap'].scaled(s, s, mode=Qt.SmoothTransformation)
@@ -132,7 +132,15 @@ class brushFamily:
             if count < maxCount:
                 p_x, p_y = p_x + a_x * step, p_y + a_y * step
 
-        return p_x, p_y
+        # bounding rect of seg
+        modRect = QRectF(QPointF(min(x0, p_x), min(y0, p_y)),
+                         QPointF(max(x0, p_x), max(y0, p_y))
+                         )
+        # enlarge by pxmp size
+        modRect.setBottomRight(modRect.bottomRight() + QPointF(s, s))
+        modRect.setTopLeft(modRect.topLeft() - QPointF(s, s))
+
+        return p_x, p_y, modRect
 
     @staticmethod
     def brushStrokePoly(pixmap, poly, brush):
@@ -159,11 +167,12 @@ class brushFamily:
         for i in range(poly.length() - 1):
             x0, y0 = poly.at(i).x(), poly.at(i).y()
             x, y = poly.at(i + 1).x(), poly.at(i + 1).y()
-            x_last, y_last = brushFamily.brushStrokeSeg(qp,
-                                                        x_last,
-                                                        y_last,
-                                                        x, y,
-                                                        brush)
+            x_last, y_last, _ = brushFamily.brushStrokeSeg(qp,
+                                                           x_last,
+                                                           y_last,
+                                                           x, y,
+                                                           brush
+                                                          )
         qp.end()
         # draw texture aligned with image
         strokeTex = pxmp_temp
@@ -440,7 +449,7 @@ def bLUeFloodFill(layer, x, y, color):
     mask = np.zeros((h + 2, w + 2), dtype=np.uint8)
     # flood filling
     if 0 <= x < w and 0 <= y < h:
-        cv2.floodFill(buf, mask, (x, y), (color.red(), color.green(), color.blue()))
+        cv2.floodFill(buf, mask, (x, y), (color.red(), color.green(), color.blue()), (0, 0, 0), (0, 0, 0))
     buf0[..., :3] = buf[..., ::-1]
     # set the alpha channel of the filled region
     buf0[mask[1:-1, 1:-1] == 1, 3] = color.alpha()

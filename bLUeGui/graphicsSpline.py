@@ -58,6 +58,8 @@ class activePoint(QGraphicsPathItem):
             y = min(max(y, self.ymin), self.ymax)
         self.setPos(QPointF(x, y))
         self.clicked = False
+        self.pressed = True
+        self.press_x, self.press_y = 0, 0
         self.setPen(QPen(color, 2))
         # filling brush
         if fillColor is not None:
@@ -69,9 +71,13 @@ class activePoint(QGraphicsPathItem):
 
     def mousePressEvent(self, e):
         self.clicked = True
+        self.pressed = True
+        self.press_x, self.press_y = e.pos().x(), e.pos().y()
 
     def mouseMoveEvent(self, e):
-        self.clicked = False
+        if not self.pressed:
+            return
+        self.clicked = self.clicked and abs(self.press_x -e.pos().x()) + abs(self.press_y -e.pos().y()) <= 2
         x, y = e.scenePos().x(), e.scenePos().y()
         if self.rect is not None:
             x = min(max(x, self.xmin), self.xmax)
@@ -312,7 +318,9 @@ class activeSplinePoint(activePoint):
         self.tangent = None  # link to tangent : used only by qudratic spline
 
     def mouseMoveEvent(self, e):
-        self.clicked = False
+        if not self.pressed:
+            return
+        self.clicked = self.clicked and abs(self.press_x - e.pos().x()) + abs(self.press_y - e.pos().y()) <= 2
         item = self.parentItem()
         if item is None:
             return
@@ -333,6 +341,9 @@ class activeSplinePoint(activePoint):
         item.updatePath()
 
     def mouseReleaseEvent(self, e):
+        if not self.pressed:
+            return
+        self.pressed = False
         # get scene current spline
         item = self.parentItem()  # self.scene().cubicItem
         if item is None:
@@ -468,6 +479,8 @@ class activeSpline(QGraphicsPathItem):
         self.mboundingPath = stroker.createStroke(qpp)
         self.setPath(self.mboundingPath)
         self.clicked = False
+        self.pressed = True
+        self.press_x, self.press_y = 0, 0
         self.setVisible(False)
         self.fixedPoints = fixedPoints
         self.__spline = []
@@ -493,14 +506,19 @@ class activeSpline(QGraphicsPathItem):
 
     def mousePressEvent(self, e):
         self.clicked = True
+        self.pressed = True
+        self.press_x, self.press_y = e.pos().x(), e.pos().y()
 
     def mouseMoveEvent(self, e):
-        self.clicked = False
+        self.clicked = self.clicked and abs(self.press_x -e.pos().x()) + abs(self.press_y -e.pos().y()) <= 2
 
     def mouseReleaseEvent(self, e):
         """
         if clicked, add a control point to the curve
         """
+        if not self.pressed:  # prevent multiple release events from tablet
+            return
+        self.pressed = False
         # click event
         if self.clicked:
             # add point

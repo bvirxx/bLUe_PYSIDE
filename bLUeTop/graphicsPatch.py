@@ -192,6 +192,7 @@ class patchForm(baseForm):
                          Use <i>the Mask/BG Tool</i> to adjust the mask if needed. <br>
             Use <b>Ctrl+Alt+Mouse Wheel</b> to zoom in or out the cloned region.<br>
             Eventually use <b>Mask Erode</b> from the layer context menu to smooth the contour of the mask.<br>
+            <b>Use a fresh cloning layer for each new starting point.</b>
             """
         )  # end of setWhatsthis
 

@@ -65,10 +65,11 @@ class bImage(QImage):
         self.maskedImageContainer = None
         self.maskedThumbContainer = None
         self._mask = None  # double underscore mangling conflicts with overriding
-        self.maskIsEnabled = False
-        self.maskIsSelected = False
+        self.maskIsEnabled = False  # mask activated
+        self.maskIsSelected = False  # mask viewed as color mask
         self.colorMaskOpacity = bImage.defaultColorMaskOpacity
-        self.mergingFlag = False
+        self.mergingFlag = False  # Exposure Fusion marker
+        self.compressFlag = False  # Layer compression marker
         self.parentImage = None
 
     @property

@@ -28,7 +28,7 @@ from collections import OrderedDict
 import tifffile
 
 from PIL.ImageCms import ImageCmsProfile
-from PySide6.QtCore import Qt, QSize, QPoint, QPointF, QFileInfo, QByteArray, QBuffer, QIODevice, QRectF
+from PySide6.QtCore import Qt, QSize, QPoint, QPointF, QFileInfo, QByteArray, QBuffer, QIODevice, QRectF, QTimer
 
 import cv2
 from copy import copy
@@ -125,6 +125,7 @@ class mImage(vImage):
         # background layer
         bgLayer = QLayer.fromImage(self, parentImage=self)
         bgLayer.isClipping = True
+        bgLayer.role = 'background'
         self.activeLayerIndex = None
         self.addLayer(bgLayer, name='Background')
         # presentation layer
@@ -160,12 +161,14 @@ class mImage(vImage):
         self.onImageChanged = source.onImageChanged
         self.useThumb = source.useThumb
         self.useHald = source.useHald
-        self.rect = source.rect
+        self.sRects = source.sRects.copy()
         for l in source.layersStack[1:]:
-            lr = type(l).fromImage(l.scaled(self.size()), role=l.role,
+            lr = type(l).fromImage(l.scaled(self.size()),
+                                   role=l.role,
                                    parentImage=self,
                                    sourceImg=l.sourceImg.scaled(self.size())
-                                   if getattr(l, 'sourceImg', None) is not None else None)
+                                             if getattr(l, 'sourceImg', None) is not None else None
+                                   )
             lr.execute = l.execute
             lr.actionName = l.actionName
             lr.name = l.name
@@ -393,7 +396,7 @@ class mImage(vImage):
     def addLayer(self, layer, name='noname', index=None, activate=True):
         """
         Adds a layer to stack (If the parameter layer is None a fresh layer is added).
-        The layer name may be modified to get a unique (case insensitive) name.
+        The layer name may be modified to get a unique (case-insensitive) name.
         The layer is returned.
 
         :param layer: layer to add (if None, add a fresh layer)
@@ -429,7 +432,7 @@ class mImage(vImage):
         if activate:
             self.setActiveLayer(index)
         layer.meta = self.meta
-        layer.parentImage = weakProxy(self)  # TODO weakproxy added 29/11/21 validate
+        layer.parentImage = weakProxy(self)
         self.setModified(True)
         return layer
 
@@ -605,7 +608,7 @@ class mImage(vImage):
     def save(self, filename, quality=-1, compression=-1):
         """
         Overrides QImage.save().
-        If filename extension is a standard image format the method writes
+        If filename extension is a standard image format, the method writes
         the presentation layer to filename and returns a
         thumbnail with standard size (160x120 or 120x160). Parameters quality and compression
         are passed to the writer.
@@ -693,7 +696,7 @@ class mImage(vImage):
                 # copy raw file and layer stack to .bLU
                 originFormat = self.filename[-4:]  # format of opened document
                 if originFormat in BLUE_FILE_EXTENSIONS:  # format of source file
-                    with tifffile.TiffFile(self.filename) as tfile:
+                    with tifffile.TiffFile(self.filename) as tfile:  # raw image will be copied from source file
                         sourcedata = tfile.series[0].pages[0].asarray()
                         buf_ori = sourcedata[0]  # [:, 0]
                 elif originFormat in RAW_FILE_EXTENSIONS:
@@ -1065,13 +1068,13 @@ class QLayer(vImage):
 
         # layer opacity, range 0.0...1.0
         self.opacity = 1.0
+        # compositionMode type is QPainter.CompositionMode enum or int for modes added by bLUe
         self.compositionMode = QPainter.CompositionMode_SourceOver
         ###################################################################################
-        # To avoid changing signature of inherited methods,
-        # QLayer is not subclassed to define multiple types of adjustment layers.
-        # Instead, we use the attribute execute as a wrapper to the right applyXXX method, depending
-        # on the intended "type" of layer.
-        # Note : execute should always end by calling updatePixmap.
+        # QLayer is not always subclassed to define multiple types of adjustment layers.
+        # Instead, we may use the attribute execute as a wrapper to the right applyXXX method,
+        # depending on the intended "type" of layer.
+        # The method execute must call updatePixmap().
         ##################################################################################
         self.execute = lambda l=None, pool=None: l.updatePixmap() if l is not None else None
         self.options = {}
@@ -1470,6 +1473,8 @@ class QLayer(vImage):
             QApplication.restoreOverrideCursor()
             QApplication.processEvents()
     """
+    def isBackgroundLayer(self):
+        return 'background' in self.role
 
     def isAdjustLayer(self):
         return self.view is not None  # hasattr(self, 'view')
@@ -1498,7 +1503,56 @@ class QLayer(vImage):
     def isMergingLayer(self):
         return 'MERGING' in self.role
 
-    def updatePixmap(self, maskOnly=False):
+    def updateOnlyPixmap(self, bRect=None):
+        """
+        Sync rPixmap with current layer image. Unlike updatePixmap functions it does nothing else.
+        If not None, bRect is a bounding rect of the modified  region of layer image. The coordinates
+        of bRect are relative to the full size image.
+        THe method returns the modified region of layer image. The coordinates are relative to current image.
+
+        :param bRect: modified region of layer image (coord. relative to full size image)
+        :type bRect: QRect
+        :return: modified region of layer image (coord. relative to current image)
+        :rtype: QRect
+        """
+        rImg = self.getCurrentImage()
+        crect = rImg.rect()
+
+        if self.maskIsEnabled:
+            rImg = vImage.visualizeMask(rImg, self.mask, color=self.maskIsSelected)
+
+        # convert bRect to current image coordinates
+        if bRect:
+            bRect = QRect(QPoint(*self.full2CurrentXY(bRect.topLeft().x(), bRect.topLeft().y())),
+                          QPoint(*self.full2CurrentXY(bRect.bottomRight().x(), bRect.bottomRight().y()))
+                          )
+        else:
+            bRect = crect
+
+        # rImg may have transparencies (mask...), so we force alpha channel
+        if self.rPixmap is None:
+            self.rPixmap = QPixmap.fromImage(rImg, Qt.NoOpaqueDetection)
+        elif self.rPixmap.size() != rImg.size():
+            if self.rPixmap.convertFromImage(rImg, Qt.NoOpaqueDetection):
+                pass
+            else:
+                raise ValueError('updatePixmap: conversion error')
+        else:
+            # alpha channel possibly does not exist yet
+            if not self.rPixmap.hasAlphaChannel():
+                self.rPixmap.convertFromImage(rImg, Qt.NoOpaqueDetection)
+            qp = QPainter(self.rPixmap)
+            qp.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
+            qp.drawImage(bRect.topLeft().x(), bRect.topLeft().y(),
+                         rImg,
+                         sx=bRect.topLeft().x(), sy=bRect.topLeft().y(),
+                         sw=bRect.width(), sh=bRect.height()
+                         )
+            qp.end()
+            crect = bRect
+        return crect
+
+    def updatePixmap(self, maskOnly=False, bRect=None):
         """
         Synchronize rPixmap with the layer image and mask.
         if maskIsEnabled is False, the mask is not used.
@@ -1511,19 +1565,11 @@ class QLayer(vImage):
 
         :param maskOnly: not used : for consistency with overriding method signature
         :type maskOnly: boolean
+        :param bRect: not used : for consistency with overriding method signature
+        :type bRect: QRect
         """
         rImg = self.getCurrentImage()
-        # apply layer transformation. Missing pixels are set to QColor(0,0,0,0)
-        if self.xOffset != 0 or self.yOffset != 0:
-            x, y = self.full2CurrentXY(self.xOffset, self.yOffset)
-            rImg = rImg.copy(QRect(-x, -y, rImg.width() * self.Zoom_coeff, rImg.height() * self.Zoom_coeff))
-        if self.maskIsEnabled:
-            rImg = vImage.visualizeMask(rImg, self.mask, color=self.maskIsSelected)
-        if self.rPixmap is None:
-            self.rPixmap = QPixmap.fromImage(rImg)
-        else:
-            if not self.rPixmap.convertFromImage(rImg):
-                raise ValueError('updatePixmap: conversion error')
+        self.updateOnlyPixmap(bRect=bRect)
         self.setModified(True)
 
     def getStackIndex(self):
@@ -1564,18 +1610,20 @@ class QLayer(vImage):
                 return i
         return -1
 
-    def getLowerVisibleStackIndex(self):
+    def getLowerVisibleStackIndex(self, flag=''):
         """
-        Returns the index of the next lower visible layer,
-        -1 if it does not exists.
+        Returns the index of the next lower visible layer
+        with flag set to True, -1 if it does not exists.
 
+        :param flag:
+        :type flag: bool
         :return:
         :rtype: int
         """
         ind = self.getStackIndex()
         stack = self.parentImage.layersStack
         for i in range(ind - 1, -1, -1):
-            if stack[i].visible:
+            if stack[i].visible and getattr(stack[i], flag, False):
                 return i
         return -1
 
@@ -1613,44 +1661,55 @@ class QLayer(vImage):
         return -1
 
 
-    def merge_with_layer_immediately_below(self):
+    def compressToLower(self):
         """
-        Merges a layer with the next lower visible layer. Does nothing
-        if mode is preview or the target layer is an adjustment layer.
+        Compress all lower visible layers into target.
+        Target is the nearest visible lower layer marked as 'C'.
+        Does nothing if mode is preview or if the target layer is
+        neither an image layer nor the background layer.
         """
-        if not hasattr(self, 'inputImg'):
-            return
-        ind = self.getLowerVisibleStackIndex()
+
+        ind = self.getLowerVisibleStackIndex(flag='compressFlag')
         if ind < 0:
-            # no visible layer found
+            # no target found
             return
         target = self.parentImage.layersStack[ind]
-        if hasattr(target, 'inputImg') or self.parentImage.useThumb:
+        if not (target.isImageLayer() or target.isBackgroundLayer()) or self.parentImage.useThumb:
             info = "Uncheck Preview first" if self.parentImage.useThumb else "Target layer must be background or image"
-            dlgWarn("Cannot Merge layers", info=info)
+            dlgWarn("Cannot compress layers", info=info)
             return
         # update stack
         self.parentImage.layersStack[0].applyToStack()
 
         # merge
+        img = target.sourceImg if target.isImageLayer() else target.getCurrentImage()
         if type(self.compositionMode) is QPainter.CompositionMode:
-            qp = QPainter(target)
+            qp = QPainter(img)
             qp.setCompositionMode(self.compositionMode)
             # qp.setOpacity(self.opacity)
             qp.drawImage(QRect(0, 0, self.width(), self.height()), self)
             qp.end()
         else:
-            buf = QImageBuffer(target)[..., :3][..., ::-1]
+            buf = QImageBuffer(img)[..., :3][..., ::-1]
             funcname = 'blend' + bLUeGui.blend.compositionModeDict_names[self.compositionMode] + 'Buf'
             func = getattr(bLUeGui.blend, funcname, None)
             buf[...] = func(buf, QImageBuffer(self.getCurrentImage()[..., :3][..., ::-1]))
 
         target.updatePixmap()
+
         self.parentImage.layerView.clear(delete=False)
-        currentIndex = self.getStackIndex()
-        self.parentImage.activeLayerIndex = ind
-        self.parentImage.layersStack.pop(currentIndex)
+        currentIndex = self.getStackIndex()  # source
+        self.parentImage.activeLayerIndex = ind  # target
+        skip = 0
+        stack = self.parentImage.layersStack
+        for i in range(ind+1, currentIndex+1):
+            if not (stack[i].isRawLayer() or stack[i].isBackgroundLayer()):
+                del stack[ind + 1 + skip]
+            else:
+                skip += 1
         self.parentImage.layerView.setLayers(self.parentImage)
+
+        self.parentImage.layersStack[0].applyToStack()
 
     def reset(self):
         """
@@ -1724,11 +1783,18 @@ class QLayer(vImage):
         window.updateStatus()
 
     def __getstate__(self):
+
+        def codeCompositionMode(cpm):
+            if type(cpm) is QPainter.CompositionMode:
+                return cpm.value
+            return cpm
+
         d = {}
         grForm = self.getGraphicsForm()
         if grForm is not None:
             d = grForm.__getstate__()
-        d['compositionMode'] = self.compositionMode
+        # pickling/unpickling enums may be unsafe !
+        d['compositionMode'] = codeCompositionMode(self.compositionMode)
         d['opacity'] = self.opacity
         d['visible'] = self.visible
         d['maskIsEnabled'] = self.maskIsEnabled
@@ -1741,8 +1807,17 @@ class QLayer(vImage):
         return d
 
     def __setstate__(self, state):
+
+        def decodeCompositionMode(cpm):
+            if type(cpm) is QPainter.CompositionMode:
+                return cpm
+            # type(cpm) is int:
+            if cpm >= 0:
+                return QPainter.CompositionMode(cpm)
+            return cpm
+
         d = state['state']
-        self.compositionMode = d['compositionMode']
+        self.compositionMode = decodeCompositionMode(d['compositionMode'])
         self.opacity = d['opacity']
         self.visible = d['visible']
         self.maskIsEnabled = d['maskIsEnabled']
@@ -1786,7 +1861,7 @@ class QLayer(vImage):
 
         return selList
 
-    def applyNone(self):
+    def applyNone(self, bRect=None):
         """
         Pass through
         """
@@ -1794,7 +1869,7 @@ class QLayer(vImage):
         bufIn = QImageBuffer(imgIn)
         bufOut = QImageBuffer(self.getCurrentImage())
         bufOut[:, :, :] = bufIn
-        self.updatePixmap()
+        self.updatePixmap(bRect=bRect)
 
 
     def applyGrabcut(self, nbIter=2, mode=cv2.GC_INIT_WITH_MASK):
@@ -2072,7 +2147,7 @@ class QLayer(vImage):
             return
         # get the bounding rect of the transformed image (in the full size image coordinate system)
         # (Avoid the conversion of QTransforms to QMatrix4x4 and matrix product)
-        rectTrans = DInv.map(T.map(D.map(QImage.rect(self)))).boundingRect()
+        rectTrans = DInv.map(T.map(D.map(self.rect()))).boundingRect()
         # apply the transformation and re-translate the transformed image
         # so that the resulting transformation is T and NOT that given by QImage.trueMatrix()
         img = (inImg.transformed(T)).copy(QRect(-rectTrans.x() * s, -rectTrans.y() * s, w, h))
@@ -2866,40 +2941,49 @@ class QPresentationLayer(QLayer):
     """
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
         self.qPixmap = None
         self.cmImage = None
+        super().__init__(*args, **kwargs)  # don't move up !
 
     def inputImg(self, redo=True):
         return self.parentImage.layersStack[self.getTopVisibleStackIndex()].getCurrentMaskedImage()
 
-    def updatePixmap(self, maskOnly=False):
+    def updatePixmap(self, maskOnly=False, bRect=None):
         """
         Synchronizes qPixmap and rPixmap with the image layer.
         THe Parameter maskOnly is provided for compatibility only and it is unused.
         """
         currentImage = self.getCurrentImage()
-        if self.rPixmap is None:
-            self.rPixmap = QPixmap.fromImage(currentImage)
-        else:
-            if not self.rPixmap.convertFromImage(currentImage):
-                raise ValueError('updatePixmap: conversion error')
+
+        crect = self.updateOnlyPixmap(bRect=bRect)
 
         # color management
         if icc.COLOR_MANAGE and self.parentImage is not None:
-            img = icc.convertQImage(currentImage, transformation=self.parentImage.colorTransformation)
-            self.qPixmap = QPixmap.fromImage(img)
+            if self.qPixmap is None:
+                img = icc.convertQImage(currentImage, transformation=self.parentImage.colorTransformation)
+                self.qPixmap = QPixmap.fromImage(img)
+            elif self.qPixmap.size() != currentImage.size():
+                img = icc.convertQImage(currentImage, transformation=self.parentImage.colorTransformation)
+                self.qPixmap.convertFromImage(img)
+            else:
+                currentImage = currentImage.copy(crect)
+                img = icc.convertQImage(currentImage, transformation=self.parentImage.colorTransformation)
+                qp = QPainter(self.qPixmap)
+                qp.drawImage(crect.topLeft().x(), crect.topLeft().y(),
+                             img
+                             )
+                qp.end()
         else:
             self.qPixmap = self.rPixmap
 
         self.setModified(True)
 
-    def applyNone(self):
-        super().applyNone()
+    def applyNone(self, bRect=None):
+        super().applyNone(bRect=bRect)
         self.parentImage.setModified(True)
 
-    def update(self):
-        self.applyNone()
+    def update(self, bRect=None):
+        self.applyNone(bRect=bRect)
 
 
 class QCloningLayer(QLayer):
@@ -3020,7 +3104,7 @@ class QCloningLayer(QLayer):
         if not bRect.isValid():
             dlgWarn("seamlessMerge : no cloning region found")
             return
-        inRect = bRect & QImage.rect(inImg)  # QImage.rect(src_mask)
+        inRect = bRect & inImg.rect()
         bt, bb, bl, br = inRect.top(), inRect.bottom(), inRect.left(), inRect.right()
         # cv2.seamlesClone uses a white mask, so we turn cloning_mask into
         # a 3-channel buffer.
@@ -3278,7 +3362,10 @@ class QDrawingLayer(QLayerImage):
         self.atomicStrokeImg = None
         # cache for current brush dict
         self.brushDict = None
+        self.timer = QTimer()
+        self.timer.setSingleShot(True)
         self.last_refresh = 0  # refresh rate control
+        self.uRect = QRect()  # modified region control
 
     def inputImg(self, redo=True):
         """
@@ -3297,7 +3384,7 @@ class QDrawingLayer(QLayerImage):
         qp.end()
         return img1
 
-    def updatePixmap(self, maskOnly=False):
+    def updatePixmap(self, maskOnly=False, bRect=None):
         """
         Transfers the layer translation to the drawing and
         resets the translation to 0 before updating pixmap.
@@ -3312,9 +3399,9 @@ class QDrawingLayer(QLayerImage):
             img1 = self.inputImg()
             im = self.getCurrentImage()
             buf = QImageBuffer(im)
-            buf[:, :, :, ] = QImageBuffer(img1)
+            buf[...] = QImageBuffer(img1)
 
-        super().updatePixmap(maskOnly=maskOnly)
+        super().updatePixmap(maskOnly=maskOnly, bRect=bRect)
 
     def drag(self, x1, y1, x0, y0, widget):
         """
