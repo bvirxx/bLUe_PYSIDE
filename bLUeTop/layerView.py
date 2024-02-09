@@ -67,13 +67,15 @@ class itemDelegate(QStyledItemDelegate):
         # mask and merged layer flag (for exposure fusion and HDR merge)
         if index.column() == 2:
             if self.parent().img is not None:
-                if layer.maskIsSelected:
+                if layer.maskIsSelected:  # mask is viewed as color mask
                     text = index.data() + ' *'
                 else:
                     text = index.data() + '  '
-                if layer.mergingFlag:
-                    text = text + ' +'
-                if layer.maskIsEnabled:
+                if layer.mergingFlag:  # Exposure Fusion flag
+                    text = text + ' F'
+                if layer.compressFlag:  # layer compression flag
+                    text = text + ' C'
+                if layer.maskIsEnabled:  # mask activated
                     painter.save()
                     painter.setPen(Qt.red)
                     painter.drawText(rect, text, QTextOption(Qt.AlignCenter))
@@ -326,10 +328,15 @@ class QLayerView(QTableView):
         self.actionDup.triggered.connect(dup)
         self.setWhatsThis(
             """<b>Layer Stack</b><br>
-            To <b>toggle layer visibility</b> click the Eye icon.<br>
-            To <b>add a mask</b> right click the layer row and choose <i>Mask Style</i> from the context menu. Next, 
-            paint pixels using the <i>Mask/Unmask</i>  tools. <br>
-            For <b>color mask<b/b>: <br>
+            To <b>toggle layer visibility,</b> click the Eye icon.<br>
+            To <b>move a layer up or down,</b> drag and drop it with the mouse.<br>
+            To <b> compress consecutive layers,</b> choose as target an image layer or
+            the background layer and set its <i>Compress</i> flag from context menu. 
+            Next, open the context menu of the topmost layer to compress and 
+            choose <i>Compress To Lower.</i> 
+            To <b>add a mask,</b> right click the layer row and choose <i>Mask Style</i>
+            from the context menu. Next, paint pixels using the <i>Mask/Unmask</i>  tools. <br>
+            For <b>color mask</b>: <br>
                 &nbsp; green pixels are masked,<br>
                 &nbsp; red pixels are unmasked.<br>
                 &nbsp; Other colors correspond to partially masked pixels.<br>
@@ -509,13 +516,16 @@ class QLayerView(QTableView):
         """
         if event.source() is not self:
             return
+
         # get selected rows and layers
         rows = set([mi.row() for mi in self.selectedIndexes()])
         rStack = self.img.layersStack[::-1]
         layers = [rStack[i] for i in rows]
+
         # get target row and layer
         targetRow = self.indexAt(event.pos()).row()
         targetLayer = rStack[targetRow]
+
         # remove target from selection
         if targetRow in rows:
             rows.discard(targetRow)
@@ -525,47 +535,55 @@ class QLayerView(QTableView):
         # if target is below last row insert at the last position
         if targetRow == -1:
             targetRow = self.model().rowCount()
-        # mapping of src (row) indices to target indices
+
+        # mapping of src row indices to target indices
         rowMapping = dict()
         for idx, row in enumerate(rows):
             if row < targetRow:
                 rowMapping[row] = targetRow + idx
             else:
                 rowMapping[row + len(rows)] = targetRow + idx
+
         # update layerStack using rowMapping
         # insert None items
         for _ in range(len(rows)):
             rStack.insert(targetRow, None)
         # copy moved items to their final place
-        for srcRow, tgtRow in sorted(rowMapping.items()):  # python 3 iteritems->items
+        for srcRow, tgtRow in sorted(rowMapping.items()):
             rStack[tgtRow] = rStack[srcRow]
         # remove moved items from their initial place
-        for row in reversed(sorted(rowMapping.keys())):  # python 3 iterkeys -> keys
+        for row in reversed(sorted(rowMapping.keys())):
             rStack.pop(row)
         self.img.layersStack = rStack[::-1]
+
         # update model
         # insert empty rows
         for _ in range(len(rows)):
             result = self.model().insertRow(targetRow, QModelIndex())
+
         # copy moved rows to their final place
         colCount = self.model().columnCount()
-        for srcRow, tgtRow in sorted(rowMapping.items()):  # python 3 iteritems->items
+        for srcRow, tgtRow in sorted(rowMapping.items()):
             for col in range(0, colCount):
-                # CAUTION : setItem calls the data changed event handler (cf. setLayers above)
+                # CAUTION: setItem calls the data changed event handler (cf. setLayers above)
                 self.model().setItem(tgtRow, col, self.model().takeItem(srcRow, col))
+
         # remove moved rows from their initial place and keep track of moved items
         movedDict = rowMapping.copy()
-        for row in reversed(sorted(rowMapping.keys())):  # python 3 iterkeys -> keys
+        for row in reversed(sorted(rowMapping.keys())):
             self.model().removeRow(row)
             for s, t in rowMapping.items():
                 if t > row:
                     movedDict[s] -= 1
+
         ######################################### sanity check
         for r in range(self.model().rowCount()):
             id = self.model().index(r, 1)
             if id.data() != rStack[r].name:
-                raise ValueError('Drop Error')
+                dlgWarn('Drag and drop error', info='Possible layer names mismatch. Moving again may clean the stack')
+                break
         ########################################
+
         # reselect moved rows
         sel = sorted(movedDict.values())
         selectionModel = QtCore.QItemSelectionModel(self.model())
@@ -574,7 +592,7 @@ class QLayerView(QTableView):
         index2 = self.model().index(sel[-1], 1)
         itemSelection = QtCore.QItemSelection(index1, index2)
         self.selectionModel().select(itemSelection, QtCore.QItemSelectionModel.Rows | QtCore.QItemSelectionModel.Select)
-        # multiple selection : display no window
+        # multiple selection: display no window
         if len(sel) > 1:
             self.currentWin.hide()
             self.currentWin = None
@@ -604,6 +622,11 @@ class QLayerView(QTableView):
        :param clickedIndex: 
        :type clickedIndex: QModelIndex
         """
+        if not self.selectedIndexes():
+            # no active layer selected: do nothing
+            # some actions may deselect all rows : e.g. Ctrl+Click on a selected row
+            dlgWarn("Select at least one row in layer stack view")
+            return
         row = clickedIndex.row()
         rows = set([mi.row() for mi in self.selectedIndexes()])
         # multiple selection : go to top of selection
@@ -639,39 +662,7 @@ class QLayerView(QTableView):
         activeStackIndex = len(self.img.layersStack) - 1 - row
         activeLayer = self.img.setActiveLayer(activeStackIndex)
         self.currentWin = getattr(activeLayer, 'view', None)
-        """
-        # update displayed window and active layer
-        activeStackIndex = len(self.img.layersStack) - 1 - row
-        activeLayer = self.img.setActiveLayer(activeStackIndex)
-        # update color mask slider and label
-        self.maskLabel.setEnabled(layer.maskIsSelected)
-        self.maskSlider.setEnabled(activeLayer.maskIsSelected)
-        self.maskValue.setEnabled(activeLayer.maskIsSelected)
-        if self.currentWin is not None:
-            # hide sucontrols
-            for dk in self.currentWin.widget().subControls:
-                dk.hide()
-            if self.currentWin.isFloating():
-                self.currentWin.hide()
-        self.currentWin = None
-        if hasattr(activeLayer, "view"):
-            self.currentWin = activeLayer.view
-        if self.currentWin is not None and activeLayer.visible:
-            self.currentWin.show()
-            self.currentWin.raise_()
-            # display subcontrols
-            for dk in self.currentWin.widget().subControls:
-                dk.setVisible(self.currentWin.widget().options[dk.widget().optionName])
-            # make self.currentWin the active window
-            self.currentWin.activateWindow()
-        # update opacity and composition mode for current layer
-        opacity = int(layer.opacity * 100)
-        self.opacityValue.setText(str('%d ' % opacity))
-        self.opacitySlider.setSliderPosition(opacity)
-        compositionMode = layer.compositionMode
-        ind = self.blendingModeCombo.findData(compositionMode)
-        self.blendingModeCombo.setCurrentIndex(ind)
-        """
+
         if layer.tool is not None:
             layer.tool.moveRotatingTool()  # TODO added 23/11/21 keep last - validate
 
@@ -687,7 +678,7 @@ class QLayerView(QTableView):
         # menu.actionReset = QAction('Reset To Default', None)
         # menu.actionLoadImage = QAction('Load New Image', None)
         # multiple selections
-        menu.actionMerge = QAction('Merge Lower', None)
+        menu.actionCompress = QAction('Compress To Lower', None)
         # merge only adjustment layer with image layer
         menu.actionRepositionLayer = QAction('Reposition Layer(s)', None)
         menu.actionColorMaskEnable = QAction('Color', None)
@@ -715,8 +706,10 @@ class QLayerView(QTableView):
         menu.actionMaskMid1 = QAction('Mid 1 Mask', None)
         menu.actionMaskMid2 = QAction('Mid 2 Mask', None)
         menu.actionMaskMid3 = QAction('Mid 3 Mask', None)
-        menu.actionMergingFlag = QAction('Merged Layer', None)
+        menu.actionMergingFlag = QAction('Fusion Flag', None)
         menu.actionMergingFlag.setCheckable(True)
+        menu.actionCompressFlag = QAction('Compression Target Flag', None)
+        menu.actionCompressFlag.setCheckable(True)
         menu.actionColorMaskEnable.setCheckable(True)
         menu.actionOpacityMaskEnable.setCheckable(True)
         menu.actionClippingMaskEnable.setCheckable(True)
@@ -727,7 +720,6 @@ class QLayerView(QTableView):
         # layer
         menu.addAction(menu.actionImageCopy)
         menu.addAction(menu.actionImagePaste)
-        menu.addAction(menu.actionMergingFlag)
         menu.addSeparator()
         # mask
         menu.subMenuEnable = menu.addMenu('Mask Style')
@@ -756,7 +748,9 @@ class QLayerView(QTableView):
         # to link actionDup with a shortcut,
         # it must be set in __init__
         menu.addAction(self.actionDup)
-        menu.addAction(menu.actionMerge)
+        menu.addAction(menu.actionMergingFlag)
+        menu.addAction(menu.actionCompressFlag)
+        menu.addAction(menu.actionCompress)
         menu.addAction(menu.actionRepositionLayer)
         return menu
 
@@ -784,7 +778,11 @@ class QLayerView(QTableView):
         lower = self.img.layersStack[layerStackIndex - 1]  # case index == 0 doesn't matter
         # toggle actions
         self.cMenu.actionMergingFlag.setChecked(layer.mergingFlag)
-        self.cMenu.actionMerge.setEnabled(not (hasattr(layer, 'inputImg') or hasattr(lowerVisible, 'inputImg')))
+        self.cMenu.actionCompressFlag.setChecked(layer.compressFlag)
+        self.cMenu.actionMergingFlag.setEnabled(layer.isImageLayer())  # Exposure Fusion is for images only
+        # compress only to image or background
+        self.cMenu.actionCompressFlag.setEnabled(layer.isImageLayer() or layer.role == 'background')
+        self.cMenu.actionCompress.setEnabled(True)
         self.actionDup.setEnabled(not layer.isAdjustLayer())
         self.cMenu.actionColorMaskEnable.setChecked(layer.maskIsSelected and layer.maskIsEnabled)
         self.cMenu.actionOpacityMaskEnable.setChecked((not layer.maskIsSelected) and layer.maskIsEnabled)
@@ -796,7 +794,7 @@ class QLayerView(QTableView):
         self.cMenu.subMenuEnable.setEnabled(len(rows) == 1)
         self.cMenu.actionMaskPaste.setEnabled(not QApplication.clipboard().image().isNull())
         self.cMenu.actionImagePaste.setEnabled(not QApplication.clipboard().image().isNull())
-        self.cMenu.actionMergingFlag.setEnabled(layer.isImageLayer())
+
 
         # Event handlers
 
@@ -808,8 +806,8 @@ class QLayerView(QTableView):
             layer.updatePixmap()
             self.img.onImageChanged()
 
-        def merge():
-            layer.merge_with_layer_immediately_below()
+        def compress():
+            layer.compressToLower()
 
         def testUpperVisibility():
             pos = self.img.getStackIndex(layer)
@@ -1034,9 +1032,12 @@ class QLayerView(QTableView):
         def mergingFlag(flag):
             layer.mergingFlag = flag
 
+        def compressFlag(flag):
+            layer.compressFlag = flag
+
         self.cMenu.actionRepositionLayer.triggered.connect(RepositionLayer)
         # self.cMenu.actionLoadImage.triggered.connect(loadImage)
-        self.cMenu.actionMerge.triggered.connect(merge)
+        self.cMenu.actionCompress.triggered.connect(compress)
         self.cMenu.actionColorMaskEnable.triggered.connect(colorMaskEnable)
         self.cMenu.actionOpacityMaskEnable.triggered.connect(opacityMaskEnable)
         self.cMenu.actionClippingMaskEnable.triggered.connect(clippingMaskEnable)
@@ -1063,6 +1064,7 @@ class QLayerView(QTableView):
         self.cMenu.actionMaskMid2.triggered.connect(maskMid2)
         self.cMenu.actionMaskMid3.triggered.connect(maskMid3)
         self.cMenu.actionMergingFlag.toggled.connect(mergingFlag)
+        self.cMenu.actionCompressFlag.toggled.connect(compressFlag)
         self.cMenu.exec(event.globalPos() - QPoint(400, 0))
         # update table
         for row in rows:

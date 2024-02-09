@@ -22,7 +22,7 @@ import cv2
 
 def expFusion(imList):
     """
-    Computes the exposure fusion of a list of images with identical sizes.
+    Computes the exposure fusion for a list of images with identical sizes.
     Cf. Exposure Fusion: A Simple and Practical Alternative to High Dynamic Range Photography.
     Tom Mertens, Jan Kautz and Frank Van Reeth In Computer Graphics Forum, 28 (1) 161 - 171, 2009
 
