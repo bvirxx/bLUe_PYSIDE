@@ -106,7 +106,7 @@ On MacOS, pyobjc is needed to use the ColorSync framework.
 Edit config_win.json (Windows) or config.json (other OS) to specify
 system paths and options. 
 
-### The Qt5 (PySide2) version (branch master) is deprecated.
+#### The Qt5 (PySide2) version (branch master) is deprecated.
 
 ## LICENSE
 

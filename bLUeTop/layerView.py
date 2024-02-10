@@ -1029,10 +1029,10 @@ class QLayerView(QTableView):
             self.img.prLayer.update()
             self.img.onImageChanged()
 
-        def mergingFlag(flag):
+        def setMergingFlag(flag):
             layer.mergingFlag = flag
 
-        def compressFlag(flag):
+        def setCompressFlag(flag):
             layer.compressFlag = flag
 
         self.cMenu.actionRepositionLayer.triggered.connect(RepositionLayer)
@@ -1063,8 +1063,8 @@ class QLayerView(QTableView):
         self.cMenu.actionMaskMid1.triggered.connect(maskMid1)
         self.cMenu.actionMaskMid2.triggered.connect(maskMid2)
         self.cMenu.actionMaskMid3.triggered.connect(maskMid3)
-        self.cMenu.actionMergingFlag.toggled.connect(mergingFlag)
-        self.cMenu.actionCompressFlag.toggled.connect(compressFlag)
+        self.cMenu.actionMergingFlag.toggled.connect(setMergingFlag)
+        self.cMenu.actionCompressFlag.toggled.connect(setCompressFlag)
         self.cMenu.exec(event.globalPos() - QPoint(400, 0))
         # update table
         for row in rows:

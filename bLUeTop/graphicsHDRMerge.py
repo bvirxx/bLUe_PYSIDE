@@ -40,7 +40,14 @@ class HDRMergeForm(baseForm):
         self.options = None
         self.mergeButton = QPushButton('Refresh')
         self.mergeButton.setMaximumWidth(80)
-        self.warn = QLabel('To add or remove lower image layers to merge,\nuse their context menu.')
+        self.warn = QLabel(
+                             """
+                             To select image layers to merge, check <i>Fusion Flag</i> in their context menu
+                             and next, press <i>Refresh</i>'
+                             """
+                          )
+        self.warn.setWordWrap(True)
+        self.warn.setMaximumWidth(300)
 
         # self.warn.setStyleSheet("QLabel {color : yellow; }")
 
@@ -63,10 +70,10 @@ class HDRMergeForm(baseForm):
         self.setWhatsThis(
             """<b>Exposure Fusion</b>
             Computes exposure fusion for a list of images with identical sizes.<br>
-            To <b>select images</b> to merge, right-click on each image in the 
-            layer stack and check <i>Merged Layer</i> in the context menu which opens. 
-            A small red * will appear next to the layer name.<br>
-            To <i>fusion</i> the images, press the <i>Refresh</i> button.<br>
+            To <b>select the images</b> to merge, right-click on each image in the 
+            layer stack and check <i>Fusion Flag</i> in the context menu which opens. 
+            A letter <i>F</i> will appear next to the layer name.<br>
+            To <b>merge</b> the images, press the <i>Refresh</i> button.<br>
             <b>Note.</b> Only selected images <b>below</b> the <i>Merge</i> layer will be merged.
             """
         )  # end setWhatsThis
