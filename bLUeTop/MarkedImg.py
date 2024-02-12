@@ -1623,7 +1623,7 @@ class QLayer(vImage):
         ind = self.getStackIndex()
         stack = self.parentImage.layersStack
         for i in range(ind - 1, -1, -1):
-            if stack[i].visible and getattr(stack[i], flag, False):
+            if stack[i].visible and getattr(stack[i], flag, True):
                 return i
         return -1
 
