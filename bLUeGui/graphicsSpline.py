@@ -356,7 +356,7 @@ class activeSplinePoint(activePoint):
         self.setPos(x, y)
         sc = self.scene()
         # click event : remove point
-        if self.clicked:
+        if self.clicked and (e.modifiers() == Qt.ControlModifier):
             if self.persistent:
                 return
             item.fixedPoints.remove(self)
@@ -563,7 +563,7 @@ class activeSpline(QGraphicsPathItem):
         Sync the LUT with the spline
         """
         scale = 255.0 / self.size
-        self.LUTXY = np.array([int((-p.y()) * scale) for p in self.spline])
+        self.LUTXY = np.array([round((-p.y()) * scale) for p in self.spline])
 
     def __getstate__(self):
         s = self.size
