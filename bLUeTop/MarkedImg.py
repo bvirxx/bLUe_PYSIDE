@@ -2420,10 +2420,9 @@ class QLayer(vImage):
         for w1, w2, h1, h2 in self.getCurrentSelCoords():
             for c in range(3):  # 0.36s for 15Mpx
                 s = ndImg0[h1:h2 + 1, w1:w2 + 1, 0].shape
-                ndImg1[h1:h2 + 1, w1:w2 + 1, c] = np.take(
-                    stackedLUT[2 - c, :],
-                    ndImg0[h1:h2 + 1, w1:w2 + 1, c].reshape((-1,))
-                ).reshape(s)
+                ndImg1[h1:h2 + 1, w1:w2 + 1, c] = np.take(stackedLUT[2 - c, :],
+                                                          ndImg0[h1:h2 + 1, w1:w2 + 1, c].reshape((-1,))
+                                                         ).reshape(s)
 
         self.updatePixmap()
 
