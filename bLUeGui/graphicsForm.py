@@ -320,11 +320,11 @@ class graphicsCurveForm(baseGraphicsForm):
             """
             The background histogram is the <i>input</i> histogram.<br>
             <b>Drag control points</b> with the mouse.<br>
-            <b>Add a control point</b> by clicking on the curve.<br>
-            <b>Remove a control point</b> by clicking it.<br>
+            <b>To add a control point,</b> click on the curve.<br>
+            <b>To remove a control point,</b> do Ctrl+Click on the point to remove.<br>
             <b>Zoom</b> with the mouse wheel.<br>
-            <b>Set black, white and neutral points</b> in the image by clicking the corresponding pixels
-            while pressing one of the following key combination (RGB and Lab curves only):<br>
+            <b>To set the black, white and neutral points,</b> click the corresponding image pixels
+            while pressing one of the following key combinations (RGB and Lab curves only):<br>
             &nbsp;&nbsp;<b>Black Point</b> : Ctrl+Shift<br>
             &nbsp;&nbsp;<b>White Point</b> : Ctrl<br>
             &nbsp;&nbsp;<b>Grey Neutral Point (Lab only)</b></br> : Shift<br>
