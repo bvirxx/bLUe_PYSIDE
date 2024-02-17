@@ -136,10 +136,9 @@ def rawPostProcess(rawLayer, pool=None):
         ##############################
         # set postprocessing parameters
         ##############################
-        exp_shift = adjustForm.expCorrection if not options['Auto Brightness'] else 0
+        exp_shift = adjustForm.expCorrection if not options['Auto Brightness'] else 1.0  # usable range 0.25..8
         no_auto_bright = (not options['Auto Brightness'])
-
-        bright = adjustForm.brCorrection  # default 1, should be > 0
+        bright = adjustForm.brCorrection if no_auto_bright else 1.0  # default 1, should be > 0
         hv = adjustForm.overexpValue
         highlightmode = rawpy.HighlightMode.Clip if hv == 0 \
             else rawpy.HighlightMode.Ignore if hv == 1 \
@@ -154,22 +153,22 @@ def rawPostProcess(rawLayer, pool=None):
         # develop
         ##########
         bufpost16 = rawImage.postprocess(
-            half_size=half_size,
-            output_color=rawpy.ColorSpace.raw,  # camera color space
-            output_bps=output_bpc,
-            exp_shift=exp_shift,
-            no_auto_bright=no_auto_bright,
-            use_auto_wb=use_auto_wb,
-            use_camera_wb=use_camera_wb,
-            user_wb=adjustForm.rawMultipliers,
-            gamma=(1, 1),
-            exp_preserve_highlights=exp_preserve_highlights,
-            bright=bright,
-            highlight_mode=highlightmode,
-            fbdd_noise_reduction=fbdd_noise_reduction,
-            median_filter_passes=1
-        )
-        # save image to post processing cache
+                                          half_size=half_size,
+                                          output_color=rawpy.ColorSpace.raw,  # camera color space
+                                          output_bps=output_bpc,
+                                          exp_shift=exp_shift,
+                                          no_auto_bright=no_auto_bright,
+                                          use_auto_wb=use_auto_wb,
+                                          use_camera_wb=use_camera_wb,
+                                          user_wb=adjustForm.rawMultipliers,
+                                          gamma=(1, 1),
+                                          exp_preserve_highlights=exp_preserve_highlights,
+                                          bright=bright,
+                                          highlight_mode=highlightmode,
+                                          fbdd_noise_reduction=fbdd_noise_reduction,
+                                          median_filter_passes=1
+                                         )
+        # save image to post-processing cache
         rawLayer.postProcessCache = cv2.cvtColor(((bufpost16.astype(np.float32)) / max_output).astype(np.float32),
                                                  cv2.COLOR_RGB2HSV)
         rawLayer.half = half_size
@@ -261,7 +260,7 @@ def rawPostProcess(rawLayer, pool=None):
     ############
     buf = adjustForm.dngDict.get('ProfileToneCurve', [])
     # apply profile tone curve, if any
-    if buf:  # non empty list
+    if buf:  # non-empty list
         LUTXY = dngProfileToneCurve(buf).toLUTXY(maxrange=255)
         # bufHSV_CV32[:, :, 2] = LUTXY[(bufHSV_CV32[:, :, 2] * 255).astype(np.uint16)]
         bufHSV_CV32[:, :, 2] = np.take(LUTXY, (bufHSV_CV32[:, :, 2] * 255).astype(np.uint16))
@@ -324,5 +323,5 @@ def rawPostProcess(rawLayer, pool=None):
 
     bufOut = QImageBuffer(currentImage)
     bufOut[:, :, :3][:, :, ::-1] = bufpostUI8
-    # base layer : no need to forward the alpha channel
+    # base layer: no need to forward the alpha channel
     rawLayer.updatePixmap()
