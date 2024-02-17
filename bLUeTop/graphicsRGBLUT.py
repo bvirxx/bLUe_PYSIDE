@@ -37,36 +37,41 @@ class graphicsForm(graphicsCurveForm):
         graphicsScene = self.scene()
         graphicsScene.addItem(cubic)
         graphicsScene.cubicRGB = cubic
-        cubic.channel = channelValues.RGB
+        cubic.channel = channelValues.RGB  # apply identical curves to all chans.
         cubic.histImg = self.scene().layer.inputImg().histogram(size=graphicsScene.axeSize,
                                                                 bgColor=graphicsScene.bgColor, chans=[],
-                                                                mode='Luminosity')
+                                                                mode='Luminosity'
+                                                                )
         cubic.initFixedPoints()
         # Red curve
         cubic = activeCubicSpline(axeSize)
         graphicsScene.addItem(cubic)
         graphicsScene.cubicR = cubic
-        cubic.channel = channelValues.Red
+        cubic.channel = channelValues.Red  # apply curve to R channel only
         cubic.histImg = self.scene().layer.inputImg().histogram(size=graphicsScene.axeSize,
-                                                                bgColor=graphicsScene.bgColor, chans=channelValues.Red)
+                                                                bgColor=graphicsScene.bgColor,
+                                                                chans=channelValues.Red
+                                                                )
         cubic.initFixedPoints()
         # Green curve
         cubic = activeCubicSpline(axeSize)
         graphicsScene.addItem(cubic)
         graphicsScene.cubicG = cubic
-        cubic.channel = channelValues.Green
+        cubic.channel = channelValues.Green  # apply curve to G channel only
         cubic.histImg = self.scene().layer.inputImg().histogram(size=graphicsScene.axeSize,
                                                                 bgColor=graphicsScene.bgColor,
-                                                                chans=channelValues.Green)
+                                                                chans=channelValues.Green
+                                                                )
         cubic.initFixedPoints()
         # Blue curve
         cubic = activeCubicSpline(axeSize)
         graphicsScene.addItem(cubic)
         graphicsScene.cubicB = cubic
-        cubic.channel = channelValues.Blue
+        cubic.channel = channelValues.Blue  # apply curve to B  channel only
         cubic.histImg = self.scene().layer.inputImg().histogram(size=graphicsScene.axeSize,
                                                                 bgColor=graphicsScene.bgColor,
-                                                                chans=channelValues.Blue)
+                                                                chans=channelValues.Blue
+                                                                )
         cubic.initFixedPoints()
         # set current curve to brightness
         graphicsScene.cubicItem = graphicsScene.cubicRGB
@@ -83,19 +88,22 @@ class graphicsForm(graphicsCurveForm):
         self.listWidget1 = optionsWidget(options=options1)
 
         self.graphicsScene.options = UDict((self.listWidget1.options))  # , self.listWidget2.options))
-        # selection changed handler
+
         curves = [graphicsScene.cubicRGB, graphicsScene.cubicR, graphicsScene.cubicG, graphicsScene.cubicB]
         curveDict = dict(zip(options1, curves))
 
+        # selection changed handler
         def onSelect1(item):
             self.scene().cubicItem.setVisible(False)
             self.scene().cubicItem = curveDict[item.text()]
             pushButton2.setEnabled(item.text() != 'RGB')
             self.scene().cubicItem.setVisible(True)
+            self.updateHists()  # a selection change updates histograms
             self.dataChanged.emit()
             # Force redraw histogram
             self.scene().invalidate(QRectF(0.0, -self.scene().axeSize, self.scene().axeSize, self.scene().axeSize),
-                                    QGraphicsScene.BackgroundLayer)
+                                    QGraphicsScene.BackgroundLayer
+                                    )
 
         self.listWidget1.onSelect = onSelect1
 
@@ -111,7 +119,7 @@ class graphicsForm(graphicsCurveForm):
         self.setWhatsThis("""<b>RGB curves</b><br>""" + self.whatsThis())
 
         for item in [self.scene().cubicRGB, self.scene().cubicR, self.scene().cubicG, self.scene().cubicB]:
-            item.curveChanged.sig.connect(self.dataChanged)
+            item.curveChanged.sig.connect(self.dataChanged)  # data changed signal is connected to updateLayer
 
         self.setDefaults()
 
