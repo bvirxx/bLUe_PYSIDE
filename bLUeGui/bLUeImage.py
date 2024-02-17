@@ -210,10 +210,12 @@ class bImage(QImage):
             wfiBuf[::2, x:x + frameWidth, :] = (hist * 256000)[..., np.newaxis, np.newaxis]
 
     def histogram(self, size=QSize(200, 200), bgColor=Qt.white, range=(0, 255),
-                  chans=channelValues.RGB, chanColors=Qt.gray, mode='RGB', addMode='', clipping_threshold=0.02):
+                  chans=channelValues.RGB, chanColors=Qt.gray, mode='RGB', addMode='',
+                  binCount=32, clipping_threshold=0.02):
         """
         Plots the image histogram with the specified color mode and channels.
         Channel curves are scaled individually to fit the height of the plot.
+        A small bin count gives smoother hists.
 
         :param size: size of the histogram plot
         :type  size: int or QSize
@@ -229,12 +231,14 @@ class bImage(QImage):
         :type  mode: str
         :param addMode:
         :type  addMode:
+        :param binCount: bin number
+        :type binCount: int
         :param clipping_threshold: alert threshold for clipped areas
         :type  clipping_threshold: float
         :return:histogram plot
         :rtype: QImage
         """
-        binCount = 85  # 255 = 85 * 3
+
         if type(size) is int:
             size = QSize(size, size)
         # scaling factor for bin drawing
