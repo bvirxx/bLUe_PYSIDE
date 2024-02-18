@@ -266,32 +266,48 @@ def widgetChange(button, window=bLUeTop.Gui.window):
 
 def addAdjustmentLayers(img, layers, images):
     """
-    Adds a list of layers to the current document and restore their states.
-    Entries not corresponding to menu layers actions are skipped.
+    Add a list of layers to the current document and restore their states.
+    The parameter layers is a list of (key, dict) 2uples; key is the name of the layer
+    and dict is its state (loaded from a blu file). Entries not corresponding
+    to layerScripting actions are skipped.
 
     :param img: document
     :type img: imimage
     :param layers:
-    :type  layers: list of (key, dict)
+    :type  layers: list of (key, dict) values
     :param images
     :type  images TiffPageSeries
     """
+
     if layers is None:
         return
+
     count = 1
 
     waitImages = []
 
-    # rebuild the recorded layer stack
+    # Build the recorded layer stack
+    # The background layer and, eventually, the raw (develop) layer
+    # must be already in stack, at indexes 0 and 1 respectively.
+    # The state of the raw layer is already restored by loadImage.
+    bg_initialInd = 0
+    develop_initialInd = 1
+
     for ind, item in enumerate(layers):
-        d = item[1]['state']
+        layer = None
         if item[0] == 'background':
             if ind > 0:
-                img.layersStack.append(img.layersStack.pop(0))  # put background layer at its recorded place
-            layer = img.layersStack[-1]  # get it
+                img.layersStack.append(img.layersStack.pop(bg_initialInd))  # move background layer to recorded place
+                Gui.window.tableView.setLayers(img)  # no call to layerScripting, so we update layer view here
+                develop_initialInd -= 1
+        elif item[0] == 'develop':
+            if ind != develop_initialInd:
+                img.layersStack.append(img.layersStack.pop(develop_initialInd))
+                Gui.window.tableView.setLayers(img)  # no call to layerScripting, so we update layer view here
         else:
             layer = layerScripting(item[1]['actionname'], sname=item[0], script=True)  # layer is added to stack
 
+        d = item[1]['state']
         if d['mask'] == 1:
             if layer:
                 try:
@@ -363,7 +379,7 @@ def addRawAdjustmentLayer(window=bLUeTop.Gui.window):
     pool = getPool()
     rlayer.execute = lambda l=rlayer, pool=pool: l.tLayer.applyRawPostProcessing(pool=pool)
     # record action name for scripting
-    rlayer.actionName = 'Develop'  # not a menu action !
+    rlayer.actionName = 'Develop'  # not a layerScripting action !
     # dock the form
     dock = stateAwareQDockWidget(window)
     dock.tabbed = TABBING
@@ -382,8 +398,9 @@ def addRawAdjustmentLayer(window=bLUeTop.Gui.window):
 
 def loadImage(img, tfile=None, version='unknown', withBasic=True, window=bLUeTop.Gui.window):
     """
-    load a vImage into bLUe and build layer stack.
-    if tfile is an opened TiffFile instance, import layer stack from file
+    Builds the layer stack of img.
+    If tfile is an opened TiffFile instance, the stack
+    is imported from file
 
     :param img:
     :type  img: imImage
@@ -405,14 +422,15 @@ def loadImage(img, tfile=None, version='unknown', withBasic=True, window=bLUeTop
     
     window.tableView.previewOptionBox.setChecked(True)
 
+    isFromBlue = tfile is not None and img.filename[-4:].upper() in BLUE_FILE_EXTENSIONS
+
     # add development layer for raw image, and develop
     rlayer = None
     if img.rawImage is not None:
         rlayer = addRawAdjustmentLayer()
 
-    fromBlue = tfile is not None and img.filename[-4:].upper() in BLUE_FILE_EXTENSIONS
     # import layer stack from .BLU file
-    if fromBlue:
+    if isFromBlue:
         # get ordered dict of layers.
         # Tifffile relies on Python 3 formatting for bytes --> str decoding.
         # It implicitly calls __str__() to get "standard" string representation of bytes
@@ -420,19 +438,21 @@ def loadImage(img, tfile=None, version='unknown', withBasic=True, window=bLUeTop
         # This last representation is then encoded/decoded to and from the tiff file.
         # str representations of tag values may contain arbitrary '=' char, so we need
         # our modified version of imagej_description_metadata() to get the dict.
-        # Next, str representation of tag values are decoded to bytes by applying literal_eval
+        # Next, str representations of tag values are decoded to bytes by applying literal_eval
         # as inverse of __str__(), and finally tag values are unpickled.
 
         # The Tifffile/ImageJ format has no clear specification. Data can be retrieved from the imagej_description
         # or description attributes, depending on the tifffile version. The attribute imagej_description
-        # does not exist in older versions so we use the second.
+        # does not exist in older versions, so we use the second.
 
         meta_dict = imagej_description_metadata(tfile.pages[0].description)
 
         try:
+            # restore state of raw (develop) layer
             if rlayer is not None:
                 d = pickle.loads(literal_eval(compat(meta_dict['develop'], version)))  # keys are turned to lower !
                 rlayer.__setstate__(d)
+
             # import layer stack
             # Every Qlayer state dict is pickled. Thus, to import layer stack, unpickled entries may be skipped safely.
             # This enables the cancellation of spurious entries added by tifffile/ImageJ protocol.
