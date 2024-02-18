@@ -157,6 +157,8 @@ class rawForm(baseForm):
 
         super().__init__(layer=layer, targetImage=targetImage, parent=parent)
 
+        self.axeSize = axeSize
+
         self.event_obj = None
 
         rawpyObj = layer.parentImage.rawImage
@@ -195,7 +197,7 @@ class rawForm(baseForm):
         self.dockC, self.dockT = None, None
 
         # options
-        optionList0, optionNames0 = ['Auto Brightness', 'Preserve Highlights'], ['Auto Expose', 'Preserve Highlights']
+        optionList0, optionNames0 = ['Auto Brightness', 'Preserve Highlights'], ['Auto Exposure & Brightness', 'Preserve Highlights']
         optionList1, optionNames1 = ['Auto WB', 'Camera WB', 'User WB'], ['Auto', 'Camera (As Shot)', 'User']
         optionList2, optionNames2 = ['cpLookTable', 'cpToneCurve', 'manualCurve'], ['Use Camera Profile Look Table',
                                                                                     'Use Tone Curves',
@@ -274,27 +276,7 @@ class rawForm(baseForm):
         # populate profile combo
         self.postloadprofilename = None  # set by __setstate__() and used in setCameraProfileCombo() to restore state asynchronously
         self.dngDict = self.setCameraProfilesCombo()
-
-        # cameraProfilesCombo index changed event handler
-        def cameraProfileUpdate(value):
-            self.dngDict = self.cameraProfilesCombo.itemData(value)
-            if self.options['cpToneCurve']:
-                toneCurve = dngProfileToneCurve(self.dngDict.get('ProfileToneCurve', []))
-                self.toneForm.baseCurve = [QPointF(x * axeSize, -y * axeSize) for x, y in
-                                           zip(toneCurve.dataX, toneCurve.dataY)]
-                self.toneForm.update()
-            # recompute as shot temp and tint using new profile
-            self.asShotTemp, self.asShotTint = multipliers2TemperatureAndTint(*1 / np.array(self.asShotMultipliers[:3]),
-                                                                              self.XYZ2CameraMatrix,
-                                                                              dngDict=self.dngDict)
-            # display updated as shot temp
-            item = self.listWidget2.item(1)
-            item.setText(item.text().split(":")[0] + ': %d' % self.asShotTemp)
-            # invalidate cache
-            self.layer.bufCache_HSV_CV32 = None
-            self.dataChanged.emit(2)  # 2 = no postprocessing
-
-        self.cameraProfilesCombo.currentIndexChanged.connect(cameraProfileUpdate)
+        #self.event_obj.set()  # wake up the eventually waiting asynchronous load task
 
         # denoising combo
         self.denoiseCombo = QbLUeComboBox()
@@ -370,8 +352,8 @@ class rawForm(baseForm):
         brSlider.setStyleSheet(QbLUeSlider.bLueSliderDefaultBWStylesheet)
 
         self.sliderBrightness = brSlider
-        brLabel = QLabel()
-        brLabel.setText("Bright.")
+        self.brLabel = QLabel()
+        self.brLabel.setText("Bright.")
 
         self.brValue = QLabel()
         font = self.expValue.font()
@@ -503,7 +485,7 @@ class rawForm(baseForm):
         hl1.addWidget(self.sliderExp)
         l.addLayout(hl1)
         hl8 = QHBoxLayout()
-        hl8.addWidget(brLabel)
+        hl8.addWidget(self.brLabel)
         hl8.addWidget(self.brValue)
         hl8.addWidget(self.sliderBrightness)
         l.addLayout(hl8)
@@ -547,7 +529,7 @@ class rawForm(baseForm):
         self.setWhatsThis(
             """<b>Development of raw files</b><br>
             The <i>develop layer</i> is added automatically to the layer stack when a raw file is loaded.<br>
-            <b>To start editing from the image developed with standard parameters</b> turn off (invisible) 
+            <b>To start editing<b> from the image developed with standard parameters, turn off (not visible) 
             the <i>develop layer</i> and eventually add some adjustment layers to correct the image.<br>
             <b>To modify the development settings</b> make the <i>develop layer</i> visible.<br>
             A <b>Tone Curve</b> is applied to the raw image prior to postprocessing.<br> 
@@ -559,6 +541,8 @@ class rawForm(baseForm):
             the option <b>Show Contrast Curve</b>.<br>
             """
         )  # end of setWhatsThis
+        #self.cameraProfilesCombo.currentIndexChanged.connect(self.cameraProfileUpdate)
+        self.event_obj.set()  # wake up the (eventually) waiting asynchronous loadCameraProfiles task
 
     def close(self):
         """
@@ -690,6 +674,26 @@ class rawForm(baseForm):
             form.scene().quadricB.setCurve(a * axeSize, b * axeSize, d, T * axeSize)
         self.dockC.showNormal()
 
+    # cameraProfilesCombo index changed event handler
+    def cameraProfileUpdate(self, value):
+        self.dngDict = self.cameraProfilesCombo.itemData(value)
+        if self.options['cpToneCurve']:
+            toneCurve = dngProfileToneCurve(self.dngDict.get('ProfileToneCurve', []))
+            self.toneForm.baseCurve = [QPointF(x * self.axeSize, -y * self.axeSize) for x, y in
+                                       zip(toneCurve.dataX, toneCurve.dataY)]
+            self.toneForm.update()
+        # recompute as shot temp and tint using new profile
+        self.asShotTemp, self.asShotTint = multipliers2TemperatureAndTint(*1 / np.array(self.asShotMultipliers[:3]),
+                                                                          self.XYZ2CameraMatrix,
+                                                                          dngDict=self.dngDict
+                                                                          )
+        # display updated as shot temp
+        item = self.listWidget2.item(1)
+        item.setText(item.text().split(":")[0] + ': %d' % self.asShotTemp)
+        # invalidate cache
+        self.layer.bufCache_HSV_CV32 = None
+        self.dataChanged.emit(2)  # 2 = no postprocessing
+
     # temp changed  event handler
     def tempUpdate(self, value):
         self.tempValue.setText(str("{:.0f}".format(self.slider2Temp(self.sliderTemp.value()))))
@@ -777,18 +781,21 @@ class rawForm(baseForm):
 
     def enableSliders(self):
         useUserWB = self.listWidget2.options["User WB"]
-        useUserExp = not self.listWidget1.options["Auto Brightness"]
+        useUserBr = not self.listWidget1.options["Auto Brightness"]
         self.sliderTemp.setEnabled(useUserWB)
         self.sliderTint.setEnabled(useUserWB)
-        self.sliderExp.setEnabled(useUserExp)
+        self.sliderExp.setEnabled(useUserBr)
+        self.sliderBrightness.setEnabled(useUserBr)
         # self.sliderHigh.setEnabled(useUserExp)
         self.tempValue.setEnabled(self.sliderTemp.isEnabled())
         self.tintValue.setEnabled(self.sliderTint.isEnabled())
         self.expValue.setEnabled(self.sliderExp.isEnabled())
+        self.brValue.setEnabled(self.sliderBrightness.isEnabled())
         # self.highValue.setEnabled(self.sliderHigh.isEnabled())
         self.tempLabel.setEnabled(self.sliderTemp.isEnabled())
         self.tintLabel.setEnabled(self.sliderTint.isEnabled())
         self.expLabel.setEnabled(self.sliderExp.isEnabled())
+        self.brLabel.setEnabled(self.sliderBrightness.isEnabled())
         # self.highLabel.setEnabled(self.sliderHigh.isEnabled())
 
     def setDefaults(self):
@@ -824,11 +831,51 @@ class rawForm(baseForm):
         self.sliderSat.setValue(self.sat2Slider(self.satCorrection))
         self.dataChanged.connect(self.updateLayer)
 
+    def loadCameraProfiles(self, files, startIndex, event_obj):
+        """
+        Load the camera profiles listed in files, starting from startIndex.
+        The method is meant to run asynchronously in a separate thread.
+
+        :param files: list of file names
+        :type files: list of str
+        :param startIndex: starting index
+        :type startIndex: int
+        :param event_obj: Event object
+        :type event_obj: threading.Event
+        """
+        # load remaining profiles
+        # if self.layer.fromBlue:
+        event_obj.wait()  # wait for self.__init__() completion
+        try:
+            # self.cameraProfilesCombo.setCursor(Qt.WaitCursor)
+            # self.cameraProfilesCombo.setEnabled(False)
+            for i, f in enumerate(files[startIndex:]):
+                key = basename(f)[:-4] if i + startIndex > 0 else 'Embedded Profile'
+                d = getDngProfileDict(f)
+                # filter d
+                df = {k: d[k] for k in d if d[k] != ''}
+                if df:
+                    self.cameraProfilesCombo.addItem(key, df)
+            # last, add 'None' profile
+            key, d = 'None', {}
+            self.cameraProfilesCombo.addItem(key, d)
+            # all known profiles are loaded. Try to restore the recorded profile
+            if self.postloadprofilename:
+                ind = self.cameraProfilesCombo.findText(self.postloadprofilename)
+                if ind != -1:
+                    self.cameraProfilesCombo.setCurrentIndex(ind)
+        finally:
+            self.cameraProfilesCombo.setEnabled(True)
+            self.cameraProfilesCombo.currentIndexChanged.connect(self.cameraProfileUpdate, Qt.QueuedConnection)
+            # self.cameraProfilesCombo.unsetCursor()
+            # event_obj.clear()
+            # event_obj.wait()
+
     def setCameraProfilesCombo(self):
         """
         Populates the camera profile Combo box.
         for each item, text is the filename and data is the corresponding dict.
-        The function returns as soon as a first item is loaded. Remainning profiles are
+        The function returns as soon as the first item is loaded. The remaining profiles are
         loaded asynchronously.
 
         :return: the currently selected item data
@@ -853,40 +900,16 @@ class rawForm(baseForm):
                 found = True
             nextInd += 1
 
-        def load(event_obj):
-            # load remaining profiles
-            try:
-                self.cameraProfilesCombo.setCursor(Qt.WaitCursor)
-                for i, f in enumerate(files[nextInd:]):
-                    key = basename(f)[:-4] if i + nextInd > 0 else 'Embedded Profile'
-                    d = getDngProfileDict(f)
-                    # filter d
-                    d = {k: d[k] for k in d if d[k] != ''}
-                    if d:
-                        self.cameraProfilesCombo.addItem(key, d)
-                self.cameraProfilesCombo.addItem('None', {})
-                # restore selected profile
-                if self.postloadprofilename is not None:
-                    # __setstate__() was called : let it try to restore selected profile
-                    # and next try too !
-                    event_obj.wait()
-                    ind = self.cameraProfilesCombo.findText(self.postloadprofilename)
-                    if ind != -1:
-                        self.cameraProfilesCombo.setCurrentIndex(ind)
-            finally:
-                self.cameraProfilesCombo.unsetCursor()
-
         if self.event_obj is None:
             self.event_obj = threading.Event()
         else:
             self.event_obj.clear()
 
-        threading.Thread(target=load, args=(self.event_obj,)).start()
+        threading.Thread(target=self.loadCameraProfiles, args=(files, nextInd, self.event_obj)).start()
 
         self.cameraProfilesCombo.setSizeAdjustPolicy(QbLUeComboBox.SizeAdjustPolicy.AdjustToContents)
         self.cameraProfilesCombo.setMaximumWidth(180)
-        #self.cameraProfilesCombo.setStyleSheet("QbLUeComboBox QAbstractItemView { min-width: 250px;}")
-        # return the currently selected item data
+
         current = self.cameraProfilesCombo.itemData(0)
         return current if current is not None else {}
 
@@ -919,14 +942,15 @@ class rawForm(baseForm):
         # camera profiles are loaded asynchronously, so we record
         # the name of the profile to be selected, and we postpone the selection until all profiles are loaded.
         self.postloadprofilename = d['state'].get('postloadprofilename', None)  # for backwards compatibility
+        """
         # restore selected profile
+        # if not found some profiles may be not loaded yet
+        # and we may retry asynchronously (Cf. loadCameraProfiles)
         if self.postloadprofilename is not None:
             ind = self.cameraProfilesCombo.findText(self.postloadprofilename)
             if ind != -1:
                 self.cameraProfilesCombo.setCurrentIndex(ind)
                 self.postloadprofilename = None
-        # if not found some profiles may be not loaded yet
-        # and we may retry asynchronously (Cf. setCameraProfileCombo())
-        self.event_obj.set()
+        """
         self.dataChanged.connect(self.updateLayer)
         self.dataChanged.emit(1)
