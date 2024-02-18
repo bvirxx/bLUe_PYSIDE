@@ -8,7 +8,7 @@ imageformats = [('.\\venv6_108_3\\Lib\site-packages\\PySide6\plugins\\imageforma
 platforms = [('.\\venv6_108_3\\Lib\site-packages\\PySide6\\plugins\\platforms', 'plugins\\platforms')]
 
 data_1 = [('bLUeNN\\pretrained_models\\sRGB\\*', 'bLUeNN\\pretrained_models\\sRGB')]
-data_2 = [('blue.ui', '.'), ('README.md', '.'), ('LICENSE.TXT', '.'), ('logo.png', '.'), ('logo.ico', '.'),
+data_2 = [('blue.ui', '.'), ('README.md', '.'), ('LICENSE.TXT', '.'), ('logo.png', '.'),
           ('config_win.json', '.'), ('brushes\README.TXT', 'brushes'), ('bLUe.qss', '.')]
 
 a = Analysis(['bLUe.py'],
