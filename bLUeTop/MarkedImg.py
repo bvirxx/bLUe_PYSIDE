@@ -290,11 +290,14 @@ class mImage(vImage):
                     dk.hide()
                 if currentWin.isFloating():
                     currentWin.hide()
+                else:
+                    currentWin.setEnabled(False)
                 if lay.tool is not None:
                     lay.tool.hideTool()
         # setting
         currentWin = getattr(layer, 'view', None)
         if currentWin is not None and layer.visible:
+            currentWin.setEnabled(True)
             currentWin.show()
             currentWin.raise_()
             # display subcontrols
