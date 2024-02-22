@@ -364,6 +364,16 @@ class QbLUeComboBox(QComboBox):
             self.setCurrentIndex(ind)
 
 
+class traceDict(dict):
+
+    def __init__(self, *args, ident='noname', **kwargs):
+        super().__init__(*args, **kwargs)
+        self.ident = ident
+
+    def __del__(self):
+        print('******************* destroyed dict', self.ident)
+
+
 class QbLUeSpinBox(QSpinBox):
 
     def __getstate__(self):
