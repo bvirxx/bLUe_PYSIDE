@@ -624,12 +624,12 @@ class QLayerView(QTableView):
         """
         if not self.selectedIndexes():
             # no active layer selected: do nothing
-            # some actions may deselect all rows : e.g. Ctrl+Click on a selected row
+            # some actions may deselect all rows: e.g. Ctrl+Click on a selected row
             dlgWarn("Select at least one row in layer stack view")
             return
         row = clickedIndex.row()
         rows = set([mi.row() for mi in self.selectedIndexes()])
-        # multiple selection : go to top of selection
+        # multiple selection: go to top of selection
         m = min(rows)
         if row != m:
             clickedIndex = self.model().index(m, clickedIndex.column())
