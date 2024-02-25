@@ -30,7 +30,7 @@ from PySide6.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBo
 from bLUeGui.graphicsSpline import graphicsSplineForm
 from bLUeGui.graphicsForm import baseForm
 from bLUeTop.dng import getDngProfileList, getDngProfileDict, dngProfileToneCurve
-from bLUeTop.utils import optionsWidget, UDict, QbLUeSlider, QbLUeComboBox
+from bLUeTop.utils import optionsWidget, UDict, QbLUeSlider, QbLUeComboBox, traceDict
 from bLUeGui.multiplier import *
 
 
@@ -167,7 +167,7 @@ class rawForm(baseForm):
         self.XYZ2CameraMatrix = rawpyObj.rgb_xyz_matrix[:3, :]
         self.XYZ2CameraInverseMatrix = np.linalg.inv(self.XYZ2CameraMatrix)
 
-        # initial post processing multipliers (as shot)
+        # initial post-processing multipliers (as shot)
         m1, m2, m3, m4 = rawpyObj.camera_whitebalance
         self.asShotMultipliers = (m1 / m2,
                                   1.0,
@@ -232,7 +232,7 @@ class rawForm(baseForm):
         self.tempValue.setMaximumSize(w, h)
         self.tempValue.setText(str("{:.0f}".format(self.slider2Temp(self.sliderTemp.value()))))
 
-        self.sliderTemp.valueChanged.connect(self.tempUpdate)  # signal send new value as parameter
+        self.sliderTemp.valueChanged.connect(self.tempUpdate)  # signal sends new value as parameter
         self.sliderTemp.sliderReleased.connect(
             lambda: self.tempUpdate(self.sliderTemp.value()))  # signal pass no parameter
 
@@ -265,8 +265,8 @@ class rawForm(baseForm):
         # Exposure curve is y = alpha*x, with cubic root ending; it is applied before demosaicing.
         # Brightness is (similar to) y = x**alpha and part of gamma transformation from linear sRGB to RGB.
         # Exposure and brightness both dilate the histogram towards highlights.
-        # Exposure dilatation is uniform (homothety), brightness dilataion is
-        # maximum for the midtones and the highlghts are preserved.
+        # Exposure dilatation is uniform (homothety), brightness dilatation is
+        # maximum for the midtones, and the highlights are preserved.
         # As a consequence, normal workflow begins with the adjustment of exposure,
         # to fill the entire range of the histogram and to adjust the highlights. Next,
         # one adjusts the brightness to put the midtones at the level we want them to be.
@@ -274,9 +274,8 @@ class rawForm(baseForm):
         #####################
 
         # populate profile combo
-        self.postloadprofilename = None  # set by __setstate__() and used in setCameraProfileCombo() to restore state asynchronously
+        self.postloadprofilename = None  # set by __setstate__() and used to restore camera profile asynchronously
         self.dngDict = self.setCameraProfilesCombo()
-        #self.event_obj.set()  # wake up the eventually waiting asynchronous load task
 
         # denoising combo
         self.denoiseCombo = QbLUeComboBox()
@@ -541,8 +540,9 @@ class rawForm(baseForm):
             the option <b>Show Contrast Curve</b>.<br>
             """
         )  # end of setWhatsThis
-        #self.cameraProfilesCombo.currentIndexChanged.connect(self.cameraProfileUpdate)
-        self.event_obj.set()  # wake up the (eventually) waiting asynchronous loadCameraProfiles task
+        # Wake up the (eventually) waiting asynchronous task loadCameraProfiles
+        # It may be prudent to block this task until the form layout is done.
+        self.event_obj.set()
 
     def close(self):
         """
@@ -799,7 +799,7 @@ class rawForm(baseForm):
         # self.highLabel.setEnabled(self.sliderHigh.isEnabled())
 
     def setDefaults(self):
-        self.dngDict = self.cameraProfilesCombo.itemData(0)
+        #self.dngDict = self.cameraProfilesCombo.itemData(0)
         self.listWidget1.unCheckAll()
         self.listWidget2.unCheckAll()
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
@@ -840,26 +840,25 @@ class rawForm(baseForm):
         :type files: list of str
         :param startIndex: starting index
         :type startIndex: int
-        :param event_obj: Event object
+        :param event_obj: sync
         :type event_obj: threading.Event
         """
-        # load remaining profiles
-        # if self.layer.fromBlue:
-        event_obj.wait()  # wait for self.__init__() completion
         try:
             # self.cameraProfilesCombo.setCursor(Qt.WaitCursor)
-            # self.cameraProfilesCombo.setEnabled(False)
+            event_obj.wait()
+            self.cameraProfilesCombo.setEnabled(False)
             for i, f in enumerate(files[startIndex:]):
                 key = basename(f)[:-4] if i + startIndex > 0 else 'Embedded Profile'
                 d = getDngProfileDict(f)
                 # filter d
-                df = {k: d[k] for k in d if d[k] != ''}
+                df = traceDict({k: d[k] for k in d if d[k] != ''}, ident=key)
                 if df:
                     self.cameraProfilesCombo.addItem(key, df)
             # last, add 'None' profile
-            key, d = 'None', {}
-            self.cameraProfilesCombo.addItem(key, d)
-            # all known profiles are loaded. Try to restore the recorded profile
+            key = 'None'
+            df = traceDict({}, ident=key)
+            self.cameraProfilesCombo.addItem(key, df)
+            # all available  profiles are loaded. Try to restore the recorded profile
             if self.postloadprofilename:
                 ind = self.cameraProfilesCombo.findText(self.postloadprofilename)
                 if ind != -1:
@@ -868,8 +867,6 @@ class rawForm(baseForm):
             self.cameraProfilesCombo.setEnabled(True)
             self.cameraProfilesCombo.currentIndexChanged.connect(self.cameraProfileUpdate, Qt.QueuedConnection)
             # self.cameraProfilesCombo.unsetCursor()
-            # event_obj.clear()
-            # event_obj.wait()
 
     def setCameraProfilesCombo(self):
         """
@@ -882,11 +879,18 @@ class rawForm(baseForm):
         :rtype: dict
         """
         self.cameraProfilesCombo = QbLUeComboBox()
+
+        self.cameraProfilesCombo.setSizeAdjustPolicy(QbLUeComboBox.SizeAdjustPolicy.AdjustToContents)
+        self.cameraProfilesCombo.setMaximumWidth(180)
+
         files = [self.targetImage.filename]
         files.extend(getDngProfileList(self.targetImage.cameraModel()))
         if not files:
-            self.cameraProfilesCombo.addItem('None', {})
-            return {}
+            key = 'None'
+            d = traceDict({}, ident=key)
+            self.cameraProfilesCombo.addItem(key, d)
+            return d
+
         # load a first profile
         nextInd, found = 0, False
         while nextInd < len(files) and not found:
@@ -894,21 +898,20 @@ class rawForm(baseForm):
             key = basename(f)[:-4] if nextInd > 0 else 'Embedded Profile'
             d = getDngProfileDict(f)
             # filter d
-            d = {k: d[k] for k in d if d[k] != ''}
+            d = traceDict({k: d[k] for k in d if d[k] != ''}, ident=key)
             if d:
                 self.cameraProfilesCombo.addItem(key, d)
                 found = True
             nextInd += 1
 
+        # Launch asynchronous loading of camera profiles.
+        # The task waits until event_obj is set
         if self.event_obj is None:
             self.event_obj = threading.Event()
         else:
             self.event_obj.clear()
 
         threading.Thread(target=self.loadCameraProfiles, args=(files, nextInd, self.event_obj)).start()
-
-        self.cameraProfilesCombo.setSizeAdjustPolicy(QbLUeComboBox.SizeAdjustPolicy.AdjustToContents)
-        self.cameraProfilesCombo.setMaximumWidth(180)
 
         current = self.cameraProfilesCombo.itemData(0)
         return current if current is not None else {}
@@ -932,25 +935,18 @@ class rawForm(baseForm):
             if name == 'toneForm':
                 self.showToneSpline()
             elif name == 'contrastForm':
-                # init contrastForm, spline not loaded yet
+                # init contrastForm, spline isn't loaded yet
                 self.setContrastSpline(0, 0, 0, 0, withcurve=False)
                 self.layer.autoSpline = False
             obj = getattr(self, name, None)
             if type(obj) in [optionsWidget, QbLUeSlider, QbLUeComboBox, graphicsToneForm, graphicsSplineForm]:
-                obj.__setstate__(d['state'][name])
+                # cameraProfilesCombo is populated asynchronously.
+                # To prevent conflicts, don't call its __setstate__ method now.
+                if name != 'cameraProfilesCombo':
+                    obj.__setstate__(d['state'][name])
         self.layer.autoSpline = False
         # camera profiles are loaded asynchronously, so we record
         # the name of the profile to be selected, and we postpone the selection until all profiles are loaded.
         self.postloadprofilename = d['state'].get('postloadprofilename', None)  # for backwards compatibility
-        """
-        # restore selected profile
-        # if not found some profiles may be not loaded yet
-        # and we may retry asynchronously (Cf. loadCameraProfiles)
-        if self.postloadprofilename is not None:
-            ind = self.cameraProfilesCombo.findText(self.postloadprofilename)
-            if ind != -1:
-                self.cameraProfilesCombo.setCurrentIndex(ind)
-                self.postloadprofilename = None
-        """
         self.dataChanged.connect(self.updateLayer)
         self.dataChanged.emit(1)
