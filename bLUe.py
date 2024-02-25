@@ -289,23 +289,37 @@ def addAdjustmentLayers(img, layers, images):
     # Build the recorded layer stack
     # The background layer and, eventually, the raw (develop) layer
     # must be already in stack, at indexes 0 and 1 respectively.
-    # The state of the raw layer is already restored by loadImage.
-    bg_initialInd = 0
-    develop_initialInd = 1
+    # The state of the raw layer is already restored by loadImage.Fix    bg_currentInd = 0
+    develop_currentInd = 1
 
     for ind, item in enumerate(layers):
         layer = None
         if item[0] == 'background':
             if ind > 0:
-                img.layersStack.append(img.layersStack.pop(bg_initialInd))  # move background layer to recorded place
+                img.layersStack.append(img.layersStack.pop(bg_currentInd))  # move background layer to recorded place
                 Gui.window.tableView.setLayers(img)  # no call to layerScripting, so we update layer view here
-                develop_initialInd -= 1
+                develop_currentInd -= 1
+                bg_currentInd = ind
         elif item[0] == 'develop':
-            if ind != develop_initialInd:
-                img.layersStack.append(img.layersStack.pop(develop_initialInd))
+            if ind != develop_currentInd:
+                img.layersStack.append(img.layersStack.pop(develop_currentInd))
                 Gui.window.tableView.setLayers(img)  # no call to layerScripting, so we update layer view here
+                develop_currentInd = ind
         else:
-            layer = layerScripting(item[1]['actionname'], sname=item[0], script=True)  # layer is added to stack
+            layer = layerScripting(item[1]['actionname'], sname=item[0], script=True)  # layer is added to top of stack
+            if ind == 0:
+                img.layersStack.insert(ind, img.layersStack.pop())
+                Gui.window.tableView.setLayers(img)  # no call to layerScripting: update layer view
+                bg_currentInd += 1
+                develop_currentInd += 1
+            elif ind == 1:
+                img.layersStack.insert(ind, img.layersStack.pop())
+                Gui.window.tableView.setLayers(img)  # no call to layerScripting: update layer view
+                if bg_currentInd >= 1:
+                    bg_currentInd += 1
+                if develop_currentInd >= 1:
+                    develop_currentInd += 1
+
 
         d = item[1]['state']
         if d['mask'] == 1:
@@ -318,12 +332,10 @@ def addAdjustmentLayers(img, layers, images):
                     dlgWarn('Layer %s : cannot load mask' % layer.name,
                             info=str(e)
                             )
-                layer.__setstate__(item[1])  # keep after mask init
-
             count += 1
-        else:
-            if layer:
-                layer.__setstate__(item[1])
+
+        if layer:
+            layer.__setstate__(item[1])
 
         if 'images' in d:  # for back compatibility with previous bLU file formats
             n = d['images']
