@@ -29,6 +29,22 @@ from bLUeTop.settings import DNG_PROFILES_DIR2, DNG_PROFILES_DIR1
 # cf. https://www.adobe.com/content/dam/acom/en/products/photoshop/pdfs/dng_spec_1.4.0.0.pdf
 ########################################################################################
 
+taglist=['LinearizationTable',
+          'ProfileLookTableData',
+          'ProfileLookTableDims',
+          'ProfileLookTableEncoding',
+          'ProfileToneCurve',
+          'CalibrationIlluminant1',
+          'CalibrationIlluminant2',
+          'ColorMatrix1',
+          'ColorMatrix2',
+          'CameraCalibration1',
+          'CameraCalibration2',
+          'ForwardMatrix1',
+          'ForwardMatrix2',
+          'AnalogBalance'
+        ]
+
 
 def getDngProfileDict(filename):
     """
@@ -41,23 +57,29 @@ def getDngProfileDict(filename):
     :rtype: dict
     """
     with exiftool.ExifTool() as e:
-        profileDict = e.readBinaryDataAsDict(filename,
-                                             taglist=['LinearizationTable',
-                                                      'ProfileLookTableData',
-                                                      'ProfileLookTableDims',
-                                                      'ProfileLookTableEncoding',
-                                                      'ProfileToneCurve',
-                                                      'CalibrationIlluminant1',
-                                                      'CalibrationIlluminant2',
-                                                      'ColorMatrix1',
-                                                      'ColorMatrix2',
-                                                      'CameraCalibration1',
-                                                      'CameraCalibration2',
-                                                      'ForwardMatrix1',
-                                                      'ForwardMatrix2',
-                                                      'AnalogBalance'
-                                                      ])
+        profileDict = e.readBinaryDataAsDict(filename, taglist=taglist)
     return profileDict
+
+
+def getDngProfileDicts(filenameList):
+    """
+    Read profile related tags from a list of dng or dcp files or folders.
+    Return a dictionary of pairs {filename : dict}, where dict is a dictionary of
+    pairs {tagname : tagvalue}.
+
+    :param filenameList: list of paths
+    :type filenameList: list of str
+    :return:
+    :rtype: dict
+    """
+
+    profileDicts = {}
+
+    with exiftool.ExifTool() as e:
+        for filename in filenameList:
+            profileDict = e.readBinaryDataAsDict(filename, taglist=taglist)
+            profileDicts[filename] = profileDict
+    return profileDicts
 
 
 def getDngProfileList(cameraName):
