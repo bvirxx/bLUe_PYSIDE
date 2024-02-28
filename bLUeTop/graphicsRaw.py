@@ -29,7 +29,7 @@ from PySide6.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBo
 
 from bLUeGui.graphicsSpline import graphicsSplineForm
 from bLUeGui.graphicsForm import baseForm
-from bLUeTop.dng import getDngProfileList, getDngProfileDict, dngProfileToneCurve
+from bLUeTop.dng import getDngProfileList, getDngProfileDict, dngProfileToneCurve, getDngProfileDicts
 from bLUeTop.utils import optionsWidget, UDict, QbLUeSlider, QbLUeComboBox, traceDict
 from bLUeGui.multiplier import *
 
@@ -274,7 +274,7 @@ class rawForm(baseForm):
         #####################
 
         # populate profile combo
-        self.postloadprofilename = None  # set by __setstate__() and used to restore camera profile asynchronously
+        self.postloadprofilename = None  # set by __setstate__() and used to restore camera profile
         self.dngDict = self.setCameraProfilesCombo()
 
         # denoising combo
@@ -528,7 +528,7 @@ class rawForm(baseForm):
         self.setWhatsThis(
             """<b>Development of raw files</b><br>
             The <i>develop layer</i> is added automatically to the layer stack when a raw file is loaded.<br>
-            <b>To start editing<b> from the image developed with standard parameters, turn off (not visible) 
+            <b>To start editing</b> from the image developed with standard parameters, turn off (not visible) 
             the <i>develop layer</i> and eventually add some adjustment layers to correct the image.<br>
             <b>To modify the development settings</b> make the <i>develop layer</i> visible.<br>
             A <b>Tone Curve</b> is applied to the raw image prior to postprocessing.<br> 
@@ -537,12 +537,10 @@ class rawForm(baseForm):
             <b>Contrast</b> correction is based on an automatic algorithm 
             well suited to multi-mode histograms.<br>
             The <b>Contrast Curve</b> can be edited manually by checking 
-            the option <b>Show Contrast Curve</b>.<br>
+            the option <i>Show Contrast Curve</i>.<br>
+            <b>Note.</b> Camera Profiles are searched in <i>DNG_PROFILES</i> directories (see your config***.json file).
             """
         )  # end of setWhatsThis
-        # Wake up the (eventually) waiting asynchronous task loadCameraProfiles
-        # It may be prudent to block this task until the form layout is done.
-        self.event_obj.set()
 
     def close(self):
         """
@@ -845,20 +843,22 @@ class rawForm(baseForm):
         """
         try:
             # self.cameraProfilesCombo.setCursor(Qt.WaitCursor)
-            event_obj.wait()
+            if event_obj:
+                event_obj.wait()
             self.cameraProfilesCombo.setEnabled(False)
-            for i, f in enumerate(files[startIndex:]):
+            dummy = getDngProfileDicts(files[startIndex:])
+            for i, fd in enumerate(list(dummy.items())):
+                f, d = fd  # (file name, dict)
                 key = basename(f)[:-4] if i + startIndex > 0 else 'Embedded Profile'
-                d = getDngProfileDict(f)
                 # filter d
                 df = traceDict({k: d[k] for k in d if d[k] != ''}, ident=key)
                 if df:
-                    self.cameraProfilesCombo.addItem(key, df)
-            # last, add 'None' profile
+                    self.cameraProfilesCombo.addItem(key, userData=df)
+            # Add 'None' profile
             key = 'None'
             df = traceDict({}, ident=key)
-            self.cameraProfilesCombo.addItem(key, df)
-            # all available  profiles are loaded. Try to restore the recorded profile
+            self.cameraProfilesCombo.addItem(key, userData=df)
+            # All available  profiles are loaded. Try to restore the recorded profile
             if self.postloadprofilename:
                 ind = self.cameraProfilesCombo.findText(self.postloadprofilename)
                 if ind != -1:
@@ -867,13 +867,12 @@ class rawForm(baseForm):
             self.cameraProfilesCombo.setEnabled(True)
             self.cameraProfilesCombo.currentIndexChanged.connect(self.cameraProfileUpdate, Qt.QueuedConnection)
             # self.cameraProfilesCombo.unsetCursor()
+            pass
 
     def setCameraProfilesCombo(self):
         """
         Populates the camera profile Combo box.
         for each item, text is the filename and data is the corresponding dict.
-        The function returns as soon as the first item is loaded. The remaining profiles are
-        loaded asynchronously.
 
         :return: the currently selected item data
         :rtype: dict
@@ -888,7 +887,7 @@ class rawForm(baseForm):
         if not files:
             key = 'None'
             d = traceDict({}, ident=key)
-            self.cameraProfilesCombo.addItem(key, d)
+            self.cameraProfilesCombo.addItem(key, userData=d)
             return d
 
         # load a first profile
@@ -900,18 +899,12 @@ class rawForm(baseForm):
             # filter d
             d = traceDict({k: d[k] for k in d if d[k] != ''}, ident=key)
             if d:
-                self.cameraProfilesCombo.addItem(key, d)
+                self.cameraProfilesCombo.addItem(key, userData=d)
                 found = True
             nextInd += 1
 
-        # Launch asynchronous loading of camera profiles.
-        # The task waits until event_obj is set
-        if self.event_obj is None:
-            self.event_obj = threading.Event()
-        else:
-            self.event_obj.clear()
-
-        threading.Thread(target=self.loadCameraProfiles, args=(files, nextInd, self.event_obj)).start()
+        # load remaining profiles
+        self.loadCameraProfiles(files, nextInd, None)
 
         current = self.cameraProfilesCombo.itemData(0)
         return current if current is not None else {}
@@ -940,12 +933,12 @@ class rawForm(baseForm):
                 self.layer.autoSpline = False
             obj = getattr(self, name, None)
             if type(obj) in [optionsWidget, QbLUeSlider, QbLUeComboBox, graphicsToneForm, graphicsSplineForm]:
-                # cameraProfilesCombo is populated asynchronously.
+                # cameraProfilesCombo may be populated asynchronously.
                 # To prevent conflicts, don't call its __setstate__ method now.
                 if name != 'cameraProfilesCombo':
                     obj.__setstate__(d['state'][name])
         self.layer.autoSpline = False
-        # camera profiles are loaded asynchronously, so we record
+        # camera profiles may be loaded asynchronously, so we record
         # the name of the profile to be selected, and we postpone the selection until all profiles are loaded.
         self.postloadprofilename = d['state'].get('postloadprofilename', None)  # for backwards compatibility
         self.dataChanged.connect(self.updateLayer)
