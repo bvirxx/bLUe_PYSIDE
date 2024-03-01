@@ -706,6 +706,9 @@ class mImage(vImage):
                     with open(self.filename, 'rb') as f:
                         bytes = f.read()
                     buf_ori = np.frombuffer(bytes, dtype=np.uint8)
+                else:
+                    # must be a void clause
+                    buf_ori = None
 
                 w, h = self.width(), self.height()
                 images = np.empty((len(mask_list) + len(image_list) + 1, max(len(buf_ori), w * h * 4)), dtype=np.uint8)
@@ -1509,7 +1512,7 @@ class QLayer(vImage):
     def updateOnlyPixmap(self, bRect=None):
         """
         Sync rPixmap with current layer image. Unlike updatePixmap functions it does nothing else.
-        If not None, bRect is a bounding rect of the modified  region of layer image. The coordinates
+        If not None, bRect is a bounding rect of the modified region of layer image. The coordinates
         of bRect are relative to the full size image.
         THe method returns the modified region of layer image. The coordinates are relative to current image.
 
@@ -1536,14 +1539,13 @@ class QLayer(vImage):
         if self.rPixmap is None:
             self.rPixmap = QPixmap.fromImage(rImg, Qt.NoOpaqueDetection)
         elif self.rPixmap.size() != rImg.size():
-            if self.rPixmap.convertFromImage(rImg, Qt.NoOpaqueDetection):
-                pass
-            else:
+            if not self.rPixmap.convertFromImage(rImg, Qt.NoOpaqueDetection):
                 raise ValueError('updatePixmap: conversion error')
         else:
             # alpha channel possibly does not exist yet
             if not self.rPixmap.hasAlphaChannel():
-                self.rPixmap.convertFromImage(rImg, Qt.NoOpaqueDetection)
+                if not self.rPixmap.convertFromImage(rImg, Qt.NoOpaqueDetection):
+                    raise ValueError('updatePixmap: conversion error')
             qp = QPainter(self.rPixmap)
             qp.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
             qp.drawImage(bRect.topLeft().x(), bRect.topLeft().y(),
@@ -1890,16 +1892,17 @@ class QLayer(vImage):
         form = self.getGraphicsForm()
         # formOptions = form.listWidget1
         inputImg = self.inputImg()
-        ##################################################################
-        # pass through
+
+        # image pass through
+        inBuf = QImageBuffer(inputImg)
+        outputImg = self.getCurrentImage()
+        outBuf = QImageBuffer(outputImg)
+        outBuf[...] = inBuf
+        self.updatePixmap()
+
         # grabcut is done only when clicking the Apply button of segmentForm.
         # No grabcut for hald image
         if self.noSegment or self.parentImage.isHald:
-            inBuf = QImageBuffer(inputImg)
-            outputImg = self.getCurrentImage()
-            outBuf = QImageBuffer(outputImg)
-            outBuf[:, :, :] = inBuf
-            self.updatePixmap()
             return
 
         # resizing coeff
@@ -1918,14 +1921,14 @@ class QLayer(vImage):
                 segMask[int(rect.top() * r):int(rect.bottom() * r),
                 int(rect.left() * r):int(rect.right() * r)] = cv2.GC_PR_FGD
 
-        # add info from current self.innerSegMask to segMask
+        # Add info from current self.innerSegMask to segMask
         # Only valid pixels are added to segMask, fixing them as FG or BG
         # initially (i.e. before any painting with BG/FG tools and before first call to applygrabcut)
         # all pixels are marked as invalid. Painting a pixel marks it as valid, Ctrl+paint
         # switches it back to invalid.
 
         if inputImg.size() != self.size():
-            scaledMask = self.mask.scaled(inputImg.width(), inputImg.height())
+            scaledMask = self.mask.scaled(inputImg.size())
         else:
             scaledMask = self.mask
         scaledMaskBuf = QImageBuffer(scaledMask)
@@ -1964,9 +1967,9 @@ class QLayer(vImage):
         buf[:, :, 2] = np.where((segMask == cv2.GC_FGD) + (segMask == cv2.GC_PR_FGD), unmasked, masked)
         buf[:, :, 3] = 128  # 50% opacity
 
-        # mark all mask pixels as valid, thus
+        # Mark all mask pixels as valid, thus
         # further calls to applyGrabcut will not be
-        # able to modify them. To enable further modifications
+        # able to modify them. To enable further modifications,
         # paint mask pixels white holding the Ctrl key.
         buf[:, :, 1] = 0
 
@@ -2955,7 +2958,7 @@ class QPresentationLayer(QLayer):
         Synchronizes qPixmap and rPixmap with the image layer.
         THe Parameter maskOnly is provided for compatibility only and it is unused.
         """
-        currentImage = self.getCurrentImage()
+        currentImage = self.inputImg()  # faster than self.getCurrentImage(), same value (pass through)
 
         crect = self.updateOnlyPixmap(bRect=bRect)
 
@@ -2963,14 +2966,18 @@ class QPresentationLayer(QLayer):
         if icc.COLOR_MANAGE and self.parentImage is not None:
             if self.qPixmap is None:
                 img = icc.convertQImage(currentImage, transformation=self.parentImage.colorTransformation)
-                self.qPixmap = QPixmap.fromImage(img)
+                self.qPixmap = QPixmap.fromImage(img, Qt.NoOpaqueDetection)
             elif self.qPixmap.size() != currentImage.size():
                 img = icc.convertQImage(currentImage, transformation=self.parentImage.colorTransformation)
-                self.qPixmap.convertFromImage(img)
+                self.qPixmap.convertFromImage(img, Qt.NoOpaqueDetection)
             else:
                 currentImage = currentImage.copy(crect)
                 img = icc.convertQImage(currentImage, transformation=self.parentImage.colorTransformation)
+                # alpha channel possibly does not exist yet
+                if not self.rPixmap.hasAlphaChannel():
+                    self.rPixmap.convertFromImage(img, Qt.NoOpaqueDetection)
                 qp = QPainter(self.qPixmap)
+                qp.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
                 qp.drawImage(crect.topLeft().x(), crect.topLeft().y(),
                              img
                              )
