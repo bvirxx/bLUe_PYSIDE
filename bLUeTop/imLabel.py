@@ -356,8 +356,10 @@ class imageLabel(QLabel):
                 if layer.sourceFromFile:
                     layer.getGraphicsForm().widgetImg.repaint()
             # update cursor
-            self.virtualCursor.setPosition(event.position())
-            window.label.repaint()
+            self.updateCursor(event)
+            if self.virtualCursor.visible:
+                self.virtualCursor.setPosition(event.position())
+                window.label.repaint()  # display virtual cursor new position
             return
 
         # click detection: for tablet, (very) small moves are clicks
@@ -368,7 +370,7 @@ class imageLabel(QLabel):
             # drawing
             if (window.btnValues['brushButton'] or window.btnValues['eraserButton']) and layer.isDrawLayer():
                 self.virtualCursor.setPosition(event.position())
-                self.updateVirtualCursorSize()
+                self.updateVirtualCursorSize() # tablet events may change pen width
                 self.__strokePaint(layer, x, y, r)
                 repaintAfter = False  # repainting is controlled by __strokePaint()
 
@@ -407,6 +409,7 @@ class imageLabel(QLabel):
                     # get pen width (relative to image)
                     # w_pen = window.verticalSlider1.value() * r * # / r
                     d = self.State['brush']
+                    self.updateVirtualCursorSize()  # tablet events may change pen size
                     w_pen = d['size'] * d['tabletW']  # * self.img.resize_coeff(self)
                     # mode source: result is source (=pen) pixel color and opacity
                     qp.setCompositionMode(qp.CompositionMode.CompositionMode_Source)
@@ -452,7 +455,7 @@ class imageLabel(QLabel):
                     layer.updatePixmap()
                     img.prLayer.update()  # =applyNone()
                     #############################
-                    window.label.repaint()
+                    #window.label.repaint()  # useless because repaintafter is true
 
             # drag buttton or arrow
             elif window.btnValues['drag'] or window.btnValues['pointer']:
@@ -631,7 +634,7 @@ class imageLabel(QLabel):
         layer = img.getActiveLayer()
         if modifiers == Qt.NoModifier:
             img.Zoom_coeff *= (1.0 + numSteps)
-            if layer.isDrawLayer():
+            if layer.isDrawLayer() or window.btnValues['drawFG'] or window.btnValues['drawBG']:
                 self.updateVirtualCursorSize()
             # max Zoom for previews
             if img.Zoom_coeff > MAX_ZOOM:
@@ -809,11 +812,6 @@ class imageLabel(QLabel):
                     self.virtualCursor.visible = False
         #else:
             #self.setCursor(Qt.ArrowCursor)
-
-        # When hovering, a tablet may not send enter and leave events.
-        # As a workaround, we try to erase the virtual cursor when it is "about" to leave.
-        if event.position().x() <= 0 or event.position().y() <= 0:
-            self.virtualCursor.visible = False
 
     def updateVirtualCursorSize(self):
         """
