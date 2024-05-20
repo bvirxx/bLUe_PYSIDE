@@ -289,7 +289,8 @@ def addAdjustmentLayers(img, layers, images):
     # Build the recorded layer stack
     # The background layer and, eventually, the raw (develop) layer
     # must be already in stack, at indexes 0 and 1 respectively.
-    # The state of the raw layer is already restored by loadImage.Fix    bg_currentInd = 0
+    # The state of the raw layer is already restored by loadImage.
+    bg_currentInd = 0
     develop_currentInd = 1
 
     for ind, item in enumerate(layers):
@@ -1162,7 +1163,7 @@ def menuImage(name, window=bLUeTop.Gui.window):
                     'the configuration file config.json ' \
                     'to match the path to your current display profile.\n' \
                     'Usual Profile dirs are on Linux ~/.local/share/icc\n' \
-                    'and on Windows C:\Windows\System32\spool\drivers\color\n'
+                    'and on Windows C:\\Windows\\System32\\spool\\drivers\\color\n'
         else:
             s = s + icc.monitorProfileInfo + '-------------\n\n'
 
