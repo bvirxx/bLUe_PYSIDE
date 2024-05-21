@@ -149,7 +149,7 @@ def playDiaporama(diaporamaGenerator, parent=None):
             with exiftool.ExifTool() as e:
                 try:
                     rt = e.readXMPTag(name, 'XMP:rating')  # raise ValueError if sidecar not found
-                    r = search("\d", rt)
+                    r = search(r'\d', rt)
                     if r is not None:
                         rating = int(r.group(0))
                 except ValueError:
