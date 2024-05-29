@@ -39,3 +39,8 @@ class baseSignal_bool(QObject):
 
 class baseSignal_Int2(QObject):
     sig = QtCore.Signal(int, int, QtCore.Qt.KeyboardModifiers)
+
+
+class baseSignal_List(QObject):
+    sig = QtCore.Signal(list)
+
