@@ -23,10 +23,11 @@ from math import log
 from os.path import basename
 
 from PySide6 import QtCore
-from PySide6.QtCore import Qt, QPointF
+from PySide6.QtCore import Qt, QPointF, QThread
 from PySide6.QtGui import QFontMetrics, QBrush, QPolygonF
 from PySide6.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBox, QGraphicsPolygonItem
 
+from bLUeGui.baseSignal import baseSignal_List
 from bLUeGui.graphicsSpline import graphicsSplineForm
 from bLUeGui.graphicsForm import baseForm
 from bLUeTop.dng import getDngProfileList, getDngProfileDict, dngProfileToneCurve, getDngProfileDicts
@@ -159,8 +160,6 @@ class rawForm(baseForm):
 
         self.axeSize = axeSize
 
-        self.event_obj = None
-
         rawpyObj = layer.parentImage.rawImage
 
         # constants and as shot values
@@ -274,6 +273,7 @@ class rawForm(baseForm):
         #####################
 
         # populate profile combo
+        self.cameraProfilesComboList = []
         self.postloadprofilename = None  # set by __setstate__() and used to restore camera profile
         self.dngDict = self.setCameraProfilesCombo()
 
@@ -829,45 +829,64 @@ class rawForm(baseForm):
         self.sliderSat.setValue(self.sat2Slider(self.satCorrection))
         self.dataChanged.connect(self.updateLayer)
 
-    def loadCameraProfiles(self, files, startIndex, event_obj):
+    def loadCameraProfiles_async(self, files, startIndex):
         """
-        Load the camera profiles listed in files, starting from startIndex.
-        The method is meant to run asynchronously in a separate thread.
+        Load asynchronously the camera profiles listed in files, starting from startIndex.
+        However, to avoid a crash, the new thread may not trigger any QComboBox event.
+        We use a subclass of QThread whose method run() builds the list of profiles.
+        When run() terminates it emits a signal result_available. This signal is connected
+        to a slot populate() which fills cameraProfileCombo:
+
+            It is important to remember that a QThread instance lives in the old thread that instantiated it,
+            not in the new thread that calls run() . This means that all of QThread ‘s queued slots and invoked
+            methods will execute in the old thread.
 
         :param files: list of file names
         :type files: list of str
         :param startIndex: starting index
         :type startIndex: int
-        :param event_obj: sync
-        :type event_obj: threading.Event
         """
-        try:
-            # self.cameraProfilesCombo.setCursor(Qt.WaitCursor)
-            if event_obj:
-                event_obj.wait()
-            self.cameraProfilesCombo.setEnabled(False)
-            dummy = getDngProfileDicts(files[startIndex:])
-            for i, fd in enumerate(list(dummy.items())):
-                f, d = fd  # (file name, dict)
-                key = basename(f)[:-4] if i + startIndex > 0 else 'Embedded Profile'
-                # filter d
-                df = traceDict({k: d[k] for k in d if d[k] != ''}, ident=key)
-                if df:
-                    self.cameraProfilesCombo.addItem(key, userData=df)
-            # Add 'None' profile
-            key = 'None'
-            df = traceDict({}, ident=key)
-            self.cameraProfilesCombo.addItem(key, userData=df)
-            # All available  profiles are loaded. Try to restore the recorded profile
-            if self.postloadprofilename:
-                ind = self.cameraProfilesCombo.findText(self.postloadprofilename)
-                if ind != -1:
-                    self.cameraProfilesCombo.setCurrentIndex(ind)
-        finally:
-            self.cameraProfilesCombo.setEnabled(True)
-            self.cameraProfilesCombo.currentIndexChanged.connect(self.cameraProfileUpdate, Qt.QueuedConnection)
-            # self.cameraProfilesCombo.unsetCursor()
-            pass
+        # loadCameraProfiles_async is called only once. So, we define workerThread locally.
+        class workerThread(QThread):
+
+            result_available = baseSignal_List()
+
+            def populate(items):
+                # executed in main thread
+                try:
+                    for key, df in items:
+                        self.cameraProfilesCombo.addItem(key, userData=df)
+                    # All available profiles are loaded. Try to restore the recorded profile
+                    if self.postloadprofilename:
+                        ind = self.cameraProfilesCombo.findText(self.postloadprofilename)
+                        if ind != -1:
+                            self.cameraProfilesCombo.setCurrentIndex(ind)
+                finally:
+                    self.cameraProfilesCombo.unsetCursor()
+                    del self.w  # deliver async thread to gc
+
+            result_available.sig.connect(populate)
+
+            def run(self):
+                # executed in new thread
+                cameraProfilesComboList = []
+                dummy = getDngProfileDicts(files[startIndex:])
+                for i, (f, d) in enumerate(dummy.items()):
+                    key = basename(f)[:-4] if i + startIndex > 0 else 'Embedded Profile'
+                    # filter d
+                    df = {k: d[k] for k in d if d[k] != ''}
+                    if df:
+                        cameraProfilesComboList.append((key, df))
+                # Last, add 'None' profile
+                key = 'None'
+                df = {}  # traceDict({}, ident=key)
+                cameraProfilesComboList.append((key, df))
+                self.result_available.sig.emit(cameraProfilesComboList)
+
+        self.cameraProfilesCombo.setCursor(Qt.WaitCursor)
+        self.w = workerThread()  # protect from gc
+        self.w.start()
+
 
     def setCameraProfilesCombo(self):
         """
@@ -886,7 +905,7 @@ class rawForm(baseForm):
         files.extend(getDngProfileList(self.targetImage.cameraModel()))
         if not files:
             key = 'None'
-            d = traceDict({}, ident=key)
+            d = {}
             self.cameraProfilesCombo.addItem(key, userData=d)
             return d
 
@@ -897,14 +916,15 @@ class rawForm(baseForm):
             key = basename(f)[:-4] if nextInd > 0 else 'Embedded Profile'
             d = getDngProfileDict(f)
             # filter d
-            d = traceDict({k: d[k] for k in d if d[k] != ''}, ident=key)
+            d = {k: d[k] for k in d if d[k] != ''}
             if d:
                 self.cameraProfilesCombo.addItem(key, userData=d)
                 found = True
             nextInd += 1
 
-        # load remaining profiles
-        self.loadCameraProfiles(files, nextInd, None)
+        # load remaining profiles asynchronously
+        self.loadCameraProfiles_async(files, nextInd)
+        self.cameraProfilesCombo.currentIndexChanged.connect(self.cameraProfileUpdate, Qt.QueuedConnection)
 
         current = self.cameraProfilesCombo.itemData(0)
         return current if current is not None else {}
