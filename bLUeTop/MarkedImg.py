@@ -1051,6 +1051,7 @@ class QLayer(vImage):
         self.colorPicked = baseSignal_Int2()
         self.selectionChanged = baseSignal_No()
         self.maskSettingsChanged = baseSignal_No()
+        self.maskSettingsChanged.sig.connect(lambda: None)  # prevent disconnect warnings in setLayers
         ###########################################################
         # when a geometric transformation is applied to the whole image
         # each layer must be replaced with a transformed layer, recorded in tLayer
