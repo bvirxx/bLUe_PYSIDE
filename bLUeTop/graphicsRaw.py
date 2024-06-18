@@ -859,7 +859,7 @@ class rawForm(baseForm):
                     # All available profiles are loaded. Try to restore the recorded profile
                     if self.postloadprofilename:
                         ind = self.cameraProfilesCombo.findText(self.postloadprofilename)
-                        if ind != -1:
+                        if ind != -1 and ind != self.cameraProfilesCombo.currentIndex():
                             self.cameraProfilesCombo.setCurrentIndex(ind)
                 finally:
                     self.cameraProfilesCombo.unsetCursor()
@@ -961,5 +961,9 @@ class rawForm(baseForm):
         # camera profiles may be loaded asynchronously, so we record
         # the name of the profile to be selected, and we postpone the selection until all profiles are loaded.
         self.postloadprofilename = d['state'].get('postloadprofilename', None)  # for backwards compatibility
+        if self.postloadprofilename:
+            ind = self.cameraProfilesCombo.findText(self.postloadprofilename)
+            if ind != -1 and ind != self.cameraProfilesCombo.currentIndex():
+                self.cameraProfilesCombo.setCurrentIndex(ind)
         self.dataChanged.connect(self.updateLayer)
         self.dataChanged.emit(1)
