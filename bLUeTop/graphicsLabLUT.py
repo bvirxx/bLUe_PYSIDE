@@ -199,7 +199,7 @@ class graphicsLabForm(graphicsCurveForm):
         sc = self.scene()
         tmp = np.zeros((1, 1, 3), dtype=np.uint8)
         tmp[0, 0, :] = (r, g, b)
-        L, a, b = sRGB2LabVec(tmp)[0, 0, :]
+        L, a, b = sRGB2LabVec(tmp, useOpencv=(l.colorSpace == 1))[0, 0, :]
         cubicL = sc.cubicR
         scale = cubicL.size
         bPoint = L * scale
@@ -246,7 +246,7 @@ class graphicsLabForm(graphicsCurveForm):
         sc = self.scene()
         tmp = np.zeros((1, 1, 3,), dtype=np.uint8)
         tmp[0, 0, :] = (r, g, b)
-        L, a, b = sRGB2LabVec(tmp)[0, 0, :]
+        L, a, b = sRGB2LabVec(tmp, useOpencv=(l.colorSpace == 1))[0, 0, :]
         cubicL, cubica, cubicb = sc.cubicR, sc.cubicG, sc.cubicB
         if luminance:
             ##########
