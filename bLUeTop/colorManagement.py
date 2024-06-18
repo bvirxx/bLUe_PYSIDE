@@ -349,7 +349,7 @@ class icc:
         :param qscreen: QScreen instance
         :type qscreen: QScreen
         :param colorSpace:
-        :type colorSpace
+        :type colorSpace: int
         :param workingProfile:
         :type workingProfile: ImageCmsProfile
         :param softproofingwp: profile for the device to simulate
@@ -372,10 +372,10 @@ class icc:
             else:
                 pass  # default keep current state
 
-            # get working profile as CmsProfile object (priority to color space tag)
+            # get working profile as CmsProfile object
             if colorSpace == 1:
                 cls.workingProfile = cls.defaultWorkingProfile
-            elif colorSpace == 2:
+            elif colorSpace == 2:  # currently unused
                 cls.workingProfile = getProfile(ADOBE_RGB_PROFILE_PATH)
             elif isinstance(workingProfile, ImageCms.ImageCmsProfile):
                 cls.workingProfile = workingProfile
@@ -414,13 +414,14 @@ class icc:
                 if useqcs:
                     cls.workToMonTransform = cls.workingProfile_QCS.transformationToColorSpace(cls.monitorProfile_QCS)
                 else:
-                    cls.workToMonTransform = ImageCms.buildTransformFromOpenProfiles(
-                        cls.workingProfile,
-                        cls.monitorProfile,
-                        "RGB",
-                        "RGB",
-                        renderingIntent=ImageCms.Intent.PERCEPTUAL
-                    )
+                    cls.workToMonTransform = ImageCms.buildTransformFromOpenProfiles\
+                                                                        (
+                                                                          cls.workingProfile,
+                                                                          cls.monitorProfile,
+                                                                          "RGB",
+                                                                          "RGB",
+                                                                          renderingIntent=ImageCms.Intent.PERCEPTUAL
+                                                                        )
 
             cls.HAS_COLOR_MANAGE = (cls.monitorProfile is not None) and \
                                    (cls.workingProfile is not None) and \
