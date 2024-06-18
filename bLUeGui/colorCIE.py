@@ -314,9 +314,10 @@ def XYZ2RGB(XYZColors, RGB_lin2XYZInverse=sRGB_lin2XYZInverse):
         M = XYZColors[1]
         XYZColors = np.array(XYZColors)
     if M > 1:
-        XYZColors /= M  # TODO a better approach is to to clip c1 ?
+        XYZColors /= M
         print('XYZ2sRGBVec warning : Y channel max %.5f' % M)
     c1 = XYZ2RGBLinear(XYZColors, RGB_lin2XYZInverse=RGB_lin2XYZInverse)
+    np.clip(c1, 0, 1, out=c1)
     c2 = rgbLinear2rgb(c1)
     return c2
 
@@ -353,8 +354,8 @@ def sRGB2LabVec(bufsRGB, RGB_lin2XYZ=sRGB_lin2XYZ, useOpencv=True):
         bufb = Kb * (YoverYn - bufXYZ[:, :, 2] / Zn) / bufL
         np.seterr(**oldsettings)
         bufLab = np.dstack((bufL, bufa, bufb))
-        # converting invalid values to int gives indeterminate results
-        bufLab[np.isnan(bufLab)] = 0.0  # TODO should be np.inf or np.isfinite?
+        # bufLab[np.isnan(bufLab)] = 0.0
+        bufLab[~ np.isfinite(bufLab)] = 0.0
     return bufLab
 
 
@@ -386,8 +387,8 @@ def Lab2sRGBVec(bufLab, RGB_lin2XYZInverse=sRGB_lin2XYZInverse, useOpencv=True):
         bufZ = Zn * (bufL2 - (bufb / Kb) * bufL)
         bufXYZ = np.dstack((bufX, bufY, bufZ))  # /100.0
         bufsRGB = XYZ2RGB(bufXYZ, RGB_lin2XYZInverse=RGB_lin2XYZInverse)
-        # converting invalid values to int gives indeterminate results
-        bufsRGB[np.isnan(bufsRGB)] = 0.0  # TODO should be np.inf or np.isfinite ?
+        # bufsRGB[np.isnan(bufsRGB)] = 0.0
+        bufsRGB[~ np.isfinite(bufsRGB)] = 0.0
     return bufsRGB
 
 
