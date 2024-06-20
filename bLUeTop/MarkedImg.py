@@ -2285,7 +2285,7 @@ class QLayer(vImage):
             return
 
         ##########################
-        # Lab mode (slower than HSV)
+        # Lab mode (slower than HSV) deprecated
         ##########################
         if version == 'Lab':
             # get l channel (range 0..1)
@@ -2478,7 +2478,10 @@ class QLayer(vImage):
             ndLabImg1[:, :, c] = np.take(stackedLUT[c, :], ndLImg0[:, :, c].reshape((-1,))).reshape(s)
         ndLabImg1 = scaleBackLabBuf(ndLabImg1)
         # back sRGB conversion
-        ndsRGBImg1 = Lab2sRGBVec(ndLabImg1)
+        ndsRGBImg1 = Lab2sRGBVec(ndLabImg1,
+                                 RGB_lin2XYZInverse=self.RGB_lin2XYZInverse,
+                                 useOpencv=(self.colorSpace == 1)
+                                 )
         # in place clipping
         np.clip(ndsRGBImg1, 0, 255, out=ndsRGBImg1)  # mandatory
 

@@ -21,8 +21,9 @@ from sys import byteorder
 import numpy as np
 from PySide6.QtCore import QSize, Qt, QPointF
 from PySide6.QtGui import QImage, QPixmap, QColor, QPainter, QPainterPath, QBrush, QPolygonF
+from numpy.linalg import LinAlgError
 
-from bLUeGui.colorCIE import sRGB2LabVec
+from bLUeGui.colorCIE import sRGB2LabVec, sRGB_lin2XYZ, sRGB_lin2XYZInverse
 from bLUeGui.colorCube import rgb2hspVec
 from bLUeGui.const import channelValues
 
@@ -44,6 +45,8 @@ class bImage(QImage):
     and a bunch of caches encapsulated as properties.
     The pixmap is synchronized with the image by the
     method updatePixmap().
+    Color space related attributes are shared with
+    parent image, if any
     """
 
     bigEndian = (byteorder == "big")
@@ -70,7 +73,44 @@ class bImage(QImage):
         self.colorMaskOpacity = bImage.defaultColorMaskOpacity
         self.mergingFlag = False  # Exposure Fusion marker
         self.compressFlag = False  # Layer compression marker
-        self.parentImage = None
+        self.parentImage = self  # default is no parent
+        # The following attributes are shared with parent image, if any
+        self._colorSpace = 1  # default color space is sRGB / no profile / force opencv conversions (XYZ, Lab,...)
+        self._RGB_lin2XYZ, self._RGB_lin2XYZInverse = sRGB_lin2XYZ, sRGB_lin2XYZInverse
+        self._cmsProfile = None
+
+
+    @property
+    def colorSpace(self):
+        return self.parentImage._colorSpace
+
+    @colorSpace.setter
+    def colorSpace(self, c):
+        self.parentImage._colorSpace = c
+
+    @property
+    def RGB_lin2XYZ(self):
+        return self.parentImage._RGB_lin2XYZ
+
+    @RGB_lin2XYZ.setter
+    def RGB_lin2XYZ(self, m):
+        self.parentImage._RGB_lin2XYZ = m
+
+    @property
+    def RGB_lin2XYZInverse(self):
+        return self.parentImage._RGB_lin2XYZInverse
+
+    @RGB_lin2XYZInverse.setter
+    def RGB_lin2XYZInverse(self, m):
+        self.parentImage._RGB_lin2XYZInverse = m
+
+    @property
+    def cmsProfile(self):
+        return self._cmsProfile
+
+    @cmsProfile.setter
+    def cmsProfile(self, p):
+        self._cmsProfile = p
 
     @property
     def mask(self):
@@ -133,6 +173,33 @@ class bImage(QImage):
     def __del__(self):
         print('*********** %s' % type(self))
 
+    def setProfile(self, profile):
+        """
+        Sets profile related attributes. They are shared
+        with parent image.
+
+        :param profile:
+        :type profile: CmsProfile instance
+        """
+
+        def set_default():
+            self.RGB_lin2XYZ = sRGB_lin2XYZ
+            self.RGB_lin2XYZInverse = sRGB_lin2XYZInverse
+            self.colorSpace = 1
+
+        self.cmsProfile = profile
+
+        cr, cg, cb = profile.profile.red_colorant, profile.profile.green_colorant, profile.profile.blue_colorant
+        if isinstance(cr, tuple) and isinstance(cg, tuple) and isinstance(cb, tuple):
+            self.RGB_lin2XYZ = np.column_stack((cr[0], cg[0], cb[0]))
+            try:
+                self.RGB_lin2XYZInverse = np.linalg.inv(self.RGB_lin2XYZ)
+                self.colorSpace = 65535
+            except LinAlgError:
+                set_default()
+        else:
+            set_default()
+
     def getHspbBuffer(self):
         """
         return the image buffer in color mode HSpB.
@@ -149,7 +216,10 @@ class bImage(QImage):
         return the image buffer in color mode Lab.
         Override to enable buffering
        """
-        self.LabBuffer = sRGB2LabVec(QImageBuffer(self)[:, :, :3][:, :, ::-1])
+        self.LabBuffer = sRGB2LabVec(QImageBuffer(self)[:, :, :3][:, :, ::-1],
+                                     RGB_lin2XYZ=self.parentImage.RGB_lin2XYZ,
+                                     useOpencv=(self.parentImage.colorSpace == 1)
+                                     )
         return self.LabBuffer
 
     def getHSVBuffer(self):

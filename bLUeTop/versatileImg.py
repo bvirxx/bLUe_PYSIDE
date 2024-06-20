@@ -360,14 +360,14 @@ class vImage(bImage):
                 name, colorSpace, rawMetadata, profile, orientation, rating
         else:
             self.meta = meta
-        self.setProfile(icc.defaultWorkingProfile)  # default profile
+        #self.setProfile(icc.defaultWorkingProfile)  # default profile
         # self.colorSpace = self.meta.colorSpace
         # self.cmsProfile = icc.defaultWorkingProfile  # possibly does not match colorSpace : call setProfile()
         # self.RGB_lin2XYZ = sRGB_lin2XYZ
         # self.RGB_lin2XYZInverse = sRGB_lin2XYZInverse
-        if filename is None and cv2Img is None and QImg is None:
+        # if filename is None and cv2Img is None and QImg is None:
             # create a null image
-            super().__init__()
+            # super().__init__()
         if filename is not None:
             if not isfile(filename):
                 raise ValueError('Cannot find file %s' % filename)
@@ -388,6 +388,9 @@ class vImage(bImage):
         elif cv2Img is not None:
             # build image from buffer
             super().__init__(ndarrayToQImage(cv2Img, format=format))
+        else:
+            # create a null image
+            super().__init__()
         # check format
         if self.depth() != 32:
             raise ValueError('vImage : should be a 8 bits/channel color image')
@@ -408,26 +411,6 @@ class vImage(bImage):
         """
         self.cropLeft, self.cropRight, self.cropTop, self.cropBottom = margins
         croptool.fit(self)
-
-    def setProfile(self, profile):
-        """
-        Sets profile related attributes.
-
-        :param profile:
-        :type profile: CmsProfile instance
-        """
-        self.cmsProfile = profile
-        if 'srgb' in profile.profile.profile_description.lower():
-            self.colorSpace = 1
-        else:
-            self.colorSpace = 65535
-        cr, cg, cb = profile.profile.red_colorant, profile.profile.green_colorant, profile.profile.blue_colorant
-        if isinstance(cr, tuple) and isinstance(cg, tuple) and isinstance(cb, tuple):
-            self.RGB_lin2XYZ = np.column_stack((cr[0], cg[0], cb[0]))
-            self.RGB_lin2XYZInverse = np.linalg.inv(self.RGB_lin2XYZ)
-        else:
-            self.RGB_lin2XYZ = sRGB_lin2XYZ
-            self.RGB_lin2XYZInverse = sRGB_lin2XYZInverse
 
     def setImage(self, qimg):
         """
@@ -583,7 +566,9 @@ class vImage(bImage):
         """
         if self.LabBuffer is None or not self.cachesEnabled:
             currentImage = self.getCurrentImage()
-            self.LabBuffer = sRGB2LabVec(QImageBuffer(currentImage)[:, :, :3][:, :, ::-1])
+            self.LabBuffer = sRGB2LabVec(QImageBuffer(currentImage)[:, :, :3][:, :, ::-1],
+                                         RGB_lin2XYZ=self.parentImage.RGB_lin2XYZ,
+                                         useOpencv=(self.colorSpace == 1))
         return self.LabBuffer
 
     def getHSVBuffer(self):
