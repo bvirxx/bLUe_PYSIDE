@@ -17,7 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
 import textwrap
-from os.path import basename, dirname
+from os.path import basename, dirname, isfile
 
 from PySide6.QtCore import Qt, QDir, QSize
 from PySide6.QtWidgets import QMessageBox, QPushButton, QFileDialog, QDialog, QSlider, QVBoxLayout, QHBoxLayout, QLabel, \
@@ -165,6 +165,30 @@ def dlgWarn(text, info='', modal=True, parent=Gui.window):
         msg.exec()
     else:
         msg.open()
+
+
+class isfileError(Exception):
+    pass
+
+def dlgOverwrite(filename, parent=Gui.window):
+    """
+    Raises isfileError if filename exists
+    :param filename: file path
+    :type filename: str
+    :param parent:
+    :type parent:
+    """
+    if isfile(filename):
+        msg = QMessageBox(parent=parent)
+        msg.setWindowTitle('Warning')
+        msg.setIcon(QMessageBox.Icon.Warning)
+        msg.setText("File %s already exists\n" % filename)
+        msg.setStandardButtons(QMessageBox.StandardButton.Cancel)
+        accButton = QPushButton("OverWrite")
+        msg.addButton(accButton, QMessageBox.ButtonRole.AcceptRole)
+        msg.exec()
+        if not (msg.clickedButton() == accButton):
+            raise isfileError("Saving Operation Failure")
 
 
 def workInProgress(title, parent=None):
@@ -462,3 +486,26 @@ def openDlg(mainForm, ask=True, multiple=False, key='dlgdir', parent=None):
         mainForm.settings.setValue(key, newDir)
         return filenames[0]
     return None
+
+def save3DLUTDlg(mainForm):
+    """
+
+    :param mainForm:
+    :type mainForm:
+    :return:
+    :rtype:
+    """
+    # write LUT to file
+    lastDir = str(mainForm.settings.value('paths/dlg3DLUTdir', '.'))
+    dlg = QFileDialog(mainForm, "select", lastDir)
+    dlg.setNameFilter('*.cube')
+    dlg.setDefaultSuffix('cube')
+    if dlg.exec():
+        newDir = dlg.directory().absolutePath()
+        mainForm.settings.setValue('paths/dlg3DLUTdir', newDir)
+        filenames = dlg.selectedFiles()
+        newDir = dlg.directory().absolutePath()
+        mainForm.settings.setValue('paths/dlg3DLUTdir', newDir)
+        filename = filenames[0]
+        dlgOverwrite(filename)
+        return filename

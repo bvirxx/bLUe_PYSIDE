@@ -2668,10 +2668,10 @@ class QLayer(vImage):
         adjustForm.predLabel2.setText('%f' % pred[1])
         adjustForm.predLabel3.setText('%f' % pred[2])
 
-        lut3D = LUT3D(lutarray, dtype=np.float32)
+        adjustForm.lut3D = LUT3D(lutarray, dtype=np.float32)
 
         interp = chosenInterp(pool, inputImage.width() * inputImage.height())
-        buf = interp(lut3D.LUT3DArray, lut3D.step, ndImg0.astype(np.float32), convert=False)
+        buf = interp(adjustForm.lut3D.LUT3DArray, adjustForm.lut3D.step, ndImg0.astype(np.float32), convert=False)
         np.clip(buf, 0, 255, out=buf)
 
         imgBuffer[..., :3] = inputBuffer

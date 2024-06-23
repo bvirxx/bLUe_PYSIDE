@@ -16,7 +16,10 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
-from PySide6.QtWidgets import QApplication, QVBoxLayout, QHBoxLayout, QSizePolicy, QLabel
+from PySide6.QtWidgets import QApplication, QVBoxLayout, QHBoxLayout, QSizePolicy, QLabel, QPushButton
+
+from bLUeGui.dialog import save3DLUTDlg, dlgWarn, isfileError, dlgInfo
+from bLUeTop import Gui
 from bLUeTop.utils import QbLUeSlider
 
 from PySide6.QtCore import Qt
@@ -30,7 +33,7 @@ class graphicsFormAuto3DLUT(baseForm):
     @classmethod
     def getNewWindow(cls, targetImage=None, axeSize=500, LUTSize=LUTSIZE, layer=None, parent=None, mainForm=None):
         """
-        build a graphicsForm3DLUT object. The parameter axeSize represents the size of
+        Build a graphicsForm3DLUT object. The parameter axeSize represents the size of
         the color wheel, border not included (the size of the window is adjusted).
 
         :param targetImage
@@ -106,6 +109,8 @@ class graphicsFormAuto3DLUT(baseForm):
         hlay3.addWidget(self.predLabel3)
         hlay3.addWidget(self.slider3)
 
+        self.exportBtn = QPushButton('Export 3D LUT')
+
         sliders = [self.slider1, self.slider2, self.slider3]
         for s in sliders:
             initSlider(s)
@@ -115,12 +120,23 @@ class graphicsFormAuto3DLUT(baseForm):
         self.setLayout(layout)
         for lay in [hlay1, hlay2, hlay3]:
             layout.addLayout(lay)
+        layout.addWidget(self.exportBtn)
 
         def f():
             self.dataChanged.emit()
 
+        def g():
+            try:
+                filename = save3DLUTDlg(Gui.window)
+                self.lut3D.writeToTextFile(filename)
+                dlgInfo('3D LUT written')
+            except (isfileError, IOError) as e:
+                dlgWarn('Export Failure', info=str(e))
+
         for s in sliders:
             s.sliderReleased.connect(f)
+
+        self.exportBtn.clicked.connect(g)
 
         self.adjustSize()
         self.setWhatsThis(
@@ -133,9 +149,11 @@ class graphicsFormAuto3DLUT(baseForm):
         """
         data changed slot
         """
+        self.exportBtn.setEnabled(False)
         layer = self.layer
         layer.applyToStack()
         layer.parentImage.onImageChanged()
+        self.exportBtn.setEnabled(True)
 
     def __getstate__(self):
         d = {}

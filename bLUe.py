@@ -1640,33 +1640,10 @@ def layerScripting(name, window=bLUeTop.Gui.window, sname=None, script=False):
             hArray = HaldArray(buf, LUT3DIdentity.size)
             # convert the hald array to a LUT3D object (BGR order)
             LUT = LUT3D.HaldBuffer2LUT3D(hArray)
-            # write LUT to file
-            lastDir = str(window.settings.value('paths/dlg3DLUTdir', '.'))
-            dlg = QFileDialog(window, "select", lastDir)
-            dlg.setNameFilter('*.cube')
-            dlg.setDefaultSuffix('cube')
-            if dlg.exec():
-                newDir = dlg.directory().absolutePath()
-                window.settings.setValue('paths/dlg3DLUTdir', newDir)
-                filenames = dlg.selectedFiles()
-                newDir = dlg.directory().absolutePath()
-                window.settings.setValue('paths/dlg3DLUTdir', newDir)
-                filename = filenames[0]
-                if isfile(filename):
-                    reply = QMessageBox()
-                    reply.setWindowTitle('Warning')
-                    reply.setIcon(QMessageBox.Icon.Warning)
-                    reply.setText("File %s already exists\n" % filename)
-                    reply.setStandardButtons(QMessageBox.StandardButton.Cancel)
-                    accButton = QPushButton("OverWrite")
-                    reply.addButton(accButton, QMessageBox.ButtonRole.AcceptRole)
-                    reply.exec()
-                    retButton = reply.clickedButton()
-                    if retButton is not accButton:
-                        raise ValueError("Saving Operation Failure")
-                LUT.writeToTextFile(filename)
-                dlgInfo('3D LUT written')
-        except (ValueError, IOError) as e:
+            filename = save3DLUTDlg(window)
+            LUT.writeToTextFile(filename)
+            dlgInfo('3D LUT written')
+        except (isfileError, IOError) as e:
             dlgWarn("Cannot build the 3D LUT:", str(e))
         finally:
             # restore stack
