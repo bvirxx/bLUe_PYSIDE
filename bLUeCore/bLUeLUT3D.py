@@ -39,24 +39,21 @@ class HaldArray(object):
 class LUT3D(object):
     """
     Standard RGB 3D LUT, following the Adobe cube LUT specification :
-    cf. http://wwwimages.adobe.com/content/dam/Adobe/en/products/speedgrade/cc/pdfs/cube-lut-specification-1.0.pdf
+    https://web.archive.org/web/20220215173646/https://wwwimages2.adobe.com/content/dam/acom/en/products/speedgrade/cc/pdfs/cube-lut-specification-1.0.pdf
 
     This class implements a RGB 3D LUT as a cubic array with shape (s, s, s, 3). The size s should be s = 2**n + 1,
-    where n is a postive integer. Most common values are s=17 or s=33.
+    where n is a positive integer. Most common values are s=17 or s=33.
     The input role (R or G or B) of the LUT axes must follow the ordering
-    of the output color channels.
+    of the output color channels. Input values must be in range [0,..,MaxRange[
 
     A 3D LUT can also be represented as a 2D image, called a hald. To build the hald, the LUT is
-    flattened, padded with 0,and next reshaped as a two dimensional array.
+    flattened, padded with 0,and next reshaped as a two-dimensional array.
 
-    Another 3D LUT class, following the Adobe dng spec. and suitable for arbitrary color spaces,
+    Another 3D LUT class, following the Adobe dng spec. and suitable for arbitrary color spaces
     can be found in the module dng.py.
     """
     ####################################
-    # MaxRange defines the maximum input value
-    # that can be interpolated from the LUT.
-    # It should be 2**n with integer n.
-    # For standard 3D LUTs it is always 256
+    # default MaxRange
     standardMaxRange = 256
     #####################################
 
@@ -175,12 +172,12 @@ class LUT3D(object):
     def __init__(self, LUT3DArray, size=defaultSize, maxrange=standardMaxRange, dtype=np.int16, alpha=False):
         """
         Initializes a LUT3D object with shape (size, size, size, d), d = 3 or 4.
-        size should be 2**n +1. Most common values are 17 and 33.
+        Size should be 2**n +1. Most common values are 17 and 33.
 
-        maxrange defines the maximum value which can be interpolated from the LUT.
+        Input values must be in range [0,..,maxrange[.
 
         LUT3DArray is the array of color values, with shape (size, size, size, 3).
-        By convention, the orderings of input and output color channels are identical.
+        By convention, the ordering of input and output color channels are identical.
 
         If LUT3DArray is None, we construct an "identity" LUT3D :
         it holds 3-uples (r,g,b) of numbers of type dtype, evenly
@@ -195,7 +192,7 @@ class LUT3D(object):
 
         :param LUT3DArray: cubic array of LUT3D values
         :type LUT3DArray: ndarray, dtype float or int, shape (size, size, size, 3)
-        :param size: size of the axes of the LUT3D
+        :param size: size of the LUT3D axes
         :type size: int
         :param maxrange: max value that can be interpolated from the LUT
         :type maxrange: int
@@ -302,7 +299,7 @@ class DeltaLUT3D(object):
         Init an identity displacement 3D LUT with
         shape (divs[0] + 2, divs[1] + 1, divs[2] + 1, 3)
 
-        :param divs: division count for each axis
+        :param divs: division counts for each axis
         :type divs: 3-uple of int
 
         """

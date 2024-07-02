@@ -30,6 +30,8 @@ def noiseSTD_Est(DWT_coeffs, version='DON'):
 
     :param DWT_coeffs: DWT coeffs as yielded by pywt.wavedecn()
     :type DWT_coeffs:
+    :param version:
+    :type version: str
     :return: noise STD
     :rtype: float
 
@@ -88,7 +90,7 @@ def dwtDenoiseChan(image, chan=0, thr=1.0, thrmode='hard', wavelet='haar', level
             "Low-complexity image denoising based on statistical
             modeling of wavelet coefficients," IEEE Signal Processing
             Letters, vol. 6, 1999, pp. 300-303.
-    Our implementation  follows the lines of J. Fridrich's paper:
+    Our implementation follows the lines of J. Fridrich's paper:
     Fridrich, "Digital Image Forensics," IEEE Signal Processing
     Magazine, vol. 26, 2009, pp. 26-37,
     and also :

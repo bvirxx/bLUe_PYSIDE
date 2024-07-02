@@ -130,7 +130,7 @@ def movingVariance(a, winsize, version='kernel'):
     For 1D arrays, the borders are not handled : the dimension of
     the returned array is a.shape[0] - winsize//2.
     For 2D arrays, the window is square (winsize*winsize), the
-    borders are handled by reflection and the returned array
+    borders are handled by reflection, and the returned array
     keeps the shape of a.
 
     :param a: array

@@ -25,16 +25,16 @@ def interpTriLinear(LUT, LUTSTEP, ndImg, convert=True):
     Convert an array ndImg with shape (h, w, dIn)  with dIn >=3 by interpolating
     its values from a 3D LUT array LUT with shape s = (s1, s2, s3, dOut).
     Values from the third axis of ndImg[:,:,:3] are input to
-    the three first axes of LUT, keeping the same ordering (i.e. v[i] is input to axis i).
+    the three first axes of LUT, keeping the same ordering (i.e., v[i] is input to axis i).
     Output values are interpolated from LUT.
 
-    LUTSTEP is the integer or the 3-uple of integers representing the unitary interpolation
+    LUTSTEP is the integer (or the 3-uple of integers) representing the unitary interpolation
     step for each axis of LUT.
 
     All input values for axis i must be in the (right opened)
     interval [0, max[ with max = (s[i] - 1) * LUTSTEP[i].
 
-    if convert is True (default), the output array is clipped to (0, 255) and converted
+    If convert is True (default), the output array is clipped to (0, 255) and converted
     to dtype=np.uint8, otherwise the output array has dtype= np.float32.
 
     :param LUT: 3D LUT array
@@ -70,10 +70,10 @@ def interpTriLinear(LUT, LUTSTEP, ndImg, convert=True):
                                       g0[..., np.newaxis],
                                       b0[..., np.newaxis],
                                       np.arange(s[-1])),
-                                     s)  # broadcasted to shape (w,h,3)
+                                     s)  # broadcast to shape (w,h,3)
 
     # apply LUT to the vertices of the bounding cube.
-    # np.take uses the the flattened LUT, but keeps the shape of flatIndex
+    # np.take uses the flattened LUT, but keeps the shape of flatIndex
     ndImg00 = np.take(LUT, flatIndex)  # = LUT[r0, g0, b0] but faster
     ndImg01 = np.take(LUT, flatIndex + st[0])  # = LUT[r1, g0, b0] where r1 = r0 + 1
     ndImg02 = np.take(LUT, flatIndex + st[1])  # = LUT[r0, g1, b0]

@@ -40,7 +40,7 @@ def interpMulti(LUT, LUTSTEP, ndImg, pool=None, use_tetra=False, convert=True):
     :param ndImg: input array
     :type ndImg: ndarray dtype float or int, shape (w, h, 3)
     :param pool: multiprocessing pool
-    :type pool: mulpiprocessing.Pool
+    :type pool: multiprocessing.Pool
     :param use_tetra: use tetrahedral interpolation
     :type use_tetra : boolean
     :param convert: convert the output to dtype=np.uint8

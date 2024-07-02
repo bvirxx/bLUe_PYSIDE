@@ -54,7 +54,7 @@ def interpTetra(LUT, LUTSTEP, ndImg, convert=True):
     :rtype: ndarray, same shape as the input image
     """
     # Probably due to a numpy bug, ravel_multi_index sometimes returns wrong indices
-    # for non contiguous arrays.
+    # for non-contiguous arrays.
     if not LUT.flags['C_CONTIGUOUS']:
         raise ValueError('interpTetra : LUT array must be contiguous')
     # As interpolation computes differences, we switch to a signed type,
@@ -78,7 +78,7 @@ def interpTetra(LUT, LUTSTEP, ndImg, convert=True):
                                      s)  # broadcasted to shape (w,h,3)
 
     # apply LUT to the vertices of the bounding cube
-    # np.take uses the the flattened LUT, but keeps the shape of flatIndex
+    # np.take uses the flattened LUT, but keeps the shape of flatIndex
     ndImg00 = np.take(LUT, flatIndex)  # = LUT[r0, g0, b0] but faster
     ndImg01 = np.take(LUT, flatIndex + st[0])  # = LUT[r1, g0, b0] where r1 = r0 + 1
     ndImg02 = np.take(LUT, flatIndex + st[1])  # = LUT[r0, g1, b0]

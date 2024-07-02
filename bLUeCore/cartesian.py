@@ -16,7 +16,7 @@ def cartesianProduct(arrayList, out=None):
     dtypes, otherwise a ValueError exception is raised.
 
     :param arrayList : list or tuple of 1-D array-like objects, with identical dtype
-    :type arrayList: list
+    :type arrayList: list or tuple
     :param out : used only for recursive calls
     :return: the cartesian product of the arrays
     :rtype: ndarray
