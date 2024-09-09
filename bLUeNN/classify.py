@@ -48,7 +48,7 @@ LUT2 = Generator3DLUT()
 classifier = Classifier()
 
 # Load pretrained models
-LUTs = torch.load("%s/LUTs.pth" % model_dir, map_location=torch.device('cpu'))
+LUTs = torch.load("%s/LUTs.pth" % model_dir, map_location=torch.device('cpu'), weights_only=True)
 LUT0.load_state_dict(LUTs["0"])
 LUT1.load_state_dict(LUTs["1"])
 LUT2.load_state_dict(LUTs["2"])
@@ -57,7 +57,7 @@ LUT0.eval()
 LUT1.eval()
 LUT2.eval()
 
-classifier.load_state_dict(torch.load("%s/classifier.pth" % model_dir, map_location=torch.device('cpu')))
+classifier.load_state_dict(torch.load("%s/classifier.pth" % model_dir, map_location=torch.device('cpu'), weights_only=True))
 classifier.eval()
 
 
