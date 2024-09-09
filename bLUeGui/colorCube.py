@@ -81,8 +81,8 @@ def rgb2hsB(r, g, b, perceptual=False):
     else:
         V = cMax
     V = V / 255.0
-    assert 0 <= H <= 360 and 0 <= S <= 1 and 0 <= V <= 1, "rgb2hsv conversion error r=%d, g=%d, b=%d, h=%f, s=%f, v=%f" % (
-    r, g, b, H, S, V)
+    assert 0 <= H <= 360 and 0 <= S <= 1 and 0 <= V <= 1, (
+            "rgb2hsv conversion error r=%d, g=%d, b=%d, h=%f, s=%f, v=%f" % (r, g, b, H, S, V))
     return H, S, V
 
 

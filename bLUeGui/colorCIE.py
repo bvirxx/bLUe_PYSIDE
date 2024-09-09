@@ -30,7 +30,7 @@ import numpy as np
 
 sRGBWP = 6500
 
-# When possible bLUe uses the embedded color profile to build the RGB_lin2XYZ
+# When possible, bLUe uses the embedded color profile to build the RGB_lin2XYZ
 # conversion matrix. The standard constants below act as default values.
 
 ##############################
@@ -58,7 +58,7 @@ sRGB_lin2XYZInverse = [[3.2404542, -1.5371385, -0.4985314],
 #
 # The 3 columns of the first matrix below can also be retrieved as the
 # [red,green,blue]colorant values of the CmsProfile instance built
-# from the standard sRGB profile (IEC 61966-2-1 : reference display white point D65) .
+# from the standard sRGB profile (IEC 61966-2-1 : reference display white point D65).
 
 sRGB_lin2XYZ_D50 = [[0.4360747, 0.3850649, 0.1430804],
                     [0.2225045, 0.7168786, 0.0606169],
@@ -181,7 +181,7 @@ def rgbLinear2rgb(rgbColors):
 
     :param rgbColors: RGB color or array of RGB colors
     :type  rgbColors: tuple or list of 3 scalars, or ndarray with last dim = 3
-    :return:gamma adapted RGB  colors
+    :return:gamma adapted RGB colors
     :rtype: identical to type of input
     """
     try:
@@ -273,7 +273,7 @@ def XYZ2RGBLinear(imgBuf, RGB_lin2XYZInverse=sRGB_lin2XYZInverse):
     """
     vectorized conversion from XYZ to LINEAR sRGB (D65)
 
-    :param imgBuf: image buffer,  XYZ color space
+    :param imgBuf: image buffer, XYZ color space
     :type  imgBuf: list or 3-uple of scalars or ndarray shape (w, h, 3)
     :param RGB_lin2XYZInverse: conversion matrix
     :type  RGB_lin2XYZInverse: ndarray, shape=(3,3)
@@ -324,7 +324,7 @@ def XYZ2RGB(XYZColors, RGB_lin2XYZInverse=sRGB_lin2XYZInverse):
 
 def sRGB2LabVec(bufsRGB, RGB_lin2XYZ=sRGB_lin2XYZ, useOpencv=True):
     """
-    Vectorized sRGB to Lab conversion for 8 bits images only. No clipping
+    Vectorized sRGB to Lab conversion for 8-bit images only. No clipping
     is performed. If useOpencv is True (default, faster),
     we use opencv cvtColor (Note that it seems to perform
     linearizations, in contrast to sRGB <---> XYZ conversions)
@@ -334,6 +334,8 @@ def sRGB2LabVec(bufsRGB, RGB_lin2XYZ=sRGB_lin2XYZ, useOpencv=True):
 
     :param bufsRGB: image buffer, mode sRGB, range 0..255
     :type  bufsRGB: ndarray, dtype=np.uint8
+    :param RGB_lin2XYZ: conversion matrix
+    :type RGB_lin2XYZ:
     :param useOpencv:
     :type  useOpencv: boolean
     :return: bufLab Image buffer, mode Lab
@@ -342,7 +344,7 @@ def sRGB2LabVec(bufsRGB, RGB_lin2XYZ=sRGB_lin2XYZ, useOpencv=True):
     if useOpencv:
         bufLab = cv2.cvtColor(bufsRGB, cv2.COLOR_RGB2Lab)
         bufLab = bufLab.astype(float)
-        # for 8 bits per channel images opencv uses L,a,b range 0..255
+        # for 8 bits per channel images, opencv uses L,a,b range 0..255
         bufLab[:, :, 0] /= 255.0
         bufLab[:, :, 1:] -= 128
     else:
@@ -369,13 +371,15 @@ def Lab2sRGBVec(bufLab, RGB_lin2XYZInverse=sRGB_lin2XYZInverse, useOpencv=True):
 
     :param bufLab: image buffer, mode Lab, range 0..1
     :type  bufLab: ndarray, dtype numpy float
+    :param RGB_lin2XYZInverse: conversion matrix
+    :type RGB_lin2XYZInverse:
     :param useOpencv:
     :type  useOpencv: boolean
     :return: Image buffer mode sRGB, range 0..255,
     :rtype: ndarray, dtype=np.uint8
     """
     if useOpencv:
-        # for 8 bits per channel images opencv uses L,a,b range 0..255
+        # for 8 bits per channel images, opencv uses L,a,b range 0..255
         tmp = bufLab + [0.0, 128.0, 128.0]
         tmp[:, :, 0] *= 255.0
         bufsRGB = cv2.cvtColor(tmp.astype(np.uint8), cv2.COLOR_Lab2RGB)

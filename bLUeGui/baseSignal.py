@@ -43,4 +43,3 @@ class baseSignal_Int2(QObject):
 
 class baseSignal_List(QObject):
     sig = QtCore.Signal(list)
-

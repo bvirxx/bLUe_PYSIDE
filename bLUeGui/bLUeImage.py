@@ -320,7 +320,7 @@ class bImage(QImage):
         def drawChannelHistogram(painter, hist, bin_edges, color):
             # Draw histogram for a single channel.
             # param painter: QPainter
-            # param hist: histogram to draw
+            # param hist: histogram to draw, type ndarray
             # To emphasize significant values we try to clip the first bin to max height of the others
             MA = max(hist)
             try:
@@ -329,7 +329,7 @@ class bImage(QImage):
                 if not np.isfinite(MA_I):
                     raise ValueError
             except (ValueError, ArithmeticError, FloatingPointError, ZeroDivisionError):
-                # if MA is too small we do not draw the histogram for this channel
+                # if MA is too small, we do not draw the histogram for this channel
                 return
             M = max(hist[1:])
             try:
@@ -338,11 +338,11 @@ class bImage(QImage):
                 if not np.isfinite(M_I):
                     raise ValueError
             except (ValueError, ArithmeticError, FloatingPointError, ZeroDivisionError):
-                # if M is too small we do not clip the first bin
+                # if M is too small, we do not clip the first bin
                 M_I = MA_I
             imgH = size.height()
             scaleV = imgH * M_I
-            # drawing  trapezia instead of rectangles to quickly "smooth" the histogram
+            # drawing trapezia instead of rectangles to quickly "smooth" the histogram
             poly = QPolygonF()
             poly.append(QPointF(range[0], imgH))  # bottom left point
             for i, y in enumerate(hist):
@@ -351,7 +351,7 @@ class bImage(QImage):
                 # clipping indicators
                 if i == 0 or i == len(hist) - 1:
                     left = bin_edges[0 if i == 0 else -1] * scaleH
-                    left = left - (10 if i > 0 else 0)  # shift the indicator at right
+                    left = left - (10 if i > 0 else 0)  # shift the indicator on the right
                     percent = hist[i] * (bin_edges[i + 1] - bin_edges[i])
                     if percent > clipping_threshold:
                         # set the color of the indicator according to percent value

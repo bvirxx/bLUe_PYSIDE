@@ -58,7 +58,7 @@ class hueSatPattern(bImage):
 
     def __init__(self, w, h, converter, bright=defaultBr, border=0):
         """
-        Builds a (hue, sat) color wheel image of size (w, h)
+        Builds a (hue, sat) color wheel image of size (w, h).
         For fast display, the correspondence with RGB values is tabulated
         for each brightness.
 
@@ -511,5 +511,3 @@ class colorWheelChooser(QWidget):
         self.brSlider.setValue(self.getValue(state['brcoeff']))
         self.sampler.setCurrentColor(state['H'], state['S'])
         self.sampler.update()
-
-
