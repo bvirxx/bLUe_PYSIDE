@@ -23,6 +23,9 @@ QbLUeSlider::handle:horizontal {
 QbLUeSlider::handle:horizontal:hover {
                     background: #DDDDFF;
                     }
+QbLUeSlider::handle:focus {
+                    background: #0055FF;
+                    }
 QbLUeSlider::groove:horizontal {
                     margin: 3px;
                    }
