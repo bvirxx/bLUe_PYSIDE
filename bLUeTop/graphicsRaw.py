@@ -405,7 +405,7 @@ class rawForm(baseForm):
         def contUpdate(value):
             self.contValue.setText(str("{:.0f}".format(self.slider2Cont(self.sliderCont.value()))))
             # move not yet terminated or value not modified
-            if self.sliderCont.isSliderDown() or self.slider2Cont(value) == self.tempCorrection:
+            if self.sliderCont.isSliderDown() or self.slider2Cont(value) == self.contCorrection:
                 return
             try:
                 self.sliderCont.valueChanged.disconnect()
