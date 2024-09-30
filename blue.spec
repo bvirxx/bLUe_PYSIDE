@@ -1,11 +1,11 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-imageformats = [('.\\venv6_123_2\\Lib\site-packages\\PySide6\plugins\\imageformats', 'plugins\\imageformats')]
-platforms = [('.\\venv6_123_2\\Lib\site-packages\\PySide6\\plugins\\platforms', 'plugins\\platforms')]
+imageformats = [('.\\venv6_123_2\\Lib\\site-packages\\PySide6\plugins\\imageformats', 'plugins\\imageformats')]
+platforms = [('.\\venv6_123_2\\Lib\\site-packages\\PySide6\\plugins\\platforms', 'plugins\\platforms')]
 
 data_1 = [('bLUeNN\\pretrained_models\\sRGB\\*', 'bLUeNN\\pretrained_models\\sRGB')]
 data_2 = [('blue.ui', '.'), ('README.md', '.'), ('LICENSE.TXT', '.'), ('logo.png', '.'),
-          ('config_win.json', '.'), ('brushes\README.TXT', 'brushes'), ('bLUe.qss', '.')]
+          ('config_win.json', '.'), ('brushes\\README.TXT', 'brushes'), ('bLUe.qss', '.')]
 
 a = Analysis(
     ['blue.py'],
