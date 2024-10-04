@@ -55,6 +55,9 @@ QGroupBox#groupbox_btn {border: 1px solid gray;}
 QGroupBox#groupBox {border: 1px solid gray;}
 QMessageBox, QMessageBox *, QDialog, QDialog * {background-color: gray;
                                                 color: white}
+savingDialog, savingDialog * {background-color: white;
+                              color: black}
+savingDialog QAbstractScrollArea *, savingDialog QPushButton {background-color: lightgray} /*scrollbars and buttons*/
 QColorDialog QLabel {background-color: gray;
                      color: white}
 QStatusBar::item {border: none}
