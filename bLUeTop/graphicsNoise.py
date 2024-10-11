@@ -73,6 +73,9 @@ class noiseForm(baseForm):
         self.thrValue.setMaximumSize(w, h)
         self.thrValue.setText(str("{:.0f}".format(self.slider2Thr(self.sliderThr.value()))))
 
+        self.stdLabel = QLabel('Noise Estimated STD:\n \tUse level > 0')
+        self.stdLabel.setAlignment(Qt.AlignTop)
+
         # layout
         l = QVBoxLayout()
         l.addWidget(self.listWidget1)
@@ -82,6 +85,7 @@ class noiseForm(baseForm):
         hl1.addWidget(self.thrValue)
         hl1.addWidget(self.sliderThr)
         l.addLayout(hl1)
+        l.addWidget(self.stdLabel)
         l.setContentsMargins(20, 0, 20, 25)  # left, top, right, bottom
         self.setLayout(l)
         self.adjustSize()

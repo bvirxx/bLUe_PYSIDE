@@ -1574,7 +1574,7 @@ class QLayer(vImage):
         :param bRect: not used : for consistency with overriding method signature
         :type bRect: QRect
         """
-        rImg = self.getCurrentImage()
+        # rImg = self.getCurrentImage()
         self.updateOnlyPixmap(bRect=bRect)
         self.setModified(True)
 
@@ -2186,6 +2186,10 @@ class QLayer(vImage):
         if self.parentImage.isHald or noisecorr == 0:
             buf1[...] = buf0
             self.updatePixmap()
+            if adjustForm.options['Wavelets']:
+                adjustForm.stdLabel.setText('Noise Estimated STD:\n \tUse level > 0')
+            else:
+                adjustForm.stdLabel.setText('Noise Estimated STD:\n \tSwitch to Wavelets')
             return
         ########################
         w, h = self.width(), self.height()
@@ -2193,7 +2197,9 @@ class QLayer(vImage):
 
         # reset output image
         buf1[...] = buf0
-        for w1, w2, h1, h2 in self.getCurrentSelCoords():
+        currentSel = self.getCurrentSelCoords()
+        sigma, sigma1 = 0.0, 0.0
+        for w1, w2, h1, h2 in currentSel:
             # slicing
             rect = QRect(w1, h1, w2 - w1, h2 - h1)
             imgRect = QRect(0, 0, w0, h0)
@@ -2213,8 +2219,13 @@ class QLayer(vImage):
 
                 if adjustForm.options['Luminosity']:
                     bufLab = cv2.cvtColor(buf01, cv2.COLOR_RGB2Lab)
-                    bufLab[..., 0] = dwtDenoiseChan(bufLab, chan=0, thr=noisecorr, thrmode='wiener', level=level,
-                                                    wavelet=wavelet)
+                    bufLab[..., 0], s, s1 = dwtDenoiseChan(bufLab,
+                                                                   chan=0,
+                                                                   thr=noisecorr,
+                                                                   thrmode='wiener',
+                                                                   level=level,
+                                                                   wavelet=wavelet
+                                                                   )
 
                     bufLab[..., 0] = np.clip(bufLab[..., 0], 0, 255)
 
@@ -2222,7 +2233,14 @@ class QLayer(vImage):
                     ROI1[:, :, ::-1] = cv2.cvtColor(bufLab.astype(np.uint8), cv2.COLOR_Lab2RGB)
 
                 elif adjustForm.options['RGB']:
-                    dwtDenoise(ROI0, ROI1, thr=noisecorr, thrmode='wiener', wavelet=wavelet, level=level)
+                    s, s1 = dwtDenoise(ROI0,
+                                               ROI1,
+                                               thr=noisecorr,
+                                               thrmode='wiener',
+                                               wavelet=wavelet,
+                                               level=level
+                                               )
+                sigma, sigma1 = max(sigma, s), max(sigma1, s1)
 
             elif adjustForm.options['Bilateral']:
                 ROI1[:, :, ::-1] = cv2.bilateralFilter(buf01,
@@ -2245,6 +2263,11 @@ class QLayer(vImage):
                 ROI1[:, :, ::-1] = cv2.fastNlMeansDenoisingColored(buf01, None, 1 + noisecorr, 1 + noisecorr, 7,
                                                                    21)
         self.updatePixmap()
+
+        if adjustForm.options['Wavelets']:
+            adjustForm.stdLabel.setText('Noise Estimated STD:\n\tBefore\t%f\n\tAfter\t%f' % (sigma, sigma1))
+        else:
+            adjustForm.stdLabel.setText('Switch to wavelets to compute noise STD')
 
     def applyRawPostProcessing(self, pool=None):
         """

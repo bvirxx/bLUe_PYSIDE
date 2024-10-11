@@ -113,8 +113,8 @@ def dwtDenoiseChan(image, chan=0, thr=1.0, thrmode='hard', wavelet='haar', level
     :type wavelet: str
     :param level: max level of decomposition, automatic if level is None (default)
     :type level: int or None
-    :return: the denoised channel
-    :rtype: ndarray, same shape as the image channel, dtype= float
+    :return: the denoised channel, before noise STD, after noise STD
+    :rtype: 3-uple ndarray (same shape as the image channel, dtype=float), float, float
 
     """
 
@@ -176,16 +176,26 @@ def dwtDenoiseChan(image, chan=0, thr=1.0, thrmode='hard', wavelet='haar', level
                 ###################################################
 
         sigma1 = noiseSTD_Est(DWT_coeffs)
-        print(sigma, sigma1)
 
     # apply inverse DWT
     w, h = imArray.shape[1], imArray.shape[0]
     imArray = pywt.waverecn(DWT_coeffs, wavelet)
     np.clip(imArray, 0, 255, out=imArray)
     # waverecn may return a padded array
-    return imArray[:h, :w]
+    return imArray[:h, :w], sigma, sigma1
 
 
 def dwtDenoise(source, dest, thr=1.0, thrmode='hard', wavelet='haar', level=None):
+    sigma, sigma1 = 0.0, 0.0
     for chan in range(source.shape[2]):
-        dest[:, :, chan] = dwtDenoiseChan(source, chan=chan, thr=thr, thrmode=thrmode, wavelet=wavelet, level=level)
+        dest[:, :, chan], s, s1 = dwtDenoiseChan(source,
+                                                         chan=chan,
+                                                         thr=thr,
+                                                         thrmode=thrmode,
+                                                         wavelet=wavelet,
+                                                         level=level
+                                                         )
+        sigma += s
+        sigma1 += s1
+
+    return (sigma / source.shape[2], sigma1 / source.shape[2]) if source.shape[2] > 0 else (sigma, sigma1)
