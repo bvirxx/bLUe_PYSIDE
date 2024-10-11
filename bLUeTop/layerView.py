@@ -206,7 +206,11 @@ class QLayerView(QTableView):
             try:
                 layer = self.img.getActiveLayer()
                 layer.setOpacity(self.opacitySlider.value())
-                layer.applyToStack()
+                if layer.opacity > 0 or layer.getUpperVisibleStackIndex() != -1:
+                    layer.applyToStack()
+                else:
+                    # transparent top visible layer : update only the presentation layer
+                    layer.parentImage.prLayer.update()
                 self.img.onImageChanged()
             except AttributeError:
                 return
@@ -664,7 +668,7 @@ class QLayerView(QTableView):
         self.currentWin = getattr(activeLayer, 'view', None)
 
         if layer.tool is not None:
-            layer.tool.moveRotatingTool()  # TODO added 23/11/21 keep last - validate
+            layer.tool.moveRotatingTool()  # keep last
 
         bLUeTop.Gui.window.label.repaint()
 
