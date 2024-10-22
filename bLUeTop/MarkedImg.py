@@ -2812,10 +2812,10 @@ class QLayer(vImage):
 
             # kernel based filtering
             r = inputImage.width() / self.width()
+            # correct radius for preview if needed
             radius = int(adjustForm.radius * r)
             if adjustForm.kernelCategory in [filterIndex.IDENTITY, filterIndex.UNSHARP,
                                              filterIndex.SHARPEN, filterIndex.BLUR1, filterIndex.BLUR2]:
-                # correct radius for preview if needed
                 kernel = getKernel(adjustForm.kernelCategory, radius, adjustForm.amount)
                 ROI1[:, :, :] = cv2.filter2D(ROI0, -1, kernel)
             else:

@@ -45,7 +45,7 @@ class filterForm(baseForm):
 
         # sliders
         self.sliderRadius = QbLUeSlider(Qt.Horizontal)
-        self.sliderRadius.setRange(1, 50)
+        self.sliderRadius.setRange(1, 100)
         self.sliderRadius.setSingleStep(1)
         self.radiusLabel = QLabel()
         self.radiusLabel.setMaximumSize(150, 30)
@@ -143,8 +143,9 @@ class filterForm(baseForm):
                but it may be slow.<br>
                It is possible to <b>limit the effect of a filter to a rectangular region of the image</b> by
                drawing a selection rectangle on the layer with the marquee (rectangle) tool.<br>
-               Ctrl Click <b>clears the selection</b><br>
-               
+               Ctrl Click <b>clears the selection.</b><br>
+               <b>Tip.</b> Using <i>Gaussian Blur</i> in conjunction with blending mode <i>Overlay</i> is often
+               a good choice to quickly improve contrast, saturation, and eventually bokeh.
             """
         )  # end setWhatsThis
 
@@ -174,7 +175,7 @@ class filterForm(baseForm):
     def enableSliders(self):
         opt = self.listWidget1.options
         useRadius = opt[self.optionList[0]] or opt[self.optionList[2]] or opt[self.optionList[3]]
-        useAmount = opt[self.optionList[0]] or opt[self.optionList[2]]
+        useAmount = opt[self.optionList[0]] # or opt[self.optionList[2]]
         useTone = opt[self.optionList[3]]
         self.sliderRadius.setEnabled(useRadius)
         self.sliderAmount.setEnabled(useAmount)

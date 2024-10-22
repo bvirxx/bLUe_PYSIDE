@@ -40,35 +40,34 @@ def phi(x, mu, sigma):
     return (1.0 + erf((x - mu) / (sigma * np.sqrt(2)))) / 2.0
 
 
-def gaussianKernel(mu, w):
+def gaussianKernel(w):
     """
-    2D gaussian kernel of size w and mean mu.
-    The standard deviation sigma and w are bound by the relation w = 2.0 * int(4.0 * sigma + 0.5)
+    2D gaussian kernel of radius w (size = 2*w + 1), and
+    standard deviation sigma = w / 4.0
 
-    :param mu: gaussian mean
-    :type mu: float
-    :param w: kernel size, should be odd
+    :param w: kernel radius
     :type w: int
-    :return: gaussian kernel, size w
-    :rtype: 2D array, shape (w,w), dtype numpy.float64
+    :return: gaussian kernel, size s=2*w + 1
+    :rtype: 2D array, shape (s,s), dtype numpy.float64
     """
-    sigma = (w - 1.0) / 8.0
-    interval = 4.0 * sigma
-    points = np.linspace(-interval, interval, num=w + 1)
+    sigma = w / 4.0  # 8.0
+    points = np.arange( 2 * w + 2) - (w + 0.5)  # [ -w - 0.5, ..., w + 0.5]
     # gaussian CDF
-    points = map(lambda x: phi(x, 0, sigma), points)
+    points = map(lambda x: phi(x, 0, sigma), points)  # 0
     # 1D kernel
-    kern1d = np.diff(list(points))  # python 3
+    kern1d = np.diff(list(points))
+    kern1d /= np.sum(kern1d)
+    ##### opencv version
+    # cv2k1d = cv2.getGaussianKernel(2*w+1, sigma)[:,0]
+    # cv2k2d = np.outer(cv2k1d, cv2k1d)
+    #####
     # 2D kernel
-    kernel_raw = np.sqrt(np.outer(kern1d, kern1d))
-    # normalize
-    kernel = kernel_raw / kernel_raw.sum()
+    kernel = np.outer(kern1d, kern1d)  # k[i, j] = k[i] * k[j]
     return kernel
 
 
 def kernelGaussianBlur(radius):
-    gblur_kernel = gaussianKernel(0.0, radius + 2)
-    return gblur_kernel
+    return gaussianKernel(radius)
 
 
 def kernelUnsharpMask(radius, amount):
@@ -93,11 +92,7 @@ def getKernel(category, radius=1, amount=1.0):
     elif category == filterIndex.SHARPEN:
         return kernelSharpen()
     elif category == filterIndex.BLUR1:
-        return kernelGaussianBlur(radius)
+        return kernelGaussianBlur(2 * radius)
     else:
         return np.array([[1]])
 
-
-if __name__ == '__main__':
-    pass
-    # print gaussianKernel(0, 5)*256
