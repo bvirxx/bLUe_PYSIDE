@@ -20,7 +20,7 @@ import gc
 from PySide6 import QtCore
 from PySide6.QtCore import QRectF, QSize, Qt, QModelIndex, QPoint
 from PySide6.QtGui import QImage, QPalette, QKeySequence, QFontMetrics, QTextOption, QPixmap, QIcon, QPainter, \
-    QStandardItem, QStandardItemModel, QAction
+    QStandardItem, QStandardItemModel, QAction, QGuiApplication
 from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QTableView, QAbstractItemView, QStyledItemDelegate, \
     QHeaderView, QVBoxLayout, QMenu, QSlider, QStyle, QCheckBox, QApplication
 
@@ -206,10 +206,10 @@ class QLayerView(QTableView):
             try:
                 layer = self.img.getActiveLayer()
                 layer.setOpacity(self.opacitySlider.value())
-                if layer.opacity > 0 or layer.getUpperVisibleStackIndex() != -1:
+                if layer.getUpperVisibleStackIndex() != -1:
                     layer.applyToStack()
                 else:
-                    # transparent top visible layer : update only the presentation layer
+                    # top visible layer: update only the presentation layer
                     layer.parentImage.prLayer.update()
                 self.img.onImageChanged()
             except AttributeError:
@@ -332,7 +332,9 @@ class QLayerView(QTableView):
         self.actionDup.triggered.connect(dup)
         self.setWhatsThis(
             """<b>Layer Stack</b><br>
-            To <b>toggle layer visibility,</b> click the Eye icon.<br>
+            To <b>toggle layer visibility,</b> click the Eye icon. Use <i>Alt+Click</i> to visualize
+            the effect of the top layer  without updating the stack: only
+            the presentation layer is updated (faster).<br>
             To <b>move a layer up or down,</b> drag and drop it with the mouse.<br>
             To <b> compress consecutive layers,</b> choose as target an image layer or
             the background layer and set its <i>Compress</i> flag from context menu. 
@@ -639,6 +641,7 @@ class QLayerView(QTableView):
             clickedIndex = self.model().index(m, clickedIndex.column())
         layer = self.img.layersStack[-1 - row]
         self.actionDup.setEnabled(not layer.isAdjustLayer())
+
         # toggle layer visibility
         if clickedIndex.column() == 0:
             # background layer is always visible
@@ -653,16 +656,20 @@ class QLayerView(QTableView):
             if layer.tool is not None:
                 layer.tool.setVisible(layer.visible)
             # update stack
-            if layer.visible:
-                layer.applyToStack()
-            else:
-                i = layer.getUpperVisibleStackIndex()
-                if i >= 0:
-                    layer.parentImage.layersStack[i].applyToStack()
-                else:
-                    # top layer : update only the presentation layer
+            modifier = QGuiApplication.keyboardModifiers()
+            i = layer.getUpperVisibleStackIndex()
+            if i < 0:  # no visible upper layer
+                if modifier == Qt.AltModifier or not layer.visible:
                     layer.parentImage.prLayer.execute(l=None, pool=None)
-            self.img.onImageChanged()
+                else:
+                    layer.applyToStack()
+            else:  #  at least a visible upper layer
+                if layer.visible:
+                    layer.applyToStack()
+                else:
+                    layer.parentImage.layersStack[i].applyToStack()
+            # self.img.onImageChanged()
+
         activeStackIndex = len(self.img.layersStack) - 1 - row
         activeLayer = self.img.setActiveLayer(activeStackIndex)
         self.currentWin = getattr(activeLayer, 'view', None)
@@ -670,7 +677,8 @@ class QLayerView(QTableView):
         if layer.tool is not None:
             layer.tool.moveRotatingTool()  # keep last
 
-        bLUeTop.Gui.window.label.repaint()
+        # bLUeTop.Gui.window.label.repaint()
+        self.img.onImageChanged()
 
     def initContextMenu(self):
         """
