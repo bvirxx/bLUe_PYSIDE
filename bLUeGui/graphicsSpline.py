@@ -46,7 +46,7 @@ class activePoint(QGraphicsPathItem):
     Interactive point
     """
 
-    def __init__(self, x, y, color=Qt.white, fillColor=None, persistent=False, rect=None, parentItem=None):
+    def __init__(self, x, y, color=Qt.GlobalColor.white, fillColor=None, persistent=False, rect=None, parentItem=None):
         super().__init__(parent=parentItem)
         self.color = color
         self.setAcceptHoverEvents(True)
@@ -107,8 +107,8 @@ class activeTriangle(QGraphicsPathItem):
         self.clicked = False
         # coordinates are relative to activeTriangle position
         self.B, self.C, self.A = QPointF(0, 0), QPointF(width, 0), QPointF(width / 2, - bump)
-        self.pen_hover_on = QPen(QBrush(Qt.GlobalColor.green), 1, Qt.DotLine)
-        self.pen_hover_out = QPen(QBrush(Qt.GlobalColor.gray), 1, Qt.DotLine)
+        self.pen_hover_on = QPen(QBrush(Qt.GlobalColor.green), 1, Qt.PenStyle.DotLine)
+        self.pen_hover_out = QPen(QBrush(Qt.GlobalColor.gray), 1, Qt.PenStyle.DotLine)
         self.setPen(self.pen_hover_out)
         self.update()
 
@@ -160,7 +160,7 @@ class activeTriangle(QGraphicsPathItem):
         # get parent spline
         asp = self.parentItem()
         # Ctrl+click event : remove point
-        if self.clicked and e.modifiers() == Qt.ControlModifier:
+        if self.clicked and e.modifiers() == Qt.KeyboardModifier.ControlModifier:
             if self.persistent:
                 return
             asp.fixedPoints.remove(self)
@@ -356,7 +356,7 @@ class activeSplinePoint(activePoint):
         self.setPos(x, y)
         sc = self.scene()
         # click event : remove point
-        if self.clicked and (e.modifiers() == Qt.ControlModifier):
+        if self.clicked and (e.modifiers() == Qt.KeyboardModifier.ControlModifier):
             if self.persistent:
                 return
             item.fixedPoints.remove(self)
@@ -378,7 +378,7 @@ class activeTangent(QGraphicsPathItem):
     """
     strokeWidth = 2
     penWidth = 2
-    brushColor = Qt.darkGray
+    brushColor = Qt.GlobalColor.darkGray
 
     def __init__(self, controlPoint=QPointF(), contactPoint=QPointF(), parentItem=None):
         super().__init__(parent=parentItem)
@@ -446,7 +446,7 @@ class activeSpline(QGraphicsPathItem):
     """
     strokeWidth = 2
     penWidth = 2
-    brushColor = Qt.darkGray
+    brushColor = Qt.GlobalColor.darkGray
 
     def __init__(self, size, fixedPoints=None, baseCurve=None, parentItem=None):
         """
@@ -982,7 +982,7 @@ class graphicsSplineItem(QGraphicsPixmapItem):
         self.axeSize = size
         # background
         pxmp = QPixmap(size, size)
-        pxmp.fill(Qt.lightGray)
+        pxmp.fill(Qt.GlobalColor.lightGray)
         self.setPixmap(pxmp)
         # curve
         cubic = activeCubicSpline(size)
@@ -1007,7 +1007,7 @@ class graphicsThrSplineItem(graphicsSplineItem):
         self.brightnessSliderHeight = 20
         self.brightnessSliderWidth = size  # + 2 * border
         px = QPixmap(self.brightnessSliderWidth, self.brightnessSliderHeight)
-        px.fill(Qt.gray)
+        px.fill(Qt.GlobalColor.gray)
         self.brightnessSlider = QGraphicsPixmapItem(px, parent=self)
         self.brightnessSlider.setPos(0, size + 20)
         # brightnessSlider handles
@@ -1110,7 +1110,7 @@ class graphicsSplineForm(graphicsCurveForm):
         if graphicsScene.cubicItem.histImg is not None:
             qp.drawImage(QRect(0, -s, s, s), graphicsScene.cubicItem.histImg)
         qp.save()
-        qp.setPen(Qt.red)
+        qp.setPen(Qt.GlobalColor.red)
         if self.baseCurve is not None:
             qp.drawPolyline(self.baseCurve)
         qp.restore()

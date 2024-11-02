@@ -40,7 +40,7 @@ class Form1(QMainWindow):
 
     def __init__(self):
         super(Form1, self).__init__()
-        self.settings = QSettings("bLUe.ini", QSettings.IniFormat)
+        self.settings = QSettings("bLUe.ini", QSettings.Format.IniFormat)
         # we presume that the form will be shown first on screen 0;
         # No detection possible before it is effectively shown !
         self.currentScreenIndex = 0
@@ -57,7 +57,7 @@ class Form1(QMainWindow):
     def infoView(self):
         if self.__infoView is None:
             self.__infoView = colorInfoView()
-            self.__infoView.label.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Minimum)
+            self.__infoView.label.setSizePolicy(QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.Minimum)
             self.__infoView.label.setMaximumSize(400, 80)
         return self.__infoView
 
@@ -237,16 +237,16 @@ class QbLUeApplication(QApplication):
     the function QApplication.event.
     """
     def event(self, event):
-        if event.type() == QEvent.TabletEnterProximity or event.type() == QEvent.TabletLeaveProximity:
+        if event.type() == QEvent.Type.TabletEnterProximity or event.type() == QEvent.Type.TabletLeaveProximity:
             bLUeTop.Gui.window.label.updateCursor(QTabletEvent(event))
             return True
         return super().event(event)
 
 
-QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)  # needed when a plugin initializes a web engine
+QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)  # needed when a plugin initializes a web engine
 bLUeTop.Gui.app = QbLUeApplication(sys.argv)
-bLUeTop.Gui.app.setAttribute(Qt.AA_CompressHighFrequencyEvents)
-bLUeTop.Gui.app.setAttribute(Qt.AA_CompressTabletEvents)
+bLUeTop.Gui.app.setAttribute(Qt.ApplicationAttribute.AA_CompressHighFrequencyEvents)
+bLUeTop.Gui.app.setAttribute(Qt.ApplicationAttribute.AA_CompressTabletEvents)
 # bLUeTop.Gui.app.setAttribute(Qt.AA_SynthesizeMouseForUnhandledTabletEvents, False)  # default True
 
 #################

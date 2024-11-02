@@ -33,7 +33,7 @@ class ExpForm(baseForm):
         # options
         self.options = None
         # exposure slider
-        self.sliderExp = QbLUeSlider(Qt.Horizontal)
+        self.sliderExp = QbLUeSlider(Qt.Orientation.Horizontal)
         self.sliderExp.setStyleSheet(QbLUeSlider.bLueSliderDefaultBWStylesheet)
         self.sliderExp.setRange(-20, 20)
         self.sliderExp.setSingleStep(1)
@@ -71,7 +71,7 @@ class ExpForm(baseForm):
 
         # layout
         l = QVBoxLayout()
-        l.setAlignment(Qt.AlignTop)
+        l.setAlignment(Qt.AlignmentFlag.AlignTop)
         l.addWidget(expLabel)
         hl = QHBoxLayout()
         hl.addWidget(self.expValue)

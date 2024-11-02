@@ -30,11 +30,10 @@ from PySide6.QtGui import QImage, QColor, QPainter
 from PySide6.QtCore import QRect
 
 from bLUeGui.bLUeImage import bImage, ndarrayToQImage
-from bLUeTop.colorManagement import icc
 
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.colorCube import rgb2hspVec
-from bLUeGui.colorCIE import sRGB2LabVec, sRGB_lin2XYZInverse, sRGB_lin2XYZ
+from bLUeGui.colorCIE import sRGB2LabVec
 
 from bLUeTop.lutUtils import LUT3DIdentity
 
@@ -218,12 +217,12 @@ class vImage(bImage):
         # color mask
         if color:
             # draw mask over image
-            qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
+            qp.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
             qp.drawImage(QRect(0, 0, img.width(), img.height()), cls.color2ViewMask(mask))
         # opacity mask
         else:
             # mode DestinationIn (set image opacity to mask opacity)
-            qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
+            qp.setCompositionMode(QPainter.CompositionMode.CompositionMode_DestinationIn)
             omask = vImage.color2OpacityMask(mask)
             qp.drawImage(QRect(0, 0, img.width(), img.height()), omask)
         qp.end()
@@ -290,7 +289,7 @@ class vImage(bImage):
         kernelMean = np.ones((ks, ks), float) / (ks * ks)
         return cv2.filter2D(mask, -1, kernelMean)  # -1 : keep depth unchanged
 
-    def __init__(self, filename=None, cv2Img=None, QImg=None, format=QImage.Format_ARGB32,
+    def __init__(self, filename=None, cv2Img=None, QImg=None, format= QImage.Format.Format_ARGB32,
                  name='', colorSpace=-1, orientation=None, rating=5, meta=None, rawMetadata=None, profile=b''):
         """
         With no parameter, builds a null image.
@@ -302,7 +301,7 @@ class vImage(bImage):
         :type cv2Img: ndarray
         :param QImg: image
         :type QImg: QImage
-        :param format: QImage format (default QImage.Format_ARGB32)
+        :param format: QImage format (default  QImage.Format.Format_ARGB32)
         :type format: QImage.Format
         :param name: image name
         :type name: str
@@ -444,9 +443,12 @@ class vImage(bImage):
         For non adjustment layers, the thumbnail will never be updated. So, we
         perform a high quality scaling.
         """
-        scImg = self.scaled(self.thumbSize, self.thumbSize, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        scImg = self.scaled(self.thumbSize, self.thumbSize,
+                            Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
+                            )
         # With the Qt.SmoothTransformation flag, the output image format is premultiplied
-        self.thumb = scImg.convertToFormat(QImage.Format_ARGB32, Qt.DiffuseDither | Qt.DiffuseAlphaDither)
+        self.thumb = scImg.convertToFormat(QImage.Format.Format_ARGB32,
+                                           Qt.ImageConversionFlag.DiffuseDither | Qt.ImageConversionFlag.DiffuseAlphaDither)
 
     def getThumb(self):
         """
@@ -477,8 +479,8 @@ class vImage(bImage):
         if not self.cachesEnabled:
             s = int(LUT3DIdentity.size ** (3.0 / 2.0)) + 1
             buf0 = LUT3DIdentity.toHaldArray(s, s).haldBuffer
-            # self.hald = QLayer(QImg=QImage(QSize(190,190), QImage.Format_ARGB32))
-            hald = QImage(QSize(s, s), QImage.Format_ARGB32)
+            # self.hald = QLayer(QImg=QImage(QSize(190,190),  QImage.Format.Format_ARGB32))
+            hald = QImage(QSize(s, s),  QImage.Format.Format_ARGB32)
             buf1 = QImageBuffer(hald)
             buf1[:, :, :3] = buf0
             buf1[:, :, 3] = 255

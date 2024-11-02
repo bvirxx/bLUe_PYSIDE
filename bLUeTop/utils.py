@@ -21,7 +21,7 @@ from itertools import product
 import numpy as np
 
 from PySide6 import QtCore
-from PySide6.QtGui import QColor, QImage, QPainter, QMouseEvent, QImageReader, QPixmap
+from PySide6.QtGui import QColor, QImage, QPainter, QImageReader, QPixmap
 from PySide6.QtWidgets import QListWidget, QListWidgetItem, \
     QSlider, QLabel, QDockWidget, QStyle, QColorDialog, QPushButton, QSizePolicy, QComboBox, QSpinBox, \
     QDialog, QDialogButtonBox, QVBoxLayout
@@ -185,7 +185,7 @@ class colorInfoView(QDockWidget):
         self.label.setWindowTitle('Info')
         self.setWidget(self.label)
         self.setWindowTitle(self.label.windowTitle())
-        self.setFocusPolicy(Qt.ClickFocus)
+        self.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
         self.setWhatsThis(
             """<b>Info</b><br>
             Input/output pixel values for the active layer.<br>
@@ -251,7 +251,7 @@ class virtualCursor(object):
             self.pixmap = pixmap
         else:
             self.pixmap = QPixmap(size, size)
-            self.pixmap.fill(Qt.white)
+            self.pixmap.fill(Qt.GlobalColor.white)
         self.size = size
         self.posX, self.posY = posX, posY
         self.visible = visible
@@ -331,8 +331,8 @@ class QbLUeColorDialog(QColorDialog):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
         self.closeSignal = baseSignal_No()
-        self.setAttribute(Qt.WA_DeleteOnClose, on=False)
-        self.setAttribute(Qt.WA_ShowWithoutActivating)  # does not get focus on show
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, on=False)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)  # does not get focus on show
         self.setWhatsThis(
             """<b>Color Picker</b><br>
             &nbsp;<b>Ctrl+Click : </b> Pick color from <i>color managed</i> image.
@@ -566,22 +566,23 @@ class optionsWidgetItem(QListWidgetItem):
     def isChecked(self):
         return self.checkState() == Qt.CheckState.Checked
 
-
-class bLUeEventFilter(QObject):
-
-    def eventFilter(self, target, e):
-        """
-        Filter mouse events for disabled items.
-
-        :param target:
-        :type target:
-        :param e:
-        :type e:
-        """
-        if isinstance(e, QMouseEvent):
-            return not (target.flags() & Qt.itemIsEnabled)
-        return False
-
+###################################################
+#class bLUeEventFilter(QObject):
+#
+#   def eventFilter(self, target, e):
+#
+#       """
+#       Filter mouse events for disabled items.
+#
+#        :param target:
+#        :type target:
+#        :param e:
+#       :type e:
+#       """
+#       if isinstance(e, QMouseEvent):
+#           return not (target.flags() & Qt.ItemFlag.ItemIsEnabled)
+#       return False
+####################################################
 
 class optionsWidget(QListWidget):
     """
@@ -630,11 +631,11 @@ class optionsWidget(QListWidget):
         self.changed = changed
         for intName, name in zip(self.intNames, self.extNames):
             listItem = optionsWidgetItem(name, self, intName=intName)
-            listItem.setCheckState(Qt.Unchecked)
+            listItem.setCheckState(Qt.CheckState.Unchecked)
             self.addItem(listItem)
             self.items[intName] = listItem
-            self.options[intName] = (listItem.checkState() == Qt.Checked)
-        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+            self.options[intName] = (listItem.checkState() == Qt.CheckState.Checked)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         if flow == QListWidget.Flow.TopToBottom:
             self.setMinimumHeight(self.sizeHintForRow(0) * len(options))
             self.setMaximumHeight(self.sizeHintForRow(0) * len(options) + 10)
@@ -667,7 +668,7 @@ class optionsWidget(QListWidget):
             if not item:
                 continue
             item.setCheckState(state[itemName])
-            if state[itemName] == Qt.Checked:
+            if state[itemName] == Qt.CheckState.Checked:
                 self.select(item)
 
     def select(self, item, callOnSelect=True):
@@ -683,7 +684,7 @@ class optionsWidget(QListWidget):
         :type callOnSelect: bool
         """
         # don't react to mouse click on disabled items
-        if not (item.flags() & Qt.ItemIsEnabled):
+        if not (item.flags() & Qt.ItemFlag.ItemIsEnabled):
             return
         # Update item states:
         # if exclusive, clicking on an item should turn it
@@ -693,13 +694,13 @@ class optionsWidget(QListWidget):
             for r in range(self.count()):
                 currentItem = self.item(r)
                 if currentItem is not item:
-                    currentItem.setCheckState(Qt.Unchecked)
+                    currentItem.setCheckState(Qt.CheckState.Unchecked)
                 else:
-                    currentItem.setCheckState(Qt.Checked)
+                    currentItem.setCheckState(Qt.CheckState.Checked)
         # update options dict
         modified = False
         for option in self.options.keys():
-            newState = self.items[option].checkState() == Qt.Checked
+            newState = self.items[option].checkState() == Qt.CheckState.Checked
             if self.options[option] != newState:
                 self.options[option] = newState
                 modified = True
@@ -726,24 +727,24 @@ class optionsWidget(QListWidget):
         item = self.items[name]
         if not checked and self.exclusive:
             raise ValueError('For mutually exclusive options, unchecking is not possible. Please check another item')
-        item.setCheckState(Qt.Checked if checked else Qt.Unchecked)
+        item.setCheckState(Qt.CheckState.Checked if checked else Qt.CheckState.Unchecked)
         self.select(item, callOnSelect=callOnSelect)
 
     def unCheckAll(self):
         if self.exclusive:
             return
         for r in range(self.count()):
-            self.item(r).setCheckState(Qt.Unchecked)
+            self.item(r).setCheckState(Qt.CheckState.Unchecked)
 
     def checkAll(self):
         if self.exclusive:
             return
         for r in range(self.count()):
-            self.item(r).setCheckState(Qt.Checked)
+            self.item(r).setCheckState(Qt.CheckState.Checked)
 
     @property
     def checkedItems(self):
-        return [self.item(i) for i in range(self.count()) if self.item(i).checkState() == Qt.Checked]
+        return [self.item(i) for i in range(self.count()) if self.item(i).checkState() == Qt.CheckState.Checked]
 
 
 class bLUeDialogCombo(QDialog):
@@ -777,7 +778,7 @@ class bLUeDialogCombo(QDialog):
     def selectionchange(self, i):
         self.onChange()
 
-def checkeredImage(format=QImage.Format_ARGB32):
+def checkeredImage(format= QImage.Format.Format_ARGB32):
     """
     Returns a 20x20 checker.
 
@@ -788,11 +789,11 @@ def checkeredImage(format=QImage.Format_ARGB32):
     """
     base = QImage(20, 20, format)
     qp = QPainter(base)
-    qp.setCompositionMode(QPainter.CompositionMode_Source)
-    qp.fillRect(0, 0, 10, 10, Qt.gray)
-    qp.fillRect(10, 0, 10, 10, Qt.white)
-    qp.fillRect(0, 10, 10, 10, Qt.white)
-    qp.fillRect(10, 10, 10, 10, Qt.gray)
+    qp.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
+    qp.fillRect(0, 0, 10, 10, Qt.GlobalColor.gray)
+    qp.fillRect(10, 0, 10, 10, Qt.GlobalColor.white)
+    qp.fillRect(0, 10, 10, 10, Qt.GlobalColor.white)
+    qp.fillRect(10, 10, 10, 10, Qt.GlobalColor.gray)
     qp.end()
     return base
 

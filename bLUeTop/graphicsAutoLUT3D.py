@@ -52,7 +52,7 @@ class graphicsFormAuto3DLUT(baseForm):
         :rtype:
         """
         try:
-            QApplication.setOverrideCursor(Qt.WaitCursor)
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
             QApplication.processEvents()
             newWindow = graphicsFormAuto3DLUT(targetImage=targetImage, axeSize=axeSize, LUTSize=LUTSize,
                                               layer=layer, parent=parent, mainForm=mainForm)
@@ -80,9 +80,9 @@ class graphicsFormAuto3DLUT(baseForm):
         # context help tag
         self.helpId = "AutoLUT3DForm"
         self.border = 20
-        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         # self.setMinimumSize(axeSize + 90, axeSize + 250)
-        self.setAttribute(Qt.WA_DeleteOnClose)
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         self.size = axeSize
 
         self.predLabel1 = QLabel()
@@ -94,17 +94,17 @@ class graphicsFormAuto3DLUT(baseForm):
             slider.setMaximum(100)
             slider.setSliderPosition(0)
 
-        self.slider1 = QbLUeSlider(Qt.Horizontal)
+        self.slider1 = QbLUeSlider(Qt.Orientation.Horizontal)
         hlay1 = QHBoxLayout()
         hlay1.addWidget(self.predLabel1)
         hlay1.addWidget(self.slider1)
 
-        self.slider2 = QbLUeSlider(Qt.Horizontal)
+        self.slider2 = QbLUeSlider(Qt.Orientation.Horizontal)
         hlay2 = QHBoxLayout()
         hlay2.addWidget(self.predLabel2)
         hlay2.addWidget(self.slider2)
 
-        self.slider3 = QbLUeSlider(Qt.Horizontal)
+        self.slider3 = QbLUeSlider(Qt.Orientation.Horizontal)
         hlay3 = QHBoxLayout()
         hlay3.addWidget(self.predLabel3)
         hlay3.addWidget(self.slider3)

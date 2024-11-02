@@ -269,8 +269,8 @@ class bImage(QImage):
         :return:
         :rtype:
         """
-        wfi = QImage(QSize(self.width(), 256), QImage.Format_ARGB32)
-        wfi.fill(Qt.black)
+        wfi = QImage(QSize(self.width(), 256), QImage.Format.Format_ARGB32)
+        wfi.fill(Qt.GlobalColor.black)
         wfiBuf = QImageBuffer(wfi)[:, :, :3]
         frameWidth = 1
         buf = QImageBuffer(self)
@@ -279,8 +279,8 @@ class bImage(QImage):
             hist, bins = np.histogram(bufFrame, bins=128, range=(0, 255), density=True)
             wfiBuf[::2, x:x + frameWidth, :] = (hist * 256000)[..., np.newaxis, np.newaxis]
 
-    def histogram(self, size=QSize(200, 200), bgColor=Qt.white, range=(0, 255),
-                  chans=channelValues.RGB, chanColors=Qt.gray, mode='RGB', addMode='',
+    def histogram(self, size=QSize(200, 200), bgColor=Qt.GlobalColor.white, range=(0, 255),
+                  chans=channelValues.RGB, chanColors=Qt.GlobalColor.gray, mode='RGB', addMode='',
                   binCount=32, clipping_threshold=0.02):
         """
         Plots the image histogram with the specified color mode and channels.
@@ -290,13 +290,13 @@ class bImage(QImage):
         :param size: size of the histogram plot
         :type  size: int or QSize
         :param bgColor: background color
-        :type  bgColor: QColor
+        :type  bgColor: Qt.GlobalColor
         :param range: plotted data range
         :type  range: 2-uple of int or float
         :param chans: channels to plot B=0, G=1, R=2
         :type  chans: list of indices
         :param chanColors: color or 3-uple of colors
-        :type  chanColors: QColor or 3-uple of QColor
+        :type  chanColors: Qt.GlobalColor or 3-uple of Qt.GlobalColor
         :param mode: color mode ((one among 'RGB', 'HSpB', 'Lab', 'Luminosity')
         :type  mode: str
         :param addMode:
@@ -306,7 +306,7 @@ class bImage(QImage):
         :param clipping_threshold: alert threshold for clipped areas
         :type  clipping_threshold: float
         :return:histogram plot
-        :rtype: QImage
+        :rtype: trackImage
         """
 
         if type(size) is int:
@@ -365,7 +365,7 @@ class bImage(QImage):
             path = QPainterPath()
             path.addPolygon(poly)
             path.closeSubpath()
-            painter.setPen(Qt.NoPen)
+            painter.setPen(Qt.PenStyle.NoPen)
             painter.fillPath(path, QBrush(color))
 
         # end of drawChannelHistogram
@@ -384,7 +384,7 @@ class bImage(QImage):
         elif mode == 'Luminosity':
             chans = []
         # drawing the histogram onto img
-        img = trackImage(size.width(), size.height(), QImage.Format_ARGB32)
+        img = trackImage(size.width(), size.height(), QImage.Format.Format_ARGB32)
         img.fill(bgColor)
 
         qp = QPainter(img)
@@ -396,14 +396,14 @@ class bImage(QImage):
         if mode == 'Luminosity' or addMode == 'Luminosity':
             bufL = cv2.cvtColor(QImageBuffer(self)[:, :, :3], cv2.COLOR_BGR2GRAY)[..., np.newaxis]
             hist, bin_edges = np.histogram(bufL, range=range, bins=binCount, density=True)
-            drawChannelHistogram(qp, hist, bin_edges, Qt.gray)
+            drawChannelHistogram(qp, hist, bin_edges, Qt.GlobalColor.gray)
         hist_L, bin_edges_L = [0] * len(chans), [0] * len(chans)
         for i, ch in enumerate(chans):
             buf0 = buf[:, :, ch]
             hist_L[i], bin_edges_L[i] = np.histogram(buf0, range=range, bins=binCount, density=True)
             drawChannelHistogram(qp, hist_L[i], bin_edges_L[i], chanColors[ch])
             # subsequent images are added using composition mode Plus
-            # qp.setCompositionMode(QPainter.CompositionMode_Plus)  # uncomment for semi-transparent hists
+            # qp.setCompositionMode(QPainter.CompositionMode.CompositionMode_Plus)  # uncomment for semi-transparent hists
         qp.end()
 
         img.drawingScale, img.drawingWidth = scaleH, size.width()
@@ -428,7 +428,7 @@ QImageFormats = {0: 'invalid',
                  15: 'ARGB4444 Premultiplied'}
 
 
-def ndarrayToQImage(ndimg, format=QImage.Format_ARGB32):
+def ndarrayToQImage(ndimg, format=QImage.Format.Format_ARGB32):
     """
     Converts a 3D numpy ndarray to a QImage. No sanity check is
     done regarding the compatibility of the ndarray shape with
@@ -451,7 +451,7 @@ def ndarrayToQImage(ndimg, format=QImage.Format_ARGB32):
     qimg = QImage(ndimg.data, ndimg.shape[1], ndimg.shape[0], bytePerLine, format)
     # keep a ref. to buffer to protect it from garbage collector
     qimg.buf_ = ndimg.data
-    if qimg.format() == QImage.Format_Invalid:
+    if qimg.format() == QImage.Format.Format_Invalid:
         raise ValueError("ndarrayToQImage : wrong conversion")
     return qimg
 

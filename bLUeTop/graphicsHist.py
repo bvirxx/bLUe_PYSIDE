@@ -43,13 +43,13 @@ class histForm(baseForm):
     def __init__(self, targetImage=None, size=200, layer=None, parent=None):
         super().__init__(layer=layer, targetImage=targetImage, parent=parent)
         self.mode = 'Luminosity'
-        self.chanColors = [Qt.gray]
+        self.chanColors = [Qt.GlobalColor.gray]
         self.setWindowTitle('Histogram')
-        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         self.setMinimumSize(size, 100)
         self.Label_Hist = trackLabel()  # QLabel()
         self.Label_Hist.setScaledContents(True)
-        self.Label_Hist.setFocusPolicy(Qt.ClickFocus)
+        self.Label_Hist.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
 
         # options
         options1, optionNames1 = ['Original Image'], ['Source']
@@ -103,7 +103,7 @@ class histForm(baseForm):
         h.addWidget(self.listWidget2)
         h.addStretch(1)
         vl = QVBoxLayout()
-        # vl.setAlignment(Qt.AlignTop)  prevent the histogram from stretching vertically
+        # vl.setAlignment(Qt.AlignmentFlag.AlignTop)  prevent the histogram from stretching vertically
         vl.addWidget(self.Label_Hist)
         vl.addLayout(h)
         vl.setContentsMargins(0, 0, 0, 2)  # left, top, right, bottom

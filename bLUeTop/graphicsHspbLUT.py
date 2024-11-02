@@ -114,7 +114,7 @@ class graphicsHspbForm(graphicsCurveForm):
             pass
         # set initial selection to Saturation
         item = self.listWidget1.items['S']
-        item.setCheckState(Qt.Checked)
+        item.setCheckState(Qt.CheckState.Checked)
         self.listWidget1.select(item)
         self.dataChanged.connect(self.updateLayer)
 

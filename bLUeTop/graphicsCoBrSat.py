@@ -117,7 +117,7 @@ class CoBrSatForm(baseForm):
         self.options = UDict((self.listWidget1.options, self.listWidget2.options))
 
         # contrast slider
-        self.sliderContrast = QbLUeSlider(Qt.Horizontal)
+        self.sliderContrast = QbLUeSlider(Qt.Orientation.Horizontal)
         self.sliderContrast.setStyleSheet(QbLUeSlider.bLueSliderDefaultIBWStylesheet)
         self.sliderContrast.setRange(0, 10)
         self.sliderContrast.setSingleStep(1)
@@ -156,7 +156,7 @@ class CoBrSatForm(baseForm):
         self.sliderContrast.sliderReleased.connect(lambda: contrastUpdate(self.sliderContrast.value()))
 
         # saturation slider
-        self.sliderSaturation = QbLUeSlider(Qt.Horizontal)
+        self.sliderSaturation = QbLUeSlider(Qt.Orientation.Horizontal)
         self.sliderSaturation.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
         self.sliderSaturation.setRange(0, 100)
         self.sliderSaturation.setSingleStep(1)
@@ -194,7 +194,7 @@ class CoBrSatForm(baseForm):
         self.sliderSaturation.sliderReleased.connect(lambda: saturationUpdate(self.sliderSaturation.value()))
 
         # vibrance slider
-        self.sliderVibrance = QbLUeSlider(Qt.Horizontal)
+        self.sliderVibrance = QbLUeSlider(Qt.Orientation.Horizontal)
         self.sliderVibrance.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
         self.sliderVibrance.setRange(0, 100)
         self.sliderVibrance.setSingleStep(1)
@@ -232,7 +232,7 @@ class CoBrSatForm(baseForm):
         self.sliderVibrance.sliderReleased.connect(lambda: vibranceUpdate(self.sliderVibrance.value()))
 
         # brightness slider
-        self.sliderBrightness = QbLUeSlider(Qt.Horizontal)
+        self.sliderBrightness = QbLUeSlider(Qt.Orientation.Horizontal)
         self.sliderBrightness.setStyleSheet(QbLUeSlider.bLueSliderDefaultBWStylesheet)
         self.sliderBrightness.setRange(0, 100)
         self.sliderBrightness.setSingleStep(1)
@@ -278,11 +278,11 @@ class CoBrSatForm(baseForm):
 
         # layout
         l = QVBoxLayout()
-        l.setAlignment(Qt.AlignTop)
+        l.setAlignment(Qt.AlignmentFlag.AlignTop)
         gb1 = QGroupBox()
         gb1.setTitle('Contrast')
         l1 = QVBoxLayout()
-        l1.setAlignment(Qt.AlignTop)
+        l1.setAlignment(Qt.AlignmentFlag.AlignTop)
         l1.addWidget(self.listWidget1)
         gb1.setLayout(l1)
         l.addWidget(gb1)
@@ -347,7 +347,7 @@ class CoBrSatForm(baseForm):
         axeSize = 200
         if self.contrastForm is None:
             form = graphicsSplineForm.getNewWindow(targetImage=None, axeSize=axeSize, layer=self.layer, parent=None)
-            form.setAttribute(Qt.WA_DeleteOnClose, on=False)
+            form.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, on=False)
             form.setWindowTitle('Contrast Curve')
             form.setFixedHeight(axeSize + 140)
             self.contrastForm = form
@@ -358,7 +358,7 @@ class CoBrSatForm(baseForm):
             dock.setWidget(form)
             dock.setWindowFlags(form.windowFlags())
             dock.setWindowTitle(form.windowTitle())
-            self.mainForm.addDockWidget(Qt.LeftDockWidgetArea, dock)
+            self.mainForm.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, dock)
             self.dock = dock
 
             # curve changed slot
@@ -420,9 +420,9 @@ class CoBrSatForm(baseForm):
         for intname in ['High', 'manualCurve']:
             item = self.listWidget2.items[intname]
             if self.options['Multi-Mode']:
-                item.setFlags(item.flags() | Qt.ItemIsEnabled)
+                item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEnabled)
             else:
-                item.setFlags(item.flags() & ~Qt.ItemIsEnabled)
+                item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEnabled)
         # show/hide contrast curve
         cf = getattr(self, 'dock', None)
         if cf is None:

@@ -108,7 +108,7 @@ class segmentForm(baseForm):
         h2 = QHBoxLayout()
         h2.addWidget(self.listWidget1)
         vLay = QVBoxLayout()
-        vLay.setAlignment(Qt.AlignTop)
+        vLay.setAlignment(Qt.AlignmentFlag.AlignTop)
         vLay.setContentsMargins(20, 8, 20, 25)  # left, top, right, bottom
         vLay.addLayout(hLay)
         vLay.addLayout(hLay1)

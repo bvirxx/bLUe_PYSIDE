@@ -38,7 +38,7 @@ class temperatureForm(baseForm):
         super().__init__(layer=layer, targetImage=targetImage, parent=parent)
         self.tempCorrection = 6500
         self.tintCorrection = 1.0
-        self.filterColor = Qt.white
+        self.filterColor = QColor(Qt.GlobalColor.white)
         self.defaultTemp = sRGBWP  # ref temperature D65
         self.defaultTint = 0
 
@@ -64,7 +64,7 @@ class temperatureForm(baseForm):
         self.colorChooserBtn.clicked.connect(self.showColorChooser)
 
         # temp slider
-        self.sliderTemp = QbLUeSlider(Qt.Horizontal)
+        self.sliderTemp = QbLUeSlider(Qt.Orientation.Horizontal)
         self.sliderTemp.setStyleSheet(QbLUeSlider.bLueSliderDefaultIColorStylesheet)
         self.sliderTemp.setRange(17,
                                  100
@@ -86,7 +86,7 @@ class temperatureForm(baseForm):
         self.tempValue.setText(str("{:d}".format(self.sliderTemp2User(self.sliderTemp.value()))))
 
         # tint slider
-        self.sliderTint = QbLUeSlider(Qt.Horizontal)
+        self.sliderTint = QbLUeSlider(Qt.Orientation.Horizontal)
         self.sliderTint.setStyleSheet(QbLUeSlider.bLueSliderDefaultMGColorStylesheet)
         self.sliderTint.setRange(0,
                                  100)  # 250) # valid range for spline approximation is 1667..25000, cf. colorConv.temperature2xyWP
@@ -113,7 +113,7 @@ class temperatureForm(baseForm):
 
         # layout
         l = QVBoxLayout()
-        l.setAlignment(Qt.AlignTop)
+        l.setAlignment(Qt.AlignmentFlag.AlignTop)
         l.addWidget(QLabel('Filter Type'))
         l.addWidget(self.listWidget1)
         l.addStretch(1)

@@ -21,7 +21,6 @@ import cv2
 import numpy as np
 import rawpy
 from PySide6.QtGui import QImage
-from rawpy._rawpy import LibRawFatalError
 
 from bLUeCore.multi import chosenInterp
 from bLUeGui.bLUeImage import QImageBuffer, bImage
@@ -55,7 +54,7 @@ def rawRead(file):
     except IOError as e:
         dlgWarn('rawRead : IO error', str(e))
         raise
-    except LibRawFatalError as e:
+    except rawpy.LibRawFatalError as e:
         dlgWarn('rawRead : LibRaw Fatal Error', str(e))
         raise
     return rawpyInst
@@ -218,7 +217,7 @@ def rawPostProcess(rawLayer, pool=None):
 
     # update the background histogram of tone curve
     s = rawLayer.postProcessCache.shape
-    tmp = bImage(s[1], s[0], QImage.Format_RGB32)
+    tmp = bImage(s[1], s[0],  QImage.Format.Format_RGB32)
     buf = QImageBuffer(tmp)
     buf[:, :, :] = (rawLayer.postProcessCache[:, :, 2, np.newaxis] * 255).astype(np.uint8)
     rawLayer.linearImg = tmp  # attribute used by graphicsToneForm.colorPickedSlot()

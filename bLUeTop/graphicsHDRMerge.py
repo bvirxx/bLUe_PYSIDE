@@ -59,7 +59,7 @@ class HDRMergeForm(baseForm):
 
         # layout
         l = QVBoxLayout()
-        l.setAlignment(Qt.AlignTop | Qt.AlignHCenter)
+        l.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
         l.addSpacing(30)
         l.addWidget(self.mergeButton)
         l.addSpacing(100)

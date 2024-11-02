@@ -91,10 +91,10 @@ class brushFamily:
             return x0, y0, QRectF()  # nothing drawn, empty rect
 
         sat = min(brush['tabletS'], 1.0)
-        pxmp = brush['pixmap'].scaled(s, s, mode=Qt.SmoothTransformation)
+        pxmp = brush['pixmap'].scaled(s, s, mode=Qt.TransformationMode.SmoothTransformation)
 
         if sat < 1.0: #  or alpha < 1.0:
-            img = brush['image'].scaled(s, s, mode=Qt.SmoothTransformation)
+            img = brush['image'].scaled(s, s, mode=Qt.TransformationMode.SmoothTransformation)
             buf0 = QImageBuffer(img)
             buf = cv2.cvtColor(buf0[..., :3], cv2.COLOR_BGR2HSV).astype(np.float32)
             buf[..., 1] *= sat
@@ -118,7 +118,7 @@ class brushFamily:
                                0, 0
                                )  # Caution: angles > 0 correspond to counterclockwise rotations of pxmp
         # SmoothTransformation is essential here to prevent aliasing
-        pxmp = pxmp.transformed(transform, mode=Qt.SmoothTransformation)
+        pxmp = pxmp.transformed(transform, mode=Qt.TransformationMode.SmoothTransformation)
 
         count = 0
         maxCount = int(1.0 / step)
@@ -236,7 +236,7 @@ class brushFamily:
             img = image
         else:
             return
-        img = img.convertToFormat(QImage.Format_ARGB32)
+        img = img.convertToFormat( QImage.Format.Format_ARGB32)
         buf = QImageBuffer(img)
         b = np.sum(buf[..., :3], axis=-1, dtype=float)
         b /= 3
@@ -281,6 +281,14 @@ class brushFamily:
         :type hardness: float
         :param flow: brush flow, range 0..1
         :type flow: float
+        :param spacing:
+        :type spacing: float
+        :param jitter
+        :type jitter: float
+        :param orientation:
+        :type orientation: int
+        :param pattern:
+        :type pattern:
         :return:
         :rtype: dict
         """
@@ -328,7 +336,7 @@ class brushFamily:
                 r1 = QRect(0, 0, m, self.baseSize)
                 r2 = QRect(rw + m, 0, m, self.baseSize)
             # set opacity of r to that of preset
-            qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
+            qp.setCompositionMode(QPainter.CompositionMode.CompositionMode_DestinationIn)
             qp.drawPixmap(r, self.preset)
             # paint the outside of r with transparent color
             pxmp1 = QPixmap(pxmp.size())
@@ -345,7 +353,7 @@ class brushFamily:
         pattern = pattern
         self.setBaseCursor(color)
         return {'family': self, 'name': self.name, 'pixmap': self.pxmp, 'size': size, 'color': color,
-                'opacity': opacity, 'image': self.pxmp.toImage().convertedTo(QImage.Format_ARGB32),
+                'opacity': opacity, 'image': self.pxmp.toImage().convertedTo( QImage.Format.Format_ARGB32),
                 'hardness': hardness, 'flow': flow, 'spacing': spacing, 'jitter': jitter, 'orientation': orientation,
                 'pattern': pattern, 'cursor': self.baseCursor, 'tabletW': 1.0, 'tabletS': 1.0, 'tabletA': 1.0}
 
@@ -384,6 +392,8 @@ def loadPresets(filename, first=1):
 
     :param filename:
     :type filename: str
+    :param first:
+    :type first: int
     :return:
     :rtype:  list of brushFamily instances
     """
@@ -410,7 +420,7 @@ def loadPresets(filename, first=1):
                 qpp.addEllipse(QRect(0, 0, baseSize, baseSize))
                 alpha = np.full_like(im, 255)
                 im = np.dstack((im, im, im, im))  # alpha))
-                qim = ndarrayToQImage(im, format=QImage.Format_ARGB32)
+                qim = ndarrayToQImage(im, format= QImage.Format.Format_ARGB32)
                 presetBrushFamily = brushFamily('Preset ' + str(rank), baseSize, qpp, image=qim)
                 brushes.append(presetBrushFamily)
                 rank += 1
@@ -418,7 +428,7 @@ def loadPresets(filename, first=1):
             for im in pImages:
                 # alpha = np.full_like(im, 255)
                 im = np.dstack((im, im, im, im))
-                qim = ndarrayToQImage(im, format=QImage.Format_ARGB32)
+                qim = ndarrayToQImage(im, format= QImage.Format.Format_ARGB32)
                 p = pattern('pattern ' + str(rank), im=qim, pxmp=QPixmap.fromImage(qim))
                 patterns.append(p)
                 rank += 1

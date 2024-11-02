@@ -134,7 +134,7 @@ class graphicsForm(graphicsCurveForm):
             pass
         # set initial selection to RGB
         item = self.listWidget1.items['RGB']
-        item.setCheckState(Qt.Checked)
+        item.setCheckState(Qt.CheckState.Checked)
         self.listWidget1.select(item)
         self.dataChanged.connect(self.updateLayer)
 
@@ -151,9 +151,9 @@ class graphicsForm(graphicsCurveForm):
         :type modifiers:
         """
         r, g, b = self.scene().targetImage.getActivePixel(x, y)
-        if modifiers == QtCore.Qt.ControlModifier | QtCore.Qt.ShiftModifier:
+        if modifiers == QtCore.Qt.KeyboardModifier.ControlModifier | QtCore.Qt.KeyboardModifier.ShiftModifier:
             self.setBlackPoint(r, g, b)
-        elif modifiers == QtCore.Qt.ControlModifier:
+        elif modifiers == QtCore.Qt.KeyboardModifier.ControlModifier:
             self.setWhitePoint(r, g, b)
 
     def setBlackPoint(self, r, g, b):

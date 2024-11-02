@@ -328,7 +328,7 @@ def addAdjustmentLayers(img, layers, images):
                 try:
                     buf = images.asarray()[count]
                     buf = buf.reshape(layer.height(), layer.width(), 4)
-                    layer.mask = ndarrayToQImage(buf, QImage.Format_ARGB32)
+                    layer.mask = ndarrayToQImage(buf, QImage.Format.Format_ARGB32)
                 except Exception as e:
                     dlgWarn('Layer %s : cannot load mask' % layer.name,
                             info=str(e)
@@ -353,7 +353,7 @@ def addAdjustmentLayers(img, layers, images):
             try:
                 buf = images.asarray()[count]
                 buf = buf.reshape(layer.height(), layer.width(), 4)
-                layer.sourceImg = ndarrayToQImage(buf, QImage.Format_ARGB32)
+                layer.sourceImg = ndarrayToQImage(buf, QImage.Format.Format_ARGB32)
                 if t is QCloningLayer:
                     layer.getGraphicsForm().updateSource()
                 layer.applyToStack()  # needed because images are loaded after all calls to __setstate__()
@@ -403,7 +403,7 @@ def addRawAdjustmentLayer(window=bLUeTop.Gui.window):
     #dock.setStyleSheet("QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
     rlayer.view = dock
     # add to docking area
-    window.addDockWidget(Qt.RightDockWidgetArea, dock)
+    window.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
     # update layer stack view
     window.tableView.setLayers(window.label.img)
     return rlayer
@@ -485,7 +485,7 @@ def loadImage(img, tfile=None, version='unknown', withBasic=True, window=bLUeTop
                     d = pickle.loads(literal_eval(v))
                     if key == 'cropmargins' and d != (0.0, 0.0, 0.0, 0.0):
                         img.setCropMargins(d, window.cropTool)  # type(d) is tuple
-                        window.cropButton.setChecked(Qt.Checked)
+                        window.cropButton.setChecked(Qt.CheckState.Checked)
                     elif type(d) is dict:
                         layers.append((key, d))
                 except (SyntaxError, ValueError, pickle.UnpicklingError):
@@ -529,7 +529,7 @@ def openFile(f, window=bLUeTop.Gui.window):
     try:
         window.status_loadingFile = True
         window.tabBar.setEnabled(False)
-        QApplication.setOverrideCursor(Qt.WaitCursor)
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         updateStatus()
         QApplication.processEvents()
 
@@ -634,7 +634,7 @@ def saveFile(filename, img, quality=-1, compression=-1, writeMeta=True):
     # call mImage.save to write image to file and return a thumbnail
     # throw ValueError or IOError
     try:
-        QApplication.setOverrideCursor(Qt.WaitCursor)
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         QApplication.processEvents()
         thumb = img.save(filename, quality=quality, compression=compression)
         # write metadata
@@ -687,7 +687,7 @@ def showHistogram(window=bLUeTop.Gui.window):
     Update and display the histogram of the
     currently opened document
     """
-    if window.histView.listWidget1.items['Original Image'].checkState() is Qt.Checked:
+    if window.histView.listWidget1.items['Original Image'].checkState() is Qt.CheckState.Checked:
         histImg = vImage(QImg=window.label.img.getCurrentImage())  # must be vImage : histogram method needed
     else:
         histImg = window.label.img.layersStack[-1].getCurrentMaskedImage()
@@ -697,10 +697,10 @@ def showHistogram(window=bLUeTop.Gui.window):
         window.histView.chans = [['R', 'G', 'B'].index(ch) for ch in ['R', 'G', 'B'] if window.histView.options[ch]]
     else:
         window.histView.mode = 'Luminosity'
-        window.histView.chanColors = [Qt.gray]
+        window.histView.chanColors = [Qt.GlobalColor.gray]
         window.histView.chans = []
     histView = histImg.histogram(QSize(window.histView.width(), window.histView.height()),
-                                 chans=window.histView.chans, bgColor=Qt.black,
+                                 chans=window.histView.chans, bgColor=Qt.GlobalColor.black,
                                  chanColors=window.histView.chanColors, mode=window.histView.mode,
                                  addMode='Luminosity' if window.histView.options['L'] else '')
     window.histView.cache = QPixmap.fromImage(histView)
@@ -714,7 +714,9 @@ def restoreBrush(layer, window=bLUeTop.Gui.window):
     Sync brush tools with brushDict
 
     :param layer:
-    :type  layer:
+    :type  layer: QDrawingLayer
+    :param window:
+    :type  window: Form1
     """
     d = layer.brushDict
     if d is None:
@@ -724,12 +726,12 @@ def restoreBrush(layer, window=bLUeTop.Gui.window):
     window.verticalSlider3.setValue(int(d['hardness'] * 100.0))
     window.verticalSlider4.setValue(int(d['flow'] * 100.0))
     window.colorChooser.setCurrentColor(d['color'])
-    graphicsForm = layer.getGraphicsForm()
+    grForm = layer.getGraphicsForm()
     # graphicsForm may be None if the layer is being created
-    if graphicsForm is not None:
-        graphicsForm.spacingSlider.setValue(int(d['spacing']) * 10)
-        graphicsForm.jitterSlider.setValue(int(d['jitter']) * 10)
-        graphicsForm.orientationSlider.setValue(int(d['orientation']) + 180)
+    if grForm is not None:
+        grForm.spacingSlider.setValue(int(d['spacing']) * 10)
+        grForm.jitterSlider.setValue(int(d['jitter']) * 10)
+        grForm.orientationSlider.setValue(int(d['orientation']) + 180)
     ind = window.brushCombo.findText(d['name'])
     if ind != -1:
         window.brushCombo.setCurrentIndex(ind)  # trigger brushUpdate() - keep last
@@ -855,7 +857,7 @@ def updateMenuLoadPreset(window=bLUeTop.Gui.window):
 
     def f(filename):
         try:
-            QApplication.setOverrideCursor(Qt.WaitCursor)
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
             brushes, patterns = loadPresets(filename, first=window.brushCombo.count() + 1)
             window.brushes.extend(brushes)
             for b in brushes:
@@ -918,9 +920,9 @@ def menuFile(name, window=bLUeTop.Gui.window):
         def f():
             if cbImg.isNull():
                 # new image
-                imgNew = QImage(dlg.dims['w'], dlg.dims['h'], QImage.Format_ARGB32)
+                imgNew = QImage(dlg.dims['w'], dlg.dims['h'], QImage.Format.Format_ARGB32)
                 # set background color for the new document
-                imgNew.fill(Qt.white)
+                imgNew.fill(Qt.GlobalColor.white)
                 img = imImage(QImg=imgNew)
             else:
                 # paste
@@ -1092,7 +1094,7 @@ def menuImage(name, window=bLUeTop.Gui.window):
         # display
         w = labelDlg(parent=window, title='Image info', wSize=QSize(700, 700), search=True)
         w.label.setWordWrap(True)
-        w.label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        w.label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         font = QFont("Courier New")
         w.label.setFont(font)
         w.label.setText(w.wrapped(s))
@@ -1127,7 +1129,7 @@ def menuImage(name, window=bLUeTop.Gui.window):
     elif name == 'actionColor_manage':
         icc.COLOR_MANAGE = window.actionColor_manage.isChecked()
         try:
-            QApplication.setOverrideCursor(Qt.WaitCursor)
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
             QApplication.processEvents()
             img.updatePixmap()
             window.label_2.img.updatePixmap()
@@ -1181,7 +1183,7 @@ def menuImage(name, window=bLUeTop.Gui.window):
     elif name in ['action90_CW', 'action90_CCW', 'action180']:
         try:
             angle = 90 if name == 'action90_CW' else -90 if name == 'action90_CCW' else 180
-            QApplication.setOverrideCursor(Qt.WaitCursor)
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
             QApplication.processEvents()
             # get new imImage
             tImg = img.bTransformed(QTransform().rotate(angle))
@@ -1282,7 +1284,7 @@ def updateCurrentViews(window=bLUeTop.Gui.window):
 def getPool():
     global pool
     try:
-        QApplication.setOverrideCursor(Qt.WaitCursor)
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         QApplication.processEvents()
         # init pool only once
         if USE_POOL and (pool is None):
@@ -1347,7 +1349,7 @@ def layerScripting(name, window=bLUeTop.Gui.window, sname=None, script=False):
         window.tableView.setLayers(window.label.img)
         # enhance graphic scene display
         if isinstance(grWindow, baseGraphicsForm):
-            grWindow.fitInView(grWindow.scene().sceneRect(), Qt.KeepAspectRatio)
+            grWindow.fitInView(grWindow.scene().sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
         if isinstance(grWindow, graphicsFormAuto3DLUT):
             # apply auto 3D LUT immediately when the layer is added
             grWindow.dataChanged.emit()
@@ -1459,7 +1461,7 @@ def layerScripting(name, window=bLUeTop.Gui.window, sname=None, script=False):
                 # needed to protect the buffer from garbage collector
                 imgNew.rawBuf = rawBuf
             else:
-                imgNew = QImage(1000, 1000, QImage.Format_ARGB32)  # will be resized later
+                imgNew = QImage(1000, 1000, QImage.Format.Format_ARGB32)  # will be resized later
                 imgNew.fill(QColor(0, 0, 0, 0))
             if imgNew.isNull():
                 dlgWarn("Cannot load %s: " % filename)
@@ -1481,8 +1483,8 @@ def layerScripting(name, window=bLUeTop.Gui.window, sname=None, script=False):
     elif name == 'actionNew_Layer':
         processedImg = window.label.img
         w, h = processedImg.width(), processedImg.height()
-        imgNew = QImage(w, h, QImage.Format_ARGB32)
-        imgNew.fill(Qt.black)
+        imgNew = QImage(w, h, QImage.Format.Format_ARGB32)
+        imgNew.fill(Qt.GlobalColor.black)
         lname = 'Image'
         layer = window.label.img.addAdjustmentLayer(name=gn(lname), sourceImg=imgNew, role='GEOMETRY')
         grWindow = imageForm.getNewWindow(axeSize=axeSize, **envdict())
@@ -1496,7 +1498,7 @@ def layerScripting(name, window=bLUeTop.Gui.window, sname=None, script=False):
     elif name == 'actionNew_Drawing_Layer':
         processedImg = window.label.img
         w, h = processedImg.width(), processedImg.height()
-        imgNew = QImage(w, h, QImage.Format_ARGB32)
+        imgNew = QImage(w, h, QImage.Format.Format_ARGB32)
         # imgNew.fill(Qt.white)
         imgNew.fill(QColor(0, 0, 0, 0))
         lname = 'Drawing'
@@ -1695,7 +1697,7 @@ def menuHelp(name, window=bLUeTop.Gui.window):
     elif name == "actionAbout_bLUe":
         w = labelDlg(parent=window, title='About bLUe', wSize=QSize(520, 520))  # 500 + layout margins
         w.label.setStyleSheet("background-image: url(logo.png); color: white;")
-        w.label.setAlignment(Qt.AlignCenter)
+        w.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         w.label.setText(BLUE_VERSION + "\n" + attributions + "\n" + "http://bernard.virot.free.fr")
         w.show()
 
@@ -1831,8 +1833,8 @@ def initCursors():
 
 
 def initDefaultImage():
-    img = QImage(200, 200, QImage.Format_ARGB32)
-    img.fill(Qt.darkGray)
+    img = QImage(200, 200, QImage.Format.Format_ARGB32)
+    img.fill(Qt.GlobalColor.darkGray)
     return imImage(QImg=img, meta=metadataBag(name='noName'))
 
 
@@ -1871,7 +1873,7 @@ def setRightPane(window=bLUeTop.Gui.window):
     loaded from blue.ui
     """
     # clean dock area
-    window.setTabPosition(Qt.RightDockWidgetArea, QTabWidget.TabPosition.East)
+    window.setTabPosition(Qt.DockWidgetArea.RightDockWidgetArea, QTabWidget.TabPosition.East)
     window.removeDockWidget(window.dockWidget)
     # redo the layout of window.dockWidget (from blue.ui)
     widget = window.dockWidget.widget()
@@ -1895,7 +1897,7 @@ def setRightPane(window=bLUeTop.Gui.window):
         if w.objectName() == 'histView':
             histViewDock = HistQDockWidget()
             hl = QHBoxLayout()
-            hl.setAlignment(Qt.AlignLeft)
+            hl.setAlignment(Qt.AlignmentFlag.AlignLeft)
             hl.addWidget(w)
             w.setMaximumSize(140000, 140000)
             wdg = QWidget()
@@ -1904,13 +1906,13 @@ def setRightPane(window=bLUeTop.Gui.window):
             histViewDock.setWidget(wdg)
             # short title
             histViewDock.setWindowTitle(w.windowTitle())
-            window.addDockWidget(Qt.RightDockWidgetArea, histViewDock)
+            window.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, histViewDock)
             window.histViewDock = histViewDock
         # add other widgets to layout
         else:
             tmpV.addWidget(w)
     tmpH = QHBoxLayout()
-    tmpH.setAlignment(Qt.AlignCenter)
+    tmpH.setAlignment(Qt.AlignmentFlag.AlignCenter)
     # prevent tmpV horizontal stretching
     tmpH.addStretch(1)
     tmpH.addLayout(tmpV)
@@ -1922,7 +1924,7 @@ def setRightPane(window=bLUeTop.Gui.window):
     QWidget().setLayout(window.dockWidgetContents.layout())
     # set the new layout
     widget.setLayout(tmpH)
-    window.addDockWidget(Qt.RightDockWidgetArea, window.dockWidget)
+    window.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, window.dockWidget)
     window.dockWidget.show()
     # tabify colorInfoView with histView
     window.tabifyDockWidget(histViewDock, window.infoView)
@@ -1986,16 +1988,16 @@ def setupGUI(window=bLUeTop.Gui.window):
     :type  window: Form1
     """
     # splash screen
-    splash = QSplashScreen(QPixmap('logo.png'), Qt.WindowStaysOnTopHint)
+    splash = QSplashScreen(QPixmap('logo.png'), Qt.WindowType.WindowStaysOnTopHint)
     font = splash.font()
     font.setPixelSize(12)
     splash.setFont(font)
     splash.show()
-    splash.showMessage("Loading .", color=Qt.white, alignment=Qt.AlignCenter)
+    splash.showMessage("Loading .", color=Qt.GlobalColor.white, alignment=Qt.AlignmentFlag.AlignCenter)
     bLUeTop.Gui.app.processEvents()
     sleep(1)
-    splash.showMessage(BLUE_VERSION + "\n" + attributions + "\n" + "http://bernard.virot.free.fr", color=Qt.white,
-                       alignment=Qt.AlignCenter)
+    splash.showMessage(BLUE_VERSION + "\n" + attributions + "\n" + "http://bernard.virot.free.fr", color=Qt.GlobalColor.white,
+                       alignment=Qt.AlignmentFlag.AlignCenter)
     bLUeTop.Gui.app.processEvents()
     sleep(1)
     splash.finish(window)
@@ -2007,13 +2009,13 @@ def setupGUI(window=bLUeTop.Gui.window):
     # docking areas options
     #######################
     # The right docking area extends to window bottom
-    window.setCorner(Qt.BottomRightCorner, Qt.RightDockWidgetArea)
+    window.setCorner(Qt.Corner.BottomRightCorner, Qt.DockWidgetArea.RightDockWidgetArea)
 
     if sys.platform == 'darwin':
         # seems necessary to prevent semi-transparent
         # WhatsThis window on Mac OS.  Maybe a bug ?
         p = Gui.app.palette()
-        p.setColor(QPalette.ToolTipBase, '#f5f2de')  # Qt.white)
+        p.setColor(QPalette.ColorRole.ToolTipBase, '#f5f2de')  # Qt.white)
         Gui.app.setPalette(p)
 
     # app style sheet
@@ -2051,7 +2053,7 @@ def setupGUI(window=bLUeTop.Gui.window):
     # init button tool bars
     toolBar = QToolBar()
     window.verticalSlider1, window.verticalSlider2, window.verticalSlider3, window.verticalSlider4 \
-        = QbLUeSlider(Qt.Horizontal), QbLUeSlider(Qt.Horizontal), QbLUeSlider(Qt.Horizontal), QbLUeSlider(Qt.Horizontal)
+        = QbLUeSlider(Qt.Orientation.Horizontal), QbLUeSlider(Qt.Orientation.Horizontal), QbLUeSlider(Qt.Orientation.Horizontal), QbLUeSlider(Qt.Orientation.Horizontal)
     for slider in (window.verticalSlider1, window.verticalSlider2, window.verticalSlider3, window.verticalSlider4):
         slider.setStyleSheet(QbLUeSlider.bLueSliderDefaultBWStylesheet)
     window.verticalSlider1.setAccessibleName('verticalSlider1')
@@ -2100,7 +2102,7 @@ def setupGUI(window=bLUeTop.Gui.window):
         empty = QWidget()
         empty.setFixedHeight(30)
         empty.setFixedWidth(50)
-        empty.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        empty.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         return empty
 
     for slider in [window.verticalSlider1, window.verticalSlider2, window.verticalSlider3, window.verticalSlider4]:
@@ -2111,7 +2113,7 @@ def setupGUI(window=bLUeTop.Gui.window):
         empty = QWidget()
         empty.setFixedHeight(30)
         empty.setFixedWidth(50)
-        empty.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        empty.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         toolBar.addWidget(tbSpacer())
     toolBar.addWidget(QLabel(window.brushCombo.toolTip() + '  '))
     toolBar.addWidget(window.brushCombo)
@@ -2231,14 +2233,14 @@ def setupGUI(window=bLUeTop.Gui.window):
     window.cursors = initCursors()
 
     # init Before/after view and cycling action
-    window.splitter.setOrientation(Qt.Horizontal)
+    window.splitter.setOrientation(Qt.Orientation.Horizontal)
     window.splitter.currentState = next(bLUeTop.Gui.splitWin.splitViews)
     window.splitter.setSizes([2 ** 20, 2 ** 20])
     window.splitter.setHandleWidth(1)
     window.splitter.hide()
     window.viewState = 'After'
     actionCycle = QAction('cycle', window)
-    actionCycle.setShortcut(QKeySequence(Qt.CTRL | Qt.Key_Space))
+    actionCycle.setShortcut(QKeySequence(Qt.Modifier.CTRL | Qt.Key.Key_Space))
 
     # status flags
     window.status_loadingFile = False
@@ -2251,7 +2253,7 @@ def setupGUI(window=bLUeTop.Gui.window):
 
     actionCycle.triggered.connect(f)
     window.addAction(actionCycle)
-    actionCycle.setShortcutContext(Qt.ApplicationShortcut)
+    actionCycle.setShortcutContext(Qt.ShortcutContext.ApplicationShortcut)
 
     #########################################
     # dynamic modifications of the main form loaded
@@ -2294,6 +2296,8 @@ def switchDoc(index, window=bLUeTop.Gui.window):
 
     :param index: tab index
     :type  index: int
+    :param window:
+    :type  window: Form1
     """
     # clean up
     layer = window.label.img.getActiveLayer()

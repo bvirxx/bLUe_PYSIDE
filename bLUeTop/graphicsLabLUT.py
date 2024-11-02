@@ -71,8 +71,8 @@ class graphicsLabForm(graphicsCurveForm):
         gradient = QRadialGradient()
         gradient.setCenter(QPoint(0, 1))
         gradient.setRadius(axeSize * 1.4)
-        gradient.setColorAt(0.0, Qt.green)
-        gradient.setColorAt(1.0, Qt.magenta)
+        gradient.setColorAt(0.0, Qt.GlobalColor.green)
+        gradient.setColorAt(1.0, Qt.GlobalColor.magenta)
         cubic.axes = self.drawPlotGrid(axeSize, gradient)
         graphicsScene.addItem(cubic.axes)
         cubic.initFixedPoints()
@@ -88,8 +88,8 @@ class graphicsLabForm(graphicsCurveForm):
                                                                  bgColor=graphicsScene.bgColor, range=(-100, 100),
                                                                  chans=channelValues.b, mode='Lab')
         # add specific axes
-        gradient.setColorAt(0.0, Qt.blue)
-        gradient.setColorAt(1.0, Qt.yellow)
+        gradient.setColorAt(0.0, Qt.GlobalColor.blue)
+        gradient.setColorAt(1.0, Qt.GlobalColor.yellow)
         cubic.axes = self.drawPlotGrid(axeSize, gradient)
         graphicsScene.addItem(cubic.axes)
         cubic.initFixedPoints()
@@ -158,7 +158,7 @@ class graphicsLabForm(graphicsCurveForm):
             pass
         # set initial selection to L
         item = self.listWidget1.items['L']
-        item.setCheckState(Qt.Checked)
+        item.setCheckState(Qt.CheckState.Checked)
         self.listWidget1.select(item)
         self.dataChanged.connect(self.updateLayer)
 
@@ -175,11 +175,11 @@ class graphicsLabForm(graphicsCurveForm):
         :type modifiers:
         """
         r, g, b = self.scene().targetImage.getActivePixel(x, y)
-        if modifiers == QtCore.Qt.ControlModifier | QtCore.Qt.ShiftModifier:
+        if modifiers == QtCore.Qt.KeyboardModifier.ControlModifier | QtCore.Qt.KeyboardModifier.ShiftModifier:
             self.setBlackPoint(r, g, b)
-        elif modifiers == QtCore.Qt.ControlModifier:
+        elif modifiers == QtCore.Qt.KeyboardModifier.ControlModifier:
             self.setWhitePoint(r, g, b, luminance=True, balance=False)
-        elif modifiers == QtCore.Qt.ShiftModifier:
+        elif modifiers == QtCore.Qt.KeyboardModifier.ShiftModifier:
             self.setWhitePoint(r, g, b, luminance=False, balance=True)
 
     def setBlackPoint(self, r, g, b):

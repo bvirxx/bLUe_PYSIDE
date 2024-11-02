@@ -86,12 +86,12 @@ class Filter(QtCore.QObject):
             rs = obj.parent().parent().parent()
         else:
             rs = obj.parent().parent()
-        if event.type() not in [QEvent.MouseButtonPress, QEvent.MouseButtonRelease]:
+        if event.type() not in [QEvent.Type.MouseButtonPress, QEvent.Type.MouseButtonRelease]:
             return False
-        if event.type() == QEvent.MouseButtonPress:
+        if event.type() == QEvent.Type.MouseButtonPress:
             rs.pressed = True
             return False
-        elif event.type() == QEvent.MouseButtonRelease:
+        elif event.type() == QEvent.Type.MouseButtonRelease:
             rs.pressed = False
             rs.rangeDone.emit(*rs.getRange())
         return False
@@ -128,8 +128,8 @@ class Ui_Form(object):
         self.retranslateUi(Form)
         QtCore.QMetaObject.connectSlotsByName(Form)
         # reset default cursor
-        self._splitter.handle(1).setCursor(Qt.ArrowCursor)
-        self._splitter.handle(2).setCursor(Qt.ArrowCursor)
+        self._splitter.handle(1).setCursor(Qt.CursorShape.ArrowCursor)
+        self._splitter.handle(2).setCursor(Qt.CursorShape.ArrowCursor)
         # self._head.setAttribute( Qt.WA_TransparentForMouseEvents)
         # self._tail.setAttribute(Qt.WA_TransparentForMouseEvents)
         # self._handle.setAttribute(Qt.WA_TransparentForMouseEvents)

@@ -44,7 +44,7 @@ class filterForm(baseForm):
         self.listWidget1.checkOption(self.optionList[0])
 
         # sliders
-        self.sliderRadius = QbLUeSlider(Qt.Horizontal)
+        self.sliderRadius = QbLUeSlider(Qt.Orientation.Horizontal)
         self.sliderRadius.setRange(1, 100)
         self.sliderRadius.setSingleStep(1)
         self.radiusLabel = QLabel()
@@ -59,7 +59,7 @@ class filterForm(baseForm):
         self.radiusValue.setMinimumSize(w, h)
         self.radiusValue.setMaximumSize(w, h)
 
-        self.sliderAmount = QbLUeSlider(Qt.Horizontal)
+        self.sliderAmount = QbLUeSlider(Qt.Orientation.Horizontal)
         self.sliderAmount.setRange(0, 100)
         self.sliderAmount.setSingleStep(1)
         self.amountLabel = QLabel()
@@ -77,7 +77,7 @@ class filterForm(baseForm):
         self.toneLabel = QLabel()
         self.toneLabel.setMaximumSize(150, 30)
         self.toneLabel.setText("Sigma")
-        self.sliderTone = QbLUeSlider(Qt.Horizontal)
+        self.sliderTone = QbLUeSlider(Qt.Orientation.Horizontal)
         self.sliderTone.setRange(0, 100)
         self.sliderTone.setSingleStep(1)
         font = self.radiusValue.font()

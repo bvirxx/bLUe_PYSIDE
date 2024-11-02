@@ -73,9 +73,9 @@ class splitWindow:
         """
         self.mainWin.splitter.currentState = next(self.splitViews)
         if self.mainWin.splitter.currentState == 'H':
-            self.mainWin.splitter.setOrientation(Qt.Horizontal)
+            self.mainWin.splitter.setOrientation(Qt.Orientation.Horizontal)
         elif self.mainWin.splitter.currentState == 'V':
-            self.mainWin.splitter.setOrientation(Qt.Vertical)
+            self.mainWin.splitter.setOrientation(Qt.Orientation.Vertical)
         else:
             # Only Before window
             self.mainWin.label_3.hide()

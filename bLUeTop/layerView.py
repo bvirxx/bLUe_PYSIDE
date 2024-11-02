@@ -19,7 +19,7 @@ import gc
 
 from PySide6 import QtCore
 from PySide6.QtCore import QRectF, QSize, Qt, QModelIndex, QPoint
-from PySide6.QtGui import QImage, QPalette, QKeySequence, QFontMetrics, QTextOption, QPixmap, QIcon, QPainter, \
+from PySide6.QtGui import QImage, QPalette, QKeySequence, QFontMetrics, QTextOption, QPixmap, QIcon,\
     QStandardItem, QStandardItemModel, QAction, QGuiApplication
 from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QTableView, QAbstractItemView, QStyledItemDelegate, \
     QHeaderView, QVBoxLayout, QMenu, QSlider, QStyle, QCheckBox, QApplication
@@ -40,7 +40,12 @@ class layerModel(QStandardItemModel):
         super(layerModel, self).__init__()
 
     def flags(self, index):
-        return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsDragEnabled | Qt.ItemIsDropEnabled | Qt.ItemIsEditable
+        return (Qt.ItemFlag.ItemIsSelectable |
+                Qt.ItemFlag.ItemIsEnabled |
+                Qt.ItemFlag.ItemIsDragEnabled |
+                Qt.ItemFlag.ItemIsDropEnabled |
+                Qt.ItemFlag.ItemIsEditable
+                )
 
 
 class itemDelegate(QStyledItemDelegate):
@@ -49,7 +54,8 @@ class itemDelegate(QStyledItemDelegate):
     """
 
     def __init__(self, parent=None):
-        QStyledItemDelegate.__init__(self, parent)
+        super().__init__(parent)
+        self.px1, self.px2, self.inv_px1, self.inv_px2 = (None,) * 4
 
     def paint(self, painter, option, index):
         """
@@ -58,7 +64,7 @@ class itemDelegate(QStyledItemDelegate):
         :param painter:
         :type painter:
         :param option:
-        :type option:
+        :type option: QStyleOptionViewItem
         :param index:
         :type index:
         """
@@ -77,24 +83,24 @@ class itemDelegate(QStyledItemDelegate):
                     text = text + ' C'
                 if layer.maskIsEnabled:  # mask activated
                     painter.save()
-                    painter.setPen(Qt.red)
-                    painter.drawText(rect, text, QTextOption(Qt.AlignCenter))
+                    painter.setPen(Qt.GlobalColor.red)
+                    painter.drawText(rect, text, QTextOption(Qt.AlignmentFlag.AlignCenter))
                     painter.restore()
                     return
-                painter.drawText(rect, text, QTextOption(Qt.AlignCenter))
+                painter.drawText(rect, text, QTextOption(Qt.AlignmentFlag.AlignCenter))
         # visibility
         elif index.column() == 0:
             painter.save()
-            bgColor = option.palette.color(QPalette.Window)
+            bgColor = option.palette.color(QPalette.ColorRole.Window)
             bgColor = bgColor.red(), bgColor.green(), bgColor.blue()
             dark = (max(bgColor) <= 128)
-            if option.state & QStyle.State_Selected:
-                c = option.palette.color(QPalette.Highlight)
+            if option.state & QStyle.StateFlag.State_Selected:
+                c = option.palette.color(QPalette.ColorRole.Highlight)
                 painter.fillRect(rect, c)
             if self.parent().img.layersStack[-1 - index.row()].visible:
-                px = self.inv_px1 if dark or (option.state & QStyle.State_Selected) else self.px1
+                px = self.inv_px1 if dark or (option.state & QStyle.StateFlag.State_Selected) else self.px1
             else:
-                px = self.inv_px2 if dark or (option.state & QStyle.State_Selected) else self.px2
+                px = self.inv_px2 if dark or (option.state & QStyle.StateFlag.State_Selected) else self.px2
             painter.drawPixmap(rect, px, QRectF(0, 0, px.width(), px.height()))
             painter.restore()
         else:
@@ -117,7 +123,7 @@ class QLayerView(QTableView):
         self.clicked.connect(self.viewClicked)
 
         # set behavior and styles
-        self.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         delegate = itemDelegate(parent=self)
         self.setItemDelegate(delegate)
         ic1 = QImage(":/images/resources/eye-icon.png")
@@ -135,8 +141,8 @@ class QLayerView(QTableView):
         self.horizontalHeader().setDefaultSectionSize(40)
 
         # drag and drop
-        self.setDragDropMode(QAbstractItemView.DragDrop)
-        self.setDefaultDropAction(Qt.MoveAction)
+        self.setDragDropMode(QAbstractItemView.DragDropMode.DragDrop)
+        self.setDefaultDropAction(Qt.DropAction.MoveAction)
         self.setDragDropOverwriteMode(False)
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
@@ -154,26 +160,19 @@ class QLayerView(QTableView):
         self.previewOptionBox.setMaximumSize(100, 30)
 
         # View/Preview changed slot
-        def m(state):  # state : int
+        def m(state):
             if self.img is None:
                 return
-            useThumb = (Qt.CheckState(state) == Qt.Checked)
+            useThumb = (state == Qt.CheckState.Checked)
             if useThumb == self.img.useThumb:
                 return
             self.img.useThumb = useThumb
             bLUeTop.Gui.window.updateStatus()
             self.img.cacheInvalidate()
-            try:
-                QApplication.setOverrideCursor(Qt.WaitCursor)  # TODO waitcursor already called by applytostack
-                QApplication.processEvents()
-                # update the whole stack
-                self.img.layersStack[0].applyToStack()
-                self.img.onImageChanged()
-            finally:
-                QApplication.restoreOverrideCursor()
-                QApplication.processEvents()
+            self.img.layersStack[0].applyToStack()
+            self.img.onImageChanged()
 
-        self.previewOptionBox.stateChanged.connect(m)
+        self.previewOptionBox.checkStateChanged.connect(m)
         self.previewOptionBox.setChecked(True)
 
         # title
@@ -181,9 +180,9 @@ class QLayerView(QTableView):
         titleLabel.setMaximumSize(100, 30)
 
         # opacity slider
-        self.opacitySlider = QbLUeSlider(Qt.Horizontal)
+        self.opacitySlider = QbLUeSlider(Qt.Orientation.Horizontal)
         self.opacitySlider.setStyleSheet(QbLUeSlider.bLueSliderDefaultBWStylesheet)
-        self.opacitySlider.setTickPosition(QSlider.TicksBelow)
+        self.opacitySlider.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.opacitySlider.setRange(0, 100)
         self.opacitySlider.setSingleStep(1)
         self.opacitySlider.setSliderPosition(100)
@@ -220,9 +219,9 @@ class QLayerView(QTableView):
 
         # mask color slider
         self.maskLabel = QLabel('Mask Color')
-        maskSlider = QbLUeSlider(Qt.Horizontal)
+        maskSlider = QbLUeSlider(Qt.Orientation.Horizontal)
         maskSlider.setStyleSheet(QbLUeSlider.bLueSliderDefaultBWStylesheet)
-        maskSlider.setTickPosition(QSlider.TicksBelow)
+        maskSlider.setTickPosition(QSlider.TickPosition.TicksBelow)
         maskSlider.setRange(0, 100)
         maskSlider.setSingleStep(1)
         defval = int(bImage.defaultColorMaskOpacity / 255 * 100)
@@ -286,7 +285,7 @@ class QLayerView(QTableView):
 
         # layout
         l = QVBoxLayout()
-        l.setAlignment(Qt.AlignTop)
+        l.setAlignment(Qt.AlignmentFlag.AlignTop)
         hl0 = QHBoxLayout()
         hl0.addWidget(titleLabel)
         hl0.addStretch(1)
@@ -314,7 +313,7 @@ class QLayerView(QTableView):
         self.propertyLayout = l
         # shortcut actions
         self.actionDup = QAction('Duplicate layer', None)
-        self.actionDup.setShortcut(QKeySequence(Qt.CTRL | Qt.Key_J))
+        self.actionDup.setShortcut(QKeySequence(Qt.Modifier.CTRL | Qt.Key.Key_J))
         self.addAction(self.actionDup)
 
         def dup():
@@ -401,6 +400,7 @@ class QLayerView(QTableView):
 
         # dataChanged event handler : enables edition of layer name
         def f(index1, index2):
+            # index1 and index2 are resp. top left and bottom right indexes.
             # index1 and index2 should be equal
             # only layer name should be editable
             # dropEvent emit dataChanged when setting item values. f must
@@ -456,9 +456,8 @@ class QLayerView(QTableView):
         self.horizontalHeader().hide()
         self.verticalHeader().hide()
         header = self.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        for section in range(3):
+            header.setSectionResizeMode(section, QHeaderView.ResizeMode.ResizeToContents)
         # lay out  the graphic forms into right pane
         forms = [item.view for item in mImg.layersStack if getattr(item, 'view', None) is not None]
         for dock in forms:
@@ -469,7 +468,7 @@ class QLayerView(QTableView):
                     if dockedForms:
                         bLUeTop.Gui.window.tabifyDockWidget(dockedForms[-1], dock)
                     else:
-                        bLUeTop.Gui.window.addDockWidget(Qt.RightDockWidgetArea, dock)
+                        bLUeTop.Gui.window.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
             dock.setFloating(False)
         # select active layer
         self.selectRow(len(mImg.layersStack) - 1 - mImg.activeLayerIndex)
@@ -597,7 +596,10 @@ class QLayerView(QTableView):
         index1 = self.model().index(sel[0], 1)
         index2 = self.model().index(sel[-1], 1)
         itemSelection = QtCore.QItemSelection(index1, index2)
-        self.selectionModel().select(itemSelection, QtCore.QItemSelectionModel.Rows | QtCore.QItemSelectionModel.Select)
+        self.selectionModel().select(
+                    itemSelection,
+                    QtCore.QItemSelectionModel.SelectionFlag.Rows | QtCore.QItemSelectionModel.SelectionFlag.Select
+                                    )
         # multiple selection: display no window
         if len(sel) > 1:
             self.currentWin.hide()
@@ -659,7 +661,7 @@ class QLayerView(QTableView):
             modifier = QGuiApplication.keyboardModifiers()
             i = layer.getUpperVisibleStackIndex()
             if i < 0:  # no visible upper layer
-                if modifier == Qt.AltModifier or not layer.visible:
+                if modifier == Qt.KeyboardModifier.AltModifier or not layer.visible:
                     layer.parentImage.prLayer.execute(l=None, pool=None)
                 else:
                     layer.applyToStack()

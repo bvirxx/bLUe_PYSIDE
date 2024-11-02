@@ -422,7 +422,7 @@ class mImage(vImage):
             a = a + 1
         if layer is None:
             layer = QLayer(QImg=self, parentImage=self)
-            layer.fill(Qt.white)
+            layer.fill(Qt.GlobalColor.white)
         layer.name = trialname
         if index is None:
             if self.activeLayerIndex is not None:
@@ -662,12 +662,12 @@ class mImage(vImage):
         else:
             wt, ht = 120, 160
         thumb = ndarrayToQImage(np.ascontiguousarray(buf[:, :, :3][:, :, ::-1]),
-                                format=QImage.Format_RGB888).scaled(wt, ht, Qt.KeepAspectRatio)
+                                format= QImage.Format.Format_RGB888).scaled(wt, ht, Qt.AspectRatioMode.KeepAspectRatio)
 
         # build jpg from thumb
         ba = QByteArray()
         buffer = QBuffer(ba)
-        buffer.open(QIODevice.WriteOnly)
+        buffer.open(QIODevice.OpenModeFlag.WriteOnly)
         thumb.save(buffer, 'JPG')
 
         transparencyCheck(buf, fileFormat)
@@ -675,10 +675,10 @@ class mImage(vImage):
         params = []
         if fileFormat == '.JPG':
             buf = buf[:, :, :3]
-            if quality >= 0 and quality <= 100:
+            if 0 <= quality <= 100:
                 params = [cv2.IMWRITE_JPEG_QUALITY, quality]  # quality range 0..100
         elif fileFormat == '.PNG':
-            if compression >= 0 and compression <= 9:
+            if 0 <= compression <= 9:
                 params = [cv2.IMWRITE_PNG_COMPRESSION, compression]  # compression range 0..9
         elif fileFormat in ['.TIF'] + list(BLUE_FILE_EXTENSIONS):
             buf = buf[:, :, :3]
@@ -805,6 +805,8 @@ class imImage(mImage):
         :type icc: class icc
         :param cmsConfigure:
         :type cmsConfigure: boolean
+        :param window:
+        :type window: Form1
         :return: image
         :rtype: imImage
         """
@@ -902,7 +904,7 @@ class imImage(mImage):
 
         if img.isNull():
             raise ValueError("Cannot read file %s" % f)
-        if img.format() in [QImage.Format_Invalid, QImage.Format_Mono, QImage.Format_MonoLSB, QImage.Format_Indexed8]:
+        if img.format() in [ QImage.Format.Format_Invalid,  QImage.Format.Format_Mono,  QImage.Format.Format_MonoLSB,  QImage.Format.Format_Indexed8]:
             raise ValueError("Cannot edit indexed formats\nConvert image to a non indexed mode first")
         img.imageInfo = imageInfo
         window.settings.setValue('paths/dlgdir', QFileInfo(f).absoluteDir().path())
@@ -1031,10 +1033,12 @@ class QLayer(vImage):
 
         :param mImg:
         :type mImg: QImage
+        :param role:
+        :type role: str
         :param parentImage:
         :type parentImage: mImage
         :return:
-        :rtype: Qlayer
+        :rtype: QLayer
         """
         layer = cls(QImg=mImg, role=role, parentImage=parentImage)
         return layer
@@ -1076,7 +1080,7 @@ class QLayer(vImage):
         # layer opacity, range 0.0...1.0
         self.opacity = 1.0
         # compositionMode type is QPainter.CompositionMode enum or int for modes added by bLUe
-        self.compositionMode = QPainter.CompositionMode_SourceOver
+        self.compositionMode = QPainter.CompositionMode.CompositionMode_SourceOver
         ###################################################################################
         # QLayer is not always subclassed to define multiple types of adjustment layers.
         # Instead, we may use the attribute execute as a wrapper to the right applyXXX method,
@@ -1106,7 +1110,7 @@ class QLayer(vImage):
     def mask(self):
         if self._mask is None:
             if type(self) not in [QPresentationLayer]:
-                self._mask = QImage(self.width(), self.height(), QImage.Format_ARGB32)
+                self._mask = QImage(self.width(), self.height(),  QImage.Format.Format_ARGB32)
                 # default : unmask all
                 self._mask.fill(self.defaultColor_UnMasked)
         return self._mask
@@ -1142,10 +1146,10 @@ class QLayer(vImage):
                 # break back link
                 if hasattr(form, 'layer'):
                     form.layer = None
-                form.setAttribute(Qt.WA_DeleteOnClose)
+                form.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
                 form.close()
                 form.__dict__.clear()  # TODO awful - prepare for gc - probably useless test needed 30/11/21 validate
-                dock.setAttribute(Qt.WA_DeleteOnClose)
+                dock.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
                 dock.setParent(None)
                 dock.close()
                 dock.__dict__.clear()  # TODO awful - prepare for gc - probably useless test needed 30/11/21 validate
@@ -1166,7 +1170,7 @@ class QLayer(vImage):
             closeDock(dock, delete=delete)
         # close window
         closeDock(view, delete=delete)
-        if delete:  # TODO modified 29/11/21 validate
+        if delete:
             form.subControls = []
             self.execute = None  # TODO prepare for gc  probably useless test needed 30/11/21 validate
             self.view = None
@@ -1201,13 +1205,13 @@ class QLayer(vImage):
         """
         self.tool = tool
         tool.modified = False
-        tool.layer = weakProxy(self)  # TODO added weakProxy 28/11/21 validate
+        tool.layer = weakProxy(self)
         try:
             tool.layer.visibilityChanged.sig.disconnect()
         except RuntimeError:
             pass
         tool.layer.visibilityChanged.sig.connect(tool.setVisible)
-        tool.img = weakProxy(self.parentImage)  # TODO added weakProxy 28/11/21 validate
+        tool.img = weakProxy(self.parentImage)
         w, h = tool.img.width(), tool.img.height()
         for role, pos in zip(['topLeft', 'topRight', 'bottomRight', 'bottomLeft'],
                              [QPoint(0, 0), QPoint(w, 0), QPoint(w, h), QPoint(0, h)]):
@@ -1268,8 +1272,8 @@ class QLayer(vImage):
             return
         s = int(LUT3DIdentity.size ** (3.0 / 2.0)) + 1
         buf0 = LUT3DIdentity.toHaldArray(s, s).haldBuffer
-        # self.hald = QLayer(QImg=QImage(QSize(190,190), QImage.Format_ARGB32))
-        self.hald = QImage(QSize(s, s), QImage.Format_ARGB32)
+        # self.hald = QLayer(QImg=QImage(QSize(190,190),  QImage.Format.Format_ARGB32))
+        self.hald = QImage(QSize(s, s),  QImage.Format.Format_ARGB32)
         buf1 = QImageBuffer(self.hald)
         buf1[:, :, :3] = buf0
         buf1[:, :, 3] = 255
@@ -1389,7 +1393,7 @@ class QLayer(vImage):
         for i, layer in enumerate(self.parentImage.layersStack[bottom:top + 1]):
             if layer.visible:
                 if i == 0:
-                    qp.setCompositionMode(QPainter.CompositionMode_Source)
+                    qp.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
                     qp.setOpacity(layer.opacity)  # enables semi transparent background layer
                 else:
                     qp.setOpacity(layer.opacity)
@@ -1414,7 +1418,7 @@ class QLayer(vImage):
                 if layer.isClipping and layer.maskIsEnabled:
                     # draw mask as opacity mask
                     # mode DestinationIn (set dest opacity to source opacity)
-                    qp.setCompositionMode(QPainter.CompositionMode_DestinationIn)
+                    qp.setCompositionMode(QPainter.CompositionMode.CompositionMode_DestinationIn)
                     omask = vImage.color2OpacityMask(layer.mask)
                     qp.drawImage(QRect(0, 0, img.width(), img.height()), omask)
         qp.end()
@@ -1452,7 +1456,7 @@ class QLayer(vImage):
                 applyToStack_(layer1, pool=pool)
 
         try:
-            QApplication.setOverrideCursor(Qt.WaitCursor)
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
             QApplication.processEvents()
             applyToStack_(self, pool=None)
             # update the presentation layer
@@ -1468,7 +1472,7 @@ class QLayer(vImage):
         stack = self.parentImage.layersStack
         ind = self.getStackIndex() + 1
         try:
-            QApplication.setOverrideCursor(Qt.WaitCursor)
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
             QApplication.processEvents()
             self.execute()
             for layer in stack[ind:]:
@@ -1538,14 +1542,14 @@ class QLayer(vImage):
 
         # rImg may have transparencies (mask...), so we force alpha channel
         if self.rPixmap is None:
-            self.rPixmap = QPixmap.fromImage(rImg, Qt.NoOpaqueDetection)
+            self.rPixmap = QPixmap.fromImage(rImg, Qt.ImageConversionFlag.NoOpaqueDetection)
         elif self.rPixmap.size() != rImg.size():
-            if not self.rPixmap.convertFromImage(rImg, Qt.NoOpaqueDetection):
+            if not self.rPixmap.convertFromImage(rImg, Qt.ImageConversionFlag.NoOpaqueDetection):
                 raise ValueError('updatePixmap: conversion error')
         else:
             # alpha channel possibly does not exist yet
             if not self.rPixmap.hasAlphaChannel():
-                if not self.rPixmap.convertFromImage(rImg, Qt.NoOpaqueDetection):
+                if not self.rPixmap.convertFromImage(rImg, Qt.ImageConversionFlag.NoOpaqueDetection):
                     raise ValueError('updatePixmap: conversion error')
             qp = QPainter(self.rPixmap)
             qp.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
@@ -1622,7 +1626,7 @@ class QLayer(vImage):
         with flag set to True, -1 if it does not exists.
 
         :param flag:
-        :type flag: bool
+        :type flag: str
         :return:
         :rtype: int
         """
@@ -2922,7 +2926,7 @@ class QLayer(vImage):
             filter.fill(QColor(r, g, b, 255))
             # draw image on filter using mode multiply
             qp = QPainter(filter)
-            qp.setCompositionMode(QPainter.CompositionMode_Multiply)
+            qp.setCompositionMode(QPainter.CompositionMode.CompositionMode_Multiply)
             qp.drawImage(0, 0, inputImage)
             qp.end()
             # correct the luminosity of the resulting image,
@@ -2993,16 +2997,16 @@ class QPresentationLayer(QLayer):
         if icc.COLOR_MANAGE and self.parentImage is not None:
             if self.qPixmap is None:
                 img = icc.convertQImage(currentImage, transformation=self.parentImage.colorTransformation)
-                self.qPixmap = QPixmap.fromImage(img, Qt.NoOpaqueDetection)
+                self.qPixmap = QPixmap.fromImage(img, Qt.ImageConversionFlag.NoOpaqueDetection)
             elif self.qPixmap.size() != currentImage.size():
                 img = icc.convertQImage(currentImage, transformation=self.parentImage.colorTransformation)
-                self.qPixmap.convertFromImage(img, Qt.NoOpaqueDetection)
+                self.qPixmap.convertFromImage(img, Qt.ImageConversionFlag.NoOpaqueDetection)
             else:
                 currentImage = currentImage.copy(crect)
                 img = icc.convertQImage(currentImage, transformation=self.parentImage.colorTransformation)
                 # alpha channel possibly does not exist yet
                 if not self.rPixmap.hasAlphaChannel():
-                    self.rPixmap.convertFromImage(img, Qt.NoOpaqueDetection)
+                    self.rPixmap.convertFromImage(img, Qt.ImageConversionFlag.NoOpaqueDetection)
                 qp = QPainter(self.qPixmap)
                 qp.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
                 qp.drawImage(crect.topLeft().x(), crect.topLeft().y(),
@@ -3250,7 +3254,7 @@ class QCloningLayer(QLayer):
 
         # erase previous transformed image : reset imgOut to ImgIn
         qp = QPainter(imgOut)
-        qp.setCompositionMode(QPainter.CompositionMode_Source)
+        qp.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
         qp.drawImage(QRect(QPoint(0, 0), imgOut.size()), imgIn, imgIn.rect())  # TODO modified 26/11/21 validate
 
         # get translation relative to current Image
@@ -3263,7 +3267,7 @@ class QCloningLayer(QLayer):
         # Draw the translated and zoomed source pixmap into imgOut (nothing is drawn outside of dest image).
         # The translation is adjusted to keep the point (xC_current, yC_current) invariant while zooming.
         ###################################################################################################
-        qp.setCompositionMode(QPainter.CompositionMode_SourceOver)
+        qp.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
         bRect = QRectF(currentAltX + (1 - self.AltZoom_coeff) * xC_current,
                        currentAltY + (1 - self.AltZoom_coeff) * yC_current,
                        imgOut.width() * self.AltZoom_coeff, imgOut.height() * self.AltZoom_coeff)
@@ -3275,7 +3279,7 @@ class QCloningLayer(QLayer):
         #####################
         if seamless:
             try:
-                QApplication.setOverrideCursor(Qt.WaitCursor)
+                QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
                 bLUeTop.Gui.app.processEvents()
                 # temporary dest image
                 imgInc = QImage(imgIn)
@@ -3427,6 +3431,8 @@ class QDrawingLayer(QLayerImage):
 
         :param maskOnly:
         :type maskOnly: boolean
+        :param bRect:
+        :type bRect:
         """
         x, y = self.xOffset, self.yOffset
         if x != 0 or y != 0:

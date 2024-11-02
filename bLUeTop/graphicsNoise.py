@@ -50,7 +50,7 @@ class noiseForm(baseForm):
         self.listWidget1.onSelect = lambda x: self.listWidget2.setEnabled(self.listWidget1.options['Wavelets'])
 
         # threshold slider
-        self.sliderThr = QbLUeSlider(Qt.Horizontal)
+        self.sliderThr = QbLUeSlider(Qt.Orientation.Horizontal)
         self.sliderThr.setStyleSheet(QbLUeSlider.bLueSliderDefaultBWStylesheet)
         self.sliderThr.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.sliderThr.setRange(0, 10)
@@ -74,7 +74,7 @@ class noiseForm(baseForm):
         self.thrValue.setText(str("{:.0f}".format(self.slider2Thr(self.sliderThr.value()))))
 
         self.stdLabel = QLabel('Noise Estimated STD:\n \tUse level > 0')
-        self.stdLabel.setAlignment(Qt.AlignTop)
+        self.stdLabel.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         # layout
         l = QVBoxLayout()

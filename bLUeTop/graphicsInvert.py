@@ -78,7 +78,7 @@ class invertForm(baseForm):
         :param modifiers:
         :type modifiers: Qt.KeyboardModifiers
         """
-        if modifiers == Qt.ControlModifier:
+        if modifiers == Qt.KeyboardModifier.ControlModifier:
             r, g, b = self.layer.parentImage.getActivePixel(x, y)
             self.setInvertMask(r, g, b)
 

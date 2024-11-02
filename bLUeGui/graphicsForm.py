@@ -32,7 +32,7 @@ class bottomWidget(QWidget):
 
     def __init__(self):
         super().__init__()
-        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+        self.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
         #self.setMaximumSize(800, 150)
         #self.setMinimumSize(100, 30)
         self.setObjectName('container')
@@ -152,9 +152,9 @@ class baseForm(QWidget, abstractForm): #(QWidget, abstractForm):
     def __init__(self, layer=None, targetImage=None, parent=None):
         super().__init__()  #  parameter parent=parent triggers exception
         self.setParent(parent)
-        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         # accept click focus (needed by whatsthis)
-        self.setFocusPolicy(Qt.ClickFocus)
+        self.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
         # back link to image layer (weak ref)
         self.layer = layer  # property setter
         self.targetImage = targetImage  # property setter
@@ -193,9 +193,9 @@ class baseGraphicsForm(QGraphicsView, abstractForm):
     def __init__(self, layer=None, targetImage=None, parent=None):
         super().__init__()  # must be QGraphicsView __init__ ;  parameter parent=parent triggers exception
         self.setParent(parent)
-        self.setAlignment(Qt.AlignTop)
-        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        self.setFocusPolicy(Qt.ClickFocus)
+        self.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        self.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
         # back link to image layer (weak ref)
         self.layer = layer  # property setter
         self.targetImage = targetImage  # property setter
@@ -257,7 +257,7 @@ class baseGraphicsForm(QGraphicsView, abstractForm):
         vl1 = QVBoxLayout()
         vl1.setContentsMargins(20, 0, 20, 20)  # left, top, right, bottom ; bottom margin is needed
                                                # for scrollbar not hiding container content.
-        vl1.setAlignment(Qt.AlignBottom)
+        vl1.setAlignment(Qt.AlignmentFlag.AlignBottom)
         vl1.addWidget(container)
         self.setLayout(vl1)
         return container
@@ -284,9 +284,9 @@ class graphicsCurveForm(baseGraphicsForm):
         lineWidth = 1
         item = QGraphicsPathItem()
         if gradient is None:
-            item.setPen(QPen(Qt.darkGray, lineWidth, Qt.DashLine))
+            item.setPen(QPen(Qt.GlobalColor.darkGray, lineWidth, Qt.PenStyle.DashLine))
         else:
-            item.setPen(QPen(QBrush(gradient), lineWidth, Qt.DashLine))
+            item.setPen(QPen(QBrush(gradient), lineWidth, Qt.PenStyle.DashLine))
         qppath = QPainterPath()
         qppath.moveTo(QPoint(0, 0))
         qppath.lineTo(QPoint(axeSize, 0))

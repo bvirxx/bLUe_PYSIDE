@@ -28,7 +28,7 @@ from bLUeTop.utils import optionsWidget
 
 class activeMixerPoint(activePoint):
 
-    def __init__(self, x, y, color=Qt.white, fillColor=None, parentItem=None, grForm=None):
+    def __init__(self, x, y, color=Qt.GlobalColor.white, fillColor=None, parentItem=None, grForm=None):
         super().__init__(x, y, color=color, fillColor=fillColor, parentItem=parentItem)
         self.grForm = grForm
 
@@ -58,8 +58,8 @@ class activeMixerPoint(activePoint):
         super().paint(qpainter, options, widget)
         # draw connecting lines
         qpainter.save()
-        qpainter.setBrush(QBrush(Qt.white))
-        qpainter.setPen(QPen(Qt.white, 1, Qt.DotLine, Qt.RoundCap))
+        qpainter.setBrush(QBrush(Qt.GlobalColor.white))
+        qpainter.setPen(QPen(Qt.GlobalColor.white, 1, Qt.PenStyle.DotLine, Qt.PenCapStyle.RoundCap))
         # local coordinates
         qpainter.drawLine(self.source - self.pos(), QPointF())
         qpainter.restore()
@@ -72,7 +72,7 @@ class mixerForm(baseGraphicsForm):
         self.setMinimumSize(axeSize, axeSize + 100)
         # color wheel size
         self.cwSize = axeSize * 0.95
-        self.setAttribute(Qt.WA_DeleteOnClose)
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         # options
         optionList = ['Monochrome']  # , 'Luminosity']
         listWidget1 = optionsWidget(options=optionList, exclusive=False, changed=self.dataChanged,
@@ -93,18 +93,18 @@ class mixerForm(baseGraphicsForm):
         self.invM = np.linalg.inv(self.M)
         self.setBackgroundImage()
         # active points
-        self.rPoint = activeMixerPoint(self.R.x(), self.R.y(), color=Qt.red, fillColor=Qt.white, grForm=self)
+        self.rPoint = activeMixerPoint(self.R.x(), self.R.y(), color=Qt.GlobalColor.red, fillColor=Qt.GlobalColor.white, grForm=self)
         self.rPoint.source = self.R
-        self.gPoint = activeMixerPoint(self.G.x(), self.G.y(), color=Qt.green, fillColor=Qt.white, grForm=self)
+        self.gPoint = activeMixerPoint(self.G.x(), self.G.y(), color=Qt.GlobalColor.green, fillColor=Qt.GlobalColor.white, grForm=self)
         self.gPoint.source = self.G
-        self.bPoint = activeMixerPoint(self.B.x(), self.B.y(), color=Qt.blue, fillColor=Qt.white, grForm=self)
+        self.bPoint = activeMixerPoint(self.B.x(), self.B.y(), color=Qt.GlobalColor.blue, fillColor=Qt.GlobalColor.white, grForm=self)
         self.bPoint.source = self.B
 
         graphicsScene = self.scene()
         for point in [self.rPoint, self.gPoint, self.bPoint]:
             graphicsScene.addItem(point)
         gl = QVBoxLayout()
-        gl.setAlignment(Qt.AlignTop)
+        gl.setAlignment(Qt.AlignmentFlag.AlignTop)
         container = self.addCommandLayout(gl)
         self.values = QLabel()
         vh = QFontMetrics(self.values.font()).height()
@@ -153,7 +153,7 @@ class mixerForm(baseGraphicsForm):
         self.dataChanged.connect(self.updateLayer)
 
     def setBackgroundImage(self):
-        img = QImage(QSize(256, 256), QImage.Format_ARGB32)
+        img = QImage(QSize(256, 256),  QImage.Format.Format_ARGB32)
         img.fill(QColor(100, 100, 100))
         a = np.arange(256)
         buf = np.meshgrid(a, a)

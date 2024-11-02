@@ -45,7 +45,7 @@ class HVLUT2DForm(graphicsCurveForm):
         self.dSplineItemB = dSplineItem
         graphicsScene.dSplineItemB = dSplineItem
         text = graphicsScene.addText('dV ')
-        text.setDefaultTextColor(Qt.white)
+        text.setDefaultTextColor(Qt.GlobalColor.white)
         text.setPos(-25, -15 + axeSize // 2 + margin)
 
         baxes = graphicsCurveForm.drawPlotGrid(axeSize)
@@ -62,7 +62,7 @@ class HVLUT2DForm(graphicsCurveForm):
         self.dSplineItemH = dSplineItem
         graphicsScene.dSplineItemH = dSplineItem
         text = graphicsScene.addText('dH ')
-        text.setDefaultTextColor(Qt.white)
+        text.setDefaultTextColor(Qt.GlobalColor.white)
         text.setPos(-25, - (15 + self.axeSize // 2))
 
         # init 3D LUT
@@ -99,7 +99,7 @@ class HVLUT2DForm(graphicsCurveForm):
         self.scene().addItem(self.markerB)
         self.markerB.onMouseMove = showPos
 
-        self.sliderSat = QbLUeSlider(Qt.Horizontal)
+        self.sliderSat = QbLUeSlider(Qt.Orientation.Horizontal)
         self.sliderSat.setMinimumWidth(200)
 
         def satUpdate(value):
@@ -226,7 +226,7 @@ class HVLUT2DForm(graphicsCurveForm):
         """
         color = self.scene().targetImage.getActivePixel(x, y, qcolor=True)
         h = color.hsvHue()
-        if modifiers == QtCore.Qt.ControlModifier:
+        if modifiers == QtCore.Qt.KeyboardModifier.ControlModifier:
             self.markerH.setPos(h * self.axeSize / 360, self.markerH.pos().y())
             self.markerB.setPos(h * self.axeSize / 360, self.markerB.pos().y())
             self.update()

@@ -48,7 +48,7 @@ class drawForm(baseForm):
         pushButton1.clicked.connect(self.undo)
         pushButton2.clicked.connect(self.redo)
 
-        spacingSlider = QbLUeSlider(Qt.Horizontal)
+        spacingSlider = QbLUeSlider(Qt.Orientation.Horizontal)
         spacingSlider.setObjectName('spacingSlider')
         spacingSlider.setRange(1, 60)
         spacingSlider.setTickPosition(QSlider.TickPosition.TicksBelow)
@@ -56,7 +56,7 @@ class drawForm(baseForm):
         spacingSlider.sliderReleased.connect(self.parent().label.brushUpdate)
         self.spacingSlider = spacingSlider
 
-        jitterSlider = QbLUeSlider(Qt.Horizontal)
+        jitterSlider = QbLUeSlider(Qt.Orientation.Horizontal)
         jitterSlider.setObjectName('jitterSlider')
         jitterSlider.setRange(0, 100)
         jitterSlider.setTickPosition(QSlider.TickPosition.TicksBelow)
@@ -64,7 +64,7 @@ class drawForm(baseForm):
         jitterSlider.sliderReleased.connect(self.parent().label.brushUpdate)
         self.jitterSlider = jitterSlider
 
-        orientationSlider = QbLUeSlider(Qt.Horizontal)
+        orientationSlider = QbLUeSlider(Qt.Orientation.Horizontal)
         orientationSlider.setObjectName('orientationSlider')
         orientationSlider.setRange(0, 360)
         orientationSlider.setTickPosition(QSlider.TickPosition.TicksBelow)
@@ -90,9 +90,9 @@ class drawForm(baseForm):
 
         # layout
         l = QVBoxLayout()
-        l.setAlignment(Qt.AlignTop)
+        l.setAlignment(Qt.AlignmentFlag.AlignTop)
         hl = QHBoxLayout()
-        hl.setAlignment(Qt.AlignHCenter)
+        hl.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         hl.addWidget(pushButton1)
         hl.addWidget(pushButton2)
         l.addLayout(hl)
@@ -185,7 +185,7 @@ class drawForm(baseForm):
         :param modifiers:
         :type modifiers:
         """
-        if modifiers == Qt.ControlModifier:
+        if modifiers == Qt.KeyboardModifier.ControlModifier:
             r, g, b = self.layer.parentImage.getPrPixel(x, y)  # getActivePixel(x, y, fromInputImg=False, qcolor=True)
             clr = QColor(r, g, b)
             self.mainForm.label.brushUpdate(color=clr)

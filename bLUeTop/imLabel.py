@@ -37,7 +37,7 @@ class imageLabel(QLabel):
     Base class for interactive image displaying
     """
     qp = QPainter()
-    qp.setRenderHint(QPainter.Antialiasing)  # may be not very useful ?
+    qp.setRenderHint(QPainter.RenderHint.Antialiasing)  # may be not very useful ?
     qp.font = QFont("Arial", 8)
     qp.markPath = QPainterPath()
     qp.markRect = QRect(0, 0, 50, 20)
@@ -99,7 +99,7 @@ class imageLabel(QLabel):
         elif getattr(window, 'colorChooser', None):
             bColor = window.colorChooser.currentColor()  # selectedColor() cannot be set
         else:
-            bColor = Qt.black
+            bColor = Qt.GlobalColor.black
         if window.btnValues['eraserButton']:
             self.State['brush'] = window.brushes[-1].getBrush(bSize, bOpacity, bColor, bHardness, bFlow)
         else:
@@ -158,11 +158,11 @@ class imageLabel(QLabel):
         if layer.visible:
             for rect in layer.sRects:
                 if rect is not None:
-                    qp.setPen(Qt.green)
+                    qp.setPen(Qt.GlobalColor.green)
                     qp.drawRect(rect.left() * r + mimg.xOffset, rect.top() * r + mimg.yOffset, rect.width() * r,
                                 rect.height() * r)
             if not (mark is None or layer.sourceFromFile):
-                qp.setPen(Qt.white)
+                qp.setPen(Qt.GlobalColor.white)
                 qp.drawEllipse(mark.x() * r + mimg.xOffset, mark.y() * r + mimg.yOffset, 10, 10)
         # draw the cropping marks
         lm, rm, tm, bm = 0, 0, 0, 0
@@ -191,11 +191,14 @@ class imageLabel(QLabel):
         name = self.objectName()
         if name == "label_2" or name == "label_3":
             # draw filled rect
-            qp.fillPath(qp.markPath, QBrush(Qt.gray))
+            qp.fillPath(qp.markPath, QBrush(Qt.GlobalColor.gray))
             # draw text
-            qp.setPen(Qt.white)
+            qp.setPen(Qt.GlobalColor.white)
             qp.setFont(qp.font)
-            qp.drawText(qp.markRect, Qt.AlignCenter | Qt.AlignVCenter, "Before" if name == "label_2" else "After")
+            qp.drawText(qp.markRect,
+                        Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter,
+                        "Before" if name == "label_2" else "After"
+                        )
 
         if self.virtualCursor.visible:
             s = self.virtualCursor.size
@@ -215,7 +218,7 @@ class imageLabel(QLabel):
         """
 
         # Synthesised events keep original pointer type.
-        return (event.type() in [QEvent.MouseMove, QEvent.MouseButtonPress, QEvent.MouseButtonRelease])\
+        return (event.type() in [QEvent.Type.MouseMove, QEvent.Type.MouseButtonPress, QEvent.Type.MouseButtonRelease])\
                 and (event.device().pointerType() != QPointingDevice.PointerType.Generic)
 
     def mousePressEvent(self, event):
@@ -261,7 +264,7 @@ class imageLabel(QLabel):
         # Mouse hover generates mouse move events,
         # so, we set pressed to select only non hovering events
         self.pressed = True
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.MouseButton.LeftButton:
             # no move yet
             self.clicked = True
         State['ix'], State['iy'] = x, y
@@ -280,7 +283,7 @@ class imageLabel(QLabel):
         # dragBtn or arrow
         if layer.isCloningLayer():
             if not (window.btnValues['drawFG'] or window.btnValues['drawBG']):
-                if modifiers == Qt.ControlModifier | Qt.AltModifier:  # prevent unwanted clicks
+                if modifiers == Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier:  # prevent unwanted clicks
                     if layer.cloningState == 'continue':
                         dlgWarn('Layer already cloned', 'To start a new cloning operation, add another cloning layer')
                         return
@@ -395,7 +398,7 @@ class imageLabel(QLabel):
                         layer.vlChanged = True
                         # layer.setMaskEnabled(color=True)  # set mask to color mask
                     toolOpacity = window.verticalSlider2.value() / 100
-                    if modifiers == Qt.NoModifier:
+                    if modifiers == Qt.KeyboardModifier.NoModifier:
                         if layer.isSegmentLayer():
                             color = vImage.defaultColor_UnMasked_SM if \
                                 window.btnValues['drawFG'] else vImage.defaultColor_Masked_SM
@@ -415,7 +418,7 @@ class imageLabel(QLabel):
                     qp.setCompositionMode(qp.CompositionMode.CompositionMode_Source)
                     tmp_x = (x - img.xOffset) // r
                     tmp_y = (y - img.yOffset) // r
-                    qp.setPen(Qt.NoPen)
+                    qp.setPen(Qt.PenStyle.NoPen)
                     qp.setBrush(QBrush(color))
                     qp.setOpacity(toolOpacity)
                     # paint the brush tips spaced by 0.25 * w_pen
@@ -460,14 +463,14 @@ class imageLabel(QLabel):
             # drag buttton or arrow
             elif window.btnValues['drag'] or window.btnValues['pointer']:
                 # drag image
-                if modifiers == Qt.NoModifier:
+                if modifiers == Qt.KeyboardModifier.NoModifier:
                     img.xOffset += x - State['ix']
                     img.yOffset += y - State['iy']
                     if window.btnValues['Crop_Button']:
                         window.cropTool.setCropTool(img)
 
                 # drag active layer only for drawing layer or crop tool for others
-                elif modifiers == Qt.ControlModifier:
+                elif modifiers == Qt.KeyboardModifier.ControlModifier:
                     layer.drag(x, y, State['ix'], State['iy'], self)
                     # layer.xOffset += (x - State['ix'])
                     # layer.yOffset += (y - State['iy'])
@@ -475,7 +478,7 @@ class imageLabel(QLabel):
                     # img.prLayer.update()  # =applyNone()
 
                 # drag cloning virtual layer
-                elif modifiers == Qt.ControlModifier | Qt.AltModifier:
+                elif modifiers == Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier:
                     if layer.isCloningLayer():
                         layer.xAltOffset += (x - State['ix'])
                         layer.yAltOffset += (y - State['iy'])
@@ -486,7 +489,7 @@ class imageLabel(QLabel):
 
         # not mouse selectable widget : probably before window alone !
         else:
-            if modifiers == Qt.NoModifier:
+            if modifiers == Qt.KeyboardModifier.NoModifier:
                 img.xOffset += (x - State['ix'])
                 img.yOffset += (y - State['iy'])
 
@@ -544,7 +547,7 @@ class imageLabel(QLabel):
         x, y = event.position().x(), event.position().y()
         modifiers = event.modifiers()
         self.pressed = False
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.MouseButton.LeftButton:
             if layer.maskIsEnabled \
                     and layer.getUpperVisibleStackIndex() != -1 \
                     and (window.btnValues['drawFG'] or window.btnValues['drawBG']):
@@ -565,16 +568,16 @@ class imageLabel(QLabel):
                     redP, greenP, blueP = img.getPrPixel(x_img, y_img)
                     # color chooser : when visible the colorPicked signal is not emitted
                     if getattr(window, 'colorChooser', None) and window.colorChooser.isVisible():
-                        if modifiers == Qt.ControlModifier | Qt.ShiftModifier:
+                        if modifiers == Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier:
                             window.colorChooser.setCurrentColor(clr)
-                        elif modifiers == Qt.ControlModifier | Qt.AltModifier:
+                        elif modifiers == Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier:
                             window.colorChooser.setCurrentColor(clrC)
-                        elif modifiers == Qt.ControlModifier:
+                        elif modifiers == Qt.KeyboardModifier.ControlModifier:
                             window.colorChooser.setCurrentColor(QColor(redP, greenP, blueP))
                     else:
                         if window.btnValues['rectangle']:
                             # remove rectangle from selection
-                            if modifiers == Qt.ControlModifier:
+                            if modifiers == Qt.KeyboardModifier.ControlModifier:
                                 for rect in layer.sRects:
                                     if rect.contains(x_img, y_img):
                                         layer.sRects.remove(rect)
@@ -588,7 +591,7 @@ class imageLabel(QLabel):
                             if getattr(window, 'colorChooser', None):
                                 bucketColor = window.colorChooser.currentColor()
                             else:
-                                bucketColor = Qt.black
+                                bucketColor = Qt.GlobalColor.black
                             bLUeFloodFill(layer, int(x_img), int(y_img), bucketColor)
                             layer.applyToStack()
 
@@ -632,7 +635,7 @@ class imageLabel(QLabel):
         # so we sum up the 2 delta coordinates.
         numSteps = (delta.x() + delta.y()) / 1200.0
         layer = img.getActiveLayer()
-        if modifiers == Qt.NoModifier:
+        if modifiers == Qt.KeyboardModifier.NoModifier:
             img.Zoom_coeff *= (1.0 + numSteps)
             if layer.isDrawLayer() or window.btnValues['drawFG'] or window.btnValues['drawBG']:
                 self.updateVirtualCursorSize()
@@ -649,12 +652,12 @@ class imageLabel(QLabel):
             if layer.isGeomLayer():
                 # layer.view.widget().tool.moveRotatingTool()
                 layer.tool.moveRotatingTool()
-        elif modifiers == Qt.ControlModifier:
+        elif modifiers == Qt.KeyboardModifier.ControlModifier:
             # cropTool aware zooming
             # layer.Zoom_coeff *= 1.0 + numSteps  # useless and misleading
             layer.zoom(pos, numSteps, self)
         # cloning layer zoom
-        elif layer.isCloningLayer() and modifiers == Qt.ControlModifier | Qt.AltModifier:
+        elif layer.isCloningLayer() and modifiers == Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier:
             layer.AltZoom_coeff *= (1.0 + numSteps)
             layer.applyCloning(seamless=True, showTranslated=True, moving=True)
 
@@ -689,7 +692,7 @@ class imageLabel(QLabel):
         d = self.State['brush']
         eventType = event.type()
 
-        if eventType == QEvent.TabletMove:
+        if eventType == QEvent.Type.TabletMove:
             # Event pressure range is [0, 1]
             # xTilt and yTilt are from pen to the perpendicular to tablet in range [-60, 60] degrees.
             # Positive values are towards the tablet's physical bottom-right.
@@ -747,10 +750,10 @@ class imageLabel(QLabel):
             d['tabletA'] = 1.0
             d['tabletS'] = 1.0
 
-        elif eventType == QEvent.TabletPress:
+        elif eventType == QEvent.Type.TabletPress:
             self.mousePressEvent(event)
 
-        elif eventType == QEvent.TabletRelease:
+        elif eventType == QEvent.Type.TabletRelease:
             self.mouseReleaseEvent(event)
 
         else:
@@ -775,7 +778,7 @@ class imageLabel(QLabel):
             elif self.window.btnValues['drawBG']:
                 self.window.btns['drawFG'].setChecked(True)  # unmasking (erasing mask)
         elif event.pointerType() == QPointingDevice.PointerType.Pen:
-            self.setCursor(QCursor(Qt.ArrowCursor))
+            self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
             if self.window.btnValues['eraserButton']:
                 self.window.btns['brushButton'].setChecked(True)
             elif self.window.btnValues['drawFG']:  # drawFG = unmasking
@@ -802,7 +805,7 @@ class imageLabel(QLabel):
                 self.virtualCursor.visible = False
 
         elif window.btnValues['drag']:
-            self.setCursor(QCursor(Qt.OpenHandCursor))
+            self.setCursor(QCursor(Qt.CursorShape.OpenHandCursor))
             self.virtualCursor.visible = False
 
         elif window.btnValues['colorPicker']:
@@ -889,7 +892,7 @@ class imageLabel(QLabel):
                         except RuntimeError:
                             pass
                         """
-                        layer.timer.timeout.connect(lambda: updateLayer(sender='timer'), Qt.UniqueConnection)
+                        layer.timer.timeout.connect(lambda: updateLayer(sender='timer'), Qt.ConnectionType.UniqueConnection)
                         layer.timer.start(300)  # should be greater than refresh rate to minimize timer triggering
                 self.repaint()
             mutex.release()
@@ -996,7 +999,7 @@ class slideshowLabel(imageLabel):
         # painting directly on the slideshowLabel slows down operations, especially when using a X server.
         # So, paint operations are done on a intermediate pixmap and exposed by calling the base paintEvent.
         pixmap = QPixmap(self.size())
-        pixmap.fill(Qt.transparent)
+        pixmap.fill(Qt.GlobalColor.transparent)
 
         qp.begin(pixmap)
         # smooth painting

@@ -257,7 +257,7 @@ class nodeGroup(QGraphicsItemGroup, QObject):  # QObject needed by disconnect()
             self.scene().removeItem(self.brightnessItem)
             self.scene().destroyItemGroup(self)
             for item in childs:
-                item.setPen(QPen(Qt.red if item.isControl() else Qt.black))
+                item.setPen(QPen(Qt.GlobalColor.red if item.isControl() else Qt.GlobalColor.black))
                 item.setSelected(True)
             self.grid.drawGrid()
 
@@ -517,7 +517,7 @@ class activeNode(QGraphicsPathItem):
                 return
         self.control = b
         if type(self.parentItem()) is not nodeGroup:  # priority to group settings
-            self.setPen(QPen(Qt.red if self.isControl() else Qt.black))
+            self.setPen(QPen(Qt.GlobalColor.red if self.isControl() else Qt.GlobalColor.black))
 
     def isControl(self):
         return self.control
@@ -575,7 +575,7 @@ class activeNode(QGraphicsPathItem):
             translat = self.cModel.cm2rgb(hue, sat, final_p) - LUT3D_ORI[k, j, i, ::-1]
             trgNbghd = lut[slc1, slc2, slc3, :3][..., ::-1]
             trgNbghd[...] = nbghd
-            if p >= thr0 and p <= thr1:
+            if thr0 <= p <= thr1:
                 trgNbghd += translat
             # alpha is set to 0 for LUT vertices bound to  non moved nodes
             # and to 255 otherwise, allowing to build a mask based on color
@@ -697,7 +697,7 @@ class activeNode(QGraphicsPathItem):
         self.grid.drawGrid()
         # starting grid warping :
         # build dict of transformed grid vertex coordinates
-        if e.modifiers() == Qt.ControlModifier | Qt.AltModifier:
+        if e.modifiers() == Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier:
             trans = self.grid.transform()
             size = self.grid.size
             self.vertexDict = {(r, c): trans.map(self.grid.gridNodes[r][c].pos()) for (c, r) in
@@ -710,7 +710,7 @@ class activeNode(QGraphicsPathItem):
         # thus its parent is the grid
         # get mouse position relative to (untransformed) grid
         newPos = e.pos() + self.pos()
-        if e.modifiers() == Qt.ControlModifier:
+        if e.modifiers() == Qt.KeyboardModifier.ControlModifier:
             if not self.startingRect.contains(newPos):
                 return
             self.setPos(newPos)
@@ -719,7 +719,7 @@ class activeNode(QGraphicsPathItem):
             self.setSelected(True)
             self.grid.drawGrid()
         # grid warping
-        elif e.modifiers() == Qt.ControlModifier | Qt.AltModifier:
+        elif e.modifiers() == Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier:
             row, col = self.gridRow, self.gridCol
             s = self.grid.size - 1
             # Warping is led by corner vertices only
@@ -755,12 +755,12 @@ class activeNode(QGraphicsPathItem):
         if not self.mouseIsMoved:
             return
         self.grid.drawGrid()
-        if e.modifiers() == Qt.ControlModifier:
+        if e.modifiers() == Qt.KeyboardModifier.ControlModifier:
             self.syncLUT()
         # grid warping: update all nodes
-        if e.modifiers() == Qt.ControlModifier | Qt.AltModifier:
+        if e.modifiers() == Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier:
             try:
-                QApplication.setOverrideCursor(Qt.WaitCursor)
+                QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
                 self.grid.gridSyncLUT()
             finally:
                 QApplication.restoreOverrideCursor()
@@ -851,7 +851,7 @@ class activeGrid(QGraphicsPathItem):
         self.traceGraphicsPathItem.setParentItem(self)
         # set pens
         self.setPen(QPen(QColor(128, 128, 128)))  # , 1, Qt.DotLine, Qt.RoundCap))
-        self.traceGraphicsPathItem.setPen(QPen(QColor(255, 255, 255), 1, Qt.DotLine, Qt.RoundCap))
+        self.traceGraphicsPathItem.setPen(QPen(QColor(255, 255, 255), 1, Qt.PenStyle.DotLine, Qt.PenCapStyle.RoundCap))
         # default : don't show trace of moves
         self.drawTrace = False
         self.drawGrid()
@@ -957,7 +957,7 @@ class activeGrid(QGraphicsPathItem):
         of the laplacian mean of its neighbors.
         """
         try:
-            QApplication.setOverrideCursor(Qt.WaitCursor)
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
             # apply laplacian kernel
             for i in range(self.size):
                 for j in range(self.size):
@@ -1080,7 +1080,7 @@ class nodeEditor(QGraphicsPixmapItem):
                                                      np.arange(0, maxVal + STEP, STEP)]
                                               )
             w, h = self.QImg.width(), self.QImg.height()
-            b = QImage(w, h, QImage.Format_ARGB32)
+            b = QImage(w, h,  QImage.Format.Format_ARGB32)
             b.fill(0)
             buf = QImageBuffer(b)
             # set the transparency of each pixel
@@ -1120,7 +1120,7 @@ class nodeEditor(QGraphicsPixmapItem):
         self.setPixmap(self.QImg.rPixmap)
 
     def mousePressEvent(self, e):
-        if e.button() == Qt.RightButton:
+        if e.button() == Qt.MouseButton.RightButton:
             return
         self.origin = e.screenPos()
         if self.rubberBand is None:
@@ -1134,7 +1134,7 @@ class nodeEditor(QGraphicsPixmapItem):
 
     def mouseReleaseEvent(self, e):
         # rubberBand selection
-        if e.button() == Qt.RightButton:
+        if e.button() == Qt.MouseButton.RightButton:
             return
         if self.rubberBand is not None:
             self.rubberBand.hide()
@@ -1195,7 +1195,7 @@ class graphicsForm3DLUT(baseGraphicsForm):
         :rtype:
         """
         try:
-            QApplication.setOverrideCursor(Qt.WaitCursor)
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
             QApplication.processEvents()
             newWindow = graphicsForm3DLUT(cModel, targetImage=targetImage, axeSize=axeSize, LUTSize=LUTSize,
                                           layer=layer, parent=parent, mainForm=mainForm)
@@ -1226,10 +1226,10 @@ class graphicsForm3DLUT(baseGraphicsForm):
         self.helpId = "LUT3DForm"
         self.cModel = cModel
         self.border = 20
-        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         self.setMinimumSize(axeSize + 90, axeSize + 90)  # + 250)
-        self.setAttribute(Qt.WA_DeleteOnClose)
-        self.setBackgroundBrush(QBrush(Qt.black, Qt.SolidPattern))
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        self.setBackgroundBrush(QBrush(Qt.GlobalColor.black, Qt.BrushStyle.SolidPattern))
         self.currentHue, self.currentSat, self.currentPb = 0, 0, self.defaultColorWheelBr
         self.currentR, self.currentG, self.currentB = 0, 0, 0
         self.size = axeSize
@@ -1344,7 +1344,7 @@ class graphicsForm3DLUT(baseGraphicsForm):
         self.listWidget3.onSelect = onSelect3
         # set initial selection to 'select naighbors'
         item = self.listWidget3.items[options3[0]]
-        item.setCheckState(Qt.Checked)
+        item.setCheckState(Qt.CheckState.Checked)
         self.graphicsScene.options = UDict((self.listWidget2.options, self.listWidget3.options))
 
         for wdg in [self.listWidget2, self.listWidget3]:

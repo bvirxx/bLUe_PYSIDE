@@ -51,7 +51,7 @@ class BWidgetImg(QLabel):
 
     def mousePressEvent(self, ev):
         super().mousePressEvent(ev)
-        if ev.modifiers() != Qt.ControlModifier | Qt.AltModifier:
+        if ev.modifiers() != Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier:
             return
         grForm = self.grForm
         pos = ev.position()
@@ -81,8 +81,8 @@ class patchForm(baseForm):
         super().__init__(layer=layer, targetImage=targetImage, parent=parent)
         # source window
         self.widgetImg = BWidgetImg(parent=self)
-        self.widgetImg.setWindowFlags(Qt.WindowStaysOnTopHint)
-        self.widgetImg.setAttribute(Qt.WA_DeleteOnClose, on=False)
+        self.widgetImg.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint)
+        self.widgetImg.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, on=False)
         self.widgetImg.setWindowTitle("Source")
         self.widgetImg.optionName = 'source'  # needed by subcontrol visibility manager
         self.dockT = None
@@ -100,7 +100,7 @@ class patchForm(baseForm):
         # init flags
         for i in range(self.listWidget1.count()):
             item = self.listWidget1.item(i)
-            item.setData(Qt.UserRole, cv2Flag_dict[item.text()])
+            item.setData(Qt.ItemDataRole.UserRole, cv2Flag_dict[item.text()])
         self.options = self.listWidget1.options
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
 
@@ -141,7 +141,7 @@ class patchForm(baseForm):
                 window.settings.setValue('paths/dlgdir', newDir)
                 filename = filenames[0]
                 im = QImageFromFile(filename)
-                im = im.scaled(self.layer.size(), Qt.KeepAspectRatio)
+                im = im.scaled(self.layer.size(), Qt.AspectRatioMode.KeepAspectRatio)
                 self.sourceImage = im.copy(QRect(QPoint(0, 0), self.layer.size()))
                 self.widgetImg.setWindowTitle(f"Source : {basename(filename)}")
                 self.updateSource()
@@ -202,16 +202,16 @@ class patchForm(baseForm):
     def setDefaults(self):
         self.enableOptions()
         self.listWidget1.checkOption(self.listWidget1.intNames[0])
-        self.layer.cloningMethod = self.listWidget1.checkedItems[0].data(Qt.UserRole)
+        self.layer.cloningMethod = self.listWidget1.checkedItems[0].data(Qt.ItemDataRole.UserRole)
         self.layer.setMaskEnabled()
         self.layer.resetMask(maskAll=True)  # , alpha=128)
-        # self.widgetImg.setPixmap(QPixmap.fromImage(self.layer.inputImg().scaled(200, 200, aspectMode=Qt.KeepAspectRatio)))
+        # self.widgetImg.setPixmap(QPixmap.fromImage(self.layer.inputImg().scaled(200, 200, aspectMode=Qt.AspectRatioMode.KeepAspectRatio)))
         # init positioning window
         img = self.layer.inputImg(drawTranslated=False)
         if img.rPixmap is None:
             img.rPixmap = QPixmap.fromImage(img)
         self.sourcePixmap = img.rPixmap
-        self.sourcePixmapThumb = self.sourcePixmap.scaled(200, 200, aspectMode=Qt.KeepAspectRatio)
+        self.sourcePixmapThumb = self.sourcePixmap.scaled(200, 200, aspectMode=Qt.AspectRatioMode.KeepAspectRatio)
         self.widgetImg.setPixmap(self.sourcePixmapThumb)
         self.widgetImg.setFixedSize(self.sourcePixmapThumb.size())
         # show positioning window
@@ -230,14 +230,14 @@ class patchForm(baseForm):
             return
         # scale img while keeping its aspect ratio
         # into a QPixmap having the same size than self.layer
-        sourcePixmap = QPixmap.fromImage(self.sourceImage).scaled(self.layer.size(), Qt.KeepAspectRatio)
+        sourcePixmap = QPixmap.fromImage(self.sourceImage).scaled(self.layer.size(), Qt.AspectRatioMode.KeepAspectRatio)
         self.sourceSize = sourcePixmap.size()
         self.sourcePixmap = QPixmap(self.layer.size())
-        self.sourcePixmap.fill(Qt.black)
+        self.sourcePixmap.fill(Qt.GlobalColor.black)
         qp = QPainter(self.sourcePixmap)
         qp.drawPixmap(QPointF(), sourcePixmap)
         qp.end()
-        self.sourcePixmapThumb = self.sourcePixmap.scaled(self.pwSize, self.pwSize, aspectMode=Qt.KeepAspectRatio)
+        self.sourcePixmapThumb = self.sourcePixmap.scaled(self.pwSize, self.pwSize, aspectMode=Qt.AspectRatioMode.KeepAspectRatio)
         self.widgetImg.setPixmap(self.sourcePixmapThumb)
         self.widgetImg.setFixedSize(self.sourcePixmapThumb.size())
         # add subcontrol if needed
@@ -246,7 +246,7 @@ class patchForm(baseForm):
             dockT = self.addSubcontrol(None)
             dockT.setWindowFlags(self.widgetImg.windowFlags())
             dockT.setWindowTitle(self.widgetImg.windowTitle())
-            window.addDockWidget(Qt.LeftDockWidgetArea, dockT)
+            window.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, dockT)
             self.dockT = dockT
             dockT.setWidget(self.widgetImg)
         #  set option "show source image"
@@ -262,9 +262,9 @@ class patchForm(baseForm):
             self.listWidget1.checkOption('Normal Clone')
         for item in [self.listWidget1.item(i) for i in (1, 2)]:  # mixed clone, monochrome transfer
             if self.options['opencv']:
-                item.setFlags(item.flags() | Qt.ItemIsEnabled)
+                item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEnabled)
             else:
-                item.setFlags(item.flags() & ~Qt.ItemIsEnabled)
+                item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEnabled)
 
     def updateLayer(self):
         """
@@ -272,7 +272,7 @@ class patchForm(baseForm):
         """
         self.enableOptions()
         layer = self.layer
-        layer.cloningMethod = self.listWidget1.checkedItems[0].data(Qt.UserRole)
+        layer.cloningMethod = self.listWidget1.checkedItems[0].data(Qt.ItemDataRole.UserRole)
         layer.applyToStack()
         layer.parentImage.onImageChanged()
 

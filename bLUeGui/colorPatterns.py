@@ -75,7 +75,7 @@ class hueSatPattern(bImage):
         """
         w += 2 * border
         h += 2 * border
-        super().__init__(w, h, QImage.Format_ARGB32)
+        super().__init__(w, h, QImage.Format.Format_ARGB32)
         self.pb = bright
         self.hsArray = None
         self.cModel = converter
@@ -187,7 +187,7 @@ class brightnessPattern(bImage):
         :return: the image of gradient
         :rtype: bImage
         """
-        super().__init__(w, h, QImage.Format_ARGB32)
+        super().__init__(w, h, QImage.Format.Format_ARGB32)
         self.cModel = converter
         imgBuf = QImageBuffer(self)
         # set alpha
@@ -223,7 +223,7 @@ class huePattern(QImage):
         :param br: brightness value, range 0..1
         :type  br: float
         """
-        super().__init__(w, h, QImage.Format_ARGB32)
+        super().__init__(w, h, QImage.Format.Format_ARGB32)
         self.cModel = converter
         imgBuf = QImageBuffer(self)
         # set alpha
@@ -257,7 +257,7 @@ class hueShiftPattern(QImage):
         :param br: brightness value, range 0..1
         :type  br: float
         """
-        super().__init__(w, h, QImage.Format_ARGB32)
+        super().__init__(w, h, QImage.Format.Format_ARGB32)
         self.cModel = converter
         imgBuf = QImageBuffer(self)
         # set alpha
@@ -294,7 +294,7 @@ class hueBrShiftPattern(QImage):
         :param br: brightness value, range 0..1
         :type  br: float
         """
-        super().__init__(w, h, QImage.Format_ARGB32)
+        super().__init__(w, h, QImage.Format.Format_ARGB32)
         self.cModel = converter
         imgBuf = QImageBuffer(self)
         # set alpha
@@ -401,7 +401,7 @@ class colorWheelSampler(QLabel):
         self.qp.begin(self)
         self.qp.setClipPath(self.clPath)
         self.qp.drawPixmap(0, 0, self.bareWheel)
-        self.qp.setPen(Qt.black)
+        self.qp.setPen(Qt.GlobalColor.black)
         # central crosshair
         self.qp.drawLine(self.l1)
         self.qp.drawLine(self.l2)
@@ -439,7 +439,7 @@ class colorWheelSampler(QLabel):
         p = e.position()
         x, y = p.toTuple()
         modifiers = e.modifiers()
-        if modifiers == Qt.ControlModifier:
+        if modifiers == Qt.KeyboardModifier.ControlModifier:
             # constant radius = self.radius
             self.theta = np.arctan2(y - self.center.y(), x - self.center.x())
             x, y = self.radius * np.cos(self.theta) + self.center.x(), self.radius * np.sin(self.theta) + self.center.y()
@@ -477,7 +477,7 @@ class colorWheelChooser(QWidget):
         self.sw, self.sh = int(w / 10), int(h / 10)
         self.sampler = colorWheelSampler(w, h)
         self.sample = QLabel()
-        self.brSlider = QbLUeSlider(Qt.Horizontal)
+        self.brSlider = QbLUeSlider(Qt.Orientation.Horizontal)
         self.brSlider.setMinimum(0)
         self.brSlider.setMaximum(100)
         self.brSlider.setSliderPosition(50)
@@ -504,7 +504,8 @@ class colorWheelChooser(QWidget):
         self.sample.setPixmap(pxmp)
 
     def __getstate__(self):
-        h, s, _ = rgb2hsB(*self.sampler.currentColor.getRgb())
+        r,g,b,_ = self.sampler.currentColor.getRgb()
+        h, s, _ = rgb2hsB(r, g, b)
         return {'brcoeff': self.getBr(self.brSlider.value()), 'H': h, 'S': s}
 
     def __setstate__(self, state):

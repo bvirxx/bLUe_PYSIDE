@@ -58,7 +58,7 @@ class dimsInputDialog(QDialog):
         :type parent:
         """
         super().__init__(parent=parent)
-        self.setAttribute(Qt.WA_DeleteOnClose)
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         self.setWindowTitle('Image Dimensions')
         self.dims = {'w': w, 'h': h, 'kr': keepAspectRatio}
         self.r = 1.0
@@ -78,7 +78,7 @@ class dimsInputDialog(QDialog):
             label1 = "Keep Aspect Ratio"
             self.checkBox = QCheckBox()
             fLayout.addRow(label1, self.checkBox)
-        buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok, Qt.Horizontal)
+        buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok, Qt.Orientation.Horizontal)
         fLayout.addRow(buttonBox)
         self.setLayout(fLayout)
         self.onAccept = lambda: None
@@ -206,9 +206,9 @@ def workInProgress(title, parent=None):
     progress.setFixedSize(300, 80)
     progress.setStyleSheet("""background-color: rgb(20,20,100);
                               color: rgb(220,220,220);""")
-    progress.setWindowModality(Qt.ApplicationModal)
-    progress.setAttribute(Qt.WA_DeleteOnClose)
-    progress.setWindowFlags(Qt.Dialog | Qt.WindowStaysOnTopHint | Qt.CustomizeWindowHint)
+    progress.setWindowModality(Qt.WindowModality.ApplicationModal)
+    progress.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+    progress.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.CustomizeWindowHint)
     # del cancel button
     progress.setCancelButtonText('')
     progress.setLabelText(title)
@@ -263,12 +263,12 @@ class savingDialog(QDialog):
         self.dlg.setOption(QFileDialog.Option.DontUseNativeDialog)
         self.metaOption = QCheckBox('Remove Meta')
         # sliders
-        self.sliderComp = QbLUeSlider(Qt.Horizontal)
+        self.sliderComp = QbLUeSlider(Qt.Orientation.Horizontal)
         self.sliderComp.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.sliderComp.setRange(0, 9)
         self.sliderComp.setSingleStep(1)
         self.sliderComp.setValue(3)  # 3 = default opencv imwrite value
-        self.sliderQual = QbLUeSlider(Qt.Horizontal)
+        self.sliderQual = QbLUeSlider(Qt.Orientation.Horizontal)
         self.sliderQual.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.sliderQual.setRange(0, 100)
         self.sliderQual.setSingleStep(10)
@@ -321,7 +321,7 @@ class labelDlg(QDialog):
                             QLineEdit {background-color: white;}")
         self.setModal(modal)
         self.label = QLabel()
-        self.label.setAlignment(Qt.AlignTop)
+        self.label.setAlignment(Qt.AlignmentFlag.AlignTop)
         vl = QVBoxLayout()
         if search:
             ed = QLineEdit()
@@ -350,8 +350,10 @@ class labelDlg(QDialog):
                     self.label.setSelection(item[0], item[1] - item[0])
                     metrics = self.label.fontMetrics()
                     tabSize = 4
-                    rect = metrics.boundingRect(0, 0, 150000, 150000, self.label.alignment() | Qt.TextExpandTabs,
-                                                self.label.text()[:item[1]], tabSize)
+                    rect = metrics.boundingRect(0, 0, 150000, 150000,
+                                                self.label.alignment() | Qt.TextFlag.TextExpandTabs,
+                                                self.label.text()[:item[1]], tabSize
+                                                )
                     scarea.ensureVisible(0, rect.height())
 
             def g():
@@ -363,8 +365,10 @@ class labelDlg(QDialog):
                 self.label.setSelection(item[0], item[1] - item[0])
                 metrics = self.label.fontMetrics()
                 tabSize = 4
-                rect = metrics.boundingRect(0, 0, 150000, 150000, self.label.alignment() | Qt.TextExpandTabs,
-                                            self.label.text()[:item[1]], tabSize)
+                rect = metrics.boundingRect(0, 0, 150000, 150000,
+                                            self.label.alignment() | Qt.TextFlag.TextExpandTabs,
+                                            self.label.text()[:item[1]], tabSize
+                                            )
                 scarea.ensureVisible(0, rect.height())
 
             button.pressed.connect(g)
@@ -394,8 +398,10 @@ class labelDlg(QDialog):
         tabSize = 4
         # get max character count per line
         testText = 'WWWWWWWWWWWWWWW'  # start from a minimum width !
-        while metrics.boundingRect(0, 0, 150000, 150000, self.label.alignment() | Qt.TextExpandTabs,
-                                   testText, tabSize).width() < self.label.width():
+        while metrics.boundingRect(0, 0, 150000, 150000,
+                                   self.label.alignment() | Qt.TextFlag.TextExpandTabs,
+                                   testText, tabSize
+                                   ).width() < self.label.width():
             testText += 'W'
         # wrap text while keeping existing newlines
         s = '\n'.join(['\n'.join(textwrap.wrap(line, len(testText), break_long_words=False, replace_whitespace=False))
@@ -413,8 +419,12 @@ def saveDlg(img, mainForm, ext='jpg', selected=True, parent=None):
     :type  img: vImage
     :param mainForm:
     :type  mainForm: QWidget
+    :param ext:
+    :type ext: str
     :param selected:
     :type  selected: boolean
+    :param parent:
+    :type parent: QWidget
     :return:filename, quality, compression, metaOption
     :rtype: str, int, int, boolean
     """
@@ -450,6 +460,8 @@ def openDlg(mainForm, ask=True, multiple=False, key='dlgdir', parent=None):
     :type  multiple: boolean
     :param key: QSettings key
     :type key: str
+    :param parent:
+    :type parent: QWidget
     :return: file name or list of file names
     :rtype: string or list of strings
     """

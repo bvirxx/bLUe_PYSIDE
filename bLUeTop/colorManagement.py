@@ -446,6 +446,8 @@ class icc:
         :type image: QImage
         :param cmsTransformation : Cms transformation
         :type cmsTransformation: ImageCmsTransform
+        :param inPlace:
+        :type inPlace: bool
         :return: The converted QImage
         :rtype: QImage
         """
@@ -481,6 +483,8 @@ class icc:
         :type image: QImage
         :param transformation_QCS : Cms transformation
         :type transformation_QCS: ImageCmsTransform
+        :param inPlace:
+        :type inPlace: bool
         :return: The converted QImage
         :rtype: QImage
         """

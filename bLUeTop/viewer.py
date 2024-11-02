@@ -54,16 +54,16 @@ def playDiaporama(diaporamaGenerator, parent=None):
 
     # init diaporama window
     newWin = QMainWindow(parent)
-    newWin.setAttribute(Qt.WA_DeleteOnClose)
-    newWin.setContextMenuPolicy(Qt.CustomContextMenu)
+    newWin.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+    newWin.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
     newWin.setWindowTitle(parent.tr('Slide show'))
     label = slideshowLabel(mainForm=parent)
-    label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+    label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
     newWin.setCentralWidget(label)
     newWin.showFullScreen()
     # Pause key shortcut
     actionEsc = QAction('Pause', None)
-    actionEsc.setShortcut(QKeySequence(Qt.Key_Escape))
+    actionEsc.setShortcut(QKeySequence(Qt.Key.Key_Escape))
     newWin.addAction(actionEsc)
 
     # context menu event handler
@@ -221,13 +221,13 @@ class dragQListWidget(QListWidget):
     def mousePressEvent(self, event):
         # call to super needed for selections
         super().mousePressEvent(event)
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.MouseButton.LeftButton:
             drag = QDrag(self)
             mimeData = QMimeData()
             item = self.itemAt(event.pos())
             if item is None:
                 return
-            mimeData.setText(item.data(Qt.UserRole)[0])  # should be path to file
+            mimeData.setText(item.data(Qt.ItemDataRole.UserRole)[0])  # should be path to file
             drag.setMimeData(mimeData)
             # set dragging pixmap
             drag.setPixmap(item.icon().pixmap(QSize(160, 120)))
@@ -305,12 +305,12 @@ class loader(threading.Thread):
                             v = compat(v, version)
                             ba = pickle.loads(literal_eval(v))
                             buffer = QBuffer(ba)
-                            buffer.open(QIODevice.ReadOnly)
+                            buffer.open(QIODevice.OpenModeFlag.ReadOnly)
                             img = QImage()
                             img.load(buffer, 'JPG')
 
                     if img.isNull():
-                        img = QImage(QSize(160, 120), QImage.Format_RGB888)
+                        img = QImage(QSize(160, 120),  QImage.Format.Format_RGB888)
                         img.fill(QColor(128, 128, 140))
 
                     # remove possible black borders, except for .NEF
@@ -325,7 +325,7 @@ class loader(threading.Thread):
                     item = QListWidgetItem(QIcon(pxm), basename(filename))
                     item.setToolTip(basename(filename) + ' ' + date + ' ' + rating)
                     # set item mimeData to get filename=item.data(Qt.UserRole)[0] transformation=item.data(Qt.UserRole)[1]
-                    item.setData(Qt.UserRole, (filename, transformation))
+                    item.setData(Qt.ItemDataRole.UserRole, (filename, transformation))
                     self.wdg.addItem(item)
                 except (OSError, IOError, ValueError, tifffile.TiffFileError, KeyError, SyntaxError,
                         ModuleNotFoundError, pickle.UnpicklingError) as ex:
@@ -380,14 +380,14 @@ class viewer:
     def initWins(self):
         # viewer main form
         newWin = QMainWindow(self.mainWin)
-        newWin.setAttribute(Qt.WA_DeleteOnClose)
-        newWin.setContextMenuPolicy(Qt.CustomContextMenu)
+        newWin.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        newWin.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.newWin = newWin
         # image list
         listWdg = dragQListWidget()
         listWdg.setWrapping(False)
         listWdg.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
-        listWdg.setContextMenuPolicy(Qt.CustomContextMenu)
+        listWdg.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         listWdg.label = None
         listWdg.setViewMode(QListWidget.ViewMode.IconMode)
         # set icon and listWdg sizes
@@ -400,9 +400,9 @@ class viewer:
         dock.setWidget(newWin)
         dock.setWindowFlags(newWin.windowFlags())
         dock.setWindowTitle(newWin.windowTitle())
-        dock.setAttribute(Qt.WA_DeleteOnClose)
+        dock.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         self.dock = dock
-        bLUeTop.Gui.window.addDockWidget(Qt.BottomDockWidgetArea, dock)
+        bLUeTop.Gui.window.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, dock)
         newWin.setCentralWidget(listWdg)
         self.listWdg = listWdg
         self.newWin.setWhatsThis(
@@ -439,15 +439,15 @@ class viewer:
         """
         parent = bLUeTop.Gui.window
         newWin = QMainWindow(parent)
-        newWin.setAttribute(Qt.WA_DeleteOnClose)
-        newWin.setContextMenuPolicy(Qt.CustomContextMenu)
+        newWin.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        newWin.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         label = imageLabel(parent=newWin)
-        label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         label.img = None
         newWin.setCentralWidget(label)
         sel = self.listWdg.selectedItems()
         item = sel[0]
-        filename = item.data(Qt.UserRole)[0]
+        filename = item.data(Qt.ItemDataRole.UserRole)[0]
         newWin.setWindowTitle(filename)
         imImg = imImage.loadImageFromFile(filename, createsidecar=False, window=bLUeTop.Gui.window)
         label.img = imImg
@@ -463,7 +463,7 @@ class viewer:
         l = []
         for item in sel:
             # get url from path
-            l.append(QUrl.fromLocalFile(item.data(Qt.UserRole)[0]))
+            l.append(QUrl.fromLocalFile(item.data(Qt.ItemDataRole.UserRole)[0]))
         # init clipboard data
         q = QMimeData()
         # set some Windows magic values for copying files from system clipboard : Don't modify
@@ -474,9 +474,9 @@ class viewer:
         #####################
         # copy image to clipboard
         item = sel[0]
-        filename = item.data(Qt.UserRole)[0]
+        filename = item.data(Qt.ItemDataRole.UserRole)[0]
         if filename.endswith(IMAGE_FILE_EXTENSIONS):
-            q.setImageData(QImage(sel[0].data(Qt.UserRole)[0]))
+            q.setImageData(QImage(sel[0].data(Qt.ItemDataRole.UserRole)[0]))
         QApplication.clipboard().clear()
         QApplication.clipboard().setMimeData(q)
 
@@ -490,7 +490,7 @@ class viewer:
             with exiftool.ExifTool() as e:
                 value = int(action.text())
                 for item in sel:
-                    filename = item.data(Qt.UserRole)[0]
+                    filename = item.data(Qt.ItemDataRole.UserRole)[0]
                     e.writeXMPTag(filename, 'XMP:rating', value)
                     item.setText(basename(filename) + '\n' + ''.join(['*'] * value))
 

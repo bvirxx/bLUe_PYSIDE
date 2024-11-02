@@ -56,11 +56,11 @@ class transForm(baseForm):
 
         # layout
         l = QVBoxLayout()
-        l.setAlignment(Qt.AlignTop)
+        l.setAlignment(Qt.AlignmentFlag.AlignTop)
         l.addWidget(self.listWidget1)
         l.addWidget(self.listWidget2)
         hl = QHBoxLayout()
-        hl.setAlignment(Qt.AlignHCenter)
+        hl.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         hl.addWidget(pushButton1)
         l.addLayout(hl)
         self.setLayout(l)

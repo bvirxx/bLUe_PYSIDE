@@ -82,7 +82,7 @@ def gradient2Img(grad, height=50):
     :rtype: QImage
     """
     s = grad.shape[0]
-    img = QImage(s, height,  QImage.Format_RGBA8888)
+    img = QImage(s, height,  QImage.Format.Format_RGBA8888)
     imgBuffer = QImageBuffer(img)
     imgBuffer[..., :3][::-1] = grad
     imgBuffer[..., 3] = 255

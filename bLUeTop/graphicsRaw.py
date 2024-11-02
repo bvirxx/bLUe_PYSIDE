@@ -16,7 +16,6 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import cv2
-import threading
 
 from collections import OrderedDict
 from math import log
@@ -31,7 +30,7 @@ from bLUeGui.baseSignal import baseSignal_List
 from bLUeGui.graphicsSpline import graphicsSplineForm
 from bLUeGui.graphicsForm import baseForm
 from bLUeTop.dng import getDngProfileList, getDngProfileDict, dngProfileToneCurve, getDngProfileDicts
-from bLUeTop.utils import optionsWidget, UDict, QbLUeSlider, QbLUeComboBox, traceDict
+from bLUeTop.utils import optionsWidget, UDict, QbLUeSlider, QbLUeComboBox
 from bLUeGui.multiplier import *
 
 
@@ -49,7 +48,7 @@ class graphicsToneForm(graphicsSplineForm):
         triangle.append(QPointF(s, s))
         newWindow.inputMarker = QGraphicsPolygonItem(triangle)
         newWindow.scene().addItem(newWindow.inputMarker)
-        newWindow.inputMarker.setBrush(QBrush(Qt.white))
+        newWindow.inputMarker.setBrush(QBrush(Qt.GlobalColor.white))
         return newWindow
 
     def colorPickedSlot(self, x, y, modifiers):
@@ -214,7 +213,7 @@ class rawForm(baseForm):
         item.setText(item.text() + ' : %d' % self.asShotTemp)
 
         # temperature slider
-        self.sliderTemp = QbLUeSlider(Qt.Horizontal)
+        self.sliderTemp = QbLUeSlider(Qt.Orientation.Horizontal)
         self.sliderTemp.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
         self.sliderTemp.setRange(0, 100)
         self.sliderTemp.setSingleStep(1)
@@ -236,7 +235,7 @@ class rawForm(baseForm):
             lambda: self.tempUpdate(self.sliderTemp.value()))  # signal pass no parameter
 
         # tint slider
-        self.sliderTint = QbLUeSlider(Qt.Horizontal)
+        self.sliderTint = QbLUeSlider(Qt.Orientation.Horizontal)
         self.sliderTint.setStyleSheet(QbLUeSlider.bLueSliderDefaultIMGColorStylesheet)
         self.sliderTint.setRange(0, 150)
 
@@ -304,7 +303,7 @@ class rawForm(baseForm):
         self.overexpCombo.currentIndexChanged.connect(overexpUpdate)
 
         # exp slider
-        self.sliderExp = QbLUeSlider(Qt.Horizontal)
+        self.sliderExp = QbLUeSlider(Qt.Orientation.Horizontal)
         self.sliderExp.setStyleSheet(QbLUeSlider.bLueSliderDefaultBWStylesheet)
         self.sliderExp.setRange(0, 100)
 
@@ -343,7 +342,7 @@ class rawForm(baseForm):
         self.sliderExp.sliderReleased.connect(lambda: expUpdate(self.sliderExp.value()))  # signal pass no parameter
 
         # brightness slider
-        brSlider = QbLUeSlider(Qt.Horizontal)
+        brSlider = QbLUeSlider(Qt.Orientation.Horizontal)
         brSlider.setRange(1, 101)
 
         self.sliderExp.setSingleStep(1)
@@ -383,7 +382,7 @@ class rawForm(baseForm):
         self.sliderBrightness.sliderReleased.connect(lambda: brUpdate(self.sliderBrightness.value()))
 
         # contrast slider
-        self.sliderCont = QbLUeSlider(Qt.Horizontal)
+        self.sliderCont = QbLUeSlider(Qt.Orientation.Horizontal)
         self.sliderCont.setStyleSheet(QbLUeSlider.bLueSliderDefaultBWStylesheet)
         self.sliderCont.setRange(0, 20)
 
@@ -425,7 +424,7 @@ class rawForm(baseForm):
         self.sliderCont.sliderReleased.connect(lambda: contUpdate(self.sliderCont.value()))  # signal has no parameter
 
         # saturation slider
-        self.sliderSat = QbLUeSlider(Qt.Horizontal)
+        self.sliderSat = QbLUeSlider(Qt.Orientation.Horizontal)
         self.sliderSat.setStyleSheet(QbLUeSlider.bLueSliderDefaultColorStylesheet)
         self.sliderSat.setRange(0, 100)
 
@@ -550,13 +549,13 @@ class rawForm(baseForm):
         :return:
         :rtype: boolean
         """
-        delete = self.testAttribute(Qt.WA_DeleteOnClose)
+        delete = self.testAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         for attr in ['toneForm', 'contrastForm']:
             form = getattr(self, attr, None)
             if delete and form is not None:
                 dock = form.parent()
-                dock.setAttribute(Qt.WA_DeleteOnClose)
-                form.setAttribute(Qt.WA_DeleteOnClose)
+                dock.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+                form.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
                 dock.close()
                 form.close()
         return super().close()
@@ -575,8 +574,8 @@ class rawForm(baseForm):
             form = graphicsToneForm.getNewWindow(targetImage=self.targetImage, axeSize=axeSize, layer=self.layer,
                                                  parent=self,
                                                  curveType='cubic')
-            form.setWindowFlags(Qt.WindowStaysOnTopHint)
-            form.setAttribute(Qt.WA_DeleteOnClose, on=False)
+            form.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint)
+            form.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, on=False)
             form.setFixedHeight(axeSize + 140)
             form.setWindowTitle('Cam Tone Curve')
             form.setButtonText('Reset Curve')
@@ -599,7 +598,7 @@ class rawForm(baseForm):
             # dockT.setStyleSheet(  # TODO removed 25/11/21 validate
             # "QGraphicsView{margin: 10px; border-style: solid; border-width: 1px; border-radius: 1px;}")
             window = self.parent().parent()
-            window.addDockWidget(Qt.LeftDockWidgetArea, dockT)
+            window.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, dockT)
             self.dockT = dockT
             dockT.setWidget(form)
             showFirst = True
@@ -645,8 +644,8 @@ class rawForm(baseForm):
         if self.contrastForm is None:
             form = graphicsSplineForm.getNewWindow(targetImage=None, axeSize=axeSize, layer=self.layer, parent=None)
             form.setFixedHeight(axeSize + 140)
-            form.setWindowFlags(Qt.WindowStaysOnTopHint)
-            form.setAttribute(Qt.WA_DeleteOnClose, on=False)
+            form.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint)
+            form.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, on=False)
             form.setWindowTitle('Contrast Curve')
 
             def f():
@@ -661,7 +660,7 @@ class rawForm(baseForm):
             dockC.setWindowFlags(form.windowFlags())
             dockC.setWindowTitle(form.windowTitle())
             window = self.parent().parent()
-            window.addDockWidget(Qt.LeftDockWidgetArea, dockC)
+            window.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, dockC)
             self.dockC = dockC
             dockC.setWidget(form)
         else:
@@ -883,7 +882,7 @@ class rawForm(baseForm):
                 cameraProfilesComboList.append((key, df))
                 self.result_available.sig.emit(cameraProfilesComboList)
 
-        self.cameraProfilesCombo.setCursor(Qt.WaitCursor)
+        self.cameraProfilesCombo.setCursor(Qt.CursorShape.WaitCursor)
         self.w = workerThread()  # protect from gc
         self.w.start()
 
@@ -924,7 +923,7 @@ class rawForm(baseForm):
 
         # load remaining profiles asynchronously
         self.loadCameraProfiles_async(files, nextInd)
-        self.cameraProfilesCombo.currentIndexChanged.connect(self.cameraProfileUpdate, Qt.QueuedConnection)
+        self.cameraProfilesCombo.currentIndexChanged.connect(self.cameraProfileUpdate, Qt.ConnectionType.QueuedConnection)
 
         current = self.cameraProfilesCombo.itemData(0)
         return current if current is not None else {}

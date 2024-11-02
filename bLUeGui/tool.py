@@ -160,7 +160,7 @@ class croppingHandle(baseHandle):
         self.tool.crWidth = img.width() - int(img.cropLeft + img.cropRight)
 
     def mouseMoveEvent(self, event):
-        if event.buttons() == Qt.NoButton:
+        if event.buttons() == Qt.MouseButton.NoButton:
             return
         img = self.parent().img
         pos = self.mapToParent(event.position().toPoint())
@@ -344,7 +344,7 @@ class rotatingHandle(baseHandle):
         :type  event:
         """
         # skip hover events
-        if event.buttons() == Qt.NoButton:
+        if event.buttons() == Qt.MouseButton.NoButton:
             return
 
         modifiers = event.modifiers()  # QApplication.keyboardModifiers()
@@ -354,7 +354,7 @@ class rotatingHandle(baseHandle):
         r = self.tool.resizingCoeff
         self.tool.targetQuad_old = self.tool.getTargetQuad()
         self.posRelImg = (pos - QPointF(img.xOffset, img.yOffset)) / r
-        if modifiers == Qt.ControlModifier | Qt.AltModifier:
+        if modifiers == Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier:
             if self.tool.isModified():
                 dlgWarn("A transformation is in progress", "Reset first")
                 return

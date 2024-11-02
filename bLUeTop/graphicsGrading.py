@@ -56,7 +56,7 @@ class graphicsFormGrading(baseForm):
         :rtype:
         """
         try:
-            QApplication.setOverrideCursor(Qt.WaitCursor)
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
             QApplication.processEvents()
             newWindow = graphicsFormGrading(targetImage=targetImage, axeSize=axeSize, LUTSize=LUTSize,
                                               layer=layer, parent=parent, mainForm=mainForm)
@@ -99,9 +99,9 @@ class graphicsFormGrading(baseForm):
         # Help tag
         self.helpId = "GradingForm"
         self.border = 20
-        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
 
-        self.setAttribute(Qt.WA_DeleteOnClose)
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         self.size = axeSize
 
         self.predLabel1 = QLabel()
@@ -117,17 +117,17 @@ class graphicsFormGrading(baseForm):
         self.chooser2 = colorWheelChooser(s, s, name='Shadow')
         self.chooser3 = colorWheelChooser(s, s, name='Highlight')
 
-        self.slider1 = QbLUeSlider(Qt.Horizontal)
+        self.slider1 = QbLUeSlider(Qt.Orientation.Horizontal)
         hlay1 = QHBoxLayout()
         hlay1.addWidget(self.predLabel1)
         hlay1.addWidget(self.slider1)
 
-        self.slider2 = QbLUeSlider(Qt.Horizontal)
+        self.slider2 = QbLUeSlider(Qt.Orientation.Horizontal)
         hlay2 = QHBoxLayout()
         hlay2.addWidget(self.predLabel2)
         hlay2.addWidget(self.slider2)
 
-        self.slider3 = QbLUeSlider(Qt.Horizontal)
+        self.slider3 = QbLUeSlider(Qt.Orientation.Horizontal)
         hlay3 = QHBoxLayout()
         hlay3.addWidget(self.predLabel3)
         hlay3.addWidget(self.slider3)
@@ -162,7 +162,7 @@ class graphicsFormGrading(baseForm):
         layout = QVBoxLayout()
         layout.setContentsMargins(20, 0, 20, 25)  # left, top, right, bottom
         layout.addWidget(self.chooser1)  # midtones
-        layout.setAlignment(self.chooser1, Qt.AlignHCenter)
+        layout.setAlignment(self.chooser1, Qt.AlignmentFlag.AlignHCenter)
         for lay in [hlay4, hlay1, hlay2, hlay3]:
             layout.addLayout(lay)
         layout.addWidget(self.gradSample)
