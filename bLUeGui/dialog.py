@@ -21,10 +21,10 @@ from os.path import basename, dirname, isfile
 
 from PySide6.QtCore import Qt, QDir, QSize
 from PySide6.QtWidgets import QMessageBox, QPushButton, QFileDialog, QDialog, QSlider, QVBoxLayout, QHBoxLayout, QLabel, \
-    QCheckBox, QFormLayout, QLineEdit, QDialogButtonBox, QScrollArea, QProgressDialog
+    QCheckBox, QFormLayout, QLineEdit, QDialogButtonBox, QScrollArea, QProgressDialog, QSizePolicy, QToolButton
 
 from bLUeTop import Gui
-from bLUeTop.utils import QbLUeSlider
+from bLUeTop.utils import QbLUeSlider, stateAwareQDockWidget
 
 ##################
 # file extension constants
@@ -32,7 +32,8 @@ BLUE_FILE_EXTENSIONS = (".blu", ".BLU", ".bLU")
 IMAGE_FILE_EXTENSIONS = (".jpg", ".JPG", ".png", ".PNG", ".tif", ".TIF", ".bmp", ".BMP")
 RAW_FILE_EXTENSIONS = (".nef", ".NEF", ".dng", ".DNG", ".cr2", ".CR2", ".arw", ".ARW")
 SVG_FILE_EXTENSIONS = (".svg", ".SVG")
-IMAGE_FILE_NAME_FILTER = ['Image Files (*.jpg *.png *.tif *.blu *.JPG *.PNG *.TIF *.BLU)']
+ALL_FILE_EXTENSIONS = BLUE_FILE_EXTENSIONS + IMAGE_FILE_EXTENSIONS + RAW_FILE_EXTENSIONS + SVG_FILE_EXTENSIONS
+IMAGE_FILE_NAME_FILTER = ['Image Files (' + " *".join(ALL_FILE_EXTENSIONS) + ')']                            #  ['Image Files (*.jpg *.png *.tif *.blu *.JPG *.PNG *.TIF *.BLU *.nef *.NEF)']
 
 
 #################
@@ -498,6 +499,45 @@ def openDlg(mainForm, ask=True, multiple=False, key='dlgdir', parent=None):
         mainForm.settings.setValue(key, newDir)
         return filenames[0]
     return None
+
+
+class QblueFileDialog(QFileDialog):
+    """
+    Dockable QFileDialog
+    """
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.dock = None
+        self.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
+        self.setOptions(QFileDialog.Option.DontUseNativeDialog)
+        # connect history buttons to signal directoryEntered (default is no signal)
+        historyBtnNames = ['forwardButton', 'backButton']
+        for name in historyBtnNames:
+            btn = self.findChild(QToolButton, name)
+            if btn:
+                btn.clicked.connect(lambda: self.directoryEntered.emit(self.directory().absolutePath()))
+
+    def setDock(self):
+        dock = stateAwareQDockWidget()
+        #dock.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        dock.setWindowFlags(self.windowFlags())
+        dock.setWidget(self)
+        self.dock = dock
+        return dock
+
+    def getDock(self):
+        return self.dock
+
+    def sizeHint(self):
+        return self.minimumSizeHint()
+
+    def minimumSizeHint(self):
+        return QSize(250, 300)
+
+    def closeEvent(self, e):
+        self.dock.close()
+        super().closeEvent(e)
+
 
 def save3DLUTDlg(mainForm):
     """
