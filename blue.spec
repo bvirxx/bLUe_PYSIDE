@@ -39,6 +39,7 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     contents_directory='.',
+    icon='E:\\PycharmProjects\\blue\\logo.ico',
 )
 coll = COLLECT(
     exe,

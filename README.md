@@ -78,7 +78,7 @@ See the [bLUe site](http://bernard.virot.free.fr/) for screenshots, tutorials an
 * Import and export of 3D LUTs in .cube format
 * Editable masks
 * Automatic import of camera specific profiles for development of raw images
-* Library viewer
+* Built-in file explorer
 * Slide show
 * Context-sensitive help
 

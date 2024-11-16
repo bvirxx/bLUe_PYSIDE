@@ -1299,7 +1299,7 @@ Size</string>
   </action>
   <action name="actionViewer">
    <property name="text">
-    <string>Library Viewer</string>
+    <string>File Explorer</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+L</string>
