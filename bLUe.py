@@ -120,6 +120,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 import io
 import os
+import zlib
 from os import path, walk, remove
 from os.path import isfile
 from tempfile import mktemp
@@ -485,18 +486,20 @@ def loadImage(img, tfile=None, version='unknown', withBasic=True, window=bLUeTop
                     d = pickle.loads(literal_eval(v))
                     if key == 'cropmargins' and d != (0.0, 0.0, 0.0, 0.0):
                         img.setCropMargins(d, window.cropTool)  # type(d) is tuple
-                        window.cropButton.setChecked(Qt.CheckState.Checked)
+                        window.cropButton.setChecked(True)
                     elif type(d) is dict:
                         layers.append((key, d))
                 except (SyntaxError, ValueError, pickle.UnpicklingError):
                     continue
                 except AttributeError as e_in:
-                    dlgWarn('Possibly deprecated bLU file: ', info=str(e_in))
+                    dlgWarn('Deprecated bLU file. Version: %s' % version, info=str(e_in))
+                    dlgWarn('Cannot restore layer %s' % key)
                     continue
-        except (SyntaxError, ValueError, ModuleNotFoundError, pickle.UnpicklingError) as e:
+        except (SyntaxError, ValueError, AttributeError, ModuleNotFoundError, pickle.UnpicklingError) as e:
             # exceptions raised while unpickling meta_dict['develop'] cannot be
             # skipped.
             # dlgWarn('loadImage: Invalid format %s' % img.filename, str(e))
+            dlgWarn('Deprecated bLU file. Version: %s' % version)
             raise
         # load layers
         addAdjustmentLayers(img, layers, tfile.series[0])
@@ -542,7 +545,11 @@ def openFile(f, window=bLUeTop.Gui.window):
             if sourceformat in RAW_FILE_EXTENSIONS:
                 # is .blu file from raw
                 buf_ori_len = meta_dict['buf_ori_len']
-                rawbuf = tfile.series[0].pages[0].asarray()[0, :buf_ori_len]
+                try:
+                    rawbuf = tfile.series[0].pages[0].asarray()[0, :buf_ori_len]
+                except zlib.error as e:
+                    dlgWarn('Invalid blu file', info=str(e))
+                    raise IOError
                 iobuf = io.BytesIO(rawbuf.tobytes())
 
         ##############################################################
@@ -573,7 +580,7 @@ def openFile(f, window=bLUeTop.Gui.window):
                 recentFiles.pop()
             window.settings.setValue('paths/recent', recentFiles)
     except (ValueError, KeyError, IOError, rawpy.LibRawFatalError, SyntaxError,
-            ModuleNotFoundError, pickle.UnpicklingError) as e:
+            ModuleNotFoundError, AttributeError, pickle.UnpicklingError) as e:
         dlgWarn('An Error occurred while opening file', str(e))
     finally:
         if tfile is not None:
@@ -897,6 +904,64 @@ def updateEnabledActions(window=bLUeTop.Gui.window):
     window.actionAuto_3D_LUT.setEnabled(HAS_TORCH)
 
 
+def setBlueFileExplorer(window, fromini=False):
+    expvisible = True
+    if fromini:
+        listvisible = (window.settings.value('mainwindow/explistwdg', 'false').lower()  == 'true')
+        filedlgvisible = (window.settings.value('mainwindow/expfiledlg', 'false').lower() == 'true')
+        expvisible = listvisible and filedlgvisible
+        if not expvisible:
+            return
+    viewerInstance = viewer.getViewerInstance(mainWin=window)
+    viewerInstance.dock.show()
+    if viewerInstance.fileDlg:
+        viewerInstance.fileDlg.dock.show()
+        viewerInstance.fileDlg.show()
+        return
+    lastDir = viewerInstance.currentFromSettings(mainWin=window)
+    fileDlg = QblueFileDialog(window, "Select a folder", lastDir)
+    fileDlg.setNameFilters(IMAGE_FILE_NAME_FILTER + ['All files (*)'])
+    fileDlg.setFileMode(QFileDialog.FileMode.Directory)
+
+    fileDlg.setLabelText(QFileDialog.DialogLabel.Accept, 'Close')  # accept button
+    fileDlg.setWhatsThis(
+        """
+        The <b>bLUe File Explorer</b> is composed of two synchronized windows.
+        <UL>
+        <li> The left window is a usual file explorer
+        <li> All image files in the current directory, including raw files and blu files,
+        are shown as icons in the bottom window.
+        </UL>
+        Use <i>Ctrl+L</i> to open or reopen the file explorer.
+        """
+    )
+    fileDock = fileDlg.setDock()
+    bLUeTop.Gui.window.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, fileDock)
+    viewerInstance.fileDlg = fileDlg
+
+    def showViewer(aDir, forcevisible=True):
+        if forcevisible:
+            viewerInstance.dock.show()
+            viewerInstance.listWdg.show()
+        if viewerInstance.currentDir == aDir:
+            return
+        fileDlg.setWindowTitle(aDir)
+        fileDock.setWindowTitle(fileDlg.windowTitle())
+        fileDlg.repaint()  # needed to immediately display the file list
+        viewerInstance.playViewer(aDir)
+
+    def recordDir():
+        # newDir = fileDlg.selectedFiles()[0]  #dlg.directory().absolutePath()
+        viewerInstance.currentToSettings(mainWin=window)
+        fileDock.hide()
+
+    fileDlg.directoryEntered.connect(showViewer)
+    fileDlg.finished.connect(recordDir)
+
+    fileDlg.show()
+    showViewer(lastDir, forcevisible=False)
+
+
 def menuFile(name, window=bLUeTop.Gui.window):
     """
     Menu handler
@@ -939,7 +1004,7 @@ def menuFile(name, window=bLUeTop.Gui.window):
     # load image from file
     elif name in ['actionOpen']:
         # get file name from dialog
-        filename = openDlg(window, ask=False, parent=Gui.window)
+        filename = openDlg(window, ask=False, key='paths/dlgimdir', parent=Gui.window)
         # open file
         if filename is not None:
             openFile(filename)
@@ -1039,18 +1104,8 @@ def menuView(name, window=bLUeTop.Gui.window):
     # library viewer
     #############
     elif name == 'actionViewer':
-        # start from parent dir of the last used directory
-        lastDir = path.join(str(window.settings.value('paths/dlgdir', '.')), path.pardir)
-        dlg = QFileDialog(window, "select", lastDir)
-        dlg.setNameFilters(IMAGE_FILE_NAME_FILTER)
-        dlg.setFileMode(QFileDialog.FileMode.Directory)
-        dlg.setOptions(QFileDialog.Option.DontUseNativeDialog)  # Native Dialog is too slow
-        # open dialog
-        if dlg.exec():
-            newDir = dlg.selectedFiles()[0]  # dlg.directory().absolutePath()
-            window.settings.setValue('paths/dlgdir', newDir)
-            viewerInstance = viewer.getViewerInstance(mainWin=window)
-            viewerInstance.playViewer(newDir)  # asynchronous
+        setBlueFileExplorer(window)
+
     ###############
     # Color Chooser
     ###############
@@ -1716,6 +1771,10 @@ def canClose(index=None, window=bLUeTop.Gui.window):
     :return:
     :rtype: boolean
     """
+    #  save the current dir of the File Explorer
+    if viewer.isInstanciated():
+        viewer.getViewerInstance().currentToSettings(mainWin=window)
+
     if window.tabBar.count() == 0:
         return True
     closeAllRequested = (index is None)
@@ -2043,7 +2102,7 @@ def setupGUI(window=bLUeTop.Gui.window):
     # window.Label_status.setStyleSheet("border: 15px solid white;")
     window.statusBar().addWidget(window.Label_status)
     # permanent text to right
-    window.statusBar().addPermanentWidget(QLabel('Shift+F1 for Context Help       '))
+    window.statusBar().addPermanentWidget(QLabel('Ctrl+L for File Explorer - Shift+F1 for Context Help          '))
     window.updateStatus = updateStatus
     window.label.updateStatus = updateStatus
 
@@ -2288,6 +2347,8 @@ def setupGUI(window=bLUeTop.Gui.window):
         <b>Space</b> switches back to normal view.
         """
     )  # end of setWhatsThis
+
+    setBlueFileExplorer(window, fromini=True)
 
 
 def switchDoc(index, window=bLUeTop.Gui.window):

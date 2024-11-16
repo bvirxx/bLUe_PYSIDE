@@ -16,25 +16,27 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import gc
+import os
 import pickle
-import threading
+import shutil
 import tifffile
 from ast import literal_eval
 from os import walk, path, listdir
 from os.path import basename, isfile
 from re import search
 
-from PySide6.QtCore import Qt, QUrl, QMimeData, QByteArray, QPoint, QSize, QBuffer, QIODevice, QRect, QEventLoop, QTimer
-from PySide6.QtGui import QKeySequence, QImage, QDrag, QAction, QColor, QPixmap, QIcon
+from PySide6.QtCore import Qt, QMimeData, QPoint, QSize, QBuffer, QIODevice, QRect, QEventLoop, \
+    QTimer, QObject
+from PySide6.QtGui import QKeySequence, QImage, QDrag, QAction, QPixmap, QIcon
 from PySide6.QtWidgets import QMainWindow, QSizePolicy, QMenu, QListWidget, QAbstractItemView, \
-    QApplication, QListWidgetItem
+    QApplication, QListWidgetItem, QFileDialog
 
 from bLUeTop import exiftool
 from bLUeTop.MarkedImg import imImage
 import bLUeTop.Gui
-from bLUeTop.imLabel import slideshowLabel, imageLabel
+from bLUeTop.imLabel import slideshowLabel
 from bLUeTop.utils import stateAwareQDockWidget, imagej_description_metadata, compat
-from bLUeGui.dialog import IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, BLUE_FILE_EXTENSIONS
+from bLUeGui.dialog import IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, BLUE_FILE_EXTENSIONS, dlgWarn
 
 # global variable recording diaporama state
 isSuspended = False
@@ -236,40 +238,40 @@ class dragQListWidget(QListWidget):
             dropAction = drag.exec()
 
 
-class loader(threading.Thread):
+class loader(QObject):
     """
-    Thread class for batch loading of images in a
-    QListWidget object
+    Image loader
     """
-
-    def __init__(self, gen, wdg):
+    def __init__(self, gen, viewerInstance):
         """
-
        :param gen: generator of image file names
        :type gen: generator
-       :param wdg:
-       :type wdg: QListWidget
+       :param viewerInstance:
+       :type viewerInstance: viewer
         """
-        super(loader, self).__init__()
+        super().__init__()
         self.fileListGen = gen
-        self.wdg = wdg
+        self.viewerInstance = viewerInstance
 
-    def run(self):
-        # next() raises a StopIteration exception when the generator ends.
-        # If this exception is unhandled by run(), it causes thread termination.
-        # If wdg internal C++ object was destroyed by main thread (form closing)
-        # a RuntimeError exception is raised and causes thread termination too.
-        # Thus, no further synchronization is needed.
+    def populate(self, items):
+        for item in items:
+            self.viewerInstance.listWdg.addItem(item)
+        self.viewerInstance.listWdg.repaint()  # usual update method is masked by QAbstractItemView.update()
+
+    def load(self):
         with exiftool.ExifTool() as e:
             while True:
                 try:
+                    # next() raises a StopIteration exception when the generator ends.
+                    # If this exception is unhandled by run(), it causes thread termination.
                     filename = next(self.fileListGen)
                     # get orientation
                     try:
                         # read metadata from sidecar (.mie) if it exists, otherwise from image file.
                         profile, metadata = e.get_metadata(filename,
                                                            tags=(
-                                                               "colorspace", "profileDescription", "orientation",
+                                                               "colorspace", "profileDescription",
+                                                               "orientation",
                                                                "model",
                                                                "rating", "FileCreateDate"),
                                                            createsidecar=False)
@@ -308,39 +310,45 @@ class loader(threading.Thread):
                             buffer.open(QIODevice.OpenModeFlag.ReadOnly)
                             img = QImage()
                             img.load(buffer, 'JPG')
+                    # everything else fails, read file !
+                    if img.isNull():
+                        img = QImage(filename).scaled(QSize(viewer.iconSize, viewer.iconSize),
+                                                      aspectMode=Qt.AspectRatioMode.KeepAspectRatio
+                                                      )
 
                     if img.isNull():
-                        img = QImage(QSize(160, 120),  QImage.Format.Format_RGB888)
-                        img.fill(QColor(128, 128, 140))
+                        raise IOError
 
                     # remove possible black borders, except for .NEF
                     if filename[-3:] not in ['nef', 'NEF']:
                         bBorder = 7
                         img = img.copy(QRect(0, bBorder, img.width(), img.height() - 2 * bBorder))
+
                     pxm = QPixmap.fromImage(img)
                     if not transformation.isIdentity():
                         pxm = pxm.transformed(transformation)
 
                     # set item caption and tooltip
-                    item = QListWidgetItem(QIcon(pxm), basename(filename))
+                    item = QListWidgetItem(QIcon(pxm), basename(filename))  # icon, text
                     item.setToolTip(basename(filename) + ' ' + date + ' ' + rating)
                     # set item mimeData to get filename=item.data(Qt.UserRole)[0] transformation=item.data(Qt.UserRole)[1]
                     item.setData(Qt.ItemDataRole.UserRole, (filename, transformation))
-                    self.wdg.addItem(item)
+                    item.setSizeHint(QSize(viewer.iconSize, viewer.iconSize + 15))
+                    self.populate([item])
                 except (OSError, IOError, ValueError, tifffile.TiffFileError, KeyError, SyntaxError,
                         ModuleNotFoundError, pickle.UnpicklingError) as ex:
                     continue
-                except Exception as ex:  # StopIteration and anything else for clean exit
+                except StopIteration:
                     break
 
 
-class viewer:
+class viewer(QObject):
     """
-    Folder browser
+    Dockable folder browser
     """
-    # current viewer instance
+
     instance = None
-    iconSize = 80
+    iconSize = 120
 
     @classmethod
     def getViewerInstance(cls, mainWin=None):
@@ -355,9 +363,11 @@ class viewer:
         """
         if cls.instance is None:
             cls.instance = viewer(mainWin=mainWin)
-        elif cls.instance.mainWin is not mainWin:
-            raise ValueError("getViewer: wrong main form")
         return cls.instance
+
+    @classmethod
+    def isInstanciated(cls):
+        return (cls.instance is not None)
 
     def __init__(self, mainWin=None):
         """
@@ -365,51 +375,47 @@ class viewer:
        :param mainWin: should be the app main window
        :type mainWin:  QMainWindow
         """
-        self.mainWin = mainWin
-        # init form
+        super().__init__(parent=mainWin)
+        self.listWdg = None
+        self.currentDir = '.'
+        self.dock, self.fileDlg = (None,) * 2
+        self.fileDlg = None
         self.initWins()
-        actionSub = QAction('Show SubFolders', None)
-        actionSub.setCheckable(True)
-        actionSub.setChecked(False)
-        actionSub.triggered.connect(
-            lambda checked=False, action=actionSub: self.hSubfolders(action))  # named arg checked is always sent
-        self.actionSub = actionSub
-        # init context menu
         self.initCMenu()
 
+    def currentToSettings(self, mainWin=None):
+        mainWin.settings.setValue('paths/dlgdir', self.currentDir)
+        mainWin.settings.setValue('mainwindow/explistwdg', self.dock.isVisible())
+        mainWin.settings.setValue('mainwindow/expfiledlg', self.fileDlg.isVisible())
+
+    def currentFromSettings(self, mainWin=None):
+        return mainWin.settings.value('paths/dlgdir', '.')
+
     def initWins(self):
-        # viewer main form
-        newWin = QMainWindow(self.mainWin)
-        newWin.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
-        newWin.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.newWin = newWin
-        # image list
+        # init listWdg
         listWdg = dragQListWidget()
         listWdg.setWrapping(False)
         listWdg.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         listWdg.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        listWdg.label = None
         listWdg.setViewMode(QListWidget.ViewMode.IconMode)
-        # set icon and listWdg sizes
         listWdg.setIconSize(QSize(self.iconSize, self.iconSize))
         listWdg.setMaximumSize(160000, self.iconSize + 40)
         listWdg.setDragDropMode(QAbstractItemView.DragDropMode.DragDrop)
-        listWdg.customContextMenuRequested.connect(self.contextMenu)
-        # dock the form
+        # listWdg.customContextMenuRequested.connect(self.contextMenu)  # disabled 12/11/24
+
+        # dock the viewer
         dock = stateAwareQDockWidget(bLUeTop.Gui.window)
-        dock.setWidget(newWin)
-        dock.setWindowFlags(newWin.windowFlags())
-        dock.setWindowTitle(newWin.windowTitle())
-        dock.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        dock.setWidget(listWdg)
+        dock.setWindowFlags(listWdg.windowFlags())
+        dock.setWindowTitle(listWdg.windowTitle())
         self.dock = dock
+
         bLUeTop.Gui.window.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, dock)
-        newWin.setCentralWidget(listWdg)
+
         self.listWdg = listWdg
-        self.newWin.setWhatsThis(
+        self.listWdg.setWhatsThis(
             """<b>Library Viewer</b><br>
-            To <b>open context menu</b> right click on an icon or a selection.<br>
-            To <b>open an image</b> drag it onto the main window.<br>
-            <b>Rating</b> is shown as 0 to 5 stars below each icon.<br>
+            To <b>open an image</b> drag and drop its icon into the main window.<br>
             """
         )  # end setWhatsThis
 
@@ -419,7 +425,6 @@ class viewer:
         """
         menu = QMenu()
         menu.addAction("Copy Image to Clipboard", self.hCopy)
-        menu.addAction(self.actionSub)
         subMenuRating = menu.addMenu('Rating')
         for i in range(6):
             action = QAction(str(i), None)
@@ -432,53 +437,25 @@ class viewer:
         globalPos = self.listWdg.mapToGlobal(pos)
         self.cMenu.exec(globalPos)
 
-    def viewImage(self):
-        """
-        display full size image in a new window
-        Unused yet
-        """
-        parent = bLUeTop.Gui.window
-        newWin = QMainWindow(parent)
-        newWin.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
-        newWin.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        label = imageLabel(parent=newWin)
-        label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        label.img = None
-        newWin.setCentralWidget(label)
-        sel = self.listWdg.selectedItems()
-        item = sel[0]
-        filename = item.data(Qt.ItemDataRole.UserRole)[0]
-        newWin.setWindowTitle(filename)
-        imImg = imImage.loadImageFromFile(filename, createsidecar=False, window=bLUeTop.Gui.window)
-        label.img = imImg
-        newWin.showMaximized()
-
     def hCopy(self):
         """
-        # slot for action copy_to_clipboard
+        Slot for copy files
+        Currently unsused
         """
         sel = self.listWdg.selectedItems()
-        ####################
-        # test code
-        l = []
+        destDir = QFileDialog.getExistingDirectory(None,
+                                               "Open Directory",
+                                                "/home",
+                                                QFileDialog.Option.ShowDirsOnly
+                                                 )
+        #dlg.selectedFiles()[0].absolutePath()
         for item in sel:
-            # get url from path
-            l.append(QUrl.fromLocalFile(item.data(Qt.ItemDataRole.UserRole)[0]))
-        # init clipboard data
-        q = QMimeData()
-        # set some Windows magic values for copying files from system clipboard : Don't modify
-        # 1 : copy; 2 : move
-        q.setData("Preferred DropEffect", QByteArray(1, "2"))
-        q.setUrls(l)
-        # end of test code
-        #####################
-        # copy image to clipboard
-        item = sel[0]
-        filename = item.data(Qt.ItemDataRole.UserRole)[0]
-        if filename.endswith(IMAGE_FILE_EXTENSIONS):
-            q.setImageData(QImage(sel[0].data(Qt.ItemDataRole.UserRole)[0]))
-        QApplication.clipboard().clear()
-        QApplication.clipboard().setMimeData(q)
+            if os.path.exists(os.path.join(destDir, item.text())):
+                dlgWarn('error')
+            else:
+                sourceFile = os.path.join(self.currentDir, item.text())
+                shutil.copy(sourceFile, destDir)
+        return
 
     # slot for action rating
     def setRating(self, action):
@@ -492,18 +469,9 @@ class viewer:
                 for item in sel:
                     filename = item.data(Qt.ItemDataRole.UserRole)[0]
                     e.writeXMPTag(filename, 'XMP:rating', value)
-                    item.setText(basename(filename) + '\n' + ''.join(['*'] * value))
-
-    # slot for subfolders browsing
-    def hSubfolders(self, action):
-        self.listWdg.clear()
-        fileListGen = self.doGen(self.folder, withsub=action.isChecked())
-        # launch loader instance
-        thr = loader(fileListGen, self.listWdg)
-        thr.start()
+                    item.setText(basename(filename) + ''.join(['*'] * value))
 
     def doGen(self, folder, withsub=False):
-        self.folder = folder
         if withsub:
             # browse the directory and its subfolders
             fileListGen = (path.join(dirpath, filename) for (dirpath, dirnames, filenames) in walk(folder) for filename
@@ -516,27 +484,36 @@ class viewer:
                            isfile(path.join(folder, filename)) and (
                                    filename.endswith(IMAGE_FILE_EXTENSIONS) or
                                    filename.endswith(RAW_FILE_EXTENSIONS)) or
-                           filename.endswith(BLUE_FILE_EXTENSIONS))
+                                   filename.endswith(BLUE_FILE_EXTENSIONS))
+        self.currentDir = folder
         return fileListGen
 
     def playViewer(self, folder):
         """
         Opens a window and displays all images in a folder.
-        The images are loaded asynchronously by a separate thread.
 
         :param folder: path to folder
         :type folder: str
+        :return: loader instance
+        :rtype: thread
         """
-        if self.dock.isClosed:
-            # reinit form
-            self.initWins()
-        else:
-            # clear form
+
+        # build generator
+        try:
+            fileListGen = self.doGen(folder)
             self.listWdg.clear()
-        self.newWin.showMaximized()
-        # build generator:
-        fileListGen = self.doGen(folder, withsub=self.actionSub.isChecked())
-        self.dock.setWindowTitle(folder)
-        # launch loader instance
-        thr = loader(fileListGen, self.listWdg)
-        thr.start()
+            self.dock.setWindowTitle(folder)
+            self.listWdg.showMaximized()
+            QApplication.processEvents()  # needed for instant showing
+
+            ldr = loader(fileListGen, self)
+            ldr.load()
+
+            #self.dock.setWindowTitle(self.currentDir)  # currentDir may be changed by loader
+        except (FileNotFoundError, NotADirectoryError):
+            pass
+
+
+
+
+
