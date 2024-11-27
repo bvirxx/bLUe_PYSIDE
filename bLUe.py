@@ -143,7 +143,7 @@ from PIL import ImageCms
 
 from PySide6.QtCore import QUrl, QFileInfo
 from PySide6.QtGui import QPixmap, QCursor, QKeySequence, QDesktopServices, QFont, \
-    QTransform, QColor, QImage, QIcon, QAction, QPalette
+    QTransform, QColor, QImage, QIcon, QAction, QPalette, QGuiApplication
 from PySide6.QtWidgets import QApplication, \
     QDockWidget, QSizePolicy, QSplashScreen, QWidget, \
     QTabWidget, QToolBar, QComboBox, QTabBar, QFrame
@@ -672,9 +672,8 @@ def closeTabs(index=None, window=bLUeTop.Gui.window):
     :param window:
     :type window:
     """
-
-    if not canClose(index=index) or window.tabBar.count() > 0:
-        gc.collect()
+    if not canClose(index=index) or window.tabBar.count() > 0:  # canclose change tabbar count
+        #gc.collect()
         return
     # window.tableView.clear(delete=True)
     window.histView.targetImage = None
@@ -683,10 +682,10 @@ def closeTabs(index=None, window=bLUeTop.Gui.window):
     window.label_2.img = defaultImImage
     window.label_3.img = defaultImImage
     window.tableView.clear(delete=True)  # 30/11/21
-    gc.collect()
-    window.label.update()
-    window.label_2.update()
-    window.label_3.update()
+    #gc.collect()
+    #window.label.update()
+    #window.label_2.update()
+    #window.label_3.update()
 
 
 def showHistogram(window=bLUeTop.Gui.window):
@@ -837,7 +836,7 @@ def setDocumentImage(img, window=bLUeTop.Gui.window):
     updateCurrentViews()
     window.label_3.update()
     updateStatus()
-    gc.collect()  # tested : (very) efficient here
+    #gc.collect()  # tested : very efficient here
 
 
 def updateMenuOpenRecent(window=bLUeTop.Gui.window):
@@ -1757,6 +1756,22 @@ def menuHelp(name, window=bLUeTop.Gui.window):
         w.show()
 
 
+def cleanPool():
+    try:
+        #bLUeTop.Gui.window.label.setCursor(Qt.CursorShape.WaitCursor)
+        QGuiApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        if pool:
+            print('Closing pool...')
+            pool.close()
+            pool.join()
+            print('Pool closed')
+    except (RuntimeError, ValueError) as e:
+        print('CleanPool error', str(e))
+    finally:
+        #bLUeTop.Gui.window.unsetCursor()
+        QGuiApplication.restoreOverrideCursor()
+
+
 def canClose(index=None, window=bLUeTop.Gui.window):
     """
     If index is None, tries to save and close all opened documents; otherwise only
@@ -1776,11 +1791,14 @@ def canClose(index=None, window=bLUeTop.Gui.window):
         viewer.getViewerInstance().currentToSettings(mainWin=window)
 
     if window.tabBar.count() == 0:
+        cleanPool()
         return True
     closeAllRequested = (index is None)
 
     def canCloseTab(ind):
         img = window.tabBar.tabData(ind)
+        if not img:  # may be index out of range
+            return True
         if img.isModified:
             if ind != window.tabBar.currentIndex():
                 window.tabBar.setCurrentIndex(ind)
@@ -1808,21 +1826,38 @@ def canClose(index=None, window=bLUeTop.Gui.window):
                 return False
         # discard changes or img not modified: remove tab
         img = window.tabBar.tabData(ind)
+        if not img:  # may be index out of range
+            return True
         window.tabBar.removeTab(ind)  # keep before closeView
         stack = img.layersStack
         for layer in stack:  # little improvement for gc
             layer.closeView(delete=True)
         return True
 
-    if closeAllRequested:
-        while window.tabBar.count() > 0:
-            ind = window.tabBar.currentIndex()
-            if not canCloseTab(ind):
-                break
-    else:
-        return canCloseTab(index)
-    return window.tabBar.count() == 0
-
+    try:
+        window.tabBar.currentChanged.disconnect()  # To prevent crashes, signal slot executions must be synchronized.
+        if closeAllRequested:                      # So, we use direct calls to switchDoc.
+            while window.tabBar.count() > 0:
+                ind = window.tabBar.currentIndex()
+                canclose = canCloseTab(ind)
+                current = window.tabBar.currentIndex()
+                if 0 <= current < window.tabBar.count():
+                    switchDoc(current)
+                if not canclose:
+                    break
+            if window.tabBar.count() == 0:
+               cleanPool()
+        else:
+            canclose = canCloseTab(index)
+            current = window.tabBar.currentIndex()
+            if 0 <= current < window.tabBar.count():
+                switchDoc(current)
+            return canclose
+        # return window.tabBar.count() == 0  # moved to finally clause
+    finally:
+        window.tabBar.currentChanged.connect(switchDoc)
+        return window.tabBar.count() == 0
+    
 
 def updateStatus(window=bLUeTop.Gui.window):
     """
@@ -2408,7 +2443,47 @@ def setTabBar(window=bLUeTop.Gui.window):
     window.tabBar = tabBar
 
 
+class dupLogger(object):
+    """
+    This class provides logging facilities.
+    It opens a log file in the current program folder.
+    It exposes a file-like interface
+    enabling the duplication of stderr and/or stdout into the log file.
+    """
+
+    def __init__(self, stderr):
+        try:
+            self.terminal = stderr
+            self.log = open("log.txt", 'w')
+        except (FileNotFoundError, PermissionError, OSError) as e:
+            self.log = None
+            print("Error opening log file", e)
+
+    def write(self, message):
+        self.terminal.write(message)
+        if self.log:
+            self.log.write(message)
+            self.log.flush()
+
+    def flush(self):
+        if self.log:
+            self.log.flush()
+"""
+import logging
+def handler(exc_type, exc_value, exc_traceback):
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+    logging.error('toto', exc_info=(exc_type, exc_value, exc_traceback))
+"""
+
+
 if __name__ == '__main__':
+
+    sys.stderr = dupLogger(sys.stderr)
+    sys.stdout = sys.stderr  # log print() output
+    #sys.excepthook = handler
+
     #################
     # multiprocessing
     # freeze_support() must be called at the start of __main__
@@ -2419,7 +2494,7 @@ if __name__ == '__main__':
     # load UI
     bLUeTop.Gui.window.init()
     bLUeTop.Gui.window.setWindowIcon(QIcon('logo.png'))
-    # display splash screen and set app style sheet
+
     setupGUI()
     setTabBar()
 
