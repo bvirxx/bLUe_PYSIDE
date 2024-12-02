@@ -171,7 +171,9 @@ class bImage(QImage):
         return self is not other
 
     def __del__(self):
-        print('*********** %s' % type(self))
+        filename = getattr(self, 'filename', '')
+        name = getattr(self, 'name', '')
+        print('*********** %s %s %s %s' % (type(self), self.size(), name, filename))
 
     def setProfile(self, profile):
         """
