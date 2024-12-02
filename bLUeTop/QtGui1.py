@@ -46,6 +46,7 @@ class Form1(QMainWindow):
         self.currentScreenIndex = 0
         self.__colorChooser, self.__infoView = (None,) * 2
         self.onCloseEvent = lambda: True
+        self.onCleanBeforeDestr = lambda: True
 
     @property
     def colorChooser(self):
@@ -171,17 +172,14 @@ class Form1(QMainWindow):
 
     def closeEvent(self, event):
         if self.onCloseEvent():
-            # close
-            event.accept()
+            self.setCursor(Qt.CursorShape.WaitCursor)  # closing app...
+            self.onCleanBeforeDestr()  # close pool
+            event.accept()  # hide and destroy main window
+            self.settings.sync()
+            if getattr(sys, 'frozen', False):
+                showConsole()
         else:
-            # don't close
             event.ignore()
-            return
-        self.settings.sync()
-        if getattr(sys, 'frozen', False):
-            showConsole()
-        super(Form1, self).closeEvent(event)
-
 
 def enumerateMenuActions(menu):
     """
