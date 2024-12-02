@@ -101,7 +101,7 @@ class graphicsFormGrading(baseForm):
         self.border = 20
         self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
 
-        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        # self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         self.size = axeSize
 
         self.predLabel1 = QLabel()

@@ -82,7 +82,7 @@ class graphicsFormAuto3DLUT(baseForm):
         self.border = 20
         self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         # self.setMinimumSize(axeSize + 90, axeSize + 250)
-        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        # self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         self.size = axeSize
 
         self.predLabel1 = QLabel()

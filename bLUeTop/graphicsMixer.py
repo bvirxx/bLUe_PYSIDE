@@ -72,7 +72,7 @@ class mixerForm(baseGraphicsForm):
         self.setMinimumSize(axeSize, axeSize + 100)
         # color wheel size
         self.cwSize = axeSize * 0.95
-        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        #self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         # options
         optionList = ['Monochrome']  # , 'Luminosity']
         listWidget1 = optionsWidget(options=optionList, exclusive=False, changed=self.dataChanged,

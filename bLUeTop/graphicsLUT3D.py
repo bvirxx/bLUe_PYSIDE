@@ -1228,7 +1228,7 @@ class graphicsForm3DLUT(baseGraphicsForm):
         self.border = 20
         self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         self.setMinimumSize(axeSize + 90, axeSize + 90)  # + 250)
-        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        #self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         self.setBackgroundBrush(QBrush(Qt.GlobalColor.black, Qt.BrushStyle.SolidPattern))
         self.currentHue, self.currentSat, self.currentPb = 0, 0, self.defaultColorWheelBr
         self.currentR, self.currentG, self.currentB = 0, 0, 0
