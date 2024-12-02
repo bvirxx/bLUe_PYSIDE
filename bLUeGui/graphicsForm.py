@@ -132,6 +132,14 @@ class abstractForm:
         """
         pass
 
+    def cleanBeforeDestr(self):
+        """
+        Called immediately before the form destruction
+        (see QLayer.closeView()).
+        Override to clean the form (e.g. threads) before
+        it is destroyed).
+        """
+        pass
 
 #################################################
 # Base graphic forms.
