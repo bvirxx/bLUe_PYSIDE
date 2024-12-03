@@ -126,6 +126,9 @@ from os.path import isfile
 from tempfile import mktemp
 from pathlib import Path
 from string import Template
+import logging
+from logging.handlers import RotatingFileHandler
+from datetime import datetime
 
 import numpy as np
 import multiprocessing
@@ -412,7 +415,7 @@ def addRawAdjustmentLayer(window=bLUeTop.Gui.window):
 
 def loadImage(img, tfile=None, version='unknown', withBasic=True, window=bLUeTop.Gui.window):
     """
-    Builds the layer stack of img.
+    Adds img to tabBar and builds the layer stack of img.
     If tfile is an opened TiffFile instance, the stack
     is imported from file
 
@@ -659,33 +662,6 @@ def saveFile(filename, img, quality=-1, compression=-1, writeMeta=True):
         QApplication.restoreOverrideCursor()
         QApplication.processEvents()
     return filename
-
-
-def closeTabs(index=None, window=bLUeTop.Gui.window):
-    """
-    Tries to save and close the document open in tab index,
-    or all open documents if index is None . If the method  succeeds in
-    closing all open documents, it resets the GUI to default.
-
-    :param index:
-    :type index: int
-    :param window:
-    :type window:
-    """
-    if not canClose(index=index) or window.tabBar.count() > 0:  # canclose change tabbar count
-        #gc.collect()
-        return
-    # window.tableView.clear(delete=True)
-    window.histView.targetImage = None
-    defaultImImage = initDefaultImage()
-    window.label.img = defaultImImage
-    window.label_2.img = defaultImImage
-    window.label_3.img = defaultImImage
-    window.tableView.clear(delete=True)  # 30/11/21
-    #gc.collect()
-    #window.label.update()
-    #window.label_2.update()
-    #window.label_3.update()
 
 
 def showHistogram(window=bLUeTop.Gui.window):
@@ -1772,7 +1748,7 @@ def cleanPool():
         QGuiApplication.restoreOverrideCursor()
 
 
-def canClose(index=None, window=bLUeTop.Gui.window):
+def closeTabs(index=None, window=bLUeTop.Gui.window):
     """
     If index is None, tries to save and close all opened documents; otherwise only
     the document in index tab is considered.
@@ -1790,15 +1766,15 @@ def canClose(index=None, window=bLUeTop.Gui.window):
     if viewer.isInstanciated():
         viewer.getViewerInstance().currentToSettings(mainWin=window)
 
-    if window.tabBar.count() == 0:
-        cleanPool()
-        return True
     closeAllRequested = (index is None)
 
-    def canCloseTab(ind):
-        img = window.tabBar.tabData(ind)
+    if window.tabBar.count() == 0:
+        return True
+
+    def canCloseTab(ind, img):
+        #img = window.tabBar.tabData(ind)
         if not img:  # may be index out of range
-            return True
+            return True  # False ?
         if img.isModified:
             if ind != window.tabBar.currentIndex():
                 window.tabBar.setCurrentIndex(ind)
@@ -1824,36 +1800,41 @@ def canClose(index=None, window=bLUeTop.Gui.window):
             except (ValueError, IOError) as e:
                 dlgWarn('An error occurred while closing tab', str(e))
                 return False
-        # discard changes or img not modified: remove tab
-        img = window.tabBar.tabData(ind)
-        if not img:  # may be index out of range
-            return True
+        return True
+
+
+    def deleteTab(ind, img):
         window.tabBar.removeTab(ind)  # keep before closeView
         stack = img.layersStack
-        for layer in stack:  # little improvement for gc
+        for layer in stack:
             layer.closeView(delete=True)
-        return True
+        current = window.tabBar.currentIndex()
+        switchDoc(current)
+
 
     try:
         window.tabBar.currentChanged.disconnect()  # To prevent crashes, signal slot executions must be synchronized.
         if closeAllRequested:                      # So, we use direct calls to switchDoc.
             while window.tabBar.count() > 0:
                 ind = window.tabBar.currentIndex()
-                canclose = canCloseTab(ind)
-                current = window.tabBar.currentIndex()
-                if 0 <= current < window.tabBar.count():
-                    switchDoc(current)
-                if not canclose:
+                img = window.tabBar.tabData(ind)
+                canclose = canCloseTab(ind, img)
+                if canclose:
+                    deleteTab(ind, img)
+                else:
                     break
-            if window.tabBar.count() == 0:
-               cleanPool()
         else:
-            canclose = canCloseTab(index)
-            current = window.tabBar.currentIndex()
-            if 0 <= current < window.tabBar.count():
-                switchDoc(current)
-            return canclose
-        # return window.tabBar.count() == 0  # moved to finally clause
+            ind = window.tabBar.currentIndex()
+            if ind == index:
+                img = window.tabBar.tabData(ind)
+                canclose = canCloseTab(ind, img)
+                if canclose:
+                    deleteTab(ind, img)
+            else:
+                window.tabBar.setCurrentIndex(index)
+                switchDoc(index)
+    except RuntimeError:  # possible disconnect error
+        pass
     finally:
         window.tabBar.currentChanged.connect(switchDoc)
         return window.tabBar.count() == 0
@@ -2274,7 +2255,8 @@ def setupGUI(window=bLUeTop.Gui.window):
     window.splitView = False
 
     # close event handler
-    window.onCloseEvent = canClose
+    window.onCloseEvent = closeTabs
+    window.onCleanBeforeDestr = cleanPool
 
     # watch hover events
     window.label.setMouseTracking(True)
@@ -2399,7 +2381,10 @@ def switchDoc(index, window=bLUeTop.Gui.window):
     layer = window.label.img.getActiveLayer()
     if layer.tool is not None:
         layer.tool.hideTool()
-    img = window.tabBar.tabData(index)
+    if 0 <= index < window.tabBar.count():
+        img = window.tabBar.tabData(index)
+    else:
+        img = initDefaultImage()
     setDocumentImage(img)
 
 
@@ -2442,47 +2427,36 @@ def setTabBar(window=bLUeTop.Gui.window):
     hlay.addLayout(vlay)
     window.tabBar = tabBar
 
+##############################################
+# logger and exception handler init
+def initLogging():
+    #file_handler = logging.FileHandler("log.txt", mode="a", encoding="utf-8")
+    file_handler = RotatingFileHandler('log.txt',
+                                       mode='a',
+                                       maxBytes=5*1024*1024,
+                                       backupCount=2,
+                                       encoding=None,
+                                       delay=False
+                                       )
+    logger = logging.getLogger('blue')
+    logger.addHandler(file_handler)
+    logger.setLevel('INFO')
+    return logger
 
-class dupLogger(object):
-    """
-    This class provides logging facilities.
-    It opens a log file in the current program folder.
-    It exposes a file-like interface
-    enabling the duplication of stderr and/or stdout into the log file.
-    """
+logger = initLogging()
 
-    def __init__(self, stderr):
-        try:
-            self.terminal = stderr
-            self.log = open("log.txt", 'w')
-        except (FileNotFoundError, PermissionError, OSError) as e:
-            self.log = None
-            print("Error opening log file", e)
-
-    def write(self, message):
-        self.terminal.write(message)
-        if self.log:
-            self.log.write(message)
-            self.log.flush()
-
-    def flush(self):
-        if self.log:
-            self.log.flush()
-"""
-import logging
-def handler(exc_type, exc_value, exc_traceback):
+def excHandler(exc_type, exc_value, exc_traceback):
+    logger.error('PID %d' % os.getpid(), exc_info=(exc_type, exc_value, exc_traceback))
     if issubclass(exc_type, KeyboardInterrupt):
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
-        return
-    logging.error('toto', exc_info=(exc_type, exc_value, exc_traceback))
-"""
 
+sys.excepthook = excHandler
+##############################################
 
 if __name__ == '__main__':
 
-    sys.stderr = dupLogger(sys.stderr)
-    sys.stdout = sys.stderr  # log print() output
-    #sys.excepthook = handler
+    dt = datetime.now()
+    logger.info('******************** main :  PID %d %s', os.getpid(), dt)
 
     #################
     # multiprocessing
@@ -2491,6 +2465,7 @@ if __name__ == '__main__':
     # Otherwise, it does nothing.
     #################
     multiprocessing.freeze_support()
+
     # load UI
     bLUeTop.Gui.window.init()
     bLUeTop.Gui.window.setWindowIcon(QIcon('logo.png'))
@@ -2498,6 +2473,4 @@ if __name__ == '__main__':
     setupGUI()
     setTabBar()
 
-    ###############
-    # launching app
     sys.exit(bLUeTop.Gui.app.exec())

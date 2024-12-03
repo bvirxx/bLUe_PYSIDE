@@ -23,7 +23,7 @@ from os.path import basename
 
 from PySide6 import QtCore
 from PySide6.QtCore import Qt, QPointF, QThread
-from PySide6.QtGui import QFontMetrics, QBrush, QPolygonF
+from PySide6.QtGui import QFontMetrics, QBrush, QPolygonF, QGuiApplication
 from PySide6.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBox, QGraphicsPolygonItem
 
 from bLUeGui.baseSignal import baseSignal_List
@@ -158,6 +158,7 @@ class rawForm(baseForm):
         super().__init__(layer=layer, targetImage=targetImage, parent=parent)
 
         self.axeSize = axeSize
+        self.w = None  # QThread for async loading of camera profiles
 
         rawpyObj = layer.parentImage.rawImage
 
@@ -541,24 +542,21 @@ class rawForm(baseForm):
             """
         )  # end of setWhatsThis
 
-    def close(self):
+    def cleanBeforeDestr(self):
         """
-        Overrides QWidget.close to
-        close toneForm and contrastForm.
-
-        :return:
-        :rtype: boolean
+        Stops async thread
         """
-        delete = self.testAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
-        for attr in ['toneForm', 'contrastForm']:
-            form = getattr(self, attr, None)
-            if delete and form is not None:
-                dock = form.parent()
-                dock.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
-                form.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
-                dock.close()
-                form.close()
-        return super().close()
+        try:
+            QGuiApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+            if self.w:
+                print('rawForm: closing thread...')
+                self.w.quit()
+                self.w.wait(60000)
+                print('rawForm: thread closed')
+        except (RuntimeError, AttributeError) as e:
+            print('RawForm close error:', str(e))
+        finally:
+            QGuiApplication.restoreOverrideCursor()
 
     def showToneSpline(self):
         """
@@ -845,47 +843,15 @@ class rawForm(baseForm):
         :param startIndex: starting index
         :type startIndex: int
         """
-        # loadCameraProfiles_async is called only once. So, we define workerThread locally.
-        class workerThread(QThread):
-
-            result_available = baseSignal_List()
-
-            def populate(items):
-                # executed in main thread
-                try:
-                    for key, df in items:
-                        self.cameraProfilesCombo.addItem(key, userData=df)
-                    # All available profiles are loaded. Try to restore the recorded profile
-                    if self.postloadprofilename:
-                        ind = self.cameraProfilesCombo.findText(self.postloadprofilename)
-                        if ind != -1 and ind != self.cameraProfilesCombo.currentIndex():
-                            self.cameraProfilesCombo.setCurrentIndex(ind)
-                finally:
-                    self.cameraProfilesCombo.unsetCursor()
-                    del self.w  # deliver async thread to gc
-
-            result_available.sig.connect(populate)
-
-            def run(self):
-                # executed in new thread
-                cameraProfilesComboList = []
-                dummy = getDngProfileDicts(files[startIndex:])
-                for i, (f, d) in enumerate(dummy.items()):
-                    key = basename(f)[:-4] if i + startIndex > 0 else 'Embedded Profile'
-                    # filter d
-                    df = {k: d[k] for k in d if d[k] != ''}
-                    if df:
-                        cameraProfilesComboList.append((key, df))
-                # Last, add 'None' profile
-                key = 'None'
-                df = {}  # traceDict({}, ident=key)
-                cameraProfilesComboList.append((key, df))
-                self.result_available.sig.emit(cameraProfilesComboList)
-
+        profileList = workerThread.profileListDict.get(self.targetImage.cameraModel(), None)
         self.cameraProfilesCombo.setCursor(Qt.CursorShape.WaitCursor)
-        self.w = workerThread()  # protect from gc
-        self.w.start()
-
+        self.w = workerThread(files, startIndex, self.postloadprofilename, self.cameraProfilesCombo,
+                              self.targetImage)
+        self.w.setParent(self)
+        if profileList is not None:
+            self.w.populate(profileList)
+        else:
+            self.w.start()
 
     def setCameraProfilesCombo(self):
         """
@@ -966,3 +932,58 @@ class rawForm(baseForm):
                 self.cameraProfilesCombo.setCurrentIndex(ind)
         self.dataChanged.connect(self.updateLayer)
         self.dataChanged.emit(1)
+
+
+class workerThread(QThread):
+
+    cameraModel = ''
+    profileListDict = {}  # profiles are loaded only once for same camera model
+
+    def __init__(self, files, startIndex, postloadprofilename, cameraProfilesCombo, img):
+        super().__init__()
+        self.files = files
+        self.startIndex = startIndex
+        self.postloadprofilename = postloadprofilename
+        self.cameraProfilesCombo = cameraProfilesCombo
+        self.result_available = baseSignal_List()
+        self.result_available.sig.connect(self.populate)
+        self.img = img
+        self.name = img.filename
+
+    def populate(self, items):
+        # This slot is executed in the main thread
+        try:
+            self.__class__.cameraModel = self.img.cameraModel()
+            self.__class__.profileListDict[self.img.cameraModel()] = items
+            cpCombo = self.cameraProfilesCombo
+            for key, df in items:
+                cpCombo.addItem(key, userData=df)
+            # All available profiles are loaded. Try to restore the recorded profile
+            if self.postloadprofilename:
+                ind = cpCombo.findText(self.postloadprofilename)
+                if ind != -1 and ind != cpCombo.currentIndex():
+                    cpCombo.setCurrentIndex(ind)
+            cpCombo.unsetCursor()
+        except (RuntimeError, AttributeError) as e:
+            print('populate error', self.name, str(e))
+        except Exception as e:
+            print('populate error', self.name, e)
+
+    def run(self):
+        # executed in new thread
+        try:
+            cameraProfilesComboList = []
+            dummy = getDngProfileDicts(self.files[self.startIndex:])
+            for i, (f, d) in enumerate(dummy.items()):
+                key = basename(f)[:-4] if i + self.startIndex > 0 else 'Embedded Profile'
+                # filter d
+                df = {k: d[k] for k in d if d[k] != ''}
+                if df:
+                    cameraProfilesComboList.append((key, df))
+            # Last, add 'None' profile
+            key = 'None'
+            df = {}
+            cameraProfilesComboList.append((key, df))
+            self.result_available.sig.emit(cameraProfilesComboList)
+        except Exception as e:
+            print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!', self.name, e)

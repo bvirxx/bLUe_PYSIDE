@@ -1132,7 +1132,8 @@ class QLayer(vImage):
 
     def closeView(self, delete=False):
         """
-        Closes all windows associated with layer.
+        Closes graphic windows associated with layer.
+        If delete is True, deleteLater is called.
 
         :param delete:
         :type delete: boolean
@@ -1144,16 +1145,15 @@ class QLayer(vImage):
             if delete:
                 form = dock.widget()
                 # break back link
-                if hasattr(form, 'layer'):
-                    form.layer = None
-                form.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
-                form.close()
-                form.__dict__.clear()  # TODO awful - prepare for gc - probably useless test needed 30/11/21 validate
-                dock.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
-                dock.setParent(None)
+                #if hasattr(form, 'layer'):  # TODO useless ? 29/11/24
+                    #form.layer = None
+                form.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, False)  # TODO False added 29/11/24
+                form.cleanBeforeDestr()
+                # form.__dict__.clear()  # TODO awful - prepare for gc - probably useless test needed 30/11/21 validate
+                dock.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, False) # TODO False added 29/11/24
+                # dock.setParent(None)
                 dock.close()
-                dock.__dict__.clear()  # TODO awful - prepare for gc - probably useless test needed 30/11/21 validate
-                # self.view = None  # TODO removed 29/11/21 validate
+                #dock.__dict__.clear()  # TODO awful - prepare for gc - probably useless test needed 30/11/21 validate
             else:  # tabbed forms should not be closed
                 temp = dock.tabbed
                 dock.setFloating(True)
@@ -1161,20 +1161,25 @@ class QLayer(vImage):
                 # window.removeDockWidget(dock)
                 dock.hide()
 
+
+        # get dock of graphic form
         view = getattr(self, 'view', None)
         if view is None:
             return
-        # close all subwindows
         form = self.view.widget()
         for dock in form.subControls:
             closeDock(dock, delete=delete)
+            if delete:
+                dock.deleteLater()
         # close window
         closeDock(view, delete=delete)
         if delete:
-            form.subControls = []
-            self.execute = None  # TODO prepare for gc  probably useless test needed 30/11/21 validate
+            #form.subControls = []
+            #form.deleteLater()  # replaced by view.deleteLater 29/11/24
+            view.deleteLater()
+            self.execute = None  # prepare for gc  probably useless test needed
             self.view = None
-            self.__dict__.clear()
+            # self.__dict__.clear()  # removed 18/11/24
 
     def isActiveLayer(self):
         if self.parentImage.getActiveLayer() is self:
