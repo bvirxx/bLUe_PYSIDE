@@ -3,6 +3,7 @@ shiboken6>=6.7.0
 numpy>=1.21.2+mkl
 rawpy>=0.17.0
 pillow>=9.3.0
+pillow-heif>=0.21
 PyWavelets>=1.2.0
 opencv-python>=4.0
 tifffile>=2021.11.2

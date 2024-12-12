@@ -34,6 +34,7 @@ from PySide6.QtGui import QTransform, QImage
 from os.path import isfile
 from bLUeTop.settings import EXIFTOOL_PATH
 from bLUeGui.dialog import dlgWarn
+from bLUeTop.utils import fileRoot
 
 
 class ExifTool(object):
@@ -161,8 +162,9 @@ class ExifTool(object):
         # following exif doc, wild cards do not copy icc_profile : we must specify it explicitly
         # Tag ImageDescription is added by tifffile to .blu files to hold the layer stack.
         # Copying it to sidecar will restore old stack.
+        root = fileRoot(f)
         command = ["-tagsFromFile", f, "-all", "-icc_profile", "-overwrite_original", "--ImageDescription",
-                   f[:-4] + ".mie"]
+                   root + ".mie"]
         self.execute(*command)
 
     def copySidecar(self, source, dest, removesidecar=False):
@@ -180,7 +182,8 @@ class ExifTool(object):
         :return: True if sidecar file exists, False otherwise
         :rtype: bool
         """
-        sidecar = source[:-4] + '.mie'
+        root = fileRoot(source)
+        sidecar = root + '.mie'
         if isfile(sidecar):
             # copy metadata from sidecar to image file
             # following exif doc, wild cards do not copy icc_profile : we must specify it explicitly
@@ -301,7 +304,8 @@ class ExifTool(object):
         :return: tag info
         :rtype: str
         """
-        filename = filename[:-4] + ext
+        root = fileRoot(filename)
+        filename = root + ext
         if not isfile(filename):
             raise ValueError
         command = ['-%s' % tagName] + [filename]
@@ -324,7 +328,8 @@ class ExifTool(object):
         :param value: tag value
         :type value: str or number
         """
-        fmie = filename[:-4] + '.mie'
+        root = fileRoot(filename)
+        fmie = root + '.mie'
         # if sidecar does not exist create it
         if not isfile(fmie):
             self.createSidecar(filename)

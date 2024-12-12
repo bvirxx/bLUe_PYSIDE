@@ -24,16 +24,18 @@ from PySide6.QtWidgets import QMessageBox, QPushButton, QFileDialog, QDialog, QS
     QCheckBox, QFormLayout, QLineEdit, QDialogButtonBox, QScrollArea, QProgressDialog, QSizePolicy, QToolButton
 
 from bLUeTop import Gui
-from bLUeTop.utils import QbLUeSlider, stateAwareQDockWidget
+from bLUeTop.utils import QbLUeSlider, stateAwareQDockWidget, fileRoot
 
 ##################
 # file extension constants
 BLUE_FILE_EXTENSIONS = (".blu", ".BLU", ".bLU")
-IMAGE_FILE_EXTENSIONS = (".jpg", ".JPG", ".png", ".PNG", ".tif", ".TIF", ".bmp", ".BMP")
+IMAGE_FILE_EXTENSIONS = (".jpg", ".JPG", ".jpeg", ".JPEG", ".png", ".PNG", ".tif", ".TIF", ".bmp", ".BMP")
+HEIF_FILE_EXTENSIONS = (".heif", ".HEIF", ".heic", ".HEIC")
 RAW_FILE_EXTENSIONS = (".nef", ".NEF", ".dng", ".DNG", ".cr2", ".CR2", ".arw", ".ARW")
 SVG_FILE_EXTENSIONS = (".svg", ".SVG")
-ALL_FILE_EXTENSIONS = BLUE_FILE_EXTENSIONS + IMAGE_FILE_EXTENSIONS + RAW_FILE_EXTENSIONS + SVG_FILE_EXTENSIONS
-IMAGE_FILE_NAME_FILTER = ['Image Files (' + " *".join(ALL_FILE_EXTENSIONS) + ')']                            #  ['Image Files (*.jpg *.png *.tif *.blu *.JPG *.PNG *.TIF *.BLU *.nef *.NEF)']
+ALL_FILE_EXTENSIONS = BLUE_FILE_EXTENSIONS + IMAGE_FILE_EXTENSIONS +\
+                        HEIF_FILE_EXTENSIONS + RAW_FILE_EXTENSIONS + SVG_FILE_EXTENSIONS
+IMAGE_FILE_NAME_FILTER = ['Image Files (' + " *".join(ALL_FILE_EXTENSIONS) + ')']
 
 
 #################
@@ -435,7 +437,8 @@ def saveDlg(img, mainForm, ext='jpg', selected=True, parent=None):
     dlg = savingDialog(parent, "Save", lastDir)
     if selected:
         # default saving format jpg
-        dlg.selectFile(basename(img.filename)[:-3] + ext)
+        root = fileRoot(basename(img.filename))
+        dlg.selectFile(root + '.' + ext)
     filename = ''
     if dlg.exec():
         newDir = dlg.directory().absolutePath()
@@ -480,6 +483,7 @@ def openDlg(mainForm, ask=True, multiple=False, key='dlgdir', parent=None):
     mainForm.label.img.isModified = False
     lastDir = str(mainForm.settings.value(key, '.'))
     filter = "Images ( *" + " *".join(IMAGE_FILE_EXTENSIONS) + \
+             " *" + " *".join(HEIF_FILE_EXTENSIONS) + \
              " *" + " *".join(RAW_FILE_EXTENSIONS) + \
              " *" + " *".join(BLUE_FILE_EXTENSIONS) + \
              " *" + " *".join(SVG_FILE_EXTENSIONS) + ")"

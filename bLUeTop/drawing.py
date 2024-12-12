@@ -28,6 +28,7 @@ from PySide6.QtGui import QPixmap, QColor, QPainter, QRadialGradient, QBrush, QP
 from bLUeGui.bLUeImage import QImageBuffer, ndarrayToQImage
 from bLUeTop.presetReader import aParser
 from bLUeTop.settings import BRUSHES_PATH
+from bLUeTop.utils import fileExt
 
 
 class pattern:
@@ -403,7 +404,7 @@ def loadPresets(filename, first=1):
     try:
         rank = first
         entry = os.path.basename(filename)
-        if entry[-4:].lower() in ['.png', '.jpg']:
+        if fileExt(entry).lower() in ['.png', '.jpg']:
             try:
                 qpp = QPainterPath()
                 qpp.addEllipse(QRect(0, 0, baseSize, baseSize))
@@ -413,7 +414,7 @@ def loadPresets(filename, first=1):
                 rank += 1
             except IOError:
                 pass
-        elif entry[-4:].lower() in ['.abr']:
+        elif fileExt(entry).lower() in ['.abr']:
             sImages, pImages = aParser.readFile(os.getcwd() + '\\' + BRUSHES_PATH + '\\' + entry)
             for im in sImages:
                 qpp = QPainterPath()

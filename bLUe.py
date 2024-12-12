@@ -137,18 +137,20 @@ import threading
 from itertools import cycle
 from time import sleep
 import gc
+
 import tifffile
 from ast import literal_eval
 from types import MethodType
 import pickle
 import rawpy
 from PIL import ImageCms
+import pillow_heif
 
 from PySide6.QtCore import QUrl, QFileInfo
 from PySide6.QtGui import QPixmap, QCursor, QKeySequence, QDesktopServices, QFont, \
     QTransform, QColor, QImage, QIcon, QAction, QPalette, QGuiApplication
 from PySide6.QtWidgets import QApplication, \
-    QDockWidget, QSizePolicy, QSplashScreen, QWidget, \
+    QDockWidget, QSplashScreen, QWidget, \
     QTabWidget, QToolBar, QComboBox, QTabBar, QFrame
 
 import bLUeTop.QtGui1
@@ -185,7 +187,7 @@ from bLUeTop.graphicsCoBrSat import CoBrSatForm
 from bLUeTop.graphicsExp import ExpForm
 from bLUeTop.graphicsPatch import patchForm
 from bLUeTop.settings import USE_POOL, POOL_SIZE, THEME, TABBING, BRUSHES_PATH, COLOR_MANAGE_OPT, HAS_TORCH
-from bLUeTop.utils import UDict, stateAwareQDockWidget, QImageFromFile, imagej_description_metadata, compat
+from bLUeTop.utils import UDict, stateAwareQDockWidget, QImageFromFile, imagej_description_metadata, compat, fileExt
 from bLUeTop.graphicsTemp import temperatureForm
 from bLUeTop.graphicsFilter import filterForm
 from bLUeTop.graphicsHspbLUT import graphicsHspbForm
@@ -439,7 +441,7 @@ def loadImage(img, tfile=None, version='unknown', withBasic=True, window=bLUeTop
     
     window.tableView.previewOptionBox.setChecked(True)
 
-    isFromBlue = tfile is not None and img.filename[-4:].upper() in BLUE_FILE_EXTENSIONS
+    isFromBlue = tfile is not None and fileExt(img.filename).upper() in BLUE_FILE_EXTENSIONS
 
     # add development layer for raw image, and develop
     rlayer = None
@@ -529,7 +531,7 @@ def openFile(f, window=bLUeTop.Gui.window):
     :type  window: Form1
     """
     iobuf = None
-    sourceformat = path.basename(f)[-4:].upper()
+    sourceformat = fileExt(f).upper()
     tfile = None
     version = 'unknown'
     try:
@@ -554,10 +556,25 @@ def openFile(f, window=bLUeTop.Gui.window):
                     dlgWarn('Invalid blu file', info=str(e))
                     raise IOError
                 iobuf = io.BytesIO(rawbuf.tobytes())
-
+        elif sourceformat in HEIF_FILE_EXTENSIONS:
+            if pillow_heif.is_supported(f):
+                heif_file = pillow_heif.open_heif(f, bgr_mode=True)  # convert to 8 bits
+                # heif_file = pillow_heif.open_heif(f, convert_hdr_to_8bit=False, bgr_mode=True)
+                # image_number = len(heif_file)
+                iobuf = np.asarray(heif_file[0], copy=True)  # read primary image only
+                if iobuf.shape[2] < 4 :
+                    # add alpha channel
+                    aux = np.zeros((iobuf.shape[0], iobuf.shape[1], 4), dtype=np.uint8)
+                    aux[...,:3] = iobuf
+                    aux[...,3] = 255
+                    iobuf = aux
+            else:
+                raise IOError('Pillow: not supported HEIF file')
         ##############################################################
-        # load imImage instance from file. If rawiobuf is None the
-        # file is read using QImageReader, bLU file included (tif file).
+        # load imImage instance from file. If iobuf is None, the
+        # file will be read using QImageReader, bLU file included (tif file).
+        # Otherwise, the type of iobuf must be either io.BytesIO for a .blu file from raw,
+        # or ndarray for a HEIF/HEIC file.
         ##############################################################
         img = imImage.loadImageFromFile(f, rawiobuf=iobuf, cmsConfigure=True, window=window)
         QApplication.processEvents()
@@ -629,12 +646,13 @@ def saveFile(filename, img, quality=-1, compression=-1, writeMeta=True):
         if retButton is accButton:
             i = 0
             base = filename
+            root, ext = os.path.splitext(base)
             if '_copy' in base:
                 flag = '_'
             else:
                 flag = '_copy'
             while isfile(filename):
-                filename = base[:-4] + flag + str(i) + base[-4:]
+                filename = root + flag + str(i) + ext
                 i = i + 1
         # overwrite
         elif retButton is rejButton:
@@ -855,7 +873,7 @@ def updateMenuLoadPreset(window=bLUeTop.Gui.window):
     window.menuLoad_Preset.clear()
     for entry in os.scandir(BRUSHES_PATH):
         if entry.is_file():
-            ext = entry.name[-4:].lower()
+            ext = fileExt(entry.name).lower()
             if ext in ['.png', '.jpg', '.abr']:
                 filename = os.getcwd() + '\\' + BRUSHES_PATH + '\\' + entry.name
                 # filter .abr versions
@@ -1476,7 +1494,7 @@ def layerScripting(name, window=bLUeTop.Gui.window, sname=None, script=False):
             return
         for filename in filenames:
             # load image from file, alpha channel is mandatory for applyTransform()
-            ext = filename[-4:]
+            ext = fileExt(filename)
             if ext in list(IMAGE_FILE_EXTENSIONS) + list(SVG_FILE_EXTENSIONS):
                 imgNew = QImageFromFile(filename)
             elif ext in list(RAW_FILE_EXTENSIONS):

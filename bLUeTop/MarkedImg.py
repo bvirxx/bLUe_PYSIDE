@@ -56,7 +56,8 @@ from bLUeTop.cloning import contours, moments, seamlessClone, alphaBlend
 
 from bLUeTop.colorManagement import icc
 from bLUeGui.bLUeImage import QImageBuffer, ndarrayToQImage, bImage
-from bLUeGui.dialog import dlgWarn, dlgInfo, IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, BLUE_FILE_EXTENSIONS
+from bLUeGui.dialog import dlgWarn, dlgInfo, IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, BLUE_FILE_EXTENSIONS, \
+    HEIF_FILE_EXTENSIONS
 from time import time
 
 from bLUeTop.graphicsBlendFilter import blendFilterIndex
@@ -65,7 +66,7 @@ from bLUeGui.baseSignal import baseSignal_bool, baseSignal_Int2, baseSignal_No
 from bLUeTop.mergeImages import expFusion
 from bLUeTop.rawProcessing import rawRead, rawPostProcess
 from bLUeTop.settings import HAS_TORCH
-from bLUeTop.utils import qColorToRGB, historyList, UDict
+from bLUeTop.utils import qColorToRGB, historyList, UDict, fileExt
 
 from bLUeTop.versatileImg import vImage
 
@@ -635,7 +636,7 @@ class mImage(vImage):
             if np.any(buf[:, :, 3] < 255):
                 dlgWarn('Transparency will be lost. Use PNG format instead')
 
-        fileFormat = filename[-4:].upper()
+        fileFormat = fileExt(filename).upper()
 
         # get the final image from the presentation layer.
         # This image is NOT color managed (only prLayer.qPixmap
@@ -668,7 +669,7 @@ class mImage(vImage):
         ba = QByteArray()
         buffer = QBuffer(ba)
         buffer.open(QIODevice.OpenModeFlag.WriteOnly)
-        thumb.save(buffer, 'JPG')
+        thumb.save(buffer, 'JPG')  # CAUTION returns False when using keyword arg: format='JPG'
 
         transparencyCheck(buf, fileFormat)
 
@@ -697,7 +698,7 @@ class mImage(vImage):
 
             if self.sourceformat in RAW_FILE_EXTENSIONS:
                 # copy raw file and layer stack to .bLU
-                originFormat = self.filename[-4:]  # format of opened document
+                originFormat = fileExt(self.filename)  # format of opened document
                 if originFormat in BLUE_FILE_EXTENSIONS:  # format of source file
                     with tifffile.TiffFile(self.filename) as tfile:  # raw image will be copied from source file
                         sourcedata = tfile.series[0].pages[0].asarray()
@@ -736,7 +737,7 @@ class mImage(vImage):
                                           )
                 written = True  # with compression > 0 result is None
 
-            elif self.sourceformat in IMAGE_FILE_EXTENSIONS or self.sourceformat == '':  # format == '' for new document
+            elif self.sourceformat in IMAGE_FILE_EXTENSIONS + HEIF_FILE_EXTENSIONS or self.sourceformat == '':  # format == '' for new document
                 # copy source image and layer stack to .BLU.
                 img_ori = self
 
@@ -861,11 +862,16 @@ class imImage(mImage):
         # load image
         ############
         name = path.basename(f)
-        ext = name[-4:]
+        ext = fileExt(name)
         if (ext in list(IMAGE_FILE_EXTENSIONS) + list(BLUE_FILE_EXTENSIONS)) and rawiobuf is None:
             # standard image file or .blu from image
             img = imImage(filename=f, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata,
                           profile=profile, name=name, rating=rating)
+        elif ext in HEIF_FILE_EXTENSIONS:
+            # Here, rawiobuf is a numpy array
+            img = imImage(cv2Img=rawiobuf, colorSpace=colorSpace, orientation=transformation, rawMetadata=metadata,
+                          profile=profile, name=name, rating=rating)
+            img.filename = f
         elif ext in list(RAW_FILE_EXTENSIONS) + list(BLUE_FILE_EXTENSIONS):
             # load raw image file in a RawPy instance
             if rawiobuf is None:

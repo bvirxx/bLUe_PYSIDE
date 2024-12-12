@@ -30,7 +30,7 @@ from bLUeGui.baseSignal import baseSignal_List
 from bLUeGui.graphicsSpline import graphicsSplineForm
 from bLUeGui.graphicsForm import baseForm
 from bLUeTop.dng import getDngProfileList, getDngProfileDict, dngProfileToneCurve, getDngProfileDicts
-from bLUeTop.utils import optionsWidget, UDict, QbLUeSlider, QbLUeComboBox
+from bLUeTop.utils import optionsWidget, UDict, QbLUeSlider, QbLUeComboBox, fileRoot
 from bLUeGui.multiplier import *
 
 
@@ -878,7 +878,8 @@ class rawForm(baseForm):
         nextInd, found = 0, False
         while nextInd < len(files) and not found:
             f = files[nextInd]
-            key = basename(f)[:-4] if nextInd > 0 else 'Embedded Profile'
+            root = fileRoot(basename(f))
+            key = root if nextInd > 0 else 'Embedded Profile'
             d = getDngProfileDict(f)
             # filter d
             d = {k: d[k] for k in d if d[k] != ''}
@@ -975,7 +976,8 @@ class workerThread(QThread):
             cameraProfilesComboList = []
             dummy = getDngProfileDicts(self.files[self.startIndex:])
             for i, (f, d) in enumerate(dummy.items()):
-                key = basename(f)[:-4] if i + self.startIndex > 0 else 'Embedded Profile'
+                root = fileRoot(basename(f))
+                key = root if i + self.startIndex > 0 else 'Embedded Profile'
                 # filter d
                 df = {k: d[k] for k in d if d[k] != ''}
                 if df:

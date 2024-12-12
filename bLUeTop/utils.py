@@ -16,6 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import ctypes
+import os.path
 import sys
 from itertools import product
 import numpy as np
@@ -32,6 +33,28 @@ from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.baseSignal import baseSignal_No
 
 from version import BLUE_VERSION
+
+
+def fileExt(filename):
+    """
+    Returns file extension (from last point included to end of filename)
+    :param filename:
+    :type filename: str
+    :return: file extension
+    :rtype: str
+    """
+    return os.path.splitext(filename)[1]
+
+
+def fileRoot(filename):
+    """
+    Returns file path up to last point (excluded)
+    :param filename:
+    :type filename: str
+    :return:
+    :rtype: str
+    """
+    return os.path.splitext(filename)[0]
 
 
 def compat(v, version):

@@ -64,7 +64,7 @@ See the [bLUe site](http://bernard.virot.free.fr/) for screenshots, tutorials an
 
 * Neural-network-based automatic 3D LUT for image enhancement
 * Soft proofing
-* Simultaneous edition of multiple images in formats jpg, png, tif, nef, cr2, arw, dng,...
+* Simultaneous edition of multiple images in formats jpg, heic, png, tif, nef, cr2, arw, dng,...
 * Color profile management
 * Adjustment layers : exposure, brightness, saturation, contrast, channel mixer, color temperature,
   inversion, filters, color grading. 

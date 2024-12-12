@@ -35,7 +35,7 @@ from bLUeTop import exiftool
 from bLUeTop.MarkedImg import imImage
 import bLUeTop.Gui
 from bLUeTop.imLabel import slideshowLabel
-from bLUeTop.utils import stateAwareQDockWidget, imagej_description_metadata, compat
+from bLUeTop.utils import stateAwareQDockWidget, imagej_description_metadata, compat, fileExt
 from bLUeGui.dialog import IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, BLUE_FILE_EXTENSIONS, dlgWarn
 
 # global variable recording diaporama state
@@ -298,7 +298,7 @@ class loader(QObject):
                                               thumbname='PreviewImage'
                                               )  # the order is important : for jpeg PreviewImage is full sized !
                     # may be a bLU file
-                    if img.isNull() and filename[-4:] in BLUE_FILE_EXTENSIONS:
+                    if img.isNull() and fileExt(filename) in BLUE_FILE_EXTENSIONS:
                         tfile = tifffile.TiffFile(filename)
                         meta_dict = imagej_description_metadata(tfile.pages[0].description)
                         version = meta_dict.get('version', 'unknown')
