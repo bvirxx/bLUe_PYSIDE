@@ -25,7 +25,7 @@ from PySide6 import QtCore
 from PySide6.QtGui import QColor, QImage, QPainter, QImageReader, QPixmap
 from PySide6.QtWidgets import QListWidget, QListWidgetItem, \
     QSlider, QLabel, QDockWidget, QStyle, QColorDialog, QPushButton, QSizePolicy, QComboBox, QSpinBox, \
-    QDialog, QDialogButtonBox, QVBoxLayout
+    QDialog, QDialogButtonBox, QVBoxLayout, QCommonStyle
 from PySide6.QtCore import Qt, QObject, QRect
 
 from bLUeCore.rollingStats import movingVariance
@@ -496,6 +496,18 @@ class QbLUePushButton(QPushButton):
     Form PushButtons (specific style sheet)
     """
     pass
+
+
+class sortPushButton(QbLUePushButton):
+    """
+    PushButton with standard arrow icons
+    """
+    def __init__(self, text):
+        super().__init__(text)
+        style = QCommonStyle()
+        self.icons = (style.standardIcon(QStyle.StandardPixmap.SP_ArrowUp),
+                      style.standardIcon(QStyle.StandardPixmap.SP_ArrowDown)
+                     )
 
 
 class historyList(list):
