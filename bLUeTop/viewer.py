@@ -19,6 +19,8 @@ import gc
 import os
 import pickle
 import shutil
+from datetime import datetime
+
 import tifffile
 from ast import literal_eval
 from os import walk, path, listdir
@@ -26,17 +28,21 @@ from os.path import basename, isfile
 from re import search
 
 from PySide6.QtCore import Qt, QMimeData, QPoint, QSize, QBuffer, QIODevice, QRect, QEventLoop, \
-    QTimer, QObject
-from PySide6.QtGui import QKeySequence, QImage, QDrag, QAction, QPixmap, QIcon
+    QTimer, QObject, QMargins
+from PySide6.QtGui import QKeySequence, QImage, QDrag, QAction, QPixmap, QIcon, QFontMetrics
 from PySide6.QtWidgets import QMainWindow, QSizePolicy, QMenu, QListWidget, QAbstractItemView, \
-    QApplication, QListWidgetItem, QFileDialog
+    QApplication, QListWidgetItem, QFileDialog, QWidget, QHBoxLayout, QLabel, QPushButton
 
+from bLUeGui.memory import weakProxy
 from bLUeTop import exiftool
 from bLUeTop.MarkedImg import imImage
 import bLUeTop.Gui
+from bLUeTop.heif import readheifFile2QImage
 from bLUeTop.imLabel import slideshowLabel
-from bLUeTop.utils import stateAwareQDockWidget, imagej_description_metadata, compat, fileExt
-from bLUeGui.dialog import IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, BLUE_FILE_EXTENSIONS, dlgWarn
+from bLUeTop.utils import stateAwareQDockWidget, imagej_description_metadata, compat, fileExt, sortPushButton, \
+    QbLUePushButton
+from bLUeGui.dialog import IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, BLUE_FILE_EXTENSIONS, dlgWarn, \
+    HEIF_FILE_EXTENSIONS
 
 # global variable recording diaporama state
 isSuspended = False
@@ -213,12 +219,43 @@ def playDiaporama(diaporamaGenerator, parent=None):
     bLUeTop.Gui.window.modeDiaporama = False
 
 
+class blueQListWidgetItem(QListWidgetItem):
+    """
+    Overrides QListWidgetItem comparison operator <.
+    To choose the right operator, instances use
+    a weak ref to the containing QListWidget (QListWidgetItem
+    has no parent attribute)
+    """
+    def __init__(self, *args, listwidget=None):
+        super().__init__(*args)
+        self.wdg = weakProxy(listwidget)
+
+    def __lt__(self, other):
+        sortIndex = self.wdg.sortIndex
+        sortOrder = self.wdg.sortOrder
+        if  sortOrder == Qt.SortOrder.AscendingOrder:
+            return self.data(Qt.ItemDataRole.UserRole)[sortIndex] < other.data(Qt.ItemDataRole.UserRole)[sortIndex]
+        else:
+            return self.data(Qt.ItemDataRole.UserRole)[sortIndex] > other.data(Qt.ItemDataRole.UserRole)[sortIndex]
+
+
 class dragQListWidget(QListWidget):
     """
-    This class is used by playViewer() instead of QListWidget.
-    It reimplements mousePressEvent and inits
+    This class overrides mousePressEvent.It initializes
     a convenient QMimeData object for drag and drop events.
+    For item comparisons, the < operator is determined by
+    the attributes sortIndex and sortOrder.
+    sortIndex indicates which component of item's user data will be used
+    for comparison.
+    sortOrder is a tuple of length maxSortIndex + 1, containing a value
+    (AscendingOrder or DescendingOrder) for each index.
     """
+
+    def __init__(self, maxSortIndex=3):
+        super().__init__()
+        self.maxSortIndex = maxSortIndex
+        self.sortIndex = 0
+        self.sortOrder = [Qt.SortOrder.AscendingOrder]  * (maxSortIndex + 1)
 
     def mousePressEvent(self, event):
         # call to super needed for selections
@@ -270,10 +307,13 @@ class loader(QObject):
                         # read metadata from sidecar (.mie) if it exists, otherwise from image file.
                         profile, metadata = e.get_metadata(filename,
                                                            tags=(
-                                                               "colorspace", "profileDescription",
+                                                               "colorspace",
+                                                               "profileDescription",
                                                                "orientation",
                                                                "model",
-                                                               "rating", "FileCreateDate"),
+                                                               "rating",
+                                                               "DateTimeOriginal",
+                                                               "FileCreateDate"),
                                                            createsidecar=False)
                     except ValueError:
                         metadata = {}
@@ -281,9 +321,20 @@ class loader(QObject):
                     # get image info
                     tmp = [value for key, value in metadata.items() if 'orientation' in key.lower()]
                     orientation = tmp[0] if tmp else 1  # metadata.get("EXIF:Orientation", 1)
-                    # EXIF:DateTimeOriginal seems to be missing in many files
-                    tmp = [value for key, value in metadata.items() if 'date' in key.lower()]
-                    date = tmp[0] if tmp else ''  # metadata.get("EXIF:ModifyDate", '')
+                    # EXIF:DateTimeOriginal seems to be missing in some files
+                    tmp1, tmp2 = metadata.get("DateTimeOriginal", None), metadata.get("FileCreateDate", None)
+                    date1, date2 = (datetime.min, ) * 2
+                    if tmp1:
+                        try:
+                            date1 = datetime.strptime(tmp1, "%Y:%m:%d %H:%M:%S")
+                        except ValueError:
+                            pass
+                    if tmp2:
+                        try:
+                            date2 = datetime.strptime(tmp2, "%Y:%m:%d %H:%M:%S%z")
+                        except ValueError:
+                            pass
+
                     tmp = [value for key, value in metadata.items() if 'rating' in key.lower()]
                     rating = tmp[0] if tmp else 0  # metadata.get("XMP:Rating", 5)
                     rating = ''.join(['*'] * int(rating))
@@ -312,10 +363,13 @@ class loader(QObject):
                             img.load(buffer, 'JPG')
                     # everything else fails, read file !
                     if img.isNull():
-                        img = QImage(filename).scaled(QSize(viewer.iconSize, viewer.iconSize),
+                        if filename.endswith(HEIF_FILE_EXTENSIONS):
+                            img = readheifFile2QImage(filename)
+                        else:
+                            img = QImage(filename)
+                        img = img.scaled(QSize(viewer.iconSize, viewer.iconSize),
                                                       aspectMode=Qt.AspectRatioMode.KeepAspectRatio
                                                       )
-
                     if img.isNull():
                         raise IOError
 
@@ -329,10 +383,15 @@ class loader(QObject):
                         pxm = pxm.transformed(transformation)
 
                     # set item caption and tooltip
-                    item = QListWidgetItem(QIcon(pxm), basename(filename))  # icon, text
-                    item.setToolTip(basename(filename) + ' ' + date + ' ' + rating)
+                    item = blueQListWidgetItem(QIcon(pxm), basename(filename), listwidget=self.viewerInstance.listWdg)  # icon, text
+                    item.setToolTip(basename(filename) +
+                                    '\n' +
+                                    'Taken:\t\t' + date1.strftime("%Y %m %d %X %p") +
+                                    '\n' +
+                                    'Created:\t' + date2.strftime("%Y %m %d %X %p")
+                                    )
                     # set item mimeData to get filename=item.data(Qt.UserRole)[0] transformation=item.data(Qt.UserRole)[1]
-                    item.setData(Qt.ItemDataRole.UserRole, (filename, transformation))
+                    item.setData(Qt.ItemDataRole.UserRole, (filename, transformation, date1, date2))
                     item.setSizeHint(QSize(viewer.iconSize, viewer.iconSize + 15))
                     self.populate([item])
                 except (OSError, IOError, ValueError, tifffile.TiffFileError, KeyError, SyntaxError,
@@ -379,7 +438,8 @@ class viewer(QObject):
         self.listWdg = None
         self.currentDir = '.'
         self.dock, self.fileDlg = (None,) * 2
-        self.fileDlg = None
+        self.sortButtons = ()
+        self.cMenu = None
         self.initWins()
         self.initCMenu()
 
@@ -392,7 +452,6 @@ class viewer(QObject):
         return mainWin.settings.value('paths/dlgdir', '.')
 
     def initWins(self):
-        # init listWdg
         listWdg = dragQListWidget()
         listWdg.setWrapping(False)
         listWdg.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
@@ -401,7 +460,9 @@ class viewer(QObject):
         listWdg.setIconSize(QSize(self.iconSize, self.iconSize))
         listWdg.setMaximumSize(160000, self.iconSize + 40)
         listWdg.setDragDropMode(QAbstractItemView.DragDropMode.DragDrop)
-        # listWdg.customContextMenuRequested.connect(self.contextMenu)  # disabled 12/11/24
+        listWdg.customContextMenuRequested.connect(self.contextMenu)
+
+        self.listWdg = listWdg
 
         # dock the viewer
         dock = stateAwareQDockWidget(bLUeTop.Gui.window)
@@ -410,12 +471,47 @@ class viewer(QObject):
         dock.setWindowTitle(listWdg.windowTitle())
         self.dock = dock
 
+        # add a titleBar widget to dock
+        tbw = QWidget()
+        dock.setTitleBarWidget(tbw)
+        hl = QHBoxLayout()
+        hl.setContentsMargins(QMargins(2,2,2,2))
+        self.titleLabel = QLabel()
+        self.titleLabel.setMargin(2)
+        self.selLabel = QLabel()
+        self.selLabel.setMargin(2)
+        font = self.titleLabel.font()
+        metrics = QFontMetrics(font)
+        h = metrics.height()
+        self.titleLabel.setFixedSize(250, h)
+        hl.addWidget(self.titleLabel)
+        hl.addStretch()
+        hl.addWidget(self.selLabel)
+        self.selButton = QbLUePushButton('Select All')
+        hl.addWidget(self.selButton)
+        nameButton = sortPushButton('File name')
+        hl.addWidget(nameButton)
+        takenButton = sortPushButton('Taken date')
+        hl.addWidget(takenButton)
+        creationButton = sortPushButton('Creation Date')
+        hl.addWidget(creationButton)
+        tbw.setLayout(hl)
+
+        self.sortButtons = (nameButton, QPushButton(), takenButton, creationButton)
+
+        self.selButton.pressed.connect(self.listWdg.selectAll)
+
+        nameButton.pressed.connect(lambda : self.sort(0))
+        takenButton.pressed.connect(lambda: self.sort(2))
+        creationButton.pressed.connect(lambda: self.sort(3))
+
         bLUeTop.Gui.window.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, dock)
 
-        self.listWdg = listWdg
         self.listWdg.setWhatsThis(
-            """<b>Library Viewer</b><br>
+            """<b>File Explorer</b><br>
             To <b>open an image</b> drag and drop its icon into the main window.<br>
+            To <b> sort icons</b> use the 3 rightmost buttons.
+            To <b>copy</b> selected files, right clic an icon and use the context menu.
             """
         )  # end setWhatsThis
 
@@ -424,13 +520,24 @@ class viewer(QObject):
         Context menu initialization
         """
         menu = QMenu()
-        menu.addAction("Copy Image to Clipboard", self.hCopy)
+        actionCopy = QAction("Copy ", None)
+        menu.addAction(actionCopy)
+        actionCopy.triggered.connect(self.hCopy)
+        menu.actionCopy = actionCopy
+        # selection change slot
+        def h():
+            selectionList = self.listWdg.selectedItems()
+            menu.actionCopy.setEnabled(bool(selectionList))
+            self.selLabel.setText('%d file(s) selected' % len(selectionList))
+        self.listWdg.itemSelectionChanged.connect(h)
+        """
         subMenuRating = menu.addMenu('Rating')
         for i in range(6):
             action = QAction(str(i), None)
             subMenuRating.addAction(action)
             action.triggered.connect(
                 lambda checked=False, action=action: self.setRating(action))  # named arg checked is sent
+        """
         self.cMenu = menu
 
     def contextMenu(self, pos):
@@ -439,28 +546,38 @@ class viewer(QObject):
 
     def hCopy(self):
         """
-        Slot for copy files
-        Currently unsused
+        Slot for file copying
         """
         sel = self.listWdg.selectedItems()
-        destDir = QFileDialog.getExistingDirectory(None,
+        lastDir = str(bLUeTop.Gui.window.settings.value('paths/dlgcopydir', '.'))
+        destDir = QFileDialog.getExistingDirectory(bLUeTop.Gui.window,
                                                "Open Directory",
-                                                "/home",
-                                                QFileDialog.Option.ShowDirsOnly
-                                                 )
-        #dlg.selectedFiles()[0].absolutePath()
-        for item in sel:
-            if os.path.exists(os.path.join(destDir, item.text())):
-                dlgWarn('error')
-            else:
-                sourceFile = os.path.join(self.currentDir, item.text())
-                shutil.copy(sourceFile, destDir)
-        return
+                                                   lastDir,
+                                                   QFileDialog.Option.ShowDirsOnly
+                                                   )
+        try:
+            if not os.path.isdir(destDir):
+                raise(OSError('Destination Directory does not exist'))
+            count = 0
+            for item in sel:
+                if os.path.exists(os.path.join(destDir, item.text())):
+                    dlgWarn('Cannot copy %s' % item.text())
+                else:
+                    sourceFile = os.path.join(self.currentDir, item.text())
+                    shutil.copy2(sourceFile, destDir)  # copy metadata too
+                    count += 1
+            dlgWarn('       %d file(s) copied          ' % count)
+            bLUeTop.Gui.window.settings.setValue('paths/dlgcopydir', destDir)
+        except OSError as e:
+            dlgWarn('      Error copying files     ', info=str(e))
 
-    # slot for action rating
     def setRating(self, action):
-        # rating : the tag is written into the .mie file; the file is
-        # created if needed.
+        """
+        rating : the tag is written into the .mie file; the file is
+        created if needed.
+        :param action:
+        :type action:
+        """
         listWdg = self.listWdg
         sel = listWdg.selectedItems()
         if action.text() in ['0', '1', '2', '3', '4', '5']:
@@ -471,45 +588,57 @@ class viewer(QObject):
                     e.writeXMPTag(filename, 'XMP:rating', value)
                     item.setText(basename(filename) + ''.join(['*'] * value))
 
-    def doGen(self, folder, withsub=False):
-        if withsub:
-            # browse the directory and its subfolders
-            fileListGen = (path.join(dirpath, filename) for (dirpath, dirnames, filenames) in walk(folder) for filename
-                           in filenames if
-                           filename.endswith(IMAGE_FILE_EXTENSIONS) or
-                           filename.endswith(RAW_FILE_EXTENSIONS) or
-                           filename.endswith(BLUE_FILE_EXTENSIONS))
-        else:
-            fileListGen = (path.join(folder, filename) for filename in listdir(folder) if
-                           isfile(path.join(folder, filename)) and (
-                                   filename.endswith(IMAGE_FILE_EXTENSIONS) or
-                                   filename.endswith(RAW_FILE_EXTENSIONS)) or
-                                   filename.endswith(BLUE_FILE_EXTENSIONS))
+    def doGen(self, folder):
+        fileListGen = (path.join(folder, filename) for filename in listdir(folder) if
+                       isfile(path.join(folder, filename)) and (
+                               filename.endswith(IMAGE_FILE_EXTENSIONS) or
+                               filename.endswith(RAW_FILE_EXTENSIONS)) or
+                               filename.endswith(BLUE_FILE_EXTENSIONS) or
+                                filename.endswith(HEIF_FILE_EXTENSIONS)
+                       )
         self.currentDir = folder
         return fileListGen
 
+    def sort(self, index):
+        # self.listWdg.sortIndex = index
+        self.listWdg.sortItems(self.listWdg.sortOrder[index])
+        self.listWdg.sortOrder[index] = Qt.SortOrder.DescendingOrder\
+                                        if self.listWdg.sortOrder[index] == Qt.SortOrder.AscendingOrder\
+                                        else Qt.SortOrder.AscendingOrder
+        icon = self.sortButtons[index].icons[0] if self.listWdg.sortOrder[index] == Qt.SortOrder.AscendingOrder\
+                                                else self.sortButtons[index].icons[1]
+        for btn in self.sortButtons:
+            btn.setIcon(QIcon())  # reset all icons
+        self.sortButtons[index].setIcon(icon)
+        selectionList = self.listWdg.selectedItems()
+        # scroll to selection
+        if bool(selectionList):
+            self.listWdg.scrollToItem(selectionList[0], QAbstractItemView.ScrollHint.PositionAtTop)
+
     def playViewer(self, folder):
         """
-        Opens a window and displays all images in a folder.
+        Opens a window and displays all images from folder.
 
         :param folder: path to folder
         :type folder: str
         :return: loader instance
         :rtype: thread
         """
-
         # build generator
         try:
             fileListGen = self.doGen(folder)
             self.listWdg.clear()
             self.dock.setWindowTitle(folder)
+            self.titleLabel.setText(folder)
             self.listWdg.showMaximized()
+
             QApplication.processEvents()  # needed for instant showing
 
             ldr = loader(fileListGen, self)
             ldr.load()
 
-            #self.dock.setWindowTitle(self.currentDir)  # currentDir may be changed by loader
+            self.sort(0)
+
         except (FileNotFoundError, NotADirectoryError):
             pass
 
