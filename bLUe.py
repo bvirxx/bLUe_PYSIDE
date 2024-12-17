@@ -144,7 +144,6 @@ from types import MethodType
 import pickle
 import rawpy
 from PIL import ImageCms
-import pillow_heif
 
 from PySide6.QtCore import QUrl, QFileInfo
 from PySide6.QtGui import QPixmap, QCursor, QKeySequence, QDesktopServices, QFont, \
@@ -174,6 +173,7 @@ from bLUeTop.graphicsNoise import noiseForm
 from bLUeTop.graphicsRaw import rawForm
 from bLUeTop.graphicsTransform import transForm, imageForm
 from bLUeGui.bLUeImage import QImageBuffer, QImageFormats, ndarrayToQImage
+from bLUeTop.heif import readheifFile
 from bLUeTop.presetReader import aParser
 from bLUeTop.rawProcessing import rawRead
 from bLUeTop.versatileImg import vImage, metadataBag
@@ -557,19 +557,7 @@ def openFile(f, window=bLUeTop.Gui.window):
                     raise IOError
                 iobuf = io.BytesIO(rawbuf.tobytes())
         elif sourceformat in HEIF_FILE_EXTENSIONS:
-            if pillow_heif.is_supported(f):
-                heif_file = pillow_heif.open_heif(f, bgr_mode=True)  # convert to 8 bits
-                # heif_file = pillow_heif.open_heif(f, convert_hdr_to_8bit=False, bgr_mode=True)
-                # image_number = len(heif_file)
-                iobuf = np.asarray(heif_file[0], copy=True)  # read primary image only
-                if iobuf.shape[2] < 4 :
-                    # add alpha channel
-                    aux = np.zeros((iobuf.shape[0], iobuf.shape[1], 4), dtype=np.uint8)
-                    aux[...,:3] = iobuf
-                    aux[...,3] = 255
-                    iobuf = aux
-            else:
-                raise IOError('Pillow: not supported HEIF file')
+            iobuf = readheifFile(f)
         ##############################################################
         # load imImage instance from file. If iobuf is None, the
         # file will be read using QImageReader, bLU file included (tif file).
@@ -915,7 +903,7 @@ def setBlueFileExplorer(window, fromini=False):
     fileDlg = QblueFileDialog(window, "Select a folder", lastDir)
     fileDlg.setNameFilters(IMAGE_FILE_NAME_FILTER + ['All files (*)'])
     fileDlg.setFileMode(QFileDialog.FileMode.Directory)
-
+    fileDlg.setOption(QFileDialog.Option.ShowDirsOnly)
     fileDlg.setLabelText(QFileDialog.DialogLabel.Accept, 'Close')  # accept button
     fileDlg.setWhatsThis(
         """
