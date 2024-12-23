@@ -122,9 +122,6 @@ class graphicsFormAuto3DLUT(baseForm):
             layout.addLayout(lay)
         layout.addWidget(self.exportBtn)
 
-        def f():
-            self.dataChanged.emit()
-
         def g():
             try:
                 filename = save3DLUTDlg(Gui.window)
@@ -134,7 +131,7 @@ class graphicsFormAuto3DLUT(baseForm):
                 dlgWarn('Export Failure', info=str(e))
 
         for s in sliders:
-            s.sliderReleased.connect(f)
+            s.sliderReleased.connect(self.dataChanged)
 
         self.exportBtn.clicked.connect(g)
 
