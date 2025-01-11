@@ -29,7 +29,8 @@ from bLUeTop.utils import QbLUeSlider, stateAwareQDockWidget, fileRoot
 ##################
 # file extension constants
 BLUE_FILE_EXTENSIONS = (".blu", ".BLU", ".bLU")
-IMAGE_FILE_EXTENSIONS = (".jpg", ".JPG", ".jpeg", ".JPEG", ".png", ".PNG", ".tif", ".TIF", ".bmp", ".BMP")
+IMAGE_FILE_EXTENSIONS = (".jpg", ".JPG", ".jpeg", ".JPEG", ".jfif", ".JFIF", ".png", ".PNG",
+                         ".tif", ".TIF", ".bmp", ".BMP")
 HEIF_FILE_EXTENSIONS = (".heif", ".HEIF", ".heic", ".HEIC")
 RAW_FILE_EXTENSIONS = (".nef", ".NEF", ".dng", ".DNG", ".cr2", ".CR2", ".arw", ".ARW")
 SVG_FILE_EXTENSIONS = (".svg", ".SVG")

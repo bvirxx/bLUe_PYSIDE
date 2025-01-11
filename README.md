@@ -162,6 +162,7 @@ a preview mode speeds up processing without compromising the workflow.
 
 ### Intuitive GUI
 
+![GUI](Capture2.JPG)
 > The GUI is designed for seamless interaction with processing parameters. 
 Each layer has a dedicated view that reflects real-time changes, 
 ensuring immediate feedback. The platform’s user-friendly interface 
