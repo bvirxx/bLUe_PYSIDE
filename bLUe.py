@@ -187,7 +187,8 @@ from bLUeTop.graphicsCoBrSat import CoBrSatForm
 from bLUeTop.graphicsExp import ExpForm
 from bLUeTop.graphicsPatch import patchForm
 from bLUeTop.settings import USE_POOL, POOL_SIZE, THEME, TABBING, BRUSHES_PATH, COLOR_MANAGE_OPT, HAS_TORCH
-from bLUeTop.utils import UDict, stateAwareQDockWidget, QImageFromFile, imagej_description_metadata, compat, fileExt
+from bLUeTop.utils import UDict, stateAwareQDockWidget, QImageFromFile, imagej_description_metadata, fileExt, \
+    restricted_loads
 from bLUeTop.graphicsTemp import temperatureForm
 from bLUeTop.graphicsFilter import filterForm
 from bLUeTop.graphicsHspbLUT import graphicsHspbForm
@@ -469,7 +470,7 @@ def loadImage(img, tfile=None, version='unknown', withBasic=True, window=bLUeTop
         try:
             # restore state of raw (develop) layer
             if rlayer is not None:
-                d = pickle.loads(literal_eval(compat(meta_dict['develop'], version)))  # keys are turned to lower !
+                d = restricted_loads(literal_eval(meta_dict['develop']))  # keys are turned to lower !
                 rlayer.__setstate__(d)
 
             # import layer stack
@@ -484,19 +485,15 @@ def loadImage(img, tfile=None, version='unknown', withBasic=True, window=bLUeTop
                 # 'images' in QLayer's dict).
                 try:
                     v = meta_dict[key]
-                    if type(v) is str:
-                        # possibly pickled string. Try conversion to the
-                        # right bLUe version and unpickle.
-                        v = compat(v, version)
-                    d = pickle.loads(literal_eval(v))
+                    d = restricted_loads(literal_eval(v))
                     if key == 'cropmargins' and d != (0.0, 0.0, 0.0, 0.0):
                         img.setCropMargins(d, window.cropTool)  # type(d) is tuple
                         window.cropButton.setChecked(True)
                     elif type(d) is dict:
                         layers.append((key, d))
-                except (SyntaxError, ValueError, pickle.UnpicklingError):
+                except (SyntaxError, ValueError):
                     continue
-                except AttributeError as e_in:
+                except (AttributeError, pickle.UnpicklingError) as e_in:
                     dlgWarn('Deprecated bLU file. Version: %s' % version, info=str(e_in))
                     dlgWarn('Cannot restore layer %s' % key)
                     continue

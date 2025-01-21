@@ -19,6 +19,11 @@ import ctypes
 import os.path
 import sys
 from itertools import product
+
+import builtins
+import io
+import pickle
+
 import numpy as np
 
 from PySide6 import QtCore
@@ -31,8 +36,6 @@ from PySide6.QtCore import Qt, QObject, QRect
 from bLUeCore.rollingStats import movingVariance
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.baseSignal import baseSignal_No
-
-from version import BLUE_VERSION
 
 
 def fileExt(filename):
@@ -55,16 +58,6 @@ def fileRoot(filename):
     :rtype: str
     """
     return os.path.splitext(filename)[0]
-
-
-def compat(v, version):
-    if BLUE_VERSION[:2] == 'V2' and version[:2] == 'V6':
-        v = v.replace('\\x12shiboken6.Shiboken', '\\x13shiboken2.shiboken2')
-        v = v.replace('PySide6', 'PySide2')
-    elif BLUE_VERSION[:2] == 'V6' and version[:2] != 'V6':
-        v = v.replace('shiboken2.shiboken2', 'shiboken6.Shiboken')
-        v = v.replace('PySide2', 'PySide6')
-    return v
 
 
 def imagej_description_metadata(description):
@@ -859,6 +852,43 @@ class stateAwareQDockWidget(QDockWidget):
     @property
     def isClosed(self):
         return self._closed
+
+
+safe_builtins = {'bool',
+                 'str',
+                 'bytes',
+                 'byteArray',
+                 'int',
+                 'float',
+                 'tuple',
+                 'list',
+                 'dict'
+                }
+
+safe_qt = {'QByteArray',
+           'QColor',
+           'QPoint',
+           'QPointF',
+           'QPainter.CompositionMode',
+           'Qt.CheckState'
+            }
+
+class RestrictedUnpickler(pickle.Unpickler):
+
+    def find_class(self, module, name):
+        # Only allow safe classes from builtins and Qt.
+        if module == "builtins" and name in safe_builtins:
+            return getattr(builtins, name)
+        elif module == "PySide6.QtCore" or module == "PySide6.QtGui":
+            if name in safe_qt:
+                return super().find_class(module, name)
+        # Forbid everything else.
+        raise pickle.UnpicklingError("global '%s.%s' is forbidden" % (module, name))
+
+
+def restricted_loads(s):
+    """Helper function analogous to pickle.loads()."""
+    return RestrictedUnpickler(io.BytesIO(s)).load()
 
 
 def clip(image, mask, inverted=False):

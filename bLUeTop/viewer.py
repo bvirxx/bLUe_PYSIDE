@@ -23,7 +23,7 @@ from datetime import datetime
 
 import tifffile
 from ast import literal_eval
-from os import walk, path, listdir
+from os import path, listdir
 from os.path import basename, isfile
 from re import search
 
@@ -39,8 +39,8 @@ from bLUeTop.MarkedImg import imImage
 import bLUeTop.Gui
 from bLUeTop.heif import readheifFile2QImage
 from bLUeTop.imLabel import slideshowLabel
-from bLUeTop.utils import stateAwareQDockWidget, imagej_description_metadata, compat, fileExt, sortPushButton, \
-    QbLUePushButton
+from bLUeTop.utils import stateAwareQDockWidget, imagej_description_metadata, fileExt, sortPushButton, \
+    QbLUePushButton, restricted_loads
 from bLUeGui.dialog import IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, BLUE_FILE_EXTENSIONS, dlgWarn, \
     HEIF_FILE_EXTENSIONS
 
@@ -355,8 +355,7 @@ class loader(QObject):
                         version = meta_dict.get('version', 'unknown')
                         v = meta_dict.get('thumbnailimage', None)
                         if v is not None:
-                            v = compat(v, version)
-                            ba = pickle.loads(literal_eval(v))
+                            ba = restricted_loads(literal_eval(v))
                             buffer = QBuffer(ba)
                             buffer.open(QIODevice.OpenModeFlag.ReadOnly)
                             img = QImage()
