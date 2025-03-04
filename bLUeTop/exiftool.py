@@ -409,16 +409,23 @@ def decodeExifOrientation(value):
     """
     # identity transformation
     tr = QTransform()
-    if value == 0:
-        pass
-    elif value == 1:
-        pass
-    elif value == 6:  # TODO complete
+
+    # value == 0 and value == 1 correspond to identity
+    if value == 2:
+        tr.scale(-1, 1)
+    elif value == 3:
+        tr.rotate(180)
+    elif value == 4:
+        tr.rotate(180).scale(-1, 1)  # rotation + horizontal symmetry
+    elif value == 5:
+        tr.rotate(90).scale(-1, 1)
+    elif value == 6:
         tr.rotate(90)  # clockwise
+    elif value == 7:
+        tr.rotate(-90).scale(-1, 1) # rotation + horizontal symmetry
     elif value == 8:
         tr.rotate(-90)  # counterclockwise
-    else:
-        raise ValueError("decodeExifOrientation : unhandled orientation tag: %d" % value)
+
     return tr
 
 
