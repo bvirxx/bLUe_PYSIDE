@@ -550,7 +550,7 @@ class viewer(QObject):
         sel = self.listWdg.selectedItems()
         lastDir = str(bLUeTop.Gui.window.settings.value('paths/dlgcopydir', '.'))
         destDir = QFileDialog.getExistingDirectory(bLUeTop.Gui.window,
-                                               "Open Directory",
+                                                   "Open Directory",
                                                    lastDir,
                                                    QFileDialog.Option.ShowDirsOnly
                                                    )
