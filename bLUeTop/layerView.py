@@ -375,9 +375,10 @@ class QLayerView(QTableView):
         self.closeAdjustForms(delete=delete)
         self.img = None
         self.currentWin = None
-        # model = layerModel()
-        # model.setColumnCount(3)
+        m = self.selectionModel()
         self.setModel(None)
+        if m:
+            m.deleteLater()
 
     def setLayers(self, mImg, delete=False):
         """

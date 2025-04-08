@@ -27,6 +27,7 @@ from PySide6.QtCore import Qt, QRectF
 from bLUeGui.graphicsForm import graphicsCurveForm
 from bLUeTop.utils import optionsWidget, QbLUePushButton
 from .baseSignal import baseSignal_No
+from .logginit import logger
 from .spline import interpolationCubSpline, interpolationQuadSpline, displacementSpline
 from .const import channelValues
 
@@ -824,7 +825,7 @@ class activeQuadricSpline(activeSpline):
             mboundingPath = stroker.createStroke(qpp)
             self.setPath(mboundingPath)
         except Exception as e:
-            print(str(e))
+            logger.warning('updatePath', exc_info=e)
 
     def setCurve(self, a, b, d, T):
         """

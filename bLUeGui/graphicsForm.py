@@ -20,6 +20,8 @@ from PySide6.QtCore import QPoint
 from PySide6.QtWidgets import QGraphicsView, QGraphicsScene, QSizePolicy, QGraphicsPathItem, QWidget, QVBoxLayout
 from PySide6.QtGui import QColor, QPen, QPainterPath, QBrush
 from PySide6.QtCore import Qt
+
+from bLUeGui.logginit import logger
 from bLUeGui.memory import weakProxy
 from bLUeTop.utils import stateAwareQDockWidget
 
@@ -71,7 +73,7 @@ class abstractForm:
         self.__targetImage = weakProxy(aTargetImage)
 
     def __del__(self):
-        print('*********** %s' % type(self))
+        logger.info('%s', type(self))
 
     def colorPickedSlot(self, x, y, modifiers):
         """

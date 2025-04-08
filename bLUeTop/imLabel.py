@@ -25,6 +25,7 @@ from PySide6.QtGui import QPainter, QColor, QBrush, QContextMenuEvent, QFont, QP
 from PySide6.QtWidgets import QLabel
 
 from bLUeGui.dialog import dlgWarn
+from bLUeGui.logginit import logger
 from bLUeTop.drawing import bLUeFloodFill, brushFamily
 from bLUeTop.settings import MAX_ZOOM
 from bLUeTop.utils import checkeredImage, virtualCursor
@@ -757,7 +758,7 @@ class imageLabel(QLabel):
             self.mouseReleaseEvent(event)
 
         else:
-            print('unhandled tablet event', eventType)
+            logger.warning('unhandled tablet event %s', eventType)
 
     def updateCursor(self, event):
         """

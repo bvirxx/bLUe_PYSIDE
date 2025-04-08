@@ -24,6 +24,7 @@ from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFi
 
 from bLUeGui.graphicsForm import baseForm
 from bLUeGui.dialog import IMAGE_FILE_EXTENSIONS, dlgWarn
+from bLUeGui.logginit import logger
 
 from bLUeTop.utils import optionsWidget, UDict, QImageFromFile
 
@@ -47,7 +48,7 @@ class BWidgetImg(QLabel):
             self.grForm = kwargs['parent']
 
     def __del__(self):
-        print('widgetImg deleted')
+        logger.info('widgetImg deleted')
 
     def mousePressEvent(self, ev):
         super().mousePressEvent(ev)
@@ -197,7 +198,7 @@ class patchForm(baseForm):
         )  # end of setWhatsthis
 
     def __del__(self):
-        print('patchForm deleted')
+        logger.info('patchForm deleted')
 
     def setDefaults(self):
         self.enableOptions()

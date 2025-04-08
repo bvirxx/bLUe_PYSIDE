@@ -17,6 +17,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import os
 
+from bLUeGui.logginit import logger
 from bLUeTop import exiftool
 import numpy as np
 from bLUeGui.spline import cubicSpline
@@ -200,7 +201,7 @@ class dngProfileLookTable:
             self.__data = buf
             self.isValid = True
         except (ValueError, TypeError) as e:
-            print('dngProfileLooktable : ', str(e))
+            logger.warning('dngProfileLooktable error :', exc_info=e)
 
     @property
     def divs(self):
@@ -259,7 +260,7 @@ class dngProfileIlluminants:
             self.temperature1, self.temperature2 = self.ExifTemperatureDict[illuminant1], self.ExifTemperatureDict[
                 illuminant2]
         except (ValueError, KeyError) as e:
-            print('dngProfileIlluminants : ', str(e))
+            logger.warning('dngProfileIlluminants error :', exc_info=e)
             raise e
 
 
@@ -276,7 +277,7 @@ class dngProfileColorMatrices:
                 setattr(self, '_' + tag, M)  # a single _ , as setattr does no mangling
 
         except (ValueError, KeyError) as e:
-            print('dngProfileColorMatrices : ', str(e))
+            logger.warning('dngProfileColorMatrices error:', exc_info=e)
             raise e
 
     @property
@@ -300,7 +301,7 @@ class dngProfileForwardMatrices:
                 M = np.array([float(x) for x in M.split(' ')]).reshape(3, 3)
                 setattr(self, '_' + tag, M)  # a single _ , as setattr does no mangling
         except (ValueError, KeyError) as e:
-            print('dngProfileForwardMatrices : ', str(e))
+            logger.warning('dngProfileForwardMatrices error :', exc_info=e)
             raise e
 
     @property
@@ -330,7 +331,7 @@ class dngProfileDual:
             self.__forwardMatrix1, self.__forwardMatrix2 = matrices.forwardMatrix1, matrices.forwardMatrix2
             self.__isValid = True
         except (ValueError, KeyError, AttributeError) as e:
-            print('dngProfileDual : ', str(e))
+            logger.warning('dngProfileDual error :', exc_info=e)
 
     @property
     def isValid(self):

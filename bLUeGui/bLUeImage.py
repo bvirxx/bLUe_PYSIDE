@@ -26,6 +26,7 @@ from numpy.linalg import LinAlgError
 from bLUeGui.colorCIE import sRGB2LabVec, sRGB_lin2XYZ, sRGB_lin2XYZInverse
 from bLUeGui.colorCube import rgb2hspVec
 from bLUeGui.const import channelValues
+from bLUeGui.logginit import logger
 
 
 class trackImage(QImage):
@@ -173,7 +174,7 @@ class bImage(QImage):
     def __del__(self):
         filename = getattr(self, 'filename', '')
         name = getattr(self, 'name', '')
-        print('*********** %s %s %s %s' % (type(self), self.size(), name, filename))
+        logger.info('%s %d %s %s', type(self), self.size(), name, filename)
 
     def setProfile(self, profile):
         """

@@ -36,6 +36,7 @@ from PySide6.QtCore import Qt, QObject, QRect
 from bLUeCore.rollingStats import movingVariance
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.baseSignal import baseSignal_No
+from bLUeGui.logginit import logger
 
 
 def fileExt(filename):
@@ -387,7 +388,7 @@ class traceDict(dict):
         self.ident = ident
 
     def __del__(self):
-        print('******************* destroyed dict', self.ident)
+        logger.info('del :  dict %s', self.ident)
 
 
 class QbLUeSpinBox(QSpinBox):

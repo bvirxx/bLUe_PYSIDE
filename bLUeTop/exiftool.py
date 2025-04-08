@@ -32,6 +32,8 @@ from sys import platform
 from PySide6.QtCore import QByteArray
 from PySide6.QtGui import QTransform, QImage
 from os.path import isfile
+
+from bLUeGui.logginit import logger
 from bLUeTop.settings import EXIFTOOL_PATH
 from bLUeGui.dialog import dlgWarn
 from bLUeTop.utils import fileRoot
@@ -94,7 +96,7 @@ class ExifTool(object):
         :return: True to catch exceptions
         """
         if exc_type is ValueError:
-            print('Exiftool.__exit__: ', exc_value)
+            logger.warning('Exiftool.__exit__ : %s %s', exc_type, exc_value)
             self.process.terminate()
             return True
         self.process.stdin.write(bytearray("-stay_open\nFalse\n", 'ascii'))

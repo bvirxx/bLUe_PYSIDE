@@ -21,6 +21,8 @@ import cv2
 import numpy as np
 from PySide6.QtCore import QRect, QPoint
 
+from bLUeGui.logginit import logger
+
 """
 .abr version 6.2 : example of Tagged Block structure.
 See https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/
@@ -98,11 +100,11 @@ class aParser():
             with open(filename, "rb") as f:
                 buf = f.read(4)
             v = struct.unpack(">2h", buf)
-        except IOError as e:
-            print("cannot open %s" % filename, e)
+        except IOError:
+            logger.warning("getVersion : cannot open %s", filename)
             raise
         except struct.error:
-            print("Cannot find file version")
+            logger.warning("getVersion : Cannot find file version")
             raise
         return "%d.%d" % v
 
@@ -143,7 +145,7 @@ class aParser():
         try:
             id = buf[4:4 + 2 * (lg - 1)].decode(encoding="utf-8")  # utf-16 yields strange things
         except UnicodeDecodeError as e:
-            print(e)
+            logger.warning('readUString error :', exc_info=e)
         return id, 2 * lg + 4
 
     @staticmethod
@@ -175,7 +177,7 @@ class aParser():
                 next += lg + 4
                 tBlocks.append(aTaggedBlock(start, lg, signature, tag))
         except struct.error as e:
-            print(e)
+            logger.warning('findTaggedBlocks error :', exc_info=e)
         return tBlocks
 
     @staticmethod
@@ -329,7 +331,7 @@ class aParser():
                         prst = aParser.readSubPatt(buf[addr + 4:])  # skip header : sub-block size (4 bytes)
                         pImages.extend([vma.imgBuf for vma in prst.vmaList])
             except ValueError as e:
-                print(e, addr)
+                logger.warning('aParser error', exc_info=e)
         return sImages, pImages
 
 

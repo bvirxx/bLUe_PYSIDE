@@ -47,6 +47,7 @@ from bLUeGui.colorCIE import Lab2sRGBVec, bbTemperature2RGB, RGB2XYZ, rgbLinear2
 from bLUeGui.colorCube import hsp2rgbVec, hsv2rgbVec
 from bLUeGui.gradient import hsvGradientArray, setLUTfromGradient
 from bLUeGui.histogramWarping import warpHistogram
+from bLUeGui.logginit import logger
 from bLUeGui.multiplier import temperatureAndTint2Multipliers
 
 from bLUeTop import exiftool
@@ -1153,13 +1154,10 @@ class QLayer(vImage):
                 # break back link
                 #if hasattr(form, 'layer'):  # TODO useless ? 29/11/24
                     #form.layer = None
-                form.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, False)  # TODO False added 29/11/24
+                form.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, False)  # using deleteLater instead
                 form.cleanBeforeDestr()
-                # form.__dict__.clear()  # TODO awful - prepare for gc - probably useless test needed 30/11/21 validate
-                dock.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, False) # TODO False added 29/11/24
-                # dock.setParent(None)
+                dock.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, False) # using deleteLater instead
                 dock.close()
-                #dock.__dict__.clear()  # TODO awful - prepare for gc - probably useless test needed 30/11/21 validate
             else:  # tabbed forms should not be closed
                 temp = dock.tabbed
                 dock.setFloating(True)
@@ -1447,7 +1445,7 @@ class QLayer(vImage):
                 start = time()
                 layer.execute(l=layer)
                 layer.cacheInvalidate()
-                print("%s %.2f" % (layer.name, time() - start))
+                logger.info("%s %.2f", layer.name, time() - start)
             stack = layer.parentImage.layersStack
             lg = len(stack)
             ind = layer.getStackIndex() + 1
@@ -1974,7 +1972,7 @@ class QLayer(vImage):
         else:
             bGrabcut = cv2.grabCut_mt
         bGrabcut(inputBuf[:, :, :3], segMask, None, bgdmodel, fgdmodel, nbIter, mode)
-        print('%s : %.2f' % (bGrabcut.__name__, (time() - t0)))
+        logger.info('%s : %.2f', bGrabcut.__name__, (time() - t0))
 
         # back to mask
         unmasked = vImage.defaultColor_UnMasked.red()
@@ -2158,7 +2156,7 @@ class QLayer(vImage):
         T = QTransform()
         res = QTransform.quadToQuad(q1, q2, T)
         if not res:
-            print('applyTransform : no possible transformation')
+            logger.warning('applyTransform : no possible transformation')
             self.tool.restore()
             return
         # neutral point
@@ -2179,7 +2177,7 @@ class QLayer(vImage):
             buf = QImageBuffer(img)
             buf[:, :, 3] = np.where(buf[:, :, 3] == 0, 255, buf[:, :, 3])
         if img.isNull():
-            print('applyTransform : transformation fails')
+            logger.warning('applyTransform : transformation fails')
             self.tool.restore()
             return
         buf0[:, :, :] = QImageBuffer(img)

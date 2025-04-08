@@ -29,6 +29,7 @@ from PySide6.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGroupBo
 from bLUeGui.baseSignal import baseSignal_List
 from bLUeGui.graphicsSpline import graphicsSplineForm
 from bLUeGui.graphicsForm import baseForm
+from bLUeGui.logginit import logger
 from bLUeTop.dng import getDngProfileList, getDngProfileDict, dngProfileToneCurve, getDngProfileDicts
 from bLUeTop.utils import optionsWidget, UDict, QbLUeSlider, QbLUeComboBox, fileRoot
 from bLUeGui.multiplier import *
@@ -546,15 +547,16 @@ class rawForm(baseForm):
         """
         Stops async thread
         """
+        if not self.w:
+            return
         try:
             QGuiApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-            if self.w:
-                print('rawForm: closing thread...')
-                self.w.quit()
-                self.w.wait(60000)
-                print('rawForm: thread closed')
+            logger.info('rawForm: closing thread...')
+            self.w.quit()
+            self.w.wait(60000)
+            logger.info('rawForm: thread closed')
         except (RuntimeError, AttributeError) as e:
-            print('RawForm close error:', str(e))
+            logger.warning('RawForm close error', exc_info=e)
         finally:
             QGuiApplication.restoreOverrideCursor()
 
@@ -966,9 +968,9 @@ class workerThread(QThread):
                     cpCombo.setCurrentIndex(ind)
             cpCombo.unsetCursor()
         except (RuntimeError, AttributeError) as e:
-            print('populate error', self.name, str(e))
+            logger.warning('populate error', exc_info=e)
         except Exception as e:
-            print('populate error', self.name, e)
+            logger.warning('populate error', exc_info=e)
 
     def run(self):
         # executed in new thread
@@ -988,4 +990,4 @@ class workerThread(QThread):
             cameraProfilesComboList.append((key, df))
             self.result_available.sig.emit(cameraProfilesComboList)
         except Exception as e:
-            print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!', self.name, e)
+            logger.warning('Error loading camera profiles', exc_info=e)

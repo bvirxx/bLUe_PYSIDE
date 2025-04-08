@@ -25,6 +25,7 @@ from PySide6.QtGui import QImage, QColorSpace, QColorTransform
 
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.dialog import dlgWarn
+from bLUeGui.logginit import logger
 
 from bLUeTop import Gui
 from bLUeTop.settings import COLOR_MANAGE_OPT, SRGB_PROFILE_PATH, ADOBE_RGB_PROFILE_PATH, DEFAULT_MONITOR_PROFILE_PATH
@@ -428,11 +429,11 @@ class icc:
                                    (cls.workToMonTransform is not None)
             cls.COLOR_MANAGE = cls.HAS_COLOR_MANAGE and cls.COLOR_MANAGE
         except (OSError, IOError) as e:
-            print("I/O error({0}): {1}".format(e.errno, e.strerror))
-        except (ValueError, TypeError, ImageCms.PyCMSError):
-            pass
-        except:
-            print("Unexpected error:", sys.exc_info()[0])
+            logger.warning('icc configure : I/O error', exc_info=e)
+        except (ValueError, TypeError, ImageCms.PyCMSError) as e:
+            logger.warning('icc configure : error', exc_info=e)
+        except Exception as e:
+            logger.error('icc configure : Unexpected error', exc_info=e)
             raise
 
     @staticmethod

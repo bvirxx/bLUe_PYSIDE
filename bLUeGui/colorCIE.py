@@ -18,6 +18,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import cv2
 import numpy as np
 
+from bLUeGui.logginit import logger
+
 #############################################################################
 # Profile dependent conversion functions are located in this module:        #
 # sRGB2LabVec, lab2sRGBVec, XYZ2sRGB, sRGB2XYZ, XYZ2sRGBLinear.             #
@@ -315,7 +317,7 @@ def XYZ2RGB(XYZColors, RGB_lin2XYZInverse=sRGB_lin2XYZInverse):
         XYZColors = np.array(XYZColors)
     if M > 1:
         XYZColors /= M
-        print('XYZ2sRGBVec warning : Y channel max %.5f' % M)
+        logger.warning('XYZ2sRGBVec : Y channel max %.5f', M)
     c1 = XYZ2RGBLinear(XYZColors, RGB_lin2XYZInverse=RGB_lin2XYZInverse)
     np.clip(c1, 0, 1, out=c1)
     c2 = rgbLinear2rgb(c1)

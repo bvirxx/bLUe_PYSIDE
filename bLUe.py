@@ -121,14 +121,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import io
 import os
 import zlib
+from datetime import datetime
 from os import path, walk, remove
 from os.path import isfile
 from tempfile import mktemp
 from pathlib import Path
 from string import Template
-import logging
-from logging.handlers import RotatingFileHandler
-from datetime import datetime
 
 import numpy as np
 import multiprocessing
@@ -157,6 +155,7 @@ import bLUeTop.QtGui1
 from bLUeGui.dialog import *
 from bLUeGui.colorPatterns import cmHSP, cmHSB
 from bLUeGui.graphicsForm import baseGraphicsForm
+from bLUeGui.logginit import logger
 from bLUeGui.tool import cropTool, rotatingTool
 from bLUeCore.bLUeLUT3D import HaldArray
 from bLUeTop import exiftool, Gui
@@ -1736,18 +1735,17 @@ def menuHelp(name, window=bLUeTop.Gui.window):
 
 
 def cleanPool():
+    if not pool:
+        return
     try:
-        #bLUeTop.Gui.window.label.setCursor(Qt.CursorShape.WaitCursor)
         QGuiApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-        if pool:
-            print('Closing pool...')
-            pool.close()
-            pool.join()
-            print('Pool closed')
+        logger.info('Closing pool...')
+        pool.close()
+        pool.join()
+        logger.info('Pool closed')
     except (RuntimeError, ValueError) as e:
-        print('CleanPool error', str(e))
+        logger.warning('CleanPool error',  exc_info=e)
     finally:
-        #bLUeTop.Gui.window.unsetCursor()
         QGuiApplication.restoreOverrideCursor()
 
 
@@ -2430,36 +2428,12 @@ def setTabBar(window=bLUeTop.Gui.window):
     hlay.addLayout(vlay)
     window.tabBar = tabBar
 
-##############################################
-# logger and exception handler init
-def initLogging():
-    #file_handler = logging.FileHandler("log.txt", mode="a", encoding="utf-8")
-    file_handler = RotatingFileHandler('log.txt',
-                                       mode='a',
-                                       maxBytes=5*1024*1024,
-                                       backupCount=2,
-                                       encoding=None,
-                                       delay=False
-                                       )
-    logger = logging.getLogger('blue')
-    logger.addHandler(file_handler)
-    logger.setLevel('INFO')
-    return logger
-
-logger = initLogging()
-
-def excHandler(exc_type, exc_value, exc_traceback):
-    logger.error('PID %d' % os.getpid(), exc_info=(exc_type, exc_value, exc_traceback))
-    if issubclass(exc_type, KeyboardInterrupt):
-        sys.__excepthook__(exc_type, exc_value, exc_traceback)
-
-sys.excepthook = excHandler
-##############################################
+dt = datetime.now()
 
 if __name__ == '__main__':
 
-    dt = datetime.now()
-    logger.info('******************** main :  PID %d %s', os.getpid(), dt)
+    logger.info('**************************************************************************')
+    logger.info('%s :  PID %d %s', __name__, os.getpid(), dt)
 
     #################
     # multiprocessing
@@ -2477,3 +2451,6 @@ if __name__ == '__main__':
     setTabBar()
 
     sys.exit(bLUeTop.Gui.app.exec())
+
+# log child processes
+logger.info('%s :  PID %d %s', __name__, os.getpid(), dt)
