@@ -174,7 +174,7 @@ class bImage(QImage):
     def __del__(self):
         filename = getattr(self, 'filename', '')
         name = getattr(self, 'name', '')
-        logger.info('%s %d %s %s', type(self), self.size(), name, filename)
+        logger.info('%s %s %s %s', type(self), self.size(), name, filename)
 
     def setProfile(self, profile):
         """
