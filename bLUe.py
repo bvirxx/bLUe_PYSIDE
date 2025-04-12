@@ -338,7 +338,8 @@ def addAdjustmentLayers(img, layers, images):
                 except Exception as e:
                     dlgWarn('Layer %s : cannot load mask' % layer.name,
                             info=str(e)
-                            )                    logger.warning('Layer %s : cannot load image data', layer.name, exc_info=e)
+                            )
+                    logger.warning('Layer %s : cannot load image data', layer.name, exc_info=e)
             count += 1
 
         if layer:
