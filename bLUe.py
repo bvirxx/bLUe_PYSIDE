@@ -338,7 +338,7 @@ def addAdjustmentLayers(img, layers, images):
                 except Exception as e:
                     dlgWarn('Layer %s : cannot load mask' % layer.name,
                             info=str(e)
-                            )
+                            )                    logger.warning('Layer %s : cannot load image data', layer.name, exc_info=e)
             count += 1
 
         if layer:
@@ -347,7 +347,7 @@ def addAdjustmentLayers(img, layers, images):
         if 'images' in d:  # for back compatibility with previous bLU file formats
             n = d['images']
             if type(n) is tuple:
-                n = n.count(1)
+                n = n.count(1)  # total occurrences of 1 in tuple
             if n > 0:
                 waitImages.append((layer, n))  # image offset not known yet
 
@@ -362,12 +362,18 @@ def addAdjustmentLayers(img, layers, images):
                 layer.sourceImg = ndarrayToQImage(buf, QImage.Format.Format_ARGB32)
                 if t is QCloningLayer:
                     layer.getGraphicsForm().updateSource()
-                layer.applyToStack()  # needed because images are loaded after all calls to __setstate__()
+                # layer.applyToStack()  # needed because images are loaded after all calls to __setstate__()
             except Exception as e:
                 dlgWarn('Layer %s : cannot load image data' % layer.name,
                         info=str(e)
                         )
+                logger.warning('Layer %s : cannot load image data', layer.name, exc_info=e)
         count += n
+
+    # update layer stack after loading images
+    if waitImages:
+        bottom = min(waitImages, key=lambda x : x[0].getStackIndex())  # lowest modified layer in stack
+        bottom[0].applyToStack()
 
 
 def addBasicAdjustmentLayers(img, window=bLUeTop.Gui.window):
