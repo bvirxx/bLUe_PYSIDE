@@ -673,7 +673,8 @@ class optionsWidget(QListWidget):
             self.setMaximumWidth(self.sizeHintForColumn(0) * len(options) + 10)
         self.exclusive = exclusive
         self.itemClicked.connect(self.select)
-        self.userCheckStateChanged.connect(self.changed)
+        if self.changed:
+            self.userCheckStateChanged.connect(self.changed)
         # selection hook.
         self.onSelect = lambda x: 0
 
