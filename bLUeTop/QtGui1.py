@@ -39,7 +39,7 @@ class Form1(QMainWindow):
     screenChanged = QtCore.Signal(QScreen)
 
     def __init__(self):
-        super(Form1, self).__init__()
+        super().__init__()
         self.settings = QSettings("bLUe.ini", QSettings.Format.IniFormat)
         # we presume that the form will be shown first on screen 0;
         # No detection possible before it is effectively shown !
