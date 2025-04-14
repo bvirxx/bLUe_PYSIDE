@@ -15,6 +15,7 @@ Lesser General Lesser Public License for more details.
 You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
+from bLUeGui.logginit import logger
 
 # !/usr/bin/python2
 # -*- coding: utf-8 -*-
@@ -98,8 +99,7 @@ class UiLoader(QUiLoader):
                 try:
                     widget = self.customWidgets[class_name](parent=parent)
                 except (TypeError, KeyError) as e:
-                    raise Exception(
-                        'No custom widget ' + class_name + ' found in customWidgets param of UiLoader __init__.')
+                    logger.critical('UiLoader error : %s', class_name, exc_info=e)
             if self.baseinstance:
                 # set an attribute for the new child widget on the base
                 # instance.
