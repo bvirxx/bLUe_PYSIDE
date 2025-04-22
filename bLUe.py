@@ -593,6 +593,7 @@ def openFile(f, window=bLUeTop.Gui.window):
     except (ValueError, KeyError, IOError, rawpy.LibRawFatalError, SyntaxError,
             ModuleNotFoundError, AttributeError, pickle.UnpicklingError) as e:
         dlgWarn('An Error occurred while opening file', str(e))
+        logger.warning('An Error occurred while opening file', exc_info=e)
     finally:
         if tfile is not None:
             tfile.close()
