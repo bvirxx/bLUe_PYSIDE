@@ -19,112 +19,99 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 
 
-def interpTetra(LUT, LUTSTEP, ndImg, convert=True):
+def interpTetra(lut, lut_step, nd_img, convert=True):
     """
-    Implement a vectorized version of tetrahedral interpolation.
+    Vectorized tetrahedral interpolation for 3D LUT color mapping.
 
-    Convert a array ndImg with shape (w, h, d)  with d >=3 by interpolating
-    its values in a 3D LUT array LUT with shape s = (s1, s2, s3, d).
-    Inputs are taken from the third axis of ndImg[:,:,:3]. they are input to
-    the three first axes of the LUT, keeping the same ordering (i.e. v[i] is input to axis i).
-    Output values are interpolated from the LUT.
+    Convert an array nd_img with shape (h, w, dIn)  with dIn >=3 by interpolating
+    its values from a 3D array lut with shape s = (s1, s2, s3, 3).
+    The color channels of nd_img[:,:,:3] are interpolated from lut.
+    Identical orderings (BGR, RGB, ...) are assumed for lut axes and color channels.
+    The alpha channel, if any, is deleted.
 
-    LUTSTEP is the number or the 3-uple of numbers giving the unitary interpolation
-    steps for each axis of the LUT table.
+    lut_step is the integer (or the 3-uple of integers) representing the unitary interpolation
+    step for each axis of lut.
+    All input values for channel i must be in the (right opened)
+    interval [0, max[ with max = (s[i] - 1) * lut_step[i].
 
-    All input values for axis i of the LUT must be in the (right opened)
-    interval [0, max[ with max = (s[i] - 1) * LUTSTEP[i].
+    If convert is True (default), the output array is clipped to (0, 255) and converted
+    to dtype=np.uint8, otherwise the output array has dtype= np.float32.
 
-    if convert is True (default), the output array is clipped to (0, 255) and converted
-    to dtype=np.uint8, otherwise the output array has the same shape as ndImg and
-    dtype= np.float32.
-
-    It turns out that tetrahedral interpolation is 2 times slower
-    than trilinear.
-
-    :param LUT: 3D LUT array
-    :type LUT: ndarray, dtype float or int, shape(s1, s2, s3, 3)
-    :param LUTSTEP: interpolation step
-    :type LUTSTEP: number or 3-uple of numbers
-    :param ndImg: input array
-    :type ndImg: ndarray dtype float or int, shape (w, h, 3)
+    :param lut: 3D LUT array
+    :type lut: ndarray, dtype float or int, shape(s1, s2, s3, dIn), dIn >= 3
+    :param lut_step: interpolation step
+    :type lut_step: number or 3-uple of numbers
+    :param nd_img: input array
+    :type nd_img: ndarray, dtype float or int, shape (h, w, dOut), dOut >= 3
     :param convert: convert the output to dtype=np.uint8
     :type convert: boolean
-    :return: interpolatd array
-    :rtype: ndarray, same shape as the input image
+    :return: interpolated array
+    :rtype: ndarray, shape (h, w, 3)
     """
-    # Probably due to a numpy bug, ravel_multi_index sometimes returns wrong indices
-    # for non-contiguous arrays.
-    if not LUT.flags['C_CONTIGUOUS']:
-        raise ValueError('interpTetra : LUT array must be contiguous')
-    # As interpolation computes differences, we switch to a signed type,
-    # minimizing memory usage and implicit conversions.
-    LUT = LUT.astype(np.float32)
-    # We will use the bounding unit cube around each point (r, g, b)/LUTSTEP :
-    # get its vertex closest to the origin and the corresponding channel colors.
-    ndImgF = ndImg / LUTSTEP
-    a = ndImgF.astype(np.int16)
-    # RGB channels
-    r0, g0, b0 = a[:, :, 0], a[:, :, 1], a[:, :, 2]
 
-    # get indices of vertex channels in the flattened LUT
-    s = LUT.shape
-    st = np.array(LUT.strides)
-    st = st // st[-1]  # we count items instead of bytes
-    flatIndex = np.ravel_multi_index((r0[..., np.newaxis],
-                                      g0[..., np.newaxis],
-                                      b0[..., np.newaxis],
-                                      np.arange(s[-1])),
-                                     s)  # broadcasted to shape (w,h,3)
+    if not lut.flags['C_CONTIGUOUS']:
+        raise ValueError("LUT must be a contiguous array")
 
-    # apply LUT to the vertices of the bounding cube
-    # np.take uses the flattened LUT, but keeps the shape of flatIndex
-    ndImg00 = np.take(LUT, flatIndex)  # = LUT[r0, g0, b0] but faster
-    ndImg01 = np.take(LUT, flatIndex + st[0])  # = LUT[r1, g0, b0] where r1 = r0 + 1
-    ndImg02 = np.take(LUT, flatIndex + st[1])  # = LUT[r0, g1, b0]
-    ndImg03 = np.take(LUT, flatIndex + (st[0] + st[1]))  # = LUT[r1, g1, b0]
-    ndImg10 = np.take(LUT, flatIndex + st[2])  # = LUT[r0, g0, b1]
-    ndImg11 = np.take(LUT, flatIndex + (st[0] + st[2]))  # = LUT[r1, g0, b1]
-    ndImg12 = np.take(LUT, flatIndex + (st[1] + st[2]))  # = LUT[r0, g1, b1]
-    ndImg13 = np.take(LUT, flatIndex + (st[0] + st[1] + st[2]))  # = LUT[r1, g1, b1]
+    lut = lut.astype(np.float32)
+    lut_step = np.array(lut_step, dtype=np.float32)
 
-    fR = ndImgF[:, :, 0] - a[:, :, 0]
-    fG = ndImgF[:, :, 1] - a[:, :, 1]
-    fB = ndImgF[:, :, 2] - a[:, :, 2]
-    oneMinusFR = (1 - fR)[..., np.newaxis] * ndImg00
-    oneMinusFG = (1 - fG)[..., np.newaxis] * ndImg00
-    oneMinusFB = (1 - fB)[..., np.newaxis] * ndImg00
+    # Normalize image to LUT grid coordinates
+    ndImgF = nd_img / lut_step
+    base_coords = ndImgF.astype(np.int16)
+    r0, g0, b0 = base_coords[:, :, 0], base_coords[:, :, 1], base_coords[:, :, 2]
 
-    fRG = (fR - fG)[..., np.newaxis]
-    fGB = (fG - fB)[..., np.newaxis]
-    fBR = (fB - fR)[..., np.newaxis]
-    fR = fR[..., np.newaxis]
-    fG = fG[..., np.newaxis]
-    fB = fB[..., np.newaxis]
+    # Compute flattened LUT index
+    shape = lut.shape
+    strides = np.array(lut.strides) // lut.itemsize
+    lut_index = np.ravel_multi_index(
+        (r0[..., np.newaxis], g0[..., np.newaxis], b0[..., np.newaxis], np.arange(shape[-1])),
+        shape
+    )
 
-    # regions
+    # Get the LUT values at the 8 corners of the cube
+    ndImg00 = np.take(lut, lut_index)
+    ndImg01 = np.take(lut, lut_index + strides[0])
+    ndImg02 = np.take(lut, lut_index + strides[1])
+    ndImg03 = np.take(lut, lut_index + (strides[0] + strides[1]))
+    ndImg10 = np.take(lut, lut_index + strides[2])
+    ndImg11 = np.take(lut, lut_index + (strides[0] + strides[2]))
+    ndImg12 = np.take(lut, lut_index + (strides[1] + strides[2]))
+    ndImg13 = np.take(lut, lut_index + (strides[0] + strides[1] + strides[2]))
+
+    # Compute fractional deltas
+    fR = ndImgF[:, :, 0] - r0
+    fG = ndImgF[:, :, 1] - g0
+    fB = ndImgF[:, :, 2] - b0
+    fR, fG, fB = fR[..., np.newaxis], fG[..., np.newaxis], fB[..., np.newaxis]
+
+    one_minus_fR = (1 - fR) * ndImg00
+    one_minus_fG = (1 - fG) * ndImg00
+    one_minus_fB = (1 - fB) * ndImg00
+
+    # Intermediate weights
+    fRG, fGB, fBR = fR - fG, fG - fB, fB - fR
+
+    # Conditions for region selection
     C1 = fR > fG
     C2 = fG > fB
     C3 = fB > fR
 
-    fR = fR * ndImg13
-    fG = fG * ndImg13
-    fB = fB * ndImg13
+    # Compute interpolated colors for each region
+    X0 = one_minus_fG + fGB * ndImg02 + fBR * ndImg12 + fR * ndImg13
+    X1 = one_minus_fB + fBR * ndImg10 + fRG * ndImg11 + fG * ndImg13
+    X2 = one_minus_fB - fGB * ndImg10 - fRG * ndImg12 + fR * ndImg13
+    X3 = one_minus_fR + fRG * ndImg01 + fGB * ndImg03 + fB * ndImg13
+    X4 = one_minus_fG - fRG * ndImg02 - fBR * ndImg03 + fB * ndImg13
+    X5 = one_minus_fR - fBR * ndImg01 - fGB * ndImg11 + fG * ndImg13
 
-    X0 = oneMinusFG + fGB * ndImg02 + fBR * ndImg12 + fR  # fG > fB > fR
-    X1 = oneMinusFB + fBR * ndImg10 + fRG * ndImg11 + fG  # fB > fR > fG
-    X2 = oneMinusFB - fGB * ndImg10 - fRG * ndImg12 + fR  # fB >=fG >=fR
-    X3 = oneMinusFR + fRG * ndImg01 + fGB * ndImg03 + fB  # fR > fG > fB
-    X4 = oneMinusFG - fRG * ndImg02 - fBR * ndImg03 + fB  # fG >=fR >=fB
-    X5 = oneMinusFR - fBR * ndImg01 - fGB * ndImg11 + fG  # fR >=fB >=fG
-
-    Y1 = np.select(
-        [C2 * C3, C3 * C1, np.logical_not(np.logical_or(C1, C2)), C1 * C2, np.logical_not(np.logical_or(C1, C3))],
-        [X0, X1, X2, X3, X4],  # clockwise ordering: X3, X5, X1, X2, X0, X4
+    result = np.select(
+        [C2 & C3, C3 & C1, ~(C1 | C2), C1 & C2, ~(C1 | C3)],
+        [X0, X1, X2, X3, X4],
         default=X5
     )
 
     if convert:
-        np.clip(Y1, 0, 255, out=Y1)
-        Y1 = Y1.astype(np.uint8)
-    return Y1
+        np.clip(result, 0, 255, out=result)
+        result = result.astype(np.uint8)
+
+    return result
