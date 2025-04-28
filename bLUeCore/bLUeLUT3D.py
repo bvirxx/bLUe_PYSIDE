@@ -221,7 +221,7 @@ class LUT3D(object):
             s = LUT3DArray.shape
             s0 = (size, size, size, 3)
             if s != s0:
-                raise ValueError("LUT3D : array shape should be (%d,%d,%d,%d)" % s0)
+                raise ValueError(f"LUT3D : array shape should be {s0}")
         if alpha:
             self.LUT3DArray = np.concatenate((
                 self.LUT3DArray,

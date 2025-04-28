@@ -164,8 +164,9 @@ def dwtDenoiseChan(image, chan=0, thr=1.0, thrmode='hard', wavelet='haar', level
                 for win_size in win_sizes:
                     nY2 = movingVariance(coeff, win_size, version='strides')
                     # nY2 = movingAverage(coeff * coeff, win_size, version='strides')
-                    minmask = (nY2 < nY2_est)
-                    nY2_est[minmask] = nY2[minmask]
+                    # minmask = (nY2 < nY2_est)
+                    # nY2_est[minmask] = nY2[minmask]
+                    np.minimum(nY2_est, nY2, out=nY2_est)
                 # The Wiener Estimator for a noisy signal Y with
                 # noise variance sigma is ~ max(0,E(Y**2) - sigma**2)/ (max(0, E(Y**2)-sigma**2) + sigma**2)
                 # We replace sigma**2 by the interactive threshold.
@@ -198,4 +199,5 @@ def dwtDenoise(source, dest, thr=1.0, thrmode='hard', wavelet='haar', level=None
         sigma += s
         sigma1 += s1
 
-    return (sigma / source.shape[2], sigma1 / source.shape[2]) if source.shape[2] > 0 else (sigma, sigma1)
+    num_channels = source.shape[2]
+    return (sigma / num_channels, sigma1 / num_channels) if num_channels > 0 else (sigma, sigma1)
