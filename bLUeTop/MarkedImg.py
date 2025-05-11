@@ -128,6 +128,7 @@ class mImage(vImage):
         bgLayer = QLayer.fromImage(self, parentImage=self)
         bgLayer.isClipping = True
         bgLayer.role = 'background'
+        bgLayer.haldUsable = True
         self.activeLayerIndex = None
         self.addLayer(bgLayer, name='Background')
         # presentation layer
@@ -1075,6 +1076,7 @@ class QLayer(vImage):
         self.visible = True
         self.isClipping = False
         self.role = kwargs.pop('role', '')
+        self.haldUsable = False  # transformable into a 3D LUT using a hald
         # add autoSpline attribute to contrast layer only
         if self.role in ['CONTRAST', 'RAW']:
             self.autoSpline = True

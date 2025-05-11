@@ -1372,7 +1372,7 @@ def layerScripting(name, window=bLUeTop.Gui.window, sname=None, script=False):
         return name if sname is None else sname
 
     # postlude
-    def post(layer):
+    def post(layer, grWindow):
         # adding a new layer may modify the resulting image
         # (cf. actionNew_Image_Layer), so we update the presentation layer
         layer.parentImage.prLayer.update()
@@ -1399,6 +1399,7 @@ def layerScripting(name, window=bLUeTop.Gui.window, sname=None, script=False):
         dlgWarn('Cannot add layer : no document found', 'Open an existing image or create a new one')
         return
 
+    grWindow = None
     if name in ['actionCurves_RGB', 'actionCurves_HSpB', 'actionCurves_Lab']:
         if name == 'actionCurves_RGB':
             layerName = 'Curves RGB'
@@ -1420,6 +1421,7 @@ def layerScripting(name, window=bLUeTop.Gui.window, sname=None, script=False):
         elif name == 'actionCurves_Lab':
             layer.execute = lambda l=layer, pool=None: l.tLayer.applyLab1DLUT(
                 grWindow.scene().cubicItem.getStackedLUTXY())
+        layer.haldUsable = True
 
     elif name == 'actionAuto_3D_LUT' and HAS_TORCH:
         layerName = 'Auto 3D LUT'
@@ -1436,6 +1438,7 @@ def layerScripting(name, window=bLUeTop.Gui.window, sname=None, script=False):
         grWindow = graphicsFormGrading.getNewWindow(axeSize=300, LUTSize=LUTSIZE, **envdict())
         pool = getPool()
         layer.execute = lambda l=layer, pool=pool: l.tLayer.applyGrading(grWindow.LUT3Dgrad, pool=pool)
+        layer.haldUsable = True
 
     # 3D LUT
     elif name in ['action3D_LUT', 'action3D_LUT_HSB']:
@@ -1555,6 +1558,7 @@ def layerScripting(name, window=bLUeTop.Gui.window, sname=None, script=False):
         grWindow = temperatureForm.getNewWindow(axeSize=axeSize, **envdict())
         # wrapper for the right apply method
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyTemperature()
+        layer.haldUsable = True
 
     elif name == 'actionContrast_Correction':
         layer = window.label.img.addAdjustmentLayer(name=gn(CoBrSatForm.layerTitle), role='CONTRAST')
@@ -1570,6 +1574,7 @@ def layerScripting(name, window=bLUeTop.Gui.window, sname=None, script=False):
         grWindow.onUpdateContrast = h
         # wrapper for the right apply method
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyContrast()
+        layer.haldUsable = True
 
     elif name == 'actionExposure_Correction':
         lname = 'Exposure'
@@ -1577,6 +1582,7 @@ def layerScripting(name, window=bLUeTop.Gui.window, sname=None, script=False):
         layer.clipLimit = ExpForm.defaultExpCorrection
         grWindow = ExpForm.getNewWindow(axeSize=axeSize, **envdict())
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyExposure(grWindow.options)
+        layer.haldUsable = True
 
     elif name == 'actionHDR_Merge':
         lname = 'Merge'
@@ -1601,6 +1607,7 @@ def layerScripting(name, window=bLUeTop.Gui.window, sname=None, script=False):
         grWindow = filterForm.getNewWindow(axeSize=axeSize, **envdict())
         # wrapper for the right apply method
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyFilter2D()
+        layer.haldUsable = True
 
     elif name == 'actionGradual_Filter':
         lname = 'Gradual Filter'
@@ -1623,12 +1630,14 @@ def layerScripting(name, window=bLUeTop.Gui.window, sname=None, script=False):
         grWindow = invertForm.getNewWindow(axeSize=axeSize, **envdict())
         layer.execute = lambda l=layer: l.tLayer.applyInvert()
         layer.applyToStack()
+        layer.haldUsable = True
 
     elif name == 'actionChannel_Mixer':
         lname = 'Channel Mixer'
         layer = window.label.img.addAdjustmentLayer(name=gn(lname))
         grWindow = mixerForm.getNewWindow(axeSize=260, **envdict())
         layer.execute = lambda l=layer: l.tLayer.applyMixer(grWindow.options)
+        layer.haldUsable = True
 
     # load 3D LUT from .cube file
     elif name == 'actionLoad_3D_LUT':
@@ -1660,10 +1669,16 @@ def layerScripting(name, window=bLUeTop.Gui.window, sname=None, script=False):
             # so we update the presentation layer before returning
             layer.parentImage.prLayer.update()
             layer.parentImage.onImageChanged()
+            layer.haldUsable = True
         return
 
     elif name == 'actionSave_Layer_Stack_as_LUT_Cube':
         img = window.label.img
+        # verify hald compatibility
+        for layer in img.layersStack:
+            if layer.visible and not layer.haldUsable:
+                dlgWarn(f'{layer.name} cannot be associated with a 3D LUT')
+                return
         # get current size
         s = (img.getCurrentImage()).size()
         # build input hald image from identity 3D LUT; channels are in BGR order
@@ -1695,13 +1710,13 @@ def layerScripting(name, window=bLUeTop.Gui.window, sname=None, script=False):
             img.layersStack[0].applyToStack()
             img.prLayer.update()
             window.label.repaint()
-            return
 
     # unknown or null action
     else:
         return
 
-    post(layer)
+    if grWindow:
+        post(layer, grWindow)
 
     return layer if script else None
 

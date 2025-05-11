@@ -378,7 +378,10 @@ class QLayerView(QTableView):
         m = self.selectionModel()
         self.setModel(None)
         if m:
-            m.deleteLater()
+            try:
+                m.deleteLater()
+            except RuntimeError:
+                pass
 
     def setLayers(self, mImg, delete=False):
         """

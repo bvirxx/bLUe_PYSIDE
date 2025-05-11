@@ -77,11 +77,11 @@ class LUT3D(object):
         buf = haldBuff.haldBuffer[:, :, :3].ravel()
         size = haldBuff.size
         count = (size ** 3) * 3
+
         if count > buf.shape[0]:
             raise ValueError('haldBuffer2LUT3D : LUT3D size and hald dimensions do not match')
-        buf = buf[:count].reshape((size, size, size, 3))
-        LUT = np.zeros((size, size, size, 3), dtype=float)
-        LUT[:, :, :, :] = buf
+
+        LUT = buf[:count].reshape((size, size, size, 3))
         return LUT3D(LUT, size=size)
 
     @staticmethod
@@ -133,11 +133,11 @@ class LUT3D(object):
                 continue
             token = line.split()
             if len(token) >= 3:
-                a, b, c = token
+                r, g, b = token
             else:
                 raise ValueError('Wrong file format')
             # BGR order for channels
-            buf[i:i + 3] = float(c), float(b), float(a)
+            buf[i:i + 3] = float(b), float(g), float(r)
             i += 3
         # sanity check
         if i != bufsize:
