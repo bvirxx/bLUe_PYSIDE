@@ -600,6 +600,7 @@ def openFile(f, window=bLUeTop.Gui.window):
         window.tabBar.setEnabled(True)
         window.status_loadingFile = False
         window.status_loadingLayers = False
+        updateStatus()
         QApplication.restoreOverrideCursor()
         QApplication.processEvents()
 
