@@ -123,7 +123,7 @@ class mImage(vImage):
         # link to QLayerView instance
         self.layerView = None
         super().__init__(*args, **kwargs)  # must be done before prLayer init.
-        self.onActiveLayerChanged = lambda: 0
+        self.onActiveLayerChanged = lambda: None
         # background layer
         bgLayer = QLayer.fromImage(self, parentImage=self)
         bgLayer.isClipping = True
@@ -632,10 +632,8 @@ class mImage(vImage):
         :rtype: QImage
         """
 
-        def transparencyCheck(buf, fileformat):
-            if fileFormat.upper() not in ['.JPG', '.TIF']:
-                return
-            if np.any(buf[:, :, 3] < 255):
+        def transparencyCheck(buf, fileFormat):
+            if fileFormat in ['.JPG', '.TIF'] and np.any(buf[:, :, 3] < 255):
                 dlgWarn('Transparency will be lost. Use PNG format instead')
 
         fileFormat = fileExt(filename).upper()
@@ -644,30 +642,24 @@ class mImage(vImage):
         # This image is NOT color managed (only prLayer.qPixmap
         # is color managed)
         img = self.prLayer.getCurrentImage()
+        w, h = self.size().toTuple()
 
         # imagewriter and QImage.save are unusable for tif files,
-        # due to bugs in libtiff, hence we use opencv imwrite.
+        # due to bugs in libtiff; hence we use opencv imwrite.
         buf = QImageBuffer(img)
         if self.isCropped:
             # make slices
-            w, h = self.width(), self.height()
-            wp, hp = img.width(), img.height()
+            wp, hp = img.size().toTuple()
             wr, hr = wp / w, hp / h
             w1, w2 = int(self.cropLeft * wr), int((w - self.cropRight) * wr)
             h1, h2 = int(self.cropTop * hr), int((h - self.cropBottom) * hr)
             buf = buf[h1:h2, w1:w2, :]
 
         # build thumbnail from (eventually) cropped image
-        # choose thumb size
-        wf, hf = buf.shape[1], buf.shape[0]
-        if wf > hf:
-            wt, ht = 160, 120
-        else:
-            wt, ht = 120, 160
+        thumb_size = (160, 120) if buf.shape[1] > buf.shape[0] else (120, 160)
         thumb = ndarrayToQImage(np.ascontiguousarray(buf[:, :, :3][:, :, ::-1]),
-                                format= QImage.Format.Format_RGB888).scaled(wt, ht, Qt.AspectRatioMode.KeepAspectRatio)
-
-        # build jpg from thumb
+                                format=QImage.Format.Format_RGB888
+                                ).scaled(*thumb_size, Qt.AspectRatioMode.KeepAspectRatio)
         ba = QByteArray()
         buffer = QBuffer(ba)
         buffer.open(QIODevice.OpenModeFlag.WriteOnly)
@@ -693,95 +685,50 @@ class mImage(vImage):
         if fileFormat in IMAGE_FILE_EXTENSIONS:  # dest format
             # save edited image -  mode preview is off
             written = cv2.imwrite(filename, buf, params)  # BGR order
-
         elif fileFormat in BLUE_FILE_EXTENSIONS:
             # records current state and save to bLU file
             names, mask_list, image_list = self.snap(ba)
-
             if self.sourceformat in RAW_FILE_EXTENSIONS:
                 # copy raw file and layer stack to .bLU
-                originFormat = fileExt(self.filename)  # format of opened document
+                originFormat = fileExt(self.filename)  # format of open document
                 if originFormat in BLUE_FILE_EXTENSIONS:  # format of source file
                     with tifffile.TiffFile(self.filename) as tfile:  # raw image will be copied from source file
                         sourcedata = tfile.series[0].pages[0].asarray()
-                        buf_ori = sourcedata[0]  # [:, 0]
+                        buf_ori = sourcedata[0]
                 elif originFormat in RAW_FILE_EXTENSIONS:
                     with open(self.filename, 'rb') as f:
-                        bytes = f.read()
-                    buf_ori = np.frombuffer(bytes, dtype=np.uint8)
+                        buf_ori = np.frombuffer(f.read(), dtype=np.uint8)
                 else:
-                    # must be a void clause
-                    buf_ori = None
+                    raise ValueError(f'Invalid originFormat {originFormat}')
 
-                w, h = self.width(), self.height()
                 images = np.empty((len(mask_list) + len(image_list) + 1, max(len(buf_ori), w * h * 4)), dtype=np.uint8)
 
                 images[0, :len(buf_ori)] = buf_ori
-
-                i = 1
-                for m in mask_list + image_list:
+                for i, m in enumerate(mask_list + image_list, start=1):
                     if m is not None:
                         b = QImageBuffer(m)
                         images[i, :w * h * 4] = b.ravel()
-                        i += 1
-
                 names['mask_len'] = w * h * 4
                 names['buf_ori_len'] = len(buf_ori)
-
-                result = tifffile.imwrite(filename,
-                                          data=images,
-                                          # compression=6,
-                                          compression='zlib',
-                                          # compressionargs = {'level': 6},
-                                          imagej=True,
-                                          returnoffset=True,
-                                          metadata=names
-                                          )
-                written = True  # with compression > 0 result is None
-
+                tifffile.imwrite(filename, data=images, compression='zlib', imagej=True, metadata=names)
+                written = True
             elif self.sourceformat in IMAGE_FILE_EXTENSIONS + HEIF_FILE_EXTENSIONS or self.sourceformat == '':  # format == '' for new document
                 # copy source image and layer stack to .BLU.
-                img_ori = self
-
-                w, h = self.width(), self.height()
                 images = np.empty((len(mask_list) + len(image_list) + 1, h, w, 4), dtype=np.uint8)
-
-                buf_ori = QImageBuffer(img_ori).copy()
+                buf_ori = QImageBuffer(self).copy()
                 # BGRA to RGBA conversion needed : to reload image
                 # the bLU file will be read as tiff file by QImageReader
                 tmpview = buf_ori[..., :3]
                 tmpview[...] = tmpview[..., ::-1]
                 images[0, ...] = buf_ori
-
-                i = 1
-                for m in mask_list + image_list:
+                for i, m in enumerate(mask_list + image_list, start=1):
                     if m is not None:
                         images[i, ...] = QImageBuffer(m)
-                        i += 1
-
-                result = tifffile.imwrite(filename,
-                                          data=images,
-                                          compression='zlib',
-                                          # compressionargs = {'level': 6},
-                                          imagej=True,
-                                          returnoffset=True,
-                                          metadata=names
-                                          )
-
-                written = True  # with compression result is None
-            """
-            else:
-                # invalid sourceformat
-                written = False
-            """
-        """
-        else:
-            # invalid extension
-            written = False
-        """
+                tifffile.imwrite(filename, data=images, compression='zlib', imagej=True, metadata=names)
+                written = True
 
         if not written:
-            raise IOError("Cannot write file %s " % filename)
+            raise IOError(f"Cannot write file {filename}")
 
         return thumb
 
@@ -2694,8 +2641,8 @@ class QLayer(vImage):
         adjustForm = self.getGraphicsForm()
         inputImage = self.inputImg()
         currentImage = self.getCurrentImage()
-        inputBuffer = QImageBuffer(inputImage)[:, :, :3]
-        imgBuffer = QImageBuffer(currentImage)[:, :, :3]
+        inputBuffer = QImageBuffer(inputImage)
+        imgBuffer = QImageBuffer(currentImage)
         ndImg0 = inputBuffer[:, :, :3]
         # get manual corrections
         coeffs = [adjustForm.slider1.value(), adjustForm.slider2.value(), adjustForm.slider3.value()]
@@ -2712,7 +2659,7 @@ class QLayer(vImage):
         buf = interp(adjustForm.lut3D.LUT3DArray, adjustForm.lut3D.step, ndImg0.astype(np.float32), convert=False)
         np.clip(buf, 0, 255, out=buf)
 
-        imgBuffer[..., :3] = inputBuffer
+        imgBuffer[...] = inputBuffer # forward lower layer
         for (w1, w2, h1, h2) in self.getCurrentSelCoords():
             imgBuffer[h1:h2 + 1, w1:w2 + 1, :3] = buf[h1:h2 + 1, w1:w2 + 1, ...]
 

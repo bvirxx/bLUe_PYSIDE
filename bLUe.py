@@ -296,12 +296,15 @@ def addAdjustmentLayers(img, layers, images):
     # The background layer and, eventually, the raw (develop) layer
     # must be already in stack, at indexes 0 and 1 respectively.
     # The state of the raw layer is already restored by loadImage.
+
+    bgLayer = img.layersStack[0]
     bg_currentInd = 0
     develop_currentInd = 1
 
     for ind, item in enumerate(layers):
         layer = None
         if item[0] == 'background':
+            layer = bgLayer
             if ind > 0:
                 img.layersStack.append(img.layersStack.pop(bg_currentInd))  # move background layer to recorded place
                 Gui.window.tableView.setLayers(img)  # no call to layerScripting, so we update layer view here
@@ -327,7 +330,6 @@ def addAdjustmentLayers(img, layers, images):
                 if develop_currentInd >= 1:
                     develop_currentInd += 1
 
-
         d = item[1]['state']
         if d['mask'] == 1:
             if layer:
@@ -335,10 +337,8 @@ def addAdjustmentLayers(img, layers, images):
                     buf = images.asarray()[count]
                     buf = buf.reshape(layer.height(), layer.width(), 4)
                     layer.mask = ndarrayToQImage(buf, QImage.Format.Format_ARGB32)
-                except Exception as e:
-                    dlgWarn('Layer %s : cannot load mask' % layer.name,
-                            info=str(e)
-                            )
+                except (IndexError, ValueError) as e:
+                    dlgWarn('Layer %s : cannot load mask' % layer.name, info=str(e))
                     logger.warning('Layer %s : cannot load image data', layer.name, exc_info=e)
             count += 1
 
@@ -364,10 +364,8 @@ def addAdjustmentLayers(img, layers, images):
                 if t is QCloningLayer:
                     layer.getGraphicsForm().updateSource()
                 # layer.applyToStack()  # needed because images are loaded after all calls to __setstate__()
-            except Exception as e:
-                dlgWarn('Layer %s : cannot load image data' % layer.name,
-                        info=str(e)
-                        )
+            except (IndexError, ValueError) as e:
+                dlgWarn('Layer %s : cannot load image data' % layer.name, info=str(e))
                 logger.warning('Layer %s : cannot load image data', layer.name, exc_info=e)
         count += n
 

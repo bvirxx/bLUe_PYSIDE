@@ -33,7 +33,6 @@ class HaldArray(object):
         """
         self.size = size
         self.haldBuffer = haldBuffer
-        super().__init__()
 
 
 class LUT3D(object):
@@ -66,7 +65,7 @@ class LUT3D(object):
     @staticmethod
     def HaldBuffer2LUT3D(haldBuff):
         """
-        Convert a HaldArray instance to a LUT3D object.
+        Converts a HaldArray instance to a LUT3D object.
         The role (R or G or B) of the LUT axes follows the ordering of the color channels.
 
         :param haldBuff: hald image
@@ -74,14 +73,12 @@ class LUT3D(object):
         :return: 3D LUT
         :rtype: LUT3D object
         """
-        buf = haldBuff.haldBuffer[:, :, :3].ravel()
         size = haldBuff.size
-        count = (size ** 3) * 3
-
-        if count > buf.shape[0]:
-            raise ValueError('haldBuffer2LUT3D : LUT3D size and hald dimensions do not match')
-
-        LUT = buf[:count].reshape((size, size, size, 3))
+        buf = haldBuff.haldBuffer[..., :3].ravel()
+        expected = (size ** 3) * 3
+        if buf.size < expected:
+            raise ValueError('haldBuffer2LUT3D: LUT3D size and hald dimensions do not match')
+        LUT = buf[:expected].reshape((size, size, size, 3))
         return LUT3D(LUT, size=size)
 
     @staticmethod
@@ -91,7 +88,6 @@ class LUT3D(object):
         Values read should be between 0 and 1. They are
         multiplied by 255 and converted to int.
         The channels of the LUT and the axes of the cube are both in BGR order.
-        Raises a ValueError exception if the method fails.
 
         :param inStream:
         :type inStream: TextIoWrapper
@@ -102,53 +98,33 @@ class LUT3D(object):
         ##########
         # read header
         #########
-        # We expect exactly 2 uncommented lines
-        # where the second is LUT_3D_SIZE xxx
-        i = 0
+        size = None
         for line in inStream:
-            # skip comments
-            if line.startswith('#') or (len(line.lstrip()) == 0):
-                continue
-            i += 1
-            if i < 2:
-                continue
-            # get LUT size (second line format should be : Size xx)
-            token = line.split()
-            if len(token) >= 2:
-                _, size = token
+            line = line.lstrip()
+            if line.startswith(('Size', 'SIZE' 'LUT_3D_SIZE')):
+                size = int(line.split()[1])
                 break
-            else:
-                raise ValueError('Cannot find LUT size')
-        # LUT size
-        size = int(size)
-        bufsize = (size ** 3) * 3
-        buf = np.zeros(bufsize, dtype=float)
+        if size is None:
+            raise ValueError('Cannot find LUT size')
+
         #######
-        # LUT
+        # read LUT
         ######
+        buf = np.zeros((size ** 3) * 3, dtype=float)
         i = 0
-        # restarting from current position
-        for line in inStream:
-            if line.startswith('#') or (len(line.lstrip()) == 0):
+        for line in inStream:  # restarting from current position
+            if line.startswith('#') or not line.lstrip():
                 continue
             token = line.split()
-            if len(token) >= 3:
-                r, g, b = token
-            else:
+            if len(token) < 3:
                 raise ValueError('Wrong file format')
-            # BGR order for channels
-            buf[i:i + 3] = float(b), float(g), float(r)
+            buf[i:i + 3] = list(map(float, token[2::-1]))  # reverse to BGR
             i += 3
-        # sanity check
-        if i != bufsize:
+
+        if i != buf.size:
             raise ValueError('LUT size does not match line count')
-        buf *= 255.0
-        buf = buf.astype(int)
-        buf = buf.reshape(size, size, size, 3)
-        # the specification of the .cube format
-        # gives BGR order for the cube axes (R-axis changing most rapidly)
-        # So, no transposition is needed.
-        # buf = buf.transpose(2, 1, 0, 3)
+
+        buf = (buf * 255).astype(int).reshape(size, size, size, 3)
         return LUT3D(buf, size=size)
 
     @classmethod
@@ -166,8 +142,7 @@ class LUT3D(object):
         :raise IOError
         """
         with open(filename) as textStream:
-            lut = cls.readFromTextStream(textStream)
-        return lut
+            return cls.readFromTextStream(textStream)
 
     def __init__(self, LUT3DArray, size=defaultSize, maxrange=standardMaxRange, dtype=np.int16, alpha=False):
         """
@@ -203,7 +178,7 @@ class LUT3D(object):
         """
         # sanity check
         if ((size - 1) & (size - 2)) != 0:
-            raise ValueError("LUT3D : size should be 2**n+1, found %d" % size)
+            raise ValueError(f"LUT3D : size should be 2**n+1, found {size}")
 
         self.LUT3DArray = LUT3DArray
         self.size = size
@@ -222,12 +197,12 @@ class LUT3D(object):
             s0 = (size, size, size, 3)
             if s != s0:
                 raise ValueError(f"LUT3D : array shape should be {s0}")
+
         if alpha:
-            self.LUT3DArray = np.concatenate((
-                self.LUT3DArray,
-                np.zeros(self.LUT3DArray.shape[:3] + (1,), dtype=self.LUT3DArray.dtype)),
-                axis=-1)
-        super().__init__()
+            self.LUT3DArray = np.concatenate(
+                (self.LUT3DArray, np.zeros(self.LUT3DArray.shape[:3] + (1,), dtype=self.LUT3DArray.dtype)),
+                axis=-1
+            )
 
     def toHaldArray(self, w, h):
         """
@@ -250,8 +225,7 @@ class LUT3D(object):
         buf = np.zeros((w * h * 3), dtype=np.uint8)
         count = (s ** 3) * 3
         buf[:count] = np.clip(self.LUT3DArray.ravel(), 0, 255)
-        buf = buf.reshape(h, w, 3)
-        return HaldArray(buf, s)
+        return HaldArray(buf.reshape(h, w, 3), s)
 
     def writeToTextStream(self, outStream):
         """
@@ -262,16 +236,11 @@ class LUT3D(object):
         :param outStream:
         :type outStream: TextIoWrapper
         """
-        LUT = self.LUT3DArray
-        outStream.write('bLUe 3D LUT\n')
-        outStream.write('Size %d\n' % self.size)
+        outStream.write(f'bLUe 3D LUT\nSize {self.size}\n')
         coeff = 255.0
-        for b in range(self.size):
-            for g in range(self.size):
-                for r in range(self.size):
-                    # r1, g1, b1 = LUT[r, g, b]  # order RGB
-                    b1, g1, r1 = LUT[b, g, r][:3]  # order BGR; BGRA values are allowed, so [:3] is mandatory
-                    outStream.write("%.7f %.7f %.7f\n" % (r1 / coeff, g1 / coeff, b1 / coeff))
+        for b, g, r in np.ndindex(self.size, self.size, self.size):
+            b1, g1, r1 = self.LUT3DArray[b, g, r][:3]  # R channel is iterated over first
+            outStream.write(f"{r1 / coeff:.7f} {g1 / coeff:.7f} {b1 / coeff:.7f}\n")
 
     def writeToTextFile(self, filename):
         """
@@ -290,7 +259,7 @@ class LUT3D(object):
 class DeltaLUT3D(object):
     """
     Versatile displacement 3D LUT. First dim is meant for hue
-    (additive shift and modulo arithmetic)
+    (additive shift and modulo arithmetic),
     and remaining dims can be used for any type of input (multiplicative shifts).
     """
 
