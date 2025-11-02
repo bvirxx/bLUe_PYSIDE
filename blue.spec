@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-imageformats = [('.\\venv6_123_2\\Lib\\site-packages\\PySide6\plugins\\imageformats', 'plugins\\imageformats')]
+imageformats = [('.\\venv6_123_2\\Lib\\site-packages\\PySide6\\plugins\\imageformats', 'plugins\\imageformats')]
 platforms = [('.\\venv6_123_2\\Lib\\site-packages\\PySide6\\plugins\\platforms', 'plugins\\platforms')]
 
 data_1 = [('bLUeNN\\pretrained_models\\sRGB\\*', 'bLUeNN\\pretrained_models\\sRGB')]

@@ -940,9 +940,10 @@ def getDisplayProfileWin(handle):
     """
 
     if sys.platform == 'win32':
+        from ctypes.wintypes import DWORD
         libhandle = ctypes.WinDLL('gdi32')
         buf = ctypes.create_unicode_buffer("", 0)
-        size = ctypes.wintypes.DWORD()
+        size = DWORD()
         res = libhandle.GetICMProfileW(handle, ctypes.byref(size), buf)
         buf = ctypes.create_unicode_buffer("", size.value)
         res = libhandle.GetICMProfileW(handle, ctypes.byref(size), buf)

@@ -20,11 +20,12 @@ from os.path import expanduser
 from json import load
 
 #########################
-# is Torch installed ?
+# are Torch and/or genai installed ?
 #########################
 import importlib
 
 HAS_TORCH = importlib.util.find_spec("torch") is not None and importlib.util.find_spec("torchvision") is not None
+HAS_GENAI = importlib.util.find_spec("google.genai") is not None
 
 ########################
 # read configuration file

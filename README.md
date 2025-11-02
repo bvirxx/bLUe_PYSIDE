@@ -1,6 +1,9 @@
 This File is part of bLUe software.
 
-Copyright (C) 2017-2023 Bernard Virot
+Copyright (C) 2017-2025 Bernard Virot
+
+## NEW
+bLUe can use Gemini's conversational image segmentation to select objects in an image.
 
 ## DESCRIPTION
 
@@ -62,6 +65,7 @@ See the [bLUe site](http://bernard.virot.free.fr/) for screenshots, tutorials an
 
 ## FUNCTIONALITY
 
+* Conversational image segmentation
 * Neural-network-based automatic 3D LUT for image enhancement
 * Soft proofing
 * Simultaneous edition of multiple images in formats jpg, heic, png, tif, nef, cr2, arw, dng,...
@@ -93,6 +97,7 @@ See the [bLUe site](http://bernard.virot.free.fr/) for screenshots, tutorials an
 * PyWavelets
 * PyTorch >= 1.4 and torchvision for auto adaptive 3D LUT
 * tifffile
+* google-genai for conversational image segmentation
 
 ExifTool should be installed.
 

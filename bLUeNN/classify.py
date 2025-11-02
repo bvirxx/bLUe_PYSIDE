@@ -37,10 +37,6 @@ opt.model_dir = opt.model_dir + '/' + opt.input_color_space
 
 model_dir = "bLUeNN/pretrained_models/sRGB"
 
-# Tensor type
-Tensor = torch.FloatTensor
-
-# criterion_pixelwise = torch.nn.MSELoss()
 LUT0 = Generator3DLUT(instance='identity')
 LUT1 = Generator3DLUT()
 LUT2 = Generator3DLUT()
@@ -87,6 +83,8 @@ def generateLUTfromQImage(img, coeffs):
    :return: 3D LUT and pred
    :rtype:
     """
+    # Tensor type
+    Tensor = torch.FloatTensor
 
     buf = QImageBuffer(img)[:, :, :3][:, :, ::-1].copy()  # convert to RGB. Tensor does not support negative strides
     img1 = TF.to_tensor(buf).type(Tensor)  # convert ndarray with dtype np.uint8 to tensor in range [0,1]

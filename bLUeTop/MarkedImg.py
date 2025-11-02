@@ -73,9 +73,6 @@ from bLUeTop.versatileImg import vImage
 
 from version import BLUE_VERSION
 
-if HAS_TORCH:
-    from bLUeNN.classify import generateLUTfromQImage
-
 
 class ColorSpace:
     notSpecified = -1
@@ -2638,6 +2635,9 @@ class QLayer(vImage):
         :return:
         :rtype:
         """
+        # lazy import
+        if HAS_TORCH:
+            from bLUeNN.classify import generateLUTfromQImage
         adjustForm = self.getGraphicsForm()
         inputImage = self.inputImg()
         currentImage = self.getCurrentImage()

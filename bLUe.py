@@ -151,6 +151,7 @@ from PySide6.QtWidgets import QApplication, \
     QTabWidget, QToolBar, QComboBox, QTabBar, QFrame
 
 import bLUeTop.QtGui1
+from bLUeAI.segmasks import AIForm
 
 from bLUeGui.dialog import *
 from bLUeGui.colorPatterns import cmHSP, cmHSB
@@ -265,6 +266,8 @@ def widgetChange(button, window=bLUeTop.Gui.window):
         window.label.img.isRuled = button.isChecked()
     elif button is window.eyeDropper:
         window.colorChooser.setVisible(button.isChecked())
+    elif button is window.AIButton:
+        window.AITool.show()
 
     updateStatus()
     window.label.repaint()
@@ -759,6 +762,7 @@ def setDocumentImage(img, window=bLUeTop.Gui.window):
         window.tabBar.setTabData(ind, img)
     window.cropTool.fit(img)
     window.cropTool.setCropTool(img)
+    window.AITool.setInput(img)
     # set button states
     for btn in window.btns.values():
         s = btn.autoExclusive()
@@ -2145,8 +2149,9 @@ def setupGUI(window=bLUeTop.Gui.window):
     window.updateStatus = updateStatus
     window.label.updateStatus = updateStatus
 
-    # crop tool
+    # tools
     window.cropTool = cropTool(parent=window.label)
+    window.AITool = AIForm(parent=window)
 
     # init button tool bars
     toolBar = QToolBar()
@@ -2224,6 +2229,9 @@ def setupGUI(window=bLUeTop.Gui.window):
     window.addToolBar(toolBar)
 
     # whatsThis
+    window.AIButton.setWhatsThis(
+        """Conversational image segmentation"""
+    )
     window.cropButton.setWhatsThis(
         """To <b>crop</b> the image drag a gray curtain on either side using the 8 small square buttons
         around the image. Use corner buttons to keep the image aspect ratio unchanged.<br>

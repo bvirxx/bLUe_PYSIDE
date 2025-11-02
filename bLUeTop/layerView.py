@@ -16,19 +16,21 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 import gc
+from pathlib import Path
 
 from PySide6 import QtCore
 from PySide6.QtCore import QRectF, QSize, Qt, QModelIndex, QPoint
-from PySide6.QtGui import QImage, QPalette, QKeySequence, QFontMetrics, QTextOption, QPixmap, QIcon,\
-    QStandardItem, QStandardItemModel, QAction, QGuiApplication
+from PySide6.QtGui import QImage, QPalette, QKeySequence, QFontMetrics, QTextOption, QPixmap, QIcon, \
+    QStandardItem, QStandardItemModel, QAction, QGuiApplication, QPainter
 from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QTableView, QAbstractItemView, QStyledItemDelegate, \
-    QHeaderView, QVBoxLayout, QMenu, QSlider, QStyle, QCheckBox, QApplication
+    QHeaderView, QVBoxLayout, QMenu, QSlider, QStyle, QCheckBox, QApplication, QFileDialog
 
 import bLUeTop.Gui
 import bLUeGui.blend
 from bLUeGui.bLUeImage import QImageBuffer, bImage
-from bLUeGui.dialog import dlgWarn
+from bLUeGui.dialog import dlgWarn, dlgInfo
 from bLUeGui.memory import weakProxy
+from bLUeTop import Gui
 from bLUeTop.settings import TABBING
 from bLUeTop.utils import QbLUeSlider
 from bLUeTop.versatileImg import vImage
@@ -710,6 +712,7 @@ class QLayerView(QTableView):
         menu.actionMaskReset_M = QAction('Mask All', None)
         menu.actionMaskCopy = QAction('Copy Mask to Clipboard', None)
         menu.actionImageCopy = QAction('Copy Image to Clipboard', None)
+        menu.actionMaskImport = QAction('Import Mask', None)
         menu.actionMaskPaste = QAction('Paste Mask', None)
         menu.actionImagePaste = QAction('Paste Image', None)
         menu.actionMaskDilate = QAction('Dilate Mask', None)
@@ -755,6 +758,7 @@ class QLayerView(QTableView):
             menu.subMenuLum.addAction(a)
         menu.addAction(menu.actionMaskReset_UM)
         menu.addAction(menu.actionMaskReset_M)
+        menu.addAction(menu.actionMaskImport)
         menu.addAction(menu.actionMaskCopy)
         menu.addAction(menu.actionMaskPaste)
         menu.addAction(menu.actionMaskDilate)
@@ -921,6 +925,27 @@ class QLayerView(QTableView):
         def maskCopy():
             QApplication.clipboard().setImage(layer.mask)
 
+        def maskImport():
+            key ='paths/dlgmaskdir'
+            lastDir = str(Gui.window.settings.value(key, '.'))
+            maskList, _ = QFileDialog.getOpenFileNames(Gui.window, 'Select one or more masks to open', lastDir,  "Images (*.png)")
+            if maskList:
+                newDir = Path(maskList[0]).parent
+                Gui.window.settings.setValue(key, newDir)
+                qp = QPainter(layer.mask)
+                qp.setCompositionMode(QPainter.CompositionMode.CompositionMode_Darken)
+                count = 0
+                for f in maskList:
+                    im = QImage(f)
+                    if im.isNull():
+                        dlgWarn('invalid mask file', info=f)
+                    else:
+                        qp.drawImage(layer.mask.rect(), im)
+                        count += 1
+                dlgInfo(f'{count} masks imported in layer {layer.name}')
+                self.img.prLayer.execute(l=None, pool=None)
+                self.img.onImageChanged()
+
         def imageCopy():
             QApplication.clipboard().setImage(layer.getCurrentMaskedImage())
 
@@ -1065,6 +1090,7 @@ class QLayerView(QTableView):
         self.cMenu.actionMaskInvert.triggered.connect(maskInvert)
         self.cMenu.actionMaskReset_UM.triggered.connect(maskReset_UM)
         self.cMenu.actionMaskReset_M.triggered.connect(maskReset_M)
+        self.cMenu.actionMaskImport.triggered.connect(maskImport)
         self.cMenu.actionMaskCopy.triggered.connect(maskCopy)
         self.cMenu.actionMaskPaste.triggered.connect(maskPaste)
         self.cMenu.actionImageCopy.triggered.connect(imageCopy)
