@@ -22,14 +22,13 @@ import base64
 import json
 import numpy as np
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QPainter, QImage, QWindow
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QFileDialog, QMessageBox, QPlainTextEdit, \
-    QHBoxLayout, QScrollArea, QTextBrowser, QApplication, QMainWindow
+from PySide6.QtGui import QPainter, QImage
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QFileDialog, QPlainTextEdit, QHBoxLayout, QApplication
 from PIL import Image, ImageDraw
 from google.genai.errors import APIError
 
 from bLUeGui.bLUeImage import QImageBuffer
-from bLUeGui.dialog import dlgWarn, dlgInfo
+from bLUeGui.dialog import dlgWarn
 from bLUeGui.memory import weakProxy
 from bLUeTop.Gui import window
 import bLUeTop.settings
@@ -61,12 +60,11 @@ def extract_segmentation_masks(aitool):
     if bLUeTop.settings.HAS_GENAI:
         from google import genai
         from google.genai import types
-        from google.genai.errors import ClientError, ServerError
     else:
         dlgWarn('google-genai is not installed')
         return
-    # Load image
 
+    # Load image
     im = Image.fromarray(QImageBuffer(img)[:, :, [2, 1, 0, 3]])
     #im.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
 
@@ -213,12 +211,15 @@ class AIForm(QWidget):
             """
             <b>Conversational mask generation</b><br>
             Edit the Gemini prompt, if needed.<br>
-            To <b>generate the mask</b>, press the <i>Run</i> button.<br>
-            To <b>import the mask</b> into a layer, right-click the layer 
-            in the <i>Layer View</i> (right pane) to open the context menu,
-            and choose <i>Import Mask</i> or <i>Add Mask To Current</i> from the menu.<br>
-            If the <i>Run</i> button is disabled, check the package google-genai is installed
-            and the environment variable GEMINI_API_KEY is set.
+            To <b>generate the masks</b>, click the <i>Run</i> button.<br>
+            <i>Note.</i> If the <i>Run</i> button is disabled, verify that the package google-genai is installed
+            and that the <i>GEMINI_API_KEY</i> environment variable is set.<br><br>
+            To <b>import all masks</b> into the current layer, 
+            press the <i>Import Masks</i> button.<br>
+            To <b>import a subset of masks</b>, right-click the layer name
+            in the <i>Layer View</i> (right pane), and choose <i>Import Mask</i>
+            from the context menu which opens. Next, use the <i>file explorer</i> to select
+            one or more masks to import.<br>.
             """
         )
     """
@@ -241,10 +242,13 @@ class AIForm(QWidget):
             window.settings.setValue('paths/gendir', self.dir_path)
             self.outputLabel.setText("Output Dir " + self.dir_path)
 
-    def importMasks(self):
-        pass
-
     def runSegmentation(self):
+        if not self.inputImg:
+            self.console.appendHtml("<span style='color: #FF0000'>No input image</span>")
+            return
+        if not self.dir_path:
+            self.console.appendHtml("<span style='color: #FF0000'>No output directory</span>")
+            return
         self.importButton.setEnabled(False)
         self.console.appendPlainText('Current Prompt (Use Prompt Editor above to edit)')
         # copy current prompt to console
@@ -253,12 +257,8 @@ class AIForm(QWidget):
         try:
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
             QApplication.processEvents()
-            if self.inputImg and self.dir_path:
-                self.maskList = extract_segmentation_masks(self)
-                self.importButton.setEnabled(True)
-            else:
-                self.console.appendHtml("<span style='color: #FF0000'>Input Error, Please provide both input image and output directory</span>")
-
+            self.maskList = extract_segmentation_masks(self)
+            self.importButton.setEnabled(True)
         except GeminiError as e:
             QApplication.restoreOverrideCursor()
             QApplication.processEvents()
