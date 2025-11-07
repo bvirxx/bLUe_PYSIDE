@@ -1522,7 +1522,7 @@ def layerScripting(name, window=bLUeTop.Gui.window, sname=None, script=False):
             layer.execute = lambda l=layer, pool=None: l.tLayer.applyImage(grWindow.options)
             layer.actioname = name
             layer.filename = filename
-            post(layer)
+            post(layer, grWindow)
         return layer if script else None  # exactly one layer added if script
 
     # empty new image
