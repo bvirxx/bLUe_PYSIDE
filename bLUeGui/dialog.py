@@ -512,15 +512,17 @@ class QblueFileDialog(QFileDialog):
     """
     def __init__(self, *args):
         super().__init__(*args)
+        self.setOptions(QFileDialog.Option.DontUseNativeDialog | QFileDialog.Option.DontUseCustomDirectoryIcons)
         self.dock = None
         self.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
-        self.setOptions(QFileDialog.Option.DontUseNativeDialog)
-        # connect history buttons to signal directoryEntered (default is no signal)
-        historyBtnNames = ['forwardButton', 'backButton']
+
+        # only display 'Parent Dir' button
+        # historyBtnNames = ['forwardButton', 'backButton', 'toParentButton', 'newFolderButton', 'listModeButton', 'detailModeButton']
+        historyBtnNames = ['forwardButton', 'backButton', 'newFolderButton', 'listModeButton', 'detailModeButton']
         for name in historyBtnNames:
             btn = self.findChild(QToolButton, name)
             if btn:
-                btn.clicked.connect(lambda: self.directoryEntered.emit(self.directory().absolutePath()))
+                btn.setVisible(False)
 
     def setDock(self):
         dock = stateAwareQDockWidget()

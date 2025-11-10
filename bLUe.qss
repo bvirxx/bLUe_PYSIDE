@@ -56,6 +56,7 @@ QGroupBox#groupBox {border: 1px solid gray;}
 QMessageBox, QMessageBox *, QDialog, QDialog * {background-color: #555555; /* gray; */
                                                 color: white}
 QFileDialog QHeaderView::section {background-color: #555555}
+QblueFileDialog QToolButton:hover {background-color: yellow}
 savingDialog, savingDialog * {background-color: white;
                               color: black}
 savingDialog QAbstractScrollArea *, savingDialog QPushButton {background-color: lightgray} /*scrollbars and buttons*/

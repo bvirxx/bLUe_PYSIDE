@@ -171,6 +171,7 @@ class AIForm(QWidget):
         self.promptEdit.setPlainText(self.default_prompt)
         self.outputLabel = QLabel(f"Output Directory: {self.dir_path}")
         self.console = QPlainTextEdit()
+        self.console.setReadOnly(True)
         self.console.setReadOnly = True
         self.outputBrowseButton = QbLUePushButton("Browse output directory")
         self.outputBrowseButton.clicked.connect(self.browseOutputDir)
@@ -264,6 +265,7 @@ class AIForm(QWidget):
             QApplication.processEvents()
             dlgWarn('Gemini error', info=str(e))
         finally:
+            self.show()
             QApplication.restoreOverrideCursor()
             QApplication.processEvents()
 
