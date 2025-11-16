@@ -28,7 +28,7 @@ from collections import OrderedDict
 import tifffile
 
 from PIL.ImageCms import ImageCmsProfile
-from PySide6.QtCore import Qt, QSize, QPoint, QPointF, QFileInfo, QByteArray, QBuffer, QIODevice, QRectF, QTimer
+from PySide6.QtCore import Qt, QSize, QPoint, QPointF, QFileInfo, QByteArray, QBuffer, QIODevice, QRectF
 
 import cv2
 from copy import copy
@@ -3360,9 +3360,6 @@ class QDrawingLayer(QLayerImage):
         self.atomicStrokeImg = None
         # cache for current brush dict
         self.brushDict = None
-        self.timer = QTimer()
-        self.timer.setSingleShot(True)
-        self.last_refresh = 0  # refresh rate control
         self.uRect = QRect()  # modified region control
 
     def inputImg(self, redo=True):

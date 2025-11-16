@@ -1,7 +1,7 @@
 /* WARNING : This style sheet is a template. It contains placeholders that must
-be preprocessed (see blue.py for details) */
+be preprocessed (see blue.py setupGui for details) */
 
-QMainWindow, QMainWindow *, QGraphicsView, QListWidget, QMenu,
+QMainWindow, QMainWindow *, QGraphicsView, QListWidget, QComboBox, QComboBox *, QMenu,
 QTableView, QLabel, QGroupBox {background-color: rgb(40,40,40); color: rgb(220,220,220)}
 QGroupBox {margin-top: 7px; border: 1px solid gray; border-radius: 4px;}
 QGroupBox::title {subcontrol-origin: margin; left: 2px; padding: 0px 2px 0px 2px;}
@@ -53,13 +53,13 @@ QToolButton:hover {background-color: #555588;
 QToolButton:checked {background-color: blue}
 QGroupBox#groupbox_btn {border: 1px solid gray;}
 QGroupBox#groupBox {border: 1px solid gray;}
-QMessageBox, QMessageBox *, QDialog, QDialog * {background-color: #555555; /* gray; */
+QMessageBox, QMessageBox *, QDialog, QDialog * {background-color: #555555;
                                                 color: white}
-QFileDialog QHeaderView::section {background-color: #555555}
 QblueFileDialog QToolButton:hover {background-color: yellow}
-savingDialog, savingDialog * {background-color: white;
-                              color: black}
-savingDialog QAbstractScrollArea *, savingDialog QPushButton {background-color: lightgray} /*scrollbars and buttons*/
+savingDialog, savingDialog * {background-color: rgb(220,220,220);
+                              color: black;}
+savingDialog QFileDialog * {background-color: white;
+                            color: black;}
 QColorDialog QLabel {background-color: gray;
                      color: white}
 QStatusBar::item {border: none}

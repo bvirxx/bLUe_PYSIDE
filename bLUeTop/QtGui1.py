@@ -47,6 +47,7 @@ class Form1(QMainWindow):
         self.__colorChooser, self.__infoView = (None,) * 2
         self.onCloseEvent = lambda: True
         self.onCleanBeforeDestr = lambda: True
+        self.current_exclToolName = ''
 
     @property
     def colorChooser(self):
@@ -115,6 +116,12 @@ class Form1(QMainWindow):
                 )
             self.btnValues[str(button.accessibleName())] = button.isChecked()
             self.btns[str(button.accessibleName())] = button
+
+        self.current_exclTool = None
+        self.buttonGroup.buttonToggled.connect(lambda btn: self.setCurrentExclTool(btn))
+
+    def setCurrentExclTool(self, tool):
+        self.current_exclToolName = tool.accessibleName()
 
     def handlePushButtonClicked(self, button):
         """

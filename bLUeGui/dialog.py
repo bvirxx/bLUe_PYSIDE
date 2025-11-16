@@ -263,7 +263,7 @@ class savingDialog(QDialog):
         super().__init__(parent=parent)
         self.setWindowTitle(text)
         # File Dialog
-        self.dlg = QFileDialog(caption=text, directory=lastDir)
+        self.dlg = QFileDialog(parent=self, caption=text, directory=lastDir)  # setting parent needed by app stylesheet
         self.dlg.setOption(QFileDialog.Option.DontUseNativeDialog)
         self.metaOption = QCheckBox('Remove Meta')
         # sliders

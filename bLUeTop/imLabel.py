@@ -16,8 +16,6 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 from os.path import dirname, basename
-from time import time_ns
-from threading import Lock
 
 from PySide6.QtCore import QRect, QRectF, Qt, QPointF, QEvent, QPoint
 from PySide6.QtGui import QPainter, QColor, QBrush, QContextMenuEvent, QFont, QPainterPath, \
@@ -370,124 +368,125 @@ class imageLabel(QLabel):
         self.clicked = self.clicked and abs(State['ix_begin'] - x) + abs(State['iy_begin'] - y) <= 2
 
         if img.isMouseSelectable:
-
-            # drawing
-            if (window.btnValues['brushButton'] or window.btnValues['eraserButton']) and layer.isDrawLayer():
-                self.virtualCursor.setPosition(event.position())
-                self.updateVirtualCursorSize() # tablet events may change pen width
-                self.__strokePaint(layer, x, y, r)
-                repaintAfter = False  # repainting is controlled by __strokePaint()
-
-            # marquee tool
-            elif window.btnValues['rectangle']:
-                # rectangle coordinates are relative to full image
-                x_img = (min(State['ix_begin'], x) - img.xOffset) // r
-                y_img = (min(State['iy_begin'], y) - img.yOffset) // r
-                w = abs(State['ix_begin'] - x) // r
-                h = abs(State['iy_begin'] - y) // r
-                if min(w, h) > 10:
-                    if layer.currSRect:
-                        layer.currSRect.setRect(x_img, y_img, w, h)
-                    else:
-                        layer.currSRect = QRect(x_img, y_img, w, h)
-                        layer.sRects.append(layer.currSRect)
-
-            # mask
-            elif window.btnValues['drawFG'] or window.btnValues['drawBG']:
-                if layer.maskIsEnabled:
-                    if layer.isCloningLayer:
-                        layer.vlChanged = True
-                        # layer.setMaskEnabled(color=True)  # set mask to color mask
-                    toolOpacity = window.verticalSlider2.value() / 100
-                    if modifiers == Qt.KeyboardModifier.NoModifier:
-                        if layer.isSegmentLayer():
-                            color = vImage.defaultColor_UnMasked_SM if \
-                                window.btnValues['drawFG'] else vImage.defaultColor_Masked_SM
+            match window.current_exclToolName:
+                case 'brushButton' | 'eraserButton':
+                    # drawing
+                    if layer.isDrawLayer():
+                        self.virtualCursor.setPosition(event.position())
+                        self.updateVirtualCursorSize() # tablet events may change pen width
+                        self.__strokePaint(layer, x, y, r)
+                        repaintAfter = False  # repainting is controlled by __strokePaint()
+                case 'rectangle':
+                    # marquee tool
+                    #elif window.btnValues['rectangle']:
+                    # rectangle coordinates are relative to full image
+                    x_img = (min(State['ix_begin'], x) - img.xOffset) // r
+                    y_img = (min(State['iy_begin'], y) - img.yOffset) // r
+                    w = abs(State['ix_begin'] - x) // r
+                    h = abs(State['iy_begin'] - y) // r
+                    if min(w, h) > 10:
+                        if layer.currSRect:
+                            layer.currSRect.setRect(x_img, y_img, w, h)
                         else:
-                            color = vImage.defaultColor_UnMasked if \
-                                window.btnValues['drawFG'] else vImage.defaultColor_Masked
-                            color.setAlpha(layer.colorMaskOpacity)
-                    else:
-                        color = vImage.defaultColor_UnMasked_Invalid
-                    qp.begin(layer.mask)
-                    # get pen width (relative to image)
-                    # w_pen = window.verticalSlider1.value() * r * # / r
-                    d = self.State['brush']
-                    self.updateVirtualCursorSize()  # tablet events may change pen size
-                    w_pen = d['size'] * d['tabletW']  # * self.img.resize_coeff(self)
-                    # mode source: result is source (=pen) pixel color and opacity
-                    qp.setCompositionMode(qp.CompositionMode.CompositionMode_Source)
-                    tmp_x = (x - img.xOffset) // r
-                    tmp_y = (y - img.yOffset) // r
-                    qp.setPen(Qt.PenStyle.NoPen)
-                    qp.setBrush(QBrush(color))
-                    qp.setOpacity(toolOpacity)
-                    # paint the brush tips spaced by 0.25 * w_pen
-                    # use 1-norm for performance
-                    a_x, a_y = tmp_x - State['x_imagePrecPos'], tmp_y - State['y_imagePrecPos']
-                    d = abs(a_x) + abs(a_y)
-                    x, y = State['x_imagePrecPos'], State['y_imagePrecPos']
-                    radius = w_pen / 2
-                    if d == 0:
-                        qp.drawEllipse(QPointF(x, y),
-                                       radius,
-                                       radius
-                                       )  # center, radius : QPointF mandatory, else bounding rect topleft and size
-                    else:
-                        step = w_pen * 0.25 / d
-                        for i in range(int(1 / step) + 1):
+                            layer.currSRect = QRect(x_img, y_img, w, h)
+                            layer.sRects.append(layer.currSRect)
+                case ('drawFG' | 'drawBG'):
+                    # mask
+                    #elif window.btnValues['drawFG'] or window.btnValues['drawBG']:
+                    if layer.maskIsEnabled:
+                        if layer.isCloningLayer:
+                            layer.vlChanged = True
+                            # layer.setMaskEnabled(color=True)  # set mask to color mask
+                        toolOpacity = window.verticalSlider2.value() / 100
+                        if modifiers == Qt.KeyboardModifier.NoModifier:
+                            if layer.isSegmentLayer():
+                                color = vImage.defaultColor_UnMasked_SM if \
+                                    window.btnValues['drawFG'] else vImage.defaultColor_Masked_SM
+                            else:
+                                color = vImage.defaultColor_UnMasked if \
+                                    window.btnValues['drawFG'] else vImage.defaultColor_Masked
+                                color.setAlpha(layer.colorMaskOpacity)
+                        else:
+                            color = vImage.defaultColor_UnMasked_Invalid
+                        qp.begin(layer.mask)
+                        # get pen width (relative to image)
+                        # w_pen = window.verticalSlider1.value() * r * # / r
+                        d = self.State['brush']
+                        self.updateVirtualCursorSize()  # tablet events may change pen size
+                        w_pen = d['size'] * d['tabletW']  # * self.img.resize_coeff(self)
+                        # mode source: result is source (=pen) pixel color and opacity
+                        qp.setCompositionMode(qp.CompositionMode.CompositionMode_Source)
+                        tmp_x = (x - img.xOffset) // r
+                        tmp_y = (y - img.yOffset) // r
+                        qp.setPen(Qt.PenStyle.NoPen)
+                        qp.setBrush(QBrush(color))
+                        qp.setOpacity(toolOpacity)
+                        # paint the brush tips spaced by 0.25 * w_pen
+                        # use 1-norm for performance
+                        a_x, a_y = tmp_x - State['x_imagePrecPos'], tmp_y - State['y_imagePrecPos']
+                        d = abs(a_x) + abs(a_y)
+                        x, y = State['x_imagePrecPos'], State['y_imagePrecPos']
+                        radius = w_pen / 2
+                        if d == 0:
                             qp.drawEllipse(QPointF(x, y),
                                            radius,
                                            radius
                                            )  # center, radius : QPointF mandatory, else bounding rect topleft and size
-                            x, y = x + a_x * step, y + a_y * step
-                    qp.end()
-                    self.virtualCursor.setPosition(event.position())
-                    if layer.isCloningLayer():
-                        if not layer.sourceFromFile:
-                            layer.marker = QPointF(tmp_x - layer.xAltOffset, tmp_y - layer.yAltOffset)
                         else:
-                            pxmp = layer.getGraphicsForm().sourcePixmap
-                            layer.marker = QPointF((tmp_x - layer.xAltOffset) * pxmp.width() / layer.width(),
-                                                   (tmp_y - layer.yAltOffset) * pxmp.height() / layer.height())
-                            layer.getGraphicsForm().widgetImg.repaint()
-                    State['x_imagePrecPos'], State['y_imagePrecPos'] = tmp_x, tmp_y
-                    ############################
-                    # update upper stack
-                    # should be layer.applyToStack() if any upper layer visible : too slow
-                    # layer.applyToStack()
-                    layer.updatePixmap()
-                    img.prLayer.update()  # =applyNone()
-                    #############################
-                    #window.label.repaint()  # useless because repaintafter is true
+                            step = w_pen * 0.25 / d
+                            for i in range(int(1 / step) + 1):
+                                qp.drawEllipse(QPointF(x, y),
+                                               radius,
+                                               radius
+                                               )  # center, radius : QPointF mandatory, else bounding rect topleft and size
+                                x, y = x + a_x * step, y + a_y * step
+                        qp.end()
+                        self.virtualCursor.setPosition(event.position())
+                        if layer.isCloningLayer():
+                            if not layer.sourceFromFile:
+                                layer.marker = QPointF(tmp_x - layer.xAltOffset, tmp_y - layer.yAltOffset)
+                            else:
+                                pxmp = layer.getGraphicsForm().sourcePixmap
+                                layer.marker = QPointF((tmp_x - layer.xAltOffset) * pxmp.width() / layer.width(),
+                                                       (tmp_y - layer.yAltOffset) * pxmp.height() / layer.height())
+                                layer.getGraphicsForm().widgetImg.repaint()
+                        State['x_imagePrecPos'], State['y_imagePrecPos'] = tmp_x, tmp_y
+                        ############################
+                        # update upper stack
+                        # should be layer.applyToStack() if any upper layer visible : too slow
+                        # layer.applyToStack()
+                        layer.updatePixmap()
+                        img.prLayer.update()  # =applyNone()
+                        #############################
+                        #window.label.repaint()  # useless because repaintafter is true
+                case ('drag' | 'pointer'):
+                    # drag buttton or arrow
+                    #elif window.btnValues['drag'] or window.btnValues['pointer']:
+                    # drag image
+                    if modifiers == Qt.KeyboardModifier.NoModifier:
+                        img.xOffset += x - State['ix']
+                        img.yOffset += y - State['iy']
+                        if window.btnValues['Crop_Button']:
+                            window.cropTool.setCropTool(img)
 
-            # drag buttton or arrow
-            elif window.btnValues['drag'] or window.btnValues['pointer']:
-                # drag image
-                if modifiers == Qt.KeyboardModifier.NoModifier:
-                    img.xOffset += x - State['ix']
-                    img.yOffset += y - State['iy']
-                    if window.btnValues['Crop_Button']:
-                        window.cropTool.setCropTool(img)
+                    # drag active layer only for drawing layer or crop tool for others
+                    elif modifiers == Qt.KeyboardModifier.ControlModifier:
+                        layer.drag(x, y, State['ix'], State['iy'], self)
+                        # layer.xOffset += (x - State['ix'])
+                        # layer.yOffset += (y - State['iy'])
+                        # layer.updatePixmap()
+                        # img.prLayer.update()  # =applyNone()
 
-                # drag active layer only for drawing layer or crop tool for others
-                elif modifiers == Qt.KeyboardModifier.ControlModifier:
-                    layer.drag(x, y, State['ix'], State['iy'], self)
-                    # layer.xOffset += (x - State['ix'])
-                    # layer.yOffset += (y - State['iy'])
-                    # layer.updatePixmap()
-                    # img.prLayer.update()  # =applyNone()
-
-                # drag cloning virtual layer
-                elif modifiers == Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier:
-                    if layer.isCloningLayer():
-                        layer.xAltOffset += (x - State['ix'])
-                        layer.yAltOffset += (y - State['iy'])
-                        layer.vlChanged = True
-                        if layer.maskIsSelected or not layer.maskIsEnabled:
-                            layer.setMaskEnabled(color=False)  # set to opacity mask
-                        layer.applyCloning(seamless=False, showTranslated=True, moving=True)
-
+                    # drag cloning virtual layer
+                    elif modifiers == Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier:
+                        if layer.isCloningLayer():
+                            layer.xAltOffset += (x - State['ix'])
+                            layer.yAltOffset += (y - State['iy'])
+                            layer.vlChanged = True
+                            if layer.maskIsSelected or not layer.maskIsEnabled:
+                                layer.setMaskEnabled(color=False)  # set to opacity mask
+                            layer.applyCloning(seamless=False, showTranslated=True, moving=True)
+            # end match
         # not mouse selectable widget : probably before window alone !
         else:
             if modifiers == Qt.KeyboardModifier.NoModifier:
@@ -679,86 +678,87 @@ class imageLabel(QLabel):
         The image editor in plain (i.e. != before/after) mode accepts and handles them.
         Other imageLabel instances ignore them.
         All other widget classes do not handle them. For these last classes tablet events
-        are transformed into synthesised mouse events and handled as such.
+        are transformed into synthesized mouse events and handled as such.
 
         :param event:
         :type event: QTabletEvent
         """
-        if self.objectName() == 'label':
-            event.accept()
-        else:
+        if self.objectName() != 'label':
+            # turn into mouse event and handle it
             event.ignore()
             return
 
+        # get brush dict
         d = self.State['brush']
         eventType = event.type()
 
-        if eventType == QEvent.Type.TabletMove:
-            # Event pressure range is [0, 1]
-            # xTilt and yTilt are from pen to the perpendicular to tablet in range [-60, 60] degrees.
-            # Positive values are towards the tablet's physical bottom-right.
-            # d['tabletW'] is used as a  multiplicative coefficient for brush size.
-            # It should be > 0 and may be > 1
-            v = bTablet.getWidthValuator()
-            if v == bTablet.valuator.PressureValuator:
-                d['tabletW'] = 0.2 + event.pressure()
-            elif bTablet.valuator.HTiltValuator:
-                hValue = ((event.xTilt() + 60.0) / 120.0)
-                d['tabletW'] = 0.2 + hValue
-            elif bTablet.valuator.VTiltValuator:
-                vValue = ((event.yTilt() + 60.0) / 120.0)
-                d['tabletW'] = 0.2 + vValue
-            elif v == bTablet.valuator.TiltValuator:
-                vValue = ((event.yTilt() + 60.0) / 120.0)
-                hValue = ((event.xTilt() + 60.0) / 120.0)
-                d['tabletW'] = 0.2 + max(hValue, vValue)
-            else:
+        match eventType:
+            case QEvent.Type.TabletPress:
+                pass
+            case QEvent.Type.TabletRelease:
+                # restore brush
                 d['tabletW'] = 1.0
-
-            v = bTablet.getAlphaValuator()
-            # d['tabletA'] is used as a multiplicative coefficient for brush opacity.
-            # It should be > 0 and can be > 1 : resulting brush opacity is clipped to 1.0.
-            if v == bTablet.valuator.VTiltValuator:
-                d['tabletA'] = 1.0 + event.yTilt() / 60.0
-            elif v == bTablet.valuator.HTiltValuator:
-                d['tabletA'] = 1.0 + event.xTilt() / 60.0
-            elif v == bTablet.valuator.TiltValuator:
-                d['tabletA'] = 1.0 + max(event.xTilt() / 60.0, event.yTilt() / 60.0)
-            elif v == bTablet.valuator.PressureValuator:
-                d['tabletA'] = event.pressure()
-            else:
                 d['tabletA'] = 1.0
-
-            v = bTablet.getSatValuator()
-            # d['tabletS'] is used as a multiplicative coefficent for the saturation of brush pixel colors.
-            # It should be > 0 and can be > 1 : resulting saturations are clipped to 1.0.
-            if v == bTablet.valuator.VTiltValuator:
-                d['tabletS'] = 1.0 + event.yTilt() / 60.0
-            elif v == bTablet.valuator.HTiltValuator:
-                d['tabletS'] = 1.0 + event.xTilt() / 60.0
-            elif v == bTablet.valuator.TiltValuator:
-                d['tabletS'] = 1.0 + max(event.xTilt() / 60.0, event.yTilt() / 60.0)
-            elif v == bTablet.valuator.PressureValuator:
-                d['tabletS'] = event.pressure() + 0.5
-            else:
                 d['tabletS'] = 1.0
+            case QEvent.Type.TabletMove:
+                # Event pressure range is [0, 1]
+                # xTilt and yTilt are from pen to the perpendicular to tablet in range [-60, 60] degrees.
+                # Positive values are towards the tablet's physical bottom-right.
+                # d['tabletW'] is used as a  multiplicative coefficient for brush size.
+                # It should be > 0 and may be > 1
+                #v = bTablet.getWidthValuator()
+                match bTablet.getWidthValuator():
+                    case bTablet.valuator.PressureValuator:
+                        d['tabletW'] = 0.2 + event.pressure()
+                    case bTablet.valuator.HTiltValuator:
+                        #hValue = ((event.xTilt() + 60.0) / 120.0)
+                        #d['tabletW'] = 0.2 + hValue
+                        d['tabletW'] = event.xTilt() / 120.0 + 0.7
+                    case bTablet.valuator.VTiltValuator:
+                        #vValue = ((event.yTilt() + 60.0) / 120.0)
+                        #d['tabletW'] = 0.2 + vValue
+                        d['tabletW'] = event.yTilt() / 120.0 + 0.7
+                    case bTablet.valuator.TiltValuator:
+                        #vValue = ((event.yTilt() + 60.0) / 120.0)
+                        #hValue = ((event.xTilt() + 60.0) / 120.0)
+                        #d['tabletW'] = 0.2 + max(hValue, vValue)
+                        d['tabletW'] = max(event.xTilt() , event.yTilt()) /120.0 + 0.7
+                    case _:
+                        d['tabletW'] = 1.0
 
-            # draw move
-            self.mouseMoveEvent(event)
+                match bTablet.getAlphaValuator():
+                    # d['tabletA'] is used as a multiplicative coefficient for brush opacity.
+                    # It should be > 0 and can be > 1 : resulting brush opacity is clipped to 1.0.
+                    case bTablet.valuator.VTiltValuator:
+                        d['tabletA'] = 1.0 + event.yTilt() / 60.0
+                    case bTablet.valuator.HTiltValuator:
+                        d['tabletA'] = 1.0 + event.xTilt() / 60.0
+                    case bTablet.valuator.TiltValuator:
+                        d['tabletA'] = 1.0 + max(event.xTilt(), event.yTilt()) / 60.0
+                    case bTablet.valuator.PressureValuator:
+                        d['tabletA'] = event.pressure()
+                    case _:
+                        d['tabletA'] = 1.0
 
-            # restore brush
-            d['tabletW'] = 1.0
-            d['tabletA'] = 1.0
-            d['tabletS'] = 1.0
+                match bTablet.getSatValuator():
+                    # d['tabletS'] is used as a multiplicative coefficent for the saturation of brush pixel colors.
+                    # It should be > 0 and can be > 1 : resulting saturations are clipped to 1.0.
+                    case bTablet.valuator.VTiltValuator:
+                        d['tabletS'] = 1.0 + event.yTilt() / 60.0
+                    case bTablet.valuator.HTiltValuator:
+                        d['tabletS'] = 1.0 + event.xTilt() / 60.0
+                    case bTablet.valuator.TiltValuator:
+                        d['tabletS'] = 1.0 + max(event.xTilt(), event.yTilt()) / 60.0
+                    case bTablet.valuator.PressureValuator:
+                        d['tabletS'] = event.pressure() + 0.5
+                    case _:
+                        d['tabletS'] = 1.0
 
-        elif eventType == QEvent.Type.TabletPress:
-            self.mousePressEvent(event)
+            case _:
+                logger.warning('unhandled tablet event %s', eventType)
 
-        elif eventType == QEvent.Type.TabletRelease:
-            self.mouseReleaseEvent(event)
-
-        else:
-            logger.warning('unhandled tablet event %s', eventType)
+        # turn into mouse event and handle it
+        event.ignore()
 
     def updateCursor(self, event):
         """
@@ -768,54 +768,60 @@ class imageLabel(QLabel):
         :type event: QEvent
         """
         window = self.window
-        # set tool cursor
         layer = window.label.img.getActiveLayer()
 
+        # color picker mode
+        if window.btnValues['colorPicker']:
+            if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+                self.setCursor(window.cursors['EyeDropper'])
+            else:
+                self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
+            self.virtualCursor.visible = False
+            return
+
         # sync tool buttons with tablet pen/eraser button.
-        if event.pointerType() == QPointingDevice.PointerType.Eraser:
-            self.setCursor(window.cursors['Eraser'])
-            if self.window.btnValues['brushButton']:
-                self.window.btns['eraserButton'].setChecked(True)  # tool buttons are mutually exclusive
-            elif self.window.btnValues['drawBG']:
-                self.window.btns['drawFG'].setChecked(True)  # unmasking (erasing mask)
-        elif event.pointerType() == QPointingDevice.PointerType.Pen:
+        if event.pointerType() == QPointingDevice.PointerType.Pen:
             self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
             if self.window.btnValues['eraserButton']:
                 self.window.btns['brushButton'].setChecked(True)
             elif self.window.btnValues['drawFG']:  # drawFG = unmasking
                 self.window.btns['drawBG'].setChecked(True)
+        elif event.pointerType() == QPointingDevice.PointerType.Eraser:
+            self.setCursor(window.cursors['Eraser'])
+            if self.window.btnValues['brushButton']:
+                self.window.btns['eraserButton'].setChecked(True)  # tool buttons are mutually exclusive
+            elif self.window.btnValues['drawBG']:
+                self.window.btns['drawFG'].setChecked(True)  # unmasking (erasing mask)
+
         #else:
             # unhandled stylus
             #self.setCursor(QCursor(Qt.ArrowCursor))
 
         # sync cursor and virtual cursor with tool buttons
-        if window.btnValues['drawFG'] or window.btnValues['drawBG']:
-            self.virtualCursor.pixmap = window.cursors['Circle_Pixmap']
-            self.updateVirtualCursorSize()
-            self.virtualCursor.visible = True
-
-        elif window.btnValues['brushButton'] or window.btnValues['eraserButton']:
-            if layer.isDrawLayer():
-                self.virtualCursor.pixmap = self.State['brush']['cursor']
+        match window.current_exclToolName:
+            #if window.btnValues['drawFG'] or window.btnValues['drawBG']:
+            case 'drawFG' | 'drawBG':
+                self.virtualCursor.pixmap = window.cursors['Circle_Pixmap']
                 self.updateVirtualCursorSize()
                 self.virtualCursor.visible = True
 
-        elif window.btnValues['bucket']:
-            if layer.isDrawLayer():
-                self.setCursor(window.cursors['Bucket'])
-                self.virtualCursor.visible = False
+            #elif window.btnValues['brushButton'] or window.btnValues['eraserButton']:
+            case 'brushButton' | 'eraserButton':
+                if layer.isDrawLayer():
+                    self.virtualCursor.pixmap = self.State['brush']['cursor']
+                    self.updateVirtualCursorSize()
+                    self.virtualCursor.visible = True
 
-        elif window.btnValues['drag']:
-            self.setCursor(QCursor(Qt.CursorShape.OpenHandCursor))
-            self.virtualCursor.visible = False
-
-        elif window.btnValues['colorPicker']:
-            if layer.isAdjustLayer():
-                if layer.view.isVisible():
-                    self.setCursor(window.cursors['EyeDropper'])
+            #elif window.btnValues['bucket']:
+            case 'bucket':
+                if layer.isDrawLayer():
+                    self.setCursor(window.cursors['Bucket'])
                     self.virtualCursor.visible = False
-        #else:
-            #self.setCursor(Qt.ArrowCursor)
+
+            #elif window.btnValues['drag']:
+            case 'drag':
+                self.setCursor(QCursor(Qt.CursorShape.OpenHandCursor))
+                self.virtualCursor.visible = False
 
     def updateVirtualCursorSize(self):
         """
@@ -866,39 +872,19 @@ class imageLabel(QLabel):
         :type r: float
         """
 
-        def updateLayer(sender=''):
-
-            # Should be layer.applyToStack() if any upper layer visible : too slow !
+        def updateLayer():
+            # makes the changes to the layer visible.
+            # Should be layer.applyToStack() if any upper layer visible : too slow!
             # We only update the current drawing layer. Higher drawing layers do not need any updating : they
             # transparently transmit modifications (see QDrawingLayer.inputImg()).
             # All higher non-drawing layers should be not visible.
-            # To handle high-frequency events, we maintain the refresh rate under 5 per second.
-            # Large (and fast) moves may be displayed anyway.
-            # Due to the timer, mutual exclusion is needed.
 
-            mutex.acquire()
-            t = time_ns() - layer.last_refresh
-
-            if t >= 2 * (10**8): #  or layer.uRect.width() + layer.uRect.height() > 500:
-                if layer.uRect.isValid():
-                    layer.execute(l=layer, bRect=layer.uRect)
-                    img.prLayer.update(bRect=layer.uRect)
-                    layer.uRect = QRect()
-                    layer.last_refresh = time_ns()
-                    if sender != 'timer':
-                        """
-                        # useless if Qt.UniqueConnection works as expected
-                        try:
-                            layer.timer.timeout.disconnect()  
-                        except RuntimeError:
-                            pass
-                        """
-                        layer.timer.timeout.connect(lambda: updateLayer(sender='timer'), Qt.ConnectionType.UniqueConnection)
-                        layer.timer.start(300)  # should be greater than refresh rate to minimize timer triggering
+            if layer.uRect.isValid():
+                layer.execute(l=layer, bRect=layer.uRect)
+                img.prLayer.update(bRect=layer.uRect)
+                layer.uRect = QRect()
                 self.repaint()
-            mutex.release()
 
-        mutex = Lock()
         img = self.img
         State = self.State
         qp = self.qp
@@ -906,7 +892,7 @@ class imageLabel(QLabel):
         x_img = (x - img.xOffset) // r
         y_img = (y - img.yOffset) // r
 
-        # draw the stroke to intermediate layer
+        # draw the stroke to the intermediate layer
         if self.window.btnValues['brushButton']:
             qp.begin(layer.stroke)
             qp.setCompositionMode(qp.CompositionMode.CompositionMode_SourceOver)

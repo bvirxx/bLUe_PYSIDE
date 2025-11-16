@@ -22,7 +22,7 @@ from PySide6.QtWidgets import QPushButton, QVBoxLayout, QHBoxLayout, QSlider, QL
 from bLUeGui.graphicsForm import baseForm
 from bLUeGui.dialog import dlgWarn
 from bLUeTop.drawing import brushFamily
-from bLUeTop.utils import QbLUeSlider
+from bLUeTop.utils import QbLUeSlider, QbLUePushButton
 
 
 class drawForm(baseForm):
@@ -40,9 +40,9 @@ class drawForm(baseForm):
     def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
         super().__init__(layer=layer, targetImage=targetImage, parent=parent)
         self.options = None
-        pushButton1 = QPushButton(' Undo ')
+        pushButton1 = QbLUePushButton(' Undo ')
         pushButton1.adjustSize()
-        pushButton2 = QPushButton(' Redo ')
+        pushButton2 = QbLUePushButton(' Redo ')
         pushButton2.adjustSize()
 
         pushButton1.clicked.connect(self.undo)
