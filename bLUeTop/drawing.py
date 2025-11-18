@@ -61,7 +61,7 @@ class brushFamily:
         """
         Base method for brush painting.
         The method paints the straight line ((x0,y0), (x, y)) with the brush defined by brush,
-        using an active QPainter instance qp,
+        using an active QPainter instance qp.
         It returns the last painted position (the initial position if
         not any painting occurs, due to spacing constraints) and the painted rectangle.
 
@@ -85,7 +85,7 @@ class brushFamily:
         # vector of the move
         a_x, a_y = tmp_x - x0, tmp_y - y0
         # move length
-        d = sqrt(a_x * a_x + a_y * a_y)
+        d = abs(a_x) + abs(a_y)  # sqrt(a_x * a_x + a_y * a_y)
         s = max(brush['size'] * brush['tabletW'], 2)
 
         if d < 1:  # d <= s:
@@ -106,22 +106,23 @@ class brushFamily:
         spacing, jitter, radius = brush['spacing'], brush['jitter'], s / 2.0
         step = radius * 0.3 * spacing / d
 
-        # brush orientation
-        # base orientation is already handled by getBrush()
-        cosTheta, sinTheta = a_x / d, a_y / d
-        if jitter != 0.0:
-            step *= (1.0 + choice(brushFamily.jitterRange) * jitter / 100.0)
-            sinBeta = choice(brushFamily.jitterRange) * jitter / 100
-            cosBeta = sqrt(1 - sinBeta * sinBeta)
-            cosTheta = cosTheta * cosBeta + sinTheta * sinBeta
-            sinTheta = sinTheta * cosBeta - cosTheta * sinBeta
-        transform = QTransform(cosTheta, sinTheta, -sinTheta, cosTheta,
-                               0, 0
-                               )  # Caution: angles > 0 correspond to counterclockwise rotations of pxmp
-        # SmoothTransformation is essential here to prevent aliasing
-        pxmp = pxmp.transformed(transform, mode=Qt.TransformationMode.SmoothTransformation)
 
-        count = 0
+        # dynamic orientation
+        # base orientation is already handled by getBrush()
+        if brush['dynamicOrientation']:
+            cosTheta, sinTheta = a_x / d, a_y / d
+            if jitter != 0.0:
+                step *= (1.0 + choice(brushFamily.jitterRange) * jitter / 100.0)
+                sinBeta = choice(brushFamily.jitterRange) * jitter / 100
+                cosBeta = sqrt(1 - sinBeta * sinBeta)
+                cosTheta = cosTheta * cosBeta + sinTheta * sinBeta
+                sinTheta = sinTheta * cosBeta - cosTheta * sinBeta
+            transform = QTransform(cosTheta, sinTheta, -sinTheta, cosTheta,
+                                   0, 0
+                                   )  # Caution: angles > 0 correspond to counterclockwise rotations of pxmp
+            # SmoothTransformation is essential here to prevent aliasing
+            pxmp = pxmp.transformed(transform, mode=Qt.TransformationMode.SmoothTransformation)
+
         maxCount = int(1.0 / step)
         pxmp_w, pxmp_h = pxmp.width() / 2, pxmp.height() / 2
         p_x, p_y = x0, y0
@@ -196,7 +197,7 @@ class brushFamily:
         qp.drawPixmap(QPointF(), strokeTex)  # pxmp_temp)
         qp.end()
 
-    def __init__(self, name, baseSize, contourPath, presetFilename=None, image=None):
+    def __init__(self, name, baseSize, contourPath, presetFilename=None, image=None, dynamicOrientation=True):
         """
 
         :param name:
@@ -207,9 +208,12 @@ class brushFamily:
         :type contourPath: QPainterPath
         :param presetFilename: preset file
         :type presetFilename: Union[str, None]
+        :param dynamicOrientation: brush orienation follows path direction
+        :type dynamicOrientation: bool
         """
         self.name = name
         self.baseSize = baseSize
+        self.dynamicOrientation = dynamicOrientation
         # init the brush pixmap
         self.basePixmap = QPixmap(self.baseSize, self.baseSize)
         # to get an alpha channel, we must fill the pixmap a first time with an opacity < 255
@@ -244,21 +248,23 @@ class brushFamily:
         buf[..., 3] = b
         self.preset = QPixmap.fromImage(img)
 
-    def setBaseCursor(self, color):
+    def setBaseCursor(self, color, orientation):
         """
         Builds the base contour pixmap for brush, using color.
         :param color:
         :type color: Qcolor
         """
-        self.baseCursor = QPixmap(self.baseSize, self.baseSize)
-        self.baseCursor.fill(QColor(0, 0, 0, 0))
-        qp = QPainter(self.baseCursor)
+        baseCursor = QPixmap(self.baseSize, self.baseSize)
+        baseCursor.fill(QColor(0, 0, 0, 0))
+        qp = QPainter(baseCursor)
         pen = qp.pen()
-        pen.setWidth(self.baseSize / 20)
+        pen.setWidth(self.baseSize // 20)
         pen.setColor(color)
         qp.setPen(pen)  # needed!!
         qp.drawPath(self.contourPath)
         qp.end()
+        baseCursor = baseCursor.transformed(QTransform().rotate(orientation))
+        return baseCursor
 
     @property
     def pxmp(self):
@@ -349,14 +355,14 @@ class brushFamily:
         # self.pxmp = pxmp.transformed(QTransform().scale(s, s).rotate(orientation))
         # Tablet may control brush size. So, pxmp is NOT scaled here.
         # Scaling is done in brushStrokeSeg.
-        self.pxmp = pxmp.transformed(QTransform().rotate(orientation))
-        self.baseCursor.transformed(QTransform().rotate(orientation))
-        pattern = pattern
-        self.setBaseCursor(color)
-        return {'family': self, 'name': self.name, 'pixmap': self.pxmp, 'size': size, 'color': color,
-                'opacity': opacity, 'image': self.pxmp.toImage().convertedTo( QImage.Format.Format_ARGB32),
+        pxmp = pxmp.transformed(QTransform().rotate(orientation))
+        # self.baseCursor = self.baseCursor.transformed(QTransform().rotate(orientation))
+        baseCursor = self.setBaseCursor(color, orientation)  # update color of self.baseCursor
+        return {'family': self, 'name': self.name, 'pixmap': pxmp, 'size': size, 'color': color,
+                'opacity': opacity, 'image': pxmp.toImage().convertedTo( QImage.Format.Format_ARGB32),
                 'hardness': hardness, 'flow': flow, 'spacing': spacing, 'jitter': jitter, 'orientation': orientation,
-                'pattern': pattern, 'cursor': self.baseCursor, 'tabletW': 1.0, 'tabletS': 1.0, 'tabletA': 1.0}
+                'pattern': pattern, 'cursor': baseCursor, 'tabletW': 1.0, 'tabletS': 1.0, 'tabletA': 1.0,
+                'dynamicOrientation': self.dynamicOrientation}
 
 
 def initBrushes():
@@ -376,6 +382,14 @@ def initBrushes():
     qpp.addEllipse(QRect(0, 0, baseSize, baseSize))
     roundBrushFamily = brushFamily('Round', baseSize, qpp, presetFilename=None)
     brushes.append(roundBrushFamily)
+    #####################
+    # standard calligrahic brush
+    #####################
+    qpp = QPainterPath()
+    #qpp.addEllipse(QRect(baseSize // 4, 0, baseSize // 2, baseSize))
+    qpp.addEllipse(QPointF(baseSize / 2, baseSize / 2), baseSize / 4, baseSize / 2)
+    callBrushFamily = brushFamily('Calligraphic', baseSize, qpp, presetFilename=None, dynamicOrientation=False)
+    brushes.append(callBrushFamily)
     ##########
     # eraser
     ##########

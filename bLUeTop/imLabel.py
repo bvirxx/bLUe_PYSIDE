@@ -36,7 +36,7 @@ class imageLabel(QLabel):
     Base class for interactive image displaying
     """
     qp = QPainter()
-    qp.setRenderHint(QPainter.RenderHint.Antialiasing)  # may be not very useful ?
+    qp.setRenderHint(QPainter.RenderHint.Antialiasing)
     qp.font = QFont("Arial", 8)
     qp.markPath = QPainterPath()
     qp.markRect = QRect(0, 0, 50, 20)
