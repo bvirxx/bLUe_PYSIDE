@@ -176,6 +176,7 @@ from bLUeGui.bLUeImage import QImageBuffer, QImageFormats, ndarrayToQImage
 from bLUeTop.heif import readheifFile
 from bLUeTop.presetReader import aParser
 from bLUeTop.rawProcessing import rawRead
+from bLUeTop.tablet import bTabletSettings
 from bLUeTop.versatileImg import vImage, metadataBag
 from bLUeTop.MarkedImg import imImage, QRawLayer, QCloningLayer, QLayerImage, QDrawingLayer
 from bLUeTop.graphicsRGBLUT import graphicsForm
@@ -2306,6 +2307,7 @@ def setupGUI(window=bLUeTop.Gui.window):
     window.menuImage.triggered.connect(lambda a: menuImage(a.objectName()))
     window.menuWindow.triggered.connect(lambda a: menuView(a.objectName()))
     window.menuHelp.triggered.connect(lambda a: menuHelp(a.objectName()))
+    window.actionTablet_Settings.triggered.connect(lambda a: bTabletSettings.showSettings())
 
     #  onWidgetChange is called by all main form button and slider slots (cf. QtGui1.py)
     window.onWidgetChange = widgetChange

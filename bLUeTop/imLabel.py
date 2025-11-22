@@ -693,48 +693,33 @@ class imageLabel(QLabel):
         eventType = event.type()
 
         match eventType:
-            case QEvent.Type.TabletPress:
-                pass
-            case QEvent.Type.TabletRelease:
-                # restore brush
-                d['tabletW'] = 1.0
-                d['tabletA'] = 1.0
-                d['tabletS'] = 1.0
             case QEvent.Type.TabletMove:
                 # Event pressure range is [0, 1]
-                # xTilt and yTilt are from pen to the perpendicular to tablet in range [-60, 60] degrees.
+                # xTilt and yTilt are angles from pen to the perpendicular to tablet, in range [-60, 60] degrees.
                 # Positive values are towards the tablet's physical bottom-right.
                 # d['tabletW'] is used as a  multiplicative coefficient for brush size.
                 # It should be > 0 and may be > 1
-                #v = bTablet.getWidthValuator()
                 match bTablet.getWidthValuator():
                     case bTablet.valuator.PressureValuator:
-                        d['tabletW'] = 0.2 + event.pressure()
+                        d['tabletW'] = max(0.1, 2.0 * event.pressure())
                     case bTablet.valuator.HTiltValuator:
-                        #hValue = ((event.xTilt() + 60.0) / 120.0)
-                        #d['tabletW'] = 0.2 + hValue
-                        d['tabletW'] = event.xTilt() / 120.0 + 0.7
+                        d['tabletW'] = max(0.1, event.xTilt() / 60.0 + 1.0)
                     case bTablet.valuator.VTiltValuator:
-                        #vValue = ((event.yTilt() + 60.0) / 120.0)
-                        #d['tabletW'] = 0.2 + vValue
-                        d['tabletW'] = event.yTilt() / 120.0 + 0.7
+                        d['tabletW'] = max(0.1, event.yTilt() / 60.0 + 1.0)
                     case bTablet.valuator.TiltValuator:
-                        #vValue = ((event.yTilt() + 60.0) / 120.0)
-                        #hValue = ((event.xTilt() + 60.0) / 120.0)
-                        #d['tabletW'] = 0.2 + max(hValue, vValue)
-                        d['tabletW'] = max(event.xTilt() , event.yTilt()) /120.0 + 0.7
+                        d['tabletW'] = max(0.1, max(abs(event.xTilt()) ,abs(event.yTilt())) / 30.0 )
                     case _:
                         d['tabletW'] = 1.0
 
                 match bTablet.getAlphaValuator():
                     # d['tabletA'] is used as a multiplicative coefficient for brush opacity.
-                    # It should be > 0 and can be > 1 : resulting brush opacity is clipped to 1.0.
+                    # It should be > 0 and may be > 1 : resulting brush opacity is clipped to 1.0.
                     case bTablet.valuator.VTiltValuator:
-                        d['tabletA'] = 1.0 + event.yTilt() / 60.0
+                        d['tabletA'] = event.yTilt() / 60.0 + 1.0
                     case bTablet.valuator.HTiltValuator:
-                        d['tabletA'] = 1.0 + event.xTilt() / 60.0
+                        d['tabletA'] = event.xTilt() / 60.0 + 1.0
                     case bTablet.valuator.TiltValuator:
-                        d['tabletA'] = 1.0 + max(event.xTilt(), event.yTilt()) / 60.0
+                        d['tabletA'] = max(abs(event.xTilt()) ,abs(event.yTilt())) / 60.0
                     case bTablet.valuator.PressureValuator:
                         d['tabletA'] = event.pressure()
                     case _:
@@ -744,15 +729,24 @@ class imageLabel(QLabel):
                     # d['tabletS'] is used as a multiplicative coefficent for the saturation of brush pixel colors.
                     # It should be > 0 and can be > 1 : resulting saturations are clipped to 1.0.
                     case bTablet.valuator.VTiltValuator:
-                        d['tabletS'] = 1.0 + event.yTilt() / 60.0
+                        d['tabletS'] = event.yTilt() / 60.0 + 1.0
                     case bTablet.valuator.HTiltValuator:
-                        d['tabletS'] = 1.0 + event.xTilt() / 60.0
+                        d['tabletS'] = event.xTilt() / 60.0 + 1.0
                     case bTablet.valuator.TiltValuator:
-                        d['tabletS'] = 1.0 + max(event.xTilt(), event.yTilt()) / 60.0
+                        d['tabletS'] = max(abs(event.xTilt()) ,abs(event.yTilt())) / 60.0
                     case bTablet.valuator.PressureValuator:
-                        d['tabletS'] = event.pressure() + 0.5
+                        d['tabletS'] = event.pressure()
                     case _:
                         d['tabletS'] = 1.0
+
+            case QEvent.Type.TabletPress:
+                pass
+
+            case QEvent.Type.TabletRelease:
+                # restore brush
+                d['tabletW'] = 1.0
+                d['tabletA'] = 1.0
+                d['tabletS'] = 1.0
 
             case _:
                 logger.warning('unhandled tablet event %s', eventType)
@@ -774,10 +768,10 @@ class imageLabel(QLabel):
         if window.btnValues['colorPicker']:
             if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
                 self.setCursor(window.cursors['EyeDropper'])
+                self.virtualCursor.visible = False
             else:
                 self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
-            self.virtualCursor.visible = False
-            return
+            #return
 
         # sync tool buttons with tablet pen/eraser button.
         if event.pointerType() == QPointingDevice.PointerType.Pen:

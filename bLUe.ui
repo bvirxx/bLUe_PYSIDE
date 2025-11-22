@@ -871,6 +871,7 @@ Size</string>
     <addaction name="menuOpen_recent"/>
     <addaction name="actionClose"/>
     <addaction name="menuLoad_Preset"/>
+    <addaction name="actionTablet_Settings"/>
    </widget>
    <widget class="QMenu" name="menuWindow">
     <property name="title">
@@ -1461,6 +1462,11 @@ Size</string>
   <action name="actionColor_Grading">
    <property name="text">
     <string>Color Grading</string>
+   </property>
+  </action>
+  <action name="actionTablet_Settings">
+   <property name="text">
+    <string>Tablet Settings</string>
    </property>
   </action>
  </widget>
