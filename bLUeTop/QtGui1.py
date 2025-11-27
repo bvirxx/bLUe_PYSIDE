@@ -117,10 +117,10 @@ class Form1(QMainWindow):
             self.btnValues[str(button.accessibleName())] = button.isChecked()
             self.btns[str(button.accessibleName())] = button
 
-        self.current_exclTool = None
-        self.buttonGroup.buttonToggled.connect(lambda btn: self.setCurrentExclTool(btn))
+        self.buttonGroup.buttonToggled.connect(lambda btn: self.setCurrentExclToolName(btn))
+        self.setCurrentExclToolName(self.buttonGroup.checkedButton())
 
-    def setCurrentExclTool(self, tool):
+    def setCurrentExclToolName(self, tool):
         self.current_exclToolName = tool.accessibleName()
 
     def handlePushButtonClicked(self, button):

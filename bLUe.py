@@ -727,9 +727,17 @@ def restoreBrush(layer, window=bLUeTop.Gui.window):
         grForm.spacingSlider.setValue(int(d['spacing']) * 10)
         grForm.jitterSlider.setValue(int(d['jitter']) * 10)
         grForm.orientationSlider.setValue(int(d['orientation']) + 180)
+
     ind = window.brushCombo.findText(d['name'])
     if ind != -1:
         window.brushCombo.setCurrentIndex(ind)  # trigger brushUpdate() - keep last
+
+    if d['pattern']:
+        ind = window.patternCombo.findText(d['pattern'].name)
+    else:
+        ind = window.patternCombo.findText('None')
+    if ind != -1:
+        window.patternCombo.setCurrentIndex(ind)  # trigger brushUpdate() - keep last
     window.label.State['brush'] = d.copy()
 
 
@@ -854,8 +862,7 @@ def updateMenuLoadPreset(window=bLUeTop.Gui.window):
     def f(filename):
         try:
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-            brushes, patterns = loadPresets(filename, first=window.brushCombo.count() + 1)
-            window.brushes.extend(brushes)
+            brushes, patterns = loadPresets(filename)  #first=window.brushCombo.count() + 1)
             for b in brushes:
                 if b.preset is None:
                     window.brushCombo.addItem(b.name, b)
@@ -894,61 +901,18 @@ def updateEnabledActions(window=bLUeTop.Gui.window):
 
 
 def setBlueFileExplorer(window, fromini=False):
-    expvisible = True
     if fromini:
         listvisible = (window.settings.value('mainwindow/explistwdg', 'false').lower()  == 'true')
         filedlgvisible = (window.settings.value('mainwindow/expfiledlg', 'false').lower() == 'true')
-        expvisible = listvisible and filedlgvisible
-        if not expvisible:
+        if not (listvisible and filedlgvisible):
             return
     viewerInstance = viewer.getViewerInstance(mainWin=window)
-    viewerInstance.dock.show()
-    if viewerInstance.fileDlg:
-        viewerInstance.fileDlg.dock.show()
-        viewerInstance.fileDlg.show()
-        return
-    lastDir = viewerInstance.currentFromSettings(mainWin=window)
-    fileDlg = QblueFileDialog(window, "Select a folder", lastDir)
-    fileDlg.setNameFilters(IMAGE_FILE_NAME_FILTER + ['All files (*)'])
-    fileDlg.setFileMode(QFileDialog.FileMode.Directory)
-    fileDlg.setOption(QFileDialog.Option.ShowDirsOnly)
-    fileDlg.setLabelText(QFileDialog.DialogLabel.Accept, 'Close')  # accept button
-    fileDlg.setWhatsThis(
-        """
-        The <b>bLUe File Explorer</b> is composed of two synchronized windows.
-        <UL>
-        <li> The left window is a usual file explorer
-        <li> All image files in the current directory, including raw files and blu files,
-        are shown as icons in the bottom window.
-        </UL>
-        Use <i>Ctrl+L</i> to open or reopen the file explorer.
-        """
-    )
-    fileDock = fileDlg.setDock()
-    bLUeTop.Gui.window.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, fileDock)
-    viewerInstance.fileDlg = fileDlg
+    viewerInstance.listViewDock.show()
+    viewerInstance.fileDlgDock.show()
 
-    def showViewer(aDir, forcevisible=True):
-        if forcevisible:
-            viewerInstance.dock.show()
-            viewerInstance.listWdg.show()
-        if viewerInstance.currentDir == aDir:
-            return
-        fileDlg.setWindowTitle(aDir)
-        fileDock.setWindowTitle(fileDlg.windowTitle())
-        fileDlg.repaint()  # needed to immediately display the file list
-        viewerInstance.playViewer(aDir)
-
-    def recordDir():
-        # newDir = fileDlg.selectedFiles()[0]  #dlg.directory().absolutePath()
-        viewerInstance.currentToSettings(mainWin=window)
-        fileDock.hide()
-
-    fileDlg.directoryEntered.connect(showViewer)
-    fileDlg.finished.connect(recordDir)
-
-    fileDlg.show()
-    showViewer(lastDir, forcevisible=False)
+    lastDir = viewerInstance.currentFromSettings(mainWin=window) if viewerInstance.currentDir == '.' \
+                                                 else viewerInstance.currentDir
+    viewerInstance.showViewer(lastDir, forcevisible=False)
 
 
 def menuFile(name, window=bLUeTop.Gui.window):
@@ -2184,12 +2148,13 @@ def setupGUI(window=bLUeTop.Gui.window):
     window.patternCombo.setIconSize(QSize(50, 50))
     window.brushCombo.setMinimumWidth(150)
     window.patternCombo.setMinimumWidth(150)
-    window.brushes = initBrushes()
-    for b in window.brushes[:-1]:  # don't add eraser to combo
+    brushes = initBrushes()
+    for b in brushes[:-1]:  # don't add eraser to combo
         if b.preset is None:
             window.brushCombo.addItem(b.name, b)
         else:
             window.brushCombo.addItem(QIcon(b.preset), b.name, b)
+    window.eraser = brushes[-1]
     window.patternCombo.addItem('None', None)
     window.verticalSlider1.sliderReleased.connect(window.label.brushUpdate)
     window.verticalSlider2.sliderReleased.connect(window.label.brushUpdate)

@@ -20,6 +20,7 @@ import textwrap
 from os.path import basename, dirname, isfile
 
 from PySide6.QtCore import Qt, QDir, QSize
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QMessageBox, QPushButton, QFileDialog, QDialog, QSlider, QVBoxLayout, QHBoxLayout, QLabel, \
     QCheckBox, QFormLayout, QLineEdit, QDialogButtonBox, QScrollArea, QProgressDialog, QSizePolicy, QToolButton
 
@@ -523,6 +524,10 @@ class QblueFileDialog(QFileDialog):
             btn = self.findChild(QToolButton, name)
             if btn:
                 btn.setVisible(False)
+        btn = self.findChild(QToolButton, 'toParentButton')
+        if btn:
+            btn.setIcon(QIcon())
+            btn.setText('\u25B2')  # up arrow
 
     def setDock(self):
         dock = stateAwareQDockWidget()

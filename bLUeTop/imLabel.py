@@ -100,7 +100,7 @@ class imageLabel(QLabel):
         else:
             bColor = Qt.GlobalColor.black
         if window.btnValues['eraserButton']:
-            self.State['brush'] = window.brushes[-1].getBrush(bSize, bOpacity, bColor, bHardness, bFlow)
+            self.State['brush'] = window.eraser.getBrush(bSize, bOpacity, bColor, bHardness, bFlow)
         else:
             pattern = window.patternCombo.currentData()
             self.State['brush'] = window.brushCombo.currentData().getBrush(bSize, bOpacity, bColor, bHardness, bFlow,
@@ -639,8 +639,8 @@ class imageLabel(QLabel):
             img.Zoom_coeff *= (1.0 + numSteps)
             if layer.isDrawLayer() or window.btnValues['drawFG'] or window.btnValues['drawBG']:
                 self.updateVirtualCursorSize()
-            # max Zoom for previews
-            if img.Zoom_coeff > MAX_ZOOM:
+            # max and min Zooms
+            if img.Zoom_coeff > MAX_ZOOM or img.Zoom_coeff < 0.1:
                 img.Zoom_coeff /= (1.0 + numSteps)
                 return
             # correct image offset to keep unchanged the image point

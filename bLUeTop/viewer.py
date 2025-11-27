@@ -42,7 +42,7 @@ from bLUeTop.imLabel import slideshowLabel
 from bLUeTop.utils import stateAwareQDockWidget, imagej_description_metadata, fileExt, sortPushButton, \
     QbLUePushButton, restricted_loads
 from bLUeGui.dialog import IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, BLUE_FILE_EXTENSIONS, dlgWarn, \
-    HEIF_FILE_EXTENSIONS
+    HEIF_FILE_EXTENSIONS, QblueFileDialog, IMAGE_FILE_NAME_FILTER
 
 # global variable recording diaporama state
 isSuspended = False
@@ -277,11 +277,12 @@ class dragQListWidget(QListWidget):
 
 class loader(QObject):
     """
-    Image loader
+    Image loader. It loads image files yielded by a generator as blueQListWidgetItem instances and populates
+    a dragQListWidget with them.
     """
     def __init__(self, gen, viewerInstance):
         """
-       :param gen: generator of image file names
+       :param gen: generator for image file names
        :type gen: generator
        :param viewerInstance:
        :type viewerInstance: viewer
@@ -293,7 +294,7 @@ class loader(QObject):
     def populate(self, items):
         for item in items:
             self.viewerInstance.listWdg.addItem(item)
-        self.viewerInstance.listWdg.repaint()  # usual update method is masked by QAbstractItemView.update()
+        self.viewerInstance.listWdg.viewport().repaint()  # viewport().update()
 
     def load(self):
         with exiftool.ExifTool() as e:
@@ -350,10 +351,9 @@ class loader(QObject):
                                               )  # the order is important : for jpeg PreviewImage is full sized !
                     # may be a bLU file
                     if img.isNull() and fileExt(filename) in BLUE_FILE_EXTENSIONS:
-                        tfile = tifffile.TiffFile(filename)
-                        meta_dict = imagej_description_metadata(tfile.pages[0].description)
-                        version = meta_dict.get('version', 'unknown')
-                        v = meta_dict.get('thumbnailimage', None)
+                        with tifffile.TiffFile(filename) as tfile:
+                            meta_dict = imagej_description_metadata(tfile.pages[0].description)
+                            v = meta_dict.get('thumbnailimage', None)  # lazy loading: need tfile open !
                         if v is not None:
                             ba = restricted_loads(literal_eval(v))
                             buffer = QBuffer(ba)
@@ -402,7 +402,12 @@ class loader(QObject):
 
 class viewer(QObject):
     """
-    Dockable folder browser
+    Synchronized QblueFileDialog and dragQListWidget. The file dialog is used to
+    select a directory. All image files in this directory are displayed as icons
+    in the list widget.
+    3 buttons allow sorting the icons by file name, taken date or creation date.
+    A context menu allows copying selected files and to set their rating.
+    2 dock widgets are used to contain the file dialog and the list widget.
     """
 
     instance = None
@@ -436,19 +441,47 @@ class viewer(QObject):
         super().__init__(parent=mainWin)
         self.listWdg = None
         self.currentDir = '.'
-        self.dock, self.fileDlg = (None,) * 2
+        self.fileDlg = None
+        self.fileDlgDock, self.listViewDock = (None,) * 2
         self.sortButtons = ()
         self.cMenu = None
         self.initWins()
+        self.initFileDlg()
         self.initCMenu()
+        self.refButton.pressed.connect(self.refreshViewer)
 
     def currentToSettings(self, mainWin=None):
         mainWin.settings.setValue('paths/dlgdir', self.currentDir)
-        mainWin.settings.setValue('mainwindow/explistwdg', self.dock.isVisible())
+        mainWin.settings.setValue('mainwindow/explistwdg', self.listViewDock.isVisible())
         mainWin.settings.setValue('mainwindow/expfiledlg', self.fileDlg.isVisible())
 
     def currentFromSettings(self, mainWin=None):
         return mainWin.settings.value('paths/dlgdir', '.')
+
+    def initFileDlg(self):
+        #lastDir = self.currentFromSettings(mainWin=bLUeTop.Gui.window)
+        fileDlg = QblueFileDialog(bLUeTop.Gui.window, "Select a folder", self.currentDir)
+        fileDlg.setNameFilters(IMAGE_FILE_NAME_FILTER + ['All files (*)'])
+        fileDlg.setFileMode(QFileDialog.FileMode.Directory)
+        fileDlg.setOption(QFileDialog.Option.ShowDirsOnly)
+        fileDlg.setLabelText(QFileDialog.DialogLabel.Accept, 'Close')  # accept button
+        fileDlg.setWhatsThis(
+            """
+            The <b>bLUe File Explorer</b> is composed of two synchronized windows.
+            <UL>
+            <li> The left window is a usual file explorer
+            <li> All image files in the current directory, including raw files and blu files,
+            are shown as icons in the bottom window.
+            </UL>
+            Use <i>Ctrl+L</i> to open or reopen the file explorer.
+            """
+        )
+        self.fileDlg = fileDlg
+        self.fileDlgDock = fileDlg.setDock()
+        bLUeTop.Gui.window.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.fileDlgDock)
+
+        fileDlg.directoryEntered.connect(self.showViewer)
+        fileDlg.finished.connect(self.recordDir)
 
     def initWins(self):
         listWdg = dragQListWidget()
@@ -468,7 +501,7 @@ class viewer(QObject):
         dock.setWidget(listWdg)
         dock.setWindowFlags(listWdg.windowFlags())
         dock.setWindowTitle(listWdg.windowTitle())
-        self.dock = dock
+        self.listViewDock = dock
 
         # add a titleBar widget to dock
         tbw = QWidget()
@@ -488,6 +521,8 @@ class viewer(QObject):
         hl.addWidget(self.selLabel)
         self.selButton = QbLUePushButton('Select All')
         hl.addWidget(self.selButton)
+        self.refButton = QbLUePushButton('Refresh')
+        hl.addWidget(self.refButton)
         nameButton = sortPushButton('File name')
         hl.addWidget(nameButton)
         takenButton = sortPushButton('Taken date')
@@ -496,13 +531,13 @@ class viewer(QObject):
         hl.addWidget(creationButton)
         tbw.setLayout(hl)
 
-        self.sortButtons = (nameButton, QPushButton(), takenButton, creationButton)
-
-        self.selButton.pressed.connect(self.listWdg.selectAll)
+        self.sortButtons = (nameButton, takenButton, creationButton)
 
         nameButton.pressed.connect(lambda : self.sort(0))
-        takenButton.pressed.connect(lambda: self.sort(2))
-        creationButton.pressed.connect(lambda: self.sort(3))
+        takenButton.pressed.connect(lambda: self.sort(1))
+        creationButton.pressed.connect(lambda: self.sort(2))
+
+        self.selButton.pressed.connect(self.listWdg.selectAll)
 
         bLUeTop.Gui.window.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, dock)
 
@@ -519,7 +554,7 @@ class viewer(QObject):
         Context menu initialization
         """
         menu = QMenu()
-        actionCopy = QAction("Copy ", None)
+        actionCopy = QAction("Copy Selected File(s) to Folder...", None)
         menu.addAction(actionCopy)
         actionCopy.triggered.connect(self.hCopy)
         menu.actionCopy = actionCopy
@@ -529,23 +564,18 @@ class viewer(QObject):
             menu.actionCopy.setEnabled(bool(selectionList))
             self.selLabel.setText('%d file(s) selected' % len(selectionList))
         self.listWdg.itemSelectionChanged.connect(h)
-        """
-        subMenuRating = menu.addMenu('Rating')
-        for i in range(6):
-            action = QAction(str(i), None)
-            subMenuRating.addAction(action)
-            action.triggered.connect(
-                lambda checked=False, action=action: self.setRating(action))  # named arg checked is sent
-        """
         self.cMenu = menu
 
     def contextMenu(self, pos):
+        """
+        customContextMenuRequested signal slot
+        """
         globalPos = self.listWdg.mapToGlobal(pos)
         self.cMenu.exec(globalPos)
 
     def hCopy(self):
         """
-        Slot for file copying
+        actionCopy slot
         """
         sel = self.listWdg.selectedItems()
         lastDir = str(bLUeTop.Gui.window.settings.value('paths/dlgcopydir', '.'))
@@ -570,23 +600,6 @@ class viewer(QObject):
         except OSError as e:
             dlgWarn('      Error copying files     ', info=str(e))
 
-    def setRating(self, action):
-        """
-        rating : the tag is written into the .mie file; the file is
-        created if needed.
-        :param action:
-        :type action:
-        """
-        listWdg = self.listWdg
-        sel = listWdg.selectedItems()
-        if action.text() in ['0', '1', '2', '3', '4', '5']:
-            with exiftool.ExifTool() as e:
-                value = int(action.text())
-                for item in sel:
-                    filename = item.data(Qt.ItemDataRole.UserRole)[0]
-                    e.writeXMPTag(filename, 'XMP:rating', value)
-                    item.setText(basename(filename) + ''.join(['*'] * value))
-
     def doGen(self, folder):
         fileListGen = (path.join(folder, filename) for filename in listdir(folder) if
                        isfile(path.join(folder, filename)) and (
@@ -599,16 +612,16 @@ class viewer(QObject):
         return fileListGen
 
     def sort(self, index):
-        # self.listWdg.sortIndex = index
         self.listWdg.sortItems(self.listWdg.sortOrder[index])
+
         self.listWdg.sortOrder[index] = Qt.SortOrder.DescendingOrder\
                                         if self.listWdg.sortOrder[index] == Qt.SortOrder.AscendingOrder\
                                         else Qt.SortOrder.AscendingOrder
-        icon = self.sortButtons[index].icons[0] if self.listWdg.sortOrder[index] == Qt.SortOrder.AscendingOrder\
-                                                else self.sortButtons[index].icons[1]
+
         for btn in self.sortButtons:
-            btn.setIcon(QIcon())  # reset all icons
-        self.sortButtons[index].setIcon(icon)
+            btn.setText(btn.baseText)  # reset all buttons
+        self.sortButtons[index].setText(self.sortButtons[index].baseText + ' \u25bc' if self.listWdg.sortOrder[index] == Qt.SortOrder.DescendingOrder else self.sortButtons[index].baseText + ' \u25b2')
+
         selectionList = self.listWdg.selectedItems()
         # scroll to selection
         if bool(selectionList):
@@ -616,32 +629,53 @@ class viewer(QObject):
 
     def playViewer(self, folder):
         """
-        Opens a window and displays all images from folder.
+        Displays all images from folder.
 
         :param folder: path to folder
         :type folder: str
-        :return: loader instance
-        :rtype: thread
         """
-        # build generator
         try:
             fileListGen = self.doGen(folder)
             self.listWdg.clear()
-            self.dock.setWindowTitle(folder)
+            self.listViewDock.setWindowTitle(folder)
             self.titleLabel.setText(folder)
             self.listWdg.showMaximized()
-
-            QApplication.processEvents()  # needed for instant showing
-
-            ldr = loader(fileListGen, self)
-            ldr.load()
-
-            self.sort(0)
-
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+            QApplication.processEvents()  # to immediately update the listWdg and the GUI
+            loader(fileListGen, self).load()
         except (FileNotFoundError, NotADirectoryError):
             pass
+        finally:
+            QApplication.restoreOverrideCursor()
 
+    def showViewer(self, aDir, forcevisible=True):
+        """
+        Updates the file list if the directory changes
 
+        :param aDir: new dir
+        :type aDir: str
+        :param forcevisible:
+        :type forcevisible: bool
+        """
+        if forcevisible:
+            self.listViewDock.show()
+            self.fileDlgDock.show()
 
+        if self.currentDir != aDir:
+            self.fileDlg.setDirectory(aDir)
+            self.fileDlg.setWindowTitle(aDir)
+            self.fileDlgDock.setWindowTitle(self.fileDlg.windowTitle())
+            self.fileDlg.repaint()  # needed to immediately display the file list
+            self.playViewer(aDir)
 
+    def refreshViewer(self):
+        """
+        Reloads the current directory
+        """
+        self.playViewer(self.currentDir)
 
+    def recordDir(self):
+        """
+        fileDlg finished signal slot
+        """
+        self.currentToSettings(mainWin=bLUeTop.Gui.window)

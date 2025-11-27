@@ -31,7 +31,7 @@ from bLUeTop.settings import BRUSHES_PATH
 from bLUeTop.utils import fileExt
 
 
-class pattern:
+class brushPattern:
     """
     Brush pattern
     """
@@ -295,7 +295,7 @@ class brushFamily:
         :param orientation:
         :type orientation: int
         :param pattern:
-        :type pattern:
+        :type pattern: Union[None, brushPattern]
         :return:
         :rtype: dict
         """
@@ -383,7 +383,7 @@ def initBrushes():
     roundBrushFamily = brushFamily('Round', baseSize, qpp, presetFilename=None)
     brushes.append(roundBrushFamily)
     #####################
-    # standard calligrahic brush
+    # standard calligraphic brush
     #####################
     qpp = QPainterPath()
     #qpp.addEllipse(QRect(baseSize // 4, 0, baseSize // 2, baseSize))
@@ -401,28 +401,28 @@ def initBrushes():
     return brushes
 
 
-def loadPresets(filename, first=1):
+def loadPresets(filename):
     """
-    Loads brush preset from file.
+    Loads brush and pattern presets from file.
 
     :param filename:
     :type filename: str
-    :param first:
-    :type first: int
     :return:
-    :rtype:  list of brushFamily instances
+    :rtype:  list of brushFamily instances, list of pattern instances
     """
     brushes = []
     patterns = []
     baseSize = 400  # 25
     try:
-        rank = first
+        rank = 1
         entry = os.path.basename(filename)
+        name = os.path.splitext(entry)[0]
+
         if fileExt(entry).lower() in ['.png', '.jpg']:
             try:
                 qpp = QPainterPath()
                 qpp.addEllipse(QRect(0, 0, baseSize, baseSize))
-                presetBrushFamily = brushFamily('Preset ' + str(rank), baseSize, qpp,
+                presetBrushFamily = brushFamily(f"{name}_{rank}", baseSize, qpp,
                                                 presetFilename=os.getcwd() + '\\' + BRUSHES_PATH + '\\' + entry)
                 brushes.append(presetBrushFamily)
                 rank += 1
@@ -436,15 +436,15 @@ def loadPresets(filename, first=1):
                 alpha = np.full_like(im, 255)
                 im = np.dstack((im, im, im, im))  # alpha))
                 qim = ndarrayToQImage(im, format= QImage.Format.Format_ARGB32)
-                presetBrushFamily = brushFamily('Preset ' + str(rank), baseSize, qpp, image=qim)
+                presetBrushFamily = brushFamily(f"{name}_{rank}", baseSize, qpp, image=qim)
                 brushes.append(presetBrushFamily)
                 rank += 1
-            rank = first
+            rank = 1
             for im in pImages:
                 # alpha = np.full_like(im, 255)
                 im = np.dstack((im, im, im, im))
                 qim = ndarrayToQImage(im, format= QImage.Format.Format_ARGB32)
-                p = pattern('pattern ' + str(rank), im=qim, pxmp=QPixmap.fromImage(qim))
+                p = brushPattern(f"{name}_{rank}", im=qim, pxmp=QPixmap.fromImage(qim))
                 patterns.append(p)
                 rank += 1
     except IOError:

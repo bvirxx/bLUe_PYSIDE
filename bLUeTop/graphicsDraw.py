@@ -200,6 +200,7 @@ class drawForm(baseForm):
         brushDict = self.layer.brushDict
         d['brush'] = {name: brushDict[name] for name in
                       ['name', 'size', 'color', 'opacity', 'hardness', 'flow', 'spacing', 'jitter', 'orientation']}
+        d['brush']['pattern'] = brushDict['pattern'].name if brushDict['pattern'] is not None else None
         return d
 
     def __setstate__(self, d):
@@ -214,13 +215,32 @@ class drawForm(baseForm):
                 obj.__setstate__(d['state'][name])
 
         bdict = d['state']['brush']
-        brushFamilyNames = [family.name.lower() for family in self.mainForm.brushes]
+        family, pattern = (None,) * 2
+
+        # search brush family
         try:
-            ind = brushFamilyNames.index(bdict['name'].lower())
-            family = self.mainForm.brushes[ind]
+            ind = self.mainForm.brushCombo.findText(bdict['name'])
+            if ind == -1:
+                raise ValueError
+            self.mainForm.brushCombo.setCurrentIndex(ind)
+            family = self.mainForm.brushCombo.itemData(ind)
         except ValueError:
-            dlgWarn('Cannot restore brush', 'Reload presets')
-            family = None
+            dlgWarn(f"Cannot restore brush : {bdict['name']}", 'Try to reload presets')
+
+        #search brush pattern
+        try:
+            if bdict['pattern']:  # bdict['pattern'] is a string or None. Key 'pattern' is not present in old blu files
+                ind = self.mainForm.patternCombo.findText(bdict['pattern'])
+                if ind == -1:
+                    raise ValueError
+                self.mainForm.patternCombo.setCurrentIndex(ind)
+                pattern = self.mainForm.patternCombo.itemData(ind)
+        except ValueError:
+            dlgWarn(f"Cannot restore brush pattern : {bdict['pattern']}", 'Try to reload presets')
+        except KeyError:
+            dlgWarn('Old blu file format', 'pattern key missing')
+
+        #restore brush parameters
         bSize = bdict['size']
         bOpacity = bdict['opacity']
         bColor = bdict['color']
@@ -229,10 +249,10 @@ class drawForm(baseForm):
         bSpacing = bdict['spacing']
         bJitter = bdict['jitter']
         bOrientation = bdict['orientation']
-        # pattern = bdict['pattern']
+
         if family is not None:
             self.layer.brushDict = family.getBrush(bSize, bOpacity, bColor, bHardness, bFlow, spacing=bSpacing,
-                                                   jitter=bJitter, orientation=bOrientation)  # pattern=pattern
+                                                   jitter=bJitter, orientation=bOrientation, pattern=pattern)
             self.mainForm.label.State['brush'] = self.layer.brushDict
 
         if self.layer.brushDict is None:  # no brush set yet

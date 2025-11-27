@@ -494,14 +494,11 @@ class QbLUePushButton(QPushButton):
 
 class sortPushButton(QbLUePushButton):
     """
-    PushButton with standard arrow icons
+    PushButton with up/down arrows
     """
     def __init__(self, text):
         super().__init__(text)
-        style = QCommonStyle()
-        self.icons = (style.standardIcon(QStyle.StandardPixmap.SP_ArrowUp),
-                      style.standardIcon(QStyle.StandardPixmap.SP_ArrowDown)
-                     )
+        self.baseText = text
 
 
 class historyList(list):
