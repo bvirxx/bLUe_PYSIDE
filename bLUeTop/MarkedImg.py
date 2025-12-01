@@ -927,10 +927,6 @@ class imImage(mImage):
         # the presentation layer is automatically rebuilt
         for layer in self.layersStack:
             tLayer = layer.bTransformed(transformation, img)
-            # keep ref to original layer (needed by execute)
-            tLayer.parentLayer = layer.parentLayer
-            # record new transformed layer in original layer (needed by execute)
-            tLayer.parentLayer.tLayer = tLayer
             # link back grWindow to tLayer
             # using weak ref for back links
             if tLayer.view is not None:
@@ -1014,7 +1010,6 @@ class QLayer(vImage):
         # and tLayer.parentLayer keeps a reference to the original layer.
         ###########################################################
         self.tLayer = self
-        self.parentLayer = self
         self.modified = False
         self.name = 'noname'
         self.visible = True
@@ -1199,10 +1194,15 @@ class QLayer(vImage):
         # init a new layer from transformed image :
         # all static attributes (caches...) are reset to default, but thumb
         tLayer = QLayer.fromImage(self.transformed(transformation), parentImage=parentImage)
-        # copy  dynamic attributes from old layer
+        # eventually copy dynamic attributes from layer
         for a in self.__dict__.keys():
             if a not in tLayer.__dict__.keys():
                 tLayer.__dict__[a] = self.__dict__[a]
+        # attach tool to tLayer
+        if self.tool:
+            self.tool.hideTool()
+            tLayer.addTool(self.tool)
+        # copy relevant attributes
         tLayer.name = self.name
         tLayer.actionName = self.actionName
         tLayer.view = self.view
