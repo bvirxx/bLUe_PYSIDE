@@ -225,7 +225,7 @@ class drawForm(baseForm):
             self.mainForm.brushCombo.setCurrentIndex(ind)
             family = self.mainForm.brushCombo.itemData(ind)
         except ValueError:
-            dlgWarn(f"Cannot restore brush : {bdict['name']}", 'Try to reload presets')
+            dlgWarn(f"Cannot restore brush : {bdict['name']}", info='Try to reload presets', block=False)
 
         #search brush pattern
         try:
@@ -236,9 +236,9 @@ class drawForm(baseForm):
                 self.mainForm.patternCombo.setCurrentIndex(ind)
                 pattern = self.mainForm.patternCombo.itemData(ind)
         except ValueError:
-            dlgWarn(f"Cannot restore brush pattern : {bdict['pattern']}", 'Try to reload presets')
+            dlgWarn(f"Cannot restore brush pattern : {bdict['pattern']}", info='Try to reload presets', block=False)
         except KeyError:
-            dlgWarn('Old blu file format', 'pattern key missing')
+            dlgWarn('Old blu file format', info='pattern key missing', block=False)
 
         #restore brush parameters
         bSize = bdict['size']

@@ -128,26 +128,30 @@ class dimsInputDialog(QDialog):
         self.onAccept()
 
 
-def dlgInfo(text, info='', parent=Gui.window):
+def dlgInfo(text, info='', block=True, parent=Gui.window):
     """
     Shows a simple information dialog.
 
-    :param parent:
-    :type  parent: QWidget
     :param text:
     :type  text: str
     :param info:
     :type  info: str
+    :param block:
+    :type block: boolean
+     :param parent:
+    :type  parent: QWidget
     """
     msg = QMessageBox(parent=parent)
     msg.setWindowTitle('Information')
     msg.setIcon(QMessageBox.Icon.Information)
     msg.setText(text)
     msg.setInformativeText(info)
-    msg.exec()
+    if block:
+        msg.exec()
+    else:
+        msg.open()
 
-
-def dlgWarn(text, info='', modal=True, parent=Gui.window):
+def dlgWarn(text, info='', block=True, parent=Gui.window):
     """
     Shows a simple warning dialog. If modal is True (default) the dialog is modal,
     otherwise it is window modal.
@@ -156,8 +160,8 @@ def dlgWarn(text, info='', modal=True, parent=Gui.window):
     :type  text: str
     :param info:
     :type  info: str
-    :param modal:
-    :type modal: boolean
+    :param block:
+    :type block: boolean
     :param parent:
     :type  parent: QWidget
     """
@@ -166,7 +170,7 @@ def dlgWarn(text, info='', modal=True, parent=Gui.window):
     msg.setIcon(QMessageBox.Icon.Warning)
     msg.setText(text)
     msg.setInformativeText(info)
-    if modal:
+    if block:
         msg.exec()
     else:
         msg.open()
@@ -246,7 +250,7 @@ def saveChangeDialog(img, parent=Gui.window):
 class savingDialog(QDialog):
     """
     File dialog with options.
-    We use a standard QFileDialog as a child widget and we
+    We use a standard QFileDialog as a child widget, and we
     forward its methods to the top level.
     """
 
@@ -266,6 +270,7 @@ class savingDialog(QDialog):
         # File Dialog
         self.dlg = QFileDialog(parent=self, caption=text, directory=lastDir)  # setting parent needed by app stylesheet
         self.dlg.setOption(QFileDialog.Option.DontUseNativeDialog)
+        self.dlg.setWindowFlag(Qt.WindowType.Window, False)  # to avoid broken layout and duplicated title
         self.metaOption = QCheckBox('Remove Meta')
         # sliders
         self.sliderComp = QbLUeSlider(Qt.Orientation.Horizontal)

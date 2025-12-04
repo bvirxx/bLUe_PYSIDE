@@ -245,12 +245,12 @@ class imageLabel(QLabel):
         if not layer.visible:
             dlgWarn('Select a visible layer',
                     info='In Layer Stack, toggle the current layer visibility or choose a visible layer',
-                    modal=False)
+                    block=False)
             return
         elif (window.btnValues['drawFG'] or window.btnValues['drawBG']) and not layer.maskIsEnabled:
             dlgWarn('Enable the mask before masking or unmasking',
                     info='In Layer Stack, right-click the current layer and open Mask Style context menu item',
-                    modal=False)
+                    block=False)
             return
         r = img.resize_coeff(self)
         ############################################################
