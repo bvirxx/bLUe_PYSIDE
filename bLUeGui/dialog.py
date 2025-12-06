@@ -22,7 +22,7 @@ from os.path import basename, dirname, isfile
 from PySide6.QtCore import Qt, QDir, QSize
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QMessageBox, QPushButton, QFileDialog, QDialog, QSlider, QVBoxLayout, QHBoxLayout, QLabel, \
-    QCheckBox, QFormLayout, QLineEdit, QDialogButtonBox, QScrollArea, QProgressDialog, QSizePolicy, QToolButton
+    QCheckBox, QFormLayout, QLineEdit, QDialogButtonBox, QScrollArea, QProgressDialog, QSizePolicy, QToolButton, QWidget
 
 from bLUeTop import Gui
 from bLUeTop.utils import QbLUeSlider, stateAwareQDockWidget, fileRoot
@@ -529,10 +529,16 @@ class QblueFileDialog(QFileDialog):
             btn = self.findChild(QToolButton, name)
             if btn:
                 btn.setVisible(False)
+
         btn = self.findChild(QToolButton, 'toParentButton')
         if btn:
             btn.setIcon(QIcon())
             btn.setText('\u25B2')  # up arrow
+
+        # hide left column
+        sidebar = self.findChild(QWidget, 'sidebar')
+        if sidebar:
+            sidebar.setVisible(False)
 
     def setDock(self):
         dock = stateAwareQDockWidget()
@@ -542,19 +548,19 @@ class QblueFileDialog(QFileDialog):
         self.dock = dock
         return dock
 
-    def getDock(self):
-        return self.dock
-
     def sizeHint(self):
         return self.minimumSizeHint()
 
     def minimumSizeHint(self):
-        return QSize(250, 300)
+        return QSize(200, 300)
 
     def closeEvent(self, e):
         self.dock.close()
         super().closeEvent(e)
 
+    def done(self, r):
+        self.dock.close()
+        super().done(r)
 
 def save3DLUTDlg(mainForm):
     """

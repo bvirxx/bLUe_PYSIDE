@@ -481,7 +481,11 @@ class viewer(QObject):
         bLUeTop.Gui.window.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.fileDlgDock)
 
         fileDlg.directoryEntered.connect(self.showViewer)
-        fileDlg.finished.connect(self.recordDir)
+        fileDlg.finished.connect(self.finishedSlot)
+
+    def finishedSlot(self, result):
+        self.recordDir()
+        self.listWdg.setVisible(False)
 
     def initWins(self):
         listWdg = dragQListWidget()
@@ -620,7 +624,9 @@ class viewer(QObject):
 
         for btn in self.sortButtons:
             btn.setText(btn.baseText)  # reset all buttons
-        self.sortButtons[index].setText(self.sortButtons[index].baseText + ' \u25bc' if self.listWdg.sortOrder[index] == Qt.SortOrder.DescendingOrder else self.sortButtons[index].baseText + ' \u25b2')
+        self.sortButtons[index].setText(self.sortButtons[index].baseText +
+                                        ' \u25bc' if self.listWdg.sortOrder[index] == Qt.SortOrder.DescendingOrder
+                                        else self.sortButtons[index].baseText + ' \u25b2')
 
         selectionList = self.listWdg.selectedItems()
         # scroll to selection
@@ -648,6 +654,18 @@ class viewer(QObject):
         finally:
             QApplication.restoreOverrideCursor()
 
+    def setVisible(self, visible):
+        """
+        Sets viewer visibility
+
+        :param visible: visibility state
+        :type visible: bool
+        """
+        self.listViewDock.setVisible(visible)
+        self.fileDlgDock.setVisible(visible)
+        self.listWdg.setVisible(visible)
+        self.fileDlg.setVisible(visible)
+
     def showViewer(self, aDir, forcevisible=True):
         """
         Updates the file list if the directory changes
@@ -658,8 +676,7 @@ class viewer(QObject):
         :type forcevisible: bool
         """
         if forcevisible:
-            self.listViewDock.show()
-            self.fileDlgDock.show()
+            self.setVisible(True)
 
         if self.currentDir != aDir:
             self.fileDlg.setDirectory(aDir)
@@ -675,7 +692,4 @@ class viewer(QObject):
         self.playViewer(self.currentDir)
 
     def recordDir(self):
-        """
-        fileDlg finished signal slot
-        """
         self.currentToSettings(mainWin=bLUeTop.Gui.window)

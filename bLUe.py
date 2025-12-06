@@ -905,10 +905,10 @@ def setBlueFileExplorer(window, fromini=False):
         listvisible = (window.settings.value('mainwindow/explistwdg', 'false').lower()  == 'true')
         filedlgvisible = (window.settings.value('mainwindow/expfiledlg', 'false').lower() == 'true')
         if not (listvisible and filedlgvisible):
+            # viewer closed in last session: don't open it
             return
     viewerInstance = viewer.getViewerInstance(mainWin=window)
-    viewerInstance.listViewDock.show()
-    viewerInstance.fileDlgDock.show()
+    viewerInstance.setVisible(True)
 
     lastDir = viewerInstance.currentFromSettings(mainWin=window) if viewerInstance.currentDir == '.' \
                                                  else viewerInstance.currentDir
@@ -1754,7 +1754,7 @@ def closeTabs(index=None, window=bLUeTop.Gui.window):
     :return:
     :rtype: boolean
     """
-    #  save the current dir of the File Explorer
+    #  save the current dir of the File viewer
     if viewer.isInstanciated():
         viewer.getViewerInstance().currentToSettings(mainWin=window)
 
