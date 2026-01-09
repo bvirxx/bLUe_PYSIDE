@@ -195,7 +195,7 @@ class mImage(vImage):
 
             tool = getattr(l, 'tool', None)
             if tool:
-                lr.addTool(tool)
+                tool.addTool(lr)
                 tool.showTool()
 
             self.layersStack.append(lr)
@@ -1146,30 +1146,6 @@ class QLayer(vImage):
             return grf.contrastForm.scene().cubicItem
         return None
 
-    def addTool(self, tool):
-        """
-        Adds tool to layer.
-
-        :param tool:
-        :type tool: rotatingTool
-        """
-        self.tool = tool
-        tool.modified = False
-        tool.layer = weakProxy(self)
-        try:
-            tool.layer.visibilityChanged.sig.disconnect()
-        except RuntimeError:
-            pass
-        tool.layer.visibilityChanged.sig.connect(tool.setVisible)
-        tool.img = weakProxy(self.parentImage)
-        w, h = tool.img.width(), tool.img.height()
-        for role, pos in zip(['topLeft', 'topRight', 'bottomRight', 'bottomLeft'],
-                             [QPoint(0, 0), QPoint(w, 0), QPoint(w, h), QPoint(0, h)]):
-            tool.btnDict[role].posRelImg = pos
-            tool.btnDict[role].posRelImg_ori = pos
-            tool.btnDict[role].posRelImg_frozen = pos
-        tool.moveRotatingTool()
-
     def setVisible(self, value):
         """
         Sets self.visible to value and emit visibilityChanged.sig.
@@ -1201,7 +1177,7 @@ class QLayer(vImage):
         # attach tool to tLayer
         if self.tool:
             self.tool.hideTool()
-            tLayer.addTool(self.tool)
+            self.tool.addTool(tLayer)
         # copy relevant attributes
         tLayer.name = self.name
         tLayer.actionName = self.actionName
@@ -1468,6 +1444,13 @@ class QLayer(vImage):
 
     def isMergingLayer(self):
         return 'MERGING' in self.role
+
+    def syncTool(self, zooming=False):
+        """
+        Sync tool with layer.
+        """
+        if self.tool is not None:
+            self.tool.syncToolWithLayer(zooming=zooming)
 
     def updateOnlyPixmap(self, bRect=None):
         """
@@ -2092,10 +2075,10 @@ class QLayer(vImage):
         outImg = self.getCurrentImage()
         buf0 = QImageBuffer(outImg)
         w, h = inImg.width(), inImg.height()
-        s = w / self.width()
+        s = w / self.width() # equal to h / self.height()
         D = QTransform().scale(s, s)
         DInv = QTransform().scale(1 / s, 1 / s)
-        q1Full, q2Full = self.tool.getSourceQuad(), self.tool.getTargetQuad()
+        q1Full, q2Full = self.tool.getOriginQuad(), self.tool.getTargetQuad()
         # map Quads to the current image coordinate system
         q1, q2 = D.map(q1Full), D.map(q2Full)
         # build transformation
@@ -2116,7 +2099,8 @@ class QLayer(vImage):
         rectTrans = DInv.map(T.map(D.map(self.rect()))).boundingRect()
         # apply the transformation and re-translate the transformed image
         # so that the resulting transformation is T and NOT that given by QImage.trueMatrix()
-        img = (inImg.transformed(T)).copy(QRect(-rectTrans.x() * s, -rectTrans.y() * s, w, h))
+        #img = (inImg.transformed(T)).copy(QRect(-rectTrans.x() * s, -rectTrans.y() * s, w, h))
+        img = (inImg.transformed(T)).copy(QRect(-rectTrans.topLeft() * s, QSize(w, h)))
         # copy sets pixels beyond image to 0. To show these pixels
         # as black we set their alpha value to 255:
         if options['Transparent']:
@@ -3412,7 +3396,7 @@ class QDrawingLayer(QLayerImage):
         :type x0: int
         :param y0:
         :type y0: int
-        :param widget:
+        :param widget: to match the signature of the base function
         :type widget: imageLabel
         """
         self.xOffset += x1 - x0
@@ -3453,3 +3437,7 @@ class QRawLayer(QLayer):
     @postProcessCache.setter
     def postProcessCache(self, buf):
         self.__postProcessCache = buf
+
+
+class QTextLayer(QDrawingLayer):
+    pass

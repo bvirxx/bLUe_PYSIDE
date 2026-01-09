@@ -682,8 +682,9 @@ class QLayerView(QTableView):
         activeLayer = self.img.setActiveLayer(activeStackIndex)
         self.currentWin = getattr(activeLayer, 'view', None)
 
-        if layer.tool is not None:
-            layer.tool.moveRotatingTool()  # keep last
+        #if layer.tool is not None:
+            #layer.tool.moveRotatingTool()  # keep last
+        layer.syncTool()
 
         # bLUeTop.Gui.window.label.repaint()
         self.img.onImageChanged()

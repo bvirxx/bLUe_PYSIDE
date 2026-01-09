@@ -337,8 +337,11 @@ class imageLabel(QLabel):
         x, y = event.position().x(), event.position().y()
         modifiers = event.modifiers()
 
+        if (event.buttons() == Qt.MouseButton.NoButton) != (not self.pressed):
+            print(event.buttons(), not self.pressed, self.mouseGrabber())
         # hover event
-        if not self.pressed:
+        if event.buttons() == Qt.MouseButton.NoButton:  #not self.pressed:
+
             x_img, y_img = (x - img.xOffset) / r, (y - img.yOffset) / r
             # read input and current colors from active layer (coordinates are relative to the full-sized image)
             clr = img.getActivePixel(x_img, y_img, qcolor=True)
@@ -495,8 +498,9 @@ class imageLabel(QLabel):
 
         # update current coordinates
         State['ix'], State['iy'] = x, y
-        if layer.isGeomLayer():
-            layer.tool.moveRotatingTool()
+        #if layer.isGeomLayer():
+            #layer.tool.moveRotatingTool()
+        layer.syncTool()
 
         # updates
         if repaintAfter:
@@ -649,9 +653,9 @@ class imageLabel(QLabel):
             img.yOffset = -pos.y() * numSteps + (1.0 + numSteps) * img.yOffset
             if window.btnValues['Crop_Button']:
                 window.cropTool.setCropTool(img)
-            if layer.isGeomLayer():
+            #if layer.isGeomLayer():
                 # layer.view.widget().tool.moveRotatingTool()
-                layer.tool.moveRotatingTool()
+            layer.syncTool(zooming=True)
         elif modifiers == Qt.KeyboardModifier.ControlModifier:
             # cropTool aware zooming
             # layer.Zoom_coeff *= 1.0 + numSteps  # useless and misleading

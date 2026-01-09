@@ -965,6 +965,7 @@ Size</string>
     <addaction name="menuNew_Image_Layer"/>
     <addaction name="actionHDR_Merge"/>
     <addaction name="actionNew_Drawing_Layer"/>
+    <addaction name="actionNew_Text_Layer"/>
     <addaction name="separator"/>
     <addaction name="actionSave_Layer_Stack_as_LUT_Cube"/>
     <addaction name="actionLoad_3D_LUT"/>
@@ -1467,6 +1468,11 @@ Size</string>
   <action name="actionTablet_Settings">
    <property name="text">
     <string>Tablet Settings</string>
+   </property>
+  </action>
+  <action name="actionNew_Text_Layer">
+   <property name="text">
+    <string>New Text Layer</string>
    </property>
   </action>
  </widget>

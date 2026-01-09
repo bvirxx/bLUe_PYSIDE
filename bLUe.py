@@ -143,7 +143,7 @@ import pickle
 import rawpy
 from PIL import ImageCms
 
-from PySide6.QtCore import QUrl, QFileInfo
+from PySide6.QtCore import QUrl, QFileInfo, QPoint
 from PySide6.QtGui import QPixmap, QCursor, QKeySequence, QDesktopServices, QFont, \
     QTransform, QColor, QImage, QIcon, QAction, QPalette, QGuiApplication
 from PySide6.QtWidgets import QApplication, \
@@ -157,7 +157,7 @@ from bLUeGui.dialog import *
 from bLUeGui.colorPatterns import cmHSP, cmHSB
 from bLUeGui.graphicsForm import baseGraphicsForm
 from bLUeGui.logginit import logger
-from bLUeGui.tool import cropTool, rotatingTool
+from bLUeGui.tool import cropTool, rotatingTool, markTool
 from bLUeCore.bLUeLUT3D import HaldArray
 from bLUeTop import exiftool, Gui
 from bLUeTop.drawing import initBrushes, loadPresets
@@ -178,7 +178,7 @@ from bLUeTop.presetReader import aParser
 from bLUeTop.rawProcessing import rawRead
 from bLUeTop.tablet import bTabletSettings
 from bLUeTop.versatileImg import vImage, metadataBag
-from bLUeTop.MarkedImg import imImage, QRawLayer, QCloningLayer, QLayerImage, QDrawingLayer
+from bLUeTop.MarkedImg import imImage, QRawLayer, QCloningLayer, QLayerImage, QDrawingLayer, QTextLayer
 from bLUeTop.graphicsRGBLUT import graphicsForm
 from bLUeTop.graphicsLUT3D import graphicsForm3DLUT
 from bLUeTop.graphicsAutoLUT3D import graphicsFormAuto3DLUT
@@ -263,6 +263,9 @@ def widgetChange(button, window=bLUeTop.Gui.window):
     elif button is window.asButton:
         # update crop tool
         window.cropTool.setCropTool(window.label.img)
+        # update all layer tools:
+        for layer in window.label.img.layersStack:
+            layer.syncTool(zooming=True)
     elif button is window.rulerButton:
         window.label.img.isRuled = button.isChecked()
     elif button is window.eyeDropper:
@@ -1482,7 +1485,7 @@ def layerScripting(name, window=bLUeTop.Gui.window, sname=None, script=False):
             grWindow = imageForm.getNewWindow(axeSize=axeSize, **envdict())
             # add transformation tool to parent widget
             tool = rotatingTool(parent=window.label)  # , layer=l, form=grWindow)
-            layer.addTool(tool)
+            tool.addTool(layer)
             tool.showTool()
             layer.execute = lambda l=layer, pool=None: l.tLayer.applyImage(grWindow.options)
             layer.actioname = name
@@ -1495,13 +1498,13 @@ def layerScripting(name, window=bLUeTop.Gui.window, sname=None, script=False):
         processedImg = window.label.img
         w, h = processedImg.width(), processedImg.height()
         imgNew = QImage(w, h, QImage.Format.Format_ARGB32)
-        imgNew.fill(Qt.GlobalColor.black)
+        imgNew.fill(Qt.GlobalColor.white)  # black)
         lname = 'Image'
         layer = window.label.img.addAdjustmentLayer(name=gn(lname), sourceImg=imgNew, role='GEOMETRY')
         grWindow = imageForm.getNewWindow(axeSize=axeSize, **envdict())
         # add transformation tool to parent widget
         tool = rotatingTool(parent=window.label)  # , layer=l, form=grWindow)
-        layer.addTool(tool)
+        tool.addTool(layer)
         tool.showTool()
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyImage(grWindow.options)
         layer.actioname = name
@@ -1510,14 +1513,29 @@ def layerScripting(name, window=bLUeTop.Gui.window, sname=None, script=False):
         processedImg = window.label.img
         w, h = processedImg.width(), processedImg.height()
         imgNew = QImage(w, h, QImage.Format.Format_ARGB32)
-        # imgNew.fill(Qt.white)
-        imgNew.fill(QColor(0, 0, 0, 0))
+        imgNew.fill(Qt.white)
         lname = 'Drawing'
         layer = window.label.img.addAdjustmentLayer(name=gn(lname), layerType=QDrawingLayer, sourceImg=imgNew,
                                                     role='DRW')
         grWindow = drawForm.getNewWindow(axeSize=axeSize, **envdict())
         layer.execute = lambda l=layer, pool=None, bRect=None: l.tLayer.applyNone(bRect=bRect)
         layer.actioname = name
+
+    elif name == 'actionNew_Text_Layer':
+        processedImg = window.label.img
+        w, h = processedImg.width(), processedImg.height()
+        imgNew = QImage(w, h, QImage.Format.Format_ARGB32)
+        # imgNew.fill(Qt.white)
+        imgNew.fill(QColor(0, 0, 0, 0))
+        lname = 'Text'
+        layer = window.label.img.addAdjustmentLayer(name=gn(lname), layerType=QTextLayer, sourceImg=imgNew,
+                                                    role='DRW')
+        grWindow = drawForm.getNewWindow(axeSize=axeSize, **envdict()) #drawForm.getNewWindow(axeSize=axeSize, **envdict())
+        layer.execute = lambda l=layer, pool=None, bRect=None: l.tLayer.applyNone(bRect=bRect)
+        layer.actioname = name
+        # add text tool to working area
+        mark = markTool(layer=layer, parent=window.label)
+        mark.showTool()
 
     # Color filter
     elif name == 'actionColor_Temperature':
@@ -1565,7 +1583,7 @@ def layerScripting(name, window=bLUeTop.Gui.window, sname=None, script=False):
         grWindow = transForm.getNewWindow(axeSize=axeSize, **envdict())
         # add transformation tool to parent widget
         tool = rotatingTool(parent=window.label)
-        layer.addTool(tool)
+        tool.addTool(layer)
         tool.showTool()
         layer.execute = lambda l=layer, pool=None: l.tLayer.applyTransForm(grWindow.options)
 
