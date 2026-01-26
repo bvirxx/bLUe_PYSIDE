@@ -17,12 +17,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 from PySide6.QtCore import Qt, QPointF
 from PySide6.QtGui import QPixmap, QColor, QPainterPath, QTransform
-from PySide6.QtWidgets import QPushButton, QVBoxLayout, QHBoxLayout, QSlider, QLabel
+from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QSlider, QLabel
 
 from bLUeGui.graphicsForm import baseForm
 from bLUeGui.dialog import dlgWarn
 from bLUeTop.drawing import brushFamily
-from bLUeTop.utils import QbLUeSlider, QbLUePushButton
+from bLUeTop.utils import QbLUeSlider, QbLUePushButton, optionsWidget
 
 
 class drawForm(baseForm):
@@ -265,3 +265,47 @@ class drawForm(baseForm):
         self.colorChooser.setCurrentColor(bColor)
         self.dataChanged.connect(self.updateLayer)
         self.dataChanged.emit()
+
+class textForm(drawForm):
+    """
+    Text drawing form
+    """
+
+    def __init__(self, targetImage=None, axeSize=500, layer=None, parent=None):
+        super().__init__(targetImage=targetImage, axeSize=axeSize, layer=layer, parent=parent)
+
+        # options
+        optionList1, optionNames1 = ['Font Color', 'Brush Fill'], ['Font Color', 'Brush Fill']
+        self.listWidget1 = optionsWidget(options=optionList1,
+                                         optionNames=optionNames1,
+                                         exclusive=True,
+                                         changed=self.dataChanged
+                                         )
+        self.listWidget1.checkOption(self.listWidget1.intNames[0])
+
+        l = self.layout()
+        l.addWidget(QLabel('Filling Options'))
+        l.addWidget(self.listWidget1)
+
+        self.setWhatsThis(
+            """
+            <b>Text Drawing :</b><br>
+              A text layer displays a single text area surrounded by a red rectangle (add a new text layer
+              for each text area).<br>
+              To <b>open the text editor</b>, <it>Right-Click</it> anywhere inside the text area.<br>
+              To <b>close the editor</b> <it>Click</it> anywhere outside the editor window.<br>
+              To <b>move and resize the text area</b>, drag the tool buttons located at the top-left
+              and bottom-right corners of the editor window<br>
+              To <b>open the context menu</b> <right-click in the editor window.<br>
+              To <b>Fill characters</b> with the current brush, select the <i>Brush Fill</i> option.<br>
+              To <b>rotate or translate the text</b>, close the editor and use the <i>Transformation Tool</i>
+              buttons located at the four corners of the image:<br>
+               - <i>Shift+Drag</i> to rotate<br>
+               - <i>Ctrl+Alt+Drag</i> to tarnslate<br>
+              <br>
+              <b>Not</b>e. For faster operations use the <i>Preview</i> mode (the drawing will still be done using the 
+              full resolution image).<br><br>
+              <b>Warning :</b> All upper layers (drawing layers excepted) must be made non visible.
+              Otherwise drawing operations will not be rendered until next layer stack update.<br> 
+            """
+        )  # end of setWhatsThis

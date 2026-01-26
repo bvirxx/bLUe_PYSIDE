@@ -161,7 +161,7 @@ from bLUeGui.tool import cropTool, rotatingTool, markTool
 from bLUeCore.bLUeLUT3D import HaldArray
 from bLUeTop import exiftool, Gui
 from bLUeTop.drawing import initBrushes, loadPresets
-from bLUeTop.graphicsDraw import drawForm
+from bLUeTop.graphicsDraw import drawForm, textForm
 from bLUeTop.graphicsGrading import graphicsFormGrading
 from bLUeTop.graphicsHDRMerge import HDRMergeForm
 from bLUeTop.graphicsSegment import segmentForm
@@ -1529,8 +1529,8 @@ def layerScripting(name, window=bLUeTop.Gui.window, sname=None, script=False):
         imgNew.fill(QColor(0, 0, 0, 0))
         lname = 'Text'
         layer = window.label.img.addAdjustmentLayer(name=gn(lname), layerType=QTextLayer, sourceImg=imgNew,
-                                                    role='DRW')
-        grWindow = drawForm.getNewWindow(axeSize=axeSize, **envdict()) #drawForm.getNewWindow(axeSize=axeSize, **envdict())
+                                                    role='TXT')
+        grWindow = textForm.getNewWindow(axeSize=axeSize, **envdict()) #drawForm.getNewWindow(axeSize=axeSize, **envdict())
         layer.execute = lambda l=layer, pool=None, bRect=None: l.tLayer.applyNone(bRect=bRect)
         layer.actioname = name
         # add text tool to working area

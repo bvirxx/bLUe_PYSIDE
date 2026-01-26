@@ -551,6 +551,11 @@ class imageLabel(QLabel):
         x, y = event.position().x(), event.position().y()
         modifiers = event.modifiers()
         self.pressed = False
+
+        if self.clicked and layer.isTextLayer():  # click draws text and hides editor
+            layer.tool.editorInstance.drawText()
+            layer.tool.editorInstance.hide()
+
         if event.button() == Qt.MouseButton.LeftButton:
             if layer.maskIsEnabled \
                     and layer.getUpperVisibleStackIndex() != -1 \
@@ -639,6 +644,12 @@ class imageLabel(QLabel):
         # so we sum up the 2 delta coordinates.
         numSteps = (delta.x() + delta.y()) / 1200.0
         layer = img.getActiveLayer()
+        # non modal DlgWarn needed to handle multiple successive tabletPressEvent
+        if not layer.visible:
+            dlgWarn('Select a visible layer',
+                    info='In Layer Stack, toggle the current layer visibility or choose a visible layer',
+                    block=False)
+            return
         if modifiers == Qt.KeyboardModifier.NoModifier:
             img.Zoom_coeff *= (1.0 + numSteps)
             if layer.isDrawLayer() or window.btnValues['drawFG'] or window.btnValues['drawBG']:

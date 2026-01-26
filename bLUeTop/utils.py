@@ -31,7 +31,7 @@ from PySide6.QtGui import QColor, QImage, QPainter, QImageReader, QPixmap
 from PySide6.QtWidgets import QListWidget, QListWidgetItem, \
     QSlider, QLabel, QDockWidget, QStyle, QColorDialog, QPushButton, QSizePolicy, QComboBox, QSpinBox, \
     QDialog, QDialogButtonBox, QVBoxLayout, QCommonStyle
-from PySide6.QtCore import Qt, QObject, QRect
+from PySide6.QtCore import Qt, QObject, QRect, QSize
 
 from bLUeCore.rollingStats import movingVariance
 from bLUeGui.bLUeImage import QImageBuffer
@@ -910,6 +910,23 @@ def clip(image, mask, inverted=False):
         bufMask[:, :, 3] = 255 - bufMask[:, :, 3]
     bufImg[:, :, 3] = bufMask[:, :, 3]
 
+def rawTransform(image, transform):
+    """
+    Applies a QTransform to a QImage , keeping the actual translation,
+    in contrast with trueMatrix.
+
+    :param image:
+    :type image: QImage
+    :param transform:
+    :type transform: QTransform
+    :return: transformed image
+    :rtype: QImage
+    """
+    rect = image.rect()
+    w, h = image.width(), image.height()
+    rectTrans = transform.map(rect).boundingRect()
+    img = image.transformed(transform).copy(QRect(-rectTrans.topLeft(), QSize(w, h)))
+    return img
 
 def QImageFromFile(filename):
     """

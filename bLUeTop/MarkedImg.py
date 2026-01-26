@@ -67,7 +67,7 @@ from bLUeGui.baseSignal import baseSignal_bool, baseSignal_Int2, baseSignal_No
 from bLUeTop.mergeImages import expFusion
 from bLUeTop.rawProcessing import rawRead, rawPostProcess
 from bLUeTop.settings import HAS_TORCH
-from bLUeTop.utils import qColorToRGB, historyList, UDict, fileExt
+from bLUeTop.utils import qColorToRGB, historyList, UDict, fileExt, rawTransform
 
 from bLUeTop.versatileImg import vImage
 
@@ -1437,7 +1437,10 @@ class QLayer(vImage):
         return 'RAW' in self.role
 
     def isDrawLayer(self):
-        return 'DRW' in self.role
+        return 'DRW' in self.role or 'TXT' in self.role
+
+    def isTextLayer(self):
+        return 'TXT' in self.role
 
     def isImageLayer(self):
         return 'Image' in self.role
@@ -3440,4 +3443,32 @@ class QRawLayer(QLayer):
 
 
 class QTextLayer(QDrawingLayer):
-    pass
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # current text transform applied to the text
+        self.textTransform = QTransform()
+
+    def inputImg(self, redo=True):
+        """
+        Applies textTransfrom to the text, and returns the text painted onto a transparent image.
+
+        :param redo: unused
+        :type redo: boolean
+        :return:
+        :rtype: QImage
+        """
+        img1 = super().inputImg(redo=False)
+        img1.fill(QColor(0, 0, 0, 0))
+
+        # apply textTransform to sourceImg, keeping actual (NOT trueMatrix) matrix
+        """
+        rect = self.sourceImg.rect()
+        w, h = self.sourceImg.width(), self.sourceImg.height()
+        rectTrans = self.textTransform.map(rect).boundingRect()
+        img = self.sourceImg.transformed(self.textTransform).copy(QRect(-rectTrans.topLeft(), QSize(w, h)))
+        """
+        img = rawTransform(self.sourceImg, self.textTransform)
+        qp = QPainter(img1)
+        qp.drawImage(QRect(0, 0, img1.width(), img1.height()), img)
+        qp.end()
+        return img1
