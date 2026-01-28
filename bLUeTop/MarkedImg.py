@@ -2097,13 +2097,15 @@ class QLayer(vImage):
             buf0[:, :, :] = buf1
             self.updatePixmap()
             return
-        # get the bounding rect of the transformed image (in the full size image coordinate system)
-        # (Avoid the conversion of QTransforms to QMatrix4x4 and matrix product)
+
         rectTrans = DInv.map(T.map(D.map(self.rect()))).boundingRect()
+        #rectTrans = (D * T * DInv).map(self.rect()).boundingRect()
+
         # apply the transformation and re-translate the transformed image
         # so that the resulting transformation is T and NOT that given by QImage.trueMatrix()
         #img = (inImg.transformed(T)).copy(QRect(-rectTrans.x() * s, -rectTrans.y() * s, w, h))
         img = (inImg.transformed(T)).copy(QRect(-rectTrans.topLeft() * s, QSize(w, h)))
+
         # copy sets pixels beyond image to 0. To show these pixels
         # as black we set their alpha value to 255:
         if options['Transparent']:
@@ -2113,6 +2115,7 @@ class QLayer(vImage):
             logger.warning('applyTransform : transformation fails')
             self.tool.restore()
             return
+
         buf0[:, :, :] = QImageBuffer(img)
         self.updatePixmap()
 

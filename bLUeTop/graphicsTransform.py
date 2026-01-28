@@ -123,7 +123,7 @@ class transForm(baseForm):
             btn.posRelImg = QPointF(*d[role])
         self.dataChanged.connect(self.updateLayer)
         self.dataChanged.emit()
-        self.layer.syncTool()  # self.layer.tool.moveRotatingTool()  # keep after update
+        self.layer.syncTool()  # keep after update
 
 
 class imageForm(transForm):

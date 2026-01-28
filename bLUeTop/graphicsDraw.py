@@ -203,12 +203,14 @@ class drawForm(baseForm):
         d['brush']['pattern'] = brushDict['pattern'].name if brushDict['pattern'] is not None else None
         return d
 
-    def __setstate__(self, d):
-        # prevent multiple updates
-        try:
-            self.dataChanged.disconnect()
-        except RuntimeError:
-            pass
+    def __setstate__(self, d, prevent=True):
+        if prevent:
+            # prevent multiple updates
+            try:
+                self.dataChanged.disconnect()
+            except RuntimeError:
+                pass
+
         for name in d['state']:
             obj = getattr(self, name, None)
             if type(obj) in [QbLUeSlider]:
@@ -263,8 +265,10 @@ class drawForm(baseForm):
 
         self.updateSample()
         self.colorChooser.setCurrentColor(bColor)
-        self.dataChanged.connect(self.updateLayer)
-        self.dataChanged.emit()
+
+        if prevent:
+            self.dataChanged.connect(self.updateLayer)
+            self.dataChanged.emit()
 
 class textForm(drawForm):
     """
@@ -289,23 +293,66 @@ class textForm(drawForm):
 
         self.setWhatsThis(
             """
-            <b>Text Drawing :</b><br>
-              A text layer displays a single text area surrounded by a red rectangle (add a new text layer
-              for each text area).<br>
-              To <b>open the text editor</b>, <it>Right-Click</it> anywhere inside the text area.<br>
-              To <b>close the editor</b> <it>Click</it> anywhere outside the editor window.<br>
-              To <b>move and resize the text area</b>, drag the tool buttons located at the top-left
-              and bottom-right corners of the editor window<br>
-              To <b>open the context menu</b> <right-click in the editor window.<br>
-              To <b>Fill characters</b> with the current brush, select the <i>Brush Fill</i> option.<br>
-              To <b>rotate or translate the text</b>, close the editor and use the <i>Transformation Tool</i>
-              buttons located at the four corners of the image:<br>
-               - <i>Shift+Drag</i> to rotate<br>
-               - <i>Ctrl+Alt+Drag</i> to tarnslate<br>
-              <br>
-              <b>Not</b>e. For faster operations use the <i>Preview</i> mode (the drawing will still be done using the 
-              full resolution image).<br><br>
-              <b>Warning :</b> All upper layers (drawing layers excepted) must be made non visible.
-              Otherwise drawing operations will not be rendered until next layer stack update.<br> 
+             <b>Text Drawing :</b><br>
+             A text layer displays a single text area surrounded by a red rectangle. Add a separate text layer
+             for each new text area.<br><br>
+             
+             <b>Text area</b><br>
+             The <i>text area</i> is a transparent widget, surrounded by a red frame (not visible on the final image).
+             It includes a <i>text editor</i>  to edit current text, select alignment, fonts, colors. Use
+             <i>Filling Options</i> and brush settings (color, opacity) to choose the filling mode
+             Closing the editor results in the current text being drawn on the layer.<br><br>
+            
+             To <b>open the editor</b> right-click anywhere inside the text area.<br>
+             To <b> open the context menu</b> right-click inside the editor window.<br>
+             To <b>close the editor</b> right-click anywhere outside the text area.<br><br>
+            
+             To <b>move the text</b> drag the text area with the mouse.<br>
+             To <b>rotate the text</b>, ctrl+drag the text area with the mouse.
+             The rotated text is not clipped to the text area.<br><br>
+            
+             To <b>resize the text area</b>, open the editor and drag the top-left or bottom-right buttons.<br>
+             
+             <b>Note</b>. For faster operations use the <i>Preview</i> mode (the drawing will still be done using the 
+             full resolution image).<br><br>
+             <b>Warning :</b> All upper layers (drawing layers excepted) must be made non visible.
+             Otherwise drawing operations will not be rendered until next layer stack update.<br> 
             """
         )  # end of setWhatsThis
+
+    def __getstate__(self):
+        d = super().__getstate__()
+        for a in self.__dir__():
+            obj = getattr(self, a)
+            if type(obj) in [optionsWidget]:
+                d[a] = obj.__getstate__()
+        for role in ['topleft', 'bottomright']:
+            btn = self.layer.tool.btnDict[role]
+            d[role] = (btn.posRelImg.x(), btn.posRelImg.y())
+        d['text'] = self.layer.tool.editorInstance.document().toHtml()
+        return d
+
+    def __setstate__(self, d):
+        # prevent multiple updates
+        try:
+            self.dataChanged.disconnect()
+        except RuntimeError:
+            pass
+
+        for name in d['state']:
+            obj = getattr(self, name, None)
+            if type(obj) in [optionsWidget]:
+                obj.__setstate__(d['state'][name])
+
+        super().__setstate__(d, prevent=False)
+
+        d = d['state']
+        for role in ['topleft', 'bottomright']:
+            btn = self.layer.tool.btnDict[role]
+            btn.posRelImg = QPointF(*d[role])
+
+        self.layer.tool.editorInstance.appendHtml(d['text'])
+
+        self.dataChanged.connect(self.updateLayer)
+        self.dataChanged.emit()
+        self.layer.syncTool()  # keep after update

@@ -24,7 +24,6 @@ from PySide6.QtWidgets import QWidget, QToolButton, QPlainTextEdit, QMenu, QFont
 from PySide6.QtCore import Qt, QPoint, QObject, QPointF, QRectF, QRect, QSize
 
 from bLUeGui.dialog import dlgWarn
-from bLUeGui.logginit import logger
 from bLUeGui.memory import weakProxy
 from bLUeTop.imLabel import imageLabel
 from bLUeTop.utils import QbLUeColorDialog
@@ -114,7 +113,7 @@ class baseTool(QObject):
 
 class markTool(baseTool):
     """
-    Simple tool to position an interactive text area on a text layer.
+    interactive tool to position a text area.
     """
 
     def __init__(self, layer=None,  parent=None):
@@ -132,10 +131,6 @@ class markTool(baseTool):
         self.layer.tool = self  # add tool to layer
         self.textWdg = textAreaWidget(tool=self, targetLayer=layer, parent=parent)
         self.img = layer.parentImage
-        # rotation/translation tool for text
-        self.rottool = rotatingKbTool(parent=parent)
-        self.rottool.addTool(layer, setattr=False)  # don't oerwrite layer.tool
-        self.rottool.showTool()
 
         self.layer.visibilityChanged.sig.connect(self.setVisible)
 
@@ -151,13 +146,11 @@ class markTool(baseTool):
         return self.textWdg.editorInstance
 
     def showTool(self):
-        super().showTool()
-        self.rottool.showTool()
+        #super().showTool()
         self.textWdg.show()
 
     def hideTool(self):
         super().hideTool()
-        self.rottool.hideTool()
         if self.editorInstance:
             self.editorInstance.hide()
         self.textWdg.hide()
@@ -180,7 +173,7 @@ class markTool(baseTool):
         btn = baseHandle(role=role , pos=pos, tool=self, parent=self.parent())
         self.btnDict[btn.role] = btn
         r = self.img.resize_coeff(self.parent())
-        btn.move(QPoint(self.layer.parentImage.xOffset, self.layer.parentImage.yOffset) + (pos * r).toPoint())
+        btn.move(QPoint(self.img.xOffset, self.img.yOffset) + (pos * r).toPoint())
 
     def syncToolWithLayer(self, zooming=False, syncsourceimg=True):
         """
@@ -206,8 +199,6 @@ class markTool(baseTool):
         if self.textWdg.editorInstance:
             self.textWdg.editorInstance.syncWithTool(zooming=zooming)
 
-        if self.rottool:
-            self.rottool.syncToolWithLayer(syncsourceimg=(syncsourceimg and not self.editorInstance.isVisible()))
 
 class croppingHandle(baseHandle):
     """
@@ -427,7 +418,8 @@ class cropTool(baseTool):
         :type  img:
         """
 
-        speed = 4  # deltaX = 1 or deltaY = 1 may lead to an incorrect move, due to int/float conversions
+        speed = 4
+        # deltaX = 1 or deltaY = 1 may lead to an incorrect move, due to int/float conversions
         # in setPosition() and setCropTool()
         deltaX, deltaY = speed * deltaX, speed * deltaY  # parent widget coord.
 
@@ -524,6 +516,7 @@ class rotatingHandle(baseHandle):
             return
 
         form = self.tool.getForm()
+        T = QTransform()
         if form.options['Free']:
             pass
         elif form.options['Rotation']:
@@ -531,80 +524,27 @@ class rotatingHandle(baseHandle):
             v = QPointF(self.posRelImg.x() - center.x(), self.posRelImg.y() - center.y())
             v0 = QPointF(self.posRelImg_frozen.x() - center.x(), self.posRelImg_frozen.y() - center.y())
             theta = (np.arctan2(v.y(), v.x()) - np.arctan2(v0.y(), v0.x())) * 180.0 / np.pi
-            T = QTransform()  # self.tool.geoTrans_ori)
+            #T = QTransform()  # self.tool.geoTrans_ori)
             T.translate(center.x(), center.y()).rotate(theta).translate(-center.x(), -center.y())
 
         elif form.options['Translation']:
             # translation vector (coordinates are relative to the full size image)
             p = QPointF(self.posRelImg) - QPointF(self.posRelImg_frozen)
-            T = QTransform()
+            #T = QTransform()
             T.translate(p.x(), p.y())
 
-        # update all button positions
-        q = T.map(self.tool.getFrozenQuad())
-        for i, role in enumerate(['topLeft', 'topRight', 'bottomRight', 'bottomLeft']):
-            self.tool.btnDict[role].posRelImg = q.at(i)
-            self.tool.btnDict[role].posRelImg_frozen = self.tool.btnDict[role].posRelImg
+        # update (other) tool button positions, free transformation excepted
+        if not form.options['Free']:
+            q = T.map(self.tool.getFrozenQuad())
+            for i, role in enumerate(['topLeft', 'topRight', 'bottomRight', 'bottomLeft']):
+                self.tool.btnDict[role].posRelImg = q.at(i)
+                self.tool.btnDict[role].posRelImg_frozen = self.tool.btnDict[role].posRelImg
 
-        self.tool.syncToolWithLayer()  # self.tool.moveRotatingTool()
+        self.tool.syncToolWithLayer()
         self.tool.modified = True
         self.tool.layer.applyToStack()
         self.parent().repaint()
 
-class rotatingKbHandle(rotatingHandle):
-    """
-    Active button for interactive rotations and translations  of text layer
-    """
-
-    def mouseMoveEvent(self, event):
-        """
-        Mouse move event handler.
-
-        :param event:
-        :type  event:
-        """
-        # skip hover events and programmatic moves
-        if event.buttons() == Qt.MouseButton.NoButton:
-            return
-
-        modifiers = event.modifiers()
-
-        # get new button position (relative to image
-        pos = self.mapToParent(event.position())
-        img = self.tool.layer.parentImage
-        r = img.resize_coeff(self.parent())
-        self.posRelImg = (pos - QPointF(img.xOffset, img.yOffset)) / r
-
-        deltaT = QTransform()
-
-        # Shift: rotation
-        if modifiers == Qt.KeyboardModifier.ShiftModifier:
-            center = self.tool.getTargetQuad().boundingRect().center()
-            v = self.posRelImg - center
-            v0 = self.posRelImg_frozen - center
-            # get the angle of rotation
-            delta = (np.arctan2(v.y(), v.x()) - np.arctan2(v0.y(), v0.x())) * 180.0 / np.pi
-            # get the rotation, centered on center
-            deltaT.translate(center.x(), center.y()).rotate(delta).translate(-center.x(), -center.y())
-        # Alt: translation
-        elif modifiers == Qt.KeyboardModifier.AltModifier:
-            # translation vector (coordinates are relative to the full size image)
-            deltaV = self.posRelImg - self.posRelImg_frozen
-            deltaT.translate(deltaV.x(), deltaV.y())
-
-        # update all button positions
-        q = deltaT.map(self.tool.getFrozenQuad())
-        for i, role in enumerate(['topLeft', 'topRight', 'bottomRight', 'bottomLeft']):
-            self.tool.btnDict[role].posRelImg = q.at(i)
-            self.tool.btnDict[role].posRelImg_frozen = self.tool.btnDict[role].posRelImg
-
-        self.tool.syncToolWithLayer()  # self.tool.moveRotatingTool()
-        self.tool.modified = True
-
-        #self.tool.layer.applyToStack()
-        self.tool.layer.execute(l=self.tool.layer)  #, bRect=layer.uRect)
-        img.prLayer.update() #bRect=layer.uRect)
-        self.parent().repaint()
 
 class rotatingTool(baseTool):
     """
@@ -752,7 +692,7 @@ class rotatingTool(baseTool):
         # move buttons : coordinates are relative to parent widget
         x, y = self.img.xOffset, self.img.yOffset
         for btn in self.btnDict.values():
-            match btn.role:
+            match btn.role.lower():
                 case 'bottomleft': # control point is bottomleft
                     btn.move(x + btn.posRelImg.x() * r, y - btn.height() + btn.posRelImg.y() * r)
                 case 'bottomright': # control point is bottomright
@@ -774,54 +714,6 @@ class rotatingTool(baseTool):
         # self.frozenQuad = self.getTargetQuad()
         self.layer.applyToStack()
         self.parent().repaint()
-
-
-class rotatingKbTool(rotatingTool):
-    """
-    Rotating tool with keyboard modifiers support.
-    """
-
-    rotatingHandleType = rotatingKbHandle
-
-    def  syncToolWithLayer(self, syncsourceimg=True, **kwargs):  # moveRotatingTool(self, syncsourceimg=True):
-        """
-        Moves the tool buttons to their new positions, and updates
-        the transformed image.
-        """
-        super().syncToolWithLayer(syncsourceimg=syncsourceimg, **kwargs)
-
-        if syncsourceimg:
-            self.layer.sourceImg  = self.transformedSourceImg()
-
-            self.layer.execute(l=self.layer)  # , bRect=layer.uRect)
-            self.layer.parentImage.prLayer.update()  # bRect=layer.uRect)
-            self.parent().repaint()
-
-    def transformedSourceImg(self):
-        """
-        Computes the transformation defined by the origin and target quads,
-        and applies it to the layer source image.
-        :return: The transformed source image
-        :rtype: QImage
-        """
-        if self.layer.tool.textWdg.savedSourceImg:
-            inImg = self.layer.tool.textWdg.savedSourceImg.copy() #self.layer.sourceImg
-        else:
-            inImg = self.layer.sourceImg.copy()
-
-        w, h = inImg.width(), inImg.height()
-        q1Full, q2Full = self.getOriginQuad(), self.getTargetQuad()
-        T = QTransform()
-        res = QTransform.quadToQuad(q1Full, q2Full, T)
-        if not res:
-            logger.warning('applyTransform : no possible transformation')
-        # get the bounding rect of the transformed image (in the full size image coordinate system)
-        rectTrans = T.map(self.layer.rect()).boundingRect()
-        # apply the transformation and re-translate the transformed image.
-        # The resulting transformation is T and NOT that given by QImage.trueMatrix()
-        img = (inImg.transformed(T)).copy(QRect(-rectTrans.topLeft(), QSize(w, h)))
-
-        return img
 
 
 class blueTextEdit(QPlainTextEdit):  #QLabel):
@@ -847,14 +739,6 @@ class blueTextEdit(QPlainTextEdit):  #QLabel):
         self.setAttribute(Qt.WA_NoMousePropagation)  # otherwise, right click propagates to parent, I don't know why !
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        #pl = self.palette()
-        #textColor = pl.color(QPalette.WindowText )
-        #pl.setBrush(QPalette.Window, QBrush(QColor(255, 0, 255, 255)))
-        #pl.setColor(QPalette.WindowText, QColor(0,255,0))
-        #self.setPalette(pl)
-        #self.setPalette(Pl)
-        #self.setMouseTracking(True)
-        #self.setStyleSheet("QPlainTextEdit {background-color: white; color: red;}")
         self.iniFont = QFont('Arial', 40)
         self.setFont(self.iniFont)
         self.iniFontInfo = QFontInfo(self.iniFont)
@@ -867,7 +751,6 @@ class blueTextEdit(QPlainTextEdit):  #QLabel):
         self.contextMenu = None
         self.syncWithTool(zooming=True)  #####################
         self.modificationChanged.connect(self.onModificationChanged)
-        #self.textChanged.connect(lambda b=True : self.onModificationChanged(b))
         self.document().setModified(False)
 
     def onModificationChanged(self, changed):
@@ -953,9 +836,6 @@ class blueTextEdit(QPlainTextEdit):  #QLabel):
                 dlgWarn("sync Text size exceeds editor size", "Please reduce font size or remove some text")
 
         textwdgtopleft = self.tool.textWdg.getRectRelImg().topLeft()
-
-        # self.targetLayer.textTransform = QTransform().translate(textwdgtopleft.x(), textwdgtopleft.y())
-
         center = self.tool.textWdg.getRectRelImg().center()
         T = self.targetLayer.textTransform
         a = np.atan2(T.m12(), T.m11())
@@ -986,13 +866,8 @@ class blueTextEdit(QPlainTextEdit):  #QLabel):
         """
         Hides the text editor and paint text on layer.
         """
-        #self.drawText()
         for btn in self.tool.btnDict.values():
             btn.hide()
-        rottool_visible = self.targetLayer.visible and self.targetLayer.isActiveLayer()
-        self.tool.rottool.setVisible(rottool_visible)
-        if rottool_visible:
-            self.tool.rottool.syncToolWithLayer()
         super().hide()
 
     def show(self):
@@ -1139,20 +1014,6 @@ class blueTextEdit(QPlainTextEdit):  #QLabel):
         layout = block.layout()
         layoutbr = layout.boundingRect()
 
-        """
-        layout.beginLayout()
-        line = layout.createLine()
-        if (line.isValid()):
-            line.setLineWidth(500)  # Set a generous width
-            line.setPosition(QPointF(0, 0))
-        layout.endLayout()
-        layoutbr = layout.boundingRect()
-
-        runs = layout.glyphRuns()  # to ensure layout is built
-        fmt = layout.glyphRuns()[0].format()
-        text = layout.glyphRuns()[0].text()
-        font = fmt.font()
-        """
         itemlist = []
         cursor = QTextCursor(block)
         it = cursor.block().begin()
@@ -1191,11 +1052,9 @@ class blueTextEdit(QPlainTextEdit):  #QLabel):
             case _:
                 centerOffset = 0
         T = QTransform()
-        #T.translate(centerOffset+1.5, offset - maxdescent)  #  +1 to avoid antialiasing artifacts on left edge
-        T.translate(centerOffset + 1.5, - maxdescent)  # +1 to avoid antialiasing artifacts on left edge
+        T.translate(centerOffset + 1.5, - maxdescent)  # +1.5 to avoid antialiasing artifacts on left edge
 
         qp.save()
-
         for item in itemlist:
             path = T.map(item[0])  # map path
             if self.targetLayer.getGraphicsForm().listWidget1.options['Font Color']:  # Brush Fill
@@ -1207,20 +1066,8 @@ class blueTextEdit(QPlainTextEdit):  #QLabel):
                 brush = QBrush(color)
                 qp.setBrush(brush)
                 pen = QPen(item[1].color())
-                #pen.setWidth(4)
                 qp.setPen(pen)
-
-            """
-            layout = block.layout()
-            layoutbr = layout.boundingRect()
-            metrics = QFontMetrics(font)
-            textrect = metrics.boundingRect(text)
-            qpbr = layoutbr.adjusted(0, metrics.ascent(), 0, metrics.ascent())
-            """
             qp.drawPath(path)  # contour color : pen  fill color :brush
-        #qp.save()
-        #qp.setFont(font)
-        #qp.drawText(qpbr.topLeft(), text)  # color: brush
         qp.restore()
 
     def snap(self, qp):
@@ -1231,25 +1078,16 @@ class blueTextEdit(QPlainTextEdit):  #QLabel):
         :type qp: QPainter
         """
         qp.save()
-        #qp.setRenderHint(QPainter.RenderHint.Antialiasing)
-        #qp.setRenderHint(QPainter.RenderHint.TextAntialiasing)
         offset = 1.5 # self.document().documentMargin()  +1  # to avoid antialiasing artifacts on top edge
-        #qpoffset = offset + QFontMetrics(self.font()).ascent()
         block = self.document().firstBlock()
         while block.isValid():
-            # paint block
+            # draw block
             blockbr = self.blockBoundingRect(block)
-            layout = block.layout()  # QTextLayout
-            fmt = block.blockFormat()
-            #fmt.setAlignment(Qt.AlignmentFlag.AlignCenter)
             try:
                 self.snapBlock(qp, offset, block)
             except ValueError:
                 pass
-
-            #layout.draw(qp, QPointF(0, offset))
-            offset += blockbr.height() #/ 2  # because of newline
-            #qpoffset += blockbr.height()
+            offset += blockbr.height()
             block = block.next()
         qp.restore()
 
@@ -1262,38 +1100,19 @@ class blueTextEdit(QPlainTextEdit):  #QLabel):
         qp = QPainter(layer.sourceImg)
         qp.setRenderHint(QPainter.RenderHint.Antialiasing)
         qp.setRenderHint(QPainter.RenderHint.TextAntialiasing)
-        targetRect = self.tool.textWdg.getRectRelImg()
+        # clear layer (or text area?)
         qp.save()
         qp.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
-        # clear target
         qp.fillRect(self.targetLayer.sourceImg.rect(), QColor(0, 0, 0, 0))
+        #targetRect = self.tool.textWdg.getRectRelImg()
         #qp.fillRect(targetRect, QColor(0, 0, 0, 0))
         qp.restore()
 
-        # p.setCompositionMode(QPainter.CompositionMode.CompositionMode_DestinationOut)
-        # p.setOpacity(0.5)
-        #qp.setPen(Qt.red)  # default text color
-        #qp.setBrush(QColor(0,0,0,0)) #(Qt.yellow)  # default text fill color
-        #qp.translate(targetRect.topLeft())
-
+        # qp uses editor (widget)  coordinates to draw text
         r = self.tool.img.resize_coeff(self.parent())
-
-        textwdgtopleft = self.tool.textWdg.getRectRelImg().topLeft()
-
-        #self.targetLayer.textTransform = QTransform().translate(textwdgtopleft.x(), textwdgtopleft.y())
-        #self.targetLayer.textTransform.translate(-self.targetLayer.textTransform.dx(), -self.targetLayer.textTransform.dy())
-        if self.targetLayer.textTransform.isIdentity():
-            self.targetLayer.textTransform.translate(textwdgtopleft.x(), textwdgtopleft.y())
-
-        qp.scale(1.0 / r, 1.0 / r)  # now, qp uses editor (widget)  coordinates
-
-        # paint text
+        qp.scale(1.0 / r, 1.0 / r)
         self.snap(qp)
-
         qp.end()
-
-        # save the source image with unmodified text (for further transformations)
-        self.tool.layer.tool.textWdg.savedSourceImg = layer.sourceImg.copy(layer.sourceImg.rect())
 
         # update layer stack
         img = layer.parentImage
@@ -1325,33 +1144,39 @@ class textAreaWidget(QWidget):
         :type  parent: QWidget
         """
         super().__init__(parent)
-        #self.setAttribute(Qt.WA_NoMousePropagation)  # propagation to parent is needed for image zooming an panning
-        #self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint)
-        #self.setAttribute(Qt.WA_NoSystemBackground)
-        #self.setAttribute(Qt.WA_TranslucentBackground)
-        #self.setAttribute(Qt.WA_PaintOnScreen)
         self.tool = tool
-        self.text = 'processing...  '
-        self.paintText = False
+        #self.text = 'processing...  '
+        #self.paintText = False
         self.State = {'ix': 0, 'iy': 0}
 
         self.setWhatsThis(
             """
-            Right click to open the editor
+            <b>Text area</b><br>
+            The <i>text area</i> is a transparent widget, surrounded by a red frame (not visible on the final image).
+            It includes a <i>text editor</i>  to edit current text, select alignment, fonts, colors. 
+            Closing the editor results in the current text being drawn on the layer.<br><br>
+            
+            To <b>open the editor</b> right-click anywhere inside the text area.<br>
+            To <b>open the context menu</b> right-click inside the editor window.<br>
+            To <b>close the editor</b> right-click anywhere outside the text area.<br><br>
+            
+            To <b>move the text</b> drag the text area with the mouse.<br>
+            To <b>rotate the text</b>, ctrl+drag the text area with the mouse.
+            The rotated text is not clipped to the text area.<br><br>
+            
+            To <b>resize the text area</b>, open the editor and drag the top-left or bottom-right buttons.
             """
-        )
-        self.setToolTip(
-            """
-            Right click to open the editor
-            """
-        )
+                        )
+
+        self.setToolTip("Right-Click to open the editor")
+
         self.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
         self.menu = QMenu(self)
         action = QAction("Show Editor", self)
         self.menu.addAction(action)
         action.triggered.connect(self.showEditor)
         self.__editorInstance = None
-        self.savedSourceImg = None
+        #self.savedSourceImg = None
         self.targetLayer = targetLayer
 
     def clearStrokedText(self):
@@ -1367,16 +1192,18 @@ class textAreaWidget(QWidget):
         img.prLayer.update(bRect=layer.rect())
         self.parent().repaint()
 
+    """
     def updateText(self):
         self.text = self.editorInstance.toPlainText()
         self.repaint()
+    """
 
     def showEditor(self):
         #self.paintText = True
         #if not self.editorInstance:
             #self.editorInstance = self.getEditorInstance()
         self.clearStrokedText()
-        self.tool.rottool.hideTool()
+        #self.tool.rottool.hideTool()
         self.editorInstance.show()
         self.tool.syncToolWithLayer(syncsourceimg=False)
 
@@ -1390,7 +1217,7 @@ class textAreaWidget(QWidget):
         """
         if not self.__editorInstance:
             self.__editorInstance = blueTextEdit(tool=self.tool, parent=self.parent())
-            self.__editorInstance.textChanged.connect(lambda: self.updateText())
+            #self.__editorInstance.textChanged.connect(lambda: self.updateText())
         return self.__editorInstance
 
     def getRectRelImg(self):
@@ -1426,13 +1253,6 @@ class textAreaWidget(QWidget):
         pen.setWidth(3)
         p.setPen(pen)
         p.drawRect(self.rect())
-        """
-        r = self.tool.img.resize_coeff(self.parent())
-        p.scale(r, r)
-        rectangle = QRect(0,0, self.width()/r, self.height()/r)
-        if self.paintText:
-            p.drawText(rectangle, Qt.AlignmentFlag.AlignCenter, self.text)
-        """
 
     def mousePressEvent(self, event):
         globalpos = event.globalPosition().toPoint()
@@ -1443,6 +1263,7 @@ class textAreaWidget(QWidget):
         event.accept()
 
     def mouseMoveEvent(self, event):
+        event.accept()
         globalpos = event.globalPosition().toPoint()
         delta = globalpos - QPoint(self.State['ix'], self.State['iy'])
 
@@ -1458,32 +1279,23 @@ class textAreaWidget(QWidget):
             # rotation around center
             rot = QTransform().translate(-center.x(), -center.y()) * QTransform().rotateRadians(angle2 - angle1) * QTransform().translate(center.x(), center.y())
             self.targetLayer.textTransform = self.targetLayer.textTransform * rot # rot must be right = last applied
-            #self.targetLayer.textTransform.translate(center.x(), center.y()).rotateRadians(angle2 - angle1).translate(-center.x(), -center.y())
-
         else:
             # translation
-            self.move(self.pos() + delta)
-            delta = delta.toPointF() / r  # image coordinates
-            #a = np.acos(self.targetLayer.textTransform.m11())
-            #center = (self.rect().center() - QPoint(img.xOffset, img.yOffset)).toPointF() / r
-            #center = center.toPoint()
-            #dx, dy = self.targetLayer.textTransform.dx(), self.targetLayer.textTransform.dy()
-            #T = QTransform().translate(delta.x()+dx, delta.y()+dy)
-            #T.translate(center.x(), center.y()).rotateRadians(a).translate(-center.x(), -center.y())
-            #T.rotateRadians(a)
-            self.targetLayer.textTransform = self.targetLayer.textTransform * QTransform().translate(delta.x(), delta.y())
-            #self.targetLayer.textTransform = QTransform().translate(delta.x(), delta.y()) * self.targetLayer.textTransform  #test ???
-            #T = self.targetLayer.textTransform.translate(delta.x(), delta.y())
-            #self.targetLayer.textTransform = T
+            newpos = self.pos() + delta
+            imgrect = QRectF(img.xOffset, img.yOffset, img.width() * r, img.height() * r)
+            if imgrect.contains(self.rect().translated(newpos)):
+                self.move(newpos)
+                delta = delta.toPointF() / r  # image coordinates
+                self.targetLayer.textTransform = self.targetLayer.textTransform * QTransform().translate(delta.x(), delta.y())
 
         self.State['ix'] = globalpos.x()
         self.State['iy'] = globalpos.y()
 
-        self.targetLayer.execute(l=self.tool.layer)  # , bRect=layer.uRect)
-        self.parent().img.prLayer.update()  # bRect=layer.uRect)
+        self.targetLayer.execute(l=self.tool.layer)
+        self.parent().img.prLayer.update()
         self.parent().repaint()
 
-        event.accept()
+
 
     def mouseReleaseEvent(self, event):
         self.syncTool()
@@ -1501,147 +1313,3 @@ class textAreaWidget(QWidget):
                 btn.move(self.pos() + QPoint(self.width(), self.height()))
                 btn.posRelImg = (btn.pos().toPointF() - QPointF(img.xOffset, img.yOffset)) / r
         self.editorInstance.move(self.pos())
-"""
-QTextCursor cursor(myTextEdit->textCursor());
-
-// change block format (will set the yellow background)
-QTextBlockFormat blockFormat = cursor.blockFormat();
-blockFormat.setBackground(QColor("yellow"));
-blockFormat.setNonBreakableLines(true);
-blockFormat.setPageBreakPolicy(QTextFormat::PageBreak_AlwaysBefore);
-cursor.setBlockFormat(blockFormat);
-
-// change font for current block's fragments
-for (QTextBlock::iterator it = cursor.block().begin(); !(it.atEnd()); ++it)
-{
-    QTextCharFormat charFormat = it.fragment().charFormat();
-    charFormat.setFont(QFont("Times", 15, QFont::Bold));
-
-    QTextCursor tempCursor = cursor;
-    tempCursor.setPosition(it.fragment().position());
-    tempCursor.setPosition(it.fragment().position() + it.fragment().length(), QTextCursor::KeepAnchor);
-    tempCursor.setCharFormat(charFormat);
-
-// For block management
-QTextDocument *doc = new QTextDocument(this);
-ui->textEdit->setDocument(doc);  // from QTextEdit created by the Designer
-//-------------------------------------------------
-// Locate the 1st block
-QTextBlock block = doc->findBlockByNumber(0);
-
-// Initiate a copy of cursor on the block
-// Notice: it won't change any cursor behavior of the text editor, since it 
-//         just another copy of cursor, and it's "invisible" from the editor.
-QTextCursor cursor(block);
-
-// Set background color
-QTextBlockFormat blockFormat = cursor.blockFormat();
-blockFormat.setBackground(QColor(Qt::yellow));
-cursor.setBlockFormat(blockFormat);
-
-// Set font
-for (QTextBlock::iterator it = cursor.block().begin(); !(it.atEnd()); ++it)
-{
-    QTextCharFormat charFormat = it.fragment().charFormat();
-    charFormat.setFont(QFont("Times", 15, QFont::Bold));
-
-    QTextCursor tempCursor = cursor;
-    tempCursor.setPosition(it.fragment().position());
-    tempCursor.setPosition(it.fragment().position() + it.fragment().length(), QTextCursor::KeepAnchor);
-    tempCursor.setCharFormat(charFormat);
-    
-QTextEdit myEdit;
-QTextDocument* myDocument = new QTextDocument(&myEdit);
-myEdit.setDocument(myDocument);
-QTextCursor* myCursor = new QTextCursor(myDocument);
-
-QTextBlockFormat format;
-format.setBackground(Qt::red);
-myCursor->setBlockFormat(format);
-
-myCursor->insertText("the ");
-
-format.setBackground(Qt::green);
-myCursor->insertBlock(format);
-myCursor->insertText("fish ");
-
-format.setBackground(Qt::yellow);
-myCursor->insertBlock(format);
-myCursor->insertText("are ");
-
-format.setBackground(Qt::red);
-myCursor->insertBlock(format);
-myCursor->insertText("coming!");
-
-format.setBackground(Qt::green);
-myCursor->insertBlock(format);
-myCursor->insertText(QString(%1 blocks").arg(myDocument->blockCount()));
-myEdit.show();
-
-def handleSelectionChanged(self):
-    cursor = self.edit.textCursor()
-    print ("Selection start: %d end: %d" % 
-           (cursor.selectionStart(), cursor.selectionEnd()))
-           
-void TextEditor::snap(QPixmap &map)
-{
-    QPainter painter(&map);
-
-    int offset = 0;
-    block = document()->firstBlock();
-
-    while (block.isValid())
-    {
-        QRectF r = blockBoundingRect(block);
-        QTextLayout *layout = block.layout();
-
-        if (!block.isVisible())
-        {
-            offset += r.height();
-            block = block.next();
-            continue;
-        }
-        else
-        {
-            layout->draw(&painter, QPoint(0,offset));
-        }
-
-        offset += r.height();
-
-        block = block.next();
-    }
-}
-
-cursor.beginEditBlock();
-for (QTextBlock block = startBlock; block != endBlock; block = block.next()) {
-    cursor.setPosition(block.position());
-    cursor.setPosition(block.position() + 2, QTextCursor::KeepAnchor);
-    cursor.removeSelectedText();
-}
-cursor.endEditBlock();
-
-
- virtual void paintEvent(QPaintEvent *event) override
-    {
-        QPainter painter(this);
-        painter.setRenderHint( QPainter::Antialiasing, true );
-        painter.drawRect(rect());
-        QFont font;
-
-        font.setPointSize( 12 );
-        font.setStyleStrategy( QFont::StyleStrategy::PreferAntialias );
-        painter.setFont( font );
-
-        QRect m_window = QRect(- width() / 2, - height() / 2, width(), height());
-        painter.setWindow( m_window );
-        QRect m_viewport = QRect(0, 0, width(), height());
-        painter.setViewport( m_viewport );
-        // rotate
-        painter.rotate( 80 );
-        //draw text
-        QPainterPath glyphPath;
-        glyphPath.addText( 0, 0, painter.font(), "TEXT" );
-        painter.fillPath( glyphPath, painter.pen().color() );
-
-    }
-"""

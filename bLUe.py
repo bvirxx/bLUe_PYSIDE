@@ -363,7 +363,7 @@ def addAdjustmentLayers(img, layers, images):
         t = type(layer)
         # All layers managing images should be subclasses of QLayer.
         # To handle multiple images n should be a tuple of binary values
-        if t in [QLayerImage, QDrawingLayer, QCloningLayer]:
+        if t in [QLayerImage, QDrawingLayer, QTextLayer, QCloningLayer]:
             try:
                 buf = images.asarray()[count]
                 buf = buf.reshape(layer.height(), layer.width(), 4)
@@ -1513,7 +1513,7 @@ def layerScripting(name, window=bLUeTop.Gui.window, sname=None, script=False):
         processedImg = window.label.img
         w, h = processedImg.width(), processedImg.height()
         imgNew = QImage(w, h, QImage.Format.Format_ARGB32)
-        imgNew.fill(Qt.white)
+        imgNew.fill(QColor(0, 0, 0, 0))
         lname = 'Drawing'
         layer = window.label.img.addAdjustmentLayer(name=gn(lname), layerType=QDrawingLayer, sourceImg=imgNew,
                                                     role='DRW')
