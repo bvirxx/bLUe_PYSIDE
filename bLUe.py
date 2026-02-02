@@ -1824,31 +1824,31 @@ def closeTabs(index=None, window=bLUeTop.Gui.window):
 
     try:
         window.tabBar.currentChanged.disconnect()  # To prevent crashes, signal slot executions must be synchronized.
-        if closeAllRequested:                      # So, we use direct calls to switchDoc.
-            while window.tabBar.count() > 0:
-                ind = window.tabBar.currentIndex()
-                img = window.tabBar.tabData(ind)
-                canclose = canCloseTab(ind, img)
-                if canclose:
-                    deleteTab(ind, img)
-                else:
-                    break
-        else:
-            ind = window.tabBar.currentIndex()
-            if ind == index:
-                img = window.tabBar.tabData(ind)
-                canclose = canCloseTab(ind, img)
-                if canclose:
-                    deleteTab(ind, img)
-            else:
-                window.tabBar.setCurrentIndex(index)
-                switchDoc(index)
-    except RuntimeError:  # possible disconnect error
+    except RuntimeError:
         pass
-    finally:
-        window.tabBar.currentChanged.connect(switchDoc)
-        return window.tabBar.count() == 0
-    
+    if closeAllRequested:                      # So, we use direct calls to switchDoc.
+        while window.tabBar.count() > 0:
+            ind = window.tabBar.currentIndex()
+            img = window.tabBar.tabData(ind)
+            canclose = canCloseTab(ind, img)
+            if canclose:
+                deleteTab(ind, img)
+            else:
+                break
+    else:
+        ind = window.tabBar.currentIndex()
+        if ind == index:
+            img = window.tabBar.tabData(ind)
+            canclose = canCloseTab(ind, img)
+            if canclose:
+                deleteTab(ind, img)
+        else:
+            window.tabBar.setCurrentIndex(index)
+            switchDoc(index)
+
+    window.tabBar.currentChanged.connect(switchDoc)
+    return window.tabBar.count() == 0
+
 
 def updateStatus(window=bLUeTop.Gui.window):
     """

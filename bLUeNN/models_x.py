@@ -3,9 +3,9 @@
 # The original file can be distributed and/or modified under the terms of the Apache-2.0 License.             #
 ##############################################################################################################
 
-import torch.nn as nn
-import torch
 
+import torch
+import torch.nn as nn
 import numpy as np
 
 from bLUeCore.cartesian import cartesianProduct

@@ -25,7 +25,7 @@ from json import load
 import importlib
 
 HAS_TORCH = importlib.util.find_spec("torch") is not None and importlib.util.find_spec("torchvision") is not None
-HAS_GENAI = importlib.util.find_spec("google.genai") is not None
+HAS_GENAI = importlib.util.find_spec("google") is not None
 
 ########################
 # read configuration file

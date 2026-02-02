@@ -337,11 +337,11 @@ class imageLabel(QLabel):
         x, y = event.position().x(), event.position().y()
         modifiers = event.modifiers()
 
-        if (event.buttons() == Qt.MouseButton.NoButton) != (not self.pressed):
-            print(event.buttons(), not self.pressed, self.mouseGrabber())
+        #if (event.buttons() == Qt.MouseButton.NoButton) != (not self.pressed):
+            #print(event.buttons(), not self.pressed, self.mouseGrabber())
+        
         # hover event
         if event.buttons() == Qt.MouseButton.NoButton:  #not self.pressed:
-
             x_img, y_img = (x - img.xOffset) / r, (y - img.yOffset) / r
             # read input and current colors from active layer (coordinates are relative to the full-sized image)
             clr = img.getActivePixel(x_img, y_img, qcolor=True)

@@ -25,7 +25,6 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QPainter, QImage
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QFileDialog, QPlainTextEdit, QHBoxLayout, QApplication
 from PIL import Image, ImageDraw
-from google.genai.errors import APIError
 
 from bLUeGui.bLUeImage import QImageBuffer
 from bLUeGui.dialog import dlgWarn
@@ -58,6 +57,7 @@ def parse_json(json_output: str):
 def extract_segmentation_masks(aitool):
     img = aitool.inputImg
     if bLUeTop.settings.HAS_GENAI:
+        from google.genai.errors import APIError
         from google import genai
         from google.genai import types
     else:
