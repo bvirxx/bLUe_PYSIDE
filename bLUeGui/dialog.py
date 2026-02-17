@@ -19,10 +19,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import textwrap
 from os.path import basename, dirname, isfile
 
-from PySide6.QtCore import Qt, QDir, QSize
+from PySide6.QtCore import Qt, QDir, QSize, QIdentityProxyModel
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QMessageBox, QPushButton, QFileDialog, QDialog, QSlider, QVBoxLayout, QHBoxLayout, QLabel, \
-    QCheckBox, QFormLayout, QLineEdit, QDialogButtonBox, QScrollArea, QProgressDialog, QSizePolicy, QToolButton, QWidget
+    QCheckBox, QFormLayout, QLineEdit, QDialogButtonBox, QScrollArea, QProgressDialog, QSizePolicy, QToolButton, \
+    QWidget
 
 from bLUeTop import Gui
 from bLUeTop.utils import QbLUeSlider, stateAwareQDockWidget, fileRoot
@@ -561,6 +562,18 @@ class QblueFileDialog(QFileDialog):
     def done(self, r):
         self.dock.close()
         super().done(r)
+
+
+class proxyFileDialog(QblueFileDialog):
+    """
+    Dockable QFileDialog with a QIdentityProxyModel as proxy model. The proxy signals can be used to track the file
+    dialog state (including external changes) and update the UI accordingly.
+    """
+    def __init__(self , *args):
+        super().__init__(*args)
+        self.proxy = QIdentityProxyModel()
+        self.setProxyModel(self.proxy)
+
 
 def save3DLUTDlg(mainForm):
     """
