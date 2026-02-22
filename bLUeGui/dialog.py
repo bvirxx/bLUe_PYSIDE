@@ -524,7 +524,6 @@ class QblueFileDialog(QFileDialog):
         self.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
 
         # only display 'Parent Dir' button
-        # historyBtnNames = ['forwardButton', 'backButton', 'toParentButton', 'newFolderButton', 'listModeButton', 'detailModeButton']
         historyBtnNames = ['forwardButton', 'backButton', 'newFolderButton', 'listModeButton', 'detailModeButton']
         for name in historyBtnNames:
             btn = self.findChild(QToolButton, name)
@@ -535,6 +534,13 @@ class QblueFileDialog(QFileDialog):
         if btn:
             btn.setIcon(QIcon())
             btn.setText('\u25B2')  # up arrow
+            btn.setToolTip('Parent Directory (Ctrl+Up)')
+
+        labelNames = ['lookInLabel', 'fileNameLabel', 'fileTypeLabel']
+        for name in labelNames:
+            label = self.findChild(QLabel, name)
+            if label:
+                label.setVisible(False)
 
         # hide left column
         sidebar = self.findChild(QWidget, 'sidebar')

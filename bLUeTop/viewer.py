@@ -42,7 +42,7 @@ from bLUeTop.imLabel import slideshowLabel
 from bLUeTop.utils import stateAwareQDockWidget, imagej_description_metadata, fileExt, sortPushButton, \
     QbLUePushButton, restricted_loads
 from bLUeGui.dialog import IMAGE_FILE_EXTENSIONS, RAW_FILE_EXTENSIONS, BLUE_FILE_EXTENSIONS, dlgWarn, \
-    HEIF_FILE_EXTENSIONS, QblueFileDialog, IMAGE_FILE_NAME_FILTER
+    HEIF_FILE_EXTENSIONS, IMAGE_FILE_NAME_FILTER, proxyFileDialog
 
 # global variable recording diaporama state
 isSuspended = False
@@ -458,13 +458,30 @@ class viewer(QObject):
     def currentFromSettings(self, mainWin=None):
         return mainWin.settings.value('paths/dlgdir', '.')
 
+    def connectProxySignals(self):
+        self.fileDlg.proxy.rowsInserted.connect(lambda *args: self.refreshViewer())
+        self.fileDlg.proxy.rowsRemoved.connect(lambda *args: self.refreshViewer())
+        self.fileDlg.proxy.sourceModel().fileRenamed.connect(lambda *args: self.refreshViewer())
+
+    def disconnectProxySignals(self):
+        try:
+            self.fileDlg.proxy.rowsInserted.disconnect()
+            self.fileDlg.proxy.rowsRemoved.disconnect()
+            self.fileDlg.proxy.sourceModel().fileRenamed.disconnect()
+        except RuntimeError:
+            pass
+
     def initFileDlg(self):
         #lastDir = self.currentFromSettings(mainWin=bLUeTop.Gui.window)
-        fileDlg = QblueFileDialog(bLUeTop.Gui.window, "Select a folder", self.currentDir)
+        fileDlg = proxyFileDialog(bLUeTop.Gui.window, "Select a folder", self.currentDir)
         fileDlg.setNameFilters(IMAGE_FILE_NAME_FILTER + ['All files (*)'])
         fileDlg.setFileMode(QFileDialog.FileMode.Directory)
-        fileDlg.setOption(QFileDialog.Option.ShowDirsOnly)
+        fileDlg.setViewMode(QFileDialog.ViewMode.List)
+        #fileDlg.setOption(QFileDialog.Option.ShowDirsOnly)
+        #fileDlg.setOption(QFileDialog.Option.ReadOnly)  # disable file creation and renaming
         fileDlg.setLabelText(QFileDialog.DialogLabel.Accept, 'Close')  # accept button
+        fileDlg.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
+
         fileDlg.setWhatsThis(
             """
             The <b>bLUe File Explorer</b> is composed of two synchronized windows.
@@ -473,6 +490,7 @@ class viewer(QObject):
             <li> All image files in the current directory, including raw files and blu files,
             are shown as icons in the bottom window.
             </UL>
+            Drag and drop an icon into the main window to open the corresponding image.<br>
             Use <i>Ctrl+L</i> to open or reopen the file explorer.
             """
         )
@@ -482,10 +500,12 @@ class viewer(QObject):
 
         fileDlg.directoryEntered.connect(self.showViewer)
         fileDlg.finished.connect(self.finishedSlot)
+        QApplication.processEvents()  # purge signals  before connecting proxy.
+        self.connectProxySignals()
 
     def finishedSlot(self, result):
         self.recordDir()
-        self.listWdg.setVisible(False)
+        self.setVisible(False)
 
     def initWins(self):
         listWdg = dragQListWidget()
@@ -633,26 +653,28 @@ class viewer(QObject):
         if bool(selectionList):
             self.listWdg.scrollToItem(selectionList[0], QAbstractItemView.ScrollHint.PositionAtTop)
 
-    def playViewer(self, folder):
+    def loadThumbs(self, folder):
         """
-        Displays all images from folder.
+        Loads and displays all thumbs in folder.
 
         :param folder: path to folder
         :type folder: str
         """
         try:
+            self.disconnectProxySignals()
             fileListGen = self.doGen(folder)
             self.listWdg.clear()
             self.listViewDock.setWindowTitle(folder)
             self.titleLabel.setText(folder)
             self.listWdg.showMaximized()
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-            QApplication.processEvents()  # to immediately update the listWdg and the GUI
             loader(fileListGen, self).load()
         except (FileNotFoundError, NotADirectoryError):
             pass
         finally:
             QApplication.restoreOverrideCursor()
+            QApplication.processEvents()  # to immediately update the listWdg and the GUI
+            self.connectProxySignals()
 
     def setVisible(self, visible):
         """
@@ -679,17 +701,22 @@ class viewer(QObject):
             self.setVisible(True)
 
         if self.currentDir != aDir:
+            self.currentDir = aDir
+
+            self.disconnectProxySignals()
             self.fileDlg.setDirectory(aDir)
+            self.connectProxySignals()
+
             self.fileDlg.setWindowTitle(aDir)
             self.fileDlgDock.setWindowTitle(self.fileDlg.windowTitle())
             self.fileDlg.repaint()  # needed to immediately display the file list
-            self.playViewer(aDir)
+            self.loadThumbs(aDir)
 
     def refreshViewer(self):
         """
         Reloads the current directory
         """
-        self.playViewer(self.currentDir)
+        self.loadThumbs(self.currentDir)
 
     def recordDir(self):
         self.currentToSettings(mainWin=bLUeTop.Gui.window)
